@@ -78,6 +78,14 @@ impl OnboardingService {
                     message: "Failed to store hkask-db-passphrase".into(),
                 })?;
         }
+        // REQ: P9-CNS-SVC-040 pre: valid passphrase, post: cns.onboarding span emitted
+        // P9: CNS span
+        tracing::info!(
+            target: "cns.onboarding",
+            operation = "secrets_derived",
+            stored = store,
+            "CNS"
+        );
         Ok(ResolvedSecrets {
             a2a_secret: secrets.a2a_secret.clone(),
             db_passphrase: secrets.capability_key.clone(),
@@ -102,7 +110,9 @@ impl OnboardingService {
         store.initialize_schema()?;
 
         // A2A state restoration: reload registered agents from the store
-        let registered_agents = store.list().map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })?;
+        let registered_agents = store.list().map_err(|e| ServiceError::AgentRegistryStore {
+            message: e.to_string(),
+        })?;
         if !registered_agents.is_empty() {
             let agents: Vec<hkask_agents::a2a::A2AAgent> = registered_agents
                 .iter()
@@ -122,8 +132,19 @@ impl OnboardingService {
             let tokens = std::collections::HashMap::new();
             a2a.restore_from_storage(agents, tokens)
                 .await
-                .map_err(|e| ServiceError::A2A { message: e.to_string() })?;
+                .map_err(|e| ServiceError::A2A {
+                    message: e.to_string(),
+                })?;
         }
+
+        // REQ: P9-CNS-SVC-041 pre: valid config, post: cns.onboarding span emitted
+        // P9: CNS span
+        tracing::info!(
+            target: "cns.onboarding",
+            operation = "registry_initialized",
+            agent_count = registered_agents.len(),
+            "CNS"
+        );
 
         Ok(RegistryHandle { a2a, store })
     }
@@ -167,7 +188,9 @@ impl OnboardingService {
         let token = a2a
             .register_agent(webid, AgentKind::Replicant, default_capabilities.clone())
             .await
-            .map_err(|e| ServiceError::A2A { message: e.to_string() })?;
+            .map_err(|e| ServiceError::A2A {
+                message: e.to_string(),
+            })?;
 
         let definition = AgentDefinition {
             name: display_name,
@@ -196,7 +219,19 @@ impl OnboardingService {
 
         store
             .insert(&registered)
-            .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })?;
+            .map_err(|e| ServiceError::AgentRegistryStore {
+                message: e.to_string(),
+            })?;
+
+        // REQ: P9-CNS-SVC-042 pre: valid registration, post: cns.onboarding span emitted
+        // P9: CNS span
+        tracing::info!(
+            target: "cns.onboarding",
+            operation = "replicant_registered",
+            name = %registered.definition.name,
+            webid = %webid,
+            "CNS"
+        );
 
         Ok(())
     }
@@ -211,9 +246,14 @@ impl OnboardingService {
         store: &AgentRegistryStore,
         profile: &UserProfile,
     ) -> Result<(), ServiceError> {
+        // REQ: P9-CNS-SVC-043 pre: valid store and profile, post: cns.onboarding span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.onboarding", operation = "store_user_profile", "CNS");
         store
             .store_user_profile(profile)
-            .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })
+            .map_err(|e| ServiceError::AgentRegistryStore {
+                message: e.to_string(),
+            })
     }
 
     /// Retrieve the human user's profile from the registry.
@@ -225,9 +265,14 @@ impl OnboardingService {
     pub fn get_user_profile(
         store: &AgentRegistryStore,
     ) -> Result<Option<UserProfile>, ServiceError> {
+        // REQ: P9-CNS-SVC-044 pre: valid store, post: cns.onboarding span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.onboarding", operation = "get_user_profile", "CNS");
         store
             .get_user_profile()
-            .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })
+            .map_err(|e| ServiceError::AgentRegistryStore {
+                message: e.to_string(),
+            })
     }
 
     /// Verify sign-in: initialize the registry with the given config and
@@ -245,6 +290,9 @@ impl OnboardingService {
         agent_name: &str,
         resolved_secrets: &ResolvedSecrets,
     ) -> Result<SignInOutcome, ServiceError> {
+        // REQ: P9-CNS-SVC-045 pre: valid config and agent_name, post: cns.onboarding span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.onboarding", operation = "try_sign_in", agent = %agent_name, "CNS");
         let handle = Self::init_registry(config).await?;
 
         // Verify the replicant exists
@@ -287,6 +335,9 @@ impl OnboardingService {
     /// pre:  config.db_path must be set; returns empty Vec on any failure
     /// post: returns Vec<RegisteredAgent> of replicants; empty Vec if DB inaccessible or no replicants
     pub fn try_list_existing_replicants(config: &ServiceConfig) -> Vec<RegisteredAgent> {
+        // REQ: P9-CNS-SVC-046 pre: valid config, post: cns.onboarding span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.onboarding", operation = "try_list_existing_replicants", "CNS");
         let db_path = &config.db_path;
 
         if db_path == ":memory:" || !std::path::Path::new(db_path).exists() {
@@ -323,6 +374,9 @@ impl OnboardingService {
     /// pre:  config.db_path must be set; :memory: paths are never orphaned
     /// post: returns true if orphaned DB was cleaned up; false if DB has replicants or doesn't exist
     pub fn remove_orphaned_db(config: &ServiceConfig) -> bool {
+        // REQ: P9-CNS-SVC-047 pre: valid config, post: cns.onboarding span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.onboarding", operation = "remove_orphaned_db", "CNS");
         let db_path = &config.db_path;
         if db_path == ":memory:" {
             return false;
@@ -370,6 +424,9 @@ impl OnboardingService {
     /// pre:  config must be valid; best-effort cleanup (errors are silently ignored)
     /// post: keychain entries (a2a-secret, hkask-db-passphrase) are removed; DB and salt files deleted if not :memory:
     pub fn cleanup_failed_onboarding(config: &ServiceConfig) {
+        // REQ: P9-CNS-SVC-048 pre: valid config, post: cns.onboarding span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.onboarding", operation = "cleanup_failed_onboarding", "CNS");
         let keychain = Keychain::default();
         let _ = keychain.delete_by_key("a2a-secret");
         let _ = keychain.delete_by_key("hkask-db-passphrase");
@@ -412,6 +469,9 @@ impl OnboardingService {
         passphrase: &str,
         homeserver_url: &str,
     ) -> Result<MatrixRegistrationResult, ServiceError> {
+        // REQ: P9-CNS-SVC-049 pre: valid profile and homeserver, post: cns.onboarding span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.onboarding", operation = "register_matrix_accounts", replicant = %replicant_display_name, "CNS");
         let human_username = matrix_username_from_human(user_profile);
         let replicant_username = matrix_username_from_replicant(replicant_display_name);
 
@@ -494,6 +554,9 @@ impl OnboardingService {
     pub async fn register_system_accounts(
         homeserver_url: &str,
     ) -> Result<std::collections::HashMap<String, String>, ServiceError> {
+        // REQ: P9-CNS-SVC-050 pre: valid homeserver_url, post: cns.onboarding span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.onboarding", operation = "register_system_accounts", "CNS");
         let system_bots = [
             "curator",
             "r7-1-observer",
@@ -660,6 +723,9 @@ async fn register_on_conduit(
 /// pre:  homeserver_url must be a valid HTTP URL
 /// post: returns true if server responds with 2xx; false on connection error or non-2xx status
 pub async fn conduit_health_check(homeserver_url: &str) -> bool {
+    // REQ: P9-CNS-SVC-051 pre: valid URL, post: cns.onboarding span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.onboarding", operation = "conduit_health_check", url = %homeserver_url, "CNS");
     let url = format!(
         "{}/_matrix/client/versions",
         homeserver_url.trim_end_matches('/')

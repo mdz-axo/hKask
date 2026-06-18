@@ -107,6 +107,9 @@ pub(crate) async fn sovereignty_status(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyStatusResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-060 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "sovereignty_status", "CNS");
     let cm = &state.agent_service.sovereignty();
     let webid_str = auth.webid.to_string();
     let boundary = hkask_types::sovereignty::DataSovereigntyBoundary::hkask_default();
@@ -150,6 +153,9 @@ pub(crate) async fn sovereignty_grant_consent(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<SovereigntyConsentRequest>,
 ) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-061 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "sovereignty_grant", category = %req.category, "CNS");
     let webid_str = auth.webid.to_string();
     let cat_str = req.category;
     let cat = parse_data_category(&cat_str);
@@ -177,6 +183,9 @@ pub(crate) async fn sovereignty_revoke_consent(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-062 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "sovereignty_revoke", "CNS");
     let webid_str = auth.webid.to_string();
     let cm = &state.agent_service.sovereignty();
     cm.revoke_consent(&webid_str)?;
@@ -203,6 +212,9 @@ pub(crate) async fn sovereignty_check_access(
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<AccessCheckResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-063 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "sovereignty_check_access", "CNS");
     let cat_str = params.get("category").map(|s| s.as_str()).unwrap_or("");
     if cat_str.is_empty() {
         return Err(ServiceError::ValidationError {

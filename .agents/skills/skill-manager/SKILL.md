@@ -189,6 +189,13 @@ Report skill corpus statistics:
 - **Registry is authoritative** — when registry and SKILL.md disagree, fix SKILL.md to match registry
 - **Always** back up (git tracks changes — commit before major modifications)
 
+## Registry Templates
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `skill-manager-validate.j2` | KnowAct | Validate skills against registry format and quality checks |
+| `skill-manager-build.j2` | KnowAct | Scaffold a new registry crate from a user description |
+
 ## When to Use This Skill
 
 - "List skills" / "Show skills": Report the skill corpus from the registry

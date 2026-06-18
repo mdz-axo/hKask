@@ -59,3 +59,14 @@ When this cascade is wired into a runtime FlowDef, the FlowDef must live in `reg
 - `pragmatic-semantics` — distinguish IS from OUGHT in audit reports.
 - `essentialist` — challenge whether every line survives the deletion test.
 - `coding-guidelines` — constrain implementation to surgical, simple, goal-driven changes.
+
+## Registry Templates
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `load-goal.j2` | WordAct | Parse the goal annotation from a template or manifest |
+| `critique-template.j2` | KnowAct | Adversarial critique against stated goal |
+| `critique-critique.j2` | KnowAct | Soundness review of a critique list |
+| `compose-proposal.j2` | KnowAct | Compose a revised artifact and unified diff |
+| `user-choice.j2` | WordAct | Present proposal and capture user choice |
+| `user-review-loop.j2` | KnowAct | Plan the bounded audit cascade routing |

@@ -42,3 +42,11 @@ Use this skill to tighten a response through a bounded loop of generation, criti
 - `review` — lightweight self-critique before finalizing.
 - `skill-logic-audit` — audit the critique/revision templates themselves.
 - `constraint-forces` — classify revision findings by force type.
+
+## Registry Templates
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `generate.j2` | WordAct | Produce an initial draft and quality score |
+| `critique.j2` | KnowAct | Evaluate a draft against quality criteria |
+| `revise.j2` | KnowAct | Produce a revised draft addressing each critique |

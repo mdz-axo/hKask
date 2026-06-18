@@ -301,3 +301,15 @@ the lens of Rust's design:
 - **improve-codebase-architecture** — Finding deepening opportunities (pairs with rust-expertise for Rust-specific architecture)
 - **tdd** — Test-driven development (pairs with rust-expertise for type-first test design)
 - **diagnose** — Bug diagnosis (pairs with rust-expertise for ownership and lifetime debugging)
+
+## Registry Templates
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `rust-philosophy-assess.j2` | KnowAct | Assess a Rust design problem against philosophical foundations |
+| `rust-type-design.j2` | KnowAct | Design Rust types that make invalid states unrepresentable |
+| `rust-ownership-arch.j2` | KnowAct | Architect ownership and borrowing patterns |
+| `rust-error-design.j2` | KnowAct | Design error types as first-class citizens |
+| `rust-idiom-audit.j2` | KnowAct | Audit Rust code for idiomatic compliance |
+| `rust-safety-boundary.j2` | KnowAct | Design and audit unsafe code boundaries |
+| `rust-refactor-plan.j2` | KnowAct | Plan idiomatic refactoring toward deeper modules |

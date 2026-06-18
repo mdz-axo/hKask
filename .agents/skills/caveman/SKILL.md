@@ -39,3 +39,9 @@ Activate caveman mode when the user wants terse, token-efficient responses witho
 
 - `review` — for self-critique before compression.
 - `essentialist` — to challenge whether every fragment survives the deletion test.
+
+## Registry Templates
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `caveman-compress.j2` | WordAct | Compress a draft response into ultra-compact caveman mode |

@@ -275,3 +275,10 @@ Retirement: delete `registry/templates/<name>/` (canonical). Also delete `./agen
 | Recurring manual patterns | Suggest codifying into registry crate |
 | After installing a skill | Verify registry crate loaded and valid |
 | "Audit skill coverage" | Run template-type and hLexicon coverage audit |
+
+## Registry Templates
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `skill-discovery-detect-gap.j2` | KnowAct | Detect capability gaps in the registry corpus |
+| `skill-discovery-evaluate.j2` | KnowAct | Evaluate a candidate registry crate against criteria |

@@ -298,6 +298,9 @@ impl WalletService {
     /// pre:  wallet_id must be valid
     /// post: returns WalletBalance; Err(Wallet) on manager error
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<WalletBalance, ServiceError> {
+        // REQ: P9-CNS-SVC-001 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "get_balance", wallet_id = %wallet_id, "CNS");
         self.manager.get_balance(wallet_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
@@ -314,6 +317,9 @@ impl WalletService {
     /// pre:  wallet_id must be valid; cost_rj must be >= 0
     /// post: returns true if balance >= cost_rj; false otherwise; Err(Wallet) on manager error
     pub fn can_afford(&self, wallet_id: WalletId, cost_rj: RJoule) -> Result<bool, ServiceError> {
+        // REQ: P9-CNS-SVC-002 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "can_afford", wallet_id = %wallet_id, cost_rj = %cost_rj, "CNS");
         self.manager.can_afford(wallet_id, cost_rj).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
@@ -330,6 +336,9 @@ impl WalletService {
     /// pre:  wallet_id must be valid
     /// post: wallet row exists in store; Ok(()) on success; Err(Wallet) on manager error
     pub fn ensure_wallet(&self, wallet_id: WalletId) -> Result<(), ServiceError> {
+        // REQ: P9-CNS-SVC-003 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "ensure_wallet", wallet_id = %wallet_id, "CNS");
         self.manager.ensure_wallet(wallet_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
@@ -353,6 +362,9 @@ impl WalletService {
         chain: ChainId,
         privacy: PrivacyMode,
     ) -> Result<DepositAddress, ServiceError> {
+        // REQ: P9-CNS-SVC-004 pre: valid wallet_id and chain, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "get_deposit_address", wallet_id = %wallet_id, chain = ?chain, "CNS");
         self.manager
             .get_deposit_address(wallet_id, chain, privacy)
             .map_err(|e| {
@@ -376,6 +388,9 @@ impl WalletService {
         chain: ChainId,
         validity_hours: i64,
     ) -> Result<DepositReference, ServiceError> {
+        // REQ: P9-CNS-SVC-005 pre: valid wallet_id and chain, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "generate_deposit_reference", wallet_id = %wallet_id, chain = ?chain, "CNS");
         let duration = chrono::Duration::hours(validity_hours);
         self.manager
             .generate_deposit_reference(wallet_id, chain, duration)
@@ -400,6 +415,9 @@ impl WalletService {
         limit: u32,
         offset: u32,
     ) -> Result<Vec<WalletTransaction>, ServiceError> {
+        // REQ: P9-CNS-SVC-006 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "get_transactions", wallet_id = %wallet_id, limit = limit, offset = offset, "CNS");
         self.manager
             .get_transactions(wallet_id, limit, offset)
             .map_err(|e| {
@@ -429,6 +447,9 @@ impl WalletService {
         chain: ChainId,
         privacy: PrivacyMode,
     ) -> Result<TxHash, ServiceError> {
+        // REQ: P9-CNS-SVC-007 pre: valid webid and wallet_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "withdraw", webid = %webid, wallet_id = %wallet_id, amount_rj = %amount_rj, chain = ?chain, "CNS");
         // REQ: P2-svc-wallet-withdraw-consent-gate — P2 affirmative consent gate for withdrawal signing
         if let Some(ref cm) = self.consent_manager {
             let category = DataCategory::Custom("wallet_withdrawal".into());
@@ -484,6 +505,9 @@ impl WalletService {
         webid: &WebID,
         chain: ChainId,
     ) -> Result<WithdrawalFee, ServiceError> {
+        // REQ: P9-CNS-SVC-008 pre: valid webid and chain, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "estimate_withdrawal_fee", webid = %webid, chain = ?chain, "CNS");
         self.manager
             .estimate_withdrawal_fee(webid, chain)
             .await
@@ -510,6 +534,9 @@ impl WalletService {
         amount_usdc_micro: u64,
         chain: ChainId,
     ) -> Result<TxHash, ServiceError> {
+        // REQ: P9-CNS-SVC-009 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "shield_assets", wallet_id = %wallet_id, amount_usdc_micro = amount_usdc_micro, chain = ?chain, "CNS");
         self.manager
             .shield_assets(wallet_id, amount_usdc_micro, chain)
             .await
@@ -543,6 +570,9 @@ impl WalletService {
         purpose: String,
         rate_limit: Option<hkask_types::wallet::RateLimitConfig>,
     ) -> Result<ApiKeyMaterial, ServiceError> {
+        // REQ: P9-CNS-SVC-010 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "create_key", wallet_id = %wallet_id, purpose = %purpose, "CNS");
         self.issuer
             .create_key(
                 wallet_id,
@@ -570,6 +600,9 @@ impl WalletService {
     /// pre:  key_id must be a valid, non-revoked key
     /// post: key is revoked; unspent rJoules returned to wallet; Err(Wallet) on issuer error
     pub fn revoke_key(&self, key_id: ApiKeyId) -> Result<(), ServiceError> {
+        // REQ: P9-CNS-SVC-011 pre: valid key_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "revoke_key", key_id = %key_id, "CNS");
         self.issuer.revoke_key(key_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
@@ -586,6 +619,9 @@ impl WalletService {
     /// pre:  wallet_id must be valid
     /// post: returns Vec<ApiKeyCapability> of active keys; empty Vec if none; Err(Wallet) on issuer error
     pub fn list_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, ServiceError> {
+        // REQ: P9-CNS-SVC-012 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "list_keys", wallet_id = %wallet_id, "CNS");
         self.issuer.list_keys(wallet_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
@@ -602,6 +638,9 @@ impl WalletService {
     /// pre:  key_id must be valid
     /// post: returns Some(ApiKeyCapability) if found; None if not found; Err(Wallet) on manager error
     pub fn get_api_key(&self, key_id: ApiKeyId) -> Result<Option<ApiKeyCapability>, ServiceError> {
+        // REQ: P9-CNS-SVC-013 pre: valid key_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "get_api_key", key_id = %key_id, "CNS");
         self.manager.get_api_key(key_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
@@ -620,6 +659,9 @@ impl WalletService {
     /// pre:  gas must be >= 0
     /// post: returns RJoule equivalent using manager's conversion rate
     pub fn gas_to_rjoules(&self, gas: u64) -> RJoule {
+        // REQ: P9-CNS-SVC-014 pre: gas >= 0, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "gas_to_rjoules", gas = gas, "CNS");
         self.manager.gas_to_rjoules(gas)
     }
 
@@ -630,6 +672,9 @@ impl WalletService {
     /// pre:  rj must be >= 0
     /// post: returns u64 gas equivalent using manager's conversion rate
     pub fn rjoules_to_gas(&self, rj: RJoule) -> u64 {
+        // REQ: P9-CNS-SVC-015 pre: rj >= 0, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "rjoules_to_gas", rj = %rj, "CNS");
         self.manager.rjoules_to_gas(rj)
     }
 
@@ -650,6 +695,9 @@ impl WalletService {
         agent: hkask_types::WebID,
         wallet_id: WalletId,
     ) -> Result<(), ServiceError> {
+        // REQ: P9-CNS-SVC-016 pre: valid agent and wallet_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "register_wallet_budget", agent = %agent, wallet_id = %wallet_id, "CNS");
         let loop_ = self
             .cybernetics
             .as_ref()
@@ -683,6 +731,9 @@ impl WalletService {
         key_id: ApiKeyId,
         spending_limit_rj: RJoule,
     ) -> Result<(), ServiceError> {
+        // REQ: P9-CNS-SVC-017 pre: valid agent, wallet_id, and key_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "register_wallet_budget_for_key", agent = %agent, wallet_id = %wallet_id, key_id = %key_id, "CNS");
         let loop_ = self
             .cybernetics
             .as_ref()
@@ -714,6 +765,9 @@ impl WalletService {
         key_id: ApiKeyId,
         amount: RJoule,
     ) -> Result<(), ServiceError> {
+        // REQ: P9-CNS-SVC-018 pre: valid wallet_id and key_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "encumber_key", wallet_id = %wallet_id, key_id = %key_id, amount = %amount, "CNS");
         self.manager
             .encumber(wallet_id, key_id, amount)
             .map_err(|e| {
@@ -732,6 +786,9 @@ impl WalletService {
     /// pre:  key_id must have an active encumbrance
     /// post: encumbrance is released; unspent rJoules returned to wallet; Err(Wallet) on manager error
     pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), ServiceError> {
+        // REQ: P9-CNS-SVC-019 pre: valid key_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "release_encumbrance", key_id = %key_id, "CNS");
         self.manager.release_encumbrance(key_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
@@ -748,6 +805,9 @@ impl WalletService {
     /// pre:  key_id must have sufficient encumbered balance; gas_rj must be > 0
     /// post: rJoules are atomically debited from key's encumbrance; Err(Wallet) on manager error or insufficient balance
     pub fn consume_gas(&self, key_id: ApiKeyId, gas_rj: RJoule) -> Result<(), ServiceError> {
+        // REQ: P9-CNS-SVC-020 pre: valid key_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "consume_gas", key_id = %key_id, gas_rj = %gas_rj, "CNS");
         self.manager.consume(key_id, gas_rj).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
@@ -767,6 +827,9 @@ impl WalletService {
         &self,
         key_id: ApiKeyId,
     ) -> Result<Option<hkask_types::wallet::Encumbrance>, ServiceError> {
+        // REQ: P9-CNS-SVC-021 pre: valid key_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "get_encumbrance", key_id = %key_id, "CNS");
         self.manager.get_encumbrance(key_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
@@ -786,6 +849,9 @@ impl WalletService {
     /// pre:  key_id must be valid; exhausted and expired are boolean flags
     /// post: CNS alert emitted if event sink configured; no-op otherwise
     pub fn emit_key_alert(&self, key_id: ApiKeyId, exhausted: bool, expired: bool) {
+        // REQ: P9-CNS-SVC-022 pre: valid key_id, post: cns.wallet_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.wallet_svc", operation = "emit_key_alert", key_id = %key_id, exhausted = exhausted, expired = expired, "CNS");
         self.manager.emit_key_alert(key_id, exhausted, expired);
     }
 }

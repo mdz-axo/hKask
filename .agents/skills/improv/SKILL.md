@@ -129,3 +129,13 @@ The improv skill registers six CNS spans for observability:
 | Cascade | Compose modes recursively | Max 7 total applications | `/improv cascade M1 M2...` |
 
 "Build on what works. Silently discard what doesn't. Never explicitly negate."
+
+## Registry Templates
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `improv-cycle.j2` | KnowAct | Orchestrate improv mode cycles |
+| `improv-plussing.j2` | WordAct | Extract agreeable components and build constructively |
+| `improv-yes-and.j2` | WordAct | Accept and extend contributions additively |
+| `improv-yes-but.j2` | WordAct | Accept and constrain contributions |
+| `improv-freestyling.j2` | WordAct | Rapid collaborative short-response cycling |

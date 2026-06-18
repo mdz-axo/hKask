@@ -189,3 +189,10 @@ During normal sessions, flag issues when noticed:
 - "Is this skill stale?": Targeted audit of one registry crate
 - Monthly: Full registry audit
 - After architecture changes: Audit affected registry crates
+
+## Registry Templates
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `skill-maintenance-audit.j2` | KnowAct | Audit registry crates for staleness and produce health scores |
+| `skill-maintenance-coverage.j2` | KnowAct | Analyze coverage gaps across the registry corpus |

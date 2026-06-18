@@ -225,3 +225,9 @@ Before committing any artifact, ask:
 6. **Force:** Is each finding required (Prohibition/Guardrail) or suggested (Guideline/Evidence/Hypothesis)?
 
 "Always take away, never add" — the default answer to "should this exist?" is **no**.
+
+## Registry Templates
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `essentialist-flow.j2` | KnowAct | Run the 3-gate eliminative interrogation loop |

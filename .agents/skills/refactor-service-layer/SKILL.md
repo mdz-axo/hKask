@@ -198,3 +198,11 @@ These go beyond what `strangler-fig` and `deep-module` already cover:
 [ ] docs/status/corpus_inventory.yaml updated if new test surface was added
 [ ] OPEN_QUESTIONS.md updated with F1–F8
 ```
+
+## Registry Templates
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `rsl-audit.j2` | KnowAct | Audit and classify duplicated operations across surfaces |
+| `rsl-strangle.j2` | KnowAct | Plan strangler fig migration for a selected domain |
+| `rsl-verify.j2` | KnowAct | Verify surgical completeness after domain migration |

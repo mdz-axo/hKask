@@ -820,12 +820,13 @@ impl KataEngine {
             };
 
             if manifest.cns.emit_spans {
+                // P9: CNS span
                 tracing::info!(
-                    target: "hkask.kata",
+                    target: "cns.kata",
                     namespace = %manifest.cns.span_namespace,
                     kata_type = "bundle",
                     bot = %learner_bot,
-                    "kata.cycle.start"
+                    "CNS"
                 );
             }
 
@@ -846,13 +847,14 @@ impl KataEngine {
             _ => "kata-starter.yaml",
         };
 
+        // P9: CNS span
         tracing::info!(
-            target: "hkask.kata",
+            target: "cns.kata",
             namespace = %manifest.cns.span_namespace,
             selected = %selected,
             manifest = %kata_manifest_name,
             bot = %learner_bot,
-            "kata.bundle.routing"
+            "CNS"
         );
 
         // Load and execute the selected kata manifest
@@ -894,13 +896,14 @@ impl KataEngine {
                 // Capture before metrics
                 self.capture_before_metrics(manifest, learner_bot, &mut state);
 
+                // P9: CNS span
                 if manifest.cns.emit_spans {
                     tracing::info!(
-                        target: "hkask.kata",
+                        target: "cns.kata",
                         namespace = %manifest.cns.span_namespace,
                         kata_type = "improvement",
                         bot = %learner_bot,
-                        "kata.cycle.start"
+                        "CNS"
                     );
                 }
                 let mut result = self.run_improvement(manifest, &mut state).await?;
@@ -914,14 +917,15 @@ impl KataEngine {
                 // CNS algedonic check: is variety deficit exceeding threshold?
                 self.check_cns_alerts(manifest, "improvement").await;
 
+                // P9: CNS span
                 if manifest.cns.emit_spans {
                     tracing::info!(
-                        target: "hkask.kata",
+                        target: "cns.kata",
                         namespace = %manifest.cns.span_namespace,
                         steps = result.steps_completed,
                         gas = result.gas_consumed,
                         has_signal = result.improvement_signal.is_some(),
-                        "kata.cycle.complete"
+                        "CNS"
                     );
                 }
                 Ok(result)
@@ -931,13 +935,14 @@ impl KataEngine {
                 if let Some(ref check) = self.consent_check {
                     check("coaching", learner_bot)?;
                 }
+                // P9: CNS span
                 if manifest.cns.emit_spans {
                     tracing::info!(
-                        target: "hkask.kata",
+                        target: "cns.kata",
                         namespace = %manifest.cns.span_namespace,
                         kata_type = "coaching",
                         bot = %learner_bot,
-                        "kata.cycle.start"
+                        "CNS"
                     );
                 }
                 let mut result = self.run_coaching(manifest, &mut state).await?;
@@ -946,13 +951,14 @@ impl KataEngine {
                 // CNS algedonic check: is coaching variety deficit exceeding threshold?
                 self.check_cns_alerts(manifest, "coaching").await;
 
+                // P9: CNS span
                 if manifest.cns.emit_spans {
                     tracing::info!(
-                        target: "hkask.kata",
+                        target: "cns.kata",
                         namespace = %manifest.cns.span_namespace,
                         questions = result.steps_completed,
                         gas = result.gas_consumed,
-                        "kata.cycle.complete"
+                        "CNS"
                     );
                 }
                 Ok(result)
@@ -966,14 +972,15 @@ impl KataEngine {
                     .map(|h| h.compute_automaticity(learner_bot, &today))
                     .unwrap_or(0.0);
 
+                // P9: CNS span
                 if manifest.cns.emit_spans {
                     tracing::info!(
-                        target: "hkask.kata",
+                        target: "cns.kata",
                         namespace = %manifest.cns.span_namespace,
                         kata_type = "starter",
                         bot = %learner_bot,
                         automaticity_before = auto_before,
-                        "kata.cycle.start"
+                        "CNS"
                     );
                 }
                 let mut result = self.run_starter(manifest, &mut state).await?;
@@ -1006,14 +1013,15 @@ impl KataEngine {
                 // CNS algedonic check: is starter practice variety deficit exceeding threshold?
                 self.check_cns_alerts(manifest, "starter").await;
 
+                // P9: CNS span
                 if manifest.cns.emit_spans {
                     tracing::info!(
-                        target: "hkask.kata",
+                        target: "cns.kata",
                         namespace = %manifest.cns.span_namespace,
                         practices = result.steps_completed,
                         automaticity_after = auto_after,
                         automaticity_delta = result.automaticity_delta,
-                        "kata.cycle.complete"
+                        "CNS"
                     );
                 }
                 Ok(result)
@@ -1039,7 +1047,7 @@ impl KataEngine {
                     }
                     Err(e) => {
                         tracing::warn!(
-                            target: "hkask.kata",
+                            target: "cns.kata",
                             metric = %m.name,
                             error = %e,
                             "Failed to capture before metric"
@@ -1070,7 +1078,7 @@ impl KataEngine {
                     }
                     Err(e) => {
                         tracing::warn!(
-                            target: "hkask.kata",
+                            target: "cns.kata",
                             metric = %m.name,
                             error = %e,
                             "Failed to capture after metric"
@@ -1138,15 +1146,16 @@ impl KataEngine {
             .await
             .check_variety(&manifest.cns.span_namespace)
             .await;
+        // P9: CNS span (algedonic alert)
         if let Some(a) = alert {
             tracing::warn!(
-                target: "hkask.kata",
+                target: "cns.kata",
                 namespace = %manifest.cns.span_namespace,
                 kata_type = %kata_type,
                 severity = ?a.severity,
                 deficit = a.deficit,
                 threshold = a.threshold,
-                "kata.algedonic — variety deficit detected"
+                "CNS"
             );
         }
     }
@@ -1182,15 +1191,15 @@ impl KataEngine {
                 continue;
             }
 
-            // CNS span: step start
+            // P9: CNS span
             if manifest.cns.emit_spans {
                 tracing::info!(
-                    target: "hkask.kata",
+                    target: "cns.kata",
                     namespace = %manifest.cns.span_namespace,
                     step = step.ordinal,
                     action = %step.action,
                     bot = %state.learner_bot,
-                    "kata.step.start"
+                    "CNS"
                 );
             }
 
@@ -1207,13 +1216,14 @@ impl KataEngine {
 
             // PDCA Check phase: compare output against declared target/expectations
             let check_result = self.check_step_output(step, &output);
+            // P9: CNS span
             if manifest.cns.emit_spans {
                 tracing::info!(
-                    target: "hkask.kata",
+                    target: "cns.kata",
                     namespace = %manifest.cns.span_namespace,
                     step = step.ordinal,
                     passed_check = check_result,
-                    "kata.step.checked"
+                    "CNS"
                 );
             }
 
@@ -1241,14 +1251,14 @@ impl KataEngine {
                 timestamp: now_rfc3339(),
             });
 
-            // CNS span: step complete
+            // P9: CNS span
             if manifest.cns.emit_spans {
                 tracing::info!(
-                    target: "hkask.kata",
+                    target: "cns.kata",
                     namespace = %manifest.cns.span_namespace,
                     step = step.ordinal,
                     gas = state.gas_consumed,
-                    "kata.step.complete"
+                    "CNS"
                 );
             }
 
@@ -1296,7 +1306,7 @@ impl KataEngine {
                     if let Some(resp) = output.get("response") {
                         if resp.get(key).is_none() {
                             tracing::debug!(
-                                target: "hkask.kata",
+                                target: "cns.kata",
                                 step = step.ordinal,
                                 missing = %key,
                                 "Step output missing expected field"
@@ -1305,7 +1315,7 @@ impl KataEngine {
                         }
                     } else {
                         tracing::debug!(
-                            target: "hkask.kata",
+                                    target: "cns.kata",
                             step = step.ordinal,
                             missing = %key,
                             "Step output missing expected field"
@@ -1355,15 +1365,15 @@ impl KataEngine {
                 continue;
             }
 
-            // CNS span
+            // P9: CNS span
             if manifest.cns.emit_spans {
                 tracing::info!(
-                    target: "hkask.kata",
+                    target: "cns.kata",
                     namespace = %manifest.cns.span_namespace,
                     question = q.number,
                     bot = %state.learner_bot,
                     has_ik_state = ik_context.is_some(),
-                    "kata.coaching.question"
+                    "CNS"
                 );
             }
             let step_gas = 2000; // coaching questions use default gas
@@ -1497,25 +1507,26 @@ impl KataEngine {
             let needs_intervention = history.needs_habit_intervention(&state.learner_bot, &today);
 
             if manifest.cns.emit_spans {
+                // P9: CNS span
                 tracing::info!(
-                    target: "hkask.kata",
+                    target: "cns.kata",
                     namespace = %manifest.cns.span_namespace,
                     bot = %state.learner_bot,
                     automaticity = auto,
                     streak_days = streak,
                     needs_intervention = needs_intervention,
-                    "kata.starter.habit_check"
+                    "CNS"
                 );
             }
 
-            // Emit algedonic warning if habit decay detected
+            // P9: CNS span (algedonic warning)
             if needs_intervention {
                 tracing::warn!(
-                    target: "hkask.kata",
+                    target: "cns.kata",
                     namespace = %manifest.cns.span_namespace,
                     bot = %state.learner_bot,
                     days_since_last = history.days_since_last(&state.learner_bot, &today),
-                    "kata.starter.habit_decay_alert — intervention recommended"
+                    "CNS"
                 );
             }
         }
@@ -1549,14 +1560,14 @@ impl KataEngine {
                 timestamp: now_rfc3339(),
             });
 
-            // CNS span for each practice
+            // P9: CNS span
             if manifest.cns.emit_spans {
                 tracing::info!(
-                    target: "hkask.kata",
+                    target: "cns.kata",
                     namespace = %manifest.cns.span_namespace,
                     practice = %practice.name,
                     bot = %state.learner_bot,
-                    "kata.starter.practice"
+                    "CNS"
                 );
             }
 
