@@ -65,3 +65,40 @@ impl From<TripleError> for hkask_services_core::ServiceError {
         hkask_services_core::ServiceError::Triple { message: e.to_string() }
     }
 }
+
+impl From<UserStoreError> for hkask_services_core::ServiceError {
+    fn from(e: UserStoreError) -> Self {
+        hkask_services_core::ServiceError::UserStore { message: e.to_string() }
+    }
+}
+
+impl From<AgentRegistryError> for hkask_services_core::ServiceError {
+    fn from(e: AgentRegistryError) -> Self {
+        hkask_services_core::ServiceError::AgentRegistryStore { message: e.to_string() }
+    }
+}
+impl From<ConsentStoreError> for hkask_services_core::ServiceError {
+    fn from(e: ConsentStoreError) -> Self {
+        hkask_services_core::ServiceError::ConsentStore { message: e.to_string() }
+    }
+}
+impl From<SovereigntyStoreError> for hkask_services_core::ServiceError {
+    fn from(e: SovereigntyStoreError) -> Self {
+        hkask_services_core::ServiceError::SovereigntyStore { message: e.to_string() }
+    }
+}
+impl From<SpecError> for hkask_services_core::ServiceError {
+    fn from(e: SpecError) -> Self {
+        hkask_services_core::ServiceError::Spec { message: e.to_string() }
+    }
+}
+impl From<GoalRepositoryError> for hkask_services_core::ServiceError {
+    fn from(e: GoalRepositoryError) -> Self {
+        hkask_services_core::ServiceError::GoalRepo { message: e.to_string() }
+    }
+}
+impl From<EscalationError> for hkask_services_core::ServiceError {
+    fn from(e: EscalationError) -> Self {
+        hkask_services_core::ServiceError::Escalation { message: e.to_string() }
+    }
+}

@@ -3,7 +3,7 @@ title: "hKask Admin Install Guide"
 audience: [server admins, DevOps]
 last_updated: 2026-06-17
 version: "0.27.0"
-status: "Draft — Planning Phase"
+status: "Draft"
 domain: "Technology"
 mds_categories: [lifecycle]
 ---

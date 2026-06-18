@@ -6,6 +6,7 @@
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use hkask_types::InfrastructureError;
+use tracing::info;
 
 /// Ed25519 signing key for spec provenance authentication.
 ///
@@ -47,8 +48,13 @@ impl Ed25519SpecSigner {
     /// pre:  canonical_json is non-empty
     /// post: returns 128-char hex-encoded Ed25519 signature
     pub fn sign_spec(&self, canonical_json: &[u8]) -> String {
+        // P9: CNS span
+        info!(target: "cns.keystore", operation = "sign_spec", status = "started", "CNS");
         let signature = self.signing_key.sign(canonical_json);
-        hex::encode(signature.to_bytes())
+        let sig_hex = hex::encode(signature.to_bytes());
+        // P9: CNS span
+        info!(target: "cns.keystore", operation = "sign_spec", status = "completed", "CNS");
+        sig_hex
     }
 
     /// Verify a spec signature against its canonical JSON.

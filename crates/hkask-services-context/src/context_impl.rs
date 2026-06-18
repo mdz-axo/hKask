@@ -786,9 +786,7 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     let user_store = Arc::new(std::sync::Mutex::new(UserStore::new(user_conn)));
     {
         let guard = user_store.lock().map_err(|_| {
-            ServiceError::UserStore(hkask_storage::user_store::UserStoreError::Infra(
-                hkask_types::InfrastructureError::LockPoisoned,
-            ))
+            ServiceError::UserStore { message: hkask_types::InfrastructureError::LockPoisoned.to_string() }
         })?;
         guard.initialize_schema().map_err(|e| ServiceError::UserStore { message: e.to_string() })?;
     }
@@ -1477,9 +1475,7 @@ fn build_wallet(
     // Bind wallets to replicants
     {
         let user_guard = f.user_store.lock().map_err(|_| {
-            ServiceError::UserStore(hkask_storage::user_store::UserStoreError::Infra(
-                hkask_types::InfrastructureError::LockPoisoned,
-            ))
+            ServiceError::UserStore { message: hkask_types::InfrastructureError::LockPoisoned.to_string() }
         })?;
         if let Ok(Some(system_identity)) = user_guard.get_replicant(&config.agent_name) {
             let user_id = system_identity.user_id;

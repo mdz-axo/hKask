@@ -172,6 +172,8 @@ pub fn derive_all_internal_secrets_with_version(
 ///
 /// 32-byte derived sub-key, wrapped in `Zeroizing` for secure memory handling.
 pub fn derive_sub_key(master_key: &[u8], context: &str) -> Zeroizing<Vec<u8>> {
+    // P9: CNS span
+    info!(target: "cns.keystore", operation = "derive_sub_key", context = %context, status = "started", "CNS");
     // HKDF-Extract: PRK = HMAC-SHA256(salt, IKM)
     let mut extract_mac =
         HmacSha256::new_from_slice(HKDF_SALT).expect("HMAC-SHA256 accepts any key length");
@@ -186,6 +188,8 @@ pub fn derive_sub_key(master_key: &[u8], context: &str) -> Zeroizing<Vec<u8>> {
     expand_mac.update(&[0x01]); // HKDF block counter
     let okm = expand_mac.finalize().into_bytes();
 
+    // P9: CNS span
+    info!(target: "cns.keystore", operation = "derive_sub_key", context = %context, status = "completed", "CNS");
     Zeroizing::new(okm[..SUB_KEY_LEN].to_vec())
 }
 
