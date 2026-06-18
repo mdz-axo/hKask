@@ -441,7 +441,7 @@ HEADER
 
         crate_lines="${crate_lines}| $kind_label | \`$name\` | $mp | $loc | $risk_icon $risk_cat | $coverage_marker |
 "
-    done < <(sort -t'|' -k2,2 -k3,3 "$items_file")
+    done < <(LC_ALL=C sort -t'|' -k2,2 -k3,3 "$items_file")
 
     # Flush last crate
     if [ "$crate" != "" ]; then
@@ -634,7 +634,7 @@ build_json_inventory() {
         else
             crate_items_json="$crate_items_json,$item_entry"
         fi
-    done < <(sort -t'|' -k2,2 -k3,3 "$items_file")
+    done < <(LC_ALL=C sort -t'|' -k2,2 -k3,3 "$items_file")
 
     # Flush last crate
     if [ "$current_crate" != "" ]; then
@@ -669,7 +669,7 @@ build_json_inventory() {
         if [ "$is_cov" = false ] && grep -qi "^${cr}:.*${name}" "${req_terms}" 2>/dev/null; then is_cov=true; fi
         if $is_cov; then all_covered=$((all_covered + 1)); fi
     done < "$items_file"
-    all_crates=$(cut -d'|' -f2 "$items_file" | sort -u | wc -l)
+    all_crates=$(cut -d'|' -f2 "$items_file" | LC_ALL=C sort -u | wc -l)
 
     local overall_pct=0
     [ "$total_items" -gt 0 ] && overall_pct=$(( all_covered * 100 / total_items ))
@@ -711,7 +711,7 @@ build_json_inventory() {
             fi
             prev_crate="$pc"
         fi
-    done < <(sort "$pri_crate_counts" | uniq)
+    done < <(LC_ALL=C sort "$pri_crate_counts" | uniq)
     rm -f "$pri_crate_counts"
 
     # ── Emit JSON ──
@@ -821,7 +821,7 @@ PRIORITY_HEADER
     # Output top 100, sorted by crate then item name
     local sorted_priority
     sorted_priority=$(mktemp)
-    sort -t'|' -k2,2 -k4,4 "$temp_priority" > "$sorted_priority"
+    LC_ALL=C sort -t'|' -k2,2 -k4,4 "$temp_priority" > "$sorted_priority"
     local count=0
     while IFS='|' read -r risk cr kind name mp loc; do
         [ -z "$risk" ] && continue
@@ -841,7 +841,7 @@ PRIORITY_HEADER
     echo "| Crate | High-Risk Uncovered |" >> "$priority_output"
     echo "|-------|--------------------|" >> "$priority_output"
 
-    cut -d'|' -f2 "$temp_priority" | sort | uniq -c | sort -rn | \
+    cut -d'|' -f2 "$temp_priority" | LC_ALL=C sort | uniq -c | LC_ALL=C sort -rn | \
     while read -r cnt cr; do
         echo "| $cr | $cnt |"
     done >> "$priority_output"
