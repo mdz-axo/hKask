@@ -155,14 +155,18 @@ list_rsolidity_drift() {
             req_id=""
             rs_id=""
             rs_principle=""
-            for offset in 0 1 2 3 4 5 6 7 8 9 10; do
+            for offset in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
                 check_line=$((line - offset))
                 if [ "$check_line" -gt 0 ]; then
                     ctx=$(sed -n "${check_line}p" "$file" 2>/dev/null || true)
+                    # Stop at previous function's closing brace
+                    if [ "$(echo "$ctx" | tr -d ' ')" = "}" ]; then
+                        break
+                    fi
                     if echo "$ctx" | grep -q "///* REQ:"; then
                         has_contract=true
-                        # Extract REQ id
-                        req_id=$(echo "$ctx" | sed -n 's/.*REQ: *\(P[0-9]*-[a-zA-Z0-9_-]*\).*/\1/p')
+                        # Extract REQ id — capture P{N}- prefix and everything until space
+                        req_id=$(echo "$ctx" | sed -n 's/.*REQ: *\(P[0-9]*-[^ ]*\).*/\1/p')
                     fi
                     if echo "$ctx" | grep -q "#\[.*contract"; then
                         has_rsolidity=true
@@ -195,7 +199,7 @@ list_missing_expect() {
         | while IFS=: read -r file line rest; do
             has_contract=false
             has_expect=false
-            for offset in 0 1 2 3 4 5 6 7 8 9 10; do
+            for offset in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
                 check_line=$((line - offset))
                 if [ "$check_line" -gt 0 ]; then
                     local_ctx=$(sed -n "${check_line}p" "$file" 2>/dev/null || true)
@@ -222,7 +226,7 @@ list_principle_gaps() {
         | while IFS=: read -r file line rest; do
             has_contract=false
             has_principle=false
-            for offset in 0 1 2 3 4 5 6 7 8 9 10; do
+            for offset in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
                 check_line=$((line - offset))
                 if [ "$check_line" -gt 0 ]; then
                     local_ctx=$(sed -n "${check_line}p" "$file" 2>/dev/null || true)
@@ -256,7 +260,7 @@ list_unconstrained() {
         | while IFS=: read -r file line rest; do
             has_contract=false
             has_constraining=false
-            for offset in 0 1 2 3 4 5 6 7 8 9 10; do
+            for offset in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
                 check_line=$((line - offset))
                 if [ "$check_line" -gt 0 ]; then
                     local_ctx=$(sed -n "${check_line}p" "$file" 2>/dev/null || true)
@@ -283,7 +287,7 @@ list_missing_magna_carta() {
         | while IFS=: read -r file line rest; do
             has_contract=false
             has_p1=false; has_p2=false; has_p4=false
-            for offset in 0 1 2 3 4 5 6 7 8 9 10; do
+            for offset in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
                 check_line=$((line - offset))
                 if [ "$check_line" -gt 0 ]; then
                     local_ctx=$(sed -n "${check_line}p" "$file" 2>/dev/null || true)

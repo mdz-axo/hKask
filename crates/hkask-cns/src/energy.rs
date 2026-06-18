@@ -330,6 +330,11 @@ impl EnergyBudget {
     pub fn can_proceed(&self, gas: EnergyCost) -> bool {
         let available = self.available();
         let result = gas.0 <= available.0 || !self.hard_limit;
+        rs::assert!(
+            !self.hard_limit || gas.0 > available.0 || result,
+            "P9-cns-energy-budget-can-proceed",
+            "postcondition: hard_limit implies result iff gas fits within available"
+        );
         result
     }
 
@@ -483,6 +488,11 @@ impl EnergyBudget {
                     .min(self.cap.0),
             );
         }
+        rs::assert!(
+            self.remaining.0 <= self.cap.0,
+            "P9-cns-energy-budget-replenish",
+            "postcondition: remaining never exceeds cap"
+        );
     }
 
     #[rs::contract(id = "P9-cns-energy-budget-replenish-by", principle = "P9")]
@@ -497,6 +507,11 @@ impl EnergyBudget {
     /// post: remaining increased by up to amount
     pub fn replenish_by(&mut self, amount: EnergyCost) {
         self.remaining = EnergyCost(self.remaining.0.saturating_add(amount.0).min(self.cap.0));
+        rs::assert!(
+            self.remaining.0 <= self.cap.0,
+            "P9-cns-energy-budget-replenish-by",
+            "postcondition: remaining never exceeds cap"
+        );
     }
 
     #[rs::contract(id = "P9-cns-energy-budget-replenish-by-weighted", principle = "P9")]
@@ -519,7 +534,13 @@ impl EnergyBudget {
         let effective = scaled.max(1);
         let before = self.remaining.0;
         self.remaining = EnergyCost(self.remaining.0.saturating_add(effective).min(self.cap.0));
-        EnergyCost(self.remaining.0 - before)
+        let delta = EnergyCost(self.remaining.0 - before);
+        rs::assert!(
+            self.remaining.0 <= self.cap.0,
+            "P9-cns-energy-budget-replenish-by-weighted",
+            "postcondition: remaining never exceeds cap"
+        );
+        delta
     }
 
     /// Usage ratio: 0.0 = full budget, 1.0 = empty.

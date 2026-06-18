@@ -84,6 +84,10 @@ impl SemanticMemory {
         self
     }
 
+    pub(crate) fn event_sink(&self) -> Option<&Arc<dyn NuEventSink>> {
+        self.event_sink.as_ref()
+    }
+
     /// Query by entity with deduplication (entity_attribute_value_hash strategy).
     ///
     /// Filters duplicate triples at recall time. Two triples are considered
@@ -643,6 +647,35 @@ impl SemanticMemory {
         Ok(self
             .triple_store
             .query_semantic_below_confidence(threshold, limit)?)
+    }
+
+    /// Query semantic triples older than N days, grouped by entity.
+    ///
+    /// Used by condensation to find candidates for merging.
+    ///
+    /// REQ: P3-mem-semantic-older-than
+    /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
+    /// pre:  days > 0, limit > 0
+    /// post: returns triples older than cutoff, ordered by entity, confidence DESC, valid_from DESC
+    pub fn triples_older_than(
+        &self,
+        days: u32,
+        limit: usize,
+    ) -> Result<Vec<Triple>, SemanticMemoryError> {
+        Ok(self.triple_store.query_semantic_older_than(days, limit)?)
+    }
+
+    /// Soft-delete a triple (set valid_to = now).
+    ///
+    /// Used by condensation to close original triples after merging.
+    ///
+    /// REQ: P3-mem-semantic-close-triple
+    /// expect: "I can store shared semantic triples for public knowledge" [P3]
+    /// pre:  id is a valid TripleID
+    /// post: triple soft-deleted (valid_to set to now)
+    pub fn close_triple(&self, id: &hkask_storage::TripleID) -> Result<(), SemanticMemoryError> {
+        self.triple_store.close_by_id(id)?;
+        Ok(())
     }
 }
 

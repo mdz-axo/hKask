@@ -607,6 +607,9 @@ impl ChatService {
             .filter_map(|t: &RecalledSemantic| t.value.as_str().map(|s| s.to_string()))
             .collect();
 
+        // Only return the most recent context to bound prompt size
+        let context: Vec<String> = context.into_iter().take(10).collect();
+
         if context.is_empty() {
             None
         } else {

@@ -95,7 +95,7 @@ impl CircuitBreaker {
     pub fn allow_request(&self) -> bool {
         let state = self.state();
 
-        match state {
+        let result = match state {
             CircuitState::Closed => true,
             CircuitState::Open => {
                 let last_failure_nanos = self.last_failure_time.load(Ordering::Relaxed);
@@ -122,7 +122,13 @@ impl CircuitBreaker {
                 }
             }
             CircuitState::HalfOpen => true,
-        }
+        };
+        rs::assert!(
+            result == (matches!(state, CircuitState::Closed | CircuitState::HalfOpen) || state == CircuitState::Open),
+            "P9-cns-circuit-allow-request",
+            "postcondition: result matches circuit state gating"
+        );
+        result
     }
 
     /// Record a successful request.

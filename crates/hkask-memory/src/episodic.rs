@@ -78,6 +78,11 @@ impl EpisodicMemory {
         self
     }
 
+    /// Access the CNS event sink for loop-level NuEvent emission.
+    pub(crate) fn event_sink(&self) -> Option<&Arc<dyn NuEventSink>> {
+        self.event_sink.as_ref()
+    }
+
     // Store
 
     /// Store an episodic triple (private by default, with perspective).

@@ -418,6 +418,41 @@ impl TripleStore {
         )?;
         Ok(count as usize)
     }
+    /// Query semantic triples older than N days, grouped by entity for condensation.
+    ///
+    /// Returns triples with `perspective IS NULL AND valid_to IS NULL` and
+    /// `valid_from` earlier than the cutoff date, ordered by entity then
+    /// confidence descending (best first), then valid_from descending (most recent first).
+    /// This ordering enables the condensation loop to identify the best candidate
+    /// to keep per entity group (first in each entity group).
+    ///
+    /// REQ: P3-sto-triple-older-than
+    /// expect: "The system provides durable storage for triple data" [P3]
+    /// \[P3\] Motivating: Generative Space — query old triples for condensation
+    /// \[P9\] Constraining: Homeostatic Self-Regulation — enables semantic condensation trigger
+    /// pre:  days > 0, limit > 0
+    /// post: returns up to limit triples older than cutoff, ordered by entity, confidence DESC, valid_from DESC
+    pub fn query_semantic_older_than(
+        &self,
+        days: u32,
+        limit: usize,
+    ) -> Result<Vec<Triple>, TripleError> {
+        let cutoff = (chrono::Utc::now() - chrono::Duration::days(days as i64)).to_rfc3339();
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {TRIPLE_COLUMNS} FROM triples \
+             WHERE perspective IS NULL AND valid_to IS NULL AND valid_from < ?1 \
+             ORDER BY entity ASC, confidence DESC, valid_from DESC \
+             LIMIT ?2"
+        ))?;
+        Ok(collect_rows!(
+            stmt,
+            rusqlite::params![cutoff, limit as i64],
+            Self::row_to_triple_row,
+            Self::row_to_triple
+        ))
+    }
+
     /// Soft-delete: set valid_to to close a triple.
     /// Soft-delete a triple by setting valid_to.
     ///

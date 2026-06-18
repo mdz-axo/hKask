@@ -361,4 +361,17 @@ pub trait SemanticStoragePort: Send + Sync {
     /// Returns the number of semantic triples currently stored for the given entity.
     /// Used by Loop 6e (Semantic Storage Budget) to enforce per-entity limits.
     fn semantic_storage_usage(&self, entity: &str) -> Result<usize, crate::error::MemoryError>;
+
+    /// KNN similarity search over semantic embeddings.
+    ///
+    /// Returns triples whose embeddings are closest to the query vector.
+    /// Used for context injection when exact entity-text-match returns nothing.
+    /// Default implementation returns empty — override for KNN support.
+    fn search_similar(
+        &self,
+        _query_vector: &[f32],
+        _limit: usize,
+    ) -> Result<Vec<RecalledSemantic>, crate::error::MemoryError> {
+        Ok(Vec::new())
+    }
 }

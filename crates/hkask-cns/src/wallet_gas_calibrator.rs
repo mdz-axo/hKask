@@ -74,6 +74,9 @@ impl WalletGasCalibrator {
     /// Configure how far back the first calibration pass searches for events.
     ///
     /// REQ: GAS-CALIB-005
+    /// expect: "I can configure how far back the gas calibrator searches for events" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — calibrator searches historical events
+    /// \[P4\] Constraining: Clear Boundaries — lookback limits calibration scope
     /// pre:  lookback is a positive duration
     /// post: first calibration will search [Utc::now() - lookback, Utc::now()]
     #[must_use = "builder methods must be chained or assigned"]

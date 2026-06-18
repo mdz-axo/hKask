@@ -10,6 +10,8 @@ use crate::consolidation::ConsolidationBridge;
 use crate::episodic::EpisodicMemory;
 use hkask_types::WebID;
 use hkask_types::capability::tokens::ConsolidationToken;
+use hkask_types::cns::CnsSpan;
+use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
@@ -93,6 +95,15 @@ impl EpisodicLoop {
     /// post: returns the storage_budget value set at construction
     pub fn storage_budget(&self) -> usize {
         self.storage_budget
+    }
+
+    /// Emit a CNS NuEvent through the memory's event sink.
+    fn emit_cns(&self, verb: &str, observation: serde_json::Value) {
+        if let Some(sink) = self.memory.event_sink() {
+            let span = Span::new(SpanNamespace::from(CnsSpan::MemoryEncode), verb);
+            let event = NuEvent::new(self.perspective, span, Phase::Act, observation, 0);
+            let _ = sink.persist(&event);
+        }
     }
 }
 
@@ -216,54 +227,39 @@ impl HkaskLoop for EpisodicLoop {
                                 },
                             ) {
                                 Ok(outcome) if outcome.consolidated_count > 0 => {
-                                    tracing::info!(
-                                        target: "cns.episodic",
-                                        perspective = %self.perspective,
-                                        consolidated = outcome.consolidated_count,
-                                        failed = outcome.failed_count,
-                                        "Consolidation bridge fired for episodic budget enforcement"
-                                    );
+                                    self.emit_cns("episodic_consolidated", serde_json::json!({
+                                        "consolidated": outcome.consolidated_count,
+                                        "failed": outcome.failed_count,
+                                        "reason": "budget_enforcement"
+                                    }));
                                 }
                                 Ok(_) => {
-                                    tracing::debug!(
-                                        target: "cns.episodic",
-                                        perspective = %self.perspective,
-                                        "Consolidation fired but no triples consolidated"
-                                    );
+                                    // No-op: consolidation fired but no triples to consolidate
                                 }
                                 Err(e) => {
-                                    tracing::warn!(
-                                        target: "cns.episodic",
-                                        perspective = %self.perspective,
-                                        error = %e,
-                                        "Consolidation bridge failed during budget enforcement"
-                                    );
+                                    self.emit_cns("episodic_consolidation_failed", serde_json::json!({
+                                        "error": e.to_string(),
+                                        "reason": "budget_enforcement"
+                                    }));
                                 }
                             }
                         } else {
-                            tracing::warn!(
-                                target: "cns.episodic",
-                                perspective = %self.perspective,
-                                overage = overage,
-                                "Episodic budget exceeded but no consolidation bridge available"
-                            );
+                            self.emit_cns("episodic_budget_exceeded_no_bridge", serde_json::json!({
+                                        "overage": overage
+                                    }));
                         }
                     } else {
-                        tracing::info!(
-                            target: "cns.episodic",
-                            action_type = ?action.action_type,
-                            target_loop = %action.target,
-                            "Episodic Loop calibration action"
-                        );
+                        self.emit_cns("episodic_calibrate", serde_json::json!({
+                                        "action_type": format!("{:?}", action.action_type),
+                                        "target_loop": action.target.to_string()
+                                    }));
                     }
                 }
                 _ => {
-                    tracing::info!(
-                        target: "cns.episodic",
-                        action_type = ?action.action_type,
-                        target_loop = %action.target,
-                        "Episodic Loop regulatory action"
-                    );
+                    self.emit_cns("episodic_regulate", serde_json::json!({
+                                        "action_type": format!("{:?}", action.action_type),
+                                        "target_loop": action.target.to_string()
+                                    }));
                 }
             }
         }

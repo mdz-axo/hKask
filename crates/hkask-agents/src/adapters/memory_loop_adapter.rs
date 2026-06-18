@@ -366,4 +366,29 @@ impl SemanticStoragePort for MemoryLoopAdapter {
 
         Ok(count)
     }
+
+    fn search_similar(
+        &self,
+        query_vector: &[f32],
+        limit: usize,
+    ) -> Result<Vec<RecalledSemantic>, MemoryError> {
+        let results = self.semantic.search_similar(query_vector, limit)?;
+        let mut triples = Vec::new();
+        for r in results {
+            if let Ok(matches) = self.semantic.query_deduped(&r.embedding.entity_ref) {
+                for t in matches {
+                    triples.push(RecalledSemantic {
+                        id: t.id.to_string(),
+                        entity: t.entity,
+                        attribute: t.attribute,
+                        value: t.value,
+                        confidence: t.confidence,
+                        visibility: t.access.visibility,
+                        valid_from: t.temporal.valid_from.to_rfc3339(),
+                    });
+                }
+            }
+        }
+        Ok(triples)
+    }
 }
