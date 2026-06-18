@@ -5,42 +5,59 @@ crate:
   name: wordact
   version: "0.28.0"
   description: >
-    Runtime skill — wordact.
+    WordAct core execution framework. Selects the appropriate prompt template,
+    renders it with variable bindings, dispatches to the inference engine,
+    and produces SOAP-style operational reports for system monitoring.
 
 templates:
-  - id: wordact/execute.j2
+  - id: wordact/execute
     path: execute.j2
     type: WordAct
-    lexicon_terms: []
+    lexicon_terms: [prompt, write, undertake]
     description: >
-      Runtime template for wordact — see execute.j2 for details.
+      Execute a rendered prompt by dispatching to the inference engine.
+      Produces the completion response and token usage.
 
-  - id: wordact/render.j2
+  - id: wordact/render
     path: render.j2
     type: WordAct
-    lexicon_terms: []
+    lexicon_terms: [transform, compose, specify]
     description: >
-      Runtime template for wordact — see render.j2 for details.
+      Render a Jinja2 template with variable bindings into a complete
+      prompt ready for inference execution.
 
-  - id: wordact/selector.j2
+  - id: wordact/selector
     path: selector.j2
     type: WordAct
-    lexicon_terms: []
+    lexicon_terms: [recognize, classify, match, discriminate, select]
     description: >
-      Runtime template for wordact — see selector.j2 for details.
+      Select the best-fit prompt template from available options based
+      on context, with confidence scoring and rationale.
 
-  - id: wordact/soap.j2
+  - id: wordact/soap
     path: soap.j2
     type: WordAct
-    lexicon_terms: [observe,assess,plan,act,monitor,recall,discover]
+    lexicon_terms: [observe, assess, plan, monitor, report, probe]
     description: >
-      Runtime template for wordact — see soap.j2 for details.
+      SOAP operational reporting template. Produces structured reports
+      with subjective, objective (profile, severity, host samples),
+      assessment, and plan sections.
 
 hlexicon_terms:
-  - act
-  - assess
-  - discover
-  - monitor
+  - prompt
+  - write
+  - undertake
+  - transform
+  - compose
+  - specify
+  - recognize
+  - classify
+  - match
+  - discriminate
+  - select
   - observe
+  - assess
   - plan
-  - recall
+  - monitor
+  - report
+  - probe

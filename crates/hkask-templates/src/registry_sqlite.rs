@@ -6,7 +6,7 @@
 
 use crate::ports::{Result, TemplateError};
 use hkask_types::bundle::SkillPolarity;
-use hkask_types::lexicon::{HLexicon, TemplateType};
+use hkask_types::template_type::TemplateType;
 use hkask_types::ports::{
     BundleRegistryIndex, RegistryEntry, RegistryIndex, SkillRegistryIndex, SkillZone,
 };

@@ -30,7 +30,7 @@ impl SovereigntyService {
         self.consent
             .grant_consent(webid, category)
             .map_err(|e| ServiceError::Consent { message: e.to_string() })
-            .map(|r| {
+            .inspect(|_| {
                 // REQ: P9-CNS-SVC-010 pre: valid consent grant, post: cns.sovereignty span emitted
                 // P9: CNS span
                 tracing::info!(
@@ -40,7 +40,6 @@ impl SovereigntyService {
                     category = ?category,
                     "CNS"
                 );
-                r
             })
     }
 
@@ -49,7 +48,7 @@ impl SovereigntyService {
         self.consent
             .revoke_consent(webid)
             .map_err(|e| ServiceError::Consent { message: e.to_string() })
-            .map(|r| {
+            .inspect(|_| {
                 // REQ: P9-CNS-SVC-011 pre: valid consent revocation, post: cns.sovereignty span emitted
                 // P9: CNS span
                 tracing::info!(
@@ -58,7 +57,6 @@ impl SovereigntyService {
                     webid = %webid,
                     "CNS"
                 );
-                r
             })
     }
 

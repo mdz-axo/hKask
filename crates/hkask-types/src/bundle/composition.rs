@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::lexicon::TemplateType;
+use crate::template_type::TemplateType;
 
 /// Generates `as_str()` and `parse_str()` for a PascalCase enum.
 macro_rules! enum_str_ops {

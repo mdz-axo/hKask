@@ -2,7 +2,7 @@
 
 use crate::BundleManifest;
 use crate::bundle::SkillPolarity;
-use crate::lexicon::TemplateType;
+use crate::template_type::TemplateType;
 use crate::visibility::Visibility;
 use serde::{Deserialize, Serialize};
 

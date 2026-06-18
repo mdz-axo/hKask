@@ -5,48 +5,70 @@ crate:
   name: spec
   version: "0.28.0"
   description: >
-    Runtime skill — spec.
+    Specification system for binding user intent to formal requirements.
+    Captures goals with hLexicon grounding, binds OCAP constraints,
+    contextualises artifacts within collections, reconciles goal tensions,
+    and curates specification collections for coherence.
 
 templates:
-  - id: spec/constraint-bind.j2
+  - id: spec/constraint-bind
     path: constraint-bind.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [constrain, require]
     description: >
-      Runtime template for spec — see constraint-bind.j2 for details.
+      Attach OCAP capability boundaries to a goal. Binds resource, action,
+      attenuation, and TTL constraints to produce a formal constraint spec.
 
-  - id: spec/contextualise.j2
+  - id: spec/contextualise
     path: contextualise.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [contextualise]
     description: >
-      Runtime template for spec — see contextualise.j2 for details.
+      Situate an artifact within its meaningful environment: domain anchor,
+      related specs, and hLexicon term overlap with the collection.
 
-  - id: spec/curate-collection.j2
+  - id: spec/curate-collection
     path: curate-collection.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [curate, cultivate, evaluate]
     description: >
-      Runtime template for spec — see curate-collection.j2 for details.
+      Evaluate a specification collection's coherence and completeness.
+      Reports category gaps and produces curation recommendations.
 
-  - id: spec/goal-capture.j2
+  - id: spec/goal-capture
     path: goal-capture.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [specify, require, elicit]
     description: >
-      Runtime template for spec — see goal-capture.j2 for details.
+      Elicit user intent as a binding goal requirement with situation,
+      motivation, and outcome criteria grounded in hLexicon terms.
 
-  - id: spec/reconcile-conflicts.j2
+  - id: spec/reconcile-conflicts
     path: reconcile-conflicts.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [reconcile]
     description: >
-      Runtime template for spec — see reconcile-conflicts.j2 for details.
+      Resolve tensions between competing goals without collapsing them.
+      Preserves goal diversity while documenting resolution strategies.
 
-  - id: spec/selector.j2
+  - id: spec/selector
     path: selector.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [recognize, match, select]
     description: >
-      Runtime template for spec — see selector.j2 for details.
+      Route the input intent to the best-fit specification template based
+      on intent type: capture, constrain, contextualise, reconcile, or curate.
 
+hlexicon_terms:
+  - constrain
+  - require
+  - contextualise
+  - curate
+  - cultivate
+  - evaluate
+  - specify
+  - elicit
+  - reconcile
+  - recognize
+  - match
+  - select

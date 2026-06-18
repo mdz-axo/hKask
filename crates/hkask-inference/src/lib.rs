@@ -31,7 +31,6 @@ pub mod deepinfra_backend;
 pub mod embedding_router;
 pub mod fal_backend;
 pub mod inference_router;
-pub mod ollama_backend;
 pub mod together_backend;
 
 // Re-exports — public API
@@ -42,7 +41,6 @@ pub use inference_router::InferenceRouter;
 // Model listing types
 pub use deepinfra_backend::DeepInfraModelEntry;
 pub use fal_backend::FalModelEntry;
-pub use ollama_backend::OllamaModelEntry;
 pub use together_backend::TogetherModel;
 
 /// Unified model entry from any provider, with provider prefix applied.

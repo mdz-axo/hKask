@@ -10,7 +10,6 @@
 pub mod capability_validator;
 pub mod contract_validator;
 pub mod executor;
-pub mod lexicon;
 pub mod manifest_loader;
 pub mod ports;
 pub mod prompt_strategy;
