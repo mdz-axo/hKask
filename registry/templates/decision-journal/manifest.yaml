@@ -1,0 +1,38 @@
+# Template crate manifest for decision-journal skill
+# hKask v0.28.0
+
+crate:
+  name: decision-journal
+  version: "0.28.0"
+  description: >
+    Runtime skill — decision-journal.
+
+templates:
+  - id: decision-journal/compute-brier.j2
+    path: compute-brier.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for decision-journal — see compute-brier.j2 for details.
+
+  - id: decision-journal/define-expected-outcomes.j2
+    path: define-expected-outcomes.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for decision-journal — see define-expected-outcomes.j2 for details.
+
+  - id: decision-journal/record-decision.j2
+    path: record-decision.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for decision-journal — see record-decision.j2 for details.
+
+  - id: decision-journal/revisit-evaluate.j2
+    path: revisit-evaluate.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for decision-journal — see revisit-evaluate.j2 for details.
+

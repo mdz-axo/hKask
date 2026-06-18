@@ -81,9 +81,12 @@ fn parse_restore_scope(s: &str) -> RestoreScope {
 /// Run a backup operation.
 ///
 /// REQ: CLI-002
+/// REQ: P9-CNS-SURF-002 pre: valid BackupAction post: cns.cli span emitted
 /// pre:  rt is valid, action is valid
 /// post: backup operation executed
 pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
+    // P9: CNS span
+    tracing::info!(target: "cns.cli", operation = "backup", action = ?action, "CNS");
     match action {
         BackupAction::Snapshot { scope } => {
             let port = resolve_git_cas_port();

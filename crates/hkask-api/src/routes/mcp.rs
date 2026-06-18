@@ -53,6 +53,9 @@ pub fn mcp_router() -> OpenApiRouter<ApiState> {
     ),
 )]
 pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
+    // REQ: P9-CNS-SURF-050 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "mcp_servers", "CNS");
     let servers = state.agent_service.mcp_runtime().list_servers().await;
     Json(servers.iter().map(|s| s.id.clone()).collect())
 }
@@ -71,6 +74,9 @@ pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<Stri
     ),
 )]
 pub(crate) async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
+    // REQ: P9-CNS-SURF-051 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "mcp_tools", "CNS");
     let tools = state.agent_service.mcp_runtime().discover_tools().await;
     Json(tools)
 }
@@ -126,6 +132,9 @@ pub(crate) async fn mcp_invoke(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<McpInvokeRequest>,
 ) -> Result<Json<McpInvokeResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-052 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "mcp_invoke", tool = %req.tool, "CNS");
     let input = if req.input.is_null() {
         serde_json::Value::Object(serde_json::Map::new())
     } else {

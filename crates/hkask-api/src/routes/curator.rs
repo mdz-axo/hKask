@@ -141,6 +141,9 @@ pub(crate) async fn list_escalations(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<ListEscalationsResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-022 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "curator_escalations", "CNS");
     let entries = hkask_services::CuratorService::list_escalations(&state.agent_service)?;
     let escalations: Vec<EscalationEntryResponse> = entries
         .into_iter()
@@ -181,6 +184,9 @@ pub(crate) async fn resolve_escalation(
     Path(id): Path<String>,
     Json(req): Json<ResolveEscalationRequest>,
 ) -> Result<Json<ResolveEscalationResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-023 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "curator_resolve", escalation_id = %id, "CNS");
     hkask_services::CuratorService::resolve(&state.agent_service, &id, &req.resolved_by)?;
     Ok(Json(ResolveEscalationResponse {
         id,
@@ -208,6 +214,9 @@ pub(crate) async fn dismiss_escalation(
     Path(id): Path<String>,
     Json(req): Json<DismissEscalationRequest>,
 ) -> Result<Json<DismissEscalationResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-024 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "curator_dismiss", escalation_id = %id, "CNS");
     hkask_services::CuratorService::dismiss(&state.agent_service, &id, &req.dismissed_by)?;
     Ok(Json(DismissEscalationResponse {
         id,

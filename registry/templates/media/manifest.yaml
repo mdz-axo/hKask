@@ -1,0 +1,38 @@
+# Template crate manifest for media skill
+# hKask v0.28.0
+
+crate:
+  name: media
+  version: "0.28.0"
+  description: >
+    Runtime skill — media.
+
+templates:
+  - id: media/classify_style.j2
+    path: classify_style.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for media — see classify_style.j2 for details.
+
+  - id: media/describe_scene.j2
+    path: describe_scene.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for media — see describe_scene.j2 for details.
+
+  - id: media/tag_colors.j2
+    path: tag_colors.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for media — see tag_colors.j2 for details.
+
+  - id: media/tag_composition.j2
+    path: tag_composition.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for media — see tag_composition.j2 for details.
+

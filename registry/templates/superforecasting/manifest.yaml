@@ -1,0 +1,66 @@
+# Template crate manifest for superforecasting skill
+# hKask v0.28.0
+
+crate:
+  name: superforecasting
+  version: "0.28.0"
+  description: >
+    Runtime skill — superforecasting.
+
+templates:
+  - id: superforecasting/stage_0_triage.j2
+    path: stage_0_triage.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for superforecasting — see stage_0_triage.j2 for details.
+
+  - id: superforecasting/stage_1_fermi_decompose.j2
+    path: stage_1_fermi_decompose.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for superforecasting — see stage_1_fermi_decompose.j2 for details.
+
+  - id: superforecasting/stage_2_outside_view.j2
+    path: stage_2_outside_view.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for superforecasting — see stage_2_outside_view.j2 for details.
+
+  - id: superforecasting/stage_3_inside_view.j2
+    path: stage_3_inside_view.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for superforecasting — see stage_3_inside_view.j2 for details.
+
+  - id: superforecasting/stage_4_evidence_update.j2
+    path: stage_4_evidence_update.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for superforecasting — see stage_4_evidence_update.j2 for details.
+
+  - id: superforecasting/stage_5_synthesis.j2
+    path: stage_5_synthesis.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for superforecasting — see stage_5_synthesis.j2 for details.
+
+  - id: superforecasting/stage_6_calibration.j2
+    path: stage_6_calibration.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for superforecasting — see stage_6_calibration.j2 for details.
+
+  - id: superforecasting/stage_7_record.j2
+    path: stage_7_record.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for superforecasting — see stage_7_record.j2 for details.
+

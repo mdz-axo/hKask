@@ -101,9 +101,12 @@ pub async fn agent_unregister(name: &str) -> Result<(), ServiceError> {
 }
 
 /// REQ: CLI-042
+/// REQ: P9-CNS-SURF-004 pre: valid BotAction post: cns.cli span emitted
 /// pre:  rt is a valid tokio Runtime; action is a BotAction variant (List or Status)
 /// post: for List — prints table of all agents (or "No agents registered"); for Status — prints detailed agent info
 pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
+    // P9: CNS span
+    tracing::info!(target: "cns.cli", operation = "bot", action = ?action, "CNS");
     use crate::commands;
     match action {
         BotAction::List { kind } => {
@@ -176,9 +179,12 @@ pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
 }
 
 /// REQ: CLI-043
+/// REQ: P9-CNS-SURF-005 pre: valid AgentAction post: cns.cli span emitted
 /// pre:  rt is a valid tokio Runtime; action is an AgentAction variant (Register, Unregister, List, Capabilities)
 /// post: dispatches to the appropriate handler; prints results to stdout; exits on fatal errors
 pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) {
+    // P9: CNS span
+    tracing::info!(target: "cns.cli", operation = "agent", action = ?action, "CNS");
     use crate::commands;
     match action {
         crate::cli::AgentAction::Register {

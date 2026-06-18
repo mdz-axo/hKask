@@ -1,0 +1,45 @@
+# Template crate manifest for web skill
+# hKask v0.28.0
+
+crate:
+  name: web
+  version: "0.28.0"
+  description: >
+    Runtime skill — web.
+
+templates:
+  - id: web/extract-synthesize.j2
+    path: extract-synthesize.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for web — see extract-synthesize.j2 for details.
+
+  - id: web/research-cascade.j2
+    path: research-cascade.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for web — see research-cascade.j2 for details.
+
+  - id: web/search-deep.j2
+    path: search-deep.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for web — see search-deep.j2 for details.
+
+  - id: web/search-news.j2
+    path: search-news.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for web — see search-news.j2 for details.
+
+  - id: web/search-quick.j2
+    path: search-quick.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for web — see search-quick.j2 for details.
+

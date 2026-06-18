@@ -795,7 +795,7 @@ fn list_replicants(
 ) -> Result<Vec<RegisteredAgent>, OnboardingError> {
     store
         .list_by_kind(hkask_types::AgentKind::Replicant)
-        .map_err(|e| OnboardingError::Service(ServiceError::AgentRegistryStore { message: e)))
+        .map_err(|e| OnboardingError::Service(ServiceError::AgentRegistryStore { message: e.to_string() }))
 }
 
 /// Read a line of input from the user

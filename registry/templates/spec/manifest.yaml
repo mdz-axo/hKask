@@ -1,0 +1,52 @@
+# Template crate manifest for spec skill
+# hKask v0.28.0
+
+crate:
+  name: spec
+  version: "0.28.0"
+  description: >
+    Runtime skill — spec.
+
+templates:
+  - id: spec/constraint-bind.j2
+    path: constraint-bind.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for spec — see constraint-bind.j2 for details.
+
+  - id: spec/contextualise.j2
+    path: contextualise.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for spec — see contextualise.j2 for details.
+
+  - id: spec/curate-collection.j2
+    path: curate-collection.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for spec — see curate-collection.j2 for details.
+
+  - id: spec/goal-capture.j2
+    path: goal-capture.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for spec — see goal-capture.j2 for details.
+
+  - id: spec/reconcile-conflicts.j2
+    path: reconcile-conflicts.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for spec — see reconcile-conflicts.j2 for details.
+
+  - id: spec/selector.j2
+    path: selector.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for spec — see selector.j2 for details.
+

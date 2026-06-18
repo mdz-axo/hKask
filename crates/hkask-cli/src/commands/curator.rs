@@ -45,6 +45,7 @@ pub async fn curator_metacognition() -> Result<String, ServiceError> {
 }
 
 /// REQ: CLI-037
+/// REQ: P9-CNS-SURF-006 pre: valid CuratorAction post: cns.cli span emitted
 /// pre:  rt is a valid tokio runtime
 /// pre:  registry, runtime, handle are valid
 /// pre:  action is a valid CuratorAction variant
@@ -57,6 +58,8 @@ pub fn run_curator(
     handle: &tokio::runtime::Handle,
     action: crate::cli::CuratorAction,
 ) {
+    // P9: CNS span
+    tracing::info!(target: "cns.cli", operation = "curator", action = ?action, "CNS");
     use crate::commands;
 
     match action {

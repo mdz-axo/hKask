@@ -1156,6 +1156,10 @@ impl EmbedService {
 
     /// Parse a corpus config YAML file.
     pub fn parse_config(path: &Path) -> Result<CorpusConfig, ServiceError> {
+        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.embed span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.embed", operation = "parse_config", config = %path.display(), "CNS");
+
         let config_str = std::fs::read_to_string(path).map_err(|e| {
             let msg = format!("Failed to read corpus config {}: {e}", path.display());
             ServiceError::Embed {
@@ -1527,6 +1531,10 @@ const OCR_SYSTEM_PROMPT: &str = "Extract all text from this document image. Outp
 ///
 /// Falls back to sending raw PDF bytes as base64 if pdftoppm is not installed.
 pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceError> {
+    // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.embed span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.embed", operation = "ocr_pdf_bytes", url = %url, byte_len = bytes.len(), "CNS");
+
     let ocr_model = std::env::var("HKASK_OCR_MODEL")
         .ok()
         .filter(|s| !s.is_empty())

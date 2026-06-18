@@ -1,0 +1,45 @@
+# Template crate manifest for mcp skill
+# hKask v0.28.0
+
+crate:
+  name: mcp
+  version: "0.28.0"
+  description: >
+    Runtime skill — mcp.
+
+templates:
+  - id: mcp/condense_session.j2
+    path: condense_session.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for mcp — see condense_session.j2 for details.
+
+  - id: mcp/doc_extract.j2
+    path: doc_extract.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for mcp — see doc_extract.j2 for details.
+
+  - id: mcp/inference_call.j2
+    path: inference_call.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for mcp — see inference_call.j2 for details.
+
+  - id: mcp/scholar_extract.j2
+    path: scholar_extract.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for mcp — see scholar_extract.j2 for details.
+
+  - id: mcp/web_extract.j2
+    path: web_extract.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for mcp — see web_extract.j2 for details.
+

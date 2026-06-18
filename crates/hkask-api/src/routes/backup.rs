@@ -329,6 +329,9 @@ pub(crate) async fn snapshot(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<SnapshotRequest>,
 ) -> Result<Json<SnapshotResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-010 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "backup_snapshot", "CNS");
     let svc = backup_service(&state);
     let scope = api_scope_to_domain(req.scope)?;
 
@@ -355,6 +358,9 @@ pub(crate) async fn restore(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<RestoreRequest>,
 ) -> Result<Json<RestoreResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-011 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "backup_restore", "CNS");
     let svc = backup_service(&state);
     let scope = api_restore_scope_to_domain(req.scope)?;
 
@@ -396,6 +402,9 @@ pub(crate) async fn list_snapshots(
     Extension(_auth): Extension<AuthContext>,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
 ) -> Result<Json<ListResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-012 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "backup_list", "CNS");
     let svc = backup_service(&state);
 
     let filter = ListFilter {
@@ -427,6 +436,9 @@ pub(crate) async fn prune(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<PruneRequest>,
 ) -> Result<Json<PruneResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-013 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "backup_prune", "CNS");
     let svc = backup_service(&state);
 
     let report = svc.prune(req.dry_run).await?;
@@ -461,6 +473,9 @@ pub(crate) async fn verify(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<VerifyResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-014 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "backup_verify", "CNS");
     let svc = backup_service(&state);
 
     let reports = svc.verify().await?;
@@ -493,6 +508,9 @@ pub(crate) async fn get_config(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<BackupConfigResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-015 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "backup_config_get", "CNS");
     let svc = backup_service(&state);
     let config = svc.config();
 
@@ -528,6 +546,9 @@ pub(crate) async fn update_config(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<UpdateConfigRequest>,
 ) -> Result<Json<BackupConfigResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-016 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "backup_config_update", "CNS");
     let mut svc = backup_service(&state);
     let mut config = svc.config().clone();
 

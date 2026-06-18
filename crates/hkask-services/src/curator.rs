@@ -103,7 +103,7 @@ impl CuratorService {
                     source: None,
                     message: id,
                 },
-                other => ServiceError::Escalation { message: other),
+                other => ServiceError::Escalation { message: other.to_string() },
             })
     }
 
@@ -141,7 +141,7 @@ impl CuratorService {
                     source: None,
                     message: id,
                 },
-                other => ServiceError::Escalation { message: other),
+                other => ServiceError::Escalation { message: other.to_string() },
             })
     }
 

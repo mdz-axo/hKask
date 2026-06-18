@@ -1,0 +1,31 @@
+# Template crate manifest for prompt-defense skill
+# hKask v0.28.0
+
+crate:
+  name: prompt-defense
+  version: "0.28.0"
+  description: >
+    Runtime skill — prompt-defense.
+
+templates:
+  - id: prompt-defense/analyze-attack-surface.j2
+    path: analyze-attack-surface.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for prompt-defense — see analyze-attack-surface.j2 for details.
+
+  - id: prompt-defense/classify-threat.j2
+    path: classify-threat.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for prompt-defense — see classify-threat.j2 for details.
+
+  - id: prompt-defense/recommend-defenses.j2
+    path: recommend-defenses.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for prompt-defense — see recommend-defenses.j2 for details.
+

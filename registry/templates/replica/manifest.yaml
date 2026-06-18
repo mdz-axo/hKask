@@ -1,0 +1,31 @@
+# Template crate manifest for replica skill
+# hKask v0.28.0
+
+crate:
+  name: replica
+  version: "0.28.0"
+  description: >
+    Runtime skill — replica.
+
+templates:
+  - id: replica/discovery-corpus.j2
+    path: discovery-corpus.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for replica — see discovery-corpus.j2 for details.
+
+  - id: replica/extract-concepts.j2
+    path: extract-concepts.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for replica — see extract-concepts.j2 for details.
+
+  - id: replica/infer-methods.j2
+    path: infer-methods.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for replica — see infer-methods.j2 for details.
+

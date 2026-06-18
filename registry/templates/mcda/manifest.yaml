@@ -1,0 +1,38 @@
+# Template crate manifest for mcda skill
+# hKask v0.28.0
+
+crate:
+  name: mcda
+  version: "0.28.0"
+  description: >
+    Runtime skill — mcda.
+
+templates:
+  - id: mcda/identify-criteria.j2
+    path: identify-criteria.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for mcda — see identify-criteria.j2 for details.
+
+  - id: mcda/rank-alternatives.j2
+    path: rank-alternatives.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for mcda — see rank-alternatives.j2 for details.
+
+  - id: mcda/sensitivity-analysis.j2
+    path: sensitivity-analysis.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for mcda — see sensitivity-analysis.j2 for details.
+
+  - id: mcda/weight-and-score.j2
+    path: weight-and-score.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for mcda — see weight-and-score.j2 for details.
+

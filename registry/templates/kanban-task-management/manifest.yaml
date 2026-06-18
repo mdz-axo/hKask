@@ -1,0 +1,24 @@
+# Template crate manifest for kanban-task-management skill
+# hKask v0.28.0
+
+crate:
+  name: kanban-task-management
+  version: "0.28.0"
+  description: >
+    Runtime skill — kanban-task-management.
+
+templates:
+  - id: kanban-task-management/monitor-board.j2
+    path: monitor-board.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for kanban-task-management — see monitor-board.j2 for details.
+
+  - id: kanban-task-management/verify-completion.j2
+    path: verify-completion.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for kanban-task-management — see verify-completion.j2 for details.
+

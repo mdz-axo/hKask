@@ -1,0 +1,42 @@
+# Template crate manifest for goal skill
+# hKask v0.28.0
+
+crate:
+  name: goal
+  version: "0.28.0"
+  description: >
+    Runtime skill — goal.
+
+templates:
+  - id: goal/create.j2
+    path: create.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for goal — see create.j2 for details.
+
+  - id: goal/judge.j2
+    path: judge.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for goal — see judge.j2 for details.
+
+  - id: goal/judge_command.j2
+    path: judge_command.j2
+    type: KnowAct
+    lexicon_terms: [assert,command]
+    description: >
+      Runtime template for goal — see judge_command.j2 for details.
+
+  - id: goal/judge_simple.j2
+    path: judge_simple.j2
+    type: KnowAct
+    lexicon_terms: [assert,acknowledge]
+    description: >
+      Runtime template for goal — see judge_simple.j2 for details.
+
+hlexicon_terms:
+  - acknowledge
+  - assert
+  - command

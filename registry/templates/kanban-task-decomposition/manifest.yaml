@@ -1,0 +1,31 @@
+# Template crate manifest for kanban-task-decomposition skill
+# hKask v0.28.0
+
+crate:
+  name: kanban-task-decomposition
+  version: "0.28.0"
+  description: >
+    Runtime skill — kanban-task-decomposition.
+
+templates:
+  - id: kanban-task-decomposition/decompose-tasks.j2
+    path: decompose-tasks.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for kanban-task-decomposition — see decompose-tasks.j2 for details.
+
+  - id: kanban-task-decomposition/gather-context.j2
+    path: gather-context.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for kanban-task-decomposition — see gather-context.j2 for details.
+
+  - id: kanban-task-decomposition/review-tasks.j2
+    path: review-tasks.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for kanban-task-decomposition — see review-tasks.j2 for details.
+

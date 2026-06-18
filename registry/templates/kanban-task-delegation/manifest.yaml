@@ -1,0 +1,17 @@
+# Template crate manifest for kanban-task-delegation skill
+# hKask v0.28.0
+
+crate:
+  name: kanban-task-delegation
+  version: "0.28.0"
+  description: >
+    Runtime skill — kanban-task-delegation.
+
+templates:
+  - id: kanban-task-delegation/verify-completion.j2
+    path: verify-completion.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for kanban-task-delegation — see verify-completion.j2 for details.
+

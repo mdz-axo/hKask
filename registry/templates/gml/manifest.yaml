@@ -1,0 +1,80 @@
+# Template crate manifest for gml skill
+# hKask v0.28.0
+
+crate:
+  name: gml
+  version: "0.28.0"
+  description: >
+    Runtime skill — gml.
+
+templates:
+  - id: gml/assess-coherence.j2
+    path: assess-coherence.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for gml — see assess-coherence.j2 for details.
+
+  - id: gml/bind-effector.j2
+    path: bind-effector.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for gml — see bind-effector.j2 for details.
+
+  - id: gml/cns-instrument.j2
+    path: cns-instrument.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for gml — see cns-instrument.j2 for details.
+
+  - id: gml/compute-equilibrium.j2
+    path: compute-equilibrium.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for gml — see compute-equilibrium.j2 for details.
+
+  - id: gml/error-generic.j2
+    path: error-generic.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for gml — see error-generic.j2 for details.
+
+  - id: gml/error-validation.j2
+    path: error-validation.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for gml — see error-validation.j2 for details.
+
+  - id: gml/macros.j2
+    path: macros.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for gml — see macros.j2 for details.
+
+  - id: gml/recognize-ensemble.j2
+    path: recognize-ensemble.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for gml — see recognize-ensemble.j2 for details.
+
+  - id: gml/reframe-concept.j2
+    path: reframe-concept.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for gml — see reframe-concept.j2 for details.
+
+  - id: gml/validate-inputs.j2
+    path: validate-inputs.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for gml — see validate-inputs.j2 for details.
+

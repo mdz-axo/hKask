@@ -109,6 +109,10 @@ impl InferenceService {
         ctx: &InferenceContext,
         model: &str,
     ) -> Result<Arc<dyn InferencePort>, ServiceError> {
+        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.inference_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.inference_svc", operation = "resolve_port", model = %model, has_shared = ctx.shared_port.is_some(), "CNS");
+
         // If the requested model matches the default, reuse the shared port.
         if let Some(ref port) = ctx.shared_port
             && model == ctx.default_model
@@ -129,6 +133,10 @@ impl InferenceService {
     /// post: returns Vec<ModelInfo> from all configured providers; empty Vec if none
     /// # REQ: P9-svc-inference-svc-inf-004 — list_models returns model metadata from all providers
     pub async fn list_models(ctx: &InferenceContext) -> Result<Vec<ModelInfo>, ServiceError> {
+        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.inference_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.inference_svc", operation = "list_models", "CNS");
+
         let router = InferenceRouter::new(ctx.inference_config.clone());
         let models = router.list_models().await;
         Ok(models.into_iter().map(ModelInfo::from).collect())
@@ -145,6 +153,10 @@ impl InferenceService {
         ctx: &InferenceContext,
         query: &str,
     ) -> Result<Vec<ModelInfo>, ServiceError> {
+        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.inference_svc span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.inference_svc", operation = "search_models", query = %query, "CNS");
+
         let router = InferenceRouter::new(ctx.inference_config.clone());
         let models = router.search_models(query).await;
         Ok(models.into_iter().map(ModelInfo::from).collect())

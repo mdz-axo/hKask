@@ -92,6 +92,9 @@ fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ServiceError> {
 }
 
 async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
+    // REQ: P9-CNS-SURF-030 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "pods_list", "CNS");
     let pod_statuses = hkask_services::PodService::list_pods(&state.agent_service)
         .await
         .unwrap_or_default();
@@ -115,6 +118,9 @@ async fn create_pod(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-031 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "pods_create", "CNS");
     let has = state.agent_service.capability_checker().check_resource(
         &auth.token,
         &auth.webid,
@@ -125,7 +131,7 @@ async fn create_pod(
             ServiceError::A2A { message: hkask_agents::a2a::A2AError::CapabilityDenied(
                 auth.webid,
                 "Insufficient capability to create pods".into(),
-            ))
+            ).to_string() }
             .into(),
         );
     }
@@ -142,6 +148,9 @@ async fn activate_pod(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-032 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "pods_activate", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;
     state.agent_service.pod_manager().activate_pod(&pid).await?;
     Ok(StatusCode::NO_CONTENT)
@@ -152,6 +161,9 @@ async fn deactivate_pod(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-033 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "pods_deactivate", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;
     state
         .agent_service
@@ -166,6 +178,9 @@ async fn pod_status(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<Json<PodStatusResponse>, ServiceErrorResponse> {
+    // REQ: P9-CNS-SURF-034 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "pods_status", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;
     let status = state
         .agent_service

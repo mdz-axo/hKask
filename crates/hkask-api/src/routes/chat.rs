@@ -87,6 +87,9 @@ pub(crate) async fn chat(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<ChatRequest>,
 ) -> Json<ChatResponse> {
+    // REQ: P9-CNS-SURF-020 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "chat", "CNS");
     let model_str = req.model.clone().unwrap_or_else(|| "qwen3:8b".to_string());
     let model: &str = &model_str;
     let strategy = hkask_templates::PromptStrategy::from_input(&req.input);
@@ -156,6 +159,9 @@ pub(crate) async fn chat_stream(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<ChatRequest>,
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
+    // REQ: P9-CNS-SURF-021 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "chat_stream", "CNS");
     let model_str = req.model.clone().unwrap_or_else(|| "qwen3:8b".to_string());
     let strategy = hkask_templates::PromptStrategy::from_input(&req.input);
 

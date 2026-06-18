@@ -1,0 +1,38 @@
+# Template crate manifest for adversarial-red-team skill
+# hKask v0.28.0
+
+crate:
+  name: adversarial-red-team
+  version: "0.28.0"
+  description: >
+    Runtime skill — adversarial-red-team.
+
+templates:
+  - id: adversarial-red-team/generate-adversarial.j2
+    path: generate-adversarial.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for adversarial-red-team — see generate-adversarial.j2 for details.
+
+  - id: adversarial-red-team/multi-turn-attack.j2
+    path: multi-turn-attack.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for adversarial-red-team — see multi-turn-attack.j2 for details.
+
+  - id: adversarial-red-team/select-target.j2
+    path: select-target.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for adversarial-red-team — see select-target.j2 for details.
+
+  - id: adversarial-red-team/test-against-target.j2
+    path: test-against-target.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for adversarial-red-team — see test-against-target.j2 for details.
+

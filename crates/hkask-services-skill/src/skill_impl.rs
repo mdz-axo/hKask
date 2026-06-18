@@ -11,6 +11,7 @@
 use hkask_templates::SkillLoader;
 use hkask_types::ports::{Skill, SkillZone};
 use hkask_types::visibility::Visibility;
+use tracing;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -89,6 +90,15 @@ pub fn discover_skills(zone_dir: &Path) -> Result<Vec<SkillInfo>, ServiceError> 
     }
 
     skills.sort_by(|a, b| a.name.cmp(&b.name));
+    // REQ: P9-CNS-SVC-020 pre: valid zone_dir, post: cns.skill span emitted
+    // P9: CNS span
+    tracing::info!(
+        target: "cns.skill",
+        operation = "skills_discovered",
+        zone_dir = %zone_dir.display(),
+        count = skills.len(),
+        "CNS"
+    );
     Ok(skills)
 }
 
@@ -244,6 +254,17 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
     let public_skill_md = public_dir.join("SKILL.md");
     update_visibility_in_skill_md(&public_skill_md, "public");
     update_namespace_in_skill_md(&public_skill_md, &replicant_name);
+
+    // REQ: P9-CNS-SVC-021 pre: valid skill publish, post: cns.skill span emitted
+    // P9: CNS span
+    tracing::info!(
+        target: "cns.skill",
+        operation = "skill_published",
+        name = %name,
+        namespaced_name = %namespaced_name,
+        namespace = %replicant_name,
+        "CNS"
+    );
 
     Ok(SkillPublishResult {
         name: name.to_string(),

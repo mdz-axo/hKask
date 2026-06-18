@@ -231,7 +231,7 @@ pub(crate) async fn sovereignty_check_access(
             ServiceError::A2A { message: hkask_agents::a2a::A2AError::CapabilityDenied(
                 auth.webid,
                 format!("No consent for category '{cat_name}' (class {classification})"),
-            ))
+            ).to_string() }
             .into(),
         );
     }

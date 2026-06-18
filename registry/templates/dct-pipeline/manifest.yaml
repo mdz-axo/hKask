@@ -1,0 +1,24 @@
+# Template crate manifest for dct-pipeline skill
+# hKask v0.28.0
+
+crate:
+  name: dct-pipeline
+  version: "0.28.0"
+  description: >
+    Runtime skill — dct-pipeline.
+
+templates:
+  - id: dct-pipeline/classification.j2
+    path: classification.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for dct-pipeline — see classification.j2 for details.
+
+  - id: dct-pipeline/decimation.j2
+    path: decimation.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for dct-pipeline — see decimation.j2 for details.
+

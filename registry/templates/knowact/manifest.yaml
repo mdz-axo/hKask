@@ -1,0 +1,45 @@
+# Template crate manifest for knowact skill
+# hKask v0.28.0
+
+crate:
+  name: knowact
+  version: "0.28.0"
+  description: >
+    Runtime skill — knowact.
+
+templates:
+  - id: knowact/calibrate.j2
+    path: calibrate.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for knowact — see calibrate.j2 for details.
+
+  - id: knowact/detect.j2
+    path: detect.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for knowact — see detect.j2 for details.
+
+  - id: knowact/ellipsis-analysis.j2
+    path: ellipsis-analysis.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for knowact — see ellipsis-analysis.j2 for details.
+
+  - id: knowact/falstaffian-perspective.j2
+    path: falstaffian-perspective.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for knowact — see falstaffian-perspective.j2 for details.
+
+  - id: knowact/reflect.j2
+    path: reflect.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for knowact — see reflect.j2 for details.
+

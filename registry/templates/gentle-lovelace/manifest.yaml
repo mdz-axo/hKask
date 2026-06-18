@@ -1,0 +1,17 @@
+# Template crate manifest for gentle-lovelace skill
+# hKask v0.28.0
+
+crate:
+  name: gentle-lovelace
+  version: "0.28.0"
+  description: >
+    Runtime skill — gentle-lovelace.
+
+templates:
+  - id: gentle-lovelace/replica-report.j2
+    path: replica-report.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for gentle-lovelace — see replica-report.j2 for details.
+

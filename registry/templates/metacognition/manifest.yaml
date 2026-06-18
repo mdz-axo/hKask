@@ -1,0 +1,17 @@
+# Template crate manifest for metacognition skill
+# hKask v0.28.0
+
+crate:
+  name: metacognition
+  version: "0.28.0"
+  description: >
+    Runtime skill — metacognition.
+
+templates:
+  - id: metacognition/meta_decompose.j2
+    path: meta_decompose.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for metacognition — see meta_decompose.j2 for details.
+

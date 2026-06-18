@@ -8,6 +8,7 @@
 use hkask_types::sovereignty::{DataCategory, DataSovereigntyBoundary};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
+use tracing;
 
 // ── Domain types ─────────────────────────────────────────────────────────
 
@@ -103,7 +104,27 @@ impl VerificationService {
     /// pre:  filter if Some must be a valid principle name; manifests must be loadable
     /// post: returns VerificationReport with principle results, pass/fail/gap/skip counts, and total assertions
     pub fn verify(filter: Option<&str>) -> VerificationReport {
-        build_report(&load_manifests(), filter)
+        // REQ: P9-CNS-SVC-030 pre: valid filter, post: cns.verification span emitted
+        // P9: CNS span
+        tracing::info!(
+            target: "cns.verification",
+            operation = "verification_started",
+            filter = filter.unwrap_or("all"),
+            "CNS"
+        );
+        let report = build_report(&load_manifests(), filter);
+        // REQ: P9-CNS-SVC-031 pre: valid report, post: cns.verification span emitted
+        // P9: CNS span
+        tracing::info!(
+            target: "cns.verification",
+            operation = "verification_completed",
+            total_pass = report.total_pass,
+            total_fail = report.total_fail,
+            total_gap = report.total_gap,
+            total_assertions = report.total_assertions,
+            "CNS"
+        );
+        report
     }
     /// REQ: P4-svc-verification-233
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.

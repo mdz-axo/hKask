@@ -61,6 +61,10 @@ impl ServiceDaemonHandler {
         user_store: Arc<std::sync::Mutex<UserStore>>,
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Self {
+        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.daemon", operation = "new_handler", has_inference = inference_port.is_some(), "CNS");
+
         Self {
             pod_manager,
             user_store,
@@ -73,6 +77,10 @@ impl ServiceDaemonHandler {
 #[async_trait::async_trait]
 impl DaemonHandler for ServiceDaemonHandler {
     async fn check_auth(&self, replicant: &str) -> (bool, Option<String>) {
+        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.daemon", operation = "check_auth", replicant = %replicant, "CNS");
+
         let has_sessions = {
             let store = match self.user_store.lock() {
                 Ok(s) => s,
@@ -105,6 +113,10 @@ impl DaemonHandler for ServiceDaemonHandler {
     }
 
     async fn check_assignment(&self, replicant: &str, role: &str) -> bool {
+        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.daemon", operation = "check_assignment", replicant = %replicant, role = %role, "CNS");
+
         match self.pod_manager.find_pod_by_name(replicant).await {
             Some(pod_id) => {
                 let assigned = self.pod_manager.is_assigned_to_role(&pod_id, role).await;
@@ -119,6 +131,10 @@ impl DaemonHandler for ServiceDaemonHandler {
     }
 
     async fn check_capability(&self, replicant: &str, tool: &str) -> bool {
+        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.daemon", operation = "check_capability", replicant = %replicant, tool = %tool, "CNS");
+
         match self.pod_manager.find_pod_by_name(replicant).await {
             Some(pod_id) => {
                 let granted = self.pod_manager.has_capability(&pod_id, tool).await;
@@ -137,6 +153,10 @@ impl DaemonHandler for ServiceDaemonHandler {
         value: &serde_json::Value,
         confidence: Option<f64>,
     ) -> (bool, Option<String>, Option<String>) {
+        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.daemon", operation = "store_experience", replicant = %replicant, entity = %entity, attribute = %attribute, confidence = ?confidence, "CNS");
+
         let pod_id = match self.pod_manager.find_pod_by_name(replicant).await {
             Some(id) => id,
             None => {
@@ -221,6 +241,10 @@ impl DaemonHandler for ServiceDaemonHandler {
         tool: &str,
         input: &serde_json::Value,
     ) -> (bool, Option<serde_json::Value>, Option<String>) {
+        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.daemon", operation = "dispatch_tool", replicant = %replicant, tool = %tool, "CNS");
+
         let pod_id = match self.pod_manager.find_pod_by_name(replicant).await {
             Some(id) => id,
             None => {
@@ -253,6 +277,10 @@ async fn generate_narrative(
     inference: &dyn InferencePort,
     replicant: &str,
 ) {
+    // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.daemon", operation = "generate_narrative", replicant = %replicant, "CNS");
+
     let pod_id = match pod_manager.find_pod_by_name(replicant).await {
         Some(id) => id,
         None => {

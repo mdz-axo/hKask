@@ -1,0 +1,24 @@
+# Template crate manifest for chain-of-density skill
+# hKask v0.28.0
+
+crate:
+  name: chain-of-density
+  version: "0.28.0"
+  description: >
+    Runtime skill — chain-of-density.
+
+templates:
+  - id: chain-of-density/density-pass.j2
+    path: density-pass.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for chain-of-density — see density-pass.j2 for details.
+
+  - id: chain-of-density/initial-summary.j2
+    path: initial-summary.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for chain-of-density — see initial-summary.j2 for details.
+

@@ -1,0 +1,46 @@
+# Template crate manifest for wordact skill
+# hKask v0.28.0
+
+crate:
+  name: wordact
+  version: "0.28.0"
+  description: >
+    Runtime skill — wordact.
+
+templates:
+  - id: wordact/execute.j2
+    path: execute.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for wordact — see execute.j2 for details.
+
+  - id: wordact/render.j2
+    path: render.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for wordact — see render.j2 for details.
+
+  - id: wordact/selector.j2
+    path: selector.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for wordact — see selector.j2 for details.
+
+  - id: wordact/soap.j2
+    path: soap.j2
+    type: WordAct
+    lexicon_terms: [observe,assess,plan,act,monitor,recall,discover]
+    description: >
+      Runtime template for wordact — see soap.j2 for details.
+
+hlexicon_terms:
+  - act
+  - assess
+  - discover
+  - monitor
+  - observe
+  - plan
+  - recall

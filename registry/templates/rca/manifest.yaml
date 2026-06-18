@@ -1,0 +1,38 @@
+# Template crate manifest for rca skill
+# hKask v0.28.0
+
+crate:
+  name: rca
+  version: "0.28.0"
+  description: >
+    Runtime skill — rca.
+
+templates:
+  - id: rca/corrective-action.j2
+    path: corrective-action.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for rca — see corrective-action.j2 for details.
+
+  - id: rca/define-problem.j2
+    path: define-problem.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for rca — see define-problem.j2 for details.
+
+  - id: rca/five-whys-chain.j2
+    path: five-whys-chain.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for rca — see five-whys-chain.j2 for details.
+
+  - id: rca/ishikawa-6m.j2
+    path: ishikawa-6m.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for rca — see ishikawa-6m.j2 for details.
+

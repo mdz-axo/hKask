@@ -1,0 +1,24 @@
+# Template crate manifest for reasoning skill
+# hKask v0.28.0
+
+crate:
+  name: reasoning
+  version: "0.28.0"
+  description: >
+    Runtime skill — reasoning.
+
+templates:
+  - id: reasoning/reason_constrained.j2
+    path: reason_constrained.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for reasoning — see reason_constrained.j2 for details.
+
+  - id: reasoning/reasoning.j2
+    path: reasoning.j2
+    type: WordAct
+    lexicon_terms: []
+    description: >
+      Runtime template for reasoning — see reasoning.j2 for details.
+

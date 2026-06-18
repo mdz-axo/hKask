@@ -80,6 +80,9 @@ pub fn templates_router() -> OpenApiRouter<ApiState> {
     ),
 )]
 pub(crate) async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateResponse>> {
+    // REQ: P9-CNS-SURF-040 pre: valid request post: cns.api span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.api", operation = "templates_list", "CNS");
     let registry = state.agent_service.registry().lock().await;
     let entries = registry.list(None);
 

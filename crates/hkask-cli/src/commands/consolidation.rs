@@ -6,6 +6,7 @@ use hkask_types::loops::CuratorHandle;
 use hkask_types::ports::ConsolidationRequest;
 
 /// REQ: CLI-070
+/// REQ: P9-CNS-SURF-007 pre: valid consolidation params post: cns.cli span emitted
 /// pre:  agent is an optional agent name (defaults to curator); limit > 0; passphrase required when agent specified
 /// post: executes episodic-to-semantic consolidation; prints consolidated/deleted/failed counts
 pub fn run(
@@ -15,6 +16,8 @@ pub fn run(
     max_semantic_triples: Option<usize>,
     passphrase: Option<&str>,
 ) {
+    // P9: CNS span
+    tracing::info!(target: "cns.cli", operation = "consolidation", agent = ?agent, limit = limit, "CNS");
     // Resolve agent name — defaults to "curator" for the Curator agent
     let agent_name = agent.unwrap_or("curator");
 

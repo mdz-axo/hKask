@@ -148,6 +148,10 @@ impl DiscoveryService {
         mcp: &dyn McpPort,
         token: &DelegationToken,
     ) -> Result<DiscoverResult, ServiceError> {
+        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.discover span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.discover", operation = "discover", author = %req.author_name, max_works = req.max_works, "CNS");
+
         let author_slug = slugify(&req.author_name);
         let output_dir = req
             .output_dir
@@ -463,6 +467,10 @@ pub fn generate_corpus_yaml(
     entities: Option<EntityConfig>,
     methods: &[DeclaredMethod],
 ) -> Result<PathBuf, ServiceError> {
+    // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.discover span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.discover", operation = "generate_corpus_yaml", author = %author_slug, work_count = works.len(), method_count = methods.len(), "CNS");
+
     let corpus_works: Vec<Work> = works
         .iter()
         .map(|w| {
@@ -1298,6 +1306,10 @@ async fn fetch_youtube_transcript(
 /// pre:  url must be a valid HTTP/HTTPS URL; cache_path's parent directory must exist
 /// post: content is downloaded, PDFs are text-extracted (with OCR fallback), HTML is stripped, and result is written to cache_path; Err on HTTP failure, empty content, or I/O error
 pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), ServiceError> {
+    // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.discover span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.discover", operation = "download_and_cache", url = %url, cache = %cache_path.display(), "CNS");
+
     let resp = reqwest::Client::builder()
         .user_agent(USER_AGENT)
         .timeout(std::time::Duration::from_secs(120))

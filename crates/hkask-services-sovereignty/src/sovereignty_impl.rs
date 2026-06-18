@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use hkask_agents::consent::ConsentManager;
 use hkask_types::sovereignty::DataCategory;
+use tracing;
 
 use hkask_services_core::ServiceError;
 
@@ -30,6 +31,18 @@ impl SovereigntyService {
         self.consent
             .grant_consent(webid, category)
             .map_err(|e| ServiceError::Consent { message: e.to_string() })
+            .map(|r| {
+                // REQ: P9-CNS-SVC-010 pre: valid consent grant, post: cns.sovereignty span emitted
+                // P9: CNS span
+                tracing::info!(
+                    target: "cns.sovereignty",
+                    operation = "consent_granted",
+                    webid = %webid,
+                    category = ?category,
+                    "CNS"
+                );
+                r
+            })
     }
 
     /// Revoke all consent for the given WebID.
@@ -37,6 +50,17 @@ impl SovereigntyService {
         self.consent
             .revoke_consent(webid)
             .map_err(|e| ServiceError::Consent { message: e.to_string() })
+            .map(|r| {
+                // REQ: P9-CNS-SVC-011 pre: valid consent revocation, post: cns.sovereignty span emitted
+                // P9: CNS span
+                tracing::info!(
+                    target: "cns.sovereignty",
+                    operation = "consent_revoked",
+                    webid = %webid,
+                    "CNS"
+                );
+                r
+            })
     }
 
     /// Check if the given WebID has consent for a data category.

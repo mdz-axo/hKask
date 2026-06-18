@@ -1,0 +1,45 @@
+# Template crate manifest for scenario skill
+# hKask v0.28.0
+
+crate:
+  name: scenario
+  version: "0.28.0"
+  description: >
+    Runtime skill — scenario.
+
+templates:
+  - id: scenario/axes-and-narratives.j2
+    path: axes-and-narratives.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for scenario — see axes-and-narratives.j2 for details.
+
+  - id: scenario/driving-forces.j2
+    path: driving-forces.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for scenario — see driving-forces.j2 for details.
+
+  - id: scenario/focal-question.j2
+    path: focal-question.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for scenario — see focal-question.j2 for details.
+
+  - id: scenario/implications-indicators.j2
+    path: implications-indicators.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for scenario — see implications-indicators.j2 for details.
+
+  - id: scenario/key-forces.j2
+    path: key-forces.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for scenario — see key-forces.j2 for details.
+

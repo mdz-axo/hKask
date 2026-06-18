@@ -1,0 +1,52 @@
+# Template crate manifest for curator skill
+# hKask v0.28.0
+
+crate:
+  name: curator
+  version: "0.28.0"
+  description: >
+    Runtime skill — curator.
+
+templates:
+  - id: curator/metacognition-calibrate.j2
+    path: metacognition-calibrate.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for curator — see metacognition-calibrate.j2 for details.
+
+  - id: curator/metacognition-diagnose.j2
+    path: metacognition-diagnose.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for curator — see metacognition-diagnose.j2 for details.
+
+  - id: curator/metacognition-escalate.j2
+    path: metacognition-escalate.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for curator — see metacognition-escalate.j2 for details.
+
+  - id: curator/metacognition-maintain.j2
+    path: metacognition-maintain.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for curator — see metacognition-maintain.j2 for details.
+
+  - id: curator/metacognition-selector.j2
+    path: metacognition-selector.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for curator — see metacognition-selector.j2 for details.
+
+  - id: curator/system_state_gather.j2
+    path: system_state_gather.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for curator — see system_state_gather.j2 for details.
+

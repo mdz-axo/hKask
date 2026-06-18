@@ -1,0 +1,31 @@
+# Template crate manifest for structured-extraction skill
+# hKask v0.28.0
+
+crate:
+  name: structured-extraction
+  version: "0.28.0"
+  description: >
+    Runtime skill — structured-extraction.
+
+templates:
+  - id: structured-extraction/extract-relations.j2
+    path: extract-relations.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for structured-extraction — see extract-relations.j2 for details.
+
+  - id: structured-extraction/identify-entities.j2
+    path: identify-entities.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for structured-extraction — see identify-entities.j2 for details.
+
+  - id: structured-extraction/map-to-schema.j2
+    path: map-to-schema.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for structured-extraction — see map-to-schema.j2 for details.
+

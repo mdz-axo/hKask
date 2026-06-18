@@ -17,6 +17,7 @@ use hkask_types::{
 };
 use serde_json::Value;
 use std::sync::Arc;
+use tracing;
 
 /// Core kanban coordination service.
 ///
@@ -87,6 +88,17 @@ impl KanbanService {
         self.store
             .insert(&triple)
             .map_err(|e| KanbanError::Internal(format!("triple insert failed: {e}")))?;
+
+        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.kanban span emitted
+        // P9: CNS span
+        tracing::info!(
+            target: "cns.kanban",
+            operation = "board_created",
+            board_id = %board.id,
+            name = %name,
+            owner = %owner,
+            "CNS"
+        );
 
         Ok(board)
     }
@@ -346,6 +358,17 @@ impl KanbanService {
             .insert(&index_triple)
             .map_err(|e| KanbanError::Internal(format!("index triple insert failed: {e}")))?;
 
+        // REQ: P9-CNS-SVC-002 pre: valid input, post: cns.kanban span emitted
+        // P9: CNS span
+        tracing::info!(
+            target: "cns.kanban",
+            operation = "task_created",
+            task_id = %task.id,
+            board_id = %board_id,
+            owner = %owner,
+            "CNS"
+        );
+
         Ok(task)
     }
 
@@ -474,6 +497,8 @@ impl KanbanService {
             });
         }
 
+        let from_status = task.status;
+
         // WIP limit enforcement (Anderson §4: "limit WIP to expose problems")
         if let Some(board) = self.board_get(task.board_id)?
             && let Some(col) = board.column_for_status(target)
@@ -508,6 +533,18 @@ impl KanbanService {
                 .update(&t.id, new_value, 1.0f64)
                 .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
         }
+
+        // REQ: P9-CNS-SVC-003 pre: valid transition, post: cns.kanban span emitted
+        // P9: CNS span
+        tracing::info!(
+            target: "cns.kanban",
+            operation = "task_moved",
+            task_id = %task_id,
+            from = %from_status,
+            to = %target,
+            actor = %actor,
+            "CNS"
+        );
 
         Ok(task)
     }
@@ -557,6 +594,16 @@ impl KanbanService {
                 .update(&t.id, new_value, 1.0f64)
                 .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
         }
+
+        // REQ: P9-CNS-SVC-004 pre: valid consent, post: cns.kanban span emitted
+        // P9: CNS span
+        tracing::info!(
+            target: "cns.kanban",
+            operation = "task_assigned",
+            task_id = %task_id,
+            agent = %agent,
+            "CNS"
+        );
 
         Ok(task)
     }
@@ -615,6 +662,17 @@ impl KanbanService {
                 .update(&t.id, new_value, 1.0f64)
                 .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
         }
+
+        // REQ: P9-CNS-SVC-005 pre: valid review, post: cns.kanban span emitted
+        // P9: CNS span
+        tracing::info!(
+            target: "cns.kanban",
+            operation = "task_verified",
+            task_id = %task_id,
+            passed = passed,
+            verifier = %verifier,
+            "CNS"
+        );
 
         Ok((task, verification))
     }

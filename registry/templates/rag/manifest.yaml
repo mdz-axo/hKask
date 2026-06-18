@@ -1,0 +1,31 @@
+# Template crate manifest for rag skill
+# hKask v0.28.0
+
+crate:
+  name: rag
+  version: "0.28.0"
+  description: >
+    Runtime skill — rag.
+
+templates:
+  - id: rag/reformulate-query.j2
+    path: reformulate-query.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for rag — see reformulate-query.j2 for details.
+
+  - id: rag/synthesize-grounded.j2
+    path: synthesize-grounded.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for rag — see synthesize-grounded.j2 for details.
+
+  - id: rag/verify-citations.j2
+    path: verify-citations.j2
+    type: KnowAct
+    lexicon_terms: []
+    description: >
+      Runtime template for rag — see verify-citations.j2 for details.
+
