@@ -1,9 +1,9 @@
 //! Terminal WebSocket route — browser-based terminal for hKask cloud deployment.
 //!
-//! # REQ: DEP-030 — P3 Headless: browser terminal via xterm.js over WebSocket.
-//! expect: "I can access all hKask functionality through the kask CLI" [P3]
-//! # REQ: DEP-031 — P12 Anonymous Agency: terminal session scoped to authenticated WebID.
-//! expect: "I can access all hKask functionality through the kask CLI" [P3]
+//! # REQ: P3-deploy-terminal-ws — P3 Headless: browser terminal via xterm.js over WebSocket.
+//! expect: "I can access hKask through a browser terminal without installing a client" [P3]
+//! # REQ: P12-deploy-terminal-scoped — P12 Anonymous Agency: terminal session scoped to authenticated WebID.
+//! expect: "My terminal session is scoped to my WebID" [P12]
 //!
 //! Flow:
 //! 1. Browser loads `/terminal` → static HTML page with xterm.js

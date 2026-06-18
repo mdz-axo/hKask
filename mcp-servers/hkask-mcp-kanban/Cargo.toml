@@ -6,10 +6,12 @@ license.workspace = true
 description = "Kanban board coordination MCP server"
 
 [dependencies]
-hkask-types = { path = "../../crates/hkask-types" }
-hkask-services = { path = "../../crates/hkask-services" }
-hkask-storage = { path = "../../crates/hkask-storage" }
 hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-services = { path = "../../crates/hkask-services" }
+hkask-types = { path = "../../crates/hkask-types" }
+hkask-services-kanban = { path = "../../crates/hkask-services-kanban" }
+hkask-storage = { path = "../../crates/hkask-storage" }
+hkask-test-harness = { path = "../../crates/hkask-test-harness" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 rusqlite.workspace = true
 tokio.workspace = true

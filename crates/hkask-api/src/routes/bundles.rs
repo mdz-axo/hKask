@@ -1,15 +1,15 @@
 //! Bundle management routes
 //!
 //! # REQ: P11 (Digital Public/Private Sphere) — API surface for bundle management
-//! expect: "API endpoints enforce OCAP boundaries" [P4]
+//! expect: "I can manage my skill bundles through the API" [P11]
 //!
 //! Delegates to `BundleService` for all business logic. The `compose` and
 //! `evolve` endpoints now use inference-driven composition via the shared
 //! service layer, replacing the previous stub responses.
 
-use hkask_rsolidity as rs;
 use axum::Json;
 use axum::extract::{Path, State};
+use hkask_rsolidity as rs;
 use hkask_services::{BundleService, ServiceError};
 use hkask_types::Visibility;
 

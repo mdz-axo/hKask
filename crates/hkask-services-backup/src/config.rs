@@ -1,6 +1,6 @@
 //! Backup configuration — what to track, retention policy, auto-snapshot behavior.
 //! # REQ: P1 (User Sovereignty) — user controls what is tracked and for how long.
-//! # expect: "My service operations flow through sovereignty-verifying boundaries" [P1]
+//! expect: "I control what backup data is tracked and for how long" [P1]
 
 use hkask_rsolidity::contract;
 

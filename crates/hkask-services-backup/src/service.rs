@@ -1,8 +1,8 @@
 //! BackupService — policy layer on top of GitCASPort.
 //! # REQ: P1 (User Sovereignty) — user controls what is tracked.
-//! # expect: "My service operations flow through sovereignty-verifying boundaries" [P1]
+//! expect: "My backup data is tracked under my sovereignty control" [P1]
 //! # REQ: P4 (Clear Boundaries) — delegates to hexagonal GitCASPort, never raw git.
-//! # expect: "Service boundaries enforce OCAP membranes" [P4]
+//! expect: "Backup operations delegate through OCAP boundaries" [P4]
 //!
 //! The backup service adds backup-specific semantics (scoped snapshot/restore,
 //! retention pruning, CNS alerting) on top of the content-addressed git storage

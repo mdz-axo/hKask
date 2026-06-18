@@ -1,6 +1,6 @@
 //! Artifact serialization for git blob storage.
 //! # REQ: P7-svc-backup-serialization-f1 (Snapshot Serialization Format) — deterministic byte representation.
-//! # expect: "The service interface emerged from real usage patterns" [P7]
+//! expect: "Backup snapshots serialize to a deterministic byte representation" [P7]
 //!
 //! Each artifact type serializes to a deterministic byte sequence so that
 //! identical artifact state produces identical blob hashes (git deduplication).

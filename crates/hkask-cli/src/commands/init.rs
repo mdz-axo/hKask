@@ -1,7 +1,7 @@
 //! `kask init` — Initialize hKask server configuration.
 //!
-//! REQ: DEP-400 — P3 Headless: server bootstrap via interactive CLI prompts.
-//! expect: "I can access all hKask functionality through the kask CLI" [P3]
+//! REQ: P3-deploy-init-server — P3 Headless: server bootstrap via interactive CLI prompts.
+//! expect: "I can initialize a hKask server with interactive prompts" [P3]
 //!
 //! Creates:
 //! - ~/.config/hkask/config.json (server config)
@@ -79,7 +79,16 @@ pub fn run_init() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
     println!("  ✓ Wrote config to {}", config_path.display());
 
-    // 7. Set env vars for current session
+    // 7. Generate systemd unit for auto-start on boot
+    // REQ: P4-deploy-systemd-unit
+    // expect: "I can configure hKask to start automatically on system boot" [P4]
+    generate_systemd_unit(&config_dir)?;
+    println!(
+        "  ✓ Generated systemd unit at {}",
+        config_dir.join("hkask.service").display()
+    );
+
+    // 8. Set env vars for current session
     println!("\n✓ Server initialized successfully!\n");
     println!("  Add these to your environment or .env file:\n");
     println!("  export HKASK_OAUTH_GITHUB_CLIENT_ID={}", gh_client_id);
@@ -135,4 +144,38 @@ fn prompt_default(prompt: &str, default: &str) -> Result<String, Box<dyn std::er
     } else {
         Ok(trimmed)
     }
+}
+
+/// Generate a systemd service unit for hKask daemon auto-start.
+///
+/// REQ: P4-deploy-systemd-unit
+/// expect: "I can configure hKask to start automatically on system boot" [P4]
+/// pre:  config_dir exists and is writable
+/// post: hkask.service file written to config_dir with Type=simple, Restart=on-failure
+///
+/// # Generated unit properties
+/// - Type=simple (foreground process)
+/// - Restart=on-failure (auto-recovery)
+/// - User=hkask (non-root)
+/// - After=network.target (wait for network)
+fn generate_systemd_unit(config_dir: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let unit_content = format!(
+        r#"[Unit]
+Description=hKask Daemon
+After=network.target
+
+[Service]
+Type=simple
+Restart=on-failure
+User=hkask
+ExecStart=/usr/local/bin/kask daemon
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+"#
+    );
+    let unit_path = config_dir.join("hkask.service");
+    std::fs::write(&unit_path, unit_content)?;
+    Ok(())
 }

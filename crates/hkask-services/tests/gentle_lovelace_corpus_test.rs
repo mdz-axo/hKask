@@ -1,5 +1,6 @@
 //! Integration tests for EmbedService corpus parsing.
 //! # REQ: P8 — every test verifies a stated behavioral property of a public seam.
+//! expect: "Every test verifies a stated behavioral property of a public seam" [P8]
 
 use hkask_services::EmbedService;
 

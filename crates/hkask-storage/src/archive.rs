@@ -1,6 +1,6 @@
 //! BackupArchive — portable sovereignty archive for hKask cloud deployment.
 //!
-//! # REQ: DEP-100 — P1 User Sovereignty: downloadable, passphrase-encrypted triple export.
+//! # REQ: P1-deploy-backup-archive — P1 User Sovereignty: downloadable, passphrase-encrypted triple export.
 //! expect: "My user data and sovereignty boundaries are stored under my control" [P1]
 //!
 //! Creates a single SQLCipher-encrypted SQLite file containing:

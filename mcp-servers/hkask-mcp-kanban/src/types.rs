@@ -136,3 +136,12 @@ pub struct TaskVerifyResponse {
     pub reasoning: String,
     pub new_status: String,
 }
+
+// ── Contract proposals ──────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ContractProposeExpect {
+    pub board_id: String,
+    /// JSON array of ExpectProposal structs from hkask-test-harness
+    pub proposals_json: String,
+}

@@ -1,21 +1,21 @@
 //! OAuth authentication routes — GitHub/Google sign-in for hKask cloud deployment.
 //!
-//! # REQ: DEP-010 — P1 User Sovereignty: OAuth sign-in with session cookie.
-//! expect: "My API access is scoped to my sovereignty boundaries" [P1]
-//! # REQ: DEP-011 — P12 Anonymous Agency: every action tied to authenticated WebID.
-//! expect: "My API access is scoped to my sovereignty boundaries" [P1]
+//! # REQ: P1-deploy-oauth-login — P1 User Sovereignty: OAuth sign-in with session cookie.
+//! expect: "I can sign in via OAuth to access my hKask server" [P1]
+//! # REQ: P12-deploy-oauth-attribution — P12 Anonymous Agency: every action tied to authenticated WebID.
+//! expect: "Every OAuth session is tied to my authenticated WebID" [P12]
 //!
 //! Flow:
 //! 1. `GET /api/v1/auth/login?provider=github` → redirect to provider OAuth
 //! 2. `GET /api/v1/auth/callback?provider=github&code=...&state=...` → exchange code, create session, redirect to /terminal
 
-use hkask_rsolidity as rs;
 use axum::{
     Json,
     extract::{Query, State},
     http::{StatusCode, header},
     response::Response,
 };
+use hkask_rsolidity as rs;
 use hkask_types::identity::OAuthProvider;
 use serde::Deserialize;
 use tracing;
@@ -492,11 +492,20 @@ pub async fn accept_invite(
 ) -> Result<Response, (StatusCode, String)> {
     let user_store = state.agent_service.user_store();
     let user_store = user_store.lock().map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Lock error: {e}"))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Lock error: {e}"),
+        )
     })?;
-    let _invite = user_store.lookup_invite(&body.code).map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Lookup failed: {e}"))
-    })?.ok_or((StatusCode::NOT_FOUND, "Invite not found or expired".into()))?;
+    let _invite = user_store
+        .lookup_invite(&body.code)
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Lookup failed: {e}"),
+            )
+        })?
+        .ok_or((StatusCode::NOT_FOUND, "Invite not found or expired".into()))?;
     let session_cookie = extract_cookie(&headers, "hkask_session");
     if session_cookie.is_none() {
         let redirect_url = format!(
@@ -510,19 +519,21 @@ pub async fn accept_invite(
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?);
     }
     let session_id = session_cookie.unwrap();
-    let session = user_store.get_session(&session_id).map_err(|e| {
-        (StatusCode::UNAUTHORIZED, format!("Session invalid: {e}"))
-    })?.ok_or((StatusCode::UNAUTHORIZED, "Session expired".into()))?;
+    let session = user_store
+        .get_session(&session_id)
+        .map_err(|e| (StatusCode::UNAUTHORIZED, format!("Session invalid: {e}")))?
+        .ok_or((StatusCode::UNAUTHORIZED, "Session expired".into()))?;
     let now = chrono::Utc::now().timestamp();
     if session.expires_at <= now {
         return Err((StatusCode::UNAUTHORIZED, "Session expired".into()));
     }
-    let replicant = user_store.get_replicant_by_webid(&session.replicant_webid)
+    let replicant = user_store
+        .get_replicant_by_webid(&session.replicant_webid)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?
         .ok_or((StatusCode::UNAUTHORIZED, "Replicant not found".into()))?;
-    user_store.accept_invite(&body.code, &replicant.user_id).map_err(|e| {
-        (StatusCode::BAD_REQUEST, format!("Accept failed: {e}"))
-    })?;
+    user_store
+        .accept_invite(&body.code, &replicant.user_id)
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Accept failed: {e}")))?;
     let body = serde_json::json!({
         "status": "accepted",
         "code": body.code,
@@ -579,5 +590,8 @@ pub fn auth_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
         .route("/api/v1/auth/callback", axum::routing::get(callback))
         .route("/api/v1/auth/logout", axum::routing::post(logout))
         .route("/api/v1/auth/session", axum::routing::get(session_info))
-        .route("/api/v1/auth/accept-invite", axum::routing::post(accept_invite))
+        .route(
+            "/api/v1/auth/accept-invite",
+            axum::routing::post(accept_invite),
+        )
 }

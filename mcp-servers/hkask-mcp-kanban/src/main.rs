@@ -327,6 +327,77 @@ impl KanbanServer {
             Err(e) => err(span, &e.to_string()),
         }
     }
+
+    /// Create kanban tasks for contracts missing `expect:` user-voice annotations.
+    ///
+    /// Takes a JSON list of ExpectProposal structs (from test-harness
+    /// `propose_missing_expect_annotations`) and creates a task per contract gap.
+    /// Owning replicants can claim and resolve these tasks by submitting
+    /// `expect:` annotation PRs (P2 consent required for merge).
+    ///
+    /// contract: P3-svc-kanban-009
+    /// expect: "I can create kanban tasks from contract expectation gaps so replicants can ground them" [P3]
+    /// [P5] Constraining: Essentialism — one batch operation, no individual task editing
+    /// pre:  proposals is a non-empty JSON array of ExpectProposal structs
+    /// pre:  board_id is a valid board ID
+    /// post: returns created task IDs (one per proposal)
+    #[tool(description = "Create kanban tasks for contracts missing expect: annotations. Takes JSON from propose_missing_expect_annotations.")]
+    async fn contract_propose_expect(
+        &self,
+        Parameters(ContractProposeExpect {
+            board_id,
+            proposals_json,
+        }): Parameters<ContractProposeExpect>,
+    ) -> String {
+        let span = ToolSpanGuard::new("contract_propose_expect", &self.webid);
+
+        let bid = match board_id.parse::<hkask_types::BoardId>() {
+            Ok(id) => id,
+            Err(e) => return err(span, &format!("invalid board_id: {e}")),
+        };
+
+        let proposals: Vec<hkask_test_harness::ExpectProposal> =
+            match serde_json::from_str(&proposals_json) {
+                Ok(p) => p,
+                Err(e) => return err(span, &format!("invalid proposals JSON: {e}")),
+            };
+
+        if proposals.is_empty() {
+            return err(span, "proposals must be non-empty");
+        }
+
+        let mut created: Vec<String> = Vec::new();
+        for prop in &proposals {
+            let title = format!(
+                "contract({}): add expect: to {}",
+                prop.crate_name, prop.function,
+            );
+            let description = format!(
+                "File: {}:{}\nContract: {}\nPre: {}\nPost: {}\n\nTemplate:\n{}\n\nSuggested principle: {}\nConstraining: {:?}",
+                prop.file, prop.line,
+                prop.contract_id,
+                prop.pre,
+                prop.post,
+                prop.expect_template,
+                prop.suggested_goal_principle,
+                prop.existing_constraining_principles,
+            );
+            let spec = TaskSpec::new(title).with_description(description);
+            match self.service.task_create(bid, spec, self.webid) {
+                Ok(task) => created.push(task.id.to_string()),
+                Err(e) => return err(span, &format!("failed to create task for {}: {e}", prop.function)),
+            }
+        }
+
+        respond(
+            span,
+            &serde_json::json!({
+                "created": created.len(),
+                "task_ids": created,
+                "crate": proposals[0].crate_name,
+            }),
+        )
+    }
 }
 
 fn default_columns() -> Vec<hkask_types::ColumnDef> {

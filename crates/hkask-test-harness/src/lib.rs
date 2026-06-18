@@ -26,6 +26,7 @@ pub mod test_runner;
 
 pub use prob_contract::{ProbContractResult, ProbContractRunner};
 pub use schema::SCHEMA_SQL;
+pub use test_runner::ExpectProposal;
 
 use chrono::Utc;
 use hkask_storage::Triple;

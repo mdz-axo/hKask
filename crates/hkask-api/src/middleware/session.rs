@@ -1,7 +1,7 @@
 //! Session cookie middleware — authenticates users via `hkask_session` cookie.
 //!
-//! # REQ: DEP-020 — session cookie auth coexists with capability token auth.
-//! expect: "API endpoints enforce OCAP boundaries" [P4]
+//! # REQ: P1-deploy-session-middleware — session cookie auth coexists with capability token auth.
+//! expect: "My session cookie coexists with capability token authentication" [P1]
 //! Runs BEFORE the capability token middleware. If a valid session cookie is found,
 //! injects an `AuthContext` into request extensions so the capability token middleware
 //! can skip Bearer token verification.

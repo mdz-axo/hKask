@@ -1,10 +1,10 @@
 //! Landing page route — serves the hKask welcome page at /.
 //!
-//! REQ: DEP-300 — P3 Headless: single static HTML landing page with OAuth sign-in.
-//! expect: "I can access all hKask functionality through the kask CLI" [P3]
+//! REQ: P3-deploy-landing-page — P3 Headless: single static HTML landing page with OAuth sign-in.
+//! expect: "I see a single static landing page with OAuth sign-in options" [P3]
 
-use hkask_rsolidity as rs;
 use axum::response::IntoResponse;
+use hkask_rsolidity as rs;
 
 /// GET / — landing page with logo and sign-in buttons.
 pub async fn landing_page() -> impl IntoResponse {

@@ -567,6 +567,67 @@ fn extract_constraining_principle(line: &str) -> Option<String> {
     None
 }
 
+// ── Expect: Proposal Generator (replicant contract grounding workflow) ───────
+
+/// A proposal template for a contract missing its user-facing `expect:` annotation.
+/// Replicants use this to compose and submit contract grounding proposals.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExpectProposal {
+    pub crate_name: String,
+    pub contract_id: String,
+    pub function: String,
+    pub file: String,
+    pub line: usize,
+    pub pre: String,
+    pub post: String,
+    /// Template line: "expect: \"...\" [P{N}]" — replicant fills in the user voice.
+    pub expect_template: String,
+    pub suggested_goal_principle: String,
+    pub existing_constraining_principles: Vec<String>,
+}
+
+/// Scan a crate for contracts that have pre:/post: conditions but no `expect:`
+/// annotation. Returns proposal templates for replicant-driven grounding.
+///
+/// contract: HARN-056
+/// expect: "I can see which contracts need user-expectation grounding so I can fill them in" [P5]
+/// pre:  crate_name exists in workspace at workspace_root/{crates,mcp-servers}/crate_name/src
+/// post: returns Vec<ExpectProposal> for each contracted function without expect:
+pub fn propose_missing_expect_annotations(
+    crate_name: &str,
+    workspace_root: &str,
+) -> Option<Vec<ExpectProposal>> {
+    let entries = inventory_contracts(crate_name, workspace_root)?;
+    let proposals: Vec<ExpectProposal> = entries
+        .into_iter()
+        .filter(|e| e.expect.is_empty() && !e.req_id.is_empty())
+        .map(|e| {
+            let suggested_principle = if e.goal_principle.is_empty() {
+                "P{N}".to_string()
+            } else {
+                e.goal_principle.clone()
+            };
+            let expect_template = format!(
+                "expect: \"<USER_VOICE: what does the user expect from {}?>\" [{}]",
+                e.function, suggested_principle,
+            );
+            ExpectProposal {
+                crate_name: e.crate_name,
+                contract_id: e.req_id,
+                function: e.function,
+                file: e.file,
+                line: e.line,
+                pre: e.pre,
+                post: e.post,
+                expect_template,
+                suggested_goal_principle: suggested_principle,
+                existing_constraining_principles: e.constraining_principles,
+            }
+        })
+        .collect();
+    Some(proposals)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
