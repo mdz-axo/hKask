@@ -1,6 +1,6 @@
 # Public Seam Priority List
 
-**Generated:** 2026-06-18T08:02:08Z
+**Generated:** 2026-06-18T08:08:56Z
 **Source:** `scripts/public-seam-inventory.sh`
 **Purpose:** Top high-risk uncovered public items requiring REQ-tagged tests.
 
