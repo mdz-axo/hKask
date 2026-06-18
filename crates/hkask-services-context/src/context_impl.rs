@@ -1199,6 +1199,7 @@ fn build_registry_and_wallet(
 }
 
 /// Build wallet subsystem — returns (service, store, gas_calibrator) or error.
+#[allow(clippy::type_complexity)]
 fn build_wallet(
     config: &ServiceConfig,
     f: &Foundation,

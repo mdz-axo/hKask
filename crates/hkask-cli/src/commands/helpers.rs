@@ -66,10 +66,10 @@ macro_rules! block_on {
 }
 
 pub fn resolve_user_webid() -> hkask_types::WebID {
-    if let Ok(uuid_str) = std::env::var("HKASK_WEBID") {
-        if let Ok(webid) = uuid_str.parse::<hkask_types::WebID>() {
-            return webid;
-        }
+    if let Ok(uuid_str) = std::env::var("HKASK_WEBID")
+        && let Ok(webid) = uuid_str.parse::<hkask_types::WebID>()
+    {
+        return webid;
     }
     hkask_types::WebID::from_persona(b"cli-user")
 }

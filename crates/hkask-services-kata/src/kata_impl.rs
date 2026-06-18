@@ -500,6 +500,25 @@ impl KataEngine {
     }
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+/// Default LLM parameters for kata execution.
+fn default_llm_params() -> LLMParameters {
+    LLMParameters {
+        temperature: 0.3,
+        top_p: 0.9,
+        top_k: 40,
+        frequency_penalty: 0.0,
+        presence_penalty: 0.0,
+        min_p: 0.0,
+        typical_p: 0.0,
+        max_tokens: 512,
+        seed: None,
+        disable_thinking: false,
+        adapter: None,
+    }
+}
+
 // ── Metrics + CNS ──────────────────────────────────────────────────────────
 // Moved to metrics.rs — impl blocks loaded via `mod metrics;`.
 //
@@ -616,25 +635,6 @@ mod tests {
             checked, 23,
             "All 23 kata templates must contain learner_bot"
         );
-    }
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-/// Default LLM parameters for kata execution.
-fn default_llm_params() -> LLMParameters {
-    LLMParameters {
-        temperature: 0.3,
-        top_p: 0.9,
-        top_k: 40,
-        frequency_penalty: 0.0,
-        presence_penalty: 0.0,
-        min_p: 0.0,
-        typical_p: 0.0,
-        max_tokens: 512,
-        seed: None,
-        disable_thinking: false,
-        adapter: None,
     }
 }
 
