@@ -22,6 +22,7 @@
 //! 2. Does it already have a home crate/module? If yes, access it there.
 //! 3. Is it surface-specific (CLI-only or API-only)? If yes, put it in the surface.
 
+use hkask_rsolidity::contract;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -226,6 +227,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns reference to ServiceConfig
+    #[contract(id = "P3-svc-context-245", principle = "P3")]
     pub fn config(&self) -> &ServiceConfig {
         &self.config
     }
@@ -235,6 +237,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns Some(&Arc<WalletService>) if wallet configured; None otherwise
+    #[contract(id = "P3-svc-context-246", principle = "P3")]
     pub fn wallet(&self) -> Option<&Arc<WalletService>> {
         self.wallet_service.as_ref()
     }
@@ -244,6 +247,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns Some(&Arc<WalletStore>) if wallet store configured; None otherwise
+    #[contract(id = "P3-svc-context-247", principle = "P3")]
     pub fn wallet_store(&self) -> Option<&Arc<WalletStore>> {
         self.wallet_store.as_ref()
     }
@@ -253,6 +257,10 @@ impl AgentService {
     /// [P7] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
     /// pre:  self must be fully built
     /// post: returns Some(&Arc<WalletGasCalibrator>) if wallet is configured; None otherwise
+    #[contract(
+        id = "P7-svc-context-gas-calib-005 — runtime calibration of wallet gas conversion rate",
+        principle = "P7"
+    )]
     pub fn wallet_gas_calibrator(&self) -> Option<&Arc<hkask_cns::WalletGasCalibrator>> {
         self.wallet_gas_calibrator.as_ref()
     }
@@ -265,6 +273,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns (&episodic_storage, &semantic_storage) tuple
+    #[contract(id = "P3-svc-context-248", principle = "P3")]
     pub fn memory(&self) -> (&Arc<dyn EpisodicStoragePort>, &Arc<dyn SemanticStoragePort>) {
         (&self.episodic_storage, &self.semantic_storage)
     }
@@ -275,6 +284,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<Mutex<SqliteRegistry>>
+    #[contract(id = "P3-svc-context-249", principle = "P3")]
     pub fn registry(&self) -> &Arc<tokio::sync::Mutex<SqliteRegistry>> {
         &self.registry
     }
@@ -283,6 +293,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<SqliteGoalRepository>
+    #[contract(id = "P3-svc-context-250", principle = "P3")]
     pub fn goal_repo(&self) -> &Arc<SqliteGoalRepository> {
         &self.goal_repo
     }
@@ -293,6 +304,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<RwLock<CnsRuntime>>
+    #[contract(id = "P3-svc-context-251", principle = "P3")]
     pub fn cns_runtime(&self) -> &Arc<RwLock<CnsRuntime>> {
         &self.cns_runtime
     }
@@ -301,6 +313,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<RwLock<CyberneticsLoop>>
+    #[contract(id = "P3-svc-context-252", principle = "P3")]
     pub fn cybernetics_loop(&self) -> &Arc<RwLock<CyberneticsLoop>> {
         &self.cybernetics_loop
     }
@@ -309,6 +322,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<LoopSystem>
+    #[contract(id = "P3-svc-context-253", principle = "P3")]
     pub fn loop_system(&self) -> &Arc<LoopSystem> {
         &self.loop_system
     }
@@ -317,6 +331,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<dyn NuEventSink>
+    #[contract(id = "P3-svc-context-254", principle = "P3")]
     pub fn event_sink(&self) -> &Arc<dyn NuEventSink> {
         &self.event_sink
     }
@@ -327,6 +342,10 @@ impl AgentService {
     /// pre:  self must be fully built
     /// post: returns &Arc<CalibratedEnergyEstimator> sharing the same background
     ///       calibration loop as the service's governed tool
+    #[contract(
+        id = "P7-svc-context-gas-calib-004 — runtime calibration loop wired to production estimator",
+        principle = "P7"
+    )]
     pub fn energy_estimator(&self) -> &Arc<hkask_cns::CalibratedEnergyEstimator> {
         &self.energy_estimator
     }
@@ -338,6 +357,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<RwLock<Option<SeamWatcher>>>
+    #[contract(id = "P3-svc-context-255", principle = "P3")]
     pub fn seam_watcher(&self) -> &Arc<RwLock<Option<SeamWatcher>>> {
         &self.seam_watcher
     }
@@ -350,6 +370,7 @@ impl AgentService {
     /// post: returns &Arc<CapabilityChecker>
     /// # REQ: P4 (OCAP), P1 (User Sovereignty)
     /// # expect: "Service boundaries enforce OCAP membranes" [P4]
+    #[contract(id = "P3-svc-context-256", principle = "P3")]
     pub fn capability_checker(&self) -> &Arc<CapabilityChecker> {
         &self.capability_checker
     }
@@ -358,6 +379,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<McpDispatcher>
+    #[contract(id = "P3-svc-context-257", principle = "P3")]
     pub fn mcp_dispatcher(&self) -> &Arc<McpDispatcher> {
         &self.mcp_dispatcher
     }
@@ -366,6 +388,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<EscalationQueue>
+    #[contract(id = "P3-svc-context-258", principle = "P3")]
     pub fn escalation_queue(&self) -> &Arc<EscalationQueue> {
         &self.escalation_queue
     }
@@ -376,6 +399,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns Some(Arc<dyn InferencePort>) if configured; None otherwise
+    #[contract(id = "P3-svc-context-259", principle = "P3")]
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
         self.inference_port.clone()
     }
@@ -384,6 +408,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<McpRuntime>
+    #[contract(id = "P3-svc-context-260", principle = "P3")]
     pub fn mcp_runtime(&self) -> &Arc<McpRuntime> {
         &self.mcp_runtime
     }
@@ -392,6 +417,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<PodManager>
+    #[contract(id = "P3-svc-context-261", principle = "P3")]
     pub fn pod_manager(&self) -> &Arc<PodManager> {
         &self.pod_manager
     }
@@ -402,6 +428,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns (&WebID, &Arc<A2ARuntime>) tuple
+    #[contract(id = "P3-svc-context-262", principle = "P3")]
     pub fn identity(&self) -> (&WebID, &Arc<hkask_agents::A2ARuntime>) {
         (&self.system_webid, &self.a2a_runtime)
     }
@@ -414,6 +441,7 @@ impl AgentService {
     /// post: returns SovereigntyService wrapping the consent manager
     /// # REQ: P1 (User Sovereignty), P2 (Affirmative Consent)
     /// # expect: "My service operations flow through sovereignty-verifying boundaries" [P1]
+    #[contract(id = "P3-svc-context-263", principle = "P3")]
     pub fn sovereignty(&self) -> SovereigntyService {
         SovereigntyService::new(self.consent_manager.clone())
     }
@@ -425,6 +453,7 @@ impl AgentService {
     /// [P3] Motivating: Generative Space — A2A runtime access without ambient authority.
     /// pre:  self must be fully built
     /// post: returns &Arc<A2ARuntime> reference
+    #[contract(id = "P3-svc-context-277", principle = "P3")]
     pub fn a2a_runtime(&self) -> &Arc<hkask_agents::A2ARuntime> {
         &self.a2a_runtime
     }
@@ -434,6 +463,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Option<UnboundedSender<CurationInput>>
+    #[contract(id = "P3-svc-context-264", principle = "P3")]
     pub fn curation_inbox_tx(&self) -> &Option<tokio::sync::mpsc::UnboundedSender<CurationInput>> {
         &self.curation_inbox_tx
     }
@@ -444,6 +474,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &SovereigntyBoundaryStore
+    #[contract(id = "P3-svc-context-265", principle = "P3")]
     pub fn sovereignty_boundary_store(&self) -> &SovereigntyBoundaryStore {
         &self.sovereignty_boundary_store
     }
@@ -456,6 +487,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &SqliteSpecStore
+    #[contract(id = "P3-svc-context-266", principle = "P3")]
     pub fn spec_store(&self) -> &SqliteSpecStore {
         &self.spec_store
     }
@@ -466,6 +498,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &AgentRegistryStore
+    #[contract(id = "P3-svc-context-267", principle = "P3")]
     pub fn agent_registry_store(&self) -> &hkask_storage::AgentRegistryStore {
         &self.agent_registry_store
     }
@@ -476,6 +509,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<Mutex<UserStore>>
+    #[contract(id = "P3-svc-context-268", principle = "P3")]
     pub fn user_store(&self) -> &Arc<std::sync::Mutex<UserStore>> {
         &self.user_store
     }
@@ -485,6 +519,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<ServiceDaemonHandler>
+    #[contract(id = "P3-svc-context-269", principle = "P3")]
     pub fn daemon_handler(&self) -> &Arc<hkask_services_daemon::ServiceDaemonHandler> {
         &self.daemon_handler
     }
@@ -497,6 +532,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns Some(&Arc<Mutex<MatrixTransport>>) if connected; None otherwise
+    #[contract(id = "P3-svc-context-270", principle = "P3")]
     pub fn matrix_transport(
         &self,
     ) -> Option<&Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>> {
@@ -515,6 +551,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  db must be a valid opened Database
     /// post: returns PerAgentMemory with episodic_storage, semantic_storage, and consolidation_service all sharing the same DB
+    #[contract(id = "P3-svc-context-271", principle = "P3")]
     pub fn build_per_agent_memory(db: Database) -> PerAgentMemory {
         let conn = db.conn_arc();
 
@@ -573,6 +610,7 @@ impl AgentService {
     /// 6. A2A runtime + pod manager
     /// 7. Inference port (optional, based on config)
     /// 8. Memory adapters (episodic + semantic)
+    #[contract(id = "P3-svc-context-276", principle = "P3")]
     pub async fn build(config: ServiceConfig) -> Result<Self, ServiceError> {
         let system_webid = WebID::from_persona(config.agent_name.as_bytes());
 

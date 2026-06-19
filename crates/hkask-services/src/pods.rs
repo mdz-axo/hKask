@@ -6,7 +6,7 @@
 //! pod ID parsing logic.
 
 
-use hkask_agents::pod::{AgentPersona, PodID, PodStatus};
+use hkask_agents::pod::{AgentPersona, PodID, PodStatusInfo};
 
 use crate::ServiceError;
 use hkask_services_context::AgentService;
@@ -24,7 +24,7 @@ pub struct PodResponse {
 }
 
 /// Response for pod status query.
-pub struct PodStatusResponse {
+pub struct PodStatusInfoResponse {
     pub pod_id: String,
     pub name: Option<String>,
     pub state: String,
@@ -34,8 +34,8 @@ pub struct PodStatusResponse {
     pub created_at: i64,
 }
 
-impl From<PodStatus> for PodStatusResponse {
-    fn from(s: PodStatus) -> Self {
+impl From<PodStatusInfo> for PodStatusInfoResponse {
+    fn from(s: PodStatusInfo) -> Self {
         Self {
             pod_id: s.pod_id,
             name: s.name,
@@ -87,13 +87,13 @@ impl PodService {
     ///
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.pod_manager() must be initialized
-    /// post: returns Vec<PodStatusResponse> for all pods; empty Vec if none; Err(Pod) on upstream error
-    pub async fn list_pods(ctx: &AgentService) -> Result<Vec<PodStatusResponse>, ServiceError> {
+    /// post: returns Vec<PodStatusInfoResponse> for all pods; empty Vec if none; Err(Pod) on upstream error
+    pub async fn list_pods(ctx: &AgentService) -> Result<Vec<PodStatusInfoResponse>, ServiceError> {
         let pm = ctx.pod_manager();
         let pods = pm.list_pods().await.map_err(|e| ServiceError::Pod {
             message: e.to_string(),
         })?;
-        Ok(pods.into_iter().map(PodStatusResponse::from).collect())
+        Ok(pods.into_iter().map(PodStatusInfoResponse::from).collect())
     }
 
     /// Activate a pod by ID.
@@ -132,11 +132,11 @@ impl PodService {
     ///
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.pod_manager() must be initialized; pod_id must be a valid UUID
-    /// post: returns PodStatusResponse with pod state, webid, agent_type, template, etc.; Err(PodNotFound) on invalid UUID; Err(Pod) on upstream error
+    /// post: returns PodStatusInfoResponse with pod state, webid, agent_type, template, etc.; Err(PodNotFound) on invalid UUID; Err(Pod) on upstream error
     pub async fn get_pod_status(
         ctx: &AgentService,
         pod_id: &str,
-    ) -> Result<PodStatusResponse, ServiceError> {
+    ) -> Result<PodStatusInfoResponse, ServiceError> {
         let pid = Self::parse_pod_id(pod_id)?;
         let status =
             ctx.pod_manager()
@@ -145,7 +145,7 @@ impl PodService {
                 .map_err(|e| ServiceError::Pod {
                     message: e.to_string(),
                 })?;
-        Ok(PodStatusResponse::from(status))
+        Ok(PodStatusInfoResponse::from(status))
     }
 
     /// Parse a pod ID string into a PodID.
@@ -228,10 +228,10 @@ mod tests {
     }
 
     // contract: P1-svc-pods-003
-    // expect: "Service PodStatus works correctly under test conditions" [P1]
+    // expect: "Service PodStatusInfo works correctly under test conditions" [P1]
     #[test]
     fn pod_status_to_response_maps_fields() {
-        let status = PodStatus {
+        let status = PodStatusInfo {
             pod_id: "pod-1".into(),
             name: Some("TestPod".into()),
             state: hkask_agents::pod::PodLifecycleState::Registered,
@@ -240,7 +240,7 @@ mod tests {
             template: "test".into(),
             created_at: 1234567890,
         };
-        let resp = PodStatusResponse::from(status);
+        let resp = PodStatusInfoResponse::from(status);
         assert_eq!(resp.pod_id, "pod-1");
         assert_eq!(resp.name, Some("TestPod".into()));
         assert_eq!(resp.state, "registered");

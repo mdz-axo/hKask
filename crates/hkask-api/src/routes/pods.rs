@@ -41,7 +41,7 @@ pub struct CreatePodResponse {
 /// `state` is one of: "active", "inactive", "error".
 /// `agent_type` is one of: "Bot", "Replicant" (P10).
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct PodStatusResponse {
+pub struct PodStatusInfoResponse {
     /// Unique pod identifier
     pub pod_id: String,
     /// Human-readable pod name
@@ -62,7 +62,7 @@ pub struct PodStatusResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ListPodsResponse {
     /// All active pods
-    pub pods: Vec<PodStatusResponse>,
+    pub pods: Vec<PodStatusInfoResponse>,
 }
 
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
@@ -102,9 +102,9 @@ async fn list_pods(
     let pod_statuses = hkask_services::PodService::list_pods(&state.agent_service)
         .await
         .unwrap_or_default();
-    let pods: Vec<PodStatusResponse> = pod_statuses
+    let pods: Vec<PodStatusInfoResponse> = pod_statuses
         .into_iter()
-        .map(|s| PodStatusResponse {
+        .map(|s| PodStatusInfoResponse {
             pod_id: s.pod_id,
             name: s.name,
             state: s.state.to_string(),
@@ -190,7 +190,7 @@ async fn pod_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
-) -> Result<Json<PodStatusResponse>, ServiceErrorResponse> {
+) -> Result<Json<PodStatusInfoResponse>, ServiceErrorResponse> {
     // contract: P9-CNS-SURF-034
     // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
@@ -201,7 +201,7 @@ async fn pod_status(
         .pod_manager()
         .get_pod_status(&pid)
         .await?;
-    Ok(Json(PodStatusResponse {
+    Ok(Json(PodStatusInfoResponse {
         pod_id: status.pod_id,
         name: status.name,
         state: status.state.to_string(),

@@ -1,4 +1,7 @@
 //! ActivePods — Runtime registry for active pod deployments.
+//!
+//! Stores PodFactory + port references so the API matches
+//! the old PodManager signature exactly. Zero consumer changes needed.
 
 use super::AgentPodError;
 use super::context::PodContext;
@@ -14,13 +17,49 @@ use tokio::sync::RwLock;
 
 pub struct ActivePods {
     deployments: RwLock<HashMap<PodID, PodDeployment>>,
+    factory: Option<Arc<PodFactory>>,
+    mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
+    governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
+    capability_checker: Option<Arc<CapabilityChecker>>,
+    nu_event_sink: Option<Arc<dyn NuEventSink>>,
+    episodic_adapter: Option<Arc<dyn EpisodicStoragePort>>,
+    semantic_adapter: Option<Arc<dyn SemanticStoragePort>>,
 }
 
 impl ActivePods {
     pub fn new() -> Self {
         Self {
             deployments: RwLock::new(HashMap::new()),
+            factory: None,
+            mcp_runtime: None,
+            governed_tool: None,
+            capability_checker: None,
+            nu_event_sink: None,
+            episodic_adapter: None,
+            semantic_adapter: None,
         }
+    }
+
+    /// Wire the factory and port adapters so create_pod/activate_pod work
+    /// with the simple old PodManager-style signatures.
+    pub fn with_factory_and_ports(
+        mut self,
+        factory: Arc<PodFactory>,
+        mcp_runtime: Arc<dyn MCPRuntimePort>,
+        governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
+        capability_checker: Option<Arc<CapabilityChecker>>,
+        nu_event_sink: Option<Arc<dyn NuEventSink>>,
+        episodic_adapter: Arc<dyn EpisodicStoragePort>,
+        semantic_adapter: Arc<dyn SemanticStoragePort>,
+    ) -> Self {
+        self.factory = Some(factory);
+        self.mcp_runtime = Some(mcp_runtime);
+        self.governed_tool = governed_tool;
+        self.capability_checker = capability_checker;
+        self.nu_event_sink = nu_event_sink;
+        self.episodic_adapter = Some(episodic_adapter);
+        self.semantic_adapter = Some(semantic_adapter);
+        self
     }
 
     pub async fn insert(&self, deployment: PodDeployment) {
@@ -34,6 +73,7 @@ impl ActivePods {
         self.deployments.write().await.remove(pod_id)
     }
 
+    /// Get a PodContext for an active pod.
     pub async fn context(&self, pod_id: &PodID) -> Result<PodContext, AgentPodError> {
         let deployments = self.deployments.read().await;
         let deployment = deployments
@@ -42,6 +82,7 @@ impl ActivePods {
         PodContext::from_deployment(deployment)
     }
 
+    /// Find a pod by replicant name — matches old PodManager::find_pod_by_name.
     pub async fn find_by_name(&self, name: &str) -> Option<PodID> {
         let deployments = self.deployments.read().await;
         for (id, d) in deployments.iter() {
@@ -52,17 +93,38 @@ impl ActivePods {
         None
     }
 
-    pub async fn list_ids(&self) -> Vec<PodID> {
-        self.deployments.read().await.keys().copied().collect()
+    /// Alias: matches old PodManager API.
+    pub async fn find_pod_by_name(&self, name: &str) -> Option<PodID> {
+        self.find_by_name(name).await
     }
 
-    pub async fn has_role(&self, pod_id: &PodID, role: &str) -> bool {
+    /// Get a pod's WebID — matches old PodManager::get_pod_webid.
+    pub async fn get_pod_webid(&self, pod_id: &PodID) -> Option<WebID> {
+        self.deployments
+            .read()
+            .await
+            .get(pod_id)
+            .map(|d| d.pod.webid)
+    }
+
+    /// Alias for get_pod_webid.
+    pub async fn webid(&self, pod_id: &PodID) -> Option<WebID> {
+        self.get_pod_webid(pod_id).await
+    }
+
+    /// Alias for has_role — matches old PodManager::is_assigned_to_role.
+    pub async fn is_assigned_to_role(&self, pod_id: &PodID, role: &str) -> bool {
         self.deployments
             .read()
             .await
             .get(pod_id)
             .map(|d| d.pod.assigned_mcp_roles.iter().any(|r| r == role))
             .unwrap_or(false)
+    }
+
+    /// Alias for is_assigned_to_role.
+    pub async fn has_role(&self, pod_id: &PodID, role: &str) -> bool {
+        self.is_assigned_to_role(pod_id, role).await
     }
 
     pub async fn has_capability(&self, pod_id: &PodID, tool: &str) -> bool {
@@ -80,36 +142,38 @@ impl ActivePods {
             .unwrap_or(false)
     }
 
-    pub async fn webid(&self, pod_id: &PodID) -> Option<WebID> {
-        self.deployments
-            .read()
-            .await
-            .get(pod_id)
-            .map(|d| d.pod.webid)
-    }
-
+    /// Create a pod — matches old PodManager::create_pod(template, persona, name).
+    /// Uses internally stored PodFactory and port adapters.
     pub async fn create_pod(
         &self,
-        factory: &PodFactory,
         template_name: &str,
         persona: &AgentPersona,
-        mcp_runtime: Arc<dyn MCPRuntimePort>,
-        governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
-        capability_checker: Option<Arc<CapabilityChecker>>,
-        nu_event_sink: Option<Arc<dyn NuEventSink>>,
-        episodic_adapter: Arc<dyn EpisodicStoragePort>,
-        semantic_adapter: Arc<dyn SemanticStoragePort>,
+        _name: Option<String>,
     ) -> Result<PodID, AgentPodError> {
+        let factory = self.factory.as_ref().ok_or_else(|| {
+            AgentPodError::PersonaParseError("ActivePods not wired with PodFactory".into())
+        })?;
+        let mcp = Arc::clone(self.mcp_runtime.as_ref().ok_or_else(|| {
+            AgentPodError::PersonaParseError("ActivePods not wired with MCP runtime".into())
+        })?);
         let deployment = factory
             .deploy(
                 template_name,
                 persona,
-                mcp_runtime,
-                governed_tool,
-                capability_checker,
-                nu_event_sink,
-                episodic_adapter,
-                semantic_adapter,
+                mcp,
+                self.governed_tool.clone(),
+                self.capability_checker.clone(),
+                self.nu_event_sink.clone(),
+                Arc::clone(self.episodic_adapter.as_ref().ok_or_else(|| {
+                    AgentPodError::PersonaParseError(
+                        "ActivePods not wired with episodic adapter".into(),
+                    )
+                })?),
+                Arc::clone(self.semantic_adapter.as_ref().ok_or_else(|| {
+                    AgentPodError::PersonaParseError(
+                        "ActivePods not wired with semantic adapter".into(),
+                    )
+                })?),
             )
             .await
             .map_err(|e| AgentPodError::PersonaParseError(e.to_string()))?;
@@ -118,18 +182,19 @@ impl ActivePods {
         Ok(pod_id)
     }
 
-    pub async fn activate_pod(
-        &self,
-        pod_id: &PodID,
-        mcp: &dyn MCPRuntimePort,
-    ) -> Result<(), AgentPodError> {
+    /// Activate a pod — matches old PodManager::activate_pod(id).
+    pub async fn activate_pod(&self, pod_id: &PodID) -> Result<(), AgentPodError> {
+        let mcp = self.mcp_runtime.as_ref().ok_or_else(|| {
+            AgentPodError::PersonaParseError("ActivePods not wired with MCP runtime".into())
+        })?;
         let mut d = self.deployments.write().await;
         d.get_mut(pod_id)
             .ok_or(AgentPodError::PodNotFound(*pod_id))?
             .pod
-            .activate(mcp)
+            .activate(mcp.as_ref())
     }
 
+    /// Deactivate a pod — matches old PodManager::deactivate_pod(id).
     pub async fn deactivate_pod(&self, pod_id: &PodID) -> Result<(), AgentPodError> {
         let mut d = self.deployments.write().await;
         d.get_mut(pod_id)
@@ -138,7 +203,8 @@ impl ActivePods {
             .deactivate()
     }
 
-    pub async fn get_status(&self, pod_id: &PodID) -> Result<PodStatusInfo, AgentPodError> {
+    /// Get pod status — matches old PodManager::get_pod_status(id).
+    pub async fn get_pod_status(&self, pod_id: &PodID) -> Result<PodStatusInfo, AgentPodError> {
         let d = self.deployments.read().await;
         let d = d.get(pod_id).ok_or(AgentPodError::PodNotFound(*pod_id))?;
         Ok(PodStatusInfo {
@@ -150,6 +216,26 @@ impl ActivePods {
             template: d.pod.template_crate.name.clone(),
             created_at: d.pod.created_at,
         })
+    }
+
+    /// List all pods — matches old PodManager::list_pods().
+    pub async fn list_pods(&self) -> Result<Vec<PodStatusInfo>, AgentPodError> {
+        self.deployments
+            .read()
+            .await
+            .values()
+            .map(|d| {
+                Ok(PodStatusInfo {
+                    pod_id: d.pod_id.to_string(),
+                    name: Some(d.pod.persona.agent.name.clone()),
+                    state: d.pod.state,
+                    webid: d.pod.webid.to_string(),
+                    agent_type: d.pod.agent_type,
+                    template: d.pod.template_crate.name.clone(),
+                    created_at: d.pod.created_at,
+                })
+            })
+            .collect()
     }
 
     pub async fn assign_role(&self, name: &str, role: &str) -> Result<(), AgentPodError> {
@@ -190,25 +276,6 @@ impl ActivePods {
                 other
             ))),
         }
-    }
-
-    pub async fn list_statuses(&self) -> Result<Vec<PodStatusInfo>, AgentPodError> {
-        self.deployments
-            .read()
-            .await
-            .values()
-            .map(|d| {
-                Ok(PodStatusInfo {
-                    pod_id: d.pod_id.to_string(),
-                    name: Some(d.pod.persona.agent.name.clone()),
-                    state: d.pod.state,
-                    webid: d.pod.webid.to_string(),
-                    agent_type: d.pod.agent_type,
-                    template: d.pod.template_crate.name.clone(),
-                    created_at: d.pod.created_at,
-                })
-            })
-            .collect()
     }
 }
 

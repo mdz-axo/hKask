@@ -83,10 +83,14 @@ use zeroize::Zeroizing;
 use crate::SovereigntyChecker;
 use hkask_mcp::GitCasAdapter;
 
+pub use active_pods::{ActivePods, PodStatusInfo};
 pub use context::PodContext;
-pub use manager::{PodManager, PodStatus};
-
+pub use deployment::{
+    PerPodCnsRuntime, PerPodStorage, PerPodToolBinding, PodDeployError, PodDeployment, PodFactory,
+    PodRegistry,
+};
 pub use hkask_types::template::{TemplateCrate, TemplateFile};
+pub use manager::{PodManager, PodStatus};
 pub use types::{AgentKind, AgentMode, AgentPersona, PodID, PodLifecycleState};
 
 /// Agent Pod — Runtime container for A2A agents
