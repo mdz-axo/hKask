@@ -101,8 +101,8 @@ impl DynamicGasTable {
     ///
     /// expect: "I can feed a single gas observation into the table to initialize or update the EMA per server"
     /// pre:  estimated_gas > 0 (no division by zero)
-    /// post: ema_ratios[server] updated with EMA of actual/estimated ratio
-    /// post: observation_counts[server] incremented
+    /// post: ema_ratios\[server\] updated with EMA of actual/estimated ratio
+    /// post: observation_counts\[server\] incremented
     pub fn record_observation(&mut self, server: &str, estimated_gas: u64, actual_gas: u64) {
         let ratio = actual_gas as f64 / estimated_gas.max(1) as f64;
         // Clamp to [0.1, 10.0] to prevent extreme outliers destabilizing EMA
@@ -134,7 +134,7 @@ impl DynamicGasTable {
     /// preventing already-applied EMA ratios from being repeatedly re-applied.
     ///
     /// expect: "I can run a calibration pass that adjusts server costs when EMA ratios exceed tolerance"
-    /// post: server_costs[server] is updated if its EMA ratio exceeds tolerance
+    /// post: server_costs\[server\] is updated if its EMA ratio exceeds tolerance
     /// post: returns the number of servers whose costs were adjusted
     ///
     /// # Returns

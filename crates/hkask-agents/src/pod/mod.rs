@@ -24,7 +24,7 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! # async fn example() -> Result<(), `Box<dyn std::error::Error>`> {
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use hkask_agents::pod::{AgentPod, AgentPersona, PodLifecycleState};
 //! use hkask_mcp::GitCasAdapter;
 //! use hkask_agents::a2a::A2ARuntime;

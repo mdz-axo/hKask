@@ -5,7 +5,7 @@
 //! Pattern (a): deserialize_never_panics — arbitrary JSON → deserialize all request types.
 
 use bolero::check;
-use hkask_mcp_docproc::tools::*;
+use hkask_mcp_docproc::*;
 
 // ── Pattern (a): Deserialize never panics ──────────────────────────────────
 

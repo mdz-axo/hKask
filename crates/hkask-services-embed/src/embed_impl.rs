@@ -87,7 +87,7 @@ impl EmbedProgress {
 
     /// \[P7\] Motivating: Evolutionary Architecture — full status formatting.
     /// pre:  self is a valid EmbedProgress
-    /// post: returns formatted "[phase] author — work — page_progress" string
+    /// post: returns formatted `[phase]` author — work — page_progress string
     pub fn format_full(&self) -> String {
         let phase_label = match self.phase {
             EmbedPhase::Parsing => "Parsing",
