@@ -32,7 +32,7 @@ hKask's 11 MCP servers provide tool capabilities to agents. The original archite
 
 1. **AgentMode** (`Chat` | `Server`) — a property of the agent, not the MCP runtime. Initially mutually exclusive.
 2. **Daemon socket** (`~/.config/hkask/daemon.sock`) — Unix domain socket for out-of-process MCP binary ↔ in-process agent stack communication. JSON newline-delimited protocol.
-3. **ServiceDaemonHandler** — bridges daemon queries to PodManager (assignment, capability), UserStore (authentication), InferencePort (narrative generation), and PodContext (dual memory encoding).
+3. **ServiceDaemonHandler** — bridges daemon queries to ActivePods (assignment, capability), UserStore (authentication), InferencePort (narrative generation), and PodContext (dual memory encoding).
 4. **Thin launcher pattern** — each MCP binary reads `HKASK_REPLICANT` from env, connects to daemon for P4 dual-gate verification, then starts serving. Original tool logic unchanged.
 5. **Dual memory encoding** — every tool call produces both episodic (first-person, private, perspective-scoped) and semantic (third-person, public, generalized) triples simultaneously.
 6. **Narrative generation** — every 10 stored experiences, the daemon queries the agent's episodic memory, calls inference to produce observations about patterns and user intent, and stores those observations as additional episodic memories.

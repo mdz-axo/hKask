@@ -1,5 +1,5 @@
 //! DaemonHandler implementation — bridges the Unix socket daemon to hKask's
-//! PodManager, UserStore, memory infrastructure, and internal narrative generation.
+//! ActivePods, UserStore, memory infrastructure, and internal narrative generation.
 //!
 //! This is the hKask-side implementation of the `DaemonHandler` trait defined
 //! in `hkask-mcp`. It wires daemon queries to the live agent and memory stack.
@@ -40,7 +40,7 @@ const NARRATIVE_SYSTEM_PROMPT: &str = "You are an observant agent monitoring an 
 
 /// hKask-side implementation of the daemon handler trait.
 ///
-/// Wraps PodManager for assignment/capability/memory queries,
+/// Wraps ActivePods for assignment/capability/memory queries,
 /// UserStore for authentication, and InferencePort for narrative generation.
 pub struct ServiceDaemonHandler {
     pod_manager: Arc<ActivePods>,

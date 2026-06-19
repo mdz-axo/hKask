@@ -48,7 +48,7 @@ impl From<PodStatusInfo> for PodStatusInfoResponse {
     }
 }
 
-/// Service for pod lifecycle management — delegates to PodManager.
+/// Service for pod lifecycle management — delegates to ActivePods.
 pub struct PodService;
 
 impl PodService {

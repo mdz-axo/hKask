@@ -48,7 +48,7 @@ All 28 fields are **private** and exposed through **individual named accessor me
 | `escalation_queue()` | `&Arc<EscalationQueue>` | Governance |
 | `inference_port()` | `Option<Arc<dyn InferencePort>>` | Coordination |
 | `mcp_runtime()` | `&Arc<McpRuntime>` | Coordination |
-| `pod_manager()` | `&Arc<PodManager>` | Coordination |
+| `active_pods()` | `&Arc<ActivePods>` | Coordination |
 | `identity()` | `(&WebID, &Arc<hkask_agents::A2ARuntime>)` | Identity |
 | `sovereignty()` | `SovereigntyService` (wraps `consent_manager`) | Sovereignty |
 | `curation_inbox_tx()` | `&Option<mpsc::UnboundedSender<CurationInput>>` | Internal |
@@ -61,7 +61,7 @@ All 28 fields are **private** and exposed through **individual named accessor me
 
 **Design rationale:** Individual accessors replaced the 8-group-method tuple pattern because:
 - Callers typically need one field, not an entire domain group — tuple destructuring forced unnecessary binding of unused fields
-- Individual methods are self-documenting: `svc.pod_manager()` is clearer than `let (_, _, pm, _) = svc.coordination()`
+- Individual methods are self-documenting: `svc.active_pods()` is clearer than `let (_, _, pm, _) = svc.coordination()`
 - Two small tuples remain where the pair is always used together: `memory()` (episodic + semantic always co-accessed) and `identity()` (WebID + A2A runtime always co-accessed)
 
 ### 1.3 Vocabulary Allocation
@@ -119,7 +119,7 @@ impl AgentService {
     // Coordination
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>>;
     pub fn mcp_runtime(&self) -> &Arc<McpRuntime>;
-    pub fn pod_manager(&self) -> &Arc<PodManager>;
+    pub fn active_pods(&self) -> &Arc<ActivePods>;
 
     // Identity
     pub fn identity(&self) -> (&WebID, &Arc<hkask_agents::A2ARuntime>);
@@ -156,7 +156,7 @@ impl AgentService {
 | `consent_manager` | `Arc<ConsentManager>` | Sovereignty |
 | `goal_repo` | `Arc<SqliteGoalRepository>` | Storage |
 | `curation_inbox_tx` | `Option<mpsc::UnboundedSender<CurationInput>>` | Internal |
-| `pod_manager` | `Arc<PodManager>` | Coordination |
+| `active_pods` | `Arc<ActivePods>` | Coordination |
 | `capability_checker` | `Arc<CapabilityChecker>` | Governance |
 | `system_webid` | `WebID` | Identity |
 | `event_sink` | `Arc<dyn NuEventSink>` | CNS |
@@ -187,7 +187,7 @@ impl AgentService {
 | `loop_system()` | ✅ (loops, serve) | ✅ (start_loops) | ✅ Yes |
 | `inference_port()` | ✅ (chat, compose) | ✅ (compose) | ✅ Yes |
 | `mcp_runtime()` | ✅ (MCP commands) | ✅ (MCP routes) | ✅ Yes |
-| `pod_manager()` | ✅ (pods) | ✅ (pods, ACP) | ✅ Yes |
+| `active_pods()` | ✅ (pods) | ✅ (pods, ACP) | ✅ Yes |
 | `sovereignty()` | ✅ (sovereignty) | ✅ (sovereignty) | ✅ Yes |
 | `daemon_handler()` | ✅ (daemon) | ❌ | N/A (daemon only) |
 | `matrix_transport()` | ✅ (REPL) | ❌ | N/A (REPL only) |
@@ -217,7 +217,7 @@ impl AgentService {
 |-----------|-------------------|-------------|
 | `svc.memory()` | `episodic_memory:read/write` + `semantic_memory:read/write` | Scoped to agent WebID |
 | `svc.mcp_dispatcher()` | `tools:execute` | Per-tool capability |
-| `svc.pod_manager()` | `pods:create/manage` | Agent-scoped |
+| `svc.active_pods()` | `pods:create/manage` | Agent-scoped |
 | `svc.sovereignty()` | `consent:manage` | User-scoped (P1) |
 
 ---

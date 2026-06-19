@@ -46,7 +46,7 @@ pub struct ServiceConfig {
 
     /// HMAC secret for A2A token signing (in-process agent capability policy).
     ///
-    /// Used by A2ARuntime, PodManager, FullMcpAdapter, ManifestExecutor, and
+    /// Used by A2ARuntime, ActivePods, FullMcpAdapter, ManifestExecutor, and
     /// CLI tool invocation. Tokens signed with this secret are verified within
     /// the same process by the A2A runtime.
     ///

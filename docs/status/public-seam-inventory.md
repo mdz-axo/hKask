@@ -230,18 +230,22 @@ Each public item is classified:
 | fn | `store_episodic` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:169 | 🔴 Core Logic | 🔴 |
 | fn | `store_semantic` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:275 | 🔴 Core Logic | 🔴 |
 | struct | `PodContext` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:37 | 🟡 Type Declaration | 🔴 |
-| fn | `a2a_runtime` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:474 | 🔴 Core Logic | 🟢 |
-| fn | `inference_port` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:217 | 🔴 Core Logic | 🟢 |
-| fn | `new_mock` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:251 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:78 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_capability_checker` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:158 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_consent_port` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:131 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_governed_tool` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:178 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_inference` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:190 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_nu_event_sink` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:168 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `PodManager` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:24 | 🟡 Type Declaration | 🟢 |
-| struct | `PodStatus` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:42 | 🟡 Type Declaration | 🟢 |
-| type | `ActivationHook` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:22 | 🟡 Type Declaration | 🟢 |
+| fn | `a2a_runtime` | _deleted (PodManager removed)_ | — | 🟢 Removed | 🟢 |
+| struct | `PodDeployment` | hkask-agents::pod::deployment | crates/hkask-agents/src/pod/deployment.rs | 🟡 Type Declaration | 🟢 |
+| struct | `PodFactory` | hkask-agents::pod::deployment | crates/hkask-agents/src/pod/deployment.rs | 🟡 Type Declaration | 🟢 |
+| struct | `ActivePods` | hkask-agents::pod::active_pods | crates/hkask-agents/src/pod/active_pods.rs | 🟡 Type Declaration | 🟢 |
+| struct | `PodRegistry` | hkask-agents::pod::deployment | crates/hkask-agents/src/pod/deployment.rs | 🟡 Type Declaration | 🟢 |
+| fn | `deploy` | hkask-agents::pod::deployment | crates/hkask-agents/src/pod/deployment.rs | 🔴 Core Logic | 🟢 |
+| fn | `context` | hkask-agents::pod::active_pods | crates/hkask-agents/src/pod/active_pods.rs | 🔴 Core Logic | 🟢 |
+| fn | `create_pod` | hkask-agents::pod::active_pods | crates/hkask-agents/src/pod/active_pods.rs | 🔴 Core Logic | 🟢 |
+| fn | `activate_pod` | hkask-agents::pod::active_pods | crates/hkask-agents/src/pod/active_pods.rs | 🔴 Core Logic | 🟢 |
+| fn | `deactivate_pod` | hkask-agents::pod::active_pods | crates/hkask-agents/src/pod/active_pods.rs | 🔴 Core Logic | 🟢 |
+| fn | `list_pods` | hkask-agents::pod::active_pods | crates/hkask-agents/src/pod/active_pods.rs | 🟢 Accessor | 🟢 |
+| fn | `get_pod_status` | hkask-agents::pod::active_pods | crates/hkask-agents/src/pod/active_pods.rs | 🟢 Accessor | 🟢 |
+| fn | `find_pod_by_name` | hkask-agents::pod::active_pods | crates/hkask-agents/src/pod/active_pods.rs | 🟢 Accessor | 🟢 |
+| fn | `set_mode` | hkask-agents::pod::active_pods | crates/hkask-agents/src/pod/active_pods.rs | 🔴 Core Logic | 🟢 |
+| fn | `assign_role` | hkask-agents::pod::active_pods | crates/hkask-agents/src/pod/active_pods.rs | 🔴 Core Logic | 🟢 |
+| struct | `PodStatusInfo` | hkask-agents::pod::active_pods | crates/hkask-agents/src/pod/active_pods.rs | 🟡 Type Declaration | 🟢 |
 | enum | `AgentPodError` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:123 | 🟡 Type Declaration | 🟢 |
 | fn | `activate` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:334 | 🔴 Core Logic | 🟢 |
 | fn | `check_sovereignty` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:665 | 🔴 Core Logic | 🟢 |
@@ -1840,7 +1844,7 @@ Each public item is classified:
 | fn | `mcp_dispatcher` | hkask-services-context::context_impl | crates/hkask-services-context/src/context_impl.rs:383 | 🔴 Core Logic | 🔴 |
 | fn | `mcp_runtime` | hkask-services-context::context_impl | crates/hkask-services-context/src/context_impl.rs:412 | 🔴 Core Logic | 🔴 |
 | fn | `memory` | hkask-services-context::context_impl | crates/hkask-services-context/src/context_impl.rs:277 | 🔴 Core Logic | 🔴 |
-| fn | `pod_manager` | hkask-services-context::context_impl | crates/hkask-services-context/src/context_impl.rs:421 | 🔴 Core Logic | 🔴 |
+| fn | `active_pods` | hkask-services-context::context_impl | crates/hkask-services-context/src/context_impl.rs:421 | 🔴 Core Logic | 🔴 |
 | fn | `registry` | hkask-services-context::context_impl | crates/hkask-services-context/src/context_impl.rs:288 | 🔴 Core Logic | 🔴 |
 | fn | `seam_watcher` | hkask-services-context::context_impl | crates/hkask-services-context/src/context_impl.rs:361 | 🔴 Core Logic | 🔴 |
 | fn | `sovereignty_boundary_store` | hkask-services-context::context_impl | crates/hkask-services-context/src/context_impl.rs:478 | 🔴 Core Logic | 🔴 |
@@ -1966,7 +1970,7 @@ Each public item is classified:
 | fn | `task_reopen` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:768 | 🔴 Core Logic | 🟢 |
 | fn | `task_unassign` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:753 | 🔴 Core Logic | 🟢 |
 | fn | `task_verify` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:630 | 🔴 Core Logic | 🟢 |
-| fn | `with_pod_manager` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:65 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_active_pods` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:65 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `KanbanService` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:36 | 🟡 Type Declaration | 🟢 |
 | struct | `UnjamFix` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:876 | 🟡 Type Declaration | 🟢 |
 | struct | `UnjamItem` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:867 | 🟡 Type Declaration | 🟢 |

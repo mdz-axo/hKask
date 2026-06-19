@@ -7,10 +7,10 @@ use super::AgentPodError;
 use super::context::PodContext;
 use super::deployment::{PodDeployment, PodFactory};
 use super::types::{AgentKind, AgentPersona, PodID, PodLifecycleState};
-use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
+use crate::ports::{A2APort, EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
-use hkask_types::{CapabilityChecker, NuEventSink, WebID};
+use hkask_types::{CapabilityChecker, InferencePort, NuEventSink, WebID};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -18,12 +18,14 @@ use tokio::sync::RwLock;
 pub struct ActivePods {
     deployments: RwLock<HashMap<PodID, PodDeployment>>,
     factory: Option<Arc<PodFactory>>,
+    a2a_runtime: Option<Arc<dyn A2APort + Send + Sync>>,
     mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
     governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
     capability_checker: Option<Arc<CapabilityChecker>>,
     nu_event_sink: Option<Arc<dyn NuEventSink>>,
     episodic_adapter: Option<Arc<dyn EpisodicStoragePort>>,
     semantic_adapter: Option<Arc<dyn SemanticStoragePort>>,
+    inference_port: Option<Arc<dyn InferencePort>>,
 }
 
 impl ActivePods {
@@ -31,13 +33,46 @@ impl ActivePods {
         Self {
             deployments: RwLock::new(HashMap::new()),
             factory: None,
+            a2a_runtime: None,
             mcp_runtime: None,
             governed_tool: None,
             capability_checker: None,
             nu_event_sink: None,
             episodic_adapter: None,
             semantic_adapter: None,
+            inference_port: None,
         }
+    }
+
+    /// Create a mock ActivePods for testing — matches old PodManager::new_mock().
+    /// Wires in-memory adapters and a test factory so create_pod/activate_pod work.
+    pub fn new_mock() -> Self {
+        use crate::a2a::A2ARuntime;
+        use crate::adapters::mcp_runtime::CapabilityOnlyAdapter;
+        use crate::adapters::memory_loop_adapter::MemoryLoopAdapter;
+        use hkask_types::CapabilityChecker;
+
+        let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
+        let mcp = Arc::new(CapabilityOnlyAdapter::new(Arc::new(
+            CapabilityChecker::new(b"mock"),
+        )));
+        let a2a = Arc::new(A2ARuntime::new(b"mock"));
+        let factory = Arc::new(PodFactory::new(
+            Arc::new(hkask_mcp::GitCasAdapter::from_path(
+                std::path::PathBuf::from("/tmp/hkask-mock"),
+            )),
+            Arc::new(crate::DenyAllConsent),
+            std::path::PathBuf::from("/tmp/hkask-mock-pods"),
+        ));
+        Self::new().with_a2a_runtime(a2a).with_factory_and_ports(
+            factory,
+            mcp.clone(),
+            None,
+            None,
+            None,
+            adapter.clone() as Arc<dyn EpisodicStoragePort>,
+            adapter as Arc<dyn SemanticStoragePort>,
+        )
     }
 
     /// Wire the factory and port adapters so create_pod/activate_pod work
@@ -60,6 +95,24 @@ impl ActivePods {
         self.episodic_adapter = Some(episodic_adapter);
         self.semantic_adapter = Some(semantic_adapter);
         self
+    }
+
+    /// Wire the A2A runtime for pod registration.
+    pub fn with_a2a_runtime(mut self, a2a: Arc<dyn A2APort + Send + Sync>) -> Self {
+        self.a2a_runtime = Some(a2a);
+        self
+    }
+
+    /// Set the inference port for pods to use.
+    #[must_use = "builder methods return self for chaining"]
+    pub fn with_inference_port(mut self, port: Arc<dyn InferencePort>) -> Self {
+        self.inference_port = Some(port);
+        self
+    }
+
+    /// Get the inference port, if one is wired.
+    pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
+        self.inference_port.clone()
     }
 
     pub async fn insert(&self, deployment: PodDeployment) {
@@ -174,6 +227,7 @@ impl ActivePods {
                         "ActivePods not wired with semantic adapter".into(),
                     )
                 })?),
+                self.inference_port.clone(),
             )
             .await
             .map_err(|e| AgentPodError::PersonaParseError(e.to_string()))?;
@@ -183,15 +237,51 @@ impl ActivePods {
     }
 
     /// Activate a pod — matches old PodManager::activate_pod(id).
+    /// Handles full lifecycle: Populated → Registered → Activated.
     pub async fn activate_pod(&self, pod_id: &PodID) -> Result<(), AgentPodError> {
         let mcp = self.mcp_runtime.as_ref().ok_or_else(|| {
             AgentPodError::PersonaParseError("ActivePods not wired with MCP runtime".into())
         })?;
+        let a2a = self.a2a_runtime.as_ref().ok_or_else(|| {
+            AgentPodError::PersonaParseError("ActivePods not wired with A2A runtime".into())
+        })?;
+
+        // Register with A2A if still Populated
+        let registration_data = {
+            let d = self.deployments.read().await;
+            let d = d.get(pod_id).ok_or(AgentPodError::PodNotFound(*pod_id))?;
+            if d.pod.state == PodLifecycleState::Populated {
+                Some((
+                    d.pod.webid,
+                    d.pod.agent_type,
+                    d.pod.persona.capabilities.clone(),
+                ))
+            } else {
+                None
+            }
+        };
+
+        // Perform A2A registration outside the write lock
+        let token = if let Some((webid, agent_type, capabilities)) = registration_data {
+            Some(
+                a2a.register_agent(webid, agent_type, capabilities)
+                    .await
+                    .map_err(|e| AgentPodError::A2ARegistrationError(e.to_string()))?,
+            )
+        } else {
+            None
+        };
+
+        // Apply registration token + activate
         let mut d = self.deployments.write().await;
-        d.get_mut(pod_id)
-            .ok_or(AgentPodError::PodNotFound(*pod_id))?
-            .pod
-            .activate(mcp.as_ref())
+        let d = d
+            .get_mut(pod_id)
+            .ok_or(AgentPodError::PodNotFound(*pod_id))?;
+        if let Some(token) = token {
+            d.pod.capability_token = token;
+            d.pod.state = PodLifecycleState::Registered;
+        }
+        d.pod.activate(mcp.as_ref())
     }
 
     /// Deactivate a pod — matches old PodManager::deactivate_pod(id).

@@ -795,7 +795,7 @@ curl -X POST http://localhost:8080/api/pods \
 ### 6.3 Programmatic Registration (Rust)
 
 ```rust
-use hkask_agents::pod::{PodManager, AgentPersona, PodID};
+use hkask_agents::pod::{ActivePods, AgentPersona, PodID};
 use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_agents::adapters::a2a_runtime::A2ARuntimeAdapter;
 use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
@@ -812,14 +812,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mcp_runtime = McpRuntimeAdapter::new();
     
     // Create pod manager
-    let pod_manager = PodManager::new(git_cas, a2a_runtime, cns_emitter, mcp_runtime);
+    let active_pods = ActivePods::new(git_cas, a2a_runtime, cns_emitter, mcp_runtime);
     
     // Load persona from YAML
     let persona_yaml = std::fs::read_to_string("agent_persona.yaml")?;
     let persona = AgentPersona::from_yaml(&persona_yaml)?;
     
     // Create pod
-    let pod_id = pod_manager
+    let pod_id = active_pods
         .create_pod("my-agent-crate", &persona, Some("my-specialist-bot".to_string()))
         .await?;
     
@@ -872,7 +872,7 @@ curl -X POST http://localhost:8080/api/pods/<pod-id>/activate
 
 ```rust
 // Activate pod
-pod_manager.activate_pod(&pod_id).await?;
+active_pods.activate_pod(&pod_id).await?;
 println!("Pod activated: {}", pod_id);
 ```
 

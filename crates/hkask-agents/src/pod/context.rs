@@ -71,7 +71,7 @@ impl PodContext {
             pod_id: deployment.pod_id,
             webid: deployment.pod.webid,
             capability_token: deployment.pod.capability_token.clone(),
-            inference_port: None,
+            inference_port: deployment.inference_port.clone(),
             episodic_storage: Arc::clone(&deployment.episodic_storage),
             semantic_storage: Arc::clone(&deployment.semantic_storage),
             mcp_runtime: Arc::clone(&deployment.mcp_runtime),

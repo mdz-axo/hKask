@@ -62,7 +62,6 @@
 mod active_pods;
 mod context;
 mod deployment;
-mod manager;
 mod nu_event;
 mod types;
 
@@ -90,7 +89,6 @@ pub use deployment::{
     PodRegistry,
 };
 pub use hkask_types::template::{TemplateCrate, TemplateFile};
-pub use manager::{PodManager, PodStatus};
 pub use types::{AgentKind, AgentMode, AgentPersona, PodID, PodLifecycleState};
 
 /// Agent Pod — Runtime container for A2A agents

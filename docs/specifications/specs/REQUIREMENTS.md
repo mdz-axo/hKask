@@ -208,10 +208,10 @@ Curation: Merge | Revise | Defer | Discard
 - **Text:** When creating an agent, I want pod-based composition, so I can bundle identity, capabilities, and templates.
 - **Criteria:**
   - [x] `AgentPod` composes identity, capabilities, templates, lifecycle state
-  - [x] `PodManager` with builder pattern
+  - [x] `ActivePods` with builder pattern
   - [x] `PodLifecycleState` state machine
   - [x] `ConsentManager` for user authorization
-- **Implementation:** `hkask-agents::pod::AgentPod`, `hkask-agents::pod::PodManager`, `hkask-agents::consent::ConsentManager`
+- **Implementation:** `hkask-agents::pod::AgentPod`, `hkask-agents::pod::ActivePods`, `hkask-agents::consent::ConsentManager`
 - **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge

@@ -916,8 +916,8 @@ mod tests {
     // | Operation           | Idempotent? | Reason                    |
     // |---------------------|:-----------:|---------------------------|
     // | auth_query          | ✅          | Read-only (UserStore)     |
-    // | assignment_query    | ✅          | Read-only (PodManager)    |
-    // | capability_query    | ✅          | Read-only (PodManager)    |
+    // | assignment_query    | ✅          | Read-only (ActivePods)    |
+    // | capability_query    | ✅          | Read-only (ActivePods)    |
     // | store_experience    | ❌          | Creates new UUID triples  |
     //
     // The three query operations are naturally idempotent — they perform

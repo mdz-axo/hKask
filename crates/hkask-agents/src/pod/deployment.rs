@@ -20,7 +20,8 @@ use hkask_mcp::RawMcpToolPort;
 use hkask_storage::{Database, DatabaseError, EmbeddingStore, Triple, TripleStore};
 use hkask_types::event::SpanNamespace;
 use hkask_types::{
-    CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, NuEventSink, WebID,
+    CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, InferencePort,
+    NuEventSink, WebID,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -64,6 +65,8 @@ pub struct PodDeployment {
     pub episodic_storage: Arc<dyn EpisodicStoragePort>,
     /// Semantic storage port (backed by this pod's SQLCipher)
     pub semantic_storage: Arc<dyn SemanticStoragePort>,
+    /// Inference port for LLM generation (None if inference unavailable)
+    pub inference_port: Option<Arc<dyn InferencePort>>,
 }
 
 /// PerPodStorage owns a SQLCipher database file for a single pod.
@@ -237,6 +240,7 @@ impl PodFactory {
         nu_event_sink: Option<Arc<dyn NuEventSink>>,
         episodic_adapter: Arc<dyn EpisodicStoragePort>,
         semantic_adapter: Arc<dyn SemanticStoragePort>,
+        inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Result<PodDeployment, PodDeployError> {
         // 1. Create the underlying AgentPod
         let pod = AgentPod::new(
@@ -279,6 +283,7 @@ impl PodFactory {
             mcp_runtime,
             episodic_storage: episodic_adapter,
             semantic_storage: semantic_adapter,
+            inference_port,
         })
     }
 

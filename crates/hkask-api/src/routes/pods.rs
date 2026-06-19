@@ -1,4 +1,4 @@
-//! Pod lifecycle management routes — call PodManager directly.
+//! Pod lifecycle management routes.
 
 use axum::Json;
 use axum::extract::{Extension, Path, State};

@@ -166,7 +166,7 @@ pub struct AgentService {
     /// User store for replicant identity and authentication.
     user_store: Arc<std::sync::Mutex<UserStore>>,
 
-    /// Daemon handler — bridges Unix socket queries to PodManager and UserStore.
+    /// Daemon handler — bridges Unix socket queries to ActivePods and UserStore.
     daemon_handler: Arc<hkask_services_daemon::ServiceDaemonHandler>,
 
     /// Matrix transport for agent-to-agent and human-to-agent communication.
@@ -389,7 +389,7 @@ impl AgentService {
     ///
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<PodManager>
+    /// post: returns &Arc<ActivePods>
     pub fn pod_manager(&self) -> &Arc<ActivePods> {
         &self.pod_manager
     }
@@ -1000,8 +1000,11 @@ async fn build_mcp_and_pods(
         Arc::new(hkask_agents::DenyAllConsent),
         std::path::PathBuf::from(&config.db_path),
     ));
-    let pod_manager: Arc<hkask_agents::pod::ActivePods> =
-        Arc::new(hkask_agents::pod::ActivePods::new().with_factory_and_ports(
+    let mut pods = hkask_agents::pod::ActivePods::new()
+        .with_a2a_runtime(
+            l.a2a_runtime.clone() as Arc<dyn hkask_agents::ports::A2APort + Send + Sync>
+        )
+        .with_factory_and_ports(
             pod_factory,
             Arc::new(mcp_runtime_adapter),
             Some(governed_tool.clone()),
@@ -1009,7 +1012,11 @@ async fn build_mcp_and_pods(
             None,
             Arc::clone(&l.episodic_storage) as Arc<dyn EpisodicStoragePort>,
             Arc::clone(&l.semantic_storage) as Arc<dyn SemanticStoragePort>,
-        ));
+        );
+    if let Some(inf) = l.inference_port.clone() {
+        pods = pods.with_inference_port(inf);
+    }
+    let pod_manager: Arc<hkask_agents::pod::ActivePods> = Arc::new(pods);
 
     // Matrix auto-registration — deferred to per-pod activation
 
