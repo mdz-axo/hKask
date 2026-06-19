@@ -176,11 +176,6 @@ pub enum Commands {
         action: AdapterAction,
     },
 
-    /// Contract lifecycle — propose, accept, or reject behavioral contracts
-    Contract {
-        #[command(subcommand)]
-        action: ContractAction,
-    },
     /// List available LLM models
     Models,
 

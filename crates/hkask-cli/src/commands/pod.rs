@@ -1,23 +1,23 @@
 //! Pod management command handlers — delegates to PodService.
 
-use hkask_services::{PodService, PodStatusResponse, ServiceError};
+use hkask_services::{PodService, PodStatusInfoResponse, ServiceError};
 
 use crate::cli::PodAction;
 
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  pod_id is a valid pod identifier
-/// post: returns Ok(PodStatusResponse) with pod status
+/// post: returns Ok(PodStatusInfoResponse) with pod status
 /// post: delegates to PodService::get_pod_status
-pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusResponse, ServiceError> {
+pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusInfoResponse, ServiceError> {
     let ctx = super::helpers::build_service_context();
     PodService::get_pod_status(&ctx, pod_id).await
 }
 
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  none
-/// post: returns Ok(Vec<PodStatusResponse>) with all pod statuses
+/// post: returns Ok(Vec<PodStatusInfoResponse>) with all pod statuses
 /// post: delegates to PodService::list_pods
-pub async fn list_pods() -> Result<Vec<PodStatusResponse>, ServiceError> {
+pub async fn list_pods() -> Result<Vec<PodStatusInfoResponse>, ServiceError> {
     let ctx = super::helpers::build_service_context();
     PodService::list_pods(&ctx).await
 }

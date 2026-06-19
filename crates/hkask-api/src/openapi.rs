@@ -5,7 +5,7 @@ use utoipa::OpenApi;
 use crate::{
     ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
     CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry, ModelListResponse,
-    ModelSearchQuery, PodStatusResponse, TemplateResponse,
+    ModelSearchQuery, PodStatusInfoResponse, TemplateResponse,
 };
 
 use crate::routes::{ArchiveRequest, ArchiveResponse, ResolveShaResponse};
@@ -74,7 +74,7 @@ use crate::routes::cns::CnsSubscribeParams;
         CnsVarietyResponse,
         CreatePodRequest,
         CreatePodResponse,
-        PodStatusResponse,
+        PodStatusInfoResponse,
         ListPodsResponse,
         ChatRequest,
         ChatResponse,

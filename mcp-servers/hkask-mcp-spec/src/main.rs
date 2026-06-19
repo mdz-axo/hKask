@@ -10,8 +10,6 @@ use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
 use hkask_mcp::validate_field;
 
 use hkask_cns::{
-    emit_contract_accepted, emit_contract_proposed, emit_contract_rejected, emit_contract_violated,
-};
 use hkask_inference::{EmbeddingRouter, InferenceConfig};
 use hkask_services::{
     CognitionConfig, ComposeRequest, ComposeService, EmbeddingSection, HkaskSettings,
@@ -1034,13 +1032,6 @@ impl SpecServer {
         let rep = replicant.unwrap_or_else(|| self.webid.to_string());
 
         // Emit CNS span to real event sink (flows to Curator's review queue)
-        emit_contract_proposed(
-            &*self.event_sink,
-            &rep,
-            &crate_name,
-            &function,
-            &contract_id,
-        );
 
         // Persist proposal as triple for Curator review
         let value = serde_json::json!({
@@ -1084,8 +1075,6 @@ impl SpecServer {
         let span = ToolSpanGuard::new("contract_accept", &self.webid);
         let rev = reviewer.unwrap_or_else(|| self.webid.to_string());
 
-        emit_contract_accepted(&*self.event_sink, &rev, "", "", "", &contract_id);
-
         // Update proposal triple status
         if let Ok(mut existing) = self
             .triple_store
@@ -1123,8 +1112,6 @@ impl SpecServer {
     ) -> String {
         let span = ToolSpanGuard::new("contract_reject", &self.webid);
         let rev = reviewer.unwrap_or_else(|| self.webid.to_string());
-
-        emit_contract_rejected(&*self.event_sink, &rev, "", "", "", &contract_id, &reason);
 
         // Update proposal triple status
         if let Ok(mut existing) = self
@@ -1200,12 +1187,6 @@ impl SpecServer {
             Some(result) => {
                 // Emit violations to CNS
                 for v in &result.violations {
-                    emit_contract_violated(
-                        &*self.event_sink,
-                        &v.test_name,
-                        &v.contract_id,
-                        &v.failure_reason,
-                    );
                 }
 
                 respond(

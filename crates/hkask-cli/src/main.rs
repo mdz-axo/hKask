@@ -101,7 +101,6 @@ fn main() {
         }
         Commands::Adapter { action } => commands::adapter::run(action),
 
-        Commands::Contract { action } => commands::contract::run(&rt, action),
 
         Commands::Kata { action } => commands::kata::run(action, &registry),
 

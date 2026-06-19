@@ -184,7 +184,7 @@ impl EnergyBudgetManager {
             let replenished = {
                 let mut budgets = self.energy_budgets.write().await;
                 if let Some(budget) = budgets.get_mut(&agent) {
-                    let rate = budget.replenish_rate;
+                    let rate = budget.replenish_rate();
                     budget.replenish();
                     rate
                 } else {
@@ -211,7 +211,7 @@ impl EnergyBudgetManager {
                 target: "cns.cybernetics",
                 agent = %agent,
                 amount = %amount,
-                remaining = %budget.remaining,
+                remaining = %budget.remaining(),
                 "Replenished agent energy budget by directive"
             );
         }
@@ -223,9 +223,7 @@ impl EnergyBudgetManager {
         let ttl_secs: u64 = 0;
         let mut budgets = self.energy_budgets.write().await;
         if let Some(budget) = budgets.get_mut(&agent) {
-            // Override can set budget above or below set-points
-            budget.cap = new_budget;
-            budget.remaining = new_budget;
+            budget.reset_to(new_budget);
             tracing::warn!(
                 target: "cns.cybernetics",
                 agent = %agent,
@@ -284,7 +282,7 @@ impl EnergyBudgetManager {
                 budget.replenish_by_weighted(amount, p)
             } else {
                 budget.replenish_by(amount);
-                EnergyCost(amount.0.min(budget.cap.0 - budget.remaining.0))
+                EnergyCost(amount.0.min(budget.cap().0 - budget.remaining().0))
             };
             drop(budgets);
             tracing::info!(
@@ -326,7 +324,7 @@ impl EnergyBudgetManager {
         let budgets = self.energy_budgets.read().await;
         budgets
             .values()
-            .map(|budget| (budget.remaining, budget.cap))
+            .map(|budget| (budget.remaining(), budget.cap()))
             .collect()
     }
 

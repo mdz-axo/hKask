@@ -690,7 +690,7 @@ impl CnsRuntime {
         let mut budgets = state.energy_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.replenish_by(amount);
-            let remaining = budget.remaining;
+            let remaining = budget.remaining();
             tracing::info!(
                 target: "cns.runtime",
                 agent = %agent,

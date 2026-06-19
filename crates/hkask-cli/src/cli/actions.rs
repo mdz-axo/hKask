@@ -889,58 +889,6 @@ pub enum DaemonAction {
     Stop,
 }
 
-#[derive(Subcommand, Debug, Clone)]
-pub enum ContractAction {
-    /// Propose a contract for a public function (replicant QA workflow)
-    Propose {
-        #[arg(short, long)]
-        crate_name: String,
-        #[arg(short, long)]
-        function: String,
-        #[arg(long)]
-        contract_id: String,
-        #[arg(long)]
-        pre: String,
-        #[arg(long)]
-        post: String,
-        #[arg(short, long)]
-        replicant: Option<String>,
-    },
-    /// Accept a proposed contract (human consent gate)
-    Accept {
-        contract_id: String,
-        #[arg(short, long)]
-        reviewer: Option<String>,
-    },
-    /// Reject a proposed contract with rationale
-    Reject {
-        contract_id: String,
-        /// Reason for rejection
-        #[arg(short, long)]
-        reason: String,
-        /// Reviewer WebID (default: "unknown")
-        #[arg(long)]
-        reviewer: Option<String>,
-    },
-    /// List proposed contracts awaiting review
-    List,
-    /// Review all contracts in a crate for quality issues
-    Review {
-        /// Crate name (default: all crates)
-        #[arg(short, long)]
-        crate_name: Option<String>,
-        /// Output format
-        #[arg(short, long, default_value = "text")]
-        format: String,
-    },
-    /// Discover uncontracted public functions in a crate
-    Discover {
-        /// Crate name (default: all crates)
-        #[arg(short, long)]
-        crate_name: Option<String>,
-    },
-}
-
 /// Trained adapter lifecycle — deploy, infer, teardown
 #[derive(Debug, Subcommand)]
 pub enum AdapterAction {

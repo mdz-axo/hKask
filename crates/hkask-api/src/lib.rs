@@ -44,7 +44,7 @@ pub use routes::{A2ARegisterRequest, A2ARegisterResponse};
 pub use routes::{
     ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
     CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry, ModelListResponse,
-    ModelSearchQuery, PodStatusResponse, SpecCoherenceResponse, SpecListResponse,
+    ModelSearchQuery, PodStatusInfoResponse, SpecCoherenceResponse, SpecListResponse,
     SpecWritingQualityResponse, TemplateResponse, VarietyCounterResponse,
     WithdrawalFeeEstimateResponse,
 };

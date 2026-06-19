@@ -10,7 +10,7 @@
 use hkask_api::routes::{
     A2ARegisterRequest, A2ARegisterResponse, ChatRequest, ChatResponse, CnsHealthResponse,
     CnsVarietyResponse, CreatePodRequest, CreatePodResponse, GrantCapabilityRequest,
-    ListPodsResponse, ModelEntry, ModelListResponse, PodStatusResponse, SovereigntyStatusResponse,
+    ListPodsResponse, ModelEntry, ModelListResponse, PodStatusInfoResponse, SovereigntyStatusResponse,
     SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse, TemplateResponse,
     VarietyCounterResponse, WithdrawalFeeEstimateResponse,
 };
@@ -97,7 +97,7 @@ fn create_pod_response_carries_pod_id() {
 // contract: api-pods-003
 #[test]
 fn pod_status_response_carries_all_fields() {
-    let status = PodStatusResponse {
+    let status = PodStatusInfoResponse {
         pod_id: "p1".to_string(),
         name: Some("curator".to_string()),
         state: "Activated".to_string(),
@@ -106,9 +106,9 @@ fn pod_status_response_carries_all_fields() {
         template: "curator".to_string(),
         created_at: 1700000000,
     };
-    let json = serde_json::to_string(&status).expect("PodStatusResponse should serialize");
-    let parsed: PodStatusResponse =
-        serde_json::from_str(&json).expect("PodStatusResponse should deserialize");
+    let json = serde_json::to_string(&status).expect("PodStatusInfoResponse should serialize");
+    let parsed: PodStatusInfoResponse =
+        serde_json::from_str(&json).expect("PodStatusInfoResponse should deserialize");
     assert_eq!(parsed.pod_id, "p1");
     assert_eq!(parsed.state, "Activated");
     assert_eq!(parsed.agent_type, "Bot");
@@ -119,7 +119,7 @@ fn pod_status_response_carries_all_fields() {
 fn list_pods_response_wraps_pod_statuses() {
     let resp = ListPodsResponse {
         pods: vec![
-            PodStatusResponse {
+            PodStatusInfoResponse {
                 pod_id: "p1".to_string(),
                 name: Some("bot-a".to_string()),
                 state: "Activated".to_string(),
@@ -128,7 +128,7 @@ fn list_pods_response_wraps_pod_statuses() {
                 template: "t1".to_string(),
                 created_at: 1000,
             },
-            PodStatusResponse {
+            PodStatusInfoResponse {
                 pod_id: "p2".to_string(),
                 name: None,
                 state: "Populated".to_string(),
