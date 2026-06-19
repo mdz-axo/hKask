@@ -341,7 +341,9 @@ impl KanbanServer {
     /// pre:  proposals is a non-empty JSON array of ExpectProposal structs
     /// pre:  board_id is a valid board ID
     /// post: returns created task IDs (one per proposal)
-    #[tool(description = "Create kanban tasks for contracts missing expect: annotations. Takes JSON from propose_missing_expect_annotations.")]
+    #[tool(
+        description = "Create kanban tasks for contracts missing expect: annotations. Takes JSON from propose_missing_expect_annotations."
+    )]
     async fn contract_propose_expect(
         &self,
         Parameters(ContractProposeExpect {
@@ -374,7 +376,8 @@ impl KanbanServer {
             );
             let description = format!(
                 "File: {}:{}\nContract: {}\nPre: {}\nPost: {}\n\nTemplate:\n{}\n\nSuggested principle: {}\nConstraining: {:?}",
-                prop.file, prop.line,
+                prop.file,
+                prop.line,
                 prop.contract_id,
                 prop.pre,
                 prop.post,
@@ -385,7 +388,12 @@ impl KanbanServer {
             let spec = TaskSpec::new(title).with_description(description);
             match self.service.task_create(bid, spec, self.webid) {
                 Ok(task) => created.push(task.id.to_string()),
-                Err(e) => return err(span, &format!("failed to create task for {}: {e}", prop.function)),
+                Err(e) => {
+                    return err(
+                        span,
+                        &format!("failed to create task for {}: {e}", prop.function),
+                    );
+                }
             }
         }
 

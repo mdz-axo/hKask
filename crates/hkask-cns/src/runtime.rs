@@ -19,9 +19,9 @@ use crate::algedonic::{
 };
 use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost};
 
+use hkask_rsolidity as rs;
 use hkask_types::WebID;
 use hkask_types::cns::{CnsHealth, CnsSpan};
-use hkask_rsolidity as rs;
 use hkask_types::event::{NuEvent, NuEventSink, SpanNamespace};
 use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
 use parking_lot::RwLock as ParkingRwLock;

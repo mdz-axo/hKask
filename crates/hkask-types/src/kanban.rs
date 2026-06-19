@@ -75,7 +75,7 @@ pub enum TaskStatus {
 }
 
 impl TaskStatus {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any valid TaskStatus
     /// post: returns the string representation (lowercase)
     #[contract(id = "P8-typ-kanban001", principle = "P8")]
@@ -89,7 +89,7 @@ impl TaskStatus {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  s is a case-insensitive string
     /// post: returns Some(TaskStatus) if valid, None otherwise
     #[contract(id = "P8-typ-kanban002", principle = "P8")]
@@ -104,7 +104,7 @@ impl TaskStatus {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any valid TaskStatus
     /// post: returns true iff the transition from self to `target` is valid
     ///       (forward one step, or backward one step — no skipping)
@@ -123,7 +123,7 @@ impl TaskStatus {
         )
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any valid TaskStatus
     /// post: returns the next status in the workflow, or None if already Done
     #[contract(id = "P8-typ-kanban004", principle = "P8")]
@@ -174,7 +174,7 @@ pub struct ColumnDef {
 }
 
 impl ColumnDef {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  name is non-empty; status is valid; position is >= 0
     /// post: returns a new ColumnDef with a random ColumnId, no WIP limit
     #[contract(id = "P8-typ-kanban005", principle = "P8")]
@@ -209,7 +209,7 @@ pub struct VerificationCriterion {
 }
 
 impl VerificationCriterion {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  description is non-empty
     /// post: returns a VerificationCriterion with no LLM prompt
     #[contract(id = "P8-typ-kanban006", principle = "P8")]
@@ -220,7 +220,7 @@ impl VerificationCriterion {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is valid; llm_prompt is non-empty
     /// post: returns self with llm_prompt set
     #[must_use = "builder methods must be chained or assigned"]
@@ -250,7 +250,7 @@ pub struct Verification {
 }
 
 impl Verification {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  verifier is a valid WebID
     /// post: returns Verification with verified_at=now
     #[contract(id = "P8-typ-kanban008", principle = "P8")]
@@ -283,7 +283,7 @@ pub struct Phase {
 }
 
 impl Phase {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  arguments are valid
     /// post: returns new instance with defaults
     /// pre:  name is non-empty, order is a valid u32
@@ -299,7 +299,7 @@ impl Phase {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  desc is a non-empty description string
     /// post: returns Self with description set to Some(desc)
     #[must_use = "builder methods must be chained or assigned"]
@@ -334,7 +334,7 @@ pub struct Board {
 }
 
 impl Board {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  name is non-empty; owner is a valid WebID; columns is non-empty
     /// post: returns a new Board with created_at=now and a random BoardId
     #[contract(id = "P8-typ-kanban009", principle = "P8")]
@@ -349,7 +349,7 @@ impl Board {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self.columns is sorted by position
     /// post: returns the first column (by position) — typically Backlog
     #[contract(id = "P8-typ-kanban010", principle = "P8")]
@@ -357,7 +357,7 @@ impl Board {
         self.columns.first()
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self.columns is sorted by position
     /// post: returns the last column (by position) — typically Done
     #[contract(id = "P8-typ-kanban011", principle = "P8")]
@@ -365,7 +365,7 @@ impl Board {
         self.columns.last()
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  status is a valid TaskStatus
     /// post: returns the ColumnDef matching the given status, if present
     #[contract(id = "P8-typ-kanban012", principle = "P8")]
@@ -400,7 +400,7 @@ pub struct TaskSpec {
 }
 
 impl TaskSpec {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  title is non-empty
     /// post: returns a TaskSpec with no description, criteria, or assignee
     #[contract(id = "P8-typ-kanban013", principle = "P8")]
@@ -418,7 +418,7 @@ impl TaskSpec {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is valid
     /// post: returns self with description set
     #[must_use = "builder methods must be chained or assigned"]
@@ -428,7 +428,7 @@ impl TaskSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is valid
     /// post: returns self with criteria set
     #[must_use = "builder methods must be chained or assigned"]
@@ -438,7 +438,7 @@ impl TaskSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is a valid story points
     /// post: returns Self with story points set
     /// pre:  self is valid; assignee is a valid WebID
@@ -450,7 +450,7 @@ impl TaskSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is a valid estimated hours
     /// post: returns Self with estimated hours set
     /// pre:  points is a valid u32
@@ -462,7 +462,7 @@ impl TaskSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is a valid labels
     /// post: returns Self with labels set
     /// pre:  hours is a non-negative f64
@@ -474,7 +474,7 @@ impl TaskSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  priority is a valid Priority variant
     /// post: returns self with priority set to Some(priority)
     #[must_use = "builder methods must be chained or assigned"]
@@ -484,7 +484,7 @@ impl TaskSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  labels is a vector of label strings
     /// post: returns self with labels set
     #[must_use = "builder methods must be chained or assigned"]
@@ -494,7 +494,7 @@ impl TaskSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  phase_id is a valid PhaseId
     /// post: returns self with phase_id set to Some(phase_id)
     #[must_use = "builder methods must be chained or assigned"]
@@ -550,7 +550,7 @@ pub struct Task {
 }
 
 impl Task {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  board_id is a valid BoardId; spec contains non-empty title; owner is valid
     /// post: returns a new Task with status=Backlog, created_at=now, updated_at=now
     #[contract(id = "P8-typ-kanban017", principle = "P8")]
@@ -578,7 +578,7 @@ impl Task {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  arguments are valid
     /// post: returns new instance with defaults
     /// pre:  target is a valid transition from self.status
@@ -606,7 +606,7 @@ pub struct Comment {
 }
 
 impl Comment {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  arguments are valid
     /// post:      /// post: returns new instance with defaults
     #[contract(id = "P8-typ-kanban050", principle = "P8")]
@@ -637,7 +637,7 @@ pub struct TaskFilter {
 }
 
 impl TaskFilter {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns an empty filter (matches all tasks)
     #[contract(id = "P8-typ-kanban019", principle = "P8")]
     pub fn all() -> Self {
@@ -649,7 +649,7 @@ impl TaskFilter {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  arguments are valid
     /// post: returns expected result
     /// pre:  status is a valid TaskStatus
@@ -664,7 +664,7 @@ impl TaskFilter {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  assignee is a valid WebID
     /// post: returns a filter matching only tasks assigned to the given agent
     #[contract(id = "P8-typ-kanban021", principle = "P8")]
@@ -677,7 +677,7 @@ impl TaskFilter {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  priority is a valid Priority
     /// post:      /// post: returns tasks sorted by priority
     #[contract(id = "P8-typ-kanban021b", principle = "P8")]
@@ -708,7 +708,7 @@ pub struct ConsentProof {
 }
 
 impl ConsentProof {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  agent and task_id are valid
     /// post: returns ConsentProof with consented_at=now
     #[contract(id = "P8-typ-kanban022", principle = "P8")]
@@ -779,7 +779,7 @@ pub enum ContractState {
 }
 
 impl TaskContract {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  arguments are valid
     /// post:      /// post: returns new instance with defaults
     #[contract(id = "P8-typ-kanban090", principle = "P8")]
@@ -813,16 +813,19 @@ impl TaskContract {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  state allows activation
     /// post:      /// post: state transitioned to active
     /// The agent now has authority to work on the task.
-    #[contract(id = "P8-typ-kanban091 — Activate the contract. Sets state to Active.", principle = "P8")]
+    #[contract(
+        id = "P8-typ-kanban091 — Activate the contract. Sets state to Active.",
+        principle = "P8"
+    )]
     pub fn activate(&mut self) {
         self.state = ContractState::Active;
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  criteria are defined
     /// post:      /// post: returns completion status
     ///
@@ -837,7 +840,10 @@ impl TaskContract {
     /// text the agent provides as a comment when submitting deliverables.
     /// Uses per-criterion matching. For LLM-mediated evaluation, use
     /// KanbanService::verification_prompt() and verify_with_llm().
-    #[contract(id = "P8-typ-kanban092 — Check if the contract is complete.", principle = "P8")]
+    #[contract(
+        id = "P8-typ-kanban092 — Check if the contract is complete.",
+        principle = "P8"
+    )]
     pub fn check_completion(&mut self, evidence: &str) -> ContractVerification {
         if self.pre_conditions.is_empty() {
             self.state = ContractState::Completed;
@@ -899,10 +905,13 @@ impl TaskContract {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  span data is valid
     /// post:      /// post: CNS span emitted to event sink
-    #[contract(id = "P8-typ-kanban093 — Emit the contract as a CNS span.", principle = "P8")]
+    #[contract(
+        id = "P8-typ-kanban093 — Emit the contract as a CNS span.",
+        principle = "P8"
+    )]
     pub fn emit_span(&self, verb: &str) -> String {
         format!(
             "TaskContract[{}] '{}': delegator={} delegate={} task='{}' gates={} gas={} timeout={}s state={:?}",
@@ -974,7 +983,7 @@ pub struct SpawnSpec {
 }
 
 impl SpawnSpec {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is a valid skills
     /// post: returns Self with skills set
     /// pre:  task_id is valid
@@ -995,7 +1004,7 @@ impl SpawnSpec {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is a valid timeout
     /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1005,7 +1014,7 @@ impl SpawnSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is valid for skills
     /// post:      /// post: returns Self with skills set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1015,7 +1024,7 @@ impl SpawnSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is valid for memory
     /// post:      /// post: returns Self with memory set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1025,7 +1034,7 @@ impl SpawnSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is valid for gas budget
     /// post:      /// post: returns Self with gas budget set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1035,7 +1044,7 @@ impl SpawnSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is valid for timeout
     /// post:      /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1045,7 +1054,7 @@ impl SpawnSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is valid for registries
     /// post:      /// post: returns Self with registries set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1055,7 +1064,7 @@ impl SpawnSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is valid for artifacts
     /// post:      /// post: returns Self with artifacts set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1065,11 +1074,14 @@ impl SpawnSpec {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is valid for capability tokens
     /// post:      /// post: returns Self with capability tokens set
     #[must_use = "builder methods must be chained or assigned"]
-    #[contract(id = "P8-typ-kanban038 — Set OCAP capability token specs.", principle = "P8")]
+    #[contract(
+        id = "P8-typ-kanban038 — Set OCAP capability token specs.",
+        principle = "P8"
+    )]
     pub fn with_capability_tokens(mut self, tokens: Vec<String>) -> Self {
         self.capability_tokens = tokens;
         self
@@ -1117,7 +1129,7 @@ pub struct CapabilityPackage {
 }
 
 impl CapabilityPackage {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  arguments are valid
     /// post:      /// post: returns new instance with defaults
     #[contract(id = "P8-typ-kanban060", principle = "P8")]
@@ -1138,10 +1150,13 @@ impl CapabilityPackage {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is a valid memory
     /// post: returns Self with memory set
-    #[contract(id = "P8-typ-kanban061 — Convert to a SpawnSpec for a specific task.", principle = "P8")]
+    #[contract(
+        id = "P8-typ-kanban061 — Convert to a SpawnSpec for a specific task.",
+        principle = "P8"
+    )]
     pub fn to_spawn_spec(&self, task_id: TaskId) -> SpawnSpec {
         SpawnSpec {
             task_id,
@@ -1157,17 +1172,20 @@ impl CapabilityPackage {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is a valid artifacts
     /// post: returns Self with artifacts set
     #[must_use = "builder methods must be chained or assigned"]
-    #[contract(id = "P8-typ-kanban062 — Builder: set delegation level.", principle = "P8")]
+    #[contract(
+        id = "P8-typ-kanban062 — Builder: set delegation level.",
+        principle = "P8"
+    )]
     pub fn with_level(mut self, level: &str) -> Self {
         self.delegation_level = level.into();
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is a valid gas
     /// post: returns Self with gas set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1177,7 +1195,7 @@ impl CapabilityPackage {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is a valid timeout
     /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1187,7 +1205,7 @@ impl CapabilityPackage {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is valid for tools
     /// post:      /// post: returns Self with tools set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1197,7 +1215,7 @@ impl CapabilityPackage {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is valid for registries
     /// post:      /// post: returns Self with registries set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1207,7 +1225,7 @@ impl CapabilityPackage {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is valid for artifacts
     /// post:      /// post: returns Self with artifacts set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1217,7 +1235,7 @@ impl CapabilityPackage {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is valid
     /// post: returns converted value
     #[must_use = "builder methods must be chained or assigned"]
@@ -1227,7 +1245,7 @@ impl CapabilityPackage {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is valid for timeout
     /// post:      /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1237,7 +1255,7 @@ impl CapabilityPackage {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is valid
     /// post: returns converted value
     #[must_use = "builder methods must be chained or assigned"]
@@ -1247,21 +1265,27 @@ impl CapabilityPackage {
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value is valid for max attenuation
     /// post:      /// post: returns Self with max attenuation set
     #[must_use = "builder methods must be chained or assigned"]
-    #[contract(id = "P8-typ-kanban071 — Set max attenuation (0-7, clamped to SYSTEM_MAX).", principle = "P8")]
+    #[contract(
+        id = "P8-typ-kanban071 — Set max attenuation (0-7, clamped to SYSTEM_MAX).",
+        principle = "P8"
+    )]
     pub fn with_max_attenuation(mut self, level: u8) -> Self {
         self.max_attenuation = level.min(7);
         self
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  tools list is non-empty
     /// post:      /// post: returns Vec of derived capability tokens
     /// Converts "hkask-mcp-kanban" → "tool:kanban:execute".
-    #[contract(id = "P8-typ-kanban072 — Derive capability token specs from tool servers.", principle = "P8")]
+    #[contract(
+        id = "P8-typ-kanban072 — Derive capability token specs from tool servers.",
+        principle = "P8"
+    )]
     pub fn derive_tokens_from_tools(&mut self) {
         for server in &self.tool_servers.clone() {
             if let Some(cap) = crate::capability::capability_from_server_id(server)
@@ -1272,15 +1296,18 @@ impl CapabilityPackage {
         }
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is valid
     /// post:      /// post: returns converted representation
-    #[contract(id = "P8-typ-kanban073 — Serialize to YAML for saving as a reusable package.", principle = "P8")]
+    #[contract(
+        id = "P8-typ-kanban073 — Serialize to YAML for saving as a reusable package.",
+        principle = "P8"
+    )]
     pub fn to_yaml(&self) -> Result<String, String> {
         serde_yaml_neo::to_string(self).map_err(|e| e.to_string())
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  input is valid
     /// post:      /// post: returns parsed object
     #[contract(id = "P8-typ-kanban074 — Deserialize from YAML.", principle = "P8")]
@@ -1290,7 +1317,7 @@ impl CapabilityPackage {
 
     // ── rSolidity Contract Integration ─────────────────────────────────
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is valid
     /// post:      /// post: returns converted representation
     /// task contract. The contract binds delegator and delegate with
@@ -1299,7 +1326,10 @@ impl CapabilityPackage {
     ///
     /// Returns a structured representation suitable for rSolidity
     /// contract execution and CNS span emission.
-    #[contract(id = "P8-typ-kanban082 — Express this capability package as an rSolidity", principle = "P8")]
+    #[contract(
+        id = "P8-typ-kanban082 — Express this capability package as an rSolidity",
+        principle = "P8"
+    )]
     pub fn to_task_contract(
         &self,
         task: &Task,
@@ -1337,7 +1367,7 @@ mod tests {
     use super::*;
 
     // contract: P8-typ-kanbanT-001
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_status_transitions() {
         // Forward transitions
@@ -1367,7 +1397,7 @@ mod tests {
     }
 
     // contract: P8-typ-kanbanT-002
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_status_next() {
         assert_eq!(TaskStatus::Backlog.next(), Some(TaskStatus::Ready));
@@ -1378,7 +1408,7 @@ mod tests {
     }
 
     // contract: P8-typ-kanbanT-003
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_status_string_roundtrip() {
         for status in &[
@@ -1399,7 +1429,7 @@ mod tests {
     }
 
     // contract: P8-typ-kanbanT-004
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_status_parse_aliases() {
         assert_eq!(
@@ -1419,7 +1449,7 @@ mod tests {
     }
 
     // contract: P8-typ-kanbanT-005
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn board_column_for_status() {
         let columns = vec![
@@ -1442,7 +1472,7 @@ mod tests {
     }
 
     // contract: P8-typ-kanbanT-006
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_created_in_backlog() {
         let spec = TaskSpec::new("Test task".into());
@@ -1453,7 +1483,7 @@ mod tests {
     }
 
     // contract: P8-typ-kanbanT-007
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_spec_builder() {
         let spec = TaskSpec::new("Build CI".into())
@@ -1466,7 +1496,7 @@ mod tests {
     }
 
     // contract: P8-typ-kanbanT-008
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn verification_criterion_with_llm() {
         let vc = VerificationCriterion::new("Task must compile".into())
@@ -1477,7 +1507,7 @@ mod tests {
     }
 
     // contract: P8-typ-kanbanT-009
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_filter_by_status() {
         let filter = TaskFilter::by_status(TaskStatus::InProgress);
@@ -1486,7 +1516,7 @@ mod tests {
     }
 
     // contract: P8-typ-kanbanT-010
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn consent_proof_creation() {
         let agent = WebID::new();

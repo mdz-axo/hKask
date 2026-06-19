@@ -14,7 +14,7 @@ use std::time::Instant;
 /// pre:  req is an incoming HTTP request
 /// post: cns.api request span emitted with method + path
 /// post: cns.api response span emitted with status + latency_ms
-    #[contract(id = "P9-CNS-SRF-001", principle = "P9")]
+#[contract(id = "P9-CNS-SRF-001", principle = "P9")]
 pub async fn cns_middleware(req: Request<Body>, next: Next) -> Response {
     let method = req.method().to_string();
     let path = req.uri().path().to_string();

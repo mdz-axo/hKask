@@ -9,9 +9,9 @@
 //! observed actual_gas / estimated_gas ratios from `GovernedTool` settlements.
 //! This closes the Good Regulator feedback loop (P9).
 
-use hkask_rsolidity as rs;
 use crate::composite_energy_estimator::CompositeEnergyEstimator;
 use crate::governed_tool::EnergyEstimator;
+use hkask_rsolidity as rs;
 use serde_json::Value;
 
 /// Energy estimator that wraps `CompositeEnergyEstimator` and carries
@@ -49,7 +49,8 @@ impl WalletEnergyEstimator {
     /// expect: "I can compose a wallet energy estimator from a pre-calibrated composite estimator so gas→rJoule conversion uses live costs" [P9]
     /// pre:  gas_per_rjoule > 0
     /// post: returns WalletEnergyEstimator with the supplied inner estimator
-    #[rs::contract(id = "P9-cns-wallet-energy-estimator-with-estimator", principle = "P9")]    pub fn with_estimator(gas_per_rjoule: u64, inner: CompositeEnergyEstimator) -> Self {
+    #[rs::contract(id = "P9-cns-wallet-energy-estimator-with-estimator", principle = "P9")]
+    pub fn with_estimator(gas_per_rjoule: u64, inner: CompositeEnergyEstimator) -> Self {
         Self {
             inner,
             gas_per_rjoule,

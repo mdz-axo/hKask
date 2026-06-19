@@ -5,9 +5,8 @@
 //!
 //! Tested seam: `AgentRegistry` (in-memory HashMap, no external dependencies).
 
-use hkask_mcp_communication::agent_registration::AgentRegistry;
 use hkask_communication::matrix::UserId;
-
+use hkask_mcp_communication::agent_registration::AgentRegistry;
 
 // ── Registration contract tests ─────────────────────────────────────────────
 
@@ -53,7 +52,10 @@ async fn deregister_removes_mapping() {
     let user_id = UserId::new("@bob:localhost");
 
     registry.record_mapping(&webid, &user_id).await;
-    registry.deregister(&webid).await.expect("deregister should succeed");
+    registry
+        .deregister(&webid)
+        .await
+        .expect("deregister should succeed");
 
     let found = registry.resolve(&webid).await;
     assert!(found.is_none());

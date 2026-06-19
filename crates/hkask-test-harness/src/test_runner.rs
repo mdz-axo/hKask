@@ -215,7 +215,9 @@ fn extract_req_tag(line: &str) -> Option<String> {
     if trimmed.starts_with("/// REQ:") || trimmed.starts_with("// REQ:") {
         if let Some(pos) = trimmed.find("REQ:") {
             let tag = trimmed[pos + 4..].trim();
-            let end = tag.find(|c: char| c.is_whitespace() || c == '\u{2014}').unwrap_or(tag.len());
+            let end = tag
+                .find(|c: char| c.is_whitespace() || c == '\u{2014}')
+                .unwrap_or(tag.len());
             let req = tag[..end].trim_end_matches(['.', ',', ';', ':', ')', ']', '}', '\u{2014}']);
             if !req.is_empty() && !req.contains('`') {
                 return Some(req.to_string());
@@ -250,7 +252,9 @@ fn extract_req_tag(line: &str) -> Option<String> {
     // New test format: // contract: P{N}-{}
     if trimmed.starts_with("// contract:") {
         let tag = trimmed["// contract:".len()..].trim();
-        let end = tag.find(|c: char| c.is_whitespace() || c == '\u{2014}').unwrap_or(tag.len());
+        let end = tag
+            .find(|c: char| c.is_whitespace() || c == '\u{2014}')
+            .unwrap_or(tag.len());
         let req = tag[..end].trim_end_matches(['.', ',', ';', ':', ')', ']', '}']);
         if !req.is_empty() {
             return Some(req.to_string());
@@ -420,7 +424,9 @@ pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec
                     if req_id.is_empty() {
                         if let Some(tag) = extract_req_tag(trimmed) {
                             req_id = tag;
-                        } else if trimmed.contains("#[rs::contract") || trimmed.contains("#[contract(") {
+                        } else if trimmed.contains("#[rs::contract")
+                            || trimmed.contains("#[contract(")
+                        {
                             #[allow(clippy::collapsible_if)]
                             if let Some(start) = trimmed.find("id = \"") {
                                 let rest = &trimmed[start + 6..];

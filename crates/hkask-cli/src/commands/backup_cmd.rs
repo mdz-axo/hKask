@@ -86,7 +86,10 @@ fn parse_restore_scope(s: &str) -> RestoreScope {
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is valid, action is valid
 /// post: backup operation executed
-    #[contract(id = "P9-CNS-SURF-002 pre: valid BackupAction post: cns.cli span emitted", principle = "P9")]
+#[contract(
+    id = "P9-CNS-SURF-002 pre: valid BackupAction post: cns.cli span emitted",
+    principle = "P9"
+)]
 pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
     // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "backup", action = ?action, "CNS");

@@ -98,7 +98,7 @@ impl ApiState {
     /// is responsible for ensuring secrets are available via the keystore.
     /// Run `kask chat` interactively first to complete onboarding and store secrets.
     ///
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+    /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  environment variables and keystore are configured
     /// post: if config/secrets available → Ok(ApiState) with full infrastructure
     /// post: if config/secrets missing → Err(ApiError::Internal)
@@ -122,7 +122,7 @@ impl ApiState {
     /// Surface-specific fields (git CAS) are constructed from AgentService
     /// fields or initialized to defaults.
     ///
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+    /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  ctx is a fully-built AgentService
     /// post: returns Ok(ApiState) with all shared infra from ctx
     /// post: git_cas initialized from ctx or defaults
@@ -157,7 +157,7 @@ impl ApiState {
 
     /// Set the spec store for MDS specifications
     ///
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+    /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  store is a valid Arc<SqliteSpecStore>
     /// post: self.spec_store = Some(store); returns self
     pub fn with_spec_store(mut self, store: Arc<hkask_storage::SqliteSpecStore>) -> Self {
@@ -167,7 +167,7 @@ impl ApiState {
 
     /// Attach a wallet service for rJoule payments and API key management.
     ///
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+    /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  svc is a valid Arc<WalletService>
     /// post: self.wallet_service = Some(svc); returns self
     pub fn with_wallet_service(mut self, svc: Arc<WalletService>) -> Self {
@@ -180,7 +180,7 @@ impl ApiState {
     /// Call this after the API server starts listening. The loops run in
     /// background tokio tasks until `shutdown_loops()` is called.
     ///
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+    /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  self.agent_service.loop_system() is initialized
     /// post: all registered loops begin tick cycles
     /// post: returns Ok(()) on success, Err(InfrastructureError) on failure
@@ -196,7 +196,7 @@ impl ApiState {
 
     /// Signal the loop system to shut down.
     ///
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+    /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  self.agent_service.loop_system() is initialized
     /// post: loop system shutdown signal sent; background tasks begin winding down
     pub fn shutdown_loops(&self) {
@@ -243,9 +243,18 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
         .merge(routes::goal_router())
         .merge(routes::settings_router())
         .merge(routes::wallet_router())
-        .route("/api/v1/admin/invite", axum::routing::post(routes::admin::create_invite).get(routes::admin::list_invites))
-        .route("/api/v1/admin/sessions", axum::routing::get(routes::admin::list_sessions))
-        .route("/api/v1/admin/config", axum::routing::get(routes::admin::get_config))
+        .route(
+            "/api/v1/admin/invite",
+            axum::routing::post(routes::admin::create_invite).get(routes::admin::list_invites),
+        )
+        .route(
+            "/api/v1/admin/sessions",
+            axum::routing::get(routes::admin::list_sessions),
+        )
+        .route(
+            "/api/v1/admin/config",
+            axum::routing::get(routes::admin::get_config),
+        )
         // Middleware (outermost = last .layer() = runs first):
         // 1. CNS span — captures all requests
         // 2. Session cookie — injects AuthContext if valid session (DEP-020)

@@ -4,9 +4,9 @@
 //! This adapter lives behind the hexagonal boundary — the domain layer
 //! never calls `std::fs` directly.
 
-use hkask_rsolidity as rs;
 use crate::error::RegistryError;
 use crate::ports::RegistrySourcePort;
+use hkask_rsolidity as rs;
 use std::fs;
 
 /// Filesystem-backed registry source

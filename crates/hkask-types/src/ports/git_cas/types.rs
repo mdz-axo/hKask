@@ -18,7 +18,7 @@ pub struct ContentHash(pub [u8; 32]);
 impl ContentHash {
     /// Compute a BLAKE3 content hash from arbitrary data.
     ///
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  data is any byte slice (including empty)
     /// post: returns a [`ContentHash`] containing the 32-byte BLAKE3 digest of data;
     ///       same data → same hash (deterministic)
@@ -28,7 +28,7 @@ impl ContentHash {
 
     /// Return the raw 32-byte hash.
     ///
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any valid [`ContentHash`]
     /// post: returns a reference to the inner 32-byte array unchanged
     pub fn as_bytes(&self) -> &[u8; 32] {
@@ -71,7 +71,7 @@ pub struct CommitHash(pub [u8; 20]);
 impl CommitHash {
     /// Create from a raw 20-byte SHA.
     ///
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  bytes is any 20-byte array
     /// post: returns a [`CommitHash`] wrapping the given bytes unchanged
     pub fn from_bytes(bytes: [u8; 20]) -> Self {
@@ -80,7 +80,7 @@ impl CommitHash {
 
     /// Return the raw 20-byte SHA.
     ///
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any valid [`CommitHash`]
     /// post: returns a reference to the inner 20-byte array unchanged
     pub fn as_bytes(&self) -> &[u8; 20] {
@@ -89,7 +89,7 @@ impl CommitHash {
 
     /// The null commit hash (all zeros), used as a sentinel for "no parent".
     ///
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  (no inputs)
     /// post: returns a [`CommitHash`] with all 20 bytes set to zero
     pub fn null() -> Self {
@@ -148,7 +148,7 @@ pub enum RepoId {
 impl RepoId {
     /// Return the directory name used for this repo on disk.
     ///
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any [`RepoId`] variant
     /// post: returns a `&'static str` directory name; each variant maps to a distinct name;
     ///       never panics
@@ -166,7 +166,7 @@ impl RepoId {
 
     /// Iterate all 7 repo variants.
     ///
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  (no inputs)
     /// post: returns a static slice containing all 7 [`RepoId`] variants exactly once;
     ///       order is stable across calls

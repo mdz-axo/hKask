@@ -71,7 +71,7 @@ pub struct ManifestExecutor {
 impl ManifestExecutor {
     /// Create a new executor with the given infrastructure ports.
     ///
-/// expect: "The system resolves and executes template manifest cascades" [P3]
+    /// expect: "The system resolves and executes template manifest cascades" [P3]
     /// \[P3\] Motivating: Generative Space — executor for template manifest cascades
     /// \[P4\] Constraining: Clear Boundaries — requires A2A secret for delegation
     /// pre:  inference and mcp are initialized, a2a_secret is non-empty

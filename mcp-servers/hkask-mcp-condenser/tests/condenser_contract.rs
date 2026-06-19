@@ -56,9 +56,12 @@ fn compress_reduces_size() {
     let mut engine = CondenserEngine::new();
     let input = "line1\nline2\nline3\nline4\nline5\n".repeat(20); // 100 lines
     let result = engine.compress("bash_execute", &input, None);
-    assert!(result.compressed_bytes <= result.original_bytes,
+    assert!(
+        result.compressed_bytes <= result.original_bytes,
         "compressed ({}) should be <= original ({})",
-        result.compressed_bytes, result.original_bytes);
+        result.compressed_bytes,
+        result.original_bytes
+    );
     assert_eq!(result.original_lines, 100);
 }
 
@@ -130,6 +133,8 @@ fn health_check_returns_signals() {
     let engine = CondenserEngine::new();
     let signals = engine.check_global_health();
     // Engine should return health signals (may be empty for fresh engine)
-    assert!(signals.len() == 0 || signals.len() > 0,
-        "health check should return signals or empty vec");
+    assert!(
+        signals.len() == 0 || signals.len() > 0,
+        "health check should return signals or empty vec"
+    );
 }

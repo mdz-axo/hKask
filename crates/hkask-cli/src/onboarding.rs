@@ -927,7 +927,7 @@ mod tests {
     use super::passphrase_strength;
 
     // contract: CLI-ONBOARDING-001
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     // regardless of character variety.
     #[test]
     fn passphrase_strength_weak_below_8() {
@@ -937,7 +937,7 @@ mod tests {
     }
 
     // contract: CLI-ONBOARDING-002
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     // letters) is classified "fair" — meets the minimum length but lacks variety.
     #[test]
     fn passphrase_strength_fair_at_8_single_variety() {
@@ -948,7 +948,7 @@ mod tests {
     }
 
     // contract: CLI-ONBOARDING-003
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     // classified "strong".
     #[test]
     fn passphrase_strength_strong_at_16_high_variety() {

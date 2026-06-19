@@ -166,7 +166,7 @@ pub enum ToolSubsystem {
 impl ToolSubsystem {
     /// Map an MCP server name (e.g., "memory", "hkask-mcp-spec") to a ToolSubsystem.
     ///
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  server_name is a non-empty string
     /// post: returns the corresponding ToolSubsystem variant; Other if unknown
     pub fn from_server_name(server_name: &str) -> Self {
@@ -212,7 +212,7 @@ impl ToolSubsystem {
 }
 
 impl CnsSpan {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid CnsSpan variant
     /// post: returns the canonical namespace string (e.g. "cns.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
     ///
@@ -282,7 +282,7 @@ impl std::fmt::Display for CnsSpan {
 impl std::str::FromStr for CnsSpan {
     type Err = ();
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  s is a string matching a canonical CnsSpan namespace
     /// post: returns Ok(CnsSpan) for canonical strings; Err(()) for unknown strings
     ///
@@ -368,7 +368,7 @@ mod cns_span_tests {
     use std::str::FromStr;
 
     // contract: cns-span-001
-// expect: "CNS span types preserve canonical domain identity" [P8]
+    // expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_display_produces_canonical_strings() {
         assert_eq!(
@@ -387,7 +387,7 @@ mod cns_span_tests {
     }
 
     // contract: cns-span-002
-// expect: "CNS span types preserve canonical domain identity" [P8]
+    // expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_from_str_rejects_invalid() {
         assert!(CnsSpan::from_str("cns.nonexistent").is_err());
@@ -397,7 +397,7 @@ mod cns_span_tests {
     }
 
     // contract: cns-span-003
-// expect: "CNS span types preserve canonical domain identity" [P8]
+    // expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_from_str_round_trips() {
         let variants = vec![
@@ -415,7 +415,7 @@ mod cns_span_tests {
     }
 
     // contract: cns-span-004
-// expect: "CNS span types preserve canonical domain identity" [P8]
+    // expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_tool_subsystem_produces_correct_string() {
         assert_eq!(
@@ -442,7 +442,7 @@ mod cns_span_tests {
     }
 
     // contract: cns-span-005
-// expect: "CNS span types preserve canonical domain identity" [P8]
+    // expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_exhaustive_match_covers_all_canonical() {
         let all_variants = vec![
@@ -501,7 +501,7 @@ mod cns_span_tests {
     }
 
     // contract: cns-span-006
-// expect: "CNS span types preserve canonical domain identity" [P8]
+    // expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn tool_subsystem_display_produces_valid_suffix() {
         assert_eq!(ToolSubsystem::WebSearch.as_str(), "web_search");
@@ -575,7 +575,7 @@ fn default_multiplier() -> f64 {
 }
 
 impl RetryConfig {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  attempt >= 0; self.initial_delay_ms, self.multiplier, self.max_delay_ms are valid
     /// post: returns the exponential backoff delay in ms, capped at self.max_delay_ms
     pub fn delay_for_attempt(&self, attempt: u32) -> u64 {
@@ -583,7 +583,7 @@ impl RetryConfig {
         delay.min(self.max_delay_ms)
     }
 
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  status is a valid HTTP status code (u16)
     /// post: returns true if status is in the retryable_status list
     pub fn is_retryable_status(&self, status: u16) -> bool {

@@ -12,7 +12,6 @@
 //! 4. Server spawns `kask repl --webid <webid>` with piped stdio
 //! 5. Keystrokes → WebSocket → stdin; stdout → WebSocket → terminal
 
-use hkask_rsolidity as rs;
 use axum::{
     extract::{
         State,
@@ -22,6 +21,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use futures_util::{SinkExt, StreamExt};
+use hkask_rsolidity as rs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use tracing;

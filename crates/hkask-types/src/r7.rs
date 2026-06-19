@@ -42,7 +42,7 @@ impl R7BotIdentity {
 
     /// Get the bot's WebID (always valid by construction)
     ///
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid R7BotIdentity (constructed via new or deserialized
     ///       with a valid webid field)
     /// post: returns the deterministic WebID derived from the bot's id at

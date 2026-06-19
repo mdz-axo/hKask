@@ -172,7 +172,7 @@ pub(crate) fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, Mani
 /// pre:  reference is non-empty, registry is initialized
 /// post: returns Some(BundleManifest) if found via registry or file path
 /// post: returns None if not found (graceful degradation)
-    #[contract(id = "P3-tpl-resolve-manifest", principle = "P3")]
+#[contract(id = "P3-tpl-resolve-manifest", principle = "P3")]
 pub fn resolve_manifest(
     reference: &str,
     registry: &dyn hkask_types::ports::BundleRegistryIndex,

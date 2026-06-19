@@ -18,9 +18,9 @@
 //!
 //! It does NOT sign deposit transactions (user's primary wallet signs those).
 
-use hkask_rsolidity as rs;
 use ed25519_dalek::Signer;
 use hkask_keystore::keychain::resolve_treasury_key;
+use hkask_rsolidity as rs;
 use hkask_types::wallet::{ApiKeyCapability, ChainId, WalletError};
 use zeroize::Zeroizing;
 
@@ -78,8 +78,8 @@ impl std::fmt::Debug for LoadedKey {
 /// - Treasury key is `Zeroizing<Vec<u8>>` — automatically zeroed on drop
 /// - No key material is returned to the caller — only the signature
 /// - Per-operation key loading: key derived fresh each call, not held long-term
-    #[rs::contract(id = "P9-wallet-sign-withdrawal", principle = "P9")]
-    #[rs::contract(id = "P9-wallet-sign-withdrawal", principle = "P9")]
+#[rs::contract(id = "P9-wallet-sign-withdrawal", principle = "P9")]
+#[rs::contract(id = "P9-wallet-sign-withdrawal", principle = "P9")]
 pub fn sign_withdrawal(chain: ChainId, tx_bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
     sign_bytes(chain, tx_bytes)
 }
@@ -92,8 +92,8 @@ pub fn sign_withdrawal(chain: ChainId, tx_bytes: &[u8]) -> Result<Vec<u8>, Walle
 /// pre:  message is any byte slice (including empty)
 /// post: returns Ok(signature) — 64-byte Ed25519 signature
 /// post: treasury key loaded, used, and zeroized within this call
-    #[rs::contract(id = "P9-wallet-sign-hinkal-message", principle = "P9")]
-    #[rs::contract(id = "P9-wallet-sign-hinkal-message", principle = "P9")]
+#[rs::contract(id = "P9-wallet-sign-hinkal-message", principle = "P9")]
+#[rs::contract(id = "P9-wallet-sign-hinkal-message", principle = "P9")]
 pub fn sign_message(message: &[u8]) -> Result<Vec<u8>, WalletError> {
     sign_bytes(ChainId::Hinkal, message)
 }
@@ -127,8 +127,8 @@ fn sign_bytes(chain: ChainId, bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
 ///
 /// # Returns
 /// 64-byte Ed25519 signature as a hex-encoded string (128 hex chars).
-    #[rs::contract(id = "P9-wallet-sign-capability", principle = "P9")]
-    #[rs::contract(id = "P9-wallet-sign-capability", principle = "P9")]
+#[rs::contract(id = "P9-wallet-sign-capability", principle = "P9")]
+#[rs::contract(id = "P9-wallet-sign-capability", principle = "P9")]
 pub fn sign_capability(capability: &ApiKeyCapability) -> Result<String, WalletError> {
     hkask_keystore::keychain::sign_api_key_capability(capability)
         .map_err(|e| WalletError::Infra(hkask_types::InfrastructureError::Database(e.to_string())))

@@ -84,7 +84,7 @@ pub(crate) struct AuditContext {
 impl AuditEntry {
     /// Create a new audit entry
     ///
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  actor is a valid WebID; action and resource are non-empty strings;
     ///       outcome is a valid AuditOutcome variant
     /// post: returns an AuditEntry with a new v4 UUID id, current Utc timestamp,
@@ -108,7 +108,7 @@ impl AuditEntry {
 
     /// Add correlation ID
     ///
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid AuditEntry; correlation_id is a non-empty string
     /// post: returns self with context.correlation_id set to Some(correlation_id)
     pub fn with_correlation_id(mut self, correlation_id: impl Into<String>) -> Self {
@@ -118,7 +118,7 @@ impl AuditEntry {
 
     /// Add recipient
     ///
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid AuditEntry; recipient is a valid WebID
     /// post: returns self with context.recipient set to Some(recipient)
     pub fn with_recipient(mut self, recipient: WebID) -> Self {
@@ -128,7 +128,7 @@ impl AuditEntry {
 
     /// Add metadata
     ///
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid AuditEntry; metadata is any valid serde_json::Value
     /// post: returns self with context.metadata set to the given value
     pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {

@@ -6,9 +6,9 @@
 //! `POST /api/v1/export/create` — generate encrypted sovereignty archive.
 //! `POST /api/v1/export/upload` — upload archive for server migration.
 
-use hkask_rsolidity as rs;
 use axum::{Extension, Json, extract::State, http::StatusCode, response::Response};
 use base64::Engine;
+use hkask_rsolidity as rs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -238,5 +238,5 @@ pub async fn export_download(
             format!("attachment; filename=\"{}\"", filename),
         )
         .body(axum::body::Body::from(bytes))
-        .unwrap())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?)
 }

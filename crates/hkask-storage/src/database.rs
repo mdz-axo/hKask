@@ -4,8 +4,8 @@
 //! Passphrases are derived using Argon2id to produce 256-bit encryption keys.
 //!
 //! **Spec Reference:** architecture v0.21.0 §2.3
-use hkask_rsolidity as rs;
 use hkask_keystore::derive_key;
+use hkask_rsolidity as rs;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
@@ -234,8 +234,8 @@ impl Database {
 /// \[P4\] Motivating: Clear Boundaries — infallible encrypted DB open
 /// pre:  path is valid, passphrase is non-empty
 /// post: returns Database (in-memory if path is ":memory:")
-    #[rs::contract(id = "P4-sto-database-open-unwrap", principle = "P4")]
-    #[rs::contract(id = "P4-sto-database-open-unwrap", principle = "P4")]
+#[rs::contract(id = "P4-sto-database-open-unwrap", principle = "P4")]
+#[rs::contract(id = "P4-sto-database-open-unwrap", principle = "P4")]
 pub fn open_database(path: &str, passphrase: &str) -> Result<Database, DatabaseError> {
     if path == ":memory:" {
         Database::in_memory()
@@ -256,8 +256,8 @@ pub fn open_database(path: &str, passphrase: &str) -> Result<Database, DatabaseE
 /// expect: "The system enforces OCAP boundaries on storage access" [P4]
 /// \[P4\] Motivating: Clear Boundaries — infallible in-memory DB open
 /// post: returns in-memory Database (panics on failure)
-    #[rs::contract(id = "P4-sto-database-in-memory-unwrap", principle = "P4")]
-    #[rs::contract(id = "P4-sto-database-in-memory-unwrap", principle = "P4")]
+#[rs::contract(id = "P4-sto-database-in-memory-unwrap", principle = "P4")]
+#[rs::contract(id = "P4-sto-database-in-memory-unwrap", principle = "P4")]
 pub fn in_memory_db() -> Database {
     Database::in_memory().expect("in-memory database initialization should never fail")
 }

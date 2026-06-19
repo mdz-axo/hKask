@@ -90,7 +90,7 @@ pub struct MethodSignals {
 /// pre:  text is a valid &str
 /// post: returns MethodSignals with computed linguistic features
 /// post: returns MethodSignals::default() for empty text
-    #[contract(id = "P3-mem-salience-method-signals", principle = "P3")]
+#[contract(id = "P3-mem-salience-method-signals", principle = "P3")]
 pub fn compute_method_signals(text: &str) -> MethodSignals {
     let words: Vec<&str> = text.split_whitespace().collect();
     let word_count = words.len();
@@ -625,7 +625,7 @@ pub struct EntityTags {
 /// pre:  text is non-empty, entity lists are valid
 /// post: returns EntityTags with matched entities per category
 /// post: methods field is empty (filled separately)
-    #[contract(id = "P3-mem-salience-tag-entities", principle = "P3")]
+#[contract(id = "P3-mem-salience-tag-entities", principle = "P3")]
 pub fn tag_entities(
     text: &str,
     characters: &[String],
@@ -723,7 +723,7 @@ impl EntityTags {
 /// post: returns Vec<f32> with one salience score per passage
 /// post: passages with zero tags get salience 0.0
 /// post: returns empty Vec for empty input
-    #[contract(id = "P3-mem-salience-compute-batch", principle = "P3")]
+#[contract(id = "P3-mem-salience-compute-batch", principle = "P3")]
 pub fn compute_salience_batch(all_tags: &[EntityTags]) -> Vec<f32> {
     let n = all_tags.len();
     if n == 0 {

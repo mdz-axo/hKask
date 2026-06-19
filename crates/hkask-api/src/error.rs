@@ -1,11 +1,11 @@
 //! API error type with Axum IntoResponse — maps to HTTP status codes per variant.
 
-use hkask_rsolidity as rs;
 use axum::{
     Json,
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use hkask_rsolidity as rs;
 use serde::Serialize;
 
 #[derive(Debug)]
@@ -237,7 +237,7 @@ mod tests {
     use axum::response::IntoResponse;
 
     // contract: api-error-001
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn apierror_maps_to_correct_status_codes() {
         let (status, _) = ApiError::NotFound {
@@ -273,7 +273,7 @@ mod tests {
     }
 
     // contract: api-error-002
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn apierror_display_is_readable() {
         let err = ApiError::NotFound {
@@ -294,7 +294,7 @@ mod tests {
     }
 
     // contract: api-error-003
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn apierror_into_response_produces_correct_status() {
         let err = ApiError::NotFound {

@@ -8,10 +8,10 @@
 //! This closes the wallet-energy feedback loop (P9): the system's estimate of
 //! how much gas a rJoule buys is continuously validated against real settlements.
 
-use hkask_rsolidity as rs;
 use crate::gas_report::GasReport;
 use crate::wallet_energy_estimator::WalletEnergyEstimator;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
+use hkask_rsolidity as rs;
 use hkask_storage::NuEventStore;
 use hkask_types::InfrastructureError;
 use hkask_types::WebID;
@@ -51,12 +51,13 @@ impl WalletGasCalibrator {
     /// Create a wallet gas calibrator backed by the given event store and wallet manager.
     ///
     /// expect: "I can create a wallet gas calibrator that self-tunes the gas→rJoule rate from settled events" [P9]
-/// expect: "I can configure the default interval for background wallet gas calibration" [P9]
+    /// expect: "I can configure the default interval for background wallet gas calibration" [P9]
     /// pre:  store is a valid NuEventStore; wallet_manager is valid
     /// post: returns WalletGasCalibrator seeded with the manager's current gas_per_rjoule rate
     /// post: first calibration will look back `DEFAULT_WALLET_INITIAL_LOOKBACK`
     /// post: no event sink attached until `with_event_sink` is called
-    #[rs::contract(id = "P9-cns-wallet-gas-calibrator-new", principle = "P9")]    pub fn new(store: Arc<NuEventStore>, wallet_manager: Arc<WalletManager>) -> Self {
+    #[rs::contract(id = "P9-cns-wallet-gas-calibrator-new", principle = "P9")]
+    pub fn new(store: Arc<NuEventStore>, wallet_manager: Arc<WalletManager>) -> Self {
         let initial_rate = wallet_manager.gas_per_rjoule();
         Self {
             store,
@@ -77,7 +78,11 @@ impl WalletGasCalibrator {
     /// pre:  lookback is a positive duration
     /// post: first calibration will search [Utc::now() - lookback, Utc::now()]
     #[must_use = "builder methods must be chained or assigned"]
-    #[rs::contract(id = "P9-cns-wallet-gas-calibrator-with-initial-lookback", principle = "P9")]    pub fn with_initial_lookback(mut self, lookback: ChronoDuration) -> Self {
+    #[rs::contract(
+        id = "P9-cns-wallet-gas-calibrator-with-initial-lookback",
+        principle = "P9"
+    )]
+    pub fn with_initial_lookback(mut self, lookback: ChronoDuration) -> Self {
         let now = Utc::now();
         self.last_calibrated_at = tokio::sync::Mutex::new(now - lookback);
         self
@@ -85,11 +90,12 @@ impl WalletGasCalibrator {
 
     /// Attach a CNS event sink for calibration span emission.
     ///
-/// expect: "I can attach an event sink so wallet conversion rate adjustments emit CNS observability spans" [P9]
+    /// expect: "I can attach an event sink so wallet conversion rate adjustments emit CNS observability spans" [P9]
     /// pre:  sink is a valid NuEventSink
     /// post: subsequent successful calibrations that adjust the rate emit a span
     #[must_use = "builder methods must be chained or assigned"]
-    #[rs::contract(id = "P9-cns-wallet-gas-calibrator-with-event-sink", principle = "P9")]    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    #[rs::contract(id = "P9-cns-wallet-gas-calibrator-with-event-sink", principle = "P9")]
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
@@ -106,7 +112,8 @@ impl WalletGasCalibrator {
     /// post: if settled events exist and the aggregate ratio exceeds tolerance,
     ///       `wallet_manager.gas_per_rjoule()` is updated
     /// post: returns true if the rate was adjusted
-    #[rs::contract(id = "P9-cns-wallet-gas-calibrator-calibrate", principle = "P9")]    pub async fn calibrate(&self) -> Result<bool, InfrastructureError> {
+    #[rs::contract(id = "P9-cns-wallet-gas-calibrator-calibrate", principle = "P9")]
+    pub async fn calibrate(&self) -> Result<bool, InfrastructureError> {
         let until = Utc::now();
         let since = {
             let mut last = self.last_calibrated_at.lock().await;
@@ -197,7 +204,11 @@ impl WalletGasCalibrator {
     /// expect: "I can spawn a background task that continuously calibrates the wallet gas conversion rate from live event data" [P9]
     /// pre:  interval > 0
     /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`
-    #[rs::contract(id = "P9-cns-wallet-gas-calibrator-spawn-calibration", principle = "P9")]    pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
+    #[rs::contract(
+        id = "P9-cns-wallet-gas-calibrator-spawn-calibration",
+        principle = "P9"
+    )]
+    pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(interval).await;

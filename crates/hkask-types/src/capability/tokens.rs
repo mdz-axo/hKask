@@ -50,7 +50,7 @@ mod tests {
     use super::*;
 
     // contract: types-cap-token-001
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn consolidation_token_verify_issuer_accepts_expected() {
         let token = ConsolidationToken::new(ConsolidationToken::expected_issuer());
@@ -58,7 +58,7 @@ mod tests {
     }
 
     // contract: types-cap-token-002
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn consolidation_token_verify_issuer_rejects_wrong() {
         let wrong_issuer = WebID::from_persona(b"not-curator");

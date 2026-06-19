@@ -6,8 +6,8 @@
 //! - `api_keys` — issued Ed25519 capability tokens with spending limits
 //! - `deposit_addresses` — derived deposit addresses per wallet per chain
 //! - `deposit_references` — one-time shielded deposit references (anti-replay)
-use hkask_rsolidity as rs;
 use crate::Store;
+use hkask_rsolidity as rs;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{
     ApiKeyCapability, ApiKeyId, ChainId, DepositAddress, DepositReference, Ed25519PublicKey,

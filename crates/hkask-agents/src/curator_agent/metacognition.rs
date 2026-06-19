@@ -1,11 +1,11 @@
 //! Curator Agent metacognition: sense→compare→compute→act governance loop.
 //! Moved from `curator::metacognition` — persona concern, not regulatory.
 
-use hkask_rsolidity as rs;
 use crate::a2a::A2AMessage;
 use crate::curator::context::CuratorContext;
 use crate::curator_agent::bot_health::BotHealthEvaluator;
 use crate::curator_agent::bot_metrics::BotHealthStatus;
+use hkask_rsolidity as rs;
 use hkask_storage::{EscalationBatch, EscalationEntry};
 use hkask_types::BotID;
 use hkask_types::WebID;

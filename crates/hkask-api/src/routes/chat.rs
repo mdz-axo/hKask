@@ -6,13 +6,13 @@
 //!
 //! The `POST /api/chat/stream` endpoint streams inference output as SSE events.
 
-use hkask_rsolidity as rs;
 use axum::extract::Extension;
 use axum::{
     Json,
     extract::State,
     response::sse::{Event, Sse},
 };
+use hkask_rsolidity as rs;
 use std::convert::Infallible;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
@@ -89,7 +89,7 @@ pub(crate) async fn chat(
     Json(req): Json<ChatRequest>,
 ) -> Json<ChatResponse> {
     // contract: P9-CNS-SURF-020
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "chat", "CNS");
     let model_str = req.model.clone().unwrap_or_else(|| "qwen3:8b".to_string());
@@ -162,7 +162,7 @@ pub(crate) async fn chat_stream(
     Json(req): Json<ChatRequest>,
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
     // contract: P9-CNS-SURF-021
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "chat_stream", "CNS");
     let model_str = req.model.clone().unwrap_or_else(|| "qwen3:8b".to_string());

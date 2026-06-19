@@ -12,10 +12,10 @@
 //! Decision: Guideline — keep direct `service_context.registry()` access.
 //! Revisit if template matching logic grows beyond name/skill/polarity queries.
 
-use hkask_rsolidity as rs;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
+use hkask_rsolidity as rs;
 use hkask_types::ports::RegistryIndex;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
@@ -82,7 +82,7 @@ pub fn templates_router() -> OpenApiRouter<ApiState> {
 )]
 pub(crate) async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateResponse>> {
     // contract: P9-CNS-SURF-040
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "templates_list", "CNS");
     let registry = state.agent_service.registry().lock().await;

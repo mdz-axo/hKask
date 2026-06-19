@@ -1,8 +1,8 @@
 //! Curator escalation and metacognition routes
 
-use hkask_rsolidity as rs;
 use axum::extract::Extension;
 use axum::{Json, extract::Path, extract::State};
+use hkask_rsolidity as rs;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -143,7 +143,7 @@ pub(crate) async fn list_escalations(
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<ListEscalationsResponse>, ServiceErrorResponse> {
     // contract: P9-CNS-SURF-022
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "curator_escalations", "CNS");
     let entries = hkask_services::CuratorService::list_escalations(&state.agent_service)?;
@@ -187,7 +187,7 @@ pub(crate) async fn resolve_escalation(
     Json(req): Json<ResolveEscalationRequest>,
 ) -> Result<Json<ResolveEscalationResponse>, ServiceErrorResponse> {
     // contract: P9-CNS-SURF-023
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "curator_resolve", escalation_id = %id, "CNS");
     hkask_services::CuratorService::resolve(&state.agent_service, &id, &req.resolved_by)?;
@@ -218,7 +218,7 @@ pub(crate) async fn dismiss_escalation(
     Json(req): Json<DismissEscalationRequest>,
 ) -> Result<Json<DismissEscalationResponse>, ServiceErrorResponse> {
     // contract: P9-CNS-SURF-024
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "curator_dismiss", escalation_id = %id, "CNS");
     hkask_services::CuratorService::dismiss(&state.agent_service, &id, &req.dismissed_by)?;

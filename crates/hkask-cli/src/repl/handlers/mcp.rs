@@ -344,7 +344,7 @@ mod tests {
     use super::*;
 
     // contract: cli-mcp-001
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_single_number() {
         assert_eq!(parse_selection("1", 10), vec![1]);
@@ -352,7 +352,7 @@ mod tests {
     }
 
     // contract: cli-mcp-002
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_comma_list() {
         assert_eq!(parse_selection("1,4,6,9", 10), vec![1, 4, 6, 9]);
@@ -360,7 +360,7 @@ mod tests {
     }
 
     // contract: cli-mcp-003
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_range() {
         assert_eq!(parse_selection("4-6", 10), vec![4, 5, 6]);
@@ -368,28 +368,28 @@ mod tests {
     }
 
     // contract: cli-mcp-004
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_mixed() {
         assert_eq!(parse_selection("1,4-6,9", 10), vec![1, 4, 5, 6, 9]);
     }
 
     // contract: cli-mcp-005
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_with_spaces() {
         assert_eq!(parse_selection("1, 4 - 6, 9", 10), vec![1, 4, 5, 6, 9]);
     }
 
     // contract: cli-mcp-006
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_deduplicates() {
         assert_eq!(parse_selection("1,1,1,2-4,3", 10), vec![1, 2, 3, 4]);
     }
 
     // contract: cli-mcp-007
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_lte_comparison() {
         assert_eq!(parse_selection("<=3", 10), vec![1, 2, 3]);
@@ -397,7 +397,7 @@ mod tests {
     }
 
     // contract: cli-mcp-008
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_gte_comparison() {
         assert_eq!(parse_selection(">=8", 10), vec![8, 9, 10]);
@@ -405,21 +405,21 @@ mod tests {
     }
 
     // contract: cli-mcp-009
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_lt_comparison() {
         assert_eq!(parse_selection("<4", 10), vec![1, 2, 3]);
     }
 
     // contract: cli-mcp-010
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_gt_comparison() {
         assert_eq!(parse_selection(">8", 10), vec![9, 10]);
     }
 
     // contract: cli-mcp-011
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_comparison_at_boundary() {
         assert!(parse_selection(">10", 10).is_empty());
@@ -429,7 +429,7 @@ mod tests {
     }
 
     // contract: cli-mcp-012
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_mixed_with_comparisons() {
         assert_eq!(
@@ -439,7 +439,7 @@ mod tests {
     }
 
     // contract: cli-mcp-013
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_complex_mixed() {
         assert_eq!(
@@ -449,7 +449,7 @@ mod tests {
     }
 
     // contract: cli-mcp-014
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_out_of_range_rejected() {
         assert!(parse_selection("0", 10).is_empty());
@@ -458,7 +458,7 @@ mod tests {
     }
 
     // contract: cli-mcp-015
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_name_string_not_treated_as_selection() {
         assert!(parse_selection("condenser", 10).is_empty());
@@ -466,7 +466,7 @@ mod tests {
     }
 
     // contract: cli-mcp-016
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn parse_empty_or_non_numeric() {
         assert!(parse_selection("", 10).is_empty());

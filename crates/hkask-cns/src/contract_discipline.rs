@@ -28,11 +28,11 @@
 //! - contract-first-migration-plan-v0.27.0.md §5.4
 //! - test-harness-maturation-plan-v0.27.0.md §10.3 — replicant-driven test proposals
 
+use hkask_rsolidity as rs;
 use hkask_storage::{Triple, TripleStore};
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
-use hkask_rsolidity as rs;
 use serde_json::json;
 
 /// Entity key for the auto-created "Contract Violations" board triple.
@@ -65,7 +65,7 @@ pub enum ContractBridgeError {
 /// - `contract_id` — the `P{N}-{domain}-{operation}` contract ID
 /// - `failure_reason` — human-readable description of the contract violation
 #[rs::contract(id = "P9-cns-contract-violated-emit", principle = "P9")]
-    #[rs::contract(id = "P9-cns-contract-violated-emit", principle = "P9")]
+#[rs::contract(id = "P9-cns-contract-violated-emit", principle = "P9")]
 pub fn emit_contract_violated(
     sink: &dyn NuEventSink,
     function_name: &str,
@@ -113,7 +113,7 @@ pub fn emit_contract_violated(
 /// - `coverage_pct` — coverage percentage (0.0–100.0)
 /// - `expectation_completeness_pct` — percentage of contracted fns carrying `expect:` field (0.0–100.0, v0.28.0)
 #[rs::contract(id = "P9-cns-contract-coverage-emit", principle = "P9")]
-    #[rs::contract(id = "P9-cns-contract-coverage-emit", principle = "P9")]
+#[rs::contract(id = "P9-cns-contract-coverage-emit", principle = "P9")]
 pub fn emit_contract_coverage(
     sink: &dyn NuEventSink,
     total_pub_fns: u64,
@@ -216,7 +216,7 @@ fn ensure_violations_board(store: &TripleStore, owner: WebID) -> Result<(), Cont
 /// pre:  store is initialized; function_name, contract_id, and failure_reason are non-empty; owner is valid
 /// post: board exists in store; task triple is persisted with correct attributes
 #[rs::contract(id = "P9-cns-contract-violation-task-create", principle = "P9")]
-    #[rs::contract(id = "P9-cns-contract-violation-task-create", principle = "P9")]
+#[rs::contract(id = "P9-cns-contract-violation-task-create", principle = "P9")]
 pub fn create_contract_violation_task(
     store: &TripleStore,
     function_name: &str,
@@ -285,7 +285,7 @@ pub fn create_contract_violation_task(
 /// pre:  sink and store are initialized; function_name, contract_id, failure_reason are non-empty
 /// post: CNS span persisted; kanban task created; task_id returned
 #[rs::contract(id = "P9-cns-contract-violated-emit-task", principle = "P9")]
-    #[rs::contract(id = "P9-cns-contract-violated-emit-task", principle = "P9")]
+#[rs::contract(id = "P9-cns-contract-violated-emit-task", principle = "P9")]
 pub fn emit_contract_violated_with_task(
     sink: &dyn NuEventSink,
     store: &TripleStore,
@@ -323,7 +323,7 @@ pub fn emit_contract_violated_with_task(
 /// pre:  sink is initialized; replicant_webid, crate_name, function_name are non-empty
 /// post: CNS span persisted with proposal metadata
 #[rs::contract(id = "P2-cns-contract-proposed-emit", principle = "P2")]
-    #[rs::contract(id = "P2-cns-contract-proposed-emit", principle = "P2")]
+#[rs::contract(id = "P2-cns-contract-proposed-emit", principle = "P2")]
 pub fn emit_contract_proposed(
     sink: &dyn NuEventSink,
     replicant_webid: &str,
@@ -367,7 +367,7 @@ pub fn emit_contract_proposed(
 /// pre:  sink is initialized; reviewer_webid, replicant_webid, function_name are non-empty
 /// post: CNS span persisted with acceptance metadata
 #[rs::contract(id = "P2-cns-contract-accepted-emit", principle = "P2")]
-    #[rs::contract(id = "P2-cns-contract-accepted-emit", principle = "P2")]
+#[rs::contract(id = "P2-cns-contract-accepted-emit", principle = "P2")]
 pub fn emit_contract_accepted(
     sink: &dyn NuEventSink,
     reviewer_webid: &str,
@@ -421,7 +421,7 @@ pub fn emit_contract_accepted(
 /// - `location` — file:line of the contract
 /// - `description` — human-readable description of the violation
 #[rs::contract(id = "P9-cns-contract-quality-violated", principle = "P9")]
-    #[rs::contract(id = "P9-cns-contract-quality-violated", principle = "P9")]
+#[rs::contract(id = "P9-cns-contract-quality-violated", principle = "P9")]
 pub fn emit_contract_quality_violated(
     sink: &dyn NuEventSink,
     function_name: &str,
@@ -430,7 +430,10 @@ pub fn emit_contract_quality_violated(
     location: &str,
     description: &str,
 ) {
-    let span = Span::new(SpanNamespace::from(CnsSpan::ContractQualityViolated), "quality_violated");
+    let span = Span::new(
+        SpanNamespace::from(CnsSpan::ContractQualityViolated),
+        "quality_violated",
+    );
     let event = NuEvent::new(
         WebID::from_persona(b"contract-discipline"),
         span,
@@ -467,7 +470,7 @@ pub fn emit_contract_quality_violated(
 /// pre:  sink is initialized; reviewer_webid, function_name are non-empty
 /// post: CNS span persisted with rejection rationale
 #[rs::contract(id = "P2-cns-contract-rejected-emit", principle = "P2")]
-    #[rs::contract(id = "P2-cns-contract-rejected-emit", principle = "P2")]
+#[rs::contract(id = "P2-cns-contract-rejected-emit", principle = "P2")]
 pub fn emit_contract_rejected(
     sink: &dyn NuEventSink,
     reviewer_webid: &str,
@@ -760,10 +763,15 @@ mod tests {
         );
         let event = sink.last_event.lock().unwrap().clone().unwrap();
         assert_eq!(event.observation["violation_type"], "missing-expect");
-        assert_eq!(event.observation["contract_id"], "P9-cns-energy-budget-can-proceed");
-        assert!(event.observation["description"]
-            .as_str()
-            .unwrap()
-            .contains("user expectation"));
+        assert_eq!(
+            event.observation["contract_id"],
+            "P9-cns-energy-budget-can-proceed"
+        );
+        assert!(
+            event.observation["description"]
+                .as_str()
+                .unwrap()
+                .contains("user expectation")
+        );
     }
 }

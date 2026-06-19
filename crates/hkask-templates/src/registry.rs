@@ -39,7 +39,7 @@ pub struct Registry {
 impl Registry {
     /// Create an empty registry.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — in-memory template registry
     /// post: returns Registry with empty templates, skills, bundles
     #[contract(id = "P3-tpl-registry-new", principle = "P3")]
@@ -58,7 +58,7 @@ impl Registry {
 
     /// Reload registry from bootstrap (simulates reload from disk).
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — refreshes registry from filesystem
     /// post: templates cache cleared and reloaded from bootstrap
     #[contract(id = "P3-tpl-registry-reload", principle = "P3")]
@@ -72,7 +72,7 @@ impl Registry {
     ///
     /// Extended checks: component length ≤64 chars, Unicode NFC normalization.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — path safety for template discovery
     /// \[P4\] Constraining: Clear Boundaries — rejects paths outside template root
     /// pre:  template_id is non-empty
@@ -140,7 +140,7 @@ impl Registry {
     /// The registry performs declaration-consistency checks at registration time;
     /// OCAP enforcement at runtime is handled by `GovernedTool` in `hkask-cns`.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — registers a template in the registry
     /// pre:  entry.id is non-empty, entry.template_type is valid
     /// post: entry inserted into templates map
@@ -163,7 +163,7 @@ impl Registry {
 
     /// Get a template entry by ID.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — retrieves a registered template
     /// pre:  id is non-empty
     /// post: returns Some(&RegistryEntry) if found, None otherwise
@@ -181,7 +181,7 @@ impl Registry {
 
     /// Count registered templates.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — reports registry size
     /// post: returns count of templates in registry
     #[contract(id = "P3-tpl-registry-count", principle = "P3")]
@@ -191,7 +191,7 @@ impl Registry {
 
     /// List all skills.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — lists registered skills
     /// post: returns Vec<Skill> with all registered skills
     #[contract(id = "P3-tpl-registry-list-skills", principle = "P3")]
@@ -201,7 +201,7 @@ impl Registry {
 
     /// List skills filtered by visibility.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — visibility-filtered skill listing
     /// pre:  visibility is a valid Visibility variant
     /// post: returns Vec<Skill> filtered by visibility
@@ -216,7 +216,7 @@ impl Registry {
 
     /// Remove a skill by ID.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — removes a skill from registry
     /// pre:  id is non-empty
     /// post: returns Some(Skill) if removed, None if not found
@@ -227,7 +227,7 @@ impl Registry {
 
     /// Register a skill.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — registers a skill with metadata
     /// pre:  skill.id is non-empty
     /// post: skill inserted into skills map
@@ -238,7 +238,7 @@ impl Registry {
 
     /// Get a skill by ID.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — retrieves skill metadata
     /// pre:  id is non-empty
     /// post: returns Some(Skill) if found, None otherwise
@@ -249,7 +249,7 @@ impl Registry {
 
     /// List skills by domain.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — domain-filtered skill listing
     /// pre:  domain is a valid TemplateType
     /// post: returns Vec<Skill> filtered by domain
@@ -264,7 +264,7 @@ impl Registry {
 
     /// Find skills that reference a given template ID.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — reverse skill lookup by template
     /// pre:  template_id is non-empty
     /// post: returns Vec<Skill> referencing the given template
@@ -283,7 +283,7 @@ impl Registry {
 
     /// Register a bundle manifest.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — registers a skill bundle
     /// pre:  bundle.id is non-empty
     /// post: bundle inserted into bundles map
@@ -294,7 +294,7 @@ impl Registry {
 
     /// Retrieve a bundle manifest by ID.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — retrieves a skill bundle
     /// pre:  id is non-empty
     /// post: returns Some(&BundleManifest) if found, None otherwise
@@ -305,7 +305,7 @@ impl Registry {
 
     /// List all bundle manifests.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — lists registered bundles
     /// post: returns Vec<&BundleManifest> with all registered bundles
     #[contract(id = "P3-tpl-registry-list-bundles", principle = "P3")]
@@ -315,7 +315,7 @@ impl Registry {
 
     /// Remove a bundle manifest by ID.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — removes a bundle
     /// pre:  id is non-empty
     /// post: returns Some(BundleManifest) if removed, None if not found
@@ -327,7 +327,7 @@ impl Registry {
     /// Find an existing bundle that contains exactly the given set of skills.
     /// Returns the first exact match, if any.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — finds bundle matching skill set
     /// pre:  skill_ids is non-empty
     /// post: returns Some(&BundleManifest) if exact skill set match found
@@ -349,7 +349,7 @@ impl Registry {
     /// Bootstrap registry from embedded YAML definitions.
     /// Template definitions live in `registry/templates/bootstrap-registry.yaml`.
     ///
-/// expect: "The system manages a template registry for skill rendering" [P3]
+    /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — seeds registry from workspace templates
     /// post: returns Registry populated from bootstrap-registry.yaml
     /// post: all entries have matroshka_limit set to SYSTEM_MAX_RECURSION

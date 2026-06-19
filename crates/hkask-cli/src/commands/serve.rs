@@ -35,7 +35,10 @@ const API_SERVERS: &[(&str, &str)] = &[
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  port is a valid u16; host is a non-empty bind address string
 /// post: starts the HTTP API server on the given host:port; returns Ok(()) on successful bind or Error on failure
-    #[contract(id = "P9-CNS-SURF-008 pre: valid host/port post: cns.cli span emitted", principle = "P9")]
+#[contract(
+    id = "P9-CNS-SURF-008 pre: valid host/port post: cns.cli span emitted",
+    principle = "P9"
+)]
 pub async fn run_server(
     port: u16,
     host: &str,

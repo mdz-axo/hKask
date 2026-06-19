@@ -103,13 +103,13 @@ pub struct BundleConflict {
 }
 
 impl BundleConflict {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self.conflict_type is a valid ConflictType variant
     /// post: returns the PascalCase string representation of the conflict type
     pub fn conflict_type_str(&self) -> &'static str {
         self.conflict_type.as_str()
     }
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self.resolution is a valid ConflictResolution variant
     /// post: returns the PascalCase string representation of the resolution strategy
     pub fn resolution_str(&self) -> &'static str {
@@ -126,7 +126,7 @@ pub struct BundleComplementarity {
 }
 
 impl BundleComplementarity {
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self.complementarity_type is a valid ComplementarityType variant
     /// post: returns the PascalCase string representation of the complementarity type
     pub fn complementarity_type_str(&self) -> &'static str {

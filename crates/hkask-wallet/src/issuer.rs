@@ -9,9 +9,9 @@
 //! Each key carries embedded attenuation: spending limit, expiry, privacy mode.
 //! The Ed25519 signature proves it was issued by the wallet holder.
 
-use hkask_rsolidity as rs;
 use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
+use hkask_rsolidity as rs;
 use hkask_storage::WalletStore;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};

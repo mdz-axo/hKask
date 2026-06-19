@@ -2,8 +2,8 @@
 //! Relocated from `hkask-types` per P1: consumed primarily by `hkask-storage` and `hkask-mcp-spec`.
 //!
 //! Five categories per MDS §1: Domain, Composition, Trust, Lifecycle, Curation.
-use hkask_rsolidity as rs;
 use chrono::{DateTime, Utc};
+use hkask_rsolidity as rs;
 use hkask_types::curation::{CurationDecision, OCAPBoundary};
 use hkask_types::id::{GoalID, WebID};
 use serde::{Deserialize, Serialize};
@@ -148,7 +148,7 @@ impl SpecCategory {
 /// pre:  arguments are valid
 /// post: returns expected result
 /// \[P8\] Motivating: Semantic Grounding — infer MDS category from context
-    #[rs::contract(id = "P8-sto-spec-infer-category", principle = "P8")]
+#[rs::contract(id = "P8-sto-spec-infer-category", principle = "P8")]
 pub fn infer_spec_category(context: Option<&str>) -> SpecCategory {
     let ctx = match context {
         Some(c) => c.to_lowercase(),

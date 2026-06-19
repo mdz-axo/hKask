@@ -19,7 +19,10 @@ use std::sync::Arc;
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  action is a valid WalletAction variant
 /// post: dispatches to balance, deposit, history, key, fee, withdraw, encumber, release, or report operations
-    #[contract(id = "P9-CNS-SURF-003 pre: valid WalletAction post: cns.cli span emitted", principle = "P9")]
+#[contract(
+    id = "P9-CNS-SURF-003 pre: valid WalletAction post: cns.cli span emitted",
+    principle = "P9"
+)]
 pub fn run(action: WalletAction) {
     // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "wallet", action = ?action, "CNS");

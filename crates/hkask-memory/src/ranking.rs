@@ -19,7 +19,7 @@ use chrono::Datelike;
 /// pre:  k > 0, ranks contains valid 0-based positions
 /// post: returns sum of 1/(k + rank + 1) for each rank
 /// post: result is always ≥ 0.0
-    #[contract(id = "P3-mem-ranking-rrf-score", principle = "P3")]
+#[contract(id = "P3-mem-ranking-rrf-score", principle = "P3")]
 pub fn rrf_score(k: u64, ranks: &[usize]) -> f64 {
     ranks
         .iter()
@@ -39,7 +39,7 @@ pub fn rrf_score(k: u64, ranks: &[usize]) -> f64 {
 /// pre:  age is a valid &str
 /// post: returns days as f64 (≥ 0.0 for valid dates)
 /// post: returns -1.0 for unparseable or empty input
-    #[contract(id = "P3-mem-ranking-parse-age", principle = "P3")]
+#[contract(id = "P3-mem-ranking-parse-age", principle = "P3")]
 pub fn parse_age_to_days(age: &str) -> f64 {
     let lower = age.to_lowercase();
     let lower = lower.trim();
@@ -179,7 +179,7 @@ fn parse_fuzzy_date(s: &str) -> f64 {
 /// pre:  published is a valid &str
 /// post: returns one of five bucket labels based on age in days
 /// post: returns "unknown" for unparseable input
-    #[contract(id = "P3-mem-ranking-normalize-date-bucket", principle = "P3")]
+#[contract(id = "P3-mem-ranking-normalize-date-bucket", principle = "P3")]
 pub fn normalize_date_bucket(published: &str) -> &'static str {
     let days = parse_age_to_days(published);
     if days < 0.0 {

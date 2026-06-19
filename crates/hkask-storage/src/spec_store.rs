@@ -2,10 +2,10 @@
 //!
 //! Also provides `SqliteCurationRecordStore` for persisting spec curation
 //! decisions (MDS §5 Curation).
-use hkask_rsolidity as rs;
 use crate::Store;
 use crate::spec_types::{Spec, SpecCategory, SpecCurationRecord, SpecError, SpecId};
 use chrono::{DateTime, Utc};
+use hkask_rsolidity as rs;
 use hkask_types::InfrastructureError;
 use hkask_types::curation::{CurationDecision, OCAPBoundary};
 define_store!(SqliteSpecStore);

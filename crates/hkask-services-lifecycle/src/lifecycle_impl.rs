@@ -152,7 +152,7 @@ impl ServerLifecycleConfig {
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  config must be a valid ServerLifecycleConfig; server must implement ServerLifecycle
 /// post: server is initialized, started, and result returned; CNS spans emitted for start/stop/failure
-    #[contract(id = "P7-svc-lifecycle-173", principle = "P7")]
+#[contract(id = "P7-svc-lifecycle-173", principle = "P7")]
 pub async fn run_lifecycle<S>(
     config: ServerLifecycleConfig,
     mut server: S,

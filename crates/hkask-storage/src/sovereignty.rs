@@ -5,8 +5,8 @@
 //! - Shared data categories (require consent)
 //! - Public data categories (always accessible)
 //! - Affirmative consent requirements
-use hkask_rsolidity as rs;
 use crate::Store;
+use hkask_rsolidity as rs;
 use hkask_types::InfrastructureError;
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};

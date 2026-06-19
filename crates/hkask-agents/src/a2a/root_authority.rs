@@ -8,8 +8,8 @@
 //! - No ambient authority: capabilities must be explicitly granted
 //! - Attenuation chain: each delegation reduces authority
 
-use hkask_rsolidity as rs;
 use ed25519_dalek::SigningKey;
+use hkask_rsolidity as rs;
 use hkask_types::{
     DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
     SYSTEM_MAX_ATTENUATION, WebID,

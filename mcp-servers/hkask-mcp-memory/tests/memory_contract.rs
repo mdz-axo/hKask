@@ -8,8 +8,8 @@
 use hkask_memory::EpisodicMemory;
 use hkask_storage::{Triple, TripleStore};
 use hkask_test_harness::TestWebId;
-use hkask_types::visibility::AccessControl;
 use hkask_types::Visibility;
+use hkask_types::visibility::AccessControl;
 use serde_json::json;
 use std::sync::Arc;
 
@@ -17,8 +17,10 @@ fn setup_store() -> TripleStore {
     let conn = Arc::new(std::sync::Mutex::new(
         rusqlite::Connection::open_in_memory().expect("in-memory SQLite"),
     ));
-    conn.lock().expect("mutex not poisoned").execute_batch(
-        "CREATE TABLE IF NOT EXISTS triples (
+    conn.lock()
+        .expect("mutex not poisoned")
+        .execute_batch(
+            "CREATE TABLE IF NOT EXISTS triples (
             id TEXT PRIMARY KEY,
             entity TEXT NOT NULL,
             attribute TEXT NOT NULL,
@@ -29,12 +31,18 @@ fn setup_store() -> TripleStore {
             perspective TEXT,
             visibility TEXT NOT NULL,
             owner_webid TEXT NOT NULL
-        );"
-    ).expect("DDL must succeed");
+        );",
+        )
+        .expect("DDL must succeed");
     TripleStore::new(conn)
 }
 
-fn make_triple(entity: &str, attr: &str, value: serde_json::Value, perspective: &hkask_types::WebID) -> Triple {
+fn make_triple(
+    entity: &str,
+    attr: &str,
+    value: serde_json::Value,
+    perspective: &hkask_types::WebID,
+) -> Triple {
     let mut t = Triple::new(entity, attr, value, *perspective);
     t.access = AccessControl::episodic(*perspective, *perspective);
     t
@@ -86,7 +94,9 @@ fn store_requires_perspective() {
     let mut triple = make_triple("e", "a", json!("v"), &owner);
     triple.access.perspective = None;
 
-    let err = mem.store(triple).expect_err("should reject missing perspective");
+    let err = mem
+        .store(triple)
+        .expect_err("should reject missing perspective");
     assert!(err.to_string().contains("perspective") || err.to_string().contains("Perspective"));
 }
 
@@ -101,10 +111,20 @@ fn recall_filters_by_perspective() {
     let alice = TestWebId::alice();
     let bob = TestWebId::bob();
 
-    mem.store(make_triple("session:1", "action", json!("alice did this"), &alice))
-        .expect("alice store");
-    mem.store(make_triple("session:1", "action", json!("bob did this"), &bob))
-        .expect("bob store");
+    mem.store(make_triple(
+        "session:1",
+        "action",
+        json!("alice did this"),
+        &alice,
+    ))
+    .expect("alice store");
+    mem.store(make_triple(
+        "session:1",
+        "action",
+        json!("bob did this"),
+        &bob,
+    ))
+    .expect("bob store");
 
     let alice_recall = mem
         .query_for_deduped("session:1", alice)
@@ -112,9 +132,7 @@ fn recall_filters_by_perspective() {
     assert_eq!(alice_recall.len(), 1);
     assert_eq!(alice_recall[0].access.perspective, Some(alice));
 
-    let bob_recall = mem
-        .query_for_deduped("session:1", bob)
-        .expect("bob recall");
+    let bob_recall = mem.query_for_deduped("session:1", bob).expect("bob recall");
     assert_eq!(bob_recall.len(), 1);
     assert_eq!(bob_recall[0].access.perspective, Some(bob));
 }
@@ -146,8 +164,10 @@ fn storage_usage_reports_count() {
     let usage_before = mem.storage_usage(&owner).expect("usage before");
     assert_eq!(usage_before, 0);
 
-    mem.store(make_triple("e1", "a", json!("v1"), &owner)).expect("store 1");
-    mem.store(make_triple("e2", "a", json!("v2"), &owner)).expect("store 2");
+    mem.store(make_triple("e1", "a", json!("v1"), &owner))
+        .expect("store 1");
+    mem.store(make_triple("e2", "a", json!("v2"), &owner))
+        .expect("store 2");
 
     let usage_after = mem.storage_usage(&owner).expect("usage after");
     assert_eq!(usage_after, 2);

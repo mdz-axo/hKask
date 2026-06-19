@@ -78,7 +78,7 @@ impl EnergyGuard {
     /// Consumes self — compiler-enforced: settle must be called exactly once.
     ///
     /// # REQ: P9-gas-settle — EnergyGuard guarantees settle() is called exactly once
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    /// expect: "I can access all hKask functionality through the kask CLI" [P3]
     pub(crate) fn settle(self, actual: u64) {
         let _ = self.rt.block_on(async {
             self.cybernetics_loop

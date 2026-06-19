@@ -1,8 +1,8 @@
 //! PodManager, PodStatus — Pod lifecycle management
 
-use hkask_rsolidity as rs;
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
+use hkask_rsolidity as rs;
 use hkask_types::{CapabilityChecker, InferencePort, NuEventSink, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

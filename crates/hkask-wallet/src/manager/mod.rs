@@ -6,9 +6,9 @@
 //! coupled to wallet_seed and WalletStore — a separate module added no behavior
 //! beyond what inline functions provide.
 
-use hkask_rsolidity as rs;
 use chrono::{Duration, Utc};
 use hkask_keystore::keychain::resolve_wallet_seed;
+use hkask_rsolidity as rs;
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;

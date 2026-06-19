@@ -15,9 +15,9 @@
 //! UTXO decryption, zero-knowledge proof generation, and transaction building.
 //! Callers authenticate with wallet-signed messages — no SDK required.
 
-use hkask_rsolidity as rs;
 use async_trait::async_trait;
 use chrono::Utc;
+use hkask_rsolidity as rs;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};

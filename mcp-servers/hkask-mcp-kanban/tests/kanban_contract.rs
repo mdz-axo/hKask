@@ -59,7 +59,9 @@ fn board_create_list_get_delete() {
         .expect("board_delete should succeed");
     assert_eq!(deleted, 0); // board had no tasks
 
-    let after = svc.board_list(&owner).expect("board_list after delete should succeed");
+    let after = svc
+        .board_list(&owner)
+        .expect("board_list after delete should succeed");
     assert!(after.is_empty());
 }
 
@@ -157,7 +159,11 @@ fn task_move_transitions() {
         .expect("board_create");
 
     let task = svc
-        .task_create(board.id, TaskSpec::new("Refactor module".to_string()), owner)
+        .task_create(
+            board.id,
+            TaskSpec::new("Refactor module".to_string()),
+            owner,
+        )
         .expect("task_create");
     assert_eq!(task.status, TaskStatus::Backlog);
 
@@ -272,14 +278,18 @@ fn task_verify_passes_on_evidence() {
         VerificationCriterion::new("Rate limit per user".to_string()),
         VerificationCriterion::new("429 responses documented".to_string()),
     ]);
-    let task = svc
-        .task_create(board.id, spec, owner)
-        .expect("task_create");
+    let task = svc.task_create(board.id, spec, owner).expect("task_create");
 
     // Move to Review (verification requires Review status)
-    let task = svc.task_move(task.id, TaskStatus::Ready, owner).expect("to ready");
-    let task = svc.task_move(task.id, TaskStatus::InProgress, owner).expect("to in-progress");
-    let task = svc.task_move(task.id, TaskStatus::Review, owner).expect("to review");
+    let task = svc
+        .task_move(task.id, TaskStatus::Ready, owner)
+        .expect("to ready");
+    let task = svc
+        .task_move(task.id, TaskStatus::InProgress, owner)
+        .expect("to in-progress");
+    let task = svc
+        .task_move(task.id, TaskStatus::Review, owner)
+        .expect("to review");
 
     let (verified_task, v) = svc
         .task_verify(
@@ -303,10 +313,15 @@ fn task_delete_removes() {
         .expect("board_create");
 
     let task = svc
-        .task_create(board.id, TaskSpec::new("Remove old code".to_string()), owner)
+        .task_create(
+            board.id,
+            TaskSpec::new("Remove old code".to_string()),
+            owner,
+        )
         .expect("task_create");
 
-    svc.task_delete(task.id).expect("task_delete should succeed");
+    svc.task_delete(task.id)
+        .expect("task_delete should succeed");
 
     let tasks = svc
         .task_list(board.id, TaskFilter::all())

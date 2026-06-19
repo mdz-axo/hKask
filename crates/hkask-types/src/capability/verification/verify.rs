@@ -152,7 +152,7 @@ mod tests {
     use ed25519_dalek::SigningKey;
 
     // contract: types-cap-verify-002
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn verify_delegation_token_returns_no_checker_when_none() {
         let from = WebID::from_persona(b"issuer");
@@ -179,7 +179,7 @@ mod tests {
     }
 
     // contract: types-cap-verify-003
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn require_write_access_accepts_write_token() {
         let from = WebID::from_persona(b"issuer");
@@ -197,7 +197,7 @@ mod tests {
     }
 
     // contract: types-cap-verify-004
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn require_write_access_rejects_read_only_token() {
         let from = WebID::from_persona(b"issuer");

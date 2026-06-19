@@ -229,39 +229,54 @@ impl HkaskLoop for EpisodicLoop {
                                 },
                             ) {
                                 Ok(outcome) if outcome.consolidated_count > 0 => {
-                                    self.emit_cns("episodic_consolidated", serde_json::json!({
-                                        "consolidated": outcome.consolidated_count,
-                                        "failed": outcome.failed_count,
-                                        "reason": "budget_enforcement"
-                                    }));
+                                    self.emit_cns(
+                                        "episodic_consolidated",
+                                        serde_json::json!({
+                                            "consolidated": outcome.consolidated_count,
+                                            "failed": outcome.failed_count,
+                                            "reason": "budget_enforcement"
+                                        }),
+                                    );
                                 }
                                 Ok(_) => {
                                     // No-op: consolidation fired but no triples to consolidate
                                 }
                                 Err(e) => {
-                                    self.emit_cns("episodic_consolidation_failed", serde_json::json!({
-                                        "error": e.to_string(),
-                                        "reason": "budget_enforcement"
-                                    }));
+                                    self.emit_cns(
+                                        "episodic_consolidation_failed",
+                                        serde_json::json!({
+                                            "error": e.to_string(),
+                                            "reason": "budget_enforcement"
+                                        }),
+                                    );
                                 }
                             }
                         } else {
-                            self.emit_cns("episodic_budget_exceeded_no_bridge", serde_json::json!({
-                                        "overage": overage
-                                    }));
+                            self.emit_cns(
+                                "episodic_budget_exceeded_no_bridge",
+                                serde_json::json!({
+                                    "overage": overage
+                                }),
+                            );
                         }
                     } else {
-                        self.emit_cns("episodic_calibrate", serde_json::json!({
-                                        "action_type": format!("{:?}", action.action_type),
-                                        "target_loop": action.target.to_string()
-                                    }));
+                        self.emit_cns(
+                            "episodic_calibrate",
+                            serde_json::json!({
+                                "action_type": format!("{:?}", action.action_type),
+                                "target_loop": action.target.to_string()
+                            }),
+                        );
                     }
                 }
                 _ => {
-                    self.emit_cns("episodic_regulate", serde_json::json!({
-                                        "action_type": format!("{:?}", action.action_type),
-                                        "target_loop": action.target.to_string()
-                                    }));
+                    self.emit_cns(
+                        "episodic_regulate",
+                        serde_json::json!({
+                            "action_type": format!("{:?}", action.action_type),
+                            "target_loop": action.target.to_string()
+                        }),
+                    );
                 }
             }
         }

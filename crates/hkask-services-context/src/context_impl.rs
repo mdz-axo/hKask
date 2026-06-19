@@ -257,7 +257,10 @@ impl AgentService {
     /// [P7] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
     /// pre:  self must be fully built
     /// post: returns Some(&Arc<WalletGasCalibrator>) if wallet is configured; None otherwise
-    #[contract(id = "P7-svc-context-gas-calib-005 — runtime calibration of wallet gas conversion rate", principle = "P7")]
+    #[contract(
+        id = "P7-svc-context-gas-calib-005 — runtime calibration of wallet gas conversion rate",
+        principle = "P7"
+    )]
     pub fn wallet_gas_calibrator(&self) -> Option<&Arc<hkask_cns::WalletGasCalibrator>> {
         self.wallet_gas_calibrator.as_ref()
     }
@@ -339,7 +342,10 @@ impl AgentService {
     /// pre:  self must be fully built
     /// post: returns &Arc<CalibratedEnergyEstimator> sharing the same background
     ///       calibration loop as the service's governed tool
-    #[contract(id = "P7-svc-context-gas-calib-004 — runtime calibration loop wired to production estimator", principle = "P7")]
+    #[contract(
+        id = "P7-svc-context-gas-calib-004 — runtime calibration loop wired to production estimator",
+        principle = "P7"
+    )]
     pub fn energy_estimator(&self) -> &Arc<hkask_cns::CalibratedEnergyEstimator> {
         &self.energy_estimator
     }

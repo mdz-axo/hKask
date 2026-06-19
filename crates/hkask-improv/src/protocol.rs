@@ -111,9 +111,9 @@ mod tests {
     use super::*;
 
     // contract: IMPROV-PROTOCOL-001
-// expect: "The system supports structured improvisational agent interaction" [P3]
+    // expect: "The system supports structured improvisational agent interaction" [P3]
     // contract: IMPROV-PROTOCOL-002
-// expect: "The system supports structured improvisational agent interaction" [P3]
+    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn contribution_and_response_fields() {
         let source = WebID::new();

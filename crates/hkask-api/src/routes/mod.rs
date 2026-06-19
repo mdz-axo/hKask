@@ -1,7 +1,7 @@
 //! HTTP routes — per-domain modules
 
-pub(crate) mod admin;
 pub(crate) mod a2a;
+pub(crate) mod admin;
 pub(crate) mod auth;
 pub(crate) mod backup;
 pub(crate) mod bots;

@@ -1,11 +1,11 @@
 //! CompositeEnergyEstimator — Routes inference tools to InferenceEnergyEstimator,
 //! all other tools to TableEnergyEstimator.
 
-use hkask_rsolidity as rs;
 use crate::dynamic_gas_table::DynamicGasTable;
 use crate::governed_tool::EnergyEstimator;
 use crate::inference_estimator::InferenceEnergyEstimator;
 use crate::table_energy_estimator::TableEnergyEstimator;
+use hkask_rsolidity as rs;
 use serde_json::Value;
 
 /// Composite gas estimator that routes inference tools to InferenceEnergyEstimator

@@ -1,9 +1,9 @@
 //! Embedding store — sqlite-vec backed KNN similarity search.
 //!
 //! Two tables: `embeddings` (metadata) + `vec_embeddings` (vec0 virtual table).
-use hkask_rsolidity as rs;
 use crate::Store;
 use crate::lock_helpers::lock_mutex;
+use hkask_rsolidity as rs;
 use hkask_types::InfrastructureError;
 /// Stored embedding record.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

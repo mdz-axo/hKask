@@ -74,7 +74,7 @@ pub struct ChatMessage {
 /// \[P9\] Motivating: Homeostatic Self-Regulation — constructs regulated LLM request payload
 /// pre:  model is non-empty, prompt is non-empty
 /// post: returns serde_json::Value with model, messages, and parameters
-    #[contract(id = "P9-inf-build-chat-request", principle = "P9")]
+#[contract(id = "P9-inf-build-chat-request", principle = "P9")]
 pub fn build_chat_request(
     model: &str,
     prompt: &str,
@@ -206,7 +206,7 @@ pub struct StreamDelta {
 /// \[P9\] Motivating: Homeostatic Self-Regulation — structured tool-call results for routing
 /// pre:  calls is a valid slice of RawToolCall
 /// post: returns Vec<StructuredToolCall> with parsed arguments
-    #[contract(id = "P9-inf-map-tool-calls", principle = "P9")]
+#[contract(id = "P9-inf-map-tool-calls", principle = "P9")]
 pub fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
     calls
         .iter()
@@ -234,7 +234,7 @@ pub fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
 /// \[P9\] Motivating: Homeostatic Self-Regulation — token probability metadata for monitoring
 /// pre:  probs is a valid slice of RawTokenProb
 /// post: returns Vec<TokenProbability> with mapped fields
-    #[contract(id = "P9-inf-map-token-probs", principle = "P9")]
+#[contract(id = "P9-inf-map-token-probs", principle = "P9")]
 pub fn map_token_probs(probs: &[RawTokenProb]) -> Vec<TokenProbability> {
     probs
         .iter()
@@ -261,7 +261,7 @@ pub fn map_token_probs(probs: &[RawTokenProb]) -> Vec<TokenProbability> {
 /// pre:  response is a valid ChatResponse
 /// post: returns Ok(InferenceResult) with text, usage, finish_reason
 /// post: returns Err if no choices in response
-    #[contract(id = "P9-inf-chat-response-to-result", principle = "P9")]
+#[contract(id = "P9-inf-chat-response-to-result", principle = "P9")]
 pub fn chat_response_to_result(response: ChatResponse) -> Result<InferenceResult, InferenceError> {
     let choice = response
         .choices
@@ -298,7 +298,7 @@ pub fn chat_response_to_result(response: ChatResponse) -> Result<InferenceResult
 /// \[P9\] Motivating: Homeostatic Self-Regulation — parses streaming response chunks for regulated output
 /// pre:  stream is a valid SSE byte stream
 /// post: returns stream of InferenceStreamChunk parsed from SSE data lines
-    #[contract(id = "P9-inf-parse-sse-stream", principle = "P9")]
+#[contract(id = "P9-inf-parse-sse-stream", principle = "P9")]
 pub fn parse_sse_stream(
     body: &str,
     model_id: &str,
@@ -365,7 +365,7 @@ pub fn parse_sse_stream(
 /// pre:  prompt is a valid &str
 /// post: returns Err(Generation) if prompt is empty
 /// post: returns Err(Generation) if prompt.len() > 1_000_000
-    #[contract(id = "P9-inf-validate-prompt", principle = "P9")]
+#[contract(id = "P9-inf-validate-prompt", principle = "P9")]
 pub fn validate_prompt(prompt: &str) -> Result<(), InferenceError> {
     if prompt.is_empty() {
         return Err(InferenceError::Generation("Prompt is empty".to_string()));
@@ -388,7 +388,7 @@ pub fn validate_prompt(prompt: &str) -> Result<(), InferenceError> {
 /// pre:  base_url and auth_header_value are non-empty
 /// pre:  model and prompt are non-empty
 /// post: returns Pin<Box<Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send>>
-    #[contract(id = "P9-inf-stream-chat-completion", principle = "P9")]
+#[contract(id = "P9-inf-stream-chat-completion", principle = "P9")]
 pub fn stream_chat_completion(
     client: std::sync::Arc<reqwest::Client>,
     base_url: String,

@@ -233,7 +233,7 @@ mod tests {
     use crate::provider_cost::CostModel;
 
     // contract: P4-adt-adapter-router-compose
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn handle_phase_reflects_lifecycle() {
         let cost = CostModel::together();
@@ -256,7 +256,7 @@ mod tests {
     }
 
     // contract: P4-adt-adapter-router-compose
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn handle_is_billable_delegates() {
         let cost = CostModel::together();
@@ -277,7 +277,7 @@ mod tests {
     }
 
     // contract: P4-adt-adapter-router-compose
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn adapter_error_display() {
         let err = AdapterError::NotFound(Uuid::nil());

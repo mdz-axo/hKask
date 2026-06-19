@@ -34,7 +34,7 @@ fn main() {
     let runtime = McpRuntime::new();
 
     // contract: P9-CNS-SRF-001
-// expect: "I can access all hKask functionality through the kask CLI" [P3]
+    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     // P9: CNS span
     let cns_start = Instant::now();
     tracing::info!(target: "cns.cli", operation = "command_invoked", command = ?cli.command, "CNS");

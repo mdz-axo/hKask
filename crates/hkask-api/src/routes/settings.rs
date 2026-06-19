@@ -4,10 +4,10 @@
 //! Persisted to ~/.config/hkask/settings.json. Magna Carta P3 (Generative
 //! Space): all settings exposed equally across every surface.
 
-use hkask_rsolidity as rs;
 use axum::Json;
 use axum::extract::{Extension, State};
 use axum::routing::get;
+use hkask_rsolidity as rs;
 
 use crate::middleware::auth::AuthContext;
 use serde::{Deserialize, Serialize};
@@ -173,7 +173,7 @@ mod tests {
     use super::*;
 
     // contract: Merge-update
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // in the request are changed; all others keep their current values.
 
     #[test]
@@ -213,7 +213,7 @@ mod tests {
     }
 
     // contract: Merge-update
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn update_settings_out_of_range_is_ignored() {
         let mut settings = SettingsResponse::default();
@@ -241,7 +241,7 @@ mod tests {
     }
 
     // contract: api-settings-003
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn update_settings_seed_merge() {
         let mut settings = SettingsResponse::default();
@@ -450,7 +450,7 @@ mod tests {
         }
 
         // contract: api-settings-prop-001
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+        // expect: "API endpoints enforce OCAP boundaries" [P4]
         proptest! {
             #[test]
             fn merge_idempotent(
@@ -472,7 +472,7 @@ mod tests {
         }
 
         // contract: api-settings-prop-002
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+        // expect: "API endpoints enforce OCAP boundaries" [P4]
         proptest! {
             #[test]
             fn unspecified_fields_preserved(
@@ -523,7 +523,7 @@ mod tests {
         }
 
         // contract: api-settings-prop-003
-// expect: "API endpoints enforce OCAP boundaries" [P4]
+        // expect: "API endpoints enforce OCAP boundaries" [P4]
         proptest! {
             #[test]
             fn out_of_range_values_ignored(

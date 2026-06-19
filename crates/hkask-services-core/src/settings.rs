@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  none (always succeeds)
 /// post: returns PathBuf to ~/.config/hkask/settings.json; parent directory created if missing
-    #[contract(id = "P3-svc-settings-178", principle = "P3")]
+#[contract(id = "P3-svc-settings-178", principle = "P3")]
 pub fn settings_path() -> std::path::PathBuf {
     let mut path = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     path.push("hkask");
@@ -203,7 +203,7 @@ impl HkaskSettings {
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  T must implement DeserializeOwned + Default
 /// post: returns T from disk; T::default() if file missing or unparseable
-    #[contract(id = "P3-svc-settings-186", principle = "P3")]
+#[contract(id = "P3-svc-settings-186", principle = "P3")]
 pub fn load_settings<T: serde::de::DeserializeOwned + Default>() -> T {
     let path = settings_path();
     match std::fs::read_to_string(&path) {
@@ -226,7 +226,7 @@ pub fn load_settings<T: serde::de::DeserializeOwned + Default>() -> T {
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  settings must implement Serialize
 /// post: settings are written as pretty JSON to settings_path(); Err(ServiceError::Infra) on serialization or I/O failure
-    #[contract(id = "P3-svc-settings-187", principle = "P3")]
+#[contract(id = "P3-svc-settings-187", principle = "P3")]
 pub fn save_settings<T: serde::Serialize>(settings: &T) -> Result<(), crate::ServiceError> {
     let path = settings_path();
     let json = serde_json::to_string_pretty(settings).map_err(|e| {

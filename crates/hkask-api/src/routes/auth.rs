@@ -443,7 +443,7 @@ pub async fn logout(
             "hkask_session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0",
         )
         .body(axum::body::Body::empty())
-        .unwrap())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?)
 }
 
 /// GET /api/v1/auth/session — returns current session info.
@@ -518,7 +518,9 @@ pub async fn accept_invite(
             .body(axum::body::Body::empty())
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?);
     }
-    let session_id = session_cookie.unwrap();
+    let session_id = session_cookie.ok_or((StatusCode::UNAUTHORIZED, "No session cookie".into()))?
+        .trim_matches('"')
+        .to_string();
     let session = user_store
         .get_session(&session_id)
         .map_err(|e| (StatusCode::UNAUTHORIZED, format!("Session invalid: {e}")))?

@@ -36,8 +36,8 @@ impl Default for EndpointWeight {
 /// \[P7\] Constraining: Evolutionary Architecture — hardcoded table to be configurable later
 /// pre:  path is non-empty
 /// post: returns EndpointWeight based on path pattern
-    #[rs::contract(id = "P9-cns-api-meter-endpoint-weight", principle = "P9")]
-    #[rs::contract(id = "P9-cns-api-meter-endpoint-weight", principle = "P9")]
+#[rs::contract(id = "P9-cns-api-meter-endpoint-weight", principle = "P9")]
+#[rs::contract(id = "P9-cns-api-meter-endpoint-weight", principle = "P9")]
 pub fn endpoint_weight(path: &str) -> EndpointWeight {
     if path.contains("embed-corpus") || path.contains("compose") {
         EndpointWeight(5.0)

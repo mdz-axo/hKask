@@ -673,7 +673,7 @@ pub struct AdapterRouter {
 impl AdapterRouter {
     /// Build the router from an `AdapterStore` and available providers.
     ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// [P4] Clear Boundaries — router assembled from configured provider boundaries
     /// pre:  store is a valid AdapterStore
     /// post: returns AdapterRouter with backends for adapter-capable providers
@@ -778,7 +778,7 @@ impl AdapterRouter {
 
     /// Select a provider for adapter composition — user-in-the-loop (P2 Affirmative Consent).
     ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// [P2] Affirmative Consent — provider selection is explicit, informed, and user-driven
     /// pre:  adapter exists in store, at least one provider supports LoRA composition
     /// post: returns list of compatible providers with cost estimates; caller selects
@@ -839,7 +839,7 @@ impl AdapterRouter {
 
     /// Drain (teardown) all billable endpoints.
     ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  owner is a valid WebID (reserved for future multi-tenant scoping)
     /// post: all billable endpoints are transitioned to Terminated
     #[contract(id = "P5-adt-automatic-teardown — session cleanup", principle = "P5")]
@@ -1388,7 +1388,7 @@ mod tests {
     }
 
     // contract: P4-adt-adapter-router-compose
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn list_compatible_providers() {
         let db = in_memory_db();
@@ -1404,7 +1404,7 @@ mod tests {
     }
 
     // contract: P4-adt-adapter-router-compose
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn create_endpoint_returns_handle() {
         let db = in_memory_db();
@@ -1426,7 +1426,7 @@ mod tests {
     }
 
     // contract: P4-adt-adapter-router-compose
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn endpoint_status_query() {
         let db = in_memory_db();
@@ -1452,7 +1452,7 @@ mod tests {
     }
 
     // contract: P4-adt-adapter-router-compose
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn teardown_endpoint() {
         let db = in_memory_db();
@@ -1476,7 +1476,7 @@ mod tests {
     }
 
     // contract: P4-adt-adapter-router-compose
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn estimate_composition() {
         let db = in_memory_db();
@@ -1499,7 +1499,7 @@ mod tests {
     }
 
     // contract: P4-adt-adapter-router-compose
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn estimate_composition_incompatible() {
         let db = in_memory_db();
@@ -1525,7 +1525,7 @@ mod tests {
     }
 
     // contract: P4-adt-adapter-router-compose
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn create_endpoint_incompatible_fails() {
         // This test uses Together backend which has a specific model family allowlist.
@@ -1578,7 +1578,7 @@ mod tests {
     }
 
     // contract: P4-adt-adapter-router-compose
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn drain_all_owner_cleans_up() {
         let db = in_memory_db();
@@ -1599,7 +1599,7 @@ mod tests {
     }
 
     // contract: P2-adt-provider-selection
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn select_provider_returns_sorted_by_cost() {
         let db = in_memory_db();
@@ -1627,7 +1627,7 @@ mod tests {
     }
 
     // contract: P2-adt-provider-selection
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn single_candidate_requires_confirmation() {
         // When only one provider is compatible, single_candidate is set
@@ -1647,7 +1647,7 @@ mod tests {
     }
 
     // contract: P2-adt-provider-selection
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn select_provider_budget_filter() {
         let db = in_memory_db();
@@ -1673,7 +1673,7 @@ mod tests {
     }
 
     // contract: P5-adt-automatic-teardown
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     // NOTE: Requires EndpointGuard::Drop to support nested runtime or async drop.
     //       The current implementation uses Handle::current().block_on() which
     //       conflicts with Runtime::block_on(). See ADR for async drop migration.
@@ -1712,7 +1712,7 @@ mod tests {
     }
 
     // contract: P5-adt-automatic-teardown
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     // NOTE: Same runtime conflict as endpoint_guard_teardown_on_drop.
     #[test]
     #[ignore = "requires EndpointGuard Drop runtime fix"]
@@ -1744,7 +1744,7 @@ mod tests {
     }
 
     // contract: P4-adt-adapter-router-compose
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn end_to_end_store_deploy_status_teardown() {
         let db = in_memory_db();
@@ -1790,7 +1790,7 @@ mod tests {
     }
 
     // contract: P2-adt-provider-selection
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn end_to_end_budget_enforcement() {
         let db = in_memory_db();
@@ -1817,7 +1817,7 @@ mod tests {
     }
 
     // contract: P8-adt-trained-adapter-store
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn end_to_end_version_management() {
         let db = in_memory_db();

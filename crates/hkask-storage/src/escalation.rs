@@ -3,9 +3,9 @@
 //! The escalation queue is a Cybernetics (Loop 6) algedonic regulation mechanism.
 //! Governed by the Cybernetics loop, which receives CuratorDirectives from Curation
 //! and escalation signals from algedonic variety deficit detection.
-use hkask_rsolidity as rs;
 use crate::{Store, now_rfc3339};
 use chrono::{DateTime, Utc};
+use hkask_rsolidity as rs;
 use hkask_types::{BotID, EscalationID, InfrastructureError, TemplateID};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};

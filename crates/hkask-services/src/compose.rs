@@ -463,7 +463,7 @@ fn generic_system_prompt(
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  a and b must be non-empty f32 slices of equal length; mismatched or empty returns 2.0
 /// post: returns f64 in range [0.0, 2.0]; 0.0 = identical, 1.0 = orthogonal, 2.0 = opposite or degenerate
-    #[contract(id = "P3-svc-compose-096", principle = "P3")]
+#[contract(id = "P3-svc-compose-096", principle = "P3")]
 pub fn cosine_distance(a: &[f32], b: &[f32]) -> f64 {
     if a.len() != b.len() || a.is_empty() {
         return 2.0;

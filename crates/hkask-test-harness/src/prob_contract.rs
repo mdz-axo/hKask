@@ -86,7 +86,11 @@ impl ProbContractRunner {
             if passed {
                 successes += 1;
             } else if failures.len() < max_failures {
-                failures.push(format!("trial {} failed after {} recovery attempts", failures.len() + 1, self.k + 1));
+                failures.push(format!(
+                    "trial {} failed after {} recovery attempts",
+                    failures.len() + 1,
+                    self.k + 1
+                ));
             }
         }
 
@@ -164,10 +168,14 @@ mod tests {
         // k=4: first call to f returns false, second returns true → should pass
         let mut attempts: u32 = 0;
         let runner = ProbContractRunner::new(0.99, 0.0, 4);
-        let result = runner.evaluate(10, || {
-            attempts += 1;
-            attempts > 1 // first call fails, subsequent succeed
-        }, |b| *b);
+        let result = runner.evaluate(
+            10,
+            || {
+                attempts += 1;
+                attempts > 1 // first call fails, subsequent succeed
+            },
+            |b| *b,
+        );
         assert!(result.passed);
     }
 

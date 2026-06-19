@@ -8,11 +8,11 @@
 //! Integrated with the daemon's dual-encoding memory pipeline: the daemon reads
 //! `kata_history` rows to build episodic narratives and feeds CNS counters
 //! for variety and automaticity monitoring.
-use hkask_rsolidity as rs;
-use hkask_types::InfrastructureError;
 use crate::Store;
 use crate::define_store;
 use crate::impl_from_rusqlite;
+use hkask_rsolidity as rs;
+use hkask_types::InfrastructureError;
 define_store!(KataHistoryStore);
 /// A single kata practice session entry.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

@@ -1,7 +1,7 @@
 //! Pod value types — PodLifecycleState, PodID, persona types, template types
 
-pub use hkask_types::PodID;
 use hkask_rsolidity as rs;
+pub use hkask_types::PodID;
 use hkask_types::{CapabilitySpec, DelegationResource, WebID};
 use serde::{Deserialize, Serialize};
 

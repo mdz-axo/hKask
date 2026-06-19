@@ -1,7 +1,7 @@
 //! Uni-temporal triples — entity/attribute/value with valid_from/valid_to.
-use hkask_rsolidity as rs;
 use crate::{Store, collect_rows, now_rfc3339};
 use chrono::{DateTime, Utc};
+use hkask_rsolidity as rs;
 use hkask_types::id::{TripleID, WebID};
 use hkask_types::ports::git_cas::TripleEntry;
 use hkask_types::visibility::{AccessControl, TemporalBounds};

@@ -233,7 +233,10 @@ impl ConsolidationService {
     /// pre:  threshold in [0.0, 1.0]
     /// post: returns count of semantic triples with confidence ≤ threshold
     /// post: returns 0 on error (graceful degradation)
-    #[contract(id = "P3-mem-consolidation-service-low-confidence-count", principle = "P3")]
+    #[contract(
+        id = "P3-mem-consolidation-service-low-confidence-count",
+        principle = "P3"
+    )]
     pub fn semantic_low_confidence_count(&self, threshold: f64) -> usize {
         self.semantic.low_confidence_count(threshold).unwrap_or(0)
     }

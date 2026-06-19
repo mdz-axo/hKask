@@ -79,7 +79,8 @@ impl DynamicGasTable {
     /// expect: "I can run a calibration pass that adjusts server costs when EMA ratios exceed tolerance" [P9]
     /// expect: "I can create a dynamic gas table initialized from the default server cost table" [P9]
     /// post: returns DynamicGasTable with default server costs and no observations
-    #[rs::contract(id = "P9-cns-dynamic-gas-table-new", principle = "P9")]    pub fn new() -> Self {
+    #[rs::contract(id = "P9-cns-dynamic-gas-table-new", principle = "P9")]
+    pub fn new() -> Self {
         let server_costs: HashMap<String, u64> = crate::table_energy_estimator::default_gas_table()
             .into_iter()
             .map(|(k, v)| (k.to_string(), v))
@@ -100,11 +101,12 @@ impl DynamicGasTable {
     /// The ratio is clamped to [0.1, 10.0] to prevent extreme outliers from
     /// destabilizing the EMA.
     ///
-/// expect: "I can feed a single gas observation into the table to initialize or update the EMA per server" [P9]
+    /// expect: "I can feed a single gas observation into the table to initialize or update the EMA per server" [P9]
     /// pre:  estimated_gas > 0 (no division by zero)
     /// post: ema_ratios[server] updated with EMA of actual/estimated ratio
     /// post: observation_counts[server] incremented
-    #[rs::contract(id = "P9-cns-dynamic-gas-table-record-observation", principle = "P9")]    pub fn record_observation(&mut self, server: &str, estimated_gas: u64, actual_gas: u64) {
+    #[rs::contract(id = "P9-cns-dynamic-gas-table-record-observation", principle = "P9")]
+    pub fn record_observation(&mut self, server: &str, estimated_gas: u64, actual_gas: u64) {
         let ratio = actual_gas as f64 / estimated_gas.max(1) as f64;
         // Clamp to [0.1, 10.0] to prevent extreme outliers destabilizing EMA
         let ratio = ratio.clamp(0.1, 10.0);
@@ -140,7 +142,8 @@ impl DynamicGasTable {
     ///
     /// # Returns
     /// Number of servers whose costs were adjusted.
-    #[rs::contract(id = "P9-cns-dynamic-gas-table-calibrate", principle = "P9")]    pub fn calibrate(&mut self) -> usize {
+    #[rs::contract(id = "P9-cns-dynamic-gas-table-calibrate", principle = "P9")]
+    pub fn calibrate(&mut self) -> usize {
         let servers: Vec<String> = self.observed_since_last_calibrate.iter().cloned().collect();
         self.observed_since_last_calibrate.clear();
 
@@ -170,7 +173,8 @@ impl DynamicGasTable {
     /// expect: "I can run a calibration pass that adjusts server costs when EMA ratios exceed tolerance" [P9]
     /// expect: "I can export the calibrated server cost table for estimator construction" [P9]
     /// post: returns a HashMap<String, u64> of server → cost mappings
-    #[rs::contract(id = "P9-cns-dynamic-gas-table-report-table", principle = "P9")]    pub fn report_table(&self) -> HashMap<String, u64> {
+    #[rs::contract(id = "P9-cns-dynamic-gas-table-report-table", principle = "P9")]
+    pub fn report_table(&self) -> HashMap<String, u64> {
         self.server_costs.clone()
     }
 
@@ -181,7 +185,8 @@ impl DynamicGasTable {
     ///
     /// expect: "I can query per-server EMA ratios for diagnostics and monitoring" [P9]
     /// post: returns a HashMap<String, f64> of server → EMA ratio mappings
-    #[rs::contract(id = "P9-cns-dynamic-gas-table-current-ratios", principle = "P9")]    pub fn current_ratios(&self) -> HashMap<String, f64> {
+    #[rs::contract(id = "P9-cns-dynamic-gas-table-current-ratios", principle = "P9")]
+    pub fn current_ratios(&self) -> HashMap<String, f64> {
         self.ema_ratios.clone()
     }
 
@@ -191,7 +196,8 @@ impl DynamicGasTable {
     ///
     /// expect: "I can query the observation count for a server to assess calibration confidence" [P9]
     /// post: returns the count of recorded observations for `server`, or 0 if unobserved
-    #[rs::contract(id = "P9-cns-dynamic-gas-table-observation-count", principle = "P9")]    pub fn observation_count(&self, server: &str) -> u64 {
+    #[rs::contract(id = "P9-cns-dynamic-gas-table-observation-count", principle = "P9")]
+    pub fn observation_count(&self, server: &str) -> u64 {
         self.observation_counts.get(server).copied().unwrap_or(0)
     }
 }

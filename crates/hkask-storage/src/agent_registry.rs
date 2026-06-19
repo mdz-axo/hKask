@@ -1,6 +1,6 @@
 //! AgentRegistryStore — Persistent storage for registered agents
-use hkask_rsolidity as rs;
 use crate::Store;
+use hkask_rsolidity as rs;
 use hkask_types::{
     AgentDefinition, AgentKind, Contact, InfrastructureError, RegisteredAgent, ScheduledTask,
     UserProfile,

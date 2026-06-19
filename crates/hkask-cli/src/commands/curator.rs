@@ -55,7 +55,10 @@ pub async fn curator_metacognition() -> Result<String, ServiceError> {
 /// pre:  action is a valid CuratorAction variant
 /// post: dispatches to chat/escalations/resolve/dismiss/metacognition
 /// post: prints result or error to stdout
-    #[contract(id = "P9-CNS-SURF-006 pre: valid CuratorAction post: cns.cli span emitted", principle = "P9")]
+#[contract(
+    id = "P9-CNS-SURF-006 pre: valid CuratorAction post: cns.cli span emitted",
+    principle = "P9"
+)]
 pub fn run_curator(
     rt: &tokio::runtime::Runtime,
     registry: &mut hkask_templates::SqliteRegistry,

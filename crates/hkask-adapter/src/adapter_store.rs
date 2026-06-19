@@ -164,7 +164,7 @@ const ADAPTER_SELECT: &str = "SELECT adapter_id, expertise_name, expertise_domai
 impl AdapterStore {
     /// Run schema migrations — create tables if they don't exist.
     ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// post: trained_adapters table exists
     #[contract(id = "P8-adt-trained-adapter-store", principle = "P8")]
     pub fn migrate(&self) -> Result<(), AdapterStoreError> {
@@ -212,7 +212,7 @@ impl AdapterStore {
 
     /// Store a trained adapter.
     ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  adapter has a valid expertise, checksum, owner, and storage_path
     /// post: adapter is persisted to SQLite
     #[contract(id = "P8-adt-trained-adapter-store", principle = "P8")]
@@ -257,7 +257,7 @@ impl AdapterStore {
 
     /// Retrieve an adapter by its UUID.
     ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  id is a valid Uuid
     /// post: returns Some(TrainedLoRAAdapter) if found, None otherwise
     #[contract(id = "P8-adt-trained-adapter-store", principle = "P8")]
@@ -302,7 +302,7 @@ impl AdapterStore {
 
     /// List adapters by expertise name.
     ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  expertise_name is non-empty
     /// post: returns Vec of adapters matching the expertise name
     #[contract(id = "P8-adt-trained-adapter-store", principle = "P8")]
@@ -349,7 +349,7 @@ impl AdapterStore {
 
     /// List adapters owned by a specific WebID.
     ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  owner is a valid WebID
     /// post: returns Vec of adapters owned by the given WebID
     #[contract(id = "P8-adt-trained-adapter-store", principle = "P8")]
@@ -395,10 +395,13 @@ impl AdapterStore {
     /// The token is accepted here as documentation of the gate requirement, though actual
     /// token verification happens at the `AdapterPort` boundary (Task 5).
     ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  adapter exists
     /// post: adapter row is removed
-    #[contract(id = "P8-adt-trained-adapter-store — delete with ownership verification", principle = "P8")]
+    #[contract(
+        id = "P8-adt-trained-adapter-store — delete with ownership verification",
+        principle = "P8"
+    )]
     pub fn delete(&self, id: Uuid) -> Result<(), AdapterStoreError> {
         let conn = self.lock_conn()?;
         let affected = conn.execute(
@@ -516,7 +519,7 @@ mod tests {
     }
 
     // contract: P8-adt-trained-adapter-store
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn store_and_retrieve_by_id() {
         let db = hkask_storage::in_memory_db();
@@ -537,7 +540,7 @@ mod tests {
     }
 
     // contract: P8-adt-trained-adapter-store
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn retrieve_by_expertise() {
         let db = hkask_storage::in_memory_db();
@@ -560,7 +563,7 @@ mod tests {
     }
 
     // contract: P8-adt-trained-adapter-store
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn list_by_owner() {
         let db = hkask_storage::in_memory_db();
@@ -581,7 +584,7 @@ mod tests {
     }
 
     // contract: P8-adt-trained-adapter-store
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn delete_adapter() {
         let db = hkask_storage::in_memory_db();
@@ -597,7 +600,7 @@ mod tests {
     }
 
     // contract: P8-adt-trained-adapter-store
-// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn delete_non_existent_returns_error() {
         let db = hkask_storage::in_memory_db();

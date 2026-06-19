@@ -15,8 +15,8 @@ use std::path::{Component, Path, PathBuf};
 /// pre:  base is a valid directory, input is a relative path
 /// post: returns Ok(PathBuf) if path is safe (no traversal, no null bytes)
 /// post: returns Err if path contains traversal or null bytes
-    #[rs::contract(id = "P4-sto-path-safe-join", principle = "P4")]
-    #[rs::contract(id = "P4-sto-path-safe-join", principle = "P4")]
+#[rs::contract(id = "P4-sto-path-safe-join", principle = "P4")]
+#[rs::contract(id = "P4-sto-path-safe-join", principle = "P4")]
 pub fn sanitize_path(base: &Path, input: &str) -> Result<PathBuf, InfrastructureError> {
     let input_path = Path::new(input);
     if input_path

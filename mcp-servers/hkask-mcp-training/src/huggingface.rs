@@ -138,7 +138,7 @@ pub trait DatasetRegistry: Send + Sync {
 ///
 /// This is the canonical resolution logic used by BasetenProvider.
 /// Provider prefixes: DI/ (DeepInfra), FA/ (fal.ai), TG/ (Together).
-    #[contract(id = "P4-trn-hf-dataset-registry", principle = "P4")]
+#[contract(id = "P4-trn-hf-dataset-registry", principle = "P4")]
 pub fn resolve_model_id(base_model: &str) -> String {
     let known_prefixes = ["DI/", "FA/", "TG/"];
     let mut model = base_model;

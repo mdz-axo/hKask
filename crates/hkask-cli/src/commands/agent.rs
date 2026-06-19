@@ -119,7 +119,10 @@ pub async fn agent_unregister(name: &str) -> Result<(), ServiceError> {
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio Runtime; action is a BotAction variant (List or Status)
 /// post: for List — prints table of all agents (or "No agents registered"); for Status — prints detailed agent info
-    #[contract(id = "P9-CNS-SURF-004 pre: valid BotAction post: cns.cli span emitted", principle = "P9")]
+#[contract(
+    id = "P9-CNS-SURF-004 pre: valid BotAction post: cns.cli span emitted",
+    principle = "P9"
+)]
 pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
     // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "bot", action = ?action, "CNS");
@@ -198,7 +201,10 @@ pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio Runtime; action is an AgentAction variant (Register, Unregister, List, Capabilities)
 /// post: dispatches to the appropriate handler; prints results to stdout; exits on fatal errors
-    #[contract(id = "P9-CNS-SURF-005 pre: valid AgentAction post: cns.cli span emitted", principle = "P9")]
+#[contract(
+    id = "P9-CNS-SURF-005 pre: valid AgentAction post: cns.cli span emitted",
+    principle = "P9"
+)]
 pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) {
     // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "agent", action = ?action, "CNS");

@@ -3,8 +3,8 @@
 //! REQ: P1-deploy-replicant-manage — P1 User Sovereignty: user manages their replicants.
 //! expect: "I can manage my replicants through the API" [P1]
 
-use hkask_rsolidity as rs;
 use axum::{Extension, Json, extract::State, http::StatusCode};
+use hkask_rsolidity as rs;
 use serde::{Deserialize, Serialize};
 
 use crate::ApiState;

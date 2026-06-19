@@ -1,9 +1,9 @@
 //! UserStore — Human user identity, Argon2id auth, encrypted PII, session management.
-use hkask_rsolidity as rs;
 use crate::Store;
 use crate::archive::MergeReceipt;
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
+use hkask_rsolidity as rs;
 use hkask_types::identity::{HumanUser, Invite, InviteStatus, ReplicantIdentity, UserSession};
 use hkask_types::wallet::WalletId;
 use hkask_types::{InfrastructureError, UserID};
@@ -673,18 +673,23 @@ impl UserStore {
             "SELECT invite_id, created_by, code, status, created_at, expires_at, accepted_at, accepted_user_id
              FROM invites WHERE code = ?1",
         )?;
-        let result = stmt.query_row(params![code], |row| {
-            Ok(Invite {
-                invite_id: row.get(0)?,
-                created_by: row.get(1)?,
-                code: row.get(2)?,
-                status: row.get::<_, String>(3)?.parse().unwrap_or(InviteStatus::Pending),
-                created_at: row.get(4)?,
-                expires_at: row.get(5)?,
-                accepted_at: row.get(6)?,
-                accepted_user_id: row.get(7)?,
+        let result = stmt
+            .query_row(params![code], |row| {
+                Ok(Invite {
+                    invite_id: row.get(0)?,
+                    created_by: row.get(1)?,
+                    code: row.get(2)?,
+                    status: row
+                        .get::<_, String>(3)?
+                        .parse()
+                        .unwrap_or(InviteStatus::Pending),
+                    created_at: row.get(4)?,
+                    expires_at: row.get(5)?,
+                    accepted_at: row.get(6)?,
+                    accepted_user_id: row.get(7)?,
+                })
             })
-        }).optional()?;
+            .optional()?;
         Ok(result)
     }
     /// Accept an invite, linking the accepting user to the invite.
@@ -703,7 +708,9 @@ impl UserStore {
             params![now, accepted_user_id, code, now],
         )?;
         if rows == 0 {
-            return Err(UserStoreError::NotFound("Invite not found or expired".into()));
+            return Err(UserStoreError::NotFound(
+                "Invite not found or expired".into(),
+            ));
         }
         self.lookup_invite(code)?
             .ok_or_else(|| UserStoreError::NotFound("Invite not found after accept".into()))
@@ -727,7 +734,10 @@ impl UserStore {
                     invite_id: row.get(0)?,
                     created_by: row.get(1)?,
                     code: row.get(2)?,
-                    status: row.get::<_, String>(3)?.parse().unwrap_or(InviteStatus::Pending),
+                    status: row
+                        .get::<_, String>(3)?
+                        .parse()
+                        .unwrap_or(InviteStatus::Pending),
                     created_at: row.get(4)?,
                     expires_at: row.get(5)?,
                     accepted_at: row.get(6)?,
@@ -775,7 +785,11 @@ impl UserStore {
     /// post: user's role updated in database
     #[rs::contract(id = "P1-multi-role-assign", principle = "P1")]
     #[rs::contract(id = "P1-multi-role-assign", principle = "P1")]
-    pub fn set_user_role(&self, user_id: &UserID, role: hkask_types::identity::Role) -> UserResult<()> {
+    pub fn set_user_role(
+        &self,
+        user_id: &UserID,
+        role: hkask_types::identity::Role,
+    ) -> UserResult<()> {
         let conn = self.lock_conn()?;
         let rows = conn.execute(
             "UPDATE human_users SET role = ?1 WHERE user_id = ?2",

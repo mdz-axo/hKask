@@ -3,8 +3,8 @@
 //! Provides in-memory audit logging for A2A messages.
 //! Uses canonical `AuditEntry` from `hkask-types`.
 
-pub use hkask_types::AuditEntry;
 use hkask_rsolidity as rs;
+pub use hkask_types::AuditEntry;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

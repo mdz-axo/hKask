@@ -4,13 +4,13 @@
 //! domain-logic-enriched storage (dedup, Bayesian confidence decay,
 //! temporal attention weighting) through the loop membrane.
 
-use hkask_rsolidity as rs;
 use crate::error::MemoryError;
 use crate::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
     StorageRequest,
 };
 use hkask_memory::{EpisodicMemory, SemanticMemory};
+use hkask_rsolidity as rs;
 use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
 use hkask_types::{
     Confidence, DelegationToken, ExperienceClassification, require_read_access,

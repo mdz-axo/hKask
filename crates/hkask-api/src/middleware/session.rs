@@ -6,7 +6,6 @@
 //! injects an `AuthContext` into request extensions so the capability token middleware
 //! can skip Bearer token verification.
 
-use hkask_rsolidity as rs;
 use crate::middleware::auth::AuthContext;
 use axum::{
     body::Body,
@@ -14,6 +13,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
+use hkask_rsolidity as rs;
 use hkask_storage::user_store::UserStore;
 use std::sync::{Arc, Mutex};
 
@@ -73,7 +73,7 @@ pub async fn session_middleware_impl(
                 .body(Body::from(
                     "Session invalid or expired. Please sign in again.",
                 ))
-                .unwrap();
+                .expect("static response builder");
         }
     };
 
@@ -89,7 +89,7 @@ pub async fn session_middleware_impl(
             .body(Body::from(
                 "Session invalid or expired. Please sign in again.",
             ))
-            .unwrap();
+            .expect("static response builder");
     }
 
     // Inject AuthContext

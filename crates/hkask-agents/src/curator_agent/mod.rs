@@ -23,10 +23,10 @@ pub mod bot_metrics;
 pub mod metacognition;
 pub mod spec_curator;
 
-use hkask_rsolidity as rs;
 use crate::curator::context::CuratorContext;
 use crate::curator::curation_loop::CurationLoop;
 use hkask_memory::ConsolidationBridge;
+use hkask_rsolidity as rs;
 use hkask_types::loops::CurationInput;
 use std::sync::Arc;
 

@@ -9,7 +9,7 @@ mod tests {
     use super::*;
 
     // contract: ocr-type-01
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn pipeline_outcome_roundtrip() {
         let outcome = PipelineOutcome {
@@ -32,7 +32,7 @@ mod tests {
     }
 
     // contract: ocr-type-02
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn verification_report_passed_is_computed() {
         let report = VerificationReport::new(false, 0.0, vec![], 0, vec![]);
@@ -52,7 +52,7 @@ mod tests {
     }
 
     // contract: ocr-type-03
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn complexity_tier_ordering() {
         assert!(ComplexityTier::Simple < ComplexityTier::Moderate);
@@ -60,7 +60,7 @@ mod tests {
     }
 
     // contract: ocr-type-04
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn ocr_backend_labels() {
         assert_eq!(OcrBackend::Tesseract.label(), "tesseract");
@@ -69,7 +69,7 @@ mod tests {
     }
 
     // contract: ocr-type-05
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn pipeline_error_display() {
         let err = PipelineError::OcrFailed {
@@ -83,7 +83,7 @@ mod tests {
     }
 
     // contract: ocr-type-06
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn cross_validation_roundtrip() {
         let cv = CrossValidation {

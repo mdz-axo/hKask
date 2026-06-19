@@ -19,7 +19,10 @@ use proptest::prelude::*;
 fn cosine_distance_identity_is_zero() {
     let v = vec![1.0_f32, 2.0, 3.0];
     let d = cosine_distance(&v, &v);
-    assert!((d - 0.0).abs() < 1e-6, "identical vectors should have distance 0.0, got {d}");
+    assert!(
+        (d - 0.0).abs() < 1e-6,
+        "identical vectors should have distance 0.0, got {d}"
+    );
 }
 
 // contract: REPLICA-COS-002
@@ -27,7 +30,10 @@ fn cosine_distance_identity_is_zero() {
 #[test]
 fn cosine_distance_orthogonal_is_one() {
     let d = cosine_distance(&[1.0_f32, 0.0], &[0.0_f32, 1.0]);
-    assert!((d - 1.0).abs() < 1e-6, "orthogonal vectors should have distance 1.0, got {d}");
+    assert!(
+        (d - 1.0).abs() < 1e-6,
+        "orthogonal vectors should have distance 1.0, got {d}"
+    );
 }
 
 // contract: REPLICA-COS-003
@@ -35,7 +41,10 @@ fn cosine_distance_orthogonal_is_one() {
 #[test]
 fn cosine_distance_opposite_is_two() {
     let d = cosine_distance(&[1.0_f32], &[-1.0_f32]);
-    assert!((d - 2.0).abs() < 1e-6, "opposite vectors should have distance 2.0, got {d}");
+    assert!(
+        (d - 2.0).abs() < 1e-6,
+        "opposite vectors should have distance 2.0, got {d}"
+    );
 }
 
 // contract: REPLICA-COS-004
@@ -43,7 +52,10 @@ fn cosine_distance_opposite_is_two() {
 #[test]
 fn cosine_distance_empty_is_two() {
     let d = cosine_distance(&[], &[1.0_f32]);
-    assert!((d - 2.0).abs() < 1e-6, "empty vectors should return 2.0, got {d}");
+    assert!(
+        (d - 2.0).abs() < 1e-6,
+        "empty vectors should return 2.0, got {d}"
+    );
 }
 
 // contract: REPLICA-COS-005
@@ -51,7 +63,10 @@ fn cosine_distance_empty_is_two() {
 #[test]
 fn cosine_distance_mismatched_is_two() {
     let d = cosine_distance(&[1.0_f32, 2.0], &[3.0_f32]);
-    assert!((d - 2.0).abs() < 1e-6, "mismatched dimensions should return 2.0, got {d}");
+    assert!(
+        (d - 2.0).abs() < 1e-6,
+        "mismatched dimensions should return 2.0, got {d}"
+    );
 }
 
 // contract: REPLICA-COS-006
@@ -78,7 +93,10 @@ proptest! {
 #[test]
 fn cosine_distance_zero_norm_is_two() {
     let d = cosine_distance(&[0.0_f32, 0.0], &[1.0_f32, 2.0]);
-    assert!((d - 2.0).abs() < 1e-6, "zero-norm vector should return 2.0, got {d}");
+    assert!(
+        (d - 2.0).abs() < 1e-6,
+        "zero-norm vector should return 2.0, got {d}"
+    );
 }
 
 // ── Probabilistic contract: centroid distance ordering ──────────────────────
@@ -107,7 +125,8 @@ fn centroid_distance_ordering_is_prob_contract_strong() {
 
     let runner = ProbContractRunner::new(0.95, 0.05, 0);
 
-    let result = runner.evaluate(200,
+    let result = runner.evaluate(
+        200,
         || {
             // Generate a test vector: gentle's centroid + Gaussian noise (σ=0.3)
             // This simulates the output of replica_compose for gentle — it should
@@ -128,9 +147,11 @@ fn centroid_distance_ordering_is_prob_contract_strong() {
         },
     );
 
-    assert!(result.passed,
+    assert!(
+        result.passed,
         "centroid distance ordering failed: {}/{} trials passed (rate: {:.3}, need >= {:.3})",
-        result.successes, result.trials, result.actual_rate, result.target_rate);
+        result.successes, result.trials, result.actual_rate, result.target_rate
+    );
 }
 
 // contract: REPLICA-PROB-CENTROID-002
@@ -140,10 +161,16 @@ fn centroid_distance_ordering_is_prob_contract_strong() {
 fn centroid_distance_ordering_fails_on_noise() {
     let runner = ProbContractRunner::new(0.90, 0.0, 0);
 
-    let result = runner.evaluate(100,
+    let result = runner.evaluate(
+        100,
         || {
             let mut rng = rand::rng();
-            vec![rng.random::<f32>(), rng.random::<f32>(), rng.random::<f32>(), rng.random::<f32>()]
+            vec![
+                rng.random::<f32>(),
+                rng.random::<f32>(),
+                rng.random::<f32>(),
+                rng.random::<f32>(),
+            ]
         },
         |test_vec| {
             let centroids = author_centroids();
@@ -153,9 +180,11 @@ fn centroid_distance_ordering_fails_on_noise() {
         },
     );
 
-    assert!(!result.passed,
+    assert!(
+        !result.passed,
         "random vectors should NOT pass the centroid ordering contract (rate: {:.3})",
-        result.actual_rate);
+        result.actual_rate
+    );
 }
 
 // ── Mashup monotonicity (probabilistic variant) ─────────────────────────────
@@ -214,13 +243,12 @@ proptest! {
 fn self_consistency_under_prob_contract() {
     let a = vec![1.0_f32, 2.0, 3.0, 4.0];
     let runner = ProbContractRunner::new(0.99, 0.0, 0);
-    let result = runner.evaluate(50,
-        || a.clone(),
-        |v| cosine_distance(&a, v) < 1e-6,
-    );
-    assert!(result.passed,
+    let result = runner.evaluate(50, || a.clone(), |v| cosine_distance(&a, v) < 1e-6);
+    assert!(
+        result.passed,
         "self-consistency failed: {}/{} trials (rate: {:.3})",
-        result.successes, result.trials, result.actual_rate);
+        result.successes, result.trials, result.actual_rate
+    );
 }
 
 // contract: REPLICA-PROB-RECOVERY-001
@@ -231,7 +259,8 @@ fn recovery_window_rescues_failing_contract() {
     // A failing predicate that passes only on the second call per trial
     let mut call_count = 0u32;
     let runner = ProbContractRunner::new(0.99, 0.0, 9);
-    let result = runner.evaluate(30,
+    let result = runner.evaluate(
+        30,
         || {
             call_count += 1;
             call_count % 2 == 0 // passes on every second call
@@ -240,9 +269,11 @@ fn recovery_window_rescues_failing_contract() {
     );
     // With k=9, every trial gets 10 attempts, so every other call passes.
     // 30 trials × 10 attempts = every trial should pass.
-    assert!(result.passed,
+    assert!(
+        result.passed,
         "recovery should rescue contract: {}/{} trials (rate: {:.3})",
-        result.successes, result.trials, result.actual_rate);
+        result.successes, result.trials, result.actual_rate
+    );
 }
 
 // ── Live inference integration test (manual, requires styles DB) ────────────
