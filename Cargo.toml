@@ -137,6 +137,9 @@ async-trait = "0.1"
 ratatui = "0.28"
 crossterm = "0.28"
 
+# Fuzzing
+bolero = "0.13"
+
 # Pattern matching (for migration)
 regex = "1"
 

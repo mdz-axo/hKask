@@ -234,7 +234,7 @@ This ensures:
 
 ### 6.2 What belongs where
 
-For the authoritative MDS category → directory mapping, see [`MDS_SCAFFOLD.md`](../specs/MDS_SCAFFOLD.md) §2. The table below is a simplified content-type view:
+For the authoritative MDS category → directory mapping, see [`MDS.md`](../../architecture/core/MDS.md) §2. The table below is a simplified content-type view:
 
 | Content | Location |
 |---------|----------|
@@ -398,6 +398,45 @@ This documentation standard itself maps to the 5 MDS categories:
 - **Curation:** Writing Excellence protocol (Hopper, Lovelace, Schriver, Gentle tests)
 
 **Completeness:** 5/5 categories satisfied. This standard is MDS-complete.
+
+---
+
+## 12. Stewardship
+
+> **Incorporated from:** `docs/specifications/policies/DOCUMENT_OWNERSHIP.md`
+
+### 12.1 Directory Ownership
+
+| Directory | Owner | Review Cadence |
+|-----------|-------|---------------|
+| `docs/architecture/` | Architecture steward | Per-release |
+| `docs/specifications/` | Documentation steward | Per-release |
+| `docs/plans/` | Workstream lead | Weekly |
+| `docs/handoffs/` | Agent sessions (transient) | Per-session |
+| `docs/status/` | CI/CD steward | Per-build |
+| `docs/user-guides/` | User advocate | Per-release |
+| `docs/guides/` | Methodology steward | Per-release |
+| `docs/generated/` | Build system | Per-build |
+| `docs/ci/` | CI/CD steward | Per-build |
+| `docs/archive/` | Documentation steward | Per-sweep |
+
+### 12.2 Responsibilities
+
+- **Architecture steward:** Maintain `hKask-architecture-master.md`, review framework docs per release, approve ADRs.
+- **Documentation steward:** Run corpus hygiene sweeps, maintain portal accuracy, own `corpus_inventory.yaml`.
+- **CI/CD steward:** Maintain verification scripts, own `PROJECT_STATUS.md`.
+- **Workstream lead:** Maintain `TODO.md`, review plans for staleness weekly.
+- **User advocate:** Maintain user guides, test against current CLI.
+- **Methodology steward:** Maintain research/practice guides.
+
+### 12.3 Review Cadence
+
+| Trigger | Action | Owner |
+|---------|--------|-------|
+| Pre-release | Full corpus hygiene sweep | Documentation steward |
+| Post-merge (≥10 new docs) | Regenerate corpus inventory | Documentation steward |
+| Weekly | Review plans for staleness | Workstream lead |
+| Per-session | Clean superseded handoffs | Agent / replicant |
 
 ---
 

@@ -94,6 +94,7 @@ struct GateReport {
     name: String,
     principle: String,
     severity: String,
+    description: String,
     violations: Vec<Violation>,
     passed: bool,
 }
@@ -134,6 +135,7 @@ struct ExpiredEntry {
 
 // ── Gate compilation ─────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 struct CompiledGate {
     name: String,
     principle: String,
@@ -144,6 +146,7 @@ struct CompiledGate {
     allowlist: Vec<CompiledAllowlistEntry>,
 }
 
+#[allow(dead_code)]
 struct CompiledAllowlistEntry {
     path: String,
     pattern: Option<Regex>,
@@ -321,6 +324,7 @@ fn run_check(workspace_root: &Path, gates: &[CompiledGate]) -> Result<CheckRepor
             name: gate.name.clone(),
             principle: gate.principle.clone(),
             severity: gate.severity.clone(),
+            description: gate.description.clone(),
             violations,
             passed,
         });

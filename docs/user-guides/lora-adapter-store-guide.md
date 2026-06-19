@@ -416,5 +416,5 @@ Some providers (`DeepInfra`) do not support LoRA composition. Their `ProviderCap
 - [`crates/hkask-adapter/src/expertise.rs`](../../crates/hkask-adapter/src/expertise.rs) — Expertise + MdsDomain
 - [`crates/hkask-adapter/src/provider_cost.rs`](../../crates/hkask-adapter/src/provider_cost.rs) — CostModel + ProviderCapability
 - [`crates/hkask-types/src/cns.rs`](../../crates/hkask-types/src/cns.rs) — CNS span registry
-- [`docs/architecture/PUBLIC_SURFACE_JUSTIFICATIONS.md`](../architecture/PUBLIC_SURFACE_JUSTIFICATIONS.md) — 16-crate deep-module audit
+- [`docs/architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — includes deep-module public surface audit
 - [`docs/architecture/core/PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) — P1-P12 principle definitions

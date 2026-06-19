@@ -539,53 +539,70 @@ Kata implements the Toyota Kata methodology (Rother, 2009) as a cybernetic capab
 - **Memory integration:** Every step produces a `StepExperience` recorded to episodic memory via dual-encoding pipeline
 - **Kanban integration:** PDCA experiments map to kanban tasks; coaching 5 questions map to task fields; improvement cycles tracked as task state transitions
 
-### Kata → Kanban → CNS Feedback Path
+### Kata-Kanban-CNS Integration
+
+> **Incorporated from:** `docs/architecture/kata-kanban-integration.md`
+
+#### Coaching Loop
 
 ```mermaid
 sequenceDiagram
-    participant L as Learner (Agent)
-    participant KE as KataEngine
-    participant CNS as CNS (cns.rs)
-    participant KB as KanbanService
-    participant C as Coach (Curator)
+    participant Coach
+    participant KataEngine
+    participant KanbanService
+    participant CNS
 
-    L->>KE: Start improvement cycle
-    KE->>CNS: kata.cycle.start (automaticity_before)
-    KE->>KB: TaskCreated (PDCA experiment)
-    
-    loop PDCA (one obstacle at a time)
-        KE->>CNS: kata.step.start (Plan)
-        L->>KE: Execute experiment
-        KE->>CNS: kata.step.checked (Do→Check)
-        KE->>KB: TaskMoved (state transition)
-        KE->>CNS: kata.step.complete (Act)
-    end
-    
-    C->>L: Coaching 5 questions (via KB task comments)
-    C->>KB: TaskAssigned (coaching session)
-    
-    KE->>CNS: kata.cycle.complete (improvement_signal)
-    KE->>KB: TaskVerified (with evidence)
-    KE->>CNS: variety counters incremented
-    
-    alt Variety deficit
-        CNS-->>C: kata.algedonic (escalation)
+    Coach->>KataEngine: Q1: What is the target condition?
+    KataEngine->>KanbanService: Read task title, description, criteria
+    KanbanService-->>KataEngine: Task { title, description, criteria }
+    KataEngine->>CNS: Emit cns.kata.coaching.q1
+
+    Coach->>KataEngine: Q4: What is your next step? What do you expect?
+    KataEngine->>KanbanService: Update task specification, transition → InProgress
+    KanbanService->>CNS: Emit cns.tool.kanban (task moved)
+
+    Coach->>KataEngine: Q5: How quickly can we go and see?
+    KataEngine->>KanbanService: Transition → Review, task_verify()
+    KanbanService-->>KataEngine: TaskVerified { passed, evidence }
+
+    alt passed
+        KanbanService->>KanbanService: Task → Done
+    else failed
+        KanbanService->>KanbanService: Task → InProgress (rework)
+        KataEngine->>CNS: cns.kata.improv.effectiveness (degradation)
     end
 ```
 
-Kata operations emit observability through `CnsSpan::Curation` and `CnsSpan::Gas`.
+#### PDCA → Kanban State Mapping
 
-### Coaching 5 Questions → Kanban Task Mapping
+| PDCA Phase | Kanban Status | CNS Event |
+|------------|---------------|-----------|
+| **Plan** | `Backlog` | task created |
+| **Do** | `InProgress` | task moved |
+| **Check** | `Review` | task verified |
+| **Act** | `Done` | task completed |
 
-| Question | Kanban Task Field | Purpose |
-|----------|-------------------|---------|
-| 1. What is the Target Condition? | `task.goal` | Ground in measurable outcome |
-| 2. What is the Actual Condition now? | `task.evidence_before` | Facts and data (IS, not assumptions) |
-| 3. What Obstacles? Which ONE? | `task.blockers` | Focus — one obstacle at a time |
-| 4. Next Step? What do you expect? | `task.next_action` + `task.prediction` | PDCA Plan with prediction |
-| 5. How quickly can we go see? | `task.review_interval` | Close the feedback loop |
+Transitions: `Backlog → InProgress` (Q4), `InProgress → Review` (Q5), `Review → Done` (pass), `Review → InProgress` (fail).
 
-See also: `docs/guides/kata-user-guide.md`
+#### CNS Span Trace
+
+```
+cns.kata.coaching.q1 → cns.tool.kanban (task created)
+cns.kata.coaching.q4 → cns.tool.kanban (Backlog → InProgress)
+cns.kata.coaching.q5 → cns.tool.kanban (InProgress → Review)
+                   → cns.tool.kanban (TaskVerified)
+                   → cns.tool.kanban (Review → Done or InProgress)
+cns.kata.improv.effectiveness → variety_feedback → CNS homeostatic loop
+```
+
+#### Error Recovery
+
+| Failure | Recovery |
+|---------|----------|
+| Verification failure | Task re-enters Q4-Q5 loop; after 3 consecutive failures, `kanban unjam` escalates |
+| Task stall (>24h) | `kanban unjam` scans, CNS variety-deficit alert fires |
+| Improv degradation | Switch improv mode, reduce scope, or return to Starter Kata drills |
+| CNS span loss | Buffered in `CyberneticsLoop::process_inbox()`, retried, buffer overflow drops oldest |
 
 ---
 
@@ -906,6 +923,14 @@ kask init --profile server
 
 **Deletion test:** Every crate above passes — delete it and its complexity reappears duplicated. Public surface reflects breadth of domain concerns, not shallow design.
 
+## API Documentation (utoipa)
+
+> **Incorporated from:** `docs/architecture/reference/utoipa-implementation.md`
+
+API documentation is auto-generated at build time from type annotations via utoipa. Dependencies: `utoipa 5.5` (with `axum_extras`, `uuid`, `chrono` features), `utoipa-axum 0.2`. All request/response types derive `ToSchema`; endpoints carry `#[utoipa::path]` annotations. Generated artifacts: `docs/generated/openapi.json` (OpenAPI 3.1), `docs/generated/cli-reference.md`. CLI: `kask docs openapi`, `kask docs cli`, `kask docs all`.
+
+**60+ annotated endpoints** across templates, bots, pods, MCP, CNS, chat, models, curator, ACP, bundles, specs, episodic, sovereignty, consolidation, git, goals, settings, wallet. Some endpoints use direct `.route()` registration and don't appear in the generated spec. MCP tools are discovered dynamically at runtime.
+
 ## Reference Artifacts
 
 Detailed lookup tables and diagrams in `reference/`:
@@ -913,7 +938,6 @@ Detailed lookup tables and diagrams in `reference/`:
 | Artifact | Purpose |
 |----------|---------|
 
-| [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
 
 
@@ -965,11 +989,10 @@ docs/architecture/
 │   ├── ADR-031-consolidation-authorization.md # Active
 │   └── ADR-035-replicant-server-mode.md   # Active
 └── reference/
-    ├── utoipa-implementation.md           # API guide
     └── hKask-Curator-persona.md           # Persona spec
 ```
 
-**Total:** 16 architecture documents (8 core + 1 mandate + 3 root + 2 ADRs + 2 reference). Template header standard now in Pattern A, public surface justifications in §Deep-Module Audit.
+**Total:** 15 architecture documents (8 core + 1 mandate + 3 root + 2 ADRs + 1 reference). API docs (utoipa) in §API Documentation, kata-kanban in §Kata-Kanban-CNS Integration.
 
 **Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, etc.), `docs/guides/` (kata-user-guide.md, lora-training-guide.md), `docs/user-guides/` (kanban-user-guide.md, lora-adapter-store-guide.md)
 

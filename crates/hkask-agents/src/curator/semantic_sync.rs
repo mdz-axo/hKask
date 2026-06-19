@@ -23,11 +23,12 @@
 //! [P9] Homeostasis — polling loop is the regulation cycle
 //! [P11] Digital Sphere — only Public triples are synced
 
+use crate::PodKind;
+use crate::PodRegistry;
 use crate::curator::SemanticIndex;
-use crate::pod::deployment::PodRegistry;
+use crate::PodID;
 use hkask_storage::Database;
 use hkask_types::Visibility;
-use hkask_types::id::PodID;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -44,6 +45,7 @@ pub struct CuratorSync {
     /// Shared SemanticIndex — writes here, PodContext reads from here
     index: Arc<RwLock<SemanticIndex>>,
     /// Directory where pod database files live
+    #[allow(dead_code)]
     data_dir: PathBuf,
     /// Pod registry for scanning active pods
     registry: Arc<PodRegistry>,
@@ -98,15 +100,18 @@ impl CuratorSync {
 
     /// Single sync tick — polls all source pods for new public triples.
     async fn tick(&self) -> Result<(), String> {
-        let pods = self.registry.scan_by_kind();
+        let pods = self.registry.scan_by_kind().map_err(|e| e.to_string())?;
 
-        for (kind, pod_id, db_path) in &pods {
+        for (kind, stem, db_path) in &pods {
             // Skip the CuratorPod itself — it IS the index
-            if *kind == crate::pod::PodKind::Curator {
+            if *kind == PodKind::Curator {
                 continue;
             }
 
-            match self.sync_pod(*pod_id, db_path).await {
+            // Derive deterministic PodID from the filename stem
+            let pod_id = PodID::from_name(stem);
+
+            match self.sync_pod(pod_id, db_path).await {
                 Ok(count) => {
                     if count > 0 {
                         tracing::debug!(
@@ -140,16 +145,15 @@ impl CuratorSync {
             index.cursor_for(&pod_id)
         };
 
-        // Open source pod's database read-only with deterministic passphrase.
-        // We need the passphrase — derive it from the pod_id. For pods created
-        // by PodFactory, the passphrase is HKDF-SHA256(webid_bytes, master_key).
-        // Since we don't have the webid here, we'll try opening without passphrase
-        // first (the pod may not be encrypted yet), then with a fallback.
+        // Open source pod's database read-only
         let db = self.open_read_only(db_path)?;
 
         // Query triples published since cursor, filtering for Public visibility only
         let query = "SELECT rowid, entity, attribute, value, confidence FROM triples WHERE rowid > ?1 AND visibility = 'Public' ORDER BY rowid ASC";
-        let conn = db.conn_arc();
+        let conn_arc = db.conn_arc();
+        let conn = conn_arc
+            .lock()
+            .map_err(|e| format!("Failed to lock pod DB: {e}"))?;
         let mut stmt = conn
             .prepare(query)
             .map_err(|e| format!("Failed to prepare query: {e}"))?;
@@ -176,17 +180,13 @@ impl CuratorSync {
         let mut count = 0;
         let mut index = self.index.write().await;
 
-        for (rowid, entity, attribute, value_str, confidence) in &rows {
+        for (rowid, entity, attribute, value_str, _confidence) in &rows {
             let value: serde_json::Value = serde_json::from_str(value_str)
-                .unwrap_or(serde_json::Value::String(value_str.clone()));
+                .unwrap_or(serde_json::Value::String(value_str.to_string()));
 
-            let triple = hkask_storage::Triple::new(
-                entity,
-                attribute,
-                value,
-                hkask_types::WebID::default(), // source webid — tracked separately
-            )
-            .with_visibility(Visibility::Public);
+            let triple =
+                hkask_storage::Triple::new(entity, attribute, value, hkask_types::WebID::default())
+                    .with_visibility(Visibility::Public);
 
             // Insert into SemanticIndex
             index
@@ -215,7 +215,6 @@ impl CuratorSync {
 
     /// Open a pod's SQLCipher database read-only.
     fn open_read_only(&self, db_path: &PathBuf) -> Result<Database, String> {
-        // Try with URI mode for read-only access
         let uri = format!("file:{}?mode=ro", db_path.display());
         Database::open(&uri, "").map_err(|e| format!("Failed to open pod DB read-only: {e}"))
     }

@@ -35,11 +35,7 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 
 | Document | MDS | Description |
 |----------|-----|-------------|
-| [`hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | all | Authoritative index — patterns, kata, kanban, LoRA, daemon, ACP, deployment |
-| [`loop-architecture.md`](architecture/loop-architecture.md) | domain, composition, lifecycle | 4-loop authority model |
-| [`energy-gas-payments-api-keys.md`](architecture/energy-gas-payments-api-keys.md) | domain, trust, lifecycle | Energy, gas, payments & API key architecture |
-| [`matrix-integration-architecture.md`](architecture/matrix-integration-architecture.md) | composition, trust | Matrix transport, Conduit sidecar |
-| [`PUBLIC_SURFACE_JUSTIFICATIONS.md`](architecture/PUBLIC_SURFACE_JUSTIFICATIONS.md) | composition, curation | Deep-module audit — 16-crate surface justifications |
+| [`hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | all | Authoritative index — patterns, kata, kanban, LoRA, daemon, ACP, deployment. Includes deep-module public surface audit. |
 
 ### Core (`architecture/core/`)
 

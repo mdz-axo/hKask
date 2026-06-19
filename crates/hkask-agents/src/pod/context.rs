@@ -343,14 +343,17 @@ impl PodContext {
             let index = handle.block_on(index_lock.read());
             let triples = index
                 .query_by_entity(query)
-                .map_err(|e| AgentPodError::MemoryError(e.to_string()))?;
+                .map_err(|e| AgentPodError::MemoryError(crate::error::MemoryError::Core(crate::error::CoreError::Infra(hkask_types::InfrastructureError::Database(e.to_string())))))?;
             return Ok(triples
                 .into_iter()
                 .map(|t| RecalledSemantic {
+                    id: t.id.to_string(),
                     entity: t.entity,
                     attribute: t.attribute,
                     value: t.value,
                     confidence: t.confidence,
+                    visibility: t.access.visibility,
+                    valid_from: t.temporal.valid_from.to_rfc3339(),
                 })
                 .collect());
         }

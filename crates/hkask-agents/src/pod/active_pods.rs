@@ -29,7 +29,7 @@ pub struct ActivePods {
     inference_port: Option<Arc<dyn InferencePort>>,
     /// CuratorPod's SemanticIndex — shared with all pod contexts for
     /// merged-lens semantic recall (Step 5).
-    curator_index: Option<Arc<RwLock<SemanticIndex>>>,
+    curator_index: RwLock<Option<Arc<RwLock<SemanticIndex>>>>,
 }
 
 impl ActivePods {
@@ -45,7 +45,7 @@ impl ActivePods {
             episodic_adapter: None,
             semantic_adapter: None,
             inference_port: None,
-            curator_index: None,
+            curator_index: RwLock::new(None),
         }
     }
 
@@ -140,7 +140,7 @@ impl ActivePods {
             .ok_or(AgentPodError::PodNotFound(*pod_id))?;
         let mut ctx = PodContext::from_deployment(deployment)?;
         // Wire curator index for merged-lens semantic recall (Step 5)
-        if let Some(ref curator) = self.curator_index {
+        if let Some(ref curator) = *self.curator_index.read().await {
             ctx = ctx.with_curator_index(Arc::clone(curator));
         }
         Ok(ctx)
@@ -241,7 +241,8 @@ impl ActivePods {
         // The sync loop (Step 4) writes to the same Arc<RwLock<>> that PodContext reads from.
         if pod_kind == PodKind::Curator {
             if let Some(ref index) = deployment.semantic_index {
-                self.curator_index = Some(Arc::clone(index));
+                let mut ci = self.curator_index.write().await;
+                *ci = Some(Arc::clone(index));
             }
         }
 

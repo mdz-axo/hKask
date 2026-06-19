@@ -313,7 +313,7 @@ impl PodFactory {
     /// the pod's own TripleStore + EmbeddingStore for episodic/semantic I/O.
     fn create_pod_storage(
         &self,
-        pod_id: PodID,
+        _pod_id: PodID,
         persona: &AgentPersona,
         pod_kind: PodKind,
     ) -> Result<

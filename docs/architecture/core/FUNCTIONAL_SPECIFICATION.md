@@ -15,9 +15,9 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 **Created:** 2026-06-16
 **Status:** Active — anchor for the Testing Discipline and rSolidity (formally adopted as the contracting language)  
 **Last Updated:** 2026-06-18  
-**Decision:** 2026-06-18 — rSolidity is formally adopted as the contracting language for hKask. The contract standard is defined in [`CONTRACT_GUIDE.md`](../../guides/CONTRACT_GUIDE.md). `#[contract(id=..., principle=...)]` is the target contract identity marker; `/// REQ:` is the transitional convention.
+**Decision:** 2026-06-18 — rSolidity is formally adopted as the contracting language for hKask. The contract standard is defined in [`CONTRACT_GUIDE.md`](../../../guides/CONTRACT_GUIDE.md). `#[contract(id=..., principle=...)]` is the target contract identity marker; `/// REQ:` is the transitional convention.
 
-> This document maps the complete system to its motivating principles, enumerates functional requirements per domain, and links each requirement to the contracts that implement it. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the other principles that constrain how the goal is achieved). See [`CONTRACT_GUIDE.md`](../../guides/CONTRACT_GUIDE.md) for the definitive contract standard — this document defines the *domain-to-contract mapping*, not the contract format itself.
+> This document maps the complete system to its motivating principles, enumerates functional requirements per domain, and links each requirement to the contracts that implement it. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the other principles that constrain how the goal is achieved). See [`CONTRACT_GUIDE.md`](../../../guides/CONTRACT_GUIDE.md) for the definitive contract standard — this document defines the *domain-to-contract mapping*, not the contract format itself.
 
 ---
 
@@ -1696,7 +1696,7 @@ ER diagrams have been added for all 8 CNS domains (§2) and the deployment domai
 | Last Updated | 2026-06-18 |
 | Contract Count | 99 CNS + wallet/agents/storage/memory/inference(cloud-only)/templates (complete) + 61 new (web 19 + multi-user 12 + backup 18 + deployment 16, spec written) |
 | Build Status | `cargo check` workspace — PASS |
-| rSolidity Status | **Formally adopted as the contracting language** (2026-06-18). See [`CONTRACT_GUIDE.md`](../../guides/CONTRACT_GUIDE.md) §3.3 for migration status. |
+| rSolidity Status | **Formally adopted as the contracting language** (2026-06-18). See [`CONTRACT_GUIDE.md`](../../../guides/CONTRACT_GUIDE.md) §3.3 for migration status. |
 | Governance | PRINCIPLES.md §0–§1.4 |
 | Deployment Reference | §3.18 deployment domain, `docs/plans/deployment-and-backup.md`, `docs/guides/DEPLOYMENT.md` |
 | ERDs | §2 — 8 CNS domain ER diagrams; §3.18 — deployment domain ER diagram; §4 — Core domain model, deployment model, contract-anchoring model; §5.0 — Magna Carta hierarchy ER diagram |
@@ -1732,7 +1732,7 @@ ER diagrams have been added for all 8 CNS domains (§2) and the deployment domai
 - [PRINCIPLES.md](PRINCIPLES.md) — 12 governing principles
 - [MDS.md](MDS.md) — Minimum Definition Specification
 - [TESTING_DISCIPLINE.md](TESTING_DISCIPLINE.md) — Contract testing discipline
-- [CONTRACT_GUIDE.md](../../guides/CONTRACT_GUIDE.md) — Definitive contract standard
+- [CONTRACT_GUIDE.md](../../../guides/CONTRACT_GUIDE.md) — Definitive contract standard
 - [hKask Architecture Master](../hKask-architecture-master.md) — Full architecture reference
 
 ---
