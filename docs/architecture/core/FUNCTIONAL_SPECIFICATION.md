@@ -1719,8 +1719,7 @@ ER diagrams have been added for all 8 CNS domains (§2) and the deployment domai
 - [x] `expect:` syntax documented in TESTING_DISCIPLINE.md §1.2
 - [x] Bidirectional verification path documented in TESTING_DISCIPLINE.md §6.1
 - [x] Goal Principle Anchoring rule added to PRINCIPLES.md §1.6
-- [x] User expectation origin paragraph added to TESTING_NARRATIVE.md §1.1
-- [x] All document metadata updated (version, status, cross-references) across 9 documents
+- [x] All document metadata updated (version, status, cross-references) across 8 documents
 - [x] Contract audit run (2362 REQ tags, 132.9% coverage) — gaps documented in PROJECT_STATUS.md
 - [x] Future Work section added (§Future Work)
 - [x] Deployment domain specification (§3.18) — 12 production contracts, 4 test contracts

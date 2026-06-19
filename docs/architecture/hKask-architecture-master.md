@@ -878,7 +878,6 @@ Detailed lookup tables and diagrams in `reference/`:
 | Document | Purpose |
 |----------|---------|
 | [`../specifications/specs/REQUIREMENTS.md`](../specifications/specs/REQUIREMENTS.md) | 22 implemented + 5 deferred goal specs |
-| [`../specifications/specs/TRACEABILITY_MATRIX.md`](../specifications/specs/TRACEABILITY_MATRIX.md) | Bidirectional code→test traceability |
 
 
 ---

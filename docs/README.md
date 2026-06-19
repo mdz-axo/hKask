@@ -25,7 +25,7 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 | [`architecture/hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | Authoritative architecture index — 4 patterns, kata, kanban, LoRA, deployment |
 | [`architecture/core/MDS.md`](architecture/core/MDS.md) | 5-category specification framework and MDS methodology |
 | [`architecture/core/PRINCIPLES.md`](architecture/core/PRINCIPLES.md) | Architecture principles (P1-P12) |
-| [`architecture/core/TESTING_NARRATIVE.md`](architecture/core/TESTING_NARRATIVE.md) | Contract-anchored testing — narrative walkthrough (start here) |
+| [`architecture/core/TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | Contract-anchored testing — DbC + PBT specification |
 | [`plans/TODO.md`](plans/TODO.md) | Open work |
 | [`plans/deployment-and-backup.md`](plans/deployment-and-backup.md) | Deployment & Multi-User Plan |
 
@@ -49,7 +49,6 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 | [`PRINCIPLES.md`](architecture/core/PRINCIPLES.md) | all | Architecture principles (P1-P12) |
 | [`MDS.md`](architecture/core/MDS.md) | all | Minimal Domain Specification — 5 categories, 5 tools |
 | [`TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | all | Contract-anchored testing — DbC + PBT specification |
-| [`TESTING_NARRATIVE.md`](architecture/core/TESTING_NARRATIVE.md) | lifecycle, curation | Narrative companion — getting-started walkthrough |
 | [`CNS-DOMAIN-SPECIFICATION.md`](architecture/core/CNS-DOMAIN-SPECIFICATION.md) | domain, composition, lifecycle | CNS specification — 6 sub-domains, 44 contracts |
 | [`SOLID_POD_ISOMORPHISM.md`](architecture/core/SOLID_POD_ISOMORPHISM.md) | domain, composition | AgentPod↔Solid Pod isomorphism — drift analysis and resolution |
 | [`POD_DEPLOYMENT_CONTRACT.md`](architecture/core/POD_DEPLOYMENT_CONTRACT.md) | domain, composition, trust | PodDeployment contract — per-pod SQLCipher, CNS, MCP bindings |
@@ -106,7 +105,6 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 |----------|-----|-------------|
 | [`MDS_SCAFFOLD.md`](specifications/specs/MDS_SCAFFOLD.md) | all | Category → directory mapping; lifecycle enforcement |
 | [`REQUIREMENTS.md`](specifications/specs/REQUIREMENTS.md) | all | Implemented requirements as goal specs |
-| [`TRACEABILITY_MATRIX.md`](specifications/specs/TRACEABILITY_MATRIX.md) | all | Goal spec → code → test traceability |
 | [`REPL-specification.md`](specifications/specs/REPL-specification.md) | domain, composition, lifecycle | REPL specification — `kask chat` |
 | [`MDS-agent-service.md`](specifications/specs/MDS-agent-service.md) | domain, composition, trust, lifecycle | AgentService specification |
 | [`wallet-specification.md`](specifications/specs/wallet-specification.md) | domain, composition, trust, lifecycle | Wallet crate specification |

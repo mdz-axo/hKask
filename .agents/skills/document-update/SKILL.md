@@ -62,7 +62,7 @@ Superseded → Removed`). Flag documents where:
 `depth: 2` to discover cross-reference chains. Use `spec_goal_capture` with
 `context: "lifecycle"` to register each lifecycle transition as a governed goal.
 
-**Verification:** `bash docs/ci/check-metadata.sh` passes with zero violations.
+**Verification:** Manual review against `DOCUMENTATION_STANDARDS.md` §2 metadata requirements.
 
 ### Task 2 — Metadata Header Alignment
 
@@ -89,7 +89,7 @@ surgical-change principle (Karpathy).
 (agent-correctness) provides the verification lens: would an agent consuming
 only the metadata header route correctly to the right document?
 
-**Verification:** `bash docs/ci/check-metadata.sh` passes.
+**Verification:** All active documents have correct frontmatter per `DOCUMENTATION_STANDARDS.md` §2.
 `grep -r "ddmvss_categories" docs/` returns zero matches (all migrated to
 `mds_categories`).
 

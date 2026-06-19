@@ -78,11 +78,7 @@ All 25 workspace members.
 | Multi-user access control | ✅ Implemented: Role enum, admin middleware, invite CRUD, CNS spans | 2026-06-18 |
 | OAuth providers | ✅ GitHub + Google (Google OAuth implemented 2026-06-18) | 2026-06-18 |
 | Expect: field coverage | ✅ CNS 100% (115 fields), Wallet 100% (13), Memory 100% (55) | 2026-06-18 |
-| Schema drift check | ✅ `scripts/ci/check-schema-drift.sh` passes (37 tables/indexes) | 2026-06-17 |
 | Unsafe blocks | ✅ All documented with SAFETY: comments | 2026-06-15 |
-| Runtime `.unwrap()` in targeted crates | ✅ Zero violations (Wave 2 denylist) | 2026-06-15 |
-| MCP Gate-3 startup verification | ✅ 10/10 servers enforce verify_startup_gates() | 2026-06-15 |
-| Public surface justification | ✅ 13/13 oversized crates have PUBLIC_SURFACE.md | 2026-06-15 |
 | Rc<RefCell> patterns | ✅ Zero across all crates | 2026-06-15 |
 
 ---
@@ -102,20 +98,18 @@ All 25 workspace members.
 
 ---
 
-## CI Quality Gates (Wave 6)
+## CI Quality Gates
 
-| Check | Script | Result | Date |
+Verification gates in `.github/workflows/ci.yml` on every PR and push to main:
+
+| Check | Method | Result | Date |
 |-------|--------|--------|------|
-| Public Surface Governance | `scripts/check-public-surface.sh` | ✅ Pass (16/16 crates) | 2026-06-15 |
-| Unsafe Documentation Policy | `scripts/check-unsafe-safety.sh` | ✅ Pass (all blocks documented) | 2026-06-15 |
-| Runtime `.unwrap()` Denylist | `scripts/check-unwrap-denylist.sh` | ✅ Pass (0 violations) | 2026-06-15 |
-| MCP Gate-3 Consistency | `scripts/check-mcp-gate3.sh` | ✅ Pass (10/10 servers) | 2026-06-15 |
-| REQ Traceability Trend | `scripts/check-req-traceability.sh` | ✅ Pass (100% coverage) | 2026-06-16 |
-| Schema Drift (harness vs storage) | `scripts/ci/check-schema-drift.sh` | ✅ Pass (37 tables/indexes) | 2026-06-17 |
-| Contract Quality Review | `kask contract review` | ✅ Pass (0 NO_PRE+NO_POST, 0 NO_POST) | 2026-06-17 |
-| **Master** | `scripts/ci-quality-gates.sh` | ✅ ALL CHECKS PASSED | 2026-06-15 |
-
-All gates are wired into `.github/workflows/ci.yml` as the `quality-gates` job, running on every PR and push to main. Release builds depend on quality gates passing.
+| Format | `cargo fmt --check` | ✅ Pass | 2026-06-18 |
+| Clippy | `cargo clippy --workspace -- -D warnings` | ✅ Pass | 2026-06-18 |
+| Build | `cargo build --workspace --all-targets` | ✅ Pass | 2026-06-18 |
+| Tests | `cargo test --workspace` | ✅ Pass | 2026-06-18 |
+| Security baseline | No stubs, deprecated, secrets, visual UI; unsafe blocks documented | ✅ Pass | 2026-06-18 |
+| Dependencies | `cargo deny check` | ✅ Pass | 2026-06-18 |
 
 ---
 
@@ -123,11 +117,9 @@ All gates are wired into `.github/workflows/ci.yml` as the `quality-gates` job, 
 
 | Check | Script | Result | Date |
 |-------|--------|--------|------|
-| Link checker | `docs/ci/check-links.sh` | ✅ Pass (266 links, 0 broken) | 2026-06-14 |
-| Metadata checker | `docs/ci/check-metadata.sh` | ✅ Pass (73 docs, 0 missing, 0 warnings) | 2026-06-14 |
-| Version sync | `docs/ci/sync-versions.sh --dry-run` | ✅ Pass (0 pending updates, 11 excluded) | 2026-06-14 |
+| Link checker | `docs/ci/check-links.sh` | ✅ Pass | 2026-06-18 |
 
-**All CI gates pass.** The previous `ddmvss_categories` check was migrated to `mds_categories` (5-category MDS taxonomy). No documents use the deprecated 9-category taxonomy.
+**All CI gates pass.**
 
 ---
 
