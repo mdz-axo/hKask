@@ -17,7 +17,6 @@
 
 use chrono::Utc;
 use hkask_memory::ConsolidationBridge;
-use hkask_rsolidity as rs;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
 use hkask_types::loops::{
     CurationInput, Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,

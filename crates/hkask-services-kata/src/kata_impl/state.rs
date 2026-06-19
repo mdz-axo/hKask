@@ -1,6 +1,5 @@
 //! Kata execution state — runtime accumulator and output envelope.
 
-use hkask_rsolidity::contract;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

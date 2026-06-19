@@ -17,7 +17,6 @@
 
 use async_trait::async_trait;
 use chrono::Utc;
-use hkask_rsolidity as rs;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};

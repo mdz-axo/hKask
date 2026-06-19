@@ -139,7 +139,6 @@ mod tests {
     use crate::id::WebID;
     use ed25519_dalek::SigningKey;
 
-    // contract: types-cap-verify-002
     #[test]
     fn verify_delegation_token_returns_no_checker_when_none() {
         let from = WebID::from_persona(b"issuer");
@@ -165,7 +164,6 @@ mod tests {
         assert_eq!(outcome, VerificationOutcome::NoChecker);
     }
 
-    // contract: types-cap-verify-003
     #[test]
     fn require_write_access_accepts_write_token() {
         let from = WebID::from_persona(b"issuer");
@@ -182,7 +180,6 @@ mod tests {
         assert!(require_write_access(&token, "episodic").is_ok());
     }
 
-    // contract: types-cap-verify-004
     #[test]
     fn require_write_access_rejects_read_only_token() {
         let from = WebID::from_persona(b"issuer");

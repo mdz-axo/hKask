@@ -28,7 +28,6 @@ async fn read_line_timeout<R: tokio::io::AsyncRead + Unpin>(
     }
 }
 
-// contract: acp-e2e-001
 #[tokio::test]
 #[ignore = "requires running daemon and DeepInfra"]
 async fn e2e_initialize_and_prompt() {

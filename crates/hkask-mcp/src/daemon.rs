@@ -479,7 +479,6 @@ mod tests {
         (listener, path)
     }
 
-    // contract: MCP-020
     #[tokio::test]
     async fn daemon_auth_query_authenticated() {
         let (listener, path) = setup_test_listener().await;
@@ -513,7 +512,6 @@ mod tests {
         }
     }
 
-    // contract: MCP-020
     #[tokio::test]
     async fn daemon_auth_query_unauthenticated() {
         let (listener, path) = setup_test_listener().await;
@@ -543,7 +541,6 @@ mod tests {
         }
     }
 
-    // contract: MCP-020
     #[tokio::test]
     async fn daemon_assignment_query() {
         let (listener, path) = setup_test_listener().await;
@@ -579,7 +576,6 @@ mod tests {
         }
     }
 
-    // contract: MCP-020
     #[tokio::test]
     async fn daemon_capability_query() {
         let (listener, path) = setup_test_listener().await;
@@ -615,7 +611,6 @@ mod tests {
         }
     }
 
-    // contract: MCP-020
     #[tokio::test]
     async fn daemon_store_experience_dual_encoding() {
         let (listener, path) = setup_test_listener().await;
@@ -657,7 +652,6 @@ mod tests {
 
     // ── Protocol contract tests ────────────────────────────────────────────
 
-    // contract: daemon-contract-001
     #[test]
     fn request_variants_serialize_to_correct_shape() {
         // AuthQuery
@@ -714,7 +708,6 @@ mod tests {
         assert_eq!(v["confidence"], 0.85);
     }
 
-    // contract: daemon-contract-002
     #[test]
     fn response_variants_serialize_to_correct_shape() {
         // AuthResponse (authenticated)
@@ -781,7 +774,6 @@ mod tests {
         assert_eq!(v["semantic_id"], "sem-001");
     }
 
-    // contract: daemon-contract-003
     #[test]
     fn forward_compat_unknown_fields_tolerated() {
         // A future client might send extra fields. The current daemon must not reject them.
@@ -804,7 +796,6 @@ mod tests {
         }
     }
 
-    // contract: daemon-contract-004
     #[test]
     fn backward_compat_missing_optional_fields() {
         // StoreExperience without confidence (optional field)
@@ -853,7 +844,6 @@ mod tests {
         }
     }
 
-    // contract: daemon-contract-005
     #[test]
     fn failure_unknown_type_tag() {
         let json = r#"{"type":"future_variant_v3","replicant":"alice"}"#;
@@ -864,7 +854,6 @@ mod tests {
         );
     }
 
-    // contract: daemon-contract-006
     #[test]
     fn failure_missing_required_field() {
         // AuthQuery without replicant
@@ -878,7 +867,6 @@ mod tests {
         assert!(result.is_err(), "missing required role should fail");
     }
 
-    // contract: daemon-contract-007
     #[test]
     fn failure_malformed_json() {
         let result: Result<DaemonRequest, _> = serde_json::from_str("not json at all");
@@ -888,7 +876,6 @@ mod tests {
         assert!(result.is_err(), "truncated JSON should fail");
     }
 
-    // contract: daemon-contract-008
     #[test]
     fn failure_wrong_field_type() {
         // replicant should be string, not number
@@ -917,7 +904,6 @@ mod tests {
     // no mutations. store_experience is documented as non-idempotent
     // (each call generates new TripleIDs).
 
-    // contract: daemon-idem-001
     #[tokio::test]
     async fn daemon_auth_query_is_idempotent() {
         let (listener, path) = setup_test_listener().await;
@@ -959,7 +945,6 @@ mod tests {
         }
     }
 
-    // contract: daemon-idem-002
     #[tokio::test]
     async fn daemon_assignment_query_is_idempotent() {
         let (listener, path) = setup_test_listener().await;
@@ -994,7 +979,6 @@ mod tests {
         }
     }
 
-    // contract: daemon-idem-003
     #[tokio::test]
     async fn daemon_capability_query_is_idempotent() {
         let (listener, path) = setup_test_listener().await;

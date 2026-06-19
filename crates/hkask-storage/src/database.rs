@@ -5,7 +5,6 @@
 //!
 //! **Spec Reference:** architecture v0.21.0 §2.3
 use hkask_keystore::derive_key;
-use hkask_rsolidity as rs;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;

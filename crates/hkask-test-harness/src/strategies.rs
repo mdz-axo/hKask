@@ -217,7 +217,6 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
-    // contract: HARN-007
     proptest! {
         #[test]
         fn nu_event_strategy_is_valid(e in any_nu_event()) {
@@ -227,7 +226,6 @@ mod tests {
         }
     }
 
-    // contract: HARN-008
     proptest! {
         #[test]
         fn triple_strategy_is_valid(t in any_triple()) {
@@ -237,7 +235,6 @@ mod tests {
         }
     }
 
-    // contract: HARN-009
     proptest! {
         #[test]
         fn capability_spec_strategy_is_valid(spec in any_capability_spec()) {
@@ -245,7 +242,6 @@ mod tests {
         }
     }
 
-    // contract: HARN-010
     proptest! {
         #[test]
         fn goal_strategy_is_valid(g in any_goal()) {
@@ -256,7 +252,6 @@ mod tests {
         }
     }
 
-    // contract: HARN-011
     proptest! {
         #[test]
         fn transcript_segment_strategy_is_valid(seg in any_transcript_segment()) {

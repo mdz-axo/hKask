@@ -75,13 +75,11 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    // contract: svc-keystore-version-001
     #[test]
     fn default_version_is_one() {
         assert_eq!(DEFAULT_KEY_VERSION, 1);
     }
 
-    // contract: svc-keystore-version-002
     #[test]
     fn read_returns_default_when_no_file() {
         // In test environment, config dir may not exist — should return default
@@ -89,7 +87,6 @@ mod tests {
         assert!(version >= 1);
     }
 
-    // contract: svc-keystore-version-003
     #[test]
     fn write_and_read_roundtrip() {
         let dir = TempDir::new().unwrap();

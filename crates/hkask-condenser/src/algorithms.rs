@@ -459,7 +459,6 @@ pub fn classify_tool(tool_name: &str) -> ContextCategory {
 mod tests {
     use super::*;
 
-    // contract: CNS-CONDENSER-BUDGET
     #[test]
     fn compute_budget_passthrough_when_within_profile() {
         let (budget, passthrough) = compute_budget(10, Profile::Light);
@@ -467,7 +466,6 @@ mod tests {
         assert_eq!(budget, 10);
     }
 
-    // contract: CNS-CONDENSER-BUDGET
     #[test]
     fn compute_budget_respects_max_lines_cap() {
         let (budget, passthrough) = compute_budget(1000, Profile::Heavy);
@@ -475,7 +473,6 @@ mod tests {
         assert_eq!(budget, 30);
     }
 
-    // contract: CNS-CONDENSER-BUDGET
     // Note: retention_pct is applied first, then capped. 5 lines * 20% = 1, so budget = 1.
     #[test]
     fn compute_budget_never_exceeds_input() {
@@ -483,7 +480,6 @@ mod tests {
         assert_eq!(budget, 1);
     }
 
-    // contract: CNS-CONDENSER-BUDGET
     #[test]
     fn compute_budget_single_line() {
         let (budget, passthrough) = compute_budget(1, Profile::Heavy);
@@ -491,7 +487,6 @@ mod tests {
         assert_eq!(budget, 1);
     }
 
-    // contract: CNS-CONDENSER-BUDGET
     #[test]
     fn compute_budget_zero_lines() {
         let (budget, passthrough) = compute_budget(0, Profile::Heavy);
@@ -499,7 +494,6 @@ mod tests {
         assert_eq!(budget, 0);
     }
 
-    // contract: CNS-CONDENSER-CLASSIFY
     // Note: Phase 1 exact-token matching checks split parts in order. "npm" matches
     // ShellCommand before "build" is reached. "cargo_test" matches ShellCommand via "cargo".
     #[test]
@@ -512,7 +506,6 @@ mod tests {
         assert_eq!(classify_tool("cargo_test"), ContextCategory::ShellCommand);
     }
 
-    // contract: CNS-CONDENSER-CLASSIFY
     // Note: Phase 2 substring matching can produce false positives on short keywords (e.g., "run"
     // matches "testrunner", overriding the intended TestOutput classification).
     #[test]
@@ -525,7 +518,6 @@ mod tests {
         assert_eq!(classify_tool("jsonparser"), ContextCategory::StructuredData);
     }
 
-    // contract: CNS-CONDENSER-CLASSIFY
     #[test]
     fn classify_tool_unknown() {
         assert_eq!(classify_tool("unknown_tool"), ContextCategory::Unknown);
@@ -533,7 +525,6 @@ mod tests {
         assert_eq!(classify_tool("xyz"), ContextCategory::Unknown);
     }
 
-    // contract: CNS-CONDENSER-CLASSIFY
     // Note: Both hyphen and underscore splits yield the same token set. First match wins.
     #[test]
     fn classify_tool_hyphen_vs_underscore() {
@@ -543,7 +534,6 @@ mod tests {
         assert_eq!(classify_tool("npm_build"), ContextCategory::ShellCommand);
     }
 
-    // contract: CNS-CONDENSER-RTK
     #[test]
     fn rtk_style_compression_within_budget() {
         let input = (0..200)
@@ -569,7 +559,6 @@ mod tests {
         );
     }
 
-    // contract: CNS-CONDENSER-RTK
     #[test]
     fn rtk_style_preserves_head_tail_structure() {
         let input = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10";
@@ -580,7 +569,6 @@ mod tests {
         assert!(result.contains("..."));
     }
 
-    // contract: CNS-CONDENSER-RTK
     #[test]
     fn rtk_style_passthrough_small_input() {
         let input = "line1\nline2\nline3";
@@ -590,7 +578,6 @@ mod tests {
         assert!(health.is_empty());
     }
 
-    // contract: CNS-CONDENSER-SALIENCY
     #[test]
     fn saliency_rank_preserves_error_lines() {
         let input = "info: ok\ninfo: ok\ninfo: ok\nerror: critical failure\ninfo: ok\ninfo: ok";
@@ -603,7 +590,6 @@ mod tests {
         );
     }
 
-    // contract: CNS-CONDENSER-SALIENCY
     #[test]
     fn saliency_rank_low_signal_when_no_content() {
         let input = "a\na\na\na\na\na\na\na\na\na";
@@ -613,7 +599,6 @@ mod tests {
         assert_eq!(health[0].signal_type, "low_signal");
     }
 
-    // contract: CNS-CONDENSER-FLASHRANK
     #[test]
     fn flashrank_selects_within_budget() {
         let input = (0..100)
@@ -632,7 +617,6 @@ mod tests {
         assert!(health.is_empty());
     }
 
-    // contract: CNS-CONDENSER-FLASHRANK
     // Note: 3 lines with Heavy profile (10% retention, max 30) → budget = 1. Flashrank
     // fills 1 out of 1 → no shortfall. Budget_shortfall only when budget > available lines.
     #[test]
@@ -647,7 +631,6 @@ mod tests {
         );
     }
 
-    // contract: CNS-CONDENSER-REGISTRY
     #[test]
     fn algorithm_registry_selects_by_category() {
         let registry = AlgorithmRegistry::new();
@@ -670,7 +653,6 @@ mod tests {
         );
     }
 
-    // contract: CNS-CONDENSER-REGISTRY
     // Flashrank is the universal fallback — its greedy marginal-utility selection works on
     // any text type without needing category-specific structural markers.
     #[test]
@@ -694,7 +676,6 @@ mod tests {
             .boxed()
     }
 
-    // contract: CON-001
     // For any input, re-compressing the output produces the same result.
     proptest! {
         #[test]
@@ -723,7 +704,6 @@ mod tests {
         }
     }
 
-    // contract: CON-002
     // Compression never produces output larger than input.
     proptest! {
         #[test]
@@ -748,7 +728,6 @@ mod tests {
         }
     }
 
-    // contract: CON-003
     // Flashrank's greedy marginal-utility selection works on any content type — it must never
     // expand input even when given arbitrary Unknown-category content.
     proptest! {

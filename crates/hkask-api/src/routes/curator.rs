@@ -2,7 +2,6 @@
 
 use axum::extract::Extension;
 use axum::{Json, extract::Path, extract::State};
-use hkask_rsolidity as rs;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};

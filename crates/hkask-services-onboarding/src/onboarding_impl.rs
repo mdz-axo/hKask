@@ -1,8 +1,6 @@
 //! Onboarding — secret derivation, keychain, registry init, sign-in.
 //! # REQ: P1 (User Sovereignty) — keychain secrets, passphrase-derived keys.
-//! # expect: "My service operations flow through sovereignty-verifying boundaries" [P1]
 
-use hkask_rsolidity::contract;
 
 use std::sync::Arc;
 

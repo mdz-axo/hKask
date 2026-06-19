@@ -193,7 +193,6 @@ impl std::fmt::Display for DimensionMismatch {
 mod tests {
     use super::*;
 
-    // contract: types-error-001
     #[test]
     fn mcperrorkind_is_retryable() {
         assert!(McpErrorKind::Unavailable.is_retryable());
@@ -206,7 +205,6 @@ mod tests {
         assert!(!McpErrorKind::FailedPrecondition.is_retryable());
     }
 
-    // contract: types-error-002
     #[test]
     fn mcperrorkind_requires_intervention() {
         assert!(McpErrorKind::PermissionDenied.requires_intervention());
@@ -219,7 +217,6 @@ mod tests {
         assert!(!McpErrorKind::RateLimited.requires_intervention());
     }
 
-    // contract: types-error-003
     #[test]
     fn from_poison_error_produces_lock_poisoned() {
         let mutex = std::sync::Mutex::new(42);
@@ -236,7 +233,6 @@ mod tests {
         assert_eq!(infra, InfrastructureError::LockPoisoned);
     }
 
-    // contract: types-error-004
     #[test]
     fn from_serde_error_produces_serialization() {
         let bad_json = "{invalid";
@@ -246,7 +242,6 @@ mod tests {
         assert!(matches!(infra, InfrastructureError::Serialization(_)));
     }
 
-    // contract: types-error-005
     #[test]
     fn infrastructure_error_display_is_readable() {
         assert_eq!(
@@ -263,7 +258,6 @@ mod tests {
         );
     }
 
-    // contract: types-error-006
     #[test]
     fn mcperrorkind_display_renders_snake_case() {
         assert_eq!(McpErrorKind::Internal.to_string(), "internal");

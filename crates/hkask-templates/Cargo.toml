@@ -19,7 +19,6 @@ uuid.workspace = true
 rusqlite.workspace = true
 tokio.workspace = true
 ed25519-dalek.workspace = true
-hkask-rsolidity = { path = "../hkask-rsolidity" }
 
 [dev-dependencies]
 hkask-test-harness = { path = "../hkask-test-harness" }

@@ -9,7 +9,7 @@ pub mod api_metering; // API key metering — rate limits, CNS spans, alerts
 pub mod calibrated_energy_estimator; // Loop 6 — self-regulating per-server gas estimator
 pub mod circuit_breaker; // Loop 6 — regulation
 pub mod composite_energy_estimator; // Composite routing: inference → token-based, others → table
-pub mod contract_discipline; // Contract CNS span emission (Testing Discipline §9.3)
+
 pub mod cybernetics_loop; // Loop 6
 pub(crate) mod dampener; // Loop 6 — regulation
 pub mod energy; // Loop 6 — energy budgets (hJoules)
@@ -52,11 +52,7 @@ pub use wallet_gas_calibrator::{
     DEFAULT_WALLET_CALIBRATION_INTERVAL, DEFAULT_WALLET_INITIAL_LOOKBACK, WalletGasCalibrator,
 };
 // allosteric types deleted — MWC sigmoid added zero runtime-observable behavior.
-pub use contract_discipline::{
-    ContractBridgeError, create_contract_violation_task, emit_contract_accepted,
-    emit_contract_coverage, emit_contract_proposed, emit_contract_rejected, emit_contract_violated,
-    emit_contract_violated_with_task,
-};
+
 pub use gas_report::{AgentGasReport, AgentGasSummary, GasReport, GasTotals, ToolGasBreakdown};
 pub use hkask_types::cns::QueueDepth;
 pub use runtime::CnsRuntime;

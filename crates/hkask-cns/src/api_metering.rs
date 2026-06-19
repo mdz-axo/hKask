@@ -10,7 +10,6 @@
 //! Every API call with `Authorization: Bearer hk_...` opens a span tracking:
 //! `key_id, endpoint, scope_matched, gas_consumed, allocation_remaining, rate_limit_status`
 
-use hkask_rsolidity as rs;
 use hkask_types::wallet::{ApiKeyId, Encumbrance};
 use std::collections::HashMap;
 use std::time::Instant;

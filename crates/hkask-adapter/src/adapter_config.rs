@@ -4,7 +4,6 @@
 //! the adapter's rank, alpha, target modules, base model, and format version.
 //! Providers validate this config before accepting the adapter for upload.
 
-use hkask_rsolidity::contract;
 
 use serde::{Deserialize, Serialize};
 

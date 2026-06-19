@@ -1,6 +1,5 @@
 //! NuEventStore — Persistent storage for CNS ν-events
 use crate::{Store, now_rfc3339};
-use hkask_rsolidity as rs;
 use hkask_types::event::{Phase, Span, SpanCategory, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::{InfrastructureError, NuEvent, NuEventSink, Visibility};

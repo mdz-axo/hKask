@@ -10,7 +10,6 @@
 //! The helpers below provide a named, self-documenting call site and keep the
 //! `?` ergonomics intact while also supporting explicit `.map_err()` chains
 //! for crate-local error types.
-use hkask_rsolidity as rs;
 use hkask_types::InfrastructureError;
 use std::sync::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 /// Acquire a `Mutex` lock, mapping poison to `InfrastructureError::LockPoisoned`.

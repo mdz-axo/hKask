@@ -10,7 +10,6 @@
 //! - `test_event()` / `test_triple()` — factories for well-formed test entities
 //! - `strategies` — proptest strategy functions for core types
 //! - `test_runner` — cargo test invocation and REQ-tagged failure parsing
-//! - `ProbContractRunner` — (p, δ, k)-satisfaction for non-deterministic contracts
 //!
 //! # Principle grounding
 //! - P5 (Essentialism): each public item does one thing well
@@ -19,12 +18,11 @@
 
 pub mod fuzz;
 pub mod mocks;
-pub mod prob_contract;
+
 mod schema;
 pub mod strategies;
 pub mod test_runner;
 
-pub use prob_contract::{ProbContractResult, ProbContractRunner};
 pub use schema::SCHEMA_SQL;
 pub use test_runner::ExpectProposal;
 
@@ -438,7 +436,6 @@ mod tests {
     use super::*;
     use hkask_types::event::SpanNamespace;
 
-    // contract: HAR-001
     #[test]
     fn test_db_creates_valid_database() {
         let db = TestDb::new();
@@ -451,7 +448,6 @@ mod tests {
         assert_eq!(result.unwrap(), "triples");
     }
 
-    // contract: HAR-002
     #[test]
     fn test_keystore_creates_key_file() {
         let ks = TestKeystore::new();
@@ -461,7 +457,6 @@ mod tests {
         assert_eq!(stored.len(), 32);
     }
 
-    // contract: HAR-003
     #[test]
     fn test_webid_deterministic() {
         let a1 = TestWebId::alice();
@@ -472,7 +467,6 @@ mod tests {
         assert_ne!(a1, b, "different personas must produce different WebIDs");
     }
 
-    // contract: HAR-004
     #[test]
     fn mock_cns_detects_perturbation() {
         let cns = MockCnsRuntime::new();
@@ -487,7 +481,6 @@ mod tests {
         assert!(signals.iter().any(|s| s.is_negative_valence()));
     }
 
-    // contract: HAR-005
     #[test]
     fn mock_cns_restores_homeostasis() {
         let cns = MockCnsRuntime::new();
@@ -501,7 +494,6 @@ mod tests {
         assert!(signals.iter().any(|s| s.is_positive_valence()));
     }
 
-    // contract: HAR-006
     #[test]
     fn temp_dir_is_usable() {
         let dir = temp_dir();
@@ -511,7 +503,6 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&file_path).unwrap(), "hello");
     }
 
-    // contract: HAR-007
     #[test]
     fn test_event_is_valid() {
         let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
@@ -521,7 +512,6 @@ mod tests {
         assert_eq!(event.recursion_depth, 0);
     }
 
-    // contract: HAR-008
     #[test]
     fn test_triple_is_valid() {
         let triple = test_triple("entity:test", "attr:name", serde_json::json!("value"), None);

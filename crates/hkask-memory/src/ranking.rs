@@ -4,7 +4,6 @@
 //! age/date parsing. Web-specific types (`RankedResult`, `dedup_results`,
 //! `apply_rerank`) remain in `hkask-mcp-web`.
 
-use hkask_rsolidity::contract;
 
 use chrono::Datelike;
 

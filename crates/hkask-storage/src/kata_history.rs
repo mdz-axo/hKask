@@ -11,7 +11,6 @@
 use crate::Store;
 use crate::define_store;
 use crate::impl_from_rusqlite;
-use hkask_rsolidity as rs;
 use hkask_types::InfrastructureError;
 define_store!(KataHistoryStore);
 /// A single kata practice session entry.

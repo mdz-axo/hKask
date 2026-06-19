@@ -1,12 +1,10 @@
 //! VerificationService — Magna Carta sovereignty verification.
 //! # REQ: P4 (Clear Boundaries) — verifies P1-P4 are enforced through OCAP gates.
-//! # expect: "Service boundaries enforce OCAP membranes" [P4]
 //!
 //! Loads YAML manifests defining assertions against hKask's four Magna Carta
 //! principles (User Sovereignty, Affirmative Consent, Generative Space, Clear
 //! Boundaries), dispatches verification methods, and produces structured reports.
 
-use hkask_rsolidity::contract;
 
 use hkask_types::sovereignty::{DataCategory, DataSovereigntyBoundary};
 use serde::Deserialize;

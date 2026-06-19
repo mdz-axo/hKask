@@ -3,7 +3,6 @@
 //! Cybernetic feedback types for Improvement Kata signal computation.
 //! Persisted per agent to enable composition (graduation criteria, habit monitoring).
 
-use hkask_rsolidity::contract;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

@@ -5,7 +5,6 @@ use crate::dynamic_gas_table::DynamicGasTable;
 use crate::governed_tool::EnergyEstimator;
 use crate::inference_estimator::InferenceEnergyEstimator;
 use crate::table_energy_estimator::TableEnergyEstimator;
-use hkask_rsolidity as rs;
 use serde_json::Value;
 
 /// Composite gas estimator that routes inference tools to InferenceEnergyEstimator
@@ -70,7 +69,6 @@ impl EnergyEstimator for CompositeEnergyEstimator {
 mod tests {
     use super::*;
 
-    // contract: GAS-CALIB-003
     #[test]
     fn from_dynamic_table_uses_calibrated_server_cost() {
         let mut table = DynamicGasTable::new();
@@ -86,7 +84,6 @@ mod tests {
         );
     }
 
-    // contract: GAS-CALIB-003
     #[test]
     fn from_dynamic_table_retains_default_for_unobserved_servers() {
         let table = DynamicGasTable::new();
@@ -108,7 +105,6 @@ mod tests {
         assert_eq!(cost, 100, "inference cost uses token estimator, not table");
     }
 
-    // contract: GAS-CALIB-003
     #[test]
     fn from_dynamic_table_preserves_tool_overrides() {
         let table = DynamicGasTable::new();

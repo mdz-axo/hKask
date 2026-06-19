@@ -156,7 +156,6 @@ impl VoiceDesign {
 mod tests {
     use super::*;
 
-    // contract: types-voice-001
     #[test]
     fn default_voice_is_neutral() {
         let v = VoiceDesign::default();
@@ -164,7 +163,6 @@ mod tests {
         assert_eq!(v.pitch, "medium");
     }
 
-    // contract: types-voice-002
     #[test]
     fn tts_description_renders_prose() {
         let v = VoiceDesign {

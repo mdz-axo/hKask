@@ -82,7 +82,6 @@ pub struct ApiKeyMaterial {
     pub capability: ApiKeyCapability,
 }
 
-// contract: MUST-2
 impl fmt::Debug for ApiKeyMaterial {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ApiKeyMaterial")

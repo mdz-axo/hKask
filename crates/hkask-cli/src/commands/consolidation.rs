@@ -1,6 +1,5 @@
 //! Consolidation command — user-triggered episodic→semantic consolidation
 
-use hkask_rsolidity::contract;
 
 use hkask_services::consolidation;
 use hkask_types::WebID;

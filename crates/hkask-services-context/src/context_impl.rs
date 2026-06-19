@@ -22,8 +22,6 @@
 //! 2. Does it already have a home crate/module? If yes, access it there.
 //! 3. Is it surface-specific (CLI-only or API-only)? If yes, put it in the surface.
 
-use hkask_rsolidity::contract;
-
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -255,7 +253,6 @@ impl AgentService {
 
     // === Named accessors (replaces positional tuple group methods) ===
     // # REQ: P4 (Clear Boundaries)
-    // # expect: "Service boundaries enforce OCAP membranes" [P4]
 
     // --- Memory ---
     pub fn memory(&self) -> (&Arc<dyn EpisodicStoragePort>, &Arc<dyn SemanticStoragePort>) {
@@ -319,7 +316,6 @@ impl AgentService {
     /// Capability checker for OCAP verification.
     ///
     /// # REQ: P4 (OCAP), P1 (User Sovereignty)
-    /// # expect: "Service boundaries enforce OCAP membranes" [P4]
     pub fn capability_checker(&self) -> &Arc<CapabilityChecker> {
         &self.capability_checker
     }
@@ -367,7 +363,6 @@ impl AgentService {
     /// consent_manager is PRIVATE — no raw store access.
     ///
     /// # REQ: P1 (User Sovereignty), P2 (Affirmative Consent)
-    /// # expect: "My service operations flow through sovereignty-verifying boundaries" [P1]
     pub fn sovereignty(&self) -> SovereigntyService {
         SovereigntyService::new(self.consent_manager.clone())
     }

@@ -7,7 +7,6 @@
 //! DeepInfra has the broadest open-source model catalog and the
 //! lowest per-token pricing among GPU cloud providers.
 
-use hkask_rsolidity::contract;
 
 use crate::chat_protocol::{
     build_chat_request, chat_response_to_result, stream_chat_completion, validate_prompt,

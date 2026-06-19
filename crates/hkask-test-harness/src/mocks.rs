@@ -174,7 +174,6 @@ mod tests {
         LLMParameters::default()
     }
 
-    // contract: HARN-006
     #[tokio::test]
     async fn mock_returns_canned_response() {
         let mock = MockInferencePort::new()
@@ -186,7 +185,6 @@ mod tests {
         assert_eq!(result.model, "mock-model");
     }
 
-    // contract: HARN-006
     #[tokio::test]
     async fn mock_returns_default_for_unmatched() {
         let mock = MockInferencePort::new()
@@ -197,7 +195,6 @@ mod tests {
         assert_eq!(result.text, "I don't know");
     }
 
-    // contract: HARN-006
     #[tokio::test]
     async fn mock_longest_prefix_wins() {
         let mock = MockInferencePort::new()
@@ -214,7 +211,6 @@ mod tests {
         assert_eq!(result.text, "generic");
     }
 
-    // contract: HARN-006
     #[tokio::test]
     async fn mock_error_injection() {
         let mock = MockInferencePort::new().with_response("test", "ok");
@@ -228,7 +224,6 @@ mod tests {
         assert_eq!(result.text, "ok");
     }
 
-    // contract: HARN-006
     #[tokio::test]
     async fn mock_generate_with_model_delegates() {
         let mock = MockInferencePort::new().with_response("hi", "response");

@@ -6,7 +6,6 @@
 
 use crate::error::RegistryError;
 use crate::ports::RegistrySourcePort;
-use hkask_rsolidity as rs;
 use std::fs;
 
 /// Filesystem-backed registry source

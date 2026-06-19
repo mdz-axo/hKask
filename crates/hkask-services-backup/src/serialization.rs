@@ -6,7 +6,6 @@
 //! Initial implementation uses JSON for all types — simplest, diffable, human-readable.
 //! Per-type format optimization deferred to F1 resolution.
 
-use hkask_rsolidity::contract;
 
 use serde::Serialize;
 

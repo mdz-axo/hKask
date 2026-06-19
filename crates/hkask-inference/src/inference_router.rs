@@ -4,7 +4,6 @@
 //! 2-letter provider prefix in the model name. Unprefixed model names
 //! use the configured default provider.
 
-use hkask_rsolidity::contract;
 
 use crate::RouterModelEntry;
 use crate::chat_protocol::validate_prompt;

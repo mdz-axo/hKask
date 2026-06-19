@@ -3,7 +3,6 @@
 //! Applied as the outermost middleware layer so all requests are captured
 //! regardless of auth or route-level filtering.
 
-use hkask_rsolidity::contract;
 
 use axum::{body::Body, http::Request, middleware::Next, response::Response};
 use std::time::Instant;

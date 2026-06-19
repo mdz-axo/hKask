@@ -1,6 +1,5 @@
 //! Curator commands — delegates to CuratorService.
 
-use hkask_rsolidity::contract;
 
 use hkask_services::{CuratorService, ServiceError};
 use hkask_storage::EscalationEntry;

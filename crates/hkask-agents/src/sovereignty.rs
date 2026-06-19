@@ -11,7 +11,6 @@
 //! `ConsentManager`-backed port so that grants via `kask sovereignty grant`
 //! or `POST /consent/grant` are observed on the next sovereignty check.
 
-use hkask_rsolidity as rs;
 use hkask_types::WebID;
 use hkask_types::sovereignty::{DataCategory, UserSovereigntyState};
 use std::sync::Arc;

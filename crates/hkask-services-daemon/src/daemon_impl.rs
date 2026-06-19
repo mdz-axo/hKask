@@ -14,7 +14,6 @@
 //! observing in the MCP session — the same way a chat-mode agent thinks about
 //! conversation turns.
 
-use hkask_rsolidity::contract;
 
 use std::collections::HashMap;
 use std::sync::Arc;

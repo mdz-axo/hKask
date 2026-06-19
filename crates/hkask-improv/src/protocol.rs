@@ -110,8 +110,6 @@ impl ImprovResponse {
 mod tests {
     use super::*;
 
-    // contract: IMPROV-PROTOCOL-001
-    // contract: IMPROV-PROTOCOL-002
     #[test]
     fn contribution_and_response_fields() {
         let source = WebID::new();

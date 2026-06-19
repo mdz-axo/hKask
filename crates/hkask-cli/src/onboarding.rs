@@ -922,7 +922,6 @@ fn prompt_choice(
 mod tests {
     use super::passphrase_strength;
 
-    // contract: CLI-ONBOARDING-001
     // regardless of character variety.
     #[test]
     fn passphrase_strength_weak_below_8() {
@@ -931,7 +930,6 @@ mod tests {
         assert_eq!(passphrase_strength("").0, "weak");
     }
 
-    // contract: CLI-ONBOARDING-002
     // letters) is classified "fair" — meets the minimum length but lacks variety.
     #[test]
     fn passphrase_strength_fair_at_8_single_variety() {
@@ -941,7 +939,6 @@ mod tests {
         assert_eq!(passphrase_strength("abcdefghijk").0, "fair");
     }
 
-    // contract: CLI-ONBOARDING-003
     // classified "strong".
     #[test]
     fn passphrase_strength_strong_at_16_high_variety() {

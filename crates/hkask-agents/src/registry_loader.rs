@@ -2,7 +2,6 @@
 
 use crate::a2a::{A2AError, A2ARuntime};
 use crate::ports::RegistrySourcePort;
-use hkask_rsolidity as rs;
 use hkask_storage::{AgentRegistryError, AgentRegistryStore, now_rfc3339};
 use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID};
 use serde::Deserialize;

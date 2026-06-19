@@ -9,7 +9,6 @@
 //! silently skipped with a warning log. CLI commands never fail because of
 //! memory unavailability.
 
-use hkask_rsolidity::contract;
 
 use hkask_mcp::DaemonClient;
 use hkask_types::time::now_rfc3339;

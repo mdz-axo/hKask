@@ -132,7 +132,6 @@ mod tests {
     use super::*;
     use std::thread;
 
-    // contract: IMPROV-FREESTYLING-001
     #[test]
     fn session_expires_after_time_bound() {
         let agent = WebID::new();
@@ -142,7 +141,6 @@ mod tests {
         assert!(session.is_expired());
     }
 
-    // contract: IMPROV-FREESTYLING-002
     #[test]
     fn supports_multiple_participants() {
         let a1 = WebID::new();
@@ -152,7 +150,6 @@ mod tests {
         assert_eq!(session.participants.len(), 3);
     }
 
-    // contract: IMPROV-FREESTYLING-003
     #[test]
     fn cycles_participants_round_robin() {
         let a1 = WebID::new();
@@ -169,7 +166,6 @@ mod tests {
         assert_eq!(session.next_speaker(), a1); // Wraps around
     }
 
-    // contract: IMPROV-FREESTYLING-004
     #[test]
     fn records_turns_and_increments_count() {
         let a1 = WebID::new();
@@ -186,7 +182,6 @@ mod tests {
         assert_eq!(session.turn_count(), 2);
     }
 
-    // contract: IMPROV-FREESTYLING-005
     #[test]
     fn cycle_returns_none_when_expired() {
         let a1 = WebID::new();
@@ -196,14 +191,12 @@ mod tests {
         assert!(result.is_none(), "Expired session should return None");
     }
 
-    // contract: IMPROV-FREESTYLING-006
     #[test]
     #[should_panic(expected = "requires at least one participant")]
     fn panics_on_empty_participants() {
         FreestyleSession::new(vec![], Duration::from_secs(60));
     }
 
-    // contract: IMPROV-FREESTYLING-007
     #[test]
     fn time_remaining_decreases() {
         let a1 = WebID::new();

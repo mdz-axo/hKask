@@ -6,7 +6,6 @@
 //! Follows the `hkask-storage` pattern: `Database` + migrations + CRUD.
 //! Adapter weights live on disk; only metadata is stored in SQLite.
 
-use hkask_rsolidity::contract;
 
 use crate::expertise::{Expertise, MdsDomain, TrainingProvenance};
 use hkask_storage::Store;

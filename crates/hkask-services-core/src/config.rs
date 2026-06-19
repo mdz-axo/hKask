@@ -6,7 +6,6 @@
 //! surfaces construct a `ServiceConfig` from environment variables, keychain
 //! secrets, or explicit parameters, then pass it to `AgentService::build()`.
 
-use hkask_rsolidity::contract;
 
 use crate::error::ServiceError;
 use hkask_inference::InferenceConfig;

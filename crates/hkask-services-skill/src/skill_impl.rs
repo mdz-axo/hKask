@@ -1,6 +1,5 @@
 //! Skill service — visibility management and publishing.
 //! # REQ: P11 (Digital Public/Private Sphere) — private→public skill export with namespace.
-//! # expect: "The service layer exposes minimal, essential interfaces shared by all surfaces" [P5]
 //!
 //! Implements the two-zone skill model: `.agents/skills/` (private source)
 //! → `skills/` (public export surface). Handles replicant name resolution,
@@ -9,7 +8,6 @@
 //!
 //! ℏKask - A Minimal Viable Container for Agents
 
-use hkask_rsolidity::contract;
 
 use hkask_templates::SkillLoader;
 use hkask_types::ports::{Skill, SkillZone};

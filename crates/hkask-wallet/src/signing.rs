@@ -20,7 +20,6 @@
 
 use ed25519_dalek::Signer;
 use hkask_keystore::keychain::resolve_treasury_key;
-use hkask_rsolidity as rs;
 use hkask_types::wallet::{ApiKeyCapability, ChainId, WalletError};
 use zeroize::Zeroizing;
 

@@ -88,7 +88,6 @@ impl KataImprovResult {
 mod tests {
     use super::*;
 
-    // contract: IMPROV-KATA-001
     #[test]
     fn kata_phases_map_to_correct_modes() {
         assert!(matches!(
@@ -113,7 +112,6 @@ mod tests {
         ));
     }
 
-    // contract: IMPROV-KATA-002
     #[test]
     fn kata_improv_result_delta_detection() {
         // Positive delta — no alert.

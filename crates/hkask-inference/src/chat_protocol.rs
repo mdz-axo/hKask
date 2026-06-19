@@ -8,7 +8,6 @@
 //! an abstraction layer. Each backend owns its HTTP client, auth, and
 //! model listing endpoint independently.
 
-use hkask_rsolidity::contract;
 
 use futures_util::StreamExt;
 use hkask_types::ports::{

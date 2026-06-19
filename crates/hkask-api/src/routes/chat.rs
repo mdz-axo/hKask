@@ -12,7 +12,6 @@ use axum::{
     extract::State,
     response::sse::{Event, Sse},
 };
-use hkask_rsolidity as rs;
 use std::convert::Infallible;
 use utoipa_axum::{router::OpenApiRouter, routes};
 

@@ -4,7 +4,6 @@
 //! hiding the `Arc<RwLock<>>` pattern so callers don't repeat
 //! `cns_runtime.read().await.xxx().await` at every call site.
 
-use hkask_rsolidity::contract;
 
 use std::collections::HashMap;
 use std::sync::Arc;

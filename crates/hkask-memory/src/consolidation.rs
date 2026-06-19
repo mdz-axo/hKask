@@ -9,7 +9,6 @@
 //! This is a ONE-WAY operation: Episodic → Semantic. No reverse flow.
 //! Authority: Curation directs, Cybernetics regulates (budget enforcement).
 
-use hkask_rsolidity::contract;
 
 use std::sync::Arc;
 

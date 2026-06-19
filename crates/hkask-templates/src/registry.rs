@@ -8,7 +8,6 @@
 //!
 //! Rust is the loom. YAML/Jinja2 is the thread.
 
-use hkask_rsolidity::contract;
 
 use crate::ports::{Result, TemplateError};
 use hkask_types::ports::{BundleRegistryIndex, RegistryEntry, RegistryIndex, SkillRegistryIndex};

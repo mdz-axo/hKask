@@ -1,7 +1,6 @@
 //! Backup configuration — what to track, retention policy, auto-snapshot behavior.
 //! # REQ: P1 (User Sovereignty) — user controls what is tracked and for how long.
 
-use hkask_rsolidity::contract;
 
 use serde::{Deserialize, Serialize};
 

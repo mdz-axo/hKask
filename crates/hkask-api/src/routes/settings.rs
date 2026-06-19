@@ -7,7 +7,6 @@
 use axum::Json;
 use axum::extract::{Extension, State};
 use axum::routing::get;
-use hkask_rsolidity as rs;
 
 use crate::middleware::auth::AuthContext;
 use serde::{Deserialize, Serialize};
@@ -169,7 +168,6 @@ async fn update_settings(
 mod tests {
     use super::*;
 
-    // contract: Merge-update
     // in the request are changed; all others keep their current values.
 
     #[test]
@@ -208,7 +206,6 @@ mod tests {
         assert!((settings.top_p - 0.9).abs() < f32::EPSILON);
     }
 
-    // contract: Merge-update
     #[test]
     fn update_settings_out_of_range_is_ignored() {
         let mut settings = SettingsResponse::default();
@@ -235,7 +232,6 @@ mod tests {
         assert!((settings.temperature - 0.7).abs() < f32::EPSILON);
     }
 
-    // contract: api-settings-003
     #[test]
     fn update_settings_seed_merge() {
         let mut settings = SettingsResponse::default();
@@ -443,7 +439,6 @@ mod tests {
                 )
         }
 
-        // contract: api-settings-prop-001
         proptest! {
             #[test]
             fn merge_idempotent(
@@ -464,7 +459,6 @@ mod tests {
             }
         }
 
-        // contract: api-settings-prop-002
         proptest! {
             #[test]
             fn unspecified_fields_preserved(
@@ -514,7 +508,6 @@ mod tests {
             }
         }
 
-        // contract: api-settings-prop-003
         proptest! {
             #[test]
             fn out_of_range_values_ignored(

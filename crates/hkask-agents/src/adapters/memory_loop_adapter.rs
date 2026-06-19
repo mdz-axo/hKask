@@ -10,7 +10,6 @@ use crate::ports::{
     StorageRequest,
 };
 use hkask_memory::{EpisodicMemory, SemanticMemory};
-use hkask_rsolidity as rs;
 use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
 use hkask_types::{
     Confidence, DelegationToken, ExperienceClassification, require_read_access,

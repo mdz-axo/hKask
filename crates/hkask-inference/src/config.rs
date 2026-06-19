@@ -27,7 +27,6 @@
 //! - `TG/Qwen/Qwen2.5-7B-Instruct-Turbo` → Together AI (cloud)
 //! - No prefix → default provider (configurable, default: DeepInfra)
 
-use hkask_rsolidity::contract;
 
 use serde::{Deserialize, Serialize};
 

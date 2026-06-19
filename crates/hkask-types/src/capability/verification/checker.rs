@@ -235,7 +235,6 @@ mod tests {
     use crate::capability::derive_signing_key;
     use crate::id::WebID;
 
-    // contract: types-cap-verify-001
     #[test]
     fn capability_checker_new_creates_checker() {
         let secret = b"test-secret-32-bytes-long!!";

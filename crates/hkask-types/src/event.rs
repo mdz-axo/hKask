@@ -424,7 +424,6 @@ mod tests {
     use super::*;
     use crate::id::WebID;
 
-    // contract: types-event-001
     #[test]
     fn nuevent_new_sets_correct_defaults() {
         let webid = WebID::from_persona(b"test-agent");
@@ -443,7 +442,6 @@ mod tests {
         assert!(event.parent_event.is_none());
     }
 
-    // contract: types-event-002
     #[test]
     fn nuevent_builder_chain_sets_fields() {
         let webid = WebID::from_persona(b"test-agent");
@@ -462,7 +460,6 @@ mod tests {
         assert_eq!(event.visibility, "public");
     }
 
-    // contract: types-event-003
     #[test]
     fn spannamespace_parse_accepts_short_and_full_forms() {
         let full = SpanNamespace::parse("cns.tool");
@@ -474,7 +471,6 @@ mod tests {
         assert_eq!(short.unwrap().as_str(), "cns.tool");
     }
 
-    // contract: types-event-004
     #[test]
     fn spannamespace_parse_rejects_invalid() {
         assert!(SpanNamespace::parse("cns.nonexistent").is_none());
@@ -482,7 +478,6 @@ mod tests {
         assert!(SpanNamespace::parse("").is_none());
     }
 
-    // contract: types-event-005
     #[test]
     fn spannamespace_category_classifies_correctly() {
         assert_eq!(
@@ -511,7 +506,6 @@ mod tests {
         );
     }
 
-    // contract: types-event-006
     #[test]
     fn spancategory_from_short_name_parses_correctly() {
         assert_eq!(
@@ -536,7 +530,6 @@ mod tests {
         );
     }
 
-    // contract: types-event-007
     #[test]
     fn phase_from_str_backward_compatible() {
         // New names
@@ -552,7 +545,6 @@ mod tests {
         assert_eq!(Phase::from_str("unknown"), Phase::Sense);
     }
 
-    // contract: types-event-008
     #[test]
     fn span_new_constructs_full_path() {
         let ns = SpanNamespace::new("cns.tool");
@@ -560,7 +552,6 @@ mod tests {
         assert_eq!(span.as_str(), "cns.tool.invoked");
     }
 
-    // contract: types-event-009
     #[test]
     fn span_from_kind_produces_correct_paths() {
         assert_eq!(
@@ -603,7 +594,6 @@ mod tests {
             (0..CANONICAL_NAMESPACES.len()).prop_map(|i| CANONICAL_NAMESPACES[i].to_string())
         }
 
-        // contract: span-prop-001
         proptest! {
             #[test]
             fn all_canonical_namespaces_parse(
@@ -616,7 +606,6 @@ mod tests {
             }
         }
 
-        // contract: span-prop-002
         // e.g., "tool" → parse() → as_str() == "cns.tool"
         proptest! {
             #[test]
@@ -631,7 +620,6 @@ mod tests {
             }
         }
 
-        // contract: span-prop-003
         proptest! {
             #[test]
             fn non_canonical_returns_none(
@@ -646,7 +634,6 @@ mod tests {
             }
         }
 
-        // contract: span-prop-004
         proptest! {
             #[test]
             fn from_short_name_known_prefixes(
@@ -664,7 +651,6 @@ mod tests {
         }
 
         proptest! {
-                    // contract: span-prop-004
                     #[test]
                     fn from_short_name_unknown_prefix(
                         prefix in "[a-z][a-z0-9_]*"
@@ -679,7 +665,6 @@ mod tests {
                     }
                 }
 
-        // contract: span-prop-005
         proptest! {
             #[test]
             fn namespace_category_invariant(

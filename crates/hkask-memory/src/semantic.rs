@@ -9,7 +9,6 @@
 //! - **Corpus centroid**: Mean embedding vector for style cluster validation.
 //! - **Prefix purge**: Idempotent re-ingest by deleting embeddings matching a prefix.
 
-use hkask_rsolidity::contract;
 
 use crate::recall_dedup;
 use hkask_storage::{

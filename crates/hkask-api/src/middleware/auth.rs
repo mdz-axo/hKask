@@ -15,7 +15,6 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use hkask_rsolidity as rs;
 use hkask_types::{DelegationToken, SYSTEM_MAX_ATTENUATION};
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
@@ -151,7 +150,6 @@ pub async fn auth_middleware(
     }
 
     // If session middleware already injected AuthContext, skip capability token check
-    // contract: DEP-020
     if req.extensions().get::<AuthContext>().is_some() {
         return next.run(req).await;
     }

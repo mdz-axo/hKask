@@ -5,7 +5,6 @@
 //! 2. Deletes semantic triples at or below a configurable confidence floor
 //! 3. Enforces a maximum semantic triple count by deleting lowest-confidence
 
-use hkask_rsolidity::contract;
 
 use std::sync::Arc;
 

@@ -15,7 +15,6 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use hkask_rsolidity as rs;
 use hkask_types::ports::RegistryIndex;
 use utoipa_axum::{router::OpenApiRouter, routes};
 

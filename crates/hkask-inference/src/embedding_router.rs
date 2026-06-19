@@ -3,7 +3,6 @@
 //! Routes embedding requests to DeepInfra based on
 //! the 2-letter provider prefix. DeepInfra uses OpenAI-compatible `/v1/embeddings`.
 
-use hkask_rsolidity::contract;
 
 use crate::config::{InferenceConfig, ProviderId};
 use hkask_types::ports::EmbeddingGenerationError;

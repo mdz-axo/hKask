@@ -6,7 +6,6 @@
 //! **Authority DAG:** Curation → Cybernetics → {Inference, Memory}
 
 use hkask_cns::CyberneticsLoop;
-use hkask_rsolidity as rs;
 use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::LoopId;
 use std::collections::HashMap;

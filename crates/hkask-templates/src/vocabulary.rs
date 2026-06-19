@@ -1,4 +1,3 @@
-use hkask_rsolidity::contract;
 
 use hkask_types::ports::registry::RegistryEntry;
 
@@ -175,7 +174,6 @@ pub fn validate_entry(entry: &RegistryEntry) -> Vec<String> {
 mod tests {
     use super::*;
 
-    // contract: tpl-vocab-test-sorted
     #[test]
     fn known_terms_are_sorted() {
         for w in KNOWN_TERMS.windows(2) {
@@ -188,7 +186,6 @@ mod tests {
         }
     }
 
-    // contract: tpl-vocab-test-duplicates
     #[test]
     fn known_terms_no_duplicates() {
         for w in KNOWN_TERMS.windows(2) {

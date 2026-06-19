@@ -8,7 +8,6 @@
 //! CNS spans emit lifecycle events for homeostatic monitoring:
 //!   `cns.server.{name}.{started,healthy,degraded,stopped}`
 
-use hkask_rsolidity::contract;
 
 use thiserror::Error;
 

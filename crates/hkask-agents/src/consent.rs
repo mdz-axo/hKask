@@ -9,7 +9,6 @@
 //! Consent records are persisted via `ConsentStore` (SQLite-backed),
 //! so they survive restarts — enforcing user sovereignty (Principle 1.3).
 
-use hkask_rsolidity as rs;
 use hkask_storage::{ConsentStore, Store, StoredConsentRecord, read_rwlock, write_rwlock};
 use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};

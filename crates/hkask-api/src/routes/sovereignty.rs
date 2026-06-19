@@ -2,7 +2,6 @@
 
 use axum::extract::Extension;
 use axum::{Json, extract::Query, extract::State};
-use hkask_rsolidity as rs;
 use hkask_services::ServiceError;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

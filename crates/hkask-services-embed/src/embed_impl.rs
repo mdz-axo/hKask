@@ -1,6 +1,5 @@
 //! EmbedService — Style corpus embedding pipeline with metadata layer.
 //! # REQ: P3 (Generative Space) — full parameter exposure, no hidden settings.
-//! # expect: "The service layer enables generative access to domain capabilities" [P3]
 //!
 //! ## Pipeline phases
 //! 1. **Parse config** — YAML with entities, methods, budget, works
@@ -12,7 +11,6 @@
 //! 7. **Store triples** — budget-selected passages get metadata triples
 //! 8. **Centroid** — mean vector over prose passages
 
-use hkask_rsolidity::contract;
 
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_memory::SemanticMemory;

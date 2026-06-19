@@ -4,7 +4,6 @@
 
 use crate::ServiceError;
 use hkask_agents::pod::{ActivePods, AgentPersona, PodID, PodStatusInfo};
-use hkask_rsolidity::contract;
 use hkask_services_context::AgentService;
 use hkask_types::CapabilityChecker;
 use std::sync::Arc;
@@ -47,7 +46,6 @@ impl From<PodStatusInfo> for PodStatusResponse {
 pub struct PodService;
 
 impl PodService {
-    #[contract(id = "P1-svc-pods-128", principle = "P1")]
     pub async fn create_pod(
         ctx: &AgentService,
         req: CreatePodRequest,
@@ -69,7 +67,6 @@ impl PodService {
         })
     }
 
-    #[contract(id = "P1-svc-pods-129", principle = "P1")]
     pub async fn list_pods(ctx: &AgentService) -> Result<Vec<PodStatusResponse>, ServiceError> {
         let pods = ctx.active_pods();
         let statuses = pods.list_statuses().await.map_err(|e| ServiceError::Pod {
@@ -78,7 +75,6 @@ impl PodService {
         Ok(statuses.into_iter().map(PodStatusResponse::from).collect())
     }
 
-    #[contract(id = "P1-svc-pods-130", principle = "P1")]
     pub async fn activate_pod(ctx: &AgentService, pod_id: &str) -> Result<(), ServiceError> {
         let pid = Self::parse_pod_id(pod_id)?;
         // Activation requires MCP runtime port — wired through the context's MCP runtime
@@ -96,7 +92,6 @@ impl PodService {
             })
     }
 
-    #[contract(id = "P1-svc-pods-131", principle = "P1")]
     pub async fn deactivate_pod(ctx: &AgentService, pod_id: &str) -> Result<(), ServiceError> {
         let pid = Self::parse_pod_id(pod_id)?;
         ctx.active_pods()
@@ -107,7 +102,6 @@ impl PodService {
             })
     }
 
-    #[contract(id = "P1-svc-pods-132", principle = "P1")]
     pub async fn get_pod_status(
         ctx: &AgentService,
         pod_id: &str,
@@ -133,7 +127,6 @@ impl PodService {
             })
     }
 
-    #[contract(id = "P1-svc-pods-133", principle = "P1")]
     pub async fn assign_role(
         ctx: &AgentService,
         name: &str,
@@ -147,7 +140,6 @@ impl PodService {
             })
     }
 
-    #[contract(id = "P1-svc-pods-134", principle = "P1")]
     pub async fn set_mode(
         ctx: &AgentService,
         name: &str,

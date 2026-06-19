@@ -9,7 +9,6 @@
 //! spec curation is a persona concern (the Curator Agent curates specs),
 //! not a regulatory concern (the Curation Loop regulates).
 
-use hkask_rsolidity as rs;
 use hkask_storage::spec_types::{Spec, SpecCurationRecord, SpecCurator, SpecError};
 use hkask_types::capability::SYSTEM_MAX_RECURSION;
 use hkask_types::cns::CnsSpan;

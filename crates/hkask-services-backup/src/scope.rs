@@ -1,7 +1,6 @@
 //! Backup scope types — what to snapshot, restore, or list.
 //! # REQ: P8 (Semantic Grounding) — every type encodes a distinct domain concept.
 
-use hkask_rsolidity::contract;
 
 use serde::{Deserialize, Serialize};
 

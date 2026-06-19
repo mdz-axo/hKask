@@ -628,28 +628,24 @@ pub fn propose_missing_expect_annotations(
 mod tests {
     use super::*;
 
-    // contract: harness-trace-008
     #[test]
     fn extract_req_tag_from_line_comment() {
         let tag = extract_req_tag("    // REQ: P9-cns-energy-budget-test");
         assert_eq!(tag, Some("P9-cns-energy-budget-test".to_string()));
     }
 
-    // contract: harness-trace-008
     #[test]
     fn extract_req_tag_from_doc_comment() {
         let tag = extract_req_tag("    /// REQ: CNS-001");
         assert_eq!(tag, Some("CNS-001".to_string()));
     }
 
-    // contract: harness-trace-009
     #[test]
     fn extract_req_tag_no_match() {
         assert_eq!(extract_req_tag("// just a comment"), None);
         assert_eq!(extract_req_tag(""), None);
     }
 
-    // contract: harness-trace-009
     #[test]
     fn extract_count_parses_cargo_output() {
         let output = "running 47 tests\ntest result: ok. 47 passed; 0 failed";
@@ -657,7 +653,6 @@ mod tests {
         assert_eq!(extract_count("no match", "running ", " test"), 0);
     }
 
-    // contract: HARN-048
     #[test]
     fn contract_test_result_debug_format() {
         let result = ContractTestResult {
@@ -672,7 +667,6 @@ mod tests {
         assert!(dbg.contains("10"));
     }
 
-    // contract: HARN-049
     #[test]
     fn discover_finds_contracted_functions() {
         let audit = discover_uncontracted_functions(
@@ -685,14 +679,12 @@ mod tests {
         assert!(audit.total_pub_fns > 0, "should have public functions");
     }
 
-    // contract: HARN-050
     #[test]
     fn discover_nonexistent_crate_returns_none() {
         let audit = discover_uncontracted_functions("nonexistent-crate", "/nonexistent/path");
         assert!(audit.is_none(), "nonexistent crate should return None");
     }
 
-    // contract: HARN-051
     #[test]
     fn inventory_finds_contract_entries() {
         let entries = inventory_contracts(
@@ -706,7 +698,6 @@ mod tests {
         let _ = entries;
     }
 
-    // contract: HARN-052
     #[test]
     fn extract_req_tag_rejects_prose_references() {
         // Prose mentions of REQ should not match

@@ -17,7 +17,6 @@
 
 use crate::cybernetics_loop::CyberneticsLoop;
 use crate::energy::EnergyCost;
-use hkask_rsolidity as rs;
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;

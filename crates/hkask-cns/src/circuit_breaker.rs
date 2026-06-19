@@ -6,7 +6,6 @@
 //! concern, not a templates concern — the CNS governs when the system must
 //! shed load to preserve stability (Ashby's Law of Requisite Variety).
 
-use hkask_rsolidity as rs;
 use hkask_types::cns::CircuitState;
 use hkask_types::ports::CircuitBreakerPort;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
@@ -112,11 +111,10 @@ impl CircuitBreaker {
             }
             CircuitState::HalfOpen => true,
         };
-        rs::assert!(
+        debug_assert!(
             result
                 == (matches!(state, CircuitState::Closed | CircuitState::HalfOpen)
                     || state == CircuitState::Open),
-            "P9-cns-circuit-allow-request",
             "postcondition: result matches circuit state gating"
         );
         result

@@ -22,7 +22,6 @@
 //! - `FA/paddleocr` → fal.ai
 //! - No prefix → default provider (configurable, default: DeepInfra)
 
-use hkask_rsolidity::contract;
 
 pub mod chat_protocol;
 pub mod config;

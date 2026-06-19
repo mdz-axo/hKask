@@ -375,7 +375,6 @@ mod tests {
         }
         (store, webid)
     }
-    // contract: DEP-TEST-001
     #[test]
     fn export_creates_archive_with_metadata() {
         let (store, webid) = setup_triple_store();
@@ -397,7 +396,6 @@ mod tests {
         assert_eq!(meta.triple_count, 3);
         assert_eq!(meta.schema_version, 1);
     }
-    // contract: DEP-TEST-002
     #[test]
     fn archive_rejects_wrong_passphrase() {
         let (store, webid) = setup_triple_store();
@@ -406,7 +404,6 @@ mod tests {
         let result = BackupArchive::open(path, "wrong-pass!!");
         assert!(result.is_err());
     }
-    // contract: DEP-TEST-003
     #[test]
     fn roundtrip_export_open_preserves_triples() {
         let (store, webid) = setup_triple_store();
@@ -419,7 +416,6 @@ mod tests {
         let meta = reopened.metadata().unwrap();
         assert_eq!(meta.triple_count, 3);
     }
-    // contract: DEP-TEST-004
     #[test]
     fn import_into_empty_target() {
         let (source, src_webid) = setup_triple_store();
@@ -461,7 +457,6 @@ mod tests {
             .unwrap();
         assert_eq!(owner, target_webid.to_string());
     }
-    // contract: DEP-TEST-005
     #[test]
     fn import_is_idempotent() {
         let (source, src_webid) = setup_triple_store();
@@ -495,7 +490,6 @@ mod tests {
             .unwrap();
         assert_eq!(count, 3);
     }
-    // contract: DEP-TEST-006
     #[test]
     fn import_auto_renames_on_collision() {
         let (source, src_webid) = setup_triple_store();

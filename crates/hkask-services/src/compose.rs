@@ -1,6 +1,5 @@
 //! Style composition — exemplar retrieval, prose generation, centroid validation.
 
-use hkask_rsolidity::contract;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -157,13 +156,9 @@ impl ComposeService {
     /// Execute the full style composition pipeline.
     ///
     /// # REQ: P3-svc-compose-001 — compose returns generated prose with exemplar retrieval
-    /// # expect: "The service layer enables generative access to domain capabilities" [P3]
     /// # REQ: P3-svc-compose-002 — compose validates centroid distance when no_validate is false
-    /// # expect: "The service layer enables generative access to domain capabilities" [P3]
     /// # REQ: P3-svc-compose-003 — compose returns validation=None when no_validate is true
-    /// # expect: "The service layer enables generative access to domain capabilities" [P3]
     /// # REQ: P3-svc-compose-004 — compose uses Jinja2 template from cognition config
-    /// # expect: "The service layer enables generative access to domain capabilities" [P3]
     pub async fn compose(request: ComposeRequest) -> Result<ComposeResult, ServiceError> {
         // 1. Open DB + construct memory infrastructure
         let db = Database::open(&request.db_path.to_string_lossy(), &request.db_passphrase)

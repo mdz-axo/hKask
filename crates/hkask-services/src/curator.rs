@@ -6,7 +6,6 @@
 //! Both CLI and API surfaces were previously calling
 //! `escalation_queue()` directly with duplicated error mapping.
 
-use hkask_rsolidity::contract;
 
 use std::sync::Arc;
 

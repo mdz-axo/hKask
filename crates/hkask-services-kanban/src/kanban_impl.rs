@@ -10,7 +10,6 @@
 //!   kanban:task  → {task_id}  → JSON Task
 //!   kanban:board_tasks:{board_id} → {task_id} → task_id (index)
 
-use hkask_rsolidity::contract;
 
 use hkask_storage::{Triple, TripleStore};
 use hkask_types::{

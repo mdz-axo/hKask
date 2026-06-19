@@ -7,7 +7,6 @@
 
 use axum::{Extension, Json, extract::State, http::StatusCode, response::Response};
 use base64::Engine;
-use hkask_rsolidity as rs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;

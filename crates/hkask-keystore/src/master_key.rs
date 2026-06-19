@@ -214,7 +214,6 @@ fn derive_sub_key_hex_versioned(master_key: &[u8], context: &str, key_version: u
 mod tests {
     use super::*;
 
-    // contract: svc-keystore-version-004
     //
     // Version N and version N+1 must produce cryptographically independent
     // sub-keys from the same master key and context.
@@ -229,7 +228,6 @@ mod tests {
         assert_ne!(&*v1, &*v2, "Different versions must produce different keys");
     }
 
-    // contract: svc-keystore-version-005
     //
     // The same master key, context, and version must always produce
     // the same sub-key (deterministic derivation).
@@ -244,7 +242,6 @@ mod tests {
         assert_eq!(&*v1_a, &*v1_b, "Same version must produce same key");
     }
 
-    // contract: svc-keystore-version-006
     #[test]
     fn derive_all_secrets_with_version_is_deterministic() {
         let passphrase = "test-passphrase-for-versioning";
@@ -257,7 +254,6 @@ mod tests {
         assert_eq!(secrets_a.ocap_secret, secrets_b.ocap_secret);
     }
 
-    // contract: svc-keystore-version-007
     #[test]
     fn derive_all_secrets_different_versions_differ() {
         let passphrase = "test-passphrase-for-versioning";

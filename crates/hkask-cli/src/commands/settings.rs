@@ -316,7 +316,6 @@ mod tests {
         ReplSettings::default()
     }
 
-    // contract: CLI-SETTINGS-001
 
     #[test]
     fn apply_setting_rejects_zero_loop_limit() {
@@ -325,7 +324,6 @@ mod tests {
         assert_eq!(s.tool_loop_limit, 21);
     }
 
-    // contract: CLI-SETTINGS-002
     #[test]
     fn apply_setting_rejects_negative_loop_limit() {
         let mut s = default_settings();
@@ -333,7 +331,6 @@ mod tests {
         assert_eq!(s.tool_loop_limit, 21);
     }
 
-    // contract: CLI-SETTINGS-003
     #[test]
     fn apply_setting_rejects_temperature_oor() {
         let mut s = default_settings();
@@ -341,7 +338,6 @@ mod tests {
         assert!((s.temperature - 0.7).abs() < f32::EPSILON);
     }
 
-    // contract: CLI-SETTINGS-004
     #[test]
     fn apply_setting_rejects_top_p_oor() {
         let mut s = default_settings();
@@ -349,7 +345,6 @@ mod tests {
         assert!((s.top_p - 0.9).abs() < f32::EPSILON);
     }
 
-    // contract: CLI-SETTINGS-005
     #[test]
     fn apply_setting_rejects_top_k_zero() {
         let mut s = default_settings();
@@ -357,7 +352,6 @@ mod tests {
         assert_eq!(s.top_k, 40);
     }
 
-    // contract: CLI-SETTINGS-006
     #[test]
     fn apply_setting_rejects_garbage_value() {
         let mut s = default_settings();
@@ -365,7 +359,6 @@ mod tests {
         assert!((s.temperature - 0.7).abs() < f32::EPSILON);
     }
 
-    // contract: CLI-SETTINGS-007
 
     #[test]
     fn apply_setting_accepts_valid_temperature() {
@@ -374,7 +367,6 @@ mod tests {
         assert!((s.temperature - 0.3).abs() < f32::EPSILON);
     }
 
-    // contract: CLI-SETTINGS-008
     #[test]
     fn apply_setting_accepts_valid_loop_limit() {
         let mut s = default_settings();
@@ -382,7 +374,6 @@ mod tests {
         assert_eq!(s.tool_loop_limit, 100);
     }
 
-    // contract: CLI-SETTINGS-009
     #[test]
     fn apply_setting_accepts_auto_condense_off() {
         let mut s = default_settings();
@@ -390,7 +381,6 @@ mod tests {
         assert!(!s.auto_condense);
     }
 
-    // contract: CLI-SETTINGS-010
     #[test]
     fn apply_setting_accepts_auto_condense_on() {
         let mut s = default_settings();
@@ -399,7 +389,6 @@ mod tests {
         assert!(s.auto_condense);
     }
 
-    // contract: CLI-SETTINGS-011
     #[test]
     fn apply_setting_accepts_seed_value() {
         let mut s = default_settings();
@@ -407,7 +396,6 @@ mod tests {
         assert_eq!(s.seed, Some(42));
     }
 
-    // contract: CLI-SETTINGS-012
     #[test]
     fn apply_setting_accepts_seed_off() {
         let mut s = default_settings();

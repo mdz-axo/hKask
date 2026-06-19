@@ -3,7 +3,6 @@
 use crate::lock_helpers::lock_mutex;
 use crate::{Store, now_rfc3339};
 use chrono::Utc;
-use hkask_rsolidity as rs;
 use hkask_types::InfrastructureError;
 use hkask_types::event::NuEventSink;
 use hkask_types::goal::{Goal, GoalArtifact, GoalCriterion, GoalID, GoalState};

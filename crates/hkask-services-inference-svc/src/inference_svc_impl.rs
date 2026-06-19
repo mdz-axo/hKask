@@ -14,7 +14,6 @@
 //! - **Depth test** — Deleting this module would cause inference port
 //!   construction logic to reappear in 11+ call sites. Passes deletion test.
 
-use hkask_rsolidity::contract;
 
 use std::sync::Arc;
 
@@ -97,11 +96,8 @@ impl InferenceService {
     /// `InferenceRouter` instance for other models.
     ///
     /// # REQ: P9-svc-inference-svc-inf-001 — resolve_port returns shared port for default model
-    /// # expect: "The service layer provides CNS health and regulation queries" [P9]
     /// # REQ: P9-svc-inference-svc-inf-002 — resolve_port creates fresh instance for non-default model
-    /// # expect: "The service layer provides CNS health and regulation queries" [P9]
     /// # REQ: P9-svc-inference-svc-inf-003 — resolve_port returns Inference error on connection failure
-    /// # expect: "The service layer provides CNS health and regulation queries" [P9]
     pub fn resolve_port(
         ctx: &InferenceContext,
         model: &str,
@@ -124,7 +120,6 @@ impl InferenceService {
     /// List all locally available models from all configured providers.
     ///
     /// # REQ: P9-svc-inference-svc-inf-004 — list_models returns model metadata from all providers
-    /// # expect: "The service layer provides CNS health and regulation queries" [P9]
     pub async fn list_models(ctx: &InferenceContext) -> Result<Vec<ModelInfo>, ServiceError> {
         // P9: CNS span
         tracing::info!(target: "cns.inference_svc", operation = "list_models", "CNS");
@@ -137,7 +132,6 @@ impl InferenceService {
     /// Search available models by name (case-insensitive substring match).
     ///
     /// # REQ: P9-svc-inference-svc-inf-005 — search_models filters models by query substring
-    /// # expect: "The service layer provides CNS health and regulation queries" [P9]
     pub async fn search_models(
         ctx: &InferenceContext,
         query: &str,

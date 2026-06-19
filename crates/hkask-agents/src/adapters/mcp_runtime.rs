@@ -13,7 +13,6 @@
 use crate::error::McpError;
 use crate::ports::MCPRuntimePort;
 use hkask_mcp::runtime::McpRuntime;
-use hkask_rsolidity as rs;
 use hkask_types::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, TOKEN_ERR_EXPIRED,
     TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,

@@ -1,7 +1,6 @@
 //! Security utilities for path sanitization and access control
 //!
 //! Prevents path traversal attacks in storage operations.
-use hkask_rsolidity as rs;
 use hkask_types::InfrastructureError;
 use std::path::{Component, Path, PathBuf};
 /// Sanitize a user-provided path to prevent path traversal attacks.

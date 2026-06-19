@@ -10,7 +10,6 @@
 //! - `tags`: image_id, tag_type, value, confidence
 //! - `face_registry`: first_name, last_name, image_id, status, notes
 use crate::{Store, now_rfc3339};
-use hkask_rsolidity as rs;
 use hkask_types::InfrastructureError;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};

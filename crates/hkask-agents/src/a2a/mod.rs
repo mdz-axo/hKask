@@ -31,7 +31,6 @@ pub use audit::AuditEntry;
 pub(crate) use audit::AuditLog;
 pub(crate) use root_authority::RootAuthority;
 
-use hkask_rsolidity as rs;
 use hkask_types::capability::derive_signing_key;
 use hkask_types::{
     AgentKind, AuditOutcome, CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,

@@ -11,7 +11,6 @@
 
 use crate::runtime::VarietyTracker;
 use chrono::{DateTime, Utc};
-use hkask_rsolidity as rs;
 use hkask_types::cns::CnsHealth;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

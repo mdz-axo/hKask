@@ -3,7 +3,6 @@
 //! Cybernetics subloop 6.1 (Access Guard) governs who can access what.
 //! Human users, replicant identities, and sessions are verified at this boundary.
 
-use hkask_rsolidity::contract;
 
 use crate::WebID;
 use crate::id::UserID;

@@ -1,4 +1,3 @@
-use hkask_rsolidity::contract;
 
 use super::*;
 

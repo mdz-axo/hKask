@@ -6,7 +6,6 @@
 //! Model listing: fal.ai does not expose a standard `/v1/models` endpoint.
 //! Instead, a static catalog of known vision-capable models is used.
 
-use hkask_rsolidity::contract;
 
 use crate::chat_protocol::{
     build_chat_request, chat_response_to_result, stream_chat_completion, validate_prompt,

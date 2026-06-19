@@ -5,7 +5,6 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use hkask_rsolidity as rs;
 use serde::Serialize;
 
 #[derive(Debug)]
@@ -236,7 +235,6 @@ mod tests {
     use super::*;
     use axum::response::IntoResponse;
 
-    // contract: api-error-001
     #[test]
     fn apierror_maps_to_correct_status_codes() {
         let (status, _) = ApiError::NotFound {
@@ -271,7 +269,6 @@ mod tests {
         assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     }
 
-    // contract: api-error-002
     #[test]
     fn apierror_display_is_readable() {
         let err = ApiError::NotFound {
@@ -291,7 +288,6 @@ mod tests {
         assert_eq!(err.to_string(), "Bad request: missing field");
     }
 
-    // contract: api-error-003
     #[test]
     fn apierror_into_response_produces_correct_status() {
         let err = ApiError::NotFound {

@@ -11,7 +11,6 @@
 
 use crate::composite_energy_estimator::CompositeEnergyEstimator;
 use crate::governed_tool::EnergyEstimator;
-use hkask_rsolidity as rs;
 use serde_json::Value;
 
 /// Energy estimator that wraps `CompositeEnergyEstimator` and carries

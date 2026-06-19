@@ -5,7 +5,6 @@
 //!
 //! REQ: P5-svc-skills-095 — Implement dual-layer skill audit as a reusable service.
 
-use hkask_rsolidity::contract;
 
 use std::collections::HashSet;
 use std::fs;

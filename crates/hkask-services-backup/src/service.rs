@@ -15,7 +15,6 @@
 //! 6. `config` — get current backup configuration
 //! 7. `update_config` — update backup configuration
 
-use hkask_rsolidity::contract;
 
 use std::collections::HashSet;
 use std::sync::Arc;

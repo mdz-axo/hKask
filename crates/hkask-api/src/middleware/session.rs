@@ -12,7 +12,6 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use hkask_rsolidity as rs;
 use hkask_storage::user_store::UserStore;
 use std::sync::{Arc, Mutex};
 

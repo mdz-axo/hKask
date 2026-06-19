@@ -3,7 +3,6 @@
 //! REQ: P3-deploy-landing-page — P3 Headless: single static HTML landing page with OAuth sign-in.
 
 use axum::response::IntoResponse;
-use hkask_rsolidity as rs;
 
 /// GET / — landing page with logo and sign-in buttons.
 pub async fn landing_page() -> impl IntoResponse {

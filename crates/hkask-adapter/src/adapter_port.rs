@@ -3,7 +3,6 @@
 //! Every operation is OCAP-gated via `DelegationToken`. No ambient access.
 //! The trait is the seam for provider backends — new providers add without changing the router (P7).
 
-use hkask_rsolidity::contract;
 
 use crate::TrainedLoRAAdapter;
 use crate::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};

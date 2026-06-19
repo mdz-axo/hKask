@@ -45,7 +45,6 @@ pub enum SkillPolarity {
     Procedural,
 }
 
-// contract: TYP-229
 // as_str pre:  self is a valid SkillPolarity variant
 // as_str post: returns PascalCase string ("Generative", "Evaluative", "Regulative", "Procedural")
 // parse_str pre:  s is PascalCase or snake_case (e.g. "Generative"/"generative")

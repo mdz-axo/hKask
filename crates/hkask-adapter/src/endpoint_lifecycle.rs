@@ -3,7 +3,6 @@
 //! Every endpoint has exactly five phases: Provisioning → Ready → Active → Draining → Terminated.
 //! CNS spans are emitted on every transition. Cost accrual is tracked per phase.
 
-use hkask_rsolidity::contract;
 
 use chrono::Utc;
 use std::fmt;

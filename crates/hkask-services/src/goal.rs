@@ -5,7 +5,6 @@
 //! calling `goal_repo()` directly with duplicated visibility parsing and
 //! response mapping logic.
 
-use hkask_rsolidity::contract;
 
 use hkask_types::CurationInput;
 use hkask_types::goal::{Goal, GoalState};

@@ -3,7 +3,6 @@ use crate::Store;
 use crate::archive::MergeReceipt;
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
-use hkask_rsolidity as rs;
 use hkask_types::identity::{HumanUser, Invite, InviteStatus, ReplicantIdentity, UserSession};
 use hkask_types::wallet::WalletId;
 use hkask_types::{InfrastructureError, UserID};

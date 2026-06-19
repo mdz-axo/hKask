@@ -6,7 +6,6 @@
 //! ready for `EmbedService::embed_corpus()`.
 //!
 //! # REQ: P3 (Generative Space) — full parameter exposure, no hidden settings.
-//! # expect: "The service layer enables generative access to domain capabilities" [P3]
 //!
 //! ## Pipeline
 //! 1. Academic search via MCP web_search → Semantic Scholar + arXiv papers
@@ -18,7 +17,6 @@
 //! 7. Method inference (LLM) → stylometric patterns from cached passages
 //! 8. Generate/augment corpus.yaml
 
-use hkask_rsolidity::contract;
 
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_memory::salience::{DeclaredMethod, MethodThresholds};

@@ -9,7 +9,6 @@
 /// Determines how to frame a user prompt before sending to inference.
 /// This is the simplest form of template selection — keyword-based heuristic
 /// that maps input patterns to prompt framing strategies.
-use hkask_rsolidity::contract;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PromptStrategy {

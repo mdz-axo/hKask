@@ -6,7 +6,6 @@
 //! This module provides a deserialization wrapper that flattens this structure
 //! into the canonical `BundleManifest` type.
 
-use hkask_rsolidity::contract;
 
 use hkask_types::Visibility;
 use hkask_types::bundle::{

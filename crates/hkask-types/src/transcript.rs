@@ -118,7 +118,6 @@ impl TranscriptBundle {
 mod tests {
     use super::*;
 
-    // contract: types-transcript-001
     #[test]
     fn bundle_has_format_marker() {
         let bundle = TranscriptBundle::new(
@@ -129,7 +128,6 @@ mod tests {
         assert_eq!(bundle.format, "hkask-transcript-v1");
     }
 
-    // contract: types-transcript-002
     #[test]
     fn word_at_ms_finds_correct_word() {
         let bundle = TranscriptBundle {

@@ -11,7 +11,6 @@
 
 use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
-use hkask_rsolidity as rs;
 use hkask_storage::WalletStore;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};

@@ -514,7 +514,6 @@ mod tests {
         }
     }
 
-    // contract: GAS-REPORT-001
     #[test]
     fn gas_report_002_empty_store_returns_zero() {
         let totals = GasTotals {
@@ -529,7 +528,6 @@ mod tests {
         assert_eq!(totals.total_depleted, 0);
     }
 
-    // contract: GAS-REPORT-002
     #[test]
     fn test_classify_event_kind_reserved() {
         let agent = test_agent();
@@ -538,7 +536,6 @@ mod tests {
         assert_eq!(kind, GasEventKind::Reserved);
     }
 
-    // contract: GAS-REPORT-003
     #[test]
     fn test_classify_event_kind_settled() {
         let agent = test_agent();
@@ -547,7 +544,6 @@ mod tests {
         assert_eq!(kind, GasEventKind::Settled);
     }
 
-    // contract: GAS-REPORT-004
     #[test]
     fn test_classify_event_kind_depleted() {
         let agent = test_agent();

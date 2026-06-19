@@ -1,7 +1,6 @@
 //! BundleService — skill bundle composition and evolution.
 //!
 //! # REQ: P11 (Digital Public/Private Sphere) — compose skills into bundles
-//! # expect: "The service layer exposes minimal, essential interfaces shared by all surfaces" [P5]
 //!
 //! Composes skills into `BundleManifest` via inference-driven analysis:
 //! polarity classification, conflict detection, phase separation, and
@@ -20,7 +19,6 @@
 //! - **OCAP gates** — Stay in domain crates. BundleService does NOT mint
 //!   delegation tokens; callers pass pre-resolved secrets.
 
-use hkask_rsolidity::contract;
 
 use std::sync::Arc;
 

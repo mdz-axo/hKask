@@ -18,7 +18,6 @@
 /// All fields are derived from simple text analysis — no model inference.
 /// These constitute the "how" (methods/techniques) dimension of the 5W1H
 /// metadata layer.
-use hkask_rsolidity::contract;
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct MethodSignals {

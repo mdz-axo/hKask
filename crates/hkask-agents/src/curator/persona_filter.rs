@@ -5,7 +5,6 @@
 //! enforced at runtime. This filter checks model output against the constraints
 //! and reports violations.
 
-use hkask_rsolidity as rs;
 use hkask_types::PersonaConstraints;
 
 /// Result of checking model output against persona constraints.

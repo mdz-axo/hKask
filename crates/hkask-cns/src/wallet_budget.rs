@@ -99,7 +99,6 @@ impl WalletBackedBudget {
             match self.wallet_manager.get_encumbrance(key_id) {
                 Ok(Some(ref enc)) if enc.is_active() => {
                     if enc.remaining_rj() < cost_rj.as_u64() {
-                        // contract: MUST-6
                         self.wallet_manager.emit_key_alert(key_id, true, false);
                         return false;
                     }
@@ -130,7 +129,6 @@ impl WalletBackedBudget {
         {
             let would_spend = health.spent_rj + cost_rj.as_u64();
             if would_spend > limit.as_u64() {
-                // contract: MUST-6
                 self.wallet_manager.emit_key_alert(
                     self.key_id
                         .expect("key_id must be present when spending_limit_rj is set"),
@@ -275,7 +273,6 @@ mod tests {
         WalletBackedBudget::new(wallet_id, manager).with_api_key(key_id, RJoule::new(limit_rj))
     }
 
-    // contract: cns-wallet-budget-001
     #[test]
     fn wallet_budget_gas_to_rjoules_conversion() {
         // Unit test: verify the conversion math without a real wallet.
@@ -293,7 +290,6 @@ mod tests {
         assert_eq!(2000 / gas_per_rjoule, 2);
     }
 
-    // contract: cns-wallet-budget-002
     #[test]
     fn wallet_budget_rejects_exhausted_key_even_with_active_encumbrance() {
         let budget = make_wallet_budget_with_key(1_000, 1_000);
@@ -303,7 +299,6 @@ mod tests {
         );
     }
 
-    // contract: cns-wallet-budget-003
     #[test]
     fn wallet_budget_allows_spend_within_encumbrance() {
         let budget = make_wallet_budget_with_key(0, 5_000);
@@ -319,7 +314,6 @@ mod tests {
         );
     }
 
-    // contract: cns-wallet-budget-004
     #[test]
     fn wallet_budget_rejects_spend_exceeding_encumbrance() {
         let budget = make_wallet_budget_with_key(0, 5_000);
@@ -330,7 +324,6 @@ mod tests {
         );
     }
 
-    // contract: cns-wallet-budget-005
     #[test]
     fn check_key_health_reports_exhaustion_and_expiry() {
         let budget = make_wallet_budget_with_key(1_000, 1_000);
@@ -344,7 +337,6 @@ mod tests {
         assert_eq!(health.limit_rj, 1_000);
     }
 
-    // contract: cns-wallet-budget-006
     #[test]
     fn wallet_budget_reserve_settle_flow() {
         let budget = make_wallet_budget_with_key(0, 5_000);
@@ -366,7 +358,6 @@ mod tests {
         assert_eq!(enc.remaining_rj(), 1_999, "1 rJ consumed from encumbrance");
     }
 
-    // contract: cns-wallet-budget-007
     #[test]
     fn wallet_budget_reserve_rejects_insufficient_encumbrance() {
         let budget = make_wallet_budget_with_key(0, 5_000);
@@ -378,7 +369,6 @@ mod tests {
         );
     }
 
-    // contract: cns-wallet-budget-008
     #[test]
     fn wallet_budget_reads_live_gas_per_rjoule_rate() {
         let budget = make_wallet_budget_with_key(0, 5_000);

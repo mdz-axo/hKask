@@ -47,7 +47,6 @@ pub use self::core::Loop as HkaskLoop;
 mod tests {
     use super::*;
 
-    // contract: types-loop-quality-001
     #[test]
     fn loop_quality_default_is_zero() {
         let q = LoopQuality::default();
@@ -56,7 +55,6 @@ mod tests {
         assert!((q.fidelity_score - 0.0).abs() < f64::EPSILON);
     }
 
-    // contract: types-loop-quality-002
     #[test]
     fn from_cycle_computes_gain() {
         let sig = Signal::new(LoopId::Cybernetics, SignalMetric::VarietyDeficit, 0.9, 0.5);
@@ -72,7 +70,6 @@ mod tests {
         assert!((q.fidelity_score - 1.0).abs() < f64::EPSILON);
     }
 
-    // contract: types-loop-quality-003
     #[test]
     fn from_cycle_no_deviations_zero_gain() {
         let q = LoopQuality::from_cycle(50, &[], &[]);
@@ -81,7 +78,6 @@ mod tests {
         assert!((q.fidelity_score - 0.0).abs() < f64::EPSILON);
     }
 
-    // contract: types-loop-quality-004
     #[test]
     fn unmatched_deviation_reduces_fidelity() {
         let sig = Signal::new(LoopId::Cybernetics, SignalMetric::ErrorRate, 0.3, 0.1);

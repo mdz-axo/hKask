@@ -13,7 +13,6 @@
 //! This encapsulates chain port assembly, price feed resolution, and CNS wiring
 //! — keeping `context.rs` focused on orchestration, not wallet internals.
 
-use hkask_rsolidity::contract;
 
 use std::collections::HashMap;
 use std::sync::Arc;

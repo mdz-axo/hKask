@@ -13,14 +13,12 @@ use hkask_types::WebID;
 
 // ── Type tests ───────────────────────────────────────────────────────────────
 
-// contract: comm-types-001
 #[test]
 fn room_id_newtype_round_trip() {
     let id = RoomId::new("!abc123:localhost");
     assert_eq!(id.as_str(), "!abc123:localhost");
 }
 
-// contract: comm-types-002
 #[test]
 fn room_id_equality() {
     let a = RoomId::new("!abc123:localhost");
@@ -30,14 +28,12 @@ fn room_id_equality() {
     assert_ne!(a, c);
 }
 
-// contract: comm-types-003
 #[test]
 fn user_id_newtype_round_trip() {
     let id = UserId::new("@agent:localhost");
     assert_eq!(id.as_str(), "@agent:localhost");
 }
 
-// contract: comm-types-004
 #[test]
 fn user_id_equality() {
     let a = UserId::new("@alice:localhost");
@@ -47,7 +43,6 @@ fn user_id_equality() {
     assert_ne!(a, c);
 }
 
-// contract: comm-types-005
 #[test]
 fn thread_struct_fields() {
     let thread = Thread {
@@ -69,7 +64,6 @@ fn thread_struct_fields() {
     assert_eq!(thread.created_at, 1000);
 }
 
-// contract: comm-types-006
 #[test]
 fn matrix_message_fields() {
     let msg = MatrixMessage {
@@ -84,7 +78,6 @@ fn matrix_message_fields() {
     assert_eq!(msg.timestamp, 1700000000000);
 }
 
-// contract: comm-types-007
 #[test]
 fn matrix_message_no_structured() {
     let msg = MatrixMessage {
@@ -98,28 +91,24 @@ fn matrix_message_no_structured() {
 
 // ── Error type tests ─────────────────────────────────────────────────────────
 
-// contract: comm-errors-001
 #[test]
 fn matrix_error_not_logged_in() {
     let err = MatrixError::NotLoggedIn;
     assert!(err.to_string().contains("Not logged in"));
 }
 
-// contract: comm-errors-002
 #[test]
 fn matrix_error_auth_carries_reason() {
     let err = MatrixError::Auth("Invalid password".to_string());
     assert!(err.to_string().contains("Invalid password"));
 }
 
-// contract: comm-errors-003
 #[test]
 fn matrix_error_unavailable_carries_reason() {
     let err = MatrixError::Unavailable("Connection refused".to_string());
     assert!(err.to_string().contains("Connection refused"));
 }
 
-// contract: comm-errors-004
 #[test]
 fn agent_registration_error_not_registered() {
     let err = AgentRegistrationError::NotRegistered("alice-webid".to_string());
@@ -128,7 +117,6 @@ fn agent_registration_error_not_registered() {
 
 // ── AgentRegistry tests ──────────────────────────────────────────────────────
 
-// contract: comm-registry-001
 #[tokio::test]
 async fn registry_record_and_resolve() {
     let registry = AgentRegistry::new();
@@ -142,7 +130,6 @@ async fn registry_record_and_resolve() {
     assert_eq!(resolved.unwrap().as_str(), "@alice:localhost");
 }
 
-// contract: comm-registry-002
 #[tokio::test]
 async fn registry_resolve_unregistered_returns_none() {
     let registry = AgentRegistry::new();
@@ -152,7 +139,6 @@ async fn registry_resolve_unregistered_returns_none() {
     assert!(resolved.is_none());
 }
 
-// contract: comm-registry-003
 #[tokio::test]
 async fn registry_deregister_removes_mapping() {
     let registry = AgentRegistry::new();
@@ -166,7 +152,6 @@ async fn registry_deregister_removes_mapping() {
     assert!(registry.resolve(&webid).await.is_none());
 }
 
-// contract: comm-registry-004
 #[tokio::test]
 async fn registry_deregister_unregistered_is_noop() {
     let registry = AgentRegistry::new();
@@ -176,7 +161,6 @@ async fn registry_deregister_unregistered_is_noop() {
     assert!(result.is_ok());
 }
 
-// contract: comm-registry-005
 #[tokio::test]
 async fn registry_monitor_thread_requires_registration() {
     let registry = AgentRegistry::new();
@@ -191,7 +175,6 @@ async fn registry_monitor_thread_requires_registration() {
     }
 }
 
-// contract: comm-registry-006
 #[tokio::test]
 async fn registry_monitor_thread_succeeds_for_registered_agent() {
     let registry = AgentRegistry::new();
@@ -204,7 +187,6 @@ async fn registry_monitor_thread_succeeds_for_registered_agent() {
     assert!(result.is_ok());
 }
 
-// contract: comm-registry-007
 #[tokio::test]
 async fn registry_get_watchers_returns_monitoring_agents() {
     let registry = AgentRegistry::new();
@@ -225,7 +207,6 @@ async fn registry_get_watchers_returns_monitoring_agents() {
     assert_eq!(watchers.len(), 2);
 }
 
-// contract: comm-registry-008
 #[tokio::test]
 async fn registry_get_watchers_empty_for_unmonitored_thread() {
     let registry = AgentRegistry::new();
@@ -237,7 +218,6 @@ async fn registry_get_watchers_empty_for_unmonitored_thread() {
 
 // ── SevenR7Listener Lifecycle Tests ───────────────────────────────────────
 
-// contract: listener-lifecycle-001
 #[test]
 fn listener_new_creates_without_panic() {
     use hkask_communication::listener::SevenR7Listener;
@@ -249,7 +229,6 @@ fn listener_new_creates_without_panic() {
     let _listener = SevenR7Listener::new(transport, 30);
 }
 
-// contract: listener-lifecycle-002
 #[test]
 fn listener_new_accepts_various_intervals() {
     use hkask_communication::listener::SevenR7Listener;
@@ -262,7 +241,6 @@ fn listener_new_accepts_various_intervals() {
     let _slow = SevenR7Listener::new(Arc::clone(&transport), 3600);
 }
 
-// contract: listener-lifecycle-003
 #[tokio::test]
 async fn listener_start_does_not_panic() {
     use hkask_communication::listener::SevenR7Listener;
@@ -276,7 +254,6 @@ async fn listener_start_does_not_panic() {
     listener.start().await;
 }
 
-// contract: listener-lifecycle-004
 #[tokio::test]
 async fn listener_start_is_idempotent() {
     use hkask_communication::listener::SevenR7Listener;
@@ -291,7 +268,6 @@ async fn listener_start_is_idempotent() {
     listener.start().await; // second start should be no-op
 }
 
-// contract: listener-lifecycle-005
 #[tokio::test]
 async fn listener_stop_does_not_panic() {
     use hkask_communication::listener::SevenR7Listener;
@@ -306,7 +282,6 @@ async fn listener_stop_does_not_panic() {
     listener.stop().await;
 }
 
-// contract: listener-lifecycle-006
 #[tokio::test]
 async fn listener_stop_before_start_does_not_panic() {
     use hkask_communication::listener::SevenR7Listener;

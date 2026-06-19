@@ -22,7 +22,6 @@ use crate::dynamic_gas_table::DynamicGasTable;
 use crate::gas_report::GasReport;
 use crate::governed_tool::EnergyEstimator;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use hkask_rsolidity as rs;
 use hkask_storage::NuEventStore;
 use hkask_types::InfrastructureError;
 use hkask_types::WebID;

@@ -6,7 +6,6 @@
 //! CLI and API surfaces delegate to a single implementation rather than
 //! duplicating ~400 lines of business logic.
 
-use hkask_rsolidity::contract;
 
 use std::sync::Arc;
 
@@ -637,9 +636,7 @@ impl ChatService {
     /// Formatted as "[Previous conversation]\nUser: ...\nAgent: ...\n[/Previous conversation]"
     ///
     /// # REQ: P2-svc-chat-session-history — every history access routes through episodic storage
-    /// # expect: "Service operations require explicit, scoped consent" [P2]
     /// # REQ: P4-svc-chat-ocap-history — recall requires DelegationToken with Read on Manifest
-    /// # expect: "Service boundaries enforce OCAP membranes" [P4]
     pub fn recall_recent_turns(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         agent_webid: &WebID,

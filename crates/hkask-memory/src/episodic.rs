@@ -7,7 +7,6 @@
 //! - 2a.4 Episodic Storage Budget (GUARD) — per-agent storage limit, mark oldest for consolidation
 //! - 2a.5 Episodic Context Assembly (FILTER+ADAPT) — temporal-ordered, recency-weighted, budget-constrained
 
-use hkask_rsolidity::contract;
 
 use crate::recall_dedup;
 use chrono::Utc;

@@ -17,7 +17,6 @@
 use hkask_cns::CnsRuntime;
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
-use hkask_rsolidity as rs;
 use hkask_storage::{Database, DatabaseError, EmbeddingStore, Triple, TripleStore};
 use hkask_types::event::SpanNamespace;
 use hkask_types::{

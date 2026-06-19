@@ -33,7 +33,6 @@ pub enum ConflictType {
     ResourceContention,
 }
 
-// contract: TYP-240
 // as_str pre:  self is a valid ConflictType variant
 // as_str post: returns PascalCase string ("CancelOut", "ContradictoryDirective", "OrderingCollision", "ResourceContention")
 // parse_str pre:  s is PascalCase or snake_case
@@ -56,7 +55,6 @@ pub enum ConflictResolution {
     UserIntent,
 }
 
-// contract: TYP-242
 // as_str pre:  self is a valid ConflictResolution variant
 // as_str post: returns PascalCase string ("DomainSeparation", "PhaseSeparation", "SpecificityOverride", "ManifestOverride", "UserIntent")
 // parse_str pre:  s is PascalCase or snake_case
@@ -78,7 +76,6 @@ pub enum ComplementarityType {
     CrossDomainEnhance,
 }
 
-// contract: TYP-244
 // as_str pre:  self is a valid ComplementarityType variant
 // as_str post: returns PascalCase string ("SequentialFeed", "ParallelAmplify", "CrossDomainEnhance")
 // parse_str pre:  s is PascalCase or snake_case

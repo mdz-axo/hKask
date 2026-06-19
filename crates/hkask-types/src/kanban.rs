@@ -4,8 +4,6 @@
 //! Task status transitions are column-ordered: Backlog → Ready → InProgress → Review → Done.
 //! Verification criteria accept natural-language acceptance specs with optional LLM evaluation prompts.
 
-use hkask_rsolidity::contract;
-
 use crate::id::{BoardId, ColumnId, CommentId, PhaseId, TaskId, WebID};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

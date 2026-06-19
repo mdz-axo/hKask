@@ -9,7 +9,6 @@
 //! Registered in `AgentService::build()` alongside the existing
 //! `SnapshotLoop` (which handles raw CAS-level snapshots).
 
-use hkask_rsolidity::contract;
 
 use std::sync::Arc;
 use std::time::Instant;

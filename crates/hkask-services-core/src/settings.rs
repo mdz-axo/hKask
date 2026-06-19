@@ -4,7 +4,6 @@
 //!
 //! Also provides `HkaskSettings` for model defaults shared across all servers.
 
-use hkask_rsolidity::contract;
 
 use serde::{Deserialize, Serialize};
 

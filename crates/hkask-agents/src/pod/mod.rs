@@ -65,7 +65,6 @@ mod deployment;
 mod nu_event;
 mod types;
 
-use hkask_rsolidity as rs;
 use hkask_types::capability::derive_signing_key;
 use hkask_types::secret::SecretRef;
 use hkask_types::secret::derivation_contexts;

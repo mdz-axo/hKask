@@ -12,7 +12,6 @@
 //! because this is inference variety sensing (Loop 1), not cybernetic regulation (Loop 6).
 //! The CNS consumes the output; it does not produce it.
 
-use hkask_rsolidity as rs;
 use serde::{Deserialize, Serialize};
 
 /// Per-sentence decomposition result

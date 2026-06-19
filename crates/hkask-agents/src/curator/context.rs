@@ -2,7 +2,6 @@
 
 use crate::ports::A2APort;
 use hkask_cns::CnsRuntime;
-use hkask_rsolidity as rs;
 use hkask_storage::EscalationQueue;
 use hkask_storage::NuEventStore;
 use hkask_types::CuratorHandle;
