@@ -63,7 +63,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P2-09** | MDS audit R8: Add TemplateType vocabulary mapping to MDS.md §7.2 | Curator | Medium | ✅ Complete | Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct mapping with `as_spec_name()` cross-reference. Updated 2026-06-08 |
 | **P2-10** | MDS audit R11: Add R3 deferred items to OPEN_QUESTIONS.md | Curator | Low | ✅ Complete | All 10 MDS §11 R3 items tracked (R3.1–R3.13), plus 3 additional items (Send+Sync bounds, CNS span integration, spec drift detection). Updated 2026-06-08 |
 | **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ✅ Complete | Build (pass), test (pass), clippy (pass), doc CI (pass). Created 2026-06-08 |
-| **P2-12** | Populate `do../status/PROJECT_STATUS.md` — complete catalog of all 10 MCP servers' tools | Dev | Medium | ✅ Complete | 10 servers, 143 tools — all 143 fully implemented (verified 2026-06-15 pragmatics audit) |
+| **P2-12** | Populate `do../status/PROJECT_STATUS.md` — complete catalog of all 11 MCP servers' tools | Dev | Medium | ✅ Complete | 11 servers, 151 tools — all 151 fully implemented (verified 2026-06-15 pragmatics audit) |
 | **P2-13** | Populate `do../status/PROJECT_STATUS.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 360+ tests, full REQ coverage (396 REQ tags, zero untagged tests — verified 2026-06-15 pragmatics audit) |
 | **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ✅ Complete → Archived | 6 Fowler patterns identified (2 applied, 4 open-low). Archived 2026-06-11; open items deferred to P1 threshold. |
 | **P2-15** | Populate `docs/status/adversarial-simplification-inventory.md` — dead code and unwired seam inventory | Dev | Low | ✅ Complete | 12 dead_code annotations, 4 unwired seams, 3 simplification candidates, 0 removal candidates. Created 2026-06-08 |
@@ -209,7 +209,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |----|------|------|----------|
 | **C-14** | Fix DeepInfra base URL (`/v1/openai` → `https://api.deepinfra.com`) | 2026-06-12 | `crates/hkask-inference/src/config.rs` — double-`/v1/` bug fixed for embeddings and chat |
 | **C-15** | Fix `EmbedService` API key stripping (`Default::default()` → `from_env()`) | 2026-06-12 | `crates/hkask-services/src/embed.rs` — `DI_API_KEY` now reaches embedding router |
-| **C-16** | Fix replica + markitdown MCP servers passing partial configs | 2026-06-12 | `mcp-servers/hkask-mcp-replica/src/main.rs`, `mcp-servers/hkask-mcp-markitdown/src/{main,tools}.rs` |
+| **C-16** | Fix replica + docproc MCP servers passing partial configs | 2026-06-12 | `mcp-servers/hkask-mcp-replica/src/main.rs`, `mcp-servers/hkask-mcp-docproc/src/{main,tools}.rs` |
 | **C-17** | Add auto `.env` loading to all 11 binaries via `dotenvy` | 2026-06-12 | Workspace `Cargo.toml` + 11 `main.rs` files — API keys loaded from `.env` on startup |
 | **C-18** | Fix `embed-mashups.sh` — dead `--okapi-url`, wrong subcommand, stale URLs | 2026-06-12 | Script now uses `kask style embed-corpus`, no URL flags needed |
 | **C-19** | Add `DI/` prefix to 5 corpus configs + remove dead `embedding_provider` fields | 2026-06-12 | `registry/styles/*/corpus.yaml` — embeddings route to DeepInfra via `EmbeddingRouter` |

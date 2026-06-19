@@ -263,4 +263,4 @@ pub fn can_proceed(&self, cost: EnergyCost) -> bool {
 }
 ```
 
-References: [`FUNCTIONAL_SPECIFICATION.md`](../docs/architecture/core/FUNCTIONAL_SPECIFICATION.md) (domain map, §5 realignment), [`PRINCIPLES.md`](../docs/architecture/core/PRINCIPLES.md) (principle hierarchy), [`TESTING_DISCIPLINE.md`](../docs/architecture/core/TESTING_DISCIPLINE.md) (test verification).
+References: [`FUNCTIONAL_SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md) (domain map, §5 realignment), [`PRINCIPLES.md`](PRINCIPLES.md) (principle hierarchy), [`TESTING_DISCIPLINE.md`](TESTING_DISCIPLINE.md) (test verification).

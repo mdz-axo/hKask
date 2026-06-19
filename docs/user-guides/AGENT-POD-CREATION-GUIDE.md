@@ -207,7 +207,7 @@ rights:
 
 ```yaml
 depends_on:
-  - hkask-mcp-inference
+  - hkask-inference
   - hkask-mcp-spec
   - cns-curator-bot
   - memory-curator-bot

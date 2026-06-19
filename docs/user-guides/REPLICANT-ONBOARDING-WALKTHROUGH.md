@@ -140,7 +140,7 @@ kask sovereignty grant --category episodic_memory --webid webid://alice-smith
 
 ### 6.2 Explore MCP Servers
 
-hKask ships with 10 MCP servers providing tools for web search, document processing, media analysis, and more:
+hKask ships with 11 MCP servers providing tools for web search, document processing, media analysis, and more:
 
 ```bash
 kask mcp list-servers

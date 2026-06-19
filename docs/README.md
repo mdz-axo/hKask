@@ -74,7 +74,6 @@ by [MDS](architecture/core/MDS.md) category. 59 active documents. ℏKask v0.28.
 | Document | Description |
 |----------|-------------|
 | [`ports-inventory.md`](architecture/reference/ports-inventory.md) | Hexagonal port inventory |
-| [`okapi-integration.md`](architecture/reference/okapi-integration.md) | Inference Router API contract |
 | [`utoipa-implementation.md`](architecture/reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`template-header-standard.md`](architecture/reference/template-header-standard.md) | Template metadata format |
 | [`hKask-Curator-persona.md`](architecture/reference/hKask-Curator-persona.md) | Curator persona specification |

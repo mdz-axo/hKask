@@ -113,7 +113,7 @@ flowchart TD
     A[11 Works + 7 Foundational Rules] --> B[Fetch/Download]
     B --> C{Format}
     C -->|txt| D[Gutenberg plain text]
-    C -->|pdf| E[markitdown PDF extraction]
+    C -->|pdf| E[docproc PDF extraction]
     C -->|web| F[web_extract HTML→markdown]
     D --> G[Chunk: 50-300 word passages]
     E --> G

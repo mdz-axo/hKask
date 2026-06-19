@@ -145,7 +145,7 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 |-------|--------|
 | Magna Carta P1 (User Sovereignty) | Sovereignty distributed across `hkask-types::sovereignty`, `hkask-agents::sovereignty`, `hkask-services::verification`. No single SovereigntyService — this is correct, not a gap. |
 | Magna Carta P2 (Affirmative Consent) | CNS consent denial events emitted. Prohibition gate — denial is terminal. |
-| Magna Carta P3 (Generative Space) | 10 MCP servers + Okapi inference. No feature flags, no gated surfaces. |
+| Magna Carta P3 (Generative Space) | 11 MCP servers + multi-provider inference. No feature flags, no gated surfaces. |
 | Magna Carta P4 (Clear Boundaries) | OCAP capability membrane. Dual-gate enforcement (require_capability + require_sovereignty) with Ed25519 cryptographic tokens. DenyAllConsent default. Verified across all capability-granting paths. |
 
 ---
@@ -231,7 +231,7 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 - Root cleanup: 6 DB files → `data/`, 2 scripts → `scripts/`, `feedback.md` → `docs/`, `david-dunning/` → `registry/styles/david-dunning/`
 - `DEFAULT_DB_PATH` changed from `"hkask.db"` to `"data/hkask.db"` in `config.rs`
 - Kata system: deep research on Mike Rother's Toyota Kata methodology, full refactor from 1 skill with 3 artificial types → 4 skills (kata-starter, kata-improvement, kata-coaching, kata bundle) with 23 templates split across 4 directories, 5 manifests, 26 bootstrap entries
-- 2 pre-existing bugs fixed: `identity.rs` missing `passphrase_set_at`, `markitdown/tools.rs` broken `CnsObserver` impl
+- 2 pre-existing bugs fixed: `identity.rs` missing `passphrase_set_at`, `docproc/tools.rs` broken `CnsObserver` impl
 - Docs created: `docs/guides/kata-user-guide.md` (361 lines), `docs/status/skill-inventory.md` (117 lines)
 - Docs updated: 4 frontmatter dates, `docs/README.md` portal, `hKask-architecture-master.md`, `DIAGRAMS_INDEX.md`, `PROJECT_STATUS.md`
 - 18 files updated with corrected path references across YAML, Rust, markdown, and shell scripts

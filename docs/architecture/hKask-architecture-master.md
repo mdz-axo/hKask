@@ -815,7 +815,6 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
-| [`reference/okapi-integration.md`](reference/okapi-integration.md) | Inference Router API contract (Fireworks, DeepInfra) |
 | [`PUBLIC_SURFACE_JUSTIFICATIONS.md`](PUBLIC_SURFACE_JUSTIFICATIONS.md) | Deep-module audit — 16-crate public surface justifications (consolidated) |
 
 
@@ -874,8 +873,7 @@ docs/architecture/
     ├── ports-inventory.md                 # Port reference
     ├── utoipa-implementation.md           # API guide
     ├── template-header-standard.md        # Format reference
-    ├── hKask-Curator-persona.md           # Persona spec
-    └── okapi-integration.md               # Inference Router API contract
+    └── hKask-Curator-persona.md           # Persona spec
 ```
 
 **Total:** 19 architecture documents (8 core + 1 mandate + 4 root + 2 ADRs + 1 template + 5 reference) + 1 PUBLIC_SURFACE justification.

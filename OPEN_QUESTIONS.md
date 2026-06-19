@@ -103,7 +103,7 @@ Health signals are returned in `CompressedOutput::health_signals` and can be emi
 **Remaining irreducible complexity:**
 - ~20 type-definition files in `hkask-types` (domain vocabulary)
 - ~15 port trait files (hexagonal contracts)
-- 10 MCP server `src/main.rs` files (P1 Prohibition prevents deduplication)
+- 11 MCP server `src/main.rs` files (P1 Prohibition prevents deduplication)
 - ~10 surface files (CLI/API — presentation is by-definition shallow)
 
 ---
@@ -129,7 +129,7 @@ Health signals are returned in `CompressedOutput::health_signals` and can be emi
 
 **Original question:** Of 143 declared tools across 10 servers, how many are fully implemented vs. stubbed?
 
-**Status:** RESOLVED. **143/143 tools fully implemented** across all 10 MCP servers:
+**Status:** RESOLVED. **151/151 tools fully implemented** across all 11 MCP servers:
 
 | Server | Tools | Status |
 |--------|-------|--------|
@@ -139,6 +139,7 @@ Health signals are returned in `CompressedOutput::health_signals` and can be emi
 | training | 8 | Complete |
 | docproc | 9 | Complete |
 | communication | 9 | Complete |
+| kanban | 8 | Complete |
 | memory | 16 | Complete |
 | research | 17 | Complete |
 | companies | 27 | Complete |

@@ -188,6 +188,7 @@ list_rsolidity_drift() {
                         has_rsolidity=true
                         # Extract rSolidity id
                         rs_id=$(echo "$ctx" | sed -n 's/.*id *= *"\([^"]*\)".*/\1/p')
+                        # shellcheck disable=SC2034 # extracted for future use
                         rs_principle=$(echo "$ctx" | sed -n 's/.*principle *= *"\([^"]*\)".*/\1/p')
                     fi
                 fi

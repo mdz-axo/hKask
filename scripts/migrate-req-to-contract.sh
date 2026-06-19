@@ -61,10 +61,15 @@ for file in "${FILES[@]}"; do
     }
 
     { print }
-    ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+    ' "$file" > "${file}.tmp"
+    if [ "$DRY_RUN" = true ]; then
+        echo "[DRY RUN] Would migrate $file"
+        rm -f "${file}.tmp"
+    else
+        mv "${file}.tmp" "$file"
+    fi
 
     # Count how many were migrated in this file
-    local_count=$(grep -c '#\[contract(id = ' "$file" 2>/dev/null || true)
     local_new_count=$(grep -c '#\[contract(id = ' "$file" 2>/dev/null || true)
     TOTAL_MIGRATED=$((TOTAL_MIGRATED + local_new_count))
 done

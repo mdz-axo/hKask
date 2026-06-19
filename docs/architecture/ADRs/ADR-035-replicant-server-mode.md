@@ -2,7 +2,7 @@
 title: "ADR-035: Replicant Server Mode — AgentMode, Daemon Transport, Dual Memory Encoding"
 audience: [architects, developers]
 last_updated: 2026-06-12
-version: "0.27.0"
+version: "0.28.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [composition, trust, lifecycle]
@@ -16,7 +16,7 @@ mds_categories: [composition, trust, lifecycle]
 
 ## Context
 
-hKask's 10 MCP servers provide tool capabilities to agents. The original architecture treated MCP servers as standalone binaries spawned by the hKask runtime (`McpRuntime::start_server()`). This created a gap: MCP servers installed in IDEs (Zed, VSCode) had no access to hKask's agent identity, OCAP governance, or memory infrastructure. They operated as anonymous tool providers with no narrative context.
+hKask's 11 MCP servers provide tool capabilities to agents. The original architecture treated MCP servers as standalone binaries spawned by the hKask runtime (`McpRuntime::start_server()`). This created a gap: MCP servers installed in IDEs (Zed, VSCode) had no access to hKask's agent identity, OCAP governance, or memory infrastructure. They operated as anonymous tool providers with no narrative context.
 
 **Problem Statement:** How should MCP servers operate when installed in IDE environments, while maintaining hKask's Magna Carta principles (User Sovereignty, Affirmative Consent, OCAP boundaries) and integrating with the agent memory stack?
 
@@ -114,9 +114,9 @@ kask pod mode <name> exit                  # Exit current mode
 |-----------|-----------|----------|
 | **P1** (User Sovereignty) | ✅ | Unix socket is kernel-enforced local-only. Data stays on user's machine. |
 | **P2** (Affirmative Consent) | ✅ | Passphrase entry via `kask login` creates session. Daemon checks session — fail-closed. |
-| **P3** (Generative Space) | ✅ | Daemon path is well-known, no hidden settings. All 10 MCP servers equally exposed. |
+| **P3** (Generative Space) | ✅ | Daemon path is well-known, no hidden settings. All 11 MCP servers equally exposed. |
 | **P4** (Clear Boundaries/OCAP) | ✅ | Dual gate: capability (OCAP token) + assignment (sovereignty/consent). Both must pass. |
-| **P6** (Delete stubs) | ✅ | No `todo!()`, no `unimplemented!()`. All 10 servers converted. |
+| **P6** (Delete stubs) | ✅ | No `todo!()`, no `unimplemented!()`. All 11 servers converted. |
 | **C1** (Type worn before tailored) | ✅ | `AgentMode` enum with two variants, used by all agents. |
 | **C5** (Every error variant unique) | ✅ | `ModeConflict`, `ModeRequiresActivation`, `RoleNotAssigned` — distinct recovery paths. |
 
@@ -126,7 +126,7 @@ kask pod mode <name> exit                  # Exit current mode
 # Verify daemon socket path
 grep -r "daemon.sock" crates/ --include="*.rs" | wc -l
 
-# Verify all 10 MCP servers have try_daemon_flow
+# Verify all 11 MCP servers have try_daemon_flow
 grep -r "try_daemon_flow" mcp-servers/ --include="*.rs" | wc -l
 
 # Verify AgentMode tests
@@ -141,7 +141,7 @@ grep -r "todo!\|unimplemented!" mcp-servers/ crates/hkask-mcp/src/daemon.rs --in
 
 **Expected Results:**
 - Daemon socket path referenced in `hkask-mcp` and `hkask-services`
-- All 10 MCP servers implement `try_daemon_flow`
+- All 11 MCP servers implement `try_daemon_flow`
 - 4 AgentMode tests pass (activation, exclusion, assignment, switch)
 - 5 daemon tests pass (auth, unauth, assignment, capability, dual-encoding)
 - Zero stubs
@@ -159,4 +159,4 @@ grep -r "todo!\|unimplemented!" mcp-servers/ crates/hkask-mcp/src/daemon.rs --in
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — ADR-035 — v0.27.0*
+*ℏKask - A Minimal Viable Container for Agents — ADR-035 — v0.28.0*

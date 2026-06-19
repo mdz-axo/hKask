@@ -270,14 +270,15 @@ MCP servers are operational units that reside within the loop architecture. Each
 |-----------|------|----------|
 | `hkask-mcp-condenser` | L2 (Episodic) | Context condensation operates on the active conversation window (episodic boundary) |
 | `hkask-mcp-memory` | L2↔L2b (bridge) | Combined episodic + semantic memory storage and retrieval. Bridges episodic (L2) and semantic (L2b) loops. |
-| `hkask-mcp-web` | L4 (Communication) | External I/O dispatch — Communication routes web requests |
+| `hkask-mcp-research` | L4 (Communication) | Web search, extraction, and feed-based research — Communication routes external I/O |
 | `hkask-mcp-companies` | L4 (Communication) | Company financial data (FMP + EODHD) — Communication routes external integrations |
-| `hkask-mcp-communication` | L4 (Communication) | Local TTS/STT — Communication routes voice I/O |
-| `hkask-mcp-media` | L4 (Communication) | AI media generation — Communication routes external integrations |
-| `hkask-mcp-rss-reader` | L2 (Episodic) | RSS feeds are consumed into episodic memory |
-| `hkask-mcp-spec` | L5 (Curation) | MDS spec capture — Curation governs specification authoring |
-| `hkask-mcp-doc-knowledge` | L2 (Episodic) | Document parsing and chunking — feeds parsed documents into the episodic boundary |
-| `hkask-mcp-markitdown` | L2 (Episodic) | Document format conversion and OCR — ingests converted content into the episodic boundary |
+| `hkask-mcp-communication` | L4 (Communication) | Thin MCP wrapper over core communication crate — Communication routes voice/chat I/O |
+| `hkask-mcp-media` | L4 (Communication) | AI media generation (image, video, audio, 3D) — Communication routes external integrations |
+| `hkask-mcp-spec` | L5 (Curation) | Specification authoring, curation, and validation — Curation governs specification authoring |
+| `hkask-mcp-docproc` | L2 (Episodic) | Unified document processing (format conversion, OCR, chunking, parsing) — feeds processed documents into the episodic boundary |
+| `hkask-mcp-replica` | L3 (Inference) | Style embedding and prose composition — Inference drives style generation |
+| `hkask-mcp-training` | L5 (Curation) | Model training data ingestion — Curation governs model improvement pipelines |
+| `hkask-mcp-kanban` | L5 (Curation) | Kanban board coordination — Curation governs task orchestration |
 
 These assignments are normative. A server that does not satisfy one of criteria 1–4 for its assigned loop shall be reclassified or, if no loop fits, marked as substrate rather than loop-resident.
 
@@ -500,13 +501,13 @@ when an agent's budget is exhausted, the operation is rejected by Cybernetics.
 
 | Tier | Servers | Cost | Rationale |
 |------|---------|------|----------|
-| Internal | memory | 1-5 | Local SQLite storage, in-process |
+| Internal | memory, kanban | 1-5 | Local SQLite storage, in-process |
 | Local I/O | spec | 5 | Local filesystem I/O |
-| Moderate | condenser, doc-knowledge, markitdown | 10 | Some computation + local I/O |
-| Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
-| External API | web, companies, rss-reader | 20-50 | Network I/O, rate-limited |
-| Heavy external | fal | 100 | GPU compute, expensive |
-| Inference | hkask-mcp-inference | token-based | LLM compute, scales with tokens |
+| Moderate | condenser, docproc | 10 | Some computation + local I/O |
+| Moderate+Network | condenser (thread_summary), replica | 25 | HTTP call to inference engine |
+| External API | research, companies | 20-50 | Network I/O, rate-limited |
+| Heavy external | media | 100 | GPU compute, expensive |
+| Inference | training | token-based | LLM compute, scales with tokens |
 
 Inference uses a separate cost model: `prompt_chars / 4 + max_tokens`. This
 reflects that LLM compute scales with token count. The `CompositeGasEstimator`

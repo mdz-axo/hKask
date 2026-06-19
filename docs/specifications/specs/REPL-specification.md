@@ -555,7 +555,7 @@ You have access to MCP tools. When you need to invoke a tool, use:
 You may include multiple tool calls in a single response.
 ```
 
-### 12.2 Built-in MCP Servers (10)
+### 12.2 Built-in MCP Servers (11)
 
 Started automatically at REPL boot via `builtin_servers::start_builtin_servers()`:
 
@@ -563,14 +563,15 @@ Started automatically at REPL boot via `builtin_servers::start_builtin_servers()
 |-----------|--------|---------|
 | `memory` | `hkask-mcp-memory` | Semantic + episodic memory operations |
 | `condenser` | `hkask-mcp-condenser` | Context condensation, reranking, compression |
-| `spec` | `hkask-mcp-spec` | MDS specification capture |
-| `web` | `hkask-mcp-web` | Web search, scrape, extract |
+| `spec` | `hkask-mcp-spec` | Specification authoring, curation, validation |
+| `research` | `hkask-mcp-research` | Web search, extraction, and feed-based research |
 | `companies` | `hkask-mcp-companies` | Company financial data (FMP + EODHD dual-provider) |
-| `communication` | `hkask-mcp-communication` | Local TTS/STT (espeak) |
-| `fal` | `hkask-mcp-media` | FAL.ai image generation |
-| `rss-reader` | `hkask-mcp-rss-reader` | RSS feed reading |
-| `doc-knowledge` | `hkask-mcp-doc-knowledge` | Document parsing and chunking |
-| `markitdown` | `hkask-mcp-markitdown` | Document conversion + OCR |
+| `communication` | `hkask-mcp-communication` | Thin MCP wrapper over core communication crate |
+| `media` | `hkask-mcp-media` | Media generation (image, video, audio, 3D) |
+| `docproc` | `hkask-mcp-docproc` | Unified document processing (format conversion, OCR, chunking, parsing) |
+| `replica` | `hkask-mcp-replica` | Style embedding and prose composition |
+| `training` | `hkask-mcp-training` | Model training data ingestion |
+| `kanban` | `hkask-mcp-kanban` | Kanban board coordination |
 
 Servers that fail to start are logged and skipped — their tools simply won't be available.
 

@@ -126,7 +126,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 **Status:** **Resolved** (already confirmed 2026-05-28; reaffirmed 2026-05-29 MCP audit)  
 **Resolution Date:** 2026-05-28
 
-**Decision:** Both servers are fully implemented: `hkask-mcp-condenser` (1,744 LOC, 7 tools, 51 tests), `hkask-mcp-web` (3,389 LOC). No stubs remain. MCP tools inventory confirms completeness (see `do../status/PROJECT_STATUS.md`).
+**Decision:** Both servers are fully implemented: `hkask-mcp-condenser` (1,744 LOC, 7 tools, 51 tests), `hkask-mcp-research` (1,044 LOC). No stubs remain. MCP tools inventory confirms completeness (see `do../status/PROJECT_STATUS.md`).
 
 ---
 
@@ -261,7 +261,7 @@ CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YA
 ### 8g: WebSearchPort Extraction ⚠️ DEFERRED
 
 **MDS Category:** Composition  
-**Status:** Deferred (no current consumer outside `hkask-mcp-web`)  
+**Status:** Deferred (no current consumer outside `hkask-mcp-research`)  
 **Resolution Date:** 2026-06-03
 
 `WebSearchPort` trait and `ProviderPool` are only consumed within `mcp-servers/hkask-mcp-web`. No other crate references them. Extracting the trait to `hkask-types` and the pool to a new `hkask-web` crate would be premature — it moves code without enabling new capabilities. If a consumer outside the MCP server needs web search (e.g., a new crate that orchestrates search + memory), extract then. The MCP server becoming a thin shim is the right long-term goal, but not today.
@@ -322,7 +322,7 @@ Where do `proptest` and `cargo fuzz` fit? MDS invariants are natural property ca
 **Status:** Open  
 **Opened:** 2026-06-06
 
-MCP server tests require `rmcp` transport. Should integration tests use the existing `McpTestServer` pattern from `hkask-mcp-markitdown`, or should a shared test fixture crate (`hkask-test-utils`) be extracted? Per C4 ("repetition is a missing primitive"), if 3+ MCP servers duplicate test setup, extract. Current count: 2 servers with test modules. Threshold not yet met.
+MCP server tests require `rmcp` transport. Should integration tests use the existing `McpTestServer` pattern from `hkask-mcp-docproc`, or should a shared test fixture crate (`hkask-test-utils`) be extracted? Per C4 ("repetition is a missing primitive"), if 3+ MCP servers duplicate test setup, extract. Current count: 2 servers with test modules. Threshold not yet met.
 
 ---
 
@@ -716,7 +716,7 @@ docs/                                Exemplary corpus
   ├── architecture/                   (RFCs, PEPs, ADRs, man pages)
   ├── specifications/                        │
   └── ...                                    ▼
-        │                           hkask-mcp-doc-knowledge
+        │                           hkask-mcp-docproc
         │                           (parse → chunk by section type)
         ▼                                    │
   doc-update skill                           ▼
