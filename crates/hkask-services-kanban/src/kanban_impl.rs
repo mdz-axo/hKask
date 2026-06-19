@@ -10,6 +10,7 @@
 //!   kanban:task  → {task_id}  → JSON Task
 //!   kanban:board_tasks:{board_id} → {task_id} → task_id (index)
 
+use hkask_rsolidity::contract;
 
 use hkask_storage::{Triple, TripleStore};
 use hkask_types::{
@@ -34,7 +35,7 @@ pub(crate) mod verification;
 #[derive(Clone)]
 pub struct KanbanService {
     store: TripleStore,
-    pod_manager: Option<Arc<hkask_agents::pod::ActivePods>>,
+    pod_manager: Option<Arc<hkask_agents::pod::PodManager>>,
 }
 
 // Triple entity prefixes
@@ -45,6 +46,9 @@ const BOARD_TASKS_PREFIX: &str = "kanban:board_tasks:";
 impl KanbanService {
     /// Create a KanbanService backed by the given TripleStore.
     ///
+    /// pre:  store must have the triples table initialized
+    /// post: returns a KanbanService ready for use
+    #[contract(id = "P3-svc-kanban-001", principle = "P3")]
     pub fn new(store: TripleStore) -> Self {
         Self {
             store,
@@ -54,8 +58,11 @@ impl KanbanService {
 
     /// Attach a PodManager for live spawn capability.
     ///
+    /// pre:  pm is a valid Arc<PodManager>
+    /// post: returns Self with pod_manager set to Some(pm)
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_pod_manager(mut self, pm: Arc<hkask_agents::pod::ActivePods>) -> Self {
+    #[contract(id = "P3-svc-kanban-001b", principle = "P3")]
+    pub fn with_pod_manager(mut self, pm: Arc<hkask_agents::pod::PodManager>) -> Self {
         self.pod_manager = Some(pm);
         self
     }
@@ -64,6 +71,9 @@ impl KanbanService {
 
     /// Create a new kanban board.
     ///
+    /// pre:  owner is a valid WebID; name is non-empty; columns is non-empty
+    /// post: board is persisted as a triple; returns the created Board
+    #[contract(id = "P3-svc-kanban-002", principle = "P3")]
     pub fn board_create(
         &self,
         owner: WebID,
@@ -88,6 +98,8 @@ impl KanbanService {
             .insert(&triple)
             .map_err(|e| KanbanError::Internal(format!("triple insert failed: {e}")))?;
 
+        // contract: P9-CNS-SVC-001
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.kanban",
@@ -103,6 +115,9 @@ impl KanbanService {
 
     /// Create a board from a YAML template file.
     ///
+    /// pre:  template_path is a valid YAML file with board template schema
+    /// post: board is created with template-defined columns, WIP limits, and phases
+    #[contract(id = "P3-svc-kanban-002b", principle = "P3")]
     pub fn board_create_from_template(
         &self,
         owner: WebID,
@@ -154,6 +169,8 @@ impl KanbanService {
 
     /// List all board templates.
     ///
+    /// post: returns Vec of known template names
+    #[contract(id = "P3-svc-kanban-002c", principle = "P3")]
     pub fn list_templates() -> Vec<String> {
         vec![
             "software-project".into(),
@@ -165,6 +182,9 @@ impl KanbanService {
 
     /// List all boards for a given owner.
     ///
+    /// pre:  owner is a valid WebID
+    /// post: returns all boards owned by this replicant
+    #[contract(id = "P3-svc-kanban-003", principle = "P3")]
     pub fn board_list(&self, owner: &WebID) -> Result<Vec<Board>, KanbanError> {
         let triples = self
             .store
@@ -186,6 +206,9 @@ impl KanbanService {
 
     /// Get a board by ID.
     ///
+    /// pre:  board_id is valid
+    /// post: returns Some(Board) if found, None otherwise
+    #[contract(id = "P3-svc-kanban-004", principle = "P3")]
     pub fn board_get(&self, board_id: BoardId) -> Result<Option<Board>, KanbanError> {
         let triples = self
             .store
@@ -203,7 +226,10 @@ impl KanbanService {
 
     /// Render a text-based kanban board view.
     ///
+    /// pre:  board_id refers to an existing board
+    /// post: returns a formatted string showing columns with tasks arranged by status,
     ///       WIP limits, story points, labels, overdue indicators, and verification status
+    #[contract(id = "P3-svc-kanban-004b", principle = "P3")]
     pub fn board_view(
         &self,
         board_id: BoardId,
@@ -294,6 +320,9 @@ impl KanbanService {
 
     /// Create a new task on a board.
     ///
+    /// pre:  board_id refers to an existing board; spec.title is non-empty; owner is valid
+    /// post: task is persisted as a triple; returns the created Task
+    #[contract(id = "P3-svc-kanban-005", principle = "P3")]
     pub fn task_create(
         &self,
         board_id: BoardId,
@@ -339,6 +368,8 @@ impl KanbanService {
             .insert(&index_triple)
             .map_err(|e| KanbanError::Internal(format!("index triple insert failed: {e}")))?;
 
+        // contract: P9-CNS-SVC-002
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.kanban",
@@ -385,6 +416,9 @@ impl KanbanService {
 
     /// List tasks on a board, optionally filtered.
     ///
+    /// pre:  board_id refers to an existing board
+    /// post: returns tasks matching the filter; empty Vec if none match
+    #[contract(id = "P3-svc-kanban-006", principle = "P3")]
     pub fn task_list(
         &self,
         board_id: BoardId,
@@ -432,6 +466,9 @@ impl KanbanService {
 
     /// Get a task by ID.
     ///
+    /// pre:  task_id is valid
+    /// post: returns Some(Task) if found, None otherwise
+    #[contract(id = "P3-svc-kanban-007", principle = "P3")]
     pub fn task_get(&self, task_id: TaskId) -> Result<Option<Task>, KanbanError> {
         let triples = self
             .store
@@ -449,6 +486,10 @@ impl KanbanService {
 
     /// Move a task to a new column (state transition).
     ///
+    /// pre:  task_id refers to an existing task; target is a valid transition from current status
+    /// pre:  actor is a valid WebID (P12)
+    /// post: task.status is updated; updated_at is refreshed
+    #[contract(id = "P3-svc-kanban-008", principle = "P3")]
     pub fn task_move(
         &self,
         task_id: TaskId,
@@ -504,6 +545,8 @@ impl KanbanService {
                 .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
         }
 
+        // contract: P9-CNS-SVC-003
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.kanban",
@@ -520,7 +563,11 @@ impl KanbanService {
 
     /// Assign a task to an agent with consent proof.
     ///
+    /// pre:  task_id refers to an existing task; consent.agent matches the assignee
+    /// pre:  consent.task_id matches task_id
+    /// post: task.assignee is set to consent.agent
     /// fails: if consent is invalid → ConsentViolation
+    #[contract(id = "P3-svc-kanban-009", principle = "P3")]
     pub fn task_assign(
         &self,
         task_id: TaskId,
@@ -560,6 +607,8 @@ impl KanbanService {
                 .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
         }
 
+        // contract: P9-CNS-SVC-004
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.kanban",
@@ -574,6 +623,10 @@ impl KanbanService {
 
     /// Verify a task's completion against its acceptance criteria.
     ///
+    /// pre:  task_id refers to an existing task in Review status
+    /// pre:  verifier is a valid WebID
+    /// post: task.verification is set; task moves to Done if passed
+    #[contract(id = "P3-svc-kanban-010", principle = "P3")]
     pub fn task_verify(
         &self,
         task_id: TaskId,
@@ -623,6 +676,8 @@ impl KanbanService {
                 .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
         }
 
+        // contract: P9-CNS-SVC-005
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.kanban",
@@ -656,6 +711,9 @@ impl KanbanService {
 
     /// Delete a task and its board index entry.
     ///
+    /// pre:  task_id is valid
+    /// post: task triple and index triple are soft-deleted
+    #[contract(id = "P3-svc-kanban-040", principle = "P3")]
     pub fn task_delete(&self, task_id: TaskId) -> Result<(), KanbanError> {
         let task = self
             .task_get(task_id)?
@@ -689,6 +747,9 @@ impl KanbanService {
 
     /// Unassign a task — remove the assignee.
     ///
+    /// pre:  task_id is valid
+    /// post: task.assignee is set to None
+    #[contract(id = "P3-svc-kanban-041", principle = "P3")]
     pub fn task_unassign(&self, task_id: TaskId) -> Result<Task, KanbanError> {
         let mut task = self
             .task_get(task_id)?
@@ -701,6 +762,9 @@ impl KanbanService {
 
     /// Reopen a completed task — move from Done back to InProgress.
     ///
+    /// pre:  task_id refers to a task in Done status
+    /// post: task moves to InProgress, verification cleared
+    #[contract(id = "P3-svc-kanban-042", principle = "P3")]
     pub fn task_reopen(&self, task_id: TaskId) -> Result<Task, KanbanError> {
         let mut task = self
             .task_get(task_id)?
@@ -723,6 +787,9 @@ impl KanbanService {
 
     /// Delete a board and all its tasks.
     ///
+    /// pre:  board_id is valid
+    /// post: board triple and all associated task/index triples are soft-deleted
+    #[contract(id = "P3-svc-kanban-043", principle = "P3")]
     pub fn board_delete(&self, board_id: BoardId) -> Result<usize, KanbanError> {
         let board = self
             .board_get(board_id)?
@@ -894,6 +961,8 @@ mod tests {
         (svc, board, owner)
     }
 
+    // contract: P3-svc-kanban-T-001
+    // expect: "Service board_create works correctly under test conditions" [P3]
     #[test]
     fn board_create_succeeds() {
         let svc = KanbanService::new(make_store());
@@ -906,6 +975,8 @@ mod tests {
         assert_eq!(board.columns.len(), 5);
     }
 
+    // contract: P3-svc-kanban-T-002
+    // expect: "Service board_create works correctly under test conditions" [P3]
     #[test]
     fn board_create_rejects_empty_name() {
         let svc = KanbanService::new(make_store());
@@ -913,6 +984,8 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // contract: P3-svc-kanban-T-003
+    // expect: "Service board_create works correctly under test conditions" [P3]
     #[test]
     fn board_create_rejects_empty_columns() {
         let svc = KanbanService::new(make_store());
@@ -920,6 +993,8 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // contract: P3-svc-kanban-T-004
+    // expect: "Service board_list works correctly under test conditions" [P3]
     #[test]
     fn board_list_by_owner() {
         let svc = KanbanService::new(make_store());
@@ -936,6 +1011,8 @@ mod tests {
         assert_eq!(alice_boards[0].name, "Alice's Board");
     }
 
+    // contract: P3-svc-kanban-T-005
+    // expect: "Service task_create works correctly under test conditions" [P3]
     #[test]
     fn task_create_defaults_to_backlog() {
         let (svc, board, owner) = make_service_with_board();
@@ -946,6 +1023,8 @@ mod tests {
         assert_eq!(task.board_id, board.id);
     }
 
+    // contract: P3-svc-kanban-T-006
+    // expect: "Service task_create works correctly under test conditions" [P3]
     #[test]
     fn task_create_rejects_unknown_board() {
         let svc = KanbanService::new(make_store());
@@ -953,6 +1032,8 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // contract: P3-svc-kanban-T-007
+    // expect: "Service task_list works correctly under test conditions" [P3]
     #[test]
     fn task_list_unfiltered() {
         let (svc, board, owner) = make_service_with_board();
@@ -965,6 +1046,8 @@ mod tests {
         assert_eq!(tasks.len(), 2);
     }
 
+    // contract: P3-svc-kanban-T-008
+    // expect: "Service task_list works correctly under test conditions" [P3]
     #[test]
     fn task_list_filter_by_status() {
         let (svc, board, owner) = make_service_with_board();
@@ -988,6 +1071,8 @@ mod tests {
         assert_eq!(in_progress.len(), 1);
     }
 
+    // contract: P3-svc-kanban-T-009
+    // expect: "Service task_move works correctly under test conditions" [P3]
     #[test]
     fn task_move_forward() {
         let (svc, board, owner) = make_service_with_board();
@@ -1004,6 +1089,8 @@ mod tests {
         assert_eq!(t.status, TaskStatus::InProgress);
     }
 
+    // contract: P3-svc-kanban-T-010
+    // expect: "Service task_move works correctly under test conditions" [P3]
     #[test]
     fn task_move_rejects_skip() {
         let (svc, board, owner) = make_service_with_board();
@@ -1015,6 +1102,8 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // contract: P3-svc-kanban-T-011
+    // expect: "Service task_assign works correctly under test conditions" [P3]
     #[test]
     fn task_assign_with_consent() {
         let (svc, board, owner) = make_service_with_board();
@@ -1028,6 +1117,8 @@ mod tests {
         assert_eq!(assigned.assignee, Some(agent));
     }
 
+    // contract: P3-svc-kanban-T-012
+    // expect: "Service task_assign works correctly under test conditions" [P3]
     #[test]
     fn task_assign_rejects_invalid_consent() {
         let (svc, board, owner) = make_service_with_board();
@@ -1042,6 +1133,8 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // contract: P3-svc-kanban-T-013
+    // expect: "Service task_verify works correctly under test conditions" [P3]
     #[test]
     fn task_verify_pass() {
         let (svc, board, owner) = make_service_with_board();
@@ -1061,6 +1154,8 @@ mod tests {
         assert!(verified.verification.as_ref().unwrap().passed);
     }
 
+    // contract: P3-svc-kanban-T-014
+    // expect: "Service task_verify works correctly under test conditions" [P3]
     #[test]
     fn task_verify_rejects_non_review() {
         let (svc, board, owner) = make_service_with_board();
@@ -1072,6 +1167,8 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // contract: P3-svc-kanban-T-015
+    // expect: "Service board_get works correctly under test conditions" [P3]
     #[test]
     fn board_get_succeeds() {
         let (svc, board, _owner) = make_service_with_board();
@@ -1080,6 +1177,8 @@ mod tests {
         assert_eq!(retrieved.unwrap().name, "Test Board");
     }
 
+    // contract: P3-svc-kanban-T-016
+    // expect: "Service board_isolation works correctly under test conditions" [P3]
     #[test]
     fn board_isolation() {
         let svc = KanbanService::new(make_store());

@@ -1,6 +1,7 @@
 //! BundleService — skill bundle composition and evolution.
 //!
 //! # REQ: P11 (Digital Public/Private Sphere) — compose skills into bundles
+//! # expect: "The service layer exposes minimal, essential interfaces shared by all surfaces" [P5]
 //!
 //! Composes skills into `BundleManifest` via inference-driven analysis:
 //! polarity classification, conflict detection, phase separation, and
@@ -19,6 +20,7 @@
 //! - **OCAP gates** — Stay in domain crates. BundleService does NOT mint
 //!   delegation tokens; callers pass pre-resolved secrets.
 
+use hkask_rsolidity::contract;
 
 use std::sync::Arc;
 
@@ -49,6 +51,9 @@ impl BundleService {
     /// and produces a validated `BundleManifest`. The result is registered
     /// into the `BundleRegistryIndex` for persistence.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  skill_ids must have at least 2 entries; ctx.registry() must be initialized; inference_port must be valid
+    /// post: returns BundleComposeResult with validated manifest and warnings; Err(Compose) if <2 skills, skills not found, or validation fails
     /// # Arguments
     /// - `ctx` — The shared AgentService context.
     /// - `skill_ids` — Skill IDs to bundle (at least 2).
@@ -62,6 +67,7 @@ impl BundleService {
     /// `ServiceError::Compose` on failure (inference error, validation failure).
     /// `ServiceError::Skill` if a skill ID is not found in the registry.
     #[allow(clippy::too_many_arguments)]
+    #[contract(id = "P5-svc-bundle-200", principle = "P5")]
     pub async fn compose(
         ctx: &AgentService,
         skill_ids: &[String],
@@ -223,6 +229,10 @@ impl BundleService {
 
     /// List all bundles in the registry.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  ctx.registry() must be initialized
+    /// post: returns Vec<BundleManifest> of all registered bundles; empty Vec if none
+    #[contract(id = "P5-svc-bundle-201", principle = "P5")]
     pub async fn list(ctx: &AgentService) -> Result<Vec<BundleManifest>, ServiceError> {
         let registry = ctx.registry();
         let guard = registry.lock().await;
@@ -231,6 +241,10 @@ impl BundleService {
 
     /// Get a bundle by ID.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  ctx.registry() must be initialized; id must be non-empty
+    /// post: returns Some(BundleManifest) if found; None if not found
+    #[contract(id = "P5-svc-bundle-202", principle = "P5")]
     pub async fn get(ctx: &AgentService, id: &str) -> Result<Option<BundleManifest>, ServiceError> {
         let registry = ctx.registry();
         let guard = registry.lock().await;
@@ -241,6 +255,10 @@ impl BundleService {
     ///
     /// Returns the bundle manifest if found, or `ServiceError::Compose` if not.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  ctx.registry() must be initialized; id must be non-empty
+    /// post: returns BundleManifest if found; Err(Compose) if bundle not found
+    #[contract(id = "P5-svc-bundle-203", principle = "P5")]
     pub async fn apply(ctx: &AgentService, id: &str) -> Result<BundleManifest, ServiceError> {
         let registry = ctx.registry();
         let guard = registry.lock().await;
@@ -255,6 +273,10 @@ impl BundleService {
     /// Re-loads skill metadata, re-runs composition, and updates the manifest.
     /// Returns the evolved manifest.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  ctx.registry() must be initialized; id must reference an existing bundle; inference_port must be valid
+    /// post: returns BundleComposeResult with evolved manifest; old bundle removed, new one registered; Err(Compose) if bundle not found
+    #[contract(id = "P5-svc-bundle-204", principle = "P5")]
     pub async fn evolve(
         ctx: &AgentService,
         id: &str,
@@ -292,12 +314,20 @@ impl BundleService {
 
     /// Deactivate the current bundle (no-op — bundles are session-scoped).
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  none (always succeeds)
+    /// post: always returns Ok(())
+    #[contract(id = "P5-svc-bundle-205", principle = "P5")]
     pub fn deactivate() -> Result<(), ServiceError> {
         Ok(())
     }
 
     /// List available skills from the registry.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  ctx.registry() must be initialized
+    /// post: returns Vec<Skill> of all registered skills; empty Vec if none
+    #[contract(id = "P5-svc-bundle-206", principle = "P5")]
     pub async fn list_skills(
         ctx: &AgentService,
     ) -> Result<Vec<hkask_types::ports::Skill>, ServiceError> {

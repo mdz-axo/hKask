@@ -7,6 +7,7 @@
 
 /// Common malformed inputs for testing CLI argument parsers.
 ///
+/// post: returns Vec of strings including empty, special chars, unicode, overflow
 pub fn cli_fuzz_seeds() -> Vec<String> {
     vec![
         String::new(),
@@ -41,6 +42,7 @@ pub fn cli_fuzz_seeds() -> Vec<String> {
 
 /// Common malformed JSON inputs for testing deserializers.
 ///
+/// post: returns Vec of strings including partial, nested, malformed JSON
 pub fn json_fuzz_seeds() -> Vec<String> {
     vec![
         String::new(),
@@ -72,16 +74,19 @@ pub fn json_fuzz_seeds() -> Vec<String> {
 mod tests {
     use super::*;
 
+    // contract: HARN-053
     #[test]
     fn cli_fuzz_seeds_non_empty() {
         assert!(!cli_fuzz_seeds().is_empty());
     }
 
+    // contract: HARN-054
     #[test]
     fn json_fuzz_seeds_non_empty() {
         assert!(!json_fuzz_seeds().is_empty());
     }
 
+    // contract: HARN-053
     #[test]
     fn cli_fuzz_seeds_all_strings() {
         for seed in cli_fuzz_seeds() {
@@ -89,6 +94,7 @@ mod tests {
         }
     }
 
+    // contract: HARN-054
     #[test]
     fn json_fuzz_seeds_contains_edge_cases() {
         let seeds = json_fuzz_seeds();

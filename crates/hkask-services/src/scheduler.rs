@@ -2,6 +2,7 @@
 //! Each agent owns its own scheduled tasks, stored in the registry DB.
 //! The curation loop checks for due tasks each cycle.
 
+use hkask_rsolidity::contract;
 
 use hkask_storage::AgentRegistryStore;
 use hkask_types::ScheduledTask;
@@ -13,6 +14,10 @@ pub struct SchedulerService;
 impl SchedulerService {
     /// Schedule a recurring task for an agent.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  store must be initialized; agent_name, trigger, action, next_run must be non-empty
+    /// post: task is persisted to the registry store; Err(AgentRegistryStore) on store failure
+    #[contract(id = "P7-svc-scheduler-207", principle = "P7")]
     pub fn schedule(
         store: &AgentRegistryStore,
         agent_name: &str,
@@ -38,6 +43,10 @@ impl SchedulerService {
 
     /// List all scheduled tasks for an agent.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  store must be initialized; agent_name must be non-empty
+    /// post: returns Vec<ScheduledTask> for the agent; empty Vec if none; Err(AgentRegistryStore) on store failure
+    #[contract(id = "P7-svc-scheduler-208", principle = "P7")]
     pub fn list(
         store: &AgentRegistryStore,
         agent_name: &str,
@@ -51,6 +60,10 @@ impl SchedulerService {
 
     /// Get all due tasks across all agents (for the curation loop).
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  store must be initialized; now must be a valid timestamp string
+    /// post: returns Vec<ScheduledTask> of all due tasks; empty Vec if none; Err(AgentRegistryStore) on store failure
+    #[contract(id = "P7-svc-scheduler-209", principle = "P7")]
     pub fn due_tasks(
         store: &AgentRegistryStore,
         now: &str,
@@ -64,6 +77,10 @@ impl SchedulerService {
 
     /// Update a task's next run time after it fires.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  store must be initialized; agent_name, trigger, new_next_run must be non-empty
+    /// post: task's next_run is updated in the store; Err(AgentRegistryStore) on store failure
+    #[contract(id = "P7-svc-scheduler-210", principle = "P7")]
     pub fn reschedule(
         store: &AgentRegistryStore,
         agent_name: &str,

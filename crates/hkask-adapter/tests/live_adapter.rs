@@ -81,6 +81,7 @@ fn require_env(var: &str) -> String {
     std::env::var(var).unwrap_or_else(|_| panic!("{var} must be set for live test"))
 }
 
+// contract: P4-adt-adapter-router-compose
 #[tokio::test]
 #[ignore = "requires TOGETHER_API_KEY, HF_TOKEN, HKASK_LIVE_ADAPTER_REPO, HKASK_LIVE_BASE_MODEL"]
 async fn live_together_adapter_e2e() {

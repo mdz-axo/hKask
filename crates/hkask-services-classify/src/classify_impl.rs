@@ -6,6 +6,7 @@
 //! Supports DeepInfra (OpenAI-compatible) with concurrent batch requests.
 //! Graceful degradation: no API key → all passages default to fallback category.
 
+use hkask_rsolidity::contract;
 
 use hkask_services_core::ServiceError;
 use reqwest::Client;
@@ -119,6 +120,8 @@ pub fn load_classifier_config(
     name: &str,
     registry_dir: &Path,
 ) -> Result<ClassifierDef, ServiceError> {
+    // contract: P9-CNS-SVC-001
+    // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.classify", operation = "load_config", classifier = %name, "CNS");
 
@@ -270,10 +273,16 @@ async fn classify_one(
 /// Returns results in the same order as the input texts.
 /// Failed classifications default to "Statement".
 ///
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// pre:  texts must be non-empty; config must have valid timeout and concurrency
+/// post: returns Vec<ClassifyResult> in input order; failed classifications fall back to config.fallback_category; all fallback if no API key
+#[contract(id = "P8-svc-classify-277", principle = "P8")]
 pub async fn classify_batch(
     texts: &[String],
     config: ClassifierConfig,
 ) -> Result<Vec<ClassifyResult>, ServiceError> {
+    // contract: P9-CNS-SVC-001
+    // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.classify", operation = "classify_batch", item_count = texts.len(), "CNS");
 
@@ -352,10 +361,16 @@ pub async fn classify_batch(
 /// Failed extractions default to empty TripleExtraction.
 /// Graceful degradation: no API key → all empty extractions.
 ///
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// pre:  texts must be non-empty; config must have valid timeout and concurrency
+/// post: returns Vec<TripleExtraction> in input order; failed extractions fall back to empty; all empty if no API key
+#[contract(id = "P8-svc-classify-278", principle = "P8")]
 pub async fn extract_triples_batch(
     texts: &[String],
     config: &ClassifierConfig,
 ) -> Result<Vec<TripleExtraction>, ServiceError> {
+    // contract: P9-CNS-SVC-001
+    // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.classify", operation = "extract_triples_batch", item_count = texts.len(), "CNS");
 

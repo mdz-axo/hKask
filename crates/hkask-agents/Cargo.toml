@@ -6,6 +6,7 @@ license.workspace = true
 description = "Agent pods, ACP, and bot/replicant management for hKask"
 
 [dependencies]
+hkask-rsolidity = { path = "../hkask-rsolidity" }
 hkask-types = { path = "../hkask-types" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-cns = { path = "../hkask-cns" }
@@ -30,7 +31,6 @@ ed25519-dalek.workspace = true
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
 hkask-test-harness = { path = "../hkask-test-harness" }
-tempfile = "3"
 
 [[test]]
 name = "agent_pod_integration"

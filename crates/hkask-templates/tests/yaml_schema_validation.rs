@@ -30,6 +30,8 @@ struct ManifestHeader {
     functional_role: Option<String>,
 }
 
+// contract: P3-tpl-test-manifest-schema-validation
+// expect: "Template Manifest schema validation (P8)" [P3]
 // [P3] Motivating: Generative Space — validates registry manifests are well-formed
 // [P8] Constraining: Semantic Grounding — required fields present and correctly typed
 // All registry manifests are well-formed YAML with required fields.
@@ -116,6 +118,8 @@ fn all_skill_manifests_are_well_formed() {
     eprintln!("Validated {} manifests — all well-formed", count);
 }
 
+// contract: P3-tpl-test-manifest-schema-validation
+// expect: "Template invalid yaml is rejected" [P3]
 // [P3] Motivating: Generative Space — validates registry manifests are well-formed
 // [P8] Constraining: Semantic Grounding — required fields present and correctly typed
 #[test]

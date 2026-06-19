@@ -15,6 +15,7 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
+use hkask_rsolidity as rs;
 use hkask_types::ports::RegistryIndex;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
@@ -55,6 +56,9 @@ pub struct GrantCapabilityRequest {
 
 /// Create templates router
 ///
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with template routes registered
 pub fn templates_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_templates))
@@ -77,6 +81,8 @@ pub fn templates_router() -> OpenApiRouter<ApiState> {
     ),
 )]
 pub(crate) async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateResponse>> {
+    // contract: P9-CNS-SURF-040
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "templates_list", "CNS");
     let registry = state.agent_service.registry().lock().await;

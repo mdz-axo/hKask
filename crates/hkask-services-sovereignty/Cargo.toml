@@ -6,6 +6,7 @@ license.workspace = true
 description = "hKask sovereignty service — consent revocation, data boundary enforcement"
 
 [dependencies]
+hkask-rsolidity = { path = "../hkask-rsolidity" }
 hkask-services-core = { path = "../hkask-services-core" }
 hkask-agents = { path = "../hkask-agents" }
 hkask-types = { path = "../hkask-types" }

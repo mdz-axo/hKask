@@ -6,6 +6,7 @@
 //! Follows the `hkask-storage` pattern: `Database` + migrations + CRUD.
 //! Adapter weights live on disk; only metadata is stored in SQLite.
 
+use hkask_rsolidity::contract;
 
 use crate::expertise::{Expertise, MdsDomain, TrainingProvenance};
 use hkask_storage::Store;
@@ -95,7 +96,10 @@ impl std::fmt::Display for Checksum {
 
 /// A trained LoRA adapter — content-addressed, owner-scoped artifact.
 ///
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P8] Semantic Grounding — adapter is content-addressed and provenance-chained
+/// pre:  adapter weights pass checksum validation
+/// post: adapter is stored with owner WebID, expertise link, and base model family
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TrainedLoRAAdapter {
     /// Unique identifier
@@ -160,6 +164,9 @@ const ADAPTER_SELECT: &str = "SELECT adapter_id, expertise_name, expertise_domai
 impl AdapterStore {
     /// Run schema migrations — create tables if they don't exist.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// post: trained_adapters table exists
+    #[contract(id = "P8-adt-trained-adapter-store", principle = "P8")]
     pub fn migrate(&self) -> Result<(), AdapterStoreError> {
         let conn = self.lock_conn()?;
         conn.execute_batch(
@@ -205,6 +212,10 @@ impl AdapterStore {
 
     /// Store a trained adapter.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// pre:  adapter has a valid expertise, checksum, owner, and storage_path
+    /// post: adapter is persisted to SQLite
+    #[contract(id = "P8-adt-trained-adapter-store", principle = "P8")]
     pub fn store(&self, adapter: &TrainedLoRAAdapter) -> Result<(), AdapterStoreError> {
         let conn = self.lock_conn()?;
         let metrics_json =
@@ -246,6 +257,10 @@ impl AdapterStore {
 
     /// Retrieve an adapter by its UUID.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// pre:  id is a valid Uuid
+    /// post: returns Some(TrainedLoRAAdapter) if found, None otherwise
+    #[contract(id = "P8-adt-trained-adapter-store", principle = "P8")]
     pub fn get_by_id(&self, id: Uuid) -> Result<Option<TrainedLoRAAdapter>, AdapterStoreError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!("{} WHERE adapter_id = ?1", ADAPTER_SELECT))?;
@@ -287,6 +302,10 @@ impl AdapterStore {
 
     /// List adapters by expertise name.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// pre:  expertise_name is non-empty
+    /// post: returns Vec of adapters matching the expertise name
+    #[contract(id = "P8-adt-trained-adapter-store", principle = "P8")]
     pub fn get_by_expertise(
         &self,
         expertise_name: &str,
@@ -330,6 +349,10 @@ impl AdapterStore {
 
     /// List adapters owned by a specific WebID.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// pre:  owner is a valid WebID
+    /// post: returns Vec of adapters owned by the given WebID
+    #[contract(id = "P8-adt-trained-adapter-store", principle = "P8")]
     pub fn list_owner(&self, owner: WebID) -> Result<Vec<TrainedLoRAAdapter>, AdapterStoreError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!("{} WHERE owner_webid = ?1", ADAPTER_SELECT))?;
@@ -372,3 +395,219 @@ impl AdapterStore {
     /// The token is accepted here as documentation of the gate requirement, though actual
     /// token verification happens at the `AdapterPort` boundary (Task 5).
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    /// pre:  adapter exists
+    /// post: adapter row is removed
+    #[contract(
+        id = "P8-adt-trained-adapter-store — delete with ownership verification",
+        principle = "P8"
+    )]
+    pub fn delete(&self, id: Uuid) -> Result<(), AdapterStoreError> {
+        let conn = self.lock_conn()?;
+        let affected = conn.execute(
+            "DELETE FROM trained_adapters WHERE adapter_id = ?1",
+            rusqlite::params![id.to_string()],
+        )?;
+        if affected == 0 {
+            return Err(AdapterStoreError::NotFound(id));
+        }
+        // P9: CNS span
+        tracing::info!(target: "cns.adapter", operation = "delete", adapter_id = %id, "CNS");
+        Ok(())
+    }
+
+    /// Return the total count of stored adapters.
+    #[contract(id = "P8-adt-trained-adapter-store", principle = "P8")]
+    pub fn count(&self) -> Result<usize, AdapterStoreError> {
+        let conn = self.lock_conn()?;
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM trained_adapters", [], |row| {
+            row.get(0)
+        })?;
+        Ok(count as usize)
+    }
+
+    // ── Row mapping helpers ────────────────────────────────────────────────
+
+    fn row_to_adapter(r: AdapterRow) -> Result<TrainedLoRAAdapter, AdapterStoreError> {
+        let domain = MdsDomain::parse(&r.expertise_domain).unwrap_or(MdsDomain::CodeGeneration); // fallback for unknown domains
+        let capability_manifest: serde_json::Value =
+            serde_json::from_str(&r.capability_manifest_json).unwrap_or_default();
+        let training_metrics: serde_json::Value = r
+            .training_metrics_json
+            .as_deref()
+            .and_then(|s| serde_json::from_str(s).ok())
+            .unwrap_or_default();
+
+        let base_model = r.base_model_family.clone();
+        let source: AdapterSource =
+            serde_json::from_str(&r.source_json).unwrap_or_else(|_| AdapterSource::HuggingFace {
+                repo: "unknown".into(),
+            });
+        let provenance = TrainingProvenance {
+            training_run_id: r.training_run_id,
+            training_source: r.training_source,
+            completed_at: r.completed_at,
+            base_model_family: r.base_model_family,
+            dataset_hash: r.dataset_hash,
+            training_metrics,
+        };
+
+        let expertise = Expertise {
+            name: r.expertise_name,
+            domain,
+            capability_manifest,
+            training_source: provenance,
+        };
+
+        let owner_uuid = Uuid::parse_str(&r.owner_webid)
+            .map_err(|e| AdapterStoreError::Infra(InfrastructureError::Database(e.to_string())))?;
+
+        let id = Uuid::parse_str(&r.adapter_id)
+            .map_err(|e| AdapterStoreError::Infra(InfrastructureError::Database(e.to_string())))?;
+
+        Ok(TrainedLoRAAdapter {
+            id,
+            expertise,
+            checksum: Checksum::from_hex(&r.checksum),
+            storage_path: r.storage_path,
+            base_model_family: base_model,
+            version: r.version,
+            source,
+            size_bytes: r.size_bytes.map(|b| b as u64),
+            owner: WebID::from_uuid(owner_uuid),
+            created_at: r.created_at,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::expertise::{Expertise, MdsDomain, TrainingProvenance};
+
+    fn make_test_adapter(name: &str) -> TrainedLoRAAdapter {
+        let provenance = TrainingProvenance {
+            training_run_id: format!("run-{name}"),
+            training_source: "https://example.com/training".into(),
+            completed_at: "2026-01-01T00:00:00Z".into(),
+            base_model_family: "llama-3.3-70b".into(),
+            dataset_hash: None,
+            training_metrics: serde_json::json!({"loss": 0.01}),
+        };
+        let expertise = Expertise::new(
+            name.into(),
+            MdsDomain::SolidityAudit,
+            serde_json::json!({"capabilities": ["reentrancy-detection"]}),
+            provenance,
+        )
+        .expect("expertise creation should succeed");
+
+        TrainedLoRAAdapter {
+            id: Uuid::new_v4(),
+            expertise,
+            checksum: Checksum::from_hex("abcdef1234567890"),
+            storage_path: "/tmp/adapter.bin".into(),
+            base_model_family: "llama-3.3-70b".into(),
+            version: None,
+            source: AdapterSource::HuggingFace {
+                repo: "test/adapter".into(),
+            },
+            size_bytes: None,
+            owner: WebID::new(),
+            created_at: "2026-01-01T00:00:00Z".into(),
+        }
+    }
+
+    // contract: P8-adt-trained-adapter-store
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    #[test]
+    fn store_and_retrieve_by_id() {
+        let db = hkask_storage::in_memory_db();
+        let store = AdapterStore::new(db.conn_arc());
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let retrieved = store
+            .get_by_id(adapter.id)
+            .expect("retrieve")
+            .expect("adapter exists");
+
+        assert_eq!(retrieved.id, adapter.id);
+        assert_eq!(retrieved.checksum, adapter.checksum);
+        assert_eq!(retrieved.expertise.name, "solidity-audit");
+    }
+
+    // contract: P8-adt-trained-adapter-store
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    #[test]
+    fn retrieve_by_expertise() {
+        let db = hkask_storage::in_memory_db();
+        let store = AdapterStore::new(db.conn_arc());
+        store.migrate().expect("migration");
+
+        let adapter1 = make_test_adapter("solidity-audit");
+        let adapter2 = make_test_adapter("solidity-audit"); // same expertise, different adapter
+        let adapter3 = make_test_adapter("rust-review");
+
+        store.store(&adapter1).expect("store 1");
+        store.store(&adapter2).expect("store 2");
+        store.store(&adapter3).expect("store 3");
+
+        let solidity = store.get_by_expertise("solidity-audit").expect("retrieve");
+        assert_eq!(solidity.len(), 2);
+
+        let rust = store.get_by_expertise("rust-review").expect("retrieve");
+        assert_eq!(rust.len(), 1);
+    }
+
+    // contract: P8-adt-trained-adapter-store
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    #[test]
+    fn list_by_owner() {
+        let db = hkask_storage::in_memory_db();
+        let store = AdapterStore::new(db.conn_arc());
+        store.migrate().expect("migration");
+
+        let owner = WebID::new();
+        let mut adapter = make_test_adapter("solidity-audit");
+        adapter.owner = owner;
+        store.store(&adapter).expect("store");
+
+        let other_adapter = make_test_adapter("rust-review");
+        store.store(&other_adapter).expect("store other");
+
+        let owned = store.list_owner(owner).expect("list owner");
+        assert_eq!(owned.len(), 1);
+        assert_eq!(owned[0].id, adapter.id);
+    }
+
+    // contract: P8-adt-trained-adapter-store
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    #[test]
+    fn delete_adapter() {
+        let db = hkask_storage::in_memory_db();
+        let store = AdapterStore::new(db.conn_arc());
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+        assert!(store.get_by_id(adapter.id).expect("retrieve").is_some());
+
+        store.delete(adapter.id).expect("delete");
+        assert!(store.get_by_id(adapter.id).expect("retrieve").is_none());
+    }
+
+    // contract: P8-adt-trained-adapter-store
+    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
+    #[test]
+    fn delete_non_existent_returns_error() {
+        let db = hkask_storage::in_memory_db();
+        let store = AdapterStore::new(db.conn_arc());
+        store.migrate().expect("migration");
+
+        let result = store.delete(Uuid::new_v4());
+        assert!(result.is_err());
+    }
+}

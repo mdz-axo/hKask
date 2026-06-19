@@ -1,3 +1,4 @@
+// contract: GAS-CALIB-003
 //
 // Integration test: real NuEventStore with cns.gas.settled events is read by
 // GasReport, which calibrates a DynamicGasTable. The calibrated table is then
@@ -31,6 +32,7 @@ fn settled_event(agent: WebID, server: &str, reserved: u64, actual: u64) -> NuEv
     )
 }
 
+// contract: GAS-CALIB-003
 #[test]
 fn gas_report_calibrates_dynamic_table_from_settled_events() {
     let agent = WebID::new();
@@ -61,6 +63,7 @@ fn gas_report_calibrates_dynamic_table_from_settled_events() {
     );
 }
 
+// contract: GAS-CALIB-003
 #[test]
 fn calibrated_table_flows_into_composite_estimator() {
     let agent = WebID::new();

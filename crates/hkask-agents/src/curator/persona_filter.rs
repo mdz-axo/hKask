@@ -5,6 +5,7 @@
 //! enforced at runtime. This filter checks model output against the constraints
 //! and reports violations.
 
+use hkask_rsolidity as rs;
 use hkask_types::PersonaConstraints;
 
 /// Result of checking model output against persona constraints.
@@ -20,13 +21,19 @@ pub struct PersonaCheckResult {
 ///
 /// Returns a `PersonaCheckResult` indicating whether the output passes and
 /// listing any violations. The `forbidden` field of `PersonaConstraints`
+/// \[NORMATIVE\] contains patterns that must not appear in Curator output. (P3 — Generative Space).
 ///
+/// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — persona filter prevents harmful output
 /// \[P4\] Constraining: Clear Boundaries — forbidden patterns are explicit
+/// pre:  `output` is a valid UTF-8 string (may be empty); `constraints`
 ///       is a valid `PersonaConstraints` with a non-empty `forbidden` list.
+/// post: Returns a `PersonaCheckResult` with `passed = true` if no
 ///       forbidden patterns are found (case-insensitive substring match);
 ///       `passed = false` with a list of `(pattern, matched_text)`
 ///       violations otherwise. Does not panic on non-ASCII input.
+#[rs::contract(id = "P9-agt-curator-persona-check", principle = "P9")]
+#[rs::contract(id = "P9-agt-curator-persona-check", principle = "P9")]
 pub fn check_persona_constraints(
     output: &str,
     constraints: &PersonaConstraints,
@@ -56,11 +63,16 @@ pub fn check_persona_constraints(
 /// Replaces each forbidden pattern occurrence with an empty string.
 /// Returns the cleaned output and a list of violations that were stripped.
 ///
+/// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — stripping reduces harm while preserving utility
+/// pre:  `output` is a valid UTF-8 string; `constraints` is a valid
 ///       `PersonaConstraints` with a non-empty `forbidden` list.
+/// post: Returns `(cleaned_output, violations)` where `cleaned_output`
 ///       has all forbidden patterns removed (case-insensitive, first
 ///       occurrence only per pattern) and `violations` lists what was
 ///       stripped. Does not panic on non-ASCII input.
+#[rs::contract(id = "P9-agt-curator-persona-strip", principle = "P9")]
+#[rs::contract(id = "P9-agt-curator-persona-strip", principle = "P9")]
 pub fn strip_forbidden_patterns(
     output: &str,
     constraints: &PersonaConstraints,
@@ -95,6 +107,8 @@ mod tests {
         }
     }
 
+    // contract: P4-agt-persona-filter-non-ascii-check-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn check_does_not_panic_on_non_ascii_output() {
         // 'é' is 2 bytes in UTF-8. The forbidden pattern "great" is ASCII.
@@ -110,6 +124,8 @@ mod tests {
         );
     }
 
+    // contract: P4-agt-persona-filter-non-ascii-strip-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn strip_does_not_panic_on_non_ascii_output() {
         let c = constraints(&["great"]);
@@ -119,6 +135,8 @@ mod tests {
         assert!(!cleaned.contains("Great"), "should strip the pattern");
     }
 
+    // contract: P4-agt-persona-filter-ascii-detect-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn check_detects_ascii_forbidden_pattern() {
         let c = constraints(&["Great", "Certainly"]);
@@ -127,6 +145,8 @@ mod tests {
         assert_eq!(result.violations.len(), 2);
     }
 
+    // contract: P4-agt-persona-filter-clean-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn check_passes_clean_output() {
         let c = constraints(&["Great", "Certainly"]);

@@ -2,6 +2,7 @@
 
 use axum::extract::Extension;
 use axum::{Json, extract::Query, extract::State};
+use hkask_rsolidity as rs;
 use hkask_services::ServiceError;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -19,6 +20,9 @@ fn parse_data_category(s: &str) -> hkask_types::sovereignty::DataCategory {
     hkask_types::sovereignty::DataCategory::parse(s)
 }
 
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with sovereignty routes registered
 pub fn sovereignty_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(sovereignty_status))
@@ -104,6 +108,8 @@ pub(crate) async fn sovereignty_status(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyStatusResponse>, ServiceErrorResponse> {
+    // contract: P9-CNS-SURF-060
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "sovereignty_status", "CNS");
     let cm = &state.agent_service.sovereignty();
@@ -149,6 +155,8 @@ pub(crate) async fn sovereignty_grant_consent(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<SovereigntyConsentRequest>,
 ) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
+    // contract: P9-CNS-SURF-061
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "sovereignty_grant", category = %req.category, "CNS");
     let webid_str = auth.webid.to_string();
@@ -178,6 +186,8 @@ pub(crate) async fn sovereignty_revoke_consent(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
+    // contract: P9-CNS-SURF-062
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "sovereignty_revoke", "CNS");
     let webid_str = auth.webid.to_string();
@@ -206,6 +216,8 @@ pub(crate) async fn sovereignty_check_access(
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<AccessCheckResponse>, ServiceErrorResponse> {
+    // contract: P9-CNS-SURF-063
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "sovereignty_check_access", "CNS");
     let cat_str = params.get("category").map(|s| s.as_str()).unwrap_or("");

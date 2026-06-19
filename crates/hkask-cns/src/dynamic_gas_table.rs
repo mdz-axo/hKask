@@ -26,6 +26,7 @@
 //! REQ: P9-cns-dynamic-gas-table-obs — Tracer bullet: single observation initializes EMA per server.
 //! REQ: P9-cns-dynamic-gas-table-integration — Integration: calibrated table replaces hardcoded `TableEnergyEstimator` costs.
 
+use hkask_rsolidity as rs;
 use std::collections::{HashMap, HashSet};
 
 /// Default EMA alpha for calibration smoothing.
@@ -38,6 +39,9 @@ const DEFAULT_TOLERANCE: f64 = 0.2;
 /// Per-server dynamic gas cost calibration table.
 ///
 /// # Contract
+/// expect: "I can calibrate per-server gas costs from real observations using exponential moving averages" [P9]
+/// pre:  `server_costs` contains known servers with initialized costs
+/// post: after `calibrate()`, costs reflect EMA-smoothed actual/estimated ratios
 ///
 /// # Properties
 /// - Each server has an EMA of its actual/estimated gas ratio
@@ -72,6 +76,10 @@ pub struct DynamicGasTable {
 impl DynamicGasTable {
     /// Create a new DynamicGasTable with the default gas cost table.
     ///
+    /// expect: "I can run a calibration pass that adjusts server costs when EMA ratios exceed tolerance" [P9]
+    /// expect: "I can create a dynamic gas table initialized from the default server cost table" [P9]
+    /// post: returns DynamicGasTable with default server costs and no observations
+    #[rs::contract(id = "P9-cns-dynamic-gas-table-new", principle = "P9")]
     pub fn new() -> Self {
         let server_costs: HashMap<String, u64> = crate::table_energy_estimator::default_gas_table()
             .into_iter()
@@ -93,6 +101,11 @@ impl DynamicGasTable {
     /// The ratio is clamped to [0.1, 10.0] to prevent extreme outliers from
     /// destabilizing the EMA.
     ///
+    /// expect: "I can feed a single gas observation into the table to initialize or update the EMA per server" [P9]
+    /// pre:  estimated_gas > 0 (no division by zero)
+    /// post: ema_ratios[server] updated with EMA of actual/estimated ratio
+    /// post: observation_counts[server] incremented
+    #[rs::contract(id = "P9-cns-dynamic-gas-table-record-observation", principle = "P9")]
     pub fn record_observation(&mut self, server: &str, estimated_gas: u64, actual_gas: u64) {
         let ratio = actual_gas as f64 / estimated_gas.max(1) as f64;
         // Clamp to [0.1, 10.0] to prevent extreme outliers destabilizing EMA
@@ -123,9 +136,13 @@ impl DynamicGasTable {
     /// Servers with no new observations since the last calibration are skipped,
     /// preventing already-applied EMA ratios from being repeatedly re-applied.
     ///
+    /// expect: "I can run a calibration pass that adjusts server costs when EMA ratios exceed tolerance" [P9]
+    /// post: server_costs[server] is updated if its EMA ratio exceeds tolerance
+    /// post: returns the number of servers whose costs were adjusted
     ///
     /// # Returns
     /// Number of servers whose costs were adjusted.
+    #[rs::contract(id = "P9-cns-dynamic-gas-table-calibrate", principle = "P9")]
     pub fn calibrate(&mut self) -> usize {
         let servers: Vec<String> = self.observed_since_last_calibrate.iter().cloned().collect();
         self.observed_since_last_calibrate.clear();
@@ -153,6 +170,10 @@ impl DynamicGasTable {
     /// Returns a snapshot of `server_costs` suitable for constructing a
     /// `TableEnergyEstimator` or feeding into `CompositeEnergyEstimator`.
     ///
+    /// expect: "I can run a calibration pass that adjusts server costs when EMA ratios exceed tolerance" [P9]
+    /// expect: "I can export the calibrated server cost table for estimator construction" [P9]
+    /// post: returns a HashMap<String, u64> of server → cost mappings
+    #[rs::contract(id = "P9-cns-dynamic-gas-table-report-table", principle = "P9")]
     pub fn report_table(&self) -> HashMap<String, u64> {
         self.server_costs.clone()
     }
@@ -162,6 +183,9 @@ impl DynamicGasTable {
     /// Returns (server_name → current_ema_ratio) for all servers with observations.
     /// Unobserved servers are omitted.
     ///
+    /// expect: "I can query per-server EMA ratios for diagnostics and monitoring" [P9]
+    /// post: returns a HashMap<String, f64> of server → EMA ratio mappings
+    #[rs::contract(id = "P9-cns-dynamic-gas-table-current-ratios", principle = "P9")]
     pub fn current_ratios(&self) -> HashMap<String, f64> {
         self.ema_ratios.clone()
     }
@@ -170,6 +194,9 @@ impl DynamicGasTable {
     ///
     /// Returns 0 if the server has never been observed.
     ///
+    /// expect: "I can query the observation count for a server to assess calibration confidence" [P9]
+    /// post: returns the count of recorded observations for `server`, or 0 if unobserved
+    #[rs::contract(id = "P9-cns-dynamic-gas-table-observation-count", principle = "P9")]
     pub fn observation_count(&self, server: &str) -> u64 {
         self.observation_counts.get(server).copied().unwrap_or(0)
     }
@@ -188,6 +215,7 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
+    // contract: GAS-CALIB-001
     #[test]
     fn first_observation_initializes_ema() {
         let mut table = DynamicGasTable::new();
@@ -200,6 +228,7 @@ mod tests {
         assert_eq!(table.observation_count("hkask-mcp-condenser"), 1);
     }
 
+    // contract: GAS-CALIB-002
     #[test]
     fn ema_smooths_multiple_observations() {
         let mut table = DynamicGasTable::new();
@@ -214,6 +243,7 @@ mod tests {
         assert!((table.current_ratios()["hkask-mcp-research"] - expected_ema).abs() < 0.001);
     }
 
+    // contract: GAS-CALIB-003
     #[test]
     fn within_tolerance_no_adjustment() {
         let mut table = DynamicGasTable::new();
@@ -223,6 +253,7 @@ mod tests {
         assert_eq!(adjusted, 0, "ratio 1.1 is within 20% tolerance");
     }
 
+    // contract: GAS-CALIB-004
     #[test]
     fn exceeds_tolerance_triggers_adjustment() {
         let mut table = DynamicGasTable::new();
@@ -236,6 +267,7 @@ mod tests {
         assert_eq!(reports["hkask-mcp-media"], 200);
     }
 
+    // contract: GAS-CALIB-005
     #[test]
     fn cost_floored_at_one() {
         let mut table = DynamicGasTable::new();
@@ -247,6 +279,7 @@ mod tests {
         assert_eq!(reports["hkask-mcp-memory"], 1, "cost floored at 1");
     }
 
+    // contract: GAS-CALIB-006
     #[test]
     fn unobserved_servers_retain_initial() {
         let table = DynamicGasTable::new();
@@ -255,6 +288,7 @@ mod tests {
         assert_eq!(reports["hkask-mcp-spec"], 5);
     }
 
+    // contract: GAS-CALIB-001
     #[test]
     fn calibrate_does_not_reapply_without_new_observations() {
         let mut table = DynamicGasTable::new();
@@ -267,6 +301,7 @@ mod tests {
         assert_eq!(table.report_table()["hkask-mcp-media"], 200);
     }
 
+    // contract: GAS-CALIB-001
     #[test]
     fn calibrate_readjusts_after_new_observation() {
         let mut table = DynamicGasTable::new();
@@ -280,6 +315,7 @@ mod tests {
         assert_eq!(table.report_table()["hkask-mcp-media"], 400);
     }
 
+    // contract: GAS-CALIB-007
     proptest! {
         fn costs_converge_after_multiple_observations(
             obs_count in 2usize..50usize,

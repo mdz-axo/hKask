@@ -6,6 +6,7 @@ license.workspace = true
 description = "SQLite + SQLCipher storage for hKask"
 
 [dependencies]
+hkask-rsolidity = { path = "../hkask-rsolidity" }
 hkask-types = { path = "../hkask-types", features = ["sql"] }
 hkask-keystore = { path = "../hkask-keystore" }
 rusqlite.workspace = true

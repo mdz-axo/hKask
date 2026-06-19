@@ -31,6 +31,7 @@ pub use audit::AuditEntry;
 pub(crate) use audit::AuditLog;
 pub(crate) use root_authority::RootAuthority;
 
+use hkask_rsolidity as rs;
 use hkask_types::capability::derive_signing_key;
 use hkask_types::{
     AgentKind, AuditOutcome, CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
@@ -177,9 +178,14 @@ const _: fn() = || {
 impl A2AMessage {
     /// Dispatch a visitor over the variant. Single match site in the codebase.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — single dispatch site for A2A message variants
+    /// pre:  `visitor` is a valid `&mut dyn A2AMessageVisitor`.
+    /// post: Calls the appropriate visitor method based on the message
     ///       variant (`on_template_dispatch`, `on_template_response`,
     ///       or `on_memory_artifact`).
+    #[rs::contract(id = "P4-agt-a2a-message-visit", principle = "P4")]
+    #[rs::contract(id = "P4-agt-a2a-message-visit", principle = "P4")]
     pub fn visit(&self, visitor: &mut dyn A2AMessageVisitor) {
         match self {
             A2AMessage::TemplateDispatch {
@@ -223,9 +229,14 @@ impl A2AMessage {
     /// Returns `Some` for `TemplateDispatch` (from) and `MemoryArtifact` (producer),
     /// `None` for `TemplateResponse` (no sender).
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — sender identity is explicit per variant
     /// \[P1\] Constraining: User Sovereignty — identity belongs to the agent/user
+    /// pre:  (none).
+    /// post: Returns `Some(&WebID)` for variants with a sender field;
     ///       `None` for `TemplateResponse`.
+    #[rs::contract(id = "P4-agt-a2a-message-sender", principle = "P4")]
+    #[rs::contract(id = "P4-agt-a2a-message-sender", principle = "P4")]
     pub fn from_webid(&self) -> Option<&WebID> {
         match self {
             A2AMessage::TemplateDispatch { from, .. } => Some(from),
@@ -240,8 +251,13 @@ impl A2AMessage {
     /// `TemplateDispatch` and `TemplateResponse` use `correlation_id`,
     /// `MemoryArtifact` uses `artifact_id`.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — correlation/artifact IDs enable traceability
+    /// pre:  (none).
+    /// post: Returns the correlation/artifact ID string for the message
     ///       variant.
+    #[rs::contract(id = "P4-agt-a2a-message-id", principle = "P4")]
+    #[rs::contract(id = "P4-agt-a2a-message-id", principle = "P4")]
     pub fn correlation_id(&self) -> &str {
         match self {
             A2AMessage::TemplateDispatch { correlation_id, .. } => correlation_id,
@@ -252,8 +268,13 @@ impl A2AMessage {
 
     /// Get a human-readable message type name.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P8\] Motivating: Semantic Grounding — stable message type labels
+    /// pre:  (none).
+    /// post: Returns a `&'static str`: `"template_dispatch"`,
     ///       `"template_response"`, or `"memory_artifact"`.
+    #[rs::contract(id = "P4-agt-a2a-message-type", principle = "P4")]
+    #[rs::contract(id = "P4-agt-a2a-message-type", principle = "P4")]
     pub fn message_type(&self) -> &'static str {
         match self {
             A2AMessage::TemplateDispatch { .. } => "template_dispatch",
@@ -293,9 +314,14 @@ impl A2ARuntime {
     /// `secret` is the master key for HKDF agent-secret derivation.
     /// The Ed25519 signing key for token issuance is derived from it.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — A2A runtime derives root authority from master secret
     /// \[P1\] Constraining: User Sovereignty — root WebID is user-derived
+    /// pre:  `secret` is a non-empty byte slice (master key material).
+    /// post: Returns an `A2ARuntime` with a derived root WebID, signing
     ///       key, empty agent state, and a fresh audit log.
+    #[rs::contract(id = "P4-agt-a2a-runtime-new", principle = "P4")]
+    #[rs::contract(id = "P4-agt-a2a-runtime-new", principle = "P4")]
     pub fn new(secret: &[u8]) -> Self {
         // Derive root WebID deterministically from a fixed "root" persona
         let root_persona = b"hkask-root-authority";
@@ -314,10 +340,15 @@ impl A2ARuntime {
 
     /// Keys are cryptographically independent — compromising one doesn't compromise others.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — HKDF isolates per-agent secrets
     /// \[P1\] Constraining: User Sovereignty — secrets are bound to agent identity
+    /// pre:  `agent_webid` is a valid `WebID`.
+    /// post: Returns an `AgentSecret` derived via HKDF-SHA256 with the
     ///       agent WebID as domain separator; caches the result for
     ///       subsequent calls.
+    #[rs::contract(id = "P4-agt-a2a-secret-derive", principle = "P4")]
+    #[rs::contract(id = "P4-agt-a2a-secret-derive", principle = "P4")]
     pub async fn derive_agent_secret(&self, agent_webid: &WebID) -> AgentSecret {
         // Check cache first
         {
@@ -345,13 +376,18 @@ impl A2ARuntime {
 
     /// Returns primary DelegationToken for the agent.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — DelegationToken attenuates capabilities
     /// \[P1\] Constraining: User Sovereignty — tokens are issued to named agents
+    /// pre:  `webid` is a valid `WebID`; `agent_type` is a valid
     ///       `AgentKind`; `capabilities` is a list of capability strings
     ///       (no wildcards allowed).
+    /// post: On success, returns `Ok(DelegationToken)` — the primary token
     ///       for the agent. On failure, returns `Err(A2AError)`:
     ///       `WildcardCapabilityNotAllowed` if any capability is `"*"`;
     ///       `AgentAlreadyRegistered` if the WebID is already registered.
+    #[rs::contract(id = "P4-agt-a2a-token-issue", principle = "P4")]
+    #[rs::contract(id = "P4-agt-a2a-token-issue", principle = "P4")]
     pub async fn register_agent(
         &self,
         webid: WebID,
@@ -418,9 +454,14 @@ impl A2ARuntime {
         Ok(primary_token)
     }
 
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — unregister revokes all agent capabilities
+    /// pre:  `webid` is a valid `WebID`.
+    /// post: If the agent exists, removes it and its capability tokens
     ///       and derived key, returns `Ok(())`. If not found, returns
     ///       `Err(A2AError::AgentNotFound)`.
+    #[rs::contract(id = "P4-agt-a2a-agent-unregister", principle = "P4")]
+    #[rs::contract(id = "P4-agt-a2a-agent-unregister", principle = "P4")]
     pub async fn unregister_agent(&self, webid: &WebID) -> Result<(), A2AError> {
         let mut state = self.state.write().await;
 
@@ -443,9 +484,14 @@ impl A2ARuntime {
 
     /// R2: Persist Agent State. Returns count of agents restored.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — restore preserves capability graph
+    /// pre:  `agents` is a list of `A2AAgent` records; `tokens` is a map
     ///       of WebID → `Vec<DelegationToken>`.
+    /// post: All agents and tokens are inserted into the runtime state;
     ///       returns `Ok(usize)` with the count of agents restored.
+    #[rs::contract(id = "P4-agt-a2a-agents-restore", principle = "P4")]
+    #[rs::contract(id = "P4-agt-a2a-agents-restore", principle = "P4")]
     pub async fn restore_from_storage(
         &self,
         agents: Vec<A2AAgent>,
@@ -539,8 +585,13 @@ impl A2ARuntime {
 
     /// List all registered agents.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — enumerate registered agents
+    /// pre:  (none).
+    /// post: Returns a `Vec<A2AAgent>` containing clones of all currently
     ///       registered agents.
+    #[rs::contract(id = "P4-agt-a2a-agents-list", principle = "P4")]
+    #[rs::contract(id = "P4-agt-a2a-agents-list", principle = "P4")]
     pub async fn list_agents(&self) -> Vec<A2AAgent> {
         let state = self.state.read().await;
         state.agents.values().cloned().collect()
@@ -562,6 +613,7 @@ impl Default for A2ARuntime {
     /// documented panic if the secret is unavailable. The panic message
     /// is the actionable onboarding instruction ("run `kask chat` to
     /// complete onboarding, or set HKASK_MASTER_KEY or HKASK_A2A_SECRET").
+    /// \[NORMATIVE\] Callers that need graceful failure should call (P4 — Clear Boundaries).
     /// `hkask_keystore::resolve_a2a_secret()` directly and handle the
     /// `Result` instead of using `Default::default()`.
     fn default() -> Self {
@@ -626,6 +678,8 @@ mod tests {
 
     // ── A2A Wildcard Rejection ──────────────────────────────────────────────
 
+    // contract: P4-agt-A2A-wildcard-reject-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_rejects_wildcard_capability() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -642,6 +696,8 @@ mod tests {
         }
     }
 
+    // contract: P4-agt-A2A-wildcard-mixed-reject-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_rejects_wildcard_mixed_with_valid_capabilities() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -664,6 +720,8 @@ mod tests {
 
     // ── ACP Registration ────────────────────────────────────────────────────
 
+    // contract: P4-agt-A2A-register-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_registers_agent_and_returns_token() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -680,6 +738,8 @@ mod tests {
         assert!(a2a.is_registered(&webid).await);
     }
 
+    // contract: P4-agt-A2A-register-dup-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_rejects_duplicate_registration() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -700,6 +760,8 @@ mod tests {
         }
     }
 
+    // contract: P4-agt-A2A-register-capabilities-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn root_authority_creates_tokens_for_all_capabilities() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -731,6 +793,8 @@ mod tests {
 
     // ── ACP Unregistration ──────────────────────────────────────────────────
 
+    // contract: P4-agt-A2A-unregister-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_unregisters_agent_and_removes_tokens() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -751,6 +815,8 @@ mod tests {
         assert!(a2a.get_capabilities(&webid).await.is_empty());
     }
 
+    // contract: P4-agt-A2A-unregister-unknown-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_unregister_unknown_agent_returns_error() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -766,6 +832,8 @@ mod tests {
 
     // ── ACP Token Revocation ────────────────────────────────────────────────
 
+    // contract: P4-agt-A2A-revoke-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_revokes_token() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -785,6 +853,8 @@ mod tests {
 
     // ── ACP Restore ─────────────────────────────────────────────────────────
 
+    // contract: P4-agt-A2A-restore-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_restore_preserves_capabilities() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -827,6 +897,8 @@ mod tests {
 
     // ── ACP List Agents ─────────────────────────────────────────────────────
 
+    // contract: P4-agt-A2A-list-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_lists_registered_agents() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -849,6 +921,8 @@ mod tests {
         assert!(webids.contains(&bob));
     }
 
+    // contract: P4-agt-a2a-list-empty-test
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_list_empty_when_no_agents() {
         let a2a = A2ARuntime::new(TEST_SECRET);

@@ -36,6 +36,7 @@ pub struct RetentionTier {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetentionPolicy {
     /// Ordered list of tiers, from youngest to oldest.
+    /// \[NORMATIVE\] The last tier's `max_age_secs` should be `u64::MAX` (forever). (P5 — Essentialism).
     pub tiers: Vec<RetentionTier>,
 }
 
@@ -85,6 +86,9 @@ pub struct RepoSnapshotPolicy {
 impl RepoSnapshotPolicy {
     /// Create a policy for a repo with default retention.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// pre:  repo is any [`RepoId`] variant
+    /// post: returns a [`RepoSnapshotPolicy`] with `enabled: true` and `policy: None`
     ///       (falls back to global default retention)
     pub fn default_for(repo: RepoId) -> Self {
         Self {
@@ -96,6 +100,9 @@ impl RepoSnapshotPolicy {
 
     /// Create a policy for a repo with custom retention.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// pre:  repo is any [`RepoId`] variant; policy is any [`RetentionPolicy`]
+    /// post: returns a [`RepoSnapshotPolicy`] with `enabled: true` and the given custom policy
     pub fn with_policy(repo: RepoId, policy: RetentionPolicy) -> Self {
         Self {
             repo,
@@ -106,6 +113,9 @@ impl RepoSnapshotPolicy {
 
     /// Create a disabled policy for a repo that shouldn't be snapshotted.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// pre:  repo is any [`RepoId`] variant
+    /// post: returns a [`RepoSnapshotPolicy`] with `enabled: false` and `policy: None`
     pub fn disabled(repo: RepoId) -> Self {
         Self {
             repo,
@@ -116,6 +126,9 @@ impl RepoSnapshotPolicy {
 
     /// Get the effective retention policy, falling back to default.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// pre:  self is any [`RepoSnapshotPolicy`]
+    /// post: returns the custom [`RetentionPolicy`] if `policy` is `Some`;
     ///       otherwise returns the global default [`RetentionPolicy`]; never panics
     pub fn effective_policy(&self) -> RetentionPolicy {
         self.policy.clone().unwrap_or_default()

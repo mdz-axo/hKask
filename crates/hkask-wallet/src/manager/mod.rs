@@ -8,6 +8,7 @@
 
 use chrono::{Duration, Utc};
 use hkask_keystore::keychain::resolve_wallet_seed;
+use hkask_rsolidity as rs;
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
@@ -41,8 +42,11 @@ mod withdrawals;
 /// - Holds `wallet_seed` in `Zeroizing` for deposit reference generation
 /// - Does NOT hold treasury keys (loaded per-operation in signing.rs)
 ///
+/// expect: "The system manages rJoule balances, encumbrances, and energy-based payments" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor
 /// \[P1\] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized
+/// inv: wallet_seed is zeroized on drop (Zeroizing wrapper)
+/// inv: chains map is non-empty after successful build
 pub struct WalletManager {
     config: WalletConfig,
     store: Arc<WalletStore>,
@@ -63,8 +67,15 @@ pub struct WalletManager {
 impl WalletManager {
     /// Build a WalletManager from configuration, store, chain/privacy ports, and price feed.
     ///
+    /// expect: "The system manages rJoule balances, encumbrances, and energy-based payments" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor
     /// \[P1\] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized
+    /// pre:  config is valid, store is initialized, chains is non-empty
+    /// pre:  price_feed is a resolved PriceFeed implementation
+    /// post: returns Ok(WalletManager) with resolved wallet_seed
+    /// post: returns Err if wallet_seed resolution fails
+    #[rs::contract(id = "P9-wallet-mgr-build", principle = "P9")]
+    #[rs::contract(id = "P9-wallet-mgr-build", principle = "P9")]
     pub fn build(
         config: WalletConfig,
         store: Arc<WalletStore>,
@@ -92,6 +103,7 @@ impl WalletManager {
 
     /// Attach a CNS event sink for span emission.
     #[must_use = "builder methods must be chained or assigned"]
+    #[rs::contract(id = "P9-wallet-mgr-struct", principle = "P9")]
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
@@ -116,8 +128,15 @@ impl WalletManager {
 
     /// Get the current rJoule balance for a wallet.
     ///
+    /// expect: "I can query my rJoule balance" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — balance is the cybernetic state
     /// \[P8\] Constraining: Semantic Grounding — gas/USDC equivalents derive deterministically
+    /// pre:  wallet_id is a valid WalletId
+    /// post: returns Ok(balance) with rjoules, gas_equivalent, usdc_equivalent_micro
+    /// post: gas_equivalent == rjoules * config.gas_per_rjoule
+    /// post: balance.rjoules >= 0 (balances are never negative)
+    #[rs::contract(id = "P9-wallet-mgr-balance", principle = "P9")]
+    #[rs::contract(id = "P9-wallet-mgr-balance", principle = "P9")]
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<WalletBalance, WalletError> {
         let mut balance = self.store.get_balance(wallet_id)?.unwrap_or(WalletBalance {
             wallet_id,
@@ -134,8 +153,14 @@ impl WalletManager {
     /// Get an API key's capability metadata for CNS health monitoring.
     /// Returns `None` if the key doesn't exist or has been revoked.
     ///
+    /// expect: "The system manages API key issuance with spending limits and expiry" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — API key health state for feedback loops
     /// \[P4\] Constraining: Clear Boundaries — revoked keys are excluded
+    /// pre:  key_id is a valid ApiKeyId
+    /// post: returns Ok(Some(capability)) if key exists and is active
+    /// post: returns Ok(None) if key doesn't exist or is revoked
+    #[rs::contract(id = "P9-wallet-mgr-api-key-get", principle = "P9")]
+    #[rs::contract(id = "P9-wallet-mgr-api-key-get", principle = "P9")]
     pub fn get_api_key(
         &self,
         key_id: hkask_types::wallet::ApiKeyId,
@@ -222,6 +247,8 @@ impl WalletManager {
     ) -> Result<DepositReference, WalletError> {
         let nonce: [u8; 16] = rand::random();
         let expiry = Utc::now() + validity_duration;
+        // contract: P9-wallet-mgr-deposit-ref-nonce
+        // expect: "The system generates unique deposit references for attribution" [P9]
         let context = format!(
             "hkask:deposit-ref:{}:{}:{}:{}",
             wallet_id,
@@ -420,6 +447,8 @@ mod tests {
         .unwrap()
     }
 
+    // contract: P9-wallet-mgr-gas-conversion-test
+    /// expect: "Wallet mgr gas conversion test works correctly under test conditions" [P9]
     #[test]
     fn gas_to_rjoules_conversion() {
         let mgr = make_manager();
@@ -428,6 +457,8 @@ mod tests {
         assert_eq!(mgr.gas_to_rjoules(0), RJoule::ZERO);
     }
 
+    // contract: P9-wallet-mgr-rjoules-to-gas-test
+    /// expect: "Wallet mgr rjoules to gas test works correctly under test conditions" [P9]
     #[test]
     fn rjoules_to_gas_conversion() {
         let mgr = make_manager();
@@ -435,6 +466,8 @@ mod tests {
         assert_eq!(mgr.rjoules_to_gas(RJoule::new(5)), 5000);
     }
 
+    // contract: P9-wallet-mgr-fee-estimate
+    /// expect: "I can estimate withdrawal fees before initiating a withdrawal" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal
     /// \[P8\] Constraining: Semantic Grounding — derived from live/native USD rate
     #[tokio::test]
@@ -450,6 +483,8 @@ mod tests {
         assert!(fee.native_units > 0.0);
     }
 
+    // contract: P9-wallet-mgr-can-afford-test
+    /// expect: "Wallet mgr can afford test works correctly under test conditions" [P9]
     #[test]
     fn can_afford_checks_balance() {
         let mgr = make_manager();
@@ -459,6 +494,8 @@ mod tests {
         assert!(!mgr.can_afford(wallet, RJoule::new(200)).unwrap());
     }
 
+    // contract: P9-wallet-mgr-reserve-rejects-test
+    /// expect: "Wallet mgr reserve rejects test works correctly under test conditions" [P9]
     #[test]
     fn reserve_rejects_insufficient_balance() {
         let mgr = make_manager();
@@ -468,6 +505,8 @@ mod tests {
         assert!(mgr.reserve_rjoules(wallet, RJoule::new(100)).is_err());
     }
 
+    // contract: P9-wallet-mgr-settle-debits-test
+    /// expect: "Wallet mgr settle debits test works correctly under test conditions" [P9]
     #[test]
     fn settle_debits_actual_cost() {
         let mgr = make_manager();
@@ -479,6 +518,8 @@ mod tests {
         assert_eq!(balance.rjoules, 70); // 100 - 30
     }
 
+    // contract: P9-wallet-mgr-deposit-ref-gen-test
+    /// expect: "Wallet mgr deposit ref gen test works correctly under test conditions" [P9]
     #[test]
     fn deposit_reference_generation() {
         let mgr = make_manager();
@@ -522,12 +563,16 @@ mod tests {
         let _ = store.store_api_key(&capability);
     }
 
+    // contract: P9-wallet-mgr-balance-conservation-pbt
+    // expect: "Wallet mgr balance conservation pbt works correctly under test conditions" [P9]
     // After any sequence of credit, encumber, consume, and release operations:
     // - Wallet balance = total_credited - total_consumed (conservation)
     // - Total consumed ≤ total credited (can't spend more than deposited)
     // - Per key: consumed ≤ encumbered (can't consume more than locked)
     proptest! {
         #![proptest_config(ProptestConfig { max_shrink_iters: 0, .. ProptestConfig::with_cases(64) })]
+        // contract: P9-wallet-mgr-balance-conservation-pbt
+        // expect: "Wallet mgr balance conservation pbt works correctly under test conditions" [P9]
         #[test]
         fn balance_conservation_under_encumbrance_lifecycle(
             credits in prop::collection::vec(arbitrary_rjoule(), 1..10),
@@ -633,6 +678,8 @@ mod tests {
         }
     }
 
+    // contract: P9-wallet-mgr-deposit-monitor-idempotent-test
+    /// expect: "Wallet mgr deposit monitor idempotent test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn deposit_monitor_credits_and_is_idempotent() {
         // SAFETY: test-only
@@ -723,6 +770,8 @@ mod tests {
         );
     }
 
+    // contract: P9-wallet-mgr-multi-chain-deposit-test
+    /// expect: "Wallet mgr multi chain deposit test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn poll_deposits_once_multi_chain() {
         // SAFETY: test-only
@@ -817,6 +866,8 @@ mod tests {
         assert_eq!(deposit_count, 2, "two deposits should be recorded");
     }
 
+    // contract: P9-wallet-mgr-payment-lifecycle-test
+    /// expect: "Wallet mgr payment lifecycle test works correctly under test conditions" [P9]
     #[test]
     fn end_to_end_payment_lifecycle() {
         // SAFETY: test-only
@@ -896,6 +947,8 @@ mod tests {
         );
     }
 
+    // contract: P9-wallet-mgr-encumbrance-state-machine-test
+    /// expect: "Wallet mgr encumbrance state machine test works correctly under test conditions" [P9]
     // Proves that once an encumbrance is released, no operation can re-activate it.
     #[test]
     fn encumbrance_status_state_machine_no_released_to_active() {
@@ -980,6 +1033,8 @@ mod tests {
 
     // ── Withdrawal pipeline tests ─────────────────────────────────────────
 
+    // contract: P9-wallet-mgr-withdraw-pipeline-test
+    /// expect: "Wallet mgr withdraw pipeline test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn withdraw_full_pipeline_success() {
         // SAFETY: test-only
@@ -1034,6 +1089,8 @@ mod tests {
         assert_eq!(wtx.balance_after, 8000, "balance after withdrawal");
     }
 
+    // contract: P9-wallet-mgr-withdraw-insufficient-test
+    /// expect: "Wallet mgr withdraw insufficient test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn withdraw_rejects_insufficient_balance() {
         // SAFETY: test-only
@@ -1079,6 +1136,8 @@ mod tests {
         );
     }
 
+    // contract: P9-wallet-mgr-withdraw-unsupported-chain-test
+    /// expect: "Wallet mgr withdraw unsupported chain test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn withdraw_rejects_unsupported_chain() {
         // SAFETY: test-only
@@ -1126,6 +1185,8 @@ mod tests {
         );
     }
 
+    // contract: P9-wallet-mgr-shielded-withdraw-privacy-test
+    /// expect: "Wallet mgr shielded withdraw privacy test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn withdraw_shielded_hinkal_uses_privacy_path() {
         let mgr = make_manager_with_hinkal_privacy();
@@ -1158,6 +1219,8 @@ mod tests {
         assert_eq!(withdrawal_tx.rjoules_delta, -1500);
     }
 
+    // contract: P9-wallet-mgr-shielded-deposit-test
+    /// expect: "Wallet mgr shielded deposit test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn shield_assets_uses_privacy_path() {
         let mgr = make_manager_with_hinkal_privacy();

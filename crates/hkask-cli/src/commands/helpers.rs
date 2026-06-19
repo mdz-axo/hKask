@@ -6,6 +6,9 @@
 use std::path::Path;
 
 /// Unwrap a `Result` or print an error message and exit.
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// pre:  result is a Result<T, E>; label is a human-readable context string
+/// post: returns Ok value or prints "{label}: {error}" to stderr and exits with code 1
 pub fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T {
     match result {
         Ok(v) => v,
@@ -18,6 +21,9 @@ pub fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T 
 
 /// Build an AgentService from environment config. Shared across all commands
 /// that previously duplicated `build_service_context()`.
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// pre:  service config must be resolvable from environment
+/// post: builds and returns an AgentService from environment config; exits on failure
 pub fn build_service_context() -> hkask_services::AgentService {
     let config = or_exit(
         hkask_services::ServiceConfig::from_env(),
@@ -31,6 +37,9 @@ pub fn build_service_context() -> hkask_services::AgentService {
 }
 
 /// Write content to a file or print to stdout.
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// pre:  content is a non-empty string; output is an optional file path; label is a human-readable description
+/// post: writes content to the file path if provided, or prints to stdout; exits on write failure
 pub fn write_or_print(content: &str, output: Option<&Path>, label: &str) {
     match output {
         Some(path) => {

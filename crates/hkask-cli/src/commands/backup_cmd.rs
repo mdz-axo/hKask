@@ -3,6 +3,7 @@
 //! Implements CLI display logic for backup operations. All business logic
 //! delegates to `hkask_services::BackupService`.
 
+use hkask_rsolidity::contract;
 
 use std::sync::Arc;
 
@@ -81,3 +82,194 @@ fn parse_restore_scope(s: &str) -> RestoreScope {
 
 /// Run a backup operation.
 ///
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// pre:  rt is valid, action is valid
+/// post: backup operation executed
+#[contract(
+    id = "P9-CNS-SURF-002 pre: valid BackupAction post: cns.cli span emitted",
+    principle = "P9"
+)]
+pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
+    // P9: CNS span
+    tracing::info!(target: "cns.cli", operation = "backup", action = ?action, "CNS");
+    match action {
+        BackupAction::Snapshot { scope } => {
+            let port = resolve_git_cas_port();
+            let svc = BackupService::new(port);
+            let backup_scope = parse_scope(&scope);
+
+            // Manual snapshots require the caller to provide artifact data.
+            // For now, manual snapshots snapshot whatever is already in the CAS repos.
+            // Full auto-snapshot on mutation is deferred to F4.
+            let result = block_on!(rt, svc.snapshot(backup_scope, &[]), "Snapshot failed");
+            println!("Snapshot created:");
+            for (repo, commit) in &result.commits {
+                println!("  {}: {}", repo.dir_name(), commit);
+            }
+            println!("  Artifacts: {}", result.artifact_count);
+            println!("  Timestamp: {}", result.timestamp);
+        }
+
+        BackupAction::Restore { commit, scope } => {
+            let port = resolve_git_cas_port();
+            let svc = BackupService::new(port);
+            let restore_scope = parse_restore_scope(&scope);
+
+            let commit_hash: hkask_types::ports::git_cas::CommitHash =
+                commit.parse().unwrap_or_else(|e: String| {
+                    eprintln!("Invalid commit hash '{}': {}", commit, e);
+                    std::process::exit(1);
+                });
+
+            let artifacts = block_on!(
+                rt,
+                svc.restore(&commit_hash, restore_scope),
+                "Restore failed"
+            );
+
+            println!("Restored {} artifacts:", artifacts.len());
+            for (at, id, _bytes) in &artifacts {
+                println!("  {}: {}", at.label(), id);
+            }
+        }
+
+        BackupAction::List { r#type, limit } => {
+            let port = resolve_git_cas_port();
+            let svc = BackupService::new(port);
+
+            let filter = ListFilter {
+                artifact_type: r#type.as_deref().and_then(parse_artifact_type),
+                limit: Some(limit),
+            };
+
+            let snapshots = block_on!(rt, svc.list(filter), "List failed");
+
+            println!("Backup snapshots:");
+            for (i, snap) in snapshots.iter().enumerate() {
+                println!(
+                    "  {}. {} — {}",
+                    i + 1,
+                    snap.timestamp.format("%Y-%m-%d %H:%M:%S"),
+                    snap.commits
+                        .first()
+                        .map(|(_, c)| c.to_string())
+                        .unwrap_or_default()
+                );
+            }
+        }
+
+        BackupAction::Prune { execute } => {
+            let port = resolve_git_cas_port();
+            let svc = BackupService::new(port);
+
+            let dry_run = !execute;
+            let report = block_on!(rt, svc.prune(dry_run), "Prune failed");
+
+            if report.evaluated == 0 {
+                println!("No retention policy configured — nothing to prune.");
+                return;
+            }
+
+            if dry_run {
+                println!("Prune dry-run report:");
+            } else {
+                println!("Prune report:");
+            }
+            println!("  Evaluated: {}", report.evaluated);
+            println!("  Retained:  {}", report.retained);
+            println!("  Removed:   {}", report.removed.len());
+            for (repo, commit) in &report.removed {
+                println!("    {}: {}", repo.dir_name(), commit);
+            }
+        }
+
+        BackupAction::Verify => {
+            let port = resolve_git_cas_port();
+            let svc = BackupService::new(port);
+
+            let reports = block_on!(rt, svc.verify(), "Verify failed");
+
+            println!("Backup integrity report:");
+            for report in &reports {
+                let status = if report.corrupt_hashes.is_empty() {
+                    "✓ OK"
+                } else {
+                    "✗ CORRUPT"
+                };
+                println!(
+                    "  {}: {} ({} blobs, {} verified)",
+                    report.repo.dir_name(),
+                    status,
+                    report.total_blobs,
+                    report.verified_blobs
+                );
+                for hash in &report.corrupt_hashes {
+                    println!("    Corrupt: {}", hash);
+                }
+            }
+        }
+
+        BackupAction::Config { action } => match action {
+            crate::cli::ConfigAction::Show => {
+                let port = resolve_git_cas_port();
+                let svc = BackupService::new(port);
+                let config = svc.config();
+
+                println!("Backup configuration:");
+                println!("  Tracked types:");
+                if config.tracked_types.is_empty() {
+                    println!("    (none)");
+                } else {
+                    for at in &config.tracked_types {
+                        println!("    - {}", at.label());
+                    }
+                }
+                println!("  Auto-snapshot: {}", config.auto_snapshot);
+                println!("  Verify after snapshot: {}", config.verify_after_snapshot);
+                match &config.retention {
+                    Some(rp) => {
+                        println!(
+                            "  Retention: {}d daily, {}w weekly",
+                            rp.daily_days, rp.weekly_weeks
+                        );
+                    }
+                    None => println!("  Retention: forever"),
+                }
+            }
+
+            crate::cli::ConfigAction::Set {
+                types,
+                retention: _retention,
+                no_auto,
+            } => {
+                let port = resolve_git_cas_port();
+                let mut svc = BackupService::new(port);
+
+                let mut config = svc.config().clone();
+                config.tracked_types = parse_artifact_types(&types);
+
+                if let Some(dur_str) = _retention {
+                    config.retention = Some(
+                        RetentionPolicy::from_duration_str(&dur_str).unwrap_or_else(|e| {
+                            eprintln!("Invalid retention duration '{}': {}", dur_str, e);
+                            std::process::exit(1);
+                        }),
+                    );
+                }
+
+                if no_auto {
+                    config.auto_snapshot = false;
+                }
+
+                svc.update_config(config)
+                    .map_err(|e| {
+                        eprintln!("Config update failed: {}", e);
+                        std::process::exit(1);
+                    })
+                    .ok();
+                println!("Backup configuration updated.");
+            }
+        },
+    }
+}

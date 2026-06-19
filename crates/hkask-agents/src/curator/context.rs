@@ -2,6 +2,7 @@
 
 use crate::ports::A2APort;
 use hkask_cns::CnsRuntime;
+use hkask_rsolidity as rs;
 use hkask_storage::EscalationQueue;
 use hkask_storage::NuEventStore;
 use hkask_types::CuratorHandle;
@@ -27,10 +28,15 @@ pub struct CuratorContext {
 }
 
 impl CuratorContext {
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — CuratorContext bundles regulatory dependencies
+    /// pre:  `handle` is a valid `CuratorHandle`; `cns` is a valid
     ///       `Arc<CnsRuntime>`; `curator_directive_tx` is `Some` or `None`;
     ///       `escalation_queue` is a valid `Arc<EscalationQueue>`.
+    /// post: Returns a `CuratorContext` with no NuEvent store and no A2A
     ///       port.
+    #[rs::contract(id = "P9-agt-curator-context-new", principle = "P9")]
+    #[rs::contract(id = "P9-agt-curator-context-new", principle = "P9")]
     pub fn new(
         handle: CuratorHandle,
         cns: Arc<CnsRuntime>,
@@ -49,9 +55,14 @@ impl CuratorContext {
 
     /// Create CuratorContext with a NuEvent store for algedonic review.
     ///
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — NuEvent store enables algedonic review
+    /// pre:  All arguments are valid (same as `new`); `nu_event_store` is
     ///       a valid `Arc<NuEventStore>`.
+    /// post: Returns a `CuratorContext` with `nu_event_store` set and no
     ///       A2A port.
+    #[rs::contract(id = "P9-agt-curator-context-with-store", principle = "P9")]
+    #[rs::contract(id = "P9-agt-curator-context-with-store", principle = "P9")]
     pub fn with_nu_event_store(
         handle: CuratorHandle,
         cns: Arc<CnsRuntime>,
@@ -71,7 +82,12 @@ impl CuratorContext {
 
     /// Builder: attach an A2A port for A2A bot-directed messaging.
     ///
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P4\] Motivating: Clear Boundaries — A2A port lets Curator direct bots
+    /// pre:  `a2a_port` is a valid `Arc<dyn A2APort>`.
+    /// post: Returns `self` with `a2a_port` set to `Some(a2a_port)`.
+    #[rs::contract(id = "P9-agt-curator-context-with-a2a", principle = "P9")]
+    #[rs::contract(id = "P9-agt-curator-context-with-a2a", principle = "P9")]
     pub fn with_a2a(mut self, a2a_port: Arc<dyn A2APort>) -> Self {
         self.a2a_port = Some(a2a_port);
         self
@@ -79,7 +95,12 @@ impl CuratorContext {
 
     /// Access the CuratorHandle (capability handle).
     ///
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — accessor for the Curator capability handle
+    /// pre:  (none — accessor).
+    /// post: Returns a reference to the inner `CuratorHandle`.
+    #[rs::contract(id = "P9-agt-curator-context-handle", principle = "P9")]
+    #[rs::contract(id = "P9-agt-curator-context-handle", principle = "P9")]
     pub fn handle(&self) -> &CuratorHandle {
         &self.handle
     }
@@ -117,8 +138,13 @@ impl CuratorContext {
     ///
     /// When no channel is configured (e.g., standalone CLI), this is a no-op.
     ///
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — issue directives to the Curation Loop
+    /// pre:  `directive` is a valid `CuratorDirective`.
+    /// post: If `curator_directive_tx` is `Some`, the directive is sent;
     ///       logs a warning if the send fails. If `None`, this is a no-op.
+    #[rs::contract(id = "P9-agt-curator-context-directive", principle = "P9")]
+    #[rs::contract(id = "P9-agt-curator-context-directive", principle = "P9")]
     pub async fn issue_directive(&self, directive: CuratorDirective) {
         if let Some(ref tx) = self.curator_directive_tx
             && let Err(e) = tx.send(directive)

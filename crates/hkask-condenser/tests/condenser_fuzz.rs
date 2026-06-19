@@ -10,6 +10,7 @@ use hkask_condenser::algorithms::{CondenserAlgorithm, RtkStyleAlgorithm};
 use hkask_condenser::types::{ContextCategory, Profile};
 use proptest::prelude::*;
 
+// contract: FUZ-003
 // The condenser never panics regardless of input.
 
 proptest! {
@@ -39,6 +40,7 @@ proptest! {
             input.len(), profile, category);
     }
 
+    // contract: FUZ-003
     #[test]
     fn condenser_never_panics_on_large_input(
         size in 0usize..1_000_000usize,

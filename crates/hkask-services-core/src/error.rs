@@ -1,5 +1,6 @@
 //! Unified domain error hierarchy for hKask service operations.
 //! # REQ: P8 (Semantic Grounding) — every error variant is a distinct semantic state.
+//! expect: "Every service error variant represents a distinct semantic state" [P8]
 //!
 //! `ServiceError` composes from all domain crate errors. Surface layers
 //! (CLI, API) use `ServiceError` directly — CLI commands return
@@ -26,6 +27,7 @@
 //! - `ServiceError` does NOT depend on surface types (CLI errors, API errors).
 //!   Dependency direction: surface → service → domain. Never the reverse.
 
+use hkask_rsolidity::contract;
 
 use thiserror::Error;
 
@@ -435,6 +437,10 @@ impl ServiceError {
     /// Non-retryable: not-found, invalid input, permission denied, database
     /// corruption, encryption failures, lock poisoning.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  self must be a valid ServiceError variant
+    /// post: returns true for retryable errors (network, rate-limit, keystore); false for non-retryable (not-found, validation, permission)
+    #[contract(id = "P4-svc-error-225", principle = "P4")]
     pub fn is_retryable(&self) -> bool {
         match self {
             // ── Retryable ────────────────────────────────────────────
@@ -522,6 +528,10 @@ impl ServiceError {
     /// parsing `Display` strings. Keys follow the pattern
     /// `error.<domain>.<condition>`.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  self must be a valid ServiceError variant
+    /// post: returns &'static str i18n key (e.g., "error.curator.escalation_not_found")
+    #[contract(id = "P4-svc-error-226", principle = "P4")]
     pub fn message_key(&self) -> &'static str {
         match self {
             // ── Curator domain ──────────────────────────────────────
@@ -618,6 +628,10 @@ impl ServiceError {
     /// The observer WebID is freshly generated per event — these are
     /// system-level observations, not agent-specific.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  self must be a valid ServiceError variant
+    /// post: returns Some(NuEvent) for system-level errors (inference, CNS, storage, infra); None for user-input errors (not-found, validation)
+    #[contract(id = "P4-svc-error-227", principle = "P4")]
     pub fn nu_event(&self) -> Option<hkask_types::event::NuEvent> {
         use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
         use hkask_types::id::WebID;

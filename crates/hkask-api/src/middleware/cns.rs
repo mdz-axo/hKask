@@ -3,12 +3,18 @@
 //! Applied as the outermost middleware layer so all requests are captured
 //! regardless of auth or route-level filtering.
 
+use hkask_rsolidity::contract;
 
 use axum::{body::Body, http::Request, middleware::Next, response::Response};
 use std::time::Instant;
 
 /// CNS middleware — emits `request` and `response` spans for every HTTP request.
 ///
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
+/// pre:  req is an incoming HTTP request
+/// post: cns.api request span emitted with method + path
+/// post: cns.api response span emitted with status + latency_ms
+#[contract(id = "P9-CNS-SRF-001", principle = "P9")]
 pub async fn cns_middleware(req: Request<Body>, next: Next) -> Response {
     let method = req.method().to_string();
     let path = req.uri().path().to_string();

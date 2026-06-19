@@ -3,6 +3,7 @@
 //! Cybernetics subloop 6.1 (Access Guard) governs who can access what.
 //! Human users, replicant identities, and sessions are verified at this boundary.
 
+use hkask_rsolidity::contract;
 
 use crate::WebID;
 use crate::id::UserID;
@@ -11,7 +12,9 @@ use serde::{Deserialize, Serialize};
 
 /// User role for multi-user access control.
 ///
+/// expect: "I can assign roles to users to control what they can access" [P1]
 /// [P1] Goal: User Sovereignty — roles enforce who can manage the server
+/// [P2] Constraining: Affirmative Consent — admin role is explicitly granted, never default
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Role {
@@ -44,6 +47,7 @@ impl std::str::FromStr for Role {
 
 /// OAuth identity provider for human user sign-in.
 ///
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OAuthProvider {
@@ -85,16 +89,21 @@ pub struct HumanUser {
     pub last_active: Option<i64>,
     pub passphrase_set_at: Option<i64>,
     /// User role for access control (defaults to Member).
+    /// expect: "Every user has a role that controls their access level" [P1]
     pub role: Role,
     /// OAuth provider used for sign-in (None = passphrase-only registration).
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     pub oauth_provider: Option<OAuthProvider>,
     /// External user ID from the OAuth provider (e.g., GitHub user ID).
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     pub oauth_provider_user_id: Option<String>,
     /// Display name from the OAuth provider (e.g., GitHub username).
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     pub oauth_display_name: Option<String>,
 }
 
 impl HumanUser {
+    #[contract(id = "P1-multi-role-field", principle = "P1")]
     pub fn new(
         email_enc: Vec<u8>,
         phone_enc: Option<Vec<u8>>,
@@ -139,12 +148,19 @@ pub struct ReplicantIdentity {
 }
 
 impl ReplicantIdentity {
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// pre:  replicant_name is a non-empty string (1–64 alphanumeric/hyphen/underscore chars)
+    /// post: returns a deterministic WebID with the "replicant" namespace;
     ///       same replicant_name always produces the same WebID
+    #[contract(id = "P1-multi-role-type", principle = "P1")]
     pub fn derive_webid(replicant_name: &str) -> WebID {
         WebID::from_persona_with_namespace(replicant_name.as_bytes(), "replicant")
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// pre:  replicant_name is non-empty; user_id is a valid UserID;
     ///       first_name_enc and last_name_enc are encrypted byte vectors
+    /// post: returns a ReplicantIdentity with derived webid, wallet_id=None,
     ///       persona_yaml=None, created_at set to current Unix timestamp,
     ///       last_login=None
     pub fn new(
@@ -183,7 +199,10 @@ pub struct UserSession {
 }
 
 impl UserSession {
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// pre:  now is a Unix timestamp (i64); self.expires_at is a valid
     ///       expiry timestamp set at session creation
+    /// post: returns true if now > self.expires_at (session has expired);
     ///       returns false if now <= self.expires_at (session still valid)
     pub fn is_expired(&self, now: i64) -> bool {
         now > self.expires_at
@@ -192,7 +211,9 @@ impl UserSession {
 
 /// Invite status for multi-user onboarding.
 ///
+/// expect: "I can send invites to bring other users onto my server" [P2]
 /// [P2] Goal: Affirmative Consent — invite requires explicit admin action
+/// [P1] Constraining: User Sovereignty — invite is scoped to a specific server
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum InviteStatus {
@@ -228,6 +249,7 @@ impl std::str::FromStr for InviteStatus {
 
 /// Multi-user invitation record.
 ///
+/// expect: "I can track who was invited and whether they've joined" [P2]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Invite {
     pub invite_id: String,

@@ -1,5 +1,6 @@
 //! NuEventStore — Persistent storage for CNS ν-events
 use crate::{Store, now_rfc3339};
+use hkask_rsolidity as rs;
 use hkask_types::event::{Phase, Span, SpanCategory, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::{InfrastructureError, NuEvent, NuEventSink, Visibility};
@@ -70,7 +71,12 @@ impl NuEventStore {
     ///
     /// Replay events with temporal decay weighting.
     ///
+    /// expect: "The system provides durable storage for event data" [P3]
     /// \[P3\] Motivating: Generative Space — replay events with temporal decay
+    /// pre:  observer is valid, category is valid, lookback_secs > 0
+    /// post: returns `Vec<NuEvent>` within lookback window, weighted by recency
+    #[rs::contract(id = "P3-sto-nu-event-replay", principle = "P3")]
+    #[rs::contract(id = "P3-sto-nu-event-replay", principle = "P3")]
     pub fn replay_weighted(
         &self,
         since: chrono::DateTime<chrono::Utc>,
@@ -101,7 +107,12 @@ impl NuEventStore {
     /// The fallback is explicit at the type level via `SpanCategory::Unknown`.
     /// Get the decay lambda for a span category.
     ///
+    /// expect: "The system provides durable storage for event data" [P3]
     /// \[P3\] Motivating: Generative Space — get decay lambda for category
+    /// pre:  category is a valid SpanCategory
+    /// post: returns decay lambda from config or default
+    #[rs::contract(id = "P3-sto-nu-event-decay", principle = "P3")]
+    #[rs::contract(id = "P3-sto-nu-event-decay", principle = "P3")]
     pub fn lambda_for(category: SpanCategory, config: &DecayConfig) -> f64 {
         match category {
             SpanCategory::Cybernetics => config.cybernetics_lambda,
@@ -151,7 +162,12 @@ impl NuEventStore {
     /// all historical events after a restart.
     /// Persist a cursor value for event replay.
     ///
+    /// expect: "The system provides durable storage for event data" [P3]
     /// \[P3\] Motivating: Generative Space — persist replay cursor
+    /// pre:  key is non-empty
+    /// post: cursor value stored
+    #[rs::contract(id = "P3-sto-nu-event-cursor-store", principle = "P3")]
+    #[rs::contract(id = "P3-sto-nu-event-cursor-store", principle = "P3")]
     pub fn persist_cursor(&self, key: &str, value: i64) -> Result<(), InfrastructureError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -166,7 +182,12 @@ impl NuEventStore {
     /// (e.g., first run after schema creation).
     /// Load a persisted cursor value.
     ///
+    /// expect: "The system provides durable storage for event data" [P3]
     /// \[P3\] Motivating: Generative Space — load replay cursor
+    /// pre:  key is non-empty
+    /// post: returns Some(value) if cursor exists, None otherwise
+    #[rs::contract(id = "P3-sto-nu-event-cursor-load", principle = "P3")]
+    #[rs::contract(id = "P3-sto-nu-event-cursor-load", principle = "P3")]
     pub fn load_cursor(&self, key: &str) -> Result<Option<i64>, InfrastructureError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT value FROM loop_cursors WHERE key = ?1")?;
@@ -178,7 +199,11 @@ impl NuEventStore {
     }
     /// Query algedonic signals from the event store.
     ///
+    /// expect: "The system provides durable storage for event data" [P3]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — query algedonic signals
+    /// post: returns Vec of algedonic signal events
+    #[rs::contract(id = "P3-sto-nu-event-algedonic-query", principle = "P3")]
+    #[rs::contract(id = "P3-sto-nu-event-algedonic-query", principle = "P3")]
     pub fn query_algedonic(
         &self,
         since: chrono::DateTime<chrono::Utc>,
@@ -286,6 +311,8 @@ impl NuEventSink for NuEventStore {
 #[cfg(test)]
 mod tests {
     use hkask_types::event::{Span, SpanNamespace};
+    // contract: P3-sto-nu-event-short-path-test
+    // expect: "Storage operation works correctly under test conditions" [P3]
     //
     // Before fix, `span_path[namespace.as_str().len() + 1..]` was an unconditional
     // slice that panicked when span_path did not start with the namespace prefix
@@ -310,6 +337,8 @@ mod tests {
             "fallback should return raw path when prefix doesn't match"
         );
     }
+    // contract: P3-sto-nu-event-exact-namespace-test
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn local_path_extraction_does_not_panic_on_exact_namespace_match() {
         let namespace = SpanNamespace::new("cns.gas");
@@ -328,6 +357,8 @@ mod tests {
             "fallback should return raw path when no dot follows namespace"
         );
     }
+    // contract: P3-sto-nu-event-well-formed-test
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn local_path_extraction_succeeds_on_well_formed_path() {
         let namespace = SpanNamespace::new("cns.gas");

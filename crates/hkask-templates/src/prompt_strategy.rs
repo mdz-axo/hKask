@@ -9,6 +9,7 @@
 /// Determines how to frame a user prompt before sending to inference.
 /// This is the simplest form of template selection — keyword-based heuristic
 /// that maps input patterns to prompt framing strategies.
+use hkask_rsolidity::contract;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PromptStrategy {
@@ -23,7 +24,11 @@ pub enum PromptStrategy {
 impl PromptStrategy {
     /// Analyze input text to determine the best prompt strategy.
     ///
+    /// expect: "The system constructs prompt strategies from user input" [P3]
     /// \[P3\] Motivating: Generative Space — constructs prompt strategy from user input
+    /// pre:  input is non-empty
+    /// post: returns Answer for questions, Instruct for creation, Assist otherwise
+    #[contract(id = "P3-tpl-prompt-strategy-from-input", principle = "P3")]
     pub fn from_input(input: &str) -> Self {
         if input.contains('?') || input.contains("what") || input.contains("how") {
             PromptStrategy::Answer
@@ -36,7 +41,11 @@ impl PromptStrategy {
 
     /// Apply the strategy to frame a prompt.
     ///
+    /// expect: "The system constructs prompt strategies from user input" [P3]
     /// \[P3\] Motivating: Generative Space — frames prompt for a strategy step
+    /// pre:  input is non-empty
+    /// post: returns framed prompt string with strategy-specific prefix
+    #[contract(id = "P3-tpl-prompt-strategy-frame", principle = "P3")]
     pub fn frame(&self, input: &str) -> String {
         match self {
             PromptStrategy::Answer => format!("Answer concisely: {}", input),
@@ -47,7 +56,10 @@ impl PromptStrategy {
 
     /// Strategy name for tagging/logging.
     ///
+    /// expect: "The system constructs prompt strategies from user input" [P3]
     /// \[P3\] Motivating: Generative Space — names the selected strategy
+    /// post: returns lowercase strategy name
+    #[contract(id = "P3-tpl-prompt-strategy-name", principle = "P3")]
     pub fn name(&self) -> &'static str {
         match self {
             PromptStrategy::Answer => "answer",

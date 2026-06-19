@@ -3,6 +3,7 @@
 //! Cybernetic feedback types for Improvement Kata signal computation.
 //! Persisted per agent to enable composition (graduation criteria, habit monitoring).
 
+use hkask_rsolidity::contract;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -25,6 +26,10 @@ pub struct PracticeEntry {
 }
 
 impl KataHistory {
+    /// [P9] Motivating: Homeostatic Self-Regulation — practice history persisted for habit tracking.
+    /// pre:  path may or may not exist
+    /// post: returns Ok(KataHistory) from file, or default if file missing, or Err on parse failure
+    #[contract(id = "P9-svc-kata-hist-001", principle = "P9")]
     pub fn load(path: &Path) -> Result<Self, KataError> {
         if !path.exists() {
             return Ok(Self::default());
@@ -40,6 +45,10 @@ impl KataHistory {
             .map_err(|e| KataError::ParseFailed(format!("Failed to parse history: {}", e)))
     }
 
+    /// [P9] Motivating: Homeostatic Self-Regulation — practice history serialized to disk.
+    /// pre:  self is valid; path is a writable filesystem location
+    /// post: history serialized as pretty JSON to path, or Err on failure
+    #[contract(id = "P9-svc-kata-hist-002", principle = "P9")]
     pub fn save(&self, path: &Path) -> Result<(), KataError> {
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| KataError::LoadFailed(format!("Failed to serialize history: {}", e)))?;
@@ -53,6 +62,10 @@ impl KataHistory {
         Ok(())
     }
 
+    /// [P9] Motivating: Homeostatic Self-Regulation — each practice session recorded.
+    /// pre:  agent is non-empty; entry is a valid PracticeEntry
+    /// post: entry appended to agent's practice history list
+    #[contract(id = "P9-svc-kata-hist-003", principle = "P9")]
     pub fn record(&mut self, agent: &str, entry: PracticeEntry) {
         self.agents
             .entry(agent.to_string())
@@ -60,6 +73,10 @@ impl KataHistory {
             .push(entry);
     }
 
+    /// [P9] Motivating: Homeostatic Self-Regulation — streak computation for habit health.
+    /// pre:  agent is non-empty; today is a YYYY-MM-DD date string
+    /// post: returns consecutive day streak including today, or 0 if today missing
+    #[contract(id = "P9-svc-kata-hist-004", principle = "P9")]
     pub fn current_streak(&self, agent: &str, today: &str) -> u32 {
         let entries = match self.agents.get(agent) {
             Some(e) => e,
@@ -87,6 +104,10 @@ impl KataHistory {
         streak
     }
 
+    /// [P9] Motivating: Homeostatic Self-Regulation — automaticity score for kata graduation.
+    /// pre:  agent is non-empty; today is a YYYY-MM-DD date string
+    /// post: returns score 0.0–1.0 based on streak (target 21d) with decay for gaps >3d
+    #[contract(id = "P9-svc-kata-hist-005", principle = "P9")]
     pub fn compute_automaticity(&self, agent: &str, today: &str) -> f64 {
         let streak = self.current_streak(agent, today) as f64;
         let days_since = self.days_since_last(agent, today) as f64;
@@ -100,6 +121,10 @@ impl KataHistory {
         (auto * 100.0).round() / 100.0
     }
 
+    /// [P9] Motivating: Homeostatic Self-Regulation — gap detection for habit decay.
+    /// pre:  agent is non-empty; today is a YYYY-MM-DD date string
+    /// post: returns days since last practice, or u32::MAX if no history
+    #[contract(id = "P9-svc-kata-hist-006", principle = "P9")]
     pub fn days_since_last(&self, agent: &str, today: &str) -> u32 {
         let entries = match self.agents.get(agent) {
             Some(e) => e,
@@ -112,10 +137,18 @@ impl KataHistory {
         }
     }
 
+    /// [P9] Motivating: Homeostatic Self-Regulation — starter kata graduation gate.
+    /// pre:  agent is non-empty; today is a YYYY-MM-DD date string
+    /// post: returns true if automaticity > 0.5 (graduation threshold)
+    #[contract(id = "P9-svc-kata-hist-007", principle = "P9")]
     pub fn can_graduate_from_starter(&self, agent: &str, today: &str) -> bool {
         self.compute_automaticity(agent, today) > 0.5
     }
 
+    /// [P9] Motivating: Homeostatic Self-Regulation — habit decay intervention trigger.
+    /// pre:  agent is non-empty; today is a YYYY-MM-DD date string
+    /// post: returns true if 3+ days since last practice (intervention needed)
+    #[contract(id = "P9-svc-kata-hist-008", principle = "P9")]
     pub fn needs_habit_intervention(&self, agent: &str, today: &str) -> bool {
         let days = self.days_since_last(agent, today);
         (3..u32::MAX).contains(&days)

@@ -39,7 +39,7 @@ pub use curator_agent::{CuratorAgent, DefaultSpecCurator};
 pub use error::{CoreError, MemoryError};
 pub use inference_loop::InferenceLoop;
 pub use loop_system::{CyberneticsLoopHandle, LoopSystem};
-pub use pod::{AgentMode, AgentPersona, PodDeployment, PodFactory, PodID, PodRegistry};
+pub use pod::{AgentMode, AgentPersona, PodID, PodManager, PodStatus};
 pub use ports::{
     A2APort, EpisodicStoragePort, GitCasAdapter, RecallRequest, RecalledEpisode, RecalledSemantic,
     SemanticStoragePort, StorageRequest,

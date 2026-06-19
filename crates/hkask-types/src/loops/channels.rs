@@ -13,6 +13,7 @@ use crate::WebID;
 /// `tokio::sync::mpsc::Sender<RuntimeAlert>` channel directly from
 /// CyberneticsLoop to CurationLoop's inbox.
 ///
+/// \[NORMATIVE\] This pathway is a Prohibition-level constraint — it must survive unbroken (P9 — Homeostatic Self-Regulation).
 /// because Curation depends on the algedonic signal to detect regulation failure.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RuntimeAlert {

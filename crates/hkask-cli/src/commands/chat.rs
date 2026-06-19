@@ -20,6 +20,7 @@ use hkask_types::template::LLMParameters;
 /// Single construction path for all chat variants.
 ///
 /// # REQ: P7-converge — AgentService construction is single-source
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 async fn build_chat_context(
     name: &str,
     secrets: Option<&ResolvedSecrets>,
@@ -83,6 +84,9 @@ pub type TokenUsage = hkask_services::TokenUsage;
 /// for memory operations (enabling persistence across REPL sessions).
 /// When `None`, a fresh in-memory adapter is created per call (ephemeral).
 #[allow(clippy::too_many_arguments)]
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// pre:  input is a non-empty string; agent_name defaults to Curator; secrets or env config must be resolvable
+/// post: sends chat message through ChatService pipeline; returns ChatResponse with text, usage, and finish_reason
 pub async fn chat_with_agent(
     input: &str,
     agent_name: Option<&str>,
@@ -127,6 +131,9 @@ pub async fn chat_with_agent(
 /// Variant of `chat_with_agent` that accepts explicit LLMParameters.
 /// Sets `params_override` on the ChatRequest, which ChatService already respects.
 #[allow(clippy::too_many_arguments)]
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// pre:  input is non-empty; params is a valid LLMParameters struct; secrets or env config must be resolvable
+/// post: same as chat_with_agent but with explicit LLMParameters override for temperature, top_p, etc.
 pub async fn chat_with_agent_with_params(
     input: &str,
     agent_name: Option<&str>,
@@ -179,6 +186,9 @@ pub async fn chat_with_agent_with_params(
 /// Returns a `ChatResponse`-like struct with the full assembled text,
 /// usage stats, and any tool calls from the final chunk.
 #[allow(clippy::too_many_arguments)]
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// pre:  input is non-empty; agent_name defaults to Curator; secrets or env config must be resolvable
+/// post: streams inference output token-by-token to stdout; stores episodic triple; returns assembled ChatResponse
 pub async fn chat_with_agent_streaming(
     input: &str,
     agent_name: Option<&str>,
@@ -310,6 +320,9 @@ pub async fn chat_with_agent_streaming(
 /// inference call happens after prepare. We pass params_override through
 /// the ChatRequest so PrepareChat receives it, then use directly for streaming.
 #[allow(clippy::too_many_arguments)]
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// pre:  input is non-empty; params is a valid LLMParameters struct; secrets or env config must be resolvable
+/// post: same as chat_with_agent_streaming but with explicit LLMParameters override
 pub async fn chat_with_agent_streaming_with_params(
     input: &str,
     agent_name: Option<&str>,
@@ -423,6 +436,9 @@ pub async fn chat_with_agent_streaming_with_params(
 
 /// CLI entry-point: `kask chat [agent] [-m model]`
 #[allow(clippy::too_many_arguments)]
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// pre:  rt is a valid tokio Runtime; registry is a mutable SqliteRegistry; runtime is a valid McpRuntime; agent is non-empty
+/// post: either runs onboarding + streaming chat with input file, or launches the interactive REPL
 pub fn run_chat(
     rt: &tokio::runtime::Runtime,
     registry: &mut hkask_templates::SqliteRegistry,

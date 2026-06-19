@@ -11,6 +11,7 @@ hkask-agents = { path = "../hkask-agents" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
+hkask-rsolidity = { path = "../hkask-rsolidity" }
 hex.workspace = true
 tracing.workspace = true
 serde.workspace = true

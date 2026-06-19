@@ -2,6 +2,7 @@
 //! against budget allocations from the CNS runtime.
 //!
 //! REQ: P9-agt-bot-health-classify — Mock CNS state with known budget values, feed gas events,
+//! expect: "The system regulates agent behavior through cybernetic feedback" [P9]
 // \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
 // \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
 // verify threshold behavior.
@@ -130,6 +131,7 @@ mod tests {
     use super::*;
 
     /// Test that classify_health correctly thresholds consumption ratios.
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]
@@ -159,6 +161,7 @@ mod tests {
         assert_eq!(result, Ok(BotHealthStatus::Healthy));
     }
 
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]
@@ -188,6 +191,7 @@ mod tests {
         assert_eq!(result, Ok(BotHealthStatus::Degraded));
     }
 
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]
@@ -217,6 +221,7 @@ mod tests {
         assert_eq!(result, Ok(BotHealthStatus::Critical));
     }
 
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]
@@ -235,6 +240,7 @@ mod tests {
         assert_eq!(result, Ok(BotHealthStatus::Healthy));
     }
 
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]

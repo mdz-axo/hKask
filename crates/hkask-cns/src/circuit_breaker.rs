@@ -6,6 +6,7 @@
 //! concern, not a templates concern — the CNS governs when the system must
 //! shed load to preserve stability (Ashby's Law of Requisite Variety).
 
+use hkask_rsolidity as rs;
 use hkask_types::cns::CircuitState;
 use hkask_types::ports::CircuitBreakerPort;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
@@ -72,14 +73,25 @@ impl CircuitBreaker {
     /// 60s open timeout, 2 successes to close from half-open.
     /// Create a default circuit breaker for inference.
     ///
+    /// expect: "The system creates circuit breakers with safe default thresholds for inference calls" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — CNS regulation loop enforces boundary
     /// \[P4\] Constraining: Clear Boundaries — default thresholds establish failure boundary
+    /// pre:  name is non-empty
+    /// post: returns CircuitBreaker with default thresholds
+    #[rs::contract(id = "P9-cns-circuit-default-for-inference", principle = "P9")]
+    #[rs::contract(id = "P9-cns-circuit-default-for-inference", principle = "P9")]
     pub fn default_for_inference(name: &str) -> Self {
         Self::new(name.to_string(), CircuitBreakerConfig::default())
     }
 
     /// Check if a request is allowed through the circuit breaker.
     ///
+    /// expect: "I can check whether the circuit allows requests through" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — the check-before-execute gateway
     /// \[P4\] Constraining: Clear Boundaries — state-driven gating enforces the boundary
+    /// post: returns true if circuit is closed or half-open, false if open
+    #[rs::contract(id = "P9-cns-circuit-allow-request", principle = "P9")]
+    #[rs::contract(id = "P9-cns-circuit-allow-request", principle = "P9")]
     pub fn allow_request(&self) -> bool {
         let state = self.state();
 
@@ -111,10 +123,11 @@ impl CircuitBreaker {
             }
             CircuitState::HalfOpen => true,
         };
-        debug_assert!(
+        rs::assert!(
             result
                 == (matches!(state, CircuitState::Closed | CircuitState::HalfOpen)
                     || state == CircuitState::Open),
+            "P9-cns-circuit-allow-request",
             "postcondition: result matches circuit state gating"
         );
         result
@@ -122,7 +135,12 @@ impl CircuitBreaker {
 
     /// Record a successful request.
     ///
+    /// expect: "The circuit tracks successes and transitions back to closed when healthy" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — success count drives loop closure
     /// \[P4\] Constraining: Clear Boundaries — threshold-based state transition enforces boundary
+    /// post: success counted, may transition circuit to closed
+    #[rs::contract(id = "P9-cns-circuit-record-success", principle = "P9")]
+    #[rs::contract(id = "P9-cns-circuit-record-success", principle = "P9")]
     pub fn record_success(&self) {
         let state = self.state();
 

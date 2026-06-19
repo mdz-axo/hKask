@@ -40,7 +40,6 @@ use hkask_mcp::GitCasAdapter;
 /// a CNS runtime is initialized with namespace cns.agent_pod.{pod_id}.*,
 /// and MCP servers are bound. No shared state. No service collision surface.
 ///
-/// [P6] Goal: Space for Replicants — each replicant inhabits its own pod
 /// [P11] Constraining: Digital Public/Private Sphere — per-pod SQLCipher boundary
 pub struct PodDeployment {
     /// Pod identity — WebID is the root of all authority (P1)
@@ -87,7 +86,6 @@ pub struct PerPodStorage {
 
 /// PerPodCnsRuntime is a CNS runtime scoped to a single pod.
 ///
-/// [P9] Goal: Homeostatic Self-Regulation — per-pod variety tracking
 /// [P11] Constraining: Digital Public/Private Sphere — CNS isolation
 pub struct PerPodCnsRuntime {
     /// The pod this CNS runtime is scoped to
@@ -100,7 +98,6 @@ pub struct PerPodCnsRuntime {
 
 /// PerPodToolBinding owns the MCP server instances for this pod.
 ///
-/// [P4] Goal: Clear Boundaries — tool access is pod-scoped
 pub struct PerPodToolBinding {
     pub mcp_runtime: Arc<dyn MCPRuntimePort>,
     pub governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
@@ -202,7 +199,6 @@ impl PerPodCnsRuntime {
 /// PodFactory constructs PodDeployment instances from templates.
 /// Stateless — does not cache, pool, or share pods.
 ///
-/// [P5] Goal: Essentialism — factory only; no runtime cache
 pub struct PodFactory {
     git_cas: Arc<GitCasAdapter>,
     consent: Arc<dyn crate::SovereigntyConsent>,
@@ -339,7 +335,6 @@ impl PodFactory {
 /// Lightweight pod index — scans {data_dir}/pods/*.db for deployed pods.
 /// No cache. No HashMap. Just the filesystem.
 ///
-/// [P5] Goal: Essentialism — directory listing, not a cache
 pub struct PodRegistry {
     pods_dir: PathBuf,
 }

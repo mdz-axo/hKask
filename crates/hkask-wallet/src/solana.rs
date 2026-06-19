@@ -663,6 +663,8 @@ mod integration_tests {
         SolanaPort::new_devnet(&pubkey).expect("Failed to create devnet SolanaPort")
     }
 
+    // contract: P9-wallet-solana-chain-error-actor-test
+    /// expect: "Wallet solana chain error actor test works correctly under test conditions" [P9]
     #[test]
     fn emit_chain_error_uses_provided_actor() {
         let pubkey = "11111111111111111111111111111111";
@@ -684,6 +686,8 @@ mod integration_tests {
         assert_eq!(event.observation["operation"], "unit_test");
     }
 
+    // contract: P9-wallet-solana-build-withdrawal-tx-test
+    /// expect: "Wallet solana build withdrawal tx test works correctly under test conditions" [P9]
     #[test]
     fn build_withdrawal_tx_produces_valid_payload() {
         let port = devnet_port();
@@ -703,6 +707,8 @@ mod integration_tests {
         assert_eq!(payload.payer, port.treasury_pubkey);
     }
 
+    // contract: P9-wallet-solana-signing-roundtrip-test
+    /// expect: "Wallet solana signing roundtrip test works correctly under test conditions" [P9]
     #[test]
     fn withdrawal_payload_signing_roundtrip() {
         // SAFETY: test-only — sets master key env var in isolated test process.
@@ -736,6 +742,8 @@ mod integration_tests {
         assert_eq!(sig_part.len(), 64);
     }
 
+    // contract: P9-wallet-solana-submit-signed-tx-test
+    /// expect: "Wallet solana submit signed tx test works correctly under test conditions" [P9]
     #[test]
     #[ignore = "requires funded treasury on Solana devnet with USDC"]
     fn submit_withdrawal_to_devnet() {
@@ -796,6 +804,8 @@ mod integration_tests {
         }
     }
 
+    // contract: P9-wallet-solana-monitor-deposits-test
+    /// expect: "Wallet solana monitor deposits test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn monitor_deposits_detects_usdc_transfer() {
         let server = wiremock::MockServer::start().await;

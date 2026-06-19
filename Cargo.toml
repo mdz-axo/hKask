@@ -34,6 +34,8 @@ members = [
     "crates/hkask-api",
     "crates/hkask-improv",
     "crates/hkask-communication",
+    "crates/hkask-rsolidity",
+    "crates/hkask-rsolidity-macros",
     "crates/hkask-test-harness",
     "crates/hkask-adapter",
     "crates/hkask-acp",

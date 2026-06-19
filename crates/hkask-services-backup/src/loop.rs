@@ -1,5 +1,6 @@
 //! BackupLoop — Cybernetic loop for scheduled backup snapshots.
 //! # REQ: P7-svc-backup-loop-f4 — daily automatic snapshots via the daemon loop system.
+//! expect: "Automatic daily snapshots run via the daemon loop system" [P7]
 //!
 //! Implements `HkaskLoop` (sense → compare → compute → act) to run
 //! daily backup snapshots through `BackupService`. Respects the
@@ -9,6 +10,7 @@
 //! Registered in `AgentService::build()` alongside the existing
 //! `SnapshotLoop` (which handles raw CAS-level snapshots).
 
+use hkask_rsolidity::contract;
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -45,6 +47,10 @@ pub struct BackupLoop {
 impl BackupLoop {
     /// Create a new BackupLoop wrapping a BackupService.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  service must be a valid Arc<BackupService>
+    /// post: returns BackupLoop with service and default state (no prior snapshots)
+    #[contract(id = "P7-svc-backup-loop-svc-165", principle = "P7")]
     pub fn new(service: Arc<BackupService>) -> Self {
         Self {
             service,
