@@ -16,7 +16,7 @@ pub fn generate_cli_markdown() -> String {
     md.push_str("title: \"hKask CLI Reference (auto-generated)\"\n");
     md.push_str("audience: [CLI operators, developers, agents]\n");
     md.push_str("last_updated: 2026-06-12\n");
-    md.push_str("version: \"0.27.0\"\n");
+    md.push_str(&format!("version: \"{}\"\n", env!("CARGO_PKG_VERSION")));
     md.push_str("status: \"Active\"\n");
     md.push_str("domain: \"Cross-cutting\"\n");
     md.push_str("mds_categories: [interface]\n");

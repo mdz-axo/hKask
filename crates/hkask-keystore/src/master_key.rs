@@ -8,7 +8,7 @@
 //! 2. HKDF-SHA256(master_key, "hkask-v{version}:{context}") → 32-byte sub-key
 //!    (fast, deterministic — run per secret)
 //!
-//! **Key versioning (v0.27.0):** The `key_version` parameter is embedded in
+//! **Key versioning (v0.30.0):** The `key_version` parameter is embedded in
 //! the HKDF info string. This enables passphrase rotation without data loss:
 //! old secrets remain derivable from old versions, new secrets use the
 //! incremented version. The current version is stored in

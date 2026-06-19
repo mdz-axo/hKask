@@ -2,7 +2,7 @@
 title: "hKask Skill Designer Guide — Creating and Maintaining Agent Skills"
 audience: [developers, architects, agents]
 last_updated: 2026-06-18
-version: "0.28.0"
+version: "0.30.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [composition, lifecycle, curation]
@@ -139,7 +139,7 @@ registry/templates/<skill-name>/
 
 crate:
   name: <skill-name>
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Skill purpose. What it does, when it activates, what principles it enforces.
 

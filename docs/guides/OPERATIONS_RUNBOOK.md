@@ -2,7 +2,7 @@
 title: "hKask Operations Runbook"
 audience: [operators, deployers, project maintainers]
 last_updated: 2026-06-18
-version: "0.28.0"
+version: "0.30.0"
 status: "Draft"
 domain: "Cross-cutting"
 mds_categories: [lifecycle, trust]

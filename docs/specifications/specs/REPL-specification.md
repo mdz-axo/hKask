@@ -2,7 +2,7 @@
 title: "hKask REPL Specification"
 audience: [architects, developers, users]
 last_updated: 2026-06-18
-version: "0.28.0"
+version: "0.30.0"
 status: "Active"
 domain: "Surface"
 mds_categories: [domain, composition, lifecycle, curation]

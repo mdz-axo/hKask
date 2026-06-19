@@ -2,7 +2,7 @@
 title: "Loop Architecture — Semantic Root-Cause Analysis & Four-Loop Decomposition"
 audience: [architects, developers, agents]
 last_updated: 2026-06-18
-version: "0.28.0"
+version: "0.30.0"
 status: "Active"
 domain: "Architecture"
 mds_categories: [domain, composition, lifecycle, curation]

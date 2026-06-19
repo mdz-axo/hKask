@@ -2,7 +2,7 @@
 title: "Energy, Gas, Payments & API Key System"
 audience: [architects, developers, agents]
 last_updated: 2026-06-18
-version: "0.28.0"
+version: "0.30.0"
 status: "Active"
 domain: "Trust"
 mds_categories: [domain, trust, lifecycle, curation]

@@ -486,7 +486,7 @@ struct J2FrontMatter {
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
-const WORKSPACE_VERSION: &str = "0.27.0";
+const WORKSPACE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
     let content = content.trim_start();

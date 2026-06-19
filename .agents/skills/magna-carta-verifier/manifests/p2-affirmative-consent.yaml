@@ -23,10 +23,10 @@ assertions:
           - has_consent
         gate: SovereigntyConsent
       - crate: hkask-agents
-        module: pod::manager
+        module: pod::active_pods
         methods:
           - new
-          - with_inference
+          - with_inference_port
           - new_mock
         gate: DenyAllConsent
       - crate: hkask-agents

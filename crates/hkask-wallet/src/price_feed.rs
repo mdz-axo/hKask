@@ -204,7 +204,7 @@ impl CoinGeckoPriceFeed {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(10))
             .https_only(true)
-            .user_agent("hKask/0.27.0")
+            .user_agent(concat!("hKask/", env!("CARGO_PKG_VERSION")))
             .build()
             .expect("reqwest Client::builder is infallible with valid defaults");
         CoinGeckoPriceFeed { client }

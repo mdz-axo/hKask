@@ -2,7 +2,7 @@
 title: "hKask Curator Daemon — Canonical System Persona"
 audience: [persona designers, curators, agents]
 last_updated: 2026-06-18
-version: "0.28.0"
+version: "0.30.0"
 status: "Active"
 domain: "Business"
 mds_categories: [domain]

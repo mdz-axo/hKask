@@ -2,7 +2,7 @@
 title: "hKask Deployment & Multi-User Plan"
 audience: [architects, developers]
 last_updated: 2026-06-18
-version: "0.28.0"
+version: "0.30.0"
 status: "Draft — Aligned with FUNCTIONAL_SPECIFICATION.md Domain 26"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle]

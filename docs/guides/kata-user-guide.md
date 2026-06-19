@@ -2,7 +2,7 @@
 title: "Kata User Guide — Toyota Kata for Agent Capability Development"
 audience: [developers, operators, curators]
 last_updated: 2026-06-18
-version: "0.28.0"
+version: "0.30.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [composition, lifecycle]

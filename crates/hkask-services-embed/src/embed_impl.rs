@@ -431,7 +431,7 @@ pub struct EmbedResult {
     pub dimension_centroids: Vec<DimensionCentroidResult>,
 }
 
-const USER_AGENT: &str = "hkask-mcp-research/0.27.0";
+const USER_AGENT: &str = concat!("hkask-mcp-research/", env!("CARGO_PKG_VERSION"));
 const CURATOR_PERSONA: &[u8] = b"Curator";
 
 /// Service for the style corpus embedding pipeline with metadata layer.

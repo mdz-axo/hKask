@@ -1,7 +1,7 @@
 # Contract Guide
 
 **Audience:** hKask agents (replicants) composing, auditing, and maintaining contracts.
-**References:** [`CONTRACT_SPECIFICATION.md`](../docs/architecture/core/CONTRACT_SPECIFICATION.md) (normative standard)
+**References:** [`FUNCTIONAL_SPECIFICATION.md`](../docs/architecture/core/FUNCTIONAL_SPECIFICATION.md) (normative functional specification)
 **Version:** 0.28.0
 **Supersedes:** `guides/contract-composition-guide.md`
 
