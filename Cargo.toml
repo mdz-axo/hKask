@@ -37,6 +37,7 @@ members = [
     "crates/hkask-test-harness",
     "crates/hkask-adapter",
     "crates/hkask-acp",
+    "crates/hkask-ci-invariants",
     # MCP servers
     "mcp-servers/hkask-mcp-condenser",
     "mcp-servers/hkask-mcp-research",

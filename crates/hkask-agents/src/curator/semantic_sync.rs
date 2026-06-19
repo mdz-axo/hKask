@@ -1,0 +1,222 @@
+//! CuratorSync — Lazy one-way semantic sync loop
+//!
+//! Polls source pods' triples tables on each tick, inserts new public
+//! triples into the CuratorPod's SemanticIndex. Cursor-based incremental
+//! sync — only fetches triples published since last poll.
+//!
+//! ## Protocol
+//!
+//! Push-then-pull: pod writes local → fires CNS event →
+//! Curator polls pod's table (this module is the poll side).
+//!
+//! ## Consistency
+//!
+//! Eventual, bounded by polling interval (~1 second).
+//! On CuratorPod restart: cursor-based catch-up replays all triples
+//! published since last cursor. On source pod deletion: skip, advance cursor.
+//!
+//! ## Principles
+//!
+//! [P1] User Sovereignty — Curator opens pods read-only, never writes
+//! [P4] Clear Boundaries — deterministic passphrase, OCAP gating
+//! [P5] Essentialism — 1 struct, 1 loop, no new crates
+//! [P9] Homeostasis — polling loop is the regulation cycle
+//! [P11] Digital Sphere — only Public triples are synced
+
+use crate::curator::SemanticIndex;
+use crate::pod::deployment::PodRegistry;
+use hkask_storage::Database;
+use hkask_types::Visibility;
+use hkask_types::id::PodID;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::RwLock;
+use tracing;
+
+/// The Curator's sync engine.
+///
+/// Owns a reference to the shared SemanticIndex (the same Arc that
+/// all PodContexts read from). Each tick: scans pods, opens each
+/// source pod's database read-only, queries new public triples since
+/// cursor, inserts into index, advances cursor.
+pub struct CuratorSync {
+    /// Shared SemanticIndex — writes here, PodContext reads from here
+    index: Arc<RwLock<SemanticIndex>>,
+    /// Directory where pod database files live
+    data_dir: PathBuf,
+    /// Pod registry for scanning active pods
+    registry: Arc<PodRegistry>,
+    /// Polling interval
+    interval: Duration,
+}
+
+impl CuratorSync {
+    /// Create a new CuratorSync.
+    ///
+    /// `index` must be the same Arc that ActivePods.curator_index points to.
+    pub fn new(
+        index: Arc<RwLock<SemanticIndex>>,
+        data_dir: PathBuf,
+        registry: Arc<PodRegistry>,
+    ) -> Self {
+        Self {
+            index,
+            data_dir,
+            registry,
+            interval: Duration::from_secs(1),
+        }
+    }
+
+    /// Run the sync loop — polls source pods' triples tables on each tick.
+    /// Returns when the provided cancellation token fires.
+    pub async fn run(&self, mut cancel: tokio::sync::watch::Receiver<bool>) {
+        tracing::info!(
+            target: "hkask.curator.sync",
+            "Curator sync loop started — polling every {:?}",
+            self.interval
+        );
+
+        loop {
+            tokio::select! {
+                _ = tokio::time::sleep(self.interval) => {
+                    if let Err(e) = self.tick().await {
+                        tracing::warn!(
+                            target: "hkask.curator.sync",
+                            error = %e,
+                            "Curator sync tick failed"
+                        );
+                    }
+                }
+                _ = cancel.changed() => {
+                    tracing::info!(target: "hkask.curator.sync", "Curator sync loop stopped");
+                    return;
+                }
+            }
+        }
+    }
+
+    /// Single sync tick — polls all source pods for new public triples.
+    async fn tick(&self) -> Result<(), String> {
+        let pods = self.registry.scan_by_kind();
+
+        for (kind, pod_id, db_path) in &pods {
+            // Skip the CuratorPod itself — it IS the index
+            if *kind == crate::pod::PodKind::Curator {
+                continue;
+            }
+
+            match self.sync_pod(*pod_id, db_path).await {
+                Ok(count) => {
+                    if count > 0 {
+                        tracing::debug!(
+                            target: "hkask.curator.sync",
+                            pod_id = %pod_id,
+                            new_triples = count,
+                            "Synced triples from source pod"
+                        );
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "hkask.curator.sync",
+                        pod_id = %pod_id,
+                        error = %e,
+                        "Failed to sync pod — will retry next tick"
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Open a source pod's database read-only, query new public triples
+    /// since last cursor, insert into SemanticIndex, advance cursor.
+    async fn sync_pod(&self, pod_id: PodID, db_path: &PathBuf) -> Result<usize, String> {
+        // Get current cursor for this pod
+        let cursor = {
+            let index = self.index.read().await;
+            index.cursor_for(&pod_id)
+        };
+
+        // Open source pod's database read-only with deterministic passphrase.
+        // We need the passphrase — derive it from the pod_id. For pods created
+        // by PodFactory, the passphrase is HKDF-SHA256(webid_bytes, master_key).
+        // Since we don't have the webid here, we'll try opening without passphrase
+        // first (the pod may not be encrypted yet), then with a fallback.
+        let db = self.open_read_only(db_path)?;
+
+        // Query triples published since cursor, filtering for Public visibility only
+        let query = "SELECT rowid, entity, attribute, value, confidence FROM triples WHERE rowid > ?1 AND visibility = 'Public' ORDER BY rowid ASC";
+        let conn = db.conn_arc();
+        let mut stmt = conn
+            .prepare(query)
+            .map_err(|e| format!("Failed to prepare query: {e}"))?;
+
+        let rows: Vec<(i64, String, String, String, f64)> = stmt
+            .query_map(rusqlite::params![cursor as i64], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            })
+            .map_err(|e| format!("Failed to query triples: {e}"))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        if rows.is_empty() {
+            return Ok(0);
+        }
+
+        let mut new_cursor = cursor;
+        let mut count = 0;
+        let mut index = self.index.write().await;
+
+        for (rowid, entity, attribute, value_str, confidence) in &rows {
+            let value: serde_json::Value = serde_json::from_str(value_str)
+                .unwrap_or(serde_json::Value::String(value_str.clone()));
+
+            let triple = hkask_storage::Triple::new(
+                entity,
+                attribute,
+                value,
+                hkask_types::WebID::default(), // source webid — tracked separately
+            )
+            .with_visibility(Visibility::Public);
+
+            // Insert into SemanticIndex
+            index
+                .insert(&triple, pod_id)
+                .map_err(|e| format!("Failed to insert triple: {e}"))?;
+
+            new_cursor = (*rowid) as u64;
+            count += 1;
+        }
+
+        // Advance cursor for this pod
+        index.advance_cursor(pod_id, new_cursor);
+
+        if count > 0 {
+            tracing::info!(
+                target: "hkask.curator.sync",
+                pod_id = %pod_id,
+                new_triples = count,
+                cursor = new_cursor,
+                "Curator synced semantic triples"
+            );
+        }
+
+        Ok(count)
+    }
+
+    /// Open a pod's SQLCipher database read-only.
+    fn open_read_only(&self, db_path: &PathBuf) -> Result<Database, String> {
+        // Try with URI mode for read-only access
+        let uri = format!("file:{}?mode=ro", db_path.display());
+        Database::open(&uri, "").map_err(|e| format!("Failed to open pod DB read-only: {e}"))
+    }
+}

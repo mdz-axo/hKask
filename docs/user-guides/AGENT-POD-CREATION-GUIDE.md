@@ -1264,7 +1264,7 @@ For advanced topics, see:
 - [Agent Pod Implementation](../architecture/core/MDS.md)
 - [Security Architecture](../architecture/core/MDS.md)
 - [CNS Observers](../architecture/core/PRINCIPLES.md)
-- [Template Header Standard](../architecture/reference/template-header-standard.md)
+- [Template Header Standard](../architecture/hKask-architecture-master.md) (Pattern A)
 
 [^hewitt1973]: Hewitt, C., Bishop, P., & Steiger, R. (1973). A universal modular ACTOR formalism for artificial intelligence. In *Proceedings of the 3rd International Joint Conference on Artificial Intelligence (IJCAI)* (pp. 235-245). https://dl.acm.org/doi/10.5555/1624775.1624804
 [^wiegers2013]: Wiegers, K. E., & Beatty, J. (2013). *Software requirements* (3rd ed.). Microsoft Press.

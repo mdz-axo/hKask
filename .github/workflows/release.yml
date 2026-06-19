@@ -1,4 +1,4 @@
-# hKask Release Pipeline
+# hKask Release Pipeline — toolchain auto-discovered, composite action for setup
 
 name: Release
 
@@ -33,25 +33,9 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', github.event.inputs.version) || '' }}
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@v1
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: "1.91"
           components: rustfmt, clippy
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config \
-            libssl-dev \
-            libsqlite3-dev \
-            libdbus-1-dev \
-            mold \
-            clang
-
-      - name: Cache cargo registry
-        uses: Swatinem/rust-cache@v2
 
       - name: Check formatting
         run: cargo fmt --check
@@ -86,34 +70,16 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', github.event.inputs.version) || '' }}
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@v1
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: "1.91"
           targets: ${{ matrix.target }}
-
-      - name: Install system dependencies (GNU)
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config \
-            libssl-dev \
-            libsqlite3-dev \
-            libdbus-1-dev \
-            mold \
-            clang
+          cache-key: ${{ matrix.target }}
 
       - name: Install cross (for musl + AArch64)
         if: matrix.target != 'x86_64-unknown-linux-gnu'
         uses: taiki-e/install-action@v2
         with:
           tool: cross
-
-      - name: Cache cargo registry
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
 
       - name: Build release binary (GNU)
         if: matrix.target == 'x86_64-unknown-linux-gnu'

@@ -1,0 +1,29 @@
+# Mutation testing — nightly, also gates release tags.
+# Runs at 03:00 UTC daily. Triggered on push of v* tags.
+
+name: Mutation Testing
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  mutants:
+    name: cargo-mutants
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+
+      - name: Install cargo-mutants
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants
+
+      - name: Run mutation testing
+        run: cargo mutants --workspace --timeout 10

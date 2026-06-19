@@ -139,6 +139,8 @@ pub enum CnsSpan {
     InviteAccepted,
     /// Semantic triple published — triggers Curator sync.
     SemanticPublished,
+    /// CI invariant gate violation — a pattern match failed with a principle anchor.
+    CiInvariantViolation,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -272,6 +274,7 @@ impl CnsSpan {
             CnsSpan::InviteSent => "cns.multi.invite.sent",
             CnsSpan::InviteAccepted => "cns.multi.invite.accepted",
             CnsSpan::SemanticPublished => "cns.semantic.published",
+            CnsSpan::CiInvariantViolation => "cns.ci.invariant.violation",
         }
     }
 }
@@ -361,6 +364,7 @@ impl std::str::FromStr for CnsSpan {
             "cns.multi.invite.sent" => Ok(CnsSpan::InviteSent),
             "cns.multi.invite.accepted" => Ok(CnsSpan::InviteAccepted),
             "cns.semantic.published" => Ok(CnsSpan::SemanticPublished),
+            "cns.ci.invariant.violation" => Ok(CnsSpan::CiInvariantViolation),
             _ => Err(()),
         }
     }
@@ -473,6 +477,8 @@ mod cns_span_tests {
             CnsSpan::RoleAssigned,
             CnsSpan::InviteSent,
             CnsSpan::InviteAccepted,
+            CnsSpan::SemanticPublished,
+            CnsSpan::CiInvariantViolation,
         ];
         for variant in &all_variants {
             let s = variant.to_string();

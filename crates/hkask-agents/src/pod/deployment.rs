@@ -71,7 +71,7 @@ pub struct PodDeployment {
     /// Pod tier — determines isolation model
     pub pod_kind: PodKind,
     /// Semantic index — only set on CuratorPod
-    pub semantic_index: Option<SemanticIndex>,
+    pub semantic_index: Option<Arc<tokio::sync::RwLock<SemanticIndex>>>,
 }
 
 /// PerPodStorage owns a SQLCipher database file for a single pod.
@@ -277,7 +277,7 @@ impl PodFactory {
         let semantic_index = if pod_kind == PodKind::Curator {
             let conn = storage.db.conn_arc();
             let index_store = TripleStore::new(conn);
-            Some(SemanticIndex::new(index_store))
+            Some(Arc::new(tokio::sync::RwLock::new(SemanticIndex::new(index_store))))
         } else {
             None
         };

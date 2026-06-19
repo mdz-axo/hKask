@@ -957,6 +957,75 @@ CNS spans like `cns.training.sweep.iteration` and `cns.training.retrain.ab` are 
 **Implementation:** `TrainedLoRAAdapter.owner`, `AdapterStore::list_owner()`, `AdapterPort` trait methods accept `&DelegationToken`
 
 
+## Pod Architecture
+
+> **Incorporated from:** `docs/architecture/core/OPEN_QUESTIONS_POD.md`
+
+Questions raised by the Solid Pod isomorphism that require future design work.
+
+### POD-1 — Pod-to-Pod Communication (Cross-Pod A2A)
+
+**Current state:** `ActivePods` registry tracks active deployments. `PodRegistry` provides filesystem-based discovery.
+
+**Options:**
+
+| Transport | Pros | Cons |
+|-----------|------|------|
+| **Matrix (Conduit)** | Already in deployment model. Built-in federation. | Adds Conduit as hard dependency. |
+| **gRPC** | High performance. Bidirectional streaming. | New infrastructure. No federation. |
+| **mpsc over TCP** | Simple. Matches CNS channel pattern. | No authentication, discovery, routing. |
+| **WebSocket + JSON** | Browser-compatible. | No built-in federation. |
+
+**Key constraint:** Cross-pod A2A must preserve OCAP gating. Capability tokens must extend across pod boundaries.
+
+**Question:** What is the minimal viable cross-pod A2A protocol that preserves OCAP gating?
+
+### POD-2 — Pod Portability Across Servers
+
+**Current state:** Backup exports SQLCipher file. `derive_ocap_secret(webid)` is deterministic.
+
+**Open sub-questions:**
+- **CNS state:** Reset variety counters on migration (60-second window).
+- **API keys:** Travel with the pod (user-scoped, not server-scoped).
+- **Addressable identity:** The pod's WebID is the identity; any server can host any pod.
+
+### POD-3 — Pod Lifecycle Across Containers
+
+**Target:** Pod IS a Docker/Podman container.
+
+| Current (ActivePods) | Containerized (Proposed) | Question |
+|---------------------|--------------------------|----------|
+| `kask pod activate <id>` | `docker start <pod_id>` | Should `kask pod activate` wrap Docker? |
+| `PodLifecycleState::Activated` | Container running | Is Activated a logical state or process state? |
+| `PodLifecycleState::Deactivated` | Container stopped | Can pods reactivate from Deactivated? |
+
+**Proposed:** `PodLifecycleState` remains logical. The container is an implementation detail. Deactivation is terminal — restart requires re-registration.
+
+### POD-4 — Curator Aggregation Model
+
+**Current state:** `CnsRuntime` is server-global. Per-pod CNS means N runtimes.
+
+| Model | Description | Pros | Cons |
+|-------|-------------|------|------|
+| **Poll (Curator pulls)** | Curator queries each pod's CNS | Simple, Curator controls sampling | Polling overhead, delayed alerts |
+| **Push (Pods emit)** | Pods push to shared Curator channel | Real-time, matches existing pattern | Weaker per-pod isolation |
+
+**Constraint:** Algedonic pathway is unidirectional (CNS → Curator). Per-pod boundary means no cross-pod CNS observation.
+
+**Question:** Poll (stronger isolation) or push (stronger real-time)?
+
+### POD-5 — Essentialist Deletion Test on PodFactory
+
+**G1 (Exist):** Is `PodFactory` a Rust type, or a CLI command that shells out to Docker?
+
+| Future | PodFactory Role | Verdict |
+|--------|----------------|---------|
+| **In-process pods** | `PodFactory::deploy()` constructs `PodDeployment` in-process | **KEEP** — canonical constructor |
+| **Containerized pods** | `kask pod export-container` generates Dockerfile | **DELETE** — replace with CLI |
+
+**Question:** Is PodFactory a necessary intermediate step, or skip directly to container-native deployment?
+
+
 ## References
 
 [^mds]: hKask Team. (2026). *MDS — Minimal Domain Specification*. `docs/architecture/MDS.md`.

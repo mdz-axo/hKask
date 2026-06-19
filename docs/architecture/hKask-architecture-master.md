@@ -65,6 +65,38 @@ manifest.yaml + *.j2  ──[skill-translator reverse]──▶  SKILL.md
 
 **Motivation:** This decision eliminates the cross-layer consistency maintenance burden. Prior to v0.28.0, SKILL.md was treated as a co-equal artifact, requiring manual synchronization. The dual-source model violated P5 (Essentialism) by duplicating skill semantics across two independently-authored formats. The unified model aligns with P3 (Generative Space): selection intelligence lives in Jinja2/LLM, not in markdown instructions.
 
+#### Template Header Standard
+
+> **Incorporated from:** `docs/architecture/reference/template-header-standard.md`
+
+Every Jinja2 template and YAML manifest carries a header identifying its functional role:
+
+**Jinja2 template header format:**
+```
+{# Template: {path_from_templates_dir} #}
+{# Functional Role: {WordAct|FlowDef|KnowAct} (description) #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: {output_artifacts} #}
+{# {template_title} #}
+```
+
+**YAML manifest header format:**
+```
+# {Manifest Name}
+# ℏKask {version} — {description}
+# Functional Role: FlowDef (process orchestration)
+# Implementation: YAML manifest
+# Steps: {step_list}
+```
+
+**Functional Role quick reference:**
+
+| Role | Keyword | Test |
+|------|---------|------|
+| **WordAct** | action-word | Does it produce an output artifact (message, span, triple)? |
+| **FlowDef** | flow-definition | Does it define a sequence of steps or stages? |
+| **KnowAct** | knowledge-action | Does it produce a decision, judgment, or assessment? |
+
 ### Pattern B: The CNS Feedback Loop — Cybernetic Self-Regulation
 
 **What it is:** The autonomic nervous system of hKask — a complete cybernetic system per Beer's Viable System Model (S1–S5). Not passive monitoring; active *regulation*.
@@ -627,7 +659,7 @@ graph TD
 
 Adapter and endpoint operations emit observability through `CnsSpan::Tool { subsystem: ToolSubsystem::Training }`, `CnsSpan::Inference`, and `CnsSpan::Gas`.
 
-See also: `docs/user-guides/lora-adapter-store-guide.md`, `docs/guides/lora-training-guide.md`, `docs/architecture/PUBLIC_SURFACE_JUSTIFICATIONS.md`
+See also: `docs/user-guides/lora-adapter-store-guide.md`, `docs/guides/lora-training-guide.md`
 
 ---
 
@@ -847,6 +879,33 @@ kask init --profile server
 | Graceful degradation | Missing keys → backend unavailable (logged), not crash |
 | Multi-user isolation | All data scoped by `owner_webid`; OAuth identity verification |
 
+## Deep-Module Audit — Public Surface Justifications
+
+> **Incorporated from:** `docs/architecture/PUBLIC_SURFACE_JUSTIFICATIONS.md`
+
+**Threshold:** ≤7 public items per crate (Ousterhout deep-module discipline, P5). Exceptions must pass the deletion test with documented rationale.
+
+| Crate | Pub Items | Key Concerns | Justification |
+|-------|-----------|-------------|---------------|
+| `hkask-services` | 66 | 28 private `AgentService` fields, domain submodules | Strangler fig consolidation target. Each submodule ≤7 functions individually. |
+| `hkask-services-backup` | 12 | BackupService, GitCASPort, encryption config | Extracted for parallel compilation. Each concern independently testable. |
+| `hkask-types` | 50 | CNS span registry (28 variants), WebID, RDF types | Canonical type crate. CNS spans alone justify the surface — each span defines vocabulary. |
+| `hkask-test-harness` | 42 | Contract verification, proptest strategies | Testing infrastructure. Each strategy is test-only. |
+| `hkask-storage` | 39 | `define_store!` macro, TripleStore, vector store | Persistence orchestration. Each store follows same deep pattern. |
+| `hkask-agents` | 26 | ActivePods, AgentRegistry, capability delegation | Multi-concern crate. Each concern independently testable. |
+| `hkask-cns` | 25 | CyberneticsLoop, VarietyTracker, AlgedonicManager | Regulatory surface. Each component is a distinct feedback loop. |
+| `hkask-improv` | 19 | 5 improv modes, kata improv, ensemble coordination | Each mode is a distinct interaction grammar. |
+| `hkask-templates` | 22 | Jinja2 rendering, registry, template types | Template engine. Registry, rendering, classification are distinct concerns. |
+| `hkask-wallet` | 22 | WalletManager, rJoule, multi-chain bridges | Domain boundary. Keys, balances, deposits are distinct operations. |
+| `hkask-inference` | 18 | InferenceRouter, provider backends, budget tracking | Provider abstraction. Each backend scales with provider support. |
+| `hkask-adapter` | 17 | Expertise, AdapterStore, AdapterRouter, EndpointLifecycle | Multi-concern spanning types, persistence, lifecycle, routing. |
+| `hkask-mcp` | 17 | MCP gateway, capability verification, transport | Protocol surface. Gateway, transport, governance are distinct layers. |
+| `hkask-api` | 16 | HTTP router, OpenAPI, endpoint handlers | API surface. Each endpoint group is a resource. |
+| `hkask-memory` | 14 | Episodic/semantic memory, narrative generation | Memory subsystem. Each memory type is distinct. |
+| `hkask-keystore` | 11 | Argon2id, OS keychain, SQLCipher | Security crate. Derivation, storage, encryption are distinct concerns. |
+
+**Deletion test:** Every crate above passes — delete it and its complexity reappears duplicated. Public surface reflects breadth of domain concerns, not shallow design.
+
 ## Reference Artifacts
 
 Detailed lookup tables and diagrams in `reference/`:
@@ -855,9 +914,7 @@ Detailed lookup tables and diagrams in `reference/`:
 |----------|---------|
 
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
-| [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
-| [`PUBLIC_SURFACE_JUSTIFICATIONS.md`](PUBLIC_SURFACE_JUSTIFICATIONS.md) | Deep-module audit — 16-crate public surface justifications (consolidated) |
 
 
 ---
@@ -894,7 +951,6 @@ docs/architecture/
 ├── loop-architecture.md                   # Framework (4-loop authority model)
 ├── energy-gas-payments-api-keys.md        # Framework (gas, payments, API key system)
 ├── matrix-integration-architecture.md     # Specification (Matrix transport, Conduit sidecar)
-├── PUBLIC_SURFACE_JUSTIFICATIONS.md       # Governance (16-crate deep-module audit)
 ├── core/
 │   ├── magna-carta.md                     # Foundation (4 inviolable principles)
 │   ├── PRINCIPLES.md                      # Framework (P1-P12)
@@ -910,11 +966,10 @@ docs/architecture/
 │   └── ADR-035-replicant-server-mode.md   # Active
 └── reference/
     ├── utoipa-implementation.md           # API guide
-    ├── template-header-standard.md        # Format reference
     └── hKask-Curator-persona.md           # Persona spec
 ```
 
-**Total:** 18 architecture documents (8 core + 1 mandate + 4 root + 2 ADRs + 1 template + 4 reference) + 1 PUBLIC_SURFACE justification.
+**Total:** 16 architecture documents (8 core + 1 mandate + 3 root + 2 ADRs + 2 reference). Template header standard now in Pattern A, public surface justifications in §Deep-Module Audit.
 
 **Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, etc.), `docs/guides/` (kata-user-guide.md, lora-training-guide.md), `docs/user-guides/` (kanban-user-guide.md, lora-adapter-store-guide.md)
 

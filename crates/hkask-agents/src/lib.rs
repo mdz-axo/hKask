@@ -34,6 +34,7 @@ pub use a2a::{A2AAgent, A2AError, A2AMessage, A2ARuntime};
 pub use consent::{ConsentError, ConsentManager};
 pub use curator::context::CuratorContext;
 pub use curator::curation_loop::CurationLoop;
+pub use curator::{CuratorSync, SemanticIndex};
 pub use curator_agent::{CuratorAgent, DefaultSpecCurator};
 
 pub use error::{CoreError, MemoryError};

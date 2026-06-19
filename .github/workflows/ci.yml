@@ -1,4 +1,7 @@
-# hKask CI
+# hKask CI — minimal DAG, toolchain auto-discovered, invariants as single gate
+#
+# Critical path: fmt → clippy → build → test → invariants (~15 min)
+# Heavyweight checks (deny, audit, mutants) moved to scheduled workflows.
 
 name: CI
 
@@ -14,110 +17,69 @@ env:
   RUSTFLAGS: "-D warnings"
 
 jobs:
-  check:
-    name: Check
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: "1.91"
-          components: rustfmt, clippy
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config libssl-dev libsqlite3-dev libdbus-1-dev mold clang
-
-      - name: Cache cargo registry
-        uses: Swatinem/rust-cache@v2
-
-      - name: Format
-        run: cargo fmt --check
-
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-      - name: Build
-        run: cargo build --workspace --all-targets
-
-      - name: Test
-        run: cargo test --workspace
-
-      - name: Doc
-        run: cargo doc --workspace --no-deps
-
-  security:
-    name: Security Baseline
+  # ── Stage 1: Fast checks (parallelizable) ──────────────────────────────
+  fmt:
+    name: Format
     runs-on: ubuntu-latest
     timeout-minutes: 5
-
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt
+      - run: cargo fmt --check
 
-      - name: No stubs (todo!/unimplemented!)
-        run: |
-          violations=$(grep -rn 'todo!\|unimplemented!' crates/ mcp-servers/ --include="*.rs" | grep -v '/tests/' || true)
-          if [ -n "$violations" ]; then echo "$violations"; echo "FAIL: stubs found — implement or remove"; exit 1; fi
-          echo "PASS: no stubs"
-
-      - name: No deprecated annotations
-        run: |
-          violations=$(grep -rn '#\[deprecated' crates/ mcp-servers/ --include="*.rs" | grep -v '/tests/' || true)
-          if [ -n "$violations" ]; then echo "$violations"; echo "FAIL: #[deprecated] found — delete, don't annotate"; exit 1; fi
-          echo "PASS: no deprecated"
-
-      - name: No hardcoded secrets
-        run: |
-          violations=$(grep -rnE '(api[_-]?key|api[_-]?secret|password|token|private[_-]?key)[[:space:]]*=[[:space:]]*"[^"]+"' crates/ mcp-servers/ --include="*.rs" | grep -v '/tests/' | grep -v 'env.example' || true)
-          if [ -n "$violations" ]; then echo "$violations"; echo "FAIL: hardcoded secrets — use env vars or keystore"; exit 1; fi
-          echo "PASS: no hardcoded secrets"
-
-      - name: Unsafe blocks must have SAFETY comments
-        run: |
-          failed=0
-          while IFS= read -r -d '' file; do
-            [[ "$file" == */tests/* || "$file" == *test_* ]] && continue
-            while IFS=: read -r line_num _; do
-              [ -z "$line_num" ] && continue
-              start=$((line_num > 3 ? line_num - 3 : 1))
-              if ! sed -n "${start},${line_num}p" "$file" | grep -q 'SAFETY:'; then
-                echo "  $file:$line_num — unsafe block missing // SAFETY: comment"
-                failed=1
-              fi
-            done < <(grep -n 'unsafe\s*{\|unsafe\s\+fn' "$file" 2>/dev/null || true)
-          done < <(find crates/ mcp-servers/ -name '*.rs' -print0)
-          if [ "$failed" -eq 1 ]; then echo "FAIL: unsafe blocks need // SAFETY: comments"; exit 1; fi
-          echo "PASS: unsafe blocks documented"
-
-      - name: No visual UI infrastructure
-        run: |
-          violations=$(grep -rniE 'grafana|prometheus|dashboard|visual.*ui' crates/ mcp-servers/ --include="*.rs" | grep -v '/tests/' || true)
-          if [ -n "$violations" ]; then echo "$violations"; echo "FAIL: visual UI references — use CLI/MCP/API only"; exit 1; fi
-          echo "PASS: headless"
-
-  deps:
-    name: Dependencies
+  # ── Stage 2: Build + lint (depends on fmt) ────────────────────────────
+  clippy:
+    name: Clippy
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
+    needs: fmt
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@v1
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: "1.91"
+          components: clippy
+      - run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: Install cargo-deny
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-deny
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: fmt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - run: cargo build --workspace --all-targets
 
-      - name: Check dependency policy
-        run: cargo deny check
+  # ── Stage 3: Test + docs (depends on clippy + build) ─────────────────
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [clippy, build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - run: cargo test --workspace
+
+  doc:
+    name: Doc
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [clippy, build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - run: cargo doc --workspace --no-deps
+
+  # ── Stage 4: Invariants gate (single binary replacing all inline grep) ──
+  invariants:
+    name: Invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - run: cargo run --package hkask-ci-invariants -- check
