@@ -89,6 +89,11 @@ impl PodContext {
         })
     }
 
+    /// Access the per-pod CNS runtime for observability queries.
+    pub fn cns(&self) -> &PerPodCnsRuntime {
+        &self.cns
+    }
+
     /// Wire this context to a CuratorPod's SemanticIndex for merged-lens
     /// semantic recall. Called by ActivePods when a CuratorPod is active.
     pub fn with_curator_index(mut self, index: Arc<tokio::sync::RwLock<SemanticIndex>>) -> Self {

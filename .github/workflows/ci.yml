@@ -1,7 +1,8 @@
-# hKask CI — minimal DAG, toolchain auto-discovered, invariants as single gate
+# hKask CI — fmt → clippy → build → test → doc → invariants
 #
-# Critical path: fmt → clippy → build → test → invariants (~15 min)
-# Heavyweight checks (deny, audit, mutants) moved to scheduled workflows.
+# Clippy (with -D warnings + lint denials) catches: todo!(), unimplemented!(),
+# .unwrap(), undocumented unsafe blocks, deprecated usage.
+# The invariants grep-only job catches project-specific non-code patterns.
 
 name: CI
 
@@ -14,10 +15,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  RUSTFLAGS: "-D warnings"
 
 jobs:
-  # ── Stage 1: Fast checks (parallelizable) ──────────────────────────────
+  # ── Stage 1: Fast checks ─────────────────────────────────────────────────
   fmt:
     name: Format
     runs-on: ubuntu-latest
@@ -29,7 +29,7 @@ jobs:
           components: rustfmt
       - run: cargo fmt --check
 
-  # ── Stage 2: Build + lint (depends on fmt) ────────────────────────────
+  # ── Stage 2: Build + lint (parallel, depends on fmt) ─────────────────────
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
@@ -52,7 +52,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - run: cargo build --workspace --all-targets
 
-  # ── Stage 3: Test + docs (depends on clippy + build) ─────────────────
+  # ── Stage 3: Test + doc (depends on clippy + build) ──────────────────────
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -73,13 +73,27 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - run: cargo doc --workspace --no-deps
 
-  # ── Stage 4: Invariants gate (single binary replacing all inline grep) ──
+  # ── Stage 4: Structural invariants (grep-only, depends on test) ─────────
   invariants:
     name: Invariants
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     needs: test
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-rust
-      - run: cargo run --package hkask-ci-invariants -- check
+      - name: Prohibited visual-UI / monitoring infrastructure (P3 §5)
+        run: |
+          violations=$(grep -rPni '(?i)grafana|prometheus|dashboard|visual[\s.]*ui' crates/ --include='*.rs' | grep -v '/tests/')
+          if [ -n "$violations" ]; then
+            echo "$violations"
+            echo "::error::Visual UI/monitoring infrastructure prohibited — headless system only (P3 §5)"
+            exit 1
+          fi
+      - name: Hardcoded secrets (P3)
+        run: |
+          violations=$(grep -rPni '(?i)(api[_-]?key|api[_-]?secret|password|token|private[_-]?key)\s*=\s*"[^"]+"' crates/ --include='*.rs' | grep -v '/tests/')
+          if [ -n "$violations" ]; then
+            echo "$violations"
+            echo "::error::Hardcoded secrets found — use env vars or keystore"
+            exit 1
+          fi

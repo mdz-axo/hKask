@@ -37,7 +37,6 @@ members = [
     "crates/hkask-test-harness",
     "crates/hkask-adapter",
     "crates/hkask-acp",
-    "crates/hkask-ci-invariants",
     # Fuzz targets
     "crates/hkask-types/fuzz",
     "crates/hkask-cns/fuzz",

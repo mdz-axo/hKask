@@ -1021,6 +1021,21 @@ async fn build_mcp_and_pods(
     }
     let pod_manager: Arc<hkask_agents::pod::ActivePods> = Arc::new(pods);
 
+    // Start CuratorPod + CuratorSync (semantic aggregation loop).
+    // Runs as a background task for the lifetime of the service.
+    let (curator_cancel_tx, curator_cancel_rx) = tokio::sync::watch::channel(false);
+    let curator_pm = Arc::clone(&pod_manager);
+    let curator_data_dir = std::path::PathBuf::from(&config.db_path);
+    tokio::spawn(async move {
+        match curator_pm.ensure_curator(curator_data_dir, curator_cancel_rx).await {
+            Ok(Some(_)) => tracing::info!(target: "hkask.startup", "CuratorPod activated and CuratorSync running"),
+            Ok(None) => tracing::info!(target: "hkask.startup", "CuratorPod already active"),
+            Err(e) => tracing::error!(target: "hkask.startup", error = %e, "Failed to start CuratorPod"),
+        }
+    });
+    // Store cancel_tx for graceful shutdown
+    let _curator_cancel = curator_cancel_tx;
+
     // Matrix auto-registration — deferred to per-pod activation
 
     // Daemon handler + listener (skip socket in test mode)
