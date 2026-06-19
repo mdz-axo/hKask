@@ -221,12 +221,22 @@ collect_req_tests() {
             # Pattern: // REQ: <id> — <description> followed by #[test] and fn
             local req_matches
             req_matches=$(mktemp)
-            grep -n '// REQ:' "$file" > "$req_matches" 2>/dev/null || true
+            grep -nE '(// REQ:|/// REQ:|/// expect:|// contract:)' "$file" > "$req_matches" 2>/dev/null || true
             while IFS=: read -r req_linenum req_line; do
                 local req_id req_desc test_fn
                 # Parse REQ line
-                req_id=$(echo "$req_line" | sed -n 's/.*REQ:[[:space:]]*\([^[:space:]-]*\).*/\1/p')
-                req_desc=$(echo "$req_line" | sed 's/.*REQ:[[:space:]]*[^[:space:]-]*[[:space:]-]*//' | sed 's/^[[:space:]]*//')
+                if echo "$req_line" | grep -q 'expect:'; then
+                    req_id=$(echo "$req_line" | sed -n 's/.*\[\(P[0-9][0-9]*\)\].*/\1/p')
+                    req_desc=$(echo "$req_line" | sed -n 's/.*expect:[[:space:]]*"\([^"]*\)".*/\1/p')
+                elif echo "$req_line" | grep -q 'contract:'; then
+                    req_id=$(echo "$req_line" | sed -n 's/.*contract:[[:space:]]*\([^[:space:]-]*\).*/\1/p')
+                    req_desc=$(echo "$req_line" | sed 's/.*contract:[[:space:]]*[^[:space:]-]*[[:space:]-]*//' | sed 's/^[[:space:]]*//')
+                elif echo "$req_line" | grep -q 'REQ:'; then
+                    req_id=$(echo "$req_line" | sed -n 's/.*REQ:[[:space:]]*\([^[:space:]-]*\).*/\1/p')
+                    req_desc=$(echo "$req_line" | sed 's/.*REQ:[[:space:]]*[^[:space:]-]*[[:space:]-]*//' | sed 's/^[[:space:]]*//')
+                else
+                    continue
+                fi
                 [ -n "$req_id" ] || continue
 
                 # Look ahead in the file for the test function (within ~20 lines after REQ)

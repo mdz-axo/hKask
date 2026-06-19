@@ -1,6 +1,6 @@
 # Public Seam Priority List
 
-**Generated:** 2026-06-19T00:08:37Z
+**Generated:** 2026-06-19T00:39:36Z
 **Source:** `scripts/public-seam-inventory.sh`
 **Purpose:** Top high-risk uncovered public items requiring REQ-tagged tests.
 
@@ -116,7 +116,7 @@ risk and typically covered by struct-level or integration tests.
 | 96 | hkask-agents | fn | `voice_description` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:621 | Core Logic |
 | 97 | hkask-agents | fn | `webid` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:164 | Core Logic |
 | 98 | hkask-api | fn | `a2a_router` | hkask-api::routes::a2a | crates/hkask-api/src/routes/a2a.rs:86 | API Route Handler |
-| 99 | hkask-api | fn | `auth_router` | hkask-api::routes::auth | crates/hkask-api/src/routes/auth.rs:588 | API Route Handler |
+| 99 | hkask-api | fn | `auth_router` | hkask-api::routes::auth | crates/hkask-api/src/routes/auth.rs:589 | API Route Handler |
 | 100 | hkask-api | fn | `backup_router` | hkask-api::routes::backup | crates/hkask-api/src/routes/backup.rs:212 | API Route Handler |
 
 ---
