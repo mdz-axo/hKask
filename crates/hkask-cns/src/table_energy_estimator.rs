@@ -111,8 +111,6 @@ impl TableEnergyEstimator {
 
     /// Create a TableEnergyEstimator with custom per-server costs.
     ///
-    /// pre:  `server_costs` contains the desired server → cost mappings
-    /// post: per-tool overrides (e.g. condenser_thread_summary) are still applied
     ///       on top of the provided server costs
     pub(crate) fn with_server_costs(server_costs: HashMap<String, u64>) -> Self {
         let mut tool_costs: HashMap<(String, String), u64> = HashMap::new();

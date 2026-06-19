@@ -40,19 +40,13 @@ pub struct AdapterConfig {
 impl AdapterConfig {
     /// Parse adapter_config.json from raw bytes.
     ///
-    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// [P8] Semantic Grounding — adapter config carries training provenance
-    /// pre:  bytes is valid JSON matching the PEFT adapter_config.json schema
-    /// post: returns AdapterConfig with base_model_name_or_path populated
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, AdapterConfigError> {
         serde_json::from_slice(bytes).map_err(AdapterConfigError::Parse)
     }
 
     /// Read adapter_config.json from a directory path.
     ///
-    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
-    /// pre:  storage_path is a readable directory containing adapter_config.json
-    /// post: returns AdapterConfig parsed from adapter_config.json
     pub fn from_dir(storage_path: &str) -> Result<Self, AdapterConfigError> {
         let config_path = std::path::Path::new(storage_path).join("adapter_config.json");
         let bytes = std::fs::read(&config_path).map_err(|e| AdapterConfigError::Io {
@@ -64,9 +58,6 @@ impl AdapterConfig {
 
     /// Validate that this adapter config is compatible with the expected base model.
     ///
-    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
-    /// pre:  expected_family is non-empty
-    /// post: returns Ok if base_model_name_or_path contains expected_family, Err otherwise
     pub fn validate_base_model(&self, expected_family: &str) -> Result<(), AdapterConfigError> {
         let actual = &self.base_model_name_or_path;
         // Flexible match — the config may contain full HuggingFace path like
@@ -101,8 +92,6 @@ pub enum AdapterConfigError {
 mod tests {
     use super::*;
 
-    // contract: P8-adt-adapter-config-parse
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn parse_valid_adapter_config() {
         let json = r#"{
@@ -127,16 +116,12 @@ mod tests {
         );
     }
 
-    // contract: P8-adt-adapter-config-parse
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn parse_invalid_json_returns_error() {
         let result = AdapterConfig::from_bytes(b"not json");
         assert!(result.is_err());
     }
 
-    // contract: P8-adt-adapter-config-parse
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn validate_base_model_match() {
         let config = AdapterConfig {

@@ -57,10 +57,7 @@ impl Store for EmbeddingStore {
 impl EmbeddingStore {
     /// Create a new embedding store.
     ///
-    /// expect: "The system provides durable storage for embedding data" [P3]
     /// \[P3\] Motivating: Generative Space — create embedding store
-    /// pre:  conn is a valid SQLite connection
-    /// post: returns EmbeddingStore with default dimension
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self {
             conn,
@@ -70,10 +67,7 @@ impl EmbeddingStore {
     /// Create with a custom embedding dimension.
     /// Create an embedding store with a specific vector dimension.
     ///
-    /// expect: "The system provides durable storage for embedding data" [P3]
     /// \[P3\] Motivating: Generative Space — create embedding store with dimension
-    /// pre:  conn is valid, dim > 0
-    /// post: returns EmbeddingStore with specified dimension
     pub fn with_dim(conn: Arc<Mutex<Connection>>, dim: usize) -> Self {
         Self { conn, dim }
     }
@@ -117,11 +111,7 @@ impl EmbeddingStore {
     /// Store embedding in both tables (single transaction). Returns the embedding ID.
     /// Store an embedding vector.
     ///
-    /// expect: "The system provides durable storage for embedding data" [P3]
     /// \[P3\] Motivating: Generative Space — store an embedding vector
-    /// pre:  entity_ref is non-empty, vector matches store dimension, model is non-empty
-    /// post: embedding stored and indexed by entity_ref
-    /// post: returns embedding ID
     pub fn store(
         &self,
         entity_ref: &str,
@@ -167,11 +157,7 @@ impl EmbeddingStore {
     /// Retrieve an embedding by entity reference.
     /// Retrieve an embedding by entity_ref.
     ///
-    /// expect: "The system provides durable storage for embedding data" [P3]
     /// \[P3\] Motivating: Generative Space — retrieve embedding by entity
-    /// pre:  entity_ref is non-empty
-    /// post: returns StoredEmbedding if found
-    /// post: returns Err(NotFound) if not found
     pub fn get(&self, entity_ref: &str) -> Result<StoredEmbedding, EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
         let mut stmt = conn
@@ -203,10 +189,7 @@ impl EmbeddingStore {
     /// KNN search using sqlite-vec MATCH operator.
     /// Search for similar embeddings by vector distance.
     ///
-    /// expect: "The system provides durable storage for embedding data" [P3]
     /// \[P3\] Motivating: Generative Space — vector similarity search
-    /// pre:  query_vector matches store dimension, limit > 0
-    /// post: returns Vec<SimilarityResult> ordered by ascending distance
     pub fn search(
         &self,
         query_vector: &[f32],
@@ -249,10 +232,7 @@ impl EmbeddingStore {
     /// Delete embedding from both tables (single transaction).
     /// Delete an embedding by entity_ref.
     ///
-    /// expect: "The system provides durable storage for embedding data" [P3]
     /// \[P3\] Motivating: Generative Space — delete embedding
-    /// pre:  entity_ref is non-empty
-    /// post: embedding deleted if existed
     pub fn delete(&self, entity_ref: &str) -> Result<(), EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
         // Look up the embedding ID first
@@ -295,9 +275,7 @@ impl EmbeddingStore {
     /// Count total embeddings stored.
     /// Count stored embeddings.
     ///
-    /// expect: "The system provides durable storage for embedding data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count embeddings
-    /// post: returns total count of embeddings
     pub fn count(&self) -> Result<usize, EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM embeddings", [], |row| row.get(0))?;
@@ -306,10 +284,7 @@ impl EmbeddingStore {
     /// Query entity_refs matching a prefix.
     /// Query entity_refs by prefix.
     ///
-    /// expect: "The system provides durable storage for embedding data" [P3]
     /// \[P3\] Motivating: Generative Space — query entity refs by prefix
-    /// pre:  prefix is non-empty
-    /// post: returns Vec of entity_refs matching prefix
     pub fn query_by_prefix(&self, prefix: &str) -> Result<Vec<String>, EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
         let pattern = format!("{}%", prefix);

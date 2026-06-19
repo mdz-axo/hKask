@@ -61,12 +61,9 @@ impl CurationLoop {
     /// The `context` provides capability-disciplined access to CNS, dispatch,
     /// and escalation — the Curation Loop's only runtime dependencies.
     ///
-    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — Curation Loop is the regulatory sense-act loop
     /// \[P4\] Constraining: Clear Boundaries — single CuratorHandle capability
-    /// pre:  `curator_handle` is a valid `CuratorHandle` (singleton);
     ///       `context` is a valid `Arc<CuratorContext>`.
-    /// post: Returns a `CurationLoop` with no consolidation, no inbox,
     ///       and `last_review_ms` initialized to 0.
     pub fn new(curator_handle: CuratorHandle, context: Arc<CuratorContext>) -> Self {
         Self {
@@ -78,13 +75,10 @@ impl CurationLoop {
         }
     }
 
-    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — consolidation tunes the loop
     /// \[P7\] Constraining: Evolutionary Architecture — consolidation config emerged from usage
-    /// pre:  `curator_handle` is a valid `CuratorHandle`; `context` is a
     ///       valid `Arc<CuratorContext>`; `consolidation` is a valid
     ///       `Arc<ConsolidationBridge>`.
-    /// post: Returns a `CurationLoop` with consolidation set, no inbox,
     ///       and `last_review_ms` initialized to 0.
     pub fn with_consolidation(
         curator_handle: CuratorHandle,
@@ -102,10 +96,7 @@ impl CurationLoop {
 
     /// Wire the unified inbox for CurationInput messages.
     ///
-    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — unified inbox receives CurationInput
-    /// pre:  `rx` is a valid `UnboundedReceiver<CurationInput>`.
-    /// post: Returns `self` with `inbox` set to `Some(Arc<RwLock<rx>>)`.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_inbox(mut self, rx: mpsc::UnboundedReceiver<CurationInput>) -> Self {
         self.inbox = Some(Arc::new(RwLock::new(rx)));
@@ -114,10 +105,7 @@ impl CurationLoop {
 
     /// Access the CuratorContext (capability-disciplined runtime references).
     ///
-    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — context exposes CNS and escalation
-    /// pre:  (none — accessor).
-    /// post: Returns a reference to the inner `Arc<CuratorContext>`.
     pub fn context(&self) -> &Arc<CuratorContext> {
         &self.context
     }
@@ -127,10 +115,7 @@ impl CurationLoop {
     /// Per the singleton invariant, this is the single CuratorHandle
     /// for the entire system.
     ///
-    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — handle is the capability to curate
-    /// pre:  (none — accessor).
-    /// post: Returns a reference to the inner `CuratorHandle`.
     pub fn curator_handle(&self) -> &CuratorHandle {
         &self.curator_handle
     }
@@ -140,10 +125,7 @@ impl CurationLoop {
     /// Call this after construction and before the first tick to avoid
     /// re-processing all historical algedonic events on restart.
     ///
-    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — cursor restore avoids re-processing history
-    /// pre:  `self.context.nu_event_store()` may be `Some` or `None`.
-    /// post: If a persisted cursor exists, `last_review_ms` is updated;
     ///       otherwise it remains at 0. Logs the outcome at info/warn level.
     ///       Does not panic on storage errors.
     pub fn restore_cursor(&self) {

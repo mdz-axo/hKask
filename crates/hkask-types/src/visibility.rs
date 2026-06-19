@@ -39,8 +39,6 @@ pub enum Visibility {
 impl Visibility {
     /// Get string representation of visibility.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns "private", "shared", or "public"
     pub fn as_str(&self) -> &'static str {
         match self {
             Visibility::Private => "private",
@@ -50,8 +48,6 @@ impl Visibility {
 
     /// Parse visibility from string.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Some(Visibility) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
         match s {
             "private" | "Private" => Some(Visibility::Private),
@@ -70,7 +66,6 @@ impl Visibility {
 
 /// Access control grouping for triples and other stored artifacts.
 ///
-/// \[DECLARATIVE\] Bundles the three fields that always appear together: (P5 — Essentialism).
 /// `perspective`, `visibility`, and `owner_webid`. This value object
 /// replaces the repeated pattern of passing these three as separate
 /// parameters (Fowler H10: Group Data Clump Into Object).
@@ -90,9 +85,6 @@ impl AccessControl {
     /// Create a default access control: private, no perspective, owned by `owner`.
     /// Create a new AccessControl with owner.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  owner is valid
-    /// post: returns AccessControl with Private visibility, no perspective
     pub fn new(owner: WebID) -> Self {
         Self {
             perspective: None,
@@ -104,9 +96,6 @@ impl AccessControl {
     /// Create an episodic (perspective-bound) access control: private, owned by `owner`.
     /// Create episodic access control.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  perspective and owner are valid
-    /// post: returns AccessControl with Private visibility and perspective
     pub fn episodic(perspective: WebID, owner: WebID) -> Self {
         Self {
             perspective: Some(perspective),
@@ -118,9 +107,6 @@ impl AccessControl {
     /// Create a semantic (public, perspective-free) access control.
     /// Create semantic access control.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  owner is valid
-    /// post: returns AccessControl with Public visibility, no perspective
     pub fn semantic(owner: WebID) -> Self {
         Self {
             perspective: None,
@@ -132,8 +118,6 @@ impl AccessControl {
     /// Convert to semantic access control: strip perspective, set visibility to Public.
     /// Convert to semantic access (strip perspective, set Public).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns AccessControl with Public visibility, no perspective
     pub fn to_semantic(&self) -> Self {
         Self {
             perspective: None,
@@ -145,8 +129,6 @@ impl AccessControl {
     /// Is this an episodic (perspective-bound) access control?
     /// Check if this is episodic (has perspective).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns true iff perspective is Some
     pub fn is_episodic(&self) -> bool {
         self.perspective.is_some()
     }
@@ -154,8 +136,6 @@ impl AccessControl {
     /// Is this a semantic (public, perspective-free) access control?
     /// Check if this is semantic (Public, no perspective).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns true iff visibility is Public and perspective is None
     pub fn is_semantic(&self) -> bool {
         self.perspective.is_none() && self.visibility == Visibility::Public
     }
@@ -163,8 +143,6 @@ impl AccessControl {
     #[must_use = "builder methods must be chained or assigned"]
     /// Set perspective (builder).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Self with perspective set
     pub fn with_perspective(mut self, perspective: WebID) -> Self {
         self.perspective = Some(perspective);
         self
@@ -180,8 +158,6 @@ impl AccessControl {
     /// episodic triple, call `without_perspective()` first.
     /// Set visibility (builder).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Self with visibility set
     pub fn with_visibility(mut self, visibility: Visibility) -> Self {
         // F-SYN-004: refuse perspective-locked flips.
         if self.is_episodic() {
@@ -217,8 +193,6 @@ impl AccessControl {
     /// perspective-free). It does not change the visibility mode.
     /// Remove perspective (for legitimate sharing).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Self with perspective set to None
     pub fn without_perspective(mut self) -> Self {
         self.perspective = None;
         self
@@ -238,9 +212,6 @@ impl Confidence {
     /// Create a confidence value, clamping to [0.0, 1.0].
     /// Create a new Confidence value.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  value in [0.0, 1.0]
-    /// post: returns Confidence
     pub fn new(value: f64) -> Self {
         Self(value.clamp(0.0, 1.0))
     }
@@ -248,16 +219,12 @@ impl Confidence {
     /// Full confidence (1.0) — the default for new triples.
     /// Full confidence (1.0).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Confidence(1.0)
     pub fn full() -> Self {
         Self(1.0)
     }
 
     /// Get the raw confidence value.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns f64 value
     pub fn value(&self) -> f64 {
         self.0
     }
@@ -268,9 +235,6 @@ impl Confidence {
     /// The result is clamped to [0.0, 1.0].
     /// Apply exponential decay: value * e^(-rate * time).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  rate >= 0, time >= 0
-    /// post: returns decayed Confidence
     pub fn decay(&self, rate: f64, time: f64) -> Self {
         Self((self.0 * (-rate * time).exp()).clamp(0.0, 1.0))
     }
@@ -309,8 +273,6 @@ impl TemporalBounds {
     /// Create temporal bounds starting now with no end (current/active).
     /// Create a TemporalContext with now as valid_from.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns TemporalContext with valid_from=now, valid_to=None
     pub fn now() -> Self {
         Self {
             valid_from: Utc::now(),
@@ -321,8 +283,6 @@ impl TemporalBounds {
     /// Create temporal bounds with explicit start and optional end.
     /// Create a TemporalContext with explicit bounds.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns TemporalContext
     pub fn new(valid_from: DateTime<Utc>, valid_to: Option<DateTime<Utc>>) -> Self {
         Self {
             valid_from,
@@ -333,8 +293,6 @@ impl TemporalBounds {
     /// Is this triple currently active (no end time)?
     /// Check if this temporal context is currently valid.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns true iff valid_to is None or in the future
     pub fn is_current(&self) -> bool {
         self.valid_to.is_none()
     }
@@ -342,8 +300,6 @@ impl TemporalBounds {
     /// Supercede: create new bounds with valid_to set to now.
     /// Mark as superseded (set valid_to to now).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Self with valid_to=now
     pub fn superseded(&self) -> Self {
         Self {
             valid_from: self.valid_from,

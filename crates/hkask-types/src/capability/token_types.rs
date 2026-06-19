@@ -37,14 +37,12 @@ pub(crate) struct Caveat {
 
 /// Ed25519 signature for delegation token authentication.
 ///
-/// \[NORMATIVE\] Wraps a 64-byte Ed25519 signature. Verification uses the
 /// token's `public_key` field — no shared secret required (P4 — Clear Boundaries).
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct TokenSignature(#[serde(with = "hex::serde")] pub [u8; 64]);
 
 /// Ed25519-signed OCAP token for inter-agent capability delegation.
 ///
-/// \[NORMATIVE\] Signatures are asymmetric (Ed25519) — the issuer signs with
 /// a private key, verifiers use the public key. Token forgery requires the
 /// private key (P4 — Clear Boundaries).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,11 +93,8 @@ pub struct DelegationTokenBuilder {
 }
 
 impl DelegationTokenBuilder {
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  resource is any [`DelegationResource`]; resource_id is any non-empty [`String`];
     ///       action is any [`DelegationAction`]; delegated_from and delegated_to are any [`WebID`];
     ///       signing_key is a valid Ed25519 [`SigningKey`]
-    /// post: returns a [`DelegationTokenBuilder`] with default expiry (None), attenuation_level 0,
     ///       max_attenuation [`SYSTEM_MAX_ATTENUATION`], no context_nonce, and empty caveats
     pub fn new(
         resource: DelegationResource,
@@ -123,24 +118,15 @@ impl DelegationTokenBuilder {
             signing_key: signing_key.clone(),
         }
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  ts is any i64 (Unix timestamp in seconds)
-    /// post: returns self with `expires_at` set to `Some(ts)`
     pub fn expires_at(mut self, ts: i64) -> Self {
         self.expires_at = Some(ts);
         self
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  level and max are any u8 values
-    /// post: returns self with `attenuation_level` set to level and `max_attenuation` set to max
     pub fn attenuation(mut self, level: u8, max: u8) -> Self {
         self.attenuation_level = level;
         self.max_attenuation = max;
         self
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  nonce is any non-empty [`String`]
-    /// post: returns self with `context_nonce` set to `Some(nonce)`
     pub fn context_nonce(mut self, nonce: String) -> Self {
         self.context_nonce = Some(nonce);
         self
@@ -149,9 +135,6 @@ impl DelegationTokenBuilder {
         self.caveats.push(c);
         self
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is a fully configured [`DelegationTokenBuilder`] with a valid signing key
-    /// post: returns a signed [`DelegationToken`] with a deterministic id (SHA-256 of resource+id+action+from+to),
     ///       an Ed25519 signature over the canonical payload, and a context_nonce (provided or random UUID v4);
     ///       consumes self
     pub fn sign(self) -> DelegationToken {
@@ -196,11 +179,8 @@ impl DelegationTokenBuilder {
 }
 
 impl DelegationToken {
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  resource is any [`DelegationResource`]; resource_id is any non-empty [`String`];
     ///       action is any [`DelegationAction`]; delegated_from and delegated_to are any [`WebID`];
     ///       signing_key is a valid Ed25519 [`SigningKey`]
-    /// post: returns a signed [`DelegationToken`] with default settings (no expiry, attenuation 0,
     ///       random context_nonce); equivalent to `DelegationTokenBuilder::new(...).sign()`
     pub fn new(
         resource: DelegationResource,
@@ -257,9 +237,6 @@ impl DelegationToken {
 
     /// Ed25519 signature verification using the token's public key.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`] (may have invalid signature or public key)
-    /// post: returns true if the Ed25519 signature is valid for the canonical payload
     ///       (id + resource + resource_id + action + from + to + public_key + caveats)
     ///       under the token's `public_key`; returns false if the public key is invalid
     ///       or the signature does not verify
@@ -286,52 +263,31 @@ impl DelegationToken {
 
     /// Raw Ed25519 signature bytes (64 bytes).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]
-    /// post: returns a reference to the inner 64-byte Ed25519 signature array
     pub fn signature_bytes(&self) -> &[u8; 64] {
         &self.signature.0
     }
 
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]; current_time is any i64 (Unix timestamp)
-    /// post: returns true if `expires_at` is `Some(exp)` and `current_time > exp`;
     ///       returns false if `expires_at` is `None` (never expires) or `current_time ≤ exp`
     pub fn is_expired(&self, current_time: i64) -> bool {
         self.expires_at
             .map(|exp| current_time > exp)
             .unwrap_or(false)
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]
-    /// post: returns the [`WebID`] of the token holder (`delegated_to`)
     pub fn holder(&self) -> WebID {
         self.delegated_to
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]
-    /// post: returns the [`WebID`] of the token issuer (`delegated_from`)
     pub fn issuer(&self) -> WebID {
         self.delegated_from
     }
 
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]
-    /// post: returns base64-encoded JSON serialization of the token;
     ///       returns `Err` only if serialization fails (e.g., OOM)
     pub fn to_base64(&self) -> Result<String, serde_json::Error> {
         Ok(b64(serde_json::to_string(self)?.as_bytes()))
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  encoded is a base64 string representing a JSON-serialized [`DelegationToken`]
-    /// post: returns the deserialized [`DelegationToken`] if decoding and parsing succeed;
     ///       returns `Err(String)` if base64 decoding fails or JSON deserialization fails
     pub fn from_base64(encoded: &str) -> Result<Self, String> {
         serde_json::from_slice(&de64(encoded)?).map_err(|e| e.to_string())
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]
-    /// post: returns true if `attenuation_level < max_attenuation` (room for further delegation);
     ///       returns false if attenuation has reached the maximum
     pub fn can_attenuate(&self) -> bool {
         self.attenuation_level < self.max_attenuation
@@ -339,10 +295,7 @@ impl DelegationToken {
     /// Attenuate with 1-hour expiry from `current_time`.
     /// Requires the issuer's signing key to produce a valid signature.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]; new_to is any [`WebID`];
     ///       signing_key is a valid Ed25519 [`SigningKey`]; current_time is any i64
-    /// post: returns `Some(attenuated_token)` with level+1, 1-hour expiry, and chained nonce
     ///       if `can_attenuate()` is true; returns `None` if attenuation limit reached
     pub fn attenuate(
         &self,
@@ -355,10 +308,7 @@ impl DelegationToken {
 
     /// Create attenuated child token with custom expiry.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]; new_to is any [`WebID`];
     ///       signing_key is a valid Ed25519 [`SigningKey`]; expires_at is `Option<i64>`
-    /// post: returns `Some(attenuated_token)` with level+1, chained nonce, and given expiry
     ///       if `can_attenuate()` is true; returns `None` if attenuation limit reached;
     ///       child inherits all caveats from parent
     pub fn attenuate_with_expiry(
@@ -397,10 +347,7 @@ impl DelegationToken {
         Some(builder.sign())
     }
 
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]; resource is any [`DelegationResource`];
     ///       resource_id is any &str; action is any [`DelegationAction`]
-    /// post: returns true if the token's resource, resource_id, and action all match exactly;
     ///       returns false otherwise
     pub fn is_valid_for(
         &self,
@@ -410,24 +357,15 @@ impl DelegationToken {
     ) -> bool {
         self.resource == resource && self.resource_id == resource_id && self.action == action
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]; resource is any [`DelegationResource`]
-    /// post: returns true if the token's resource matches; false otherwise
     pub fn grants_resource(&self, resource: DelegationResource) -> bool {
         self.resource == resource
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]; expected_context is any &str
-    /// post: returns true if `context_nonce` starts with `expected_context` (prefix match);
     ///       returns false otherwise
     pub fn validate_context_nonce(&self, expected_context: &str) -> bool {
         self.context_nonce.starts_with(expected_context)
     }
     /// Extract root nonce from attenuation chain (`"root-attenuated-uuid-..."`).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]
-    /// post: returns the portion of `context_nonce` before the first "-attenuated-" separator;
     ///       if no separator exists, returns the entire `context_nonce`
     pub fn root_context_nonce(&self) -> &str {
         self.context_nonce
@@ -438,9 +376,6 @@ impl DelegationToken {
 
     /// Verify attenuation chain: root nonce matches, level ≤ expected, max ≤ SYSTEM_MAX_ATTENUATION.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]; expected_root is any &str; expected_level is any u8
-    /// post: returns true if all hold: (1) max_attenuation ≤ SYSTEM_MAX_ATTENUATION,
     ///       (2) root_context_nonce matches expected_root, (3) nonce-derived level matches
     ///       attenuation_level, (4) attenuation_level ≤ expected_level;
     ///       returns false if any check fails
@@ -465,27 +400,15 @@ impl DelegationToken {
 
     /// Cryptographic verification for distributed/Paxos use.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]
-    /// post: returns the result of [`DelegationToken::verify`] — true if Ed25519 signature is valid
     pub fn verify_cryptographic(&self) -> bool {
         self.verify()
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]
-    /// post: returns a [`Vec`] of caveat id strings; empty if no caveats
     pub fn caveat_ids(&self) -> Vec<&str> {
         self.caveats.iter().map(|c| c.caveat_id.as_str()).collect()
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]; caveat_type is any &str
-    /// post: returns true if any caveat has `caveat_id == caveat_type`; false otherwise
     pub fn has_caveat_type(&self, caveat_type: &str) -> bool {
         self.caveats.iter().any(|c| c.caveat_id == caveat_type)
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]; caveat_type is any &str
-    /// post: returns `Some(&str)` with the data of the first caveat matching `caveat_type`;
     ///       returns `None` if no matching caveat exists
     pub fn get_caveat_data(&self, caveat_type: &str) -> Option<&str> {
         self.caveats
@@ -493,9 +416,6 @@ impl DelegationToken {
             .find(|c| c.caveat_id == caveat_type)
             .map(|c| c.data.as_str())
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]
-    /// post: returns a colon-separated fingerprint string:
     ///       "id:resource:resource_id:action:delegated_to:attenuation_level"
     pub fn fingerprint(&self) -> String {
         format!(
@@ -508,23 +428,14 @@ impl DelegationToken {
             self.attenuation_level
         )
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]
-    /// post: returns true if the token's action permits write operations;
     ///       delegates to [`DelegationAction::permits_write`]
     pub fn allows_write(&self) -> bool {
         self.action.permits_write()
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is any [`DelegationToken`]
-    /// post: returns true if the token's action permits read operations;
     ///       delegates to [`DelegationAction::permits_read`]
     pub fn allows_read(&self) -> bool {
         self.action.permits_read()
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self and other are any [`DelegationToken`] values
-    /// post: returns true if both tokens share the same resource, resource_id, action,
     ///       and delegated_to; returns false otherwise
     pub fn is_compatible_with(&self, other: &DelegationToken) -> bool {
         self.resource == other.resource

@@ -154,9 +154,6 @@ pub enum ToolSubsystem {
 impl ToolSubsystem {
     /// Map an MCP server name (e.g., "memory", "hkask-mcp-spec") to a ToolSubsystem.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  server_name is a non-empty string
-    /// post: returns the corresponding ToolSubsystem variant; Other if unknown
     pub fn from_server_name(server_name: &str) -> Self {
         let name = server_name
             .strip_prefix("hkask-mcp-")
@@ -200,9 +197,6 @@ impl ToolSubsystem {
 }
 
 impl CnsSpan {
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is a valid CnsSpan variant
-    /// post: returns the canonical namespace string (e.g. "cns.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
     ///
     /// This output must match the existing `CANONICAL_NAMESPACES` strings
     /// byte-for-byte to preserve backward compatibility with ν-event serialization
@@ -264,9 +258,6 @@ impl std::fmt::Display for CnsSpan {
 impl std::str::FromStr for CnsSpan {
     type Err = ();
 
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  s is a string matching a canonical CnsSpan namespace
-    /// post: returns Ok(CnsSpan) for canonical strings; Err(()) for unknown strings
     ///
     /// Only strings matching canonical `CnsSpan` namespaces parse
     /// successfully. Unknown strings return `Err(())`.
@@ -529,17 +520,11 @@ fn default_multiplier() -> f64 {
 }
 
 impl RetryConfig {
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  attempt >= 0; self.initial_delay_ms, self.multiplier, self.max_delay_ms are valid
-    /// post: returns the exponential backoff delay in ms, capped at self.max_delay_ms
     pub fn delay_for_attempt(&self, attempt: u32) -> u64 {
         let delay = (self.initial_delay_ms as f64 * self.multiplier.powi(attempt as i32)) as u64;
         delay.min(self.max_delay_ms)
     }
 
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  status is a valid HTTP status code (u16)
-    /// post: returns true if status is in the retryable_status list
     pub fn is_retryable_status(&self, status: u16) -> bool {
         self.retryable_status.contains(&status)
     }

@@ -110,7 +110,6 @@ fn filter_excluded(backends: Vec<OcrBackend>, exclude: Option<&OcrBackend>) -> V
 mod tests {
     use super::*;
 
-    // contract: ocr-routing-01
     #[test]
     fn simple_routes_to_tesseract() {
         let score = ComplexityScore {
@@ -122,7 +121,6 @@ mod tests {
         assert_eq!(backends, vec![OcrBackend::Tesseract]);
     }
 
-    // contract: ocr-routing-02
     #[test]
     fn complex_routes_to_llm_ocr() {
         let score = ComplexityScore {
@@ -143,7 +141,6 @@ mod tests {
         assert_eq!(backends, vec![OcrBackend::LlmOcr("minicpm".into())]);
     }
 
-    // contract: ocr-routing-03
     // count is within ±5% of configured 10% rate
     #[test]
     fn moderate_sampling_rate_within_tolerance() {
@@ -180,7 +177,6 @@ mod tests {
         );
     }
 
-    // contract: ocr-routing-04
     #[test]
     fn exclude_failed_backend() {
         let score = ComplexityScore {
@@ -195,7 +191,6 @@ mod tests {
         );
     }
 
-    // contract: ocr-routing-05
     #[test]
     fn full_sample_rate_dual_routes_all() {
         let mut state = SamplingState::new(1.0);
@@ -210,7 +205,6 @@ mod tests {
         assert_eq!(state.moderate_pages_dual_routed, 100);
     }
 
-    // contract: ocr-routing-06
     #[test]
     fn zero_sample_rate_never_dual_routes() {
         let mut state = SamplingState::new(0.0);

@@ -43,8 +43,6 @@ pub struct ContractViolation {
 /// - `crate_name` — the Cargo package name (e.g., "hkask-cns")
 /// - `workspace_root` — path to the workspace root containing `Cargo.toml`
 ///
-/// pre:  workspace_root exists and contains Cargo.toml
-/// post: returns ContractTestResult with pass/fail counts and REQ-tagged violations
 pub fn run_contract_tests(crate_name: &str, workspace_root: &str) -> Option<ContractTestResult> {
     let output = Command::new("cargo")
         .args([
@@ -294,8 +292,6 @@ pub struct ContractAudit {
 ///
 /// Returns `None` if the crate source directory doesn't exist.
 ///
-/// pre:  workspace_root exists and contains crates/<crate_name>/src/
-/// post: returns ContractAudit with counts and uncontracted function list
 pub fn discover_uncontracted_functions(
     crate_name: &str,
     workspace_root: &str,
@@ -377,8 +373,6 @@ fn walk_rs_files(dir: &std::path::Path, f: &mut dyn FnMut(&std::path::Path)) {
 
 /// Inventory of all REQ-tagged contracts in a crate.
 ///
-/// pre:  workspace_root exists and contains crates/<crate_name>/src/
-/// post: returns Vec of ContractEntry with REQ tag, pre/post, and quality flags
 pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec<ContractEntry>> {
     let src_dir = format!("{}/crates/{}/src", workspace_root, crate_name);
     let dir = std::path::Path::new(&src_dir);
@@ -594,10 +588,6 @@ pub struct ExpectProposal {
 /// Scan a crate for contracts that have pre:/post: conditions but no `expect:`
 /// annotation. Returns proposal templates for replicant-driven grounding.
 ///
-/// contract: HARN-056
-/// expect: "I can see which contracts need user-expectation grounding so I can fill them in" [P5]
-/// pre:  crate_name exists in workspace at workspace_root/{crates,mcp-servers}/crate_name/src
-/// post: returns Vec<ExpectProposal> for each contracted function without expect:
 pub fn propose_missing_expect_annotations(
     crate_name: &str,
     workspace_root: &str,
@@ -637,28 +627,24 @@ pub fn propose_missing_expect_annotations(
 mod tests {
     use super::*;
 
-    // contract: harness-trace-008
     #[test]
     fn extract_req_tag_from_line_comment() {
         let tag = extract_req_tag("    // REQ: P9-cns-energy-budget-test");
         assert_eq!(tag, Some("P9-cns-energy-budget-test".to_string()));
     }
 
-    // contract: harness-trace-008
     #[test]
     fn extract_req_tag_from_doc_comment() {
         let tag = extract_req_tag("    /// REQ: CNS-001");
         assert_eq!(tag, Some("CNS-001".to_string()));
     }
 
-    // contract: harness-trace-009
     #[test]
     fn extract_req_tag_no_match() {
         assert_eq!(extract_req_tag("// just a comment"), None);
         assert_eq!(extract_req_tag(""), None);
     }
 
-    // contract: harness-trace-009
     #[test]
     fn extract_count_parses_cargo_output() {
         let output = "running 47 tests\ntest result: ok. 47 passed; 0 failed";
@@ -666,7 +652,6 @@ mod tests {
         assert_eq!(extract_count("no match", "running ", " test"), 0);
     }
 
-    // contract: HARN-048
     #[test]
     fn contract_test_result_debug_format() {
         let result = ContractTestResult {
@@ -681,7 +666,6 @@ mod tests {
         assert!(dbg.contains("10"));
     }
 
-    // contract: HARN-049
     #[test]
     fn discover_finds_contracted_functions() {
         let audit = discover_uncontracted_functions(
@@ -694,14 +678,12 @@ mod tests {
         assert!(audit.total_pub_fns > 0, "should have public functions");
     }
 
-    // contract: HARN-050
     #[test]
     fn discover_nonexistent_crate_returns_none() {
         let audit = discover_uncontracted_functions("nonexistent-crate", "/nonexistent/path");
         assert!(audit.is_none(), "nonexistent crate should return None");
     }
 
-    // contract: HARN-051
     #[test]
     fn inventory_finds_contract_entries() {
         let entries = inventory_contracts(
@@ -715,7 +697,6 @@ mod tests {
         let _ = entries;
     }
 
-    // contract: HARN-052
     #[test]
     fn extract_req_tag_rejects_prose_references() {
         // Prose mentions of REQ should not match

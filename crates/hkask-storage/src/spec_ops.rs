@@ -95,9 +95,6 @@ pub struct EmbeddingQualityResult {
 ///
 /// This is pure string matching — no storage access.
 ///
-/// expect: "Extract OCAP boundaries for spec provenance" [P8]
-/// pre: context may be None (returns empty vec)
-/// post: returns list of boundary names found in context
 pub fn extract_ocap_boundaries(context: Option<&str>) -> Vec<String> {
     let ctx = match context {
         Some(c) => c.to_lowercase(),
@@ -123,9 +120,6 @@ pub fn extract_ocap_boundaries(context: Option<&str>) -> Vec<String> {
 /// Returns sub-goal texts and sequential dependency edges (each sub-goal
 /// depends on the previous one).
 ///
-/// expect: "Decompose spec description into sub-goals" [P8]
-/// pre: description may be empty (returns empty vecs)
-/// post: sub_goals.len() == dependencies.len() + 1 when > 1 sub-goal
 pub fn decompose_description(description: &str) -> (Vec<String>, Vec<DependencyEdge>) {
     let sub_goals: Vec<String> = description
         .split(['.', '\n'])
@@ -155,9 +149,6 @@ pub fn decompose_description(description: &str) -> (Vec<String>, Vec<DependencyE
 /// This is the fast, no-embedding check. For embedding-based comparison,
 /// callers must supply their own embedding infrastructure.
 ///
-/// expect: "Assess spec writing quality heuristically" [P8]
-/// pre: spec is a valid Spec (may be empty/incomplete)
-/// post: returns HeuristicWritingQuality with boolean per dimension
 pub fn assess_writing_quality_heuristic(spec: &Spec) -> HeuristicWritingQuality {
     let has_description = !spec.name.is_empty();
     let has_goals = !spec.goals.is_empty();
@@ -180,9 +171,6 @@ pub fn assess_writing_quality_heuristic(spec: &Spec) -> HeuristicWritingQuality 
 /// (≤ 0.4 threshold), finds the weakest dimension (highest distance, excluding
 /// composite), and builds a rewrite prompt for it.
 ///
-/// expect: "Compute embedding quality from dimension scores" [P8]
-/// pre: scores may be empty (returns 0 passing, no weakest)
-/// post: dimensions_passing ≤ scores.len(), meets_standard iff ≥ 3 passing
 pub fn compute_embedding_quality(
     scores: &[(String, f64)],
     spec_name: &str,
@@ -235,9 +223,6 @@ pub fn compute_embedding_quality(
 ///
 /// Returns a guidance string explaining what to optimize for the given dimension.
 ///
-/// expect: "Build dimension-specific rewrite guidance" [P8]
-/// pre: dimension may be any string (unrecognized → composite guidance)
-/// post: returns non-empty guidance string
 pub fn dimension_guidance(dimension: &str) -> &'static str {
     match dimension.to_lowercase().as_str() {
         "gentle" => {
@@ -260,9 +245,6 @@ pub fn dimension_guidance(dimension: &str) -> &'static str {
 
 /// Build a full replica rewrite prompt with dimension guidance and passage text.
 ///
-/// expect: "Build replica rewrite prompt" [P8]
-/// pre: dimension and passage may be any strings
-/// post: returns non-empty prompt string
 pub fn build_rewrite_prompt(dimension: &str, passage: &str) -> String {
     let guidance = dimension_guidance(dimension);
     format!("{guidance}\n\n=== TEXT TO REWRITE ===\n\n{passage}")
@@ -270,9 +252,6 @@ pub fn build_rewrite_prompt(dimension: &str, passage: &str) -> String {
 
 /// Build the centroid reference string for a given dimension.
 ///
-/// expect: "Build centroid entity ref for replica rewrite" [P8]
-/// pre: dimension may be any string
-/// post: returns "style:gentle-lovelace:{dimension}-centroid" or composite variant
 pub fn build_centroid_ref(dimension: &str) -> String {
     if dimension.to_lowercase() == "composite" {
         "style:gentle-lovelace:centroid".to_string()
@@ -291,9 +270,6 @@ pub fn build_centroid_ref(dimension: &str) -> String {
 ///
 /// Matches against spec name, goal texts, and category string.
 ///
-/// expect: "Query spec graph by search term" [P8]
-/// pre: specs may be empty, query may be anything, max_depth is u8
-/// post: returns GraphQueryResult with nodes, edges, paths
 pub fn query_spec_graph(specs: &[Spec], query: &str, max_depth: u8) -> GraphQueryResult {
     let query_lower = query.to_lowercase();
 
@@ -361,9 +337,6 @@ pub fn query_spec_graph(specs: &[Spec], query: &str, max_depth: u8) -> GraphQuer
 /// Checks Jaccard-based coherence via Spec::collection_coherence, then
 /// supplements with category coverage and completeness checks.
 ///
-/// expect: "Compute spec collection coherence" [P8]
-/// pre: specs may be empty (returns 0.0 coherence, empty suggestions)
-/// post: coherence_score in [0.0, 1.0]; violations and suggestions populated
 pub fn compute_collection_coherence(specs: &[Spec], threshold: f64) -> CoherenceCheck {
     let coherence = Spec::collection_coherence(specs);
     let mut violations = Vec::new();
@@ -406,9 +379,6 @@ pub fn compute_collection_coherence(specs: &[Spec], threshold: f64) -> Coherence
 /// Mutates the spec in-place. Skips goals that already have sub-goals
 /// or are at max depth (7).
 ///
-/// expect: "Decompose spec goals into sub-goals" [P8]
-/// pre: spec is a valid Spec (goals may be empty)
-/// post: decomposable goals have sub_goals populated; non-decomposable unchanged
 pub fn decompose_spec_goals(spec: &mut Spec) {
     for goal in &mut spec.goals {
         if !goal.can_have_subgoals() || !goal.sub_goals.is_empty() {
@@ -431,9 +401,6 @@ pub fn decompose_spec_goals(spec: &mut Spec) {
 /// Returns (sub_goals, dependencies) where dependencies are sequential
 /// (each sub-goal depends on the previous).
 ///
-/// expect: "Collect sub-goals and dependencies from spec" [P8]
-/// pre: spec may have empty goals
-/// post: dependencies.len() == sub_goals.len().saturating_sub(1)
 pub fn collect_subgoals_and_deps(spec: &Spec) -> (Vec<String>, Vec<DependencyEdge>) {
     let mut all_subs = Vec::new();
     let mut all_deps = Vec::new();
@@ -460,9 +427,6 @@ pub fn collect_subgoals_and_deps(spec: &Spec) -> (Vec<String>, Vec<DependencyEdg
 
 /// Build a canonical document text from a spec for embedding or display.
 ///
-/// expect: "Build canonical spec document text" [P8]
-/// pre: spec is a valid Spec
-/// post: returns non-empty String (at minimum the spec name)
 pub fn build_spec_document_text(spec: &Spec) -> String {
     format!(
         "{}: Goals: {}. Criteria: {}.",
@@ -483,9 +447,6 @@ pub fn build_spec_document_text(spec: &Spec) -> String {
 
 /// Collect goal texts and criteria texts from a spec as separate Vecs.
 ///
-/// expect: "Collect goal and criteria texts from spec" [P8]
-/// pre: spec is a valid Spec
-/// post: returns (goal_texts, criteria_texts) — may be empty
 pub fn collect_goal_and_criteria_texts(spec: &Spec) -> (Vec<String>, Vec<String>) {
     let goals: Vec<String> = spec.goals.iter().map(|g| g.text.clone()).collect();
     let criteria: Vec<String> = spec

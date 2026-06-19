@@ -129,40 +129,4 @@ Agents and users can explicitly control what is private versus shared; visibilit
 #### P12 — Replicant Host Mandate
 Every action has an accountable host identity. No anonymous agency.
 
-### 1.5 Principle Roles in the Contract System
-
-Each principle can serve in one of two roles within any given code contract:
-
-| Role | Definition | Example |
-|------|-----------|---------|
-| **Goal Principle** | The principle whose user-visible guarantee the contract directly implements. Encoded in the contract ID prefix (`P{N}`). Answers "What does the user get?" | `P9-cns-energy-budget-can-proceed` — user gets a gas check that prevents runaway agents |
-| **Constraining Principle** | A principle that shapes how the goal is delivered. Appears as `[P{N}] Constraining:` annotations in the contract body. Answers "What guardrails apply?" | `[P4]` on an energy budget contract — the cap enforces an OCAP boundary |
-
-A single contract has exactly one goal principle (the ID prefix) and 1 to 11 constraining principles (body annotations). The goal principle encodes the explicit user functional expectation that the contract's tests verify. The constraining principles ensure the implementation respects all 11 other architectural constraints while achieving the goal.
-
-**The Magna Carta principles (P1–P4) are the most common constraining principles** — most contracts serve goals from P5–P12 while being constrained by sovereignty, consent, generativity, and boundary requirements.
-
-### 1.6 Goal Principle Anchoring (v0.28.0)
-
-**Structural rule:** One of the 12 principles is designated the **goal principle** for a functional expectation; the other 11 may **constrain** it. The goal principle is the one the user's expectation directly expresses — it answers "What does the user functionally need?" The constraining principles answer "What limits how the goal is achieved?"
-
-**Selection logic:**
-- The goal principle is the principle whose user-visible guarantee the contract's tests directly verify.
-- When the user expectation is *"I should be able to check whether an agent has enough gas"* → P9 (Homeostatic Self-Regulation) is the goal.
-- When the user expectation is *"My agents should operate within my sovereignty boundaries"* → P1 (User Sovereignty) is the goal.
-- When the user expectation is *"I should be able to deploy hKask with a single binary"* → P5 (Essentialism) is the goal.
-
-**Constraining principle interaction:**
-- P4 OCAP boundaries may constrain P3 generative space: "Yes, the system is generative — but only within your capability tokens."
-- P2 Affirmative Consent may constrain P6 Space for Replicants: "Yes, bots operate — but only with explicit, scoped consent."
-- P9 Homeostatic Self-Regulation may constrain P3 generative expansiveness: "Yes, generate freely — but within your energy budget."
-
-**Principle conflict resolution (implicit):** When constraining principles conflict, the higher-ranked principle dominates per Optimality Theory ranking — Magna Carta principles (P1–P4) outrank operational principles (P5–P7), which outrank regulatory principles (P8–P9), which outrank agent principles (P10–P12). Formalization of this conflict resolution as a decision procedure is deferred to future work.
-
-**Traceability:** This rule anchors the chain defined in [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md):
-```
-expect: "[P{N}]" → pre:/post: → Code → Test
-```
-The goal principle (`[P{N}]` on `expect:`) is the structural origin point. The user expectation (the OUGHT from the functional spec) is encoded as the `expect:` field on every contract and verified by the test suite. The `#[contract(id=..., principle=...)]` attribute carries the same information as structured metadata.
-
-**rSolidity enforcement:** The behavioral contract is made executable via rSolidity macros (`require!`, `assert!`, `revert!`, `#[contract]`, `#[ocap]`) per [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md) §3. rSolidity was formally adopted as the contracting language on 2026-06-18.
+---

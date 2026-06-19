@@ -16,23 +16,17 @@ pub mod types;
 use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
 use hkask_mcp::validate_field;
 
-use hkask_cns::{
-    emit_contract_accepted, emit_contract_proposed, emit_contract_rejected, emit_contract_violated,
-};
 use hkask_inference::{EmbeddingRouter, InferenceConfig};
 use hkask_services::{
     ComposeRequest, ComposeService, EmbeddingSection, HkaskSettings, InferenceContext,
-    RetrievalSection, SpecCaptureRequest, SpecService, ValidationSection, cosine_distance,
+    SpecCaptureRequest, SpecService, cosine_distance,
 };
 use hkask_storage::spec_ops::{
-    DependencyEdge, GraphQueryResult, HeuristicWritingQuality, assess_writing_quality_heuristic,
-    build_centroid_ref, build_rewrite_prompt, build_spec_document_text,
-    collect_goal_and_criteria_texts, compute_collection_coherence, compute_embedding_quality,
-    decompose_description, extract_ocap_boundaries, query_spec_graph,
+    assess_writing_quality_heuristic, build_centroid_ref, build_rewrite_prompt,
+    build_spec_document_text, collect_goal_and_criteria_texts, compute_embedding_quality,
+    extract_ocap_boundaries,
 };
-use hkask_storage::spec_types::{
-    DomainAnchor, GoalSpec, Spec, SpecCategory, SpecId, infer_spec_category,
-};
+use hkask_storage::spec_types::{Spec, SpecId};
 use hkask_storage::{Database, EmbeddingStore, NuEventStore, SpecStore, TripleStore};
 use hkask_types::time::now_rfc3339;
 use hkask_types::{

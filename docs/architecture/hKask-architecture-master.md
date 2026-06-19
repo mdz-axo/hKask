@@ -904,8 +904,6 @@ docs/architecture/
 │   ├── TESTING_DISCIPLINE.md              # Specification (contract-anchored testing)
 │   ├── CNS-DOMAIN-SPECIFICATION.md        # Specification (197 CNS contracts)
 │   ├── FUNCTIONAL_SPECIFICATION.md        # Specification (AgentService)
-│   ├── CONTRACT_SPECIFICATION.md          # Specification (definitive contract standard)
-│   ├── RSOLIDITY_VOCABULARY.md            # Reference (archived → merged into CONTRACT_SPECIFICATION.md)
 ├── mandates/
 │   └── P12-replicant-host-mandate.md      # Framework (replicant host mandate)
 ├── ADRs/

@@ -109,7 +109,6 @@ impl std::fmt::Display for OcapCapability {
 
 /// OCAPBoundary — Capability boundary for curation decisions
 ///
-/// \[NORMATIVE\] The Curator must master normative behavior to maintain the OCAP boundary. (P4 — Clear Boundaries).
 /// Within the OCAP boundary, The Curator creates non-normative potential.
 /// Authority is expressed via `OcapTokenKind` — no token, no authority.
 ///

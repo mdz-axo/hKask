@@ -1,4 +1,3 @@
-// contract: svc-cns-governed-005
 //
 // TASK 4 integration test: GovernedTool exercises all 6 membrane steps
 // using REAL production components (no mocks).
@@ -75,7 +74,6 @@ impl EnergyEstimator for FixedCostEstimator {
 
 // ── Test ─────────────────────────────────────────────────────────────────
 
-// contract: svc-cns-governed-005
 #[tokio::test]
 async fn governed_tool_full_membrane_ocap_domain_path() {
     // 1. Build real CNS runtime

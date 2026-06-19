@@ -13,8 +13,6 @@ use proptest::prelude::*;
 
 // ── cosine_distance invariants (deterministic contracts) ─────────────────────
 
-// contract: REPLICA-COS-001
-// expect: "I can verify that identical embeddings have zero distance — the identity invariant" [P8]
 #[test]
 fn cosine_distance_identity_is_zero() {
     let v = vec![1.0_f32, 2.0, 3.0];
@@ -25,8 +23,6 @@ fn cosine_distance_identity_is_zero() {
     );
 }
 
-// contract: REPLICA-COS-002
-// expect: "I can verify that orthogonal embeddings have unit distance — orthogonality invariant" [P8]
 #[test]
 fn cosine_distance_orthogonal_is_one() {
     let d = cosine_distance(&[1.0_f32, 0.0], &[0.0_f32, 1.0]);
@@ -36,8 +32,6 @@ fn cosine_distance_orthogonal_is_one() {
     );
 }
 
-// contract: REPLICA-COS-003
-// expect: "I can verify that opposite embeddings have maximum distance — antipodal invariant" [P8]
 #[test]
 fn cosine_distance_opposite_is_two() {
     let d = cosine_distance(&[1.0_f32], &[-1.0_f32]);
@@ -47,8 +41,6 @@ fn cosine_distance_opposite_is_two() {
     );
 }
 
-// contract: REPLICA-COS-004
-// expect: "I can verify empty embeddings are handled safely — degenerate case invariant" [P8]
 #[test]
 fn cosine_distance_empty_is_two() {
     let d = cosine_distance(&[], &[1.0_f32]);
@@ -58,8 +50,6 @@ fn cosine_distance_empty_is_two() {
     );
 }
 
-// contract: REPLICA-COS-005
-// expect: "I can verify dimension mismatches are handled safely — mismatch invariant" [P8]
 #[test]
 fn cosine_distance_mismatched_is_two() {
     let d = cosine_distance(&[1.0_f32, 2.0], &[3.0_f32]);
@@ -69,8 +59,6 @@ fn cosine_distance_mismatched_is_two() {
     );
 }
 
-// contract: REPLICA-COS-006
-// expect: "I can verify that style distance is symmetric — dist(A,B) equals dist(B,A)" [P8]
 proptest! {
     #[test]
     fn cosine_distance_is_symmetric(
@@ -88,8 +76,6 @@ proptest! {
     }
 }
 
-// contract: REPLICA-COS-007
-// expect: "I can verify zero-norm embeddings are handled safely — zero-vector invariant" [P8]
 #[test]
 fn cosine_distance_zero_norm_is_two() {
     let d = cosine_distance(&[0.0_f32, 0.0], &[1.0_f32, 2.0]);
@@ -111,9 +97,6 @@ fn author_centroids() -> Vec<(&'static str, Vec<f32>)> {
     ]
 }
 
-// contract: REPLICA-PROB-CENTROID-001
-// expect: "I can verify probabilistically that style distance is meaningful — output closer to own author than others" [P9]
-// prob: p=0.95, δ=0.05, k=0
 // [P9] Motivating: Homeostatic Self-Regulation — quality gate on style proximity
 // [P8] Constraining: Semantic Grounding — distances computed from known vectors
 #[test]
@@ -154,8 +137,6 @@ fn centroid_distance_ordering_is_prob_contract_strong() {
     );
 }
 
-// contract: REPLICA-PROB-CENTROID-002
-// expect: "I can verify that the probabilistic contract correctly fails when distances are random" [P9]
 // This is a negative test: random vectors won't be closer to gentle, so the contract should fail
 #[test]
 fn centroid_distance_ordering_fails_on_noise() {
@@ -189,9 +170,6 @@ fn centroid_distance_ordering_fails_on_noise() {
 
 // ── Mashup monotonicity (probabilistic variant) ─────────────────────────────
 
-// contract: REPLICA-MASHUP-002
-// expect: "I can verify that blend monotonicity holds for random angle pairs with high probability" [P9]
-// prob: p=0.90, δ=0.05, k=2
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(200))]
     #[test]
@@ -236,9 +214,6 @@ proptest! {
 
 // ── Self-consistency: identity under probabilistic contract ──────────────────
 
-// contract: REPLICA-PROB-SELF-001
-// expect: "I can verify that the style distance to self is reliably zero under a probabilistic contract" [P9]
-// prob: p=0.99, δ=0.01, k=0
 #[test]
 fn self_consistency_under_prob_contract() {
     let a = vec![1.0_f32, 2.0, 3.0, 4.0];
@@ -251,9 +226,6 @@ fn self_consistency_under_prob_contract() {
     );
 }
 
-// contract: REPLICA-PROB-RECOVERY-001
-// expect: "I can verify that the k recovery window rescues a borderline contract" [P9]
-// prob: p=0.99, δ=0.0, k=9
 #[test]
 fn recovery_window_rescues_failing_contract() {
     // A failing predicate that passes only on the second call per trial
@@ -278,9 +250,6 @@ fn recovery_window_rescues_failing_contract() {
 
 // ── Live inference integration test (manual, requires styles DB) ────────────
 
-// contract: REPLICA-INTEG-001
-// expect: "I can verify the full replica_compose pipeline when inference is available" [P9]
-// prob: p=0.80, δ=0.10, k=3
 // Run manually: HKASK_REPLICA_TEST_DB=/path/to/styles.db cargo test -- replica_compose_integration
 #[test]
 #[ignore]

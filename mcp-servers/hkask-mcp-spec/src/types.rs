@@ -75,12 +75,12 @@ pub struct GoalCaptureResponse {
 #[derive(Debug, Serialize)]
 pub struct GoalDecomposeResponse {
     pub sub_goals: Vec<String>,
-    pub dependencies: Vec<DependencyEdge>,
+    pub dependencies: Vec<DependencyEdgeDto>,
 }
 
-/// A dependency between sub-goals: `from` must complete before `to`.
+/// A dependency between sub-goals (MCP wire format).
 #[derive(Debug, Serialize)]
-pub struct DependencyEdge {
+pub struct DependencyEdgeDto {
     pub from: String,
     pub to: String,
 }
@@ -108,30 +108,30 @@ pub struct WritingQualityResponse {
 }
 
 #[derive(Debug, Serialize)]
-pub struct GraphNode {
+pub struct GraphNodeDto {
     pub id: String,
     pub label: String,
     pub category: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct GraphEdge {
+pub struct GraphEdgeDto {
     pub from: String,
     pub to: String,
     pub relation: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct GraphPath {
+pub struct GraphPathDto {
     pub nodes: Vec<String>,
     pub length: usize,
 }
 
 #[derive(Debug, Serialize)]
 pub struct GraphQueryResponse {
-    pub nodes: Vec<GraphNode>,
-    pub edges: Vec<GraphEdge>,
-    pub paths: Vec<GraphPath>,
+    pub nodes: Vec<GraphNodeDto>,
+    pub edges: Vec<GraphEdgeDto>,
+    pub paths: Vec<GraphPathDto>,
 }
 
 #[derive(Debug, Serialize)]

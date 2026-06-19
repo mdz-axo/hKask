@@ -44,7 +44,6 @@ pub enum ActionType {
     OverrideEnergyBudget,
     /// Replenish an agent's energy budget (Curation directive)
     ///
-    /// \[NORMATIVE\] Used when an agent has exhausted its budget but should continue. (P9 — Homeostatic Self-Regulation).
     /// This is the Curator's ability to inject gas into the system.
     ReplenishBudget,
     /// Informational notification — no action required, positive signal.

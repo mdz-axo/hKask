@@ -28,9 +28,7 @@ impl EscalationEntry {
     /// Create a pending escalation entry with auto-generated id, timestamps, and defaults.
     /// Create a pending escalation signal.
     ///
-    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — create pending escalation entry
-    /// post: returns EscalationSignal with Pending status
     pub fn pending(output: String, confidence: f64, error_context: String) -> Self {
         Self {
             id: EscalationID::new(),
@@ -78,10 +76,7 @@ impl Store for EscalationQueue {
 impl EscalationQueue {
     /// Create a new escalation queue.
     ///
-    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — create escalation queue
-    /// pre:  conn is a valid SQLite connection
-    /// post: returns EscalationQueue with schema initialized
     pub fn new(conn: Arc<std::sync::Mutex<rusqlite::Connection>>) -> Result<Self, EscalationError> {
         let queue = Self { conn };
         queue.init()?;
@@ -108,10 +103,7 @@ impl EscalationQueue {
     }
     /// Add an escalation entry.
     ///
-    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — add escalation entry
-    /// pre:  entry has valid domain and output
-    /// post: entry inserted into escalations
     pub fn add(
         &self,
         template_id: TemplateID,
@@ -141,9 +133,7 @@ impl EscalationQueue {
     }
     /// List pending escalations.
     ///
-    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — list pending escalations
-    /// post: returns Vec of pending EscalationEntry
     pub fn list_pending(&self) -> Result<Vec<EscalationEntry>, EscalationError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -181,10 +171,7 @@ impl EscalationQueue {
     }
     /// Get an escalation by ID.
     ///
-    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — get escalation by ID
-    /// pre:  id is non-empty
-    /// post: returns Some(entry) if found, None otherwise
     pub fn get(&self, id: &str) -> Result<Option<EscalationEntry>, EscalationError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -235,10 +222,7 @@ impl EscalationQueue {
     }
     /// Resolve an escalation.
     ///
-    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — resolve escalation
-    /// pre:  id is non-empty, resolved_by is non-empty
-    /// post: escalation status set to Resolved
     pub fn resolve(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = now_rfc3339();
         let affected = self.lock_conn()?.execute(
@@ -252,10 +236,7 @@ impl EscalationQueue {
     }
     /// Dismiss an escalation.
     ///
-    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — dismiss escalation
-    /// pre:  id is non-empty, resolved_by is non-empty
-    /// post: escalation status set to Dismissed
     pub fn dismiss(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = now_rfc3339();
         let affected = self.lock_conn()?.execute(
@@ -269,9 +250,7 @@ impl EscalationQueue {
     }
     /// Get escalation statistics.
     ///
-    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — escalation statistics
-    /// post: returns EscalationStats with counts by status
     pub fn stats(&self) -> Result<EscalationStats, EscalationError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -308,10 +287,7 @@ pub struct EscalationBatch {
 impl EscalationBatch {
     /// Create a new escalation summary.
     ///
-    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — create escalation summary
-    /// pre:  domain is non-empty, threshold > 0
-    /// post: returns EscalationSummary
     pub fn new(entries: Vec<EscalationEntry>, domain: &str, threshold: usize) -> Self {
         Self {
             id: EscalationID::new(),
@@ -323,9 +299,7 @@ impl EscalationBatch {
     }
     /// Generate a human-readable summary.
     ///
-    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — generate summary text
-    /// post: returns summary string with counts and threshold info
     pub fn summary(&self) -> String {
         let count = self.entries.len();
         let domains: std::collections::HashSet<&str> = self
@@ -358,8 +332,6 @@ mod tests {
         ));
         EscalationQueue::new(conn).expect("init queue")
     }
-    // contract: P3-sto-escalation-resolve-missing-test
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn resolve_missing_id_returns_not_found() {
         let q = make_queue();
@@ -370,8 +342,6 @@ mod tests {
             result
         );
     }
-    // contract: P3-sto-escalation-dismiss-missing-test
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn dismiss_missing_id_returns_not_found() {
         let q = make_queue();
@@ -382,8 +352,6 @@ mod tests {
             result
         );
     }
-    // contract: P3-sto-escalation-resolve-existing-test
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn resolve_existing_id_succeeds() {
         let q = make_queue();
@@ -399,8 +367,6 @@ mod tests {
             .expect("add escalation");
         assert!(q.resolve(&id.to_string(), "tester").is_ok());
     }
-    // contract: P3-sto-escalation-dismiss-existing-test
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn dismiss_existing_id_succeeds() {
         let q = make_queue();

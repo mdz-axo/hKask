@@ -65,9 +65,6 @@ pub struct ListPodsResponse {
     pub pods: Vec<PodStatusInfoResponse>,
 }
 
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
-/// pre:  none
-/// post: returns OpenApiRouter<ApiState> with pod routes registered
 pub fn pods_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .route("/api/pods", axum::routing::get(list_pods))
@@ -95,8 +92,6 @@ async fn list_pods(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Json<ListPodsResponse> {
-    // contract: P9-CNS-SURF-030
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_list", "CNS");
     let pod_statuses = hkask_services::PodService::list_pods(&state.agent_service)
@@ -122,8 +117,6 @@ async fn create_pod(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, ServiceErrorResponse> {
-    // contract: P9-CNS-SURF-031
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_create", "CNS");
     let token = auth.token.as_ref().ok_or_else(|| ServiceError::A2A {
@@ -159,8 +152,6 @@ async fn activate_pod(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ServiceErrorResponse> {
-    // contract: P9-CNS-SURF-032
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_activate", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;
@@ -173,8 +164,6 @@ async fn deactivate_pod(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ServiceErrorResponse> {
-    // contract: P9-CNS-SURF-033
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_deactivate", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;
@@ -191,8 +180,6 @@ async fn pod_status(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<Json<PodStatusInfoResponse>, ServiceErrorResponse> {
-    // contract: P9-CNS-SURF-034
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_status", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;

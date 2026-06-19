@@ -2,7 +2,7 @@
 title: "hKask Testing Discipline"
 audience: [engineers, agents, replicants]
 last_updated: 2026-06-18
-version: "0.28.0"
+version: "0.29.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -10,111 +10,35 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # hKask Testing Discipline
 
-**External anchor:** Design by Contract (Meyer, 1986), verified through Property-Based Testing (QuickCheck, Claessen & Hughes, 2000).  
-**Internal bridge:** TDD skill (`.agents/skills/tdd/SKILL.md`) — the process for writing contract-verified tests.  
-**Governing principles:** P4 (Clear Boundaries), P8 (Semantic Grounding), P9 (Homeostatic Self-Regulation).  
-**Specification anchor:** `FUNCTIONAL_SPECIFICATION.md` §5 — every contract carries a goal principle encoding the user's explicit functional expectation.
+**Method:** Property-Based Testing (QuickCheck, Claessen & Hughes, 2000) verified through CNS observability.  
+**Internal bridge:** TDD skill (`.agents/skills/tdd/SKILL.md`) — the process for writing verified tests.  
+**Governing principles:** P4 (Clear Boundaries), P8 (Semantic Grounding), P9 (Homeostatic Self-Regulation).
 
 **Supersedes:** `docs/specifications/specs/test-program.md` (archived 2026-06-15), `docs/specifications/standards/TESTING_STANDARDS.md` (archived 2026-06-15). This document is the single authoritative reference for all hKask testing practices, standards, and philosophy.
 
 ---
 
-## 1. The External Discipline: Design by Contract
+## 1. The Verification Method: Property-Based Testing
 
-hKask's testing program is anchored on **Design by Contract** (DbC) as formulated by Bertrand Meyer. This is not a hKask invention — it is a 40-year-old discipline taught in CS curricula, implemented in Eiffel, Ada 2012, SPARK, and Racket, and extended for AI agents in the peer-reviewed Agent Behavioral Contracts framework (2025).
-
-### 1.1 The Three Contract Elements
-
-Every public function has a contract consisting of three assertions:
-
-| Element | Question Answered | Who Is Responsible |
-|---------|-------------------|-------------------|
-| **Precondition** | What must be true before this function is called? | The **caller** |
-| **Postcondition** | What does this function guarantee after it returns? | The **function** |
-| **Invariant** | What must always hold across all operations on this type? | The **type** |
-
-A precondition violation is a **bug in the caller**. A postcondition violation is a **bug in the function**. An invariant violation is a **bug in the type's implementation**.
-
-### 1.2 Contract Syntax in hKask Rust
-
-Contracts are expressed as doc-comments on public functions. The definitive contract standard is [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md). Two forms coexist:
-
-**Target format (rSolidity, v0.28.0):**
-
-```rust
-/// expect: "The user shall be able to verify the sovereignty state of any valid WebID" [P1]
-/// pre:  webid is a valid, non-nil WebID
-/// post: returns Ok(sovereignty_state) where state.webid == webid
-#[contract(id = "P1-sovereignty-verify-001", principle = "P1")]
-pub fn verify_sovereignty(webid: &WebID) -> Result<SovereigntyState, SovereigntyError> {
-```
-
-**Transitional format (pre-rSolidity):**
-
-```rust
-/// REQ: sovereignty-verify-001
-/// expect: "The user shall be able to verify the sovereignty state of any valid WebID" [P1]
-/// pre:  webid is a valid, non-nil WebID
-/// post: returns Ok(sovereignty_state) where state.webid == webid
-pub fn verify_sovereignty(webid: &WebID) -> Result<SovereigntyState, SovereigntyError> {
-```
-
-The `expect:` field is the user's functional expectation. The `[P{N}]` tag names the goal principle. See [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md) for the full standard.
-
-### 1.2a Contract Syntax (Invariants)
-
-For types with cross-operation invariants:
-
-```rust
-/// REQ: wallet-balance-001
-/// inv: balance_rj >= 0 (balances are never negative)
-/// inv: balance_rj + sum(encumbrances) <= original_deposit_total
-pub struct WalletBalance {
-    pub balance_rj: u64,
-    // ...
-}
-```
-
-### 1.3 Contract Rules (from Meyer)
-
-1. **Preconditions are caller obligations.** The function does not check them. If the caller violates a precondition, the outcome is undefined (in Rust: the function may panic, but only from the caller's bug, not the function's logic).
-
-2. **Postconditions are function guarantees.** The function must ensure them for all inputs satisfying the precondition. If a postcondition fails, it is a bug in the function.
-
-3. **Invariants hold on entry and exit.** Every public function must preserve the type's invariants. On entry, the invariant is guaranteed (the caller maintained it). On exit, the function must restore it.
-
-4. **Subcontracting (inheritance).** A trait implementation may **weaken** preconditions (accept more) and must **strengthen** postconditions (guarantee more). It must preserve invariants.
-
-5. **Contracts are documentation, specification, and test oracle simultaneously.** A contract serves all three purposes. There is no separate "spec document" for a function's behavior — the contract IS the specification.
-
----
-
-## 2. The Verification Method: Property-Based Testing
-
-Contracts specify *what* must be true. Property-Based Testing verifies *that* it is true for all inputs.
-
-### 2.1 The Principle
+### 1.1 The Principle
 
 A property-based test does not test a single example. It tests an invariant across randomly generated inputs:
 
 ```rust
-// REQ: condenser-idempotency-001
-// pre:  input is any non-empty string
-// post: compress(compress(input)) == compress(input) for all inputs
 proptest! {
     #[test]
     fn compression_is_idempotent(input in any::<String>()) {
-        prop_assume!(!input.is_empty());  // precondition
+        prop_assume!(!input.is_empty());
         let once = compress(&input);
         let twice = compress(&once);
-        prop_assert_eq!(once, twice);     // postcondition
+        prop_assert_eq!(once, twice);
     }
 }
 ```
 
-The `prop_assume!` enforces the precondition — inputs that violate it are skipped. The `prop_assert_eq!` verifies the postcondition. Proptest generates 10,000+ random inputs and shrinks failures to minimal counterexamples.
+`prop_assume!` enforces preconditions — inputs that violate them are skipped. `prop_assert!` verifies postconditions. Proptest generates 10,000+ random inputs and shrinks failures to minimal counterexamples.
 
-### 2.2 When to Use Property-Based Tests
+### 1.2 When to Use Property-Based Tests
 
 | Situation | Use PBT? | Reason |
 |-----------|----------|--------|
@@ -124,87 +48,38 @@ The `prop_assume!` enforces the precondition — inputs that violate it are skip
 | Function is I/O-bound (network, filesystem) | **No** | Use integration tracer bullet instead |
 | Function has no meaningful invariant beyond "doesn't panic" | **Fuzz only** | `catch_unwind` + arbitrary input |
 
-### 2.3 The Contract→PBT Pipeline
+### 1.3 The Test Pyramid
 
-The established combination (Hillel Wayne, 2017; `icontract-hypothesis`, 2020; GUMBOX, 2025):
+| Layer | What | Verification |
+|-------|------|-------------|
+| **Unit** | Single function's behavior | Proptest on the function directly |
+| **Integration** | Cross-function chains | Proptest on the entry point; CNS spans verify called functions' behavior |
+| **State machine** | Invariants across operation sequences | Proptest on operation sequences; CNS `cns.gas` spans track budget invariants |
+| **Fuzz** | Input surface robustness | `catch_unwind` + arbitrary input; verifies no panic |
+| **System** | End-to-end workflows | Integration tracer bullet (TDD skill); verifies full vertical slice |
 
-1. **Contracts define the properties.** Preconditions and postconditions ARE the invariants to test.
-2. **PBT generates inputs matching preconditions.** `prop_assume!` filters to valid inputs.
-3. **PBT verifies postconditions hold.** `prop_assert!` checks the guarantees.
-4. **Contracts chain through call stacks.** If `f` calls `g`, and `g` has contracts, `g`'s contracts are verified during `f`'s PBT. Unit PBT becomes integration testing automatically.
+### 1.4 Deployment Testing
 
-### 2.4 The Test Pyramid Under DbC
+Deployment testing covers the provisioning surface — the operations that initialize and configure a running hKask server:
 
-| Layer | What | Contract Element | Verification |
-|-------|------|-----------------|-------------|
-| **Unit** | Single function's behavior | Pre/Post conditions | Proptest on the function directly |
-| **Integration** | Cross-function chains | Contracts chain through call stack | Proptest on the entry point; called functions' contracts verified transitively |
-| **Contract** | Crate boundary behavior | Invariants across operations | Proptest on operation sequences; verifies type invariants hold |
-| **Fuzz** | Input surface robustness | Implicit precondition: "any input" | `catch_unwind` + arbitrary input; verifies no panic |
-| **System** | End-to-end workflows | Cross-crate invariants | Integration tracer bullet (TDD skill); verifies full vertical slice |
-
-### 2.5 Contract Coverage (Complete)
-
-The contract chain (§2.3, item 4) requires contracts on ALL called functions to propagate. If a function in the call stack lacks a contract, the chain breaks silently — `f`'s PBT will not verify `g`'s behavior.
-
-- **Status: Coverage tracked by `contract-audit.sh --summary`.** See [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md) §4 for the current dashboard.
-- The contract completeness audit (§9.2) confirms zero contract debt.
-- New code must not introduce contract debt; every new `pub fn` must carry a contract.
-- When a bug is found, the fix must include adding or refining the contract.
-
-### 2.6 Contracts as Anchored User Expectations
-
-The contract system is anchored on the functional specification via the **goal-principle contract model** (`FUNCTIONAL_SPECIFICATION.md` §5):
-
-1. **Every contract has one goal principle** — the principle whose user-visible guarantee the contract directly serves. The goal principle answers: "What does the user get from this function?"
-2. **Every contract has 1 to 11 constraining principles** — the principles that shape how the goal is delivered. Constraining principles answer: "What guardrails apply?"
-3. **Every contract carries an explicit user functional expectation** — an `expect:` field stating in the user's voice what behavior is guaranteed.
-4. **Every contract is anchored to a goal principle** — the `[P{N}]` tag on `expect:` maps to one of the 12 Magna Carta principles (see [`PRINCIPLES.md`](PRINCIPLES.md) §1.5).
-5. **Every constraining principle is acknowledged** — `[P{N}] Constraining:` annotations document constraints.
-
-```
-Goal Principle (P9)
-    │
-    ▼
-expect: "I can check whether an agent has enough gas to proceed" [P9]
-    │
-    ▼
-pre:/post: conditions → Implementation → Property-Based Test
-```
-Goal Principle (P9: Homeostatic Self-Regulation)
-    └── user_expectation: "I can check whether an agent has enough gas"
-        └── Contract: EnergyBudget::can_proceed pre/post/inv
-            └── Test: proptest verifying the contract
-                └── Constraining: [P4] cap is bound, [P8] EnergyCost is typed
-```
-
-This is a strengthening of standard DbC: not only do we specify preconditions and postconditions, but we explicitly link each contract to the specific user functional expectation it serves. The test must verify both the contract's formal conditions and that the user expectation is actually met.
-
-### 2.7 Deployment Contract Testing
-
-Deployment contracts (§FUNCTIONAL_SPECIFICATION.md §3.18) test the provisioning surface — the operations that initialize and configure a running hKask server:
-
-| Contract Domain | Test Type | Example |
-|----------------|-----------|---------|
-| Server init | Integration | `init_server_creates_config_and_keychain_entries` — verifies `kask init --profile server` produces correct config files and keychain entries |
-| Sidecar generation | Integration | `deploy_sidecar_generates_valid_docker_compose` — verifies generated `docker-compose.yml` is syntactically valid |
-| OAuth callback | Integration | `oauth_callback_provisions_human_user_and_session` — verifies first sign-in creates `HumanUser`, replicant, wallet, and session cookie |
-| Health endpoint | Unit | `health_endpoint_returns_cns_status` — verifies `GET /api/cns/health` returns valid CNS health JSON |
-| Single binary | Smoke | `single_binary_contains_all_components` — verifies `kask --help` shows daemon, repl, matrix, wallet, cns subcommands |
-| Docker build | CI | `docker_build_produces_working_image` — verifies Dockerfile builds and `kask daemon` starts |
-
-Deployment contracts use P5 (Essentialism) as their primary goal principle — the single-binary, zero-config, browser-only deployment model is itself a functional expectation: "I should be able to deploy hKask with one binary and one command."
+| Domain | Test Type | Example |
+|--------|-----------|---------|
+| Server init | Integration | `init_server_creates_config_and_keychain_entries` |
+| Sidecar generation | Integration | `deploy_sidecar_generates_valid_docker_compose` |
+| OAuth callback | Integration | `oauth_callback_provisions_human_user_and_session` |
+| Health endpoint | Unit | `health_endpoint_returns_cns_status` |
+| Single binary | Smoke | `single_binary_contains_all_components` |
+| Docker build | CI | `docker_build_produces_working_image` |
 
 ---
 
-## 3. Ontology — Testing Vocabulary
+## 2. Ontology — Testing Vocabulary
 
 | Term | Definition | Domain |
 |------|-----------|--------|
 | **Seam** | A public interface (`pub` trait, `pub` fn, `pub` struct with `pub` methods) that is the test surface | FlowDef |
-| **Contract** | A behavioral specification on a seam: preconditions, postconditions, invariants (Meyer, 1986) | KnowAct |
 | **Invariant** | A behavioral property that must hold for all valid inputs or across all operations on a type | KnowAct |
-| **Tracer-bullet** | A vertical RED→GREEN cycle: one contract, one test, one implementation. Never horizontal slices | FlowDef |
+| **Tracer-bullet** | A vertical RED→GREEN cycle: one invariant, one test, one implementation. Never horizontal slices | FlowDef |
 | **Behavioral test** | A test that exercises the public seam and verifies *what* the system does, not *how*. Survives refactors | KnowAct |
 | **Structural test** | A test coupled to implementation detail. Must be rewritten or documented as debt | KnowAct |
 | **Deep seam** | Small interface, high leverage (few methods, many behaviors). Prefer testing at deep seams | WordAct |
@@ -214,7 +89,7 @@ Deployment contracts use P5 (Essentialism) as their primary goal principle — t
 
 ---
 
-## 4. Test Classification
+## 3. Test Classification
 
 Every test falls into one of three categories:
 
@@ -224,7 +99,7 @@ Every test falls into one of three categories:
 | **Seam Integration** | Tests interaction between two modules through a shared trait | ✅ Yes | **Required** |
 | **Implementation-Coupled** | Tests private methods, internal state, or mocked collaborators | ❌ No | **Flag for rewrite** |
 
-### 4.1 Classifying an Existing Test
+### 3.1 Classifying an Existing Test
 
 Ask: *"If I rewrote the entire internals of this module, would this test still pass?"*
 
@@ -232,7 +107,7 @@ Ask: *"If I rewrote the entire internals of this module, would this test still p
 - **Only if the new internals use the same trait** → Seam integration test. Keep.
 - **No** → Implementation-coupled test. Flag for rewrite or removal.
 
-### 4.2 Implementation-Coupled Tests Are Technical Debt
+### 3.2 Implementation-Coupled Tests Are Technical Debt
 
 Implementation-coupled tests are not forbidden — they exist because some code currently lacks a clean seam. But they must be tracked:
 
@@ -241,20 +116,18 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 
 ---
 
-## 5. MDS Category → Test Strategy
+## 4. MDS Category → Test Strategy
 
-Each MDS category has a distinct testing emphasis. The contract defines *what* to test; the strategy defines *how*.
-
-### 7.1 Domain (REQ-DOM-*)
+### 4.1 Domain (REQ-DOM-*)
 
 | Strategy | Details |
 |----------|---------|
 | **Primary seam** | `WebID`, `NuEvent` public APIs |
-| **Test type** | Unit: type construction, parsing, validation. Contract: serialization round-trips |
+| **Test type** | Unit: type construction, parsing, validation. Serialization round-trips |
 | **Key invariant** | Lexicon round-trips (markdown → YAML → loaded vocabulary) |
 | **Anti-pattern** | Testing internal hashmap structure of lexicon types |
 
-### 7.2 Capability (REQ-CAP-*)
+### 4.2 Capability (REQ-CAP-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -263,7 +136,7 @@ Each MDS category has a distinct testing emphasis. The contract defines *what* t
 | **Key invariant** | Fail-closed: no checker = denied, not open |
 | **Anti-pattern** | Testing HMAC internals rather than attenuation behavior |
 
-### 7.3 Interface (REQ-IFC-*)
+### 4.3 Interface (REQ-IFC-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -272,16 +145,16 @@ Each MDS category has a distinct testing emphasis. The contract defines *what* t
 | **Key invariant** | `MCP ≡ CLI ≡ API` for every operation |
 | **Anti-pattern** | Testing only one surface and assuming the others work |
 
-### 7.4 Composition (REQ-COM-*)
+### 4.4 Composition (REQ-COM-*)
 
 | Strategy | Details |
 |----------|---------|
-| **Primary seam** | `SqliteRegistry`, `TemplateResolver`, `ContractValidator` |
+| **Primary seam** | `SqliteRegistry`, `TemplateResolver` |
 | **Test type** | Integration: register → resolve → render round-trips; cascade depth enforcement |
 | **Key invariant** | Template cascade terminates within depth limit |
 | **Anti-pattern** | Testing Jinja2 string manipulation in isolation |
 
-### 7.5 Trust & Security (REQ-TRU-*)
+### 4.5 Trust & Security (REQ-TRU-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -290,7 +163,7 @@ Each MDS category has a distinct testing emphasis. The contract defines *what* t
 | **Key invariant** | Security boundaries are never relaxed by default |
 | **Anti-pattern** | Only testing the happy path; not testing invalid, expired, or wrong tokens |
 
-### 7.6 Observability (REQ-OBS-*)
+### 4.6 Observability (REQ-OBS-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -299,7 +172,7 @@ Each MDS category has a distinct testing emphasis. The contract defines *what* t
 | **Key invariant** | Algedonic alerts fire at threshold; homeostasis restores after perturbation |
 | **Anti-pattern** | Testing `tracing::info!` output format rather than the observer's behavior |
 
-### 7.7 Persistence (REQ-PER-*)
+### 4.7 Persistence (REQ-PER-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -308,7 +181,7 @@ Each MDS category has a distinct testing emphasis. The contract defines *what* t
 | **Key invariant** | Bitemporal queries return correct results; encrypted storage fails without key |
 | **Anti-pattern** | Testing SQL query strings rather than repository behavior |
 
-### 7.8 Lifecycle (REQ-LIF-*)
+### 4.8 Lifecycle (REQ-LIF-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -317,7 +190,7 @@ Each MDS category has a distinct testing emphasis. The contract defines *what* t
 | **Key invariant** | Forward-only evolution — no rollback paths |
 | **Anti-pattern** | Testing CLI argument parsing in isolation when the real risk is bootstrap ordering |
 
-### 7.9 Curation (REQ-CUR-*)
+### 4.9 Curation (REQ-CUR-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -328,254 +201,89 @@ Each MDS category has a distinct testing emphasis. The contract defines *what* t
 
 ---
 
-## 6. The TDD Bridge: From Specification to Contract to Test
+## 5. Principle Alignment
 
-The TDD skill (`.agents/skills/tdd/SKILL.md`) defines the *process* for writing tests. This discipline defines *what* the tests must verify. The bridge is the contract.
+### 5.1 P4 — Clear Boundaries (OCAP)
 
-### 6.1 The Traceability Chain
+Invariants at crate boundaries detect **semantic drift** — when a type changes in a way that's type-compatible but behaviorally different. The compiler can't catch this. Property-based tests can. CNS spans (`cns.gas`, `cns.tool.*`) provide runtime verification at every boundary.
 
-```
-Specification (FUNCTIONAL_SPECIFICATION.md)
-    │  FR-E12: "User shall be able to check remaining gas before execution"
-    │
-    ▼
-Goal Principle ──→ P9 (Homeostatic Self-Regulation)
-    │  user_expectation: "I can check whether an agent has enough gas"
-    │
-    ▼
-Contract (// REQ: pre/post/inv) ──→ "pre: valid EnergyCost; post: returns true iff sufficient gas"
-    │
-    ▼
-Property-Based Test ──→ proptest!(|budget, gas| verify can_proceed invariant)
-    │
-    ▼
-Implementation ──→ pub fn can_proceed(...)
-    │
-    ▼
-CNS Span ──→ cns.energy.budget_check
-```
+### 5.2 P8 — Semantic Grounding
 
-Every link is traceable. The `// REQ:` tag on the test references the contract ID. The contract ID embeds the goal principle (P9). The goal principle maps to the functional requirement (FR-E12). The TDD skill's gap-check verifies that every spec criterion has a matching `// REQ:` tag.
+Every test verifies an IS claim about system behavior. The CNS span registry (`CnsSpan` in `crates/hkask-types/src/cns.rs`) defines the canonical observability namespace. Test output is traceable to span types.
 
-**Bidirectional verification path (v0.28.0, see [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md)):**
+### 5.3 P9 — Homeostatic Self-Regulation
 
-```
-Forward (implementation direction):
-    Spec → expect: → pre:/post: → Test → Implementation
+**The test suite is a feedback loop.** Under the Good Regulator Theorem (Conant & Ashby, 1970), every good regulator must be a model of the system it regulates. The test suite IS that model.
 
-Reverse (verification direction):
-    Implementation ──verify──► Contract    (does the code satisfy the contract?)
-    Contract       ──verify──► expect:     (does the contract encode the user's expectation?)
-    expect:        ──verify──► [P{N}]      (does the expectation align with the right principle?)
-```
-
-This makes the verification loop explicit:
-- **Link 1** (Implementation → Contract): Verified by `contract-audit.sh` — every `pub fn` carries `pre:`/`post:` conditions.
-- **Link 2** (Contract → expect:): The `expect:` field's natural language statement must semantically match the `pre:`/`post:` formal specification.
-- **Link 3** (expect: → GoalPrinciple): Verified by `contract-audit.sh --principles` — the `[P{N}]` tag on the `expect:` line must be the principle that the expectation directly expresses. Cross-checked against the domain map in `FUNCTIONAL_SPECIFICATION.md` §1.
-
-### 6.2 TDD Cycle with Contracts
-
-The TDD skill's RED→GREEN→REFACTOR cycle, augmented with contracts:
-
-```
-RED:   Write the contract as a doc-comment on the function signature.
-       Write a property-based test that:
-         - Generates inputs satisfying the precondition
-         - Calls the function
-         - Asserts the postcondition holds
-       Test fails (function not implemented).
-
-GREEN: Write minimal code to satisfy the contract.
-       Test passes for all generated inputs.
-
-REFACTOR:
-       - Can the precondition be weakened? (accept more inputs)
-       - Can the postcondition be strengthened? (guarantee more)
-       - Can invariants be added? (cross-operation guarantees)
-       - Does the implementation still satisfy the contract?
-```
-
-### 6.3 Contract-First, Not Test-First
-
-The TDD skill says "write the test first." This discipline adds: **write the contract before the test.** The contract is the specification of the test. Without a contract, the test verifies *something*, but it's not clear what.
-
-Order:
-1. **Contract** — `// REQ: pre: ... post: ...`
-2. **Test** — proptest verifying the contract
-3. **Implementation** — minimal code satisfying the contract
-
-### 6.4 Vertical Slicing, Not Horizontal
-
-**Do not write all tests first, then all implementation.** This is horizontal slicing — it produces tests that verify *imagined* behavior rather than *actual* behavior.
-
-```
-WRONG (horizontal):
-  RED:   test1, test2, test3, test4, test5
-  GREEN: impl1, impl2, impl3, impl4, impl5
-
-RIGHT (vertical):
-  RED→GREEN: test1→impl1
-  RED→GREEN: test2→impl2
-  RED→GREEN: test3→impl3
-  ...
-```
-
-Each RED→GREEN cycle is a **tracer bullet**: one test confirming one behavior, then minimal code to pass.
-
-### 6.5 Skill Integration
-
-The following skills govern testing practices and are anchored on this discipline:
-
-| Skill | Testing Role | When to Use |
-|-------|-------------|-------------|
-| `tdd` | Red-green-refactor with vertical slicing, contract-first ordering | Building features, fixing bugs |
-| `diagnose` | Build feedback loop before hypothesizing | Bug reports, performance regressions |
-| `improve-codebase-architecture` | Identify shallow modules and deepen seams | When code is hard to test through its interface |
-| `coding-guidelines` | Surgical changes, simplicity first, goal-driven | All code changes |
-| `pragmatics` | Meta-cognitive codebase review against principles | Architecture analysis, principle compliance audit |
-
----
-
-## 7. Principle Alignment
-
-### 7.1 P4 — Clear Boundaries (OCAP)
-
-**Contracts ARE OCAP membranes made testable.** An OCAP boundary is a capability gate. A contract is the behavioral specification of that gate. The precondition defines what capabilities the caller must possess. The postcondition defines what capabilities are returned or exercised.
-
-Contract tests at crate boundaries detect **semantic drift** — when a type changes in a way that's type-compatible but behaviorally different. The compiler can't catch this. Contracts can.
-
-### 7.2 P8 — Semantic Grounding
-
-**Every contract carries a user expectation — the IS claim about what behavior is guaranteed.** Preconditions, postconditions, and invariants are declarative claims about what the system does. The `user_expectation` field states it in the user's voice. The proptest verifies the IS claim against reality.
-
-The `// REQ:` tag traces the contract to a specification requirement. The specification stores the OUGHT (what the user wants). The contract is the IS (what the code actually guarantees). The test verifies IS matches OUGHT. The CNS span proves the verification occurred.
-
-### 7.3 P9 — Homeostatic Self-Regulation
-
-**The test suite is a feedback loop.** Under the Good Regulator Theorem (Conant & Ashby, 1970), every good regulator must be a model of the system it regulates. The test suite IS that model. If the tests don't model the system's actual failure modes, they're not a good regulator.
-
-- **Contract violations are CNS events ✅.** Contract test failures emit `cns.contract.violated` algedonic signals (implemented in `crates/hkask-cns/src/contract_discipline.rs`). The background contract monitor (`spawn_contract_test_loop` in `hkask-services/src/context.rs`) runs `cargo test` on priority crates every 60min and calls `emit_contract_violated_with_task`, which persists a CNS span and creates a kanban "Contract Violations" task.
-- **Test coverage is variety.** The CNS tracks test coverage per domain as variety (Ashby's Law). A drop in variety triggers an alert via `cns.contract.coverage`, emitted by the seam watcher (`SeamWatcher::check_drift`) every 30min.
-- **Contract lifecycle is observable.** Proposals, acceptances, and rejections emit `cns.contract.proposed`, `cns.contract.accepted`, and `cns.contract.rejected` spans via the `kask contract` CLI surface.
+- **CNS spans provide runtime observability.** `cns.gas` spans on `reserve`/`settle`/`consume`/`reset_to` track budget invariants in production. Type-enforced invariants (private fields on `EnergyBudget`) prevent violations structurally.
+- **Test coverage is variety.** The CNS tracks test coverage per domain as variety (Ashby's Law). A drop in variety triggers an alert.
 - **Mutation testing measures regulator quality.** `cargo-mutants` injects bugs; the percentage caught measures how well the test suite models the system.
 
-### 7.4 P6 — Space for Replicants
+### 5.4 P6 — Space for Replicants
 
-**Replicants propose contracts for their own behavior.** An agent can open a PR containing:
-- A contract (`// REQ: pre: ... post: ...`) describing its intended behavior
-- A property-based test verifying the contract
-- The agent's WebID as the authenticated author (P12)
+Replicants propose tests for their own behavior. A replicant can open a PR containing a property-based test verifying its intended behavior, with the replicant's WebID as the authenticated author (P12). A human operator provides affirmative consent (P2) to merge.
 
-A human operator provides affirmative consent (P2) to merge. The contract becomes part of the agent's regulatory model — the agent is saying "this is how I should behave, verify it."
+### 5.5 P7 — Evolutionary Architecture
 
-**Contract conflict resolution:** If two replicants propose conflicting contracts for the same function, the conflict is resolved by:
-1. The human operator identifies the conflict during PR review
-2. The conflicting replicants are prompted to reconcile (improv plussing mode)
-3. If reconciliation fails, the human selects one contract and documents the rejection rationale
-4. The rejected contract is archived as a curation decision for future reference
+Tests evolve from actual failures, not speculation. When a bug escapes to production:
+1. Write a proptest that captures the failure mode
+2. Verify it fails (reproduces the bug)
+3. Fix the implementation
+4. The proptest now permanently guards against that class of bug
 
-### 7.5 P7 — Evolutionary Architecture
-
-**Contracts evolve from actual failures, not speculation.** When a bug escapes to production:
-1. The bug is a contract violation (a postcondition that was too weak, or an invariant that was missing)
-2. Strengthen the contract to exclude the bug
-3. The proptest now fails on the counterexample
-4. Fix the implementation
-5. The contract now permanently guards against that class of bug
-
-Contracts accumulate the scar tissue of every production incident. They become the real engineering artifact — the implementation is replaceable; the contract is not.
-
-### 7.6 Probabilistic Contracts for LLM Agents
-
-Design by Contract assumes deterministic functions. LLM agents are non-deterministic. The Agent Behavioral Contracts framework (2025) extends DbC for this case with **`(p, δ, k)`-satisfaction**:
-
-- **p:** Probability threshold (e.g., 0.95 = contract must hold in 95% of executions)
-- **δ:** Tolerance bound (how far from the postcondition is acceptable)
-- **k:** Recovery window (how many steps the agent has to self-correct before violation is reported)
-
-For hKask, probabilistic contracts apply to:
-- Inference output validation (exact match impossible)
-- Agent behavior assertions (non-deterministic by design)
-- Improv mode compliance (creative variation is expected)
-
-Probabilistic contracts use the same `// REQ:` syntax with an additional `prob:` field:
-
-```rust
-/// REQ: improv-plussing-001
-/// pre:  mode is Plussing, context is non-empty
-/// post: response builds on input (yes-and pattern) with prob ≥ 0.90, δ = semantic similarity ≥ 0.7
-/// prob: p=0.90, δ=0.7, k=3
-pub async fn plussing_respond(&self, input: &str) -> String {
-    // ...
-}
-```
+Tests accumulate the scar tissue of every production incident. They become the real engineering artifact — the implementation is replaceable; the invariants are not.
 
 ---
 
-## 8. Rules for the Testing Program
+## 6. Rules for the Testing Program
 
-### 8.1 Test Location
+### 6.1 Test Location
 
 | Test Type | Location | Convention |
 |-----------|----------|------------|
 | Unit (same-module) | `#[cfg(test)] mod tests` inside source file | For testing public interface of a single module |
 | Integration | `tests/` directory at crate root | For testing cross-module behavior through crate public API |
-| Contract | `tests/contract/` directory at crate root | For testing behavioral contracts at crate boundaries |
 | Fuzz | `tests/` directory at crate root | For panic-free verification on arbitrary input |
 | MCP server | `#[cfg(test)] mod tests` in `main.rs` | For testing tool handlers and response types |
 
-### 8.2 Contract Rules
+### 6.2 Testing Rules
 
 | Rule | Description |
 |------|-------------|
-| **C1** | Every `pub fn` must have a contract (`// REQ: pre: ... post: ...`) |
-| **C2** | Every type with cross-operation invariants must declare them (`// REQ: inv: ...`) |
-| **C3** | Preconditions are caller obligations — the function does not check them |
-| **C4** | Postconditions are function guarantees — verified by proptest |
-| **C5** | Contracts are the specification — there is no separate "spec document" for function behavior |
-| **C6** | Contract violations are bugs — fix the implementation, not the contract (unless the contract was wrong) |
-
-### 8.3 Testing Rules
-
-| Rule | Description |
-|------|-------------|
-| **T1** | Every contract must have at least one property-based test verifying it |
+| **T1** | Prefer property-based tests for functions with mathematical or state-machine invariants |
 | **T2** | Property-based tests use `prop_assume!` to enforce preconditions |
 | **T3** | Property-based tests use `prop_assert!` to verify postconditions and invariants |
-| **T4** | Every test carries a `// REQ:` tag traceable to a specification requirement |
-| **T5** | Integration tracer bullets follow the TDD skill's vertical slice pattern |
-| **T6** | Fuzz tests verify that all input surfaces handle arbitrary input without panicking |
-| **T7** | No `todo!()`, `unimplemented!()`, or `#[deprecated]` in test code (P5) |
-| **T8** | Use `#[cfg(test)]` module for unit tests; `tests/` for integration; `#[tokio::test]` for async |
-| **T9** | Use `tempfile` or `hkask-test-harness` for filesystem/database — never write to the project tree |
-| **T10** | Prefer `assert!` with meaningful messages; test error paths, not just happy paths |
+| **T4** | Integration tracer bullets follow the TDD skill's vertical slice pattern |
+| **T5** | Fuzz tests verify that all input surfaces handle arbitrary input without panicking |
+| **T6** | No `todo!()`, `unimplemented!()`, or `#[deprecated]` in test code (P5) |
+| **T7** | Use `#[cfg(test)]` module for unit tests; `tests/` for integration; `#[tokio::test]` for async |
+| **T8** | Use `tempfile` or `hkask-test-harness` for filesystem/database — never write to the project tree |
+| **T9** | Prefer `assert!` with meaningful messages; test error paths, not just happy paths |
 
-### 8.4 Process Rules
+### 6.3 Process Rules
 
 | Rule | Description |
 |------|-------------|
-| **P1** | Contract first, test second, implementation third |
-| **P2** | One contract + one test per TDD cycle (vertical slice, not horizontal) |
+| **P1** | Test first, implementation second (TDD) |
+| **P2** | One test per TDD cycle (vertical slice, not horizontal) |
 | **P3** | Refactor only when GREEN — never while RED |
-| **P4** | After every bug fix, strengthen the contract to exclude that class of bug |
-| **P5** | Replicants may propose contracts and tests; humans provide consent to merge (P2, P6) |
+| **P4** | After every bug fix, add a regression test that captures that class of bug |
+| **P5** | Replicants may propose tests; humans provide consent to merge (P2, P6) |
 | **P6** | Every test action carries an authenticated author (TestWebId or replicant WebID) (P12) |
 
-### 8.5 Quality Rules
+### 6.4 Quality Rules
 
 | Rule | Description |
 |------|-------------|
 | **Q1** | Mutation testing runs periodically; target ≥70% mutant detection |
 | **Q2** | CNS monitors test coverage as variety per domain; drops trigger algedonic alerts |
-| **Q3** | Contract completeness is auditable: `grep -r "// REQ: pre:" crates/ --include="*.rs"` |
-| **Q4** | Every specification criterion has a matching `// REQ:` tag (TDD gap-check) |
+| **Q3** | Type-enforced invariants (private fields, constructor validation) preferred over runtime assertions |
 
 ---
 
-## 9. Verification & Audit
+## 7. Verification & Audit
 
-### 9.1 Verification Gates
+### 7.1 Verification Gates
 
 | Gate | Command | Expected |
 |------|---------|----------|
@@ -585,46 +293,19 @@ pub async fn plussing_respond(&self, input: &str) -> String {
 | Format | `cargo fmt --check` | No diffs |
 | Prohibitions | `grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/ --include="*.rs"` | Zero |
 | Headless | `grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ --include="*.rs"` | Zero |
-| Contract coverage | `bash scripts/contract-audit.sh --summary` | All crates ≥100% |
-| Contract completeness | `bash scripts/ci/contract-audit.sh --summary` | 2334 REQ tags across 1771 pub fns (131.7%) |
 | Schema drift | `bash scripts/check-schema-drift.sh` | Pass |
 | CNS daemon | `kask daemon start` (smoke test) | Binds socket, loops active |
-| Contract tests | `kask test --format json` | Zero violations |
 | Deployment smoke | `kask init --profile server && kask daemon` | Server starts, health endpoint responds |
 | Deployment sidecar | `kask matrix deploy-sidecar --domain localhost` | Valid docker-compose.yml generated |
-| User expectation audit | `bash scripts/ci/contract-audit.sh --expect` | All contracted fns carry `expect:` field; expectation_completeness_pct ≥ 100% |
-| Goal principle audit | `bash scripts/ci/contract-audit.sh --principles` | All `expect:` lines carry valid `[P{N}]` tag (P1-P12); zero `MISSING_GOAL_PRINCIPLE` or `INVALID_PRINCIPLE` |
-| Constraining principle audit | `bash scripts/ci/contract-audit.sh --constraining` | All contracts carry at minimum applicable Magna Carta (P1-P4) `[P{N}] Constraining:` annotations; zero `MISSING_MAGNA_CARTA_CONSTRAINT` |
-| Full contract audit (v0.28.0) | `bash scripts/ci/contract-audit.sh --full` | All v0.28.0 contract checks pass (coverage + expect + principles + constraining) |
-
-### 9.2 Contract Completeness Audit
-
-```bash
-# Automated audit script (preferred)
-bash scripts/contract-audit.sh --summary
-
-# Per-crate detail
-bash scripts/contract-audit.sh hkask-types
-```
-
-Target: 100% of public functions have contracts. **Achieved 2026-06-17** — 2334 REQ tags across 1771 pub fns (131.7% due to multi-contract builder methods and struct fields). Every crate at ≥100%. New code must not reduce coverage below 100%.
 
 ---
 
-## 10. References
+## 8. References
 
 ### External Discipline
 
-- Meyer, B. (1986). "Design by Contract." *IEEE Computer*. The foundational text.
-- Meyer, B. (1992). *Eiffel: The Language*. Prentice Hall. Chapters on assertions and contracts.
 - Claessen, K. & Hughes, J. (2000). "QuickCheck: A Lightweight Tool for Random Testing of Haskell Programs." *ICFP*. The foundational PBT text.
-- Wayne, H. (2017). "Property Tests + Contracts = Integration Tests." Documents the DbC+PBT combination.
-- Hatcliff, J. et al. (2025). "GUMBOX: Automated Property-Based Testing from AADL Component Contracts." *Springer STTT*. Peer-reviewed contract→PBT pipeline.
-- mristin (2020). `icontract-hypothesis`. Working implementation of DbC+PBT in Python.
-
-### Agentic AI Extension
-
-- Agent Behavioral Contracts (2025). Formal DbC for LLM agents with probabilistic compliance. `C = (P, I, G, R)`.
+- Meyer, B. (1986). "Design by Contract." *IEEE Computer*.
 
 ### Cybernetic Foundation
 
@@ -641,9 +322,8 @@ Target: 100% of public functions have contracts. **Achieved 2026-06-17** — 233
 
 - `docs/architecture/core/PRINCIPLES.md` — P1–P12 governing principles
 - `.agents/skills/tdd/SKILL.md` — TDD process (RED→GREEN→REFACTOR with spec anchoring)
-- `docs/plans/test-harness-maturation-plan-v0.27.0.md` — Implementation plan
 - `docs/architecture/core/MDS.md` — Minimal Domain Specification
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.28.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.29.0*

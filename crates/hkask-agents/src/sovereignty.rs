@@ -28,7 +28,6 @@ pub trait SovereigntyConsent: Send + Sync {
 
 /// Default `SovereigntyConsent` implementation: deny everything.
 ///
-/// \[NORMATIVE\] Sovereignty must fail closed. New `PodManager`s use this until (P1 — User Sovereignty).
 /// `with_consent_port` is called with a real backend. This guarantees
 /// that a misconfigured or partially-initialized agent cannot access
 /// sovereign data without an explicit grant.
@@ -43,7 +42,6 @@ impl SovereigntyConsent for DenyAllConsent {
 /// Test/scaffolding `SovereigntyConsent` implementation: grant everything.
 ///
 /// Used in unit tests that don't care about the consent semantics, only
-/// \[NORMATIVE\] about the access path. Production must never use this — it bypasses (P1 — User Sovereignty).
 /// the Magna Carta's explicit-consent requirement.
 pub struct AllowAllConsent;
 
@@ -78,12 +76,9 @@ impl Clone for SovereigntyChecker {
 }
 
 impl SovereigntyChecker {
-    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — checker enforces the user-data boundary
     /// \[P2\] Constraining: Affirmative Consent — delegates to consent port
-    /// pre:  `owner_webid` is a valid `WebID`; `consent` is a valid
     ///       `Arc<dyn SovereigntyConsent>`.
-    /// post: Returns a `SovereigntyChecker` with a fresh
     ///       `UserSovereigntyState` and the given owner and consent port.
     pub fn new(owner_webid: WebID, consent: Arc<dyn SovereigntyConsent>) -> Self {
         Self {
@@ -98,11 +93,8 @@ impl SovereigntyChecker {
         self.consent.has_consent(&webid.to_string(), category)
     }
 
-    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — access decision combines consent + ownership
-    /// pre:  `data_category` is a valid `DataCategory`; `requester` is a
     ///       valid `WebID`.
-    /// post: Returns `true` iff the requester is permitted to access the
     ///       category: sovereign data requires consent AND requester==owner;
     ///       shared data requires consent; public data is always accessible.
     pub fn can_access(&self, data_category: &DataCategory, requester: &WebID) -> bool {
@@ -117,11 +109,8 @@ impl SovereigntyChecker {
         self.state.boundary.is_category_public(data_category)
     }
 
-    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — action decision combines consent + operation
-    /// pre:  `operation` is a non-empty string; `data_category` is a
     ///       valid `DataCategory`.
-    /// post: For "acquisition", returns `true` iff affirmative consent is
     ///       NOT required. For all other operations, delegates to
     ///       `can_access` with the owner WebID as requester.
     pub fn check_operation(&self, operation: &str, data_category: &DataCategory) -> bool {
@@ -142,8 +131,6 @@ mod tests {
         WebID::new()
     }
 
-    // contract: P1-agt-sovereignty-deny-all-test
-    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn deny_all_consent_always_denies() {
         let consent = DenyAllConsent;
@@ -152,8 +139,6 @@ mod tests {
         assert!(!consent.has_consent("user:bob", &DataCategory::EpisodicMemory));
     }
 
-    // contract: P1-agt-sovereignty-boundary-test
-    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn sovereignty_checker_sovereign_data_requires_consent_and_owner() {
         let owner = test_webid();

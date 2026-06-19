@@ -217,16 +217,6 @@ impl ActivePods {
                 self.governed_tool.clone(),
                 self.capability_checker.clone(),
                 self.nu_event_sink.clone(),
-                Arc::clone(self.episodic_adapter.as_ref().ok_or_else(|| {
-                    AgentPodError::PersonaParseError(
-                        "ActivePods not wired with episodic adapter".into(),
-                    )
-                })?),
-                Arc::clone(self.semantic_adapter.as_ref().ok_or_else(|| {
-                    AgentPodError::PersonaParseError(
-                        "ActivePods not wired with semantic adapter".into(),
-                    )
-                })?),
                 self.inference_port.clone(),
             )
             .await

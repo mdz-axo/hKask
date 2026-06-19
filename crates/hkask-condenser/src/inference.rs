@@ -72,8 +72,6 @@ pub fn approx_token_count(text: &str) -> usize {
 mod tests {
     use super::*;
 
-    // contract: condenser-token-est
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn token_count_uses_char_heuristic() {
         // 40 chars → ~10 tokens
@@ -89,15 +87,11 @@ mod tests {
         assert_eq!(approx_token_count("test test"), 2);
     }
 
-    // contract: condenser-token-est
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn token_count_empty_floors_at_one() {
         assert_eq!(approx_token_count(""), 1);
     }
 
-    // contract: condenser-token-est
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn token_count_scales_with_length() {
         let short = approx_token_count("hello world");

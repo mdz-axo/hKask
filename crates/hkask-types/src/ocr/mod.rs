@@ -8,8 +8,6 @@ pub use document::*;
 mod tests {
     use super::*;
 
-    // contract: ocr-type-01
-    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn pipeline_outcome_roundtrip() {
         let outcome = PipelineOutcome {
@@ -31,8 +29,6 @@ mod tests {
         assert!(back.report.passed);
     }
 
-    // contract: ocr-type-02
-    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn verification_report_passed_is_computed() {
         let report = VerificationReport::new(false, 0.0, vec![], 0, vec![]);
@@ -51,16 +47,12 @@ mod tests {
         assert!(report.passed, "clean report should pass");
     }
 
-    // contract: ocr-type-03
-    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn complexity_tier_ordering() {
         assert!(ComplexityTier::Simple < ComplexityTier::Moderate);
         assert!(ComplexityTier::Moderate < ComplexityTier::Complex);
     }
 
-    // contract: ocr-type-04
-    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn ocr_backend_labels() {
         assert_eq!(OcrBackend::Tesseract.label(), "tesseract");
@@ -68,8 +60,6 @@ mod tests {
         assert_eq!(OcrBackend::LlmOcr("gpt4".into()).label(), "llm-ocr");
     }
 
-    // contract: ocr-type-05
-    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn pipeline_error_display() {
         let err = PipelineError::OcrFailed {
@@ -82,8 +72,6 @@ mod tests {
         assert!(display.contains("lighton"));
     }
 
-    // contract: ocr-type-06
-    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn cross_validation_roundtrip() {
         let cv = CrossValidation {

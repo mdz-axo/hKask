@@ -32,10 +32,7 @@ impl FalBackend {
     ///
     /// Returns an error if `fal_api_key` is empty.
     ///
-    /// expect: "The system creates provider membranes requiring valid API keys" [P4]
     /// \[P4\] Motivating: Clear Boundaries — fal.ai provider membrane requires valid API key
-    /// pre:  config.fal_api_key is set
-    /// post: returns FalBackend with configured HTTP client
     pub fn new(config: &InferenceConfig) -> Result<Self, InferenceError> {
         if config.fal_api_key.is_empty() {
             return Err(InferenceError::Connection(
@@ -57,14 +54,7 @@ impl FalBackend {
 
     /// Send a chat completion request to fal.ai.
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated text generation
-    /// pre:  model is a valid fal.ai model name
-    /// pre:  prompt is non-empty (validated by validate_prompt)
-    /// pre:  params is a valid LLMParameters
-    /// post: returns Ok(InferenceResult) with generated text, model, usage stats
-    /// post: if connection fails → Err(InferenceError::Connection)
-    /// post: if prompt is empty → Err(InferenceError::Generation)
     pub async fn generate(
         &self,
         model: &str,
@@ -111,15 +101,7 @@ impl FalBackend {
 
     /// Vision/multimodal inference with base64-encoded images.
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated multimodal generation
-    /// pre:  model is a valid fal.ai vision-capable model name
-    /// pre:  prompt is non-empty
-    /// pre:  images is non-empty (at least one base64-encoded image)
-    /// pre:  params is a valid LLMParameters
-    /// post: returns Ok(InferenceResult) with vision-generated text
-    /// post: if images is empty → Err(InferenceError::Generation("No images provided"))
-    /// post: if connection fails → Err(InferenceError::Connection)
     pub async fn generate_vision(
         &self,
         model: &str,
@@ -177,10 +159,7 @@ impl FalBackend {
     /// Stream a chat completion from fal.ai via SSE.
     /// Generate a streaming completion from Fal.
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated streaming text generation
-    /// pre:  model is a valid Fal model name
-    /// post: returns stream of inference chunks
     pub fn generate_stream(
         &self,
         model: &str,
@@ -210,10 +189,7 @@ impl FalBackend {
     /// Returns a curated list of vision-capable models known to work
     /// with the OpenAI-compatible chat completions endpoint.
     ///
-    /// expect: "I can discover available models across providers" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — static model catalog for variety
-    /// pre:  none (static catalog, no API call)
-    /// post: returns Ok(Vec<FalModelEntry>) with curated model list
     pub async fn list_models(&self) -> Result<Vec<FalModelEntry>, InferenceError> {
         // Static catalog of known fal.ai vision models.
         // These are models confirmed to work via the chat completions endpoint.
@@ -377,11 +353,7 @@ impl FalBackend {
     /// Generate an image from a text prompt.
     /// Endpoint: fal-ai/flux/schnell (fast) or fal-ai/flux-pro (quality).
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image generation
-    /// pre:  prompt is a non-empty text description
-    /// post: returns Ok(serde_json::Value) with generated image data
-    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn generate_image(
         &self,
         prompt: &str,
@@ -399,12 +371,7 @@ impl FalBackend {
     /// Transform an existing image with a prompt (image-to-image).
     /// Endpoint: fal-ai/flux/dev/image-to-image
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image editing
-    /// pre:  image_url is a valid, accessible image URL
-    /// pre:  prompt is a non-empty transformation instruction
-    /// post: returns Ok(serde_json::Value) with transformed image data
-    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn image_to_image(
         &self,
         image_url: &str,
@@ -425,11 +392,7 @@ impl FalBackend {
     /// Remove background from an image.
     /// Endpoint: fal-ai/birefnet
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image transformation
-    /// pre:  image_url is a valid, accessible image URL
-    /// post: returns Ok(serde_json::Value) with background-removed image data
-    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn remove_background(
         &self,
         image_url: &str,
@@ -441,11 +404,7 @@ impl FalBackend {
     /// Upscale an image.
     /// Endpoint: fal-ai/seedvr2 (queue)
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image upscaling
-    /// pre:  image_url is a valid, accessible image URL
-    /// post: returns Ok(serde_json::Value) with upscaled image data
-    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn upscale(
         &self,
         image_url: &str,
@@ -461,11 +420,7 @@ impl FalBackend {
     /// Generate a video from a text prompt.
     /// Endpoint: fal-ai/minimax/video-01-live (queue)
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated video generation
-    /// pre:  prompt is a non-empty text description
-    /// post: returns Ok(serde_json::Value) with generated video data
-    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn generate_video(
         &self,
         prompt: &str,
@@ -482,11 +437,7 @@ impl FalBackend {
     /// Animate a still image into a video.
     /// Endpoint: fal-ai/seedance-2.0/image-to-video (queue)
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated video generation
-    /// pre:  image_url is a valid, accessible image URL
-    /// post: returns Ok(serde_json::Value) with generated video data
-    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn image_to_video(
         &self,
         image_url: &str,
@@ -507,12 +458,7 @@ impl FalBackend {
     /// Segment/extract a specific object from an image.
     /// Endpoint: fal-ai/florence-2-large/referring-expression-segmentation
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image segmentation
-    /// pre:  image_url is a valid, accessible image URL
-    /// pre:  object_description is a non-empty description of the object to segment
-    /// post: returns Ok(serde_json::Value) with segmented object data
-    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn segment_object(
         &self,
         image_url: &str,
@@ -535,12 +481,7 @@ impl FalBackend {
     /// Callum, River, Liam, Charlotte, Alice, Matilda, Will, Jessica, Eric,
     /// Chris, Brian, Daniel, Lily, Bill. Default: "Rachel".
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated speech synthesis
-    /// pre:  text is non-empty
-    /// pre:  voice is a valid voice preset name
-    /// post: returns Ok(serde_json::Value) with generated speech audio data
-    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn generate_speech(
         &self,
         text: &str,
@@ -557,11 +498,7 @@ impl FalBackend {
     /// Transcribe speech audio to text using Whisper.
     /// Endpoint: fal-ai/whisper
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated speech transcription
-    /// pre:  audio_url is a valid, accessible audio file URL
-    /// post: returns Ok(serde_json::Value) with transcription data
-    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn transcribe(&self, audio_url: &str) -> Result<serde_json::Value, InferenceError> {
         let body = serde_json::json!({"audio_url": audio_url});
         self.fal_sync_post("fal-ai/whisper", body).await
@@ -582,7 +519,6 @@ pub struct FalModelEntry {
 mod tests {
     use super::*;
 
-    /// expect: "Inference backend construction fails correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates boundary enforcement without key
     #[test]
     fn construction_fails_without_api_key() {
@@ -598,7 +534,6 @@ mod tests {
         );
     }
 
-    /// expect: "Inference backend construction succeeds correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates boundary construction with key
     #[test]
     fn construction_succeeds_with_api_key() {
@@ -614,7 +549,6 @@ mod tests {
         );
     }
 
-    /// expect: "Inference static catalog lookup works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates model variety catalog
     #[tokio::test]
     async fn static_catalog_returns_vision_models() {
@@ -637,7 +571,6 @@ mod tests {
         assert!(ids.contains(&"docres"), "catalog should include docres");
     }
 
-    /// expect: "Inference vision support heuristic works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates vision model heuristic
     #[test]
     fn vision_support_heuristic_recognizes_fal_models() {

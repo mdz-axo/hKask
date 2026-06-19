@@ -54,9 +54,6 @@ pub struct ApiKeyAuthService {
 impl ApiKeyAuthService {
     /// Create a new API key auth service backed by a WalletStore and WalletService.
     ///
-    /// expect: "API endpoints enforce OCAP boundaries" [P4]
-    /// pre:  wallet_store and wallet_service are valid Arcs
-    /// post: returns ApiKeyAuthService ready for middleware use
     pub fn new(wallet_store: Arc<WalletStore>, wallet_service: Arc<WalletService>) -> Self {
         Self {
             wallet_store,
@@ -66,9 +63,6 @@ impl ApiKeyAuthService {
 
     /// Deterministically derive a per-key budget principal.
     ///
-    /// expect: "API endpoints enforce OCAP boundaries" [P4]
-    /// pre:  key_id is a valid ApiKeyId
-    /// post: returns a deterministic WebID unique to that key_id within this namespace
     fn budget_principal_for_key(key_id: ApiKeyId) -> WebID {
         let persona = format!("api-key-budget:{}", key_id);
         WebID::from_persona_with_namespace(persona.as_bytes(), "wallet-api-key-budget")
@@ -112,8 +106,6 @@ impl ApiKeyAuthService {
             .map_err(|_| ApiKeyAuthError::StoreError)?
             .ok_or(ApiKeyAuthError::UnknownApiKey)?;
 
-        // contract: MUST-6
-        // expect: "API endpoints enforce OCAP boundaries" [P4]
         // The DB query already matches by public_key, but a constant-time comparison
         // protects against hypothetical DB corruption or timing side-channels.
         if !bool::from(capability.public_key.as_bytes().ct_eq(&public_key_bytes)) {
@@ -124,8 +116,6 @@ impl ApiKeyAuthService {
         if let Some(expiry) = capability.expiry
             && chrono::Utc::now() > expiry
         {
-            // contract: MUST-6
-            // expect: "API endpoints enforce OCAP boundaries" [P4]
             self.wallet_service
                 .emit_key_alert(capability.key_id, false, true);
             return Err(ApiKeyAuthError::KeyExpired);
@@ -133,8 +123,6 @@ impl ApiKeyAuthService {
 
         // Verify spending limit not exceeded
         if capability.spent_rj.as_u64() >= capability.spending_limit_rj.as_u64() {
-            // contract: MUST-6
-            // expect: "API endpoints enforce OCAP boundaries" [P4]
             self.wallet_service
                 .emit_key_alert(capability.key_id, true, false);
             return Err(ApiKeyAuthError::SpendingLimitExceeded);
@@ -152,8 +140,6 @@ impl ApiKeyAuthService {
             }
             Some(ref enc) if enc.is_active() => {
                 // Encumbrance exists but is exhausted
-                // contract: MUST-6
-                // expect: "API endpoints enforce OCAP boundaries" [P4]
                 self.wallet_service
                     .emit_key_alert(capability.key_id, true, false);
                 return Err(ApiKeyAuthError::PaymentRequired(
@@ -275,11 +261,6 @@ impl IntoResponse for ApiKeyAuthError {
 /// in the CNS so that subsequent tool/inference calls consume rJoules from the
 /// key's encumbrance.
 ///
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
-/// pre:  auth is a valid ApiKeyAuthService
-/// post: if no Bearer header → pass-through (next.run)
-/// post: if valid Bearer token → WalletContext injected, budget registered
-/// post: if invalid Bearer token → Err(ApiKeyAuthError)
 pub async fn api_key_auth_middleware(
     State(auth): State<Arc<ApiKeyAuthService>>,
     request: Request<Body>,
@@ -379,8 +360,6 @@ mod tests {
         (auth, hex::encode(private_key))
     }
 
-    // contract: wallet-api-budget-001
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn budget_principal_is_deterministic_for_same_key() {
         let key_id = ApiKeyId::new();
@@ -389,8 +368,6 @@ mod tests {
         assert_eq!(p1, p2);
     }
 
-    // contract: wallet-api-budget-002
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn budget_principal_is_distinct_across_keys() {
         let k1 = ApiKeyId::new();
@@ -400,8 +377,6 @@ mod tests {
         assert_ne!(p1, p2);
     }
 
-    // contract: wallet-api-auth-003
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn authenticate_rejects_exhausted_key() {
         let (auth, token) = make_auth_service_with_key(1_000, 1_000);
@@ -418,8 +393,6 @@ mod tests {
         );
     }
 
-    // contract: wallet-api-auth-004
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn authenticate_rejects_consumed_encumbrance() {
         // SAFETY: test-only setup for deterministic wallet manager construction.
@@ -492,8 +465,6 @@ mod tests {
         );
     }
 
-    // contract: wallet-api-auth-001
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn authenticate_valid_key_succeeds() {
         // SAFETY: test-only
@@ -564,8 +535,6 @@ mod tests {
         assert_eq!(ctx.spent_rj.as_u64(), 0);
     }
 
-    // contract: wallet-api-auth-005
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn authenticate_rejects_expired_key() {
         // SAFETY: test-only
@@ -631,8 +600,6 @@ mod tests {
         );
     }
 
-    // contract: wallet-api-auth-006
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn authenticate_rejects_revoked_key() {
         // SAFETY: test-only
@@ -699,8 +666,6 @@ mod tests {
         );
     }
 
-    // contract: wallet-api-auth-007
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn authenticate_rejects_missing_authorization() {
         let (auth, _token) = make_auth_service_with_key(0, 1_000);
@@ -716,8 +681,6 @@ mod tests {
         );
     }
 
-    // contract: wallet-api-auth-008
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn authenticate_rejects_invalid_token_format() {
         let (auth, _token) = make_auth_service_with_key(0, 1_000);
@@ -735,8 +698,6 @@ mod tests {
         );
     }
 
-    // contract: wallet-api-auth-009
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn authenticate_rejects_scope_violation() {
         // SAFETY: test-only

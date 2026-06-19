@@ -14,17 +14,13 @@ macro_rules! str_enum {
         impl $enum {
             /// Get string representation.
             ///
-            /// expect: "Storage types preserve semantic identity across operations" [P8]
             /// \[P8\] Motivating: Semantic Grounding — stable string representation
-            /// post: returns lowercase string
             pub fn as_str(&self) -> &'static str {
                 match self { $($enum::$variant => $s),+ }
             }
             /// Parse from string.
             ///
-            /// expect: "Storage types preserve semantic identity across operations" [P8]
             /// \[P8\] Motivating: Semantic Grounding — parse from string
-            /// post: returns Some if valid, None otherwise
             pub fn parse_str(s: &str) -> Option<Self> {
                 match s.to_lowercase().as_str() {
                     $($s => Some($enum::$variant),)+
@@ -39,18 +35,13 @@ pub struct SpecId(pub Uuid);
 impl SpecId {
     /// Create a new SpecId.
     ///
-    /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — new SpecId
-    /// post: returns new random SpecId
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
     /// Create a SpecId from a string.
     ///
-    /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — SpecId from string
-    /// pre:  s is a valid UUID string
-    /// post: returns SpecId
     pub fn from_string(s: &str) -> Result<Self, SpecError> {
         Uuid::parse_str(s)
             .map(SpecId)
@@ -87,9 +78,7 @@ pub enum SpecCategory {
 impl SpecCategory {
     /// Get string representation of category.
     ///
-    /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — category string label
-    /// post: returns snake_case string
     pub fn as_str(&self) -> &'static str {
         match self {
             SpecCategory::Domain => "domain",
@@ -102,9 +91,7 @@ impl SpecCategory {
     /// Parse a string into a `SpecCategory`, mapping legacy DDMVSS names to
     /// their MDS equivalents.
     ///
-    /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — parse category
-    /// post: returns Some(SpecCategory) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "domain" => Some(SpecCategory::Domain),
@@ -132,10 +119,6 @@ impl SpecCategory {
 /// `hkask-services::SpecService` (CLI/API surface).
 ///
 /// Defaults to [`SpecCategory::Domain`] when context is `None` or unrecognized.
-// contract: P8-sto-spec-infer-category
-// expect: "Storage operation works correctly under test conditions" [P8]
-/// pre:  arguments are valid
-/// post: returns expected result
 /// \[P8\] Motivating: Semantic Grounding — infer MDS category from context
 pub fn infer_spec_category(context: Option<&str>) -> SpecCategory {
     let ctx = match context {
@@ -410,8 +393,6 @@ pub trait SpecCurator: Send + Sync {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // contract: P8-sto-spec-legacy-parse-test
-    // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn parse_str_maps_legacy_ddmvss_names() {
         assert_eq!(
@@ -431,8 +412,6 @@ mod tests {
             Some(SpecCategory::Lifecycle)
         );
     }
-    // contract: P8-sto-spec-mds-parse-test
-    // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn parse_str_handles_mds_names() {
         assert_eq!(
@@ -444,14 +423,10 @@ mod tests {
             Some(SpecCategory::Lifecycle)
         );
     }
-    // contract: P8-sto-spec-parse-none-test
-    // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn parse_str_returns_none_for_unknown() {
         assert_eq!(SpecCategory::parse_str("nonsense"), None);
     }
-    // contract: P8-sto-spec-legacy-deser-test
-    // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn serde_deserializes_legacy_variant_names() {
         let json = r#"{"id": "00000000-0000-0000-0000-000000000001", "name": "test", "category": "Capability", "domain_anchor": "Hkask", "declared_verbs": [], "goals": [], "version": null, "signature": null, "signed_by": null, "created_at": "2026-01-01T00:00:00Z", "valid_from": null, "valid_to": null}"#;
@@ -461,8 +436,6 @@ mod tests {
         let spec: Spec = serde_json::from_str(json).unwrap();
         assert_eq!(spec.category, SpecCategory::Lifecycle);
     }
-    // contract: P8-sto-spec-category-all-test
-    // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn spec_category_all_has_exactly_five_variants() {
         assert_eq!(SpecCategory::all().len(), 5);

@@ -21,10 +21,7 @@ pub struct EmbeddingRouter {
 impl EmbeddingRouter {
     /// Create a new embedding router from an `InferenceConfig`.
     ///
-    /// expect: "The system creates multi-provider membranes assembled from configured boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — embedding provider membrane gated by API key
-    /// pre:  config is a valid InferenceConfig
-    /// post: returns EmbeddingRouter with configured backends
     pub fn new(config: InferenceConfig) -> Self {
         let deepinfra_client = Self::build_deepinfra_client(&config);
         Self {
@@ -35,10 +32,7 @@ impl EmbeddingRouter {
 
     /// Create an embedding router with a shared HTTP client.
     ///
-    /// expect: "The system creates multi-provider membranes assembled from configured boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — embedding provider with shared connection pool
-    /// pre:  config is a valid InferenceConfig; client is a configured reqwest::Client
-    /// post: returns EmbeddingRouter with DeepInfra client from shared pool
     pub fn with_client(config: &InferenceConfig, client: Arc<reqwest::Client>) -> Self {
         let deepinfra_client = if config.deepinfra_api_key.is_empty() {
             warn!(target: "cns.inference", "DeepInfra embeddings unavailable (no API key)");
@@ -91,13 +85,7 @@ impl EmbeddingRouter {
     ///
     /// One vector per input sentence, same order. Dimension set by model.
     ///
-    /// expect: "The system generates regulated embeddings" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated batch embedding generation
-    /// pre:  model is a valid provider-prefixed model name
-    /// pre:  sentences is non-empty
-    /// post: returns `Vec<Vec<f32>>` with one vector per sentence, same order
-    /// post: if sentences is empty → Err(EmptyResponse)
-    /// post: if provider is Fal → Err(Connection) (fal.ai does not support embeddings)
     pub async fn embed_sentences(
         &self,
         model: &str,
@@ -162,12 +150,7 @@ impl EmbeddingRouter {
 
     /// Convenience wrapper around `embed_sentences`.
     ///
-    /// expect: "The system generates regulated embeddings" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated single embedding generation
-    /// pre:  model is a valid provider-prefixed model name
-    /// pre:  sentence is a non-empty string
-    /// post: returns Vec<f32> — the first (only) embedding vector
-    /// post: delegates to embed_sentences, inherits its error conditions
     pub async fn embed_sentence(
         &self,
         model: &str,

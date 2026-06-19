@@ -24,10 +24,8 @@ pub struct CapabilityAwareValidator;
 impl CapabilityAwareValidator {
     /// Create a new validator.
     ///
-    /// expect: "The system validates template capability requirements against held tokens" [P3]
     /// \[P3\] Motivating: Generative Space — registration-time OCAP gate for template capabilities
     /// \[P4\] Constraining: Clear Boundaries — validator establishes capability boundary
-    /// post: returns CapabilityAwareValidator
     pub fn new() -> Self {
         Self
     }
@@ -38,13 +36,8 @@ impl CapabilityAwareValidator {
     /// held token. Returns `Err(TemplateError::CapabilityDenied)` with details about
     /// the first unsatisfied requirement.
     ///
-    /// expect: "The system validates template capability requirements against held tokens" [P3]
     /// \[P3\] Motivating: Generative Space — checks template capability requirements against held tokens
     /// \[P4\] Constraining: Clear Boundaries — action hierarchy enforcement (Execute ≥ Write ≥ Read)
-    /// pre:  template_id is non-empty
-    /// post: returns Ok(()) if all required capabilities are satisfied
-    /// post: returns Ok(()) if required_capabilities is empty
-    /// post: returns Err(CapabilityDenied) for first unsatisfied requirement
     pub fn validate_capabilities(
         &self,
         template_id: &str,
@@ -119,8 +112,6 @@ mod tests {
         )
     }
 
-    // contract: P3-tpl-test-empty-requirements-pass
-    // expect: "Template empty requirements always pass" [P3]
     // [P3] Motivating: Generative Space — validates empty capability requirement set
     #[test]
     fn empty_requirements_always_pass() {
@@ -129,8 +120,6 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // contract: P3-tpl-test-satisfied-requirement-passes
-    // expect: "Template satisfied requirement passes" [P3]
     // [P3] Motivating: Generative Space — validates held token satisfies requirement
     #[test]
     fn satisfied_requirement_passes() {
@@ -145,8 +134,6 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // contract: P3-tpl-test-unsatisfied-requirement-fails
-    // expect: "Template unsatisfied requirement fails with details" [P3]
     // [P3] Motivating: Generative Space — validates insufficient capability is rejected
     #[test]
     fn unsatisfied_requirement_fails() {
@@ -160,8 +147,6 @@ mod tests {
         assert!(err.to_string().contains("tool:search:execute"));
     }
 
-    // contract: P3-tpl-test-execute-satisfies-read
-    // expect: "Template action hierarchy: Execute token satisfies Read requirement" [P3]
     // [P3] Motivating: Generative Space — validates action hierarchy
     // [P4] Constraining: Clear Boundaries — Execute token satisfies Read requirement
     #[test]
@@ -176,8 +161,6 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // contract: P3-tpl-test-write-satisfies-read
-    // expect: "Template Write token satisfies Read requirement" [P3]
     // [P3] Motivating: Generative Space — validates action hierarchy
     // [P4] Constraining: Clear Boundaries — Write token satisfies Read requirement
     #[test]
@@ -188,8 +171,6 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // contract: P3-tpl-test-read-not-satisfies-write
-    // expect: "Template Read token does NOT satisfy Write requirement" [P3]
     // [P3] Motivating: Generative Space — validates action hierarchy
     // [P4] Constraining: Clear Boundaries — Read token does not satisfy Write requirement
     #[test]
@@ -200,8 +181,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // contract: P3-tpl-test-malformed-requirement-error
-    // expect: "Template malformed requirement returns error" [P3]
     // [P3] Motivating: Generative Space — validates malformed capability syntax is rejected
     #[test]
     fn malformed_requirement_returns_error() {
@@ -210,8 +189,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // contract: P3-tpl-test-multiple-requirements
-    // expect: "Template multiple requirements all must be satisfied" [P3]
     // [P3] Motivating: Generative Space — validates all required capabilities must be held
     #[test]
     fn multiple_requirements_all_must_be_satisfied() {
@@ -237,8 +214,6 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // contract: P3-tpl-test-no-held-tokens-fail
-    // expect: "Template no held tokens with requirements fails" [P3]
     // [P3] Motivating: Generative Space — validates missing tokens cause rejection
     #[test]
     fn no_held_tokens_with_requirements_fails() {

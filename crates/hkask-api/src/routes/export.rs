@@ -1,7 +1,6 @@
 //! Export routes — sovereignty archive creation and migration for P1 data portability.
 //!
 //! # REQ: P1-deploy-backup-export — P1 User Sovereignty: export/upload encrypted triple archive.
-//! expect: "I can export and upload my encrypted triple archive for data portability" [P1]
 //!
 //! `POST /api/v1/export/create` — generate encrypted sovereignty archive.
 //! `POST /api/v1/export/upload` — upload archive for server migration.
@@ -108,7 +107,6 @@ pub struct UploadRequest {
 
 /// POST /api/v1/export/upload
 ///
-/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 pub async fn export_upload(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -201,7 +199,6 @@ pub fn export_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
 
 /// GET /api/v1/export/download — download the latest export archive for the authenticated user.
 ///
-/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 pub async fn export_download(
     State(_state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

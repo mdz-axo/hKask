@@ -54,12 +54,8 @@ pub struct RuntimeAlert {
 impl RuntimeAlert {
     /// Create an alert using binary thresholds.
     ///
-    /// expect: "The system creates algedonic alerts when variety deficit exceeds threshold" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — algedonic feedback loop
     /// \[P4\] Constraining: Clear Boundaries — cap enforcement through binary classification
     /// \[P5\] Constraining: Essentialism — simplest possible threshold model
-    /// pre:  domain is non-empty, threshold > 0
-    /// post: returns RuntimeAlert with severity based on deficit vs threshold
     pub fn new(domain: &str, deficit: u64, threshold: u64) -> Self {
         assert!(
             !domain.is_empty(),
@@ -103,10 +99,7 @@ impl RuntimeAlert {
 
     /// Check if alert should be escalated.
     ///
-    /// expect: "I can check whether an alert warrants escalation to the Curator" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — escalation feedback loop
     /// \[P4\] Constraining: Clear Boundaries — binary threshold boundary check
-    /// post: returns true iff severity is Critical
     pub fn should_escalate(&self) -> bool {
         let result = self.escalated;
         debug_assert!(
@@ -118,10 +111,7 @@ impl RuntimeAlert {
 
     /// Check if alert is critical severity.
     ///
-    /// expect: "I can check whether an alert has reached critical severity" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — critical threshold detection
     /// \[P4\] Constraining: Clear Boundaries — severity boundary check
-    /// post: returns true iff severity == Critical
     pub fn is_critical(&self) -> bool {
         let result = self.severity == AlertSeverity::Critical;
         debug_assert!(
@@ -133,10 +123,7 @@ impl RuntimeAlert {
 
     /// Check if alert is warning severity.
     ///
-    /// expect: "I can check whether an alert is at warning severity" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — warning threshold detection
     /// \[P4\] Constraining: Clear Boundaries — mid-range boundary check
-    /// post: returns true iff severity == Warning
     pub fn is_warning(&self) -> bool {
         let result = self.severity == AlertSeverity::Warning;
         debug_assert!(
@@ -309,7 +296,6 @@ mod tests {
     use super::*;
     use crate::runtime::VarietyTracker;
 
-    // contract: P9-cns-algedonic-binary-threshold-test
     //
     // TASK 1 cybernetic property: when deficit exceeds threshold, severity
     // must be Critical. When deficit > threshold/2 but ≤ threshold, severity
@@ -334,7 +320,6 @@ mod tests {
         assert!(!info.escalated);
     }
 
-    // contract: P9-cns-algedonic-accumulation-test
     //
     // TASK 1 cybernetic property: AlgedonicManager must track variety per domain
     // independently, so a deficit in one domain does not suppress alerts in another.
@@ -365,7 +350,6 @@ mod tests {
         assert!(total >= 5 + 9, "Total deficit should reflect both domains");
     }
 
-    // contract: P9-cns-outcome-classify-test
     //
     // Outcome quality tracking: success_rate < 0.25 → Critical,
     // < 0.50 → Warning, ≥ 0.50 → healthy (no alert).
@@ -392,7 +376,6 @@ mod tests {
         assert!(alert.is_none(), "100% success rate should be healthy");
     }
 
-    // contract: P9-cns-outcome-message-test
     #[test]
     fn check_outcome_alert_message_includes_domain_and_rate() {
         let mut mgr = AlgedonicManager::new(100, 10);
@@ -403,7 +386,6 @@ mod tests {
         assert_eq!(alert.severity, AlertSeverity::Critical);
     }
 
-    // contract: P9-cns-outcome-prefix-test
     #[test]
     fn check_outcome_domain_prefixed_with_outcome() {
         let mut mgr = AlgedonicManager::new(100, 10);

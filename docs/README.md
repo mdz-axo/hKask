@@ -56,7 +56,6 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 | [`STRANGLER_FIG_MIGRATION.md`](architecture/core/STRANGLER_FIG_MIGRATION.md) | lifecycle, curation | Migration plan — PodManager → PodDeployment (complete) |
 | [`OPEN_QUESTIONS_POD.md`](architecture/core/OPEN_QUESTIONS_POD.md) | lifecycle | Open questions — cross-pod A2A, portability, containers |
 | [`FUNCTIONAL_SPECIFICATION.md`](architecture/core/FUNCTIONAL_SPECIFICATION.md) | domain, composition | AgentService functional specification |
-| [`RSOLIDITY_VOCABULARY.md`](architecture/core/RSOLIDITY_VOCABULARY.md) | domain, trust | rSolidity macro vocabulary |
 
 ### Mandates
 

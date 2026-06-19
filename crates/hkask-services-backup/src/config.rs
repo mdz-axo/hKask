@@ -1,6 +1,5 @@
 //! Backup configuration — what to track, retention policy, auto-snapshot behavior.
 //! # REQ: P1 (User Sovereignty) — user controls what is tracked and for how long.
-//! expect: "I control what backup data is tracked and for how long" [P1]
 
 
 use serde::{Deserialize, Serialize};
@@ -105,9 +104,6 @@ impl RetentionPolicy {
     /// After that, one per week for `weekly_weeks` weeks.
     /// After that, one per month.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  commit_index=0 always kept; timestamp_secs and now_secs must be valid Unix timestamps
-    /// post: returns true if snapshot should be retained per 3-tier policy; false if expired
     pub fn should_keep(&self, commit_index: usize, timestamp_secs: u64, now_secs: u64) -> bool {
         let age_days = (now_secs.saturating_sub(timestamp_secs)) / 86400;
 
@@ -136,9 +132,6 @@ impl RetentionPolicy {
 
     /// Parse a duration string like "30d", "24h", or "60m" into a RetentionPolicy.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  s must be a valid duration string with numeric value and unit suffix (d, h, m)
-    /// post: returns RetentionPolicy with daily_days derived from duration; weekly_weeks defaults to 12; Err on invalid format
     pub fn from_duration_str(s: &str) -> Result<Self, String> {
         let (value, unit) = split_duration(s)?;
         let days = match unit {
@@ -171,9 +164,6 @@ fn split_duration(s: &str) -> Result<(u64, &str), String> {
 
 /// Path to the backup configuration file.
 ///
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-/// pre:  none (always succeeds)
-/// post: returns ~/.config/hkask/backup.json path; falls back to ./hkask/backup.json if config dir unavailable
 pub fn backup_config_path() -> std::path::PathBuf {
     let base = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     base.join("hkask").join("backup.json")
@@ -182,9 +172,6 @@ pub fn backup_config_path() -> std::path::PathBuf {
 /// Load backup config from disk, falling back to defaults if the file
 /// doesn't exist or is unreadable.
 ///
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-/// pre:  none (always succeeds)
-/// post: returns BackupConfig from disk; BackupConfig::default() if file missing or unparseable
 pub fn load_backup_config() -> BackupConfig {
     let path = backup_config_path();
     match std::fs::read_to_string(&path) {
@@ -195,9 +182,6 @@ pub fn load_backup_config() -> BackupConfig {
 
 /// Persist backup config to disk.
 ///
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-/// pre:  config must be a valid BackupConfig
-/// post: config is written as pretty JSON to backup_config_path(); parent directories created if needed; Err on I/O or serialization failure
 pub fn save_backup_config(config: &BackupConfig) -> Result<(), std::io::Error> {
     let path = backup_config_path();
     if let Some(parent) = path.parent() {
@@ -213,8 +197,6 @@ pub fn save_backup_config(config: &BackupConfig) -> Result<(), std::io::Error> {
 mod tests {
     use super::*;
 
-    // contract: P7-svc-backup-config-backup-config-001
-    // expect: "Service backup config works correctly under test conditions" [P7]
     #[test]
     fn default_config_tracks_nothing() {
         let config = BackupConfig::default();
@@ -225,8 +207,6 @@ mod tests {
         assert!(config.encryption.is_none());
     }
 
-    // contract: P7-svc-backup-config-backup-config-002
-    // expect: "Service RetentionPolicy works correctly under test conditions" [P7]
     #[test]
     fn retention_policy_defaults() {
         let p = RetentionPolicy::default();
@@ -234,8 +214,6 @@ mod tests {
         assert_eq!(p.weekly_weeks, 12);
     }
 
-    // contract: P7-svc-backup-config-backup-config-003
-    // expect: "Service RetentionPolicy works correctly under test conditions" [P7]
     #[test]
     fn retention_policy_keeps_recent() {
         let p = RetentionPolicy::default();

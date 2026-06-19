@@ -1,6 +1,5 @@
 //! BackupLoop — Cybernetic loop for scheduled backup snapshots.
 //! # REQ: P7-svc-backup-loop-f4 — daily automatic snapshots via the daemon loop system.
-//! expect: "Automatic daily snapshots run via the daemon loop system" [P7]
 //!
 //! Implements `HkaskLoop` (sense → compare → compute → act) to run
 //! daily backup snapshots through `BackupService`. Respects the
@@ -46,9 +45,6 @@ pub struct BackupLoop {
 impl BackupLoop {
     /// Create a new BackupLoop wrapping a BackupService.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  service must be a valid Arc<BackupService>
-    /// post: returns BackupLoop with service and default state (no prior snapshots)
     pub fn new(service: Arc<BackupService>) -> Self {
         Self {
             service,

@@ -238,8 +238,6 @@ impl PodFactory {
         governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
         capability_checker: Option<Arc<CapabilityChecker>>,
         nu_event_sink: Option<Arc<dyn NuEventSink>>,
-        episodic_adapter: Arc<dyn EpisodicStoragePort>,
-        semantic_adapter: Arc<dyn SemanticStoragePort>,
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Result<PodDeployment, PodDeployError> {
         // 1. Create the underlying AgentPod
@@ -251,8 +249,8 @@ impl PodFactory {
         )?;
         let pod_id = pod.id;
 
-        // 2. Create per-pod SQLCipher database file
-        let storage = self.create_pod_storage(pod_id, persona)?;
+        // 2. Create per-pod SQLCipher database + storage adapters
+        let (storage, memory_adapter) = self.create_pod_storage(pod_id, persona)?;
 
         // 3. Initialize per-pod CNS runtime
         let cns = PerPodCnsRuntime::scoped(pod_id);
@@ -263,12 +261,17 @@ impl PodFactory {
         };
         let sovereignty_checker = pod.sovereignty_checker.clone();
 
+        let adapter: Arc<crate::adapters::memory_loop_adapter::MemoryLoopAdapter> =
+            Arc::new(memory_adapter);
+        let episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();
+        let semantic: Arc<dyn SemanticStoragePort> = adapter;
+
         info!(
             target: "hkask.pod.deployment",
             pod_id = %pod_id, template = %template_name,
             db_path = %storage.db_path.display(),
             cns_namespace = %cns.span_namespace,
-            "Pod deployed (isolated mode, per-pod SQLCipher + CNS)"
+            "Pod deployed (self-contained SQLCipher storage)"
         );
 
         Ok(PodDeployment {
@@ -281,18 +284,26 @@ impl PodFactory {
             sovereignty_checker,
             nu_event_sink,
             mcp_runtime,
-            episodic_storage: episodic_adapter,
-            semantic_storage: semantic_adapter,
+            episodic_storage: episodic,
+            semantic_storage: semantic,
             inference_port,
         })
     }
 
-    /// Create the per-pod SQLCipher database file and stores.
+    /// Create the per-pod SQLCipher database file, stores, and memory adapter.
+    /// Returns both the storage struct and a MemoryLoopAdapter that wraps
+    /// the pod's own TripleStore + EmbeddingStore for episodic/semantic I/O.
     fn create_pod_storage(
         &self,
         pod_id: PodID,
         persona: &AgentPersona,
-    ) -> Result<PerPodStorage, PodDeployError> {
+    ) -> Result<
+        (
+            PerPodStorage,
+            crate::adapters::memory_loop_adapter::MemoryLoopAdapter,
+        ),
+        PodDeployError,
+    > {
         let pod_db_dir = self.data_dir.join("pods");
         std::fs::create_dir_all(&pod_db_dir).map_err(|e| PodDeployError::StorageInitFailed {
             path: pod_db_dir.clone(),
@@ -318,16 +329,30 @@ impl PodFactory {
             }
         })?;
 
+        // Build stores from the pod's own database connection
         let conn = db.conn_arc();
         let triples = TripleStore::new(Arc::clone(&conn));
-        let embeddings = EmbeddingStore::new(conn);
+        let embeddings = EmbeddingStore::new(Arc::clone(&conn));
 
-        Ok(PerPodStorage {
-            db,
-            triples,
-            embeddings,
-            db_path,
-        })
+        // Create memory adapter from the pod's own database — this is what
+        // PodContext uses for episodic/semantic I/O. All data goes into
+        // the pod's own SQLCipher file.
+        let memory =
+            crate::adapters::memory_loop_adapter::MemoryLoopAdapter::from_connection(db.conn_arc())
+                .map_err(|e| PodDeployError::StorageInitFailed {
+                    path: db_path.clone(),
+                    reason: e.to_string(),
+                })?;
+
+        Ok((
+            PerPodStorage {
+                db,
+                triples,
+                embeddings,
+                db_path,
+            },
+            memory,
+        ))
     }
 
     pub fn data_dir(&self) -> &PathBuf {

@@ -18,9 +18,6 @@ pub struct AgentReceipt {
     pub registered_at: String,
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  kind_filter is None or a valid AgentKind string; service context must be buildable
-/// post: returns all registered agents, optionally filtered by kind; empty vec if none match
 pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     let agents =
@@ -38,9 +35,6 @@ pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>,
     })
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  name is a non-empty agent name string; agent must exist in registry
-/// post: returns the RegisteredAgent for the given name or ServiceError if not found
 pub async fn bot_status(name: &str) -> Result<RegisteredAgent, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     ctx.agent_registry_store()
@@ -50,9 +44,6 @@ pub async fn bot_status(name: &str) -> Result<RegisteredAgent, ServiceError> {
         })
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  webid_str is a valid WebID; agent_type is a valid AgentKind; capabilities is a list of capability strings
-/// post: registers the agent via A2A, stores in registry, returns AgentReceipt with webid, token_hash, and timestamp
 pub async fn agent_register(
     webid_str: &str,
     agent_type: &str,
@@ -102,9 +93,6 @@ pub async fn agent_register(
     })
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  name is a non-empty agent name string; agent must exist in registry
-/// post: removes the agent from the registry; returns Ok(()) or ServiceError if not found
 pub async fn agent_unregister(name: &str) -> Result<(), ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     ctx.agent_registry_store()
@@ -114,10 +102,6 @@ pub async fn agent_unregister(name: &str) -> Result<(), ServiceError> {
         })
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  rt is a valid tokio Runtime; action is a BotAction variant (List or Status)
-/// post: for List — prints table of all agents (or "No agents registered"); for Status — prints detailed agent info
 pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
     // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "bot", action = ?action, "CNS");
@@ -192,10 +176,6 @@ pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
     }
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  rt is a valid tokio Runtime; action is an AgentAction variant (Register, Unregister, List, Capabilities)
-/// post: dispatches to the appropriate handler; prints results to stdout; exits on fatal errors
 pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) {
     // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "agent", action = ?action, "CNS");

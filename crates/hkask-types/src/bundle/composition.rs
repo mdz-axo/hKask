@@ -33,8 +33,6 @@ pub enum ConflictType {
     ResourceContention,
 }
 
-// contract: TYP-240
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 // as_str pre:  self is a valid ConflictType variant
 // as_str post: returns PascalCase string ("CancelOut", "ContradictoryDirective", "OrderingCollision", "ResourceContention")
 // parse_str pre:  s is PascalCase or snake_case
@@ -57,8 +55,6 @@ pub enum ConflictResolution {
     UserIntent,
 }
 
-// contract: TYP-242
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 // as_str pre:  self is a valid ConflictResolution variant
 // as_str post: returns PascalCase string ("DomainSeparation", "PhaseSeparation", "SpecificityOverride", "ManifestOverride", "UserIntent")
 // parse_str pre:  s is PascalCase or snake_case
@@ -80,8 +76,6 @@ pub enum ComplementarityType {
     CrossDomainEnhance,
 }
 
-// contract: TYP-244
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 // as_str pre:  self is a valid ComplementarityType variant
 // as_str post: returns PascalCase string ("SequentialFeed", "ParallelAmplify", "CrossDomainEnhance")
 // parse_str pre:  s is PascalCase or snake_case
@@ -103,15 +97,9 @@ pub struct BundleConflict {
 }
 
 impl BundleConflict {
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self.conflict_type is a valid ConflictType variant
-    /// post: returns the PascalCase string representation of the conflict type
     pub fn conflict_type_str(&self) -> &'static str {
         self.conflict_type.as_str()
     }
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self.resolution is a valid ConflictResolution variant
-    /// post: returns the PascalCase string representation of the resolution strategy
     pub fn resolution_str(&self) -> &'static str {
         self.resolution.as_str()
     }
@@ -126,9 +114,6 @@ pub struct BundleComplementarity {
 }
 
 impl BundleComplementarity {
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self.complementarity_type is a valid ComplementarityType variant
-    /// post: returns the PascalCase string representation of the complementarity type
     pub fn complementarity_type_str(&self) -> &'static str {
         self.complementarity_type.as_str()
     }

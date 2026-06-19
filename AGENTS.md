@@ -11,7 +11,7 @@ Activate the relevant skill via `skill` tool when its conditions are met:
 | Skill | When to Activate |
 |-------|-----------------|
 | **coding-guidelines** | Before writing or reviewing any code. Surfaces assumptions, enforces simplicity, surgical changes, goal-driven execution. |
-| **tdd** | Building features or fixing bugs. Vertical tracer-bullet RED→GREEN→REFACTOR. Every test carries `// REQ:` tag from spec. Anchored on the Testing Discipline (Design by Contract + Property-Based Testing). |
+| **tdd** | Building features or fixing bugs. Vertical tracer-bullet RED→GREEN→REFACTOR. Anchored on the Testing Discipline (Property-Based Testing + CNS observability). |
 | **refactor-service-layer** | Extracting duplicated business logic from CLI/API/MCP surfaces into `hkask-services`. Strangler fig pattern, deep-module discipline. |
 | **improve-codebase-architecture** | Finding deepening opportunities. Walk codebase for shallow modules, tight coupling, untested seams. |
 | **condenser-continuation** | Resuming condenser implementation after context reset. Restores session state, prioritizes remaining tasks, verifies build health. |
@@ -45,7 +45,6 @@ Preferred auxiliary tooling:
 
 - Shell (`bash`) for repository-level scripts under `scripts/`.
 - Rust binaries or `build.rs` for anything that needs to parse source or Cargo metadata.
-- `scripts/ci/contract-audit.sh` — contract audit source-of-truth; scans `#[contract]` attributes, `/// REQ:` (transitional), and `// contract:` test annotations directly. See [`CONTRACT_SPECIFICATION.md`](docs/architecture/core/CONTRACT_SPECIFICATION.md).
 
 ---
 
@@ -75,11 +74,4 @@ kask sovereignty verify
 
 # CNS span health
 kask cns health
-
-# Contract completeness audit (Testing Discipline §9.2)
-scripts/ci/contract-audit.sh --summary
-
-# Or the raw grep one-liner:
-grep -rn "pub fn\|pub async fn" crates/ mcp-servers/ --include="*.rs" | grep -v "cfg(test)" | grep -v "/tests/" | wc -l  # public functions
-grep -rn "// REQ:.*pre:" crates/ mcp-servers/ --include="*.rs" | wc -l  # contracted functions
 ```

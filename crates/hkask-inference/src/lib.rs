@@ -66,10 +66,7 @@ pub struct RouterModelEntry {
 impl RouterModelEntry {
     /// Construct a RouterModelEntry from a provider and model id.
     ///
-    /// expect: "The system heuristically routes multimodal models" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — canonical model entry construction
-    /// pre:  model_id is non-empty
-    /// post: returns RouterModelEntry with prefixed name, provider, and inferred vision support
     fn from_model_entry(provider: ProviderId, model_id: &str) -> Self {
         Self {
             prefixed_name: provider.prefix_model(model_id),
@@ -89,11 +86,7 @@ impl RouterModelEntry {
     /// Does not perform runtime probing — fast but incomplete.
     /// `None` means unknown; `Some(true)` means likely vision-capable.
     ///
-    /// expect: "The system heuristically routes multimodal models" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — heuristic routing for multimodal models
-    /// pre:  model is non-empty
-    /// post: returns Some(true) if model/family matches known vision families
-    /// post: returns None if unknown
     pub fn infer_vision_support(model: &str, family: Option<&str>) -> Option<bool> {
         const VISION_FAMILIES: &[&str] = &[
             "llava",

@@ -221,48 +221,32 @@ impl AgentService {
 
     /// Access configuration.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns reference to ServiceConfig
     pub fn config(&self) -> &ServiceConfig {
         &self.config
     }
 
     /// Access the wallet service for rJoule payments and API key management.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns Some(&Arc<WalletService>) if wallet configured; None otherwise
     pub fn wallet(&self) -> Option<&Arc<WalletService>> {
         self.wallet_service.as_ref()
     }
 
     /// Access the wallet store for API key lookup and balance queries.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns Some(&Arc<WalletStore>) if wallet store configured; None otherwise
     pub fn wallet_store(&self) -> Option<&Arc<WalletStore>> {
         self.wallet_store.as_ref()
     }
 
     /// Access the wallet gas calibrator.
     ///
-    /// [P7] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
-    /// pre:  self must be fully built
-    /// post: returns Some(&Arc<WalletGasCalibrator>) if wallet is configured; None otherwise
     pub fn wallet_gas_calibrator(&self) -> Option<&Arc<hkask_cns::WalletGasCalibrator>> {
         self.wallet_gas_calibrator.as_ref()
     }
 
     // === Named accessors (replaces positional tuple group methods) ===
     // # REQ: P4 (Clear Boundaries)
-    // # expect: "Service boundaries enforce OCAP membranes" [P4]
 
     // --- Memory ---
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns (&episodic_storage, &semantic_storage) tuple
     pub fn memory(&self) -> (&Arc<dyn EpisodicStoragePort>, &Arc<dyn SemanticStoragePort>) {
         (&self.episodic_storage, &self.semantic_storage)
     }
@@ -270,17 +254,11 @@ impl AgentService {
     // --- Storage ---
     /// Template registry (tokio-Mutex-guarded for async lock compatibility).
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<Mutex<SqliteRegistry>>
     pub fn registry(&self) -> &Arc<tokio::sync::Mutex<SqliteRegistry>> {
         &self.registry
     }
     /// Goal repository.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<SqliteGoalRepository>
     pub fn goal_repo(&self) -> &Arc<SqliteGoalRepository> {
         &self.goal_repo
     }
@@ -288,42 +266,27 @@ impl AgentService {
     // --- CNS ---
     /// CNS runtime for variety sensing and health checks.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<RwLock<CnsRuntime>>
     pub fn cns_runtime(&self) -> &Arc<RwLock<CnsRuntime>> {
         &self.cns_runtime
     }
     /// Cybernetics loop for energy budget regulation.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<RwLock<CyberneticsLoop>>
     pub fn cybernetics_loop(&self) -> &Arc<RwLock<CyberneticsLoop>> {
         &self.cybernetics_loop
     }
     /// Loop system for 6-loop regulation.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<LoopSystem>
     pub fn loop_system(&self) -> &Arc<LoopSystem> {
         &self.loop_system
     }
     /// CNS event sink for the audit trail.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<dyn NuEventSink>
     pub fn event_sink(&self) -> &Arc<dyn NuEventSink> {
         &self.event_sink
     }
 
     /// Calibrated energy estimator with a background gas-table refresh loop.
     ///
-    /// [P7] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<CalibratedEnergyEstimator> sharing the same background
     ///       calibration loop as the service's governed tool
     pub fn energy_estimator(&self) -> &Arc<hkask_cns::CalibratedEnergyEstimator> {
         &self.energy_estimator
@@ -333,9 +296,6 @@ impl AgentService {
     /// Returns a read lock on the watcher. For summary data, call
     /// `.read().await` and then `.as_ref().map(|w| w.summary())`.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<RwLock<Option<SeamWatcher>>>
     pub fn seam_watcher(&self) -> &Arc<RwLock<Option<SeamWatcher>>> {
         &self.seam_watcher
     }
@@ -343,27 +303,17 @@ impl AgentService {
     // --- Governance ---
     /// Capability checker for OCAP verification.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<CapabilityChecker>
     /// # REQ: P4 (OCAP), P1 (User Sovereignty)
-    /// # expect: "Service boundaries enforce OCAP membranes" [P4]
     pub fn capability_checker(&self) -> &Arc<CapabilityChecker> {
         &self.capability_checker
     }
     /// MCP dispatcher for OCAP-gated tool invocation.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<McpDispatcher>
     pub fn mcp_dispatcher(&self) -> &Arc<McpDispatcher> {
         &self.mcp_dispatcher
     }
     /// Escalation queue for Curator escalations.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<EscalationQueue>
     pub fn escalation_queue(&self) -> &Arc<EscalationQueue> {
         &self.escalation_queue
     }
@@ -371,25 +321,16 @@ impl AgentService {
     // --- Coordination ---
     /// Shared inference port (returns a clone of the `Option<Arc>`).
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns Some(Arc<dyn InferencePort>) if configured; None otherwise
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
         self.inference_port.clone()
     }
     /// MCP runtime for tool discovery and invocation.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<McpRuntime>
     pub fn mcp_runtime(&self) -> &Arc<McpRuntime> {
         &self.mcp_runtime
     }
     /// Pod manager for agent lifecycle.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<ActivePods>
     pub fn pod_manager(&self) -> &Arc<ActivePods> {
         &self.pod_manager
     }
@@ -397,9 +338,6 @@ impl AgentService {
     // --- Identity ---
     /// System WebID + A2A runtime.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns (&WebID, &Arc<A2ARuntime>) tuple
     pub fn identity(&self) -> (&WebID, &Arc<hkask_agents::A2ARuntime>) {
         (&self.system_webid, &self.a2a_runtime)
     }
@@ -407,11 +345,7 @@ impl AgentService {
     /// Sovereignty: consent management service.
     /// consent_manager is PRIVATE — no raw store access.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns SovereigntyService wrapping the consent manager
     /// # REQ: P1 (User Sovereignty), P2 (Affirmative Consent)
-    /// # expect: "My service operations flow through sovereignty-verifying boundaries" [P1]
     pub fn sovereignty(&self) -> SovereigntyService {
         SovereigntyService::new(self.consent_manager.clone())
     }
@@ -420,18 +354,12 @@ impl AgentService {
 
     /// Access A2A runtime for agent registration and capability management.
     ///
-    /// [P3] Motivating: Generative Space — A2A runtime access without ambient authority.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<A2ARuntime> reference
     pub fn a2a_runtime(&self) -> &Arc<hkask_agents::A2ARuntime> {
         &self.a2a_runtime
     }
 
     /// Access curation inbox transmitter.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Option<UnboundedSender<CurationInput>>
     pub fn curation_inbox_tx(&self) -> &Option<tokio::sync::mpsc::UnboundedSender<CurationInput>> {
         &self.curation_inbox_tx
     }
@@ -439,9 +367,6 @@ impl AgentService {
     /// Access sovereignty boundary store for Magna Carta compliance.
     /// TODO: Category 4 — migrate to service methods.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &SovereigntyBoundaryStore
     pub fn sovereignty_boundary_store(&self) -> &SovereigntyBoundaryStore {
         &self.sovereignty_boundary_store
     }
@@ -451,9 +376,6 @@ impl AgentService {
     /// Access spec store for specification capture, validation, and cultivation.
     /// TODO: Move to ApiState.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &SqliteSpecStore
     pub fn spec_store(&self) -> &SqliteSpecStore {
         &self.spec_store
     }
@@ -461,9 +383,6 @@ impl AgentService {
     /// Access agent registry store for persistent agent records.
     /// TODO: Move to ApiState.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &AgentRegistryStore
     pub fn agent_registry_store(&self) -> &hkask_storage::AgentRegistryStore {
         &self.agent_registry_store
     }
@@ -471,18 +390,12 @@ impl AgentService {
     /// Access user store for replicant identity and authentication.
     /// TODO: Move to ApiState.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<Mutex<UserStore>>
     pub fn user_store(&self) -> &Arc<std::sync::Mutex<UserStore>> {
         &self.user_store
     }
 
     /// Access daemon handler for MCP binary communication.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<ServiceDaemonHandler>
     pub fn daemon_handler(&self) -> &Arc<hkask_services_daemon::ServiceDaemonHandler> {
         &self.daemon_handler
     }
@@ -492,9 +405,6 @@ impl AgentService {
     /// Returns `None` if Matrix is not configured or Conduit is unreachable.
     /// The transport is wrapped in a Mutex because `login`/`reconnect` take `&mut self`.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns Some(&Arc<Mutex<MatrixTransport>>) if connected; None otherwise
     pub fn matrix_transport(
         &self,
     ) -> Option<&Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>> {
@@ -510,9 +420,6 @@ impl AgentService {
     /// This is used by the REPL to build agent-scoped memory (separate from
     /// the shared `AgentService` memory adapted for loops).
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  db must be a valid opened Database
-    /// post: returns PerAgentMemory with episodic_storage, semantic_storage, and consolidation_service all sharing the same DB
     pub fn build_per_agent_memory(db: Database) -> PerAgentMemory {
         let conn = db.conn_arc();
 
@@ -558,9 +465,6 @@ impl AgentService {
     /// secrets, opens databases, constructs CNS/loop system, governed
     /// tool membrane, and session manager in the correct dependency order.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  config must be a valid ServiceConfig with resolved secrets
-    /// post: returns fully assembled AgentService with all infrastructure wired; Err on any construction step failure
     /// # Dependency order
     ///
     /// 1. Database connections (primary + per-purpose)

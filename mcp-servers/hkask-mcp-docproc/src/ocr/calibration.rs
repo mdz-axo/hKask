@@ -146,7 +146,6 @@ mod tests {
         }
     }
 
-    // contract: ocr-calib-01
     #[test]
     fn insufficient_samples_returns_none() {
         let outcomes = vec![outcome_with_cvs(50, 0.98)];
@@ -154,7 +153,6 @@ mod tests {
         assert!(analyze_threshold_drift(&outcomes, &thresholds).is_none());
     }
 
-    // contract: ocr-calib-02
     #[test]
     fn low_similarity_returns_none() {
         let outcomes = vec![outcome_with_cvs(100, 0.90)];
@@ -162,7 +160,6 @@ mod tests {
         assert!(analyze_threshold_drift(&outcomes, &thresholds).is_none());
     }
 
-    // contract: ocr-calib-03
     #[test]
     fn sufficient_high_similarity_returns_alert() {
         let outcomes = vec![outcome_with_cvs(150, 0.97)];
@@ -175,7 +172,6 @@ mod tests {
         assert!((alert.evidence.mean_similarity - 0.97).abs() < 0.001);
     }
 
-    // contract: ocr-calib-04
     #[test]
     fn suggested_value_capped_at_0_50() {
         let outcomes = vec![outcome_with_cvs(200, 0.99)];
@@ -185,7 +181,6 @@ mod tests {
         assert_eq!(alert.suggested_value, 0.50); // 0.48 + 0.05 = 0.53, capped
     }
 
-    // contract: ocr-calib-05
     #[test]
     fn already_at_suggested_returns_none() {
         let outcomes = vec![outcome_with_cvs(200, 0.99)];
@@ -194,7 +189,6 @@ mod tests {
         assert!(analyze_threshold_drift(&outcomes, &thresholds).is_none());
     }
 
-    // contract: ocr-calib-06
     #[test]
     fn only_moderate_cvs_counted() {
         // Mix of Simple and Moderate CVs — only Moderate should count

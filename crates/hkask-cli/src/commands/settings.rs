@@ -11,9 +11,6 @@ use crate::repl::handlers::ReplSettings;
 use hkask_services::{load_settings, save_settings};
 
 /// CLI handler for `kask settings {show,set,reset}`.
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  action is a valid SettingsAction variant (Show, Set, Reset)
-/// post: loads/saves REPL settings from ~/.config/hkask/settings.json; prints current values or confirmation
 pub fn run(action: SettingsAction) {
     match action {
         SettingsAction::Show { name } => {
@@ -319,8 +316,6 @@ mod tests {
         ReplSettings::default()
     }
 
-    // contract: CLI-SETTINGS-001
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
 
     #[test]
     fn apply_setting_rejects_zero_loop_limit() {
@@ -329,8 +324,6 @@ mod tests {
         assert_eq!(s.tool_loop_limit, 21);
     }
 
-    // contract: CLI-SETTINGS-002
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_negative_loop_limit() {
         let mut s = default_settings();
@@ -338,8 +331,6 @@ mod tests {
         assert_eq!(s.tool_loop_limit, 21);
     }
 
-    // contract: CLI-SETTINGS-003
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_temperature_oor() {
         let mut s = default_settings();
@@ -347,8 +338,6 @@ mod tests {
         assert!((s.temperature - 0.7).abs() < f32::EPSILON);
     }
 
-    // contract: CLI-SETTINGS-004
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_top_p_oor() {
         let mut s = default_settings();
@@ -356,8 +345,6 @@ mod tests {
         assert!((s.top_p - 0.9).abs() < f32::EPSILON);
     }
 
-    // contract: CLI-SETTINGS-005
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_top_k_zero() {
         let mut s = default_settings();
@@ -365,8 +352,6 @@ mod tests {
         assert_eq!(s.top_k, 40);
     }
 
-    // contract: CLI-SETTINGS-006
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_garbage_value() {
         let mut s = default_settings();
@@ -374,8 +359,6 @@ mod tests {
         assert!((s.temperature - 0.7).abs() < f32::EPSILON);
     }
 
-    // contract: CLI-SETTINGS-007
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
 
     #[test]
     fn apply_setting_accepts_valid_temperature() {
@@ -384,8 +367,6 @@ mod tests {
         assert!((s.temperature - 0.3).abs() < f32::EPSILON);
     }
 
-    // contract: CLI-SETTINGS-008
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_valid_loop_limit() {
         let mut s = default_settings();
@@ -393,8 +374,6 @@ mod tests {
         assert_eq!(s.tool_loop_limit, 100);
     }
 
-    // contract: CLI-SETTINGS-009
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_auto_condense_off() {
         let mut s = default_settings();
@@ -402,8 +381,6 @@ mod tests {
         assert!(!s.auto_condense);
     }
 
-    // contract: CLI-SETTINGS-010
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_auto_condense_on() {
         let mut s = default_settings();
@@ -412,8 +389,6 @@ mod tests {
         assert!(s.auto_condense);
     }
 
-    // contract: CLI-SETTINGS-011
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_seed_value() {
         let mut s = default_settings();
@@ -421,8 +396,6 @@ mod tests {
         assert_eq!(s.seed, Some(42));
     }
 
-    // contract: CLI-SETTINGS-012
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_seed_off() {
         let mut s = default_settings();

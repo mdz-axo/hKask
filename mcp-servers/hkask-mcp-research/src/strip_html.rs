@@ -77,21 +77,18 @@ pub fn strip_html(html: &str) -> String {
 mod tests {
     use super::*;
 
-    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_removes_tags() {
         let input = "<p>Hello</p>";
         assert_eq!(strip_html(input), "Hello");
     }
 
-    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_headings_to_markdown() {
         assert_eq!(strip_html("<h1>Title</h1>"), "## Title");
         assert_eq!(strip_html("<h2>Subtitle</h2>"), "## Subtitle");
     }
 
-    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_list_items() {
         // Note: consecutive <li> elements without separators produce concatenated "- " prefixes
@@ -99,34 +96,29 @@ mod tests {
         assert_eq!(strip_html("<li>item1</li><li>item2</li>"), "- item1- item2");
     }
 
-    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_removes_script_content() {
         let input = "<script>alert('hi')</script><p>visible</p>";
         assert_eq!(strip_html(input), "visible");
     }
 
-    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_removes_style_content() {
         let input = "<style>body{color:red}</style><p>text</p>";
         assert_eq!(strip_html(input), "text");
     }
 
-    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_br_to_newline() {
         assert_eq!(strip_html("line1<br>line2"), "line1\nline2");
     }
 
-    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_collapses_blank_lines() {
         let input = "<p>a</p>\n\n\n<p>b</p>";
         assert_eq!(strip_html(input), "a\nb");
     }
 
-    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_trims_trailing_whitespace() {
         let input = "<p>text   </p>";

@@ -97,9 +97,6 @@ pub struct KataEngine {
 }
 
 impl KataEngine {
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  inference must be a valid InferencePort; registry must be initialized
-    /// post: returns KataEngine with inference and registry wired; all optional components (consent, CNS, history, metrics) default to None
     pub fn new(inference: Arc<dyn InferencePort>, registry: SqliteRegistry) -> Self {
         Self {
             inference,
@@ -115,13 +112,9 @@ impl KataEngine {
 
     /// Create a KataEngine with inference configured from environment.
     ///
-    /// \[NORMATIVE\] Encapsulates `InferenceConfig::from_env()` and
     /// `InferenceRouter::new()` so CLI and API surfaces don't construct
     /// inference directly (P7 — Evolutionary Architecture).
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  registry must be initialized; inference env vars must be set or defaults used
-    /// post: returns KataEngine with InferenceRouter built from env config
     pub fn from_env(registry: SqliteRegistry) -> Self {
         let inf_cfg = hkask_inference::InferenceConfig::from_env();
         let inference = hkask_inference::InferenceRouter::new(inf_cfg);
@@ -130,9 +123,6 @@ impl KataEngine {
 
     /// Set a consent checker that gates kata execution.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  check must be a valid Fn(&str, &str) -> Result<(), KataError>
-    /// post: returns self with consent_check set; kata execution will call check before running
     pub fn with_consent<F>(mut self, check: F) -> Self
     where
         F: Fn(&str, &str) -> Result<(), KataError> + Send + Sync + 'static,
@@ -143,9 +133,6 @@ impl KataEngine {
 
     /// Set a CNS observer called after each step completes.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  observer must be a valid Fn(&str, u32, &str)
-    /// post: returns self with cns_observer set; observer is called after each kata step
     pub fn with_cns<F>(mut self, observer: F) -> Self
     where
         F: Fn(&str, u32, &str) + Send + Sync + 'static,
@@ -156,9 +143,6 @@ impl KataEngine {
 
     /// Set a kata practice history for habit tracking and automaticity scoring.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  history must be a valid KataHistory
-    /// post: returns self with history set; starter kata uses it for automaticity computation
     pub fn with_history(mut self, history: KataHistory) -> Self {
         self.history = Some(history);
         self
@@ -170,9 +154,6 @@ impl KataEngine {
     /// (or instead of) the JSON file. This enables CNS queries against practice
     /// data and cross-session persistence through the daemon's memory pipeline.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  store must be a valid Arc<KataHistoryStore>
-    /// post: returns self with history_store set; record_history_entry will persist to SQLite
     pub fn with_history_store(mut self, store: Arc<KataHistoryStore>) -> Self {
         self.history_store = Some(store);
         self
@@ -180,9 +161,6 @@ impl KataEngine {
 
     /// Set a metric collector for before/after measurement.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  collector must be a valid Fn(&str, &str) -> Result<Value, KataError>
-    /// post: returns self with metric_collector set; improvement kata captures before/after metrics
     pub fn with_metrics<F>(mut self, collector: F) -> Self
     where
         F: Fn(&str, &str) -> Result<serde_json::Value, KataError> + Send + Sync + 'static,
@@ -196,9 +174,6 @@ impl KataEngine {
     /// When present, kata execution increments CNS variety counters for each
     /// practice and checks algedonic thresholds after cycle completion.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  cns must be a valid Arc<RwLock<CnsRuntime>>
-    /// post: returns self with cns_runtime set; kata cycles will increment variety and check alerts
     pub fn with_cns_runtime(mut self, cns: Arc<RwLock<CnsRuntime>>) -> Self {
         self.cns_runtime = Some(cns);
         self
@@ -210,9 +185,6 @@ impl KataEngine {
     /// memory pipeline. When the store is not set, this is a no-op — the
     /// caller should fall back to JSON-based persistence.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  agent_name, date, kata_type, practice_name must be non-empty
-    /// post: returns Some(row_id) if history_store is set and record succeeds; None if store not configured; Err on store failure
     pub fn record_history_entry(
         &self,
         agent_name: &str,
@@ -241,9 +213,6 @@ impl KataEngine {
 
     /// Load a kata manifest from a YAML file.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  path must exist and contain valid YAML
-    /// post: returns KataManifest deserialized from file; Err(LoadFailed) on I/O error; Err(ParseFailed) on invalid YAML
     pub fn load_manifest(path: &Path) -> Result<KataManifest, KataError> {
         let content = std::fs::read_to_string(path).map_err(|e| {
             KataError::LoadFailed(format!("Failed to read {}: {}", path.display(), e))
@@ -259,9 +228,6 @@ impl KataEngine {
     /// Instead, they use a selector template to route to the appropriate kata
     /// based on the agent's history, automaticity, and context.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  manifest must have at least one step for selector; learner_bot must be non-empty
-    /// post: returns KataResult from the selected kata execution; Err on selector failure or kata execution error
     pub async fn run_bundle(
         &self,
         manifest: &KataManifest,
@@ -330,9 +296,6 @@ impl KataEngine {
     /// - "coaching" → run coaching questions (requires optional IK state reference)
     /// - "starter" → run practice routines with habit tracking
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  manifest.manifest.kata_type must be "improvement", "coaching", or "starter"; learner_bot must be non-empty
-    /// post: returns KataResult with steps_completed, gas_consumed, and kata-type-specific outputs; Err(UnknownType) on invalid kata_type
     pub async fn execute(
         &self,
         manifest: &KataManifest,
@@ -529,8 +492,6 @@ fn default_llm_params() -> LLMParameters {
 mod tests {
     use super::*;
 
-    // contract: P9-svc-kata-kata-template-001
-    // expect: "Service kata templates work correctly under test conditions" [P9]
     //
     // All 23 kata templates must render without errors when given
     // a typical KataState with learner_bot, context, and previous_steps.
@@ -585,8 +546,6 @@ mod tests {
         }
     }
 
-    // contract: P9-svc-kata-kata-template-002
-    // expect: "Service kata templates work correctly under test conditions" [P9]
     //
     // Every kata template must reference the learner's identity so the
     // LLM knows who it's acting as. Missing {{ learner_bot }} means the

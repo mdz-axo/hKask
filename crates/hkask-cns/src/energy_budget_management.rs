@@ -35,7 +35,6 @@ use tokio::sync::RwLock;
 struct OverrideRecord {
     /// When this override was issued (for TTL expiry)
     issued_at: chrono::DateTime<chrono::Utc>,
-    /// \[NORMATIVE\] TTL in seconds (0 = no expiry, must be explicitly cleared) (P9 — Homeostatic Self-Regulation).
     ttl_secs: u64,
 }
 

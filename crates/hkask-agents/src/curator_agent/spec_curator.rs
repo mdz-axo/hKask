@@ -37,11 +37,8 @@ pub struct DefaultSpecCurator {
 }
 
 impl DefaultSpecCurator {
-    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — initialize spec curator with coherence threshold
     /// \[P7\] Constraining: Evolutionary Architecture — thresholds calibrated from observations
-    /// pre:  `coherence_threshold` is in range [0.0, 1.0] (clamped).
-    /// post: Returns a `DefaultSpecCurator` with the given coherence
     ///       threshold, drift_threshold=0.5, max_iterations=SYSTEM_MAX_RECURSION,
     ///       and no event sink or spec channel.
     pub fn new(coherence_threshold: f64) -> Self {
@@ -67,11 +64,8 @@ impl DefaultSpecCurator {
     ///
     /// MDS §5: Coherence threshold calibration — FUT-013.
     ///
-    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — calibrate threshold from historical coherence
     /// \[P7\] Constraining: Evolutionary Architecture — 25th-percentile heuristic emerged from usage
-    /// pre:  `curation_store` is a valid `SqliteCurationRecordStore`.
-    /// post: Returns `Some(f64)` — the 25th-percentile coherence score —
     ///       if ≥10 records exist; `None` otherwise.
     pub fn calibrate_from_history(
         curation_store: &hkask_storage::spec_store::SqliteCurationRecordStore,
@@ -114,11 +108,8 @@ impl DefaultSpecCurator {
     ///
     /// Logs the actual threshold values at construction time for post-hoc analysis.
     ///
-    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — apply explicit curation threshold config
-    /// pre:  `config` is a valid `CurationThresholdConfig` with thresholds
     ///       in [0.0, 1.0] (clamped).
-    /// post: Returns a `DefaultSpecCurator` with thresholds from the config,
     ///       max_iterations=SYSTEM_MAX_RECURSION, and no event sink or spec
     ///       channel.
     pub fn from_config(config: &CurationThresholdConfig) -> Self {
@@ -139,10 +130,7 @@ impl DefaultSpecCurator {
 
     /// Create with a custom drift threshold.
     ///
-    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — drift threshold triggers escalation
-    /// pre:  `threshold` is in range [0.0, 1.0] (clamped).
-    /// post: Returns `self` with `drift_threshold` updated.
     pub fn with_drift_threshold(mut self, threshold: f64) -> Self {
         self.drift_threshold = threshold.clamp(0.0, 1.0);
         self
@@ -150,10 +138,7 @@ impl DefaultSpecCurator {
 
     /// Provide a `NuEventSink` for emitting algedonic events on drift escalation.
     ///
-    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — emit algedonic events on drift escalation
-    /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
-    /// post: Returns `self` with `event_sink` set to `Some(sink)`.
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
@@ -161,10 +146,7 @@ impl DefaultSpecCurator {
 
     /// Wire the direct spec event channel: SpecCurator → CurationLoop.
     ///
-    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — wire spec events into CurationLoop
-    /// pre:  `tx` is a valid `UnboundedSender<CurationInput>`.
-    /// post: Returns `self` with `spec_tx` set to `Some(tx)`.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_spec_channel(
         mut self,
@@ -185,11 +167,8 @@ impl DefaultSpecCurator {
     /// side-channel that records the fact that sovereignty was considered
     /// during curation.
     ///
-    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — check spec coherence and emit drift alerts
-    /// pre:  `spec_id` is a non-empty string; `categories` is a slice of
     ///       category name strings.
-    /// post: If `event_sink` is `Some`, emits a `cns.sovereignty.checked`
     ///       NuEvent; if `None`, this is a silent no-op.
     pub fn check_sovereignty(&self, spec_id: &str, categories: &[String]) {
         // Emit a NuEvent whenever a sink is wired. The sink is optional

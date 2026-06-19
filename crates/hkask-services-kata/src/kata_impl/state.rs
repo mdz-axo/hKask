@@ -27,9 +27,6 @@ pub struct KataState {
 }
 
 impl KataState {
-    /// [P9] Motivating: Homeostatic Self-Regulation — kata state persisted for resume.
-    /// pre:  self is a valid KataState; path is a writable filesystem location
-    /// post: state serialized to JSON at path, or Err if serialization/write fails
     pub fn save(&self, path: &std::path::Path) -> Result<(), KataError> {
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| KataError::LoadFailed(format!("Failed to serialize state: {}", e)))?;
@@ -43,9 +40,6 @@ impl KataState {
         Ok(())
     }
 
-    /// [P9] Motivating: Homeostatic Self-Regulation — kata state restored on resume.
-    /// pre:  path points to a valid KataState JSON file
-    /// post: returns Ok(KataState) deserialized from file, or Err on I/O or parse failure
     pub fn load(path: &std::path::Path) -> Result<Self, KataError> {
         let json = std::fs::read_to_string(path).map_err(|e| {
             KataError::LoadFailed(format!(

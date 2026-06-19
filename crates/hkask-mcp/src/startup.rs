@@ -285,7 +285,6 @@ mod tests {
 
     // ── Full success tests ──────────────────────────────────────────────
 
-    // contract: mcp-startup-gates-001
     #[tokio::test]
     async fn all_gates_pass_no_tools() {
         let (client, _path) = setup_gate_test(true, true, vec![]).await;
@@ -298,7 +297,6 @@ mod tests {
         assert!(result.denied_tools.is_empty());
     }
 
-    // contract: mcp-startup-gates-001
     #[tokio::test]
     async fn all_gates_pass_with_tools() {
         let (client, _path) = setup_gate_test(
@@ -323,7 +321,6 @@ mod tests {
 
     // ── Gate 1 failure: authentication ──────────────────────────────────
 
-    // contract: mcp-startup-gates-001
     #[tokio::test]
     async fn gate1_auth_fails() {
         let (client, _path) = setup_gate_test(false, true, vec![]).await;
@@ -340,7 +337,6 @@ mod tests {
 
     // ── Gate 2 failure: assignment ──────────────────────────────────────
 
-    // contract: mcp-startup-gates-001
     #[tokio::test]
     async fn gate2_assignment_fails() {
         let (client, _path) = setup_gate_test(true, false, vec![]).await;
@@ -357,7 +353,6 @@ mod tests {
 
     // ── Gate 3: partial capability denial (non-fatal) ───────────────────
 
-    // contract: mcp-startup-gates-001
     #[tokio::test]
     async fn gate3_some_capabilities_denied() {
         // Only "compress" is granted; "classify" and "persist" are denied.
@@ -379,7 +374,6 @@ mod tests {
         assert!(!result.denied_tools.contains(&"compress".to_string()));
     }
 
-    // contract: mcp-startup-gates-001
     #[tokio::test]
     async fn gate3_all_capabilities_denied() {
         // No tools granted.
@@ -395,7 +389,6 @@ mod tests {
 
     // ── Edge cases ──────────────────────────────────────────────────────
 
-    // contract: mcp-startup-gates-001
     #[tokio::test]
     async fn empty_required_tools_is_noop() {
         let (client, _path) = setup_gate_test(true, true, vec![]).await;

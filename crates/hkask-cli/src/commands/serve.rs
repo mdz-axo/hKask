@@ -30,10 +30,6 @@ const API_SERVERS: &[(&str, &str)] = &[
 /// Resolves configuration from the keystore and environment, builds a
 /// `AgentService` with all shared infrastructure, starts API MCP servers
 /// on the AgentService's runtime, and creates an `ApiState` from it.
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  port is a valid u16; host is a non-empty bind address string
-/// post: starts the HTTP API server on the given host:port; returns Ok(()) on successful bind or Error on failure
 pub async fn run_server(
     port: u16,
     host: &str,

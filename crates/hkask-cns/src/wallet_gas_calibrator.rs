@@ -22,7 +22,6 @@ use tracing::{info, warn};
 
 /// Default interval between background wallet-gas calibrations.
 ///
-/// expect: "I can configure the default interval for background wallet gas calibration" [P9]
 pub const DEFAULT_WALLET_CALIBRATION_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 /// Default lookback window for the first calibration pass after construction.
@@ -49,12 +48,6 @@ pub struct WalletGasCalibrator {
 impl WalletGasCalibrator {
     /// Create a wallet gas calibrator backed by the given event store and wallet manager.
     ///
-    /// expect: "I can create a wallet gas calibrator that self-tunes the gas→rJoule rate from settled events" [P9]
-    /// expect: "I can configure the default interval for background wallet gas calibration" [P9]
-    /// pre:  store is a valid NuEventStore; wallet_manager is valid
-    /// post: returns WalletGasCalibrator seeded with the manager's current gas_per_rjoule rate
-    /// post: first calibration will look back `DEFAULT_WALLET_INITIAL_LOOKBACK`
-    /// post: no event sink attached until `with_event_sink` is called
     pub fn new(store: Arc<NuEventStore>, wallet_manager: Arc<WalletManager>) -> Self {
         let initial_rate = wallet_manager.gas_per_rjoule();
         Self {
@@ -70,11 +63,7 @@ impl WalletGasCalibrator {
 
     /// Configure how far back the first calibration pass searches for events.
     ///
-    /// expect: "I can configure how far back the gas calibrator searches for events" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — calibrator searches historical events
     /// \[P4\] Constraining: Clear Boundaries — lookback limits calibration scope
-    /// pre:  lookback is a positive duration
-    /// post: first calibration will search [Utc::now() - lookback, Utc::now()]
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_initial_lookback(mut self, lookback: ChronoDuration) -> Self {
         let now = Utc::now();
@@ -84,9 +73,6 @@ impl WalletGasCalibrator {
 
     /// Attach a CNS event sink for calibration span emission.
     ///
-    /// expect: "I can attach an event sink so wallet conversion rate adjustments emit CNS observability spans" [P9]
-    /// pre:  sink is a valid NuEventSink
-    /// post: subsequent successful calibrations that adjust the rate emit a span
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
@@ -100,11 +86,7 @@ impl WalletGasCalibrator {
     /// `WalletEnergyEstimator`, and pushes the resulting `gas_per_rjoule` to the
     /// shared `WalletManager`.
     ///
-    /// expect: "I can run an incremental wallet calibration pass that computes the aggregate actual/estimated ratio and updates the conversion rate" [P9]
-    /// pre:  `self.store` is a valid NuEventStore; `self.wallet_manager` is valid
-    /// post: if settled events exist and the aggregate ratio exceeds tolerance,
     ///       `wallet_manager.gas_per_rjoule()` is updated
-    /// post: returns true if the rate was adjusted
     pub async fn calibrate(&self) -> Result<bool, InfrastructureError> {
         let until = Utc::now();
         let since = {
@@ -193,9 +175,6 @@ impl WalletGasCalibrator {
     /// The task runs until the runtime shuts down. Calibration errors are logged
     /// but do not crash the task.
     ///
-    /// expect: "I can spawn a background task that continuously calibrates the wallet gas conversion rate from live event data" [P9]
-    /// pre:  interval > 0
-    /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`
     pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
         tokio::spawn(async move {
             loop {
@@ -286,7 +265,6 @@ mod tests {
         )
     }
 
-    // contract: GAS-CALIB-005
     #[tokio::test]
     async fn calibrate_updates_wallet_manager_rate() {
         let agent = WebID::new();
@@ -312,7 +290,6 @@ mod tests {
         );
     }
 
-    // contract: GAS-CALIB-005-obs
     #[tokio::test]
     async fn calibrate_emits_wallet_conversion_span_when_adjusted() {
         let agent = WebID::new();
@@ -346,7 +323,6 @@ mod tests {
         );
     }
 
-    // contract: GAS-CALIB-005-obs
     #[tokio::test]
     async fn calibrate_does_not_emit_span_when_not_adjusted() {
         let wallet_manager = make_wallet_manager();
@@ -366,7 +342,6 @@ mod tests {
         );
     }
 
-    // contract: GAS-CALIB-005
     #[tokio::test]
     async fn calibrate_no_events_leaves_rate_unchanged() {
         let wallet_manager = make_wallet_manager();
@@ -382,7 +357,6 @@ mod tests {
         assert_eq!(wallet_manager.gas_per_rjoule(), 1000);
     }
 
-    // contract: GAS-CALIB-005
     #[test]
     fn with_initial_lookback_changes_first_window() {
         let wallet_manager = make_wallet_manager();
