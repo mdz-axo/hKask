@@ -1,5 +1,6 @@
 //! Backup scope types — what to snapshot, restore, or list.
 //! # REQ: P8 (Semantic Grounding) — every type encodes a distinct domain concept.
+//! expect: "Backup scope types encode distinct domain concepts" [P8]
 
 
 use serde::{Deserialize, Serialize};
@@ -36,6 +37,9 @@ pub enum ArtifactType {
 impl ArtifactType {
     /// Map this artifact type to its storage repository.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  self must be a valid ArtifactType variant
+    /// post: returns the corresponding RepoId for storage routing
     pub fn repo_id(&self) -> hkask_types::ports::git_cas::RepoId {
         use hkask_types::ports::git_cas::RepoId;
         match self {
@@ -54,6 +58,9 @@ impl ArtifactType {
 
     /// Human-readable label for CLI/API display.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  self must be a valid ArtifactType variant
+    /// post: returns &'static str label (e.g., "template", "goal", "spec")
     pub fn label(&self) -> &'static str {
         match self {
             ArtifactType::Template => "template",
@@ -96,6 +103,9 @@ pub enum BackupScope {
 impl BackupScope {
     /// Human-readable description for commit messages.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  self must be a valid BackupScope variant
+    /// post: returns String description (e.g., "full backup", "backup: template", "backup: template (id1, id2)")
     pub fn description(&self) -> String {
         match self {
             BackupScope::Full => "full backup".to_string(),

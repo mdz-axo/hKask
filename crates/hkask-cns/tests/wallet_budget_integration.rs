@@ -98,6 +98,7 @@ fn make_wallet_budget_with_key(
     (wallet_id, key_id, manager, budget)
 }
 
+// contract: cns-wallet-budget-integration-001
 // to WalletBackedBudget and debits the key encumbrance.
 #[tokio::test]
 async fn manager_wallet_budget_reserve_settle_debits_encumbrance() {
@@ -122,6 +123,7 @@ async fn manager_wallet_budget_reserve_settle_debits_encumbrance() {
     assert_eq!(enc.remaining_rj(), 1_999, "1 rJ consumed from encumbrance");
 }
 
+// contract: cns-wallet-budget-integration-002
 // back into WalletBackedBudget via the configured gas_per_rjoule rate.
 #[tokio::test]
 async fn calibrated_gas_per_rjoule_changes_budget_cost() {
@@ -153,6 +155,7 @@ async fn calibrated_gas_per_rjoule_changes_budget_cost() {
     );
 }
 
+// contract: cns-energy-budget-integration-001
 // reservation and replenishes by the configured rate.
 #[tokio::test]
 async fn energy_budget_refunds_and_replenishes_after_settlement() {

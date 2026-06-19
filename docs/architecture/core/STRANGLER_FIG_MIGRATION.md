@@ -3,7 +3,7 @@ title: "Strangler-Fig Migration Plan — PodManager → PodDeployment"
 audience: [architects, developers]
 last_updated: 2026-06-18
 version: "0.29.0"
-status: "Phase 2 complete (CNS per-pod). Phase 3 planned."
+status: "Complete — PodManager deleted. PodDeployment is canonical."
 domain: "Agent Pod Lifecycle"
 ---
 

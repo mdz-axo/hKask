@@ -7,6 +7,9 @@ use crate::{ApiState, GrantCapabilityRequest};
 
 /// Create bots router
 ///
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with bot routes registered
 pub fn bots_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_capabilities))

@@ -1,10 +1,12 @@
 //! Integration tests for EmbedService corpus parsing.
 //! # REQ: P8 — every test verifies a stated behavioral property of a public seam.
+//! expect: "Every test verifies a stated behavioral property of a public seam" [P8]
 
 use hkask_services::EmbedService;
 
 /// Parse the Gentle Lovelace corpus config and verify all 11 works,
 /// 4 dimension centroids, 4 tag sets, tag_weights, and budget deserialize.
+// contract: P5-svc-gentle_lovelace_corpus_test-svc-embed-001
 #[test]
 fn parse_gentle_lovelace_corpus_yaml() {
     // Resolve from workspace root via CARGO_MANIFEST_DIR

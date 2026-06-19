@@ -202,6 +202,7 @@ fn minimal_pdf() -> Vec<u8> {
 
 // ── Tests ──────────────────────────────────────────────────────────────────
 
+// contract: ocr-integration-01
 #[tokio::test]
 async fn test_pipeline_with_llm_ocr() {
     if !inference_available() {
@@ -241,6 +242,7 @@ async fn test_pipeline_with_llm_ocr() {
     );
 }
 
+// contract: ocr-integration-02
 #[tokio::test]
 async fn test_pipeline_with_tesseract() {
     if !tesseract_available() {
@@ -269,6 +271,7 @@ async fn test_pipeline_with_tesseract() {
     assert!(!outcome.results.is_empty());
 }
 
+// contract: ocr-integration-03
 #[tokio::test]
 async fn test_pdf_pipeline() {
     if !inference_available() || !pdftoppm_available() {

@@ -10,6 +10,7 @@
 use hkask_test_harness::strategies::{any_capability_spec, any_goal, any_nu_event};
 use proptest::prelude::*;
 
+// contract: CTR-001
 // All shared types survive JSON serialization round-trips.
 
 proptest! {
@@ -22,6 +23,7 @@ proptest! {
         prop_assert_eq!(e.recursion_depth, back.recursion_depth);
     }
 
+    // contract: CTR-001
     #[test]
     fn goal_json_roundtrip(g in any_goal()) {
         let json = serde_json::to_string(&g).unwrap();
@@ -31,6 +33,7 @@ proptest! {
         prop_assert_eq!(g.state, back.state);
     }
 
+    // contract: CTR-001
     #[test]
     fn capability_spec_json_roundtrip(spec in any_capability_spec()) {
         let json = serde_json::to_string(&spec).unwrap();

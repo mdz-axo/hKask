@@ -607,6 +607,7 @@ pub async fn eodhd_search_get(
 mod tests {
     use super::*;
 
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn international_symbol_detection() {
         assert!(is_international_symbol("VOD.L"));
@@ -616,6 +617,7 @@ mod tests {
         assert!(!is_international_symbol("MSFT"));
     }
 
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn primary_provider_routing() {
         assert_eq!(primary_provider("AAPL"), Provider::Fmp);
@@ -624,6 +626,7 @@ mod tests {
         assert_eq!(primary_provider("BMW.DE"), Provider::Eodhd);
     }
 
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_profile_from_eodhd() {
         let fundamentals = serde_json::json!({
@@ -639,12 +642,14 @@ mod tests {
         assert_eq!(arr[0]["Name"], "Apple Inc.");
     }
 
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_profile_missing_general() {
         let result = normalize_eodhd_profile(&serde_json::json!({}));
         assert!(result.as_array().unwrap().is_empty());
     }
 
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_income_statement_from_eodhd() {
         let fundamentals = serde_json::json!({
@@ -671,6 +676,7 @@ mod tests {
         assert_eq!(arr[1]["calendarYear"], "2023");
     }
 
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_balance_sheet_from_eodhd() {
         let fundamentals = serde_json::json!({
@@ -690,6 +696,7 @@ mod tests {
         assert_eq!(arr[0]["calendarYear"], "2024");
     }
 
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_key_metrics_from_eodhd() {
         let fundamentals = serde_json::json!({
@@ -765,6 +772,7 @@ mod tests {
         assert!((dso - 31.4).abs() < 2.0, "expected ~31.4, got {dso}");
     }
 
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_historical_from_eodhd() {
         let eod_data = serde_json::json!([
@@ -776,6 +784,7 @@ mod tests {
         assert_eq!(result["historical"].as_array().unwrap().len(), 2);
     }
 
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_empty_eodhd_data() {
         assert!(

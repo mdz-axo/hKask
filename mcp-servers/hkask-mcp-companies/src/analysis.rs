@@ -102,12 +102,14 @@ pub fn extract_wc_days(metrics_json: &Value) -> Option<(f64, f64)> {
 mod tests {
     use super::*;
 
+    // contract: FMP-MOAT
     #[test]
     fn gross_margin_stability_perfect() {
         let score = gross_margin_stability(&[0.60, 0.60, 0.60, 0.60]);
         assert!((score - 1.0).abs() < 0.001);
     }
 
+    // contract: FMP-MOAT
     #[test]
     fn gross_margin_stability_volatile() {
         let score = gross_margin_stability(&[0.60, 0.20, 0.80, 0.10]);
@@ -121,23 +123,27 @@ mod tests {
         );
     }
 
+    // contract: FMP-MOAT
     #[test]
     fn gross_margin_stability_single_point() {
         assert!((gross_margin_stability(&[0.60]) - 1.0).abs() < 0.001);
         assert!((gross_margin_stability(&[]) - 1.0).abs() < 0.001);
     }
 
+    // contract: FMP-MOAT
     #[test]
     fn gross_margin_stability_zero_mean() {
         assert!((gross_margin_stability(&[0.0, 0.0, 0.0]) - 0.0).abs() < 0.001);
     }
 
+    // contract: FMP-MOAT
     #[test]
     fn working_capital_spread_computation() {
         assert!((working_capital_spread(90.0, 30.0) - 60.0).abs() < 0.001);
         assert!((working_capital_spread(20.0, 40.0) - (-20.0)).abs() < 0.001);
     }
 
+    // contract: FMP-MOAT
     #[test]
     fn wc_signal_label_classification() {
         assert_eq!(wc_signal_label(60.0), "strong_market_power");
@@ -146,28 +152,33 @@ mod tests {
         assert_eq!(wc_signal_label(-30.0), "supplier_dominated");
     }
 
+    // contract: FMP-MOAT
     #[test]
     fn classify_moat_wide() {
         assert_eq!(classify_moat(0.9, 40.0, 5), MoatRating::Wide);
     }
 
+    // contract: FMP-MOAT
     #[test]
     fn classify_moat_narrow() {
         assert_eq!(classify_moat(0.9, -10.0, 5), MoatRating::Narrow);
         assert_eq!(classify_moat(0.3, 40.0, 5), MoatRating::Narrow);
     }
 
+    // contract: FMP-MOAT
     #[test]
     fn classify_moat_none() {
         assert_eq!(classify_moat(0.3, -10.0, 5), MoatRating::None);
     }
 
+    // contract: FMP-MOAT
     #[test]
     fn classify_moat_insufficient_data() {
         assert_eq!(classify_moat(0.9, 40.0, 2), MoatRating::InsufficientData);
         assert_eq!(classify_moat(0.3, -10.0, 1), MoatRating::InsufficientData);
     }
 
+    // contract: FMP-MOAT
     #[test]
     fn extract_gross_margins_from_json() {
         let json = serde_json::json!([
@@ -183,12 +194,14 @@ mod tests {
         assert!((margins[1].1 - 0.43).abs() < 0.001);
     }
 
+    // contract: FMP-MOAT
     #[test]
     fn extract_gross_margins_empty() {
         assert!(extract_gross_margins(&serde_json::json!([])).is_empty());
         assert!(extract_gross_margins(&serde_json::json!({})).is_empty());
     }
 
+    // contract: FMP-MOAT
     #[test]
     fn extract_wc_days_from_json() {
         let json = serde_json::json!([
@@ -199,6 +212,7 @@ mod tests {
         assert!((dso - 30.0).abs() < 0.001);
     }
 
+    // contract: FMP-MOAT
     #[test]
     fn extract_wc_days_missing_fields() {
         assert!(extract_wc_days(&serde_json::json!([])).is_none());
@@ -301,6 +315,7 @@ pub fn extract_invested_capital(balance_sheets: &Value) -> Vec<(String, f64)> {
 mod management_tests {
     use super::*;
 
+    // contract: FMP-MGMT
     #[test]
     fn ceo_score_insufficient_data() {
         assert_eq!(
@@ -309,6 +324,7 @@ mod management_tests {
         );
     }
 
+    // contract: FMP-MGMT
     #[test]
     fn ceo_score_excellent_decreasing_capital_improving_returns() {
         let returns = [0.10, 0.10, 0.12, 0.12, 0.15, 0.20];
@@ -319,6 +335,7 @@ mod management_tests {
         );
     }
 
+    // contract: FMP-MGMT
     #[test]
     fn ceo_score_good_increasing_capital_improving_returns() {
         // Returns improve but by less than 10% → Good, not Excellent
@@ -330,6 +347,7 @@ mod management_tests {
         );
     }
 
+    // contract: FMP-MGMT
     #[test]
     fn ceo_score_poor_increasing_capital_decreasing_returns() {
         let returns = [0.20, 0.18, 0.18, 0.15, 0.12, 0.10];
@@ -340,6 +358,7 @@ mod management_tests {
         );
     }
 
+    // contract: FMP-MGMT
     #[test]
     fn extract_roic_from_json() {
         let json = serde_json::json!([
@@ -352,6 +371,7 @@ mod management_tests {
         assert!((roic[1].1 - 0.18).abs() < 0.001);
     }
 
+    // contract: FMP-MGMT
     #[test]
     fn extract_invested_capital_from_json() {
         let json = serde_json::json!([

@@ -546,6 +546,8 @@ impl HarnessCapability {
 /// Each host binds exactly one harness; the harness generates the config
 /// or script that the host dispatches.
 ///
+/// pre:  job.params carries full expanded TrainingParams
+/// post: returns harness-native config string (YAML, Python script, etc.)
 ///
 /// MDS: Composition — CAN render_config ON TrainingJob VIA HarnessAdapter
 pub trait HarnessAdapter: Send + Sync {

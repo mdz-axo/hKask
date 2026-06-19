@@ -60,9 +60,14 @@ impl std::fmt::Debug for LoadedKey {
 
 /// Sign a withdrawal transaction for a specific chain.
 ///
+/// expect: "The system signs withdrawal transactions with my treasury key" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — signing authorizes energy outflow
 /// \[P1\] Constraining: User Sovereignty — treasury key derived from user master key
 /// \[P4\] Constraining: Clear Boundaries — key material never leaves this module
+/// pre:  chain is a valid ChainId, tx_bytes is non-empty
+/// post: returns Ok(signature) — 64-byte Ed25519 signature
+/// post: treasury key loaded, used, and zeroized within this call
+/// post: no key material returned to caller — only the signature
 ///
 /// Loads the chain-specific treasury key via HKDF, signs the transaction bytes,
 /// and zeroizes the key on drop. Key material exists in memory only for the
@@ -78,8 +83,12 @@ pub fn sign_withdrawal(chain: ChainId, tx_bytes: &[u8]) -> Result<Vec<u8>, Walle
 
 /// Sign an arbitrary message with the Hinkal treasury key.
 ///
+/// expect: "The system signs Hinkal privacy messages proving treasury origin" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — Hinkal session signing authorizes privacy-layer flow
 /// \[P4\] Constraining: Clear Boundaries — message is opaque bytes; signature proves treasury origin
+/// pre:  message is any byte slice (including empty)
+/// post: returns Ok(signature) — 64-byte Ed25519 signature
+/// post: treasury key loaded, used, and zeroized within this call
 pub fn sign_message(message: &[u8]) -> Result<Vec<u8>, WalletError> {
     sign_bytes(ChainId::Hinkal, message)
 }
@@ -99,9 +108,13 @@ fn sign_bytes(chain: ChainId, bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
 
 /// Sign an API key capability token with the wallet's Ed25519 key.
 ///
+/// expect: "The system signs capability tokens for API key delegation" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — signing authorizes API key capability
 /// \[P1\] Constraining: User Sovereignty — treasury key derived from user master key
 /// \[P4\] Constraining: Clear Boundaries — key material never leaves this module
+/// pre:  capability is a valid, fully-populated ApiKeyCapability
+/// post: returns Ok(hex_signature) — 128-char hex-encoded Ed25519 signature
+/// post: delegates to hkask_keystore::sign_api_key_capability (isolated boundary)
 ///
 /// Delegates to `hkask_keystore::sign_api_key_capability` which handles
 /// wallet seed derivation, canonical JSON serialization, signing, and
@@ -131,6 +144,8 @@ mod tests {
         }
     }
 
+    // contract: P9-wallet-sign-withdrawal-signature-test
+    /// expect: "Wallet sign withdrawal signature test works correctly under test conditions" [P9]
     #[test]
     fn sign_withdrawal_produces_signature() {
         set_test_master_key();
@@ -139,6 +154,8 @@ mod tests {
         assert_eq!(sig.len(), 64); // Ed25519 signature is 64 bytes
     }
 
+    // contract: P9-wallet-sign-withdrawal-per-chain-test
+    /// expect: "Wallet sign withdrawal per chain test works correctly under test conditions" [P9]
     #[test]
     fn sign_withdrawal_differs_per_chain() {
         set_test_master_key();
@@ -148,6 +165,8 @@ mod tests {
         assert_ne!(sol_sig, hed_sig);
     }
 
+    // contract: P9-wallet-sign-capability-hex-test
+    /// expect: "Wallet sign capability hex test works correctly under test conditions" [P9]
     #[test]
     fn sign_capability_produces_hex_signature() {
         set_test_master_key();
@@ -169,6 +188,8 @@ mod tests {
         assert_eq!(sig.len(), 128); // 64 bytes → 128 hex chars
     }
 
+    // contract: P9-wallet-sign-withdrawal-all-chains-test
+    /// expect: "Wallet sign withdrawal all chains test works correctly under test conditions" [P9]
     #[test]
     fn sign_withdrawal_all_chains() {
         set_test_master_key();
@@ -185,6 +206,8 @@ mod tests {
         }
     }
 
+    // contract: P9-wallet-sign-withdrawal-empty-test
+    /// expect: "Wallet sign withdrawal empty test works correctly under test conditions" [P9]
     #[test]
     fn sign_withdrawal_empty_tx_bytes() {
         set_test_master_key();
@@ -197,6 +220,8 @@ mod tests {
         );
     }
 
+    // contract: P9-wallet-sign-hinkal-message-signature-test
+    /// expect: "Wallet sign hinkal message signature test works correctly under test conditions" [P9]
     #[test]
     fn sign_message_produces_signature() {
         set_test_master_key();
@@ -205,6 +230,8 @@ mod tests {
         assert_eq!(sig.len(), 64);
     }
 
+    // contract: P9-wallet-sign-capability-tamper-test
+    /// expect: "Wallet sign capability tamper test works correctly under test conditions" [P9]
     #[test]
     fn sign_capability_tampered_produces_different_signature() {
         set_test_master_key();

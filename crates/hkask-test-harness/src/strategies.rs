@@ -77,6 +77,9 @@ fn json_value_strategy() -> BoxedStrategy<Value> {
 /// Produces events with random observer WebIDs, canonical CNS spans,
 /// valid phases, string observations, and recursion depth 0–7.
 ///
+/// post: returns `BoxedStrategy<NuEvent>` with valid observer, span, phase, observation, depth 0–7
+/// expect: "I can generate valid ν-events with correct observer, canonical CNS spans, and valid phases for property-based testing" [P8]
+/// [P5] Constraining: one strategy per type, no duplicate generators
 pub fn any_nu_event() -> BoxedStrategy<NuEvent> {
     (
         webid_strategy(),
@@ -96,6 +99,8 @@ pub fn any_nu_event() -> BoxedStrategy<NuEvent> {
 /// Produces triples with random entity/attribute strings,
 /// string JSON values, and random owner WebIDs.
 ///
+/// post: returns `BoxedStrategy<Triple>` with non-empty entity, attribute, value, owner
+/// expect: "I can generate valid RDF triples with non-empty entities, attributes, and authenticated owners for property-based testing" [P8]
 /// [P12] Constraining: every triple carries an owner WebID — no anonymous agency
 pub fn any_triple() -> BoxedStrategy<Triple> {
     (
@@ -114,6 +119,9 @@ pub fn any_triple() -> BoxedStrategy<Triple> {
 ///
 /// Produces specs with random resource types, actions, and resource IDs.
 ///
+/// post: returns BoxedStrategy<CapabilitySpec> with valid resource, action, resource_id
+/// expect: "I can generate valid capability specifications with correct resource types and delegation actions for property-based testing" [P8]
+/// [P4] Constraining: capabilities encode explicit boundaries — no ambient authority
 pub fn any_capability_spec() -> BoxedStrategy<CapabilitySpec> {
     (
         select(&[
@@ -142,6 +150,9 @@ pub fn any_capability_spec() -> BoxedStrategy<CapabilitySpec> {
 /// Produces goals with random text, states, visibility, depth 0–7,
 /// and optional display names.
 ///
+/// post: returns BoxedStrategy<Goal> with valid webid, text, state, visibility, depth 0–7
+/// expect: "I can generate valid goals with correct WebID ownership, state, and visibility classification for property-based testing" [P8]
+/// [P1] Constraining: goals carry user-scoped WebIDs — sovereignty boundary respected
 pub fn any_goal() -> BoxedStrategy<Goal> {
     (
         webid_strategy(),
@@ -179,6 +190,8 @@ pub fn any_goal() -> BoxedStrategy<Goal> {
 /// Produces segments with random text, start times 0–1hr,
 /// and durations 100ms–30s.
 ///
+/// post: returns BoxedStrategy<TranscriptSegment> with non-empty text, start_ms 0–1hr, duration 100ms–30s
+/// expect: "I can generate valid transcript segments with temporal ordering invariants (end > start) for property-based testing" [P8]
 pub fn any_transcript_segment() -> BoxedStrategy<TranscriptSegment> {
     (non_empty_string(), (0u64..3600000u64), (100u64..30000u64))
         .prop_map(|(text, start_ms, duration_ms)| TranscriptSegment {
@@ -193,12 +206,17 @@ pub fn any_transcript_segment() -> BoxedStrategy<TranscriptSegment> {
 
 /// Strategy generating valid `EnergyCost` values (1..10000).
 ///
+/// post: returns BoxedStrategy<EnergyCost> with values in 1..10000
+/// expect: "I can generate valid energy costs within bounded ranges for gas-budget property-based testing" [P9]
 pub fn any_energy_cost() -> BoxedStrategy<hkask_cns::EnergyCost> {
     (1u64..10000u64).prop_map(hkask_cns::EnergyCost).boxed()
 }
 
 /// Strategy generating valid `EnergyBudget` instances with hard limit.
 ///
+/// post: returns BoxedStrategy<EnergyBudget> with cap 100..10000, replenish_rate 1..cap
+/// expect: "I can generate valid energy budgets with caps that bound resource consumption for gas-guard property-based testing" [P9]
+/// [P4] Constraining: budget caps enforce OCAP boundaries on resource consumption
 pub fn any_energy_budget() -> BoxedStrategy<hkask_cns::EnergyBudget> {
     (100u64..10000u64)
         .prop_flat_map(|cap| {
@@ -217,6 +235,7 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
+    // contract: HARN-007
     proptest! {
         #[test]
         fn nu_event_strategy_is_valid(e in any_nu_event()) {
@@ -226,6 +245,7 @@ mod tests {
         }
     }
 
+    // contract: HARN-008
     proptest! {
         #[test]
         fn triple_strategy_is_valid(t in any_triple()) {
@@ -235,6 +255,7 @@ mod tests {
         }
     }
 
+    // contract: HARN-009
     proptest! {
         #[test]
         fn capability_spec_strategy_is_valid(spec in any_capability_spec()) {
@@ -242,6 +263,7 @@ mod tests {
         }
     }
 
+    // contract: HARN-010
     proptest! {
         #[test]
         fn goal_strategy_is_valid(g in any_goal()) {
@@ -252,6 +274,7 @@ mod tests {
         }
     }
 
+    // contract: HARN-011
     proptest! {
         #[test]
         fn transcript_segment_strategy_is_valid(seg in any_transcript_segment()) {

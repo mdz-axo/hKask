@@ -541,12 +541,16 @@ mod tests {
 
     // ── StaticPriceFeed tests ──────────────────────────────────────────────
 
+    // contract: P9-wallet-price-static-rate-test
+    /// expect: "Wallet price static rate test works correctly under test conditions" [P9]
     #[test]
     fn static_price_feed_returns_expected_rates() {
         assert!((StaticPriceFeed::hardcoded_rate(ChainId::Solana) - 150.0).abs() < f64::EPSILON);
         assert!((StaticPriceFeed::hardcoded_rate(ChainId::Hedera) - 0.08).abs() < f64::EPSILON);
     }
 
+    // contract: P9-wallet-price-fee-nonzero-test
+    /// expect: "Wallet price fee nonzero test works correctly under test conditions" [P9]
     #[test]
     fn fee_estimation_produces_non_zero_fee() {
         let rate = ExchangeRate {
@@ -558,6 +562,8 @@ mod tests {
         assert!(fee.usdc_micro > 0);
     }
 
+    // contract: P9-wallet-price-fee-floor-test
+    /// expect: "Wallet price fee floor test works correctly under test conditions" [P9]
     #[test]
     fn fee_estimation_floors_at_one_rj() {
         let rate = ExchangeRate {
@@ -568,6 +574,8 @@ mod tests {
         assert_eq!(fee.rjoules, 1);
     }
 
+    // contract: P9-wallet-price-chain-diff-test
+    /// expect: "Wallet price chain diff test works correctly under test conditions" [P9]
     #[test]
     fn different_chains_produce_different_fees() {
         let rate = ExchangeRate {
@@ -581,6 +589,8 @@ mod tests {
 
     // ── EodhdPriceFeed tests ──────────────────────────────────────────────
 
+    // contract: P9-wallet-price-eodhd-parse-test
+    /// expect: "Wallet price eodhd parse test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn eodhd_feed_parses_close_field() {
         let server = MockServer::start().await;
@@ -611,6 +621,8 @@ mod tests {
 
     // ── CoinGeckoPriceFeed tests ──────────────────────────────────────────
 
+    // contract: P9-wallet-price-coingecko-parse-test
+    /// expect: "Wallet price coingecko parse test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn coingecko_feed_parses_usd_field() {
         let server = MockServer::start().await;
@@ -653,6 +665,8 @@ mod tests {
         }
     }
 
+    // contract: P9-wallet-price-composite-primary-test
+    /// expect: "Wallet price composite primary test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn composite_uses_primary_source() {
         let primary = Box::new(MockRateFeed {
@@ -669,6 +683,8 @@ mod tests {
         assert!((rate.usd_per_token - 150.0).abs() < f64::EPSILON);
     }
 
+    // contract: P9-wallet-price-composite-fallback-test
+    /// expect: "Wallet price composite fallback test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn composite_falls_back_on_primary_failure() {
         let primary = Box::new(MockRateFeed {
@@ -685,6 +701,8 @@ mod tests {
         assert!((rate.usd_per_token - 0.08).abs() < f64::EPSILON);
     }
 
+    // contract: P9-wallet-price-composite-cache-test
+    /// expect: "Wallet price composite cache test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn composite_caches_within_ttl() {
         let source = Box::new(MockRateFeed {
@@ -705,6 +723,8 @@ mod tests {
         assert!((rate2.usd_per_token - 150.0).abs() < f64::EPSILON);
     }
 
+    // contract: P9-wallet-price-composite-stale-test
+    /// expect: "Wallet price composite stale test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn composite_stale_fallback_on_total_failure() {
         // First, populate cache with a working source
@@ -726,6 +746,8 @@ mod tests {
         assert!(err.to_string().contains("exhausted"));
     }
 
+    // contract: P9-wallet-price-composite-empty-test
+    /// expect: "Wallet price composite empty test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn composite_errors_on_empty_sources() {
         let composite = CompositePriceFeed::new(vec![], 30);
@@ -735,6 +757,8 @@ mod tests {
 
     // ── resolve_price_feed tests ─────────────────────────────────────────
 
+    // contract: P9-wallet-price-resolve-static-test
+    /// expect: "Wallet price resolve static test works correctly under test conditions" [P9]
     #[test]
     fn resolve_static_config() {
         let feed = resolve_price_feed(&PriceFeedConfig::Static).unwrap();
@@ -744,6 +768,8 @@ mod tests {
         assert!((rate.usd_per_token - 150.0).abs() < f64::EPSILON);
     }
 
+    // contract: P9-wallet-price-resolve-coingecko-test
+    /// expect: "Wallet price resolve coingecko test works correctly under test conditions" [P9]
     #[test]
     fn resolve_coingecko_config() {
         let feed = resolve_price_feed(&PriceFeedConfig::CoinGecko).unwrap();
@@ -751,6 +777,8 @@ mod tests {
         let _ = feed;
     }
 
+    // contract: P9-wallet-price-resolve-composite-test
+    /// expect: "Wallet price resolve composite test works correctly under test conditions" [P9]
     #[test]
     fn resolve_composite_config() {
         let config = PriceFeedConfig::Composite {
@@ -761,6 +789,8 @@ mod tests {
         let _ = feed;
     }
 
+    // contract: P9-wallet-price-resolve-skip-unknown-test
+    /// expect: "Wallet price resolve skip unknown test works correctly under test conditions" [P9]
     #[test]
     fn resolve_composite_skips_unknown_sources() {
         let config = PriceFeedConfig::Composite {
@@ -772,6 +802,8 @@ mod tests {
         let _ = feed;
     }
 
+    // contract: P9-wallet-price-resolve-all-unknown-test
+    /// expect: "Wallet price resolve all unknown test works correctly under test conditions" [P9]
     #[test]
     fn resolve_composite_errors_on_all_unknown() {
         let config = PriceFeedConfig::Composite {

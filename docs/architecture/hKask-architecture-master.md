@@ -154,33 +154,23 @@ This isomorphism was the original architectural intent, as evidenced by the depl
 | 4 | Interoperable linked-data triples | `Triple` struct with entity/attribute/value/confidence/visibility | ✓ Correct |
 | 5 | Pod IS the deployment unit | `PodDeployment` owns its storage, CNS, and tools directly. `PodFactory` is a stateless constructor. | ⚠ Strangler-Fig Phase 1: coexists with centralized `PodManager` |
 
-#### PodDeployment — The Canonical Type
+#### PodDeployment — The Canonical Type (v0.29.0 — implemented)
+
+`PodDeployment` is now the canonical pod type. `PodManager` has been deleted.
 
 ```rust
-/// A pod IS the deployment unit. No shared state. No service collision surface.
 pub struct PodDeployment {
-    pod_id: PodId,           // WebID is the root of all authority (P1)
-    storage: PerPodStorage,  // Dedicated SQLCipher file — the file IS the pod (P11)
-    cns: PerPodCnsRuntime,   // Variety counters scoped to this pod (P9)
-    tools: PerPodToolBinding,// MCP servers bound to this pod — no cross-pod dispatch (P4)
+    pub pod_id: PodID,
+    pub pod: AgentPod,
+    pub storage: PerPodStorage,  // Per-pod SQLCipher file at {data_dir}/pods/{pod_id}.db
+    pub cns: PerPodCnsRuntime,    // Per-pod variety counters at cns.agent_pod.{pod_id}.*
+    pub tools: PerPodToolBinding, // Per-pod MCP server bindings
 }
 ```
 
-#### PodFactory — The Canonical Constructor
-
-```rust
-/// PodFactory constructs PodDeployment instances. Stateless — no cache, no pool.
-pub struct PodFactory {
-    template_resolver: Arc<TemplateResolver>,
-    key_material: Arc<KeyMaterial>,
-    server_config: PodServerConfig,
-}
-// One public method: deploy(template_name, persona) -> Result<PodDeployment, PodDeployError>
-```
-
-#### Drift Diagnosis
-
-`PodManager` became a shared service manager instead of a pod lifecycle manager. The `HashMap<PodID, AgentPod>` is a pass-through cache — delete it. `PodFactory` is the replacement. The backup model was accidentally correct; the storage model was wrong. The migration aligns them.
+**PodFactory** is the canonical constructor (1 public method: `deploy`).
+**ActivePods** is the runtime registry (lightweight HashMap, no shared storage).
+**PodRegistry** is filesystem-based discovery (scans `{data_dir}/pods/*.db`).
 
 **Full analysis:** [`SOLID_POD_ISOMORPHISM.md`](core/SOLID_POD_ISOMORPHISM.md)  
 **Deployment contract:** [`POD_DEPLOYMENT_CONTRACT.md`](core/POD_DEPLOYMENT_CONTRACT.md)  
@@ -246,7 +236,7 @@ CLOUD SERVER (single binary, all crates compiled)
   Conduit (Docker) - Matrix homeserver
   hkask-api - OAuth, WebSocket /terminal, backup endpoints
   hkask-core - daemon, MCP servers, agents, CNS, wallet, memory
-  Multi-user TripleStore (scoped by owner_webid)
+  Per-pod SQLCipher files ({data_dir}/pods/{pod_id}.db) — one database per pod
 
 Access (all via HTTPS/Caddy):
   Browser (xterm.js) - primary
@@ -258,7 +248,7 @@ Access (all via HTTPS/Caddy):
 
 - **Single binary.** All crates compiled. No Cargo features for client/server.
 - **Browser-only access.** User visits a URL, signs in, gets a terminal. No install.
-- **Multi-tenant.** Multiple users per server. Data scoped by `owner_webid`. OAuth identity maps to WebID.
+- **Per-pod storage.** Each pod owns its own SQLCipher file at `{data_dir}/pods/{pod_id}.db`. No shared TripleStore. Data isolation is structural, not row-level.
 - **Caddy + Conduit sidecars.** Docker containers. hKask generates config; user runs Docker.
 - **Backup as portable archive.** Encrypted SQLCipher file. Export from one server, upload to another. No server-to-server protocol.
 - **Wallet cloud-only.** Crypto operations never leave the server.

@@ -38,6 +38,8 @@ pub enum HuggingFaceError {
 /// MDS: Domain entity — `ModelSource` with `hf://` URI scheme.
 /// Composition: `CAN resolve_model_id|download_weights|list_variants ON ModelSource VIA API`
 ///
+/// pre:  HF_TOKEN set for gated models
+/// post: resolved HF model ID or downloaded weight path
 
 #[async_trait::async_trait]
 pub trait ModelRegistry: Send + Sync {
@@ -71,6 +73,8 @@ pub trait ModelRegistry: Send + Sync {
 /// MDS: Lifecycle entity — `AdapterPublication`.
 /// Composition: `CAN publish_adapter|pull_adapter ON Adapter VIA API`
 ///
+/// pre:  adapter weights exist (local or remote)
+/// post: adapter published to / pulled from HF Hub
 
 #[async_trait::async_trait]
 pub trait AdapterRegistry: Send + Sync {
@@ -106,6 +110,8 @@ pub trait AdapterRegistry: Send + Sync {
 /// MDS: Domain entity — `DatasetSource`.
 /// Composition: `CAN resolve_dataset|download_dataset ON DatasetSource VIA API`
 ///
+/// pre:  dataset exists on HF Hub
+/// post: resolved dataset URL or downloaded local path
 
 #[async_trait::async_trait]
 pub trait DatasetRegistry: Send + Sync {
@@ -219,21 +225,25 @@ impl ModelRegistry for HfModelRegistry {
 mod tests {
     use super::*;
 
+    // contract: P8-trn-hf-resolve-provider-prefix
     #[test]
     fn resolve_provider_prefix() {
         assert_eq!(resolve_model_id("DI/some-model"), "some-model");
     }
 
+    // contract: P8-trn-hf-resolve-together-prefix
     #[test]
     fn resolve_together_prefix() {
         assert_eq!(resolve_model_id("TG/Qwen/Qwen3.5-9B"), "Qwen/Qwen3.5-9B");
     }
 
+    // contract: P8-trn-hf-resolve-no-prefix-passthrough
     #[test]
     fn resolve_no_prefix_passthrough() {
         assert_eq!(resolve_model_id("Qwen/Qwen3.5-9B"), "Qwen/Qwen3.5-9B");
     }
 
+    // contract: P8-trn-hf-resolve-deepinfra-prefix
     #[test]
     fn resolve_deepinfra_prefix() {
         assert_eq!(
@@ -242,6 +252,7 @@ mod tests {
         );
     }
 
+    // contract: P8-trn-hf-resolve-fireworks-prefix
     #[test]
     fn resolve_fireworks_prefix() {
         assert_eq!(

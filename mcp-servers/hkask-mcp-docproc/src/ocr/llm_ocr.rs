@@ -122,18 +122,21 @@ mod tests {
         DynamicImage::ImageRgb8(img)
     }
 
+    // contract: ocr-llm-01
     #[test]
     fn is_available_for_llm_ocr() {
         let executor = LlmOcrExecutor::new(InferenceConfig::from_env());
         assert!(executor.is_available(&OcrBackend::LlmOcr("any-model".into())));
     }
 
+    // contract: ocr-llm-02
     #[test]
     fn is_available_false_for_other_backends() {
         let executor = LlmOcrExecutor::new(InferenceConfig::from_env());
         assert!(!executor.is_available(&OcrBackend::Tesseract));
     }
 
+    // contract: ocr-llm-03
     #[tokio::test]
     async fn execute_rejects_wrong_backend() {
         let executor = LlmOcrExecutor::new(InferenceConfig::from_env());

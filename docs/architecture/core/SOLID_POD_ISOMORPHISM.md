@@ -3,7 +3,7 @@ title: "AgentPod↔Solid Pod Isomorphism — Architecture Drift Analysis"
 audience: [architects, developers]
 last_updated: 2026-06-18
 version: "0.29.0"
-status: "Architecture Analysis"
+status: "Drift resolved — PodManager deleted. Per-pod SQLCipher implemented."
 domain: "Agent Pod Lifecycle"
 pragmatic_axes: [IS/OUGHT, Declarative/Probabilistic/Subjunctive, Evidence/Hypothesis/Guardrail]
 ---

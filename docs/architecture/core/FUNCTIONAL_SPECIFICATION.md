@@ -99,7 +99,8 @@ A contract has **exactly one goal principle** and **1 to 11 constraining princip
 | `escalation_queue()` | `&Arc<EscalationQueue>` | Governance |
 | `inference_port()` | `Option<Arc<dyn InferencePort>>` | Coordination |
 | `mcp_runtime()` | `&Arc<McpRuntime>` | Coordination |
-| `pod_manager()` | `&Arc<PodManager>` | Coordination |
+| `pod_factory()` | `&Arc<PodFactory>` | Coordination |
+| `active_pods()` | `&Arc<ActivePods>` | Coordination |
 | `identity()` | `(&WebID, &Arc<hkask_agents::A2ARuntime>)` | Identity |
 | `sovereignty()` | `SovereigntyService` | Sovereignty |
 | `curation_inbox_tx()` | `&Option<mpsc::UnboundedSender<CurationInput>>` | Internal |
@@ -958,7 +959,7 @@ Representative domains:
 ### 3.8 Agents (`hkask-agents`)
 
 **30 contracts** — agents span four motivating principles:
-- **P1 (User Sovereignty)** — `AgentPod`, `PodManager`, `SovereigntyChecker`
+- **P1 (User Sovereignty)** — `AgentPod`, `PodDeployment`, `PodFactory`, `SovereigntyChecker`
 - **P2 (Affirmative Consent)** — `ConsentRecord`, `ConsentManager`
 - **P4 (Clear Boundaries)** — A2A runtime, root authority, MCP capability adapters
 - **P9 (Homeostatic Self-Regulation)** — Curator, Metacognition, LoopSystem, BotHealth, prompt classification

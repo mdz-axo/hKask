@@ -3,7 +3,7 @@ title: "PodDeployment Contract — Per-Pod Deployment Unit"
 audience: [architects, developers]
 last_updated: 2026-06-18
 version: "0.29.0"
-status: "Draft — Strangler-Fig Phase 1"
+status: "Implemented — PodDeployment is canonical. PodManager deleted."
 domain: "Agent Pod Lifecycle"
 principles: [P1, P4, P5, P6, P7, P11]
 ---

@@ -18,6 +18,7 @@ pub struct AuthContext {
 
 impl AuthContext {
     /// Create an AuthContext from a session (no DelegationToken).
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     pub fn from_session(webid: WebID) -> Self {
         Self { token: None, webid }
     }

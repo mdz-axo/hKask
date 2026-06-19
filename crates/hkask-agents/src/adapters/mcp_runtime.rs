@@ -78,7 +78,10 @@ pub struct CapabilityOnlyAdapter {
 impl CapabilityOnlyAdapter {
     /// Create a capability-only adapter with the given checker.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — capability-only adapter gates tools without runtime
+    /// pre:  `checker` is a valid `Arc<CapabilityChecker>`.
+    /// post: Returns a `CapabilityOnlyAdapter` with the given checker;
     ///       tool invocation will always fail with `McpError::NoRuntime`.
     pub fn new(checker: Arc<CapabilityChecker>) -> Self {
         Self {
@@ -132,9 +135,12 @@ impl FullMcpAdapter {
     /// verification, the runtime for MCP dispatch, and a tokio
     /// handle for bridging sync→async calls.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — full adapter combines capability checker + MCP runtime
+    /// pre:  `checker` is a valid `Arc<CapabilityChecker>`; `runtime` is
     ///       a valid `Arc<McpRuntime>`; `handle` is a valid tokio runtime
     ///       handle.
+    /// post: Returns a `FullMcpAdapter` with all three components set.
     pub fn new(
         checker: Arc<CapabilityChecker>,
         runtime: Arc<McpRuntime>,

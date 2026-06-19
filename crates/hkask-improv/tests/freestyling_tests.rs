@@ -8,6 +8,7 @@ use hkask_improv::protocol::ImprovResponse;
 use hkask_types::id::WebID;
 use std::time::Duration;
 
+// contract: IMPROV-FREESTYLING-TESTS-001
 #[test]
 fn enforces_time_bound() {
     let agent = WebID::new();
@@ -27,6 +28,7 @@ fn enforces_time_bound() {
     assert!(result.is_none(), "Expired session must return None");
 }
 
+// contract: IMPROV-FREESTYLING-TESTS-002
 #[test]
 fn multi_participant_round_robin() {
     let a1 = WebID::new();
@@ -53,6 +55,7 @@ fn multi_participant_round_robin() {
     assert_eq!(session.turn_count(), 3);
 }
 
+// contract: IMPROV-FREESTYLING-TESTS-003
 #[test]
 fn produces_freestyle_turn_responses() {
     let agent = WebID::new();
@@ -75,6 +78,7 @@ fn produces_freestyle_turn_responses() {
     }
 }
 
+// contract: IMPROV-FREESTYLING-TESTS-004
 #[test]
 fn tracks_turns_correctly() {
     let a1 = WebID::new();
@@ -96,6 +100,7 @@ fn tracks_turns_correctly() {
     assert_eq!(session.turns[2].content, "turn 3");
 }
 
+// contract: IMPROV-FREESTYLING-TESTS-005
 #[test]
 fn time_remaining_decreases_monotonically() {
     let agent = WebID::new();

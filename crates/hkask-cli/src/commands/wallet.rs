@@ -14,6 +14,10 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 /// Run a wallet subcommand. Builds a standalone WalletService for CLI use.
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// pre:  action is a valid WalletAction variant
+/// post: dispatches to balance, deposit, history, key, fee, withdraw, encumber, release, or report operations
 pub fn run(action: WalletAction) {
     // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "wallet", action = ?action, "CNS");

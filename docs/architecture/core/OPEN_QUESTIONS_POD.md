@@ -15,7 +15,7 @@ Questions raised by the Solid Pod isomorphism that require future design work. T
 
 ## ζ.1 — Pod-to-Pod Communication (Cross-Pod A2A)
 
-**Current state:** The A2A runtime (`A2ARuntime`) assumes agents are in the same process (shared `PodManager`). Cross-pod A2A requires a network boundary.
+**Current state (v0.29.0):** `PodManager` has been deleted. Each pod now has its own `PodDeployment` with per-pod storage, CNS, and MCP bindings. The `ActivePods` registry tracks active deployments. `PodRegistry` provides filesystem-based discovery.
 
 **Options:**
 
@@ -48,13 +48,13 @@ Questions raised by the Solid Pod isomorphism that require future design work. T
 
 ## ζ.3 — Pod Lifecycle Across Containers
 
-**Current state:** Pod lifecycle is managed by `PodManager` via `activate_pod()` and `deactivate_pod()`, operating on an in-memory `HashMap`.
+**Current state (v0.29.0):** Pod lifecycle is managed by `ActivePods` (runtime registry) and `PodFactory` (constructor). Each `PodDeployment` holds its own `AgentPod` with lifecycle state.
 
 **Target:** Pod IS a Docker/Podman container. Starting/stopping the pod IS starting/stopping the container.
 
 **Questions:**
 
-| Current (PodManager) | Containerized (Proposed) | Open Question |
+| Current (ActivePods) | Containerized (Proposed) | Open Question |
 |---------------------|--------------------------|---------------|
 | `kask pod activate <id>` | `docker start <pod_id>` | Should `kask pod activate` become a wrapper around Docker? Or should the container model be an alternative deployment mode? |
 | `kask pod deactivate <id>` | `docker stop <pod_id>` | Same question. Does this simplify or complicate the lifecycle state machine? |

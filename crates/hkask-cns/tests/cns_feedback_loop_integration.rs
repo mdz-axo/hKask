@@ -10,6 +10,7 @@
 use hkask_test_harness::{MockCnsRuntime, MockCnsState, MockToolState, test_event};
 use hkask_types::event::{Phase, Span, SpanNamespace};
 
+// contract: INT-004
 // The CNS detects perturbations and restores homeostasis.
 
 #[test]
@@ -29,6 +30,7 @@ fn cns_detects_perturbation() {
     );
 }
 
+// contract: INT-004
 #[test]
 fn cns_restores_homeostasis_after_time() {
     let cns = MockCnsRuntime::new();
@@ -53,6 +55,7 @@ fn cns_restores_homeostasis_after_time() {
     );
 }
 
+// contract: INT-004
 #[test]
 fn cns_throttles_tool_on_budget_exceeded() {
     let cns = MockCnsRuntime::with_state(MockCnsState::perturbed("tool-x"));
@@ -62,6 +65,7 @@ fn cns_throttles_tool_on_budget_exceeded() {
     assert_eq!(cns.tool_state("tool-y"), MockToolState::Active);
 }
 
+// contract: INT-004
 #[test]
 fn cns_tracks_variety_by_domain() {
     let cns = MockCnsRuntime::new();
@@ -75,6 +79,7 @@ fn cns_tracks_variety_by_domain() {
     assert_eq!(cns.variety_for_domain("cns.unknown"), 0);
 }
 
+// contract: INT-004
 #[test]
 fn cns_multiple_perturbations_accumulate_signals() {
     let cns = MockCnsRuntime::new();

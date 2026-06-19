@@ -316,6 +316,7 @@ mod tests {
             .to_vec()
     }
 
+    // contract: ocr-decimate-01
     #[tokio::test]
     async fn valid_pdf_produces_images() {
         if !pdftoppm_available() {
@@ -333,6 +334,7 @@ mod tests {
         assert!(images[0].height() > 0);
     }
 
+    // contract: ocr-decimate-02
     #[tokio::test]
     async fn missing_file_returns_error() {
         let result = pdf_to_images(Path::new("/nonexistent/path.pdf"), 150).await;
@@ -345,6 +347,7 @@ mod tests {
         );
     }
 
+    // contract: ocr-decimate-03
     #[tokio::test]
     async fn corrupt_pdf_returns_error() {
         if !pdftoppm_available() {
@@ -360,6 +363,7 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // contract: ocr-decimate-04
     #[test]
     fn otsu_binarization_bw_output() {
         // Create a text-like test image (dark text on light background)
@@ -387,6 +391,7 @@ mod tests {
         assert!(unique.contains(&255), "should contain white pixels");
     }
 
+    // contract: ocr-decimate-05
     #[test]
     fn otsu_uniform_image() {
         // Uniform gray image — Otsu should still produce valid output
@@ -397,6 +402,7 @@ mod tests {
         assert!(img.as_luma8().is_some());
     }
 
+    // contract: ocr-decimate-06
     #[tokio::test]
     async fn fal_docres_preprocessing_live() {
         // Only run when explicitly opted in (avoids 40s latency in default test suite)

@@ -44,8 +44,8 @@ One binary (`kask`), one server, many users. Each user gets a terminal session s
 │  │  localhost:8008   │  │                                  │  │
 │  └───────────────────┘  │  Curator → Agent Pods             │  │
 │                         │  Wallet (cloud-only)              │  │
-│                         │  Multi-user TripleStore           │  │
-│                         │  (scoped by owner_webid)          │  │
+│                         │  Per-pod SQLCipher files          │  │
+│                         │  ({data_dir}/pods/{pod_id}.db)   │  │
 │                         └──────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────┘
          │

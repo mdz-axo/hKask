@@ -5,6 +5,9 @@
 
 use std::time::Duration;
 
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// pre:  rt is a valid tokio Runtime
+/// post: runs cargo test on the specified crate or all priority crates,
 ///       reports REQ-tagged failures to stdout
 pub fn run(
     _rt: &tokio::runtime::Runtime,

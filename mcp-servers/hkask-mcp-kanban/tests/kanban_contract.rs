@@ -31,6 +31,8 @@ fn default_columns() -> Vec<hkask_types::ColumnDef> {
 
 // ── Board CRUD contract tests ──────────────────────────────────────────────
 
+// contract: P3-svc-kanban-002
+// expect: "I can create a kanban board with a name and columns, and it persists" [P3]
 // [P1] Constraining: board is owned by a user WebID — sovereignty boundary
 #[test]
 fn board_create_list_get_delete() {
@@ -63,6 +65,8 @@ fn board_create_list_get_delete() {
     assert!(after.is_empty());
 }
 
+// contract: P3-svc-kanban-002
+// expect: "I get a clear error when I try to create a board with no name" [P3]
 #[test]
 fn board_create_rejects_empty_name() {
     let (svc, owner) = setup();
@@ -72,6 +76,8 @@ fn board_create_rejects_empty_name() {
     assert!(matches!(err, KanbanError::InvalidInput(_)));
 }
 
+// contract: P3-svc-kanban-002
+// expect: "I get a clear error when I try to create a board with no columns" [P3]
 #[test]
 fn board_create_rejects_empty_columns() {
     let (svc, owner) = setup();
@@ -83,6 +89,8 @@ fn board_create_rejects_empty_columns() {
 
 // ── Task lifecycle contract tests ───────────────────────────────────────────
 
+// contract: P3-svc-kanban-003
+// expect: "I can create tasks on a board with title, description, and criteria" [P3]
 // [P12] Constraining: every task carries the creator's WebID — no anonymous agency
 #[test]
 fn task_create_list_get() {
@@ -116,6 +124,8 @@ fn task_create_list_get() {
     assert_eq!(fetched.criteria.len(), 2);
 }
 
+// contract: P3-svc-kanban-003
+// expect: "I can filter tasks by their workflow status — backlog, in progress, done" [P3]
 #[test]
 fn task_list_filters_by_status() {
     let (svc, owner) = setup();
@@ -139,6 +149,8 @@ fn task_list_filters_by_status() {
     assert!(in_progress.is_empty());
 }
 
+// contract: P3-svc-kanban-004
+// expect: "I can move a task through the workflow — backlog to ready to in-progress to review to done" [P3]
 #[test]
 fn task_move_transitions() {
     let (svc, owner) = setup();
@@ -176,6 +188,8 @@ fn task_move_transitions() {
     assert_eq!(moved.status, TaskStatus::Done);
 }
 
+// contract: P3-svc-kanban-004
+// expect: "I get a clear error when I try to move a task backward from Done — transitions are final" [P3]
 #[test]
 fn task_move_rejects_backward_transition() {
     let (svc, owner) = setup();
@@ -210,6 +224,8 @@ fn task_move_rejects_backward_transition() {
     assert!(matches!(err, KanbanError::InvalidTransition { .. }));
 }
 
+// contract: P3-svc-kanban-004
+// expect: "I get a not-found error when I try to move a task that doesn't exist" [P3]
 #[test]
 fn task_move_nonexistent_returns_not_found() {
     let (svc, _owner) = setup();
@@ -220,6 +236,8 @@ fn task_move_nonexistent_returns_not_found() {
     assert!(matches!(err, KanbanError::NotFound(_)));
 }
 
+// contract: P3-svc-kanban-005
+// expect: "I can assign a task to an agent with explicit consent proof" [P1]
 // [P1] Goal: User Sovereignty — consent-gated assignment
 // [P12] Constraining: both assigner and assignee carry authenticated WebIDs
 #[test]
@@ -247,6 +265,8 @@ fn task_assign_with_consent() {
     assert!(fetched.assignee.is_some());
 }
 
+// contract: P3-svc-kanban-006
+// expect: "I can verify a task in Review against its acceptance criteria and see whether it passed" [P3]
 #[test]
 fn task_verify_passes_on_evidence() {
     let (svc, owner) = setup();
@@ -283,6 +303,8 @@ fn task_verify_passes_on_evidence() {
     assert_eq!(verified_task.status, TaskStatus::Done);
 }
 
+// contract: P3-svc-kanban-007
+// expect: "I can delete a task and it no longer appears in task lists" [P3]
 #[test]
 fn task_delete_removes() {
     let (svc, owner) = setup();
@@ -309,6 +331,8 @@ fn task_delete_removes() {
 
 // ── Property-based: task lifecycle invariant ────────────────────────────────
 
+// contract: P3-svc-kanban-008
+// expect: "I know that every task I create belongs to exactly one board — this invariant always holds" [P3]
 proptest! {
     #[test]
     fn task_board_invariant_holds(

@@ -50,6 +50,8 @@ fn make_triple(
 
 // ── Store contract tests ────────────────────────────────────────────────────
 
+// contract: MEM-STORE-001
+// expect: "I can store first-person experience triples in my sovereign episodic memory" [P3]
 // [P1] Constraining: rejects Public visibility — episodic is sovereign
 #[test]
 fn store_and_recall_episodic_triple() {
@@ -68,6 +70,8 @@ fn store_and_recall_episodic_triple() {
     assert_eq!(recalled[0].attribute, "action");
 }
 
+// contract: MEM-STORE-002
+// expect: "I can verify the system enforces sovereignty boundaries on episodic memory" [P1]
 #[test]
 fn store_rejects_public_triple() {
     let store = setup_store();
@@ -80,6 +84,8 @@ fn store_rejects_public_triple() {
     assert!(err.to_string().contains("visibility") || err.to_string().contains("Public"));
 }
 
+// contract: MEM-STORE-003
+// expect: "I can verify the system rejects anonymous episodic storage" [P12]
 #[test]
 fn store_requires_perspective() {
     let store = setup_store();
@@ -96,6 +102,8 @@ fn store_requires_perspective() {
 
 // ── Recall contract tests ───────────────────────────────────────────────────
 
+// contract: MEM-RECALL-001
+// expect: "I can verify that episodic recall respects sovereignty — mine vs. yours" [P1]
 #[test]
 fn recall_filters_by_perspective() {
     let store = setup_store();
@@ -129,6 +137,8 @@ fn recall_filters_by_perspective() {
     assert_eq!(bob_recall[0].access.perspective, Some(bob));
 }
 
+// contract: MEM-RECALL-002
+// expect: "I can query for nonexistent memories and get a clean empty result" [P8]
 #[test]
 fn recall_nonexistent_returns_empty() {
     let store = setup_store();
@@ -143,6 +153,8 @@ fn recall_nonexistent_returns_empty() {
 
 // ── Storage budget contract tests ───────────────────────────────────────────
 
+// contract: MEM-BUDGET-001
+// expect: "I can query my episodic storage usage" [P9]
 #[test]
 fn storage_usage_reports_count() {
     let store = setup_store();

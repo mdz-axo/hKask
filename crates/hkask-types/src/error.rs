@@ -114,6 +114,9 @@ pub enum McpErrorKind {
 impl McpErrorKind {
     /// Whether errors of this kind are retryable with backoff.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// pre:  self is any McpErrorKind variant
+    /// post: returns true only for Unavailable, Timeout, and RateLimited;
     ///       returns false for Internal, NotFound, InvalidArgument,
     ///       PermissionDenied, and FailedPrecondition
     pub fn is_retryable(self) -> bool {
@@ -122,6 +125,9 @@ impl McpErrorKind {
 
     /// Whether this error requires user/admin intervention.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// pre:  self is any McpErrorKind variant
+    /// post: returns true only for PermissionDenied and FailedPrecondition;
     ///       returns false for Internal, Unavailable, Timeout, NotFound,
     ///       InvalidArgument, and RateLimited
     pub fn requires_intervention(self) -> bool {
@@ -193,6 +199,8 @@ impl std::fmt::Display for DimensionMismatch {
 mod tests {
     use super::*;
 
+    // contract: types-error-001
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn mcperrorkind_is_retryable() {
         assert!(McpErrorKind::Unavailable.is_retryable());
@@ -205,6 +213,8 @@ mod tests {
         assert!(!McpErrorKind::FailedPrecondition.is_retryable());
     }
 
+    // contract: types-error-002
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn mcperrorkind_requires_intervention() {
         assert!(McpErrorKind::PermissionDenied.requires_intervention());
@@ -217,6 +227,8 @@ mod tests {
         assert!(!McpErrorKind::RateLimited.requires_intervention());
     }
 
+    // contract: types-error-003
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn from_poison_error_produces_lock_poisoned() {
         let mutex = std::sync::Mutex::new(42);
@@ -233,6 +245,8 @@ mod tests {
         assert_eq!(infra, InfrastructureError::LockPoisoned);
     }
 
+    // contract: types-error-004
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn from_serde_error_produces_serialization() {
         let bad_json = "{invalid";
@@ -242,6 +256,8 @@ mod tests {
         assert!(matches!(infra, InfrastructureError::Serialization(_)));
     }
 
+    // contract: types-error-005
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn infrastructure_error_display_is_readable() {
         assert_eq!(
@@ -258,6 +274,8 @@ mod tests {
         );
     }
 
+    // contract: types-error-006
+    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn mcperrorkind_display_renders_snake_case() {
         assert_eq!(McpErrorKind::Internal.to_string(), "internal");

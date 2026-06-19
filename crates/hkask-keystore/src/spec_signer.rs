@@ -24,6 +24,9 @@ impl Ed25519SpecSigner {
     /// to derive a 32-byte Ed25519 seed. This ensures domain separation from
     /// other keys derived from the same master secret.
     ///
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
+    /// pre:  master_secret is non-empty
+    /// post: returns Ed25519SpecSigner with derived signing key
     pub fn from_master_secret(master_secret: &[u8]) -> Self {
         let sub_key = crate::master_key::derive_sub_key(master_secret, "hkask:spec-signing-key");
         let seed: [u8; 32] = sub_key
@@ -40,6 +43,9 @@ impl Ed25519SpecSigner {
     /// The canonical JSON must be produced by the caller (sorted keys, no
     /// whitespace) to ensure deterministic verification.
     ///
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
+    /// pre:  canonical_json is non-empty
+    /// post: returns 128-char hex-encoded Ed25519 signature
     pub fn sign_spec(&self, canonical_json: &[u8]) -> String {
         let start = std::time::Instant::now();
         let signature = self.signing_key.sign(canonical_json);
@@ -54,6 +60,9 @@ impl Ed25519SpecSigner {
     /// The `hex_signature` must be a 128-character hex string encoding
     /// the 64-byte Ed25519 signature.
     ///
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
+    /// pre:  canonical_json is non-empty, hex_signature is 128 hex chars
+    /// post: returns Ok(()) if signature valid, Err otherwise
     pub fn verify_spec(
         &self,
         canonical_json: &[u8],
@@ -77,12 +86,16 @@ impl Ed25519SpecSigner {
     /// Useful for storing the public key alongside a spec so that
     /// consumers who don't have the master secret can still verify.
     ///
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
+    /// post: returns Ed25519 VerifyingKey
     pub fn verifying_key(&self) -> VerifyingKey {
         self.signing_key.verifying_key()
     }
 
     /// Return the verifying key bytes (32 bytes) as a hex string.
     ///
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
+    /// post: returns 64-char hex-encoded verifying key
     pub fn verifying_key_hex(&self) -> String {
         hex::encode(self.signing_key.verifying_key().to_bytes())
     }

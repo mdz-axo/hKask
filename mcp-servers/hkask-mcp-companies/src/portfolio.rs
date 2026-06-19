@@ -967,6 +967,7 @@ mod tests {
         }
     }
 
+    // contract: PORTFOLIO-CRUD
     #[test]
     fn portfolio_create_list_delete() {
         let dir = tempfile::tempdir().unwrap();
@@ -989,6 +990,7 @@ mod tests {
         assert!(pm.delete("nonexistent").is_err());
     }
 
+    // contract: PORTFOLIO-TX
     #[test]
     fn transaction_add_and_retrieve() {
         let dir = tempfile::tempdir().unwrap();
@@ -1008,6 +1010,7 @@ mod tests {
         assert!(txs[0].notes.contains("buying the dip"));
     }
 
+    // contract: PORTFOLIO-TX
     #[test]
     fn transaction_filtering() {
         let dir = tempfile::tempdir().unwrap();
@@ -1036,6 +1039,7 @@ mod tests {
         assert_eq!(july.len(), 1);
     }
 
+    // contract: PORTFOLIO-VALIDATE
     #[test]
     fn validate_positions_and_cash() {
         let dir = tempfile::tempdir().unwrap();
@@ -1081,6 +1085,7 @@ mod tests {
         assert!((report.cash_balance - 8202.0).abs() < 0.01);
     }
 
+    // contract: PORTFOLIO-IMPORT
     #[test]
     fn csv_import() {
         let dir = tempfile::tempdir().unwrap();
@@ -1105,6 +1110,7 @@ deposit,2024-01-01,,,,,10000.0
         assert!(report.valid);
     }
 
+    // contract: PORTFOLIO-IMPORT
     #[test]
     fn json_import() {
         let dir = tempfile::tempdir().unwrap();
@@ -1123,6 +1129,7 @@ deposit,2024-01-01,,,,,10000.0
         assert_eq!(txs.len(), 2);
     }
 
+    // contract: PORTFOLIO-EXPORT
     #[test]
     fn export_roundtrip() {
         let dir = tempfile::tempdir().unwrap();
@@ -1140,6 +1147,7 @@ deposit,2024-01-01,,,,,10000.0
         assert!(csv.contains("buy"));
     }
 
+    // contract: PORTFOLIO-VALIDATE
     #[test]
     fn validate_detects_issues() {
         let dir = tempfile::tempdir().unwrap();
@@ -1160,6 +1168,7 @@ deposit,2024-01-01,,,,,10000.0
         );
     }
 
+    // contract: NOTES-CRUD
     #[test]
     fn notes_crud() {
         let dir = tempfile::tempdir().unwrap();
@@ -1211,6 +1220,7 @@ deposit,2024-01-01,,,,,10000.0
         assert!(empty.is_empty());
     }
 
+    // contract: NOTES-DELETE
     #[test]
     fn delete_nonexistent_note() {
         let dir = tempfile::tempdir().unwrap();
@@ -1220,6 +1230,7 @@ deposit,2024-01-01,,,,,10000.0
         assert!(pm.delete_note("nonexistent-id").is_err());
     }
 
+    // contract: FILES-ATTACH
     #[test]
     fn file_attach_and_list() {
         let dir = tempfile::tempdir().unwrap();
@@ -1258,6 +1269,7 @@ deposit,2024-01-01,,,,,10000.0
         assert_eq!(contents, "Hello, portfolio!");
     }
 
+    // contract: FILES-DELETE
     #[test]
     fn file_delete() {
         let dir = tempfile::tempdir().unwrap();

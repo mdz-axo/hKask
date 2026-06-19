@@ -110,6 +110,7 @@ mod tests {
         ThresholdConfig::default()
     }
 
+    // contract: ocr-complexity-01
     #[test]
     fn blank_image_is_simple() {
         let img = DynamicImage::new_luma8(100, 100);
@@ -121,6 +122,7 @@ mod tests {
         );
     }
 
+    // contract: ocr-complexity-02
     #[test]
     fn text_like_image_is_simple() {
         let mut img: RgbImage = ImageBuffer::new(200, 200);
@@ -141,6 +143,7 @@ mod tests {
         );
     }
 
+    // contract: ocr-complexity-03
     #[test]
     fn dense_table_is_moderate() {
         let mut img: RgbImage = ImageBuffer::new(200, 200);
@@ -166,6 +169,7 @@ mod tests {
         );
     }
 
+    // contract: ocr-complexity-04
     #[test]
     fn noisy_photograph_is_complex() {
         use rand::Rng;
@@ -189,6 +193,7 @@ mod tests {
         );
     }
 
+    // contract: ocr-complexity-05
     #[test]
     fn deterministic_output() {
         let img = DynamicImage::new_luma8(50, 50);
@@ -199,6 +204,7 @@ mod tests {
         assert_eq!(a.tier, b.tier);
     }
 
+    // contract: ocr-complexity-06
     #[test]
     fn custom_thresholds_change_tier() {
         // A checkerboard that's Moderate with defaults should become Simple with high thresholds

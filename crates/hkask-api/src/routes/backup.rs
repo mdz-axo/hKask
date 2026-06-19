@@ -205,6 +205,9 @@ pub struct UpdateConfigRequest {
 
 // ── Router ──────────────────────────────────────────────────────────────
 
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with backup routes registered
 pub fn backup_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(snapshot))
@@ -326,6 +329,8 @@ pub(crate) async fn snapshot(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<SnapshotRequest>,
 ) -> Result<Json<SnapshotResponse>, ServiceErrorResponse> {
+    // contract: P9-CNS-SURF-010
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_snapshot", "CNS");
     let svc = backup_service(&state);
@@ -354,6 +359,8 @@ pub(crate) async fn restore(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<RestoreRequest>,
 ) -> Result<Json<RestoreResponse>, ServiceErrorResponse> {
+    // contract: P9-CNS-SURF-011
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_restore", "CNS");
     let svc = backup_service(&state);
@@ -397,6 +404,8 @@ pub(crate) async fn list_snapshots(
     Extension(_auth): Extension<AuthContext>,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
 ) -> Result<Json<ListResponse>, ServiceErrorResponse> {
+    // contract: P9-CNS-SURF-012
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_list", "CNS");
     let svc = backup_service(&state);
@@ -430,6 +439,8 @@ pub(crate) async fn prune(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<PruneRequest>,
 ) -> Result<Json<PruneResponse>, ServiceErrorResponse> {
+    // contract: P9-CNS-SURF-013
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_prune", "CNS");
     let svc = backup_service(&state);
@@ -466,6 +477,8 @@ pub(crate) async fn verify(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<VerifyResponse>, ServiceErrorResponse> {
+    // contract: P9-CNS-SURF-014
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_verify", "CNS");
     let svc = backup_service(&state);
@@ -500,6 +513,8 @@ pub(crate) async fn get_config(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<BackupConfigResponse>, ServiceErrorResponse> {
+    // contract: P9-CNS-SURF-015
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_config_get", "CNS");
     let svc = backup_service(&state);
@@ -537,6 +552,8 @@ pub(crate) async fn update_config(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<UpdateConfigRequest>,
 ) -> Result<Json<BackupConfigResponse>, ServiceErrorResponse> {
+    // contract: P9-CNS-SURF-016
+    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_config_update", "CNS");
     let mut svc = backup_service(&state);

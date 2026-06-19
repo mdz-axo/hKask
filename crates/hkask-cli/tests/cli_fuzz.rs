@@ -10,6 +10,7 @@ use clap::Parser;
 use hkask_cli::cli::Cli;
 use proptest::prelude::*;
 
+// contract: FUZ-004
 // Arbitrary command-line arguments never panic the CLI parser.
 
 proptest! {

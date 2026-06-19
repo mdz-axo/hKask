@@ -680,6 +680,8 @@ impl CyberneticsLoop {
 mod tests {
     use super::*;
 
+    // contract: P9-cns-loop-quality-001
+    // expect: "The cybernetics loop initializes with a zero-state quality baseline" [P9]
     #[tokio::test]
     async fn new_loop_starts_with_default_quality() {
         let cns = Arc::new(RwLock::new(CnsRuntime::with_threshold(100)));
@@ -690,6 +692,8 @@ mod tests {
         assert!((q.fidelity_score - 0.0).abs() < f64::EPSILON);
     }
 
+    // contract: P9-cns-loop-quality-002
+    // expect: "The cybernetics loop recomputes quality metrics on every regulation tick" [P9]
     #[tokio::test]
     async fn tick_updates_loop_quality() {
         let cns = Arc::new(RwLock::new(CnsRuntime::with_threshold(100)));

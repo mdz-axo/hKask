@@ -2,7 +2,7 @@
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
 last_updated: 2026-06-18
-version: "0.28.0"
+version: "0.29.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -11,7 +11,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 # hKask Documentation Portal
 
 **Purpose:** Single entry point indexing every active document in `docs/`, tagged
-by [MDS](architecture/core/MDS.md) category. 59 active documents. ℏKask v0.28.0.
+by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 
 > **Lifecycle:** Retired documents are removed via `git rm`. The gitignored
 > `docs/archive/` holds date-stamped snapshots for reference.
@@ -51,6 +51,10 @@ by [MDS](architecture/core/MDS.md) category. 59 active documents. ℏKask v0.28.
 | [`TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | all | Contract-anchored testing — DbC + PBT specification |
 | [`TESTING_NARRATIVE.md`](architecture/core/TESTING_NARRATIVE.md) | lifecycle, curation | Narrative companion — getting-started walkthrough |
 | [`CNS-DOMAIN-SPECIFICATION.md`](architecture/core/CNS-DOMAIN-SPECIFICATION.md) | domain, composition, lifecycle | CNS specification — 6 sub-domains, 44 contracts |
+| [`SOLID_POD_ISOMORPHISM.md`](architecture/core/SOLID_POD_ISOMORPHISM.md) | domain, composition | AgentPod↔Solid Pod isomorphism — drift analysis and resolution |
+| [`POD_DEPLOYMENT_CONTRACT.md`](architecture/core/POD_DEPLOYMENT_CONTRACT.md) | domain, composition, trust | PodDeployment contract — per-pod SQLCipher, CNS, MCP bindings |
+| [`STRANGLER_FIG_MIGRATION.md`](architecture/core/STRANGLER_FIG_MIGRATION.md) | lifecycle, curation | Migration plan — PodManager → PodDeployment (complete) |
+| [`OPEN_QUESTIONS_POD.md`](architecture/core/OPEN_QUESTIONS_POD.md) | lifecycle | Open questions — cross-pod A2A, portability, containers |
 | [`FUNCTIONAL_SPECIFICATION.md`](architecture/core/FUNCTIONAL_SPECIFICATION.md) | domain, composition | AgentService functional specification |
 | [`RSOLIDITY_VOCABULARY.md`](architecture/core/RSOLIDITY_VOCABULARY.md) | domain, trust | rSolidity macro vocabulary |
 

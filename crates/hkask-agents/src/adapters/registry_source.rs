@@ -18,7 +18,10 @@ impl Default for FilesystemRegistrySource {
 }
 
 impl FilesystemRegistrySource {
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P5\] Motivating: Essentialism — filesystem registry source is a unit struct
+    /// pre:  (none).
+    /// post: Returns a new `FilesystemRegistrySource` (unit struct).
     pub fn new() -> Self {
         Self
     }

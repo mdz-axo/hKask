@@ -1,6 +1,7 @@
 //! Bundle command handlers for `kask bundle`
 //!
 //! # REQ: P11 (Digital Public/Private Sphere) — CLI surface for bundle management
+//! expect: "I can access all hKask functionality through the kask CLI" [P3]
 //!
 //! Delegates to `BundleService` for all business logic. Formatting and
 //! terminal output are CLI-only concerns; composition, listing, and evolution
@@ -37,6 +38,9 @@ fn resolve_editor() -> String {
     hkask_services::resolve_replicant_name()
 }
 
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+/// pre:  rt is a valid tokio Runtime; action is a valid BundleAction variant
+/// post: dispatches to compose, apply, list, show, evolve, skills, or off based on action variant
 pub fn run_bundle(rt: &tokio::runtime::Runtime, action: BundleAction) {
     // Build the shared service context.
     let ctx = commands::helpers::build_service_context();
