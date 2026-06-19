@@ -1,14 +1,14 @@
 # Infrastructure config manifest for inference
-# hKask v0.28.0
+# hKask v0.30.0
 # This directory contains inference engine selectors and routing configuration.
 # Not a skill template crate — no [inference] .j2 templates.
 
 infrastructure:
   name: inference
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Inference engine selector configuration. Routes inference requests to the
-    appropriate engine (Fireworks, DeepInfra, etc.) based on model
+    appropriate engine (DeepInfra, Together AI, fal.ai, OpenRouter) based on model
     constraints and energy budgets.
   role: config
   contains:

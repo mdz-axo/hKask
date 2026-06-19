@@ -280,7 +280,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<SqliteGoalRepository>
+    /// post: returns `&Arc<SqliteGoalRepository>`
     pub fn goal_repo(&self) -> &Arc<SqliteGoalRepository> {
         &self.goal_repo
     }
@@ -306,7 +306,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<LoopSystem>
+    /// post: returns `&Arc<LoopSystem>`
     pub fn loop_system(&self) -> &Arc<LoopSystem> {
         &self.loop_system
     }
@@ -345,7 +345,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<CapabilityChecker>
+    /// post: returns `&Arc<CapabilityChecker>`
     /// # REQ: P4 (OCAP), P1 (User Sovereignty)
     /// # expect: "Service boundaries enforce OCAP membranes"
     pub fn capability_checker(&self) -> &Arc<CapabilityChecker> {
@@ -355,7 +355,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<McpDispatcher>
+    /// post: returns `&Arc<McpDispatcher>`
     pub fn mcp_dispatcher(&self) -> &Arc<McpDispatcher> {
         &self.mcp_dispatcher
     }
@@ -363,7 +363,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<EscalationQueue>
+    /// post: returns `&Arc<EscalationQueue>`
     pub fn escalation_queue(&self) -> &Arc<EscalationQueue> {
         &self.escalation_queue
     }
@@ -482,7 +482,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<ServiceDaemonHandler>
+    /// post: returns `&Arc<ServiceDaemonHandler>`
     pub fn daemon_handler(&self) -> &Arc<hkask_services_daemon::ServiceDaemonHandler> {
         &self.daemon_handler
     }

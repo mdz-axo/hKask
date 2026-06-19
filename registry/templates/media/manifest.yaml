@@ -1,14 +1,14 @@
 # Template crate manifest for media skill
-# hKask v0.28.0
+# hKask v0.30.0
 
 crate:
   name: media
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
-    Vision LLM-powered media analysis. Classifies photographic style, genre,
-    and era; generates scene descriptions in multiple modes (descriptive,
-    artistic, technical, alt-text); and analyzes color palettes and
-    photographic composition.
+    Vision LLM-powered media analysis and generation. Classifies photographic
+    style, genre, and era; generates scene descriptions in multiple modes;
+    analyzes color palettes and composition; generates logos from business
+    identity inputs with optional iterative vision-LLM refinement.
 
 templates:
   - id: media/classify_style
@@ -44,3 +44,22 @@ templates:
       Analyze an image's photographic composition: focal point, rule of
       thirds, leading lines, depth of field, perspective, framing,
       symmetry, and negative space.
+
+  - id: media/logo-single-shot
+    path: logo-single-shot.j2
+    type: KnowAct
+    lexicon_terms: [generate, design, create]
+    description: >
+      Generate a professional logo from business identity inputs (name,
+      industry, style, palette, logo type). Single-pass image generation
+      using a curated prompt template tuned for logo-quality output.
+
+  - id: media/logo-iterative-refine
+    path: logo-iterative-refine.yaml
+    type: FlowDef
+    lexicon_terms: [generate, critique, refine, iterate]
+    description: >
+      Multi-phase logo design pipeline: generate N candidates, critique
+      each with a vision LLM, select the best, and refine through up to 3
+      critique-and-regenerate cycles. Final output is background-removed
+      for transparent PNG deliverables.

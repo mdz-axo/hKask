@@ -170,7 +170,7 @@ impl KataEngine {
     /// data and cross-session persistence through the daemon's memory pipeline.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  store must be a valid Arc<KataHistoryStore>
+    /// pre:  store must be a valid `Arc<KataHistoryStore>`
     /// post: returns self with history_store set; record_history_entry will persist to SQLite
     pub fn with_history_store(mut self, store: Arc<KataHistoryStore>) -> Self {
         self.history_store = Some(store);

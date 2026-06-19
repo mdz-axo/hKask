@@ -55,7 +55,7 @@ impl WalletService {
     /// Create a new WalletService from its components.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  manager must be a valid `Arc<WalletManager>`; issuer must be a valid Arc<ApiKeyIssuer>
+    /// pre:  manager must be a valid `Arc<WalletManager>`; issuer must be a valid `Arc<ApiKeyIssuer>`
     /// post: returns WalletService with manager and issuer wired; cybernetics and consent_manager default to None
     pub fn new(manager: Arc<WalletManager>, issuer: Arc<ApiKeyIssuer>) -> Self {
         Self {
@@ -69,7 +69,7 @@ impl WalletService {
     /// Attach a CyberneticsLoop for CNS wallet budget registration.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  loop_ must be a valid Arc<Rw`Lock<CyberneticsLoop>`>
+    /// pre:  loop_ must be a valid ``Arc<RwLock<CyberneticsLoop>>``
     /// post: returns self with cybernetics set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_cybernetics(mut self, loop_: Arc<RwLock<CyberneticsLoop>>) -> Self {
@@ -84,7 +84,7 @@ impl WalletService {
     /// withdrawals proceed unchecked (backward compatible for standalone mode).
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  cm must be a valid Arc<ConsentManager>
+    /// pre:  cm must be a valid `Arc<ConsentManager>`
     /// post: returns self with consent_manager set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_consent_manager(mut self, cm: Arc<ConsentManager>) -> Self {
@@ -96,7 +96,7 @@ impl WalletService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be constructed
-    /// post: returns &Arc<WalletManager>
+    /// post: returns `&Arc<WalletManager>`
     pub fn manager(&self) -> &Arc<WalletManager> {
         &self.manager
     }

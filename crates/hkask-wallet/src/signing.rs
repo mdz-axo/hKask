@@ -74,7 +74,7 @@ impl std::fmt::Debug for LoadedKey {
 /// duration of this function call.
 ///
 /// # Security
-/// - Treasury key is `Zeroizing<`Vec<u8>`>` — automatically zeroed on drop
+/// - Treasury key is ``Zeroizing<Vec<u8>>`` — automatically zeroed on drop
 /// - No key material is returned to the caller — only the signature
 /// - Per-operation key loading: key derived fresh each call, not held long-term
 pub fn sign_withdrawal(chain: ChainId, tx_bytes: &[u8]) -> Result<Vec<u8>, WalletError> {

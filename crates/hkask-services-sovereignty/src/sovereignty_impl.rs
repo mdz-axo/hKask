@@ -23,7 +23,7 @@ impl SovereigntyService {
     /// Create from the shared consent manager.
     ///
     /// \[P4\] Motivating: Clear Boundaries — consent manager is shared, not copied.
-    /// pre:  consent is a valid Arc<ConsentManager>
+    /// pre:  consent is a valid `Arc<ConsentManager>`
     /// post: returns SovereigntyService wrapping the shared consent manager
     pub fn new(consent: Arc<ConsentManager>) -> Self {
         Self { consent }

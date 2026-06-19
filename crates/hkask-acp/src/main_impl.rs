@@ -138,7 +138,7 @@ impl HkaskAcpAgent {
     /// Test constructor — uses provided inference port, no daemon.
     ///
     /// expect: "The ACP replicant provides IDE agent presence"
-    /// pre:  inference is a valid Arc<dyn InferencePort>
+    /// pre:  inference is a valid `Arc<dyn InferencePort>`
     /// post: returns HkaskAcpAgent in test mode with no daemon connection
     pub fn for_testing(inference: Arc<dyn InferencePort>) -> Self {
         Self {

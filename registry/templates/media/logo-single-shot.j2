@@ -1,0 +1,54 @@
+# Media — Logo Single-Shot Prompt Manifest
+# Maps business identity inputs into a curated logo-generation prompt.
+
+template_type: KnowAct
+name: media_logo_single_shot
+version: "1.0.0"
+description: "Generate a logo from business identity inputs — name, industry, style, colors"
+model: "FA/flux-pro/v1"
+parameters:
+  - name: name
+    type: string
+    required: true
+    description: "Business or group name"
+  - name: tagline
+    type: string
+    required: false
+    description: "Optional tagline or motto"
+  - name: industry
+    type: string
+    required: false
+    description: "Industry context (tech, food, legal, creative, etc.)"
+  - name: style
+    type: enum
+    values: [minimal, modern, playful, corporate, vintage, luxury, tech, handmade, bold, elegant]
+    default: minimal
+    description: "Visual style direction"
+  - name: palette
+    type: string
+    required: false
+    description: "Hex colors (e.g., '#1a1a2e,#e94560,#ffffff') or named palette (monochrome, warm, cool, earth, neon)"
+  - name: logo_type
+    type: enum
+    values: [wordmark, lettermark, emblem, abstract, combination, mascot]
+    default: wordmark
+    description: "Type of logo mark"
+---
+Design a professional logo for a {% if industry %}{{ industry }}{% else %}business{% endif %} called "{{ name }}"{% if tagline %}, with the tagline "{{ tagline }}"{% endif %}.
+
+Style: {{ style }}
+Logo type: {{ logo_type }}
+{% if palette %}
+Color palette: {{ palette }}
+{% endif %}
+
+Requirements:
+- Clean, scalable vector-style design
+- Works in monochrome as well as color
+- No realistic photography or 3D rendering — flat or subtly shaded illustration style
+- Solid or gradient background preferred — no transparent/checkerboard
+- No text artifacts, garbled letters, or misspelled words
+- High contrast, legible at small sizes
+- Professional, not clip-art
+
+Return a single logo image.

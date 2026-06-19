@@ -55,7 +55,7 @@ impl KanbanService {
 
     /// Attach a PodManager for live spawn capability.
     ///
-    /// pre:  pm is a valid Arc<PodManager>
+    /// pre:  pm is a valid `Arc<PodManager>`
     /// post: returns Self with pod_manager set to Some(pm)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_pod_manager(mut self, pm: Arc<hkask_agents::pod::ActivePods>) -> Self {

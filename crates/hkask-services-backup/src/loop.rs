@@ -46,7 +46,7 @@ impl BackupLoop {
     /// Create a new BackupLoop wrapping a BackupService.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  service must be a valid Arc<BackupService>
+    /// pre:  service must be a valid `Arc<BackupService>`
     /// post: returns BackupLoop with service and default state (no prior snapshots)
     pub fn new(service: Arc<BackupService>) -> Self {
         Self {

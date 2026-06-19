@@ -39,22 +39,22 @@ const THREAD_SUMMARY_SYSTEM_PROMPT: &str = "You are a context condensation assis
      eliminating verbosity. Use bullet points. Be concise.";
 
 pub struct CondenserServer {
-    webid: WebID,
+    pub webid: WebID,
     /// Replicant identity serving this MCP server (for narrative memory)
-    replicant: String,
+    pub replicant: String,
     /// Daemon client for dual-encoding experiences (None if daemon unavailable)
-    daemon: Option<hkask_mcp::DaemonClient>,
-    engine: Mutex<CondenserEngine>,
-    episodic: Option<Arc<EpisodicMemory>>,
+    pub daemon: Option<hkask_mcp::DaemonClient>,
+    pub engine: Mutex<CondenserEngine>,
+    pub episodic: Option<Arc<EpisodicMemory>>,
     /// Centralized inference port (hkask-inference router)
-    inference_port: Arc<dyn InferencePort>,
+    pub inference_port: Arc<dyn InferencePort>,
     /// Default model for thread summarization (e.g., "qwen3:8b")
-    default_model: String,
-    capability_tier: CapabilityTier,
+    pub default_model: String,
+    pub capability_tier: CapabilityTier,
 }
 
 impl CondenserServer {
-    fn new(
+    pub fn new(
         webid: WebID,
         replicant: String,
         daemon: Option<hkask_mcp::DaemonClient>,
@@ -75,12 +75,12 @@ impl CondenserServer {
         }
     }
 
-    fn has_persistence(&self) -> bool {
+    pub fn has_persistence(&self) -> bool {
         self.episodic.is_some()
     }
 
     /// Record a tool call as a narrative experience in the agent's memory.
-    fn record_experience(
+    pub fn record_experience(
         &self,
         tool: &str,
         input_summary: &str,

@@ -35,23 +35,23 @@ use ab_glyph::Font;
 use face_id::analyzer::FaceAnalyzer;
 
 pub struct MediaServer {
-    webid: WebID,
+    pub webid: WebID,
     /// Replicant identity serving this MCP server (for narrative memory)
-    replicant: String,
+    pub replicant: String,
     /// Daemon client for dual-encoding experiences (None if daemon unavailable)
-    daemon: Option<DaemonClient>,
+    pub daemon: Option<DaemonClient>,
     /// Centralized inference router for ALL model calls (vision LLM + media generation)
-    inference: Arc<InferenceRouter>,
+    pub inference: Arc<InferenceRouter>,
     /// Active gallery state (None until gallery_set_root is called)
-    gallery_state: Arc<Mutex<Option<GalleryState>>>,
+    pub gallery_state: Arc<Mutex<Option<GalleryState>>>,
     /// SQLite-backed gallery store for persistent indexing
-    gallery_store: Arc<GalleryStore>,
+    pub gallery_store: Arc<GalleryStore>,
     /// Jinja2 template environment for prompt rendering
-    template_env: minijinja::Environment<'static>,
+    pub template_env: minijinja::Environment<'static>,
     /// ffmpeg runner for video processing (None if ffmpeg not found)
-    ffmpeg: FfmpegRunner,
+    pub ffmpeg: FfmpegRunner,
     /// ONNX face detection + recognition pipeline (None if model download failed)
-    face_analyzer: Option<Arc<FaceAnalyzer>>,
+    pub face_analyzer: Option<Arc<FaceAnalyzer>>,
 }
 
 mod types;
@@ -3710,10 +3710,12 @@ impl MediaServer {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<(), hkask_mcp::McpError> {
+/// Run the media MCP server (used by binary target).
+pub async fn run(
+    replicant: String,
+    _daemon_client: Option<hkask_mcp::DaemonClient>,
+) -> Result<(), hkask_mcp::McpError> {
     dotenvy::dotenv().ok();
-    let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
 
     // Build the inference router for vision LLM tasks.
     // Backends are constructed lazily — only those with configured API keys are available.

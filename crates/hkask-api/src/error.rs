@@ -85,7 +85,7 @@ impl IntoResponse for ApiError {
 
 /// Newtype wrapper that implements `IntoResponse` for `ServiceError`.
 ///
-/// Route handlers return `Result<`Json<T>`, ServiceErrorResponse>`.
+/// Route handlers return ``Result<Json<T>, ServiceErrorResponse>``.
 /// The `?` operator auto-converts `ServiceError` via the `From` impl.
 #[derive(Debug)]
 pub struct ServiceErrorResponse(pub hkask_services::ServiceError);

@@ -1,6 +1,6 @@
 //! SQLite registry adapter — persistent template registry backed by SQLite.
 //!
-//! Connection stored as `Arc<`Mutex<Connection>`>` for thread-safe shared access,
+//! Connection stored as ``Arc<Mutex<Connection>>`` for thread-safe shared access,
 //! consistent with `hkask_storage::Database::conn_arc()`. Use `new_with_conn()`
 //! when opening through `hkask_storage::Database` (SQLCipher-encrypted).
 

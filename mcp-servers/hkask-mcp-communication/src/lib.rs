@@ -35,9 +35,9 @@ use std::sync::Arc;
 // ── Server ───────────────────────────────────────────────────────────────
 
 pub struct CommunicationServer {
-    webid: WebID,
-    matrix: Arc<MatrixTransport>,
-    registry: Arc<AgentRegistry>,
+    pub webid: WebID,
+    pub matrix: Arc<MatrixTransport>,
+    pub registry: Arc<AgentRegistry>,
 }
 
 impl CommunicationServer {
