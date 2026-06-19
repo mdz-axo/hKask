@@ -2,12 +2,12 @@
   "openapi": "3.1.0",
   "info": {
     "title": "hKask API",
-    "description": "A Minimal Viable Container for Agents \u2014 HTTP API.\n\nhKask is an agent runtime grounded in 12 architectural principles\n(P0\u2013P12) expressed through four composable patterns: Skills Model,\nCNS Feedback Loop, Agentic AI Mediation, and Agent Creation with\nSovereign Memory. This API exposes all capabilities equally across\nCLI, API, and MCP surfaces under P3 (Equal Surface Exposure).\n\nAll endpoints carry OCAP DelegationToken authentication (P4).\nData access is governed by user sovereignty and affirmative\nconsent (P1, P2).",
+    "description": "A Minimal Viable Container for Agents — HTTP API.\n\nhKask is an agent runtime grounded in 12 architectural principles\n(P0–P12) expressed through four composable patterns: Skills Model,\nCNS Feedback Loop, Agentic AI Mediation, and Agent Creation with\nSovereign Memory. This API exposes all capabilities equally across\nCLI, API, and MCP surfaces under P3 (Equal Surface Exposure).\n\nAll endpoints carry OCAP DelegationToken authentication (P4).\nData access is governed by user sovereignty and affirmative\nconsent (P1, P2).",
     "license": {
       "name": "MIT",
       "identifier": "MIT"
     },
-    "version": "0.27.0"
+    "version": "0.28.0"
   },
   "servers": [
     {
@@ -51,8 +51,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "List all capabilities currently held by a specific bot. Requires the bot's WebID as a path parameter. Returns a JSON array of capability string identifiers. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/bots/{id}/grant": {
@@ -93,8 +92,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Grant a new capability to a specific bot. Requires the bot's WebID as a path parameter and a GrantCapabilityRequest body specifying the capability to grant. Returns a 200 confirmation on success, 400 for invalid requests. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/chat": {
@@ -141,7 +139,7 @@
           "chat"
         ],
         "summary": "Stream chat inference output as Server-Sent Events.",
-        "description": "Accepts the same `ChatRequest` as `/api/chat` but streams the inference\noutput as SSE `data:` events. Each event carries a JSON object with\n`text_delta`, `model`, and optionally `finish_reason`. The final event\nhas `finish_reason: \"stop\"` and includes `usage` stats.\n\nThis is a surface-layer endpoint \u2014 it bypasses ChatService's full\npipeline (memory recall, episodic storage) and calls the inference port\ndirectly for streaming. Use `/api/chat` for the full pipeline with\nmemory integration.",
+        "description": "Accepts the same `ChatRequest` as `/api/chat` but streams the inference\noutput as SSE `data:` events. Each event carries a JSON object with\n`text_delta`, `model`, and optionally `finish_reason`. The final event\nhas `finish_reason: \"stop\"` and includes `usage` stats.\n\nThis is a surface-layer endpoint — it bypasses ChatService's full\npipeline (memory recall, episodic storage) and calls the inference port\ndirectly for streaming. Use `/api/chat` for the full pipeline with\nmemory integration.",
         "operationId": "chat_stream",
         "requestBody": {
           "content": {
@@ -193,8 +191,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Get CNS health status for the entire system. Returns CnsHealthResponse including overall health boolean, critical alert count, warning count, and total variety deficit. Use this endpoint to monitor system homeostasis. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/cns/subscribe": {
@@ -253,8 +250,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Get CNS variety counter values across all monitored domains. Returns CnsVarietyResponse with per-domain counters, domain list, and total deficit. Variety counters track information diversity per Ashby's Law of Requisite Variety. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/consolidate": {
@@ -287,10 +283,10 @@
             }
           },
           "401": {
-            "description": "Unauthorized \u2014 invalid passphrase"
+            "description": "Unauthorized — invalid passphrase"
           },
           "429": {
-            "description": "Rate limited \u2014 try again later"
+            "description": "Rate limited — try again later"
           },
           "500": {
             "description": "Internal server error"
@@ -304,7 +300,7 @@
           "episodic"
         ],
         "summary": "Query episodic memories for the authenticated caller by entity.",
-        "description": "Routes through `EpisodicStoragePort` with OCAP discipline.\nApplies confidence decay, temporal attention weighting, and deduplication\n(subloops 2a.2\u20132a.4) before returning results.",
+        "description": "Routes through `EpisodicStoragePort` with OCAP discipline.\nApplies confidence decay, temporal attention weighting, and deduplication\n(subloops 2a.2–2a.4) before returning results.",
         "operationId": "query_episodes",
         "parameters": [
           {
@@ -405,8 +401,7 @@
           "500": {
             "description": "Query error"
           }
-        },
-        "description": "Get episodic memory usage statistics for the authenticated caller. Returns EpisodicUsageResponse with current memory count and storage budget. Use this to monitor memory consumption before hitting storage limits. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/goals": {
@@ -447,8 +442,7 @@
           "403": {
             "description": "Authority denied"
           }
-        },
-        "description": "List all MDS goals for the authenticated agent, optionally filtered by lifecycle state. Accepts an optional `state` query parameter to filter by goal state. Returns GoalListResponse with an array of goals (id, text, state, visibility). Requires DelegationToken auth (P4 OCAP); 403 if authority denied."
+        }
       },
       "post": {
         "tags": [
@@ -486,8 +480,7 @@
           "403": {
             "description": "Authority denied"
           }
-        },
-        "description": "Capture a new MDS goal for the authenticated agent. Requires a CreateGoalRequest body with goal text and visibility. Returns GoalResponse with the created goal's id, state, text, and visibility. Requires DelegationToken auth (P4 OCAP); 403 if authority denied."
+        }
       }
     },
     "/api/goals/{id}/state": {
@@ -534,8 +527,7 @@
           "404": {
             "description": "Goal not found"
           }
-        },
-        "description": "Transition a goal to a new lifecycle state. Only legal state transitions are accepted. Requires the goal ID as a path parameter and a SetGoalStateRequest body with the target state. Returns 200 on success, 400 for illegal transitions, 404 if goal not found. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/mcp/invoke": {
@@ -606,8 +598,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "List all registered MCP servers currently connected to the hKask runtime. Returns a JSON array of server name strings. Use this to discover available tool providers before invoking tools. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/mcp/tools": {
@@ -675,7 +666,7 @@
           {
             "name": "q",
             "in": "query",
-            "description": "Fuzzy search query \u2014 matches model name (case-insensitive substring)",
+            "description": "Fuzzy search query — matches model name (case-insensitive substring)",
             "required": true,
             "schema": {
               "type": "string"
@@ -734,8 +725,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Check whether the authenticated agent has access to a specific data category through the P4 (OCAP) membrane. Requires a `category` query parameter specifying the data category to check. Returns AccessCheckResponse with classification (PUBLIC/SHARED/SOVEREIGN) and the access gate required. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/sovereignty/consent/grant": {
@@ -775,8 +765,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Grant explicit sovereign consent for a data category, enabling data sharing under P2 (Affirmative Consent). Requires a SovereigntyConsentRequest body specifying the category. Returns SovereigntyConsentResponse with updated consent state and granted categories list. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/sovereignty/consent/revoke": {
@@ -784,7 +773,7 @@
         "tags": [
           "sovereignty"
         ],
-        "summary": "Revoke all explicit consent \u2014 only public data remains accessible.",
+        "summary": "Revoke all explicit consent — only public data remains accessible.",
         "operationId": "sovereignty_revoke_consent",
         "responses": {
           "200": {
@@ -806,8 +795,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Revoke all explicit sovereign consent \u2014 only public data remains accessible. This is a global revoke (P2 Affirmative Consent withdrawal). Returns SovereigntyConsentResponse confirming revocation. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/sovereignty/status": {
@@ -815,7 +803,7 @@
         "tags": [
           "sovereignty"
         ],
-        "summary": "Get sovereignty status for the authenticated agent \u2014 consent state,\ndata category classifications, and granted sharing categories.",
+        "summary": "Get sovereignty status for the authenticated agent — consent state,\ndata category classifications, and granted sharing categories.",
         "operationId": "sovereignty_status",
         "responses": {
           "200": {
@@ -834,8 +822,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Get sovereignty status for the authenticated agent: consent state, data category classifications (public, shared, sovereign), and explicitly granted sharing categories. Returns SovereigntyStatusResponse. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/specs": {
@@ -843,7 +830,7 @@
         "tags": [
           "specs"
         ],
-        "summary": "List specifications \u2014 with optional category filter",
+        "summary": "List specifications — with optional category filter",
         "operationId": "list_specs",
         "responses": {
           "200": {
@@ -859,8 +846,7 @@
               }
             }
           }
-        },
-        "description": "List all specifications in the system. Returns a JSON array of SpecListResponse objects with spec_id, name, category, and completeness flag. Use this to discover available specifications before querying details. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/specs/capture": {
@@ -868,7 +854,7 @@
         "tags": [
           "specs"
         ],
-        "summary": "Capture a new specification (MDS \u00a73: spec/goal/capture)",
+        "summary": "Capture a new specification (MDS §3: spec/goal/capture)",
         "operationId": "capture_spec",
         "requestBody": {
           "content": {
@@ -884,8 +870,7 @@
           "200": {
             "description": "Captured specification"
           }
-        },
-        "description": "Capture a new specification (MDS \u00a73: spec/goal/capture). Requires a SpecCaptureRequestDto body with description and optional context. Returns the captured specification on success. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/specs/coherence": {
@@ -893,7 +878,7 @@
         "tags": [
           "specs"
         ],
-        "summary": "Get specification collection coherence (MDS \u00a73: spec/graph/coherence)",
+        "summary": "Get specification collection coherence (MDS §3: spec/graph/coherence)",
         "operationId": "get_coherence",
         "responses": {
           "200": {
@@ -906,8 +891,7 @@
               }
             }
           }
-        },
-        "description": "Get specification collection coherence score (MDS \u00a73: spec/graph/coherence). Analyzes cross-spec consistency \u2014 detects contradictions, violations, and provides improvement suggestions. Returns SpecCoherenceResponse with coherence_score, violations, and suggestions. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/specs/{spec_id}": {
@@ -942,8 +926,7 @@
           "404": {
             "description": "Spec not found"
           }
-        },
-        "description": "Get a single specification by its unique ID. Requires the spec_id as a path parameter. Returns SpecDetailResponse with the specification's name, category, domain anchor, and full requirements list. Returns 404 if the spec is not found. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/specs/{spec_id}/writing-quality": {
@@ -951,7 +934,7 @@
         "tags": [
           "specs"
         ],
-        "summary": "Get writing quality assessment for a spec (MDS \u00a73: spec/require/writing-quality)",
+        "summary": "Get writing quality assessment for a spec (MDS §3: spec/require/writing-quality)",
         "operationId": "get_writing_quality",
         "parameters": [
           {
@@ -975,8 +958,7 @@
               }
             }
           }
-        },
-        "description": "Get writing quality assessment for a specification (MDS \u00a73: spec/require/writing-quality). Requires the spec_id as a path parameter. Returns SpecWritingQualityResponse with dimensions_passing count and meets_publication_standard flag. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/templates": {
@@ -1003,8 +985,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "List all registered templates across the system. Returns a JSON array of TemplateResponse objects with template id, name, description, type, source path, and lexicon terms. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/templates/{id}": {
@@ -1042,17 +1023,16 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Get a single template by its unique ID. Requires the template ID as a path parameter. Returns TemplateResponse with full template metadata including name, description, template_type, source_path, and lexicon_terms. Returns 404 if the template is not found. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
-    "/api/v1/acp/agents": {
+    "/api/v1/a2a/agents": {
       "get": {
         "tags": [
-          "acp"
+          "a2a"
         ],
-        "summary": "List all registered ACP agents",
-        "operationId": "acp_list_agents",
+        "summary": "List all registered A2A agents",
+        "operationId": "a2a_list_agents",
         "responses": {
           "200": {
             "description": "List of registered agents",
@@ -1070,22 +1050,21 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "List all registered ACP agents with their WebID, agent type, capabilities, active status, and registration timestamp. Returns AgentListResponse. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
-    "/api/v1/acp/agents/{agent_id}": {
+    "/api/v1/a2a/agents/{agent_id}": {
       "delete": {
         "tags": [
-          "acp"
+          "a2a"
         ],
-        "summary": "Unregister an ACP agent",
-        "operationId": "acp_unregister_agent",
+        "summary": "Unregister an A2A agent",
+        "operationId": "a2a_unregister_agent",
         "parameters": [
           {
             "name": "agent_id",
             "in": "path",
-            "description": "ACP agent ID to unregister",
+            "description": "A2A agent ID to unregister",
             "required": true,
             "schema": {
               "type": "string"
@@ -1108,8 +1087,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Unregister and remove an ACP agent by its agent ID. Requires the agent_id as a path parameter. Returns 200 on success, 404 if agent not found. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/backup/config": {
@@ -1133,8 +1111,7 @@
           "401": {
             "description": "Unauthorized"
           }
-        },
-        "description": "Get current backup configuration including auto-snapshot setting, retention policy, tracked artifact types, and verify-after-snapshot flag. Returns BackupConfigResponse. Requires DelegationToken auth (P4 OCAP)."
+        }
       },
       "put": {
         "tags": [
@@ -1169,8 +1146,7 @@
           "401": {
             "description": "Unauthorized"
           }
-        },
-        "description": "Update backup configuration. Requires an UpdateConfigRequest body with optional fields for auto_snapshot, retention, tracked_types, and verify_after_snapshot. Returns the updated BackupConfigResponse. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/backup/list": {
@@ -1221,8 +1197,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "List backup snapshots with optional type and limit filters. Accepts optional `type` (filter by artifact type) and `limit` (max snapshots to return) query parameters. Returns ListResponse with an array of snapshot metadata. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/backup/prune": {
@@ -1259,8 +1234,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Prune expired backup snapshots according to the configured retention policy. Requires a PruneRequest body with an optional `dry_run` flag to preview removals without deleting. Returns PruneResponse with counts of evaluated, retained, and removed snapshots. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/backup/restore": {
@@ -1300,8 +1274,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Restore artifacts from a specific backup snapshot. Requires a RestoreRequest body with commit_hash and scope (all artifacts, by type and IDs, or by specific type). Returns RestoreResponse with the list of restored artifact IDs. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/backup/snapshot": {
@@ -1341,8 +1314,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Create a new backup snapshot of tracked artifacts. Requires a SnapshotRequest body specifying the scope (all tracked types or specific artifact types/IDs). Returns SnapshotResponse with artifact_count, commit hashes, timestamp, and trigger info. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/backup/verify": {
@@ -1369,8 +1341,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Verify integrity of all backup snapshots by checking git object hashes. No request body required. Returns VerifyResponse with per-repository verification reports including ok flag, verified_blobs, total_blobs, and corrupt_hashes. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/bundles": {
@@ -1391,8 +1362,7 @@
               }
             }
           }
-        },
-        "description": "List all skill bundles. Returns BundleListResponse with bundle summaries including id, name, description, version, skill_count, and visibility. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/bundles/compose": {
@@ -1426,8 +1396,7 @@
           "400": {
             "description": "Invalid request"
           }
-        },
-        "description": "Compose a new skill bundle from specified skills. Requires a ComposeBundleRequest body with name, skills list, and visibility. Returns ComposeBundleResponse with the composed manifest, message, and warnings. Returns 400 for invalid skill references. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/bundles/{id}": {
@@ -1460,8 +1429,7 @@
           "404": {
             "description": "Bundle not found"
           }
-        },
-        "description": "Get a specific skill bundle by its ID. Requires the bundle ID as a path parameter. Returns the full bundle manifest as JSON. Returns 404 if the bundle is not found. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/bundles/{id}/apply": {
@@ -1496,8 +1464,7 @@
           "404": {
             "description": "Bundle not found"
           }
-        },
-        "description": "Apply a skill bundle to the current session, activating all its skills. Requires the bundle ID as a path parameter. Returns ApplyBundleResponse with bundle_id, name, skill_count, and status. Returns 404 if the bundle is not found. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/bundles/{id}/deactivate": {
@@ -1529,8 +1496,7 @@
               }
             }
           }
-        },
-        "description": "Deactivate an active skill bundle, unloading all its skills from the session. Requires the bundle ID as a path parameter. Returns DeactivateBundleResponse confirming the new status. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/bundles/{id}/evolve": {
@@ -1565,8 +1531,7 @@
           "404": {
             "description": "Bundle not found"
           }
-        },
-        "description": "Evolve a bundle by re-composing it when its constituent skills have changed. Requires the bundle ID as a path parameter. Returns EvolveBundleResponse with the evolved manifest, changes list, and message. Returns 404 if the bundle is not found. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/curator/escalations": {
@@ -1593,8 +1558,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "List all pending curator escalations requiring human attention. Returns ListEscalationsResponse with escalation entries including id, bot_id, status, created_at, error_context, and retry_count. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/curator/escalations/{id}/dismiss": {
@@ -1645,8 +1609,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Dismiss a curator escalation as non-actionable. Requires the escalation ID as a path parameter and a DismissEscalationRequest body recording who dismissed it. Returns DismissEscalationResponse with id and updated status. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/curator/escalations/{id}/resolve": {
@@ -1697,8 +1660,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Resolve a curator escalation, marking it as handled. Requires the escalation ID as a path parameter and a ResolveEscalationRequest body recording who resolved it. Returns ResolveEscalationResponse with id and updated status. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/curator/metacognition": {
@@ -1706,7 +1668,7 @@
         "tags": [
           "curator"
         ],
-        "summary": "Get Curator metacognition status \u2014 escalation statistics and bot health reports.",
+        "summary": "Get Curator metacognition status — escalation statistics and bot health reports.",
         "operationId": "metacognition_status",
         "responses": {
           "200": {
@@ -1725,8 +1687,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Get Curator metacognition status including escalation statistics and per-bot health reports. Returns MetacognitionStatusResponse with bot_reports and escalation_stats. Use this to monitor bot health and system self-awareness. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/v1/git/archive": {
@@ -1805,8 +1766,7 @@
           "500": {
             "description": "Internal server error"
           }
-        },
-        "description": "Resolve a git reference (branch, tag, or commit prefix) to a full commit SHA. Uses GitCASPort for resolution. Requires the reference as a path parameter. Returns ResolveShaResponse with the resolved SHA. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/wallet/balance": {
@@ -1827,8 +1787,7 @@
           "503": {
             "description": "Wallet service not configured"
           }
-        },
-        "description": "Get the current wallet balance. Returns WalletBalanceResponse with rJoules balance, USDC equivalent, gas equivalent, and wallet ID. Returns 503 if the wallet service is not configured. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/wallet/deposit-address": {
@@ -1885,8 +1844,7 @@
           "503": {
             "description": "Wallet service not configured"
           }
-        },
-        "description": "Get a deposit address for receiving USDC. Accepts optional query parameters: `chain` (blockchain), `private` (privacy mode), and `wallet_id` (defaults to system wallet). Returns DepositAddressResponse with address, chain, and privacy mode. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/wallet/deposit-reference": {
@@ -1917,8 +1875,7 @@
           "503": {
             "description": "Wallet service not configured"
           }
-        },
-        "description": "Generate a one-time deposit reference for shielded deposits. Requires a DepositReferenceRequest body with chain and optional wallet_id. Returns DepositReferenceResponse with reference string, chain, and expiry. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/wallet/fee": {
@@ -1952,8 +1909,7 @@
           "503": {
             "description": "Wallet service not configured"
           }
-        },
-        "description": "Estimate current network withdrawal fee using the configured price feed. Accepts an optional `chain` query parameter to specify the blockchain. Returns WithdrawalFeeEstimateResponse with fee in rJoules, native units, and USDC equivalent. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/wallet/keys": {
@@ -1974,8 +1930,7 @@
           "503": {
             "description": "Wallet service not configured"
           }
-        },
-        "description": "List all active API keys with their status, spending limits, and expiry. Returns ApiKeyListResponse with key entries including key_id, limit_rj, spent_rj, status, and expires_at. Requires DelegationToken auth (P4 OCAP)."
+        }
       },
       "post": {
         "summary": "Create a new API key.",
@@ -2004,8 +1959,7 @@
           "503": {
             "description": "Wallet service not configured"
           }
-        },
-        "description": "Create a new API key with spending limits and expiry. Requires a CreateKeyRequest body specifying chain, limit_rj, expiry_days, private mode, and wallet_id. Returns ApiKeyCreatedResponse with the key_id, private_key_hex, spending_limit_rj, and expires_at. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/wallet/keys/{key_id}": {
@@ -2036,8 +1990,7 @@
           "503": {
             "description": "Wallet service not configured"
           }
-        },
-        "description": "Revoke an API key, immediately disabling it. Requires the key_id as a path parameter. Returns ApiKeyRevokedResponse confirming revocation. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/wallet/transactions": {
@@ -2098,8 +2051,7 @@
           "503": {
             "description": "Wallet service not configured"
           }
-        },
-        "description": "Get paginated transaction history for a wallet. Accepts optional query parameters: `limit`, `offset`, and `wallet_id`. Returns TransactionListResponse with an array of transactions including rjoules_delta, balance_after, and timestamp. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     },
     "/api/wallet/withdraw": {
@@ -2130,39 +2082,15 @@
           "503": {
             "description": "Wallet service not configured"
           }
-        },
-        "description": "Initiate a withdrawal of rJoules as USDC to an external address. Requires a WithdrawRequest body with amount_rj, chain, to_address, private mode, and wallet_id. Returns WithdrawalResponse with amount_rj, chain, privacy mode, and tx_hash. Requires DelegationToken auth (P4 OCAP)."
+        }
       }
     }
   },
   "components": {
     "schemas": {
-      "AccessCheckResponse": {
+      "A2AAgentResponse": {
         "type": "object",
-        "description": "Access check response \u2014 P4 (OCAP) membrane result.\n\nReports whether the authenticated agent has access to a specific data\ncategory. `classification` is one of: PUBLIC, SHARED, SOVEREIGN.\n`access_required` is the OCAP-level gate (e.g., \"capability:memory\",\n\"consent:required\").",
-        "required": [
-          "category",
-          "classification",
-          "access_required"
-        ],
-        "properties": {
-          "access_required": {
-            "type": "string",
-            "description": "OCAP-level access gate description"
-          },
-          "category": {
-            "type": "string",
-            "description": "Data category checked"
-          },
-          "classification": {
-            "type": "string",
-            "description": "Classification: PUBLIC, SHARED, or SOVEREIGN"
-          }
-        }
-      },
-      "AcpAgentResponse": {
-        "type": "object",
-        "description": "ACP agent response \u2014 registered agent in the ACP capability delegation system (P4 OCAP).\n\n`agent_type` is \"Bot\" or \"Replicant\" (P10).\n`capabilities` are the granted capability verbs this agent holds.\n`active` indicates whether the agent is currently allowed to exercise its capabilities.",
+        "description": "A2A agent response — registered agent in the ACP capability delegation system (P4 OCAP).\n\n`agent_type` is \"Bot\" or \"Replicant\" (P10).\n`capabilities` are the granted capability verbs this agent holds.\n`active` indicates whether the agent is currently allowed to exercise its capabilities.",
         "required": [
           "webid",
           "agent_type",
@@ -2192,9 +2120,32 @@
           }
         }
       },
+      "AccessCheckResponse": {
+        "type": "object",
+        "description": "Access check response — P4 (OCAP) membrane result.\n\nReports whether the authenticated agent has access to a specific data\ncategory. `classification` is one of: PUBLIC, SHARED, SOVEREIGN.\n`access_required` is the OCAP-level gate (e.g., \"capability:memory\",\n\"consent:required\").",
+        "required": [
+          "category",
+          "classification",
+          "access_required"
+        ],
+        "properties": {
+          "access_required": {
+            "type": "string",
+            "description": "OCAP-level access gate description"
+          },
+          "category": {
+            "type": "string",
+            "description": "Data category checked"
+          },
+          "classification": {
+            "type": "string",
+            "description": "Classification: PUBLIC, SHARED, or SOVEREIGN"
+          }
+        }
+      },
       "AgentListResponse": {
         "type": "object",
-        "description": "Agent list response \u2014 all ACP-registered agents.",
+        "description": "Agent list response — all A2A-registered agents.",
         "required": [
           "agents"
         ],
@@ -2202,7 +2153,7 @@
           "agents": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/AcpAgentResponse"
+              "$ref": "#/components/schemas/A2AAgentResponse"
             }
           }
         }
@@ -2266,7 +2217,7 @@
             }
           }
         ],
-        "description": "Backup scope for API requests.\n\nControls which artifacts a snapshot or restore targets:\n- `Full` \u2014 all tracked artifact types (templates, styles, triples).\n- `ByType` \u2014 all artifacts of a single type (e.g., \"template\").\n- `ByIds` \u2014 specific artifacts by ID within a type."
+        "description": "Backup scope for API requests.\n\nControls which artifacts a snapshot or restore targets:\n- `Full` — all tracked artifact types (templates, styles, triples).\n- `ByType` — all artifacts of a single type (e.g., \"template\").\n- `ByIds` — specific artifacts by ID within a type."
       },
       "ApiKeyCreatedResponse": {
         "type": "object",
@@ -2302,7 +2253,7 @@
           },
           "private_key_hex": {
             "type": "string",
-            "description": "Private key in hex (shown only once \u2014 store securely)"
+            "description": "Private key in hex (shown only once — store securely)"
           },
           "spending_limit_rj": {
             "type": "integer",
@@ -2314,7 +2265,7 @@
       },
       "ApiKeyEntry": {
         "type": "object",
-        "description": "API key entry \u2014 status of an existing API key.\n\n`status` is \"active\", \"revoked\", \"exhausted\", or \"expired\".",
+        "description": "API key entry — status of an existing API key.\n\n`status` is \"active\", \"revoked\", \"exhausted\", or \"expired\".",
         "required": [
           "key_id",
           "spent_rj",
@@ -2457,7 +2408,7 @@
       },
       "ApplyBundleResponse": {
         "type": "object",
-        "description": "Apply bundle response \u2014 result of activating a bundle in the current session.\n\n`status` is \"active\" on success.",
+        "description": "Apply bundle response — result of activating a bundle in the current session.\n\n`status` is \"active\" on success.",
         "required": [
           "status",
           "bundle_id",
@@ -2553,7 +2504,7 @@
       },
       "BackupConfigResponse": {
         "type": "object",
-        "description": "Backup config response \u2014 current snapshot and retention configuration.\n\n`tracked_types` lists artifact types included in snapshots.\n`retention` is the time-based cleanup policy (None = keep indefinitely).",
+        "description": "Backup config response — current snapshot and retention configuration.\n\n`tracked_types` lists artifact types included in snapshots.\n`retention` is the time-based cleanup policy (None = keep indefinitely).",
         "required": [
           "tracked_types",
           "auto_snapshot",
@@ -2586,7 +2537,7 @@
       },
       "BotStatusReportResponse": {
         "type": "object",
-        "description": "Bot status report \u2014 reflects the health of a specific bot agent.",
+        "description": "Bot status report — reflects the health of a specific bot agent.",
         "required": [
           "bot_name",
           "status",
@@ -2634,7 +2585,7 @@
       },
       "BundleSummary": {
         "type": "object",
-        "description": "Bundle summary for list responses \u2014 a skill bundle in the Skills Model (Pattern A).\n\n`visibility` is \"private\" or \"shared\" (P11).\n`skill_count` is the number of WordAct/FlowDef/KnowAct templates in the bundle.",
+        "description": "Bundle summary for list responses — a skill bundle in the Skills Model (Pattern A).\n\n`visibility` is \"private\" or \"shared\" (P11).\n`skill_count` is the number of WordAct/FlowDef/KnowAct templates in the bundle.",
         "required": [
           "id",
           "name",
@@ -2717,7 +2668,7 @@
       },
       "CnsHealthResponse": {
         "type": "object",
-        "description": "CNS health response \u2014 P9 (Homeostatic Self-Regulation).\n\n`healthy: false` means one or more variety domains are in deficit (below\ntheir configured threshold). Check `critical_count` and `warning_count` for\nseverity. `overall_deficit` is the sum of all per-domain deficits.",
+        "description": "CNS health response — P9 (Homeostatic Self-Regulation).\n\n`healthy: false` means one or more variety domains are in deficit (below\ntheir configured threshold). Check `critical_count` and `warning_count` for\nseverity. `overall_deficit` is the sum of all per-domain deficits.",
         "required": [
           "overall_deficit",
           "critical_count",
@@ -2762,7 +2713,7 @@
       },
       "CnsVarietyResponse": {
         "type": "object",
-        "description": "CNS variety response \u2014 per-domain variety counters for the Cybernetic Nervous System (Pattern B).\n\n`domains` lists all canonical CNS span namespaces registered (e.g., cns.tool,\ncns.inference, cns.memory). `total_deficit` is the aggregate variety gap across\nall domains.",
+        "description": "CNS variety response — per-domain variety counters for the Cybernetic Nervous System (Pattern B).\n\n`domains` lists all canonical CNS span namespaces registered (e.g., cns.tool,\ncns.inference, cns.memory). `total_deficit` is the aggregate variety gap across\nall domains.",
         "required": [
           "domains",
           "total_deficit",
@@ -2796,7 +2747,7 @@
       },
       "CommitInfo": {
         "type": "object",
-        "description": "Git commit info \u2014 repository and commit hash for a backup snapshot.",
+        "description": "Git commit info — repository and commit hash for a backup snapshot.",
         "required": [
           "repo",
           "commit"
@@ -2812,7 +2763,7 @@
       },
       "ComposeBundleRequest": {
         "type": "object",
-        "description": "Compose bundle request \u2014 create a new skill bundle from individual template IDs (Pattern A).\n\nRequires at least 2 skills. The bundle composer uses inference to generate\na manifest describing how the skills compose together.",
+        "description": "Compose bundle request — create a new skill bundle from individual template IDs (Pattern A).\n\nRequires at least 2 skills. The bundle composer uses inference to generate\na manifest describing how the skills compose together.",
         "required": [
           "skills"
         ],
@@ -2839,7 +2790,7 @@
       },
       "ComposeBundleResponse": {
         "type": "object",
-        "description": "Compose bundle response \u2014 result of inference-driven bundle composition.\n\n`manifest` is the composed bundle definition (JSON).\n`warnings` lists any composition concerns detected.",
+        "description": "Compose bundle response — result of inference-driven bundle composition.\n\n`manifest` is the composed bundle definition (JSON).\n`warnings` lists any composition concerns detected.",
         "required": [
           "warnings",
           "message"
@@ -2863,7 +2814,7 @@
       },
       "ConsolidateRequest": {
         "type": "object",
-        "description": "Consolidate request \u2014 triggers episodic-to-semantic memory consolidation.\n\nRequires the agents master passphrase for authorization (P4 OCAP).\nThe passphrase is derived via HKDF-SHA256 to produce the capability_key\nused as the DB passphrase.",
+        "description": "Consolidate request — triggers episodic-to-semantic memory consolidation.\n\nRequires the agents master passphrase for authorization (P4 OCAP).\nThe passphrase is derived via HKDF-SHA256 to produce the capability_key\nused as the DB passphrase.",
         "required": [
           "agent_webid",
           "passphrase"
@@ -2879,7 +2830,7 @@
               "null"
             ],
             "format": "double",
-            "description": "Confidence floor \u2014 semantic triples at or below this are deleted.\nOverrides the SemanticLoop default (0.33)."
+            "description": "Confidence floor — semantic triples at or below this are deleted.\nOverrides the SemanticLoop default (0.33)."
           },
           "limit": {
             "type": [
@@ -2906,7 +2857,7 @@
       },
       "ConsolidateResponse": {
         "type": "object",
-        "description": "Consolidate response \u2014 outcome counts from the semantic consolidation loop.",
+        "description": "Consolidate response — outcome counts from the semantic consolidation loop.",
         "required": [
           "consolidated_count",
           "deleted_count",
@@ -2929,7 +2880,7 @@
       },
       "CreateGoalRequest": {
         "type": "object",
-        "description": "Create goal request \u2014 P4 OCAP-gated goal creation.\n\nVisibility defaults to \"private\" when omitted. See P11 (Digital Public/Private\nSphere) for the visibility taxonomy.",
+        "description": "Create goal request — P4 OCAP-gated goal creation.\n\nVisibility defaults to \"private\" when omitted. See P11 (Digital Public/Private\nSphere) for the visibility taxonomy.",
         "required": [
           "text"
         ],
@@ -2994,7 +2945,7 @@
       },
       "CreatePodRequest": {
         "type": "object",
-        "description": "Create pod request \u2014 Pattern D agent creation.\n\n`template` is a FlowDef template ID. `persona_yaml` is the agent persona\ndefinition in YAML format (maps to a WordAct).",
+        "description": "Create pod request — Pattern D agent creation.\n\n`template` is a FlowDef template ID. `persona_yaml` is the agent persona\ndefinition in YAML format (maps to a WordAct).",
         "required": [
           "template",
           "persona_yaml"
@@ -3019,7 +2970,7 @@
       },
       "CreatePodResponse": {
         "type": "object",
-        "description": "Create pod response \u2014 returns the new pod's ID.",
+        "description": "Create pod response — returns the new pod's ID.",
         "required": [
           "pod_id"
         ],
@@ -3044,7 +2995,7 @@
       },
       "DepositAddressResponse": {
         "type": "object",
-        "description": "Deposit address response \u2014 a generated deposit address for a specific chain.\n\n`privacy` is \"shielded\" (private, zk-protected) or \"transparent\" (public).",
+        "description": "Deposit address response — a generated deposit address for a specific chain.\n\n`privacy` is \"shielded\" (private, zk-protected) or \"transparent\" (public).",
         "required": [
           "address",
           "chain",
@@ -3067,7 +3018,7 @@
       },
       "DepositReferenceRequest": {
         "type": "object",
-        "description": "Deposit reference request \u2014 create a time-limited deposit reference for tracking.",
+        "description": "Deposit reference request — create a time-limited deposit reference for tracking.",
         "required": [
           "chain"
         ],
@@ -3086,7 +3037,7 @@
       },
       "DepositReferenceResponse": {
         "type": "object",
-        "description": "Deposit reference response \u2014 a time-limited reference code for an incoming deposit.",
+        "description": "Deposit reference response — a time-limited reference code for an incoming deposit.",
         "required": [
           "reference",
           "chain",
@@ -3109,7 +3060,7 @@
       },
       "DismissEscalationRequest": {
         "type": "object",
-        "description": "Dismiss escalation request \u2014 P12 (accountable identity).",
+        "description": "Dismiss escalation request — P12 (accountable identity).",
         "required": [
           "dismissed_by"
         ],
@@ -3158,7 +3109,7 @@
           "confidence": {
             "type": "number",
             "format": "double",
-            "description": "Confidence score (0.0\u20131.0)"
+            "description": "Confidence score (0.0–1.0)"
           },
           "entity": {
             "type": "string",
@@ -3210,7 +3161,7 @@
       },
       "EscalationEntryResponse": {
         "type": "object",
-        "description": "Escalation entry \u2014 a pending Curator escalation triggered by bot output below\nconfidence threshold or context errors (Pattern C, P12).\n\nStatus: \"pending\", \"resolved\", or \"dismissed\".",
+        "description": "Escalation entry — a pending Curator escalation triggered by bot output below\nconfidence threshold or context errors (Pattern C, P12).\n\nStatus: \"pending\", \"resolved\", or \"dismissed\".",
         "required": [
           "id",
           "template_id",
@@ -3230,7 +3181,7 @@
           "confidence": {
             "type": "number",
             "format": "double",
-            "description": "Confidence score (0.0\u20131.0) at time of escalation"
+            "description": "Confidence score (0.0–1.0) at time of escalation"
           },
           "created_at": {
             "type": "string",
@@ -3260,7 +3211,7 @@
               "string",
               "null"
             ],
-            "description": "WebID of the resolver (P12 \u2014 accountable identity)"
+            "description": "WebID of the resolver (P12 — accountable identity)"
           },
           "retry_count": {
             "type": "integer",
@@ -3280,7 +3231,7 @@
       },
       "EscalationStatsResponse": {
         "type": "object",
-        "description": "Escalation statistics \u2014 aggregate counts across all escalations.",
+        "description": "Escalation statistics — aggregate counts across all escalations.",
         "required": [
           "total",
           "pending",
@@ -3312,7 +3263,7 @@
       },
       "EvolveBundleResponse": {
         "type": "object",
-        "description": "Evolve bundle response \u2014 result of re-composing a bundle after skill changes.\n\n`evolved_manifest` is the updated bundle definition.\n`changes` lists what changed from the previous version.",
+        "description": "Evolve bundle response — result of re-composing a bundle after skill changes.\n\n`evolved_manifest` is the updated bundle definition.\n`changes` lists what changed from the previous version.",
         "required": [
           "changes",
           "message"
@@ -3348,7 +3299,7 @@
       },
       "GoalResponse": {
         "type": "object",
-        "description": "Goal response \u2014 reflects current goal state and visibility (P4, P11).",
+        "description": "Goal response — reflects current goal state and visibility (P4, P11).",
         "required": [
           "id",
           "text",
@@ -3376,7 +3327,7 @@
       },
       "GrantCapabilityRequest": {
         "type": "object",
-        "description": "Capability grant request \u2014 P4 OCAP capability assignment to a bot agent.\n\nCapabilities follow the `verb:resource` pattern (e.g., \"tool:execute\",\n\"template:render\").",
+        "description": "Capability grant request — P4 OCAP capability assignment to a bot agent.\n\nCapabilities follow the `verb:resource` pattern (e.g., \"tool:execute\",\n\"template:render\").",
         "required": [
           "capability"
         ],
@@ -3436,7 +3387,7 @@
       },
       "McpInvokeRequest": {
         "type": "object",
-        "description": "MCP invoke request \u2014 invoke a tool on a running MCP server.\n\n`tool` is the fully-qualified tool name. Use GET /api/mcp/tools to\ndiscover available tools before invoking. `input` is a JSON object of\ntool arguments (defaults to {}).",
+        "description": "MCP invoke request — invoke a tool on a running MCP server.\n\n`tool` is the fully-qualified tool name. Use GET /api/mcp/tools to\ndiscover available tools before invoking. `input` is a JSON object of\ntool arguments (defaults to {}).",
         "required": [
           "tool"
         ],
@@ -3452,7 +3403,7 @@
       },
       "McpInvokeResponse": {
         "type": "object",
-        "description": "MCP invoke response \u2014 result of a tool invocation.\n\nThe `result` shape varies by tool. `server` identifies which MCP server\nhandled the invocation.",
+        "description": "MCP invoke response — result of a tool invocation.\n\nThe `result` shape varies by tool. `server` identifies which MCP server\nhandled the invocation.",
         "required": [
           "server",
           "tool",
@@ -3474,7 +3425,7 @@
       },
       "MetacognitionStatusResponse": {
         "type": "object",
-        "description": "Curator metacognition status \u2014 aggregate view of system health (Pattern C).\n\nCombines escalation queue statistics with per-bot health reports.\nThis is the primary observability endpoint for the Curator mediation loop.",
+        "description": "Curator metacognition status — aggregate view of system health (Pattern C).\n\nCombines escalation queue statistics with per-bot health reports.\nThis is the primary observability endpoint for the Curator mediation loop.",
         "required": [
           "escalation_stats",
           "bot_reports"
@@ -3566,13 +3517,13 @@
         "properties": {
           "q": {
             "type": "string",
-            "description": "Fuzzy search query \u2014 matches model name (case-insensitive substring)"
+            "description": "Fuzzy search query — matches model name (case-insensitive substring)"
           }
         }
       },
       "PodStatusResponse": {
         "type": "object",
-        "description": "Pod status response \u2014 current state of an agent pod (Pattern D).\n\n`state` is one of: \"active\", \"inactive\", \"error\".\n`agent_type` is one of: \"Bot\", \"Replicant\" (P10).",
+        "description": "Pod status response — current state of an agent pod (Pattern D).\n\n`state` is one of: \"active\", \"inactive\", \"error\".\n`agent_type` is one of: \"Bot\", \"Replicant\" (P10).",
         "required": [
           "pod_id",
           "state",
@@ -3612,7 +3563,7 @@
           },
           "webid": {
             "type": "string",
-            "description": "Agent WebID (P12 \u2014 accountable identity)"
+            "description": "Agent WebID (P12 — accountable identity)"
           }
         }
       },
@@ -3672,7 +3623,7 @@
       },
       "RepoVerifyReport": {
         "type": "object",
-        "description": "Repository verify report \u2014 per-repo Git integrity verification result.",
+        "description": "Repository verify report — per-repo Git integrity verification result.",
         "required": [
           "repo",
           "total_blobs",
@@ -3705,7 +3656,7 @@
       },
       "ResolveEscalationRequest": {
         "type": "object",
-        "description": "Resolve escalation request \u2014 P12 (accountable identity).",
+        "description": "Resolve escalation request — P12 (accountable identity).",
         "required": [
           "resolved_by"
         ],
@@ -3779,7 +3730,7 @@
       },
       "RestoredArtifact": {
         "type": "object",
-        "description": "Restored artifact \u2014 identifies a single artifact recovered from a backup.",
+        "description": "Restored artifact — identifies a single artifact recovered from a backup.",
         "required": [
           "artifact_type",
           "artifact_id"
@@ -3795,7 +3746,7 @@
       },
       "RetentionConfigResponse": {
         "type": "object",
-        "description": "Retention config \u2014 time-based snapshot cleanup policy.\n\n`daily_days` is how many daily snapshots to keep.\n`weekly_weeks` is how many weekly snapshots to keep.",
+        "description": "Retention config — time-based snapshot cleanup policy.\n\n`daily_days` is how many daily snapshots to keep.\n`weekly_weeks` is how many weekly snapshots to keep.",
         "required": [
           "daily_days",
           "weekly_weeks"
@@ -3815,7 +3766,7 @@
       },
       "SetGoalStateRequest": {
         "type": "object",
-        "description": "Set goal state request \u2014 state machine transition.\n\nLegal states: \"active\", \"completed\", \"abandoned\".\nLegal transitions: active\u2192completed, active\u2192abandoned.",
+        "description": "Set goal state request — state machine transition.\n\nLegal states: \"active\", \"completed\", \"abandoned\".\nLegal transitions: active→completed, active→abandoned.",
         "required": [
           "state"
         ],
@@ -3840,7 +3791,7 @@
       },
       "SnapshotResponse": {
         "type": "object",
-        "description": "Backup snapshot response \u2014 result of a snapshot operation via GitCAS.\n\n`commits` lists the Git commits backing this snapshot.\n`trigger` is \"manual\" (API-triggered) or \"auto\" (scheduled).",
+        "description": "Backup snapshot response — result of a snapshot operation via GitCAS.\n\n`commits` lists the Git commits backing this snapshot.\n`trigger` is \"manual\" (API-triggered) or \"auto\" (scheduled).",
         "required": [
           "commits",
           "artifact_count",
@@ -3868,7 +3819,7 @@
       },
       "SovereigntyConsentRequest": {
         "type": "object",
-        "description": "Sovereignty consent request \u2014 P2 (Affirmative Consent).\n\nGrant explicit consent for a data category. Valid categories:\n\"memory\", \"inference\", \"replica\", \"all\".",
+        "description": "Sovereignty consent request — P2 (Affirmative Consent).\n\nGrant explicit consent for a data category. Valid categories:\n\"memory\", \"inference\", \"replica\", \"all\".",
         "required": [
           "category"
         ],
@@ -3881,7 +3832,7 @@
       },
       "SovereigntyConsentResponse": {
         "type": "object",
-        "description": "Sovereignty consent response \u2014 P2 (Affirmative Consent).\n\n`consent: true` means the grant was accepted and data sharing is enabled\nfor the listed categories. `consent: false` means consent was revoked and\nonly public data remains accessible.",
+        "description": "Sovereignty consent response — P2 (Affirmative Consent).\n\n`consent: true` means the grant was accepted and data sharing is enabled\nfor the listed categories. `consent: false` means consent was revoked and\nonly public data remains accessible.",
         "required": [
           "consent",
           "message",
@@ -3907,7 +3858,7 @@
       },
       "SovereigntyStatusResponse": {
         "type": "object",
-        "description": "Sovereignty status response \u2014 P1 (User Sovereignty) and P2 (Affirmative Consent).\n\nReflects the authenticated agent's current data sovereignty boundary:\nwhich categories are sovereign (agent-only), shared (consent-gated), and\npublic (always accessible). `granted_categories` lists categories where\nexplicit consent has been given.",
+        "description": "Sovereignty status response — P1 (User Sovereignty) and P2 (Affirmative Consent).\n\nReflects the authenticated agent's current data sovereignty boundary:\nwhich categories are sovereign (agent-only), shared (consent-gated), and\npublic (always accessible). `granted_categories` lists categories where\nexplicit consent has been given.",
         "required": [
           "explicit_consent",
           "requires_affirmative_consent",
@@ -3957,7 +3908,7 @@
       },
       "SpecCaptureRequestDto": {
         "type": "object",
-        "description": "Spec capture request \u2014 MDS-aligned: uses description + context (not category/domain/criteria).",
+        "description": "Spec capture request — MDS-aligned: uses description + context (not category/domain/criteria).",
         "required": [
           "description"
         ],
@@ -3975,7 +3926,7 @@
       },
       "SpecCoherenceResponse": {
         "type": "object",
-        "description": "Spec coherence response \u2014 MDS \u00a73: spec/graph/coherence",
+        "description": "Spec coherence response — MDS §3: spec/graph/coherence",
         "required": [
           "coherence_score",
           "violations",
@@ -4002,7 +3953,7 @@
       },
       "SpecDetailResponse": {
         "type": "object",
-        "description": "Spec detail response \u2014 full details for a single MDS specification.\n\n`domain_anchor` identifies the bounded context (always \"hkask\" for this system).\n`requirements` lists the spec's captured requirements as plain-text statements.",
+        "description": "Spec detail response — full details for a single MDS specification.\n\n`domain_anchor` identifies the bounded context (always \"hkask\" for this system).\n`requirements` lists the spec's captured requirements as plain-text statements.",
         "required": [
           "spec_id",
           "name",
@@ -4038,7 +3989,7 @@
       },
       "SpecListResponse": {
         "type": "object",
-        "description": "Spec list response \u2014 summary of a single MDS specification.\n\n`category` is one of the five MDS categories: domain, composition, trust,\nlifecycle, curation. `complete` indicates whether the spec satisfies its\ncategory completeness predicate (MDS \u00a72).",
+        "description": "Spec list response — summary of a single MDS specification.\n\n`category` is one of the five MDS categories: domain, composition, trust,\nlifecycle, curation. `complete` indicates whether the spec satisfies its\ncategory completeness predicate (MDS §2).",
         "required": [
           "spec_id",
           "name",
@@ -4066,7 +4017,7 @@
       },
       "SpecWritingQualityResponse": {
         "type": "object",
-        "description": "Spec writing quality response \u2014 MDS \u00a73: spec/require/writing-quality",
+        "description": "Spec writing quality response — MDS §3: spec/require/writing-quality",
         "required": [
           "dimensions_passing",
           "meets_publication_standard"
@@ -4100,7 +4051,7 @@
               "null"
             ],
             "format": "double",
-            "description": "Confidence (0.0\u20131.0). Defaults to 1.0."
+            "description": "Confidence (0.0–1.0). Defaults to 1.0."
           },
           "entity": {
             "type": "string",
@@ -4131,7 +4082,7 @@
       },
       "TemplateResponse": {
         "type": "object",
-        "description": "Template response \u2014 a registered skill template in the WordAct / FlowDef / KnowAct taxonomy (Pattern A).\n\n`template_type` is one of: WordAct, FlowDef, KnowAct.\n`lexicon_terms` maps the template to canonical vocabulary terms.",
+        "description": "Template response — a registered skill template in the WordAct / FlowDef / KnowAct taxonomy (Pattern A).\n\n`template_type` is one of: WordAct, FlowDef, KnowAct.\n`lexicon_terms` maps the template to canonical vocabulary terms.",
         "required": [
           "id",
           "template_type",
@@ -4188,7 +4139,7 @@
       },
       "TransactionResponse": {
         "type": "object",
-        "description": "Transaction response \u2014 a single wallet transaction.\n\n`rjoules_delta` is positive for deposits, negative for withdrawals.",
+        "description": "Transaction response — a single wallet transaction.\n\n`rjoules_delta` is positive for deposits, negative for withdrawals.",
         "required": [
           "rjoules_delta",
           "balance_after",
@@ -4214,7 +4165,7 @@
       },
       "UpdateConfigRequest": {
         "type": "object",
-        "description": "Backup config update request.\n\nAll fields are optional \u2014 only provided fields are updated.\n`retention` accepts \"daily:N,weekly:M\" format (e.g., \"daily:7,weekly:4\").",
+        "description": "Backup config update request.\n\nAll fields are optional — only provided fields are updated.\n`retention` accepts \"daily:N,weekly:M\" format (e.g., \"daily:7,weekly:4\").",
         "properties": {
           "auto_snapshot": {
             "type": [
@@ -4290,7 +4241,7 @@
       },
       "WalletBalanceResponse": {
         "type": "object",
-        "description": "Wallet balance response \u2014 current rJoule balance and fiat equivalents.\n\n`rjoules` is the canonical energy unit for inference and memory operations.\n`usdc_equivalent` and `gas_equivalent` are approximate fiat conversions\nbased on the current calibrated gas-per-rjoule rate (P9 homeostatic calibration).",
+        "description": "Wallet balance response — current rJoule balance and fiat equivalents.\n\n`rjoules` is the canonical energy unit for inference and memory operations.\n`usdc_equivalent` and `gas_equivalent` are approximate fiat conversions\nbased on the current calibrated gas-per-rjoule rate (P9 homeostatic calibration).",
         "required": [
           "wallet_id",
           "rjoules",
@@ -4307,7 +4258,7 @@
           "rjoules": {
             "type": "integer",
             "format": "int64",
-            "description": "Balance in rJoules \u2014 the canonical energy unit for inference operations",
+            "description": "Balance in rJoules — the canonical energy unit for inference operations",
             "minimum": 0
           },
           "usdc_equivalent": {
@@ -4323,7 +4274,7 @@
       },
       "WithdrawRequest": {
         "type": "object",
-        "description": "Withdraw request \u2014 withdraw rJoules to an on-chain address.\n\n`chain` selects the target blockchain (default: \"hinkal\").\n`private` controls shielded vs transparent mode (default: true).",
+        "description": "Withdraw request — withdraw rJoules to an on-chain address.\n\n`chain` selects the target blockchain (default: \"hinkal\").\n`private` controls shielded vs transparent mode (default: true).",
         "required": [
           "amount_rj",
           "to_address"
@@ -4364,7 +4315,7 @@
       },
       "WithdrawalFeeEstimateResponse": {
         "type": "object",
-        "description": "Withdrawal fee estimate \u2014 cost of withdrawing rJoules to a target chain.\n\n`rjoules` is the fee in the canonical energy unit.\n`native_units` and `usdc_equivalent` are approximate conversions.",
+        "description": "Withdrawal fee estimate — cost of withdrawing rJoules to a target chain.\n\n`rjoules` is the fee in the canonical energy unit.\n`native_units` and `usdc_equivalent` are approximate conversions.",
         "required": [
           "chain",
           "rjoules",
@@ -4396,7 +4347,7 @@
       },
       "WithdrawalResponse": {
         "type": "object",
-        "description": "Withdrawal response \u2014 confirmation of a completed on-chain withdrawal.",
+        "description": "Withdrawal response — confirmation of a completed on-chain withdrawal.",
         "required": [
           "tx_hash",
           "amount_rj",
@@ -4430,7 +4381,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "DelegationToken",
-        "description": "DelegationToken \u2014 an OCAP capability token carrying the authenticated WebID and scoped permissions (P4).\n\nObtain via the REPL onboarding flow (`kask secret`) or agent registration (ACP)."
+        "description": "DelegationToken — an OCAP capability token carrying the authenticated WebID and scoped permissions (P4).\n\nObtain via the REPL onboarding flow (`kask secret`) or agent registration (A2A)."
       }
     }
   },
@@ -4442,63 +4393,63 @@
   "tags": [
     {
       "name": "templates",
-      "description": "Template registry \u2014 WordAct / FlowDef / KnowAct skills in the vocabulary taxonomy (Pattern A)"
+      "description": "Template registry — WordAct / FlowDef / KnowAct skills (Pattern A)"
     },
     {
       "name": "bots",
-      "description": "Bot capability management \u2014 OCAP-gated capability grants to bot agents (P4, P10)"
+      "description": "Bot capability management — OCAP-gated capability grants to bot agents (P4, P10)"
     },
     {
       "name": "mcp",
-      "description": "MCP servers and tools \u2014 tool discovery and invocation across out-of-process MCP servers"
+      "description": "MCP servers and tools — tool discovery and invocation across out-of-process MCP servers"
     },
     {
       "name": "cns",
-      "description": "Cybernetic Nervous System \u2014 variety tracking, algedonic alerts, and homeostatic self-regulation (P9, Pattern B)"
+      "description": "Cybernetic Nervous System — variety tracking, algedonic alerts, and homeostatic self-regulation (P9, Pattern B)"
     },
     {
       "name": "chat",
-      "description": "Curator chat interface \u2014 inference with model switching and streaming (Pattern C)"
+      "description": "Curator chat interface — inference with model switching and streaming (Pattern C)"
     },
     {
       "name": "models",
-      "description": "Multi-provider model catalog (DeepInfra, fal.ai, Together AI) \u2014 discover and search available LLMs"
+      "description": "Multi-provider model catalog (DeepInfra, fal.ai, Together AI) — discover and search available LLMs"
     },
     {
       "name": "curator",
-      "description": "Curator escalation and metacognition \u2014 bot health reports and pending escalation queue (Pattern C, P12)"
+      "description": "Curator escalation and metacognition — bot health reports and pending escalation queue (Pattern C, P12)"
     },
     {
       "name": "git",
-      "description": "Git archival and resolution \u2014 template crate loading and SHA resolution via GitCASPort hexagonal boundary"
+      "description": "Git archival and resolution — template crate loading and SHA resolution via GitCASPort hexagonal boundary"
     },
     {
-      "name": "acp",
-      "description": "ACP agent registration \u2014 register, list, and unregister agents with capability delegation (P4 OCAP)"
+      "name": "a2a",
+      "description": "A2A agent registration — register, list, and unregister agents with capability delegation (P4 OCAP)"
     },
     {
       "name": "goals",
-      "description": "Goal coordination substrate \u2014 creation, listing, and state transitions with OCAP authority gating (P4)"
+      "description": "Goal coordination substrate — creation, listing, and state transitions with OCAP authority gating (P4)"
     },
     {
       "name": "bundles",
-      "description": "Bundle composition and evolution \u2014 inference-driven skill bundling with apply/deactivate lifecycle (Pattern A)"
+      "description": "Bundle composition and evolution — inference-driven skill bundling with apply/deactivate lifecycle (Pattern A)"
     },
     {
       "name": "episodic",
-      "description": "Episodic memory \u2014 store and query bitemporal triples with OCAP-gated access (P1, P4, P11)"
+      "description": "Episodic memory — store and query bitemporal triples with OCAP-gated access (P1, P4, P11)"
     },
     {
       "name": "sovereignty",
-      "description": "Sovereignty governance \u2014 consent grant/revoke and access checks under Magna Carta P1\u2013P4"
+      "description": "Sovereignty governance — consent grant/revoke and access checks under Magna Carta P1–P4"
     },
     {
       "name": "specs",
-      "description": "MDS specification management \u2014 capture, list, coherence assessment, and writing-quality checks (MDS \u00a73)"
+      "description": "MDS specification management — capture, list, coherence assessment, and writing-quality checks (MDS §3)"
     },
     {
       "name": "consolidation",
-      "description": "Context consolidation \u2014 episodic\u2192semantic memory condensation with passphrase-gated authorization"
+      "description": "Context consolidation — episodic→semantic memory condensation with passphrase-gated authorization"
     }
   ]
 }

@@ -1,4 +1,4 @@
-//! Inference configuration — multi-provider routing for DeepInfra, fal.ai, and Together AI.
+//! Inference configuration — multi-provider routing for DeepInfra, fal.ai, Together AI, and OpenRouter.
 //!
 //! # Environment Variables
 //!
@@ -8,7 +8,9 @@
 //! - `FA_API_KEY` — fal.ai API key (required for FA provider)
 //! - `TG_BASE_URL` — Together AI base URL (default: <https://api.together.xyz>)
 //! - `TOGETHER_API_KEY` — Together AI API key (required for TG provider)
-//! - `HKASK_DEFAULT_PROVIDER` — default provider for unprefixed models (DI, FA, TG; default: DI)
+//! - `OR_BASE_URL` — OpenRouter base URL (default: <https://openrouter.ai/api>)
+//! - `OPENROUTER_API_KEY` — OpenRouter API key (required for OR provider)
+//! - `HKASK_DEFAULT_PROVIDER` — default provider for unprefixed models (DI, FA, TG, OR; default: DI)
 //!
 //! # API Key Resolution
 //!
@@ -25,6 +27,7 @@
 //! - `DI/meta-llama/Llama-3.3-70B-Instruct` → DeepInfra (cloud)
 //! - `FA/paddleocr` → fal.ai (cloud)
 //! - `TG/Qwen/Qwen2.5-7B-Instruct-Turbo` → Together AI (cloud)
+//! - `OR/openai/gpt-4o` → OpenRouter (cloud)
 //! - No prefix → default provider (configurable, default: DeepInfra)
 
 use serde::{Deserialize, Serialize};
@@ -49,6 +52,9 @@ pub enum ProviderId {
     /// Baseten (cloud) — prefix `BT/`
     #[serde(rename = "BT")]
     Baseten,
+    /// OpenRouter (cloud) — prefix `OR/`
+    #[serde(rename = "OR")]
+    OpenRouter,
 }
 
 impl ProviderId {
@@ -81,6 +87,7 @@ impl ProviderId {
             "TG" => Some((ProviderId::Together, rest)),
             "RP" => Some((ProviderId::Runpod, rest)),
             "BT" => Some((ProviderId::Baseten, rest)),
+            "OR" => Some((ProviderId::OpenRouter, rest)),
             _ => None,
         }
     }
@@ -107,6 +114,7 @@ impl ProviderId {
             ProviderId::Together => "TG",
             ProviderId::Runpod => "RP",
             ProviderId::Baseten => "BT",
+            ProviderId::OpenRouter => "OR",
         }
     }
 }
@@ -152,6 +160,15 @@ pub struct InferenceConfig {
     /// Required for TG provider. If empty, TG is unavailable.
     pub together_api_key: String,
 
+    /// Base URL for the OpenRouter inference API (OpenAI-compatible endpoint).
+    /// Defaults to `https://openrouter.ai/api` — the `/v1` suffix is appended
+    /// by the backend following the shared URL construction pattern.
+    pub openrouter_base_url: String,
+
+    /// API key for OpenRouter authentication.
+    /// Required for OR provider. If empty, OR is unavailable.
+    pub openrouter_api_key: String,
+
     /// Request timeout in seconds for inference calls.
     /// Default: 120 (accommodates model cold-start).
     pub timeout_secs: u64,
@@ -178,6 +195,8 @@ impl Default for InferenceConfig {
             fal_api_key: String::new(),
             together_base_url: "https://api.together.xyz".to_string(),
             together_api_key: String::new(),
+            openrouter_base_url: "https://openrouter.ai/api".to_string(),
+            openrouter_api_key: String::new(),
             timeout_secs: 120,
             pool_max_idle: 5,
             default_model: "deepseek-v4-pro".to_string(),
@@ -218,6 +237,11 @@ impl InferenceConfig {
 
         let together_api_key = resolve_api_key("TOGETHER_API_KEY", &[]);
 
+        let openrouter_base_url = std::env::var("OR_BASE_URL")
+            .unwrap_or_else(|_| "https://openrouter.ai/api".to_string());
+
+        let openrouter_api_key = resolve_api_key("OPENROUTER_API_KEY", &["OR_API_KEY"]);
+
         let default_provider = resolve_default_provider();
 
         Self {
@@ -230,6 +254,8 @@ impl InferenceConfig {
             fal_api_key,
             together_base_url,
             together_api_key,
+            openrouter_base_url,
+            openrouter_api_key,
             timeout_secs: 120,
             pool_max_idle: 5,
             default_model: std::env::var("HKASK_DEFAULT_MODEL")
@@ -305,6 +331,7 @@ fn parse_provider_code(raw: &str) -> ProviderId {
         "TG" => ProviderId::Together,
         "RP" => ProviderId::Runpod,
         "BT" => ProviderId::Baseten,
+        "OR" => ProviderId::OpenRouter,
         _ => ProviderId::DeepInfra,
     }
 }

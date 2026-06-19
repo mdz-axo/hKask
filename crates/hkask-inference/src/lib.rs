@@ -1,15 +1,17 @@
 //! hKask Inference — multi-provider inference router
 //!
 //! Routes LLM requests to DeepInfra (cloud), fal.ai (cloud),
-//! or Together AI (cloud) based on a 2-letter provider prefix in the model name.
+//! Together AI (cloud), or OpenRouter (cloud) based on a 2-letter provider prefix
+//! in the model name.
 //!
 //! # Architecture
 //!
 //! ```text
 //! InferenceRouter (implements InferencePort)
-//!   ├── DeepInfraBackend — DI/ prefix → api.deepinfra.com
-//!   ├── FalBackend       — FA/ prefix → api.fal.ai
-//!   └── TogetherBackend  — TG/ prefix → api.together.xyz
+//!   ├── DeepInfraBackend    — DI/ prefix → api.deepinfra.com
+//!   ├── FalBackend          — FA/ prefix → api.fal.ai
+//!   ├── TogetherBackend     — TG/ prefix → api.together.xyz
+//!   └── OpenRouterBackend   — OR/ prefix → openrouter.ai/api
 //!
 //! EmbeddingRouter
 //!   └── DeepInfraEmbedding — DI/ prefix → /v1/embeddings
@@ -20,6 +22,7 @@
 //! - `DI/meta-llama/Llama-3.3-70B-Instruct` → DeepInfra
 //! - `TG/Qwen/Qwen2.5-7B-Instruct-Turbo` → Together AI
 //! - `FA/paddleocr` → fal.ai
+//! - `OR/openai/gpt-4o` → OpenRouter
 //! - No prefix → default provider (configurable, default: DeepInfra)
 
 pub mod chat_protocol;
@@ -28,6 +31,7 @@ pub mod deepinfra_backend;
 pub mod embedding_router;
 pub mod fal_backend;
 pub mod inference_router;
+pub mod openrouter_backend;
 pub mod together_backend;
 
 // Re-exports — public API
@@ -38,6 +42,7 @@ pub use inference_router::InferenceRouter;
 // Model listing types
 pub use deepinfra_backend::DeepInfraModelEntry;
 pub use fal_backend::FalModelEntry;
+pub use openrouter_backend::OpenRouterModel;
 pub use together_backend::TogetherModel;
 
 /// Unified model entry from any provider, with provider prefix applied.

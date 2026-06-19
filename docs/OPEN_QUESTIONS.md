@@ -18,6 +18,9 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 ## Resolved Questions (2026-05-29 Sprint)
 
+<details>
+<summary>9 resolved questions — click to expand (historical record)</summary>
+
 ### OQ-1: hKask-surface Documentation Depth ✅
 
 **MDS Category:** Interface  
@@ -129,6 +132,8 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 **Decision:** Both servers are fully implemented: `hkask-mcp-condenser` (1,744 LOC, 7 tools, 51 tests), `hkask-mcp-research` (1,044 LOC). No stubs remain. MCP tools inventory confirms completeness (see `do../status/PROJECT_STATUS.md`).
 
 ---
+
+</details>
 
 ## Open Crossroads (Future)
 

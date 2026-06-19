@@ -12,9 +12,11 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Single entry point indexing every active document in `docs/`, tagged
 by [MDS](architecture/core/MDS.md) category. 64 active documents. hKask v0.30.0.
+hKask v0.30.0.
 
 > **Lifecycle:** Retired documents are removed via `git rm`. The gitignored
-> `docs/archive/` holds date-stamped snapshots for reference.
+> `docs/archive/` holds date-stamped snapshots for reference. Active document count
+> verified by `docs/ci/check-links.sh` (225 links, 0 broken).
 
 ---
 
@@ -30,6 +32,7 @@ by [MDS](architecture/core/MDS.md) category. 64 active documents. hKask v0.30.0.
 | [`architecture/core/TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | Contract-anchored testing — DbC + PBT specification |
 | [`plans/TODO.md`](plans/TODO.md) | Open work |
 | [`plans/deployment-and-backup.md`](plans/deployment-and-backup.md) | Deployment & Multi-User Plan |
+| [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | Underspecified aspects — open crossroads and future design decisions |
 
 ---
 
@@ -167,4 +170,4 @@ by [MDS](architecture/core/MDS.md) category. 64 active documents. hKask v0.30.0.
 bash docs/ci/check-links.sh      # link integrity — zero broken links
 ```
 
-*ℏKask — A Minimal Viable Container for Agents — v0.28.0 — 58 active documents*
+*ℏKask — A Minimal Viable Container for Agents — v0.30.0 — 64 active documents*

@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Index to the authoritative architecture documents and the four essential architectural patterns that constitute hKask's irreducible core.
 
-**Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.28.0
+**Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.30.0
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
@@ -941,9 +941,9 @@ kask init --profile server
 
 > **Incorporated from:** `docs/architecture/reference/utoipa-implementation.md`
 
-API documentation is auto-generated at build time from type annotations via utoipa. Dependencies: `utoipa 5.5` (with `axum_extras`, `uuid`, `chrono` features), `utoipa-axum 0.2`. All request/response types derive `ToSchema`; endpoints carry `#[utoipa::path]` annotations. Generated artifacts: `docs/generated/openapi.json` (OpenAPI 3.1), `docs/generated/cli-reference.md`. CLI: `kask docs openapi`, `kask docs cli`, `kask docs all`.
+API documentation is auto-generated at build time from type annotations via utoipa. Dependencies: `utoipa 5.5` (with `axum_extras`, `uuid`, `chrono` features), `utoipa-axum 0.2`. All request/response types derive `ToSchema`; endpoints are registered via `OpenApiRouter::new().route()` with utoipa-axum auto-discovery from handler signatures and `ToSchema` derives. Generated artifacts: `docs/generated/openapi.json` (OpenAPI 3.1), `docs/generated/cli-reference.md`. CLI: `kask docs openapi`, `kask docs cli`, `kask docs all`.
 
-**60+ annotated endpoints** across templates, bots, pods, MCP, CNS, chat, models, curator, ACP, bundles, specs, episodic, sovereignty, consolidation, git, goals, settings, wallet. Some endpoints use direct `.route()` registration and don't appear in the generated spec. MCP tools are discovered dynamically at runtime.
+**60 registered endpoints** across templates, bots, pods, MCP, CNS, chat, models, curator, ACP, bundles, specs, episodic, sovereignty, consolidation, git, goals, settings, wallet. All endpoints are registered via `OpenApiRouter::new().route()` and appear in the generated spec via utoipa-axum auto-discovery. MCP tools are discovered dynamically at runtime and are not part of the OpenAPI spec.
 
 ## Reference Artifacts
 
@@ -1016,4 +1016,4 @@ docs/architecture/
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.28.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.30.0*

@@ -109,7 +109,7 @@ CNS (Cybernetic Nervous System) spans are the primary observability primitive. E
 tracing::info!(target: "cns.{domain}", operation = "{verb}", {key} = %{value}, ..., "CNS");
 ```
 
-- Target: `"cns.{canonical_domain}"` — must match a `CnsSpan` variant in `hkask-types::cns`
+- Target: `"cns.{canonical_domain}"` — uses the `cns.*` namespace convention. Core domain spans are typed via `CnsSpan` variants in `hkask-types::cns`; subsystem-specific spans (keystore, adapter, backup, condenser, MCP, CLI, API, kata) use stringly-typed tracing targets following the same `cns.*` convention with CNS-formatted messages.
 - Message: Must be `"CNS"` — enables ν-event filtering
 - Latency: Use `std::time::Instant`, emit as `latency_ms`
 - Authority: Every span carries a `replicant` or `owner` WebID

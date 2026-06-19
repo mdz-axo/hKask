@@ -122,7 +122,7 @@ use crate::routes::cns::CnsSubscribeParams;
     ),
     info(
         title = "hKask API",
-        version = "0.27.0",
+        version = "0.28.0",
         description = "A Minimal Viable Container for Agents — HTTP API.\n\nhKask is an agent runtime grounded in 12 architectural principles\n(P0–P12) expressed through four composable patterns: Skills Model,\nCNS Feedback Loop, Agentic AI Mediation, and Agent Creation with\nSovereign Memory. This API exposes all capabilities equally across\nCLI, API, and MCP surfaces under P3 (Equal Surface Exposure).\n\nAll endpoints carry OCAP DelegationToken authentication (P4).\nData access is governed by user sovereignty and affirmative\nconsent (P1, P2)."
     ),
     servers(
