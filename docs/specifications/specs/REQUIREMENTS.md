@@ -395,16 +395,16 @@ Curation: Merge | Revise | Defer | Discard
 - **Status:** Implemented
 - **Curation:** Merge — promoted from deferred REQ-CAP-D01
 
-### REQ-CAP-005: Web MCP Server
+### REQ-CAP-005: Research MCP Server
 
 - **Category:** Trust, Composition
 - **Text:** When an agent needs to retrieve web content, I want a dedicated MCP server for search, fetch, and crawl operations, so I can ground agent responses in current external data.
 - **Criteria:**
-  - [x] 3,389 LOC in `hkask-mcp-web`
+  - [x] 1,044 LOC in `hkask-mcp-research`
   - [x] `search`, `fetch`, `crawl`, `extract` tools
   - [x] Content extraction and formatting
   - [x] Rate limiting and domain filtering
-- **Implementation:** `hkask-mcp-web` (3,389 LOC)
+- **Implementation:** `hkask-mcp-research` (1,044 LOC)
 - **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge — promoted from deferred REQ-CAP-D03

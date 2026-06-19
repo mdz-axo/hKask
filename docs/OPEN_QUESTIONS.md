@@ -264,7 +264,7 @@ CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YA
 **Status:** Deferred (no current consumer outside `hkask-mcp-research`)  
 **Resolution Date:** 2026-06-03
 
-`WebSearchPort` trait and `ProviderPool` are only consumed within `mcp-servers/hkask-mcp-web`. No other crate references them. Extracting the trait to `hkask-types` and the pool to a new `hkask-web` crate would be premature — it moves code without enabling new capabilities. If a consumer outside the MCP server needs web search (e.g., a new crate that orchestrates search + memory), extract then. The MCP server becoming a thin shim is the right long-term goal, but not today.
+`WebSearchPort` trait and `ProviderPool` are only consumed within `mcp-servers/hkask-mcp-research`. No other crate references them. Extracting the trait to `hkask-types` and the pool to a new `hkask-web` crate would be premature — it moves code without enabling new capabilities. If a consumer outside the MCP server needs web search (e.g., a new crate that orchestrates search + memory), extract then. The MCP server becoming a thin shim is the right long-term goal, but not today.
 
 ### 9d: AgentKind Behavioral Dispatch ⚠️ RESOLVED — Keep Cosmetic
 

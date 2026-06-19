@@ -87,9 +87,9 @@ The system has removed the `RateLimiter` and `CnsTokenBucket` types. `McpErrorKi
 
 ### 1.6 External-Boundary Rate Limiting — Cybernetics Membrane at the Transport Boundary
 
-`hkask-mcp-web` implements a per-tool fixed-window `RateLimiter` (30 requests/60s) that sits at the HTTP transport boundary. Per the 4-loop model, Communication is demoted to transport (`tokio::mpsc` channels) with no throttling authority. The `RateLimiter` is therefore **a Cybernetics membrane concern applied TO the transport boundary**, not a Communication-internal concern.
+`hkask-mcp-research` implements a per-tool fixed-window `RateLimiter` (30 requests/60s) that sits at the HTTP transport boundary. Per the 4-loop model, Communication is demoted to transport (`tokio::mpsc` channels) with no throttling authority. The `RateLimiter` is therefore **a Cybernetics membrane concern applied TO the transport boundary**, not a Communication-internal concern.
 
-**Important distinction:** The `RateLimiter` lives in `hkask-mcp-web` (an MCP server), not in any loop struct. Inter-loop communication uses direct typed `tokio::mpsc` channels with no intermediary — channel identity replaces the former `LoopId`/`DispatchTarget` routing. There is no `max_deliveries_per_tick` or queue depth counter — backpressure is inherent in channel capacity.
+**Important distinction:** The `RateLimiter` lives in `hkask-mcp-research` (an MCP server), not in any loop struct. Inter-loop communication uses direct typed `tokio::mpsc` channels with no intermediary — channel identity replaces the former `LoopId`/`DispatchTarget` routing. There is no `max_deliveries_per_tick` or queue depth counter — backpressure is inherent in channel capacity.
 
 **Authority classification:**
 

@@ -25,7 +25,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-DC-003 | Agent Taxonomy (Bot/Replicant branching) | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-agents/src/pod/types.rs`, `crates/hkask-agents/src/curator_agent/bot_metrics.rs` | ✅ VERIFIED |
 | DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-types/src/capability/mod.rs:223` | ✅ VERIFIED |
 | DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | [MDS.md](architecture/core/MDS.md) §6 | `crates/hkask-mcp/src/runtime.rs:59`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
-| DIAG-DC-006 | Standing Session Chat Lifecycle | [MDS.md](architecture/core/MDS.md) §6.4 | `crates/hkask-cli/src/commands/chat.rs`, `mcp-servers/hkask-mcp-web/src/main.rs` | ✅ VERIFIED |
+| DIAG-DC-006 | Standing Session Chat Lifecycle | [MDS.md](architecture/core/MDS.md) §6.4 | `crates/hkask-cli/src/commands/chat.rs`, `mcp-servers/hkask-mcp-research/src/main.rs` | ✅ VERIFIED |
 | DIAG-DC-007 | hKask Container Lifecycle (Create → Register → Activate → Deactivate) | [MDS.md](architecture/core/MDS.md) §6.5 | `crates/hkask-cli/src/commands/chat.rs`, `crates/hkask-agents/src/pod/mod.rs` | ✅ VERIFIED |
 
 ## 2. Interface & Composition Diagrams

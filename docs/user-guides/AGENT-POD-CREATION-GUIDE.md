@@ -314,7 +314,7 @@ process_manifest: registry/manifests/my-bot-dispatch.yaml
 
 # Optional: Dependencies
 depends_on:
-  - hkask-mcp-inference
+  - hkask-inference
   - hkask-mcp-spec
 
 # Required: Readiness probe
@@ -494,7 +494,7 @@ steps:
     action: execute
     target: inference
     contract:
-      mcp: hkask-mcp-inference
+      mcp: hkask-inference
 ```
 
 #### Pattern 2: Memory Recall → Inference
@@ -528,7 +528,7 @@ steps:
     action: execute
     target: inference
     contract:
-      mcp: hkask-mcp-inference
+      mcp: hkask-inference
 ```
 
 #### Pattern 3: CNS Monitoring → Calibration
@@ -562,7 +562,7 @@ steps:
     action: execute
     target: inference
     contract:
-      mcp: hkask-mcp-inference
+      mcp: hkask-inference
 ```
 
 ---
@@ -1091,7 +1091,7 @@ responsibilities:
 
 depends_on:
   - external-workspace-adapter
-  - hkask-mcp-inference
+  - hkask-inference
   - hkask-mcp-spec
 
 process_manifest: registry/manifests/bridge-dispatch.yaml
