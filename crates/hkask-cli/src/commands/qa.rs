@@ -18,6 +18,12 @@ pub fn run(rt: &tokio::runtime::Runtime, action: QaAction) {
                 std::process::exit(1);
             }
         }
+        QaAction::SuggestFuzz { input } => {
+            if let Err(e) = rt.block_on(suggest_fuzz(input)) {
+                eprintln!("QA suggest-fuzz error: {e}");
+                std::process::exit(1);
+            }
+        }
     }
 }
 
@@ -199,4 +205,104 @@ fn print_failures(failures: &[BoleroFailure]) {
             input = f.failing_input,
         );
     }
+}
+
+// ── suggest-fuzz ────────────────────────────────────────────────────────────
+
+async fn suggest_fuzz(input_path: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
+    let stdin: Box<dyn BufRead> = match &input_path {
+        Some(path) => {
+            let file = File::open(path).map_err(|e| format!("Cannot open {path:?}: {e}"))?;
+            Box::new(BufReader::new(file))
+        }
+        None => Box::new(BufReader::new(io::stdin())),
+    };
+
+    // Parse surviving mutant lines
+    let mutants: Vec<hkask_test_harness::feedback::SurvivingMutant> = stdin
+        .lines()
+        .filter_map(|l| l.ok())
+        .filter_map(|line| hkask_test_harness::feedback::parse_mutant_line(&line))
+        .collect();
+
+    if mutants.is_empty() {
+        println!("[QA] No surviving mutants found in input.");
+        return Ok(());
+    }
+
+    println!("[QA] {} surviving mutant(s) found", mutants.len());
+
+    // Load classifier config
+    let registry_dir = find_registry_dir();
+    let config = match hkask_services_classify::load_classifier_config("qa-feedback", &registry_dir)
+    {
+        Ok(def) => {
+            println!(
+                "[QA] Feedback classifier loaded: {} via {}",
+                def.model, def.provider
+            );
+            Some(ClassifierConfig::from_def(&def))
+        }
+        Err(e) => {
+            eprintln!("[QA] Feedback config not found: {e}");
+            print_mutant_summary(&mutants);
+            return Ok(());
+        }
+    };
+
+    let Some(cfg) = config else { return Ok(()) };
+
+    if cfg.api_key.is_empty() {
+        println!("[QA] No DEEPINFRA_API_KEY set — printing mutant summary instead.");
+        print_mutant_summary(&mutants);
+        return Ok(());
+    }
+
+    // Format passages and classify
+    println!("[QA] Requesting fuzz target suggestions from LLM...");
+    let passages: Vec<String> = mutants
+        .iter()
+        .map(|m| {
+            hkask_test_harness::feedback::mutant_passage(
+                &m.crate_name,
+                &m.file,
+                m.line,
+                &m.original,
+                &m.mutated,
+            )
+        })
+        .collect();
+
+    let results = hkask_services_classify::classify_batch(&passages, cfg).await?;
+
+    println!("\n[QA] Fuzz target suggestions:\n");
+    for (i, result) in results.iter().enumerate() {
+        let m = &mutants[i];
+        println!(
+            "  {crate}::{file}:{line} ({original} → {mutated})\n    → {suggestion}\n",
+            crate = m.crate_name,
+            file = m.file,
+            line = m.line,
+            original = m.original,
+            mutated = m.mutated,
+            suggestion = result.category.trim(),
+        );
+    }
+
+    Ok(())
+}
+
+fn print_mutant_summary(mutants: &[hkask_test_harness::feedback::SurvivingMutant]) {
+    println!("\n[QA] Surviving mutants:\n");
+    for m in mutants {
+        println!(
+            "  {crate}::{file}:{line} ({original} → {mutated})",
+            crate = m.crate_name,
+            file = m.file,
+            line = m.line,
+            original = m.original,
+            mutated = m.mutated,
+        );
+    }
+    println!("\n[QA] Set DEEPINFRA_API_KEY for LLM-powered fuzz target suggestions.");
 }

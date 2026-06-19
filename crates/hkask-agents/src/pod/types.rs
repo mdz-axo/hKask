@@ -176,25 +176,27 @@ impl AgentPersona {
     /// Create a minimal persona for system pods (Curator, team infrastructure).
     /// Delegates to `from_yaml` for single construction path, single WebID derivation.
     pub fn system(name: &str, agent_type: AgentKind) -> Self {
-        let yaml = format!(
-            "agent:
-  name: {name}
-  type: {agent_type:?}
-  version: \"0.1.0\"
-             charter:
-  description: "System pod: {name}"
-  editor: system
-             capabilities:
-  - tool:execute
-             rights: []
-             responsibilities:
-  - curate_and_aggregate
-             visibility:
-  default: public
-  episodic_override: private
-"
-        );
-        Self::from_yaml(&yaml).expect("system persona YAML must be valid")
+        let agent = AgentIdentity {
+            name: name.to_string(),
+            agent_type,
+            version: "0.1.0".to_string(),
+        };
+        let canonical = serde_json::to_string(&agent).unwrap_or_default();
+        Self {
+            agent,
+            charter: AgentCharter {
+                description: format!("System pod: {}", name),
+                editor: "system".to_string(),
+            },
+            capabilities: vec!["tool:execute".to_string()],
+            rights: vec![],
+            responsibilities: vec!["curate_and_aggregate".to_string()],
+            visibility: VisibilitySettings {
+                default: hkask_types::Visibility::Public,
+                episodic_override: hkask_types::Visibility::Private,
+            },
+            cached_webid: Some(WebID::from_persona(canonical.as_bytes())),
+        }
     }
 
     /// Parse agent persona from YAML string

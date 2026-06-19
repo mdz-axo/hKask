@@ -33,7 +33,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
-use tokio::sync::RwLock;
 use tracing;
 
 /// Derive the SQLCipher passphrase for a pod from its .webid sidecar file.
@@ -69,9 +68,6 @@ fn derive_passphrase(db_path: &PathBuf) -> Result<String, String> {
 pub struct CuratorSync {
     /// Shared SemanticIndex — writes here, PodContext reads from here
     index: Arc<std::sync::RwLock<SemanticIndex>>,
-    /// Directory where pod database files live
-    #[allow(dead_code)]
-    data_dir: PathBuf,
     /// Pod registry for scanning active pods
     registry: Arc<PodRegistry>,
     /// Polling interval
@@ -86,12 +82,10 @@ impl CuratorSync {
     /// `index` must be the same Arc that ActivePods.curator_index points to.
     pub fn new(
         index: Arc<std::sync::RwLock<SemanticIndex>>,
-        data_dir: PathBuf,
         registry: Arc<PodRegistry>,
     ) -> Self {
         Self {
             index,
-            data_dir,
             registry,
             interval: Duration::from_secs(1),
             consecutive_failures: AtomicU64::new(0),

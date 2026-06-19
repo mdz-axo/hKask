@@ -57,8 +57,10 @@ impl ActivePods {
     pub fn new_test_harness(data_dir: &std::path::Path) -> Self {
         // Set test master key for ADR-027 key derivation
         unsafe {
-            std::env::set_var("HKASK_MASTER_KEY",
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            );
         }
         // Create mock template directories
         let tmpl = data_dir.join("templates");
@@ -74,28 +76,34 @@ impl ActivePods {
 
     /// Inner test harness — shared with new_mock for backward compatibility.
     fn new_test_harness_inner(data_dir: &std::path::Path) -> Self {
+        use crate::AllowAllConsent;
         use crate::a2a::A2ARuntime;
         use crate::adapters::mcp_runtime::CapabilityOnlyAdapter;
         use crate::adapters::memory_loop_adapter::MemoryLoopAdapter;
         use crate::pod::PodFactory;
-        use crate::AllowAllConsent;
         use hkask_types::CapabilityChecker;
 
         let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
-        let mcp = Arc::new(CapabilityOnlyAdapter::new(Arc::new(CapabilityChecker::new(b"mock"))));
+        let mcp = Arc::new(CapabilityOnlyAdapter::new(Arc::new(
+            CapabilityChecker::new(b"mock"),
+        )));
         let a2a = Arc::new(A2ARuntime::new(b"mock"));
         let factory = Arc::new(PodFactory::new(
-            Arc::new(hkask_mcp::GitCasAdapter::from_path(data_dir.join("templates"))),
+            Arc::new(hkask_mcp::GitCasAdapter::from_path(
+                data_dir.join("templates"),
+            )),
             Arc::new(AllowAllConsent),
             data_dir.to_path_buf(),
         ));
-        Self::new()
-            .with_a2a_runtime(a2a)
-            .with_factory_and_ports(
-                factory, mcp.clone(), None, None, None,
-                adapter.clone() as Arc<dyn EpisodicStoragePort>,
-                adapter as Arc<dyn SemanticStoragePort>,
-            )
+        Self::new().with_a2a_runtime(a2a).with_factory_and_ports(
+            factory,
+            mcp.clone(),
+            None,
+            None,
+            None,
+            adapter.clone() as Arc<dyn EpisodicStoragePort>,
+            adapter as Arc<dyn SemanticStoragePort>,
+        )
     }
 
     /// Legacy mock — delegates to new_test_harness_inner with /tmp path.
@@ -329,7 +337,7 @@ impl ActivePods {
 
         // Spawn CuratorSync background loop
         let registry = Arc::new(PodRegistry::new(&data_dir));
-        let sync = crate::curator::CuratorSync::new(Arc::clone(&index), data_dir, registry);
+        let sync = crate::curator::CuratorSync::new(Arc::clone(&index), registry);
         tokio::spawn(async move {
             sync.run(cancel).await;
         });

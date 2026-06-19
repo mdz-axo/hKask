@@ -1,5 +1,13 @@
 use bolero::check;
 
+/// Deliberate test failure — validates triage pipeline end-to-end.
+/// Always fails after first input. Removed after pipeline verification.
+#[test]
+fn fuzz_deliberate_panic_for_triage_test() {
+    check!().with_type::<u8>().for_each(|_v| {
+        panic!("deliberate panic for triage pipeline test: assertion at crates/hkask-types/fuzz/fuzz_targets/types_fuzz.rs:10");
+    });
+}
 /// QueueDepth invariant: value must never be negative.
 #[test]
 fn fuzz_queue_depth_never_negative() {

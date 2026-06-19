@@ -926,4 +926,10 @@ pub enum QaAction {
         #[arg(short, long)]
         input: Option<PathBuf>,
     },
+    /// Suggest fuzz targets from cargo-mutants output on stdin
+    SuggestFuzz {
+        /// Path to cargo-mutants output file (default: stdin)
+        #[arg(short, long)]
+        input: Option<PathBuf>,
+    },
 }
