@@ -3,7 +3,7 @@
 </p>
 # ℏKask - A Minimal Viable Container for Agents
 
-**Version:** v0.27.0 | **Status:** Phase 8 complete — Distillation done, operational hardening in progress
+**Version:** v0.28.0 | **Status:** Phase 8 complete — Distillation done, operational hardening in progress
 
 ---
 
@@ -39,7 +39,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
-| 2 | **Essential Tools** | 10 MCP servers + Inference Router (Fireworks, DeepInfra) |
+| 2 | **Essential Tools** | 11 MCP servers + Inference Router (Fireworks, DeepInfra) |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Unified registry with template_type discriminator |
@@ -61,20 +61,18 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-cli` — CLI commands
 - `hkask-api` — HTTP API, utoipa OpenAPI
 
-### MCP Servers (10 crates)
-- `hkask-mcp-condenser` — Context condensation (reranking and compression of the active conversation window)
-- `hkask-mcp-research` — Web search, extraction, browsing, and RSS feed research
-- `hkask-mcp-spec` — DDMVSS spec capture
+### MCP Servers (11 crates)
+- `hkask-mcp-condenser` — Context condensation (thin wrapper around hkask-condenser domain crate)
+- `hkask-mcp-research` — Web search, extraction, and feed-based research
+- `hkask-mcp-spec` — Specification authoring, curation, and validation
 - `hkask-mcp-companies` — Company financial data (FMP + EODHD dual-provider)
-- `hkask-mcp-communication` — Local TTS/STT (espeak)
-- `hkask-mcp-media` — Media generation (image, video, audio, 3D)
-- `hkask-mcp-replica` — Authorial style embedding and composition
-- `hkask-mcp-doc-knowledge` — Document parsing and chunking (HTML/text extraction, multi-tier chunking)
-- `hkask-mcp-markitdown` — Document format conversion and OCR (PDF/MD/HTML/TXT + vision OCR fallback)
-- `hkask-mcp-memory` — Semantic + episodic memory (merged: episodic → semantic consolidation)
-
-**Converted to templates** (not MCP servers):
-- `spandrel` → `templates/spandrel/` (graph analysis)
+- `hkask-mcp-communication` — Thin MCP wrapper over core communication crate
+- `hkask-mcp-media` — Media generation (image, video, audio, 3D via fal.ai and other providers)
+- `hkask-mcp-replica` — Authorial style embedding and prose composition
+- `hkask-mcp-docproc` — Unified document processing (format conversion, OCR, chunking, parsing, QA generation)
+- `hkask-mcp-memory` — Unified episodic + semantic memory with cloud backup
+- `hkask-mcp-training` — Model training (QA pairs and training data ingestion for fine-tuning pipelines)
+- `hkask-mcp-kanban` — Kanban board coordination
 
 ---
 
@@ -86,7 +84,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | **MCP Server LOC (Rust)** | ~4,890 |
 | **Test Files** | 36 |
 | **Core Crates** | 11 (all complete) |
-| **MCP Servers** | 10 (all complete) |
+| **MCP Servers** | 11 (all complete) |
 | **Build/Clippy/Fmt** | All passing |
 
 ---
@@ -141,7 +139,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 ---
 
-## Success Criterion (17 Items)
+## Success Criterion (18 Items)
 
 hKask is "done" when a single user can:
 
@@ -150,18 +148,18 @@ hKask is "done" when a single user can:
 3. Use `/model qwen` to fuzzy search models; `/model qwen3:8b` to switch the LLM
 4. Observe ≥3 subsystem-curator bots spawn at startup
 5. Trigger ensemble session with ≥2 subsystem-curators deliberating
-6. Invoke any operation through CLI or HTTP API with identical behavior
-Invoke any tool from 10 MCP set; observe routing
-8. Compose two tools via process template
-9. Record episodic memory with confidence
-10. Retrieve memory; observe `as-of` query returns historical state
-11. Observe another agent cannot read private memory without OCAP delegation
-12. Generate embedding via embedding MCP; stored in same SQLite transaction
-13. `fork` public template via storage MCP; observe divergent branch
-14. Merge two branches; observe structural success + conflict requiring ensemble
-15. Attempt to clone private artifact; observe OCAP rejection
-16. Observe curator reflect on inference outcomes, propose template revision
-17. CNS records change, observes new outcomes
+7. Invoke any operation through CLI or HTTP API with identical behavior
+8. Invoke any tool from 11 MCP set; observe routing
+9. Compose two tools via process template
+10. Record episodic memory with confidence
+11. Retrieve memory; observe `as-of` query returns historical state
+12. Observe another agent cannot read private memory without OCAP delegation
+13. Generate embedding via embedding MCP; stored in same SQLite transaction
+14. `fork` public template via storage MCP; observe divergent branch
+15. Merge two branches; observe structural success + conflict requiring ensemble
+16. Attempt to clone private artifact; observe OCAP rejection
+17. Observe curator reflect on inference outcomes, propose template revision
+18. CNS records change, observes new outcomes
 
 ---
 
@@ -206,7 +204,7 @@ cargo test -p hkask-mcp cyber_
 
 ## Documentation
 
-- `docs/architecture/hKask-architecture-master.md` — Architecture index (v0.27.0)
+- `docs/architecture/hKask-architecture-master.md` — Architecture index (v0.28.0)
 - `docs/architecture/reference/hKask-erd.md` — Entity relationship diagrams
 - `docs/architecture/interface-and-composition.md` — Registry & templating design
 - `docs/status/PROJECT_STATUS.md` — Project status (single source of truth)
@@ -256,6 +254,6 @@ cargo test -p hkask-mcp cyber_
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.27.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.28.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*
 *Distillation complete. Operational hardening in progress.*
