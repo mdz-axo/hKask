@@ -245,13 +245,16 @@ impl PodFactory {
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Result<PodDeployment, PodDeployError> {
         // 1. Create the underlying AgentPod
-        let pod = AgentPod::new(
+        let mut pod = AgentPod::new(
             template_name,
             persona,
             self.git_cas.as_ref(),
             Arc::clone(&self.consent),
         )?;
-        let pod_id = pod.id;
+        // Deterministic PodID from pod_kind + persona name (Solid Pod principle).
+        // Same persona + same pod_kind → same PodID on any server, portable identity.
+        let pod_id = PodID::from_name(&format!("{}:{}", pod_kind, persona.agent.name));
+        pod.id = pod_id;
 
         // 2. Create per-pod SQLCipher database + storage adapters
         let (storage, memory_adapter) = self.create_pod_storage(pod_id, persona, pod_kind)?;

@@ -86,6 +86,17 @@ pub async fn set_mode(name: &str, mode: &str, role: Option<&str>) -> Result<(), 
     PodService::set_mode(&ctx, name, mode, role).await
 }
 
+/// Export a pod as a container image build context.
+/// Produces Containerfile + pod files in output_dir. After export:
+///   docker build -t hkask-pod-{pod_id} {output_dir}
+pub async fn export_container(pod_id: &str, output_dir: &std::path::Path) -> Result<(), ServiceError> {
+    let ctx = super::helpers::build_service_context();
+    let factory = ctx.pod_factory();
+    let pid = hkask_types::PodID::from_name(pod_id);
+    factory.export_container(pid, output_dir)
+        .map_err(|e| ServiceError::Pod(hkask_services::PodError::Lifecycle(e.to_string())))
+}
+
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  rt is a valid tokio runtime
 /// pre:  action is a valid PodAction variant
@@ -179,6 +190,16 @@ pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
                 Some(r) => println!("Set replicant '{}' to server mode serving '{}'", name, r),
                 None => println!("Set replicant '{}' to {} mode", name, mode),
             }
+        }
+        PodAction::ExportContainer { pod_id, output } => {
+            crate::block_on!(
+                rt,
+                commands::export_container(&pod_id, &output),
+                "Failed to export pod container"
+            );
+            println!("Pod container exported: {}", pod_id);
+            println!("Build context: {}", output.display());
+            println!("Run: docker build -t hkask-pod-{} {}", pod_id, output.display());
         }
     }
 }

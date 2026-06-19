@@ -625,3 +625,101 @@ impl Default for RetryConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod retry_config_tests {
+    use super::*;
+
+    fn test_config() -> RetryConfig {
+        RetryConfig {
+            max_retries: 3,
+            initial_delay_ms: 100,
+            max_delay_ms: 5000,
+            multiplier: 2.0,
+            retryable_status: vec![429, 503],
+        }
+    }
+
+    #[test]
+    fn first_attempt_is_initial_delay() {
+        let cfg = test_config();
+        assert_eq!(cfg.delay_for_attempt(0), 100);
+    }
+
+    #[test]
+    fn delay_doubles_each_attempt() {
+        let cfg = test_config();
+        assert_eq!(cfg.delay_for_attempt(1), 200);
+        assert_eq!(cfg.delay_for_attempt(2), 400);
+        assert_eq!(cfg.delay_for_attempt(3), 800);
+    }
+
+    #[test]
+    fn delay_capped_at_max() {
+        let cfg = test_config();
+        let delay = cfg.delay_for_attempt(10); // 100 * 2^10 = 102400
+        assert_eq!(delay, cfg.max_delay_ms);
+    }
+
+    #[test]
+    fn delay_with_multiplier_one_is_constant() {
+        let cfg = RetryConfig {
+            multiplier: 1.0,
+            ..test_config()
+        };
+        assert_eq!(cfg.delay_for_attempt(0), 100);
+        assert_eq!(cfg.delay_for_attempt(5), 100);
+    }
+
+    #[test]
+    fn default_config_is_reasonable() {
+        let cfg = RetryConfig::default();
+        assert_eq!(cfg.max_retries, 3);
+        assert!(cfg.initial_delay_ms > 0);
+        assert!(cfg.max_delay_ms > cfg.initial_delay_ms);
+        assert!(!cfg.retryable_status.is_empty());
+    }
+
+    #[test]
+    fn is_retryable_status_matches() {
+        let cfg = test_config();
+        assert!(cfg.is_retryable_status(429));
+        assert!(cfg.is_retryable_status(503));
+        assert!(!cfg.is_retryable_status(200));
+        assert!(!cfg.is_retryable_status(404));
+    }
+
+    #[test]
+    fn default_retryable_statuses() {
+        let cfg = RetryConfig::default();
+        // Standard retryable HTTP status codes
+        assert!(cfg.is_retryable_status(429)); // Too Many Requests
+        assert!(cfg.is_retryable_status(503)); // Service Unavailable
+        assert!(!cfg.is_retryable_status(200)); // OK
+    }
+
+    // ── Proptest: RetryConfig serialization round-trip ──────
+
+    proptest::proptest! {
+        #[test]
+        fn retry_config_to_json_round_trip(
+            max_retries in 0u32..10u32,
+            initial_delay_ms in 0u64..10000u64,
+            max_delay_ms in 1000u64..60000u64,
+            multiplier in 1.0f64..5.0f64,
+        ) {
+            let cfg = RetryConfig {
+                max_retries,
+                initial_delay_ms,
+                max_delay_ms,
+                multiplier,
+                retryable_status: vec![429, 503],
+            };
+            let json = serde_json::to_string(&cfg).unwrap();
+            let parsed: RetryConfig = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed.max_retries, cfg.max_retries);
+            assert_eq!(parsed.initial_delay_ms, cfg.initial_delay_ms);
+            assert_eq!(parsed.max_delay_ms, cfg.max_delay_ms);
+        }
+    }
+}

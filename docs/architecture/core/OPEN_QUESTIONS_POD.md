@@ -55,7 +55,9 @@ Pod A → Matrix room → Pod B
 
 **Question:** Is exporting a SQLCipher file sufficient for "move my pod to another server"?
 
-**Status:** Resolved — partially answered by current design.
+**Status:** Resolved (design) — acceptance test deferred to v0.31.0.
+
+**Deferral rationale:** The design is complete (deterministic passphrase via ADR-027, deterministic PodID via `PodKind:PersonaName`, `.webid` sidecar for bootstrapping, `pod_meta` table for metadata). The missing piece is an end-to-end integration test: "Create pod on server A → export DB + webid → import on server B → activate → verify memory, identity, capabilities preserved." This is the Solid Pod portability acceptance test. Deferred until a multi-server test environment exists. Trigger: first cross-server deployment.
 
 **What transfers:**
 - ✅ SQLCipher database file (`{pod}.db`) — contains all triples (episodic + semantic), embeddings, and metadata.

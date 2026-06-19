@@ -89,8 +89,6 @@ use hkask_types::event::{NuEvent, SpanNamespace};
 use hkask_types::ports::CnsObserver;
 use std::sync::Mutex;
 
-#[async_trait::async_trait]
-impl CnsObserver for TestObserver {
 /// Test observer that records received CNS events
 struct TestObserver {
     events: Mutex<Vec<NuEvent>>,
@@ -109,6 +107,7 @@ impl TestObserver {
     }
 }
 
+#[async_trait::async_trait]
 impl CnsObserver for TestObserver {
     fn interest_mask(&self) -> Vec<SpanNamespace> {
         self.interest.clone()
@@ -131,7 +130,7 @@ async fn cns_semantic_published_notifies_observer() {
     let observer = std::sync::Arc::new(TestObserver::new(vec![SpanNamespace::from(
         hkask_types::cns::CnsSpan::SemanticPublished,
     )]));
-    ctx.cns().inner().subscribe(observer.clone());
+    ctx.cns().inner().subscribe_async(observer.clone()).await;
 
     // Write semantic — should notify observer
     ctx.store_semantic("CnsTest", "value", serde_json::json!("observed"), 0.8)
@@ -190,7 +189,8 @@ async fn source_pod_provenance_round_trips() {
     let triples = idx.query_by_entity("ProvTest").unwrap_or_default();
     assert!(!triples.is_empty(), "Triple should be synced");
 
-    // Extract source pod from triple provenance
+    // Extract source pod from triple provenance — must round-trip now that
+    // PodIDs are deterministic (PodID::from_name("{kind}:{name}")).
     let source = hkask_agents::curator::SemanticIndex::source_pod_of(&triples[0]);
     assert!(source.is_some(), "Triple should have source_pod provenance");
     assert_eq!(

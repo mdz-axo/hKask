@@ -788,4 +788,37 @@ mod tests {
             );
         });
     }
+
+    // ── Proptest: SeamInventory deserialization never panics ──────
+
+    proptest::proptest! {
+        #[test]
+        fn seam_inventory_deserialize_never_panics(s in ".*") {
+            let _ = serde_json::from_str::<hkask_types::cns::SeamInventory>(&s);
+        }
+
+        #[test]
+        fn seam_coverage_fields_are_non_negative(
+            total in 0u64..1000u64,
+            covered in 0u64..1000u64,
+            uncovered in 0u64..1000u64,
+            pct in 0.0f64..100.0f64,
+            tests in 0u64..100u64,
+        ) {
+            let cov = hkask_types::cns::SeamCoverage {
+                crate_name: "test".into(),
+                total_items: total,
+                covered_items: covered,
+                uncovered_items: uncovered,
+                coverage_pct: pct,
+                req_tests: tests,
+                high_risk_uncovered: 0,
+            };
+            // Verify the JSON round-trips
+            let json = serde_json::to_string(&cov).unwrap();
+            let parsed: hkask_types::cns::SeamCoverage = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed.crate_name, cov.crate_name);
+            assert_eq!(parsed.total_items, cov.total_items);
+        }
+    }
 }

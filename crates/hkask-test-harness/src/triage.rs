@@ -96,14 +96,18 @@ pub fn parse_bolero_stdin(stdin: impl BufRead) -> Result<Vec<BoleroFailure>, Tri
 
     for line in stdin.lines() {
         let line = line.map_err(TriageError::Io)?;
-        if line.contains("Test Failure") || line.starts_with("failures:") {
+        // Start new failure on either a panic line or test separator
+        let is_panic = line.starts_with("thread '") && line.contains("panicked");
+        let is_separator = line.contains("Test Failure") || line.starts_with("failures:");
+        if is_panic || is_separator {
             if let Some(builder) = current.take() {
                 if let Ok(f) = builder.build() {
                     failures.push(f);
                 }
             }
             current = Some(BoleroFailureBuilder::new());
-        } else if let Some(ref mut b) = current {
+        }
+        if let Some(ref mut b) = current {
             b.feed(&line);
         }
     }
@@ -124,6 +128,7 @@ struct BoleroFailureBuilder {
     source_snippet: String,
     failing_input: String,
     in_stack: bool,
+    expect_panic_line: bool,
 }
 
 impl BoleroFailureBuilder {
@@ -136,21 +141,36 @@ impl BoleroFailureBuilder {
             source_snippet: String::new(),
             failing_input: String::new(),
             in_stack: false,
+            expect_panic_line: false,
         }
     }
 
     fn feed(&mut self, line: &str) {
+        if self.expect_panic_line {
+            self.expect_panic_line = false;
+            self.panic_message = line.trim().to_string();
+            return;
+        }
         if line.starts_with("thread '") {
             // "thread 'fuzz_cns_span_parse' panicked at crates/hkask-cns/..."
             if let Some(name) = line.split('\'').nth(1) {
                 self.test_name = name.to_string();
             }
-            if let Some(rest) = line.split("panicked at ").nth(1) {
-                self.panic_message = rest.to_string();
-            }
-            if let Some(path) = line.split("panicked at ").nth(1) {
-                if let Some(crate_path) = path.split('/').next() {
-                    self.crate_name = crate_path.to_string();
+            // Extract panic message (everything after first "panicked at ",
+            // which is the test's panic, not bolero's internal re-panic)
+            if self.panic_message.is_empty() {
+                if let Some(rest) = line.split("panicked at ").nth(1) {
+                    self.expect_panic_line = true; // actual message on next line
+                    // Extract crate name from path: "crates/hkask-types/..."
+                    // or absolute path containing "/crates/"
+                    if let Some(crates_idx) = rest.find("crates/") {
+                        let after_crates = &rest[crates_idx + 7..]; // skip "crates/"
+                        if let Some(crate_name) = after_crates.split('/').next() {
+                            if self.crate_name.is_empty() {
+                                self.crate_name = crate_name.to_string();
+                            }
+                        }
+                    }
                 }
             }
         } else if line.contains("failing input:") {
@@ -566,4 +586,106 @@ pub fn format_mutant_for_suggestion(
          Suggest a fuzz target that would catch this mutant.",
         crate = crate_name,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_thread_panicked_at_crates_path() {
+        let input = "thread 'fuzz_test' panicked at crates/hkask-types/fuzz/fuzz_targets/types_fuzz.rs:8:9:\ndeliberate panic\n";
+        let failures = parse_bolero_stdin(input.as_bytes()).unwrap();
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].test_name, "fuzz_test");
+        assert_eq!(failures[0].crate_name, "hkask-types");
+        assert!(failures[0].panic_message.contains("deliberate panic"));
+    }
+
+    #[test]
+    fn parse_thread_panicked_at_absolute_path() {
+        let input = "thread 'fuzz_test' panicked at /home/user/.cargo/registry/src/crates/hkask-cns/fuzz/something.rs:42:9:\ntest failed\n";
+        let failures = parse_bolero_stdin(input.as_bytes()).unwrap();
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].test_name, "fuzz_test");
+        assert_eq!(failures[0].crate_name, "hkask-cns");
+    }
+
+    #[test]
+    fn parse_empty_input_returns_empty() {
+        let failures = parse_bolero_stdin("".as_bytes()).unwrap();
+        assert!(failures.is_empty());
+    }
+
+    #[test]
+    fn parse_multiple_failures() {
+        let input = "thread 'test_a' panicked at crates/hkask-types/src/lib.rs:1:1:\nboom a\n\nthread 'test_b' panicked at crates/hkask-cns/src/lib.rs:2:2:\nboom b\n";
+        let failures = parse_bolero_stdin(input.as_bytes()).unwrap();
+        assert_eq!(failures.len(), 2);
+        assert_eq!(failures[0].test_name, "test_a");
+        assert_eq!(failures[1].test_name, "test_b");
+    }
+
+    #[test]
+    fn bolero_failure_to_passage() {
+        let f = BoleroFailure {
+            crate_name: "hkask-types".into(),
+            test_name: "fuzz_test".into(),
+            panic_message: "assertion failed".into(),
+            stack_trace: "at line 42".into(),
+            source_snippet: "let x = 1;".into(),
+            failing_input: "\"bad\"".into(),
+        };
+        let passage = f.to_passage();
+        assert!(passage.contains("hkask-types"));
+        assert!(passage.contains("fuzz_test"));
+        assert!(passage.contains("assertion failed"));
+        assert!(passage.contains("bad"));
+    }
+
+    #[test]
+    fn triage_report_defaults() {
+        let report = TriageReport::default();
+        assert_eq!(report.auto_repaired, 0);
+        assert_eq!(report.total_actions(), 0);
+    }
+
+    #[test]
+    fn triage_report_counts() {
+        let report = TriageReport {
+            auto_repaired: 1,
+            issues_opened: 2,
+            flakes: 1,
+            unparseable: 0,
+            duplicates_blocked: 0,
+        };
+        assert_eq!(report.total_actions(), 4);
+    }
+
+    #[test]
+    fn repair_branch_name_slugifies() {
+        let name = repair_branch_name("fuzz_cns_span_parse@v2");
+        assert!(name.starts_with("auto-heal/"));
+        assert!(!name.contains('@'));
+        assert!(name.contains("fuzz-cns-span-parse"));
+    }
+
+    // ── Proptest: parser never panics on arbitrary input ────────────────────
+
+    proptest::proptest! {
+        #[test]
+        fn parser_never_panics_on_arbitrary_input(s in ".*") {
+            let _ = parse_bolero_stdin(s.as_bytes());
+        }
+
+        #[test]
+        fn parser_handles_unicode(s in "\\p{Any}*") {
+            let _ = parse_bolero_stdin(s.as_bytes());
+        }
+
+        #[test]
+        fn parser_handles_thread_lines(s in "thread '.*") {
+            let _ = parse_bolero_stdin(s.as_bytes());
+        }
+    }
 }

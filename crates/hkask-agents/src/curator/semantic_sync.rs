@@ -43,7 +43,9 @@ fn derive_passphrase(db_path: &PathBuf) -> Result<String, String> {
     let webid_path = db_path.with_extension("webid");
     let webid_str = std::fs::read_to_string(&webid_path)
         .map_err(|e| format!("Failed to read webid file {:?}: {e}", webid_path))?;
-    let webid: WebID = webid_str.trim().parse()
+    let webid: WebID = webid_str
+        .trim()
+        .parse()
         .map_err(|e| format!("Failed to parse WebID from {:?}: {e}", webid_path))?;
     let context = format!(
         "{}:{}",
@@ -80,10 +82,7 @@ impl CuratorSync {
     /// Create a new CuratorSync.
     ///
     /// `index` must be the same Arc that ActivePods.curator_index points to.
-    pub fn new(
-        index: Arc<std::sync::RwLock<SemanticIndex>>,
-        registry: Arc<PodRegistry>,
-    ) -> Self {
+    pub fn new(index: Arc<std::sync::RwLock<SemanticIndex>>, registry: Arc<PodRegistry>) -> Self {
         Self {
             index,
             registry,
@@ -141,8 +140,13 @@ impl CuratorSync {
                 continue;
             }
 
-            // Derive deterministic PodID from the filename stem
-            let pod_id = PodID::from_name(stem);
+            // Derive deterministic PodID matching PodFactory (kind:name format).
+            // Filename uses dots (replicant.alice.db), factory uses colon (replicant:alice).
+            let pod_id = if let Some(dot_pos) = stem.find('.') {
+                PodID::from_name(&format!("{}:{}", &stem[..dot_pos], &stem[dot_pos + 1..]))
+            } else {
+                PodID::from_name(stem)
+            };
 
             match self.sync_pod(pod_id, db_path).await {
                 Ok(count) => {
@@ -167,12 +171,14 @@ impl CuratorSync {
         }
 
         // Reset failure counter on successful tick
-        self.consecutive_failures.store(0, std::sync::atomic::Ordering::Relaxed);
+        self.consecutive_failures
+            .store(0, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
 
     /// Open a source pod's database read-only, query new public triples
     /// since last cursor, insert into SemanticIndex, advance cursor.
+    /// Uses spawn_blocking for database I/O to avoid blocking the tokio worker.
     async fn sync_pod(&self, pod_id: PodID, db_path: &PathBuf) -> Result<usize, String> {
         // Get current cursor for this pod
         let cursor = {
@@ -180,91 +186,74 @@ impl CuratorSync {
             index.cursor_for(&pod_id)
         };
 
-        // Open source pod's database read-only
-        let db = match self.open_read_only(db_path) {
-            Ok(db) => db,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        let db_path = db_path.clone();
+        let index = Arc::clone(&self.index);
+        tokio::task::spawn_blocking(move || {
+            let db = open_source_db(&db_path)?;
 
-        // Query triples published since cursor, filtering for Public visibility only
-        let query = "SELECT rowid, entity, attribute, value, confidence FROM triples WHERE rowid > ?1 AND visibility = 'public' ORDER BY rowid ASC";
-        // Collect rows in a scoped block so Statement is dropped before any .await
-        let rows: Vec<(i64, String, String, String, f64)> = {
-            let conn_arc = db.conn_arc();
-            let conn = conn_arc
-                .lock()
-                .map_err(|e| format!("Failed to lock pod DB: {e}"))?;
-            let mut stmt = conn
-                .prepare(query)
-                .map_err(|e| format!("Failed to prepare query: {e}"))?;
-
-            let rows = stmt
-                .query_map(rusqlite::params![cursor as i64], |row| {
-                    Ok((
-                        row.get(0)?,
-                        row.get(1)?,
-                        row.get(2)?,
-                        row.get(3)?,
-                        row.get(4)?,
-                    ))
+            let query = "SELECT rowid, entity, attribute, value, confidence FROM triples WHERE rowid > ?1 AND visibility = 'public' ORDER BY rowid ASC";
+            let rows: Vec<(i64, String, String, String, f64)> = {
+                let conn_arc = db.conn_arc();
+                let conn = conn_arc.lock().map_err(|e| format!("Failed to lock pod DB: {e}"))?;
+                let mut stmt = conn.prepare(query).map_err(|e| format!("Failed to prepare query: {e}"))?;
+                stmt.query_map(rusqlite::params![cursor as i64], |row| {
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
                 })
                 .map_err(|e| format!("Failed to query triples: {e}"))?
                 .filter_map(|r| r.ok())
-                .collect::<Vec<_>>();
-            // stmt and conn dropped here — Send-safe
-            rows
-        };
+                .collect::<Vec<_>>()
+            };
 
-        if rows.is_empty() {
-            return Ok(0);
-        }
+            if rows.is_empty() {
+                return Ok(0);
+            }
 
-        let mut new_cursor = cursor;
-        let mut count = 0;
-        let mut index = self.index.write().unwrap();
+            let mut new_cursor = cursor;
+            let mut count = 0;
+            let mut idx = index.write().unwrap();
 
-        for (rowid, entity, attribute, value_str, confidence) in &rows {
-            let value: serde_json::Value = serde_json::from_str(value_str)
-                .unwrap_or(serde_json::Value::String(value_str.to_string()));
-
-            let conf: hkask_types::Confidence = (*confidence).into();
-            let triple =
-                hkask_storage::Triple::new(entity, attribute, value, hkask_types::WebID::default())
+            for (rowid, entity, attribute, value_str, confidence) in &rows {
+                let value: serde_json::Value = serde_json::from_str(value_str)
+                    .unwrap_or(serde_json::Value::String(value_str.to_string()));
+                let conf: hkask_types::Confidence = (*confidence).into();
+                let triple = hkask_storage::Triple::new(entity, attribute, value, hkask_types::WebID::default())
                     .with_confidence(conf)
                     .with_visibility(Visibility::Public);
+                idx.insert(&triple, pod_id).map_err(|e| format!("Failed to insert triple: {e}"))?;
+                new_cursor = (*rowid) as u64;
+                count += 1;
+            }
 
-            // Insert into SemanticIndex
-            index
-                .insert(&triple, pod_id)
-                .map_err(|e| format!("Failed to insert triple: {e}"))?;
+            idx.advance_cursor(pod_id, new_cursor);
 
-            new_cursor = (*rowid) as u64;
-            count += 1;
-        }
+            if count > 0 {
+                tracing::info!(
+                    target: "hkask.curator.sync",
+                    pod_id = %pod_id,
+                    new_triples = count,
+                    cursor = new_cursor,
+                    "Curator synced semantic triples"
+                );
+            }
 
-        // Advance cursor for this pod
-        index.advance_cursor(pod_id, new_cursor);
-
-        if count > 0 {
-            tracing::info!(
-                target: "hkask.curator.sync",
-                pod_id = %pod_id,
-                new_triples = count,
-                cursor = new_cursor,
-                "Curator synced semantic triples"
-            );
-        }
-
-        Ok(count)
+            Ok(count)
+        })
+        .await
+        .map_err(|e| format!("spawn_blocking join error: {e}"))?
     }
+}
 
-    /// Open a pod's SQLCipher database. The Curator only reads (SELECT queries),
-    /// so opening without mode=ro is safe — SQLCipher needs write access for its salt file.
+/// Open a pod's SQLCipher database. Free function so it can be called from spawn_blocking.
+fn open_source_db(db_path: &PathBuf) -> Result<Database, String> {
+    let passphrase = derive_passphrase(db_path)?;
+    let path_str = db_path.to_string_lossy().to_string();
+    Database::open(&path_str, &passphrase).map_err(|e| format!("Failed to open pod DB: {e}"))
+}
+
+impl CuratorSync {
+    /// Open a pod's SQLCipher database (kept for backward compatibility).
+    #[allow(dead_code)]
     fn open_read_only(&self, db_path: &PathBuf) -> Result<Database, String> {
-        let passphrase = derive_passphrase(db_path)?;
-        let path_str = db_path.to_string_lossy().to_string();
-        Database::open(&path_str, &passphrase).map_err(|e| format!("Failed to open pod DB: {e}"))
+        open_source_db(db_path)
     }
 }

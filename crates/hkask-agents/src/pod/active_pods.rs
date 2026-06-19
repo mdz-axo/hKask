@@ -455,6 +455,20 @@ impl ActivePods {
         Ok(())
     }
 
+    /// Export a pod as a container build context (delegates to PodFactory).
+    pub fn export_container(
+        &self,
+        pod_id: PodID,
+        output_dir: &std::path::Path,
+    ) -> Result<(), super::AgentPodError> {
+        let factory = self.factory.as_ref().ok_or_else(|| {
+            super::AgentPodError::PersonaParseError("ActivePods not wired with PodFactory".into())
+        })?;
+        factory
+            .export_container(pod_id, output_dir)
+            .map_err(|e| super::AgentPodError::PersonaParseError(e.to_string()))
+    }
+
     pub async fn set_mode(
         &self,
         name: &str,

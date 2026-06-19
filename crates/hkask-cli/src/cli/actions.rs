@@ -103,6 +103,13 @@ pub enum PodAction {
         #[arg(short, long)]
         role: Option<String>,
     },
+    /// Export a pod as a container build context (Containerfile + pod files)
+    ExportContainer {
+        #[arg()]
+        pod_id: String,
+        #[arg(short, long, default_value = "./pod-build")]
+        output: PathBuf,
+    },
 }
 
 #[derive(Debug, Subcommand)]
