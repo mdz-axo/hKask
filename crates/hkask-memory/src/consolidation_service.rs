@@ -211,19 +211,3 @@ impl ConsolidationService {
     ///
     /// \[P3\] Motivating: Generative Space — reports low-confidence semantic triples for cleanup
     /// \[P9\] Constraining: Homeostatic Self-Regulation — threshold-driven pruning signal
-    #[contract(
-        id = "P3-mem-consolidation-service-low-confidence-count",
-        principle = "P3"
-    )]
-    pub fn semantic_low_confidence_count(&self, threshold: f64) -> usize {
-        self.semantic.low_confidence_count(threshold).unwrap_or(0)
-    }
-
-    /// Get current semantic triple count.
-    ///
-    /// \[P3\] Motivating: Generative Space — reports total semantic memory size
-    /// \[P9\] Constraining: Homeostatic Self-Regulation — count used for budget monitoring
-    pub fn semantic_triple_count(&self) -> usize {
-        self.semantic.triple_count().unwrap_or(0)
-    }
-}

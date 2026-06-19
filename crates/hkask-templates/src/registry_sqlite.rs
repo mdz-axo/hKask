@@ -588,17 +588,3 @@ impl SqliteRegistry {
     /// List skills referencing a template (owned query, no OCAP check).
     ///
     /// \[P3\] Motivating: Generative Space — reverse owned skill lookup
-    #[contract(
-        id = "P3-tpl-registry-sqlite-skills-referencing-template-owned",
-        principle = "P3"
-    )]
-    pub fn skills_referencing_template_owned(&self, tid: &str) -> Vec<Skill> {
-        self.query_skills(
-            &format!(
-                "{} WHERE word_act = ?1 OR flow_def = ?1 OR know_act = ?1",
-                Self::_SKILLS_SELECT
-            ),
-            &[rusqlite::types::Value::Text(tid.to_string())],
-        )
-    }
-}
