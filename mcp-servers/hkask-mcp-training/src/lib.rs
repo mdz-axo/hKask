@@ -46,21 +46,21 @@
 //! - `HKASK_AXOLOTL_PATH` — Path to axolotl CLI (for Axolotl host)
 //! - `HKASK_PYTHON_PATH` — Path to python3 interpreter (for Unsloth host)
 
+use crate::adapters::{
+    AdapterMetrics, AdapterStore, InMemoryAdapterStore, JobStore, LoRAAdapter, SqliteAdapterStore,
+};
+use crate::dataset::DatasetPipeline;
+use crate::providers::{
+    LoraParams, TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJob,
+    TrainingJobStatus, TrainingParams, create_host,
+};
+use crate::types::*;
 use hkask_adapter::AdapterPort;
 use hkask_adapter::AdapterRouter;
 use hkask_adapter::{EndpointLifecycle, EndpointPhase};
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
-use hkask_mcp_training::adapters::{
-    AdapterMetrics, AdapterStore, InMemoryAdapterStore, JobStore, LoRAAdapter, SqliteAdapterStore,
-};
-use hkask_mcp_training::dataset::DatasetPipeline;
-use hkask_mcp_training::providers::{
-    LoraParams, TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJob,
-    TrainingJobStatus, TrainingParams, create_host,
-};
-use hkask_mcp_training::types::*;
 use hkask_memory::SemanticMemory;
 use hkask_storage::Triple;
 use hkask_types::ports::InferencePort;

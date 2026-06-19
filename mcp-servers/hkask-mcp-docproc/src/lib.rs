@@ -680,7 +680,7 @@ impl DocProcServer {
     #[tool(
         description = "Extract text from a document. Detects format, extracts text with automatic OCR fallback for scanned/image-based PDFs. For PDF: tries text extraction first, falls back to vision OCR if result is near-empty. For other supported formats (TXT, MD, HTML): extracts plain text. Requires HKASK_OCR_MODEL for OCR fallback."
     )]
-    async fn docproc_convert(
+    pub async fn docproc_convert(
         &self,
         Parameters(ConvertRequest { path, force_ocr }): Parameters<ConvertRequest>,
     ) -> String {
@@ -1098,7 +1098,7 @@ impl DocProcServer {
     #[tool(
         description = "OCR a document using a local vision model. Requires HKASK_OCR_MODEL env var or explicit model parameter. The model must be a vision-capable model available in the inference catalog."
     )]
-    async fn docproc_ocr(
+    pub async fn docproc_ocr(
         &self,
         Parameters(OcrRequest {
             path,
@@ -1150,7 +1150,7 @@ impl DocProcServer {
     #[tool(
         description = "Chunk text into passages at configurable token granularity. Accepts raw text or a file path (extracts text from PDF/MD/HTML/TXT with OCR fallback for scanned PDFs). Supports single-tier or multi-tier (coarse/medium/fine) output."
     )]
-    async fn docproc_chunk(
+    pub async fn docproc_chunk(
         &self,
         Parameters(ChunkRequest {
             text,
@@ -1371,7 +1371,7 @@ impl DocProcServer {
     #[tool(
         description = "Generate QA pairs from a text chunk by calling the inference engine. Returns structured question-answer pairs at specified Bloom's taxonomy levels."
     )]
-    async fn docproc_generate_qa(
+    pub async fn docproc_generate_qa(
         &self,
         Parameters(GenerateQaRequest {
             text,
@@ -1445,7 +1445,7 @@ impl DocProcServer {
     #[tool(
         description = "Extract RDF triples (subject, predicate, object) from text using the inference engine. Returns structured knowledge triples with confidence scores."
     )]
-    async fn docproc_extract_triples(
+    pub async fn docproc_extract_triples(
         &self,
         Parameters(ExtractTriplesRequest {
             text,
@@ -1513,7 +1513,7 @@ impl DocProcServer {
     #[tool(
         description = "Generate embedding vectors for a list of texts (passages or triples). Uses the configured embedding model via the inference router."
     )]
-    async fn docproc_embed(
+    pub async fn docproc_embed(
         &self,
         Parameters(EmbedRequest { texts, model }): Parameters<EmbedRequest>,
     ) -> String {
@@ -1569,7 +1569,7 @@ impl DocProcServer {
     #[tool(
         description = "Cache processed document text for reference. Stores content keyed by label in the docproc cache directory (~/.config/hkask/docproc-cache/)."
     )]
-    async fn docproc_cache(
+    pub async fn docproc_cache(
         &self,
         Parameters(CacheRequest { content, label }): Parameters<CacheRequest>,
     ) -> String {
@@ -1633,7 +1633,7 @@ impl DocProcServer {
     #[tool(
         description = "Query the in-memory vector index for passages relevant to a natural language question. Embeds the query, computes cosine similarity against indexed passages, and returns top-k results. Optionally generates an LLM-augmented answer from retrieved context."
     )]
-    async fn docproc_query(
+    pub async fn docproc_query(
         &self,
         Parameters(QueryRequest {
             query,
@@ -1774,7 +1774,7 @@ impl DocProcServer {
     #[tool(
         description = "Clear the in-memory vector index. Call this when starting a new document set to avoid cross-document contamination in query results."
     )]
-    async fn docproc_clear_index(
+    pub async fn docproc_clear_index(
         &self,
         Parameters(ClearIndexRequest { index_id: _ }): Parameters<ClearIndexRequest>,
     ) -> String {

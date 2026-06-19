@@ -111,50 +111,16 @@ fn fuzz_kanban_tool_dispatch_never_panics() {
 
 // ── Pattern (b): CNS span contract holds ────────────────────────────────
 
-use std::sync::Mutex;
-
-/// Capture CNS span events from tracing for direct verification.
-#[derive(Clone)]
-struct CnsSpanCapture {
-    events: Arc<Mutex<Vec<String>>>,
-}
-
-impl CnsSpanCapture {
-    fn new() -> Self {
-        Self { events: Arc::new(Mutex::new(Vec::new())) }
-    }
-}
-
-impl std::io::Write for CnsSpanCapture {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        if let Ok(s) = std::str::from_utf8(buf) {
-            self.events.lock().unwrap().push(s.to_string());
-        }
-        Ok(buf.len())
-    }
-    fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
-}
-
-use std::sync::Arc;
-
-/// Each tool invocation must produce exactly one CNS span with the correct tool name,
-/// and the span guard must not leak (Drop must have emitted if ok/error wasn't called).
-///
-/// We verify this by checking that tool output always contains valid JSON
-/// (ToolSpanGuard always produces output — either ok_json or internal_error),
-/// that the output is never empty (span guard was consumed, not leaked),
-/// and that the output has the expected structure (content or error field).
+/// Each tool invocation must produce exactly one CNS span and the span guard
+/// must not leak. ToolSpanGuard always produces output via its ok/error/internal_error
+/// methods or its Drop impl. We verify the CNS span contract through ToolSpanGuard's
+/// observable output invariants:
+///   1. Output is never empty → span was consumed (not silently dropped)
+///   2. Output is valid JSON → span serialization didn't panic
+///   3. Output has content or error field → span was properly structured
 #[test]
 fn fuzz_kanban_cns_span_contract_holds() {
     check!().with_type::<String>().for_each(|s| {
-        let capture = CnsSpanCapture::new();
-        let _subscriber = tracing_subscriber::fmt()
-            .with_writer(move || capture.clone())
-            .with_target(false)
-            .with_level(false)
-            .with_ansi(false)
-            .finish();
-
         let server = test_server();
 
         let output = if let Ok(req) = serde_json::from_str::<BoardCreateRequest>(s) {
@@ -166,15 +132,20 @@ fn fuzz_kanban_cns_span_contract_holds() {
         };
 
         // CNS span contract: output must be non-empty (span was consumed)
-        assert!(!output.is_empty(), "ToolSpanGuard produced empty output — span leaked");
+        assert!(
+            !output.is_empty(),
+            "ToolSpanGuard produced empty output — span leaked"
+        );
 
         // CNS span contract: output must be valid JSON (span serialization didn't panic)
-        let val: serde_json::Value = serde_json::from_str(&output)
-            .expect("ToolSpanGuard output must be valid JSON");
+        let val: serde_json::Value =
+            serde_json::from_str(&output).expect("ToolSpanGuard output must be valid JSON");
 
         // CNS span contract: must have content wrapper
-        assert!(val.get("content").is_some() || val.get("error").is_some(),
-            "ToolSpanGuard output must have content or error field");
+        assert!(
+            val.get("content").is_some() || val.get("error").is_some(),
+            "ToolSpanGuard output must have content or error field"
+        );
     });
 }
 
@@ -409,11 +380,21 @@ fn fuzz_kanban_roundtrip_task_move() {
 /// A single operation in a state-machine sequence.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum KanbanOp {
-    CreateBoard { name: String },
-    CreateTask { board_idx: usize, title: String },
-    MoveTask { task_idx: usize, target_status: String },
+    CreateBoard {
+        name: String,
+    },
+    CreateTask {
+        board_idx: usize,
+        title: String,
+    },
+    MoveTask {
+        task_idx: usize,
+        target_status: String,
+    },
     ListBoards,
-    ListTasks { board_idx: usize },
+    ListTasks {
+        board_idx: usize,
+    },
 }
 
 /// Helper: extract a named field from the JSON content wrapper.
@@ -429,80 +410,101 @@ fn extract_field(val: &serde_json::Value, field: &str) -> String {
 /// Verifies that no operation sequence causes a panic and that final state is consistent.
 #[test]
 fn fuzz_kanban_state_machine_sequence() {
-    check!()
-        .with_type::<Vec<KanbanOp>>()
-        .for_each(|ops| {
-            if ops.is_empty() || ops.len() > 20 { return; }
+    check!().with_type::<Vec<KanbanOp>>().for_each(|ops| {
+        if ops.is_empty() || ops.len() > 20 {
+            return;
+        }
 
-            let server = test_server();
-            let mut board_ids: Vec<String> = Vec::new();
-            let mut task_ids: Vec<String> = Vec::new();
-            let mut task_board_map: Vec<usize> = Vec::new(); // task_idx -> board_idx
+        let server = test_server();
+        let mut board_ids: Vec<String> = Vec::new();
+        let mut task_ids: Vec<String> = Vec::new();
+        let mut task_board_map: Vec<usize> = Vec::new(); // task_idx -> board_idx
 
-            for op in ops.iter() {
-                match op {
-                    KanbanOp::CreateBoard { name } => {
-                        if name.is_empty() || name.len() > 128 { continue; }
-                        let req = BoardCreateRequest {
-                            name: name.clone(),
-                            columns: None,
-                            capability_token: None,
-                        };
-                        let output = call_tool(server.kanban_board_create(Parameters(req)));
-                        let val: serde_json::Value = serde_json::from_str(&output).unwrap_or_default();
-                        let bid = extract_field(&val, "board_id");
-                        if !bid.is_empty() { board_ids.push(bid); }
+        for op in ops.iter() {
+            match op {
+                KanbanOp::CreateBoard { name } => {
+                    if name.is_empty() || name.len() > 128 {
+                        continue;
                     }
-                    KanbanOp::CreateTask { board_idx, title } => {
-                        if board_ids.is_empty() || *board_idx >= board_ids.len() { continue; }
-                        if title.is_empty() || title.len() > 256 { continue; }
-                        let req = TaskCreateRequest {
-                            board_id: board_ids[*board_idx].clone(),
-                            title: title.clone(),
-                            description: None, criteria: None,
-                            assignee_webid: None, capability_token: None,
-                        };
-                        let output = call_tool(server.kanban_task_create(Parameters(req)));
-                        let val: serde_json::Value = serde_json::from_str(&output).unwrap_or_default();
-                        let tid = extract_field(&val, "task_id");
-                        if !tid.is_empty() {
-                            task_ids.push(tid);
-                            task_board_map.push(*board_idx);
-                        }
-                    }
-                    KanbanOp::MoveTask { task_idx, target_status } => {
-                        if task_ids.is_empty() || *task_idx >= task_ids.len() { continue; }
-                        let req = TaskMoveRequest {
-                            task_id: task_ids[*task_idx].clone(),
-                            target_status: target_status.clone(),
-                            capability_token: None,
-                        };
-                        call_tool(server.kanban_task_move(Parameters(req)));
-                        // Verify: state is consistent (no crash is the invariant)
-                    }
-                    KanbanOp::ListBoards => {
-                        let req = BoardListRequest { capability_token: None };
-                        let output = call_tool(server.kanban_board_list(Parameters(req)));
-                        let _: serde_json::Value = serde_json::from_str(&output)
-                            .expect("board_list output must be valid JSON");
-                    }
-                    KanbanOp::ListTasks { board_idx } => {
-                        if board_ids.is_empty() || *board_idx >= board_ids.len() { continue; }
-                        let req = TaskListRequest {
-                            board_id: board_ids[*board_idx].clone(),
-                            status: None,
-                            capability_token: None,
-                        };
-                        let output = call_tool(server.kanban_task_list(Parameters(req)));
-                        let _: serde_json::Value = serde_json::from_str(&output)
-                            .expect("task_list output must be valid JSON");
+                    let req = BoardCreateRequest {
+                        name: name.clone(),
+                        columns: None,
+                        capability_token: None,
+                    };
+                    let output = call_tool(server.kanban_board_create(Parameters(req)));
+                    let val: serde_json::Value = serde_json::from_str(&output).unwrap_or_default();
+                    let bid = extract_field(&val, "board_id");
+                    if !bid.is_empty() {
+                        board_ids.push(bid);
                     }
                 }
+                KanbanOp::CreateTask { board_idx, title } => {
+                    if board_ids.is_empty() || *board_idx >= board_ids.len() {
+                        continue;
+                    }
+                    if title.is_empty() || title.len() > 256 {
+                        continue;
+                    }
+                    let req = TaskCreateRequest {
+                        board_id: board_ids[*board_idx].clone(),
+                        title: title.clone(),
+                        description: None,
+                        criteria: None,
+                        assignee_webid: None,
+                        capability_token: None,
+                    };
+                    let output = call_tool(server.kanban_task_create(Parameters(req)));
+                    let val: serde_json::Value = serde_json::from_str(&output).unwrap_or_default();
+                    let tid = extract_field(&val, "task_id");
+                    if !tid.is_empty() {
+                        task_ids.push(tid);
+                        task_board_map.push(*board_idx);
+                    }
+                }
+                KanbanOp::MoveTask {
+                    task_idx,
+                    target_status,
+                } => {
+                    if task_ids.is_empty() || *task_idx >= task_ids.len() {
+                        continue;
+                    }
+                    let req = TaskMoveRequest {
+                        task_id: task_ids[*task_idx].clone(),
+                        target_status: target_status.clone(),
+                        capability_token: None,
+                    };
+                    call_tool(server.kanban_task_move(Parameters(req)));
+                    // Verify: state is consistent (no crash is the invariant)
+                }
+                KanbanOp::ListBoards => {
+                    let req = BoardListRequest {
+                        capability_token: None,
+                    };
+                    let output = call_tool(server.kanban_board_list(Parameters(req)));
+                    let _: serde_json::Value = serde_json::from_str(&output)
+                        .expect("board_list output must be valid JSON");
+                }
+                KanbanOp::ListTasks { board_idx } => {
+                    if board_ids.is_empty() || *board_idx >= board_ids.len() {
+                        continue;
+                    }
+                    let req = TaskListRequest {
+                        board_id: board_ids[*board_idx].clone(),
+                        status: None,
+                        capability_token: None,
+                    };
+                    let output = call_tool(server.kanban_task_list(Parameters(req)));
+                    let _: serde_json::Value =
+                        serde_json::from_str(&output).expect("task_list output must be valid JSON");
+                }
             }
-            // Final consistency: all boards still listable
-            let req = BoardListRequest { capability_token: None };
-            let output = call_tool(server.kanban_board_list(Parameters(req)));
-            let _: serde_json::Value = serde_json::from_str(&output)
-                .expect("final board_list must be valid JSON");
-        });
+        }
+        // Final consistency: all boards still listable
+        let req = BoardListRequest {
+            capability_token: None,
+        };
+        let output = call_tool(server.kanban_board_list(Parameters(req)));
+        let _: serde_json::Value =
+            serde_json::from_str(&output).expect("final board_list must be valid JSON");
+    });
 }

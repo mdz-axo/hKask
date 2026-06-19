@@ -136,7 +136,7 @@ impl CompaniesServer {
 #[tool_router(server_handler)]
 impl CompaniesServer {
     #[tool(description = "Get company profile")]
-    async fn company_profile(
+    pub async fn company_profile(
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
@@ -175,7 +175,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Get stock quote")]
-    async fn stock_quote(
+    pub async fn stock_quote(
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
@@ -214,7 +214,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Get income statement")]
-    async fn income_statement(
+    pub async fn income_statement(
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
@@ -237,7 +237,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Get balance sheet")]
-    async fn balance_sheet(
+    pub async fn balance_sheet(
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
@@ -260,7 +260,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Get cash flow statement")]
-    async fn cash_flow_statement(
+    pub async fn cash_flow_statement(
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
@@ -283,7 +283,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Get key metrics")]
-    async fn key_metrics(
+    pub async fn key_metrics(
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
@@ -306,7 +306,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Get historical price data")]
-    async fn historical_price(
+    pub async fn historical_price(
         &self,
         Parameters(HistoricalRequest { symbol, from, to }): Parameters<HistoricalRequest>,
     ) -> String {
@@ -328,7 +328,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Search for symbols")]
-    async fn symbol_search(
+    pub async fn symbol_search(
         &self,
         Parameters(SearchRequest { query, limit }): Parameters<SearchRequest>,
     ) -> String {
@@ -362,7 +362,7 @@ impl CompaniesServer {
     #[tool(
         description = "Analyze competitive moat using MAIA framework: gross margin stability and working capital market power signal"
     )]
-    async fn moat_check(
+    pub async fn moat_check(
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
@@ -453,7 +453,7 @@ impl CompaniesServer {
     #[tool(
         description = "CEO capital allocation scorecard (MAIA framework): rates how well management allocates capital by comparing returns on capital vs invested capital over time"
     )]
-    async fn management_scorecard(
+    pub async fn management_scorecard(
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
@@ -508,7 +508,7 @@ impl CompaniesServer {
     #[tool(
         description = "Working capital cycle analysis (MAIA CFO scorecard): tracks days payable, days sales outstanding, and cash conversion cycle over time"
     )]
-    async fn working_capital_cycle(
+    pub async fn working_capital_cycle(
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
@@ -590,7 +590,7 @@ impl CompaniesServer {
     #[tool(
         description = "Expectations gap: compare trailing 5-year actual performance to the future performance implied by the current price. Uses Gordon Growth Model to compute implied growth from valuation multiples vs historical profitability and growth."
     )]
-    async fn expectations_gap(
+    pub async fn expectations_gap(
         &self,
         Parameters(req): Parameters<ExpectationsGapRequest>,
     ) -> String {
@@ -777,7 +777,7 @@ impl CompaniesServer {
     // ── Portfolio tools ──────────────────────────────────────────
 
     #[tool(description = "Delete a portfolio and all its data")]
-    async fn portfolio_delete(
+    pub async fn portfolio_delete(
         &self,
         Parameters(PortfolioNameRequest { name }): Parameters<PortfolioNameRequest>,
     ) -> String {
@@ -792,7 +792,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "List all portfolios")]
-    async fn portfolio_list(&self) -> String {
+    pub async fn portfolio_list(&self) -> String {
         let span = ToolSpanGuard::new("portfolio_list", &self.webid);
         match self.portfolio.list() {
             Ok(names) => span.ok_json(serde_json::json!({"portfolios": names})),
@@ -804,7 +804,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Import transactions from CSV or JSON into a portfolio ledger")]
-    async fn ledger_import(
+    pub async fn ledger_import(
         &self,
         Parameters(LedgerImportRequest {
             portfolio,
@@ -858,7 +858,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Export portfolio ledger to CSV or JSON")]
-    async fn ledger_export(
+    pub async fn ledger_export(
         &self,
         Parameters(LedgerExportRequest { portfolio, format }): Parameters<LedgerExportRequest>,
     ) -> String {
@@ -878,7 +878,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Append a note to an existing transaction")]
-    async fn transaction_note_append(
+    pub async fn transaction_note_append(
         &self,
         Parameters(TransactionNoteRequest {
             portfolio,
@@ -899,7 +899,7 @@ impl CompaniesServer {
     #[tool(
         description = "Compare two portfolios side by side — positions, overlap, unique symbols"
     )]
-    async fn portfolio_comparison(
+    pub async fn portfolio_comparison(
         &self,
         Parameters(PortfolioCompareRequest {
             portfolio_a,
@@ -917,7 +917,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Time-weighted and money-weighted returns for a date range")]
-    async fn portfolio_returns(
+    pub async fn portfolio_returns(
         &self,
         Parameters(PortfolioReturnsRequest {
             portfolio,
@@ -1183,7 +1183,7 @@ impl CompaniesServer {
     // ── Notes & Files tools ─────────────────────────────────────
 
     #[tool(description = "Add a note to a company/security as of a date")]
-    async fn note_add(
+    pub async fn note_add(
         &self,
         Parameters(NoteAddRequest {
             portfolio,
@@ -1208,7 +1208,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "List notes for a symbol, optionally filtered by date range or tags")]
-    async fn note_list(
+    pub async fn note_list(
         &self,
         Parameters(NoteListRequest {
             portfolio,
@@ -1235,7 +1235,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Delete a note by ID")]
-    async fn note_delete(
+    pub async fn note_delete(
         &self,
         Parameters(NoteDeleteRequest { note_id }): Parameters<NoteDeleteRequest>,
     ) -> String {
@@ -1250,7 +1250,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Attach a file (base64-encoded) to a company/security")]
-    async fn file_attach(
+    pub async fn file_attach(
         &self,
         Parameters(FileAttachRequest {
             portfolio,
@@ -1275,7 +1275,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "List attached files for a symbol in a portfolio")]
-    async fn file_list(
+    pub async fn file_list(
         &self,
         Parameters(FileListRequest { portfolio, symbol }): Parameters<FileListRequest>,
     ) -> String {
@@ -1290,7 +1290,7 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Delete an attached file by ID — removes record and file from disk")]
-    async fn file_delete(
+    pub async fn file_delete(
         &self,
         Parameters(FileDeleteRequest { file_id }): Parameters<FileDeleteRequest>,
     ) -> String {
@@ -1309,7 +1309,7 @@ impl CompaniesServer {
     #[tool(
         description = "What moved the portfolio — each position's weight, return, and contribution, ranked by impact"
     )]
-    async fn portfolio_attribution(
+    pub async fn portfolio_attribution(
         &self,
         Parameters(req): Parameters<AttributionRequest>,
     ) -> String {
@@ -1466,7 +1466,7 @@ impl CompaniesServer {
     #[tool(
         description = "Weighted-average fundamentals of what the portfolio owns — valuation, profitability, leverage, growth, composition"
     )]
-    async fn portfolio_characteristics(
+    pub async fn portfolio_characteristics(
         &self,
         Parameters(req): Parameters<CharacteristicsRequest>,
     ) -> String {

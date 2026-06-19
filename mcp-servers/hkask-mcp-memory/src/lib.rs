@@ -122,7 +122,7 @@ impl MemoryServer {
     // ── Episodic tools ──────────────────────────────────────────
 
     #[tool(description = "Liveness and storage info for episodic memory")]
-    async fn episodic_ping(&self) -> String {
+    pub async fn episodic_ping(&self) -> String {
         let span = ToolSpanGuard::new("episodic_ping", &self.webid);
         span.ok_json(json!({
             "status": "ok",
@@ -132,7 +132,7 @@ impl MemoryServer {
     }
 
     #[tool(description = "Store an episodic triple (private, perspective-bound)")]
-    async fn episodic_store(
+    pub async fn episodic_store(
         &self,
         Parameters(StoreRequest {
             entity,
@@ -167,7 +167,7 @@ impl MemoryServer {
     }
 
     #[tool(description = "Recall episodic triples by entity (filtered by caller's WebID)")]
-    async fn episodic_recall(
+    pub async fn episodic_recall(
         &self,
         Parameters(RecallRequest { entity }): Parameters<RecallRequest>,
     ) -> String {
@@ -196,7 +196,7 @@ impl MemoryServer {
     }
 
     #[tool(description = "Storage usage and budget for episodic memory")]
-    async fn episodic_budget(&self, Parameters(_budget): Parameters<BudgetRequest>) -> String {
+    pub async fn episodic_budget(&self, Parameters(_budget): Parameters<BudgetRequest>) -> String {
         let span = ToolSpanGuard::new("episodic_budget", &self.webid);
         let usage = match self.episodic.storage_usage(&self.webid) {
             Ok(u) => u,
@@ -214,7 +214,7 @@ impl MemoryServer {
     #[tool(
         description = "Check consolidation candidates and budget status for episodic→semantic promotion"
     )]
-    async fn episodic_consolidate_status(
+    pub async fn episodic_consolidate_status(
         &self,
         Parameters(_req): Parameters<ConsolidateStatusRequest>,
     ) -> String {
@@ -241,13 +241,13 @@ impl MemoryServer {
     // ── Semantic tools ──────────────────────────────────────────
 
     #[tool(description = "Liveness and storage info for semantic memory")]
-    async fn semantic_ping(&self) -> String {
+    pub async fn semantic_ping(&self) -> String {
         let span = ToolSpanGuard::new("semantic_ping", &self.webid);
         span.ok_json(json!({"status": "ok", "server": "hkask-mcp-memory"}))
     }
 
     #[tool(description = "Store a shared semantic triple (no perspective)")]
-    async fn semantic_store(
+    pub async fn semantic_store(
         &self,
         Parameters(StoreRequest {
             entity,
@@ -277,7 +277,7 @@ impl MemoryServer {
     }
 
     #[tool(description = "Recall shared semantic triples by entity")]
-    async fn semantic_recall(
+    pub async fn semantic_recall(
         &self,
         Parameters(RecallRequest { entity }): Parameters<RecallRequest>,
     ) -> String {
@@ -304,7 +304,7 @@ impl MemoryServer {
     }
 
     #[tool(description = "Store an embedding vector for similarity search")]
-    async fn semantic_embed(
+    pub async fn semantic_embed(
         &self,
         Parameters(EmbedRequest {
             entity_ref,
@@ -332,7 +332,7 @@ impl MemoryServer {
     }
 
     #[tool(description = "KNN similarity search over embeddings")]
-    async fn semantic_search(
+    pub async fn semantic_search(
         &self,
         Parameters(SearchRequest {
             query_vector,
@@ -376,7 +376,7 @@ impl MemoryServer {
     #[tool(
         description = "Compute mean embedding vector (centroid) for embeddings matching a prefix"
     )]
-    async fn semantic_centroid(
+    pub async fn semantic_centroid(
         &self,
         Parameters(CentroidRequest {
             prefix,
@@ -417,7 +417,7 @@ impl MemoryServer {
     }
 
     #[tool(description = "Delete all embeddings whose entity_ref starts with a prefix")]
-    async fn semantic_purge(
+    pub async fn semantic_purge(
         &self,
         Parameters(PurgeRequest { prefix }): Parameters<PurgeRequest>,
     ) -> String {
@@ -432,7 +432,7 @@ impl MemoryServer {
     #[tool(
         description = "Chunk text into passages for embedding, with optional Gutenberg header stripping"
     )]
-    async fn semantic_chunk(
+    pub async fn semantic_chunk(
         &self,
         Parameters(ChunkTextRequest {
             text,
@@ -484,7 +484,7 @@ impl MemoryServer {
     }
 
     #[tool(description = "Triple and embedding counts for semantic memory")]
-    async fn semantic_count(&self, Parameters(_req): Parameters<CountRequest>) -> String {
+    pub async fn semantic_count(&self, Parameters(_req): Parameters<CountRequest>) -> String {
         let span = ToolSpanGuard::new("semantic_count", &self.webid);
         let triple_count = match self.semantic.triple_count() {
             Ok(c) => c,
@@ -500,7 +500,7 @@ impl MemoryServer {
     // ── Backup/restore tools ───────────────────────────────────
 
     #[tool(description = "Export the memory database to a local backup file")]
-    async fn memory_backup(
+    pub async fn memory_backup(
         &self,
         Parameters(BackupRequest {
             target_path,
@@ -549,7 +549,7 @@ impl MemoryServer {
     }
 
     #[tool(description = "Restore the memory database from a local backup file")]
-    async fn memory_restore(
+    pub async fn memory_restore(
         &self,
         Parameters(RestoreRequest {
             source_path,

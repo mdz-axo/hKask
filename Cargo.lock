@@ -4371,12 +4371,16 @@ dependencies = [
 name = "hkask-mcp-companies-fuzz"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "bolero",
  "hkask-mcp",
  "hkask-mcp-companies",
+ "hkask-test-harness",
  "hkask-types",
+ "rmcp",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -4575,8 +4579,11 @@ dependencies = [
  "bolero",
  "hkask-mcp",
  "hkask-mcp-memory",
+ "hkask-memory",
+ "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
+ "rusqlite",
  "serde",
  "serde_json",
  "tokio",
@@ -4656,11 +4663,9 @@ dependencies = [
  "bolero",
  "hkask-mcp",
  "hkask-mcp-research",
- "hkask-test-harness",
  "hkask-types",
  "serde",
  "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -4697,11 +4702,9 @@ dependencies = [
  "bolero",
  "hkask-mcp",
  "hkask-mcp-spec",
- "hkask-test-harness",
  "hkask-types",
  "serde",
  "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -4740,11 +4743,9 @@ dependencies = [
  "bolero",
  "hkask-mcp",
  "hkask-mcp-training",
- "hkask-test-harness",
  "hkask-types",
  "serde",
  "serde_json",
- "tokio",
 ]
 
 [[package]]

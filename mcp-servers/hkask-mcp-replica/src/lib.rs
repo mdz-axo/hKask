@@ -267,7 +267,7 @@ impl ReplicaServer {
     #[tool(
         description = "Embed a style corpus and create an authorial replica. Downloads public domain texts, chunks them, generates embeddings, and computes a style centroid."
     )]
-    async fn replica_build(&self, Parameters(params): Parameters<BuildRequest>) -> String {
+    pub async fn replica_build(&self, Parameters(params): Parameters<BuildRequest>) -> String {
         let span = ToolSpanGuard::new("replica_build", &self.webid);
         let config_path = PathBuf::from(&params.config_path);
 
@@ -329,7 +329,7 @@ impl ReplicaServer {
     }
 
     #[tool(description = "Generate prose in an author's style.")]
-    async fn replica_compose(&self, Parameters(params): Parameters<ComposeRequest>) -> String {
+    pub async fn replica_compose(&self, Parameters(params): Parameters<ComposeRequest>) -> String {
         let span = ToolSpanGuard::new("replica_compose", &self.webid);
         let author = params.author.clone();
 
@@ -388,7 +388,7 @@ impl ReplicaServer {
     #[tool(
         description = "Compare all built author replicas, or evaluate a document against a persona's centroids."
     )]
-    async fn replica_compare(&self, Parameters(params): Parameters<CompareRequest>) -> String {
+    pub async fn replica_compare(&self, Parameters(params): Parameters<CompareRequest>) -> String {
         let span = ToolSpanGuard::new("replica_compare", &self.webid);
         let persona = params.persona.clone();
         let document_content = params.document_content.clone();
@@ -552,7 +552,7 @@ impl ReplicaServer {
     }
 
     #[tool(description = "Generate prose blending two authors' styles.")]
-    async fn replica_mashup(&self, Parameters(params): Parameters<MashupRequest>) -> String {
+    pub async fn replica_mashup(&self, Parameters(params): Parameters<MashupRequest>) -> String {
         let span = ToolSpanGuard::new("replica_mashup", &self.webid);
         let author_a = params.author_a.clone();
         let author_b = params.author_b.clone();
@@ -654,7 +654,7 @@ impl ReplicaServer {
     }
 
     #[tool(description = "Manage the registry of built author replicas.")]
-    async fn replica_registry(&self, Parameters(params): Parameters<RegistryRequest>) -> String {
+    pub async fn replica_registry(&self, Parameters(params): Parameters<RegistryRequest>) -> String {
         let span = ToolSpanGuard::new("replica_registry", &self.webid);
 
         let run = || -> Result<String, String> {
@@ -730,7 +730,7 @@ impl ReplicaServer {
     }
 
     #[tool(description = "Explain what style centroids are and how the metadata layer works.")]
-    async fn replica_explain(&self) -> String {
+    pub async fn replica_explain(&self) -> String {
         let span = ToolSpanGuard::new("replica_explain", &self.webid);
         span.ok_json(json!({
             "what_is_a_centroid": "A style centroid is the average of all embedded passage vectors for an author. Each passage (50-200 words) is converted to a 1024-dimensional vector via DeepInfra's Qwen3-Embedding-0.6B. The centroid is the 'average passage' — prose that matches the author's style will have a low cosine distance to it.",
@@ -799,7 +799,7 @@ impl ReplicaServer {
     #[tool(
         description = "Discover an academic author's body of work and generate a corpus.yaml for replica_build. Delegates to the replica-discovery skill manifest which orchestrates multi-source search (Semantic Scholar, arXiv, web, YouTube transcripts), content extraction, and corpus generation. Supports agentic (fully automated) and curated (human-in-the-loop) modes."
     )]
-    async fn replica_discover(&self, Parameters(params): Parameters<DiscoverRequest>) -> String {
+    pub async fn replica_discover(&self, Parameters(params): Parameters<DiscoverRequest>) -> String {
         let span = ToolSpanGuard::new("replica_discover", &self.webid);
         let author_name = params.author_name.clone();
 
@@ -909,7 +909,7 @@ impl ReplicaServer {
     #[tool(
         description = "Cache an extracted work's content to disk for reuse by replica_build. Writes content to {cache_dir}/{slug}.txt so the embedding pipeline can skip re-downloading."
     )]
-    async fn replica_cache_work(&self, Parameters(params): Parameters<CacheWorkRequest>) -> String {
+    pub async fn replica_cache_work(&self, Parameters(params): Parameters<CacheWorkRequest>) -> String {
         let span = ToolSpanGuard::new("replica_cache_work", &self.webid);
 
         // Validate slug: alphanumeric + hyphens only, no path traversal

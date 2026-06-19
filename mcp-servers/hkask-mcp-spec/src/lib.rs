@@ -414,7 +414,7 @@ impl SpecServer {
     #[tool(
         description = "Capture a goal as a binding specification requirement. OCAP boundaries are declared inline from context per MDS §3."
     )]
-    async fn spec_goal_capture(
+    pub async fn spec_goal_capture(
         &self,
         Parameters(GoalCaptureRequest {
             description,
@@ -478,7 +478,7 @@ impl SpecServer {
     #[tool(
         description = "Decompose a specification goal into ordered sub-goals with dependencies per MDS §3"
     )]
-    async fn spec_goal_decompose(
+    pub async fn spec_goal_decompose(
         &self,
         Parameters(GoalDecomposeRequest {
             goal_id,
@@ -560,7 +560,7 @@ impl SpecServer {
     #[tool(
         description = "Assess a specification's writing quality via the 4-perspective test (Hopper/Lovelace/Schriver/Gentle) per MDS §3. 3/4 = publishable."
     )]
-    async fn spec_require_writing_quality(
+    pub async fn spec_require_writing_quality(
         &self,
         Parameters(WritingQualityRequest {
             spec_id,
@@ -648,7 +648,7 @@ impl SpecServer {
     #[tool(
         description = "Query the specification graph by search term with configurable traversal depth per MDS §3"
     )]
-    async fn spec_graph_query(
+    pub async fn spec_graph_query(
         &self,
         Parameters(GraphQueryRequest {
             query,
@@ -744,7 +744,7 @@ impl SpecServer {
     #[tool(
         description = "Validate specification collection for internal consistency and coherence per MDS §3"
     )]
-    async fn spec_graph_coherence(
+    pub async fn spec_graph_coherence(
         &self,
         Parameters(GraphCoherenceRequest {
             collection_id: _,
@@ -809,7 +809,7 @@ impl SpecServer {
     #[tool(
         description = "Rewrite a passage or document using the Gentle Lovelace replica. Optimizes prose for a target quality dimension (Gentle/Schriver/Hopper/Lovelace) using exemplar retrieval and centroid-guided generation."
     )]
-    async fn spec_replica_rewrite(
+    pub async fn spec_replica_rewrite(
         &self,
         Parameters(ReplicaRewriteRequest {
             passage,
@@ -927,7 +927,7 @@ impl SpecServer {
     #[tool(
         description = "Discover uncontracted public functions in a crate. Returns coverage percentages and lists of functions lacking REQ contracts for replicant-driven proposals."
     )]
-    async fn contract_audit(
+    pub async fn contract_audit(
         &self,
         Parameters(ContractAuditRequest {
             crate_name,
@@ -1024,7 +1024,7 @@ impl SpecServer {
     #[tool(
         description = "Propose a behavioral contract for a public function. Submits for human consent review."
     )]
-    async fn contract_propose(
+    pub async fn contract_propose(
         &self,
         Parameters(ContractProposeRequest {
             crate_name,
@@ -1079,7 +1079,7 @@ impl SpecServer {
 
     /// Accept a proposed contract (human consent gate).
     #[tool(description = "Accept a proposed behavioral contract. Human consent gate per P2.")]
-    async fn contract_accept(
+    pub async fn contract_accept(
         &self,
         Parameters(ContractAcceptRequest {
             contract_id,
@@ -1118,7 +1118,7 @@ impl SpecServer {
 
     /// Reject a proposed contract with rationale.
     #[tool(description = "Reject a proposed behavioral contract with rationale.")]
-    async fn contract_reject(
+    pub async fn contract_reject(
         &self,
         Parameters(ContractRejectRequest {
             contract_id,
@@ -1159,7 +1159,7 @@ impl SpecServer {
 
     /// List proposed contracts awaiting review.
     #[tool(description = "List proposed behavioral contracts and their review status.")]
-    async fn contract_list(&self) -> String {
+    pub async fn contract_list(&self) -> String {
         let span = ToolSpanGuard::new("contract_list", &self.webid);
         let proposals = self
             .triple_store
@@ -1184,7 +1184,7 @@ impl SpecServer {
 
     /// Run contract tests on a crate and report REQ-tagged violations.
     #[tool(description = "Run cargo test on a crate and report REQ-tagged contract violations.")]
-    async fn test_run(
+    pub async fn test_run(
         &self,
         Parameters(TestRunRequest {
             crate_name,

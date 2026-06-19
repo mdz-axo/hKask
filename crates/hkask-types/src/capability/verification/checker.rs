@@ -103,7 +103,7 @@ impl CapabilityChecker {
     /// Requires a signing key — panics if constructed via `new()` instead of `with_signing_key()`.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self was constructed via [`with_signing_key`]; tool_name is any non-empty [`String`];
+    /// pre:  self was constructed via `with_signing_key`; tool_name is any non-empty [`String`];
     ///       from and to are any [`WebID`]
     /// post: returns a [`DelegationToken`] for `DelegationResource::Tool` with `DelegationAction::Execute`;
     ///       panics if no signing key is available
@@ -122,7 +122,7 @@ impl CapabilityChecker {
     /// Create a capability token for a template operation
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self was constructed via [`with_signing_key`]; template_id is any non-empty [`String`];
+    /// pre:  self was constructed via `with_signing_key`; template_id is any non-empty [`String`];
     ///       action is any [`DelegationAction`]; from and to are any [`WebID`]
     /// post: returns a [`DelegationToken`] for `DelegationResource::Template`;
     ///       panics if no signing key is available
@@ -150,7 +150,7 @@ impl CapabilityChecker {
     /// Create a capability token for a manifest operation
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self was constructed via [`with_signing_key`]; manifest_id is any non-empty [`String`];
+    /// pre:  self was constructed via `with_signing_key`; manifest_id is any non-empty [`String`];
     ///       action is any [`DelegationAction`]; from and to are any [`WebID`]
     /// post: returns a [`DelegationToken`] for `DelegationResource::Registry` with the given manifest_id;
     ///       panics if no signing key is available
@@ -178,7 +178,7 @@ impl CapabilityChecker {
     /// Create a capability token for registry operations
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self was constructed via [`with_signing_key`]; action is any [`DelegationAction`];
+    /// pre:  self was constructed via `with_signing_key`; action is any [`DelegationAction`];
     ///       from and to are any [`WebID`]
     /// post: returns a [`DelegationToken`] for `DelegationResource::Registry` with resource_id "*";
     ///       panics if no signing key is available
@@ -205,7 +205,7 @@ impl CapabilityChecker {
     /// Create a capability token for cascade operations
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self was constructed via [`with_signing_key`]; cascade_id is any non-empty [`String`];
+    /// pre:  self was constructed via `with_signing_key`; cascade_id is any non-empty [`String`];
     ///       action is any [`DelegationAction`]; from and to are any [`WebID`]
     /// post: returns a [`DelegationToken`] for `DelegationResource::Registry` with the given cascade_id;
     ///       panics if no signing key is available
@@ -233,7 +233,7 @@ impl CapabilityChecker {
     /// Create a capability token for spec operations
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self was constructed via [`with_signing_key`]; spec_id is any non-empty [`String`];
+    /// pre:  self was constructed via `with_signing_key`; spec_id is any non-empty [`String`];
     ///       action is any [`DelegationAction`]; from and to are any [`WebID`]
     /// post: returns a [`DelegationToken`] for `DelegationResource::Registry` with the given spec_id;
     ///       panics if no signing key is available

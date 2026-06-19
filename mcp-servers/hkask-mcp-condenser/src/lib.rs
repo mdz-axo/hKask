@@ -121,7 +121,7 @@ impl CondenserServer {
 #[tool_router(server_handler)]
 impl CondenserServer {
     #[tool(description = "Liveness and profile info")]
-    async fn condenser_ping(&self) -> String {
+    pub async fn condenser_ping(&self) -> String {
         let span = ToolSpanGuard::new("condenser_ping", &self.webid);
         let engine = match self.engine.lock() {
             Ok(guard) => guard,
@@ -153,7 +153,7 @@ impl CondenserServer {
     }
 
     #[tool(description = "Compress tool output using context-aware algorithms")]
-    async fn condenser_compress(
+    pub async fn condenser_compress(
         &self,
         Parameters(CompressRequest {
             tool_name,
@@ -202,7 +202,7 @@ impl CondenserServer {
     }
 
     #[tool(description = "Set compression profile (heavy/normal/soft/light)")]
-    async fn condenser_set_profile(
+    pub async fn condenser_set_profile(
         &self,
         Parameters(SetProfileRequest { profile }): Parameters<SetProfileRequest>,
     ) -> String {
@@ -231,7 +231,7 @@ impl CondenserServer {
     }
 
     #[tool(description = "Cumulative compression statistics")]
-    async fn condenser_stats(&self) -> String {
+    pub async fn condenser_stats(&self) -> String {
         let span = ToolSpanGuard::new("condenser_stats", &self.webid);
         let engine = match self.engine.lock() {
             Ok(guard) => guard,
@@ -247,7 +247,7 @@ impl CondenserServer {
     }
 
     #[tool(description = "Classify tool name to context category")]
-    async fn condenser_classify(
+    pub async fn condenser_classify(
         &self,
         Parameters(ClassifyRequest { tool_name }): Parameters<ClassifyRequest>,
     ) -> String {
@@ -267,7 +267,7 @@ impl CondenserServer {
     }
 
     #[tool(description = "Persist a compressed output to episodic memory")]
-    async fn condenser_persist(
+    pub async fn condenser_persist(
         &self,
         Parameters(PersistRequest {
             tool_name,
@@ -321,7 +321,7 @@ impl CondenserServer {
     #[tool(
         description = "Summarize conversation history using the centralized hKask inference router for context condensation. Call when approaching context window limits to condense older messages."
     )]
-    async fn condenser_thread_summary(
+    pub async fn condenser_thread_summary(
         &self,
         Parameters(ThreadSummaryRequest {
             messages,

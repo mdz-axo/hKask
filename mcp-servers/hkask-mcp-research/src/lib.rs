@@ -395,7 +395,7 @@ impl ResearchServer {
     // ═══════════════════ Web tools ═══════════════════
 
     #[tool(description = "Liveness and provider health check")]
-    async fn web_ping(&self) -> String {
+    pub async fn web_ping(&self) -> String {
         let span = ToolSpanGuard::new("web_ping", &self.webid);
         if let Err(e) = self.rate_limiter.check("web_ping") {
             tracing::warn!(
@@ -422,7 +422,7 @@ impl ResearchServer {
     #[tool(
         description = "Search the web with RRF fusion across providers. Strategy selects providers: quick (single keyword), web (all), news (news-capable), deep (all + rerank)"
     )]
-    async fn web_search(&self, Parameters(req): Parameters<SearchRequest>) -> String {
+    pub async fn web_search(&self, Parameters(req): Parameters<SearchRequest>) -> String {
         let span = ToolSpanGuard::new("web_search", &self.webid);
 
         if let Err(e) = self.rate_limiter.check("web_search") {
@@ -541,7 +541,7 @@ impl ResearchServer {
     }
 
     #[tool(description = "Find pages similar to a given URL using Exa findSimilar")]
-    async fn web_find_similar(
+    pub async fn web_find_similar(
         &self,
         Parameters(FindSimilarRequest { url, num_results }): Parameters<FindSimilarRequest>,
     ) -> String {
@@ -593,7 +593,7 @@ impl ResearchServer {
     }
 
     #[tool(description = "Extract content from a URL into markdown or structured JSON")]
-    async fn web_extract(
+    pub async fn web_extract(
         &self,
         Parameters(ExtractRequest {
             url,
@@ -709,7 +709,7 @@ impl ResearchServer {
     }
 
     #[tool(description = "Interactive browsing of JS-heavy pages via headless browser")]
-    async fn web_browse(
+    pub async fn web_browse(
         &self,
         Parameters(BrowseRequest {
             url,
@@ -774,7 +774,7 @@ impl ResearchServer {
     // ═══════════════════ RSS tools ═══════════════════
 
     #[tool(description = "Subscribe to an RSS/Atom feed (Google Reader stream model)")]
-    async fn rss_subscribe(
+    pub async fn rss_subscribe(
         &self,
         Parameters(SubscribeRequest { url, label, folder }): Parameters<SubscribeRequest>,
     ) -> String {
@@ -817,7 +817,7 @@ impl ResearchServer {
     }
 
     #[tool(description = "Unsubscribe from a feed (stream_id e.g. 'feed/http://...')")]
-    async fn rss_unsubscribe(
+    pub async fn rss_unsubscribe(
         &self,
         Parameters(UnsubscribeRequest { stream_id }): Parameters<UnsubscribeRequest>,
     ) -> String {
@@ -838,7 +838,7 @@ impl ResearchServer {
     }
 
     #[tool(description = "List subscriptions, optionally filtered by folder")]
-    async fn rss_list_subscriptions(
+    pub async fn rss_list_subscriptions(
         &self,
         Parameters(ListSubscriptionsRequest { folder }): Parameters<ListSubscriptionsRequest>,
     ) -> String {
@@ -853,7 +853,7 @@ impl ResearchServer {
     }
 
     #[tool(description = "Fetch/sync new entries from a feed (supports ETag/Last-Modified)")]
-    async fn rss_fetch(
+    pub async fn rss_fetch(
         &self,
         Parameters(FetchRequest { stream_id }): Parameters<FetchRequest>,
     ) -> String {
@@ -945,7 +945,7 @@ impl ResearchServer {
     #[tool(
         description = "Get entries from a stream (Google Reader stream IDs: feed/*, user/-/state/*, user/-/label/*)"
     )]
-    async fn rss_get_entries(
+    pub async fn rss_get_entries(
         &self,
         Parameters(GetEntriesRequest {
             stream_id,
@@ -998,7 +998,7 @@ impl ResearchServer {
     }
 
     #[tool(description = "Mark all entries in a stream as read")]
-    async fn rss_mark_all_read(
+    pub async fn rss_mark_all_read(
         &self,
         Parameters(MarkReadRequest { stream_id }): Parameters<MarkReadRequest>,
     ) -> String {
@@ -1014,7 +1014,7 @@ impl ResearchServer {
     }
 
     #[tool(description = "Get unread count for a stream")]
-    async fn rss_get_unread_count(
+    pub async fn rss_get_unread_count(
         &self,
         Parameters(UnreadCountRequest { stream_id }): Parameters<UnreadCountRequest>,
     ) -> String {
@@ -1030,7 +1030,7 @@ impl ResearchServer {
     }
 
     #[tool(description = "Full-text search across feed entries")]
-    async fn rss_search(
+    pub async fn rss_search(
         &self,
         Parameters(rss_types::SearchRequest { query, limit }): Parameters<rss_types::SearchRequest>,
     ) -> String {
@@ -1047,7 +1047,7 @@ impl ResearchServer {
     }
 
     #[tool(description = "Export subscriptions as OPML 2.0")]
-    async fn rss_export_opml(&self) -> String {
+    pub async fn rss_export_opml(&self) -> String {
         let span = ToolSpanGuard::new("rss_export_opml", &self.webid);
         let db = require_rss_db!(self, span);
         let result = spawn_db(db, export_opml).await;
@@ -1055,7 +1055,7 @@ impl ResearchServer {
     }
 
     #[tool(description = "Import subscriptions from OPML content")]
-    async fn rss_import_opml(
+    pub async fn rss_import_opml(
         &self,
         Parameters(ImportOpmlRequest { opml_content }): Parameters<ImportOpmlRequest>,
     ) -> String {
@@ -1066,7 +1066,7 @@ impl ResearchServer {
     }
 
     #[tool(description = "Discover RSS/Atom feeds from a URL via HTML link autodiscovery")]
-    async fn rss_discover_feeds(
+    pub async fn rss_discover_feeds(
         &self,
         Parameters(DiscoverRequest { url }): Parameters<DiscoverRequest>,
     ) -> String {
@@ -1086,7 +1086,7 @@ impl ResearchServer {
     }
 
     #[tool(description = "Edit tags on entries: mark read/unread, star/unstar, add/remove labels")]
-    async fn rss_edit_tag(&self, Parameters(req): Parameters<EditTagRequest>) -> String {
+    pub async fn rss_edit_tag(&self, Parameters(req): Parameters<EditTagRequest>) -> String {
         let span = ToolSpanGuard::new("rss_edit_tag", &self.webid);
         let db = require_rss_db!(self, span);
         let result = spawn_db(db, move |conn| edit_tags(conn, &req)).await;
