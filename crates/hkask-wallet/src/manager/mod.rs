@@ -564,7 +564,7 @@ mod tests {
     }
 
     // contract: P9-wallet-mgr-balance-conservation-pbt
-    /// expect: "Wallet mgr balance conservation pbt works correctly under test conditions" [P9]
+    // expect: "Wallet mgr balance conservation pbt works correctly under test conditions" [P9]
     // After any sequence of credit, encumber, consume, and release operations:
     // - Wallet balance = total_credited - total_consumed (conservation)
     // - Total consumed ≤ total credited (can't spend more than deposited)
@@ -572,7 +572,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig { max_shrink_iters: 0, .. ProptestConfig::with_cases(64) })]
         // contract: P9-wallet-mgr-balance-conservation-pbt
-        /// expect: "Wallet mgr balance conservation pbt works correctly under test conditions" [P9]
+        // expect: "Wallet mgr balance conservation pbt works correctly under test conditions" [P9]
         #[test]
         fn balance_conservation_under_encumbrance_lifecycle(
             credits in prop::collection::vec(arbitrary_rjoule(), 1..10),

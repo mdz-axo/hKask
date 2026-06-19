@@ -214,7 +214,7 @@ pub async fn export_download(
     let mut entries: Vec<_> = std::fs::read_dir(&export_dir)
         .map_err(|_| (StatusCode::NOT_FOUND, "No exports found".to_string()))?
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "db"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "db"))
         .collect();
     entries.sort_by_key(|e| std::fs::metadata(e.path()).and_then(|m| m.modified()).ok());
     entries.reverse();
@@ -230,7 +230,7 @@ pub async fn export_download(
     })?;
 
     let filename = latest.file_name().to_string_lossy().to_string();
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::OK)
         .header("Content-Type", "application/octet-stream")
         .header(
@@ -238,5 +238,5 @@ pub async fn export_download(
             format!("attachment; filename=\"{}\"", filename),
         )
         .body(axum::body::Body::from(bytes))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }

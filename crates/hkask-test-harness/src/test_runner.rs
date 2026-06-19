@@ -250,8 +250,8 @@ fn extract_req_tag(line: &str) -> Option<String> {
     }
 
     // New test format: // contract: P{N}-{}
-    if trimmed.starts_with("// contract:") {
-        let tag = trimmed["// contract:".len()..].trim();
+    if let Some(stripped) = trimmed.strip_prefix("// contract:") {
+        let tag = stripped.trim();
         let end = tag
             .find(|c: char| c.is_whitespace() || c == '\u{2014}')
             .unwrap_or(tag.len());
@@ -447,12 +447,11 @@ pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec
                             goal_principle = tag;
                         }
                     }
-                    if trimmed.contains("Constraining:") {
-                        if let Some(principle) = extract_constraining_principle(trimmed) {
-                            if !constraining_principles.contains(&principle) {
-                                constraining_principles.push(principle);
-                            }
-                        }
+                    if trimmed.contains("Constraining:")
+                        && let Some(principle) = extract_constraining_principle(trimmed)
+                        && !constraining_principles.contains(&principle)
+                    {
+                        constraining_principles.push(principle);
                     }
                     if pre.is_empty() && trimmed.contains("pre:") {
                         pre = trimmed
@@ -544,7 +543,7 @@ fn extract_principle_tag(text: &str) -> Option<String> {
     // Validate number is 1-12
     let num_str = &rest[2..end];
     let num: u32 = num_str.parse().ok()?;
-    if num >= 1 && num <= 12 {
+    if (1..=12).contains(&num) {
         Some(tag.to_string())
     } else {
         None
@@ -563,10 +562,10 @@ fn extract_constraining_principle(line: &str) -> Option<String> {
         if let Some(end) = rest.find(']') {
             let tag = &rest[..=end];
             let num_str = &rest[2..end];
-            if let Ok(num) = num_str.parse::<u32>() {
-                if num >= 1 && num <= 12 {
-                    return Some(tag.to_string());
-                }
+            if let Ok(num) = num_str.parse::<u32>()
+                && (1..=12).contains(&num)
+            {
+                return Some(tag.to_string());
             }
         }
     }
@@ -713,7 +712,7 @@ mod tests {
         // Functions with expect:/post: contracts (strategy generators)
         // appear in inventory but may not have traditional REQ tags.
         // Accept empty inventory until migration completes.
-        assert!(entries.len() >= 0, "inventory should not error");
+        let _ = entries;
     }
 
     // contract: HARN-052

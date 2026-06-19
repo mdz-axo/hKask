@@ -155,8 +155,7 @@ pub fn contract(args: TokenStream, input: TokenStream) -> TokenStream {
     // P{N}-... format (N can be 1-2 digits: P1-P12)
     let dash_pos = id.find('-');
     let id_ok = if let Some(pos) = dash_pos {
-        pos >= 2
-            && pos <= 3
+        (2..=3).contains(&pos)
             && id.starts_with('P')
             && id[1..pos].chars().all(|c| c.is_ascii_digit())
     } else {

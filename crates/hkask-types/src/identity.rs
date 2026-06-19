@@ -15,19 +15,14 @@ use serde::{Deserialize, Serialize};
 /// expect: "I can assign roles to users to control what they can access" [P1]
 /// [P1] Goal: User Sovereignty — roles enforce who can manage the server
 /// [P2] Constraining: Affirmative Consent — admin role is explicitly granted, never default
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Role {
     /// Full administrative access: invite, sessions, config, all realms.
     Admin,
     /// Standard user access: own replicants, own sessions, own resources.
+    #[default]
     Member,
-}
-
-impl Default for Role {
-    fn default() -> Self {
-        Role::Member
-    }
 }
 
 impl std::fmt::Display for Role {

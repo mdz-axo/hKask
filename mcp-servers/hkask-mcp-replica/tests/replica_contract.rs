@@ -263,7 +263,7 @@ fn recovery_window_rescues_failing_contract() {
         30,
         || {
             call_count += 1;
-            call_count % 2 == 0 // passes on every second call
+            call_count.is_multiple_of(2) // passes on every second call
         },
         |b| *b,
     );

@@ -165,12 +165,12 @@ pub async fn login(
         csrf_state
     );
 
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::FOUND)
         .header(header::LOCATION, authorize_url)
         .header(header::SET_COOKIE, state_cookie)
         .body(axum::body::Body::empty())
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
 
 /// GET /api/v1/auth/callback
@@ -261,13 +261,13 @@ pub async fn callback(
         86400 * 7 // 7 days
     );
 
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::FOUND)
         .header(header::LOCATION, "/terminal")
         .header(header::SET_COOKIE, clear_state)
         .header(header::SET_COOKIE, session_cookie)
         .body(axum::body::Body::empty())
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
 
 /// GitHub token exchange response.
@@ -435,7 +435,7 @@ pub async fn logout(
         })?;
         let _ = store.logout(&session_id);
     }
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::FOUND)
         .header(header::LOCATION, "/")
         .header(
@@ -443,7 +443,7 @@ pub async fn logout(
             "hkask_session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0",
         )
         .body(axum::body::Body::empty())
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
 
 /// GET /api/v1/auth/session — returns current session info.
@@ -512,11 +512,11 @@ pub async fn accept_invite(
             "/api/v1/auth/login?provider=github&state=invite:{}",
             body.code
         );
-        return Ok(Response::builder()
+        return Response::builder()
             .status(StatusCode::FOUND)
             .header(header::LOCATION, redirect_url)
             .body(axum::body::Body::empty())
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?);
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
     }
     let session_id = session_cookie
         .ok_or((StatusCode::UNAUTHORIZED, "No session cookie".into()))?
@@ -542,11 +542,11 @@ pub async fn accept_invite(
         "code": body.code,
         "replicant": replicant.replicant_name,
     });
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "application/json")
         .body(axum::body::Body::from(body.to_string()))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
 
 #[derive(Deserialize)]

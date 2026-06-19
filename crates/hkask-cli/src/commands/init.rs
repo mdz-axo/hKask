@@ -158,9 +158,8 @@ fn prompt_default(prompt: &str, default: &str) -> Result<String, Box<dyn std::er
 /// - Restart=on-failure (auto-recovery)
 /// - User=hkask (non-root)
 /// - After=network.target (wait for network)
-fn generate_systemd_unit(config_dir: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-    let unit_content = format!(
-        r#"[Unit]
+fn generate_systemd_unit(config_dir: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+    let unit_content = r#"[Unit]
 Description=hKask Daemon
 After=network.target
 
@@ -174,7 +173,7 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 "#
-    );
+    .to_string();
     let unit_path = config_dir.join("hkask.service");
     std::fs::write(&unit_path, unit_content)?;
     Ok(())

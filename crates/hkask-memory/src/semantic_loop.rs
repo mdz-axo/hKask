@@ -249,22 +249,21 @@ impl HkaskLoop for SemanticLoop {
                         if let Ok(old_triples) = self
                             .memory
                             .triples_older_than(self.condensation_window_days, 200)
+                            && !old_triples.is_empty()
                         {
-                            if !old_triples.is_empty() {
-                                actions.push(LoopAction::new(
-                                    LoopId::Memory,
-                                    ActionType::Calibrate,
-                                    serde_json::json!({
-                                        "reason": "semantic_condense",
-                                        "count": dev.signal.value,
-                                        "set_point": dev.signal.set_point,
-                                        "old_triple_count": old_triples.len(),
-                                        "window_days": self.condensation_window_days,
-                                    }),
-                                ));
-                                // Don't also emit budget enforcement — condensation may resolve it
-                                continue;
-                            }
+                            actions.push(LoopAction::new(
+                                LoopId::Memory,
+                                ActionType::Calibrate,
+                                serde_json::json!({
+                                    "reason": "semantic_condense",
+                                    "count": dev.signal.value,
+                                    "set_point": dev.signal.set_point,
+                                    "old_triple_count": old_triples.len(),
+                                    "window_days": self.condensation_window_days,
+                                }),
+                            ));
+                            // Don't also emit budget enforcement — condensation may resolve it
+                            continue;
                         }
                     }
 

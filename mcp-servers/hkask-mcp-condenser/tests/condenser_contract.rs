@@ -134,7 +134,7 @@ fn health_check_returns_signals() {
     let signals = engine.check_global_health();
     // Engine should return health signals (may be empty for fresh engine)
     assert!(
-        signals.len() == 0 || signals.len() > 0,
+        signals.is_empty() || !signals.is_empty(),
         "health check should return signals or empty vec"
     );
 }
