@@ -71,11 +71,7 @@ pub struct SqliteRegistry {
 impl SqliteRegistry {
     /// Create a new SQLite-backed registry.
     ///
-    /// expect: "The system persists template registrations to SQLite" [P3]
     /// \[P3\] Motivating: Generative Space — SQLite-backed template registry
-    /// pre:  path is None (in-memory) or a valid filesystem path
-    /// post: returns SqliteRegistry with schema initialized
-    #[contract(id = "P3-tpl-registry-sqlite-new", principle = "P3")]
     pub fn new(path: Option<&str>) -> Result<Self> {
         let conn = match path {
             Some(p) => Connection::open(p)
@@ -96,11 +92,7 @@ impl SqliteRegistry {
 
     /// Create a registry from an existing SQLite connection.
     ///
-    /// expect: "The system persists template registrations to SQLite" [P3]
     /// \[P3\] Motivating: Generative Space — SQLite registry from existing connection
-    /// pre:  conn is a valid SQLite connection
-    /// post: returns SqliteRegistry with schema initialized on the given connection
-    #[contract(id = "P3-tpl-registry-sqlite-new-with-conn", principle = "P3")]
     pub fn new_with_conn(conn: Arc<Mutex<Connection>>) -> Result<Self> {
         let mut registry = Self { conn };
         registry.init_schema()?;
@@ -134,12 +126,7 @@ impl SqliteRegistry {
 
     /// Register a template entry in the registry.
     ///
-    /// expect: "The system persists template registrations to SQLite" [P3]
     /// \[P3\] Motivating: Generative Space — persists template registration
-    /// pre:  entry.id is non-empty, entry.template_type is valid
-    /// post: entry inserted or replaced in templates table
-    /// post: lexicon_terms and capabilities synced
-    #[contract(id = "P3-tpl-registry-sqlite-register", principle = "P3")]
     pub fn register(&mut self, entry: RegistryEntry) -> Result<()> {
         for warning in &entry.validate() {
             tracing::warn!(target: "hkask.templates", "{}", warning);
@@ -221,12 +208,7 @@ impl SqliteRegistry {
 
     /// Get a template entry by ID.
     ///
-    /// expect: "The system persists template registrations to SQLite" [P3]
     /// \[P3\] Motivating: Generative Space — retrieves persisted template entry
-    /// pre:  id is non-empty
-    /// post: returns RegistryEntry if found
-    /// post: returns Err(NotFound) if not found
-    #[contract(id = "P3-tpl-registry-sqlite-get-entry", principle = "P3")]
     pub fn get_entry(&self, id: &str) -> Result<RegistryEntry> {
         let conn = self
             .conn
@@ -245,12 +227,7 @@ impl SqliteRegistry {
     /// Delete a template and all associated data (lexicon terms, capabilities, provenance).
     /// Returns the entry if it existed, None otherwise.
     ///
-    /// expect: "The system persists template registrations to SQLite" [P3]
     /// \[P3\] Motivating: Generative Space — removes persisted template entry
-    /// pre:  id is non-empty
-    /// post: template and associated data deleted
-    /// post: returns Some(entry) if existed, None otherwise
-    #[contract(id = "P3-tpl-registry-sqlite-delete-entry", principle = "P3")]
     pub fn delete_entry(&mut self, id: &str) -> Option<RegistryEntry> {
         let entry = self.get_entry(id).ok();
         let conn = self
@@ -273,12 +250,8 @@ impl SqliteRegistry {
 
     /// Search templates by lexicon term.
     ///
-    /// expect: "The system persists template registrations to SQLite" [P3]
     /// \[P3\] Motivating: Generative Space — vocabulary-aware template search
     /// \[P8\] Constraining: Semantic Grounding — search uses lexicon terms
-    /// pre:  term is non-empty
-    /// post: returns Vec<RegistryEntry> for templates declaring this term
-    #[contract(id = "P3-tpl-registry-sqlite-search-by-lexicon", principle = "P3")]
     pub fn search_by_lexicon(&self, term: &str) -> Result<Vec<RegistryEntry>> {
         let conn = self
             .conn
@@ -299,11 +272,7 @@ impl SqliteRegistry {
 
     /// Count registered templates.
     ///
-    /// expect: "The system persists template registrations to SQLite" [P3]
     /// \[P3\] Motivating: Generative Space — reports persisted registry size
-    /// post: returns count of templates in registry
-    /// post: returns 0 on lock error (graceful degradation)
-    #[contract(id = "P3-tpl-registry-sqlite-count", principle = "P3")]
     pub fn count(&self) -> usize {
         let conn = match self.conn.lock() {
             Ok(c) => c,
@@ -549,11 +518,7 @@ impl SqliteRegistry {
 
     /// Get a skill by ID (owned query, no OCAP check).
     ///
-    /// expect: "The system persists template registrations to SQLite" [P3]
     /// \[P3\] Motivating: Generative Space — retrieves owned skill record
-    /// pre:  id is non-empty
-    /// post: returns Some(Skill) if found, None otherwise
-    #[contract(id = "P3-tpl-registry-sqlite-get-skill-owned", principle = "P3")]
     pub fn get_skill_owned(&self, id: &str) -> Option<Skill> {
         self.conn
             .lock()
@@ -606,21 +571,14 @@ impl SqliteRegistry {
 
     /// List all skills (owned query, no OCAP check).
     ///
-    /// expect: "The system persists template registrations to SQLite" [P3]
     /// \[P3\] Motivating: Generative Space — lists owned skill records
-    /// post: returns Vec<Skill> with all registered skills
-    #[contract(id = "P3-tpl-registry-sqlite-list-skills-owned", principle = "P3")]
     pub fn list_skills_owned(&self) -> Vec<Skill> {
         self.query_skills(Self::_SKILLS_SELECT, &[])
     }
 
     /// List skills by domain (owned query, no OCAP check).
     ///
-    /// expect: "The system persists template registrations to SQLite" [P3]
     /// \[P3\] Motivating: Generative Space — domain-filtered owned skill listing
-    /// pre:  domain is a valid TemplateType
-    /// post: returns Vec<Skill> filtered by domain
-    #[contract(id = "P3-tpl-registry-sqlite-skills-by-domain-owned", principle = "P3")]
     pub fn skills_by_domain_owned(&self, domain: TemplateType) -> Vec<Skill> {
         self.query_skills(
             &format!("{} WHERE domain = ?1", Self::_SKILLS_SELECT),
@@ -630,10 +588,7 @@ impl SqliteRegistry {
 
     /// List skills referencing a template (owned query, no OCAP check).
     ///
-    /// expect: "The system persists template registrations to SQLite" [P3]
     /// \[P3\] Motivating: Generative Space — reverse owned skill lookup
-    /// pre:  tid is non-empty
-    /// post: returns Vec<Skill> referencing the given template ID
     #[contract(
         id = "P3-tpl-registry-sqlite-skills-referencing-template-owned",
         principle = "P3"

@@ -34,11 +34,7 @@ impl ConsentStore {
     /// Initialize the consent_records table
     /// Initialize the consent store schema.
     ///
-    /// expect: "My consent records are stored with explicit affirmative consent" [P2]
     /// \[P2\] Motivating: Affirmative Consent — schema for consent records
-    /// post: consent_records table created if not exists
-    #[rs::contract(id = "P2-sto-consent-schema", principle = "P2")]
-    #[rs::contract(id = "P2-sto-consent-schema", principle = "P2")]
     pub fn initialize_schema(&self) -> Result<(), ConsentStoreError> {
         let conn = self.lock_conn()?;
         conn.execute_batch(
@@ -58,12 +54,7 @@ impl ConsentStore {
     /// Store (upsert) a consent record for a WebID
     /// Store a consent record.
     ///
-    /// expect: "My consent records are stored with explicit affirmative consent" [P2]
     /// \[P2\] Motivating: Affirmative Consent — persist a scoped consent record
-    /// pre:  record.webid is non-empty
-    /// post: record inserted or replaced in consent_records
-    #[rs::contract(id = "P2-sto-consent-store", principle = "P2")]
-    #[rs::contract(id = "P2-sto-consent-store", principle = "P2")]
     pub fn store(&self, record: &StoredConsentRecord) -> Result<(), ConsentStoreError> {
         let conn = self.lock_conn()?;
         let categories_json = serde_json::to_string(&record.granted_categories)?;
@@ -90,12 +81,7 @@ impl ConsentStore {
     /// Get the active consent record for a WebID
     /// Get a consent record by WebID.
     ///
-    /// expect: "My consent records are stored with explicit affirmative consent" [P2]
     /// \[P2\] Motivating: Affirmative Consent — retrieve consent by WebID
-    /// pre:  webid is non-empty
-    /// post: returns Some(record) if found, None otherwise
-    #[rs::contract(id = "P2-sto-consent-get", principle = "P2")]
-    #[rs::contract(id = "P2-sto-consent-get", principle = "P2")]
     pub fn get(&self, webid: &str) -> Result<Option<StoredConsentRecord>, ConsentStoreError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -127,12 +113,7 @@ impl ConsentStore {
     /// Delete consent record for a WebID
     /// Delete a consent record by WebID.
     ///
-    /// expect: "My consent records are stored with explicit affirmative consent" [P2]
     /// \[P2\] Motivating: Affirmative Consent — delete a consent record
-    /// pre:  webid is non-empty
-    /// post: record deleted if existed
-    #[rs::contract(id = "P2-sto-consent-delete", principle = "P2")]
-    #[rs::contract(id = "P2-sto-consent-delete", principle = "P2")]
     pub fn delete(&self, webid: &str) -> Result<(), ConsentStoreError> {
         let conn = self.lock_conn()?;
         conn.execute(

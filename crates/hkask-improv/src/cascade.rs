@@ -145,7 +145,6 @@ mod tests {
     }
 
     // contract: IMPROV-CASCADE-001
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn cascade_composes_modes_sequentially() {
         let cascade =
@@ -173,7 +172,6 @@ mod tests {
     }
 
     // contract: IMPROV-CASCADE-002
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn enforces_matryoshka_limit() {
         // 8 simple modes — exceeds limit.
@@ -188,7 +186,6 @@ mod tests {
     }
 
     // contract: IMPROV-CASCADE-003
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn rejects_empty_cascade() {
         assert!(matches!(
@@ -198,7 +195,6 @@ mod tests {
     }
 
     // contract: IMPROV-CASCADE-004
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn tracks_nested_applications() {
         let inner =
@@ -218,7 +214,6 @@ mod tests {
     }
 
     // contract: IMPROV-CASCADE-005
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn nested_cascade_descends_context() {
         let inner =
@@ -235,7 +230,6 @@ mod tests {
     }
 
     // contract: IMPROV-CASCADE-006
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn rejects_deep_nesting() {
         // Build a cascade of 7 total applications (at the limit).
@@ -255,7 +249,6 @@ mod tests {
     }
 
     // contract: IMPROV-CASCADE-007
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn catches_runtime_recursion_exceeded() {
         let cascade = ImprovCascade::new(vec![ImprovMode::Plussing]).expect("valid");

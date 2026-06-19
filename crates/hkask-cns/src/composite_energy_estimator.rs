@@ -11,7 +11,6 @@ use serde_json::Value;
 /// Composite gas estimator that routes inference tools to InferenceEnergyEstimator
 /// and all other tools to TableEnergyEstimator.
 ///
-/// \[NORMATIVE\] This is the production estimator — it should be the default for all (P9 — Homeostatic Self-Regulation).
 /// GovernedTool instances. Inference calls use token-based estimation;
 /// everything else uses the per-server table.
 pub struct CompositeEnergyEstimator {
@@ -22,12 +21,7 @@ pub struct CompositeEnergyEstimator {
 impl CompositeEnergyEstimator {
     /// Create a new CompositeEnergyEstimator with default table costs.
     ///
-    /// expect: "The system creates a composite estimator that routes inference and table costs" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — composite estimator enables feedback loops
     /// \[P5\] Constraining: Essentialism — minimal constructor, empty estimators
-    /// post: returns CompositeEnergyEstimator with empty estimators
-    #[rs::contract(id = "P9-cns-est-composite-new", principle = "P9")]
-    #[rs::contract(id = "P9-cns-est-composite-new", principle = "P9")]
     pub fn new() -> Self {
         Self {
             inference: InferenceEnergyEstimator,
@@ -40,9 +34,6 @@ impl CompositeEnergyEstimator {
     /// Non-inference server costs are taken from `table.report_table()`;
     /// inference routing still uses `InferenceEnergyEstimator`.
     ///
-    /// expect: "I can build a calibrated estimator from a dynamic gas table so per-server costs reflect observed usage" [P9]
-    /// pre:  table was calibrated (or default) via DynamicGasTable::calibrate()
-    /// post: estimate_cost(server, ...) uses table.report_table()\[server\] for non-inference servers
     pub fn from_dynamic_table(table: &DynamicGasTable) -> Self {
         Self {
             inference: InferenceEnergyEstimator,
@@ -104,7 +95,6 @@ mod tests {
         assert_eq!(cost, 5, "unobserved server should retain default cost");
     }
 
-    // contract: P9-cns-est-composite-new
     #[test]
     fn from_dynamic_table_still_routes_inference() {
         let table = DynamicGasTable::new();

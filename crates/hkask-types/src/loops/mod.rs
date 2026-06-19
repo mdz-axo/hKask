@@ -48,7 +48,6 @@ mod tests {
     use super::*;
 
     // contract: types-loop-quality-001
-    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn loop_quality_default_is_zero() {
         let q = LoopQuality::default();
@@ -58,7 +57,6 @@ mod tests {
     }
 
     // contract: types-loop-quality-002
-    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn from_cycle_computes_gain() {
         let sig = Signal::new(LoopId::Cybernetics, SignalMetric::VarietyDeficit, 0.9, 0.5);
@@ -75,7 +73,6 @@ mod tests {
     }
 
     // contract: types-loop-quality-003
-    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn from_cycle_no_deviations_zero_gain() {
         let q = LoopQuality::from_cycle(50, &[], &[]);
@@ -85,7 +82,6 @@ mod tests {
     }
 
     // contract: types-loop-quality-004
-    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn unmatched_deviation_reduces_fidelity() {
         let sig = Signal::new(LoopId::Cybernetics, SignalMetric::ErrorRate, 0.3, 0.1);

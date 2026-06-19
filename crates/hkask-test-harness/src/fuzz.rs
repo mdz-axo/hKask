@@ -7,7 +7,6 @@
 
 /// Common malformed inputs for testing CLI argument parsers.
 ///
-/// post: returns Vec of strings including empty, special chars, unicode, overflow
 pub fn cli_fuzz_seeds() -> Vec<String> {
     vec![
         String::new(),
@@ -42,7 +41,6 @@ pub fn cli_fuzz_seeds() -> Vec<String> {
 
 /// Common malformed JSON inputs for testing deserializers.
 ///
-/// post: returns Vec of strings including partial, nested, malformed JSON
 pub fn json_fuzz_seeds() -> Vec<String> {
     vec![
         String::new(),

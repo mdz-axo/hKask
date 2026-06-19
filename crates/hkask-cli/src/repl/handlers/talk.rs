@@ -337,7 +337,6 @@ pub(crate) fn speak_response(
 
 #[cfg(test)]
 mod tests {
-    /// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn summarize_short_text_threshold() {
         // Pure logic: text under 50 chars returns the text unchanged.
@@ -358,7 +357,6 @@ mod tests {
         );
     }
 
-    /// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn handler_dispatch_no_panic() {
         // Verify the handler functions exist and accept the right signatures.

@@ -33,7 +33,7 @@ use hkask_agents::LoopSystem;
 use hkask_agents::consent::ConsentManager;
 use hkask_agents::curator_agent::CuratorAgent;
 use hkask_agents::loop_system::CyberneticsLoopHandle;
-use hkask_agents::pod::PodManager;
+use hkask_agents::pod::{ActivePods, PodDeployment, PodFactory};
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{
     CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, GovernedTool,
@@ -135,8 +135,11 @@ pub struct AgentService {
     /// Channel for emitting CurationInput (GoalTransition, alerts, spec drift).
     curation_inbox_tx: Option<tokio::sync::mpsc::UnboundedSender<CurationInput>>,
 
-    /// Pod manager for agent lifecycle.
-    pod_manager: Arc<PodManager>,
+    /// Pod factory for agent lifecycle.
+    pod_factory: Arc<PodFactory>,
+
+    /// Active pod registry for runtime lookup.
+    active_pods: Arc<ActivePods>,
 
     /// Capability checker for OCAP verification.
     ///
@@ -224,39 +227,24 @@ impl AgentService {
 
     /// Access configuration.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns reference to ServiceConfig
-    #[contract(id = "P3-svc-context-245", principle = "P3")]
     pub fn config(&self) -> &ServiceConfig {
         &self.config
     }
 
     /// Access the wallet service for rJoule payments and API key management.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns Some(&Arc<WalletService>) if wallet configured; None otherwise
-    #[contract(id = "P3-svc-context-246", principle = "P3")]
     pub fn wallet(&self) -> Option<&Arc<WalletService>> {
         self.wallet_service.as_ref()
     }
 
     /// Access the wallet store for API key lookup and balance queries.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns Some(&Arc<WalletStore>) if wallet store configured; None otherwise
-    #[contract(id = "P3-svc-context-247", principle = "P3")]
     pub fn wallet_store(&self) -> Option<&Arc<WalletStore>> {
         self.wallet_store.as_ref()
     }
 
     /// Access the wallet gas calibrator.
     ///
-    /// [P7] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
-    /// pre:  self must be fully built
-    /// post: returns Some(&Arc<WalletGasCalibrator>) if wallet is configured; None otherwise
     #[contract(
         id = "P7-svc-context-gas-calib-005 — runtime calibration of wallet gas conversion rate",
         principle = "P7"
@@ -270,10 +258,6 @@ impl AgentService {
     // # expect: "Service boundaries enforce OCAP membranes" [P4]
 
     // --- Memory ---
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns (&episodic_storage, &semantic_storage) tuple
-    #[contract(id = "P3-svc-context-248", principle = "P3")]
     pub fn memory(&self) -> (&Arc<dyn EpisodicStoragePort>, &Arc<dyn SemanticStoragePort>) {
         (&self.episodic_storage, &self.semantic_storage)
     }
@@ -281,19 +265,11 @@ impl AgentService {
     // --- Storage ---
     /// Template registry (tokio-Mutex-guarded for async lock compatibility).
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<Mutex<SqliteRegistry>>
-    #[contract(id = "P3-svc-context-249", principle = "P3")]
     pub fn registry(&self) -> &Arc<tokio::sync::Mutex<SqliteRegistry>> {
         &self.registry
     }
     /// Goal repository.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<SqliteGoalRepository>
-    #[contract(id = "P3-svc-context-250", principle = "P3")]
     pub fn goal_repo(&self) -> &Arc<SqliteGoalRepository> {
         &self.goal_repo
     }
@@ -301,46 +277,27 @@ impl AgentService {
     // --- CNS ---
     /// CNS runtime for variety sensing and health checks.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<RwLock<CnsRuntime>>
-    #[contract(id = "P3-svc-context-251", principle = "P3")]
     pub fn cns_runtime(&self) -> &Arc<RwLock<CnsRuntime>> {
         &self.cns_runtime
     }
     /// Cybernetics loop for energy budget regulation.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<RwLock<CyberneticsLoop>>
-    #[contract(id = "P3-svc-context-252", principle = "P3")]
     pub fn cybernetics_loop(&self) -> &Arc<RwLock<CyberneticsLoop>> {
         &self.cybernetics_loop
     }
     /// Loop system for 6-loop regulation.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<LoopSystem>
-    #[contract(id = "P3-svc-context-253", principle = "P3")]
     pub fn loop_system(&self) -> &Arc<LoopSystem> {
         &self.loop_system
     }
     /// CNS event sink for the audit trail.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<dyn NuEventSink>
-    #[contract(id = "P3-svc-context-254", principle = "P3")]
     pub fn event_sink(&self) -> &Arc<dyn NuEventSink> {
         &self.event_sink
     }
 
     /// Calibrated energy estimator with a background gas-table refresh loop.
     ///
-    /// [P7] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<CalibratedEnergyEstimator> sharing the same background
     ///       calibration loop as the service's governed tool
     #[contract(
         id = "P7-svc-context-gas-calib-004 — runtime calibration loop wired to production estimator",
@@ -354,10 +311,6 @@ impl AgentService {
     /// Returns a read lock on the watcher. For summary data, call
     /// `.read().await` and then `.as_ref().map(|w| w.summary())`.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<RwLock<Option<SeamWatcher>>>
-    #[contract(id = "P3-svc-context-255", principle = "P3")]
     pub fn seam_watcher(&self) -> &Arc<RwLock<Option<SeamWatcher>>> {
         &self.seam_watcher
     }
@@ -365,30 +318,18 @@ impl AgentService {
     // --- Governance ---
     /// Capability checker for OCAP verification.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<CapabilityChecker>
     /// # REQ: P4 (OCAP), P1 (User Sovereignty)
     /// # expect: "Service boundaries enforce OCAP membranes" [P4]
-    #[contract(id = "P3-svc-context-256", principle = "P3")]
     pub fn capability_checker(&self) -> &Arc<CapabilityChecker> {
         &self.capability_checker
     }
     /// MCP dispatcher for OCAP-gated tool invocation.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<McpDispatcher>
-    #[contract(id = "P3-svc-context-257", principle = "P3")]
     pub fn mcp_dispatcher(&self) -> &Arc<McpDispatcher> {
         &self.mcp_dispatcher
     }
     /// Escalation queue for Curator escalations.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<EscalationQueue>
-    #[contract(id = "P3-svc-context-258", principle = "P3")]
     pub fn escalation_queue(&self) -> &Arc<EscalationQueue> {
         &self.escalation_queue
     }
@@ -396,39 +337,28 @@ impl AgentService {
     // --- Coordination ---
     /// Shared inference port (returns a clone of the `Option<Arc>`).
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns Some(Arc<dyn InferencePort>) if configured; None otherwise
-    #[contract(id = "P3-svc-context-259", principle = "P3")]
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
         self.inference_port.clone()
     }
     /// MCP runtime for tool discovery and invocation.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<McpRuntime>
-    #[contract(id = "P3-svc-context-260", principle = "P3")]
     pub fn mcp_runtime(&self) -> &Arc<McpRuntime> {
         &self.mcp_runtime
     }
-    /// Pod manager for agent lifecycle.
+    /// Pod factory for agent lifecycle.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<PodManager>
-    #[contract(id = "P3-svc-context-261", principle = "P3")]
-    pub fn pod_manager(&self) -> &Arc<PodManager> {
-        &self.pod_manager
+    pub fn pod_factory(&self) -> &Arc<PodFactory> {
+        &self.pod_factory
+    }
+
+    /// Active pod registry.
+    pub fn active_pods(&self) -> &Arc<ActivePods> {
+        &self.active_pods
     }
 
     // --- Identity ---
     /// System WebID + A2A runtime.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns (&WebID, &Arc<A2ARuntime>) tuple
-    #[contract(id = "P3-svc-context-262", principle = "P3")]
     pub fn identity(&self) -> (&WebID, &Arc<hkask_agents::A2ARuntime>) {
         (&self.system_webid, &self.a2a_runtime)
     }
@@ -436,12 +366,8 @@ impl AgentService {
     /// Sovereignty: consent management service.
     /// consent_manager is PRIVATE — no raw store access.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns SovereigntyService wrapping the consent manager
     /// # REQ: P1 (User Sovereignty), P2 (Affirmative Consent)
     /// # expect: "My service operations flow through sovereignty-verifying boundaries" [P1]
-    #[contract(id = "P3-svc-context-263", principle = "P3")]
     pub fn sovereignty(&self) -> SovereigntyService {
         SovereigntyService::new(self.consent_manager.clone())
     }
@@ -450,20 +376,12 @@ impl AgentService {
 
     /// Access A2A runtime for agent registration and capability management.
     ///
-    /// [P3] Motivating: Generative Space — A2A runtime access without ambient authority.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<A2ARuntime> reference
-    #[contract(id = "P3-svc-context-277", principle = "P3")]
     pub fn a2a_runtime(&self) -> &Arc<hkask_agents::A2ARuntime> {
         &self.a2a_runtime
     }
 
     /// Access curation inbox transmitter.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Option<UnboundedSender<CurationInput>>
-    #[contract(id = "P3-svc-context-264", principle = "P3")]
     pub fn curation_inbox_tx(&self) -> &Option<tokio::sync::mpsc::UnboundedSender<CurationInput>> {
         &self.curation_inbox_tx
     }
@@ -471,10 +389,6 @@ impl AgentService {
     /// Access sovereignty boundary store for Magna Carta compliance.
     /// TODO: Category 4 — migrate to service methods.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &SovereigntyBoundaryStore
-    #[contract(id = "P3-svc-context-265", principle = "P3")]
     pub fn sovereignty_boundary_store(&self) -> &SovereigntyBoundaryStore {
         &self.sovereignty_boundary_store
     }
@@ -484,10 +398,6 @@ impl AgentService {
     /// Access spec store for specification capture, validation, and cultivation.
     /// TODO: Move to ApiState.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &SqliteSpecStore
-    #[contract(id = "P3-svc-context-266", principle = "P3")]
     pub fn spec_store(&self) -> &SqliteSpecStore {
         &self.spec_store
     }
@@ -495,10 +405,6 @@ impl AgentService {
     /// Access agent registry store for persistent agent records.
     /// TODO: Move to ApiState.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &AgentRegistryStore
-    #[contract(id = "P3-svc-context-267", principle = "P3")]
     pub fn agent_registry_store(&self) -> &hkask_storage::AgentRegistryStore {
         &self.agent_registry_store
     }
@@ -506,20 +412,12 @@ impl AgentService {
     /// Access user store for replicant identity and authentication.
     /// TODO: Move to ApiState.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<Mutex<UserStore>>
-    #[contract(id = "P3-svc-context-268", principle = "P3")]
     pub fn user_store(&self) -> &Arc<std::sync::Mutex<UserStore>> {
         &self.user_store
     }
 
     /// Access daemon handler for MCP binary communication.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns &Arc<ServiceDaemonHandler>
-    #[contract(id = "P3-svc-context-269", principle = "P3")]
     pub fn daemon_handler(&self) -> &Arc<hkask_services_daemon::ServiceDaemonHandler> {
         &self.daemon_handler
     }
@@ -529,10 +427,6 @@ impl AgentService {
     /// Returns `None` if Matrix is not configured or Conduit is unreachable.
     /// The transport is wrapped in a Mutex because `login`/`reconnect` take `&mut self`.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  self must be fully built
-    /// post: returns Some(&Arc<Mutex<MatrixTransport>>) if connected; None otherwise
-    #[contract(id = "P3-svc-context-270", principle = "P3")]
     pub fn matrix_transport(
         &self,
     ) -> Option<&Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>> {
@@ -548,10 +442,6 @@ impl AgentService {
     /// This is used by the REPL to build agent-scoped memory (separate from
     /// the shared `AgentService` memory adapted for loops).
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  db must be a valid opened Database
-    /// post: returns PerAgentMemory with episodic_storage, semantic_storage, and consolidation_service all sharing the same DB
-    #[contract(id = "P3-svc-context-271", principle = "P3")]
     pub fn build_per_agent_memory(db: Database) -> PerAgentMemory {
         let conn = db.conn_arc();
 
@@ -597,9 +487,6 @@ impl AgentService {
     /// secrets, opens databases, constructs CNS/loop system, governed
     /// tool membrane, and session manager in the correct dependency order.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  config must be a valid ServiceConfig with resolved secrets
-    /// post: returns fully assembled AgentService with all infrastructure wired; Err on any construction step failure
     /// # Dependency order
     ///
     /// 1. Database connections (primary + per-purpose)
@@ -610,7 +497,6 @@ impl AgentService {
     /// 6. A2A runtime + pod manager
     /// 7. Inference port (optional, based on config)
     /// 8. Memory adapters (episodic + semantic)
-    #[contract(id = "P3-svc-context-276", principle = "P3")]
     pub async fn build(config: ServiceConfig) -> Result<Self, ServiceError> {
         let system_webid = WebID::from_persona(config.agent_name.as_bytes());
 
@@ -643,7 +529,8 @@ impl AgentService {
             consent_manager: foundation.consent_manager,
             goal_repo: foundation.goal_repo,
             curation_inbox_tx: Some(foundation.curation_inbox_tx.clone()),
-            pod_manager: mcp_pods.pod_manager,
+            pod_factory: mcp_pods.pod_factory,
+            active_pods: mcp_pods.active_pods,
             capability_checker: mcp_pods.capability_checker,
             system_webid,
             event_sink: foundation.cns_event_sink,
@@ -1005,11 +892,12 @@ async fn build_loops(
     })
 }
 
-/// MCP + pods: governed tool, dispatcher, pod manager, daemon handler.
+/// MCP + pods: governed tool, dispatcher, pod factory, daemon handler.
 struct McpPods {
     mcp_runtime: Arc<McpRuntime>,
     mcp_dispatcher: Arc<McpDispatcher>,
-    pod_manager: Arc<PodManager>,
+    pod_factory: Arc<PodFactory>,
+    active_pods: Arc<ActivePods>,
     capability_checker: Arc<CapabilityChecker>,
     daemon_handler: Arc<hkask_services_daemon::ServiceDaemonHandler>,
     energy_estimator: Arc<hkask_cns::CalibratedEnergyEstimator>,
@@ -1050,45 +938,33 @@ async fn build_mcp_and_pods(
     ));
     let mcp_runtime = Arc::new(mcp_runtime);
 
-    // Pod manager
+    // Pod factory (stateless constructor)
     let capability_checker = Arc::new(CapabilityChecker::new(&config.mcp_secret));
-    let mcp_runtime_adapter = hkask_agents::adapters::mcp_runtime::FullMcpAdapter::new(
-        Arc::new(CapabilityChecker::new(&config.a2a_secret)),
-        Arc::new((*mcp_runtime).clone()),
-        tokio::runtime::Handle::current(),
-    );
-    let pod_manager = Arc::new(PodManager::new(
-        Some(Arc::new(hkask_mcp::GitCasAdapter::from_path(
-            std::path::PathBuf::from(&config.template_cache_path),
-        ))),
-        Some(l.a2a_runtime.clone()),
-        Some(Arc::new(mcp_runtime_adapter)),
-        Some(Arc::clone(&l.episodic_storage) as Arc<dyn EpisodicStoragePort>),
-        Some(Arc::clone(&l.semantic_storage) as Arc<dyn SemanticStoragePort>),
-        None,
-        Some(Arc::new(CapabilityChecker::new(&config.a2a_secret))),
-        Some(governed_tool.clone()),
-        None,
+    let mcp_runtime_adapter: Arc<dyn hkask_agents::ports::MCPRuntimePort> =
+        Arc::new(hkask_agents::adapters::mcp_runtime::FullMcpAdapter::new(
+            Arc::new(CapabilityChecker::new(&config.a2a_secret)),
+            Arc::new((*mcp_runtime).clone()),
+            tokio::runtime::Handle::current(),
+        ));
+    let git_cas = Arc::new(hkask_mcp::GitCasAdapter::from_path(
+        std::path::PathBuf::from(&config.template_cache_path),
     ));
+    let consent: Arc<dyn hkask_agents::SovereigntyConsent> = Arc::new(hkask_agents::DenyAllConsent);
+    let pod_factory = Arc::new(PodFactory::new(
+        git_cas,
+        consent,
+        std::path::PathBuf::from(&config.data_dir),
+    ));
+    let active_pods = Arc::new(ActivePods::new());
 
-    // Matrix auto-registration hook for pod activation.
-    {
-        let homeserver_url = std::env::var("HKASK_MATRIX_URL")
-            .unwrap_or_else(|_| "http://localhost:8008".to_string());
-        pod_manager
-            .register_activation_hook(Box::new(move |webid, pod_name| {
-                let url = homeserver_url.clone();
-                let name = pod_name.clone();
-                tokio::spawn(async move {
-                    register_pod_on_matrix(&url, &webid, &name).await;
-                });
-            }))
-            .await;
-    }
+    // Matrix auto-registration hook — deferred to per-pod activation
+    // (hooks fire when a deployment is inserted into active_pods)
+    let _matrix_homeserver =
+        std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
 
     // Daemon handler + listener (skip socket in test mode)
     let daemon_handler = Arc::new(hkask_services_daemon::ServiceDaemonHandler::new(
-        Arc::clone(&pod_manager),
+        Arc::clone(&active_pods),
         Arc::clone(&f.user_store),
         l.inference_port.clone(),
     ));
@@ -1115,7 +991,8 @@ async fn build_mcp_and_pods(
     Ok(McpPods {
         mcp_runtime,
         mcp_dispatcher,
-        pod_manager,
+        pod_factory,
+        active_pods,
         capability_checker,
         daemon_handler,
         energy_estimator,

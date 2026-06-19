@@ -82,10 +82,6 @@ fn parse_restore_scope(s: &str) -> RestoreScope {
 
 /// Run a backup operation.
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  rt is valid, action is valid
-/// post: backup operation executed
 #[contract(
     id = "P9-CNS-SURF-002 pre: valid BackupAction post: cns.cli span emitted",
     principle = "P9"

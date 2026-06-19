@@ -41,9 +41,6 @@ pub struct AuthService {
 impl AuthService {
     /// Create an `AuthService` from a ServiceConfig.
     ///
-    /// expect: "API endpoints enforce OCAP boundaries" [P4]
-    /// pre:  _config is a valid ServiceConfig (currently unused, reserved for future)
-    /// post: returns AuthService with empty revocation set
     pub fn from_config(_config: &hkask_services::ServiceConfig) -> Self {
         Self {
             revoked_tokens: Arc::new(RwLock::new(HashSet::new())),
@@ -52,9 +49,6 @@ impl AuthService {
 
     /// Revoke a capability token by its ID.
     ///
-    /// expect: "API endpoints enforce OCAP boundaries" [P4]
-    /// pre:  token_id is a valid token identifier string
-    /// post: token_id is added to the revocation set (best-effort, RwLock write may fail silently)
     pub fn revoke_token(&self, token_id: String) {
         if let Ok(mut revoked) = self.revoked_tokens.write() {
             revoked.insert(token_id);
@@ -63,10 +57,6 @@ impl AuthService {
 
     /// Check whether a capability token has been revoked.
     ///
-    /// expect: "API endpoints enforce OCAP boundaries" [P4]
-    /// pre:  token_id is a valid token identifier string
-    /// post: returns true iff token_id is in the revocation set
-    /// post: returns false if RwLock read fails (conservative: assume not revoked)
     pub fn is_token_revoked(&self, token_id: &str) -> bool {
         self.revoked_tokens
             .read()
@@ -76,12 +66,6 @@ impl AuthService {
 
     /// Verify a capability token cryptographically and check expiry.
     ///
-    /// expect: "API endpoints enforce OCAP boundaries" [P4]
-    /// pre:  token is a valid DelegationToken
-    /// post: returns TokenVerification::Invalid if signature or attenuation chain fails
-    /// post: returns TokenVerification::Expired if token is past its expiry
-    /// post: returns TokenVerification::Revoked if token_id is in revocation set
-    /// post: returns TokenVerification::Valid iff all checks pass
     pub fn verify_token(&self, token: &DelegationToken) -> TokenVerification {
         // 1. Verify Ed25519 cryptographic signature
         if !token.verify_cryptographic() {
@@ -154,12 +138,6 @@ fn build_response(status: StatusCode, body: Body) -> Response {
 /// - `403 Forbidden` for expired tokens
 /// - Passes through for routes listed in `PUBLIC_PATHS`
 ///
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
-/// pre:  service is a valid AuthService
-/// post: if path in PUBLIC_PATHS → pass-through (next.run)
-/// post: if missing Authorization header → 401
-/// post: if invalid/expired/revoked token → 401 or 403
-/// post: if valid token → AuthContext injected, next.run
 pub async fn auth_middleware(
     State(service): State<Arc<AuthService>>,
     req: Request<Body>,
@@ -174,7 +152,6 @@ pub async fn auth_middleware(
 
     // If session middleware already injected AuthContext, skip capability token check
     // contract: DEP-020
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     if req.extensions().get::<AuthContext>().is_some() {
         return next.run(req).await;
     }

@@ -43,8 +43,6 @@ pub struct ContractViolation {
 /// - `crate_name` — the Cargo package name (e.g., "hkask-cns")
 /// - `workspace_root` — path to the workspace root containing `Cargo.toml`
 ///
-/// pre:  workspace_root exists and contains Cargo.toml
-/// post: returns ContractTestResult with pass/fail counts and REQ-tagged violations
 pub fn run_contract_tests(crate_name: &str, workspace_root: &str) -> Option<ContractTestResult> {
     let output = Command::new("cargo")
         .args([
@@ -294,8 +292,6 @@ pub struct ContractAudit {
 ///
 /// Returns `None` if the crate source directory doesn't exist.
 ///
-/// pre:  workspace_root exists and contains crates/<crate_name>/src/
-/// post: returns ContractAudit with counts and uncontracted function list
 pub fn discover_uncontracted_functions(
     crate_name: &str,
     workspace_root: &str,
@@ -377,8 +373,6 @@ fn walk_rs_files(dir: &std::path::Path, f: &mut dyn FnMut(&std::path::Path)) {
 
 /// Inventory of all REQ-tagged contracts in a crate.
 ///
-/// pre:  workspace_root exists and contains crates/<crate_name>/src/
-/// post: returns Vec of ContractEntry with REQ tag, pre/post, and quality flags
 pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec<ContractEntry>> {
     let src_dir = format!("{}/crates/{}/src", workspace_root, crate_name);
     let dir = std::path::Path::new(&src_dir);
@@ -595,9 +589,6 @@ pub struct ExpectProposal {
 /// annotation. Returns proposal templates for replicant-driven grounding.
 ///
 /// contract: HARN-056
-/// expect: "I can see which contracts need user-expectation grounding so I can fill them in" [P5]
-/// pre:  crate_name exists in workspace at workspace_root/{crates,mcp-servers}/crate_name/src
-/// post: returns Vec<ExpectProposal> for each contracted function without expect:
 pub fn propose_missing_expect_annotations(
     crate_name: &str,
     workspace_root: &str,

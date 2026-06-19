@@ -1,6 +1,5 @@
 //! Gix-based Git CAS Adapter — implements [`GitCASPort`] with the `gix` crate.
 //! # REQ: F8 — pure Rust gitoxide, no CLI git subprocess.
-//! expect: "Git CAS operations use pure Rust gitoxide without CLI subprocess" [P7]
 //!
 //! Blob storage: BLAKE3-addressed flat files in `cas/<hash>` (unchanged).
 //! Git operations: pure `gix` crate v0.81.
@@ -87,8 +86,6 @@ where
 impl GixCasAdapter {
     /// Create a new GixCasAdapter at the given base path.
     ///
-    /// pre:  base_path is a valid directory path (created if missing)
-    /// post: returns GixCasAdapter with initialized set
     pub fn new(base_path: impl Into<PathBuf>) -> Result<Self, GitCasError> {
         let base_path = base_path.into();
         std::fs::create_dir_all(&base_path)
@@ -101,7 +98,6 @@ impl GixCasAdapter {
 
     /// Create a GixCasAdapter from the HKASK_CAS_HOME environment variable.
     ///
-    /// post: returns GixCasAdapter at resolved CAS home path
     pub fn from_env() -> Result<Self, GitCasError> {
         Self::new(resolve_cas_home())
     }

@@ -33,7 +33,6 @@ pub enum CascadePhase {
 }
 
 // contract: TYP-249
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 // as_str pre:  self is a valid CascadePhase variant
 // as_str post: returns PascalCase string ("Pre", "Core", "Post")
 // parse_str pre:  s is PascalCase or lowercase ("Pre"/"pre", "Core"/"core", "Post"/"post")

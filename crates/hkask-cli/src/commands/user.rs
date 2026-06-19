@@ -83,9 +83,6 @@ fn validate_registration(request: &RegistrationRequest) -> Result<(), ServiceErr
     Ok(())
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  store is a valid UserStore; replicant_name, first_name, last_name, email are non-empty; passphrase meets validation (8+ alphanumeric, mixed case)
-/// post: registers a new replicant identity in the store; returns ReplicantIdentity on success or ServiceError on validation/store failure
 pub fn register_replicant_with_passphrase(
     store: &Store,
     replicant_name: &str,
@@ -121,9 +118,6 @@ pub fn register_replicant_with_passphrase(
         })
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  store is a valid UserStore; replicant_name is non-empty; passphrase is the correct credential
-/// post: returns a UserSession on successful authentication or ServiceError::LoginFailed on invalid credentials
 pub fn login_with_passphrase(
     store: &Store,
     replicant_name: &str,
@@ -139,9 +133,6 @@ pub fn login_with_passphrase(
         })
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  store is a valid UserStore; replicant_name is non-empty
-/// post: returns the ReplicantIdentity if found, or ServiceError::UserNotFound if the replicant does not exist
 pub fn get_replicant(
     store: &Store,
     replicant_name: &str,
@@ -159,9 +150,6 @@ pub fn get_replicant(
         })
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  store is a valid UserStore; user_id is a valid UserID
-/// post: returns all replicant identities belonging to the given user; empty vec if none
 pub fn get_replicants(
     store: &Store,
     user_id: &UserID,
@@ -175,9 +163,6 @@ pub fn get_replicants(
         })
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  store is a valid UserStore; replicant_name is non-empty
-/// post: returns all active sessions for the replicant; empty vec if none
 pub fn get_sessions(store: &Store, replicant_name: &str) -> Result<Vec<UserSession>, ServiceError> {
     store
         .lock()
@@ -188,9 +173,6 @@ pub fn get_sessions(store: &Store, replicant_name: &str) -> Result<Vec<UserSessi
         })
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  store is a valid UserStore; session_id is a non-empty session identifier
-/// post: revokes the session (logs out) and returns the revoked UserSession; ServiceError if session not found
 pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, ServiceError> {
     let session = store
         .lock()
@@ -213,9 +195,6 @@ pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, Se
     Ok(session)
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  stdin is available for interactive input
-/// post: prompts user for replicant details and passphrase; registers on success, prints ✓; exits on validation failure
 /// Register a new replicant identity (interactive)
 pub fn register_replicant() {
     use std::io::{self, Write};
@@ -277,9 +256,6 @@ pub fn register_replicant() {
     }
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  stdin is available; replicant must exist in store
-/// post: prompts for name and passphrase; prints session info on success or error message on failure
 pub fn login_replicant() {
     use std::io::{self, Write};
     let mut name = String::new();
@@ -312,9 +288,6 @@ pub fn login_replicant() {
     }
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  store is a valid UserStore; replicant_name is non-empty and exists
-/// post: prints replicant details (name, user_id, created_at, primary status) to stdout; ServiceError if not found
 pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), ServiceError> {
     let identity = store
         .lock()
@@ -336,9 +309,6 @@ pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), Service
     Ok(())
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  store is a valid UserStore
-/// post: prints all replicants with name, primary status, user_id, and created_at; prints "No replicants registered." if empty
 pub fn list_replicants(store: &Store) -> Result<(), ServiceError> {
     let user_id = hkask_types::UserID::new();
     let replicants = store
@@ -365,9 +335,6 @@ pub fn list_replicants(store: &Store) -> Result<(), ServiceError> {
     Ok(())
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  store is a valid UserStore; session_id is a non-empty active session identifier
-/// post: revokes the session and prints confirmation; ServiceError if session not found
 pub fn logout(store: &Store, session_id: &str) -> Result<(), ServiceError> {
     let session = store
         .lock()
@@ -391,9 +358,6 @@ pub fn logout(store: &Store, session_id: &str) -> Result<(), ServiceError> {
     Ok(())
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  store is a valid UserStore; replicant_name is non-empty
-/// post: prints all active sessions with session_id and last_active timestamp; prints "No active sessions." if none
 pub fn list_sessions(store: &Store, replicant_name: &str) -> Result<(), ServiceError> {
     let sessions = store
         .lock()
@@ -417,9 +381,6 @@ pub fn list_sessions(store: &Store, replicant_name: &str) -> Result<(), ServiceE
     Ok(())
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  action is a valid ReplicantAction variant
-/// post: dispatches to the appropriate handler (register, login, show, list, sessions, logout, passphrase); prints results or errors
 pub fn run_replicant(action: crate::cli::ReplicantAction) {
     match action {
         ReplicantAction::Register { .. } => register_replicant(),
@@ -446,9 +407,6 @@ pub fn run_replicant(action: crate::cli::ReplicantAction) {
     }
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  replicant_name exists in store; stdin is available for interactive input
-/// post: prompts for old and new passphrase; validates match; updates passphrase and invalidates existing sessions on success
 /// Interactive passphrase change for a replicant.
 pub fn change_passphrase(replicant_name: &str) {
     use std::io::{self, Write};

@@ -92,16 +92,10 @@ pub struct GovernedTool<P: ToolPort> {
 impl<P: ToolPort> GovernedTool<P> {
     /// Create a new GovernedTool membrane wrapping an inner ToolPort.
     ///
-    /// expect: "The system creates a governed tool membrane that gates execution behind energy and OCAP checks" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — tool governance enables feedback loops
     /// \[P4\] Constraining: Clear Boundaries — cybernetics binding enforces OCAP boundary
-    /// pre:  inner is valid, cns is valid
-    /// post: returns GovernedTool
     ///
     /// Per P4: the Cybernetics binding here is the OCAP enforcement point —
     /// every tool invocation flows through this membrane.
-    #[rs::contract(id = "P9-cns-gov-tool-new", principle = "P9")]
-    #[rs::contract(id = "P9-cns-gov-tool-new", principle = "P9")]
     pub fn new(
         inner: Arc<P>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
@@ -123,13 +117,8 @@ impl<P: ToolPort> GovernedTool<P> {
     #[must_use = "builder methods must be chained or assigned"]
     /// Set the tool consumption channel.
     ///
-    /// expect: "The system wires tool consumption events back to the cybernetics loop" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — consumption channel closes the cybernetic feedback loop
     /// \[P4\] Constraining: Clear Boundaries — channel ownership tracks consumer identity
     /// @must_use because builder methods must be chained or assigned
-    /// post: returns Self with channel set (builder pattern)
-    #[rs::contract(id = "P9-cns-gov-tool-consumption-channel", principle = "P9")]
-    #[rs::contract(id = "P9-cns-gov-tool-consumption-channel", principle = "P9")]
     pub fn with_tool_consumption_channel(
         mut self,
         tx: mpsc::UnboundedSender<ToolConsumptionEvent>,
@@ -145,9 +134,6 @@ impl<P: ToolPort> GovernedTool<P> {
     /// [P12] Motivating: Affirmative Consent — agent identity is the consent anchor
     /// \[P4\] Constraining: Clear Boundaries — OCAP gate enforces boundary per invocation
     /// @must_use because builder methods must be chained or assigned
-    /// post: returns Self with agent set (builder pattern)
-    #[rs::contract(id = "P12-cns-gov-tool-with-agent", principle = "P12")]
-    #[rs::contract(id = "P12-cns-gov-tool-with-agent", principle = "P12")]
     pub fn with_agent(mut self, agent: WebID) -> Self {
         self.agent = agent;
         self
@@ -506,7 +492,6 @@ mod tests {
         .sign()
     }
 
-    // contract: P9-cns-gov-tool-legacy-exact-match-test
     //
     // OCAP Path 1: a DelegationToken minted for a specific tool name
     // must grant access when the tool name matches exactly.
@@ -520,7 +505,6 @@ mod tests {
         ));
     }
 
-    // contract: P9-cns-gov-tool-legacy-denies-test
     //
     // OCAP Path 1: a token for one tool must not grant access to another.
     #[test]
@@ -533,7 +517,6 @@ mod tests {
         ));
     }
 
-    // contract: P9-cns-gov-tool-domain-capability-test
     //
     // OCAP Path 2: an agent capability token with domain "cns" and action
     // "execute" must grant access to a tool with required_capability
@@ -548,7 +531,6 @@ mod tests {
         ));
     }
 
-    // contract: P9-cns-gov-tool-domain-denies-test
     //
     // A token for domain "cns" must not grant access to a tool
     // requiring "tool:memory:write".

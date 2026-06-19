@@ -229,15 +229,10 @@ pub struct AgentRegistryLoader {
 }
 
 impl AgentRegistryLoader {
-    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — loader reads YAML agent definitions into registry
-    /// pre:  `registry_path` is a valid `PathBuf`; `a2a_runtime` is a
     ///       valid `Arc<A2ARuntime>`; `store` is a valid
     ///       `AgentRegistryStore`; `source` is a valid
     ///       `Arc<dyn RegistrySourcePort>`.
-    /// post: Returns an `AgentRegistryLoader` with all fields set.
-    #[rs::contract(id = "P3-agt-registry-loader-new", principle = "P3")]
-    #[rs::contract(id = "P3-agt-registry-loader-new", principle = "P3")]
     pub fn new(
         registry_path: PathBuf,
         a2a_runtime: Arc<A2ARuntime>,
@@ -252,14 +247,9 @@ impl AgentRegistryLoader {
         }
     }
 
-    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — restore previously registered agents
-    /// pre:  The store schema has been initialized.
-    /// post: If existing agents are found in the store, returns them
     ///       immediately (restore path). Otherwise, loads all agents from
     ///       YAML files via `load_all()`.
-    #[rs::contract(id = "P3-agt-registry-loader-restore", principle = "P3")]
-    #[rs::contract(id = "P3-agt-registry-loader-restore", principle = "P3")]
     pub async fn boot(&self) -> Result<Vec<RegisteredAgent>, RegistryLoaderError> {
         self.store.initialize_schema()?;
 
@@ -276,14 +266,9 @@ impl AgentRegistryLoader {
         self.load_all().await
     }
 
-    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — load agent definitions from filesystem
-    /// pre:  The registry path contains valid YAML agent definitions.
-    /// post: Returns `Ok(Vec<RegisteredAgent>)` with all successfully
     ///       loaded and A2A-registered agents; individual load failures
     ///       are logged and skipped.
-    #[rs::contract(id = "P3-agt-registry-loader-load", principle = "P3")]
-    #[rs::contract(id = "P3-agt-registry-loader-load", principle = "P3")]
     pub async fn load_all(&self) -> Result<Vec<RegisteredAgent>, RegistryLoaderError> {
         let yaml_files = self.discover_yaml_files()?;
         let mut registered = Vec::new();
@@ -389,12 +374,7 @@ impl AgentRegistryLoader {
         Ok(files)
     }
 
-    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P8\] Motivating: Semantic Grounding — accessor for the registry store
-    /// pre:  (none — accessor).
-    /// post: Returns a reference to the inner `AgentRegistryStore`.
-    #[rs::contract(id = "P3-agt-registry-loader-store", principle = "P3")]
-    #[rs::contract(id = "P3-agt-registry-loader-store", principle = "P3")]
     pub fn store(&self) -> &AgentRegistryStore {
         &self.store
     }

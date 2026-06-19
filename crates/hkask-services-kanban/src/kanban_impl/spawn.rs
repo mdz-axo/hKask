@@ -72,7 +72,7 @@ impl KanbanService {
     }
 
     fn activate_pod(
-        pm: &hkask_agents::pod::PodManager,
+        pm: &hkask_agents::pod::ActivePods,
         agent_type: &str,
         persona: &hkask_agents::pod::AgentPersona,
         pod_name: &str,

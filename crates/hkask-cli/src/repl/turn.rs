@@ -211,7 +211,6 @@ pub(super) fn single_agent_turn(
 #[cfg(test)]
 mod tests {
     // contract: Auto-condense
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     // skips when estimated tokens are below that threshold.
     // The threshold calculation in ChatService::execute_turn() is:
     //   threshold = (context_window as f64 * 0.875) as u32
@@ -219,7 +218,6 @@ mod tests {
     //   if approx_tokens > threshold → trigger condensation
 
     // contract: Auto-condense
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn compaction_triggers_above_87_5_percent() {
         let context_length: u32 = 4096;
@@ -236,7 +234,6 @@ mod tests {
     }
 
     // contract: Auto-condense
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn compaction_skips_below_87_5_percent() {
         let context_length: u32 = 4096;
@@ -253,7 +250,6 @@ mod tests {
     }
 
     // contract: Auto-condense
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn compaction_threshold_matches_87_5_percent_formula() {
         // Verify the 87.5% threshold for common context window sizes

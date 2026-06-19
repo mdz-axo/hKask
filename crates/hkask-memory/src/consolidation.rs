@@ -48,12 +48,8 @@ pub(crate) struct ConsolidationResult {
 impl ConsolidationBridge {
     /// Create a new ConsolidationBridge.
     ///
-    /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — bridges episodic experience into shared semantic memory
     /// \[P4\] Constraining: Clear Boundaries — links stores without bypassing their membranes
-    /// pre:  episodic and semantic are initialized memory stores
-    /// post: returns ConsolidationBridge linking the two stores
-    #[contract(id = "P3-mem-consolidation-bridge-new", principle = "P3")]
     pub fn new(episodic: Arc<EpisodicMemory>, semantic: Arc<SemanticMemory>) -> Self {
         Self { episodic, semantic }
     }
@@ -163,17 +159,9 @@ impl ConsolidationBridge {
     ///
     /// Requires ConsolidationToken proving Cybernetics authority.
     ///
-    /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — promotes sovereign episodic triples to shared knowledge
     /// \[P1\] Constraining: User Sovereignty — strips perspective only under Curator authority
     /// \[P4\] Constraining: Clear Boundaries — requires ConsolidationToken from expected curator
-    /// pre:  token.issuer() == expected curator WebID
-    /// pre:  perspective is a valid WebID
-    /// post: episodic triples stripped of perspective, stored in semantic memory
-    /// post: consolidated episodic sources expired (soft-deleted)
-    /// post: returns ConsolidationOutcome with counts
-    /// post: returns Err if token is unauthorized
-    #[contract(id = "P3-mem-consolidation-bridge-consolidate", principle = "P3")]
     pub fn consolidate(
         &self,
         token: &ConsolidationToken,
@@ -206,13 +194,8 @@ impl ConsolidationBridge {
 
     /// Count consolidation candidates for a perspective.
     ///
-    /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — surfaces how much episodic content is ready for promotion
     /// \[P9\] Constraining: Homeostatic Self-Regulation — count-only query avoids loading full store
-    /// pre:  perspective is a valid WebID
-    /// post: returns count of triples in episodic storage for this perspective
-    /// post: returns 0 on error (graceful degradation)
-    #[contract(id = "P3-mem-consolidation-candidate-count", principle = "P3")]
     pub fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
         // Use storage_usage (COUNT query) instead of loading all candidates
         // into memory just to count them.

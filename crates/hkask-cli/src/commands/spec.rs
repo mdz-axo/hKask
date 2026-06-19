@@ -9,9 +9,6 @@ use hkask_storage::spec_types::SpecCategory;
 
 /// Run a spec command.
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  action is valid
-/// post: spec command executed
 pub fn run(action: SpecAction) {
     match action {
         SpecAction::Capture {

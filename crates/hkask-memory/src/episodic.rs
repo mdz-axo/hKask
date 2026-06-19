@@ -61,12 +61,8 @@ pub struct EpisodicMemory {
 impl EpisodicMemory {
     /// Create a new EpisodicMemory with default decay rate and storage budget.
     ///
-    /// expect: "I can store first-person experience triples in my sovereign episodic memory" [P3]
     /// \[P3\] Motivating: Generative Space — creates a sovereign first-person experience store
     /// \[P9\] Constraining: Homeostatic Self-Regulation — default decay and budget are regulation defaults
-    /// pre:  triple_store is initialized
-    /// post: returns EpisodicMemory with DEFAULT_DECAY_RATE and DEFAULT_EPISODIC_BUDGET
-    #[contract(id = "P3-mem-episodic-memory-new", principle = "P3")]
     pub fn new(triple_store: TripleStore) -> Self {
         Self {
             triple_store,
@@ -89,16 +85,9 @@ impl EpisodicMemory {
 
     /// Store an episodic triple (private by default, with perspective).
     ///
-    /// expect: "I can store first-person experience triples in my sovereign episodic memory" [P3]
     /// \[P3\] Motivating: Generative Space — stores a first-person experience triple
     /// \[P1\] Constraining: User Sovereignty — rejects Public visibility (episodic is sovereign)
     /// \[P4\] Constraining: Clear Boundaries — requires perspective owner
-    /// pre:  triple.access.visibility != Public (episodic is sovereign)
-    /// pre:  triple.access.perspective is Some (must have owner)
-    /// post: triple inserted into triple_store
-    /// post: returns Err(InvalidVisibility) if visibility is Public
-    /// post: returns Err(MissingPerspective) if perspective is None
-    #[contract(id = "P3-mem-episodic-store", principle = "P3")]
     pub fn store(&self, triple: Triple) -> Result<(), EpisodicMemoryError> {
         if triple.access.visibility == Visibility::Public {
             return Err(EpisodicMemoryError::InvalidVisibility(
@@ -138,13 +127,8 @@ impl EpisodicMemory {
     ///
     /// Emits `cns.memory.decay` span for each triple that undergoes decay.
     ///
-    /// expect: "I can recall deduplicated episodic triples with confidence decay" [P3]
     /// \[P3\] Motivating: Generative Space — recalls deduplicated episodic triples for an entity
     /// \[P9\] Constraining: Homeostatic Self-Regulation — applies confidence decay and temporal attention at recall
-    /// pre:  entity is non-empty, perspective is valid
-    /// post: returns Vec<Triple> filtered by perspective, decayed, deduped, sorted by recency
-    /// post: confidence decayed via e^(-λt) for each triple
-    #[contract(id = "P3-mem-episodic-query-deduped", principle = "P3")]
     pub fn query_for_deduped(
         &self,
         entity: &str,
@@ -188,12 +172,8 @@ impl EpisodicMemory {
     ///
     /// Uses a COUNT query instead of loading all triples into memory.
     ///
-    /// expect: "I can recall deduplicated episodic triples with confidence decay" [P3]
     /// \[P3\] Motivating: Generative Space — reports episodic storage usage per perspective
     /// \[P9\] Constraining: Homeostatic Self-Regulation — COUNT query avoids loading full store
-    /// pre:  perspective is a valid WebID
-    /// post: returns count of triples for this perspective
-    #[contract(id = "P3-mem-episodic-storage-usage", principle = "P3")]
     pub fn storage_usage(&self, perspective: &WebID) -> Result<usize, EpisodicMemoryError> {
         let count = self.triple_store.count_by_perspective(perspective)?;
         Ok(count)
@@ -263,11 +243,8 @@ impl EpisodicMemory {
 
     /// Get the configured storage budget.
     ///
-    /// expect: "I can recall deduplicated episodic triples with confidence decay" [P3]
     /// \[P3\] Motivating: Generative Space — exposes the episodic storage set-point
     /// \[P9\] Constraining: Homeostatic Self-Regulation — budget bounds per-agent experience growth
-    /// post: returns the storage_budget value set at construction
-    #[contract(id = "P3-mem-episodic-storage-budget", principle = "P3")]
     pub fn storage_budget(&self) -> usize {
         self.storage_budget
     }
@@ -279,13 +256,8 @@ impl EpisodicMemory {
     /// count-only version of `consolidation_candidates` — safe to expose
     /// publicly because it doesn't return triple data.
     ///
-    /// expect: "I can recall deduplicated episodic triples with confidence decay" [P3]
     /// \[P3\] Motivating: Generative Space — reports how many episodic triples are eligible for consolidation
     /// \[P9\] Constraining: Homeostatic Self-Regulation — uses decayed confidence for prioritization
-    /// pre:  perspective is a valid WebID
-    /// post: returns count of triples eligible for consolidation
-    /// post: returns 0 on error (graceful degradation)
-    #[contract(id = "P3-mem-episodic-candidate-count", principle = "P3")]
     pub fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
         match self.consolidation_candidates(*perspective, usize::MAX) {
             Ok(candidates) => candidates.len(),

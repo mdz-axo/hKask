@@ -121,11 +121,7 @@ fn row_to_curation_record(
 impl SqliteSpecStore {
     /// Initialize the spec store schema.
     ///
-    /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — schema for specification documents
-    /// post: specs table created if not exists
-    #[rs::contract(id = "P3-sto-spec-schema", principle = "P3")]
-    #[rs::contract(id = "P3-sto-spec-schema", principle = "P3")]
     pub fn init_schema(&self) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -143,11 +139,7 @@ impl SqliteSpecStore {
 impl SqliteCurationRecordStore {
     /// Initialize the curation record store schema.
     ///
-    /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — schema for curation records
-    /// post: spec_curation_records table created if not exists
-    #[rs::contract(id = "P3-sto-spec-curation-schema", principle = "P3")]
-    #[rs::contract(id = "P3-sto-spec-curation-schema", principle = "P3")]
     pub fn init_schema(&self) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -162,12 +154,7 @@ impl SqliteCurationRecordStore {
     }
     /// Save a curation record.
     ///
-    /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — save a curation decision
-    /// pre:  record.spec_id is non-empty
-    /// post: record inserted into spec_curation_records
-    #[rs::contract(id = "P3-sto-spec-curation-save", principle = "P3")]
-    #[rs::contract(id = "P3-sto-spec-curation-save", principle = "P3")]
     pub fn save_curation_record(&self, record: &SpecCurationRecord) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
         let boundary_json = serde_json::to_string(&record.ocap_boundary)
@@ -186,12 +173,7 @@ impl SqliteCurationRecordStore {
     }
     /// Load curation records for a spec.
     ///
-    /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — load curation records for a spec
-    /// pre:  spec_id is non-empty
-    /// post: returns Vec of curation records for this spec
-    #[rs::contract(id = "P3-sto-spec-curation-load", principle = "P3")]
-    #[rs::contract(id = "P3-sto-spec-curation-load", principle = "P3")]
     pub fn load_curation_records(
         &self,
         spec_id: SpecId,
@@ -209,11 +191,7 @@ impl SqliteCurationRecordStore {
     }
     /// List curation records since a timestamp.
     ///
-    /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — list curation records since timestamp
-    /// post: returns Vec of records created after since_ts
-    #[rs::contract(id = "P3-sto-spec-curation-since", principle = "P3")]
-    #[rs::contract(id = "P3-sto-spec-curation-since", principle = "P3")]
     pub fn list_curation_records_since(
         &self,
         since: DateTime<Utc>,
@@ -238,11 +216,7 @@ impl SqliteCurationRecordStore {
     }
     /// Load all curation records.
     ///
-    /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — load all curation records
-    /// post: returns Vec of all curation records
-    #[rs::contract(id = "P3-sto-spec-curation-all", principle = "P3")]
-    #[rs::contract(id = "P3-sto-spec-curation-all", principle = "P3")]
     pub fn load_all_curation_records(&self) -> Result<Vec<SpecCurationRecord>, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -384,8 +358,6 @@ mod tests {
     fn make_spec(name: &str, category: SpecCategory) -> Spec {
         Spec::new(name, category, DomainAnchor::Hkask)
     }
-    // contract: P3-sto-spec-valid-at-test
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_valid_at_includes_currently_valid_specs() {
         let store = make_store();
@@ -398,8 +370,6 @@ mod tests {
         assert_eq!(valid.len(), 1);
         assert_eq!(valid[0].name, "test");
     }
-    // contract: P3-sto-spec-expired-test
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_valid_at_excludes_expired_specs() {
         let store = make_store();
@@ -410,8 +380,6 @@ mod tests {
         store.save(&spec).unwrap();
         assert!(store.list_valid_at(now).unwrap().is_empty());
     }
-    // contract: P3-sto-spec-no-expiry-test
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_valid_at_includes_no_expiry_specs() {
         let store = make_store();
@@ -421,8 +389,6 @@ mod tests {
         store.save(&spec).unwrap();
         assert_eq!(store.list_valid_at(now).unwrap().len(), 1);
     }
-    // contract: P3-sto-spec-range-overlap-test
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_valid_in_range_overlap_query() {
         let store = make_store();
@@ -439,8 +405,6 @@ mod tests {
             1
         );
     }
-    // contract: P3-sto-spec-since-test
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_since_transaction_time_query() {
         let store = make_store();
@@ -456,8 +420,6 @@ mod tests {
         );
         assert_eq!(store.list_since(now - Duration::hours(1)).unwrap().len(), 1);
     }
-    // contract: P3-sto-spec-expire-test
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn expire_updates_valid_to() {
         let store = make_store();

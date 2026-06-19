@@ -85,9 +85,6 @@ pub struct UpdateSettingsRequest {
     pub auto_condense: Option<bool>,
 }
 
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
-/// pre:  none
-/// post: returns OpenApiRouter<ApiState> with settings route registered
 pub fn settings_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new().route("/api/settings", get(get_settings).put(update_settings))
 }
@@ -173,7 +170,6 @@ mod tests {
     use super::*;
 
     // contract: Merge-update
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     // in the request are changed; all others keep their current values.
 
     #[test]
@@ -213,7 +209,6 @@ mod tests {
     }
 
     // contract: Merge-update
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn update_settings_out_of_range_is_ignored() {
         let mut settings = SettingsResponse::default();
@@ -241,7 +236,6 @@ mod tests {
     }
 
     // contract: api-settings-003
-    // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn update_settings_seed_merge() {
         let mut settings = SettingsResponse::default();
@@ -450,7 +444,6 @@ mod tests {
         }
 
         // contract: api-settings-prop-001
-        // expect: "API endpoints enforce OCAP boundaries" [P4]
         proptest! {
             #[test]
             fn merge_idempotent(
@@ -472,7 +465,6 @@ mod tests {
         }
 
         // contract: api-settings-prop-002
-        // expect: "API endpoints enforce OCAP boundaries" [P4]
         proptest! {
             #[test]
             fn unspecified_fields_preserved(
@@ -523,7 +515,6 @@ mod tests {
         }
 
         // contract: api-settings-prop-003
-        // expect: "API endpoints enforce OCAP boundaries" [P4]
         proptest! {
             #[test]
             fn out_of_range_values_ignored(

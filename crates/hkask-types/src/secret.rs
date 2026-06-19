@@ -16,7 +16,6 @@ use serde::{Deserialize, Serialize};
 /// 3. `Derived` — deterministically derive from a master key via HKDF-SHA256
 /// 4. `Generated` — random bytes (⚠️ not reproducible across restarts; avoid in production)
 ///
-/// \[NORMATIVE\] **Prefer `Derived` over `Generated`** for any secret that must survive
 /// process restarts (HMAC signing keys, capability tokens, etc.) (P4 — Clear Boundaries).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SecretRef {
@@ -44,7 +43,6 @@ pub enum SecretRef {
     /// Use only for one-time secrets (salts, nonces) that don't need to
     /// survive a restart. For persistent secrets, use `Derived`.
     ///
-    /// \[NORMATIVE\] Only available in debug builds — never use in production (P4 — Clear Boundaries).
     #[cfg(debug_assertions)]
     Generated(u32),
 }
@@ -74,7 +72,6 @@ impl SecretRef {
     }
 
     /// Generate random bytes. **Not reproducible across restarts.**
-    /// \[NORMATIVE\] Only available in debug builds — never use in production (P4 — Clear Boundaries).
     #[cfg(debug_assertions)]
     pub fn generated(length: u32) -> Self {
         Self::Generated(length)
@@ -123,7 +120,6 @@ pub mod derivation_contexts {
 
 /// A `Vec<u8>` wrapper that zeroizes its contents on drop.
 ///
-/// \[DECLARATIVE\] Used for secrets (A2A keys, capability tokens) that must not
 /// linger in memory after use. Derefs to `&[u8]` for pass-through
 /// to functions that accept byte slices.
 #[derive(Clone)]

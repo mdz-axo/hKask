@@ -46,10 +46,6 @@ impl WalletEnergyEstimator {
     /// `CompositeEnergyEstimator` so per-server cost calibration and gas→rJoule
     /// calibration share the same gas-cost base.
     ///
-    /// expect: "I can compose a wallet energy estimator from a pre-calibrated composite estimator so gas→rJoule conversion uses live costs" [P9]
-    /// pre:  gas_per_rjoule > 0
-    /// post: returns WalletEnergyEstimator with the supplied inner estimator
-    #[rs::contract(id = "P9-cns-wallet-energy-estimator-with-estimator", principle = "P9")]
     pub fn with_estimator(gas_per_rjoule: u64, inner: CompositeEnergyEstimator) -> Self {
         Self {
             inner,
@@ -62,13 +58,8 @@ impl WalletEnergyEstimator {
     /// Calibrate the gas→rJoule conversion rate based on an observed
     /// actual_gas / estimated_gas ratio from a tool settlement.
     ///
-    /// expect: "The wallet estimator self-calibrates from observed actual-vs-estimated gas ratios" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — Good Regulator feedback loop closure
     /// \[P4\] Constraining: Clear Boundaries — threshold tolerance enforces boundary
     /// \[P7\] Constraining: Evolutionary Architecture — EMA parameters emerged from real usage
-    /// pre:  observed_ratio > 0.0 (actual_gas / estimated_gas)
-    /// post: ema_ratio updated via exponential moving average
-    /// post: if ema_ratio deviates significantly from 1.0, gas_per_rjoule adjusted
     ///
     /// Uses an exponential moving average (EMA) to smooth observations.
     /// When the EMA ratio consistently exceeds 1.0 (systematic underestimation)
@@ -77,8 +68,6 @@ impl WalletEnergyEstimator {
     ///
     /// # Returns
     /// `true` if `gas_per_rjoule` was adjusted, `false` if within tolerance.
-    #[rs::contract(id = "P9-cns-wallet-est-calibrate", principle = "P9")]
-    #[rs::contract(id = "P9-cns-wallet-est-calibrate", principle = "P9")]
     pub fn calibrate(&mut self, observed_ratio: f64) -> bool {
         // Clamp ratio to reasonable bounds (0.1 to 10.0)
         let ratio = observed_ratio.clamp(0.1, 10.0);
@@ -123,7 +112,6 @@ impl EnergyEstimator for WalletEnergyEstimator {
 mod tests {
     use super::*;
 
-    // contract: P9-cns-est-wallet-001
     #[test]
     fn calibrate_first_observation_initializes_ema() {
         let mut estimator = WalletEnergyEstimator::new(1000);
@@ -137,7 +125,6 @@ mod tests {
         assert_eq!(estimator.gas_per_rjoule, 1500);
     }
 
-    // contract: P9-cns-est-wallet-002
     #[test]
     fn calibrate_within_tolerance_no_adjustment() {
         let mut estimator = WalletEnergyEstimator::new(1000);
@@ -147,7 +134,6 @@ mod tests {
         assert_eq!(estimator.gas_per_rjoule, 1000, "rate unchanged");
     }
 
-    // contract: P9-cns-est-wallet-003
     #[test]
     fn calibrate_ema_smooths_observations() {
         let mut estimator = WalletEnergyEstimator::new(1000);
@@ -162,7 +148,6 @@ mod tests {
         assert!((estimator.current_ratio() - expected_ema).abs() < 0.001);
     }
 
-    // contract: P9-cns-est-wallet-004
     #[test]
     fn calibrate_clamps_extreme_ratios() {
         let mut estimator = WalletEnergyEstimator::new(1000);
@@ -176,7 +161,6 @@ mod tests {
         assert_eq!(estimator2.current_ratio(), 10.0);
     }
 
-    // contract: P9-cns-est-wallet-005
     #[test]
     fn calibrate_floors_gas_per_rjoule_at_one() {
         let mut estimator = WalletEnergyEstimator::new(10);

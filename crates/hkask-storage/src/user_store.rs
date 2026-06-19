@@ -70,11 +70,7 @@ fn session_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<UserSession> {
 impl UserStore {
     /// Initialize the user store schema.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — schema for users, replicants, sessions
-    /// post: users, replicants, sessions tables created if not exists
-    #[rs::contract(id = "P1-sto-user-schema", principle = "P1")]
-    #[rs::contract(id = "P1-sto-user-schema", principle = "P1")]
     pub fn initialize_schema(&self) -> UserResult<()> {
         let conn = self.lock_conn()?;
         conn.execute_batch(include_str!("sql/users.sql"))?;
@@ -100,13 +96,8 @@ impl UserStore {
     }
     /// Register a new replicant.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — register a replicant
     /// \[P2\] Constraining: Affirmative Consent — passphrase requirements enforced
-    /// pre:  replicant_name is non-empty, passphrase meets requirements
-    /// post: replicant and user records created
-    #[rs::contract(id = "P1-sto-user-register", principle = "P1")]
-    #[rs::contract(id = "P1-sto-user-register", principle = "P1")]
     pub fn register_replicant(
         &self,
         replicant_name: String,
@@ -168,10 +159,6 @@ impl UserStore {
     }
     /// Find or create a human user via OAuth sign-in.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
-    /// pre:  provider is a valid OAuthProvider; provider_user_id is the external ID from the provider
-    /// post: if user exists with matching provider + provider_user_id → returns existing (user, replicant)
-    /// post: if user does not exist → creates new HumanUser + primary ReplicantIdentity + returns both
     pub fn find_or_create_oauth_user(
         &self,
         provider: &hkask_types::identity::OAuthProvider,
@@ -268,9 +255,6 @@ impl UserStore {
     }
     /// Find a human user by OAuth provider identity.
     ///
-    /// expect: "The system provides durable storage for archival data" [P3]
-    /// pre:  provider is a valid OAuthProvider; provider_user_id is non-empty
-    /// post: returns Some((user, primary_replicant)) if found; None if not found
     fn find_user_by_oauth(
         &self,
         provider: &hkask_types::identity::OAuthProvider,
@@ -305,9 +289,6 @@ impl UserStore {
     }
     /// Create a session and return it (used by OAuth flow and login).
     ///
-    /// expect: "The system provides durable storage for archival data" [P3]
-    /// pre:  identity is a valid ReplicantIdentity
-    /// post: returns a new UserSession with 7-day expiry
     pub fn create_oauth_session(&self, identity: &ReplicantIdentity) -> UserResult<UserSession> {
         let session = self.create_session(identity)?;
         self.update_last_login(&identity.replicant_name)?;
@@ -315,9 +296,6 @@ impl UserStore {
     }
     /// List all replicant names across all users (for collision detection during migration).
     ///
-    /// expect: "The system provides durable storage for archival data" [P3]
-    /// pre:  none
-    /// post: returns Vec of all replicant_name values
     pub fn list_all_replicant_names(&self) -> UserResult<Vec<String>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT replicant_name FROM replicant_identities")?;
@@ -330,9 +308,6 @@ impl UserStore {
     }
     /// Rename a replicant (used after migration when auto-rename occurred).
     ///
-    /// expect: "The system provides durable storage for archival data" [P3]
-    /// pre:  from_name exists; to_name does not exist
-    /// post: replicant_identities.replicant_name updated
     pub fn rename_replicant(&self, from_name: &str, to_name: &str) -> UserResult<()> {
         let conn = self.lock_conn()?;
         let rows = conn.execute(
@@ -346,9 +321,6 @@ impl UserStore {
     }
     /// Delete a replicant and all its associated data.
     ///
-    /// expect: "The system provides durable storage for archival data" [P3]
-    /// pre:  replicant_name exists
-    /// post: replicant_identities row deleted; sessions deleted
     pub fn delete_replicant(&self, replicant_name: &str) -> UserResult<()> {
         let conn = self.lock_conn()?;
         let rows = conn.execute(
@@ -367,10 +339,6 @@ impl UserStore {
     /// Merge triples from a source replicant into a target replicant.
     /// Updates entity field where it matches the source replicant name.
     ///
-    /// expect: "The system provides durable storage for migration data" [P5]
-    /// pre:  source_name and target_name are valid replicant names
-    /// post: all triples with entity = source_name updated to entity = target_name
-    /// post: returns MergeReceipt with triple_count
     pub fn merge_replicant_triples(
         &self,
         source_name: &str,
@@ -389,9 +357,6 @@ impl UserStore {
     }
     /// Find a replicant by WebID.
     ///
-    /// expect: "The system provides durable storage for archival data" [P3]
-    /// pre:  webid is a valid WebID
-    /// post: returns Some(ReplicantIdentity) if found, None otherwise
     pub fn get_replicant_by_webid(
         &self,
         webid: &hkask_types::WebID,
@@ -408,13 +373,7 @@ impl UserStore {
     }
     /// Login a replicant with passphrase.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — authenticate replicant session
-    /// pre:  replicant_name is registered, passphrase is correct
-    /// post: returns UserSession on success
-    /// post: returns Err if credentials invalid
-    #[rs::contract(id = "P1-sto-user-login", principle = "P1")]
-    #[rs::contract(id = "P1-sto-user-login", principle = "P1")]
     pub fn login(&self, replicant_name: &str, passphrase: &str) -> UserResult<UserSession> {
         let identity = self
             .get_replicant(replicant_name)?
@@ -443,12 +402,7 @@ impl UserStore {
     }
     /// Logout a session.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — invalidate session
-    /// pre:  session_id is valid
-    /// post: session invalidated
-    #[rs::contract(id = "P1-sto-user-logout", principle = "P1")]
-    #[rs::contract(id = "P1-sto-user-logout", principle = "P1")]
     pub fn logout(&self, session_id: &str) -> UserResult<()> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -460,12 +414,7 @@ impl UserStore {
     /// Change a replicant's passphrase. Requires the old passphrase for verification.
     /// Change a replicant's passphrase.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — change replicant passphrase
-    /// pre:  replicant_name is registered, old_passphrase is correct
-    /// post: passphrase updated
-    #[rs::contract(id = "P1-sto-user-passphrase-change", principle = "P1")]
-    #[rs::contract(id = "P1-sto-user-passphrase-change", principle = "P1")]
     pub fn change_passphrase(
         &self,
         replicant_name: &str,
@@ -499,12 +448,7 @@ impl UserStore {
     /// Returns `Some(days_old)` if expired, `None` if still valid or no timestamp.
     /// Check if a passphrase has expired.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — detect passphrase rotation need
-    /// pre:  replicant_name is registered
-    /// post: returns true if passphrase needs rotation
-    #[rs::contract(id = "P1-sto-user-passphrase-expired", principle = "P1")]
-    #[rs::contract(id = "P1-sto-user-passphrase-expired", principle = "P1")]
     pub fn check_passphrase_expiry(
         &self,
         replicant_name: &str,
@@ -529,12 +473,7 @@ impl UserStore {
     }
     /// Get a session by ID.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — get session by ID
-    /// pre:  session_id is non-empty
-    /// post: returns Some(session) if valid, None otherwise
-    #[rs::contract(id = "P1-sto-user-session-get", principle = "P1")]
-    #[rs::contract(id = "P1-sto-user-session-get", principle = "P1")]
     pub fn get_session(&self, session_id: &str) -> UserResult<Option<UserSession>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -548,12 +487,7 @@ impl UserStore {
     }
     /// List sessions for a replicant.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — list active sessions
-    /// pre:  replicant_name is non-empty
-    /// post: returns Vec of active sessions
-    #[rs::contract(id = "P1-sto-user-session-list", principle = "P1")]
-    #[rs::contract(id = "P1-sto-user-session-list", principle = "P1")]
     pub fn list_sessions(&self, replicant_name: &str) -> UserResult<Vec<UserSession>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -567,12 +501,7 @@ impl UserStore {
     }
     /// Get a replicant by name.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — get replicant by name
-    /// pre:  replicant_name is non-empty
-    /// post: returns Some(identity) if found, None otherwise
-    #[rs::contract(id = "P1-sto-user-replicant-get", principle = "P1")]
-    #[rs::contract(id = "P1-sto-user-replicant-get", principle = "P1")]
     pub fn get_replicant(&self, replicant_name: &str) -> UserResult<Option<ReplicantIdentity>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -586,12 +515,7 @@ impl UserStore {
     }
     /// Get a human user by ID.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — get human user by ID
-    /// pre:  user_id is valid
-    /// post: returns HumanUser
-    #[rs::contract(id = "P1-sto-user-human-get", principle = "P1")]
-    #[rs::contract(id = "P1-sto-user-human-get", principle = "P1")]
     pub fn get_user(&self, user_id: &UserID) -> UserResult<HumanUser> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -631,13 +555,7 @@ impl UserStore {
     }
     /// Create an invite code for a new member.
     ///
-    /// expect: "I can send an invite to bring a new user onto my server" [P2]
     /// [P2] Goal: Affirmative Consent — admin explicitly invites each member
-    /// [P1] Constraining: User Sovereignty — invite expires and is revocable
-    /// pre:  created_by is a valid UserID with Admin role
-    /// post: invite row created with status Pending, 7-day expiry
-    #[rs::contract(id = "P2-multi-invite-create", principle = "P2")]
-    #[rs::contract(id = "P2-multi-invite-create", principle = "P2")]
     pub fn create_invite(&self, created_by: &UserID) -> UserResult<Invite> {
         let conn = self.lock_conn()?;
         let invite_id = uuid::Uuid::new_v4().to_string();
@@ -662,11 +580,6 @@ impl UserStore {
     }
     /// Look up an invite by code.
     ///
-    /// expect: "I can look up an invite code to see if it's still valid" [P2]
-    /// pre:  code is a valid invite code
-    /// post: returns Some(Invite) if found and not expired, None otherwise
-    #[rs::contract(id = "P2-multi-invite-lookup", principle = "P2")]
-    #[rs::contract(id = "P2-multi-invite-lookup", principle = "P2")]
     pub fn lookup_invite(&self, code: &str) -> UserResult<Option<Invite>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -694,11 +607,6 @@ impl UserStore {
     }
     /// Accept an invite, linking the accepting user to the invite.
     ///
-    /// expect: "I can accept an invite to join a server" [P2]
-    /// pre:  code is valid, invite is Pending and not expired
-    /// post: invite status updated to Accepted, accepted_user_id set
-    #[rs::contract(id = "P2-multi-invite-accept", principle = "P2")]
-    #[rs::contract(id = "P2-multi-invite-accept", principle = "P2")]
     pub fn accept_invite(&self, code: &str, accepted_user_id: &UserID) -> UserResult<Invite> {
         let conn = self.lock_conn()?;
         let now = chrono::Utc::now().timestamp();
@@ -717,11 +625,6 @@ impl UserStore {
     }
     /// List all invites created by a user.
     ///
-    /// expect: "I can see all the invites I've sent and their status" [P2]
-    /// pre:  created_by is a valid UserID
-    /// post: returns list of Invite records ordered by creation time (newest first)
-    #[rs::contract(id = "P2-multi-invite-list", principle = "P2")]
-    #[rs::contract(id = "P2-multi-invite-list", principle = "P2")]
     pub fn list_invites(&self, created_by: &UserID) -> UserResult<Vec<Invite>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -750,11 +653,6 @@ impl UserStore {
     }
     /// List all active sessions across all users (admin-only).
     ///
-    /// expect: "As an admin I can see all active sessions on my server" [P1]
-    /// pre:  caller must have Admin role (checked at middleware layer)
-    /// post: returns list of UserSession records with active (non-expired) sessions
-    #[rs::contract(id = "P1-multi-sessions-list", principle = "P1")]
-    #[rs::contract(id = "P1-multi-sessions-list", principle = "P1")]
     pub fn list_all_sessions(&self) -> UserResult<Vec<UserSession>> {
         let conn = self.lock_conn()?;
         let now = chrono::Utc::now().timestamp();
@@ -780,11 +678,6 @@ impl UserStore {
     }
     /// Set the role of a user (admin-only).
     ///
-    /// expect: "As an admin I can promote a user to admin or demote to member" [P1]
-    /// pre:  caller must have Admin role (checked at middleware layer)
-    /// post: user's role updated in database
-    #[rs::contract(id = "P1-multi-role-assign", principle = "P1")]
-    #[rs::contract(id = "P1-multi-role-assign", principle = "P1")]
     pub fn set_user_role(
         &self,
         user_id: &UserID,
@@ -802,12 +695,7 @@ impl UserStore {
     }
     /// List replicants for a user.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — list replicants owned by user
-    /// pre:  user_id is valid
-    /// post: returns Vec of replicants owned by user
-    #[rs::contract(id = "P1-sto-user-replicant-list", principle = "P1")]
-    #[rs::contract(id = "P1-sto-user-replicant-list", principle = "P1")]
     pub fn list_replicants(&self, user_id: &UserID) -> UserResult<Vec<ReplicantIdentity>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -818,12 +706,7 @@ impl UserStore {
     /// Get the wallet ID for a replicant.
     /// Get wallet ID for a replicant.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — get wallet ID for replicant
-    /// pre:  replicant_name is non-empty
-    /// post: returns Some(WalletId) if set, None otherwise
-    #[rs::contract(id = "P1-sto-user-wallet-get", principle = "P1")]
-    #[rs::contract(id = "P1-sto-user-wallet-get", principle = "P1")]
     pub fn get_wallet_id(&self, replicant_name: &str) -> UserResult<Option<WalletId>> {
         let identity = self
             .get_replicant(replicant_name)?
@@ -833,12 +716,7 @@ impl UserStore {
     /// Set the wallet ID for a replicant (called during onboarding after wallet creation).
     /// Set wallet ID for a replicant.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — set wallet ID for replicant
-    /// pre:  replicant_name is registered, wallet_id is valid
-    /// post: wallet_id stored for replicant
-    #[rs::contract(id = "P1-sto-user-wallet-set", principle = "P1")]
-    #[rs::contract(id = "P1-sto-user-wallet-set", principle = "P1")]
     pub fn set_wallet_id(&self, replicant_name: &str, wallet_id: WalletId) -> UserResult<()> {
         let conn = self.lock_conn()?;
         let rows = conn.execute(
@@ -948,7 +826,6 @@ impl UserStore {
 ///
 /// Replicant names must be 1-64 alphanumeric characters with hyphens/underscores.
 /// This converts spaces to underscores and strips invalid characters.
-/// expect: "The system provides durable storage for archival data" [P3]
 fn sanitize_replicant_name(display_name: &str) -> String {
     let sanitized: String = display_name
         .chars()

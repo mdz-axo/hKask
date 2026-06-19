@@ -47,17 +47,8 @@ pub enum AcpError {
 }
 
 pub struct SessionState {
-    /// expect: "The ACP replicant provides IDE agent presence" [P4]
-    /// pre:  session_id is a non-empty UUID string
-    /// post: holds session identifier for request routing
     pub session_id: String,
-    /// expect: "The ACP replicant provides IDE agent presence" [P4]
-    /// pre:  cwd is a valid filesystem path
-    /// post: holds working directory for the session
     pub cwd: String,
-    /// expect: "The ACP replicant provides IDE agent presence" [P4]
-    /// pre:  created_at is a valid Unix timestamp
-    /// post: holds session creation time
     pub created_at: i64,
 }
 
@@ -137,9 +128,6 @@ impl HkaskAcpAgent {
 
     /// Test constructor — uses provided inference port, no daemon.
     ///
-    /// expect: "The ACP replicant provides IDE agent presence" [P4]
-    /// pre:  inference is a valid Arc<dyn InferencePort>
-    /// post: returns HkaskAcpAgent in test mode with no daemon connection
     pub fn for_testing(inference: Arc<dyn InferencePort>) -> Self {
         Self {
             replicant: "test-replicant".into(),
@@ -153,9 +141,6 @@ impl HkaskAcpAgent {
 
     /// Set the default model for inference.
     ///
-    /// expect: "The ACP replicant provides IDE agent presence" [P4]
-    /// pre:  model is a non-empty model name string
-    /// post: default_model set; returns Self for builder chaining
     pub fn with_model(mut self, model: &str) -> Self {
         self.default_model = model.to_string();
         self
@@ -168,10 +153,6 @@ impl HkaskAcpAgent {
 
     /// Run inference stream — process prompt through LLM, dispatch tool calls, emit to stdout.
     ///
-    /// expect: "The ACP replicant provides IDE agent presence" [P4]
-    /// pre:  prompt is non-empty; session_id is valid; stdout is writable
-    /// post: returns Ok(stop_reason) on completion; streams ACP JSON notifications to stdout
-    /// post: encodes prompt + response as episodic memory triples if daemon is connected
     pub async fn run_inference_stream(
         &self,
         prompt: &str,
@@ -387,10 +368,6 @@ fn cns_emit(span: CnsSpan, replicant: &str, detail: &str) {
 
 /// Entry point — build agent, serve ACP over stdio until disconnect.
 ///
-/// expect: "The ACP replicant provides IDE agent presence" [P4]
-/// pre:  HKASK_REPLICANT env var may be set; cargo build must have succeeded
-/// post: ACP JSON-RPC server runs over stdin/stdout until EOF or error
-/// post: emits cns.acp.ide.connection_state span on connect and disconnect
 pub async fn run() -> Result<(), AcpError> {
     let agent = Arc::new(HkaskAcpAgent::build().await);
     info!(target: "hkask.acp", replicant = %agent.replicant, daemon_ok = agent.daemon_ready(), "ACP replicant starting");

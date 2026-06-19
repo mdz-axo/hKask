@@ -163,7 +163,6 @@ mod tests {
     }
 
     // contract: IMPROV-MODES-001
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn plussing_mode_produces_plussed_response() {
         let mode = ImprovMode::Plussing;
@@ -174,7 +173,6 @@ mod tests {
     }
 
     // contract: IMPROV-MODES-002
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn yes_and_preserves_accepted_base() {
         let mode = ImprovMode::YesAnd;
@@ -193,7 +191,6 @@ mod tests {
     }
 
     // contract: IMPROV-MODES-003
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn yes_but_preserves_accepted_base() {
         let mode = ImprovMode::YesBut;
@@ -212,7 +209,6 @@ mod tests {
     }
 
     // contract: IMPROV-MODES-004
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn freestyling_includes_time_bound() {
         let bound = Duration::from_secs(300);
@@ -232,7 +228,6 @@ mod tests {
     }
 
     // contract: IMPROV-MODES-005
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn riffing_includes_return_policy() {
         let policy = RiffReturn::ReturnToGroup;
@@ -254,7 +249,6 @@ mod tests {
     }
 
     // contract: IMPROV-MODES-006
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn mode_labels_are_stable() {
         assert_eq!(ImprovMode::Plussing.label(), "plussing");

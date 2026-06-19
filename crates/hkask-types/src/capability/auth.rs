@@ -18,7 +18,6 @@ pub struct AuthContext {
 
 impl AuthContext {
     /// Create an AuthContext from a session (no DelegationToken).
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     pub fn from_session(webid: WebID) -> Self {
         Self { token: None, webid }
     }
@@ -34,7 +33,6 @@ impl AuthContext {
 
 /// Derive an Ed25519 signing key from arbitrary secret bytes.
 ///
-/// \[NORMATIVE\] Hashes the input with SHA-256 to produce a 32-byte seed,
 /// then constructs a `SigningKey`. This allows existing HMAC-secret-based
 /// callers to migrate to Ed25519 without changing their secret management (P4 — Clear Boundaries).
 pub fn derive_signing_key(secret: &[u8]) -> SigningKey {

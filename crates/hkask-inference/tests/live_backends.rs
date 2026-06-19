@@ -74,7 +74,6 @@ fn make_config(provider: ProviderId, base_url: &str, api_key: &str) -> Inference
     }
 }
 
-// contract: P9-inf-test-deepinfra-live-summary
 // [P9] Motivating: Homeostatic Self-Regulation — live DeepInfra generation with reasoning disabled
 #[tokio::test]
 #[ignore = "requires DI_API_KEY or DEEPINFRA_API_KEY"]
@@ -110,7 +109,6 @@ async fn deepinfra_summarization() {
     );
 }
 
-// contract: P9-inf-test-together-live-summary
 // [P9] Motivating: Homeostatic Self-Regulation — live Together AI generation with reasoning disabled
 #[tokio::test]
 #[ignore = "requires TOGETHER_API_KEY"]

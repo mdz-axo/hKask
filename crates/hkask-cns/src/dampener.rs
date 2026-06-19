@@ -116,7 +116,6 @@ impl Dampener {
         }
     }
 
-    /// \[NORMATIVE\] Check if a directive should be dampened (suppressed). (P9 — Homeostatic Self-Regulation).
     ///
     /// Two dampening layers are applied in order:
     ///

@@ -19,9 +19,6 @@ use crate::ApiState;
 
 /// Create models router
 ///
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
-/// pre:  none
-/// post: returns OpenApiRouter<ApiState> with model routes registered
 pub fn models_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_models))

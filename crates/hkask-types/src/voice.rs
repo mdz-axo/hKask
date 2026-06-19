@@ -69,9 +69,6 @@ impl Default for VoiceDesign {
 impl VoiceDesign {
     /// Render this voice design as a compact prose description for TTS model input.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is a valid VoiceDesign with all fields populated
-    /// post: returns a prose string describing the voice's gender, age, timbre,
     ///       accent, pace, and emotion range, ending with "."
     pub fn to_tts_description(&self) -> String {
         let mut parts = Vec::new();
@@ -113,10 +110,7 @@ impl VoiceDesign {
     /// Eric (steady masculine), Chris (casual masculine), Brian (deep masculine),
     /// Daniel (measured masculine), Lily (soft feminine), Bill (older masculine).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  self is a valid VoiceDesign with gender_presentation, age_range,
     ///       timbre, and pitch fields set
-    /// post: returns a &'static str naming one of the known ElevenLabs voice
     ///       presets; always returns a valid preset name (never panics)
     pub fn to_elevenlabs_voice(&self) -> &'static str {
         // Match on gender presentation + age + timbre
@@ -163,7 +157,6 @@ mod tests {
     use super::*;
 
     // contract: types-voice-001
-    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn default_voice_is_neutral() {
         let v = VoiceDesign::default();
@@ -172,7 +165,6 @@ mod tests {
     }
 
     // contract: types-voice-002
-    // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn tts_description_renders_prose() {
         let v = VoiceDesign {

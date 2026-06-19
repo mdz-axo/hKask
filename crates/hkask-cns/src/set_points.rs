@@ -40,7 +40,6 @@ pub const DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD: QueueDepth =
 ///
 /// When per-crate coverage drops below its previous snapshot value,
 /// R7.3 fires an algedonic alert. Default: 0.0 (alert on ANY regression —
-/// \[NORMATIVE\] coverage should never go down). (P9 — Homeostatic Self-Regulation).
 pub const DEFAULT_SEAM_COVERAGE_MIN: f64 = 0.0;
 
 /// Default maximum number of regulation iterations per cycle.

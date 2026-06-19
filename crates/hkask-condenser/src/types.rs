@@ -256,7 +256,6 @@ mod tests {
     use super::*;
 
     // contract: CNS-CONDENSER-PROFILE
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn profile_parsing_known_values() {
         assert_eq!("heavy".parse::<Profile>().unwrap(), Profile::Heavy);
@@ -266,7 +265,6 @@ mod tests {
     }
 
     // contract: CNS-CONDENSER-PROFILE
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn profile_parsing_case_insensitive() {
         assert_eq!("HEAVY".parse::<Profile>().unwrap(), Profile::Heavy);
@@ -275,7 +273,6 @@ mod tests {
     }
 
     // contract: CNS-CONDENSER-PROFILE
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn profile_parsing_unknown_is_error() {
         assert!("extreme".parse::<Profile>().is_err());
@@ -284,7 +281,6 @@ mod tests {
     }
 
     // contract: CNS-CONDENSER-PROFILE
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn profile_retention_pct_bounds() {
         assert!((Profile::Heavy.retention_pct() - 0.10).abs() < 0.001);
@@ -306,7 +302,6 @@ mod tests {
     }
 
     // contract: CNS-CONDENSER-PROFILE
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn profile_max_lines() {
         assert_eq!(Profile::Heavy.max_lines(), Some(30));
@@ -316,7 +311,6 @@ mod tests {
     }
 
     // contract: CNS-CONDENSER-PROFILE
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn profile_display_roundtrip() {
         for original in &[
@@ -332,7 +326,6 @@ mod tests {
     }
 
     // contract: CNS-CONDENSER-LAZY-UNIVERSE
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     //
     // TASK 4.4: Each profile carries an action_threshold that controls how
     // aggressively the compressor seeks minimal representation. Heavy = most
@@ -367,7 +360,6 @@ mod tests {
     }
 
     // contract: CNS-CONDENSER-LAZY-UNIVERSE
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     //
     // The user controls how "lazy" their system is by selecting a profile.
     // Light profile = user sovereignty overrides lazy tendency (P1 + P3).
@@ -384,7 +376,6 @@ mod tests {
     }
 
     // contract: CNS-CONDENSER-CTX
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn context_category_parsing() {
         assert_eq!(
@@ -418,7 +409,6 @@ mod tests {
     }
 
     // contract: CNS-CONDENSER-CTX
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn context_category_unknown_fallback() {
         assert_eq!(
@@ -432,7 +422,6 @@ mod tests {
     }
 
     // contract: CNS-CONDENSER-CTX
-    // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn context_category_label_roundtrip() {
         let all = [

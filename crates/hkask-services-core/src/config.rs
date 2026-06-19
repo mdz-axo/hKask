@@ -1,6 +1,5 @@
 //! Service-level configuration resolved once at startup.
 //! # REQ: P1 (User Sovereignty) — secrets from OS keychain, never hardcoded.
-//! expect: "Service configuration resolves secrets from the OS keychain" [P1]
 //!
 //! `ServiceConfig` holds all configuration that varies per deployment:
 //! database paths, secrets, thresholds, and feature flags. Both CLI and API
@@ -120,10 +119,6 @@ impl ServiceConfig {
     /// and `HKASK_MEMORY_DB_PATH` from environment. A2A and MCP secrets are
     /// resolved via `hkask_keystore`. Falls back to defaults for missing values.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  keystore must have a2a_secret, db_passphrase, and mcp_secret configured
-    /// post: returns ServiceConfig with env-derived values and keystore secrets; Err(Keystore) on secret resolution failure
-    #[contract(id = "P7-svc-config-221", principle = "P7")]
     pub fn from_env() -> Result<Self, ServiceError> {
         let db_path =
             std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string());
@@ -186,10 +181,6 @@ impl ServiceConfig {
     /// This avoids re-resolving from the keychain, which is important
     /// for the REPL's interactive onboarding flow.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  a2a_secret, db_passphrase, mcp_secret, agent_name must be non-empty
-    /// post: returns ServiceConfig with provided secrets and env-derived or default values
-    #[contract(id = "P7-svc-config-222", principle = "P7")]
     pub fn from_secrets(
         a2a_secret: String,
         db_passphrase: String,
@@ -230,10 +221,6 @@ impl ServiceConfig {
     ///
     /// Uses in-memory databases and synthetic secrets. Never use in production.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  none (always succeeds)
-    /// post: returns ServiceConfig with :memory: DB, zeroed secrets, and test agent name
-    #[contract(id = "P7-svc-config-223", principle = "P7")]
     pub fn in_memory() -> Self {
         let inference_config = InferenceConfig::default();
         Self {
@@ -264,10 +251,6 @@ impl ServiceConfig {
     ///
     /// Returns `None` when `in_memory: true` (memory stores are ephemeral).
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  none (always succeeds)
-    /// post: returns Some(path) if not in_memory; None if in_memory; derives from db_path if memory_db_path not set
-    #[contract(id = "P7-svc-config-224", principle = "P7")]
     pub fn effective_memory_db_path(&self) -> Option<String> {
         if self.in_memory {
             return None;

@@ -17,7 +17,6 @@ const CHARS_PER_TOKEN: usize = 4;
 /// - `prompt_tokens` ≈ `prompt.len() / CHARS_PER_TOKEN` (from JSON args)
 /// - `max_tokens` from JSON args
 ///
-/// \[NORMATIVE\] For `GovernedTool` usage, the `args` Value should contain: (P8 — Semantic Grounding).
 /// ```json
 /// { "prompt": "...", "max_tokens": N }
 /// ```

@@ -21,7 +21,6 @@ use uuid::Uuid;
 
 /// The core trait for trained adapter lifecycle operations.
 ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P4] Clear Boundaries — composition is explicit, OCAP-gated, and provider-validated
 /// [P7] Evolutionary Architecture — the trait is the seam for provider backends
 ///
@@ -125,7 +124,6 @@ pub struct InferenceEndpointHandle {
 
 impl InferenceEndpointHandle {
     /// Current phase of the endpoint lifecycle.
-    #[contract(id = "P4-adt-adapter-router-compose", principle = "P4")]
     pub fn phase(&self) -> EndpointPhase {
         self.lifecycle
             .lock()
@@ -164,7 +162,6 @@ pub struct EndpointStatus {
 
 /// Result of provider selection — returned by `AdapterRouter::select_provider()`.
 ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P2] Affirmative Consent — the caller must present this to the user and obtain explicit consent
 #[derive(Debug, Clone)]
 pub struct ProviderSelection {
@@ -232,8 +229,6 @@ mod tests {
     use crate::endpoint_lifecycle::EndpointLifecycle;
     use crate::provider_cost::CostModel;
 
-    // contract: P4-adt-adapter-router-compose
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn handle_phase_reflects_lifecycle() {
         let cost = CostModel::together();
@@ -255,8 +250,6 @@ mod tests {
         assert_eq!(handle.phase(), EndpointPhase::Ready);
     }
 
-    // contract: P4-adt-adapter-router-compose
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn handle_is_billable_delegates() {
         let cost = CostModel::together();
@@ -276,8 +269,6 @@ mod tests {
         assert!(handle.is_billable()); // Provisioning is billable
     }
 
-    // contract: P4-adt-adapter-router-compose
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn adapter_error_display() {
         let err = AdapterError::NotFound(Uuid::nil());

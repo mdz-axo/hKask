@@ -19,12 +19,7 @@ impl Default for FilesystemRegistrySource {
 }
 
 impl FilesystemRegistrySource {
-    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P5\] Motivating: Essentialism — filesystem registry source is a unit struct
-    /// pre:  (none).
-    /// post: Returns a new `FilesystemRegistrySource` (unit struct).
-    #[rs::contract(id = "P3-agt-registry-source-new", principle = "P3")]
-    #[rs::contract(id = "P3-agt-registry-source-new", principle = "P3")]
     pub fn new() -> Self {
         Self
     }

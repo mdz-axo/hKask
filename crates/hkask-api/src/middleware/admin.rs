@@ -15,8 +15,6 @@ const ADMIN_PATH_PREFIXES: &[&str] = &["/api/v1/admin"];
 
 /// Admin middleware: reject non-Admin requests to admin endpoints.
 ///
-/// expect: "As an admin I am the only one who can access admin configuration" [P1]
-#[contract(id = "P1-multi-admin-gate", principle = "P1")]
 pub async fn admin_middleware(
     store: Arc<Mutex<UserStore>>,
     req: Request,
