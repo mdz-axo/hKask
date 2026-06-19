@@ -10,10 +10,6 @@ use serde_json::Value;
 
 /// Template list command
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  registry is a valid RegistryIndex
-/// post: returns Vec<RegistryEntry> filtered by optional template_type
-/// post: delegates to registry.list()
 pub fn list_templates(
     registry: &dyn RegistryIndex,
     template_type: Option<TemplateType>,
@@ -23,10 +19,6 @@ pub fn list_templates(
 
 /// Template list command (local in-memory, for REPL use)
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  none
-/// post: returns Vec<RegistryEntry> from in-memory SqliteRegistry
-/// post: if registry creation fails twice → returns empty Vec (graceful degradation)
 pub fn list_templates_local() -> Vec<RegistryEntry> {
     let registry = match SqliteRegistry::new(None) {
         Ok(r) => r,
@@ -46,11 +38,6 @@ pub fn list_templates_local() -> Vec<RegistryEntry> {
 
 /// Register template command
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  registry is a mutable SqliteRegistry
-/// pre:  id, template_type, source_path, description are valid
-/// post: returns Ok(()) if template registered successfully
-/// post: returns Err(ServiceError) if registration fails
 pub fn register_template(
     registry: &mut SqliteRegistry,
     id: String,
@@ -80,11 +67,6 @@ pub fn register_template(
 
 /// Get template command
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  registry is a valid RegistryIndex
-/// pre:  id is a valid template identifier
-/// post: returns Ok(RegistryEntry) if template found
-/// post: returns Err(ServiceError) if not found
 pub fn get_template(registry: &dyn RegistryIndex, id: &str) -> Result<RegistryEntry, ServiceError> {
     registry.get(id).map_err(|e| ServiceError::Registry {
         message: e.to_string(),
@@ -93,11 +75,6 @@ pub fn get_template(registry: &dyn RegistryIndex, id: &str) -> Result<RegistryEn
 
 /// Search templates by lexicon
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  registry is a valid SqliteRegistry
-/// pre:  term is a non-empty search string
-/// post: returns Ok(Vec<RegistryEntry>) with matching templates
-/// post: returns Err(ServiceError) if search fails
 pub fn search_templates(
     registry: &SqliteRegistry,
     term: &str,
@@ -111,31 +88,18 @@ pub fn search_templates(
 
 /// List MCP servers
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  runtime is a valid McpRuntime
-/// post: returns Vec<McpServer> with all registered servers
-/// post: delegates to runtime.list_servers()
 pub async fn list_mcp_servers(runtime: &McpRuntime) -> Vec<McpServer> {
     runtime.list_servers().await
 }
 
 /// List MCP tools
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  runtime is a valid McpRuntime
-/// post: returns Vec<String> with all discovered tool names
-/// post: delegates to runtime.discover_tools()
 pub async fn list_mcp_tools(runtime: &McpRuntime) -> Vec<String> {
     runtime.discover_tools().await
 }
 
 /// Get MCP tool definition
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  runtime is a valid McpRuntime
-/// pre:  name is a valid tool name
-/// post: returns Some(Value) with tool metadata if found
-/// post: returns None if tool not found
 pub async fn get_mcp_tool(runtime: &McpRuntime, name: &str) -> Option<Value> {
     runtime.get_tool(name).await.map(|tool| {
         serde_json::json!({
@@ -149,10 +113,6 @@ pub async fn get_mcp_tool(runtime: &McpRuntime, name: &str) -> Option<Value> {
 
 /// Register MCP server
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  runtime is a valid McpRuntime
-/// pre:  id, name, tools are valid
-/// post: server is registered with the runtime
 pub async fn register_mcp_server(
     runtime: &McpRuntime,
     id: String,
@@ -166,11 +126,6 @@ pub async fn register_mcp_server(
 
 /// CLI handler for `kask template` subcommand
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  registry is a mutable SqliteRegistry
-/// pre:  action is a valid TemplateAction variant
-/// post: dispatches to the appropriate template command handler
-/// post: prints result or error to stdout
 pub fn run_template(registry: &mut SqliteRegistry, action: crate::cli::TemplateAction) {
     use crate::cli;
 

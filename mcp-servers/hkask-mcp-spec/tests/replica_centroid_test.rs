@@ -12,7 +12,6 @@ fn styles_db_path() -> PathBuf {
     manifest_dir.join("../../data/hkask-styles.db")
 }
 
-// contract: P8
 #[test]
 fn gentle_lovelace_centroids_exist_in_db() {
     let db_path = styles_db_path();
@@ -98,7 +97,6 @@ fn gentle_lovelace_centroids_exist_in_db() {
     );
 }
 
-// contract: P8
 #[test]
 fn all_style_centroids_exist() {
     let db_path = styles_db_path();

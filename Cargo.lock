@@ -3912,7 +3912,6 @@ dependencies = [
  "futures-util",
  "hkask-inference",
  "hkask-mcp",
- "hkask-rsolidity",
  "hkask-types",
  "serde",
  "serde_json",
@@ -3930,7 +3929,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "hkask-inference",
- "hkask-rsolidity",
  "hkask-storage",
  "hkask-types",
  "reqwest",
@@ -3956,7 +3954,6 @@ dependencies = [
  "hkask-keystore",
  "hkask-mcp",
  "hkask-memory",
- "hkask-rsolidity",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
@@ -3989,7 +3986,6 @@ dependencies = [
  "hkask-keystore",
  "hkask-mcp",
  "hkask-memory",
- "hkask-rsolidity",
  "hkask-services",
  "hkask-services-backup",
  "hkask-storage",
@@ -4034,7 +4030,6 @@ dependencies = [
  "hkask-keystore",
  "hkask-mcp",
  "hkask-memory",
- "hkask-rsolidity",
  "hkask-services",
  "hkask-storage",
  "hkask-templates",
@@ -4067,7 +4062,6 @@ version = "0.28.0"
 dependencies = [
  "async-trait",
  "chrono",
- "hkask-rsolidity",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
@@ -4133,7 +4127,6 @@ dependencies = [
  "chrono",
  "futures-util",
  "hkask-keystore",
- "hkask-rsolidity",
  "hkask-test-harness",
  "hkask-types",
  "reqwest",
@@ -4330,7 +4323,6 @@ dependencies = [
  "face_id",
  "hkask-inference",
  "hkask-mcp",
- "hkask-rsolidity",
  "hkask-storage",
  "hkask-templates",
  "hkask-types",
@@ -4469,7 +4461,6 @@ dependencies = [
  "hkask-inference",
  "hkask-mcp",
  "hkask-memory",
- "hkask-rsolidity",
  "hkask-storage",
  "hkask-types",
  "reqwest",
@@ -4491,7 +4482,6 @@ version = "0.28.0"
 dependencies = [
  "async-trait",
  "chrono",
- "hkask-rsolidity",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
@@ -4500,25 +4490,6 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tracing",
-]
-
-[[package]]
-name = "hkask-rsolidity"
-version = "0.28.0"
-dependencies = [
- "hkask-rsolidity-macros",
- "serde",
- "serde_json",
- "tracing",
-]
-
-[[package]]
-name = "hkask-rsolidity-macros"
-version = "0.28.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.118",
 ]
 
 [[package]]
@@ -4540,7 +4511,6 @@ dependencies = [
  "hkask-keystore",
  "hkask-mcp",
  "hkask-memory",
- "hkask-rsolidity",
  "hkask-services-backup",
  "hkask-services-classify",
  "hkask-services-context",
@@ -4590,7 +4560,6 @@ dependencies = [
  "chrono",
  "dirs",
  "hex",
- "hkask-rsolidity",
  "hkask-services-core",
  "hkask-types",
  "parking_lot",
@@ -4607,7 +4576,6 @@ name = "hkask-services-classify"
 version = "0.28.0"
 dependencies = [
  "hkask-inference",
- "hkask-rsolidity",
  "hkask-services-core",
  "reqwest",
  "serde",
@@ -4634,7 +4602,6 @@ dependencies = [
  "hkask-keystore",
  "hkask-mcp",
  "hkask-memory",
- "hkask-rsolidity",
  "hkask-services-backup",
  "hkask-services-core",
  "hkask-services-daemon",
@@ -4664,7 +4631,6 @@ dependencies = [
  "dirs",
  "hkask-inference",
  "hkask-keystore",
- "hkask-rsolidity",
  "hkask-types",
  "serde",
  "serde_json",
@@ -4681,7 +4647,6 @@ dependencies = [
  "chrono",
  "hkask-agents",
  "hkask-mcp",
- "hkask-rsolidity",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
@@ -4697,7 +4662,6 @@ version = "0.28.0"
 dependencies = [
  "hkask-inference",
  "hkask-memory",
- "hkask-rsolidity",
  "hkask-services-core",
  "hkask-services-embed",
  "hkask-templates",
@@ -4722,7 +4686,6 @@ dependencies = [
  "chrono",
  "hkask-inference",
  "hkask-memory",
- "hkask-rsolidity",
  "hkask-services-classify",
  "hkask-services-core",
  "hkask-storage",
@@ -4744,7 +4707,6 @@ name = "hkask-services-inference-svc"
 version = "0.28.0"
 dependencies = [
  "hkask-inference",
- "hkask-rsolidity",
  "hkask-services-core",
  "hkask-types",
  "serde",
@@ -4760,7 +4722,6 @@ version = "0.28.0"
 dependencies = [
  "chrono",
  "hkask-agents",
- "hkask-rsolidity",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
@@ -4780,7 +4741,6 @@ dependencies = [
  "chrono",
  "hkask-cns",
  "hkask-inference",
- "hkask-rsolidity",
  "hkask-services-core",
  "hkask-storage",
  "hkask-templates",
@@ -4801,7 +4761,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "hex",
- "hkask-rsolidity",
  "reqwest",
  "serde",
  "serde_json",
@@ -4820,7 +4779,6 @@ dependencies = [
  "hex",
  "hkask-agents",
  "hkask-keystore",
- "hkask-rsolidity",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
@@ -4840,7 +4798,6 @@ version = "0.28.0"
 dependencies = [
  "chrono",
  "hex",
- "hkask-rsolidity",
  "hkask-services-core",
  "hkask-templates",
  "hkask-types",
@@ -4859,7 +4816,6 @@ name = "hkask-services-sovereignty"
 version = "0.28.0"
 dependencies = [
  "hkask-agents",
- "hkask-rsolidity",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
@@ -4876,7 +4832,6 @@ version = "0.28.0"
 dependencies = [
  "chrono",
  "hex",
- "hkask-rsolidity",
  "hkask-services-core",
  "hkask-types",
  "reqwest",
@@ -4898,7 +4853,6 @@ dependencies = [
  "hex",
  "hkask-agents",
  "hkask-cns",
- "hkask-rsolidity",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
@@ -4923,7 +4877,6 @@ dependencies = [
  "chrono",
  "hex",
  "hkask-keystore",
- "hkask-rsolidity",
  "hkask-test-harness",
  "hkask-types",
  "proptest",
@@ -4945,7 +4898,6 @@ version = "0.28.0"
 dependencies = [
  "chrono",
  "ed25519-dalek 2.2.0",
- "hkask-rsolidity",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
@@ -4968,7 +4920,6 @@ version = "0.28.0"
 dependencies = [
  "chrono",
  "hkask-cns",
- "hkask-rsolidity",
  "hkask-storage",
  "hkask-types",
  "proptest",
@@ -4991,7 +4942,6 @@ dependencies = [
  "ed25519-dalek 2.2.0",
  "futures-util",
  "hex",
- "hkask-rsolidity",
  "hkask-test-harness",
  "hmac 0.12.1",
  "proptest",
@@ -5018,7 +4968,6 @@ dependencies = [
  "hex",
  "hiero-sdk-proto",
  "hkask-keystore",
- "hkask-rsolidity",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",

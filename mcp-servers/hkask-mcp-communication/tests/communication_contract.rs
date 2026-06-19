@@ -10,8 +10,6 @@ use hkask_mcp_communication::agent_registration::AgentRegistry;
 
 // ── Registration contract tests ─────────────────────────────────────────────
 
-// contract: COMM-REG-001
-// expect: "I can register agents with their Matrix identities for sovereign communication" [P1]
 // [P1] Goal: User Sovereignty — agents communicate through user-owned channels
 // [P12] Constraining: both WebID and UserId carry authenticated identity
 #[tokio::test]
@@ -27,8 +25,6 @@ async fn record_mapping_stores_webid_to_userid() {
     assert_eq!(found.unwrap().as_str(), "@alice:localhost");
 }
 
-// contract: COMM-REG-002
-// expect: "I can re-register the same agent and the latest mapping is used" [P8]
 #[tokio::test]
 async fn record_mapping_is_idempotent() {
     let registry = AgentRegistry::new();
@@ -43,8 +39,6 @@ async fn record_mapping_is_idempotent() {
     assert_eq!(found.unwrap().as_str(), "@alice-v2:localhost");
 }
 
-// contract: COMM-REG-003
-// expect: "I can deregister an agent and their Matrix mapping is removed" [P1]
 #[tokio::test]
 async fn deregister_removes_mapping() {
     let registry = AgentRegistry::new();
@@ -61,8 +55,6 @@ async fn deregister_removes_mapping() {
     assert!(found.is_none());
 }
 
-// contract: COMM-REG-004
-// expect: "I can safely deregister an agent that is not registered" [P8]
 #[tokio::test]
 async fn deregister_nonexistent_is_ok() {
     let registry = AgentRegistry::new();
@@ -72,8 +64,6 @@ async fn deregister_nonexistent_is_ok() {
     assert!(result.is_ok());
 }
 
-// contract: COMM-REG-005
-// expect: "I can look up an unregistered agent and get a clean empty result" [P8]
 #[tokio::test]
 async fn lookup_unregistered_returns_none() {
     let registry = AgentRegistry::new();

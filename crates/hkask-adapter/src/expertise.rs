@@ -4,7 +4,6 @@
 //! capability with a manifest linking to its training source. This replaces
 //! ad-hoc "skill name" strings with a provable semantic type.
 
-use hkask_rsolidity::contract;
 
 use serde::{Deserialize, Serialize};
 
@@ -32,9 +31,6 @@ pub enum MdsDomain {
 }
 
 impl MdsDomain {
-    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
-    /// post: returns canonical kebab-case domain string
-    #[contract(id = "P8-adt-domain-as-str", principle = "P8")]
     pub fn as_str(&self) -> &'static str {
         match self {
             MdsDomain::SolidityAudit => "solidity-audit",
@@ -47,10 +43,6 @@ impl MdsDomain {
         }
     }
 
-    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
-    /// pre:  s is a non-empty string
-    /// post: returns Some(MdsDomain) for recognized kebab-case domain names; None otherwise
-    #[contract(id = "P8-adt-domain-parse", principle = "P8")]
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "solidity-audit" => Some(MdsDomain::SolidityAudit),
@@ -95,10 +87,6 @@ pub struct TrainingProvenance {
 /// Grounds every trained adapter in a provable capability. Replaces
 /// ad-hoc "skill name" strings with a semantic type carrying provenance.
 ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
-/// [P8] Semantic Grounding — expertise is a named, domain-scoped capability descriptor
-/// pre:  name is non-empty, domain is a recognized MDS domain category
-/// post: Expertise carries a capability_manifest linking to the training source
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Expertise {
     /// Human-readable name (e.g. "solidity-audit-v1")
@@ -115,11 +103,6 @@ pub struct Expertise {
 impl Expertise {
     /// Create a new Expertise with validation.
     ///
-    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
-    /// pre:  name is non-empty, domain is a valid MdsDomain
-    /// post: returns Ok(Expertise) with the given name, domain, manifest, and provenance
-    /// post: returns Err if name is empty
-    #[contract(id = "P8-adt-expertise-definition", principle = "P8")]
     pub fn new(
         name: String,
         domain: MdsDomain,
@@ -149,8 +132,6 @@ pub enum ExpertiseError {
 mod tests {
     use super::*;
 
-    // contract: P8-adt-expertise-definition
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn expertise_new_with_valid_data_succeeds() {
         let provenance = TrainingProvenance {
@@ -174,8 +155,6 @@ mod tests {
         assert_eq!(expertise.training_source.base_model_family, "llama-3.3-70b");
     }
 
-    // contract: P8-adt-expertise-definition
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn expertise_new_with_empty_name_fails() {
         let provenance = TrainingProvenance {
@@ -195,8 +174,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // contract: P8-adt-expertise-definition
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn expertise_new_with_whitespace_name_fails() {
         let provenance = TrainingProvenance {
@@ -216,8 +193,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // contract: P8-adt-domain-parse
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn mds_domain_parse_recognized_domains() {
         assert_eq!(
@@ -231,16 +206,12 @@ mod tests {
         );
     }
 
-    // contract: P8-adt-domain-parse
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn mds_domain_parse_unrecognized_returns_none() {
         assert_eq!(MdsDomain::parse("not-a-domain"), None);
         assert_eq!(MdsDomain::parse(""), None);
     }
 
-    // contract: P8-adt-domain-as-str
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn mds_domain_as_str_round_trips() {
         for domain in &[
@@ -256,8 +227,6 @@ mod tests {
         }
     }
 
-    // contract: P8-adt-expertise-definition
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn expertise_serde_round_trips() {
         let provenance = TrainingProvenance {

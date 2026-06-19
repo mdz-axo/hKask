@@ -19,7 +19,6 @@ use crate::algedonic::{
 };
 use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost};
 
-use hkask_rsolidity as rs;
 use hkask_types::WebID;
 use hkask_types::cns::{CnsHealth, CnsSpan};
 use hkask_types::event::{NuEvent, NuEventSink, SpanNamespace};
@@ -190,12 +189,8 @@ pub struct VarietyMonitor {
 impl VarietyMonitor {
     /// Create a new variety monitor.
     ///
-    /// expect: "The system creates variety monitors to track state diversity across domains" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — the monitor enables feedback loops
     /// \[P5\] Constraining: Essentialism — minimal defaults, empty counters
-    /// post: returns VarietyMonitor with empty counters
-    #[rs::contract(id = "P9-cns-runtime-variety-monitor-new", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-variety-monitor-new", principle = "P9")]
     pub fn new() -> Self {
         Self {
             counters: HashMap::new(),
@@ -208,25 +203,16 @@ impl VarietyMonitor {
 
     /// Get variety count for a domain.
     ///
-    /// expect: "I can query variety counts for any tracked domain" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — variety measurement drives loop closure
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
-    /// pre:  domain is non-empty
-    /// post: returns variety count, 0 if domain not tracked
-    #[rs::contract(id = "P9-cns-runtime-variety-for-domain", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-variety-for-domain", principle = "P9")]
     pub fn variety_for_domain(&self, domain: &str) -> u64 {
         self.counters.get(domain).map(|c| c.variety()).unwrap_or(0)
     }
 
     /// List all tracked domains.
     ///
-    /// expect: "I can enumerate all tracked domains for loop feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — domain enumeration enables loop feedback
     /// \[P8\] Constraining: Semantic Grounding — pure enumeration, no side effects
-    /// post: returns Vec of domain name strings
-    #[rs::contract(id = "P9-cns-runtime-variety-monitor-domains", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-variety-monitor-domains", principle = "P9")]
     pub fn domains(&self) -> Vec<&str> {
         self.counters.keys().map(|s| s.as_str()).collect()
     }
@@ -282,13 +268,8 @@ pub struct CnsRuntime {
 impl CnsRuntime {
     /// Create a CNS runtime with a custom threshold.
     ///
-    /// expect: "I can create a CNS runtime with a configurable variety threshold" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — runtime creation enables regulation
     /// \[P7\] Constraining: Evolutionary Architecture — threshold config emerged from real usage
-    /// pre:  threshold > 0
-    /// post: returns CnsRuntime with configured threshold
-    #[rs::contract(id = "P9-cns-runtime-with-threshold", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-with-threshold", principle = "P9")]
     pub fn with_threshold(threshold: u64) -> Self {
         Self {
             state: Arc::new(RwLock::new(CnsState::new(threshold))),
@@ -300,12 +281,8 @@ impl CnsRuntime {
 
     /// Get CNS health status.
     ///
-    /// expect: "I can query the cybernetic health status of the entire CNS" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — health query drives loop decisions
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
-    /// post: returns CnsHealth with current state
-    #[rs::contract(id = "P9-cns-runtime-health", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-health", principle = "P9")]
     pub async fn health(&self) -> CnsHealth {
         let state = self.state.read().await;
         {
@@ -316,12 +293,8 @@ impl CnsRuntime {
 
     /// Get all alerts.
     ///
-    /// expect: "I can retrieve all active runtime alerts for loop response" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — alert retrieval enables loop response
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
-    /// post: returns Vec of RuntimeAlert
-    #[rs::contract(id = "P9-cns-runtime-alerts", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-alerts", principle = "P9")]
     pub async fn alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
         state.algedonic.read().alerts().to_vec()
@@ -330,12 +303,8 @@ impl CnsRuntime {
     /// Get the configured default threshold from the algedonic manager.
     /// Get the configured default threshold.
     ///
-    /// expect: "I can query the default variety threshold for loop tuning" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — threshold config enables loop tuning
     /// \[P7\] Constraining: Evolutionary Architecture — threshold emerged from real usage
-    /// post: returns threshold value from algedonic manager
-    #[rs::contract(id = "P9-cns-runtime-default-threshold", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-default-threshold", principle = "P9")]
     pub async fn default_threshold(&self) -> u64 {
         let state = self.state.read().await;
         state.algedonic.read().default_threshold()
@@ -343,12 +312,8 @@ impl CnsRuntime {
 
     /// Get critical alerts only.
     ///
-    /// expect: "I can filter alerts to only critical severity for prioritized response" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — critical alert filtering enables prioritised response
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
-    /// post: returns Vec of critical RuntimeAlert
-    #[rs::contract(id = "P9-cns-runtime-critical-alerts", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-critical-alerts", principle = "P9")]
     pub async fn critical_alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
         {
@@ -366,12 +331,8 @@ impl CnsRuntime {
 
     /// Get variety counts across all domains.
     ///
-    /// expect: "I can query variety measurements across all span namespaces" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — variety measurement drives loop closure
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
-    /// post: returns HashMap of namespace → variety count
-    #[rs::contract(id = "P9-cns-runtime-variety", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-variety", principle = "P9")]
     pub async fn variety(&self) -> HashMap<SpanNamespace, u64> {
         let state = self.state.read().await;
         let domains: Vec<String> = state
@@ -399,13 +360,8 @@ impl CnsRuntime {
 
     /// Get variety for a specific domain.
     ///
-    /// expect: "I can query domain-specific variety counts" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — domain-specific variety measurement
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
-    /// pre:  domain is non-empty
-    /// post: returns variety count for domain
-    #[rs::contract(id = "P9-cns-runtime-variety-for-domain", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-variety-for-domain", principle = "P9")]
     pub async fn variety_for_domain(&self, domain: &str) -> u64 {
         let state = self.state.read().await;
         state.tracker.variety_for_domain(domain)
@@ -416,14 +372,9 @@ impl CnsRuntime {
     /// CLI closures) to query CNS variety counters without requiring async.
     /// Get variety for a domain (blocking).
     ///
-    /// expect: "I can access CNS observability synchronously — preserving generative capability" [P3]
     /// \[P3\] Motivating: Generative Space — sync access preserves generative capability
     /// \[P7\] Constraining: Evolutionary Architecture — blocking variant emerged from real usage
     /// \[P4\] Constraining: Clear Boundaries — must not be called from async context
-    /// pre:  domain is non-empty
-    /// post: returns variety count
-    #[rs::contract(id = "P3-cns-runtime-blocking-variety-for-domain", principle = "P3")]
-    #[rs::contract(id = "P3-cns-runtime-blocking-variety-for-domain", principle = "P3")]
     pub fn blocking_variety_for_domain(&self, domain: &str) -> u64 {
         let state = self.state.blocking_read();
         state.tracker.variety_for_domain(domain)
@@ -438,13 +389,8 @@ impl CnsRuntime {
     /// alerts if success rate drops below warning/critical levels.
     /// Record an outcome (success/failure) for a domain.
     ///
-    /// expect: "The system records tool outcomes for quality-based regulation" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — outcome tracking enables quality-based regulation
     /// \[P4\] Constraining: Clear Boundaries — domain isolation enforces OCAP boundary
-    /// pre:  domain is non-empty
-    /// post: outcome tracked for domain
-    #[rs::contract(id = "P9-cns-runtime-record-outcome", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-record-outcome", principle = "P9")]
     pub async fn record_outcome(&self, domain: &str, success: bool, error_kind: Option<&str>) {
         {
             let mut state = self.state.write().await;
@@ -465,13 +411,8 @@ impl CnsRuntime {
     /// alert storms from small sample sizes).
     /// Check outcome health for a domain.
     ///
-    /// expect: "I can check outcome quality to drive loop decisions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — outcome check drives loop decisions
     /// \[P4\] Constraining: Clear Boundaries — threshold gating enforces boundary
-    /// pre:  domain is non-empty
-    /// post: returns Some(alert) if success rate below threshold, None if healthy
-    #[rs::contract(id = "P9-cns-runtime-check-outcome", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-check-outcome", principle = "P9")]
     pub async fn check_outcome(&self, domain: &str) -> Option<RuntimeAlert> {
         let (success_rate, total_ops) = {
             let state = self.state.read().await;
@@ -502,13 +443,8 @@ impl CnsRuntime {
     /// Get outcome success rate for a domain.
     /// Get outcome success rate for a domain.
     ///
-    /// expect: "I can query the success rate for a domain as a feedback metric" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — success rate is a feedback metric
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
-    /// pre:  domain is non-empty
-    /// post: returns Some(rate) if domain tracked, None otherwise
-    #[rs::contract(id = "P9-cns-runtime-outcome-success-rate", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-outcome-success-rate", principle = "P9")]
     pub async fn outcome_success_rate(&self, domain: &str) -> Option<f64> {
         let state = self.state.read().await;
         state.outcome.get(domain).map(|t| t.success_rate())
@@ -519,13 +455,8 @@ impl CnsRuntime {
     /// includes the relevant span namespace.
     /// Increment variety counter for a domain.
     ///
-    /// expect: "The system increments variety counters to drive loop closure" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — variety counter drives loop closure
     /// \[P4\] Constraining: Clear Boundaries — domain isolation enforces OCAP boundary
-    /// pre:  domain and state_name are non-empty
-    /// post: variety counter incremented
-    #[rs::contract(id = "P9-cns-runtime-increment-variety", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-increment-variety", principle = "P9")]
     pub async fn increment_variety(&self, domain: &str, state_name: &str) {
         {
             let mut state = self.state.write().await;
@@ -561,13 +492,8 @@ impl CnsRuntime {
 
     /// Check variety health for a domain.
     ///
-    /// expect: "I can check variety levels to determine if an alert is needed" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — variety check drives loop closure
     /// \[P4\] Constraining: Clear Boundaries — threshold gating enforces boundary
-    /// pre:  domain is non-empty
-    /// post: returns Some(alert) if variety below threshold, None if healthy
-    #[rs::contract(id = "P9-cns-runtime-check-variety", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-check-variety", principle = "P9")]
     pub async fn check_variety(&self, domain: &str) -> Option<RuntimeAlert> {
         let counter = {
             let state = self.state.read().await;
@@ -599,13 +525,8 @@ impl CnsRuntime {
 
     /// Calibrate the variety threshold for a domain.
     ///
-    /// expect: "I can calibrate variety thresholds from real usage patterns" [P7]
     /// \[P7\] Motivating: Evolutionary Architecture — threshold parameter emerged from real usage
     /// \[P4\] Constraining: Clear Boundaries — threshold gating enforces boundary
-    /// pre:  domain is non-empty, new_threshold > 0
-    /// post: threshold updated for domain
-    #[rs::contract(id = "P7-cns-runtime-calibrate-threshold", principle = "P7")]
-    #[rs::contract(id = "P7-cns-runtime-calibrate-threshold", principle = "P7")]
     pub async fn calibrate_threshold(&self, domain: &str, new_threshold: u64) {
         let state = self.state.write().await;
         {
@@ -623,14 +544,9 @@ impl CnsRuntime {
     /// this is called during bootstrap before the async runtime is fully active.
     /// Calibrate threshold (blocking).
     ///
-    /// expect: "I can access CNS observability synchronously — preserving generative capability" [P3]
     /// \[P3\] Motivating: Generative Space — sync access preserves generative capability
     /// \[P7\] Constraining: Evolutionary Architecture — blocking variant emerged from real usage
     /// \[P4\] Constraining: Clear Boundaries — must not be called from async context
-    /// pre:  domain is non-empty, new_threshold > 0
-    /// post: threshold updated
-    #[rs::contract(id = "P3-cns-runtime-calibrate-threshold-blocking", principle = "P3")]
-    #[rs::contract(id = "P3-cns-runtime-calibrate-threshold-blocking", principle = "P3")]
     pub fn calibrate_threshold_blocking(&self, domain: &str, new_threshold: u64) {
         let state = self.state.blocking_write();
         state
@@ -654,10 +570,6 @@ impl CnsRuntime {
     /// expect: "I can explicitly subscribe an observer to receive CNS events" [P12]
     /// \[P12\] Motivating: Affirmative Consent — observer registration requires explicit subscription
     /// \[P2\] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
-    /// pre:  observer is valid
-    /// post: observer added to subscribers
-    #[rs::contract(id = "P12-cns-runtime-subscribe", principle = "P12")]
-    #[rs::contract(id = "P12-cns-runtime-subscribe", principle = "P12")]
     pub fn subscribe(&self, observer: Arc<dyn CnsObserver>) {
         let mut subscribers = self.subscribers.blocking_write();
         subscribers.push(observer);
@@ -672,10 +584,6 @@ impl CnsRuntime {
     /// expect: "I can explicitly subscribe an async observer to receive CNS events" [P12]
     /// \[P12\] Motivating: Affirmative Consent — observer registration requires explicit subscription
     /// \[P2\] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
-    /// pre:  observer is valid
-    /// post: observer added to subscribers
-    #[rs::contract(id = "P12-cns-runtime-subscribe-async", principle = "P12")]
-    #[rs::contract(id = "P12-cns-runtime-subscribe-async", principle = "P12")]
     pub async fn subscribe_async(&self, observer: Arc<dyn CnsObserver>) {
         let mut subscribers = self.subscribers.write().await;
         subscribers.push(observer);
@@ -687,13 +595,8 @@ impl CnsRuntime {
     /// reaches critical levels, signaling downstream loops to throttle.
     /// Emit a backpressure signal.
     ///
-    /// expect: "The system emits backpressure signals to close the regulation loop" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — backpressure signal closes the regulation loop
     /// \[P4\] Constraining: Clear Boundaries — signal emission gates downstream throttling
-    /// pre:  signal is valid
-    /// post: backpressure signal emitted to subscribers
-    #[rs::contract(id = "P9-cns-runtime-emit-backpressure", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-emit-backpressure", principle = "P9")]
     pub async fn emit_backpressure(&self, signal: BackpressureSignal) {
         let subscribers = self.subscribers.read().await;
         for observer in subscribers.iter() {
@@ -706,13 +609,8 @@ impl CnsRuntime {
     /// Called during agent pod creation so the CNS can track and replenish budgets.
     /// Register an energy budget for an agent.
     ///
-    /// expect: "I can register an energy budget for an agent to enable tracking" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — budget registration enables energy tracking
     /// \[P4\] Constraining: Clear Boundaries — budget cap enforces resource boundary
-    /// pre:  agent is valid, budget is valid
-    /// post: budget registered for agent
-    #[rs::contract(id = "P9-cns-runtime-register-energy-budget", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-register-energy-budget", principle = "P9")]
     pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
         let state = self.state.read().await;
         let mut budgets = state.energy_budgets.write().await;
@@ -725,13 +623,8 @@ impl CnsRuntime {
     /// has no registered budget.
     /// Replenish an agent's energy budget.
     ///
-    /// expect: "The system replenishes agent budgets on the regulation cycle" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — budget replenishment drives energy loop
     /// \[P4\] Constraining: Clear Boundaries — cap enforcement prevents over-replenishment
-    /// pre:  agent is registered, amount > 0
-    /// post: budget replenished, returns actual amount added
-    #[rs::contract(id = "P9-cns-runtime-replenish-agent-budget", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-replenish-agent-budget", principle = "P9")]
     pub async fn replenish_agent_budget(&self, agent: &WebID, amount: EnergyCost) -> EnergyCost {
         let state = self.state.read().await;
         let mut budgets = state.energy_budgets.write().await;
@@ -757,13 +650,8 @@ impl CnsRuntime {
     /// Used by the CNS service.
     /// Get agent energy status.
     ///
-    /// expect: "I can query an agent's gas status for energy loop feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — gas status query drives energy loop decisions
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
-    /// pre:  agent is valid
-    /// post: returns Some(status) if budget exists, None otherwise
-    #[rs::contract(id = "P9-cns-runtime-agent-gas-status", principle = "P9")]
-    #[rs::contract(id = "P9-cns-runtime-agent-gas-status", principle = "P9")]
     pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentEnergyStatus> {
         let state = self.state.read().await;
         let budgets = state.energy_budgets.read().await;
@@ -811,8 +699,6 @@ async fn emit_critical_depletion(runtime: &CnsRuntime, alert: &crate::algedonic:
 mod tests {
     use super::*;
 
-    // contract: P9-cns-runtime-variety-monitor-test-001
-    // expect: "Variety monitors track distinct states correctly" [P9]
     //
     // TASK 1 cybernetic property: the VarietyMonitor sensor must count
     // distinct tool states per domain for Ashby's Law compliance.
@@ -829,8 +715,6 @@ mod tests {
         assert_eq!(monitor.variety_for_domain("inference"), 5);
     }
 
-    // contract: P9-cns-runtime-variety-deficit-test-002
-    // expect: "Variety deficit is calculated from expected vs actual" [P9]
     //
     // When 3 distinct states exist but 10 are expected, deficit must be 7.
     #[test]
@@ -843,8 +727,6 @@ mod tests {
         assert_eq!(tracker.variety(), 3);
     }
 
-    // contract: P9-cns-runtime-variety-isolation-test-003
-    // expect: "Variety monitors isolate counters across domains" [P9]
     //
     // Two domains must track variety independently.
     #[test]
@@ -862,8 +744,6 @@ mod tests {
         assert_eq!(monitor.variety_for_domain("nonexistent"), 0);
     }
 
-    // contract: P9-cns-runtime-outcome-rate-test-004
-    // expect: "Outcome success rate is calculated correctly" [P9]
     //
     // OutcomeTracker must correctly compute success rate from recorded
     // successes and failures.
@@ -882,8 +762,6 @@ mod tests {
         assert_eq!(tracker.total_operations(), 3);
     }
 
-    // contract: P9-cns-runtime-outcome-breakdown-test-005
-    // expect: "Outcome error kinds are broken down correctly" [P9]
     //
     // OutcomeTracker must track per-error-kind counts for diagnosis.
     #[test]
@@ -900,8 +778,6 @@ mod tests {
         assert!((tracker.success_rate() - 0.25).abs() < 0.001);
     }
 
-    // contract: P9-cns-runtime-outcome-window-test-006
-    // expect: "Outcome window resets as expected" [P9]
     //
     // OutcomeTracker must reset its window after the configured duration.
     #[test]

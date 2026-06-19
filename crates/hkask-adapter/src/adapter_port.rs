@@ -3,7 +3,6 @@
 //! Every operation is OCAP-gated via `DelegationToken`. No ambient access.
 //! The trait is the seam for provider backends — new providers add without changing the router (P7).
 
-use hkask_rsolidity::contract;
 
 use crate::TrainedLoRAAdapter;
 use crate::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
@@ -21,9 +20,6 @@ use uuid::Uuid;
 
 /// The core trait for trained adapter lifecycle operations.
 ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
-/// [P4] Clear Boundaries — composition is explicit, OCAP-gated, and provider-validated
-/// [P7] Evolutionary Architecture — the trait is the seam for provider backends
 ///
 /// Every method requires a `DelegationToken` with the appropriate capability:
 /// - `adapter:read`  → list_adapters, endpoint_status
@@ -125,7 +121,6 @@ pub struct InferenceEndpointHandle {
 
 impl InferenceEndpointHandle {
     /// Current phase of the endpoint lifecycle.
-    #[contract(id = "P4-adt-adapter-router-compose", principle = "P4")]
     pub fn phase(&self) -> EndpointPhase {
         self.lifecycle
             .lock()
@@ -164,8 +159,6 @@ pub struct EndpointStatus {
 
 /// Result of provider selection — returned by `AdapterRouter::select_provider()`.
 ///
-/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
-/// [P2] Affirmative Consent — the caller must present this to the user and obtain explicit consent
 #[derive(Debug, Clone)]
 pub struct ProviderSelection {
     pub adapter_id: Uuid,
@@ -232,8 +225,6 @@ mod tests {
     use crate::endpoint_lifecycle::EndpointLifecycle;
     use crate::provider_cost::CostModel;
 
-    // contract: P4-adt-adapter-router-compose
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn handle_phase_reflects_lifecycle() {
         let cost = CostModel::together();
@@ -255,8 +246,6 @@ mod tests {
         assert_eq!(handle.phase(), EndpointPhase::Ready);
     }
 
-    // contract: P4-adt-adapter-router-compose
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn handle_is_billable_delegates() {
         let cost = CostModel::together();
@@ -276,8 +265,6 @@ mod tests {
         assert!(handle.is_billable()); // Provisioning is billable
     }
 
-    // contract: P4-adt-adapter-router-compose
-    // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn adapter_error_display() {
         let err = AdapterError::NotFound(Uuid::nil());

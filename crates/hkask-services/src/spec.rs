@@ -8,7 +8,6 @@
 //! Category inference delegates to `hkask_storage::spec_types::infer_spec_category` —
 //! the single source of truth for context-keyword → MDS category mapping.
 
-use hkask_rsolidity::contract;
 
 use hkask_agents::DefaultSpecCurator;
 use hkask_storage::SpecStore;
@@ -102,10 +101,6 @@ impl SpecService {
     /// (API path). Criteria are parsed from the comma-separated `criteria`
     /// field when present; otherwise auto-seeded from description sentences.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.spec_store() must be initialized; req.name_or_description must be non-empty
-    /// post: spec is persisted to the spec store; returns SpecCaptureResponse with spec_id, name, category, domain_anchor, and complete flag
-    #[contract(id = "P8-svc-spec-081", principle = "P8")]
     pub fn capture(
         ctx: &AgentService,
         req: SpecCaptureRequest,
@@ -158,10 +153,6 @@ impl SpecService {
 
     /// List all specs, optionally filtered by category.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.spec_store() must be initialized; category_filter if Some must be a valid SpecCategory string
-    /// post: returns Vec<SpecListEntry> for all matching specs; Err(ValidationError) on invalid category
-    #[contract(id = "P8-svc-spec-082", principle = "P8")]
     pub fn list(
         ctx: &AgentService,
         category_filter: Option<&str>,
@@ -193,10 +184,6 @@ impl SpecService {
 
     /// Get a single spec by ID (full struct with goals).
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  spec_id_str must be a valid UUID; ctx.spec_store() must be initialized
-    /// post: returns the full Spec with goals on success; Err(ValidationError) on invalid UUID; Err(Spec) on store error
-    #[contract(id = "P8-svc-spec-083", principle = "P8")]
     pub fn get_full(ctx: &AgentService, spec_id_str: &str) -> Result<Spec, ServiceError> {
         let id = parse_spec_id(spec_id_str)?;
         let store = ctx.spec_store();
@@ -207,10 +194,6 @@ impl SpecService {
 
     /// Get a single spec by ID (summary detail).
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  spec_id_str must be a valid UUID; ctx.spec_store() must be initialized
-    /// post: returns SpecDetail with spec_id, name, category, domain_anchor, and flattened requirements; Err on invalid ID or store error
-    #[contract(id = "P8-svc-spec-084", principle = "P8")]
     pub fn get_by_id(ctx: &AgentService, spec_id_str: &str) -> Result<SpecDetail, ServiceError> {
         let id = parse_spec_id(spec_id_str)?;
         let store = ctx.spec_store();
@@ -236,10 +219,6 @@ impl SpecService {
     /// This is distinct from the MCP server's `spec_graph_coherence` which uses
     /// Jaccard similarity via `Spec::collection_coherence` for agent-driven assessment.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.spec_store() must be initialized
-    /// post: returns CoherenceResult with coherence_score (0.0–1.0), missing category violations, and suggestions; score=0.0 when store is empty
-    #[contract(id = "P8-svc-spec-085", principle = "P8")]
     pub fn category_coverage(ctx: &AgentService) -> Result<CoherenceResult, ServiceError> {
         let store = ctx.spec_store();
         let specs = store.list_all().map_err(|e| ServiceError::Spec {
@@ -284,10 +263,6 @@ impl SpecService {
     /// This is distinct from the MCP server's `assess_writing_quality` which performs
     /// embedding-based comparison against persona centroids for agent-driven assessment.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  spec_id_str must be a valid UUID; ctx.spec_store() must be initialized
-    /// post: returns WritingQualityResult with dimensions_passing count and meets_publication_standard flag (true when all 4 dimensions pass)
-    #[contract(id = "P8-svc-spec-086", principle = "P8")]
     pub fn structural_quality_check(
         ctx: &AgentService,
         spec_id_str: &str,
@@ -321,10 +296,6 @@ impl SpecService {
     /// This is the single method for spec evaluation; former `cultivate` call sites
     /// should use `validate` directly (the methods were identical).
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  spec_id_str must be a valid UUID; ctx.spec_store() must be initialized
-    /// post: returns SpecCurationRecord from DefaultSpecCurator evaluation; Err on invalid ID or store/curation error
-    #[contract(id = "P8-svc-spec-087", principle = "P8")]
     pub fn validate(
         ctx: &AgentService,
         spec_id_str: &str,
@@ -362,8 +333,6 @@ fn parse_spec_id(s: &str) -> Result<SpecId, ServiceError> {
 mod tests {
     use super::*;
 
-    // contract: P8-svc-spec-001
-    // expect: "Service infer_spec_category works correctly under test conditions" [P8]
     #[test]
     fn infer_category_maps_trust_context() {
         assert_eq!(infer_spec_category(Some("trust")), SpecCategory::Trust);
@@ -377,8 +346,6 @@ mod tests {
         );
     }
 
-    // contract: P8-svc-spec-001-1
-    // expect: "Service infer_category works correctly under test conditions" [P8]
     #[test]
     fn infer_category_maps_composition_context() {
         assert_eq!(
@@ -391,8 +358,6 @@ mod tests {
         );
     }
 
-    // contract: P8-svc-spec-001-2
-    // expect: "Service infer_category works correctly under test conditions" [P8]
     #[test]
     fn infer_category_maps_lifecycle_context() {
         assert_eq!(
@@ -405,8 +370,6 @@ mod tests {
         );
     }
 
-    // contract: P8-svc-spec-001-3
-    // expect: "Service infer_category works correctly under test conditions" [P8]
     #[test]
     fn infer_category_maps_curation_context() {
         assert_eq!(
@@ -419,8 +382,6 @@ mod tests {
         );
     }
 
-    // contract: P8-svc-spec-001-4
-    // expect: "Service infer_category works correctly under test conditions" [P8]
     #[test]
     fn infer_category_defaults_to_domain() {
         assert_eq!(infer_spec_category(None), SpecCategory::Domain);
@@ -430,8 +391,6 @@ mod tests {
         );
     }
 
-    // contract: P8-svc-spec-002
-    // expect: "Service parse_spec_id works correctly under test conditions" [P8]
     #[test]
     fn parse_spec_id_rejects_invalid() {
         assert!(parse_spec_id("not-a-uuid").is_err());

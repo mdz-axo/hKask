@@ -14,7 +14,6 @@
 //! observing in the MCP session — the same way a chat-mode agent thinks about
 //! conversation turns.
 
-use hkask_rsolidity::contract;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -54,17 +53,11 @@ pub struct ServiceDaemonHandler {
 }
 
 impl ServiceDaemonHandler {
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  pod_manager must be a valid Arc<PodManager>; user_store must be a valid Arc<Mutex<UserStore>>
-    /// post: returns ServiceDaemonHandler with all fields initialized; inference_port may be None
-    #[contract(id = "P7-svc-daemon_handler-135", principle = "P7")]
     pub fn new(
         pod_manager: Arc<PodManager>,
         user_store: Arc<std::sync::Mutex<UserStore>>,
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Self {
-        // contract: P9-CNS-SVC-001
-        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "new_handler", has_inference = inference_port.is_some(), "CNS");
 
@@ -80,8 +73,6 @@ impl ServiceDaemonHandler {
 #[async_trait::async_trait]
 impl DaemonHandler for ServiceDaemonHandler {
     async fn check_auth(&self, replicant: &str) -> (bool, Option<String>) {
-        // contract: P9-CNS-SVC-001
-        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "check_auth", replicant = %replicant, "CNS");
 
@@ -117,8 +108,6 @@ impl DaemonHandler for ServiceDaemonHandler {
     }
 
     async fn check_assignment(&self, replicant: &str, role: &str) -> bool {
-        // contract: P9-CNS-SVC-001
-        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "check_assignment", replicant = %replicant, role = %role, "CNS");
 
@@ -136,8 +125,6 @@ impl DaemonHandler for ServiceDaemonHandler {
     }
 
     async fn check_capability(&self, replicant: &str, tool: &str) -> bool {
-        // contract: P9-CNS-SVC-001
-        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "check_capability", replicant = %replicant, tool = %tool, "CNS");
 
@@ -159,8 +146,6 @@ impl DaemonHandler for ServiceDaemonHandler {
         value: &serde_json::Value,
         confidence: Option<f64>,
     ) -> (bool, Option<String>, Option<String>) {
-        // contract: P9-CNS-SVC-001
-        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "store_experience", replicant = %replicant, entity = %entity, attribute = %attribute, confidence = ?confidence, "CNS");
 
@@ -248,8 +233,6 @@ impl DaemonHandler for ServiceDaemonHandler {
         tool: &str,
         input: &serde_json::Value,
     ) -> (bool, Option<serde_json::Value>, Option<String>) {
-        // contract: P9-CNS-SVC-001
-        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "dispatch_tool", replicant = %replicant, tool = %tool, "CNS");
 
@@ -285,8 +268,6 @@ async fn generate_narrative(
     inference: &dyn InferencePort,
     replicant: &str,
 ) {
-    // contract: P9-CNS-SVC-001
-    // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.daemon", operation = "generate_narrative", replicant = %replicant, "CNS");
 

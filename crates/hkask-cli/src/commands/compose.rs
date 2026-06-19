@@ -11,9 +11,6 @@ use hkask_services::{CognitionConfig, ComposeRequest, ComposeService, InferenceC
 
 use std::path::PathBuf;
 
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  rt is a valid tokio Runtime; prompt is non-empty; cognition is a valid YAML config path; db is a valid DB path; passphrase is the DB passphrase
-/// post: composes prose using the style synthesizer pipeline; prints generated prose and validation results; exits on config/embedding failure
 pub fn run(
     rt: &tokio::runtime::Runtime,
     prompt: String,

@@ -11,7 +11,6 @@ use hkask_storage::TripleStore;
 use hkask_test_harness::{TestDb, TestWebId, test_triple};
 use serde_json::json;
 
-// contract: P4-sto-services-contract-test
 // Storage operations produce correct and deduplicated state.
 
 #[test]
@@ -30,7 +29,6 @@ fn triple_insert_and_query() {
     assert_eq!(results[0].attribute, "attr:name");
 }
 
-// contract: P4-sto-services-contract-test
 #[test]
 fn triple_query_by_attribute() {
     let db = TestDb::new();
@@ -47,7 +45,6 @@ fn triple_query_by_attribute() {
     assert_eq!(results.len(), 2);
 }
 
-// contract: P4-sto-services-contract-test
 #[test]
 fn triple_count_is_accurate() {
     let db = TestDb::new();
@@ -68,7 +65,6 @@ fn triple_count_is_accurate() {
     assert_eq!(store.count_semantic().unwrap(), 3);
 }
 
-// contract: P4-sto-services-contract-test
 #[test]
 fn triple_delete_removes_correctly() {
     let db = TestDb::new();
@@ -84,7 +80,6 @@ fn triple_delete_removes_correctly() {
     assert_eq!(store.count_semantic().unwrap(), 0);
 }
 
-// contract: P4-sto-services-contract-test
 #[test]
 fn triple_owner_webid_is_preserved() {
     let db = TestDb::new();

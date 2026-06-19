@@ -6,7 +6,6 @@ license.workspace = true
 description = "Shared service layer for hKask surfaces (CLI, API)"
 
 [dependencies]
-hkask-rsolidity = { path = "../hkask-rsolidity" }
 hkask-services-core = { path = "../hkask-services-core" }
 hkask-services-backup = { path = "../hkask-services-backup" }
 hkask-services-kata = { path = "../hkask-services-kata" }

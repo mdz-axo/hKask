@@ -82,8 +82,6 @@ pub struct ApiKeyMaterial {
     pub capability: ApiKeyCapability,
 }
 
-// contract: MUST-2
-// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 impl fmt::Debug for ApiKeyMaterial {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ApiKeyMaterial")

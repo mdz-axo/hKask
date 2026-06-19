@@ -224,7 +224,6 @@ mod tests {
         DynamicImage::ImageRgb8(img)
     }
 
-    // contract: ocr-tesseract-01
     #[test]
     fn is_available_when_installed() {
         let executor = TesseractExecutor::new();
@@ -232,14 +231,12 @@ mod tests {
         assert_eq!(available, tesseract_available());
     }
 
-    // contract: ocr-tesseract-02
     #[test]
     fn is_available_false_for_other_backends() {
         let executor = TesseractExecutor::new();
         assert!(!executor.is_available(&OcrBackend::LlmOcr("lighton".into())));
     }
 
-    // contract: ocr-tesseract-03
     #[tokio::test]
     async fn execute_produces_text() {
         if !tesseract_available() {
@@ -264,7 +261,6 @@ mod tests {
         assert!(ocr_result.duration_ms > 0);
     }
 
-    // contract: ocr-tesseract-04
     #[tokio::test]
     async fn execute_rejects_wrong_backend() {
         let executor = TesseractExecutor::new();

@@ -6,7 +6,6 @@
 //! - Public data categories (always accessible)
 //! - Affirmative consent requirements
 use crate::Store;
-use hkask_rsolidity as rs;
 use hkask_types::InfrastructureError;
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -42,11 +41,7 @@ impl SovereigntyBoundaryStore {
     /// Magna Carta refactoring).
     /// Initialize the sovereignty boundary store schema.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — schema for sovereignty boundaries
-    /// post: sovereignty_boundaries table created if not exists
-    #[rs::contract(id = "P1-sto-sovereignty-schema", principle = "P1")]
-    #[rs::contract(id = "P1-sto-sovereignty-schema", principle = "P1")]
     pub fn initialize_schema(&self) -> Result<(), SovereigntyStoreError> {
         let conn = self.lock_conn()?;
         conn.execute_batch(
@@ -161,12 +156,7 @@ impl SovereigntyBoundaryStore {
     /// Store sovereignty boundary for a WebID
     /// Store a sovereignty boundary entry.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — store a sovereignty boundary entry
-    /// pre:  entry.webid is non-empty
-    /// post: entry inserted or replaced
-    #[rs::contract(id = "P1-sto-sovereignty-store", principle = "P1")]
-    #[rs::contract(id = "P1-sto-sovereignty-store", principle = "P1")]
     pub fn store(&self, entry: &SovereigntyBoundaryEntry) -> Result<(), SovereigntyStoreError> {
         let conn = self.lock_conn()?;
         let sovereign_json = serde_json::to_string(&entry.sovereign_categories)?;
@@ -200,12 +190,7 @@ impl SovereigntyBoundaryStore {
     /// Get sovereignty boundary for a WebID
     /// Get sovereignty boundary entries for a WebID.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — get boundaries for a WebID
-    /// pre:  webid is non-empty
-    /// post: returns Vec of entries for this WebID
-    #[rs::contract(id = "P1-sto-sovereignty-get", principle = "P1")]
-    #[rs::contract(id = "P1-sto-sovereignty-get", principle = "P1")]
     pub fn get(
         &self,
         webid: &str,
@@ -249,12 +234,7 @@ impl SovereigntyBoundaryStore {
     /// Delete sovereignty boundary for a WebID
     /// Delete sovereignty boundary entries for a WebID.
     ///
-    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — delete boundaries for a WebID
-    /// pre:  webid is non-empty
-    /// post: entries deleted for this WebID
-    #[rs::contract(id = "P1-sto-sovereignty-delete", principle = "P1")]
-    #[rs::contract(id = "P1-sto-sovereignty-delete", principle = "P1")]
     pub fn delete(&self, webid: &str) -> Result<(), SovereigntyStoreError> {
         let conn = self.lock_conn()?;
         conn.execute(

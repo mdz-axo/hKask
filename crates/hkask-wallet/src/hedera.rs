@@ -669,8 +669,6 @@ mod integration_tests {
         .expect("Failed to create testnet HederaPort")
     }
 
-    // contract: P9-wallet-hedera-chain-error-actor-test
-    /// expect: "Wallet hedera chain error actor test works correctly under test conditions" [P9]
     #[test]
     fn emit_chain_error_uses_provided_actor() {
         let sink = Arc::new(CaptureSink::default());
@@ -696,16 +694,12 @@ mod integration_tests {
         assert_eq!(event.observation["operation"], "unit_test");
     }
 
-    // contract: P9-wallet-hedera-build-withdrawal-tx-test
-    /// expect: "Wallet hedera build withdrawal tx test works correctly under test conditions" [P9]
     #[test]
     fn port_construction_succeeds() {
         let port = testnet_port();
         assert_eq!(port.chain_id(), ChainId::Hedera);
     }
 
-    // contract: P9-wallet-hedera-signing-roundtrip-test
-    /// expect: "Wallet hedera signing roundtrip test works correctly under test conditions" [P9]
     #[test]
     fn build_withdrawal_tx_produces_valid_protobuf() {
         let port = testnet_port();
@@ -723,8 +717,6 @@ mod integration_tests {
         );
     }
 
-    // contract: P9-wallet-hedera-submit-signed-tx-test
-    /// expect: "Wallet hedera submit signed tx test works correctly under test conditions" [P9]
     #[test]
     fn withdrawal_payload_signing_roundtrip() {
         // SAFETY: test-only
@@ -752,8 +744,6 @@ mod integration_tests {
         assert!(signed_tx.len() > 64);
     }
 
-    // contract: P9-wallet-hedera-monitor-deposits-test
-    /// expect: "Wallet hedera monitor deposits test works correctly under test conditions" [P9]
     #[test]
     #[ignore = "requires funded treasury on Hedera testnet with HTS USDC"]
     fn submit_withdrawal_to_testnet() {
@@ -805,8 +795,6 @@ mod integration_tests {
         }
     }
 
-    // contract: P9-wallet-hedera-monitor-hts-usdc-test
-    /// expect: "Wallet hedera monitor hts usdc test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn monitor_deposits_detects_usdc_transfer() {
         let server = wiremock::MockServer::start().await;

@@ -226,8 +226,6 @@ mod tests {
         }
     }
 
-    // contract: IMPROV-PLUSSING-001
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn extracts_agreeable_from_constructive_input() {
         let c = make_contribution(
@@ -242,8 +240,6 @@ mod tests {
         }
     }
 
-    // contract: IMPROV-PLUSSING-002
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn silently_discards_negative_content() {
         let c = make_contribution(
@@ -261,8 +257,6 @@ mod tests {
         assert!(has_constructive, "Constructive content must be extracted");
     }
 
-    // contract: IMPROV-PLUSSING-003
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn build_never_references_discarded() {
         let c = make_contribution("This is wrong. But we could try a different approach.");
@@ -275,8 +269,6 @@ mod tests {
         );
     }
 
-    // contract: IMPROV-PLUSSING-004
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn handles_fully_disagreeable_contribution() {
         let c = make_contribution("This is terrible. Absolutely wrong. Completely broken.");
@@ -292,8 +284,6 @@ mod tests {
         );
     }
 
-    // contract: IMPROV-PLUSSING-005
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn handles_empty_contribution() {
         let c = make_contribution("");
@@ -303,8 +293,6 @@ mod tests {
         assert!(!build.is_empty(), "Build must not be empty for empty input");
     }
 
-    // contract: IMPROV-PLUSSING-006
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn confidence_in_valid_range() {
         let c = make_contribution("Great idea! Let's explore that. I agree completely.");

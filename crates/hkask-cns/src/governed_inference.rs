@@ -17,7 +17,6 @@
 
 use crate::cybernetics_loop::CyberneticsLoop;
 use crate::energy::EnergyCost;
-use hkask_rsolidity as rs;
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
@@ -57,14 +56,8 @@ impl GovernedInference {
     /// Create a new GovernedInference membrane wrapping an inner InferencePort.
     /// Create a new governed inference wrapper.
     ///
-    /// expect: "The system creates a governed inference membrane that gates LLM calls behind energy budgets" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — inference governance enables cybernetic control
     /// \[P4\] Constraining: Clear Boundaries — membrane wraps inner InferencePort at OCAP boundary
     /// \[P12\] Constraining: Affirmative Consent — agent identity is required for attribution
-    /// pre:  inference is valid, cns is valid
-    /// post: returns GovernedInference
-    #[rs::contract(id = "P9-cns-gov-inf-new", principle = "P9")]
-    #[rs::contract(id = "P9-cns-gov-inf-new", principle = "P9")]
     pub fn new(
         inner: Arc<dyn InferencePort>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
@@ -87,9 +80,6 @@ impl GovernedInference {
     /// [P12] Motivating: Affirmative Consent — agent identity is the consent anchor
     /// \[P4\] Constraining: Clear Boundaries — OCAP gate enforces boundary per inference call
     /// @must_use because builder methods must be chained or assigned
-    /// post: returns Self with agent set (builder pattern)
-    #[rs::contract(id = "P12-cns-gov-inf-with-agent", principle = "P12")]
-    #[rs::contract(id = "P12-cns-gov-inf-with-agent", principle = "P12")]
     pub fn with_agent(mut self, agent: WebID) -> Self {
         self.agent = agent;
         self
@@ -306,7 +296,6 @@ impl InferencePort for GovernedInference {
 mod tests {
     use super::*;
 
-    // contract: P9-cns-gov-inf-est-cost-max-tokens
     #[test]
     fn estimate_inference_cost_uses_max_tokens() {
         let params = LLMParameters {
@@ -316,7 +305,6 @@ mod tests {
         assert_eq!(estimate_inference_cost(&params), 2048);
     }
 
-    // contract: P9-cns-gov-inf-est-cost-floors-at-one
     #[test]
     fn estimate_inference_cost_floors_at_one() {
         let params = LLMParameters {

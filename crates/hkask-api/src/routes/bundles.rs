@@ -9,7 +9,6 @@
 
 use axum::Json;
 use axum::extract::{Path, State};
-use hkask_rsolidity as rs;
 use hkask_services::{BundleService, ServiceError};
 use hkask_types::Visibility;
 
@@ -103,9 +102,6 @@ pub struct DeactivateBundleResponse {
 
 /// Create bundles router
 ///
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
-/// pre:  none
-/// post: returns OpenApiRouter<ApiState> with bundle routes registered
 pub fn bundles_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
     utoipa_axum::router::OpenApiRouter::new()
         .routes(utoipa_axum::routes!(list_bundles))

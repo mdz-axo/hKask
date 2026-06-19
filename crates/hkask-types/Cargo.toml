@@ -20,7 +20,6 @@ subtle.workspace = true
 ed25519-dalek.workspace = true
 base64 = "0.21"
 blake3 = "1"
-hkask-rsolidity = { path = "../hkask-rsolidity" }
 futures-util.workspace = true
 async-trait.workspace = true
 rusqlite = { workspace = true, optional = true }

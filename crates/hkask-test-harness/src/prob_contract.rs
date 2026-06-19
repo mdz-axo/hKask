@@ -44,11 +44,6 @@ pub struct ProbContractRunner {
     k: u32,
 }
 
-/// pre:  p in [0.0, 1.0]; delta in [0.0, 1.0]; k >= 0
-/// post: returns ProbContractRunner configured for (p, δ, k)-satisfaction
-/// expect: "I can verify non-deterministic functions meet a probability threshold — validating probabilistic contracts" [P9]
-/// [P8] Constraining: result carries actual vs target rates — semantic grounding
-/// [P5] Constraining: one struct, one evaluate method — no speculative features
 impl ProbContractRunner {
     pub fn new(p: f64, delta: f64, k: u32) -> Self {
         let p = p.clamp(0.0, 1.0);
@@ -62,9 +57,6 @@ impl ProbContractRunner {
     /// The recovery window `k` allows up to `k` per-trial retries before
     /// counting a trial as failed (self-healing contracts, §7.6).
     ///
-    /// pre:  trials > 0; f and predicate are callable
-    /// post: returns ProbContractResult where passed == true iff actual_rate + delta >= p
-    /// expect: "I can verify non-deterministic functions meet a probability threshold" [P9]
     pub fn evaluate<T, F, P>(&self, trials: u32, mut f: F, predicate: P) -> ProbContractResult
     where
         F: FnMut() -> T,
@@ -113,8 +105,6 @@ mod tests {
     use super::*;
     use rand::Rng;
 
-    // contract: HARN-049
-    // expect: "I can verify a deterministic function trivially passes a probabilistic contract" [P9]
     #[test]
     fn deterministic_fn_always_passes() {
         let runner = ProbContractRunner::new(0.99, 0.0, 0);
@@ -124,8 +114,6 @@ mod tests {
         assert!((result.actual_rate - 1.0).abs() < 0.001);
     }
 
-    // contract: HARN-050
-    // expect: "I can verify a function that never meets its contract correctly fails" [P9]
     #[test]
     fn failing_fn_never_passes() {
         let runner = ProbContractRunner::new(0.5, 0.0, 0);
@@ -134,8 +122,6 @@ mod tests {
         assert_eq!(result.successes, 0);
     }
 
-    // contract: HARN-051
-    // expect: "I can verify that a function matching exactly the threshold behavior is handled correctly" [P9]
     #[test]
     fn threshold_boundary_is_correct() {
         // 50% success, requiring 50% with 0 tolerance → should pass
@@ -149,8 +135,6 @@ mod tests {
         assert!(result.actual_rate >= 0.0 && result.actual_rate <= 1.0);
     }
 
-    // contract: HARN-052
-    // expect: "I can verify that δ tolerance correctly relaxes the passing threshold" [P9]
     #[test]
     fn delta_tolerance_relaxes_threshold() {
         // Require 90%, but tolerate 5% delta → need actual >= 85%
@@ -161,8 +145,6 @@ mod tests {
         assert!(result.passed);
     }
 
-    // contract: HARN-053
-    // expect: "I can verify that the k recovery window correctly enables self-healing contracts" [P9]
     #[test]
     fn recovery_window_retries() {
         // k=4: first call to f returns false, second returns true → should pass
@@ -179,8 +161,6 @@ mod tests {
         assert!(result.passed);
     }
 
-    // contract: HARN-054
-    // expect: "I can verify the failure list is bounded to prevent memory blowout" [P5]
     #[test]
     fn failure_list_is_capped() {
         let runner = ProbContractRunner::new(0.99, 0.0, 0);
@@ -190,8 +170,6 @@ mod tests {
         assert!(!result.passed);
     }
 
-    // contract: HARN-055
-    // expect: "I can verify the result carries semantically grounded counts and rates" [P8]
     #[test]
     fn result_fields_are_populated() {
         let runner = ProbContractRunner::new(0.75, 0.0, 0);

@@ -109,8 +109,6 @@ mod tests {
         }
     }
 
-    // contract: IMPROV-RIFFING-001
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn diverges_from_seed() {
         let seed = make_contribution("We should use a microservice architecture");
@@ -119,8 +117,6 @@ mod tests {
         assert!(tangent.contains("microservice"));
     }
 
-    // contract: IMPROV-RIFFING-002
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn resolves_return_to_group() {
         let tangent = make_contribution("Monoliths might actually be simpler for our scale");
@@ -134,8 +130,6 @@ mod tests {
         }
     }
 
-    // contract: IMPROV-RIFFING-003
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn spawns_new_thread() {
         let tangent = make_contribution("What about event sourcing?");
@@ -148,8 +142,6 @@ mod tests {
         }
     }
 
-    // contract: IMPROV-RIFFING-004
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn respects_return_after_steps() {
         let tangent = make_contribution("Exploring CQRS patterns");
@@ -174,8 +166,6 @@ mod tests {
         }
     }
 
-    // contract: IMPROV-RIFFING-005
-    // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn default_return_is_return_to_group() {
         assert_eq!(RiffReturn::default(), RiffReturn::ReturnToGroup);

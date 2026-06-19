@@ -20,7 +20,6 @@ fn make_context() -> ConversationContext {
     ConversationContext::new(WebID::new())
 }
 
-// contract: IMPROV-YES-BUT-TESTS-001
 #[test]
 fn accepts_whole_contribution() {
     let mode = ImprovMode::YesBut;
@@ -41,7 +40,6 @@ fn accepts_whole_contribution() {
     }
 }
 
-// contract: IMPROV-YES-BUT-TESTS-002
 #[test]
 fn constraint_narrows_does_not_contradict() {
     let mode = ImprovMode::YesBut;
@@ -76,7 +74,6 @@ fn constraint_narrows_does_not_contradict() {
     }
 }
 
-// contract: IMPROV-YES-BUT-TESTS-003
 #[test]
 fn works_with_varied_content() {
     let mode = ImprovMode::YesBut;

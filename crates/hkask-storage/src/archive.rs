@@ -1,7 +1,6 @@
 //! BackupArchive — portable sovereignty archive for hKask cloud deployment.
 //!
 //! # REQ: P1-deploy-backup-archive — P1 User Sovereignty: downloadable, passphrase-encrypted triple export.
-//! expect: "My user data and sovereignty boundaries are stored under my control" [P1]
 //!
 //! Creates a single SQLCipher-encrypted SQLite file containing:
 //! 1. A `backup_meta` table with export metadata
@@ -34,7 +33,6 @@ pub struct BackupMeta {
 }
 /// Receipt returned after a successful migration import.
 ///
-/// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationReceipt {
     /// Number of triples imported (or already present).
@@ -44,7 +42,6 @@ pub struct MigrationReceipt {
 }
 /// Receipt returned after replicant merge.
 ///
-/// expect: "The system provides durable storage for migration data" [P5]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MergeReceipt {
     pub triple_count: u64,
@@ -182,11 +179,6 @@ impl BackupArchive {
     }
     /// Import triples from this archive into a target TripleStore.
     ///
-    /// expect: "The system provides durable storage for archival data" [P3]
-    /// pre:  archive is open; target is a live TripleStore; existing_names are current replicant names
-    /// post: all triples upserted into target
-    /// post: auto-renamed entities where collision with existing replicant names
-    /// post: returns MigrationReceipt with triple_count and renamed_replicants
     pub fn import_into(
         &self,
         target: &TripleStore,
@@ -383,8 +375,6 @@ mod tests {
         }
         (store, webid)
     }
-    // contract: DEP-TEST-001
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn export_creates_archive_with_metadata() {
         let (store, webid) = setup_triple_store();
@@ -406,8 +396,6 @@ mod tests {
         assert_eq!(meta.triple_count, 3);
         assert_eq!(meta.schema_version, 1);
     }
-    // contract: DEP-TEST-002
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn archive_rejects_wrong_passphrase() {
         let (store, webid) = setup_triple_store();
@@ -416,8 +404,6 @@ mod tests {
         let result = BackupArchive::open(path, "wrong-pass!!");
         assert!(result.is_err());
     }
-    // contract: DEP-TEST-003
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn roundtrip_export_open_preserves_triples() {
         let (store, webid) = setup_triple_store();
@@ -430,8 +416,6 @@ mod tests {
         let meta = reopened.metadata().unwrap();
         assert_eq!(meta.triple_count, 3);
     }
-    // contract: DEP-TEST-004
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn import_into_empty_target() {
         let (source, src_webid) = setup_triple_store();
@@ -473,8 +457,6 @@ mod tests {
             .unwrap();
         assert_eq!(owner, target_webid.to_string());
     }
-    // contract: DEP-TEST-005
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn import_is_idempotent() {
         let (source, src_webid) = setup_triple_store();
@@ -508,8 +490,6 @@ mod tests {
             .unwrap();
         assert_eq!(count, 3);
     }
-    // contract: DEP-TEST-006
-    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn import_auto_renames_on_collision() {
         let (source, src_webid) = setup_triple_store();

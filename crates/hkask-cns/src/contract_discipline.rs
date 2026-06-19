@@ -28,7 +28,6 @@
 //! - contract-first-migration-plan-v0.27.0.md §5.4
 //! - test-harness-maturation-plan-v0.27.0.md §10.3 — replicant-driven test proposals
 
-use hkask_rsolidity as rs;
 use hkask_storage::{Triple, TripleStore};
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
@@ -49,11 +48,6 @@ pub enum ContractBridgeError {
 
 /// Emit a `cns.contract.violated` span when a contracted function's test fails.
 ///
-/// expect: "I get an algedonic alert when a contracted function's test fails" [P9]
-/// [P4] Constraining: Clear Boundaries — span carries structured event data
-/// [P3] Constraining: Generative Space — span payload is user-visible
-/// pre:  sink is a valid NuEventSink; function_name, contract_id, failure_reason are non-empty
-/// post: cns.contract.violated span persisted to sink
 ///
 /// Called by CI or test infrastructure when a proptest with a `// REQ:` tag
 /// fails. The span carries the function name, contract id, and failure
@@ -64,8 +58,6 @@ pub enum ContractBridgeError {
 /// - `function_name` — the fully-qualified function name (e.g., "energy::EnergyBudget::reserve")
 /// - `contract_id` — the `P{N}-{domain}-{operation}` contract ID
 /// - `failure_reason` — human-readable description of the contract violation
-#[rs::contract(id = "P9-cns-contract-violated-emit", principle = "P9")]
-#[rs::contract(id = "P9-cns-contract-violated-emit", principle = "P9")]
 pub fn emit_contract_violated(
     sink: &dyn NuEventSink,
     function_name: &str,
@@ -97,10 +89,6 @@ pub fn emit_contract_violated(
 
 /// Emit a `cns.contract.coverage` span with the current contract coverage ratio.
 ///
-/// expect: "I can monitor contract coverage trends over time" [P9]
-/// [P4] Constraining: Clear Boundaries — emits only aggregate metrics, not individual contracts
-/// pre:  sink is a valid NuEventSink; total_pub_fns >= contracted_fns
-/// post: cns.contract.coverage span persisted with coverage_pct and expectation_completeness_pct
 ///
 /// Called periodically by the Cybernetics Loop or CI to report the fraction
 /// of `pub fn` that have `// REQ: pre:` contracts. The CNS compares this
@@ -112,8 +100,6 @@ pub fn emit_contract_violated(
 /// - `contracted_fns` — number of functions with `// REQ: pre:` contracts
 /// - `coverage_pct` — coverage percentage (0.0–100.0)
 /// - `expectation_completeness_pct` — percentage of contracted fns carrying `expect:` field (0.0–100.0, v0.28.0)
-#[rs::contract(id = "P9-cns-contract-coverage-emit", principle = "P9")]
-#[rs::contract(id = "P9-cns-contract-coverage-emit", principle = "P9")]
 pub fn emit_contract_coverage(
     sink: &dyn NuEventSink,
     total_pub_fns: u64,
@@ -210,13 +196,7 @@ fn ensure_violations_board(store: &TripleStore, owner: WebID) -> Result<(), Cont
 /// ).unwrap();
 /// ```
 ///
-/// expect: "I want contract violations to auto-generate remediation tasks" [P9]
-/// [P4] Constraining: Clear Boundaries — task is scoped to violation board
 /// [P12] Constraining: Subscriber Consent — task owner is CNS system identity
-/// pre:  store is initialized; function_name, contract_id, and failure_reason are non-empty; owner is valid
-/// post: board exists in store; task triple is persisted with correct attributes
-#[rs::contract(id = "P9-cns-contract-violation-task-create", principle = "P9")]
-#[rs::contract(id = "P9-cns-contract-violation-task-create", principle = "P9")]
 pub fn create_contract_violation_task(
     store: &TripleStore,
     function_name: &str,
@@ -279,13 +259,6 @@ pub fn create_contract_violation_task(
 /// It combines the two independent concerns (observability + remediation)
 /// into a single call so callers don't need to coordinate two APIs.
 ///
-/// expect: "I want a single call that both alerts and creates a fix task" [P9]
-/// [P4] Constraining: Clear Boundaries — combines observability + remediation in one boundary
-/// [P5] Constraining: Essentialism — single API call avoids caller coordination
-/// pre:  sink and store are initialized; function_name, contract_id, failure_reason are non-empty
-/// post: CNS span persisted; kanban task created; task_id returned
-#[rs::contract(id = "P9-cns-contract-violated-emit-task", principle = "P9")]
-#[rs::contract(id = "P9-cns-contract-violated-emit-task", principle = "P9")]
 pub fn emit_contract_violated_with_task(
     sink: &dyn NuEventSink,
     store: &TripleStore,
@@ -317,13 +290,6 @@ pub fn emit_contract_violated_with_task(
 /// a `// REQ:` contract + proptest, and opens a PR. This span records
 /// the proposal event for CNS observability.
 ///
-/// expect: "I can track when a replicant proposes a new contract" [P2]
-/// [P2] Motivating: Affirmative Consent — proposal is the first step of the consent gate
-/// [P4] Constraining: Clear Boundaries — span records proposal for CNS observability
-/// pre:  sink is initialized; replicant_webid, crate_name, function_name are non-empty
-/// post: CNS span persisted with proposal metadata
-#[rs::contract(id = "P2-cns-contract-proposed-emit", principle = "P2")]
-#[rs::contract(id = "P2-cns-contract-proposed-emit", principle = "P2")]
 pub fn emit_contract_proposed(
     sink: &dyn NuEventSink,
     replicant_webid: &str,
@@ -361,13 +327,6 @@ pub fn emit_contract_proposed(
 /// Called during the Phase B3 consent gate: human reviews the PR, approves it,
 /// and the merge triggers this span. Closes the proposal→acceptance loop.
 ///
-/// expect: "I can track when a human approves a contract proposal" [P2]
-/// [P2] Motivating: Affirmative Consent — acceptance closes the consent gate
-/// [P4] Constraining: Clear Boundaries — span records human decision for audit
-/// pre:  sink is initialized; reviewer_webid, replicant_webid, function_name are non-empty
-/// post: CNS span persisted with acceptance metadata
-#[rs::contract(id = "P2-cns-contract-accepted-emit", principle = "P2")]
-#[rs::contract(id = "P2-cns-contract-accepted-emit", principle = "P2")]
 pub fn emit_contract_accepted(
     sink: &dyn NuEventSink,
     reviewer_webid: &str,
@@ -403,10 +362,6 @@ pub fn emit_contract_accepted(
 
 /// Emit `cns.contract.quality.violated` when a 4-layer contract quality check fails.
 ///
-/// expect: "I get an alert when a contract is structurally incomplete" [P9]
-/// [P4] Constraining: Clear Boundaries — distinguishes structural from runtime violations
-/// pre:  sink is a valid NuEventSink; function_name, contract_id, violation_type are non-empty
-/// post: cns.contract.quality.violated span persisted with violation details
 ///
 /// Called by the contract audit (`--contract-quality` flag) or the TDD verify step
 /// when a contract is missing required layers (expect:, [P{N}], Constraining:).
@@ -420,8 +375,6 @@ pub fn emit_contract_accepted(
 /// - `violation_type` — one of: missing-expect, missing-goal-principle, missing-constraining, contract-id-mismatch
 /// - `location` — file:line of the contract
 /// - `description` — human-readable description of the violation
-#[rs::contract(id = "P9-cns-contract-quality-violated", principle = "P9")]
-#[rs::contract(id = "P9-cns-contract-quality-violated", principle = "P9")]
 pub fn emit_contract_quality_violated(
     sink: &dyn NuEventSink,
     function_name: &str,
@@ -464,13 +417,6 @@ pub fn emit_contract_quality_violated(
 /// Called during the Phase B3 consent gate: human reviews the PR, rejects it
 /// with rationale. The rejected contract is archived as a curation decision.
 ///
-/// expect: "I can track when a human rejects a contract proposal with rationale" [P2]
-/// [P2] Motivating: Affirmative Consent — rejection is a valid consent outcome
-/// [P4] Constraining: Clear Boundaries — span archives rationale for curation audit
-/// pre:  sink is initialized; reviewer_webid, function_name are non-empty
-/// post: CNS span persisted with rejection rationale
-#[rs::contract(id = "P2-cns-contract-rejected-emit", principle = "P2")]
-#[rs::contract(id = "P2-cns-contract-rejected-emit", principle = "P2")]
 pub fn emit_contract_rejected(
     sink: &dyn NuEventSink,
     reviewer_webid: &str,
@@ -532,7 +478,6 @@ mod tests {
         }
     }
 
-    // contract: cns-contract-violation-event-001
     #[test]
     fn emit_contract_violated_persists_event() {
         let sink = CaptureSink::new();
@@ -555,7 +500,6 @@ mod tests {
         );
     }
 
-    // contract: cns-contract-coverage-event-001
     #[test]
     fn emit_contract_coverage_persists_event() {
         let sink = CaptureSink::new();
@@ -580,7 +524,6 @@ mod tests {
         WebID::from_persona(b"test-cns")
     }
 
-    // contract: P9-cns-contract-violation-task-create
     #[test]
     fn create_violation_task_persists() {
         let store = test_store();
@@ -616,7 +559,6 @@ mod tests {
         );
     }
 
-    // contract: CNS-CVB-001
     #[test]
     fn violations_board_is_created_once() {
         let store = test_store();
@@ -633,7 +575,6 @@ mod tests {
         assert_eq!(boards_after.len(), 1, "board should not be duplicated");
     }
 
-    // contract: CNS-CVB-001
     #[test]
     fn each_violation_creates_distinct_task() {
         let store = test_store();
@@ -649,7 +590,6 @@ mod tests {
         assert_eq!(tasks.len(), 2);
     }
 
-    // contract: CNS-CVB-001
     #[test]
     fn tasks_carry_distinct_origin() {
         let store = test_store();
@@ -671,7 +611,6 @@ mod tests {
         assert!(origins.contains(&"REQ-B"));
     }
 
-    // contract: CNS-CVB-001
     #[test]
     fn counterexample_persisted_in_task() {
         let store = test_store();
@@ -698,7 +637,6 @@ mod tests {
         assert_eq!(task_val["origin"]["function"], "wallet::deduct");
     }
 
-    // contract: CNS-CVB-001
     #[test]
     fn counterexample_absent_when_none() {
         let store = test_store();
@@ -721,7 +659,6 @@ mod tests {
         assert_eq!(task_val["origin"]["contract_id"], "WAL-004");
     }
 
-    // contract: CNS-CVB-002
     #[test]
     fn emit_and_task_creates_both() {
         let sink = CaptureSink::new();
@@ -749,7 +686,6 @@ mod tests {
         assert_eq!(tasks[0].value["origin"]["contract_id"], "CNS-XYZ");
     }
 
-    // contract: P9-cns-contract-violated-emit
     #[test]
     fn emit_contract_quality_violated_persists_event() {
         let sink = CaptureSink::new();

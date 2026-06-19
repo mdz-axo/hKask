@@ -9,7 +9,6 @@ description = "hKask backup service — policy layer on top of GitCASPort"
 async-trait.workspace = true
 hkask-services-core = { path = "../hkask-services-core" }
 hkask-types = { path = "../hkask-types" }
-hkask-rsolidity = { path = "../hkask-rsolidity" }
 aes-gcm = "0.10"
 argon2 = "0.5"
 chrono.workspace = true

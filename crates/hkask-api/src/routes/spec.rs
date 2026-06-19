@@ -82,9 +82,6 @@ pub struct SpecWritingQualityResponse {
 
 /// Create spec router
 ///
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
-/// pre:  none
-/// post: returns OpenApiRouter<ApiState> with spec routes registered
 pub fn spec_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_specs))

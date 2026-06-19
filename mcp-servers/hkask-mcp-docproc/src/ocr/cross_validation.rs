@@ -85,28 +85,24 @@ mod tests {
     use super::*;
     use hkask_types::ocr::OcrBackend;
 
-    // contract: ocr-xval-01
     #[test]
     fn identical_texts() {
         let sim = normalized_levenshtein_similarity("hello world", "hello world");
         assert!((sim - 1.0).abs() < 0.001);
     }
 
-    // contract: ocr-xval-02
     #[test]
     fn completely_different_texts() {
         let sim = normalized_levenshtein_similarity("abc", "xyz");
         assert!(sim < 0.5);
     }
 
-    // contract: ocr-xval-03
     #[test]
     fn empty_strings() {
         let sim = normalized_levenshtein_similarity("", "");
         assert!((sim - 1.0).abs() < 0.001);
     }
 
-    // contract: ocr-xval-04
     #[test]
     fn cross_validation_same_page() {
         let primary = OcrResult {
@@ -138,7 +134,6 @@ mod tests {
         assert_eq!(cv.confidence_b, 0.89);
     }
 
-    // contract: ocr-xval-05
     #[test]
     fn cross_validation_different_pages() {
         let primary = OcrResult {
@@ -165,7 +160,6 @@ mod tests {
         );
     }
 
-    // contract: ocr-xval-06
     #[test]
     fn levenshtein_edge_cases() {
         assert_eq!(levenshtein_distance("", ""), 0);

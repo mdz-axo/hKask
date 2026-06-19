@@ -6,9 +6,6 @@
 /// Run the `kask onboard` command synchronously.
 /// Run the onboarding workflow.
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  rt is a valid tokio runtime
-/// post: onboarding workflow executed
 pub fn run(rt: &tokio::runtime::Runtime) {
     match rt.block_on(crate::onboarding::run_add_replicant()) {
         Ok(()) => {}

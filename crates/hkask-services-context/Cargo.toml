@@ -31,7 +31,6 @@ hkask-inference = { path = "../hkask-inference" }
 hkask-keystore = { path = "../hkask-keystore" }
 reqwest.workspace = true
 hkask-test-harness = { path = "../hkask-test-harness" }
-hkask-rsolidity = { path = "../hkask-rsolidity" }
 rusqlite.workspace = true
 rand.workspace = true
 parking_lot.workspace = true

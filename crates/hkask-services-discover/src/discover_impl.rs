@@ -6,7 +6,6 @@
 //! ready for `EmbedService::embed_corpus()`.
 //!
 //! # REQ: P3 (Generative Space) — full parameter exposure, no hidden settings.
-//! # expect: "The service layer enables generative access to domain capabilities" [P3]
 //!
 //! ## Pipeline
 //! 1. Academic search via MCP web_search → Semantic Scholar + arXiv papers
@@ -18,7 +17,6 @@
 //! 7. Method inference (LLM) → stylometric patterns from cached passages
 //! 8. Generate/augment corpus.yaml
 
-use hkask_rsolidity::contract;
 
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_memory::salience::{DeclaredMethod, MethodThresholds};
@@ -142,17 +140,11 @@ impl DiscoveryService {
     /// `hkask-mcp-research` server with configured providers.
     /// `token` is a delegation token for OCAP-gated tool invocation.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  req.author_name must be non-empty; mcp must be connected; token must be valid
-    /// post: returns DiscoverResult with discovered works, sources, and academic works; output and cache directories created; Err on MCP or I/O failure
-    #[contract(id = "P3-svc-discover-166", principle = "P3")]
     pub async fn discover(
         req: &DiscoverRequest,
         mcp: &dyn McpPort,
         token: &DelegationToken,
     ) -> Result<DiscoverResult, ServiceError> {
-        // contract: P9-CNS-SVC-001
-        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.discover", operation = "discover", author = %req.author_name, max_works = req.max_works, "CNS");
 
@@ -460,10 +452,6 @@ impl DiscoveryService {
 /// they are included in the generated config. Sets `corpus_type: "academic"`
 /// since this is the academic discovery pipeline.
 ///
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-/// pre:  author_slug must be non-empty; works must be non-empty; output_dir must exist
-/// post: corpus.yaml is written to output_dir; returns PathBuf to the written file; Err on serialization or I/O failure
-#[contract(id = "P3-svc-discover-167", principle = "P3")]
 pub fn generate_corpus_yaml(
     author_slug: &str,
     works: &[DiscoveredWork],
@@ -471,8 +459,6 @@ pub fn generate_corpus_yaml(
     entities: Option<EntityConfig>,
     methods: &[DeclaredMethod],
 ) -> Result<PathBuf, ServiceError> {
-    // contract: P9-CNS-SVC-001
-    // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.discover", operation = "generate_corpus_yaml", author = %author_slug, work_count = works.len(), method_count = methods.len(), "CNS");
 
@@ -536,10 +522,6 @@ pub fn generate_corpus_yaml(
 /// Shared between `generate_corpus_yaml` and the CLI curation section
 /// to prevent default drift. All corpus config defaults live here.
 ///
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-/// pre:  author_slug must be non-empty
-/// post: returns CorpusConfig with default embedding, chunking, validation, and budget settings
-#[contract(id = "P3-svc-discover-168", principle = "P3")]
 pub fn default_corpus_config(author_slug: &str) -> CorpusConfig {
     CorpusConfig {
         author: author_slug.to_string(),
@@ -1306,13 +1288,7 @@ async fn fetch_youtube_transcript(
 
 /// Download content from a URL and cache it to disk.
 ///
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-/// pre:  url must be a valid HTTP/HTTPS URL; cache_path's parent directory must exist
-/// post: content is downloaded, PDFs are text-extracted (with OCR fallback), HTML is stripped, and result is written to cache_path; Err on HTTP failure, empty content, or I/O error
-#[contract(id = "P3-svc-discover-169", principle = "P3")]
 pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), ServiceError> {
-    // contract: P9-CNS-SVC-001
-    // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.discover", operation = "download_and_cache", url = %url, cache = %cache_path.display(), "CNS");
 
@@ -1445,10 +1421,6 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
 
 // ── Utilities ───────────────────────────────────────────────────────────────
 
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-/// pre:  s may be any string (including empty)
-/// post: returns lowercase, alphanumeric-only slug with hyphens; empty string becomes empty slug
-#[contract(id = "P3-svc-discover-170", principle = "P3")]
 pub fn slugify(s: &str) -> String {
     let slug = s
         .to_lowercase()
@@ -1555,24 +1527,18 @@ mod tests {
 
     // ── slugify ─────────────────────────────────────────────────────────
 
-    // contract: P3-svc-discover-001
-    // expect: "Service slugify works correctly under test conditions" [P3]
     #[test]
     fn slugify_ascii_name() {
         let s = slugify("David Dunning");
         assert_eq!(s, "david-dunning");
     }
 
-    // contract: P3-svc-discover-002
-    // expect: "Service slugify works correctly under test conditions" [P3]
     #[test]
     fn slugify_with_special_chars() {
         let s = slugify("J. R. R. Tolkien");
         assert!(s.contains("tolkien"));
     }
 
-    // contract: P3-svc-discover-003
-    // expect: "Service slugify works correctly under test conditions" [P3]
     #[test]
     fn slugify_non_ascii_fallback() {
         // All non-ASCII characters produce empty slug → UUID fallback
@@ -1583,8 +1549,6 @@ mod tests {
         assert_eq!(s.chars().filter(|c| *c == '-').count(), 4);
     }
 
-    // contract: P3-svc-discover-004
-    // expect: "Service slugify works correctly under test conditions" [P3]
     #[test]
     fn slugify_empty_string() {
         let s = slugify("");
@@ -1594,31 +1558,23 @@ mod tests {
 
     // ── parse_template_model ────────────────────────────────────────────
 
-    // contract: P3-svc-discover-005
-    // expect: "Service parse_template_model works correctly under test conditions" [P3]
     #[test]
     fn parse_model_directive_present() {
         let src = "{# model: OM/qwen3:14b #}\nrest of template";
         assert_eq!(parse_template_model(src), Some("OM/qwen3:14b".to_string()));
     }
 
-    // contract: P3-svc-discover-006
-    // expect: "Service parse_template_model works correctly under test conditions" [P3]
     #[test]
     fn parse_model_directive_absent() {
         let src = "You are analyzing the academic work of {{ author_name }}.";
         assert_eq!(parse_template_model(src), None);
     }
 
-    // contract: P3-svc-discover-007
-    // expect: "Service parse_template_model works correctly under test conditions" [P3]
     #[test]
     fn parse_model_directive_empty_template() {
         assert_eq!(parse_template_model(""), None);
     }
 
-    // contract: P3-svc-discover-008
-    // expect: "Service parse_template_model works correctly under test conditions" [P3]
     #[test]
     fn parse_model_directive_whitespace_handling() {
         let src = "  {# model: DI/meta-llama/Llama-3.3-70B-Instruct #}  \nrest";
@@ -1630,8 +1586,6 @@ mod tests {
 
     // ── default_corpus_config ───────────────────────────────────────────
 
-    // contract: P3-svc-discover-009
-    // expect: "Service default_corpus_config works correctly under test conditions" [P3]
     #[test]
     fn default_corpus_config_has_correct_defaults() {
         let config = default_corpus_config("test-author");
@@ -1646,8 +1600,6 @@ mod tests {
         assert!(config.foundational_rules.is_empty());
     }
 
-    // contract: P3-svc-discover-010
-    // expect: "Service default_corpus_config works correctly under test conditions" [P3]
     #[test]
     fn default_corpus_config_academic_entities_empty_by_default() {
         let config = default_corpus_config("author");
@@ -1659,8 +1611,6 @@ mod tests {
 
     // ── DiscoveredWork with abstract ────────────────────────────────────
 
-    // contract: P3-svc-discover-011
-    // expect: "Service DiscoveredWork works correctly under test conditions" [P3]
     #[test]
     fn discovered_work_serializes_abstract() {
         let work = DiscoveredWork {
@@ -1677,8 +1627,6 @@ mod tests {
         assert!(json.contains("This paper explores"));
     }
 
-    // contract: P3-svc-discover-012
-    // expect: "Service DiscoveredWork works correctly under test conditions" [P3]
     #[test]
     fn discovered_work_omits_none_abstract() {
         let work = DiscoveredWork {
@@ -1697,8 +1645,6 @@ mod tests {
 
     // ── extract_search_terms ────────────────────────────────────────────
 
-    // contract: P3-svc-discover-013
-    // expect: "Service extract_search_terms works correctly under test conditions" [P3]
     #[test]
     fn extract_search_terms_from_titles() {
         let titles = vec![
@@ -1711,8 +1657,6 @@ mod tests {
         assert!(!terms.is_empty());
     }
 
-    // contract: P3-svc-discover-014
-    // expect: "Service extract_search_terms works correctly under test conditions" [P3]
     #[test]
     fn extract_search_terms_empty_titles() {
         let terms = extract_search_terms("Author", &[]);
@@ -1721,8 +1665,6 @@ mod tests {
 
     // ── DiscoverRequest defaults ────────────────────────────────────────
 
-    // contract: P3-svc-discover-015
-    // expect: "Service DiscoverRequest works correctly under test conditions" [P3]
     #[test]
     fn discover_request_defaults() {
         let req = DiscoverRequest {
@@ -1745,8 +1687,6 @@ mod tests {
         assert!(req.biographical_details.is_none());
     }
 
-    // contract: P3-svc-discover-016
-    // expect: "Service DiscoverRequest works correctly under test conditions" [P3]
     #[test]
     fn discover_request_with_bio() {
         let req = DiscoverRequest {

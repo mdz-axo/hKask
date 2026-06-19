@@ -22,7 +22,6 @@ use crate::dynamic_gas_table::DynamicGasTable;
 use crate::gas_report::GasReport;
 use crate::governed_tool::EnergyEstimator;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use hkask_rsolidity as rs;
 use hkask_storage::NuEventStore;
 use hkask_types::InfrastructureError;
 use hkask_types::WebID;
@@ -35,7 +34,6 @@ use tracing::{info, warn};
 
 /// Default interval between background calibrations.
 ///
-/// expect: "I can configure the default interval for the background gas calibration loop" [P9]
 pub const DEFAULT_CALIBRATION_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 /// Default lookback window for the first calibration after construction.
@@ -64,12 +62,6 @@ pub struct CalibratedEnergyEstimator {
 impl CalibratedEnergyEstimator {
     /// Create a calibrated estimator backed by the given event store.
     ///
-    /// expect: "I can configure the default interval for the background gas calibration loop" [P9]
-    /// pre:  store is a valid NuEventStore
-    /// post: returns CalibratedEnergyEstimator with default table and no observations
-    /// post: first calibration will look back `DEFAULT_INITIAL_LOOKBACK`
-    /// post: no event sink attached until `with_event_sink` is called
-    #[rs::contract(id = "P9-cns-calibrated-energy-estimator-new", principle = "P9")]
     pub fn new(store: Arc<NuEventStore>) -> Self {
         let table = DynamicGasTable::new();
         let estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
@@ -84,15 +76,7 @@ impl CalibratedEnergyEstimator {
 
     /// Configure how far back the first calibration pass searches for events.
     ///
-    /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data" [P9]
-    /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation" [P9]
-    /// pre:  lookback is a positive duration
-    /// post: first calibration will search [Utc::now() - lookback, Utc::now()]
     #[must_use = "builder methods must be chained or assigned"]
-    #[rs::contract(
-        id = "P9-cns-calibrated-energy-estimator-with-initial-lookback",
-        principle = "P9"
-    )]
     pub fn with_initial_lookback(mut self, lookback: ChronoDuration) -> Self {
         let now = Utc::now();
         // Update last_calibrated_at so the first pass covers [now - lookback, now].
@@ -102,14 +86,7 @@ impl CalibratedEnergyEstimator {
 
     /// Attach a CNS event sink for calibration span emission.
     ///
-    /// expect: "I can attach an event sink so calibration adjustments emit CNS observability spans" [P9]
-    /// pre:  sink is a valid NuEventSink
-    /// post: subsequent successful calibrations that adjust costs emit a span
     #[must_use = "builder methods must be chained or assigned"]
-    #[rs::contract(
-        id = "P9-cns-calibrated-energy-estimator-with-event-sink",
-        principle = "P9"
-    )]
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
@@ -117,13 +94,8 @@ impl CalibratedEnergyEstimator {
 
     /// Run one incremental calibration pass.
     ///
-    /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data" [P9]
-    /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation" [P9]
-    /// pre:  `self.store` is a valid NuEventStore
-    /// post: all settled gas events since the last calibration are fed into
     ///       `DynamicGasTable`; `CompositeEnergyEstimator` is rebuilt from the
     ///       updated table; returns the number of servers whose costs changed
-    #[rs::contract(id = "P9-cns-calibrated-energy-estimator-calibrate", principle = "P9")]
     pub async fn calibrate(&self) -> Result<usize, InfrastructureError> {
         let until = Utc::now();
         let since = {
@@ -202,14 +174,6 @@ impl CalibratedEnergyEstimator {
     /// The task runs until the runtime shuts down. Calibration errors are logged
     /// but do not crash the task.
     ///
-    /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data" [P9]
-    /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation" [P9]
-    /// pre:  interval > 0
-    /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`
-    #[rs::contract(
-        id = "P9-cns-calibrated-energy-estimator-spawn-calibration",
-        principle = "P9"
-    )]
     pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
         tokio::spawn(async move {
             loop {
@@ -229,13 +193,6 @@ impl CalibratedEnergyEstimator {
     ///
     /// Useful for diagnostics and tests.
     ///
-    /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data" [P9]
-    /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation" [P9]
-    /// post: returns a copy of the internal server_costs map
-    #[rs::contract(
-        id = "P9-cns-calibrated-energy-estimator-current-table",
-        principle = "P9"
-    )]
     pub fn current_table(&self) -> std::collections::HashMap<String, u64> {
         self.table
             .read()
@@ -304,7 +261,6 @@ mod tests {
         )
     }
 
-    // contract: GAS-CALIB-004
     #[tokio::test]
     async fn calibrate_updates_costs_from_settled_events() {
         let agent = WebID::new();
@@ -332,7 +288,6 @@ mod tests {
         assert_eq!(after, 200);
     }
 
-    // contract: GAS-CALIB-004
     #[tokio::test]
     async fn calibrate_is_incremental() {
         let agent = WebID::new();
@@ -370,7 +325,6 @@ mod tests {
         );
     }
 
-    // contract: GAS-CALIB-004
     #[test]
     fn with_initial_lookback_changes_first_window() {
         let db = in_memory_db();
@@ -388,7 +342,6 @@ mod tests {
         );
     }
 
-    // contract: GAS-CALIB-004-obs
     #[tokio::test]
     async fn calibrate_emits_cns_gas_span_when_adjusted() {
         let agent = WebID::new();
@@ -424,7 +377,6 @@ mod tests {
         );
     }
 
-    // contract: GAS-CALIB-004-obs
     #[tokio::test]
     async fn calibrate_does_not_emit_span_when_not_adjusted() {
         let db = in_memory_db();

@@ -1,7 +1,6 @@
 //! OAuth authentication routes — GitHub/Google sign-in for hKask cloud deployment.
 //!
 //! # REQ: P1-deploy-oauth-login — P1 User Sovereignty: OAuth sign-in with session cookie.
-//! expect: "I can sign in via OAuth to access my hKask server" [P1]
 //! # REQ: P12-deploy-oauth-attribution — P12 Anonymous Agency: every action tied to authenticated WebID.
 //! expect: "Every OAuth session is tied to my authenticated WebID" [P12]
 //!
@@ -15,7 +14,6 @@ use axum::{
     http::{StatusCode, header},
     response::Response,
 };
-use hkask_rsolidity as rs;
 use hkask_types::identity::OAuthProvider;
 use serde::Deserialize;
 use tracing;
@@ -47,7 +45,6 @@ struct OAuthConfig {
 
 impl OAuthConfig {
     /// Load OAuth config from environment variables.
-    /// expect: "My API access is scoped to my sovereignty boundaries" [P1]
     fn from_env(provider: &OAuthProvider) -> Result<Self, String> {
         match provider {
             OAuthProvider::GitHub => {
@@ -133,10 +130,6 @@ struct GitHubEmail {
 /// URL-encode a string (basic implementation — only encodes special chars).
 /// GET /api/v1/auth/login
 ///
-/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
-/// pre:  provider query param is "github" or "google"
-/// post: redirects to provider's OAuth authorize URL
-/// post: sets state cookie for CSRF verification
 pub async fn login(
     State(_state): State<ApiState>,
     Query(query): Query<LoginQuery>,
@@ -175,10 +168,6 @@ pub async fn login(
 
 /// GET /api/v1/auth/callback
 ///
-/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
-/// pre:  code is a valid OAuth authorization code; state matches cookie
-/// post: session created, session cookie set, redirected to /terminal
-/// post: new HumanUser + ReplicantIdentity created on first sign-in
 pub async fn callback(
     State(state): State<ApiState>,
     Query(query): Query<CallbackQuery>,
@@ -420,7 +409,6 @@ async fn fetch_github_user(
 
 /// POST /api/v1/auth/logout — destroys the current session.
 ///
-/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 pub async fn logout(
     State(state): State<ApiState>,
     headers: axum::http::HeaderMap,
@@ -448,7 +436,6 @@ pub async fn logout(
 
 /// GET /api/v1/auth/session — returns current session info.
 ///
-/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 pub async fn session_info(
     State(state): State<ApiState>,
     headers: axum::http::HeaderMap,
@@ -481,10 +468,6 @@ pub async fn session_info(
 /// POST /api/v1/auth/accept-invite
 ///
 /// REQ: P2-multi-accept-invite-route
-/// expect: "I can accept an invite code to join a server" [P2]
-/// pre:  code is a valid invite code
-/// post: if not authenticated: redirect to OAuth with invite code in state
-/// post: if authenticated: accept invite, link user, return success
 pub async fn accept_invite(
     State(state): State<ApiState>,
     headers: axum::http::HeaderMap,
@@ -585,7 +568,6 @@ fn urlencoding(s: &str) -> String {
 
 /// Build the auth router.
 ///
-/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 pub fn auth_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
     use utoipa_axum::router::OpenApiRouter;
     OpenApiRouter::new()

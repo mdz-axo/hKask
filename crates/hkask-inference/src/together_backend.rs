@@ -3,7 +3,6 @@
 //! Together AI exposes `/v1/chat/completions` and `/v1/models`.
 //! Requires Bearer token authentication via `TOGETHER_API_KEY`.
 
-use hkask_rsolidity::contract;
 
 use crate::chat_protocol::{
     ChatResponse, build_chat_request, chat_response_to_result, stream_chat_completion,
@@ -43,11 +42,7 @@ impl TogetherBackend {
     ///
     /// Returns an error if `together_api_key` is empty.
     ///
-    /// expect: "The system creates provider membranes requiring valid API keys" [P4]
     /// \[P4\] Motivating: Clear Boundaries — Together AI provider membrane requires valid API key
-    /// pre:  config.together_api_key is set
-    /// post: returns TogetherBackend with configured HTTP client
-    #[contract(id = "P4-inf-together-backend-new", principle = "P4")]
     pub fn new(config: &InferenceConfig) -> Result<Self, InferenceError> {
         if config.together_api_key.is_empty() {
             return Err(InferenceError::Connection(
@@ -67,15 +62,7 @@ impl TogetherBackend {
 
     /// Send a chat completion request to Together AI.
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated text generation
-    /// pre:  model is a valid Together AI model name
-    /// pre:  prompt is non-empty (validated by validate_prompt)
-    /// pre:  params is a valid LLMParameters
-    /// post: returns Ok(InferenceResult) with generated text, model, usage stats
-    /// post: if connection fails → Err(InferenceError::Connection)
-    /// post: if prompt is empty → Err(InferenceError::Generation)
-    #[contract(id = "P9-inf-together-generate", principle = "P9")]
     pub async fn generate(
         &self,
         model: &str,
@@ -125,11 +112,7 @@ impl TogetherBackend {
     /// Stream a chat completion from Together AI via SSE.
     /// Generate a streaming completion from Together.
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated streaming text generation
-    /// pre:  model is a valid Together model name
-    /// post: returns stream of inference chunks
-    #[contract(id = "P9-inf-together-generate-stream", principle = "P9")]
     pub fn generate_stream(
         &self,
         model: &str,
@@ -155,15 +138,7 @@ impl TogetherBackend {
 
     /// Vision/multimodal inference with base64-encoded images.
     ///
-    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated multimodal generation
-    /// pre:  model is a valid Together AI vision-capable model name
-    /// pre:  prompt is non-empty
-    /// pre:  images is non-empty (at least one base64-encoded image)
-    /// pre:  params is a valid LLMParameters
-    /// post: returns Ok(InferenceResult) with vision-generated text
-    /// post: if connection fails → Err(InferenceError::Connection)
-    #[contract(id = "P9-inf-together-generate-vision", principle = "P9")]
     pub async fn generate_vision(
         &self,
         model: &str,
@@ -211,13 +186,7 @@ impl TogetherBackend {
 
     /// List available models from Together AI.
     ///
-    /// expect: "I can discover available models across providers" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — model variety discovery
-    /// pre:  self.client and self.base_url are initialized
-    /// post: returns Ok(Vec<TogetherModel>) with all available models
-    /// post: if API returns non-success → Err(InferenceError::Connection)
-    /// post: if connection fails → Err(InferenceError::Connection)
-    #[contract(id = "P9-inf-together-list-models", principle = "P9")]
     pub async fn list_models(&self) -> Result<Vec<TogetherModel>, InferenceError> {
         let response = self
             .client

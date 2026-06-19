@@ -1,12 +1,10 @@
 //! VerificationService — Magna Carta sovereignty verification.
 //! # REQ: P4 (Clear Boundaries) — verifies P1-P4 are enforced through OCAP gates.
-//! # expect: "Service boundaries enforce OCAP membranes" [P4]
 //!
 //! Loads YAML manifests defining assertions against hKask's four Magna Carta
 //! principles (User Sovereignty, Affirmative Consent, Generative Space, Clear
 //! Boundaries), dispatches verification methods, and produces structured reports.
 
-use hkask_rsolidity::contract;
 
 use hkask_types::sovereignty::{DataCategory, DataSovereigntyBoundary};
 use serde::Deserialize;
@@ -101,13 +99,7 @@ pub struct VerificationReport {
 pub struct VerificationService;
 
 impl VerificationService {
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  filter if Some must be a valid principle name; manifests must be loadable
-    /// post: returns VerificationReport with principle results, pass/fail/gap/skip counts, and total assertions
-    #[contract(id = "P4-svc-verification-232", principle = "P4")]
     pub fn verify(filter: Option<&str>) -> VerificationReport {
-        // contract: P9-CNS-SVC-030
-        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.verification",
@@ -116,8 +108,6 @@ impl VerificationService {
             "CNS"
         );
         let report = build_report(&load_manifests(), filter);
-        // contract: P9-CNS-SVC-031
-        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.verification",
@@ -130,10 +120,6 @@ impl VerificationService {
         );
         report
     }
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  filter if Some must be a valid principle name
-    /// post: returns serde_json::Value with principles array, totals, and escalation_required flag
-    #[contract(id = "P4-svc-verification-233", principle = "P4")]
     pub fn verify_json(filter: Option<&str>) -> serde_json::Value {
         let report = Self::verify(filter);
         serde_json::json!({

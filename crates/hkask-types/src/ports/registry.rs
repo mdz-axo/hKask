@@ -21,8 +21,6 @@ pub struct RegistryEntry {
 impl RegistryEntry {
     /// Validate the registry entry for consistency.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Vec of warning strings for invalid fields
     pub fn validate(&self) -> Vec<String> {
         let mut warnings = Vec::new();
         if self.id.is_empty() {
@@ -44,8 +42,6 @@ impl RegistryEntry {
     }
     /// Check if this entry can nest further.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns true iff cascade_level < matroshka_limit
     pub fn can_nest(&self) -> bool {
         self.cascade_level < self.matroshka_limit
     }
@@ -65,8 +61,6 @@ pub enum SkillZone {
 impl SkillZone {
     /// Get string representation of zone.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns "private" or "public"
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Private => "private",
@@ -75,8 +69,6 @@ impl SkillZone {
     }
     /// Parse zone from string.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Some(SkillZone) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
         match s {
             "private" | "Private" => Some(Self::Private),
@@ -86,8 +78,6 @@ impl SkillZone {
     }
     /// Get the filesystem directory for this zone.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns ".agents/skills" for Private, "skills" for Public
     pub fn directory(&self) -> &'static str {
         match self {
             Self::Private => ".agents/skills",
@@ -121,9 +111,6 @@ pub struct Skill {
 impl Skill {
     /// Create a new Skill.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// pre:  id is non-empty, domain is valid
-    /// post: returns Skill with defaults (Private zone, Private visibility)
     pub fn new(id: &str, domain: TemplateType) -> Self {
         Self {
             id: id.to_string(),
@@ -142,48 +129,36 @@ impl Skill {
     /// Builders with `Option<String>` from `&str`.
     /// Set the WordAct template reference.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Self with word_act set (builder)
     pub fn with_word_act(mut self, v: &str) -> Self {
         self.word_act = Some(v.to_string());
         self
     }
     /// Set the FlowDef template reference.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Self with flow_def set (builder)
     pub fn with_flow_def(mut self, v: &str) -> Self {
         self.flow_def = Some(v.to_string());
         self
     }
     /// Set the KnowAct template reference.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Self with know_act set (builder)
     pub fn with_know_act(mut self, v: &str) -> Self {
         self.know_act = Some(v.to_string());
         self
     }
     /// Set the skill polarity.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Self with polarity set (builder)
     pub fn with_polarity(mut self, v: SkillPolarity) -> Self {
         self.polarity = Some(v);
         self
     }
     /// Set the content hash.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Self with content_hash set (builder)
     pub fn with_content_hash(mut self, v: String) -> Self {
         self.content_hash = Some(v);
         self
     }
     /// Set the visibility.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Self with visibility set (builder)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_visibility(mut self, v: Visibility) -> Self {
         self.visibility = v;
@@ -191,8 +166,6 @@ impl Skill {
     }
     /// Set the zone.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Self with zone set (builder)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_zone(mut self, v: SkillZone) -> Self {
         self.zone = v;
@@ -200,8 +173,6 @@ impl Skill {
     }
     /// Set the namespace.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Self with namespace set (builder)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_namespace(mut self, v: impl Into<String>) -> Self {
         self.namespace = Some(v.into());
@@ -211,8 +182,6 @@ impl Skill {
     /// Qualified ID: `<namespace>--<id>` if namespace set, else just `id`. Double-dash is unambiguous for filesystem dirs.
     /// Get the qualified ID (namespace--id).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns "namespace--id" if namespace set, else just id
     pub fn qualified_id(&self) -> String {
         match &self.namespace {
             Some(ns) => format!("{}--{}", ns, self.id),
@@ -222,8 +191,6 @@ impl Skill {
     /// Parse `<namespace>--<id>` into `(namespace, id)`. Returns `None` if not a qualified ID.
     /// Parse a qualified ID into (namespace, id).
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: returns Some((namespace, id)) if valid qualified ID, None otherwise
     pub fn parse_qualified_id(qualified: &str) -> Option<(String, String)> {
         let parts: Vec<&str> = qualified.splitn(2, "--").collect();
         if parts.len() == 2 && !parts[0].is_empty() && !parts[1].is_empty() {
@@ -236,8 +203,6 @@ impl Skill {
     /// Compute and set SHA-256 content hash from key fields.
     /// Compute and set the content hash.
     ///
-    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
-    /// post: content_hash computed from key fields
     pub fn compute_content_hash(&mut self) {
         use sha2::{Digest, Sha256};
         let mut h = Sha256::new();

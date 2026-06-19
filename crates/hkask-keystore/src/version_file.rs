@@ -15,8 +15,6 @@ pub const DEFAULT_KEY_VERSION: u32 = 1;
 
 /// Get the path to the key version file.
 ///
-/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
-/// post: returns PathBuf to ~/.config/hkask/version
 pub fn version_file_path() -> PathBuf {
     let mut path = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
     path.push("hkask");
@@ -29,8 +27,6 @@ pub fn version_file_path() -> PathBuf {
 /// Returns `DEFAULT_KEY_VERSION` (1) if the file doesn't exist
 /// (backward compatibility with pre-versioning installs).
 ///
-/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
-/// post: returns u32 version from file, or DEFAULT_KEY_VERSION if missing
 pub fn read_key_version() -> u32 {
     let path = version_file_path();
     match std::fs::read_to_string(&path) {
@@ -51,9 +47,6 @@ pub fn read_key_version() -> u32 {
 ///
 /// Creates the parent directory if it doesn't exist.
 ///
-/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
-/// pre:  version is a valid u32
-/// post: version written to version file
 pub fn write_key_version(version: u32) -> std::io::Result<()> {
     let path = version_file_path();
     if let Some(parent) = path.parent() {
@@ -69,9 +62,6 @@ pub fn write_key_version(version: u32) -> std::io::Result<()> {
 /// Reads current version, increments by 1, writes new version.
 /// Returns the new version number.
 ///
-/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
-/// post: version incremented by 1 and written to disk
-/// post: returns new version number
 pub fn increment_key_version() -> std::io::Result<u32> {
     let current = read_key_version();
     let new = current + 1;
@@ -85,15 +75,11 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    // contract: svc-keystore-version-001
-    // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn default_version_is_one() {
         assert_eq!(DEFAULT_KEY_VERSION, 1);
     }
 
-    // contract: svc-keystore-version-002
-    // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn read_returns_default_when_no_file() {
         // In test environment, config dir may not exist — should return default
@@ -101,8 +87,6 @@ mod tests {
         assert!(version >= 1);
     }
 
-    // contract: svc-keystore-version-003
-    // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn write_and_read_roundtrip() {
         let dir = TempDir::new().unwrap();

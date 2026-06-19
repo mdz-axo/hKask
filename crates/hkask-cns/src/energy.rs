@@ -10,7 +10,6 @@
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
-use hkask_rsolidity as rs;
 use serde::{Deserialize, Serialize};
 
 // Re-export domain newtypes that live in the substrate crate (hkask-types).
@@ -33,22 +32,14 @@ impl EnergyCost {
 
     /// Create a energy cost from a raw `u64`.
     ///
-    /// expect: "Energy cost types preserve semantic identity — a gas unit is never confused with a cap or a rate" [P8]
-    /// [P8] Motivating: Semantic Grounding — type-level identity preservation
     /// \[P5\] Constraining: Essentialism — minimal newtype, no validation or transformation
-    /// post: result.0 == value
-    #[rs::contract(id = "P8-cns-energy-cost-from-raw", principle = "P8")]
     pub fn from_raw(value: u64) -> Self {
         EnergyCost(value)
     }
 
     /// Return the raw `u64` value.
     ///
-    /// expect: "Energy cost types preserve semantic identity — symmetric access preserves type distinction" [P8]
-    /// [P8] Motivating: Semantic Grounding — symmetric type-level identity
     /// \[P5\] Constraining: Essentialism — minimal accessor, no transformation
-    /// post: result == self.0
-    #[rs::contract(id = "P8-cns-energy-cost-as-raw", principle = "P8")]
     pub fn as_raw(self) -> u64 {
         self.0
     }
@@ -111,22 +102,14 @@ impl EnergyDelta {
 
     /// Create an energy delta from a raw `f64`.
     ///
-    /// expect: "Energy delta types preserve semantic identity — an f64 is never confused with a different quantity" [P8]
-    /// [P8] Motivating: Semantic Grounding — type-level identity for f64 newtype
     /// \[P5\] Constraining: Essentialism — minimal constructor, no validation
-    /// post: result.0 == value
-    #[rs::contract(id = "P8-cns-energy-delta-from-raw", principle = "P8")]
     pub fn from_raw(value: f64) -> Self {
         EnergyDelta(value)
     }
 
     /// Return the raw `f64` value.
     ///
-    /// expect: "Energy delta types preserve semantic identity — symmetric access preserves type distinction" [P8]
-    /// [P8] Motivating: Semantic Grounding — symmetric type-level identity
     /// \[P5\] Constraining: Essentialism — minimal accessor
-    /// post: result == self.0
-    #[rs::contract(id = "P8-cns-energy-delta-as-raw", principle = "P8")]
     pub fn as_raw(self) -> f64 {
         self.0
     }
@@ -135,25 +118,14 @@ impl EnergyDelta {
     /// Zero delta (stationary point) is also considered descending — the system
     /// has found its minimal-action configuration.
     ///
-    /// expect: "I can detect when the system moves toward lower energy — lazy universe compliance" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — lazy universe compliance detection
     /// \[P8\] Constraining: Semantic Grounding — this is a pure measurement, not a moral judgment
-    /// post: result == (self.0 <= 0.0)
-    #[rs::contract(id = "P9-cns-energy-delta-descending", principle = "P9")]
-    #[rs::contract(id = "P9-cns-energy-delta-descending", principle = "P9")]
     pub fn is_descending(&self) -> bool {
         self.0 <= 0.0
     }
 
     /// Returns true if the system moved toward higher energy (anti-lazy — alert candidate).
     ///
-    /// expect: "I can detect anti-lazy energy drift to trigger algedonic alerts" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — anti-lazy detection triggers algedonic alert
     /// \[P8\] Constraining: Semantic Grounding — this is a measurement, not an alarm
-    /// post: result == (self.0 > 0.0)
-    /// post: is_ascending() == !is_descending() || self.0 == 0.0
-    #[rs::contract(id = "P9-cns-energy-delta-ascending", principle = "P9")]
-    #[rs::contract(id = "P9-cns-energy-delta-ascending", principle = "P9")]
     pub fn is_ascending(&self) -> bool {
         self.0 > 0.0
     }
@@ -200,11 +172,7 @@ const fn default_priority() -> f64 {
 /// Gas replenishes periodically via `replenish()`, called by the
 /// Cybernetics Loop on its regulation cycle.
 ///
-/// expect: "The system prevents runaway agent resource consumption through gas budgeting" [P9]
-/// [P9] Motivating: Homeostatic Self-Regulation — the budget invariant enables feedback loops
 /// \[P4\] Constraining: Clear Boundaries — cap enforces OCAP boundaries, non-negative enforces safety
-/// inv: remaining + reserved ≤ cap (budget cap invariant)
-/// inv: remaining ≥ 0, reserved ≥ 0
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnergyBudget {
     /// Maximum gas capacity.
@@ -231,20 +199,13 @@ pub struct EnergyBudget {
 }
 
 impl EnergyBudget {
-    #[rs::contract(id = "P9-cns-energy-budget-new", principle = "P9")]
     /// Create a new energy budget with the given cap.
     ///
-    /// expect: "I can create an energy budget with a cap that limits agent resource consumption" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — budget creation enables self-regulation
     /// \[P4\] Constraining: Clear Boundaries — cap enforces OCAP boundary, defaults are safe
     /// \[P5\] Constraining: Essentialism — minimal defaults (replenish_rate = cap/10)
-    /// pre:  cap > 0
-    /// post: remaining == cap, reserved == 0, hard_limit == true
-    /// post: replenish_rate == cap / 10, alert_threshold == DEFAULT_ENERGY_ALERT_THRESHOLD
     /// Defaults: replenish_rate = cap / 10, alert_threshold = DEFAULT_ENERGY_ALERT_THRESHOLD, hard_limit = true.
-    #[rs::contract(id = "P9-cns-energy-budget-new", principle = "P9")]
     pub fn new(cap: EnergyCost) -> Self {
-        rs::require!(
+        assert!(
             cap.0 > 0,
             "P9-cns-energy-budget-new",
             "precondition: cap must be positive"
@@ -261,75 +222,48 @@ impl EnergyBudget {
         }
     }
 
-    #[rs::contract(id = "P9-cns-energy-budget-unlimited", principle = "P9")]
     /// Create a energy budget with unlimited capacity (u64::MAX).
     ///
-    /// expect: "I can create an unlimited budget for agents that should never be throttled" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — observability without throttling
     /// \[P4\] Constraining: Clear Boundaries — soft boundary tracks but never blocks
-    /// post: cap == u64::MAX, hard_limit == false
     ///
     /// \[NORMATIVE\] Useful for agents that should never be throttled (P9 — Homeostatic Self-Regulation). The budget still
     /// \[DECLARATIVE\] tracks usage for observability but never hard-rejects. (P9 — Homeostatic Self-Regulation).
-    #[rs::contract(id = "P9-cns-energy-budget-unlimited", principle = "P9")]
     pub fn unlimited() -> Self {
         Self::new(EnergyCost(u64::MAX)).with_hard_limit(false)
     }
 
-    #[rs::contract(id = "P9-cns-energy-budget-with-replenish-rate", principle = "P9")]
     /// Set the replenishment rate (gas units per cycle).
     ///
-    /// expect: "I can configure how quickly gas replenishes — a regulation knob" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — configurable replenishment knob
     /// \[P7\] Constraining: Evolutionary Architecture — emerged from real usage
-    /// post: self.replenish_rate == rate
-    #[rs::contract(id = "P9-cns-energy-budget-with-replenish-rate", principle = "P9")]
     pub fn with_replenish_rate(mut self, rate: EnergyCost) -> Self {
         self.replenish_rate = rate;
         self
     }
 
-    #[rs::contract(id = "P9-cns-energy-budget-with-alert-threshold", principle = "P9")]
     /// Set the alert threshold (0.0–1.0).
     ///
-    /// expect: "I can configure when the system alerts me about budget depletion" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — configurable alert threshold
     /// \[P7\] Constraining: Evolutionary Architecture — emerged from real usage
-    /// pre:  threshold is a valid ratio
-    /// post: self.alert_threshold == threshold.clamp(0.0, 1.0)
-    #[rs::contract(id = "P9-cns-energy-budget-with-alert-threshold", principle = "P9")]
     pub fn with_alert_threshold(mut self, threshold: f64) -> Self {
         self.alert_threshold = threshold.clamp(0.0, 1.0);
         self
     }
 
-    #[rs::contract(id = "P9-cns-energy-budget-with-hard-limit", principle = "P9")]
     /// Set whether to hard-reject on exhaustion.
     ///
-    /// expect: "I can toggle whether budget exhaustion hard-blocks or soft-warns" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — boundary enforcement toggle
     /// \[P4\] Constraining: Clear Boundaries — hard_limit is the OCAP enforcement gate
-    /// post: self.hard_limit == hard
-    #[rs::contract(id = "P9-cns-energy-budget-with-hard-limit", principle = "P9")]
     pub fn with_hard_limit(mut self, hard: bool) -> Self {
         self.hard_limit = hard;
         self
     }
 
-    #[rs::contract(id = "P9-cns-energy-budget-can-proceed", principle = "P9")]
     /// Check whether an operation costing `gas` can proceed.
     ///
-    /// expect: "I can check whether an agent has enough gas before executing" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — the check-before-execute gateway
     /// \[P4\] Constraining: Clear Boundaries — hard_limit enforces the boundary
-    /// pre:  gas is a valid EnergyCost
-    /// post: returns true iff gas <= available OR hard_limit is false
     /// Returns `true` if the gas fits within available (remaining - reserved) budget.
-    #[rs::contract(id = "P9-cns-energy-budget-can-proceed", principle = "P9")]
     pub fn can_proceed(&self, gas: EnergyCost) -> bool {
         let available = self.available();
         let result = gas.0 <= available.0 || !self.hard_limit;
-        rs::assert!(
+        debug_assert!(
             !self.hard_limit || gas.0 > available.0 || result,
             "P9-cns-energy-budget-can-proceed",
             "postcondition: hard_limit implies result iff gas fits within available"
@@ -337,18 +271,13 @@ impl EnergyBudget {
         result
     }
 
-    #[rs::contract(id = "P9-cns-energy-budget-available", principle = "P9")]
     /// Available gas = remaining - reserved.
     ///
-    /// expect: "I can query remaining available gas for feedback decisions" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — visible state for feedback loops
     /// \[P4\] Constraining: Clear Boundaries — non-negative guarantee
     /// \[NORMATIVE\] post: result >= 0 (available never negative) (P9 — Homeostatic Self-Regulation)
-    /// post: result == remaining.saturating_sub(reserved)
-    #[rs::contract(id = "P9-cns-energy-budget-available", principle = "P9")]
     pub fn available(&self) -> EnergyCost {
         let result = EnergyCost(self.remaining.0.saturating_sub(self.reserved.0));
-        rs::assert!(
+        debug_assert!(
             result.0 <= self.remaining.0,
             "P9-cns-energy-budget-available",
             "postcondition: available never exceeds remaining"
@@ -356,25 +285,17 @@ impl EnergyBudget {
         result
     }
 
-    #[rs::contract(id = "P9-cns-energy-budget-reserve", principle = "P9")]
     /// Reserve gas for an in-flight operation (hold-settle pattern).
     ///
-    /// expect: "I can reserve gas for an in-flight operation — hold before settle" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — the hold-settle pattern
     /// \[P4\] Constraining: Clear Boundaries — hard_limit enforces the boundary
-    /// pre:  gas is a valid EnergyCost
-    /// post: if hard_limit && gas > available → Err(BudgetExceeded)
-    /// post: if Ok → reserved increased by gas, remaining unchanged
-    /// inv:  reserved ≤ remaining (maintained)
     ///
     /// Returns `Ok(reserved)` if gas was reserved, `Err` if insufficient.
     /// Reserved gas is deducted from available but not from remaining until
     /// `settle()` is called.
-    #[rs::contract(id = "P9-cns-energy-budget-reserve", principle = "P9")]
     pub fn reserve(&mut self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
         let available = self.available();
         if self.hard_limit && gas.0 > available.0 {
-            rs::revert!(
+            return Err(
                 "P9-cns-energy-budget-reserve",
                 EnergyError::BudgetExceeded {
                     requested: gas,
@@ -383,7 +304,7 @@ impl EnergyBudget {
             );
         }
         self.reserved = EnergyCost(self.reserved.0.saturating_add(gas.0));
-        rs::assert!(
+        debug_assert!(
             self.reserved.0 <= self.remaining.0,
             "P9-cns-energy-budget-reserve",
             "invariant: reserved ≤ remaining"
@@ -391,17 +312,10 @@ impl EnergyBudget {
         Ok(gas)
     }
 
-    #[rs::contract(id = "P9-cns-energy-budget-settle", principle = "P9")]
     /// Settle a reserved operation: deduct actual cost from remaining.
     ///
-    /// expect: "I can settle reserved gas, deducting actual cost from the budget" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — completes the hold-settle cycle
     /// \[P4\] Constraining: Clear Boundaries — reserved tracking enforces accountability
     /// \[NORMATIVE\] pre:  reserved_gas ≤ self.reserved (caller must track reservations) (P9 — Homeostatic Self-Regulation)
-    /// post: reserved decreased by reserved_gas
-    /// post: if hard_limit && actual > remaining → Err(BudgetExceeded)
-    /// post: if Ok → remaining decreased by actual
-    /// inv:  remaining + reserved ≤ cap (maintained)
     ///
     /// Since `reserve()` only tracks reserved gas without deducting from remaining,
     /// settlement simply removes the reservation and deducts the actual cost.
@@ -410,7 +324,6 @@ impl EnergyBudget {
     ///
     /// If actual > reserved (under-estimation), the extra is deducted from
     /// remaining as well.
-    #[rs::contract(id = "P9-cns-energy-budget-settle", principle = "P9")]
     pub fn settle(
         &mut self,
         reserved_gas: EnergyCost,
@@ -421,7 +334,7 @@ impl EnergyBudget {
 
         // Deduct actual cost from remaining
         if self.hard_limit && actual_gas.0 > self.remaining.0 {
-            rs::revert!(
+            return Err(
                 "P9-cns-energy-budget-settle",
                 EnergyError::BudgetExceeded {
                     requested: actual_gas,
@@ -430,7 +343,7 @@ impl EnergyBudget {
             );
         }
         self.remaining = EnergyCost(self.remaining.0.saturating_sub(actual_gas.0));
-        rs::assert!(
+        debug_assert!(
             self.remaining.0 + self.reserved.0 <= self.cap.0,
             "P9-cns-energy-budget-settle",
             "invariant: remaining + reserved ≤ cap"
@@ -438,23 +351,15 @@ impl EnergyBudget {
         Ok(actual_gas)
     }
 
-    #[rs::contract(id = "P9-cns-energy-budget-consume", principle = "P9")]
     /// Consume gas immediately (non-reserved path).
     ///
-    /// expect: "I can consume gas directly for known-cost operations" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — immediate deduction path
     /// \[P4\] Constraining: Clear Boundaries — hard_limit enforces the boundary
-    /// pre:  gas is a valid EnergyCost
-    /// post: if hard_limit && gas > remaining → Err(BudgetExceeded)
-    /// post: if Ok → remaining decreased by gas
-    /// inv:  remaining + reserved ≤ cap (maintained)
     ///
     /// For operations where the cost is known exactly at call time
     /// (no hold-settle needed).
-    #[rs::contract(id = "P9-cns-energy-budget-consume", principle = "P9")]
     pub fn consume(&mut self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
         if self.hard_limit && gas.0 > self.remaining.0 {
-            rs::revert!(
+            return Err(
                 "P9-cns-energy-budget-consume",
                 EnergyError::BudgetExceeded {
                     requested: gas,
@@ -466,18 +371,12 @@ impl EnergyBudget {
         Ok(gas)
     }
 
-    #[rs::contract(id = "P9-cns-energy-budget-replenish", principle = "P9")]
     /// Replenish energy budget by the configured replenish_rate.
     ///
-    /// expect: "The system replenishes gas budgets on the cybernetic regulation cycle" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — the regulation cycle
     /// \[P4\] Constraining: Clear Boundaries — cap enforces boundary, never exceeds
-    /// post: remaining ≤ cap (never exceeds cap)
-    /// post: if replenish_rate > 0 → remaining increased by up to replenish_rate
     ///
     /// Called by the Cybernetics Loop on its regulation cycle.
     /// Never exceeds cap.
-    #[rs::contract(id = "P9-cns-energy-budget-replenish", principle = "P9")]
     pub fn replenish(&mut self) {
         if self.replenish_rate.0 > 0 {
             self.remaining = EnergyCost(
@@ -487,54 +386,40 @@ impl EnergyBudget {
                     .min(self.cap.0),
             );
         }
-        rs::assert!(
+        debug_assert!(
             self.remaining.0 <= self.cap.0,
             "P9-cns-energy-budget-replenish",
             "postcondition: remaining never exceeds cap"
         );
     }
 
-    #[rs::contract(id = "P9-cns-energy-budget-replenish-by", principle = "P9")]
     /// Replenish energy budget by a specific amount (used by CuratorDirective::ReplenishBudget).
     ///
-    /// expect: "The Curator can replenish a specific gas budget by a directed amount" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — targeted curation replenishment
     /// \[P4\] Constraining: Clear Boundaries — cap enforces boundary
-    /// pre:  amount is a valid EnergyCost
-    /// post: remaining ≤ cap (never exceeds cap)
-    /// post: remaining increased by up to amount
-    #[rs::contract(id = "P9-cns-energy-budget-replenish-by", principle = "P9")]
     pub fn replenish_by(&mut self, amount: EnergyCost) {
         self.remaining = EnergyCost(self.remaining.0.saturating_add(amount.0).min(self.cap.0));
-        rs::assert!(
+        debug_assert!(
             self.remaining.0 <= self.cap.0,
             "P9-cns-energy-budget-replenish-by",
             "postcondition: remaining never exceeds cap"
         );
     }
 
-    #[rs::contract(id = "P9-cns-energy-budget-replenish-by-weighted", principle = "P9")]
     /// Replenish energy budget by `amount * priority`, weighted by the given priority.
     ///
-    /// expect: "Higher-priority agents receive proportionally more gas replenishment" [P9]
-    /// [P9] Motivating: Homeostatic Self-Regulation — priority-weighted replenishment
     /// \[P4\] Constraining: Clear Boundaries — cap enforces boundary
     /// \[P7\] Constraining: Evolutionary Architecture — priority config emerged from real usage
-    /// pre:  amount is a valid EnergyCost, priority in [0.0, 1.0]
-    /// post: remaining ≤ cap (never exceeds cap)
-    /// post: returns the actual amount replenished (≥ 1 if amount * priority > 0)
     ///
     /// \[NORMATIVE\] The effective replenishment is `(amount * priority).round()`, never exceeding cap (P9 — Homeostatic Self-Regulation).
     /// If `amount * priority` rounds to 0, at least 1 unit is replenished (so
     /// low-priority directives still have effect).
-    #[rs::contract(id = "P9-cns-energy-budget-replenish-by-weighted", principle = "P9")]
     pub fn replenish_by_weighted(&mut self, amount: EnergyCost, priority: f64) -> EnergyCost {
         let scaled = (amount.0 as f64 * priority.clamp(0.0, 1.0)).round() as u64;
         let effective = scaled.max(1);
         let before = self.remaining.0;
         self.remaining = EnergyCost(self.remaining.0.saturating_add(effective).min(self.cap.0));
         let delta = EnergyCost(self.remaining.0 - before);
-        rs::assert!(
+        debug_assert!(
             self.remaining.0 <= self.cap.0,
             "P9-cns-energy-budget-replenish-by-weighted",
             "postcondition: remaining never exceeds cap"
@@ -612,8 +497,6 @@ mod tests {
             .boxed()
     }
 
-    // contract: P9-cns-energy-budget-invariant-test
-    // expect: "Budget invariants hold under arbitrary sequences of reserve/settle/consume operations" [P9]
     // After any sequence of reserve/settle/consume operations,
     // remaining + reserved never exceeds cap.
     proptest! {
@@ -637,8 +520,6 @@ mod tests {
         }
     }
 
-    // contract: P9-cns-energy-budget-available-test
-    // expect: "Available gas is never reported as negative" [P9]
     // available() = remaining - reserved, must never be negative.
     proptest! {
         #[test]
@@ -656,8 +537,6 @@ mod tests {
         }
     }
 
-    // contract: P9-cns-energy-budget-replenish-test
-    // expect: "Replenishment never pushes the budget beyond its cap" [P9]
     // After replenishment, remaining never exceeds cap.
     proptest! {
         #[test]

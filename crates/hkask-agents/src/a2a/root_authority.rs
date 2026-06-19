@@ -9,7 +9,6 @@
 //! - Attenuation chain: each delegation reduces authority
 
 use ed25519_dalek::SigningKey;
-use hkask_rsolidity as rs;
 use hkask_types::{
     DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
     SYSTEM_MAX_ATTENUATION, WebID,
@@ -40,13 +39,8 @@ pub(crate) struct RootAuthority {
 impl RootAuthority {
     /// Create new root authority.
     ///
-    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — root authority is the capability issuer
-    /// pre:  `root_webid` is a valid `WebID`; `signing_key` is a valid
     ///       Ed25519 `SigningKey`.
-    /// post: Returns a `RootAuthority` with token counter initialized to 0.
-    #[rs::contract(id = "P4-agt-acp-root-new", principle = "P4")]
-    #[rs::contract(id = "P4-agt-acp-root-new", principle = "P4")]
     pub fn new(root_webid: WebID, signing_key: &SigningKey) -> Self {
         Self {
             root_webid,
@@ -60,17 +54,12 @@ impl RootAuthority {
     /// This is the starting point of an attenuation chain.
     /// Root tokens have attenuation_level=0 and max_attenuation=7.
     ///
-    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — root tokens start the delegation chain
     /// \[P7\] Constraining: Evolutionary Architecture — attenuation limits emerged from usage
-    /// pre:  `resource` is a valid `DelegationResource`; `resource_id` is
     ///       a non-empty string; `action` is a valid `DelegationAction`;
     ///       `delegated_to` is a valid `WebID`.
-    /// post: Returns `Ok(DelegationToken)` — a signed root token with
     ///       attenuation_level=0, max_attenuation=SYSTEM_MAX_ATTENUATION,
     ///       and a unique context nonce.
-    #[rs::contract(id = "P4-agt-acp-root-token-issue", principle = "P4")]
-    #[rs::contract(id = "P4-agt-acp-root-token-issue", principle = "P4")]
     pub async fn create_root_token(
         &self,
         resource: DelegationResource,

@@ -1,6 +1,5 @@
 //! EmbedService — Style corpus embedding pipeline with metadata layer.
 //! # REQ: P3 (Generative Space) — full parameter exposure, no hidden settings.
-//! # expect: "The service layer enables generative access to domain capabilities" [P3]
 //!
 //! ## Pipeline phases
 //! 1. **Parse config** — YAML with entities, methods, budget, works
@@ -12,7 +11,6 @@
 //! 7. **Store triples** — budget-selected passages get metadata triples
 //! 8. **Centroid** — mean vector over prose passages
 
-use hkask_rsolidity::contract;
 
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_memory::SemanticMemory;
@@ -63,10 +61,6 @@ pub enum EmbedPhase {
 }
 
 impl EmbedProgress {
-    /// [P7] Motivating: Evolutionary Architecture — display formatting emerges from usage.
-    /// pre:  self is a valid EmbedProgress
-    /// post: returns formatted "TODO [N pages · X%] ::: DONE [N pages · Y%]" string
-    #[contract(id = "P7-svc-embed-002", principle = "P7")]
     pub fn format_page_progress(&self) -> String {
         let todo = self.total_passages.saturating_sub(self.completed_passages);
         let todo_pct = if self.total_passages > 0 {
@@ -88,10 +82,6 @@ impl EmbedProgress {
         )
     }
 
-    /// [P7] Motivating: Evolutionary Architecture — full status formatting.
-    /// pre:  self is a valid EmbedProgress
-    /// post: returns formatted "[phase] author — work — page_progress" string
-    #[contract(id = "P7-svc-embed-003", principle = "P7")]
     pub fn format_full(&self) -> String {
         let phase_label = match self.phase {
             EmbedPhase::Parsing => "Parsing",
@@ -453,8 +443,6 @@ impl EmbedService {
         cache_dir: Option<&Path>,
         progress: Option<ProgressFn>,
     ) -> Result<EmbedResult, ServiceError> {
-        // contract: P9-CNS-SVC-001
-        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.embed", operation = "embed_corpus", config = %config_path.display(), "CNS");
 
@@ -1178,8 +1166,6 @@ impl EmbedService {
 
     /// Parse a corpus config YAML file.
     pub fn parse_config(path: &Path) -> Result<CorpusConfig, ServiceError> {
-        // contract: P9-CNS-SVC-001
-        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.embed", operation = "parse_config", config = %path.display(), "CNS");
 
@@ -1466,10 +1452,6 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
 /// Strip HTML tags from text, decoding common entities and preserving
 /// paragraph breaks from existing newlines in the HTML source.
 ///
-/// [P7] Motivating: Evolutionary Architecture — HTML stripping utility emerged from embedding needs.
-/// pre:  html is a valid HTML string
-/// post: returns plain text with tags removed, common entities decoded, whitespace collapsed
-#[contract(id = "P7-svc-embed-004", principle = "P7")]
 pub fn strip_html_tags(html: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let mut in_tag = false;
@@ -1559,8 +1541,6 @@ const OCR_SYSTEM_PROMPT: &str = "Extract all text from this document image. Outp
 ///
 /// Falls back to sending raw PDF bytes as base64 if pdftoppm is not installed.
 pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceError> {
-    // contract: P9-CNS-SVC-001
-    // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.embed", operation = "ocr_pdf_bytes", url = %url, byte_len = bytes.len(), "CNS");
 

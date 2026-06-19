@@ -405,8 +405,6 @@ mod tests {
     use super::*;
 
     // ── ReplSettings::default() ──────────────────────────────────────
-    // contract: CLI-REPL-SETTINGS-001
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
 
     #[test]
     fn repl_settings_defaults_match_spec() {
@@ -433,8 +431,6 @@ mod tests {
     }
 
     // ── to_llm_params() ──────────────────────────────────────────────
-    // contract: CLI-REPL-SETTINGS-002
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
 
     #[test]
     fn to_llm_params_maps_all_fields_correctly() {
@@ -473,8 +469,6 @@ mod tests {
         assert!((p.presence_penalty - 0.0).abs() < f32::EPSILON);
     }
 
-    // contract: CLI-REPL-SETTINGS-003
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn to_llm_params_handles_none_seed() {
         let s = ReplSettings::default();
@@ -483,8 +477,6 @@ mod tests {
     }
 
     // ── ReplSettings round-trip via settings.json ────────────────────
-    // contract: CLI-REPL-SETTINGS-004
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
 
     #[test]
     fn repl_settings_json_round_trip_preserves_all_fields() {
@@ -546,8 +538,6 @@ mod tests {
     }
 
     // ── handle_repl_set() invalid args ───────────────────────────────
-    // contract: Invalid
-    // expect: "I can access all hKask functionality through the kask CLI" [P3]
     // These tests verify through the CLI's apply_setting function
     // (commands/settings.rs) which has identical validation logic.
     // handle_repl_set itself requires a fully-wired ReplState and is

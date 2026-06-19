@@ -20,7 +20,6 @@ fn make_context() -> ConversationContext {
     ConversationContext::new(WebID::new())
 }
 
-// contract: IMPROV-YES-AND-TESTS-001
 #[test]
 fn accepts_whole_contribution() {
     let mode = ImprovMode::YesAnd;
@@ -41,7 +40,6 @@ fn accepts_whole_contribution() {
     }
 }
 
-// contract: IMPROV-YES-AND-TESTS-002
 #[test]
 fn extension_is_additive_not_substitutive() {
     let mode = ImprovMode::YesAnd;
@@ -67,7 +65,6 @@ fn extension_is_additive_not_substitutive() {
     }
 }
 
-// contract: IMPROV-YES-AND-TESTS-003
 #[test]
 fn works_with_varied_content() {
     let mode = ImprovMode::YesAnd;

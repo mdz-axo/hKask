@@ -5,7 +5,6 @@
 //! calling `pod_manager()` directly with duplicated error mapping and
 //! pod ID parsing logic.
 
-use hkask_rsolidity::contract;
 
 use hkask_agents::pod::{AgentPersona, PodID, PodStatus};
 
@@ -55,13 +54,9 @@ pub struct PodService;
 impl PodService {
     /// Create a new agent pod from a template and persona YAML.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.pod_manager() must be initialized; req.template must be non-empty; req.persona_yaml must be valid YAML
-    /// post: pod is created and returns PodResponse with pod_id; Err(ValidationError) on invalid persona YAML; Err(Pod) on upstream error
     /// # Returns
     /// `ServiceError::Pod` on upstream pod error.
     /// `ServiceError::ValidationError` on invalid persona YAML.
-    #[contract(id = "P1-svc-pods-128", principle = "P1")]
     pub async fn create_pod(
         ctx: &AgentService,
         req: CreatePodRequest,
@@ -87,10 +82,6 @@ impl PodService {
 
     /// List all registered pods.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.pod_manager() must be initialized
-    /// post: returns Vec<PodStatusResponse> for all pods; empty Vec if none; Err(Pod) on upstream error
-    #[contract(id = "P1-svc-pods-129", principle = "P1")]
     pub async fn list_pods(ctx: &AgentService) -> Result<Vec<PodStatusResponse>, ServiceError> {
         let pm = ctx.pod_manager();
         let pods = pm.list_pods().await.map_err(|e| ServiceError::Pod {
@@ -101,10 +92,6 @@ impl PodService {
 
     /// Activate a pod by ID.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.pod_manager() must be initialized; pod_id must be a valid UUID
-    /// post: pod is activated; Ok(()) on success; Err(PodNotFound) on invalid UUID; Err(Pod) on upstream error
-    #[contract(id = "P1-svc-pods-130", principle = "P1")]
     pub async fn activate_pod(ctx: &AgentService, pod_id: &str) -> Result<(), ServiceError> {
         let pid = Self::parse_pod_id(pod_id)?;
         ctx.pod_manager()
@@ -118,10 +105,6 @@ impl PodService {
 
     /// Deactivate a pod by ID.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.pod_manager() must be initialized; pod_id must be a valid UUID
-    /// post: pod is deactivated; Ok(()) on success; Err(PodNotFound) on invalid UUID; Err(Pod) on upstream error
-    #[contract(id = "P1-svc-pods-131", principle = "P1")]
     pub async fn deactivate_pod(ctx: &AgentService, pod_id: &str) -> Result<(), ServiceError> {
         let pid = Self::parse_pod_id(pod_id)?;
         ctx.pod_manager()
@@ -135,10 +118,6 @@ impl PodService {
 
     /// Get pod status by ID.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.pod_manager() must be initialized; pod_id must be a valid UUID
-    /// post: returns PodStatusResponse with pod state, webid, agent_type, template, etc.; Err(PodNotFound) on invalid UUID; Err(Pod) on upstream error
-    #[contract(id = "P1-svc-pods-132", principle = "P1")]
     pub async fn get_pod_status(
         ctx: &AgentService,
         pod_id: &str,
@@ -167,10 +146,6 @@ impl PodService {
 
     /// Assign an MCP role to a replicant by name.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.pod_manager() must be initialized; name and role must be non-empty
-    /// post: role is assigned to the replicant; Ok(()) on success; Err(Pod) on upstream error
-    #[contract(id = "P1-svc-pods-133", principle = "P1")]
     pub async fn assign_role(
         ctx: &AgentService,
         name: &str,
@@ -187,10 +162,6 @@ impl PodService {
     /// Set the agent mode for a replicant by name.
     /// Mode: "server" (requires role), "chat", or "exit".
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.pod_manager() must be initialized; name and mode must be non-empty; mode must be "server", "chat", or "exit"
-    /// post: agent mode is set; Ok(()) on success; Err(Pod) on upstream error
-    #[contract(id = "P1-svc-pods-134", principle = "P1")]
     pub async fn set_mode(
         ctx: &AgentService,
         name: &str,
@@ -212,8 +183,6 @@ impl PodService {
 mod tests {
     use super::*;
 
-    // contract: P1-svc-pods-001
-    // expect: "Service parse_pod_id works correctly under test conditions" [P1]
     #[test]
     fn parse_pod_id_rejects_invalid_uuid() {
         let result = PodService::parse_pod_id("not-a-uuid");
@@ -226,8 +195,6 @@ mod tests {
         }
     }
 
-    // contract: P1-svc-pods-002
-    // expect: "Service parse_pod_id works correctly under test conditions" [P1]
     #[test]
     fn parse_pod_id_accepts_valid_uuid() {
         let valid = uuid::Uuid::new_v4().to_string();
@@ -235,8 +202,6 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // contract: P1-svc-pods-003
-    // expect: "Service PodStatus works correctly under test conditions" [P1]
     #[test]
     fn pod_status_to_response_maps_fields() {
         let status = PodStatus {

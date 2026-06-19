@@ -52,7 +52,6 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 mod tests {
     use super::*;
 
-    // contract: ocr-semantic-01
     #[test]
     fn identical_vectors() {
         let v = vec![1.0, 2.0, 3.0];
@@ -60,7 +59,6 @@ mod tests {
         assert!((sim - 1.0).abs() < 0.001);
     }
 
-    // contract: ocr-semantic-02
     #[test]
     fn orthogonal_vectors() {
         let a = vec![1.0, 0.0];
@@ -69,14 +67,12 @@ mod tests {
         assert!((sim - 0.0).abs() < 0.001);
     }
 
-    // contract: ocr-semantic-03
     #[test]
     fn empty_vector() {
         let sim = cosine_similarity(&[], &[1.0]);
         assert_eq!(sim, 0.0);
     }
 
-    // contract: ocr-semantic-04
     #[test]
     fn different_length_vectors() {
         let sim = cosine_similarity(&[1.0, 2.0], &[1.0]);

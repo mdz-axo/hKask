@@ -336,11 +336,6 @@ impl KanbanServer {
     /// `expect:` annotation PRs (P2 consent required for merge).
     ///
     /// contract: P3-svc-kanban-009
-    /// expect: "I can create kanban tasks from contract expectation gaps so replicants can ground them" [P3]
-    /// [P5] Constraining: Essentialism — one batch operation, no individual task editing
-    /// pre:  proposals is a non-empty JSON array of ExpectProposal structs
-    /// pre:  board_id is a valid board ID
-    /// post: returns created task IDs (one per proposal)
     #[tool(
         description = "Create kanban tasks for contracts missing expect: annotations. Takes JSON from propose_missing_expect_annotations."
     )]

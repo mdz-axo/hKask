@@ -1,4 +1,3 @@
-use hkask_rsolidity::contract;
 
 use hkask_types::ports::registry::RegistryEntry;
 
@@ -134,26 +133,12 @@ const KNOWN_TERMS: &[&str] = &[
 
 /// Is `term` a known vocabulary term?
 ///
-/// expect: "The system validates template contracts against the lexicon" [P3]
-/// pre:  term may be any string
-/// post: returns true if term is in KNOWN_TERMS
-#[contract(
-    id = "P3-tpl-vocab-known — checks term membership via binary search",
-    principle = "P3"
-)]
 pub fn is_known(term: &str) -> bool {
     KNOWN_TERMS.binary_search(&term).is_ok()
 }
 
 /// Returns unknown terms from `terms` that are not in the vocabulary.
 ///
-/// expect: "The system validates template contracts against the lexicon" [P3]
-/// pre:  terms is a slice of declared lexicon terms
-/// post: returns Vec of terms not found in KNOWN_TERMS
-#[contract(
-    id = "P3-tpl-vocab-validate — validates terms against known vocabulary",
-    principle = "P3"
-)]
 pub fn unrecognized(terms: &[String]) -> Vec<String> {
     terms.iter().filter(|t| !is_known(t)).cloned().collect()
 }
@@ -161,13 +146,6 @@ pub fn unrecognized(terms: &[String]) -> Vec<String> {
 /// Validate an entry's `lexicon_terms` against the known vocabulary.
 /// Returns warnings for any unrecognized terms.
 ///
-/// expect: "The system validates template contracts against the lexicon" [P3]
-/// pre:  entry is a valid RegistryEntry
-/// post: returns Vec of warning strings for unrecognized terms
-#[contract(
-    id = "P3-tpl-vocab-validate-entry — validates entry lexicon_terms",
-    principle = "P3"
-)]
 pub fn validate_entry(entry: &RegistryEntry) -> Vec<String> {
     let mut warnings = Vec::new();
     let unknown = unrecognized(&entry.lexicon_terms);
@@ -184,8 +162,6 @@ pub fn validate_entry(entry: &RegistryEntry) -> Vec<String> {
 mod tests {
     use super::*;
 
-    // contract: tpl-vocab-test-sorted
-    // expect: "Template KNOWN_TERMS list must maintain alphabetical order" [P3]
     #[test]
     fn known_terms_are_sorted() {
         for w in KNOWN_TERMS.windows(2) {
@@ -198,8 +174,6 @@ mod tests {
         }
     }
 
-    // contract: tpl-vocab-test-duplicates
-    // expect: "Template KNOWN_TERMS list must not contain duplicates" [P3]
     #[test]
     fn known_terms_no_duplicates() {
         for w in KNOWN_TERMS.windows(2) {
@@ -207,8 +181,6 @@ mod tests {
         }
     }
 
-    // contract: P3-tpl-vocab-test-known
-    // expect: "Template validate_terms passes known terms" [P3]
     #[test]
     fn validate_known_terms_passes() {
         let terms: Vec<String> = vec!["compose", "verify", "classify"]
@@ -223,8 +195,6 @@ mod tests {
         );
     }
 
-    // contract: P3-tpl-vocab-test-unknown
-    // expect: "Template validate_terms flags unknown terms" [P3]
     #[test]
     fn validate_unknown_terms_flags() {
         let terms: Vec<String> = vec![
@@ -236,8 +206,6 @@ mod tests {
         assert_eq!(unknown, vec!["nonsense_term_xyz".to_string()]);
     }
 
-    // contract: P3-tpl-vocab-test-all-known
-    // expect: "Template all manifest-derived terms are known" [P3]
     #[test]
     fn all_bootstrapped_terms_are_known() {
         for term in KNOWN_TERMS {
@@ -249,8 +217,6 @@ mod tests {
         }
     }
 
-    // contract: P3-tpl-vocab-test-empty
-    // expect: "Template empty terms produce no warnings" [P3]
     #[test]
     fn empty_terms_no_warnings() {
         let unknown = unrecognized(&[]);

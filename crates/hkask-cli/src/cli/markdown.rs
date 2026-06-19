@@ -6,9 +6,6 @@
 /// `docs/specifications/DOCUMENTATION_STANDARDS.md` §2) so the generated file
 /// passes `docs/ci/check-metadata.sh` without hand-editing.
 ///
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// pre:  none
-/// post: returns a String containing full CLI markdown documentation with metadata header
 pub fn generate_cli_markdown() -> String {
     let mut md = String::new();
 
