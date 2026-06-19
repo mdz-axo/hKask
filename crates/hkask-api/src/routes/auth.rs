@@ -350,7 +350,7 @@ async fn fetch_github_user(
     let user_resp = client
         .get("https://api.github.com/user")
         .header("Authorization", format!("Bearer {access_token}"))
-        .header("User-Agent", "hKask/0.28.0")
+        .header("User-Agent", concat!("hKask/", env!("CARGO_PKG_VERSION")))
         .send()
         .await
         .map_err(|e| {
@@ -382,7 +382,7 @@ async fn fetch_github_user(
             let email_resp = client
                 .get("https://api.github.com/user/emails")
                 .header("Authorization", format!("Bearer {access_token}"))
-                .header("User-Agent", "hKask/0.28.0")
+                .header("User-Agent", concat!("hKask/", env!("CARGO_PKG_VERSION")))
                 .send()
                 .await
                 .map_err(|e| {

@@ -1,7 +1,7 @@
 ---
 name: condenser-continuation
 visibility: public
-description: "Continuation skill for resuming hKask condenser implementation work after context reset. Restores session state, prioritizes remaining tasks, verifies build status, and composes a structured continuation plan. Works with any hKask-supported inference engine (Fireworks, DeepInfra, etc.)."
+description: "Continuation skill for resuming hKask condenser implementation work after context reset. Restores session state, prioritizes remaining tasks, verifies build status, and composes a structured continuation plan. Works with any hKask-supported inference engine (DeepInfra, Together AI, fal.ai, OpenRouter, etc.)."
 ---
 
 # Condenser Continuation Skill
@@ -37,7 +37,7 @@ The hKask condenser is a single MCP server (`hkask-mcp-condenser`) with 7 tools:
 
 ### Thread Summary via Centralized Inference Router
 
-The `condenser_thread_summary` tool uses the centralized hKask inference router (`InferencePort` trait, implemented by `InferenceRouter`). The router dispatches to Fireworks or DeepInfra based on the model name's provider prefix (FW/, DI/). No standalone HTTP client or per-tool inference URL configuration — the router is built once at startup from standard hKask environment variables (`FW_API_KEY`, `DI_API_KEY`).
+The `condenser_thread_summary` tool uses the centralized hKask inference router (`InferencePort` trait, implemented by `InferenceRouter`). The router dispatches to DeepInfra, Together AI, fal.ai, or OpenRouter based on the model name's provider prefix (DI/, TG/, FA/, OR/). No standalone HTTP client or per-tool inference URL configuration — the router is built once at startup from standard hKask environment variables (`DI_API_KEY`, `TOGETHER_API_KEY`, `FA_API_KEY`, `OPENROUTER_API_KEY`).
 
 **Graceful degradation:** If no inference backends are reachable, `thread_summary` returns an error. All other tools continue working.
 

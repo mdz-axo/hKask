@@ -158,7 +158,7 @@ impl ApiState {
     /// Set the spec store for MDS specifications
     ///
     /// expect: "API endpoints enforce OCAP boundaries"
-    /// pre:  store is a valid Arc<SqliteSpecStore>
+    /// pre:  store is a valid `Arc<SqliteSpecStore>`
     /// post: self.spec_store = Some(store); returns self
     pub fn with_spec_store(mut self, store: Arc<hkask_storage::SqliteSpecStore>) -> Self {
         self.spec_store = Some(store);
@@ -168,7 +168,7 @@ impl ApiState {
     /// Attach a wallet service for rJoule payments and API key management.
     ///
     /// expect: "API endpoints enforce OCAP boundaries"
-    /// pre:  svc is a valid Arc<WalletService>
+    /// pre:  svc is a valid `Arc<WalletService>`
     /// post: self.wallet_service = Some(svc); returns self
     pub fn with_wallet_service(mut self, svc: Arc<WalletService>) -> Self {
         self.wallet_service = Some(svc);

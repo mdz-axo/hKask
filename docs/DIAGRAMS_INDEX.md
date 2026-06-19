@@ -37,7 +37,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-IC-003 | Unified Registry with template_type discriminator | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-templates/src/` (SqliteRegistry) | ✅ VERIFIED |
 | DIAG-IC-004 | Template Cascade Flow (depth ≤ 7, DependencyGraph acyclic) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-templates/src/dependency.rs` | ✅ VERIFIED |
 | DIAG-IC-005 | Rendering Pipeline — Template → Jinja2 → LLM | [MDS.md](architecture/core/MDS.md) §6 | `crates/hkask-templates/src/` (minijinja integration) | ✅ VERIFIED |
-| DIAG-IC-006 | LLM Routing and Failover (Inference Router — OM/FW/DI) | [MDS.md](architecture/core/MDS.md) §2.5 | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
+| DIAG-IC-006 | LLM Routing and Failover (Inference Router — DI/OR/) | [MDS.md](architecture/core/MDS.md) §2.5 | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
 
 ## 3. Trust & Observability Diagrams
 

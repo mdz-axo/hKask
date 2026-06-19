@@ -33,7 +33,7 @@ pub(crate) fn extract_cookie(headers: &axum::http::HeaderMap, name: &str) -> Opt
 /// Session middleware implementation — called from a closure in `create_router`.
 ///
 /// expect: "API endpoints enforce OCAP boundaries"
-/// pre:  user_store is a valid Arc<Mutex<UserStore>>
+/// pre:  user_store is a valid `Arc<Mutex<UserStore>>`
 /// post: if valid session cookie → AuthContext injected, next.run called
 /// post: if expired session cookie → 401 with clear error
 /// post: if missing cookie → pass through (capability token path may handle it)

@@ -63,7 +63,7 @@ pub fn run_init() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(&config_dir)?;
 
     let config = serde_json::json!({
-        "version": "0.28.0",
+        "version": env!("CARGO_PKG_VERSION"),
         "profile": "server",
         "data_dir": data_dir,
         "domain": domain,

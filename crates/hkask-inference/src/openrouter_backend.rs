@@ -92,9 +92,7 @@ impl OpenRouterBackend {
             .json(&request)
             .send()
             .await
-            .map_err(|e| {
-                InferenceError::Connection(format!("OpenRouter request failed: {}", e))
-            })?;
+            .map_err(|e| InferenceError::Connection(format!("OpenRouter request failed: {}", e)))?;
 
         let status = response.status();
         if !status.is_success() {

@@ -1189,7 +1189,7 @@ impl TrainingHost for UnslothProvider {
 
 /// Together AI training provider — submits fine-tuning jobs via REST API.
 ///
-/// Uses the Together AI fine-tuning API (https://api.together.xyz/v1/fine-tunes)
+/// Uses the Together AI fine-tuning API (<https://api.together.xyz/v1/fine-tunes>)
 /// to submit LoRA fine-tuning jobs, poll status, and manage adapters.
 /// No local GPU or CLI required.
 pub struct TogetherProvider {

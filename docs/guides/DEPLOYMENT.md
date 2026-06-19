@@ -40,7 +40,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 - Caddy (Docker sidecar) — TLS termination, reverse proxy
 - Conduit (Docker sidecar) — Matrix homeserver for agent communication
 - SQLCipher-encrypted SQLite — Persistent storage for all user data
-- Inference Router — Multi-provider cloud LLM inference (DeepInfra, Fireworks.ai, fal.ai)
+- Inference Router — Multi-provider cloud LLM inference (DeepInfra, fal.ai, OpenRouter)
 
 **Key Features:**
 - Browser terminal (xterm.js + WebSocket) — primary user access via OAuth sign-in
@@ -70,8 +70,8 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 
 | Dependency | Purpose | Required | Default |
 |------------|---------|----------|---------|
-| **Fireworks.ai** | Cloud LLM inference | Optional (requires API key) | `https://api.fireworks.ai/inference` |
-| **DeepInfra** | Cloud LLM inference | Optional (requires API key) | `https://api.deepinfra.com/v1/openai` |
+| **DeepInfra** | Cloud LLM inference | Optional (requires API key) | `https://api.deepinfra.com` |
+| **OpenRouter** | Multi-provider unified API | Optional (requires API key) | `https://openrouter.ai/api` |
 | **SQLite** | Database engine | Bundled (rusqlite) | — |
 | **Git** | Template loading (optional) | Optional | — |
 
@@ -79,22 +79,22 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 
 hKask uses a multi-provider cloud inference router.
 
-**Option A: Fireworks.ai**
-```bash
-# Configure Fireworks.ai API key
-export FIREWORKS_API_KEY="your-api-key-here"
-
-# Optional: override default base URL
-export FIREWORKS_BASE_URL="https://api.fireworks.ai/inference"
-```
-
-**Option B: DeepInfra**
+**Option A: DeepInfra**
 ```bash
 # Configure DeepInfra API key
 export DEEPINFRA_API_KEY="your-api-key-here"
 
 # Optional: override default base URL
-export DEEPINFRA_BASE_URL="https://api.deepinfra.com/v1/openai"
+export DEEPINFRA_BASE_URL="https://api.deepinfra.com"
+```
+
+**Option B: OpenRouter**
+```bash
+# Configure OpenRouter API key
+export OPENROUTER_API_KEY="your-api-key-here"
+
+# Optional: override default base URL
+export OR_BASE_URL="https://openrouter.ai/api"
 ```
 
 ---
@@ -182,10 +182,10 @@ kask matrix status-sidecar
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `FW_BASE_URL` | Fireworks API endpoint | `https://api.fireworks.ai/inference` | No |
-| `FW_API_KEY` | Fireworks API key (also `FIREWORKS_API_KEY`) | — | For FW provider |
 | `DI_BASE_URL` | DeepInfra base URL | `https://api.deepinfra.com` | No |
 | `DI_API_KEY` | DeepInfra API key (also `DEEPINFRA_API_KEY`) | — | For DI provider |
+| `OR_BASE_URL` | OpenRouter base URL | `https://openrouter.ai/api` | No |
+| `OPENROUTER_API_KEY` | OpenRouter API key (also `OR_API_KEY`) | — | For OR provider |
 | `FA_API_KEY` | fal.ai API key | — | For fal.ai provider |
 | `HKASK_DATABASE_URL` | SQLite database path | `./data/hkask.db` | No |
 | `HKASK_LOG_LEVEL` | Logging verbosity | `info` | No |
@@ -198,8 +198,8 @@ kask matrix status-sidecar
 
 Model names use 2-letter provider prefixes for routing:
 - `DI/` → DeepInfra (cloud) — requires `DI_API_KEY`
-- `FW/` → Fireworks.ai (cloud) — requires `FW_API_KEY`
 - `FA/` → fal.ai (cloud) — requires `FA_API_KEY`
+- `OR/` → OpenRouter (cloud) — requires `OPENROUTER_API_KEY`
 - No prefix → defaults to DeepInfra
 
 API keys can be set in environment variables or in a `providers.env` file. The `kask` binary auto-loads `.env` on startup via `dotenvy`. For OAuth credentials (GitHub/Google client IDs and secrets), see the [Deployment Plan](../plans/deployment-and-backup.md).
@@ -226,7 +226,7 @@ To customize chat behavior, modify the source code in:
 ```bash
 # Production environment
 export DI_API_KEY="your-deepinfra-key"
-export FW_API_KEY="your-fireworks-key"
+export OPENROUTER_API_KEY="your-openrouter-key"
 export HKASK_DATABASE_URL="/var/lib/hkask/hkask.db"
 export HKASK_LOG_LEVEL="warn"
 export RUST_LOG="hkask=info,hyper=warn"
@@ -520,7 +520,7 @@ chmod 600 /var/lib/hkask/hkask.db
 
 | Issue | Cause | Resolution |
 |-------|-------|------------|
-| `Provider X is not available` | API key not set | Set `DI_API_KEY` or `FW_API_KEY` in env or `providers.env` file |
+| `Provider X is not available` | API key not set | Set `DI_API_KEY` or `OPENROUTER_API_KEY` in env or `providers.env` file |
 | `Inference error: error sending request` | Provider unreachable | Verify provider URL and network connectivity |
 | `Database locked` | Concurrent access | Ensure single writer; use WAL mode |
 | `Template not found` | Registry empty | Register templates with `kask template register` |

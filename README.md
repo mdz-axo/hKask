@@ -39,7 +39,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
-| 2 | **Essential Tools** | 11 MCP servers + Inference Router (Fireworks, DeepInfra) |
+| 2 | **Essential Tools** | 11 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter) |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Unified registry with template_type discriminator |
@@ -67,7 +67,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-mcp-spec` — Specification authoring, curation, and validation
 - `hkask-mcp-companies` — Company financial data (FMP + EODHD dual-provider)
 - `hkask-mcp-communication` — Thin MCP wrapper over core communication crate
-- `hkask-mcp-media` — Media generation (image, video, audio, 3D via fal.ai and other providers)
+- `hkask-mcp-media` — Media generation (image, video, audio, 3D via fal.ai, Together AI, OpenRouter, and other providers)
 - `hkask-mcp-replica` — Authorial style embedding and prose composition
 - `hkask-mcp-docproc` — Unified document processing (format conversion, OCR, chunking, parsing, QA generation)
 - `hkask-mcp-memory` — Unified episodic + semantic memory with cloud backup

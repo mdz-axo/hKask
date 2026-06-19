@@ -85,6 +85,16 @@ pub enum CnsSpan {
     Curation,
     /// Sovereignty boundary checks.
     Sovereignty,
+    /// Keystore operations — key derivation, storage, signing (P4 security boundary).
+    Keystore,
+    /// Adapter (LoRA) lifecycle — store, route, delete (P4/P9 resource governance).
+    Adapter,
+    /// Backup operations — snapshot, restore, verify, prune (P1 data integrity).
+    Backup,
+    /// Condenser operations — compression ratio, health (P9 resource management).
+    Condenser,
+    /// Kata coaching operations — PDCA cycles, automaticity tracking (P3/P9).
+    Kata,
     /// Specification operations (MDS).
     Spec,
     /// Chat/conversation operations.
@@ -257,6 +267,11 @@ impl CnsSpan {
             CnsSpan::Gas => "cns.gas",
             CnsSpan::Curation => "cns.curation",
             CnsSpan::Sovereignty => "cns.sovereignty",
+            CnsSpan::Keystore => "cns.keystore",
+            CnsSpan::Adapter => "cns.adapter",
+            CnsSpan::Backup => "cns.backup",
+            CnsSpan::Condenser => "cns.condenser",
+            CnsSpan::Kata => "cns.kata",
             CnsSpan::Spec => "cns.spec",
             CnsSpan::Chat => "cns.chat",
             CnsSpan::MemoryEncode => "cns.memory.encode",
@@ -352,6 +367,11 @@ impl std::str::FromStr for CnsSpan {
             "cns.gas" => Ok(CnsSpan::Gas),
             "cns.curation" => Ok(CnsSpan::Curation),
             "cns.sovereignty" => Ok(CnsSpan::Sovereignty),
+            "cns.keystore" => Ok(CnsSpan::Keystore),
+            "cns.adapter" => Ok(CnsSpan::Adapter),
+            "cns.backup" => Ok(CnsSpan::Backup),
+            "cns.condenser" => Ok(CnsSpan::Condenser),
+            "cns.kata" => Ok(CnsSpan::Kata),
             "cns.spec" => Ok(CnsSpan::Spec),
             "cns.chat" => Ok(CnsSpan::Chat),
             "cns.memory.encode" => Ok(CnsSpan::MemoryEncode),

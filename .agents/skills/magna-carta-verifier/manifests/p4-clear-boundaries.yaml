@@ -34,9 +34,10 @@ assertions:
   - id: p4b
     name: unforgeable_attenuating_tokens
     claim: >
-      Capability tokens (DelegationToken) are unforgeable and
-      attenuating. Tokens are HMAC-signed. DelegationTokenBuilder
-      constructs tokens with a cryptographic secret. Attenuation
+      DelegationTokens are unforgeable, attenuating, and carry
+      deterministic expiry. Token::sign creates a cryptographic
+      signature binding the resource hierarchy to the token.
+      Token::attenuate_with_expiry (system level, delegation-only)
       creates a strictly weaker child token. SYSTEM_MAX_ATTENUATION
       caps delegation depth.
     method: structural_audit
@@ -51,7 +52,7 @@ assertions:
           - SYSTEM_MAX_ATTENUATION
           - signature
       - crate: hkask-agents
-        module: acp::root_authority
+        module: a2a
         methods:
           - create_root_token
 
@@ -66,12 +67,12 @@ assertions:
     method: structural_audit
     targets:
       - crate: hkask-agents
-        module: acp
+        module: a2a
         methods:
           - register_agent
           - get_capabilities
       - crate: hkask-agents
-        module: acp::root_authority
+        module: a2a
         methods:
           - create_root_token
       - crate: hkask-agents

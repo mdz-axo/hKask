@@ -81,26 +81,26 @@ System claims must be grounded in traceable, provenance-aware representations.
 #### P9 — Homeostatic Self-Regulation
 The system must remain observable and self-correcting through cybernetic feedback loops.
 
-**§9.1 — CNS Span Coverage (v0.28.0)**
+**§9.1 — CNS Span Coverage (v0.30.0)**
 
-CNS (Cybernetic Nervous System) spans are the primary observability primitive. Every subsystem must emit canonical `cns.*` spans for every security-sensitive, resource-sensitive, and correctness-sensitive operation.
+CNS (Cybernetic Nervous System) spans are the primary observability primitive. Every subsystem must emit canonical `cns.*` spans for every security-sensitive, resource-sensitive, and correctness-sensitive operation. Essential domains carry typed `CnsSpan` enum variants (P8 — Semantic Grounding); performative spans (CLI, API middleware) use stringly-typed tracing targets.
 
-| Domain | Target | Spans | Status |
-|--------|--------|-------|--------|
-| Tool dispatch (all MCP servers) | `cns.tool.*` | ~170 | ✅ `ToolSpanGuard` per-tool |
-| Inference (4 backends) | `cns.inference` | 18 | ✅ generate/generate_vision |
-| Keystore | `cns.keystore` | 25 | ✅ resolve, store, derive, sign |
-| Adapter (LoRA) | `cns.adapter` | 23 | ✅ store/get_by_id/delete + router |
-| Backup | `cns.backup` | 20 | ✅ snapshot/restore/verify/prune |
-| Condenser | `cns.condenser` | 3 | ✅ compression ratio + health |
-| MCP server infra | `cns.mcp.*` | 47 | ✅ startup gates + daemon flow |
-| CLI command dispatch | `cns.cli` | 2 | ✅ command_invoked/completed |
-| API middleware | `cns.api` | 2 | ✅ per-request CNS span |
-| Kata coaching | `cns.kata` | 20 | ✅ pre-existing |
-| Agent pod | `cns.agent_pod` | — | ✅ pre-existing |
-| Wallet | `cns.wallet.*` | — | ✅ pre-existing |
-| Memory | `cns.memory.*` | — | ✅ pre-existing |
-| Curation | `cns.curation` | — | ✅ pre-existing |
+| Domain | Target | Spans | Status | CnsSpan Variant |
+|--------|--------|-------|--------|-----------------|
+| Tool dispatch (all MCP servers) | `cns.tool.*` | ~170 | ✅ `ToolSpanGuard` per-tool | `Tool { subsystem }` |
+| Inference (4 backends) | `cns.inference` | 18 | ✅ generate/generate_vision | `Inference` |
+| Keystore | `cns.keystore` | 25 | ✅ resolve, store, derive, sign | `Keystore` |
+| Adapter (LoRA) | `cns.adapter` | 23 | ✅ store/get_by_id/delete + router | `Adapter` |
+| Backup | `cns.backup` | 20 | ✅ snapshot/restore/verify/prune | `Backup` |
+| Condenser | `cns.condenser` | 3 | ✅ compression ratio + health | `Condenser` |
+| MCP server infra | `cns.mcp.*` | 47 | ✅ startup gates + daemon flow | *(stringly-typed)* |
+| CLI command dispatch | `cns.cli` | 2 | ✅ command_invoked/completed | *(performative)* |
+| API middleware | `cns.api` | 2 | ✅ per-request CNS span | *(performative)* |
+| Kata coaching | `cns.kata` | 20 | ✅ PDCA cycles, automaticity | `Kata` |
+| Agent pod | `cns.agent_pod` | — | ✅ pre-existing | `AgentPod` |
+| Wallet | `cns.wallet.*` | — | ✅ pre-existing | `WalletBalance` etc. |
+| Memory | `cns.memory.*` | — | ✅ pre-existing | `MemoryEncode` |
+| Curation | `cns.curation` | — | ✅ pre-existing | `Curation` |
 
 **§9.2 — Span Emission Pattern**
 
@@ -109,7 +109,7 @@ CNS (Cybernetic Nervous System) spans are the primary observability primitive. E
 tracing::info!(target: "cns.{domain}", operation = "{verb}", {key} = %{value}, ..., "CNS");
 ```
 
-- Target: `"cns.{canonical_domain}"` — uses the `cns.*` namespace convention. Core domain spans are typed via `CnsSpan` variants in `hkask-types::cns`; subsystem-specific spans (keystore, adapter, backup, condenser, MCP, CLI, API, kata) use stringly-typed tracing targets following the same `cns.*` convention with CNS-formatted messages.
+- Target: `"cns.{canonical_domain}"` — uses the `cns.*` namespace convention. Essential domains map to `CnsSpan` variants in `hkask-types::cns`; performative spans (CLI, API) use stringly-typed tracing targets.
 - Message: Must be `"CNS"` — enables ν-event filtering
 - Latency: Use `std::time::Instant`, emit as `latency_ms`
 - Authority: Every span carries a `replicant` or `owner` WebID

@@ -109,7 +109,7 @@ use crate::routes::cns::CnsSubscribeParams;
         (name = "mcp", description = "MCP servers and tools — tool discovery and invocation across out-of-process MCP servers"),
         (name = "cns", description = "Cybernetic Nervous System — variety tracking, algedonic alerts, and homeostatic self-regulation (P9, Pattern B)"),
         (name = "chat", description = "Curator chat interface — inference with model switching and streaming (Pattern C)"),
-        (name = "models", description = "Multi-provider model catalog (DeepInfra, fal.ai, Together AI) — discover and search available LLMs"),
+        (name = "models", description = "Multi-provider model catalog (DeepInfra, fal.ai, Together AI, OpenRouter) — discover and search available LLMs"),
         (name = "curator", description = "Curator escalation and metacognition — bot health reports and pending escalation queue (Pattern C, P12)"),
         (name = "git", description = "Git archival and resolution — template crate loading and SHA resolution via GitCASPort hexagonal boundary"),
         (name = "a2a", description = "A2A agent registration — register, list, and unregister agents with capability delegation (P4 OCAP)"),
@@ -122,7 +122,7 @@ use crate::routes::cns::CnsSubscribeParams;
     ),
     info(
         title = "hKask API",
-        version = "0.28.0",
+        version = "0.30.0",
         description = "A Minimal Viable Container for Agents — HTTP API.\n\nhKask is an agent runtime grounded in 12 architectural principles\n(P0–P12) expressed through four composable patterns: Skills Model,\nCNS Feedback Loop, Agentic AI Mediation, and Agent Creation with\nSovereign Memory. This API exposes all capabilities equally across\nCLI, API, and MCP surfaces under P3 (Equal Surface Exposure).\n\nAll endpoints carry OCAP DelegationToken authentication (P4).\nData access is governed by user sovereignty and affirmative\nconsent (P1, P2)."
     ),
     servers(

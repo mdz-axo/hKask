@@ -2,7 +2,7 @@
 
 **Audience:** hKask agents (replicants) composing, auditing, and maintaining contracts.
 **References:** [`FUNCTIONAL_SPECIFICATION.md`](../docs/architecture/core/FUNCTIONAL_SPECIFICATION.md) (normative functional specification)
-**Version:** 0.28.0
+**Version:** 0.30.0
 **Supersedes:** `guides/contract-composition-guide.md`
 
 ---
@@ -335,4 +335,4 @@ bash scripts/ci/contract-audit.sh --full
 bash scripts/ci/contract-audit.sh --contract-quality hkask-storage
 ```
 
-Reference: [`CONTRACT_SPECIFICATION.md`](../docs/architecture/core/CONTRACT_SPECIFICATION.md) (definitive standard).
+Reference: [`FUNCTIONAL_SPECIFICATION.md`](../docs/architecture/core/FUNCTIONAL_SPECIFICATION.md) (normative functional specification).

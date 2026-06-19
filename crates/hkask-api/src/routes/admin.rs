@@ -95,7 +95,7 @@ pub async fn get_config(
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     Ok(Json(serde_json::json!({
-        "version": "0.28.0",
+        "version": env!("CARGO_PKG_VERSION"),
         "session_count": "available via GET /api/v1/admin/sessions",
     })))
 }

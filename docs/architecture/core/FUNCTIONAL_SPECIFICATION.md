@@ -812,6 +812,11 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 | FR-I056 | `P9-inf-together-generate` | `generate()` | [P9] Goal: Homeostatic Self-Regulation — regulated text generation |
 | FR-I057 | `P9-inf-together-generate-stream` | `generate_stream()` | [P9] Goal: Homeostatic Self-Regulation — regulated streaming text generation |
 | FR-I058 | `P9-inf-together-list-models` | `list_models()` | [P9] Goal: Homeostatic Self-Regulation — model variety discovery |
+| FR-I059 | `P4-inf-openrouter-backend-new` | `new()` | [P4] Goal: Clear Boundaries — OpenRouter provider membrane requires valid API key |
+| FR-I060 | `P9-inf-openrouter-generate` | `generate()` | [P9] Goal: Homeostatic Self-Regulation — regulated text generation |
+| FR-I061 | `P9-inf-openrouter-generate-stream` | `generate_stream()` | [P9] Goal: Homeostatic Self-Regulation — regulated streaming text generation |
+| FR-I062 | `P9-inf-openrouter-generate-vision` | `generate_vision()` | [P9] Goal: Homeostatic Self-Regulation — regulated multimodal generation |
+| FR-I063 | `P9-inf-openrouter-list-models` | `list_models()` | [P9] Goal: Homeostatic Self-Regulation — model variety discovery |
 
 #### Test Contracts
 
@@ -848,7 +853,7 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 | FR-IT029 | `P9-inf-test-deepinfra-live-summary` | `deepinfra_summarization()` |
 | FR-IT030 | `P9-inf-test-together-live-summary` | `together_summarization()` |
 
-> **Note:** The original handoff estimated ~87 inference contract occurrences; the actual source contains **58 production** and **30 test** unique contract IDs. Backend constructors and the router constructor are P4 (boundary); all other production contracts and all tests are P9 (homeostatic). Cloud-only deployment.
+> **Note:** The original handoff estimated ~87 inference contract occurrences; the actual source contains **63 production** and **30 test** unique contract IDs. Backend constructors and the router constructor are P4 (boundary); all other production contracts and all tests are P9 (homeostatic). Cloud-only deployment. OpenRouter was added in v0.30.x, adding 5 production contracts (FR-I059 through FR-I063).
 
 ### 3.5 Templates (`hkask-templates`)
 

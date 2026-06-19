@@ -46,7 +46,7 @@ risk and typically covered by struct-level or integration tests.
 | 27 | hkask-adapter | fn | `together` | hkask-adapter::provider_cost | crates/hkask-adapter/src/provider_cost.rs:162 | Core Logic |
 | 28 | hkask-adapter | fn | `transition` | hkask-adapter::endpoint_lifecycle | crates/hkask-adapter/src/endpoint_lifecycle.rs:135 | Core Logic |
 | 29 | hkask-adapter | fn | `validate_base_model` | hkask-adapter::adapter_config | crates/hkask-adapter/src/adapter_config.rs:74 | Core Logic |
-| 30 | hkask-agents | fn | `a2a_runtime` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:474 | Core Logic |
+| 30 | hkask-agents | fn | `a2a_runtime` | hkask-agents::pod::active_pods | crates/hkask-agents/src/pod/active_pods.rs:474 | Core Logic |
 | 31 | hkask-agents | fn | `activate` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:334 | Core Logic |
 | 32 | hkask-agents | fn | `calibrate_from_history` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:81 | Core Logic |
 | 33 | hkask-agents | fn | `can_access` | hkask-agents::sovereignty | crates/hkask-agents/src/sovereignty.rs:113 | Core Logic |
@@ -88,7 +88,7 @@ risk and typically covered by struct-level or integration tests.
 | 69 | hkask-agents | fn | `in_memory` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:169 | Core Logic |
 | 70 | hkask-agents | fn | `in_memory_unchecked` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:187 | Core Logic |
 | 71 | hkask-agents | fn | `inference_port` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:152 | Core Logic |
-| 72 | hkask-agents | fn | `inference_port` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:217 | Core Logic |
+| 72 | hkask-agents | fn | `inference_port` | hkask-agents::pod::active_pods | crates/hkask-agents/src/pod/active_pods.rs:151 | Core Logic |
 | 73 | hkask-agents | fn | `invoke_tool` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:334 | Core Logic |
 | 74 | hkask-agents | fn | `message_type` | hkask-agents::a2a::mod | crates/hkask-agents/src/a2a/mod.rs:278 | Core Logic |
 | 75 | hkask-agents | fn | `metacognition` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:185 | Core Logic |

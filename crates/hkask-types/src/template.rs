@@ -66,7 +66,7 @@ pub struct LLMParameters {
     /// base model and cannot be applied to a different one.
     ///
     /// Format: `"Qwen3.5-9B#constraint-forces-v3"` (Baseten multi-LoRA)
-    ///         `"accounts/fireworks/models/my-model"` (Together AI fine-tuned)
+    ///         `"accounts/together/models/my-model"` (Together AI fine-tuned)
     ///
     /// The caller is responsible for resolving which base model the adapter
     /// was trained on (via AdapterStore lookup by skill_name).

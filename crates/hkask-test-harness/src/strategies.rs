@@ -15,7 +15,7 @@
 //! - P8 (Semantic Grounding): strategies generate well-formed values
 //! - P5 (Essentialism): one strategy function per type, no duplication
 //!
-//! # Goal Principle Anchoring (v0.28.0)
+//! # Goal Principle Anchoring (v0.30.0)
 //! Each strategy function carries an `expect:` annotation (goal principle)
 //! and optional `[P{N}] Constraining:` annotations, following the traceability chain:
 //! `UserFunctionalExpectation → GoalPrinciple → ConstrainingPrinciple → Pre/Post`

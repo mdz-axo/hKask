@@ -866,7 +866,7 @@ The production deployment is a headless Ubuntu cloud server:
 
 1. **Single binary.** All crates compiled. No Cargo features for client/server.
 2. **Browser-first interaction.** Primary interface is xterm.js terminal via browser. Secondary: SSH (`kask repl`). MCP servers (for IDE integration) connect via the REST API or SSH-tunneled socket.
-3. **No local GPU inference.** The inference router (`hkask-inference`) routes all requests to cloud providers (DeepInfra, Fireworks, fal.ai).
+3. **No local GPU inference.** The inference router (`hkask-inference`) routes all requests to cloud providers (DeepInfra, Together AI, fal.ai, OpenRouter).
 4. **API keys in OS keychain.** Provider API keys are stored in the OS keychain (Linux Secret Service or flat-file fallback), not in environment variables or plaintext files.
 5. **Encrypted database at rest.** All persistent state uses SQLCipher with a passphrase-derived key.
 6. **Multi-tenant.** Multiple users per server. Data scoped by `owner_webid`. OAuth (GitHub/Google) sign-in.
@@ -886,8 +886,9 @@ Provider selection via `HKASK_DEFAULT_PROVIDER`:
 | Value | Provider | Use Case |
 |-------|----------|----------|
 | `DI` | DeepInfra | Primary cloud provider |
-| `FW` | Fireworks.ai | Fast serverless inference, fallback |
+| `TG` | Together AI | Cloud inference + fine-tuning |
 | `FA` | fal.ai | Specialized vision/OCR/media models |
+| `OR` | OpenRouter | Multi-provider unified API (chat, embeddings, vision) |
 
 ### Setup Flow
 

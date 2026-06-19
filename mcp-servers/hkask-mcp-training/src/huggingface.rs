@@ -44,7 +44,7 @@ pub enum HuggingFaceError {
 pub trait ModelRegistry: Send + Sync {
     /// Resolve a provider-prefixed base_model to a HuggingFace model ID.
     ///
-    /// Strips known prefixes (OM/, DI/, FA/, TG/) from the base_model string.
+    /// Strips known prefixes (OM/, DI/, FA/, TG/, OR/) from the base_model string.
     /// Returns the raw HF model ID (e.g., "Qwen/Qwen3.5-9B").
     fn resolve_model_id(&self, base_model: &str) -> String;
 
@@ -135,9 +135,9 @@ pub trait DatasetRegistry: Send + Sync {
 /// Strip known provider prefixes to extract the raw HuggingFace model ID.
 ///
 /// This is the canonical resolution logic used by BasetenProvider.
-/// Provider prefixes: DI/ (DeepInfra), FA/ (fal.ai), TG/ (Together).
+/// Provider prefixes: DI/ (DeepInfra), FA/ (fal.ai), TG/ (Together), OR/ (OpenRouter).
 pub fn resolve_model_id(base_model: &str) -> String {
-    let known_prefixes = ["DI/", "FA/", "TG/"];
+    let known_prefixes = ["DI/", "FA/", "TG/", "OR/"];
     let mut model = base_model;
     for prefix in &known_prefixes {
         if model.starts_with(prefix) {
