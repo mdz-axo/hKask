@@ -3,7 +3,7 @@
 
 crate:
   name: kata-starter
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Starter Kata practice templates for building foundational scientific
     thinking habits. Training wheels — agents graduate when automaticity > 0.5.

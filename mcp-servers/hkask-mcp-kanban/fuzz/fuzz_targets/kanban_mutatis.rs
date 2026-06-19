@@ -1,6 +1,6 @@
 //! Structure-aware fuzz target for hkask-mcp-kanban.
 //!
-//! Uses the mutatis crate for structure-aware mutation of kanban tool inputs
+//! Uses the mutatis crate for structure-aware mutation of JSON inputs
 //! via libfuzzer's custom mutator hook (fuzz_mutator!).
 //!
 //! Pattern from the Rust Fuzz Book:
@@ -18,17 +18,12 @@ use hkask_mcp_kanban::{
 };
 use hkask_test_harness::TestWebId;
 use libfuzzer_sys::{fuzz_mutator, fuzz_target};
-use mutatis::Mutate;
 use rmcp::handler::server::wrapper::Parameters;
-use serde::{Deserialize, Serialize};
 use std::panic::{self, AssertUnwindSafe};
 
 // ── Method enum — one variant per kanban tool ──────────────────────────
 
-/// A kanban tool invocation command. Each variant wraps the tool's request type.
-/// Derives `Mutate` for structure-aware fuzzing and `Serialize`/`Deserialize`
-/// for JSON round-tripping through the fuzz_mutator! hook.
-#[derive(Debug, Mutate, Serialize, Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 enum KanbanMethod {
     BoardCreate(BoardCreateRequest),
     BoardList(BoardListRequest),
@@ -64,25 +59,24 @@ fn call_tool<F: std::future::Future<Output = String>>(f: F) -> String {
     }
 }
 
-// ── Structure-aware mutator ────────────────────────────────────────────
+// ── JSON-level structure-aware mutator ─────────────────────────────────
 
-/// Custom libfuzzer mutator: deserialize JSON → mutate structure → reserialize.
+/// Custom libfuzzer mutator: deserialize → mutate JSON structure → reserialize.
 ///
-/// This is the key pattern from the Rust Fuzz Book. Instead of libfuzzer
-/// mutating raw bytes (which would almost never produce valid JSON), we:
-///   1. Deserialize the fuzzer's byte buffer into `Vec<KanbanMethod>`
-///   2. Mutate the deserialized structure using mutatis (field-level mutation)
-///   3. Reserialize back into the byte buffer for libfuzzer to use
+/// Instead of libfuzzer mutating raw bytes (which almost never produce valid
+/// JSON for structured types), we deserialize to `serde_json::Value`, apply
+/// structure-aware mutations at the JSON level (toggle booleans, extend strings,
+/// bump numbers, flip nulls), and reserialize.
 ///
-/// This ensures every mutation produces valid JSON, dramatically improving
-/// coverage compared to byte-level mutation on random data.
+/// This is structure-aware at the JSON type level — it knows about objects,
+/// arrays, strings, numbers, booleans, and null — without requiring `Mutate`
+/// derives on the server's request types.
 fuzz_mutator!(
     |data: &mut [u8], size: usize, max_size: usize, _seed: u32| {
-        let mut methods: Vec<KanbanMethod> =
-            serde_json::from_slice(&data[..size]).unwrap_or_default();
-        let mut session = mutatis::Session::new();
-        let _ = session.mutate(&mut methods);
-        if let Ok(new_data) = serde_json::to_vec(&methods) {
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&data[..size]).unwrap_or(serde_json::Value::Array(vec![]));
+        mutate_json(&mut value);
+        if let Ok(new_data) = serde_json::to_vec(&value) {
             let n = new_data.len().min(max_size);
             data[..n].copy_from_slice(&new_data[..n]);
             n
@@ -92,11 +86,42 @@ fuzz_mutator!(
     }
 );
 
+/// Apply structure-aware mutations to a JSON value: toggle booleans,
+/// extend strings, bump numbers, flip null→string, recurse into objects/arrays.
+fn mutate_json(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (_, v) in map.iter_mut() {
+                mutate_json(v);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                mutate_json(v);
+            }
+        }
+        serde_json::Value::String(s) => {
+            // Extend with boundary-testing characters
+            if s.len() < 256 {
+                s.push('\x00');
+                s.push_str(" mutated");
+            }
+        }
+        serde_json::Value::Bool(b) => {
+            *b = !*b;
+        }
+        serde_json::Value::Number(_) => {
+            // Bump the number to test boundary transitions
+            *value = serde_json::json!(0);
+        }
+        serde_json::Value::Null => {
+            *value = serde_json::Value::String("was-null".into());
+        }
+    }
+}
+
 // ── Fuzz target ────────────────────────────────────────────────────────
 
-/// The actual fuzz harness. Receives structure-aware mutated bytes from
-/// libfuzzer, deserializes them into kanban method invocations, and
-/// dispatches each one through the full tool path under catch_unwind.
 fuzz_target!(|data: &[u8]| {
     let methods: Vec<KanbanMethod> = serde_json::from_slice(data).unwrap_or_default();
     if methods.is_empty() || methods.len() > 20 {

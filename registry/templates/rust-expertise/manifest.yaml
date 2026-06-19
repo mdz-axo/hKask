@@ -3,7 +3,7 @@
 
 crate:
   name: rust-expertise
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Idiomatic Rust design and implementation through the lens of Graydon Hoare's
     programming philosophy. Type-driven design, ownership as architecture, fearless

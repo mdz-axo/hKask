@@ -1,0 +1,37 @@
+# Template crate manifest for falstaffian-perspective skill
+# hKask v0.30.0
+
+crate:
+  name: falstaffian-perspective
+  version: "0.30.0"
+  description: >
+    Multi-iteration perspective generation through Falstaffian semantic shape
+    transforms. Applies calibrated experience and affirmed spirit through five
+    rotation vectors (predicate hollow, subject expansion, counterfeit inversion,
+    object inversion, direction reversal) to carry tension without breaking into
+    bitterness or naivety. Five metacognitive steps: calibrate → affirm → select
+    → execute → verify.
+
+templates:
+  - id: falstaffian-perspective/falstaffian-perspective
+    path: falstaffian-perspective.j2
+    type: KnowAct
+    lexicon_terms:
+      [
+        calibrate,
+        affirm,
+        select,
+        execute,
+        verify,
+        compose,
+        transform,
+        discriminate,
+        evaluate,
+      ]
+    description: >
+      Generate multi-iteration perspectives through Falstaffian shape vectors.
+      Each iteration applies a different semantic rotation with varied voice
+      emphasis and temperature. Produces a perspective with variance report
+      (shape distribution, agreement level, agreement score). Verifies that
+      neither bitterness (experience without spirit) nor naivety (spirit
+      without experience) emerged.

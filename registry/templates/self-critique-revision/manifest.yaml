@@ -1,6 +1,6 @@
 crate:
   name: self-critique-revision
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Iterative self-critique and revision cycle: generate an initial draft,
     critique it against quality criteria, then revise based on the critique.

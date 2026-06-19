@@ -287,7 +287,7 @@ impl<'a> SkillAuditor<'a> {
                 if !j2.energy_cap_valid {
                     score -= 0.05;
                     defects.push(format!(
-                        "{}: energy_cap {:?} out of range [1024, 16384]",
+                        "{}: energy_cap {:?} out of range [2048, 8192]",
                         j2.filename, j2.energy_cap
                     ));
                 }
@@ -430,7 +430,7 @@ impl<'a> SkillAuditor<'a> {
         }
 
         if let Some(ec) = front.energy_cap {
-            info.energy_cap_valid = (1024..=16384).contains(&ec);
+            info.energy_cap_valid = (2048..=8192).contains(&ec);
         }
 
         Ok(info)

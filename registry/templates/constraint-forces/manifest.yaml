@@ -3,7 +3,7 @@
 
 crate:
   name: constraint-forces
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Classify constraints by force type (Prohibition, Guardrail, Guideline,
     Evidence, Hypothesis) to decide which can be relaxed and which are

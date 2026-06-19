@@ -4498,7 +4498,6 @@ dependencies = [
  "hkask-test-harness",
  "hkask-types",
  "libfuzzer-sys",
- "mutatis",
  "rmcp",
  "rusqlite",
  "serde",
@@ -6739,27 +6738,6 @@ name = "multimap"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
-
-[[package]]
-name = "mutatis"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "468ca2a8bc8087a0b2c11d21e7dca51d92cc2662a6993d6b56bac2701795f202"
-dependencies = [
- "mutatis-derive",
- "rand 0.8.6",
-]
-
-[[package]]
-name = "mutatis-derive"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5708f6e65277d4a89733aff227b43d0989c5ead03999b6f1f33a8ec7a9978361"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.118",
-]
 
 [[package]]
 name = "nalgebra"

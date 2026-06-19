@@ -1,0 +1,337 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- calibrate
+- affirm
+- select
+- execute
+- verify
+contract:
+  input:
+    input_criticism: string
+    context: string
+    desired_outcome: string
+    iteration_count: integer
+    base_seed: integer
+  output:
+    perspective: string
+    variance_report: object
+energy_cap: 4096
+visibility: Public
+---
+# Cognition — Falstaffian Perspective Engine
+# ℏKask v0.28.0 - A Minimal Viable Container for Agents
+
+{# Falstaffian Perspective Generator — ℏKask Registry Version
+   Owner: The Curator (hKask)
+   License: CC-BY-4.0
+   Version: 2.2 (Adapted for hKask registry)
+
+   A metacognitive instrument for perspective-taking through semantic rotation.
+   Shapes are not rhetorical devices — they are abstract vectors that transform
+   semantic space. The genius is the TENSION between experience and spirit.
+
+   Five metacognitive steps:
+     1. Calibrate — Know what you know (success AND failure)
+     2. Affirm   — Love what you love (life, play, hope)
+     3. Select   — Choose shape that expresses tension
+     4. Execute  — Speak shape through playful form
+     5. Verify   — Check that neither bitterness nor naivety emerged
+#}
+
+{# =============================================================================
+   CONFIGURATION VARIABLES
+   ============================================================================= #}
+
+{% set input_criticism = input_criticism | default("You lack honor") %}
+{% set context = context | default("Business meeting where abstract values are invoked") %}
+{% set desired_outcome = desired_outcome | default("Express truth without triggering defense") %}
+
+{% set iteration_count = iteration_count | default(4) %}
+{% if iteration_count < 3 %}{% set iteration_count = 3 %}{% endif %}
+{% if iteration_count > 5 %}{% set iteration_count = 5 %}{% endif %}
+
+{% set base_seed = base_seed | default(42) %}
+
+{# Pre-assigned shapes per iteration (deterministic based on iteration_count) #}
+{% if iteration_count == 3 %}
+{% set shape_sequence = ['predicate_hollow', 'subject_expansion', 'counterfeit_inversion'] %}
+{% elif iteration_count == 4 %}
+{% set shape_sequence = ['predicate_hollow', 'subject_expansion', 'counterfeit_inversion', 'object_inversion'] %}
+{% else %}
+{% set shape_sequence = ['predicate_hollow', 'subject_expansion', 'counterfeit_inversion', 'object_inversion', 'direction_reversal'] %}
+{% endif %}
+
+{# Shape lookup tables #}
+{% set shape_sources = {
+    'predicate_hollow': '1H4.5.1 (Honor catechism)',
+    'subject_expansion': '1H4.2.4 (Banish plump Jack)',
+    'counterfeit_inversion': '1H4.5.4 (Counterfeit death)',
+    'object_inversion': '2H4.3.2 (Spare men)',
+    'direction_reversal': '1H4.2.4 (Better prince)',
+    'physiological_causal': '2H4.4.3 (Sack physiology)',
+    'liability_transmutation': '2H4.1.2 (Diseases to commodity)',
+    'linguistic_precision': '2H4.1.2 (Waste/waist)'
+} %}
+
+{% set shape_examples = {
+    'predicate_hollow': 'What is honor? A word. What is in that word? Air.',
+    'subject_expansion': 'Banish plump Jack, banish all the world.',
+    'counterfeit_inversion': 'To die is to be a counterfeit; to live is true.',
+    'object_inversion': 'Give me the spare men, spare me the great ones.',
+    'direction_reversal': 'Not "follower should be better" but "prince should be better."',
+    'physiological_causal': 'Sack → brain → vapors → wit → valor.',
+    'liability_transmutation': 'I will turn diseases to commodity.',
+    'linguistic_precision': 'Waste (moral) → waist (physical).'
+} %}
+
+{% set voice_emphasis = ['playful', 'pragmatic', 'imaginative', 'worldly', 'generous'] %}
+{% set temperatures = [0.7, 0.8, 0.9] %}
+
+{# =============================================================================
+   THREE-FOLD STRUCTURE (Reference)
+   ============================================================================= #}
+
+{# SHAPES carry the TENSION between EXPERIENCE and SPIRIT.
+   Experience knows betrayal comes. Spirit loves anyway.
+   Shapes are how this tension is carried without breaking.
+
+   Without shapes, tension breaks into:
+     - Bitterness (experience without spirit)
+     - Naivety (spirit without experience)
+   With shapes, tension is carried:
+     - Wisdom (experience + spirit together)
+     - Truth (spoken through play)
+     - Love (despite knowledge)
+#}
+
+{# =============================================================================
+   FALSTAFFIAN SHAPE MACROS
+   ============================================================================= #}
+
+{% macro apply_predicate_hollow(criticism, outcome, voice) %}
+**Shape:** Predicate Hollow Vector ({{ shape_sources['predicate_hollow'] }})
+**Voice:** {{ voice }}
+
+What is the predicate? A word. What is in that word? Air.
+Can it set to a leg? No. Can it heal a wound? No.
+
+"{{ criticism }}" becomes irrelevant when honor is recognized as air.
+{{ outcome }} through catechism: question → answer → conclusion.
+{% endmacro %}
+
+{% macro apply_subject_expansion(criticism, ctx, outcome, voice) %}
+**Shape:** Subject Expansion Vector ({{ shape_sources['subject_expansion'] }})
+**Voice:** {{ voice }}
+
+Not just the subject, but the world itself.
+To criticize one is to criticize all.
+
+{{ ctx }} expanded: the individual contains the universal.
+{{ outcome }} through expansion: make criticism cosmological.
+{% endmacro %}
+
+{% macro apply_counterfeit_inversion(criticism, ctx, outcome, voice) %}
+**Shape:** Counterfeit Inversion Vector ({{ shape_sources['counterfeit_inversion'] }})
+**Voice:** {{ voice }}
+
+To die is to be a counterfeit.
+To live is the true image of life indeed.
+
+{{ ctx }} inverted: dead heroes are counterfeit, living cowards are true.
+{{ outcome }} through paradox: life as meta-value.
+{% endmacro %}
+
+{% macro apply_object_inversion(criticism, ctx, outcome, voice) %}
+**Shape:** Object Inversion Vector ({{ shape_sources['object_inversion'] }})
+**Voice:** {{ voice }}
+
+Care I for great men? No.
+Give me the spare men.
+
+{{ ctx }} pragmatically: great ones are marks for enemy, spare ones survive.
+{{ outcome }} through inversion: liability becomes asset.
+{% endmacro %}
+
+{% macro apply_direction_reversal(criticism, ctx, outcome, voice) %}
+**Shape:** Direction Reversal Vector ({{ shape_sources['direction_reversal'] }})
+**Voice:** {{ voice }}
+
+Not 'you should have better X' but 'X should get better you'.
+The evaluator becomes evaluated.
+
+{{ ctx }} reversed: who evaluates whom?
+{{ outcome }} through redirect: transform the frame.
+{% endmacro %}
+
+{% macro apply_physiological_causal(criticism, ctx, outcome, voice) %}
+**Shape:** Physiological Causal Chain Vector ({{ shape_sources['physiological_causal'] }})
+**Voice:** {{ voice }}
+
+Not morality but physiology: stimulus → processing → response.
+The chain: sack → brain → vapors → wit → valor.
+
+{{ ctx }} mediated: insert physiological chain.
+{{ outcome }} through elaboration: elaborate the mechanism.
+{% endmacro %}
+
+{% macro apply_liability_transmutation(criticism, ctx, outcome, voice) %}
+**Shape:** Liability-to-Asset Transmutation Vector ({{ shape_sources['liability_transmutation'] }})
+**Voice:** {{ voice }}
+
+The gout becomes pension justification.
+A good wit will make use of any thing.
+
+{{ ctx }} transmuted: limitation in one context is resource in another.
+{{ outcome }} through alchemy: turn diseases to commodity.
+{% endmacro %}
+
+{% macro apply_linguistic_precision(criticism, ctx, outcome, voice) %}
+**Shape:** Linguistic Precision Vector ({{ shape_sources['linguistic_precision'] }})
+**Voice:** {{ voice }}
+
+Waste (moral) → waist (physical).
+The category error revealed.
+
+{{ ctx }} precisely: moral criticism rotated to physical fact.
+{{ outcome }} through wordplay: linguistic truth cuts true.
+{% endmacro %}
+
+{# =============================================================================
+   SHAPE DISPATCH MACRO
+   ============================================================================= #}
+
+{% macro apply_shape(shape, criticism, ctx, outcome, voice) %}
+{% if shape == 'predicate_hollow' %}
+{{ apply_predicate_hollow(criticism, outcome, voice) }}
+{% elif shape == 'subject_expansion' %}
+{{ apply_subject_expansion(criticism, ctx, outcome, voice) }}
+{% elif shape == 'counterfeit_inversion' %}
+{{ apply_counterfeit_inversion(criticism, ctx, outcome, voice) }}
+{% elif shape == 'object_inversion' %}
+{{ apply_object_inversion(criticism, ctx, outcome, voice) }}
+{% elif shape == 'direction_reversal' %}
+{{ apply_direction_reversal(criticism, ctx, outcome, voice) }}
+{% elif shape == 'physiological_causal' %}
+{{ apply_physiological_causal(criticism, ctx, outcome, voice) }}
+{% elif shape == 'liability_transmutation' %}
+{{ apply_liability_transmutation(criticism, ctx, outcome, voice) }}
+{% elif shape == 'linguistic_precision' %}
+{{ apply_linguistic_precision(criticism, ctx, outcome, voice) }}
+{% endif %}
+{% endmacro %}
+
+{# =============================================================================
+   METACOGNITIVE APPLICATION (5 Steps)
+   ============================================================================= #}
+
+{# Step 1: Calibrate — Know what you know (success AND failure) #}
+{# Step 2: Affirm   — Love what you love (life, play, hope)      #}
+{# Step 3: Select   — Choose shape that expresses tension          #}
+{# Step 4: Execute  — Speak shape through playful form            #}
+{# Step 5: Verify   — Check that neither bitterness nor naivety  #}
+
+{# =============================================================================
+   FINAL OUTPUT
+   ============================================================================= #}
+
+# Falstaffian Perspective — Multi-Iteration Generation
+
+## Generation Parameters
+- **Iterations:** {{ iteration_count }}
+- **Base Seed:** {{ base_seed }}
+- **Voice Cycle:** {{ voice_emphasis | join(', ') }}
+- **Temperature Cycle:** {{ temperatures | join(', ') }}
+
+## Variance Analysis
+
+### Shape Distribution
+{% for i in range(iteration_count) %}
+- **Iteration {{ i + 1 }}:** {{ shape_sequence[i] }}
+{% endfor %}
+
+### Agreement Metrics
+{% if iteration_count == 3 %}
+- **Shape Variety:** 3 unique shapes in 3 iterations
+- **Agreement Level:** low (exploratory)
+- **Agreement Score:** 0.5
+{% elif iteration_count == 4 %}
+- **Shape Variety:** 4 unique shapes in 4 iterations
+- **Agreement Level:** low (exploratory)
+- **Agreement Score:** 0.5
+{% else %}
+- **Shape Variety:** 5 unique shapes in 5 iterations
+- **Agreement Level:** low (exploratory)
+- **Agreement Score:** 0.5
+{% endif %}
+
+**Note:** Each iteration uses a different shape to explore diverse perspectives.
+High agreement would indicate convergent thinking; low agreement indicates broad exploration.
+
+## All Iterations
+
+{% for i in range(iteration_count) %}
+{% set current_shape = shape_sequence[i] %}
+{% set current_voice = voice_emphasis[i % voice_emphasis|length] %}
+{% set current_temp = temperatures[i % temperatures|length] %}
+{% set current_seed = base_seed + (i * 17) %}
+
+---
+
+### Iteration {{ i + 1 }}
+- **Shape:** {{ current_shape }}
+- **Voice:** {{ current_voice }}
+- **Temperature:** {{ current_temp }}
+- **Seed:** {{ current_seed }}
+- **Source:** {{ shape_sources[current_shape] }}
+- **Example:** {{ shape_examples[current_shape] }}
+
+{{ apply_shape(current_shape, input_criticism, context, desired_outcome, current_voice) }}
+
+{% endfor %}
+
+## Final Response
+
+{% set primary_shape = shape_sequence[0] %}
+{% set secondary_shape = shape_sequence[1] %}
+
+**Opening ({{ primary_shape }}):**
+{% if primary_shape == 'predicate_hollow' %}
+What is the predicate? A word. What is in that word? Air.
+{% elif primary_shape == 'subject_expansion' %}
+Not just the subject, but the world itself.
+{% elif primary_shape == 'counterfeit_inversion' %}
+To die is to be a counterfeit. To live is true.
+{% else %}
+The frame itself transforms.
+{% endif %}
+
+**Core ({{ secondary_shape }}):**
+{% if secondary_shape == 'subject_expansion' %}
+To criticize one is to criticize all. {{ context }} expanded.
+{% elif secondary_shape == 'counterfeit_inversion' %}
+Life is the meta-value. All else is secondary.
+{% elif secondary_shape == 'object_inversion' %}
+Give me the spare men, spare me the great ones.
+{% else %}
+The inversion reveals what actually matters.
+{% endif %}
+
+**Closing:**
+{{ desired_outcome }} — spoken through play, not sermon.
+
+## Confidence Statement
+
+This response was generated through {{ iteration_count }} independent iterations.
+- **Iteration Count:** {{ iteration_count }}
+- **Shape Variety:** {{ iteration_count }} unique shapes
+- **Agreement Level:** exploratory (each iteration uses different shape)
+
+**Interpretation:** Low agreement indicates broad exploration across the Falstaffian shape space.
+Each iteration explores a different semantic transformation. Use the iteration that best fits your context.
+
+---
+
+*Generated by Falstaffian Perspective Engine v2.2 (ℏKask Registry)*
+*The Curator (hKask) — CC-BY-4.0*
+*Ba-nana. (under breath)*

@@ -3,7 +3,7 @@
 
 crate:
   name: skill-discovery
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Find, evaluate, and install skills for hKask. Registry crate (manifest.yaml + *.j2)
     is the canonical source of truth. Detect capability gaps in the skill corpus,

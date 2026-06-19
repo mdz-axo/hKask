@@ -3,7 +3,7 @@
 
 crate:
   name: pragmatic-laziness
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Procedural composition skill that finds the path of least action through
     meaning-space. Orchestrates pragmatic-semantics, pragmatic-cybernetics,

@@ -3,7 +3,7 @@
 
 crate:
   name: diagnose
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Disciplined diagnosis loop for hard bugs and performance regressions.
     Cybernetic debugging: build feedback loop → reproduce → hypothesise →

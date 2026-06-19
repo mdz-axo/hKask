@@ -3,7 +3,7 @@
 
 crate:
   name: skill-translator
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Translate external skills into hKask registry crates (manifest.yaml + .j2
     templates) as the canonical source of truth. Forward translation (external →

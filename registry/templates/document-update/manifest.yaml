@@ -3,7 +3,7 @@
 
 crate:
   name: document-update
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Document consolidation and maintenance. Primary goal: sweep information
     into core documents and archive the originals, reducing corpus size and

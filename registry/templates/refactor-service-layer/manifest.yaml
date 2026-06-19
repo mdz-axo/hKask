@@ -3,7 +3,7 @@
 
 crate:
   name: refactor-service-layer
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Extract a shared service layer from duplicated surface logic using the strangler
     fig pattern, deep-module discipline, and vertical tracer-bullet TDD. Classifies

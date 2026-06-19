@@ -3,7 +3,7 @@
 
 crate:
   name: skill-maintenance
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Audit the skill corpus for staleness, coverage gaps, and quality degradation.
     Registry crate (manifest.yaml + *.j2) is the canonical source of truth.

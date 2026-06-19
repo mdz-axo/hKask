@@ -3,7 +3,7 @@
 
 crate:
   name: zoom-out
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Context expansion skill. Zooms out to provide broader architectural context,
     module maps, caller graphs, data flows, and boundary summaries.

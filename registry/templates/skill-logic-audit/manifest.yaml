@@ -5,7 +5,7 @@
 
 crate:
   name: skill-logic-audit
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Runtime templates for skill-logic-audit: load a goal annotation, critique
     the artifact against that goal, filter the critique for soundness, compose
