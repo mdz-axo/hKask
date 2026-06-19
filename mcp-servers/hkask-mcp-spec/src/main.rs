@@ -1,32 +1,25 @@
-//! hKask MCP Spec — Thin MCP wrapper around SpecService + spec_ops.
+//! hKask MCP Spec — Specification authoring, validation, graph analysis, and replica rewriting (6 tools per MDS §3)
 //!
-//! All business logic lives in:
-//! - `hkask_storage::spec_ops` — pure algorithms (no I/O)
-//! - `hkask_services::SpecService` — orchestrated operations (store, CNS, contracts)
-//!
-//! This server handles only: OCAP gating, CNS spanning, experience recording,
-//! embedding-based comparison (Gentle Lovelace), and replica rewriting.
-//!
-//! 12 tools: capture, decompose, writing-quality, graph-query, graph-coherence,
-//! replica-rewrite, contract-audit, contract-propose, contract-accept,
-//! contract-reject, contract-list, test-run.
+//! Curation (Accept/Revise/Reject) is external to the spec server — performed by
+//! the Curator agent or human. The spec server handles capture, decompose,
+//! writing-quality, graph query, graph coherence, and replica rewrite.
 
 pub mod types;
 
 use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
 use hkask_mcp::validate_field;
 
+use hkask_cns::{
+    emit_contract_accepted, emit_contract_proposed, emit_contract_rejected, emit_contract_violated,
+};
 use hkask_inference::{EmbeddingRouter, InferenceConfig};
 use hkask_services::{
-    ComposeRequest, ComposeService, EmbeddingSection, HkaskSettings, InferenceContext,
-    SpecCaptureRequest, SpecService, cosine_distance,
+    CognitionConfig, ComposeRequest, ComposeService, EmbeddingSection, HkaskSettings,
+    InferenceContext, RetrievalSection, ValidationSection, cosine_distance,
 };
-use hkask_storage::spec_ops::{
-    assess_writing_quality_heuristic, build_centroid_ref, build_rewrite_prompt,
-    build_spec_document_text, collect_goal_and_criteria_texts, compute_embedding_quality,
-    extract_ocap_boundaries,
+use hkask_storage::spec_types::{
+    DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId, infer_spec_category,
 };
-use hkask_storage::spec_types::{Spec, SpecId};
 use hkask_storage::{Database, EmbeddingStore, NuEventStore, SpecStore, TripleStore};
 use hkask_types::time::now_rfc3339;
 use hkask_types::{
@@ -42,18 +35,26 @@ use types::*;
 
 // ── Server ───────────────────────────────────────────────────
 
-/// Spec MCP server — thin wrapper around SpecService.
+/// Spec MCP server — provides spec *mechanism*, not *governance*.
 ///
-/// Provides mechanism (capture, decompose, query, assess), not governance.
-/// Curation decisions (Accept/Revise/Reject) are external — made by the
-/// Curator agent or human, never by a tool call.
+/// Six tools (MDS §3): capture, decompose, writing-quality, graph-query,
+/// graph-coherence, and replica-rewrite. All tools are OCAP-gated.
+///
+/// **Governance boundary**: Curation decisions (Accept/Revise/Reject) are
+/// external to this server — made by the Curator agent or human, never by
+/// a tool call. This server handles mechanism (capture, decompose, query,
+/// assess); the Curator handles governance (decide, accept, reject).
 pub struct SpecServer {
     store: Arc<dyn SpecStore + Send + Sync>,
     capability_checker: Arc<CapabilityChecker>,
     webid: WebID,
+    /// Replicant identity serving this MCP server (for narrative memory)
     replicant: String,
+    /// Daemon client for dual-encoding experiences (None if daemon unavailable)
     daemon: Option<hkask_mcp::DaemonClient>,
+    /// Event sink for CNS span persistence — proposals flow to Curator's review queue.
     event_sink: Arc<dyn hkask_types::event::NuEventSink>,
+    /// Triple store for proposal persistence.
     triple_store: Arc<TripleStore>,
 }
 
@@ -66,6 +67,7 @@ impl std::fmt::Debug for SpecServer {
     }
 }
 
+// Capability-check macro — covers 5 tool handlers
 macro_rules! check_cap {
     ($self:expr, $span:expr, $token:expr, $resource:expr, $action:expr) => {
         if let Err(e) = $self.verify_capability($token.as_deref(), $resource, $action) {
@@ -139,8 +141,7 @@ impl SpecServer {
         }
     }
 
-    // ── Thin store wrappers ────────────────────────────────────────
-
+    /// Load spec by id string; returns error wire string on failure.
     fn load_spec(&self, spec_id: &str) -> Result<Spec, (McpErrorKind, String)> {
         let parsed = SpecId::from_string(spec_id).unwrap_or_default();
         self.store.load(parsed).map_err(|_| {
@@ -151,22 +152,93 @@ impl SpecServer {
         })
     }
 
+    /// Load all specs; returns error JSON value on failure.
     fn load_all_specs_val(&self) -> Result<Vec<Spec>, serde_json::Value> {
         self.store
             .list_all()
             .map_err(|e| serde_json::json!({"error": format!("Failed to load specs: {}", e)}))
     }
 
-    fn save_spec(&self, spec: &Spec) -> Result<(), serde_json::Value> {
-        self.store
-            .save(spec)
+    /// Save spec; returns error JSON value on failure.
+    fn persist_val(&self, spec: &Spec) -> Result<(), serde_json::Value> {
+        self.save_spec(spec)
             .map_err(|e| serde_json::json!({"error": format!("Failed to persist spec: {}", e)}))
     }
 
-    // ── Embedding-based comparison (Gentle Lovelace) ──────────────
+    fn save_spec(&self, spec: &Spec) -> Result<(), SpecError> {
+        self.store.save(spec)
+    }
 
-    /// Compare spec text against Gentle Lovelace persona centroids.
-    /// Uses `spec_ops` for text building, then does embedding I/O locally.
+    /// Extract OCAP boundary hints from context keywords.
+    fn extract_ocap_boundaries(context: Option<&str>) -> Vec<String> {
+        let ctx = match context {
+            Some(c) => c.to_lowercase(),
+            None => return vec![],
+        };
+        let mut boundaries = Vec::new();
+        if ctx.contains("curation") || ctx.contains("curat") {
+            boundaries.push("curation".to_string());
+        }
+        if ctx.contains("cybernetics") || ctx.contains("cns") {
+            boundaries.push("cybernetics".to_string());
+        }
+        if ctx.contains("spec_curate") || ctx.contains("spec curate") {
+            boundaries.push("spec_curate".to_string());
+        }
+        boundaries
+    }
+
+    /// Writing quality assessment for a spec.
+    ///
+    /// When `replica_persona` and DB credentials are provided, performs
+    /// embedding-based comparison against the persona's dimension centroids.
+    /// Otherwise falls back to the structural heuristic.
+    async fn assess_writing_quality(
+        &self,
+        spec: &Spec,
+        replica_persona: Option<&str>,
+        db_path: Option<&str>,
+        db_passphrase: Option<&str>,
+    ) -> (WritingQualityScore, Option<Vec<DimensionScore>>) {
+        // ── Structural heuristic (always computed) ─────────────────
+        let has_description = !spec.name.is_empty();
+        let has_goals = !spec.goals.is_empty();
+        let has_criteria = spec.goals.iter().any(|g| !g.criteria.is_empty());
+        let has_verbs = !spec.declared_verbs.is_empty();
+
+        let heuristic = WritingQualityScore {
+            hopper: has_goals && has_criteria,
+            lovelace: has_criteria,
+            schriver: has_description && has_goals,
+            gentle: has_description && has_verbs,
+        };
+
+        // ── Embedding-based comparison (when replica + DB available) ─
+        let dimension_scores = match (replica_persona, db_path, db_passphrase) {
+            (Some(persona), Some(path), Some(passphrase)) => {
+                match self
+                    .compare_against_replica(spec, persona, path, passphrase)
+                    .await
+                {
+                    Ok(scores) => Some(scores),
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "cns.mcp.spec",
+                            persona = %persona,
+                            error = %e,
+                            "Replica comparison failed, using heuristic only"
+                        );
+                        None
+                    }
+                }
+            }
+            _ => None,
+        };
+
+        (heuristic, dimension_scores)
+    }
+
+    /// Embed spec content and compute cosine distances against persona centroids.
     async fn compare_against_replica(
         &self,
         spec: &Spec,
@@ -178,8 +250,24 @@ impl SpecServer {
         let conn = db.conn_arc();
         let store = EmbeddingStore::new(conn);
 
-        let doc_text = build_spec_document_text(spec);
+        // Build document text from spec content
+        let doc_text = format!(
+            "{}: Goals: {}. Criteria: {}.",
+            spec.name,
+            spec.goals
+                .iter()
+                .map(|g| g.text.as_str())
+                .collect::<Vec<_>>()
+                .join("; "),
+            spec.goals
+                .iter()
+                .flat_map(|g| &g.criteria)
+                .map(|c| c.description.as_str())
+                .collect::<Vec<_>>()
+                .join("; "),
+        );
 
+        // Embed the document
         let settings = HkaskSettings::load();
         let emb_model = settings.embedding_model();
         let inf_cfg = InferenceConfig::from_env();
@@ -192,12 +280,14 @@ impl SpecServer {
             .first()
             .ok_or_else(|| "Embedding returned empty result".to_string())?;
 
+        // Query centroids for this persona
         let prefix = format!("style:{}:", persona);
         let all_refs = store.query_by_prefix(&prefix).map_err(|e| e.to_string())?;
 
         let mut dimension_scores: Vec<DimensionScore> = Vec::new();
 
         for entity_ref in &all_refs {
+            // Only process centroid entities
             let last_segment = entity_ref.rsplit(':').next().unwrap_or(entity_ref);
             if !last_segment.ends_with("-centroid") && last_segment != "centroid" {
                 continue;
@@ -206,6 +296,7 @@ impl SpecServer {
             let emb = store.get(entity_ref).map_err(|e| e.to_string())?;
             let dist = cosine_distance(doc_vec, &emb.vector);
 
+            // Derive dimension name from entity_ref
             let dimension = if last_segment == "centroid" {
                 "composite".to_string()
             } else if let Some(dim) = last_segment.strip_suffix("-centroid") {
@@ -242,8 +333,26 @@ impl SpecServer {
         Ok(dimension_scores)
     }
 
-    // ── Experience recording ───────────────────────────────────────
+    /// Basic goal decomposition: split description into sentences as sub-goals.
+    fn decompose_description(description: &str) -> (Vec<String>, Vec<DependencyEdge>) {
+        let sub_goals: Vec<String> = description
+            .split(['.', '\n'])
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .collect();
+        // Sequential dependencies: each sub-goal depends on the previous
+        let mut dependencies = Vec::new();
+        for i in 1..sub_goals.len() {
+            dependencies.push(DependencyEdge {
+                from: sub_goals[i - 1].clone(),
+                to: sub_goals[i].clone(),
+            });
+        }
+        (sub_goals, dependencies)
+    }
 
+    /// Record a tool call as a narrative experience in the agent's memory.
     fn record_experience(
         &self,
         tool: &str,
@@ -283,6 +392,7 @@ impl SpecServer {
 }
 
 /// Serialize response and convert to ok_json.
+/// Returns an internal error span entry if serialization fails (e.g. NaN/Inf in an f64 field).
 fn respond<T: serde::Serialize>(span: ToolSpanGuard, resp: &T) -> String {
     match serde_json::to_value(resp) {
         Ok(val) => span.ok_json(val),
@@ -292,11 +402,10 @@ fn respond<T: serde::Serialize>(span: ToolSpanGuard, resp: &T) -> String {
     }
 }
 
-// ── Tool Handlers ────────────────────────────────────────────
-
 #[tool_router(server_handler)]
 impl SpecServer {
     /// MDS §3 tool 1: Capture a goal as a binding specification requirement.
+    /// OCAP boundaries are declared inline from context.
     #[tool(
         description = "Capture a goal as a binding specification requirement. OCAP boundaries are declared inline from context per MDS §3."
     )]
@@ -317,51 +426,50 @@ impl SpecServer {
             DelegationAction::Write
         );
 
-        let ocap_boundaries = extract_ocap_boundaries(context.as_deref());
+        let category = infer_spec_category(context.as_deref());
+        let anchor = DomainAnchor::Hkask;
+        let ocap_boundaries = Self::extract_ocap_boundaries(context.as_deref());
 
-        // Delegate to SpecService for the core logic
-        let req = SpecCaptureRequest {
-            name_or_description: description.clone(),
-            category: None,
-            domain: None,
-            criteria: None,
-            context: context.clone(),
-        };
-
-        match SpecService::capture_to_store(&*self.store, req) {
-            Ok(resp) => {
-                self.record_experience(
-                    "spec_goal_capture",
-                    &description,
-                    "captured",
-                    serde_json::json!({"goal_id": resp.spec_id, "category": resp.category}),
-                );
-
-                // Rebuild criteria from the stored spec for the response
-                let spec = self.load_spec(&resp.spec_id);
-                let requirements: Vec<String> = match spec {
-                    Ok(s) => s
-                        .goals
-                        .iter()
-                        .flat_map(|g| g.criteria.iter().map(|c| c.description.clone()))
-                        .collect(),
-                    Err(_) => vec![],
-                };
-
-                respond(
-                    span,
-                    &GoalCaptureResponse {
-                        goal_id: resp.spec_id,
-                        requirements,
-                        ocap_boundaries,
-                    },
-                )
+        let mut goal = GoalSpec::new(&description);
+        // Seed criteria from description sentences
+        for sentence in description.split('.') {
+            let trimmed = sentence.trim();
+            if !trimmed.is_empty() && trimmed.len() < 200 {
+                goal = goal.with_criterion(trimmed);
             }
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
         }
+
+        let spec = Spec::new(&description, category, anchor).with_goal(goal);
+        let spec_id = spec.id;
+
+        if let Err(v) = self.persist_val(&spec) {
+            return span.internal_error(v);
+        }
+
+        let requirements: Vec<String> = spec
+            .goals
+            .iter()
+            .flat_map(|g| g.criteria.iter().map(|c| c.description.clone()))
+            .collect();
+
+        self.record_experience(
+            "spec_goal_capture",
+            &description,
+            "captured",
+            serde_json::json!({"goal_id": spec_id.to_string(), "category": category.as_str()}),
+        );
+
+        respond(
+            span,
+            &GoalCaptureResponse {
+                goal_id: spec_id.to_string(),
+                requirements,
+                ocap_boundaries,
+            },
+        )
     }
 
-    /// MDS §3 tool 2: Decompose a specification goal into ordered sub-goals.
+    /// MDS §3 tool 2: Decompose a specification goal into ordered sub-goals with dependencies.
     #[tool(
         description = "Decompose a specification goal into ordered sub-goals with dependencies per MDS §3"
     )]
@@ -382,34 +490,68 @@ impl SpecServer {
             DelegationAction::Write
         );
 
-        match SpecService::decompose(&*self.store, &goal_id) {
-            Ok((sub_goals, dependencies)) => {
-                self.record_experience(
-                    "spec_goal_decompose",
-                    &goal_id,
-                    "decomposed",
-                    serde_json::json!({"sub_goal_count": sub_goals.len()}),
-                );
+        let mut spec = match self.load_spec(&goal_id) {
+            Ok(s) => s,
+            Err((kind, msg)) => return span.error(kind, msg),
+        };
 
-                respond(
-                    span,
-                    &GoalDecomposeResponse {
-                        sub_goals,
-                        dependencies: dependencies
-                            .into_iter()
-                            .map(|d| DependencyEdgeDto {
-                                from: d.from,
-                                to: d.to,
-                            })
-                            .collect(),
-                    },
-                )
+        // Decompose each goal that can have subgoals
+        for goal in &mut spec.goals {
+            if !goal.can_have_subgoals() || !goal.sub_goals.is_empty() {
+                continue;
             }
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
+            let (sub_texts, _deps) = Self::decompose_description(&goal.text);
+            if sub_texts.len() <= 1 {
+                continue;
+            }
+            for text in &sub_texts {
+                let mut child = GoalSpec::new(text);
+                child.depth = goal.depth + 1;
+                goal.sub_goals.push(child);
+            }
         }
+
+        let (sub_goals, dependencies) = {
+            let mut all_subs = Vec::new();
+            let mut all_deps = Vec::new();
+            for goal in &spec.goals {
+                for sub in &goal.sub_goals {
+                    all_subs.push(sub.text.clone());
+                }
+            }
+            if all_subs.len() > 1 {
+                for i in 1..all_subs.len() {
+                    all_deps.push(DependencyEdge {
+                        from: all_subs[i - 1].clone(),
+                        to: all_subs[i].clone(),
+                    });
+                }
+            }
+            (all_subs, all_deps)
+        };
+
+        if let Err(v) = self.persist_val(&spec) {
+            return span.internal_error(v);
+        }
+
+        self.record_experience(
+            "spec_goal_decompose",
+            &goal_id,
+            "decomposed",
+            serde_json::json!({"sub_goal_count": sub_goals.len()}),
+        );
+
+        respond(
+            span,
+            &GoalDecomposeResponse {
+                sub_goals,
+                dependencies,
+            },
+        )
     }
 
-    /// MDS §3 tool 3: Assess a specification's writing quality.
+    /// MDS §3 tool 3: Assess a specification's writing quality via the 4-perspective test.
+    /// The server assesses, not the caller. 3 of 4 passing = meets publication standard.
     #[tool(
         description = "Assess a specification's writing quality via the 4-perspective test (Hopper/Lovelace/Schriver/Gentle) per MDS §3. 3/4 = publishable."
     )]
@@ -439,50 +581,46 @@ impl SpecServer {
             Err((kind, msg)) => return span.error(kind, msg),
         };
 
-        // Heuristic check (always computed, from spec_ops)
-        let heuristic = assess_writing_quality_heuristic(&spec);
+        let (quality, dimension_scores) = self
+            .assess_writing_quality(
+                &spec,
+                replica_persona.as_deref(),
+                db_path.as_deref(),
+                db_passphrase.as_deref(),
+            )
+            .await;
 
-        // Embedding-based comparison (when replica + DB available)
-        let dimension_scores = match (
-            replica_persona.as_deref(),
-            db_path.as_deref(),
-            db_passphrase.as_deref(),
-        ) {
-            (Some(persona), Some(path), Some(passphrase)) => {
-                match self
-                    .compare_against_replica(&spec, persona, path, passphrase)
-                    .await
-                {
-                    Ok(scores) => Some(scores),
-                    Err(e) => {
-                        tracing::warn!(target: "cns.mcp.spec", persona = %persona, error = %e, "Replica comparison failed");
-                        None
-                    }
-                }
-            }
-            _ => None,
-        };
-
-        // Compute pass/fail from embedding scores, or fall back to heuristic
+        // When embedding scores are available, use them for the pass/fail decision.
+        // A dimension passes if cosine_distance ≤ 0.4.
         let (dimensions_passing, meets_standard, weakest_dimension, rewrite_prompt) =
             match &dimension_scores {
                 Some(scores) if !scores.is_empty() => {
-                    let pairs: Vec<(String, f64)> = scores
+                    let passing = scores.iter().filter(|s| s.cosine_distance <= 0.4).count();
+                    // Find the weakest dimension (highest cosine distance, excluding composite)
+                    let weakest = scores
                         .iter()
-                        .map(|s| (s.dimension.clone(), s.cosine_distance))
-                        .collect();
-                    let (goals, criteria) = collect_goal_and_criteria_texts(&spec);
-                    let result = compute_embedding_quality(&pairs, &spec.name, &goals, &criteria);
-                    (
-                        result.dimensions_passing,
-                        result.meets_standard,
-                        result.weakest_dimension,
-                        result.rewrite_prompt,
-                    )
+                        .filter(|s| s.dimension != "composite")
+                        .max_by(|a, b| a.cosine_distance.total_cmp(&b.cosine_distance));
+                    let weakest_dim = weakest.map(|s| s.dimension.clone());
+                    let rewrite = weakest.and_then(|s| {
+                        if s.cosine_distance > 0.4 {
+                            Some(format!(
+                                "Rewrite this specification to improve its {} dimension (current cosine distance: {:.2}, threshold: 0.40).\n\n=== SPECIFICATION TO REWRITE ===\n\nName: {}\nGoals: {}\nCriteria: {}",
+                                s.dimension,
+                                s.cosine_distance,
+                                spec.name,
+                                spec.goals.iter().map(|g| g.text.as_str()).collect::<Vec<_>>().join("; "),
+                                spec.goals.iter().flat_map(|g| &g.criteria).map(|c| c.description.as_str()).collect::<Vec<_>>().join("; "),
+                            ))
+                        } else {
+                            None
+                        }
+                    });
+                    (passing, passing >= 3, weakest_dim, rewrite)
                 }
                 _ => (
-                    heuristic.passes(),
-                    heuristic.meets_publication_standard(),
+                    quality.passes(),
+                    quality.meets_publication_standard(),
                     None,
                     None,
                 ),
@@ -493,7 +631,7 @@ impl SpecServer {
             &WritingQualityResponse {
                 dimensions_passing,
                 meets_publication_standard: meets_standard,
-                replica_persona,
+                replica_persona: replica_persona.clone(),
                 dimension_scores,
                 weakest_dimension,
                 rewrite_prompt,
@@ -501,7 +639,7 @@ impl SpecServer {
         )
     }
 
-    /// MDS §3 tool 4: Query the specification graph.
+    /// MDS §3 tool 4: Query the specification graph by search term with configurable depth.
     #[tool(
         description = "Query the specification graph by search term with configurable traversal depth per MDS §3"
     )]
@@ -523,50 +661,78 @@ impl SpecServer {
         );
 
         let max_depth = depth.unwrap_or(3);
+        let all_specs = match self.load_all_specs_val() {
+            Ok(specs) => specs,
+            Err(v) => return span.internal_error(v),
+        };
 
-        match SpecService::graph_query(&*self.store, &query, max_depth) {
-            Ok(result) => {
-                self.record_experience(
-                    "spec_graph_query",
-                    &query,
-                    "success",
-                    serde_json::json!({"nodes": result.nodes.len(), "edges": result.edges.len(), "paths": result.paths.len()}),
-                );
+        let query_lower = query.to_lowercase();
 
-                respond(
-                    span,
-                    &GraphQueryResponse {
-                        nodes: result
-                            .nodes
-                            .into_iter()
-                            .map(|n| GraphNodeDto {
-                                id: n.id,
-                                label: n.label,
-                                category: n.category,
-                            })
-                            .collect(),
-                        edges: result
-                            .edges
-                            .into_iter()
-                            .map(|e| GraphEdgeDto {
-                                from: e.from,
-                                to: e.to,
-                                relation: e.relation,
-                            })
-                            .collect(),
-                        paths: result
-                            .paths
-                            .into_iter()
-                            .map(|p| GraphPathDto {
-                                nodes: p.nodes,
-                                length: p.length,
-                            })
-                            .collect(),
-                    },
-                )
+        // Match specs where name, goals, or category contain the query
+        let nodes: Vec<GraphNode> = all_specs
+            .iter()
+            .filter(|s| {
+                s.name.to_lowercase().contains(&query_lower)
+                    || s.goals
+                        .iter()
+                        .any(|g| g.text.to_lowercase().contains(&query_lower))
+                    || s.category.as_str().contains(&query_lower)
+            })
+            .map(|s| GraphNode {
+                id: s.id.to_string(),
+                label: s.name.clone(),
+                category: s.category.as_str().to_string(),
+            })
+            .collect();
+
+        // Build edges between specs in the same category (composition adjacency)
+        let mut edges = Vec::new();
+        for i in 0..nodes.len() {
+            for j in (i + 1)..nodes.len() {
+                if nodes[i].category == nodes[j].category {
+                    edges.push(GraphEdge {
+                        from: nodes[i].id.clone(),
+                        to: nodes[j].id.clone(),
+                        relation: "same-category".to_string(),
+                    });
+                }
             }
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
         }
+
+        // Build simple paths (direct category-linked chains up to max_depth)
+        let mut paths = Vec::new();
+        for node in &nodes {
+            let linked: Vec<String> = edges
+                .iter()
+                .filter(|e| e.from == node.id || e.to == node.id)
+                .flat_map(|e| vec![e.from.clone(), e.to.clone()])
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .take(max_depth as usize)
+                .collect();
+            if !linked.is_empty() {
+                paths.push(GraphPath {
+                    nodes: linked,
+                    length: 1,
+                });
+            }
+        }
+
+        self.record_experience(
+            "spec_graph_query",
+            &query,
+            "success",
+            serde_json::json!({"nodes": nodes.len(), "edges": edges.len(), "paths": paths.len()}),
+        );
+
+        respond(
+            span,
+            &GraphQueryResponse {
+                nodes,
+                edges,
+                paths,
+            },
+        )
     }
 
     /// MDS §3 tool 5: Validate specification collection coherence.
@@ -589,22 +755,54 @@ impl SpecServer {
             DelegationAction::Read
         );
 
-        match SpecService::graph_coherence(&*self.store, 0.7) {
-            Ok(result) => respond(
-                span,
-                &GraphCoherenceResponse {
-                    coherence_score: result.coherence_score,
-                    violations: result.violations,
-                    suggestions: result.suggestions,
-                },
-            ),
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
+        let all_specs = match self.load_all_specs_val() {
+            Ok(specs) => specs,
+            Err(v) => return span.internal_error(v),
+        };
+
+        let coherence = Spec::collection_coherence(&all_specs);
+        let threshold = 0.7;
+        let mut violations = Vec::new();
+        let mut suggestions = Vec::new();
+
+        if coherence < threshold {
+            violations.push(format!(
+                "Collection coherence {:.2} below threshold {:.2}",
+                coherence, threshold
+            ));
         }
+
+        let categories_covered: std::collections::HashSet<String> = all_specs
+            .iter()
+            .map(|s| s.category.as_str().to_string())
+            .collect();
+        for cat in SpecCategory::all() {
+            if !categories_covered.contains(cat.as_str()) {
+                suggestions.push(format!("Missing category: {}", cat.as_str()));
+            }
+        }
+
+        for spec in &all_specs {
+            if !spec.is_complete() {
+                suggestions.push(format!("Incomplete spec: {} ({})", spec.id, spec.name));
+            }
+        }
+
+        respond(
+            span,
+            &GraphCoherenceResponse {
+                coherence_score: coherence,
+                violations,
+                suggestions,
+            },
+        )
     }
 
-    /// Tool 6: Rewrite a passage using the Gentle Lovelace replica persona.
+    /// Rewrite a passage or document using the Gentle Lovelace replica persona.
+    /// Retrieves exemplar passages from the target dimension's centroid and
+    /// generates improved prose optimized for that dimension of excellence.
     #[tool(
-        description = "Rewrite a passage or document using the Gentle Lovelace replica. Optimizes prose for a target quality dimension using exemplar retrieval and centroid-guided generation."
+        description = "Rewrite a passage or document using the Gentle Lovelace replica. Optimizes prose for a target quality dimension (Gentle/Schriver/Hopper/Lovelace) using exemplar retrieval and centroid-guided generation."
     )]
     async fn spec_replica_rewrite(
         &self,
@@ -628,9 +826,36 @@ impl SpecServer {
             DelegationAction::Read
         );
 
-        // Build prompt and centroid ref using spec_ops
-        let prompt = build_rewrite_prompt(&dimension, &passage);
-        let centroid_ref = build_centroid_ref(&dimension);
+        // Build dimension-specific rewrite prompt
+        let dimension_guidance = match dimension.to_lowercase().as_str() {
+            "gentle" => {
+                "Rewrite this text to maximize agent-correctness. Docs ARE code — ensure every statement is actionable and unambiguous. Remove any stale references or outdated information."
+            }
+            "schriver" => {
+                "Rewrite this text for maximum findability. Use scannable headings, descriptive hyperlinks, and front-load key concepts. A reader must find their answer within 30 seconds."
+            }
+            "hopper" => {
+                "Rewrite this text for maximum accessibility. Make it comprehensible on first reading with zero prior context. Use plain language, active voice, and short sentences."
+            }
+            "lovelace" => {
+                "Rewrite this text for maximum precision. Make every specification independently verifiable — a reader must be able to write a test from this text alone."
+            }
+            _ => {
+                "Rewrite this text for all four dimensions of documentation excellence: agent-correctness (Gentle), findability (Schriver), accessibility (Hopper), and precision (Lovelace)."
+            }
+        };
+
+        let prompt = format!("{dimension_guidance}\n\n=== TEXT TO REWRITE ===\n\n{passage}");
+
+        // Target the appropriate centroid
+        let centroid_ref = if dimension.to_lowercase() == "composite" {
+            "style:gentle-lovelace:centroid".to_string()
+        } else {
+            format!(
+                "style:gentle-lovelace:{}-centroid",
+                dimension.to_lowercase()
+            )
+        };
 
         let run = async {
             let settings = HkaskSettings::load();
@@ -640,16 +865,16 @@ impl SpecServer {
             let inf_cfg = InferenceConfig::from_env();
             let inference_ctx = InferenceContext::from_parts(None, &gen_model, inf_cfg);
 
-            let config = hkask_services::CognitionConfig {
+            let config = CognitionConfig {
                 author: "gentle-lovelace".to_string(),
                 jinja2_template: None,
                 embedding: EmbeddingSection {
                     model: emb_model.clone(),
                     dim: 1024,
                     centroid_entity_ref: centroid_ref,
-                    retrieval: hkask_services::RetrievalSection::default(),
+                    retrieval: RetrievalSection::default(),
                 },
-                validation: hkask_services::ValidationSection {
+                validation: ValidationSection {
                     centroid_distance_max: 0.40,
                 },
             };
@@ -691,9 +916,11 @@ impl SpecServer {
         }
     }
 
-    /// Tool 7: Discover uncontracted public functions in a crate.
+    /// Discover uncontracted public functions in a crate.
+    /// Returns per-crate coverage percentages and lists of uncontracted functions
+    /// for replicant-driven contract proposals.
     #[tool(
-        description = "Discover uncontracted public functions in a crate. Returns coverage percentages and lists of functions lacking REQ contracts."
+        description = "Discover uncontracted public functions in a crate. Returns coverage percentages and lists of functions lacking REQ contracts for replicant-driven proposals."
     )]
     async fn contract_audit(
         &self,
@@ -712,59 +939,83 @@ impl SpecServer {
             })
         });
 
-        match SpecService::contract_audit(crate_name.as_deref(), &root) {
-            Ok(audits) => {
-                let mut total_fns = 0usize;
-                let mut total_contracted = 0usize;
-                let mut total_uncontracted = 0usize;
-                let crate_results: Vec<CrateCoverage> = audits
-                    .into_iter()
-                    .map(|a| {
-                        total_fns += a.total_pub_fns;
-                        total_contracted += a.contracted;
-                        total_uncontracted += a.uncontracted.len();
-                        CrateCoverage {
-                            crate_name: a.crate_name,
-                            total_pub_fns: a.total_pub_fns,
-                            contracted: a.contracted,
-                            coverage_pct: a.coverage_pct,
-                            uncontracted: a
-                                .uncontracted
-                                .iter()
-                                .map(|f| UncontractedFn {
-                                    function_name: f.function_name.clone(),
-                                    file: f.file.clone(),
-                                    line: f.line,
-                                })
-                                .collect(),
-                        }
-                    })
-                    .collect();
-
-                let overall_pct = if total_fns > 0 {
-                    (total_contracted as f64 / total_fns as f64) * 100.0
-                } else {
-                    100.0
-                };
-
-                respond(
-                    span,
-                    &ContractAuditResponse {
-                        crates: crate_results,
-                        totals: AuditTotals {
-                            total_pub_fns: total_fns,
-                            contracted: total_contracted,
-                            coverage_pct: overall_pct,
-                            uncontracted_total: total_uncontracted,
-                        },
-                    },
-                )
+        let crates: Vec<String> = if let Some(c) = crate_name {
+            vec![c]
+        } else {
+            let crates_dir = std::path::Path::new(&root).join("crates");
+            match std::fs::read_dir(&crates_dir) {
+                Ok(entries) => entries
+                    .flatten()
+                    .filter(|e| e.path().is_dir())
+                    .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
+                    .filter(|s| s.starts_with("hkask-"))
+                    .collect(),
+                Err(_) => return span.internal_error(
+                    serde_json::json!({"error": format!("crates directory not found: {}", crates_dir.display())})
+                ),
             }
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
+        };
+
+        let mut crate_results = Vec::new();
+        let mut total_fns = 0usize;
+        let mut total_contracted = 0usize;
+        let mut total_uncontracted = 0usize;
+
+        for name in &crates {
+            match hkask_test_harness::test_runner::discover_uncontracted_functions(name, &root) {
+                Some(audit) => {
+                    total_fns += audit.total_pub_fns;
+                    total_contracted += audit.contracted;
+                    total_uncontracted += audit.uncontracted.len();
+                    crate_results.push(CrateCoverage {
+                        crate_name: name.clone(),
+                        total_pub_fns: audit.total_pub_fns,
+                        contracted: audit.contracted,
+                        coverage_pct: audit.coverage_pct,
+                        uncontracted: audit
+                            .uncontracted
+                            .iter()
+                            .map(|f| UncontractedFn {
+                                function_name: f.function_name.clone(),
+                                file: f.file.clone(),
+                                line: f.line,
+                            })
+                            .collect(),
+                    });
+                }
+                None => {
+                    crate_results.push(CrateCoverage {
+                        crate_name: name.clone(),
+                        total_pub_fns: 0,
+                        contracted: 0,
+                        coverage_pct: 0.0,
+                        uncontracted: vec![],
+                    });
+                }
+            }
         }
+
+        let overall_pct = if total_fns > 0 {
+            (total_contracted as f64 / total_fns as f64) * 100.0
+        } else {
+            100.0
+        };
+
+        respond(
+            span,
+            &ContractAuditResponse {
+                crates: crate_results,
+                totals: AuditTotals {
+                    total_pub_fns: total_fns,
+                    contracted: total_contracted,
+                    coverage_pct: overall_pct,
+                    uncontracted_total: total_uncontracted,
+                },
+            },
+        )
     }
 
-    /// Tool 8: Submit a contract proposal for human review.
+    /// Submit a contract proposal for human review.
     #[tool(
         description = "Propose a behavioral contract for a public function. Submits for human consent review."
     )]
@@ -782,30 +1033,46 @@ impl SpecServer {
         let span = ToolSpanGuard::new("contract_propose", &self.webid);
         let rep = replicant.unwrap_or_else(|| self.webid.to_string());
 
-        match SpecService::contract_propose(
+        // Emit CNS span to real event sink (flows to Curator's review queue)
+        emit_contract_proposed(
             &*self.event_sink,
-            &self.triple_store,
             &rep,
             &crate_name,
             &function,
             &contract_id,
-            &pre,
-            &post,
-        ) {
-            Ok(()) => respond(
-                span,
-                &ContractProposeResponse {
-                    contract_id,
-                    crate_name,
-                    function,
-                    status: "proposed".to_string(),
-                },
-            ),
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
-        }
+        );
+
+        // Persist proposal as triple for Curator review
+        let value = serde_json::json!({
+            "replicant": rep,
+            "crate": crate_name,
+            "function": function,
+            "contract_id": contract_id,
+            "pre": pre,
+            "post": post,
+            "status": "proposed",
+            "proposed_at": chrono::Utc::now().to_rfc3339(),
+        });
+        let triple = hkask_storage::Triple::new(
+            "cns:contract_proposal",
+            &contract_id,
+            value,
+            hkask_types::WebID::from_persona(rep.as_bytes()),
+        );
+        let _ = self.triple_store.insert(&triple);
+
+        respond(
+            span,
+            &ContractProposeResponse {
+                contract_id,
+                crate_name,
+                function,
+                status: "proposed".to_string(),
+            },
+        )
     }
 
-    /// Tool 9: Accept a proposed contract (human consent gate).
+    /// Accept a proposed contract (human consent gate).
     #[tool(description = "Accept a proposed behavioral contract. Human consent gate per P2.")]
     async fn contract_accept(
         &self,
@@ -817,24 +1084,34 @@ impl SpecServer {
         let span = ToolSpanGuard::new("contract_accept", &self.webid);
         let rev = reviewer.unwrap_or_else(|| self.webid.to_string());
 
-        match SpecService::contract_accept(
-            &*self.event_sink,
-            &self.triple_store,
-            &rev,
-            &contract_id,
-        ) {
-            Ok(()) => respond(
-                span,
-                &ContractAcceptResponse {
-                    contract_id,
-                    status: "accepted".to_string(),
-                },
-            ),
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
+        emit_contract_accepted(&*self.event_sink, &rev, "", "", "", &contract_id);
+
+        // Update proposal triple status
+        if let Ok(mut existing) = self
+            .triple_store
+            .query_by_entity_attribute("cns:contract_proposal", &contract_id)
+            && let Some(mut triple) = existing.pop()
+        {
+            let mut value = triple.value.clone();
+            value["status"] = serde_json::json!("accepted");
+            value["reviewer"] = serde_json::json!(&rev);
+            value["accepted_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+            triple.value = value.clone();
+            let _ = self
+                .triple_store
+                .update(&triple.id, value, hkask_types::Confidence::full());
         }
+
+        respond(
+            span,
+            &ContractAcceptResponse {
+                contract_id,
+                status: "accepted".to_string(),
+            },
+        )
     }
 
-    /// Tool 10: Reject a proposed contract with rationale.
+    /// Reject a proposed contract with rationale.
     #[tool(description = "Reject a proposed behavioral contract with rationale.")]
     async fn contract_reject(
         &self,
@@ -847,54 +1124,60 @@ impl SpecServer {
         let span = ToolSpanGuard::new("contract_reject", &self.webid);
         let rev = reviewer.unwrap_or_else(|| self.webid.to_string());
 
-        match SpecService::contract_reject(
-            &*self.event_sink,
-            &self.triple_store,
-            &rev,
-            &contract_id,
-            &reason,
-        ) {
-            Ok(()) => respond(
-                span,
-                &ContractRejectResponse {
-                    contract_id,
-                    status: "rejected".to_string(),
-                },
-            ),
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
+        emit_contract_rejected(&*self.event_sink, &rev, "", "", "", &contract_id, &reason);
+
+        // Update proposal triple status
+        if let Ok(mut existing) = self
+            .triple_store
+            .query_by_entity_attribute("cns:contract_proposal", &contract_id)
+            && let Some(mut triple) = existing.pop()
+        {
+            let mut value = triple.value.clone();
+            value["status"] = serde_json::json!("rejected");
+            value["reviewer"] = serde_json::json!(&rev);
+            value["reason"] = serde_json::json!(&reason);
+            value["rejected_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+            triple.value = value.clone();
+            let _ = self
+                .triple_store
+                .update(&triple.id, value, hkask_types::Confidence::full());
         }
+
+        respond(
+            span,
+            &ContractRejectResponse {
+                contract_id,
+                status: "rejected".to_string(),
+            },
+        )
     }
 
-    /// Tool 11: List proposed contracts awaiting review.
+    /// List proposed contracts awaiting review.
     #[tool(description = "List proposed behavioral contracts and their review status.")]
     async fn contract_list(&self) -> String {
         let span = ToolSpanGuard::new("contract_list", &self.webid);
+        let proposals = self
+            .triple_store
+            .query_by_entity("cns:contract_proposal")
+            .unwrap_or_default();
 
-        match SpecService::contract_list(&self.triple_store) {
-            Ok(entries) => {
-                let proposals: Vec<ProposalEntry> = entries
-                    .into_iter()
-                    .map(
-                        |(contract_id, status, function, crate_name, pre, post, replicant)| {
-                            ProposalEntry {
-                                contract_id,
-                                status,
-                                function,
-                                crate_name,
-                                pre,
-                                post,
-                                replicant,
-                            }
-                        },
-                    )
-                    .collect();
-                respond(span, &ContractListResponse { proposals })
-            }
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
-        }
+        let entries: Vec<ProposalEntry> = proposals
+            .iter()
+            .map(|t| ProposalEntry {
+                contract_id: t.value["contract_id"].as_str().unwrap_or("?").to_string(),
+                status: t.value["status"].as_str().unwrap_or("unknown").to_string(),
+                function: t.value["function"].as_str().unwrap_or("?").to_string(),
+                crate_name: t.value["crate"].as_str().unwrap_or("?").to_string(),
+                pre: t.value["pre"].as_str().unwrap_or("").to_string(),
+                post: t.value["post"].as_str().unwrap_or("").to_string(),
+                replicant: t.value["replicant"].as_str().map(|s| s.to_string()),
+            })
+            .collect();
+
+        respond(span, &ContractListResponse { proposals: entries })
     }
 
-    /// Tool 12: Run contract tests on a crate and report REQ-tagged violations.
+    /// Run contract tests on a crate and report REQ-tagged violations.
     #[tool(description = "Run cargo test on a crate and report REQ-tagged contract violations.")]
     async fn test_run(
         &self,
@@ -913,9 +1196,17 @@ impl SpecServer {
             })
         });
 
-        match SpecService::test_run(&crate_name, &root) {
-            Ok(result) => {
-                SpecService::emit_test_violations(&*self.event_sink, &result.violations);
+        match hkask_test_harness::test_runner::run_contract_tests(&crate_name, &root) {
+            Some(result) => {
+                // Emit violations to CNS
+                for v in &result.violations {
+                    emit_contract_violated(
+                        &*self.event_sink,
+                        &v.test_name,
+                        &v.contract_id,
+                        &v.failure_reason,
+                    );
+                }
 
                 respond(
                     span,
@@ -937,12 +1228,12 @@ impl SpecServer {
                     },
                 )
             }
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
+            None => span.internal_error(
+                serde_json::json!({"error": format!("cargo test unavailable for crate '{}'", crate_name)}),
+            ),
         }
     }
 }
-
-// ── Main ──────────────────────────────────────────────────────
 
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp::McpError> {
@@ -968,59 +1259,49 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         env!("CARGO_PKG_VERSION"),
         |ctx: ServerContext| {
             Ok((|| -> anyhow::Result<SpecServer> {
-                let conn = match ctx.credentials.get("HKASK_SPEC_DB_PATH") {
-                    Some(path) => {
-                        let passphrase = ctx
-                            .credentials
+            let conn = match ctx.credentials.get("HKASK_SPEC_DB_PATH") {
+                Some(path) => {
+                    let passphrase =
+                        ctx.credentials
                             .get("HKASK_DB_PASSPHRASE")
                             .ok_or_else(|| {
                                 anyhow::anyhow!(
                                     "HKASK_SPEC_DB_PATH set but HKASK_DB_PASSPHRASE missing"
                                 )
                             })?;
-                        let db = hkask_storage::Database::open(path, passphrase)
-                            .map_err(|e| anyhow::anyhow!("Failed to open spec database: {e}"))?;
-                        db.conn_arc()
-                    }
-                    None => {
-                        tracing::warn!(
-                            target: "cns.mcp.spec",
-                            "No persistent DB — spec store in-memory (set HKASK_SPEC_DB_PATH + HKASK_DB_PASSPHRASE for persistence)"
-                        );
-                        let conn = rusqlite::Connection::open_in_memory()?;
-                        std::sync::Arc::new(std::sync::Mutex::new(conn))
-                    }
-                };
-                let store =
-                    std::sync::Arc::new(hkask_storage::SqliteSpecStore::new(Arc::clone(&conn)));
-                store
-                    .init_schema()
-                    .map_err(|e| anyhow::anyhow!("{}", e))?;
+                    let db = hkask_storage::Database::open(path, passphrase)
+                        .map_err(|e| anyhow::anyhow!("Failed to open spec database: {e}"))?;
+                    db.conn_arc()
+                }
+                None => {
+                    tracing::warn!(
+                        target: "cns.mcp.spec",
+                        "No persistent DB — spec store in-memory (set HKASK_SPEC_DB_PATH + HKASK_DB_PASSPHRASE for persistence)"
+                    );
+                    let conn = rusqlite::Connection::open_in_memory()?;
+                    std::sync::Arc::new(std::sync::Mutex::new(conn))
+                }
+            };
+            let store = std::sync::Arc::new(hkask_storage::SqliteSpecStore::new(Arc::clone(&conn)));
+            store.init_schema().map_err(|e| anyhow::anyhow!("{}", e))?;
 
-                let event_sink: Arc<dyn hkask_types::event::NuEventSink> =
-                    std::sync::Arc::new(NuEventStore::new(Arc::clone(&conn)));
-                let triple_store = std::sync::Arc::new(TripleStore::new(Arc::clone(&conn)));
+            // Event sink + triple store for contract proposal persistence
+            let event_sink: Arc<dyn hkask_types::event::NuEventSink> =
+                std::sync::Arc::new(NuEventStore::new(Arc::clone(&conn)));
+            let triple_store = std::sync::Arc::new(TripleStore::new(Arc::clone(&conn)));
 
-                let secret_hex = ctx
-                    .credentials
+            let secret_hex =
+                ctx.credentials
                     .get("HKASK_OCAP_SECRET")
                     .ok_or_else(|| {
                         anyhow::anyhow!(
                             "HKASK_OCAP_SECRET is required for spec capability verification"
                         )
                     })?;
-                let secret = hex::decode(secret_hex)
-                    .map_err(|e| anyhow::anyhow!("HKASK_OCAP_SECRET must be hex-encoded: {e}"))?;
-                let checker = CapabilityChecker::new(&secret);
-                Ok(SpecServer::new(
-                    store,
-                    ctx.webid,
-                    checker,
-                    replicant.clone(),
-                    daemon_client.clone(),
-                    event_sink,
-                    triple_store,
-                ))
+            let secret = hex::decode(secret_hex)
+                .map_err(|e| anyhow::anyhow!("HKASK_OCAP_SECRET must be hex-encoded: {e}"))?;
+            let checker = CapabilityChecker::new(&secret);
+            Ok(SpecServer::new(store, ctx.webid, checker, replicant.clone(), daemon_client.clone(), event_sink, triple_store))
             })()?)
         },
         vec![
@@ -1046,15 +1327,8 @@ async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
     let result = hkask_mcp::verify_startup_gates(&client, replicant, "spec", &[]).await?;
     tracing::info!(target: "cns.mcp.spec", replicant = %replicant,
         "P4 gates verified{}",
-        if result.denied_tools.is_empty() {
-            String::new()
-        } else {
-            format!(
-                " — {} tool(s) denied: {:?}",
-                result.denied_tools.len(),
-                result.denied_tools
-            )
-        }
+        if result.denied_tools.is_empty() { String::new() }
+        else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }
     );
     Ok(())
 }

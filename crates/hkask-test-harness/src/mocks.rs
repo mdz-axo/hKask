@@ -43,6 +43,7 @@ pub struct MockInferencePort {
 impl MockInferencePort {
     /// Create a new mock with a default response of "Mock response".
     ///
+    /// post: returns MockInferencePort with empty responses, default="Mock response", model="mock-model"
     pub fn new() -> Self {
         Self {
             responses: Mutex::new(HashMap::new()),
@@ -55,6 +56,9 @@ impl MockInferencePort {
     /// Register a canned response for prompts starting with `prompt_prefix`.
     /// Later registrations take precedence (insert order).
     ///
+    /// pre:  prompt_prefix and response are non-empty
+    /// post: response registered for prefix matching
+    /// post: returns Self for builder chaining
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_response(self, prompt_prefix: &str, response: &str) -> Self {
         self.responses
@@ -66,6 +70,9 @@ impl MockInferencePort {
 
     /// Set the default response for unmatched prompts.
     ///
+    /// pre:  response is non-empty
+    /// post: default_response updated
+    /// post: returns Self for builder chaining
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_default(mut self, response: &str) -> Self {
         self.default_response = response.to_string();
@@ -74,6 +81,9 @@ impl MockInferencePort {
 
     /// Set the model name reported in results.
     ///
+    /// pre:  model is non-empty
+    /// post: model_name updated
+    /// post: returns Self for builder chaining
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_model(mut self, model: &str) -> Self {
         self.model_name = model.to_string();
@@ -83,12 +93,14 @@ impl MockInferencePort {
     /// Inject an error — all subsequent `generate` calls will fail with this error.
     /// Call `clear_error()` to restore normal operation.
     ///
+    /// post: error_override set — subsequent generate() calls return Err
     pub fn set_error(&self, error: InferenceError) {
         *self.error_override.lock().unwrap() = Some(error);
     }
 
     /// Clear any injected error, restoring normal responses.
     ///
+    /// post: error_override cleared — subsequent generate() calls return Ok
     pub fn clear_error(&self) {
         *self.error_override.lock().unwrap() = None;
     }
@@ -244,6 +256,8 @@ mod tests {
 /// Returns canned responses for auth queries, assignments, capability checks,
 /// and experience storage. Supports configurable auth state and error injection.
 ///
+/// pre:  none
+/// post: returns MockDaemonClient with default (authenticated, all capabilities granted)
 pub struct MockDaemonClient {
     /// Whether auth queries report the replicant as authenticated.
     pub authenticated: bool,
@@ -258,6 +272,7 @@ pub struct MockDaemonClient {
 }
 
 impl MockDaemonClient {
+    /// post: returns new MockDaemonClient with default settings (authenticated, all granted)
     pub fn new() -> Self {
         Self {
             authenticated: true,
@@ -276,6 +291,7 @@ impl MockDaemonClient {
 
     /// Set capabilities to denied.
     ///
+    /// post: returns self with capabilities_granted=false
     pub fn capabilities_denied(mut self) -> Self {
         self.capabilities_granted = false;
         self
@@ -283,6 +299,8 @@ impl MockDaemonClient {
 
     /// Set a canned tool dispatch response.
     ///
+    /// pre:  response is a valid JSON Value
+    /// post: returns self with tool_response set
     pub fn with_tool_response(mut self, response: Value) -> Self {
         self.tool_response = Some(response);
         self
@@ -290,6 +308,7 @@ impl MockDaemonClient {
 
     /// Get stored experiences (for assertion in tests).
     ///
+    /// post: returns clone of all stored experience triples
     pub fn stored_experiences(&self) -> Vec<(String, String, Value)> {
         self.stored.lock().unwrap().clone()
     }

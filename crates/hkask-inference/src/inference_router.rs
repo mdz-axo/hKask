@@ -39,7 +39,10 @@ impl InferenceRouter {
     /// Constructs backends lazily — a backend is only created if its
     /// configuration is valid (e.g., API key is present for cloud providers).
     ///
+    /// expect: "The system creates multi-provider membranes assembled from configured boundaries"
     /// \[P4\] Motivating: Clear Boundaries — multi-provider membrane assembled from configured boundaries
+    /// pre:  config is a valid InferenceConfig
+    /// post: returns InferenceRouter with backends for configured providers
     pub fn new(config: InferenceConfig) -> Self {
         let deepinfra = DeepInfraBackend::new(&config).ok();
         let fal = FalBackend::new(&config).ok();
@@ -97,7 +100,12 @@ impl InferenceRouter {
 
     /// Dispatch a generate call to the resolved backend.
     ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — shared dispatch for text generation
+    /// pre:  provider is a resolved ProviderId with available backend
+    /// pre:  model, prompt, params are validated and cloned
+    /// post: returns Ok(InferenceResult) on success
+    /// post: returns Err(Connection) if backend is None or provider is unsupported
     async fn dispatch_generate(
         &self,
         provider: ProviderId,
@@ -145,7 +153,11 @@ impl InferenceRouter {
     /// provider prefixes applied. Graceful degradation: if one
     /// provider fails, results from others are still returned.
     ///
+    /// expect: "I can discover available models across providers"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — aggregated model variety across providers
+    /// pre:  backends are initialized (may be None)
+    /// post: returns Vec<RouterModelEntry> with all available models across providers
+    /// post: if a backend fails → its models are omitted (graceful degradation)
     pub async fn list_models(&self) -> Vec<RouterModelEntry> {
         let mut entries = Vec::new();
 
@@ -185,7 +197,11 @@ impl InferenceRouter {
 
     /// Search models by name across all providers (case-insensitive substring).
     ///
+    /// expect: "I can discover available models across providers"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — searchable model catalog for routing
+    /// pre:  query may be empty (returns all models)
+    /// post: returns Vec<RouterModelEntry> filtered by case-insensitive substring match
+    /// post: if query is empty → returns all models (delegates to list_models)
     pub async fn search_models(&self, query: &str) -> Vec<RouterModelEntry> {
         let all = self.list_models().await;
         if query.is_empty() {
@@ -202,7 +218,10 @@ impl InferenceRouter {
     /// Convenience filter over `list_models()` using the heuristic
     /// `supports_vision` flag. Useful for OCR model selection.
     ///
+    /// expect: "I can discover available models across providers"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — vision-capable model discovery
+    /// pre:  none (delegates to list_models)
+    /// post: returns Vec<RouterModelEntry> filtered to supports_vision == Some(true)
     pub async fn list_vision_models(&self) -> Vec<RouterModelEntry> {
         self.list_models()
             .await
@@ -213,7 +232,15 @@ impl InferenceRouter {
 
     /// Vision/multimodal inference — dispatch to the appropriate backend with base64 images.
     ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated multimodal dispatch
+    /// pre:  prompt is non-empty
+    /// pre:  images is non-empty
+    /// pre:  params is a valid LLMParameters
+    /// post: dispatches to provider-resolved backend's generate_vision
+    /// post: returns Ok(InferenceResult) on success
+    /// post: if provider resolution fails → Err(InferenceError)
+    /// post: if backend call fails → Err(InferenceError)
     pub async fn generate_vision(
         &self,
         prompt: &str,
@@ -269,7 +296,11 @@ impl InferenceRouter {
     /// Generate an image from a text prompt.
     /// Routes to fal.ai FLUX Schnell (default) or DeepInfra FLUX 2 Klein.
     ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image generation dispatch
+    /// pre:  prompt is a non-empty text description
+    /// post: returns Ok(serde_json::Value) with generated image data
+    /// post: if fal backend unavailable → Err(InferenceError::Connection)
     pub async fn generate_image(
         &self,
         prompt: &str,
@@ -288,7 +319,12 @@ impl InferenceRouter {
     /// Transform an existing image with a prompt (image-to-image).
     /// Routes to fal.ai Flux dev img2img (default) or DeepInfra Qwen Image Edit.
     ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image editing dispatch
+    /// pre:  image_url is a valid, accessible image URL
+    /// pre:  prompt is a non-empty transformation instruction
+    /// post: returns Ok(serde_json::Value) with transformed image data
+    /// post: if fal backend unavailable → Err(InferenceError::Connection)
     pub async fn image_to_image(
         &self,
         image_url: &str,
@@ -304,7 +340,12 @@ impl InferenceRouter {
     /// Remove background from an image.
     /// Routes to DeepInfra Bria RMBG 2.0 (cheapest) with fal.ai Birefnet fallback.
     ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated background removal dispatch
+    /// pre:  image_url is a valid, accessible image URL
+    /// post: tries DeepInfra first, falls back to fal.ai on failure
+    /// post: returns Ok(serde_json::Value) with background-removed image data
+    /// post: if no backend available → Err(InferenceError::Connection)
     pub async fn remove_background(
         &self,
         image_url: &str,
@@ -328,7 +369,11 @@ impl InferenceRouter {
     /// Upscale an image.
     /// Routes to fal.ai SeedVR2 (queue).
     ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated upscaling dispatch
+    /// pre:  image_url is a valid, accessible image URL
+    /// post: returns Ok(serde_json::Value) with upscaled image data
+    /// post: if fal backend unavailable → Err(InferenceError::Connection)
     pub async fn upscale(
         &self,
         image_url: &str,
@@ -343,7 +388,11 @@ impl InferenceRouter {
     /// Generate a video from a text prompt.
     /// Routes to fal.ai MiniMax video-01-live (queue).
     ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated video generation dispatch
+    /// pre:  prompt is a non-empty text description
+    /// post: returns Ok(serde_json::Value) with generated video data
+    /// post: if fal backend unavailable → Err(InferenceError::Connection)
     pub async fn generate_video(
         &self,
         prompt: &str,
@@ -360,7 +409,11 @@ impl InferenceRouter {
     /// Animate a still image into a video.
     /// Routes to fal.ai Seedance 2.0 image-to-video (queue).
     ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated video generation dispatch
+    /// pre:  image_url is a valid, accessible image URL
+    /// post: returns Ok(serde_json::Value) with generated video data
+    /// post: if fal backend unavailable → Err(InferenceError::Connection)
     pub async fn image_to_video(
         &self,
         image_url: &str,
@@ -378,7 +431,13 @@ impl InferenceRouter {
     /// Default voice: "Rachel" (ElevenLabs default, available on both providers).
     /// Default model on DeepInfra: hexgrad/Kokoro-82M.
     ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated speech synthesis dispatch
+    /// pre:  text is non-empty
+    /// pre:  voice is a valid voice preset name
+    /// post: tries DeepInfra first, falls back to fal.ai on failure
+    /// post: returns Ok(serde_json::Value) with generated speech audio data
+    /// post: if no backend available → Err(InferenceError::Connection)
     pub async fn generate_speech(
         &self,
         text: &str,
@@ -403,7 +462,12 @@ impl InferenceRouter {
     /// Segment/extract a specific object from an image.
     /// Routes to fal.ai Florence-2 segmentation.
     ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated segmentation dispatch
+    /// pre:  image_url is a valid, accessible image URL
+    /// pre:  object_description is a non-empty description of the object to segment
+    /// post: returns Ok(serde_json::Value) with segmented object data
+    /// post: if fal backend unavailable → Err(InferenceError::Connection)
     pub async fn segment_object(
         &self,
         image_url: &str,
@@ -420,7 +484,12 @@ impl InferenceRouter {
     /// Transcribe speech audio to text.
     /// Routes to DeepInfra Whisper (default) with fal.ai Whisper fallback.
     ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated transcription dispatch
+    /// pre:  audio_url is a valid, accessible audio file URL
+    /// post: tries DeepInfra first, falls back to fal.ai on failure
+    /// post: returns Ok(serde_json::Value) with transcription data
+    /// post: if no backend available → Err(InferenceError::Connection)
     pub async fn transcribe(
         &self,
         audio_url: &str,
@@ -444,6 +513,8 @@ impl InferenceRouter {
 }
 
 impl InferencePort for InferenceRouter {
+    // pre:  prompt is non-empty; parameters are valid
+    // post: Ok(InferenceResult) when resolved provider backend is configured;
     //       Err(Connection) when resolved provider backend is None
     fn generate(
         &self,
@@ -514,6 +585,8 @@ impl InferencePort for InferenceRouter {
         })
     }
 
+    // pre:  prompt is non-empty; parameters are valid; model_override may be None
+    // post: Ok(InferenceResult) when resolved provider backend is configured;
     //       Err(Connection) when resolved provider backend is None
     fn generate_with_model(
         &self,
@@ -544,6 +617,8 @@ impl InferencePort for InferenceRouter {
         })
     }
 
+    // pre:  prompt is non-empty; parameters are valid
+    // post: Stream of Ok(InferenceStreamChunk) when resolved provider backend is configured;
     //       Stream of Err(Connection) when resolved provider backend is None
     fn generate_stream(
         &self,
@@ -559,6 +634,8 @@ impl InferencePort for InferenceRouter {
         self.generate_stream_with_model(prompt, parameters, None)
     }
 
+    // pre:  prompt is non-empty; parameters are valid; model_override may be None
+    // post: Stream of Ok(InferenceStreamChunk) when resolved provider backend is configured;
     //       Stream of Err(Connection) when resolved provider backend is None
     fn generate_stream_with_model(
         &self,
@@ -644,7 +721,11 @@ impl InferencePort for InferenceRouter {
 impl InferenceRouter {
     /// Generate a text embedding vector via the embedding router.
     ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated embedding dispatch
+    /// pre:  text is a non-empty string
+    /// post: delegates to EmbeddingRouter::embed_sentence with resolved model
+    /// post: if embedding fails → Err(EmbeddingGenerationError)
     pub async fn embed_text(
         &self,
         text: &str,

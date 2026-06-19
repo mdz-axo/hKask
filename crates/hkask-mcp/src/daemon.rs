@@ -29,6 +29,7 @@ use tokio::net::{UnixListener, UnixStream};
 
 /// Well-known path for the hKask daemon socket.
 ///
+/// post: returns PathBuf to the daemon socket (config dir or /tmp fallback)
 pub fn daemon_socket_path() -> PathBuf {
     let base = dirs_next().unwrap_or_else(|| PathBuf::from("/tmp"));
     base.join("daemon.sock")
@@ -117,6 +118,7 @@ pub struct DaemonClient {
 impl DaemonClient {
     /// Create a client that connects to the default daemon socket path.
     ///
+    /// post: returns DaemonClient with default socket path
     pub fn new() -> Self {
         Self {
             socket_path: daemon_socket_path(),
@@ -125,6 +127,8 @@ impl DaemonClient {
 
     /// Create a client with a custom socket path (for testing).
     ///
+    /// pre:  path is a valid filesystem path
+    /// post: returns DaemonClient with custom socket path
     pub fn with_path(path: PathBuf) -> Self {
         Self { socket_path: path }
     }
@@ -278,6 +282,7 @@ impl Default for DaemonListener {
 impl DaemonListener {
     /// Create a listener bound to the default socket path.
     ///
+    /// post: returns DaemonListener with default socket path, listener=None
     pub fn new() -> Self {
         Self {
             socket_path: daemon_socket_path(),
@@ -287,6 +292,8 @@ impl DaemonListener {
 
     /// Create a listener with a custom socket path (for testing).
     ///
+    /// pre:  path is a valid filesystem path
+    /// post: returns DaemonListener with custom socket path
     pub fn with_path(path: PathBuf) -> Self {
         Self {
             socket_path: path,
@@ -896,8 +903,8 @@ mod tests {
     // | Operation           | Idempotent? | Reason                    |
     // |---------------------|:-----------:|---------------------------|
     // | auth_query          | ✅          | Read-only (UserStore)     |
-    // | assignment_query    | ✅          | Read-only (ActivePods)    |
-    // | capability_query    | ✅          | Read-only (ActivePods)    |
+    // | assignment_query    | ✅          | Read-only (PodManager)    |
+    // | capability_query    | ✅          | Read-only (PodManager)    |
     // | store_experience    | ❌          | Creates new UUID triples  |
     //
     // The three query operations are naturally idempotent — they perform

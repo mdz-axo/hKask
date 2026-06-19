@@ -34,6 +34,7 @@ use tracing::{info, warn};
 
 /// Default interval between background calibrations.
 ///
+/// expect: "I can configure the default interval for the background gas calibration loop"
 pub const DEFAULT_CALIBRATION_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 /// Default lookback window for the first calibration after construction.
@@ -62,6 +63,11 @@ pub struct CalibratedEnergyEstimator {
 impl CalibratedEnergyEstimator {
     /// Create a calibrated estimator backed by the given event store.
     ///
+    /// expect: "I can configure the default interval for the background gas calibration loop"
+    /// pre:  store is a valid NuEventStore
+    /// post: returns CalibratedEnergyEstimator with default table and no observations
+    /// post: first calibration will look back `DEFAULT_INITIAL_LOOKBACK`
+    /// post: no event sink attached until `with_event_sink` is called
     pub fn new(store: Arc<NuEventStore>) -> Self {
         let table = DynamicGasTable::new();
         let estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
@@ -76,6 +82,10 @@ impl CalibratedEnergyEstimator {
 
     /// Configure how far back the first calibration pass searches for events.
     ///
+    /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data"
+    /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation"
+    /// pre:  lookback is a positive duration
+    /// post: first calibration will search [Utc::now() - lookback, Utc::now()]
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_initial_lookback(mut self, lookback: ChronoDuration) -> Self {
         let now = Utc::now();
@@ -86,6 +96,9 @@ impl CalibratedEnergyEstimator {
 
     /// Attach a CNS event sink for calibration span emission.
     ///
+    /// expect: "I can attach an event sink so calibration adjustments emit CNS observability spans"
+    /// pre:  sink is a valid NuEventSink
+    /// post: subsequent successful calibrations that adjust costs emit a span
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
@@ -94,6 +107,10 @@ impl CalibratedEnergyEstimator {
 
     /// Run one incremental calibration pass.
     ///
+    /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data"
+    /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation"
+    /// pre:  `self.store` is a valid NuEventStore
+    /// post: all settled gas events since the last calibration are fed into
     ///       `DynamicGasTable`; `CompositeEnergyEstimator` is rebuilt from the
     ///       updated table; returns the number of servers whose costs changed
     pub async fn calibrate(&self) -> Result<usize, InfrastructureError> {
@@ -174,6 +191,10 @@ impl CalibratedEnergyEstimator {
     /// The task runs until the runtime shuts down. Calibration errors are logged
     /// but do not crash the task.
     ///
+    /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data"
+    /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation"
+    /// pre:  interval > 0
+    /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`
     pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
         tokio::spawn(async move {
             loop {
@@ -193,6 +214,9 @@ impl CalibratedEnergyEstimator {
     ///
     /// Useful for diagnostics and tests.
     ///
+    /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data"
+    /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation"
+    /// post: returns a copy of the internal server_costs map
     pub fn current_table(&self) -> std::collections::HashMap<String, u64> {
         self.table
             .read()

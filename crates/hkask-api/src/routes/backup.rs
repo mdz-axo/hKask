@@ -205,6 +205,9 @@ pub struct UpdateConfigRequest {
 
 // ── Router ──────────────────────────────────────────────────────────────
 
+/// expect: "API endpoints enforce OCAP boundaries"
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with backup routes registered
 pub fn backup_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(snapshot))

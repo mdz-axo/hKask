@@ -19,7 +19,6 @@
 
 pub mod fuzz;
 pub mod mocks;
-
 mod schema;
 pub mod strategies;
 pub mod test_runner;
@@ -56,6 +55,7 @@ pub struct TestDb {
 }
 
 impl Default for TestDb {
+    /// post: returns TestDb with in-memory SQLite connection and full schema initialized
     fn default() -> Self {
         Self::new()
     }
@@ -64,6 +64,7 @@ impl Default for TestDb {
 impl TestDb {
     /// Create a new in-memory test database with full schema.
     ///
+    /// post: returns TestDb with in-memory SQLite connection and full schema initialized
     pub fn new() -> Self {
         let conn = Connection::open_in_memory().expect("in-memory SQLite should always open");
         conn.execute_batch(SCHEMA_SQL)
@@ -75,18 +76,22 @@ impl TestDb {
 
     /// Borrow the underlying SQLite connection (locks the mutex).
     ///
+    /// post: returns `MutexGuard<Connection>` for direct SQL access
     pub fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
         self.conn.lock().expect("mutex should not be poisoned")
     }
 
     /// Get the Arc<Mutex<Connection>> for Store constructors.
     ///
+    /// post: returns `Arc<Mutex<Connection>>` clone for Store::new()
     pub fn conn_arc(&self) -> Arc<Mutex<Connection>> {
         Arc::clone(&self.conn)
     }
 
     /// Execute a batch of SQL statements (for seeding test data).
     ///
+    /// pre:  sql is valid SQL
+    /// post: batch executed on the connection
     pub fn execute_batch(&self, sql: &str) -> Result<(), rusqlite::Error> {
         self.conn().execute_batch(sql)
     }
@@ -105,6 +110,7 @@ pub struct TestKeystore {
 }
 
 impl Default for TestKeystore {
+    /// post: returns TestKeystore with temp dir, key file written, 32-byte master key
     fn default() -> Self {
         Self::new()
     }
@@ -113,6 +119,7 @@ impl Default for TestKeystore {
 impl TestKeystore {
     /// Create a new test keystore with a randomly generated master key.
     ///
+    /// post: returns TestKeystore with temp dir, key file written, 32-byte master key
     pub fn new() -> Self {
         let dir = TempDir::new().expect("temp dir creation should succeed");
         let key_path = dir.path().join("master.key");
@@ -127,18 +134,21 @@ impl TestKeystore {
 
     /// Path to the keystore directory.
     ///
+    /// post: returns &Path to the temp directory
     pub fn path(&self) -> &std::path::Path {
         self.dir.path()
     }
 
     /// Path to the master key file.
     ///
+    /// post: returns &Path to the master.key file
     pub fn key_path(&self) -> &std::path::Path {
         &self.key_path
     }
 
     /// The generated master key bytes.
     ///
+    /// post: returns &[u8; 32] reference to the master key
     pub fn master_key(&self) -> &[u8; 32] {
         &self.master_key
     }
@@ -162,30 +172,36 @@ pub struct TestWebId;
 impl TestWebId {
     /// Deterministic WebID for test user "alice".
     ///
+    /// post: returns deterministic WebID from persona b"alice"
     pub fn alice() -> WebID {
         WebID::from_persona(b"alice")
     }
 
     /// Deterministic WebID for test user "bob".
     ///
+    /// post: returns deterministic WebID from persona b"bob"
     pub fn bob() -> WebID {
         WebID::from_persona(b"bob")
     }
 
     /// Deterministic WebID for test user "carol".
     ///
+    /// post: returns deterministic WebID from persona b"carol"
     pub fn carol() -> WebID {
         WebID::from_persona(b"carol")
     }
 
     /// Generate a new random WebID.
     ///
+    /// post: returns new random WebID
     pub fn random() -> WebID {
         WebID::new()
     }
 
     /// Generate a WebID from arbitrary persona bytes.
     ///
+    /// pre:  bytes is non-empty
+    /// post: returns deterministic WebID from persona bytes
     pub fn from_persona(bytes: &[u8]) -> WebID {
         WebID::from_persona(bytes)
     }
@@ -205,6 +221,7 @@ pub struct MockCnsState {
 impl MockCnsState {
     /// Create a homeostatic (healthy) CNS state.
     ///
+    /// post: returns MockCnsState with homeostatic=true, no throttled tools, empty signals
     pub fn homeostatic() -> Self {
         Self {
             homeostatic: true,
@@ -216,6 +233,8 @@ impl MockCnsState {
 
     /// Create a perturbed CNS state with a specific tool throttled.
     ///
+    /// pre:  throttled_tool is non-empty
+    /// post: returns MockCnsState with homeostatic=false, tool throttled
     pub fn perturbed(throttled_tool: &str) -> Self {
         let mut state = Self::homeostatic();
         state.homeostatic = false;
@@ -242,12 +261,14 @@ pub enum SignalValence {
 impl MockAlgedonicSignal {
     /// Check if signal has negative valence.
     ///
+    /// post: returns true iff valence == Negative
     pub fn is_negative_valence(&self) -> bool {
         self.valence == SignalValence::Negative
     }
 
     /// Check if signal has positive valence.
     ///
+    /// post: returns true iff valence == Positive
     pub fn is_positive_valence(&self) -> bool {
         self.valence == SignalValence::Positive
     }
@@ -266,6 +287,7 @@ pub struct MockCnsRuntime {
 impl MockCnsRuntime {
     /// Create a new mock CNS runtime with homeostatic state.
     ///
+    /// post: returns MockCnsRuntime with homeostatic state
     pub fn new() -> Self {
         Self {
             state: Arc::new(RwLock::new(MockCnsState::homeostatic())),
@@ -274,6 +296,8 @@ impl MockCnsRuntime {
 
     /// Create a mock CNS with a specific initial state.
     ///
+    /// pre:  state is a valid MockCnsState
+    /// post: returns MockCnsRuntime with the given state
     pub fn with_state(state: MockCnsState) -> Self {
         Self {
             state: Arc::new(RwLock::new(state)),
@@ -282,6 +306,8 @@ impl MockCnsRuntime {
 
     /// Inject an event into the CNS (simulates a perturbation).
     ///
+    /// pre:  event is a valid NuEvent
+    /// post: homeostatic set to false, negative signal appended
     pub fn inject(&self, event: NuEvent) {
         let mut state = self.state.write().unwrap();
         state.homeostatic = false;
@@ -296,6 +322,7 @@ impl MockCnsRuntime {
     /// Advance mock time by a duration (simulates feedback processing).
     /// After sufficient time, the CNS may return toward homeostasis.
     ///
+    /// post: if duration >= 5s, homeostatic restored, throttled tools cleared, positive signal appended
     pub fn advance_time(&self, duration: std::time::Duration) {
         let mut state = self.state.write().unwrap();
         // After 5+ seconds, system trends toward homeostasis
@@ -313,12 +340,15 @@ impl MockCnsRuntime {
 
     /// Get recent algedonic signals.
     ///
+    /// post: returns clone of recent_signals vector
     pub fn recent_signals(&self) -> Vec<MockAlgedonicSignal> {
         self.state.read().unwrap().recent_signals.clone()
     }
 
     /// Check if a specific tool is throttled.
     ///
+    /// pre:  tool_name is non-empty
+    /// post: returns Throttled if tool in throttled_tools, Active otherwise
     pub fn tool_state(&self, tool_name: &str) -> MockToolState {
         let state = self.state.read().unwrap();
         if state.throttled_tools.iter().any(|t| t == tool_name) {
@@ -330,12 +360,15 @@ impl MockCnsRuntime {
 
     /// Check if the CNS is in homeostatic state.
     ///
+    /// post: returns true iff homeostatic flag is true
     pub fn is_homeostatic(&self) -> bool {
         self.state.read().unwrap().homeostatic
     }
 
     /// Record variety for a domain (simulates tool dispatch).
     ///
+    /// pre:  domain is non-empty
+    /// post: variety counter for domain incremented by 1
     pub fn record_variety(&self, domain: &str) {
         let mut state = self.state.write().unwrap();
         *state
@@ -346,6 +379,8 @@ impl MockCnsRuntime {
 
     /// Get variety count for a domain.
     ///
+    /// pre:  domain is non-empty
+    /// post: returns variety count for domain, 0 if never recorded
     pub fn variety_for_domain(&self, domain: &str) -> u64 {
         self.state
             .read()
@@ -382,6 +417,7 @@ pub enum MockToolState {
 /// // dir and contents deleted when `dir` goes out of scope
 /// ```
 ///
+/// post: returns TempDir that auto-cleans on drop
 pub fn temp_dir() -> TempDir {
     TempDir::new().expect("temp dir creation should succeed")
 }
@@ -399,6 +435,8 @@ pub fn temp_dir() -> TempDir {
 /// assert!(event.observer_webid.as_uuid().is_set());
 /// ```
 ///
+/// pre:  span is a valid Span, phase is a valid Phase
+/// post: returns NuEvent with random observer if observer is None, depth=0, test observation
 pub fn test_event(span: Span, phase: Phase, observer: Option<WebID>) -> NuEvent {
     NuEvent::new(
         observer.unwrap_or_else(TestWebId::random),
@@ -421,6 +459,8 @@ pub fn test_event(span: Span, phase: Phase, observer: Option<WebID>) -> NuEvent 
 /// assert_eq!(triple.entity, "entity:test");
 /// ```
 ///
+/// pre:  entity and attribute are non-empty, value is valid JSON
+/// post: returns Triple with random owner if owner is None, specified owner otherwise
 pub fn test_triple(entity: &str, attribute: &str, value: Value, owner: Option<WebID>) -> Triple {
     Triple::new(
         entity,

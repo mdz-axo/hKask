@@ -80,7 +80,7 @@ fn store_rejects_public_triple() {
     assert!(err.to_string().contains("visibility") || err.to_string().contains("Public"));
 }
 
-// expect: "I can verify the system rejects anonymous episodic storage"
+// expect: "I can verify the system rejects anonymous episodic storage" [P12]
 #[test]
 fn store_requires_perspective() {
     let store = setup_store();

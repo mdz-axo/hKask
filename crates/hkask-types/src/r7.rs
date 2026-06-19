@@ -11,6 +11,7 @@ use std::sync::OnceLock;
 /// Loop: Cybernetics
 /// An R7 bot identity — one of the seven "c" curators
 ///
+/// \[DECLARATIVE\] Invariant: `webid` is always `WebID::from_persona(id.as_bytes())`. (P8 — Semantic Grounding).
 /// The `webid` field is computed on construction, not serialized.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R7BotIdentity {
@@ -41,7 +42,10 @@ impl R7BotIdentity {
 
     /// Get the bot's WebID (always valid by construction)
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is a valid R7BotIdentity (constructed via new or deserialized
     ///       with a valid webid field)
+    /// post: returns the deterministic WebID derived from the bot's id at
     ///       construction time
     pub fn webid(&self) -> WebID {
         self.webid
@@ -79,6 +83,9 @@ static DEFAULT_R7_BOTS: OnceLock<Vec<R7BotIdentity>> = OnceLock::new();
 ///
 /// Returns a reference to a statically cached `Vec<R7BotIdentity>`.
 ///
+/// expect: "System types preserve semantic identity and are provenance-aware"
+/// pre:  (none — always callable)
+/// post: returns a &'static [R7BotIdentity] slice of exactly 7 entries
 ///       (R7.1 through R7.7), cached after the first call via OnceLock
 pub fn default_r7_bots() -> &'static [R7BotIdentity] {
     DEFAULT_R7_BOTS.get_or_init(|| {

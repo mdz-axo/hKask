@@ -10,7 +10,10 @@ use serde::{Deserialize, Serialize};
 
 /// Cost model for a specific inference provider.
 ///
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
 /// [P9] Homeostatic Self-Regulation — cost transparency enables budget-aware decisions
+/// pre:  provider is a recognized ProviderId variant
+/// post: CostModel returns honest estimates: gpu_hourly_rate, setup_minutes, teardown_grace
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CostModel {
     /// Which provider this cost model applies to
@@ -28,6 +31,9 @@ pub struct CostModel {
 impl CostModel {
     /// Create a new cost model with validation.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// pre:  gpu_hourly_rate > 0.0, estimated_setup_minutes > 0
+    /// post: returns CostModel for the given provider
     pub fn new(
         provider: ProviderId,
         gpu_hourly_rate: f64,
@@ -73,6 +79,9 @@ pub enum CostModelError {
 
 /// Provider capabilities — whether a provider supports LoRA composition.
 ///
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+/// pre:  provider is a recognized ProviderId variant
+/// post: ProviderCapability indicates whether LoRA composition is supported
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProviderCapability {
     /// Whether this provider can compose a LoRA adapter with a base model

@@ -1,6 +1,7 @@
 //! Session cookie middleware — authenticates users via `hkask_session` cookie.
 //!
 //! # REQ: P1-deploy-session-middleware — session cookie auth coexists with capability token auth.
+//! expect: "My session cookie coexists with capability token authentication"
 //! Runs BEFORE the capability token middleware. If a valid session cookie is found,
 //! injects an `AuthContext` into request extensions so the capability token middleware
 //! can skip Bearer token verification.
@@ -31,6 +32,11 @@ pub(crate) fn extract_cookie(headers: &axum::http::HeaderMap, name: &str) -> Opt
 
 /// Session middleware implementation — called from a closure in `create_router`.
 ///
+/// expect: "API endpoints enforce OCAP boundaries"
+/// pre:  user_store is a valid Arc<Mutex<UserStore>>
+/// post: if valid session cookie → AuthContext injected, next.run called
+/// post: if expired session cookie → 401 with clear error
+/// post: if missing cookie → pass through (capability token path may handle it)
 pub async fn session_middleware_impl(
     user_store: &Arc<Mutex<UserStore>>,
     mut req: Request<Body>,

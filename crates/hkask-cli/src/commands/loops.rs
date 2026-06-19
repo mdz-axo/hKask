@@ -4,6 +4,9 @@
 //! Uses `AgentService::build()` to assemble all shared infrastructure
 //! (CNS, loop system, curation, episodic/semantic loops).
 
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  rt is a valid tokio Runtime; service config must be resolvable
+/// post: starts the cybernetic loop system; prints registered loops; runs until Ctrl+C
 pub fn run(rt: &tokio::runtime::Runtime) {
     // Resolve configuration from keystore and environment
     let config = hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {

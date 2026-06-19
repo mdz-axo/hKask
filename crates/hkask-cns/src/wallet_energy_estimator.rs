@@ -45,6 +45,9 @@ impl WalletEnergyEstimator {
     /// `CompositeEnergyEstimator` so per-server cost calibration and gas→rJoule
     /// calibration share the same gas-cost base.
     ///
+    /// expect: "I can compose a wallet energy estimator from a pre-calibrated composite estimator so gas→rJoule conversion uses live costs"
+    /// pre:  gas_per_rjoule > 0
+    /// post: returns WalletEnergyEstimator with the supplied inner estimator
     pub fn with_estimator(gas_per_rjoule: u64, inner: CompositeEnergyEstimator) -> Self {
         Self {
             inner,
@@ -57,8 +60,13 @@ impl WalletEnergyEstimator {
     /// Calibrate the gas→rJoule conversion rate based on an observed
     /// actual_gas / estimated_gas ratio from a tool settlement.
     ///
+    /// expect: "The wallet estimator self-calibrates from observed actual-vs-estimated gas ratios"
+    /// [P9] Motivating: Homeostatic Self-Regulation — Good Regulator feedback loop closure
     /// \[P4\] Constraining: Clear Boundaries — threshold tolerance enforces boundary
     /// \[P7\] Constraining: Evolutionary Architecture — EMA parameters emerged from real usage
+    /// pre:  observed_ratio > 0.0 (actual_gas / estimated_gas)
+    /// post: ema_ratio updated via exponential moving average
+    /// post: if ema_ratio deviates significantly from 1.0, gas_per_rjoule adjusted
     ///
     /// Uses an exponential moving average (EMA) to smooth observations.
     /// When the EMA ratio consistently exceeds 1.0 (systematic underestimation)

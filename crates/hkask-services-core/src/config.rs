@@ -1,5 +1,6 @@
 //! Service-level configuration resolved once at startup.
 //! # REQ: P1 (User Sovereignty) — secrets from OS keychain, never hardcoded.
+//! expect: "Service configuration resolves secrets from the OS keychain"
 //!
 //! `ServiceConfig` holds all configuration that varies per deployment:
 //! database paths, secrets, thresholds, and feature flags. Both CLI and API
@@ -45,7 +46,7 @@ pub struct ServiceConfig {
 
     /// HMAC secret for A2A token signing (in-process agent capability policy).
     ///
-    /// Used by A2ARuntime, ActivePods, FullMcpAdapter, ManifestExecutor, and
+    /// Used by A2ARuntime, PodManager, FullMcpAdapter, ManifestExecutor, and
     /// CLI tool invocation. Tokens signed with this secret are verified within
     /// the same process by the A2A runtime.
     ///
@@ -118,6 +119,9 @@ impl ServiceConfig {
     /// and `HKASK_MEMORY_DB_PATH` from environment. A2A and MCP secrets are
     /// resolved via `hkask_keystore`. Falls back to defaults for missing values.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  keystore must have a2a_secret, db_passphrase, and mcp_secret configured
+    /// post: returns ServiceConfig with env-derived values and keystore secrets; Err(Keystore) on secret resolution failure
     pub fn from_env() -> Result<Self, ServiceError> {
         let db_path =
             std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string());
@@ -180,6 +184,9 @@ impl ServiceConfig {
     /// This avoids re-resolving from the keychain, which is important
     /// for the REPL's interactive onboarding flow.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  a2a_secret, db_passphrase, mcp_secret, agent_name must be non-empty
+    /// post: returns ServiceConfig with provided secrets and env-derived or default values
     pub fn from_secrets(
         a2a_secret: String,
         db_passphrase: String,
@@ -220,6 +227,9 @@ impl ServiceConfig {
     ///
     /// Uses in-memory databases and synthetic secrets. Never use in production.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  none (always succeeds)
+    /// post: returns ServiceConfig with :memory: DB, zeroed secrets, and test agent name
     pub fn in_memory() -> Self {
         let inference_config = InferenceConfig::default();
         Self {
@@ -250,6 +260,9 @@ impl ServiceConfig {
     ///
     /// Returns `None` when `in_memory: true` (memory stores are ephemeral).
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  none (always succeeds)
+    /// post: returns Some(path) if not in_memory; None if in_memory; derives from db_path if memory_db_path not set
     pub fn effective_memory_db_path(&self) -> Option<String> {
         if self.in_memory {
             return None;

@@ -36,6 +36,9 @@ fn build_service_context(
     ctx
 }
 
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  rt is a valid tokio Runtime; action is a valid McpAction variant
+/// post: dispatches to list_servers, list_tools, get_tool, or invoke tool operations
 pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
     match action {
         McpAction::ListServers => {

@@ -253,6 +253,9 @@ impl GasReport {
 
     /// Feed settled gas observations into a DynamicGasTable and calibrate it.
     ///
+    /// expect: "I can feed settled gas events from the event store into a dynamic gas table and calibrate it"
+    /// pre:  `table` is a valid DynamicGasTable
+    /// post: every `cns.gas.settled` event in [since, until) with a server field
     ///       is recorded in `table`; returns the number of servers adjusted
     ///
     /// Iterates over `cns.gas.settled` events in the window and calls

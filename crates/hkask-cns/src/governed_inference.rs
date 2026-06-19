@@ -56,8 +56,12 @@ impl GovernedInference {
     /// Create a new GovernedInference membrane wrapping an inner InferencePort.
     /// Create a new governed inference wrapper.
     ///
+    /// expect: "The system creates a governed inference membrane that gates LLM calls behind energy budgets"
+    /// [P9] Motivating: Homeostatic Self-Regulation — inference governance enables cybernetic control
     /// \[P4\] Constraining: Clear Boundaries — membrane wraps inner InferencePort at OCAP boundary
     /// \[P12\] Constraining: Affirmative Consent — agent identity is required for attribution
+    /// pre:  inference is valid, cns is valid
+    /// post: returns GovernedInference
     pub fn new(
         inner: Arc<dyn InferencePort>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
@@ -80,6 +84,7 @@ impl GovernedInference {
     /// [P12] Motivating: Affirmative Consent — agent identity is the consent anchor
     /// \[P4\] Constraining: Clear Boundaries — OCAP gate enforces boundary per inference call
     /// @must_use because builder methods must be chained or assigned
+    /// post: returns Self with agent set (builder pattern)
     pub fn with_agent(mut self, agent: WebID) -> Self {
         self.agent = agent;
         self

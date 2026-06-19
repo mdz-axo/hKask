@@ -1,6 +1,7 @@
 //! `kask init` — Initialize hKask server configuration.
 //!
 //! REQ: P3-deploy-init-server — P3 Headless: server bootstrap via interactive CLI prompts.
+//! expect: "I can initialize a hKask server with interactive prompts"
 //!
 //! Creates:
 //! - ~/.config/hkask/config.json (server config)
@@ -12,6 +13,9 @@ use std::path::PathBuf;
 
 /// Run the interactive server initialization.
 ///
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  stdin is a terminal
+/// post: server config, data dir, and keychain entries created
 pub fn run_init() -> Result<(), Box<dyn std::error::Error>> {
     println!("hKask Server Initialization");
     println!("==========================\n");
@@ -144,6 +148,9 @@ fn prompt_default(prompt: &str, default: &str) -> Result<String, Box<dyn std::er
 /// Generate a systemd service unit for hKask daemon auto-start.
 ///
 /// REQ: P4-deploy-systemd-unit
+/// expect: "I can configure hKask to start automatically on system boot"
+/// pre:  config_dir exists and is writable
+/// post: hkask.service file written to config_dir with Type=simple, Restart=on-failure
 ///
 /// # Generated unit properties
 /// - Type=simple (foreground process)

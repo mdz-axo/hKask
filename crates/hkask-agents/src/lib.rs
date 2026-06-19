@@ -11,7 +11,7 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use hkask_agents::pod::ActivePods;
+//! use hkask_agents::pod::PodManager;
 //! ```
 
 pub mod a2a; // Loop 6 (Cybernetics: A2A is access control)
@@ -39,7 +39,7 @@ pub use curator_agent::{CuratorAgent, DefaultSpecCurator};
 pub use error::{CoreError, MemoryError};
 pub use inference_loop::InferenceLoop;
 pub use loop_system::{CyberneticsLoopHandle, LoopSystem};
-pub use pod::{ActivePods, AgentMode, AgentPersona, PodDeployment, PodFactory, PodID};
+pub use pod::{AgentMode, AgentPersona, PodID, PodManager, PodStatus};
 pub use ports::{
     A2APort, EpisodicStoragePort, GitCasAdapter, RecallRequest, RecalledEpisode, RecalledSemantic,
     SemanticStoragePort, StorageRequest,

@@ -13,6 +13,7 @@ use crate::ApiState;
 
 /// POST /api/v1/admin/invite
 ///
+/// expect: "As an admin I can create an invite code for a new member"
 pub async fn create_invite(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -39,6 +40,7 @@ pub async fn create_invite(
 
 /// GET /api/v1/admin/invite
 ///
+/// expect: "As an admin I can see all invites I've sent and their status"
 pub async fn list_invites(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -65,6 +67,7 @@ pub async fn list_invites(
 
 /// GET /api/v1/admin/sessions
 ///
+/// expect: "As an admin I can see all active sessions on my server"
 pub async fn list_sessions(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -87,6 +90,7 @@ pub async fn list_sessions(
 
 /// GET /api/v1/admin/config
 ///
+/// expect: "As an admin I can view the server configuration"
 pub async fn get_config(
     State(_): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,

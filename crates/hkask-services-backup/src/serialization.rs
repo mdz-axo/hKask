@@ -1,5 +1,6 @@
 //! Artifact serialization for git blob storage.
 //! # REQ: P7-svc-backup-serialization-f1 (Snapshot Serialization Format) — deterministic byte representation.
+//! expect: "Backup snapshots serialize to a deterministic byte representation"
 //!
 //! Each artifact type serializes to a deterministic byte sequence so that
 //! identical artifact state produces identical blob hashes (git deduplication).
@@ -16,6 +17,9 @@ use crate::scope::ArtifactType;
 /// The serialization must be deterministic: same artifact → same bytes → same
 /// BLAKE3 hash → git deduplication works. JSON with sorted keys satisfies this.
 ///
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// pre:  artifact_type must be a valid ArtifactType; artifact_id must be non-empty; data must be Serialize
+/// post: returns Vec<u8> of JSON-encoded ArtifactEnvelope; Err on serialization failure
 pub fn serialize_artifact(
     artifact_type: &ArtifactType,
     artifact_id: &str,
@@ -34,6 +38,9 @@ pub fn serialize_artifact(
 ///
 /// Returns the raw JSON value — callers interpret based on artifact type.
 ///
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// pre:  blob must be valid JSON matching ArtifactEnvelopeValue schema
+/// post: returns ArtifactEnvelopeValue with artifact_type, artifact_id, and payload; Err on invalid JSON
 pub fn deserialize_artifact(blob: &[u8]) -> Result<ArtifactEnvelopeValue, serde_json::Error> {
     serde_json::from_slice(blob)
 }
@@ -70,6 +77,9 @@ pub struct ArtifactEnvelopeValue {
 /// This organizes blobs hierarchically in the git tree, enabling
 /// scoped list_tree operations (e.g., `prefix = "template/"`).
 ///
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// pre:  artifact_type must be a valid ArtifactType; artifact_id must be non-empty
+/// post: returns String path in format "{label}/{id}.json"
 pub fn artifact_git_path(artifact_type: &ArtifactType, artifact_id: &str) -> String {
     format!("{}/{}.json", artifact_type.label(), artifact_id)
 }

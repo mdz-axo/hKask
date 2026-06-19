@@ -672,7 +672,11 @@ pub struct AdapterRouter {
 impl AdapterRouter {
     /// Build the router from an `AdapterStore` and available providers.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
     /// [P4] Clear Boundaries — router assembled from configured provider boundaries
+    /// pre:  store is a valid AdapterStore
+    /// post: returns AdapterRouter with backends for adapter-capable providers
+    /// post: previously active endpoints are loaded from store (metadata only — backends
     ///       are runtime objects and cannot be restored; orphaned endpoints are logged)
     pub fn new(store: Arc<AdapterStore>) -> Self {
         let mut backends: HashMap<ProviderId, Arc<dyn AdapterProviderBackend>> = HashMap::new();
@@ -772,7 +776,10 @@ impl AdapterRouter {
 
     /// Select a provider for adapter composition — user-in-the-loop (P2 Affirmative Consent).
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
     /// [P2] Affirmative Consent — provider selection is explicit, informed, and user-driven
+    /// pre:  adapter exists in store, at least one provider supports LoRA composition
+    /// post: returns list of compatible providers with cost estimates; caller selects
     ///
     /// Returns all compatible providers sorted by hourly cost (cheapest first).
     /// If `budget_limit` is provided, providers exceeding the budget are still returned
@@ -829,6 +836,9 @@ impl AdapterRouter {
 
     /// Drain (teardown) all billable endpoints.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// pre:  owner is a valid WebID (reserved for future multi-tenant scoping)
+    /// post: all billable endpoints are transitioned to Terminated
     pub fn drain_all_owner(&self, _owner: WebID) -> Result<usize, AdapterError> {
         // Note: _owner is reserved for future multi-tenant scoping (P1 — User Sovereignty).
         // When multi-tenant is implemented, this will filter endpoints by owner before draining.
@@ -1203,7 +1213,10 @@ impl AdapterPort for AdapterRouter {
 
 /// RAII guard that tears down an endpoint on drop.
 ///
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
 /// [P5] Essentialism — every resource earns its existence; idle endpoints must drain
+/// pre:  guard is created after successful endpoint provisioning
+/// post: on drop, the endpoint is transitioned to Draining → Terminated
 ///
 /// Uses a `Weak<AdapterRouter>` reference — if the router has been dropped,
 /// teardown is silently skipped (the endpoint was already cleaned up).

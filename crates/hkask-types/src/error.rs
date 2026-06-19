@@ -114,6 +114,9 @@ pub enum McpErrorKind {
 impl McpErrorKind {
     /// Whether errors of this kind are retryable with backoff.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is any McpErrorKind variant
+    /// post: returns true only for Unavailable, Timeout, and RateLimited;
     ///       returns false for Internal, NotFound, InvalidArgument,
     ///       PermissionDenied, and FailedPrecondition
     pub fn is_retryable(self) -> bool {
@@ -122,6 +125,9 @@ impl McpErrorKind {
 
     /// Whether this error requires user/admin intervention.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is any McpErrorKind variant
+    /// post: returns true only for PermissionDenied and FailedPrecondition;
     ///       returns false for Internal, Unavailable, Timeout, NotFound,
     ///       InvalidArgument, and RateLimited
     pub fn requires_intervention(self) -> bool {

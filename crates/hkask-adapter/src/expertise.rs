@@ -31,6 +31,8 @@ pub enum MdsDomain {
 }
 
 impl MdsDomain {
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// post: returns canonical kebab-case domain string
     pub fn as_str(&self) -> &'static str {
         match self {
             MdsDomain::SolidityAudit => "solidity-audit",
@@ -43,6 +45,9 @@ impl MdsDomain {
         }
     }
 
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// pre:  s is a non-empty string
+    /// post: returns Some(MdsDomain) for recognized kebab-case domain names; None otherwise
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "solidity-audit" => Some(MdsDomain::SolidityAudit),
@@ -87,7 +92,10 @@ pub struct TrainingProvenance {
 /// Grounds every trained adapter in a provable capability. Replaces
 /// ad-hoc "skill name" strings with a semantic type carrying provenance.
 ///
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
 /// [P8] Semantic Grounding — expertise is a named, domain-scoped capability descriptor
+/// pre:  name is non-empty, domain is a recognized MDS domain category
+/// post: Expertise carries a capability_manifest linking to the training source
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Expertise {
     /// Human-readable name (e.g. "solidity-audit-v1")
@@ -104,6 +112,10 @@ pub struct Expertise {
 impl Expertise {
     /// Create a new Expertise with validation.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// pre:  name is non-empty, domain is a valid MdsDomain
+    /// post: returns Ok(Expertise) with the given name, domain, manifest, and provenance
+    /// post: returns Err if name is empty
     pub fn new(
         name: String,
         domain: MdsDomain,

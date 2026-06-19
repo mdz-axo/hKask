@@ -6,6 +6,9 @@ use crate::cli::KeystoreAction;
 use rand::RngCore;
 use std::io::Write;
 
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  action is a valid KeystoreAction variant
+/// post: dispatches to load, list, get, set, delete, or rotate keychain operations
 pub fn run(action: KeystoreAction) {
     let keychain = hkask_keystore::Keychain::default();
 

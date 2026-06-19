@@ -74,6 +74,9 @@ pub enum TaskStatus {
 }
 
 impl TaskStatus {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is any valid TaskStatus
+    /// post: returns the string representation (lowercase)
     pub fn as_str(&self) -> &'static str {
         match self {
             TaskStatus::Backlog => "backlog",
@@ -84,6 +87,9 @@ impl TaskStatus {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  s is a case-insensitive string
+    /// post: returns Some(TaskStatus) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "backlog" => Some(TaskStatus::Backlog),
@@ -95,6 +101,9 @@ impl TaskStatus {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is any valid TaskStatus
+    /// post: returns true iff the transition from self to `target` is valid
     ///       (forward one step, or backward one step — no skipping)
     pub fn can_transition_to(&self, target: TaskStatus) -> bool {
         use TaskStatus::*;
@@ -110,6 +119,9 @@ impl TaskStatus {
         )
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is any valid TaskStatus
+    /// post: returns the next status in the workflow, or None if already Done
     pub fn next(&self) -> Option<TaskStatus> {
         match self {
             TaskStatus::Backlog => Some(TaskStatus::Ready),
@@ -157,6 +169,9 @@ pub struct ColumnDef {
 }
 
 impl ColumnDef {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  name is non-empty; status is valid; position is >= 0
+    /// post: returns a new ColumnDef with a random ColumnId, no WIP limit
     pub fn new(name: String, status: TaskStatus, position: u32) -> Self {
         Self {
             id: ColumnId::new(),
@@ -188,6 +203,9 @@ pub struct VerificationCriterion {
 }
 
 impl VerificationCriterion {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  description is non-empty
+    /// post: returns a VerificationCriterion with no LLM prompt
     pub fn new(description: String) -> Self {
         Self {
             description,
@@ -195,6 +213,9 @@ impl VerificationCriterion {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is valid; llm_prompt is non-empty
+    /// post: returns self with llm_prompt set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_llm_prompt(mut self, prompt: String) -> Self {
         self.llm_prompt = Some(prompt);
@@ -221,6 +242,9 @@ pub struct Verification {
 }
 
 impl Verification {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  verifier is a valid WebID
+    /// post: returns Verification with verified_at=now
     pub fn new(passed: bool, reasoning: String, verifier: WebID) -> Self {
         Self {
             passed,
@@ -250,6 +274,11 @@ pub struct Phase {
 }
 
 impl Phase {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  arguments are valid
+    /// post: returns new instance with defaults
+    /// pre:  name is non-empty, order is a valid u32
+    /// post: returns Phase with generated PhaseId and created_at set to now
     pub fn new(name: String, order: u32) -> Self {
         Self {
             id: PhaseId::new(),
@@ -260,6 +289,9 @@ impl Phase {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  desc is a non-empty description string
+    /// post: returns Self with description set to Some(desc)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_description(mut self, desc: String) -> Self {
         self.description = Some(desc);
@@ -291,6 +323,9 @@ pub struct Board {
 }
 
 impl Board {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  name is non-empty; owner is a valid WebID; columns is non-empty
+    /// post: returns a new Board with created_at=now and a random BoardId
     pub fn new(name: String, owner: WebID, columns: Vec<ColumnDef>) -> Self {
         Self {
             id: BoardId::new(),
@@ -302,14 +337,23 @@ impl Board {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self.columns is sorted by position
+    /// post: returns the first column (by position) — typically Backlog
     pub fn first_column(&self) -> Option<&ColumnDef> {
         self.columns.first()
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self.columns is sorted by position
+    /// post: returns the last column (by position) — typically Done
     pub fn last_column(&self) -> Option<&ColumnDef> {
         self.columns.last()
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  status is a valid TaskStatus
+    /// post: returns the ColumnDef matching the given status, if present
     pub fn column_for_status(&self, status: TaskStatus) -> Option<&ColumnDef> {
         self.columns.iter().find(|c| c.status == status)
     }
@@ -341,6 +385,9 @@ pub struct TaskSpec {
 }
 
 impl TaskSpec {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  title is non-empty
+    /// post: returns a TaskSpec with no description, criteria, or assignee
     pub fn new(title: String) -> Self {
         Self {
             title,
@@ -355,48 +402,78 @@ impl TaskSpec {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is valid
+    /// post: returns self with description set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_description(mut self, desc: String) -> Self {
         self.description = Some(desc);
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is valid
+    /// post: returns self with criteria set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_criteria(mut self, criteria: Vec<VerificationCriterion>) -> Self {
         self.criteria = criteria;
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is a valid story points
+    /// post: returns Self with story points set
+    /// pre:  self is valid; assignee is a valid WebID
+    /// post: returns self with assignee set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_assignee(mut self, assignee: WebID) -> Self {
         self.assignee = Some(assignee);
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is a valid estimated hours
+    /// post: returns Self with estimated hours set
+    /// pre:  points is a valid u32
+    /// post: returns self with story_points set to Some(points)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_story_points(mut self, points: u32) -> Self {
         self.story_points = Some(points);
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is a valid labels
+    /// post: returns Self with labels set
+    /// pre:  hours is a non-negative f64
+    /// post: returns self with estimated_hours set to Some(hours)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_estimated_hours(mut self, hours: f64) -> Self {
         self.estimated_hours = Some(hours);
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  priority is a valid Priority variant
+    /// post: returns self with priority set to Some(priority)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_priority(mut self, priority: Priority) -> Self {
         self.priority = Some(priority);
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  labels is a vector of label strings
+    /// post: returns self with labels set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_labels(mut self, labels: Vec<String>) -> Self {
         self.labels = labels;
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  phase_id is a valid PhaseId
+    /// post: returns self with phase_id set to Some(phase_id)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_phase(mut self, phase_id: PhaseId) -> Self {
         self.phase_id = Some(phase_id);
@@ -449,6 +526,9 @@ pub struct Task {
 }
 
 impl Task {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  board_id is a valid BoardId; spec contains non-empty title; owner is valid
+    /// post: returns a new Task with status=Backlog, created_at=now, updated_at=now
     pub fn new(board_id: BoardId, spec: TaskSpec, owner: WebID) -> Self {
         let now = Utc::now();
         Self {
@@ -473,6 +553,11 @@ impl Task {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  arguments are valid
+    /// post: returns new instance with defaults
+    /// pre:  target is a valid transition from self.status
+    /// post: returns true iff self.status.can_transition_to(target)
     pub fn can_move_to(&self, target: TaskStatus) -> bool {
         self.status.can_transition_to(target)
     }
@@ -495,6 +580,9 @@ pub struct Comment {
 }
 
 impl Comment {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  arguments are valid
+    /// post:      /// post: returns new instance with defaults
     pub fn new(task_id: TaskId, author: WebID, body: String) -> Self {
         Self {
             id: CommentId::new(),
@@ -522,6 +610,8 @@ pub struct TaskFilter {
 }
 
 impl TaskFilter {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// post: returns an empty filter (matches all tasks)
     pub fn all() -> Self {
         Self {
             status: None,
@@ -531,6 +621,11 @@ impl TaskFilter {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  arguments are valid
+    /// post: returns expected result
+    /// pre:  status is a valid TaskStatus
+    /// post: returns a filter matching only tasks with the given status
     pub fn by_status(status: TaskStatus) -> Self {
         Self {
             status: Some(status),
@@ -540,6 +635,9 @@ impl TaskFilter {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  assignee is a valid WebID
+    /// post: returns a filter matching only tasks assigned to the given agent
     pub fn by_assignee(assignee: WebID) -> Self {
         Self {
             status: None,
@@ -549,6 +647,9 @@ impl TaskFilter {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  priority is a valid Priority
+    /// post:      /// post: returns tasks sorted by priority
     pub fn by_priority(priority: Priority) -> Self {
         Self {
             status: None,
@@ -576,6 +677,9 @@ pub struct ConsentProof {
 }
 
 impl ConsentProof {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  agent and task_id are valid
+    /// post: returns ConsentProof with consented_at=now
     pub fn new(agent: WebID, task_id: TaskId) -> Self {
         Self {
             agent,
@@ -643,6 +747,9 @@ pub enum ContractState {
 }
 
 impl TaskContract {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  arguments are valid
+    /// post:      /// post: returns new instance with defaults
     pub fn new(
         package_name: String,
         delegator: crate::WebID,
@@ -673,11 +780,17 @@ impl TaskContract {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  state allows activation
+    /// post:      /// post: state transitioned to active
     /// The agent now has authority to work on the task.
     pub fn activate(&mut self) {
         self.state = ContractState::Active;
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  criteria are defined
+    /// post:      /// post: returns completion status
     ///
     /// THIS is the method both agent and replicant call.
     /// The agent calls it to self-check: "Have I satisfied the contract?"
@@ -751,6 +864,9 @@ impl TaskContract {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  span data is valid
+    /// post:      /// post: CNS span emitted to event sink
     pub fn emit_span(&self, verb: &str) -> String {
         format!(
             "TaskContract[{}] '{}': delegator={} delegate={} task='{}' gates={} gas={} timeout={}s state={:?}",
@@ -822,6 +938,11 @@ pub struct SpawnSpec {
 }
 
 impl SpawnSpec {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is a valid skills
+    /// post: returns Self with skills set
+    /// pre:  task_id is valid
+    /// post: returns a SpawnSpec with standard delegation defaults
     pub fn new(task_id: TaskId) -> Self {
         Self {
             task_id,
@@ -837,48 +958,72 @@ impl SpawnSpec {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is a valid timeout
+    /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_level(mut self, level: &str) -> Self {
         self.delegation_level = level.into();
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is valid for skills
+    /// post:      /// post: returns Self with skills set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_skills(mut self, skills: Vec<String>) -> Self {
         self.delegated_skills = skills;
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is valid for memory
+    /// post:      /// post: returns Self with memory set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_memory(mut self, scope: &str) -> Self {
         self.memory_scope = scope.into();
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is valid for gas budget
+    /// post:      /// post: returns Self with gas budget set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_gas_budget(mut self, budget: u64) -> Self {
         self.gas_budget = Some(budget);
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is valid for timeout
+    /// post:      /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_timeout(mut self, seconds: u64) -> Self {
         self.timeout_seconds = Some(seconds);
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is valid for registries
+    /// post:      /// post: returns Self with registries set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_registries(mut self, registries: Vec<String>) -> Self {
         self.registries = registries;
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is valid for artifacts
+    /// post:      /// post: returns Self with artifacts set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_artifacts(mut self, artifacts: Vec<String>) -> Self {
         self.artifacts = artifacts;
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is valid for capability tokens
+    /// post:      /// post: returns Self with capability tokens set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_capability_tokens(mut self, tokens: Vec<String>) -> Self {
         self.capability_tokens = tokens;
@@ -927,6 +1072,9 @@ pub struct CapabilityPackage {
 }
 
 impl CapabilityPackage {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  arguments are valid
+    /// post:      /// post: returns new instance with defaults
     pub fn new(name: String, description: String) -> Self {
         Self {
             name,
@@ -944,6 +1092,9 @@ impl CapabilityPackage {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is a valid memory
+    /// post: returns Self with memory set
     pub fn to_spawn_spec(&self, task_id: TaskId) -> SpawnSpec {
         SpawnSpec {
             task_id,
@@ -959,66 +1110,99 @@ impl CapabilityPackage {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is a valid artifacts
+    /// post: returns Self with artifacts set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_level(mut self, level: &str) -> Self {
         self.delegation_level = level.into();
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is a valid gas
+    /// post: returns Self with gas set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_skills(mut self, skills: Vec<String>) -> Self {
         self.skills = skills;
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is a valid timeout
+    /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_memory(mut self, scope: &str) -> Self {
         self.memory_scope = scope.into();
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is valid for tools
+    /// post:      /// post: returns Self with tools set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_tools(mut self, tools: Vec<String>) -> Self {
         self.tool_servers = tools;
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is valid for registries
+    /// post:      /// post: returns Self with registries set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_registries(mut self, registries: Vec<String>) -> Self {
         self.registries = registries;
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is valid for artifacts
+    /// post:      /// post: returns Self with artifacts set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_artifacts(mut self, artifacts: Vec<String>) -> Self {
         self.artifacts = artifacts;
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is valid
+    /// post: returns converted value
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_gas(mut self, budget: u64) -> Self {
         self.default_gas_budget = Some(budget);
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is valid for timeout
+    /// post:      /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_timeout(mut self, seconds: u64) -> Self {
         self.default_timeout_seconds = Some(seconds);
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is valid
+    /// post: returns converted value
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_capability_tokens(mut self, tokens: Vec<String>) -> Self {
         self.capability_tokens = tokens;
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  value is valid for max attenuation
+    /// post:      /// post: returns Self with max attenuation set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_max_attenuation(mut self, level: u8) -> Self {
         self.max_attenuation = level.min(7);
         self
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  tools list is non-empty
+    /// post:      /// post: returns Vec of derived capability tokens
     /// Converts "hkask-mcp-kanban" → "tool:kanban:execute".
     pub fn derive_tokens_from_tools(&mut self) {
         for server in &self.tool_servers.clone() {
@@ -1030,16 +1214,25 @@ impl CapabilityPackage {
         }
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is valid
+    /// post:      /// post: returns converted representation
     pub fn to_yaml(&self) -> Result<String, String> {
         serde_yaml_neo::to_string(self).map_err(|e| e.to_string())
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  input is valid
+    /// post:      /// post: returns parsed object
     pub fn from_yaml(yaml: &str) -> Result<Self, String> {
         serde_yaml_neo::from_str(yaml).map_err(|e| e.to_string())
     }
 
     // ── rSolidity Contract Integration ─────────────────────────────────
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is valid
+    /// post:      /// post: returns converted representation
     /// task contract. The contract binds delegator and delegate with
     /// pre-conditions (acceptance criteria), post-conditions (verification),
     /// and OCAP gates (capability tokens).

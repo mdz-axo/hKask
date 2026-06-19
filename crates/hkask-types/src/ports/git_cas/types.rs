@@ -18,6 +18,9 @@ pub struct ContentHash(pub [u8; 32]);
 impl ContentHash {
     /// Compute a BLAKE3 content hash from arbitrary data.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  data is any byte slice (including empty)
+    /// post: returns a [`ContentHash`] containing the 32-byte BLAKE3 digest of data;
     ///       same data → same hash (deterministic)
     pub fn from_blake3(data: &[u8]) -> Self {
         Self(blake3_hash(data))
@@ -25,6 +28,9 @@ impl ContentHash {
 
     /// Return the raw 32-byte hash.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is any valid [`ContentHash`]
+    /// post: returns a reference to the inner 32-byte array unchanged
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.0
     }
@@ -65,18 +71,27 @@ pub struct CommitHash(pub [u8; 20]);
 impl CommitHash {
     /// Create from a raw 20-byte SHA.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  bytes is any 20-byte array
+    /// post: returns a [`CommitHash`] wrapping the given bytes unchanged
     pub fn from_bytes(bytes: [u8; 20]) -> Self {
         Self(bytes)
     }
 
     /// Return the raw 20-byte SHA.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is any valid [`CommitHash`]
+    /// post: returns a reference to the inner 20-byte array unchanged
     pub fn as_bytes(&self) -> &[u8; 20] {
         &self.0
     }
 
     /// The null commit hash (all zeros), used as a sentinel for "no parent".
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  (no inputs)
+    /// post: returns a [`CommitHash`] with all 20 bytes set to zero
     pub fn null() -> Self {
         Self([0u8; 20])
     }
@@ -133,6 +148,9 @@ pub enum RepoId {
 impl RepoId {
     /// Return the directory name used for this repo on disk.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is any [`RepoId`] variant
+    /// post: returns a `&'static str` directory name; each variant maps to a distinct name;
     ///       never panics
     pub fn dir_name(&self) -> &'static str {
         match self {
@@ -148,6 +166,9 @@ impl RepoId {
 
     /// Iterate all 7 repo variants.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  (no inputs)
+    /// post: returns a static slice containing all 7 [`RepoId`] variants exactly once;
     ///       order is stable across calls
     pub fn all() -> &'static [RepoId] {
         &[

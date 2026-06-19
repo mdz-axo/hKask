@@ -1,4 +1,4 @@
-//! Pod lifecycle management routes.
+//! Pod lifecycle management routes — call PodManager directly.
 
 use axum::Json;
 use axum::extract::{Extension, Path, State};
@@ -41,7 +41,7 @@ pub struct CreatePodResponse {
 /// `state` is one of: "active", "inactive", "error".
 /// `agent_type` is one of: "Bot", "Replicant" (P10).
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct PodStatusInfoResponse {
+pub struct PodStatusResponse {
     /// Unique pod identifier
     pub pod_id: String,
     /// Human-readable pod name
@@ -62,9 +62,12 @@ pub struct PodStatusInfoResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ListPodsResponse {
     /// All active pods
-    pub pods: Vec<PodStatusInfoResponse>,
+    pub pods: Vec<PodStatusResponse>,
 }
 
+/// expect: "API endpoints enforce OCAP boundaries"
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with pod routes registered
 pub fn pods_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .route("/api/pods", axum::routing::get(list_pods))
@@ -97,9 +100,9 @@ async fn list_pods(
     let pod_statuses = hkask_services::PodService::list_pods(&state.agent_service)
         .await
         .unwrap_or_default();
-    let pods: Vec<PodStatusInfoResponse> = pod_statuses
+    let pods: Vec<PodStatusResponse> = pod_statuses
         .into_iter()
-        .map(|s| PodStatusInfoResponse {
+        .map(|s| PodStatusResponse {
             pod_id: s.pod_id,
             name: s.name,
             state: s.state.to_string(),
@@ -179,7 +182,7 @@ async fn pod_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
-) -> Result<Json<PodStatusInfoResponse>, ServiceErrorResponse> {
+) -> Result<Json<PodStatusResponse>, ServiceErrorResponse> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_status", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;
@@ -188,7 +191,7 @@ async fn pod_status(
         .pod_manager()
         .get_pod_status(&pid)
         .await?;
-    Ok(Json(PodStatusInfoResponse {
+    Ok(Json(PodStatusResponse {
         pod_id: status.pod_id,
         name: status.name,
         state: status.state.to_string(),

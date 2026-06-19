@@ -18,7 +18,6 @@ pub mod kata_history;
 pub mod nu_event_store;
 pub mod security;
 pub mod sovereignty;
-pub mod spec_ops;
 pub mod spec_store;
 pub mod spec_types;
 pub mod triples;
@@ -45,15 +44,6 @@ pub use sovereignty::{SovereigntyBoundaryEntry, SovereigntyBoundaryStore, Sovere
 pub use spec_store::SpecStore;
 pub use spec_store::SqliteCurationRecordStore;
 pub use spec_store::SqliteSpecStore;
-pub use spec_ops::{
-    CoherenceCheck, DependencyEdge, EmbeddingQualityResult, GraphEdge, GraphNode, GraphPath,
-    GraphQueryResult, HeuristicWritingQuality, assess_writing_quality_heuristic,
-    build_centroid_ref, build_rewrite_prompt, build_spec_document_text,
-    collect_goal_and_criteria_texts, collect_subgoals_and_deps,
-    compute_collection_coherence, compute_embedding_quality,
-    decompose_description, decompose_spec_goals, dimension_guidance,
-    extract_ocap_boundaries, query_spec_graph,
-};
 pub use spec_types::{
     Criterion, DomainAnchor, DriftReport, GoalSpec, Spec, SpecCategory, SpecCurationRecord,
     SpecCurator, SpecError, SpecId, infer_spec_category,

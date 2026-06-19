@@ -97,6 +97,7 @@ fn author_centroids() -> Vec<(&'static str, Vec<f32>)> {
     ]
 }
 
+// prob: p=0.95, δ=0.05, k=0
 // [P9] Motivating: Homeostatic Self-Regulation — quality gate on style proximity
 // [P8] Constraining: Semantic Grounding — distances computed from known vectors
 #[test]
@@ -170,6 +171,7 @@ fn centroid_distance_ordering_fails_on_noise() {
 
 // ── Mashup monotonicity (probabilistic variant) ─────────────────────────────
 
+// prob: p=0.90, δ=0.05, k=2
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(200))]
     #[test]
@@ -214,6 +216,7 @@ proptest! {
 
 // ── Self-consistency: identity under probabilistic contract ──────────────────
 
+// prob: p=0.99, δ=0.01, k=0
 #[test]
 fn self_consistency_under_prob_contract() {
     let a = vec![1.0_f32, 2.0, 3.0, 4.0];
@@ -226,6 +229,7 @@ fn self_consistency_under_prob_contract() {
     );
 }
 
+// prob: p=0.99, δ=0.0, k=9
 #[test]
 fn recovery_window_rescues_failing_contract() {
     // A failing predicate that passes only on the second call per trial
@@ -250,6 +254,7 @@ fn recovery_window_rescues_failing_contract() {
 
 // ── Live inference integration test (manual, requires styles DB) ────────────
 
+// prob: p=0.80, δ=0.10, k=3
 // Run manually: HKASK_REPLICA_TEST_DB=/path/to/styles.db cargo test -- replica_compose_integration
 #[test]
 #[ignore]

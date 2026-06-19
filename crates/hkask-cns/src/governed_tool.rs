@@ -91,7 +91,11 @@ pub struct GovernedTool<P: ToolPort> {
 impl<P: ToolPort> GovernedTool<P> {
     /// Create a new GovernedTool membrane wrapping an inner ToolPort.
     ///
+    /// expect: "The system creates a governed tool membrane that gates execution behind energy and OCAP checks"
+    /// [P9] Motivating: Homeostatic Self-Regulation — tool governance enables feedback loops
     /// \[P4\] Constraining: Clear Boundaries — cybernetics binding enforces OCAP boundary
+    /// pre:  inner is valid, cns is valid
+    /// post: returns GovernedTool
     ///
     /// Per P4: the Cybernetics binding here is the OCAP enforcement point —
     /// every tool invocation flows through this membrane.
@@ -116,8 +120,11 @@ impl<P: ToolPort> GovernedTool<P> {
     #[must_use = "builder methods must be chained or assigned"]
     /// Set the tool consumption channel.
     ///
+    /// expect: "The system wires tool consumption events back to the cybernetics loop"
+    /// [P9] Motivating: Homeostatic Self-Regulation — consumption channel closes the cybernetic feedback loop
     /// \[P4\] Constraining: Clear Boundaries — channel ownership tracks consumer identity
     /// @must_use because builder methods must be chained or assigned
+    /// post: returns Self with channel set (builder pattern)
     pub fn with_tool_consumption_channel(
         mut self,
         tx: mpsc::UnboundedSender<ToolConsumptionEvent>,
@@ -133,6 +140,7 @@ impl<P: ToolPort> GovernedTool<P> {
     /// [P12] Motivating: Affirmative Consent — agent identity is the consent anchor
     /// \[P4\] Constraining: Clear Boundaries — OCAP gate enforces boundary per invocation
     /// @must_use because builder methods must be chained or assigned
+    /// post: returns Self with agent set (builder pattern)
     pub fn with_agent(mut self, agent: WebID) -> Self {
         self.agent = agent;
         self

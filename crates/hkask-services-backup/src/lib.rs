@@ -4,7 +4,9 @@
 //! Public API: `BackupService`, `BackupError`, and supporting types.
 //!
 //! # REQ: P1 (User Sovereignty) — user controls what is tracked.
+//! expect: "My backup data is tracked under my sovereignty control"
 //! # REQ: P4 (Clear Boundaries) — delegates to hexagonal GitCASPort, never raw git.
+//! expect: "Backup operations delegate through OCAP boundaries"
 
 pub mod config;
 pub mod r#loop;

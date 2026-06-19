@@ -296,7 +296,7 @@ core/magna-carta.md  ←  Foundation (4 inviolable principles)
        ↓
 core/PRINCIPLES.md  ←  12 principles (P1-P12), constraint forces, 5 anchors
        ↓
-   core/MDS.md      ←  Minimal Domain Specification (5 categories, 5 tools)
+   core/MDS.md      ←  Minimal Domain Specification (5 categories, 12 tools)
        ↓
 loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 ```
@@ -307,7 +307,7 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 |----------|--------|
 | [`core/magna-carta.md`](core/magna-carta.md) | User sovereignty charter — catch-and-release, affirmative consent, OCAP verification |
 | [`core/PRINCIPLES.md`](core/PRINCIPLES.md) | 12 architecture principles (P1-P12), 5 anchors, anti-patterns |
-| [`core/MDS.md`](core/MDS.md) | Minimal Domain Specification — 5 categories, 5 tools, completeness predicate |
+| [`core/MDS.md`](core/MDS.md) | Minimal Domain Specification — 5 categories, 12 tools, completeness predicate |
 | [`core/FUNCTIONAL_SPECIFICATION.md`](core/FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring, user expectations |
 | [`loop-architecture.md`](loop-architecture.md) | 4-loop architecture — RateLimiting→EnergyBudget subsumption, crate↔loop mapping |
 | [`mandates/P12-replicant-host-mandate.md`](mandates/P12-replicant-host-mandate.md) | Replicant Host Mandate — every interaction has an author, no unsupervised agency |
@@ -424,7 +424,7 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 
 ### Key Constraints
 
-1. **MCP servers should not depend on `hkask-services` for orchestration** — P1 Prohibition (out-of-process isolation). Exceptions: servers that are direct surfaces for a service (CLI/API/MCP tri-surface pattern). `hkask-mcp-replica` is a tri-surface for `ComposeService` + `EmbedService`. `hkask-mcp-spec` is a tri-surface for `ComposeService` (via `spec_replica_rewrite` tool only); its remaining 5 tools use domain crates (`hkask-storage`, `hkask-types`) directly. Neither server orchestrates — they delegate.
+1. **MCP servers should not depend on `hkask-services` for orchestration** — P1 Prohibition (out-of-process isolation). Exceptions: servers that are direct surfaces for a service (CLI/API/MCP tri-surface pattern). `hkask-mcp-replica` is a tri-surface for `ComposeService` + `EmbedService`. `hkask-mcp-spec` is a tri-surface for `SpecService` across all 12 tools. Pure business logic lives in `hkask-storage::spec_ops` (shared kernel). Neither server orchestrates — they delegate.
 2. **Domain crates do NOT depend on `hkask-services`** — dependency direction is strictly surface → service → domain.
 
 

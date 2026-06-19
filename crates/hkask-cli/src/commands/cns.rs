@@ -9,6 +9,9 @@ use hkask_services::{AgentService, CnsService, ServiceConfig};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  rt is a valid tokio Runtime; action is a valid CnsAction variant
+/// post: dispatches to health, alerts, variety, subscribe, or set_points display logic
 pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
     match action {
         CnsAction::Health => {

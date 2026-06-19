@@ -1,5 +1,6 @@
 //! Consolidation — passphrase verify, per-agent DB, episodic→semantic pipeline.
 //! # REQ: P2 (Affirmative Consent) — consolidation requires passphrase verification.
+//! # expect: "Service operations require explicit, scoped consent"
 
 
 use std::sync::Arc;
@@ -27,6 +28,9 @@ const CONSOLIDATION_MIN_INTERVAL_SECS: u64 = 30;
 /// one global gate, not per-user. For a single-user headless system, this is sufficient.
 static LAST_CONSOLIDATION_EPOCH_SECS: AtomicU64 = AtomicU64::new(0);
 
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// pre:  none (always succeeds or returns rate-limit error)
+/// post: Ok(()) if rate limit not exceeded; Err(RateLimited) with remaining seconds if within 30s window
 pub fn check_rate_limit() -> Result<(), ServiceError> {
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -44,9 +48,15 @@ pub fn check_rate_limit() -> Result<(), ServiceError> {
     Ok(())
 }
 
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// pre:  webid must be a valid WebID
+/// post: returns "hkask-memory-agent-{webid}.db" path string
 pub fn db_path_for_agent(webid: &WebID) -> String {
     format!("hkask-memory-agent-{}.db", webid)
 }
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// pre:  passphrase must be non-empty; server passphrase must be configured in keystore
+/// post: returns the expected passphrase string on match; Err(Keystore) if not configured; Err(InvalidPassphrase) if mismatch
 pub fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
     let expected =
         hkask_keystore::keychain::resolve_db_passphrase().map_err(|_| ServiceError::Keystore {
@@ -64,6 +74,9 @@ pub fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
     Ok(expected_str)
 }
 
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// pre:  webid must be a valid WebID; db_passphrase must be correct; db_path must point to a valid database; request must be a valid ConsolidationRequest
+/// post: returns ConsolidationOutcome with consolidated_count, deleted_count, failed_count; Err on DB open failure or consolidation failure
 pub fn consolidate(
     webid: &WebID,
     db_passphrase: &str,

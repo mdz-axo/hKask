@@ -48,10 +48,14 @@ impl PodLifecycleState {
     /// The lifecycle is a linear progression:
     /// `Populated → Registered → Activated → Deactivated`
     ///
+    /// \[DECLARATIVE\] Re-stating the current state is a no-op and always permitted. (P7 — Evolutionary Architecture).
     /// Terminal state `Deactivated` admits no further transitions.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries"
     /// \[P4\] Motivating: Clear Boundaries — lifecycle state machine enforces transitions
     /// \[P7\] Constraining: Evolutionary Architecture — linear model + idempotent restate
+    /// pre:  `self` and `next` are valid `PodLifecycleState` variants.
+    /// post: Returns `true` if `self == next` (idempotent) or if the
     ///       transition follows the linear progression; `false` for all
     ///       other transitions (including from `Deactivated`).
     pub fn can_transition_to(&self, next: PodLifecycleState) -> bool {

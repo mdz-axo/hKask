@@ -38,6 +38,9 @@ const DEFAULT_TOLERANCE: f64 = 0.2;
 /// Per-server dynamic gas cost calibration table.
 ///
 /// # Contract
+/// expect: "I can calibrate per-server gas costs from real observations using exponential moving averages"
+/// pre:  `server_costs` contains known servers with initialized costs
+/// post: after `calibrate()`, costs reflect EMA-smoothed actual/estimated ratios
 ///
 /// # Properties
 /// - Each server has an EMA of its actual/estimated gas ratio
@@ -72,6 +75,9 @@ pub struct DynamicGasTable {
 impl DynamicGasTable {
     /// Create a new DynamicGasTable with the default gas cost table.
     ///
+    /// expect: "I can run a calibration pass that adjusts server costs when EMA ratios exceed tolerance"
+    /// expect: "I can create a dynamic gas table initialized from the default server cost table"
+    /// post: returns DynamicGasTable with default server costs and no observations
     pub fn new() -> Self {
         let server_costs: HashMap<String, u64> = crate::table_energy_estimator::default_gas_table()
             .into_iter()
@@ -93,6 +99,10 @@ impl DynamicGasTable {
     /// The ratio is clamped to [0.1, 10.0] to prevent extreme outliers from
     /// destabilizing the EMA.
     ///
+    /// expect: "I can feed a single gas observation into the table to initialize or update the EMA per server"
+    /// pre:  estimated_gas > 0 (no division by zero)
+    /// post: ema_ratios[server] updated with EMA of actual/estimated ratio
+    /// post: observation_counts[server] incremented
     pub fn record_observation(&mut self, server: &str, estimated_gas: u64, actual_gas: u64) {
         let ratio = actual_gas as f64 / estimated_gas.max(1) as f64;
         // Clamp to [0.1, 10.0] to prevent extreme outliers destabilizing EMA
@@ -123,6 +133,9 @@ impl DynamicGasTable {
     /// Servers with no new observations since the last calibration are skipped,
     /// preventing already-applied EMA ratios from being repeatedly re-applied.
     ///
+    /// expect: "I can run a calibration pass that adjusts server costs when EMA ratios exceed tolerance"
+    /// post: server_costs[server] is updated if its EMA ratio exceeds tolerance
+    /// post: returns the number of servers whose costs were adjusted
     ///
     /// # Returns
     /// Number of servers whose costs were adjusted.
@@ -153,6 +166,9 @@ impl DynamicGasTable {
     /// Returns a snapshot of `server_costs` suitable for constructing a
     /// `TableEnergyEstimator` or feeding into `CompositeEnergyEstimator`.
     ///
+    /// expect: "I can run a calibration pass that adjusts server costs when EMA ratios exceed tolerance"
+    /// expect: "I can export the calibrated server cost table for estimator construction"
+    /// post: returns a HashMap<String, u64> of server → cost mappings
     pub fn report_table(&self) -> HashMap<String, u64> {
         self.server_costs.clone()
     }
@@ -162,6 +178,8 @@ impl DynamicGasTable {
     /// Returns (server_name → current_ema_ratio) for all servers with observations.
     /// Unobserved servers are omitted.
     ///
+    /// expect: "I can query per-server EMA ratios for diagnostics and monitoring"
+    /// post: returns a HashMap<String, f64> of server → EMA ratio mappings
     pub fn current_ratios(&self) -> HashMap<String, f64> {
         self.ema_ratios.clone()
     }
@@ -170,6 +188,8 @@ impl DynamicGasTable {
     ///
     /// Returns 0 if the server has never been observed.
     ///
+    /// expect: "I can query the observation count for a server to assess calibration confidence"
+    /// post: returns the count of recorded observations for `server`, or 0 if unobserved
     pub fn observation_count(&self, server: &str) -> u64 {
         self.observation_counts.get(server).copied().unwrap_or(0)
     }

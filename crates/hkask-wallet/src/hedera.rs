@@ -669,6 +669,7 @@ mod integration_tests {
         .expect("Failed to create testnet HederaPort")
     }
 
+    /// expect: "Wallet hedera chain error actor test works correctly under test conditions"
     #[test]
     fn emit_chain_error_uses_provided_actor() {
         let sink = Arc::new(CaptureSink::default());
@@ -694,12 +695,14 @@ mod integration_tests {
         assert_eq!(event.observation["operation"], "unit_test");
     }
 
+    /// expect: "Wallet hedera build withdrawal tx test works correctly under test conditions"
     #[test]
     fn port_construction_succeeds() {
         let port = testnet_port();
         assert_eq!(port.chain_id(), ChainId::Hedera);
     }
 
+    /// expect: "Wallet hedera signing roundtrip test works correctly under test conditions"
     #[test]
     fn build_withdrawal_tx_produces_valid_protobuf() {
         let port = testnet_port();
@@ -717,6 +720,7 @@ mod integration_tests {
         );
     }
 
+    /// expect: "Wallet hedera submit signed tx test works correctly under test conditions"
     #[test]
     fn withdrawal_payload_signing_roundtrip() {
         // SAFETY: test-only
@@ -744,6 +748,7 @@ mod integration_tests {
         assert!(signed_tx.len() > 64);
     }
 
+    /// expect: "Wallet hedera monitor deposits test works correctly under test conditions"
     #[test]
     #[ignore = "requires funded treasury on Hedera testnet with HTS USDC"]
     fn submit_withdrawal_to_testnet() {
@@ -795,6 +800,7 @@ mod integration_tests {
         }
     }
 
+    /// expect: "Wallet hedera monitor hts usdc test works correctly under test conditions"
     #[tokio::test]
     async fn monitor_deposits_detects_usdc_transfer() {
         let server = wiremock::MockServer::start().await;

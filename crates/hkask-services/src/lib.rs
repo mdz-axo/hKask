@@ -96,7 +96,7 @@ pub use curator::{CuratorService, EscalationResponse};
 
 pub use experience::CliExperienceRecorder;
 pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
-pub use pods::{CreatePodRequest, PodResponse, PodService, PodStatusInfoResponse};
+pub use pods::{CreatePodRequest, PodResponse, PodService, PodStatusResponse};
 pub use scheduler::SchedulerService;
 pub use skills::{
     SkillAuditError, SkillAuditReport, SkillAuditor, SkillHealthScore, SkillStatus, TemplateSummary,

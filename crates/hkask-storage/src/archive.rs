@@ -1,6 +1,7 @@
 //! BackupArchive — portable sovereignty archive for hKask cloud deployment.
 //!
 //! # REQ: P1-deploy-backup-archive — P1 User Sovereignty: downloadable, passphrase-encrypted triple export.
+//! expect: "My user data and sovereignty boundaries are stored under my control"
 //!
 //! Creates a single SQLCipher-encrypted SQLite file containing:
 //! 1. A `backup_meta` table with export metadata
@@ -33,6 +34,7 @@ pub struct BackupMeta {
 }
 /// Receipt returned after a successful migration import.
 ///
+/// expect: "My user data and sovereignty boundaries are stored under my control"
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationReceipt {
     /// Number of triples imported (or already present).
@@ -42,6 +44,7 @@ pub struct MigrationReceipt {
 }
 /// Receipt returned after replicant merge.
 ///
+/// expect: "The system provides durable storage for migration data"
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MergeReceipt {
     pub triple_count: u64,
@@ -179,6 +182,11 @@ impl BackupArchive {
     }
     /// Import triples from this archive into a target TripleStore.
     ///
+    /// expect: "The system provides durable storage for archival data"
+    /// pre:  archive is open; target is a live TripleStore; existing_names are current replicant names
+    /// post: all triples upserted into target
+    /// post: auto-renamed entities where collision with existing replicant names
+    /// post: returns MigrationReceipt with triple_count and renamed_replicants
     pub fn import_into(
         &self,
         target: &TripleStore,

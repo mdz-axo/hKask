@@ -154,7 +154,9 @@ Curation decisions (Accept/Revise/Reject) are made by the Curator or human — n
 
 ## 4. Spec Tool Surface (`hkask-mcp-spec`)
 
-Five tools. Implemented in `hkask-mcp-spec` with OCAP governance. Three curation tools (evaluate, reconcile, cultivate) were deleted as agent-hallucinated curation logic. One tool (bind) was deleted because OCAP boundaries are declared inline during goal capture, not attached separately. Curation decisions remain external to the spec server.
+Five MDS core tools (capture, decompose, writing-quality, graph/query, graph/coherence) plus seven contract/infrastructure tools (replica-rewrite, contract-audit, contract-propose, contract-accept, contract-reject, contract-list, test-run) — 12 total. Implemented in `hkask-mcp-spec` as a thin MCP wrapper; all business logic delegated to `hkask_services::SpecService` and `hkask_storage::spec_ops`. OCAP-gated. Curation decisions remain external to the spec server.
+
+### Core MDS Tools (5)
 
 | # | Tool | Input | Output | Status |
 |---|------|-------|--------|----------------|--------|
@@ -165,6 +167,20 @@ Five tools. Implemented in `hkask-mcp-spec` with OCAP governance. Three curation
 | 5 | `spec/graph/coherence` | `{collection_id}` | `{coherence_score, violations[], suggestions[]}` | ✅ Implemented |
 
 ### Additional Tool Surfaces
+
+#### Extended Spec Tools (7)
+
+| Tool | Domain | Status |
+|------|--------|--------|
+| `spec/replica/rewrite` | Gentle-Lovelace replica-guided prose rewriting | ✅ Implemented |
+| `contract/audit` | Discover uncontracted public functions per crate | ✅ Implemented |
+| `contract/propose` | Submit behavioral contract for Curator review | ✅ Implemented |
+| `contract/accept` | Human consent gate — accept proposed contract | ✅ Implemented |
+| `contract/reject` | Reject proposed contract with rationale | ✅ Implemented |
+| `contract/list` | List contract proposals and review status | ✅ Implemented |
+| `test/run` | Run cargo test with REQ-tagged contract violation reporting | ✅ Implemented |
+
+These 7 tools extend the 5 MDS core tools to a total of 12. All delegate to `hkask_services::SpecService`.
 
 | Server | Tools | Domain | Status |
 |--------|-------|--------|--------|

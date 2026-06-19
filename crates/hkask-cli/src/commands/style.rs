@@ -3,6 +3,9 @@
 use crate::cli::StyleAction;
 
 /// Run a style subcommand
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  rt is a valid tokio Runtime; action is a valid StyleAction variant
+/// post: dispatches to compose, embed_corpus, or discover subcommand based on action variant
 pub fn run(rt: &tokio::runtime::Runtime, action: StyleAction) {
     match action {
         StyleAction::Compose {

@@ -24,6 +24,9 @@ use hkask_types::wallet::{ChainId, PrivacyMode, RJoule, WalletId};
 
 /// Create wallet router.
 ///
+/// expect: "API endpoints enforce OCAP boundaries"
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with wallet routes registered
 pub fn wallet_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(get_balance))

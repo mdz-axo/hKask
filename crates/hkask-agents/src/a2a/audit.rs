@@ -16,8 +16,11 @@ pub(crate) struct AuditLog {
 impl AuditLog {
     /// Create new audit log with default max entries.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries"
     /// \[P4\] Motivating: Clear Boundaries — audit log attests capability actions
     /// \[P1\] Constraining: User Sovereignty — every action is attributable to an agent
+    /// pre:  (none).
+    /// post: Returns an `AuditLog` with an empty entry list and
     ///       `max_entries = 10000`.
     pub fn new() -> Self {
         Self {
@@ -26,8 +29,11 @@ impl AuditLog {
         }
     }
 
+    /// expect: "Agent interactions are gated by OCAP boundaries"
     /// \[P4\] Motivating: Clear Boundaries — append-only audit preserves OCAP evidence
     /// \[P8\] Constraining: Semantic Grounding — entries are structured and traceable
+    /// pre:  `entry` is a valid `AuditEntry`.
+    /// post: The entry is appended to the log; if the log exceeds
     ///       `max_entries`, the oldest entries are drained to stay
     ///       within the limit.
     pub async fn log(&self, entry: AuditEntry) {

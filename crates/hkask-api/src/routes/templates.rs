@@ -55,6 +55,9 @@ pub struct GrantCapabilityRequest {
 
 /// Create templates router
 ///
+/// expect: "API endpoints enforce OCAP boundaries"
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with template routes registered
 pub fn templates_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_templates))

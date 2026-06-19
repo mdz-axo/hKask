@@ -6,6 +6,10 @@ use hkask_types::WebID;
 use hkask_types::loops::CuratorHandle;
 use hkask_types::ports::ConsolidationRequest;
 
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  agent is an optional agent name (defaults to curator); limit > 0; passphrase required when agent specified
+/// post: executes episodic-to-semantic consolidation; prints consolidated/deleted/failed counts
 pub fn run(
     agent: Option<&str>,
     limit: usize,

@@ -1,5 +1,5 @@
 //! DaemonHandler implementation — bridges the Unix socket daemon to hKask's
-//! ActivePods, UserStore, memory infrastructure, and internal narrative generation.
+//! PodManager, UserStore, memory infrastructure, and internal narrative generation.
 //!
 //! This is the hKask-side implementation of the `DaemonHandler` trait defined
 //! in `hkask-mcp`. It wires daemon queries to the live agent and memory stack.
@@ -14,11 +14,12 @@
 //! observing in the MCP session — the same way a chat-mode agent thinks about
 //! conversation turns.
 
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use hkask_agents::pod::ActivePods;
+use hkask_agents::pod::PodManager;
 use hkask_mcp::daemon::DaemonHandler;
 use hkask_storage::user_store::UserStore;
 use hkask_types::ports::InferencePort;
@@ -40,10 +41,10 @@ const NARRATIVE_SYSTEM_PROMPT: &str = "You are an observant agent monitoring an 
 
 /// hKask-side implementation of the daemon handler trait.
 ///
-/// Wraps ActivePods for assignment/capability/memory queries,
+/// Wraps PodManager for assignment/capability/memory queries,
 /// UserStore for authentication, and InferencePort for narrative generation.
 pub struct ServiceDaemonHandler {
-    pod_manager: Arc<ActivePods>,
+    pod_manager: Arc<PodManager>,
     user_store: Arc<std::sync::Mutex<UserStore>>,
     /// Inference port for narrative generation (None if inference unavailable)
     inference_port: Option<Arc<dyn InferencePort>>,
@@ -52,8 +53,11 @@ pub struct ServiceDaemonHandler {
 }
 
 impl ServiceDaemonHandler {
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  pod_manager must be a valid Arc<PodManager>; user_store must be a valid Arc<Mutex<UserStore>>
+    /// post: returns ServiceDaemonHandler with all fields initialized; inference_port may be None
     pub fn new(
-        pod_manager: Arc<ActivePods>,
+        pod_manager: Arc<PodManager>,
         user_store: Arc<std::sync::Mutex<UserStore>>,
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Self {
@@ -98,8 +102,8 @@ impl DaemonHandler for ServiceDaemonHandler {
         }
 
         tracing::debug!(target: "hkask.daemon", replicant = %replicant, "Replicant has active sessions");
-        if let Some(pod_id) = self.pod_manager.find_by_name(replicant).await {
-            let webid = self.pod_manager.webid(&pod_id).await;
+        if let Some(pod_id) = self.pod_manager.find_pod_by_name(replicant).await {
+            let webid = self.pod_manager.get_pod_webid(&pod_id).await;
             (true, webid.map(|w| w.to_string()))
         } else {
             (false, None)
@@ -110,9 +114,9 @@ impl DaemonHandler for ServiceDaemonHandler {
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "check_assignment", replicant = %replicant, role = %role, "CNS");
 
-        match self.pod_manager.find_by_name(replicant).await {
+        match self.pod_manager.find_pod_by_name(replicant).await {
             Some(pod_id) => {
-                let assigned = self.pod_manager.has_role(&pod_id, role).await;
+                let assigned = self.pod_manager.is_assigned_to_role(&pod_id, role).await;
                 tracing::debug!(target: "hkask.daemon", replicant = %replicant, role = %role, assigned = assigned, "Assignment check");
                 assigned
             }
@@ -127,7 +131,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "check_capability", replicant = %replicant, tool = %tool, "CNS");
 
-        match self.pod_manager.find_by_name(replicant).await {
+        match self.pod_manager.find_pod_by_name(replicant).await {
             Some(pod_id) => {
                 let granted = self.pod_manager.has_capability(&pod_id, tool).await;
                 tracing::debug!(target: "hkask.daemon", replicant = %replicant, tool = %tool, granted = granted, "Capability check");
@@ -148,7 +152,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "store_experience", replicant = %replicant, entity = %entity, attribute = %attribute, confidence = ?confidence, "CNS");
 
-        let pod_id = match self.pod_manager.find_by_name(replicant).await {
+        let pod_id = match self.pod_manager.find_pod_by_name(replicant).await {
             Some(id) => id,
             None => {
                 tracing::warn!(target: "hkask.daemon", replicant = %replicant, "Pod not found for store_experience");
@@ -156,7 +160,9 @@ impl DaemonHandler for ServiceDaemonHandler {
             }
         };
 
-        let ctx = match self.pod_manager.context(&pod_id).await {
+        let ctx = match hkask_agents::pod::PodContext::from_manager(&self.pod_manager, &pod_id)
+            .await
+        {
             Ok(ctx) => ctx,
             Err(e) => {
                 tracing::warn!(target: "hkask.daemon", replicant = %replicant, error = %e, "Failed to create PodContext");
@@ -233,19 +239,20 @@ impl DaemonHandler for ServiceDaemonHandler {
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "dispatch_tool", replicant = %replicant, tool = %tool, "CNS");
 
-        let pod_id = match self.pod_manager.find_by_name(replicant).await {
+        let pod_id = match self.pod_manager.find_pod_by_name(replicant).await {
             Some(id) => id,
             None => {
                 return (false, None, Some("Pod not found".into()));
             }
         };
 
-        let ctx = match self.pod_manager.context(&pod_id).await {
-            Ok(ctx) => ctx,
-            Err(e) => {
-                return (false, None, Some(format!("PodContext error: {}", e)));
-            }
-        };
+        let ctx =
+            match hkask_agents::pod::PodContext::from_manager(&self.pod_manager, &pod_id).await {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    return (false, None, Some(format!("PodContext error: {}", e)));
+                }
+            };
 
         match ctx.invoke_tool(tool, input.clone()) {
             Ok(output) => (true, Some(output), None),
@@ -260,14 +267,14 @@ impl DaemonHandler for ServiceDaemonHandler {
 /// formats them as a log, calls inference to produce observations, and
 /// stores those observations as new episodic memories.
 async fn generate_narrative(
-    pod_manager: &ActivePods,
+    pod_manager: &PodManager,
     inference: &dyn InferencePort,
     replicant: &str,
 ) {
     // P9: CNS span
     tracing::info!(target: "cns.daemon", operation = "generate_narrative", replicant = %replicant, "CNS");
 
-    let pod_id = match pod_manager.find_by_name(replicant).await {
+    let pod_id = match pod_manager.find_pod_by_name(replicant).await {
         Some(id) => id,
         None => {
             tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, "Pod not found for narrative generation");
@@ -275,7 +282,7 @@ async fn generate_narrative(
         }
     };
 
-    let ctx = match pod_manager.context(&pod_id).await {
+    let ctx = match hkask_agents::pod::PodContext::from_manager(pod_manager, &pod_id).await {
         Ok(ctx) => ctx,
         Err(e) => {
             tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, error = %e, "Failed to create PodContext for narrative");

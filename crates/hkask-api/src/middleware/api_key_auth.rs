@@ -54,6 +54,9 @@ pub struct ApiKeyAuthService {
 impl ApiKeyAuthService {
     /// Create a new API key auth service backed by a WalletStore and WalletService.
     ///
+    /// expect: "API endpoints enforce OCAP boundaries"
+    /// pre:  wallet_store and wallet_service are valid Arcs
+    /// post: returns ApiKeyAuthService ready for middleware use
     pub fn new(wallet_store: Arc<WalletStore>, wallet_service: Arc<WalletService>) -> Self {
         Self {
             wallet_store,
@@ -63,6 +66,9 @@ impl ApiKeyAuthService {
 
     /// Deterministically derive a per-key budget principal.
     ///
+    /// expect: "API endpoints enforce OCAP boundaries"
+    /// pre:  key_id is a valid ApiKeyId
+    /// post: returns a deterministic WebID unique to that key_id within this namespace
     fn budget_principal_for_key(key_id: ApiKeyId) -> WebID {
         let persona = format!("api-key-budget:{}", key_id);
         WebID::from_persona_with_namespace(persona.as_bytes(), "wallet-api-key-budget")
@@ -261,6 +267,11 @@ impl IntoResponse for ApiKeyAuthError {
 /// in the CNS so that subsequent tool/inference calls consume rJoules from the
 /// key's encumbrance.
 ///
+/// expect: "API endpoints enforce OCAP boundaries"
+/// pre:  auth is a valid ApiKeyAuthService
+/// post: if no Bearer header → pass-through (next.run)
+/// post: if valid Bearer token → WalletContext injected, budget registered
+/// post: if invalid Bearer token → Err(ApiKeyAuthError)
 pub async fn api_key_auth_middleware(
     State(auth): State<Arc<ApiKeyAuthService>>,
     request: Request<Body>,

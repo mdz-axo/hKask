@@ -13,6 +13,11 @@ impl KataEngine {
     /// Run an improvement kata cycle from the given manifest.
     ///
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated improvement kata execution
+    /// pre:  manifest has at least one step
+    /// pre:  state is initialized with learner_bot and gas budget
+    /// post: returns KataResult with all steps executed, outputs validated against schema
+    /// post: if manifest has no steps → Err(KataError::NoSteps)
+    /// post: if gas exceeded → Err(KataError::GasExceeded)
     pub async fn run_improvement_from(
         &self,
         manifest: &KataManifest,

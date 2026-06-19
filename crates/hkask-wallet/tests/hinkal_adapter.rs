@@ -16,6 +16,7 @@ fn set_test_master_key() {
     }
 }
 
+/// expect: "Wallet hinkal shielded withdraw delta test works correctly under test conditions"
 #[tokio::test]
 async fn submit_signed_tx_posts_withdraw_and_returns_tx_hash() {
     set_test_master_key();
@@ -64,6 +65,7 @@ async fn submit_signed_tx_posts_withdraw_and_returns_tx_hash() {
     assert_eq!(tx_hash.0, "0xwithdrawhash");
 }
 
+/// expect: "Wallet hinkal shield payload test works correctly under test conditions"
 #[tokio::test]
 async fn submit_signed_tx_accepts_legacy_payload_plus_signature() {
     set_test_master_key();
@@ -106,6 +108,7 @@ async fn submit_signed_tx_accepts_legacy_payload_plus_signature() {
     assert_eq!(tx_hash.0, "0xlegacyhash");
 }
 
+/// expect: "Wallet hinkal suppress nonincreasing test works correctly under test conditions"
 #[tokio::test]
 async fn submit_signed_tx_fails_closed_when_tx_hash_missing() {
     set_test_master_key();
@@ -153,6 +156,7 @@ async fn submit_signed_tx_fails_closed_when_tx_hash_missing() {
     }
 }
 
+/// expect: "Wallet hinkal shield message format test works correctly under test conditions"
 #[tokio::test]
 async fn monitor_shielded_transfers_reports_deltas_only() {
     set_test_master_key();

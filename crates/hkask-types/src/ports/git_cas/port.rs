@@ -108,6 +108,9 @@ pub struct MockGitCas {
 impl MockGitCas {
     /// Create a new empty mock.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  (no inputs)
+    /// post: returns a [`MockGitCas`] with empty blob storage and empty snapshot history
     pub fn new() -> Self {
         Self {
             blobs: RwLock::new(HashMap::new()),
@@ -117,6 +120,9 @@ impl MockGitCas {
 
     /// Return the history of snapshot calls as `(repo, message, commit_hash)`.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is any [`MockGitCas`]
+    /// post: returns a [`Vec`] of all snapshots recorded via [`GitCASPort::snapshot`] calls,
     ///       in insertion order (oldest first); never panics
     pub fn snapshot_history(&self) -> Vec<(RepoId, String, CommitHash)> {
         self.snapshots
@@ -127,6 +133,9 @@ impl MockGitCas {
 
     /// Return the number of blobs stored via `put_blob`.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is any [`MockGitCas`]
+    /// post: returns the count of unique blobs currently stored; never panics
     pub fn blob_count(&self) -> usize {
         self.blobs.read().unwrap_or_else(|e| e.into_inner()).len()
     }

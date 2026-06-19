@@ -32,6 +32,9 @@ use crate::middleware::auth::AuthContext;
 
 /// Create MCP router
 ///
+/// expect: "API endpoints enforce OCAP boundaries"
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with MCP routes registered
 pub fn mcp_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_servers))

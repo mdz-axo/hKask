@@ -12,7 +12,7 @@ use serde_json::json;
 use std::path::Path;
 
 // [P3] Motivating: Generative Space — validates Jinja2 templates render without errors
-// [P8] Constraining: Semantic Grounding — template syntax errors caught before runtime
+//Constraining: Semantic Grounding — template syntax errors caught before runtime
 // All Jinja2 templates render without errors with valid context.
 
 #[test]

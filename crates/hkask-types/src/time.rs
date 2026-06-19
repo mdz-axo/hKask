@@ -12,6 +12,9 @@
 /// precision, switching to a different underlying clock) propagates
 /// uniformly across crates.
 ///
+/// expect: "System types preserve semantic identity and are provenance-aware"
+/// pre:  (none — always callable, no arguments)
+/// post: returns a valid RFC 3339 timestamp string for the current UTC moment
 pub fn now_rfc3339() -> String {
     chrono::Utc::now().to_rfc3339()
 }

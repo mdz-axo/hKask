@@ -165,8 +165,12 @@ pub(crate) fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, Mani
 ///
 /// Returns `None` if the manifest cannot be found or loaded (logs a warning).
 ///
+/// expect: "The system resolves and executes template manifest cascades"
 /// \[P3\] Motivating: Generative Space — resolves template manifest references
 /// \[P8\] Constraining: Semantic Grounding — manifest terms validated against lexicon
+/// pre:  reference is non-empty, registry is initialized
+/// post: returns Some(BundleManifest) if found via registry or file path
+/// post: returns None if not found (graceful degradation)
 pub fn resolve_manifest(
     reference: &str,
     registry: &dyn hkask_types::ports::BundleRegistryIndex,

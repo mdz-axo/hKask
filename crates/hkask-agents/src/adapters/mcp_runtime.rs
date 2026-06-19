@@ -67,6 +67,7 @@ fn verify_grant_access(
 /// Capability-only adapter for A2A token verification.
 ///
 /// Can verify and grant capabilities but cannot invoke tools —
+/// \[DECLARATIVE\] `invoke_tool` and `resolve_tool_server` always return errors. (P4 — Clear Boundaries).
 ///
 /// Use this when you need token verification gate logic but no live
 /// MCP server connections (e.g., in tests or lightweight embeds).
@@ -77,7 +78,10 @@ pub struct CapabilityOnlyAdapter {
 impl CapabilityOnlyAdapter {
     /// Create a capability-only adapter with the given checker.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries"
     /// \[P4\] Motivating: Clear Boundaries — capability-only adapter gates tools without runtime
+    /// pre:  `checker` is a valid `Arc<CapabilityChecker>`.
+    /// post: Returns a `CapabilityOnlyAdapter` with the given checker;
     ///       tool invocation will always fail with `McpError::NoRuntime`.
     pub fn new(checker: Arc<CapabilityChecker>) -> Self {
         Self {
@@ -131,9 +135,12 @@ impl FullMcpAdapter {
     /// verification, the runtime for MCP dispatch, and a tokio
     /// handle for bridging sync→async calls.
     ///
+    /// expect: "Agent interactions are gated by OCAP boundaries"
     /// \[P4\] Motivating: Clear Boundaries — full adapter combines capability checker + MCP runtime
+    /// pre:  `checker` is a valid `Arc<CapabilityChecker>`; `runtime` is
     ///       a valid `Arc<McpRuntime>`; `handle` is a valid tokio runtime
     ///       handle.
+    /// post: Returns a `FullMcpAdapter` with all three components set.
     pub fn new(
         checker: Arc<CapabilityChecker>,
         runtime: Arc<McpRuntime>,

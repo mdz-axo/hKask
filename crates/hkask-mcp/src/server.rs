@@ -77,6 +77,8 @@ impl CredentialRequirement {
     /// Declare a required credential.
     /// Create a required credential declaration.
     ///
+    /// pre:  env_var and description are non-empty
+    /// post: returns CredentialDecl with required=true
     pub fn required(env_var: impl Into<String>, description: impl Into<String>) -> Self {
         Self {
             env_var: env_var.into(),
@@ -88,6 +90,8 @@ impl CredentialRequirement {
     /// Declare an optional credential (allows degraded operation).
     /// Create an optional credential declaration.
     ///
+    /// pre:  env_var and description are non-empty
+    /// post: returns CredentialDecl with required=false
     pub fn optional(env_var: impl Into<String>, description: impl Into<String>) -> Self {
         Self {
             env_var: env_var.into(),
@@ -121,6 +125,8 @@ impl CapabilityTier {
     /// Detect capabilities from resolved credentials and environment.
     /// Detect which credentials are available from resolved values.
     ///
+    /// pre:  resolved_credentials is a valid map
+    /// post: returns CredentialStatus with available/missing counts
     pub fn detect(resolved_credentials: &HashMap<String, String>) -> Self {
         let embedded = resolved_credentials.contains_key("HKASK_WEBID")
             || resolved_credentials.contains_key("HKASK_AGENT_PERSONA");
@@ -150,6 +156,7 @@ impl CapabilityTier {
     /// In standalone mode, spans go to stderr via the tracing subscriber.
     /// Check if CNS is available (all required credentials present).
     ///
+    /// post: returns true iff all required credentials are available
     pub fn cns_available(&self) -> bool {
         self.embedded
     }
@@ -172,6 +179,8 @@ impl ServerContext {
     /// Looks up `db_env_var` and `HKASK_DB_PASSPHRASE`. Falls back to in-memory DB.
     /// Open a database using a credential env var for the passphrase.
     ///
+    /// pre:  db_env_var is set and contains a valid passphrase
+    /// post: returns opened Database
     pub fn open_database(&self, db_env_var: &str) -> Result<hkask_storage::Database, McpError> {
         use hkask_storage::open_database;
         match self.credentials.get(db_env_var) {
@@ -189,6 +198,8 @@ impl ServerContext {
     /// Like `open_database`, but passes DDL for custom tables (e.g. FTS5).
     /// Open a database with additional DDL extensions.
     ///
+    /// pre:  db_env_var is set, extensions is valid SQL DDL
+    /// post: returns opened Database with extensions applied
     pub fn open_database_with_extensions(
         &self,
         db_env_var: &str,
@@ -224,6 +235,8 @@ pub struct ToolSpanGuard {
 impl ToolSpanGuard {
     /// Create a new tool span guard.
     ///
+    /// pre:  tool_name is non-empty, caller is valid
+    /// post: returns ToolSpanGuard with start time recorded
     pub fn new(tool_name: &str, caller: &hkask_types::WebID) -> Self {
         Self {
             tool_name: tool_name.to_string(),
@@ -235,6 +248,8 @@ impl ToolSpanGuard {
 
     /// Mark span as successful and return output.
     ///
+    /// post: CNS tool span emitted with "ok" status
+    /// post: returns output unchanged
     pub fn ok(mut self, output: String) -> String {
         self.emitted = true;
         let duration_ms = self.start.elapsed().as_millis() as u64;
@@ -244,6 +259,8 @@ impl ToolSpanGuard {
 
     /// Mark span as error and return output.
     ///
+    /// post: CNS tool span emitted with "error" status and error kind
+    /// post: returns output unchanged
     pub fn error(mut self, kind: McpErrorKind, output: String) -> String {
         self.emitted = true;
         let duration_ms = self.start.elapsed().as_millis() as u64;
@@ -260,6 +277,8 @@ impl ToolSpanGuard {
     /// Equivalent to `self.ok(McpToolOutput::new(value).to_json_string())`.
     /// Finish span with Ok JSON value.
     ///
+    /// post: CNS tool span emitted with "ok" status
+    /// post: returns JSON string of value
     pub fn ok_json(self, value: Value) -> String {
         self.ok(McpToolOutput::new(value).to_json_string())
     }
@@ -267,6 +286,8 @@ impl ToolSpanGuard {
     /// Consume a `Result<Value, McpToolError>` — ok→`ok_json`, err→`error(…)`.
     /// Finish span with a Result.
     ///
+    /// post: CNS tool span emitted with appropriate status
+    /// post: returns JSON string of Ok value or error
     pub fn finish(self, result: Result<Value, McpToolError>) -> String {
         match result {
             Ok(value) => self.ok_json(value),
@@ -277,6 +298,8 @@ impl ToolSpanGuard {
     /// Produces McpToolError wire format so clients can distinguish errors from successes.
     /// Finish span with an internal error.
     ///
+    /// post: CNS tool span emitted with "error" status
+    /// post: returns JSON error string
     pub fn internal_error(self, value: Value) -> String {
         let message = match value {
             Value::String(s) => s,
@@ -338,6 +361,8 @@ pub struct McpToolError {
 impl McpToolError {
     /// Create a new McpToolError.
     ///
+    /// pre:  kind is a valid McpErrorKind, message is non-empty
+    /// post: returns McpToolError
     pub fn new(kind: McpErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
@@ -347,46 +372,55 @@ impl McpToolError {
     }
     /// Create an internal error.
     ///
+    /// post: returns McpToolError with Internal kind
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::Internal, message)
     }
     /// Create a not-found error.
     ///
+    /// post: returns McpToolError with NotFound kind
     pub fn not_found(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::NotFound, message)
     }
     /// Create an invalid-argument error.
     ///
+    /// post: returns McpToolError with InvalidArgument kind
     pub fn invalid_argument(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::InvalidArgument, message)
     }
     /// Create an unavailable error.
     ///
+    /// post: returns McpToolError with Unavailable kind
     pub fn unavailable(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::Unavailable, message)
     }
     /// Create a timeout error.
     ///
+    /// post: returns McpToolError with Timeout kind
     pub fn timeout(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::Timeout, message)
     }
     /// Create a permission-denied error.
     ///
+    /// post: returns McpToolError with PermissionDenied kind
     pub fn permission_denied(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::PermissionDenied, message)
     }
     /// Create a rate-limited error.
     ///
+    /// post: returns McpToolError with RateLimited kind
     pub fn rate_limited(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::RateLimited, message)
     }
     /// Create a failed-precondition error.
     ///
+    /// post: returns McpToolError with FailedPrecondition kind
     pub fn failed_precondition(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::FailedPrecondition, message)
     }
     /// Serialize to JSON string for MCP wire format.
     ///
+    /// post: returns JSON string with "error" object
     pub fn to_json_string(&self) -> String {
         serde_json::json!({"error": self.message, "kind": self.kind.to_string()}).to_string()
     }
@@ -406,6 +440,8 @@ impl std::error::Error for McpToolError {}
 /// body, eliminating the repeated `span.internal_error(json!({...}))` pattern across servers.
 /// Produce a JSON-RPC error response for internal tool errors.
 ///
+/// pre:  message is non-empty
+/// post: returns JSON string with error object
 pub fn tool_internal_error(
     span: ToolSpanGuard,
     context: &str,
@@ -419,6 +455,9 @@ pub fn tool_internal_error(
 /// Validate a string identifier.
 /// Validate an identifier (tool name, server name, etc.).
 ///
+/// pre:  name and value are non-empty, max_len > 0
+/// post: returns Ok(()) if valid (non-empty, ≤max_len, alphanumeric+hyphen+underscore)
+/// post: returns Err if invalid
 pub fn validate_identifier(name: &str, value: &str, max_len: usize) -> Result<(), McpToolError> {
     if value.is_empty() {
         return Err(McpToolError::invalid_argument(format!(
@@ -448,6 +487,9 @@ pub fn validate_identifier(name: &str, value: &str, max_len: usize) -> Result<()
 /// Use this for any tool that accepts a user-provided URL.
 /// Validate a tool URL (http/https only, no path traversal).
 ///
+/// pre:  url is non-empty
+/// post: returns Ok(()) if valid http/https URL
+/// post: returns Err if invalid scheme or format
 pub fn validate_tool_url(url: &str) -> Result<(), McpToolError> {
     crate::security::validate_url(url, &crate::security::UrlValidationConfig::default())
         .map_err(|e| McpToolError::invalid_argument(format!("URL validation failed: {e}")))
@@ -457,6 +499,8 @@ pub fn validate_tool_url(url: &str) -> Result<(), McpToolError> {
 /// Classify an HTTP error response into a structured `McpToolError`.
 /// Classify an HTTP error response into an McpToolError.
 ///
+/// pre:  service is non-empty, status is valid
+/// post: returns McpToolError with appropriate kind based on status code
 pub fn classify_http_error(service: &str, status: reqwest::StatusCode, body: &str) -> McpToolError {
     let msg = format!("{service} API returned {status}: {}", body.trim());
     match status.as_u16() {
@@ -526,6 +570,8 @@ pub async fn api_put(
 /// Parse .env files and return key-value pairs without mutating the process environment.
 /// Load .env file from the project root.
 ///
+/// post: returns HashMap of env vars from .env file
+/// post: returns empty map if .env not found
 pub fn load_dotenv() -> HashMap<String, String> {
     let cwd = std::env::current_dir().unwrap_or_default();
     for path in [cwd.join(".env")].iter().chain(
@@ -556,6 +602,8 @@ pub fn load_dotenv() -> HashMap<String, String> {
 
 /// Resolve a credential from env var or OS keychain.
 ///
+/// pre:  env_var is non-empty
+/// post: returns credential value from env or keychain
 pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::KeystoreError> {
     match hkask_keystore::Keychain::default().retrieve_by_key(env_var) {
         Ok(val) => {

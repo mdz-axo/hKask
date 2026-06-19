@@ -54,6 +54,9 @@ pub struct ChatResponse {
 
 /// Create chat router
 ///
+/// expect: "API endpoints enforce OCAP boundaries"
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with chat routes registered
 pub fn chat_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(chat))

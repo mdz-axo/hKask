@@ -55,6 +55,7 @@ impl FromStr for ChainId {
 /// # Semantic distinction from bool `[OUGHT-DECL]`
 /// `PrivacyMode::Transparent` and `PrivacyMode::Shielded` carry meaning.
 /// A bare `bool` (`is_private: true`) would be "boolean blindness" —
+/// \[NORMATIVE\] the reader must decode what `true` means at every use site. (P8 — Semantic Grounding).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PrivacyMode {
     /// Direct on-chain deposit/withdrawal — visible to public explorers

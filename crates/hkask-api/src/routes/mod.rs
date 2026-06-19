@@ -68,7 +68,7 @@ pub use curator::{
 pub use git::{ArchiveRequest, ArchiveResponse, ResolveShaResponse};
 pub use goal::{CreateGoalRequest, GoalListResponse, GoalResponse, SetGoalStateRequest};
 pub use models::{ModelEntry, ModelListResponse, ModelSearchQuery};
-pub use pods::{CreatePodRequest, CreatePodResponse, ListPodsResponse, PodStatusInfoResponse};
+pub use pods::{CreatePodRequest, CreatePodResponse, ListPodsResponse, PodStatusResponse};
 pub use sovereignty::{AccessCheckResponse, SovereigntyConsentResponse, SovereigntyStatusResponse};
 pub use spec::{
     SpecCaptureRequestDto, SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse,

@@ -19,6 +19,9 @@ fn project_root() -> PathBuf {
 
 /// Run a skill command.
 ///
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  action is valid
+/// post: skill command executed
 pub fn run_skill(action: SkillAction) {
     match action {
         SkillAction::List { visibility } => {
@@ -177,6 +180,9 @@ fn skill_publish(name: &str) {
 
 /// Run the dual-layer skill audit and emit a report.
 ///
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  fail_below is in [0.0, 1.0]
+/// post: JSON or table report printed; process exits 1 if any score < fail_below
 fn skill_audit(fail_below: f64, json: bool) {
     let root = project_root();
     let mut registry = Registry::new();

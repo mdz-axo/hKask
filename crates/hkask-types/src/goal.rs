@@ -55,6 +55,8 @@ pub enum GoalState {
 impl GoalState {
     /// Get string representation of state.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// post: returns snake_case state name
     pub fn as_str(&self) -> &'static str {
         match self {
             GoalState::Pending => "pending",
@@ -67,6 +69,8 @@ impl GoalState {
 
     /// Parse state from string.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// post: returns Some(GoalState) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "pending" => Some(GoalState::Pending),
@@ -80,6 +84,8 @@ impl GoalState {
 
     /// Check if this is a terminal state.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// post: returns true for Completed, Abandoned, Quarantined
     pub fn is_terminal(&self) -> bool {
         matches!(
             self,
@@ -93,8 +99,12 @@ impl GoalState {
     /// caught at the repository boundary rather than silently applied. A
     /// terminal state (Completed/Abandoned) admits no further transitions;
     /// `Blocked` may resume to `Active`. Re-stating the current state is a
+    /// \[DECLARATIVE\] no-op and always permitted. (P7 — Evolutionary Architecture).
     /// Check if transition to next state is valid.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  next is a valid GoalState
+    /// post: returns true iff transition is allowed
     pub fn can_transition_to(&self, next: GoalState) -> bool {
         if *self == next {
             return true;
@@ -126,6 +136,9 @@ pub struct GoalCriterion {
 impl GoalCriterion {
     /// Create a new goal criterion.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  goal_id is valid, description is non-empty
+    /// post: returns GoalCriterion
     pub fn new(goal_id: GoalID, criterion_type: &str, description: &str) -> Self {
         Self {
             id: format!("gc_{}", uuid::Uuid::new_v4().simple()),
@@ -138,6 +151,8 @@ impl GoalCriterion {
 
     /// Mark criterion as satisfied.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// post: satisfied set to true
     pub fn mark_satisfied(&mut self) {
         self.satisfied = true;
     }
@@ -156,6 +171,9 @@ pub struct GoalArtifact {
 impl GoalArtifact {
     /// Create a new goal artifact.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  goal_id is valid, artifact_ref and artifact_type are non-empty
+    /// post: returns GoalArtifact
     pub fn new(goal_id: GoalID, artifact_ref: &str, artifact_type: &str) -> Self {
         Self {
             id: format!("ga_{}", uuid::Uuid::new_v4().simple()),
@@ -185,6 +203,9 @@ pub struct Goal {
 impl Goal {
     /// Create a new Goal.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  webid is valid, text is non-empty
+    /// post: returns Goal with Pending state
     pub fn new(webid: WebID, text: &str, visibility: Visibility) -> Self {
         Self {
             id: GoalID::new(),
@@ -202,6 +223,8 @@ impl Goal {
 
     /// Set display name (builder).
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// post: returns Self with display_name set
     pub fn with_display_name(mut self, name: impl Into<String>) -> Self {
         self.display_name = Some(name.into());
         self
@@ -209,6 +232,8 @@ impl Goal {
 
     /// Set parent goal (builder).
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// post: returns Self with parent_goal_id and depth set
     pub fn with_parent(mut self, parent_id: GoalID, parent_depth: u8) -> Self {
         self.parent_goal_id = Some(parent_id);
         self.depth = parent_depth + 1;
@@ -222,6 +247,10 @@ impl Goal {
     /// silent illegal mutations before data reaches the database.
     /// Transition to a new state.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  transition is valid per can_transition_to
+    /// post: state updated, completed_at set if terminal
+    /// post: returns Err if illegal transition
     pub fn transition(&mut self, new_state: GoalState) -> Result<(), IllegalGoalTransition> {
         if !self.state.can_transition_to(new_state) {
             return Err(IllegalGoalTransition {
@@ -240,6 +269,8 @@ impl Goal {
 
     /// Check if this goal can have subgoals.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// post: returns true for non-terminal states with depth < 7
     pub fn can_have_subgoals(&self) -> bool {
         !self.state.is_terminal() && self.depth < SYSTEM_MAX_RECURSION
     }

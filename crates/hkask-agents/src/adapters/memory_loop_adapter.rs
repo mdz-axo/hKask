@@ -145,15 +145,21 @@ pub type MemoryLoopAdapter = MemoryLoopForwarder;
 impl MemoryLoopForwarder {
     /// Create a new adapter wrapping EpisodicMemory and SemanticMemory.
     ///
+    /// expect: "The system loads and adapts agent registries for generative use"
     /// \[P3\] Motivating: Generative Space — MemoryLoopForwarder wires episodic + semantic
+    /// pre:  `episodic` is a valid `EpisodicMemory`; `semantic` is a valid
     ///       `SemanticMemory`.
+    /// post: Returns a `MemoryLoopForwarder` holding both memory instances.
     pub fn new(episodic: EpisodicMemory, semantic: SemanticMemory) -> Self {
         Self { episodic, semantic }
     }
 
     /// Create with in-memory storage for testing.
     ///
+    /// expect: "The system loads and adapts agent registries for generative use"
     /// \[P3\] Motivating: Generative Space — in-memory SQLite adapter for tests
+    /// pre:  (none).
+    /// post: Returns `Ok(Self)` with an in-memory SQLite database;
     ///       returns `Err(MemoryError)` if database creation fails.
     pub fn in_memory() -> Result<Self, MemoryError> {
         let db = Database::in_memory()?;
@@ -163,9 +169,13 @@ impl MemoryLoopForwarder {
     /// Create with in-memory storage, panicking on failure.
     ///
     /// Use this in builder patterns and test fixtures where an in-memory DB
+    /// \[DECLARATIVE\] failure is always a bug, never a recoverable condition. For recoverable (P5 — Essentialism).
     /// contexts, use `in_memory()` and propagate the error with `?`.
     ///
+    /// expect: "The system loads and adapts agent registries for generative use"
     /// \[P3\] Motivating: Generative Space — infallible in-memory constructor for tests
+    /// pre:  (none).
+    /// post: Returns `Self` with an in-memory database; panics if
     ///       database creation fails (considered a bug).
     pub fn in_memory_unchecked() -> Self {
         Self::in_memory().expect("In-memory storage initialization should never fail")
@@ -173,9 +183,12 @@ impl MemoryLoopForwarder {
 
     /// Create from database path and passphrase (encrypted).
     ///
+    /// expect: "The system loads and adapts agent registries for generative use"
     /// \[P1\] Motivating: User Sovereignty — encrypted on-disk memory adapter
     /// \[P4\] Constraining: Clear Boundaries — passphrase protects the store
+    /// pre:  `path` is a valid filesystem path; `passphrase` is a
     ///       non-empty string.
+    /// post: Returns `Ok(Self)` with an encrypted SQLite database at
     ///       `path`; returns `Err(MemoryError)` if opening fails.
     pub fn from_path(path: &str, passphrase: &str) -> Result<Self, MemoryError> {
         let db = Database::open(path, passphrase)?;
@@ -184,17 +197,10 @@ impl MemoryLoopForwarder {
 
     fn from_database(db: Database) -> Result<Self, MemoryError> {
         let conn = db.conn_arc();
-        Self::from_connection(conn)
-    }
-
-    /// Create from a shared database connection (the pod's own SQLCipher conn).
-    pub fn from_connection(
-        conn: Arc<std::sync::Mutex<rusqlite::Connection>>,
-    ) -> Result<Self, MemoryError> {
         let triple_store = TripleStore::new(Arc::clone(&conn));
         let episodic = EpisodicMemory::new(triple_store);
         let triple_store2 = TripleStore::new(Arc::clone(&conn));
-        let embedding_store = EmbeddingStore::new(Arc::clone(&conn));
+        let embedding_store = EmbeddingStore::new(conn);
         let semantic = SemanticMemory::new(triple_store2, embedding_store);
         Ok(Self::new(episodic, semantic))
     }

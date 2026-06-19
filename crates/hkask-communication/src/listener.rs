@@ -32,6 +32,10 @@ pub struct SevenR7Listener {
 impl SevenR7Listener {
     /// Create a new 7R7 listener.
     ///
+    /// expect: "Agents communicate through user-owned channels"
+    /// pre:  matrix is a valid MatrixTransport (authenticated)
+    /// pre:  poll_interval_secs > 0
+    /// post: returns SevenR7Listener with active=false
     pub fn new(matrix: Arc<Mutex<MatrixTransport>>, poll_interval_secs: u64) -> Self {
         Self {
             matrix,
@@ -47,6 +51,10 @@ impl SevenR7Listener {
     /// The agent layer (Curator) subscribes to these spans and decides what
     /// action to take.
     ///
+    /// expect: "Agents communicate through user-owned channels"
+    /// pre:  matrix transport is authenticated
+    /// post: background polling task spawned
+    /// post: idempotent — calling start() on already-active listener is no-op
     pub async fn start(&self) {
         let was_active = *self.active.read().await;
         if was_active {
@@ -116,6 +124,9 @@ impl SevenR7Listener {
 
     /// Stop the polling loop.
     ///
+    /// expect: "Agents communicate through user-owned channels"
+    /// post: active flag set to false
+    /// post: idempotent — calling stop() on already-stopped listener is no-op
     pub async fn stop(&self) {
         *self.active.write().await = false;
         tracing::info!(target: "cns.communication.listener.stopped", "7R7 listener stopped");

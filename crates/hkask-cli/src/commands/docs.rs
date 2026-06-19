@@ -4,6 +4,9 @@
 
 use crate::cli::{self, DocsAction};
 
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  action is a valid DocsAction variant (Openapi, Cli, All)
+/// post: generates OpenAPI spec, CLI markdown reference, or both; writes to file or stdout
 pub fn run(action: DocsAction) {
     match action {
         DocsAction::Openapi { output } => {

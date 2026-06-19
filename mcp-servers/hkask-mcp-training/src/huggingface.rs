@@ -38,6 +38,8 @@ pub enum HuggingFaceError {
 /// MDS: Domain entity — `ModelSource` with `hf://` URI scheme.
 /// Composition: `CAN resolve_model_id|download_weights|list_variants ON ModelSource VIA API`
 ///
+/// pre:  HF_TOKEN set for gated models
+/// post: resolved HF model ID or downloaded weight path
 
 #[async_trait::async_trait]
 pub trait ModelRegistry: Send + Sync {
@@ -71,6 +73,8 @@ pub trait ModelRegistry: Send + Sync {
 /// MDS: Lifecycle entity — `AdapterPublication`.
 /// Composition: `CAN publish_adapter|pull_adapter ON Adapter VIA API`
 ///
+/// pre:  adapter weights exist (local or remote)
+/// post: adapter published to / pulled from HF Hub
 
 #[async_trait::async_trait]
 pub trait AdapterRegistry: Send + Sync {
@@ -106,6 +110,8 @@ pub trait AdapterRegistry: Send + Sync {
 /// MDS: Domain entity — `DatasetSource`.
 /// Composition: `CAN resolve_dataset|download_dataset ON DatasetSource VIA API`
 ///
+/// pre:  dataset exists on HF Hub
+/// post: resolved dataset URL or downloaded local path
 
 #[async_trait::async_trait]
 pub trait DatasetRegistry: Send + Sync {

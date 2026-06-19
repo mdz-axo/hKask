@@ -9,8 +9,8 @@
 //! # Principles
 //!
 //! - [P6] Goal: Space for Replicants — each replicant inhabits its own pod
-//! - [P11] Constraining: Digital Public/Private Sphere — per-pod SQLCipher boundary
-//! - [P4] Constraining: Clear Boundaries — OCAP tokens scoped to this pod
+//! -Constraining: Digital Public/Private Sphere — per-pod SQLCipher boundary
+//! -Constraining: Clear Boundaries — OCAP tokens scoped to this pod
 //! - [P5] Goal: Essentialism — factory only; no runtime cache
 //! - [P9] Goal: Homeostatic Self-Regulation — per-pod variety tracking
 
@@ -41,7 +41,7 @@ use hkask_mcp::GitCasAdapter;
 /// a CNS runtime is initialized with namespace cns.agent_pod.{pod_id}.*,
 /// and MCP servers are bound. No shared state. No service collision surface.
 ///
-/// [P11] Constraining: Digital Public/Private Sphere — per-pod SQLCipher boundary
+///Constraining: Digital Public/Private Sphere — per-pod SQLCipher boundary
 pub struct PodDeployment {
     /// Pod identity — WebID is the root of all authority (P1)
     pub pod_id: PodID,
@@ -89,7 +89,7 @@ pub struct PerPodStorage {
 
 /// PerPodCnsRuntime is a CNS runtime scoped to a single pod.
 ///
-/// [P11] Constraining: Digital Public/Private Sphere — CNS isolation
+///Constraining: Digital Public/Private Sphere — CNS isolation
 pub struct PerPodCnsRuntime {
     /// The pod this CNS runtime is scoped to
     pod_id: PodID,
@@ -229,7 +229,7 @@ impl PodFactory {
     /// as `derive_ocap_secret`. Same master key + same WebID →
     /// same pod key material, independent of server.
     ///
-    /// [P11] Constraining: Digital Public/Private Sphere — per-pod SQLCipher
+    ///Constraining: Digital Public/Private Sphere — per-pod SQLCipher
     pub async fn deploy(
         &self,
         template_name: &str,

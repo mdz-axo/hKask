@@ -24,8 +24,10 @@ pub struct CapabilityAwareValidator;
 impl CapabilityAwareValidator {
     /// Create a new validator.
     ///
+    /// expect: "The system validates template capability requirements against held tokens"
     /// \[P3\] Motivating: Generative Space — registration-time OCAP gate for template capabilities
     /// \[P4\] Constraining: Clear Boundaries — validator establishes capability boundary
+    /// post: returns CapabilityAwareValidator
     pub fn new() -> Self {
         Self
     }
@@ -36,8 +38,13 @@ impl CapabilityAwareValidator {
     /// held token. Returns `Err(TemplateError::CapabilityDenied)` with details about
     /// the first unsatisfied requirement.
     ///
+    /// expect: "The system validates template capability requirements against held tokens"
     /// \[P3\] Motivating: Generative Space — checks template capability requirements against held tokens
     /// \[P4\] Constraining: Clear Boundaries — action hierarchy enforcement (Execute ≥ Write ≥ Read)
+    /// pre:  template_id is non-empty
+    /// post: returns Ok(()) if all required capabilities are satisfied
+    /// post: returns Ok(()) if required_capabilities is empty
+    /// post: returns Err(CapabilityDenied) for first unsatisfied requirement
     pub fn validate_capabilities(
         &self,
         template_id: &str,
@@ -148,7 +155,7 @@ mod tests {
     }
 
     // [P3] Motivating: Generative Space — validates action hierarchy
-    // [P4] Constraining: Clear Boundaries — Execute token satisfies Read requirement
+    //Constraining: Clear Boundaries — Execute token satisfies Read requirement
     #[test]
     fn execute_token_satisfies_read_requirement() {
         let validator = CapabilityAwareValidator::new();
@@ -162,7 +169,7 @@ mod tests {
     }
 
     // [P3] Motivating: Generative Space — validates action hierarchy
-    // [P4] Constraining: Clear Boundaries — Write token satisfies Read requirement
+    //Constraining: Clear Boundaries — Write token satisfies Read requirement
     #[test]
     fn write_token_satisfies_read_requirement() {
         let validator = CapabilityAwareValidator::new();
@@ -172,7 +179,7 @@ mod tests {
     }
 
     // [P3] Motivating: Generative Space — validates action hierarchy
-    // [P4] Constraining: Clear Boundaries — Read token does not satisfy Write requirement
+    //Constraining: Clear Boundaries — Read token does not satisfy Write requirement
     #[test]
     fn read_token_does_not_satisfy_write_requirement() {
         let validator = CapabilityAwareValidator::new();

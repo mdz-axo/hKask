@@ -19,6 +19,9 @@ fn parse_data_category(s: &str) -> hkask_types::sovereignty::DataCategory {
     hkask_types::sovereignty::DataCategory::parse(s)
 }
 
+/// expect: "API endpoints enforce OCAP boundaries"
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with sovereignty routes registered
 pub fn sovereignty_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(sovereignty_status))

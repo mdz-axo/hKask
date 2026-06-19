@@ -1,7 +1,7 @@
 //! Integration tests for hKask agent pod orchestration.
 //!
 //! Verifies multi-pod lifecycle: creation, activation, mode transitions,
-//! status queries, listing, and deactivation. Uses `ActivePods::new_mock()`
+//! status queries, listing, and deactivation. Uses `PodManager::new_mock()`
 //! for in-memory testing without external dependencies.
 //!
 //! # Scope
@@ -16,7 +16,7 @@
 //! Each test carries a `// REQ:` tag linking it to the contract-first
 //! migration plan.
 
-use hkask_agents::{ActivePods, AgentPersona};
+use hkask_agents::{AgentPersona, PodManager};
 use hkask_test_harness::mocks::MockInferencePort;
 use hkask_types::PodID;
 use std::sync::Arc;
@@ -32,7 +32,7 @@ fn test_persona(name: &str, agent_type: &str) -> AgentPersona {
     AgentPersona::from_yaml(&yaml).expect("test persona parse")
 }
 
-/// Ensure a template crate directory exists for ActivePods::new_mock().
+/// Ensure a template crate directory exists for PodManager::new_mock().
 /// The mock manager uses `/tmp/hkask-mock` as its GitCasAdapter root.
 fn ensure_template_dir(template_name: &str) {
     let dir = std::path::PathBuf::from("/tmp/hkask-mock").join(template_name);
@@ -65,7 +65,7 @@ fn set_test_master_key() {
 #[tokio::test]
 async fn two_pod_creation_and_activation() {
     set_test_master_key();
-    let manager = ActivePods::new_mock();
+    let manager = PodManager::new_mock(None);
 
     // Ensure template directories exist
     ensure_template_dir("alice-template");
@@ -112,7 +112,7 @@ async fn two_pod_creation_and_activation() {
 #[tokio::test]
 async fn list_pods_after_multi_pod_creation() {
     set_test_master_key();
-    let manager = ActivePods::new_mock();
+    let manager = PodManager::new_mock(None);
 
     let alice = test_persona("alice", "Replicant");
     let bob = test_persona("bob", "Bot");
@@ -149,7 +149,7 @@ async fn list_pods_after_multi_pod_creation() {
 #[tokio::test]
 async fn mode_transitions_on_activated_pod() {
     set_test_master_key();
-    let manager = ActivePods::new_mock();
+    let manager = PodManager::new_mock(None);
     ensure_template_dir("test");
     let persona = test_persona("agent", "Replicant");
     let pod_id = manager
@@ -188,7 +188,7 @@ async fn mode_transitions_on_activated_pod() {
 #[tokio::test]
 async fn deactivation_and_reactivation() {
     set_test_master_key();
-    let manager = ActivePods::new_mock();
+    let manager = PodManager::new_mock(None);
     ensure_template_dir("test");
     let persona = test_persona("agent", "Replicant");
     let pod_id = manager.create_pod("test", &persona, None).await.unwrap();
@@ -209,7 +209,7 @@ async fn deactivation_and_reactivation() {
 /// Querying a non-existent pod returns PodNotFound.
 #[tokio::test]
 async fn nonexistent_pod_returns_error() {
-    let manager = ActivePods::new_mock();
+    let manager = PodManager::new_mock(None);
     let fake_id = PodID::new();
 
     let result = manager.get_pod_status(&fake_id).await;
@@ -221,7 +221,7 @@ async fn nonexistent_pod_returns_error() {
 }
 
 ///
-/// A ActivePods constructed with a MockInferencePort exposes it
+/// A PodManager constructed with a MockInferencePort exposes it
 /// via `inference_port()` and pods can be created/activated with
 /// inference available for improv interactions.
 #[tokio::test]
@@ -229,12 +229,23 @@ async fn inference_port_wiring() {
     set_test_master_key();
     ensure_template_dir("test");
 
+    // Build a PodManager with mock inference
     let inference = Arc::new(
         MockInferencePort::new()
             .with_response("hello", "Hello from mock inference!")
             .with_default("Mock default response"),
     );
-    let manager = ActivePods::new().with_inference_port(inference.clone());
+    let manager = PodManager::new(
+        None,                    // git_cas → defaults to ./registry/templates
+        None,                    // a2a_runtime → defaults
+        None,                    // mcp_runtime → defaults
+        None,                    // episodic_storage → in-memory
+        None,                    // semantic_storage → in-memory
+        Some(inference.clone()), // inference_port
+        None,                    // capability_checker
+        None,                    // governed_tool
+        None,                    // nu_event_sink
+    );
 
     // Verify inference port is accessible
     let retrieved = manager.inference_port();

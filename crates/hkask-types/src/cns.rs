@@ -115,6 +115,18 @@ pub enum CnsSpan {
     ArchitectureSeamCoverage,
     /// Public seam drift detection.
     ArchitectureSeamDrift,
+    /// Contract violation detected.
+    ContractViolated,
+    /// Contract coverage measurement.
+    ContractCoverage,
+    /// Contract proposed by replicant (Phase B2–B4).
+    ContractProposed,
+    /// Contract accepted by human (Phase B3 consent gate).
+    ContractAccepted,
+    /// Contract rejected by human (Phase B3 consent gate).
+    ContractRejected,
+    /// Contract quality violation detected (missing expect:, [P{N}], Constraining:, etc.).
+    ContractQualityViolated,
     /// ACP replicant memory size tracking.
     AcpReplicantMemorySize,
     /// ACP IDE connection state change.
@@ -154,6 +166,9 @@ pub enum ToolSubsystem {
 impl ToolSubsystem {
     /// Map an MCP server name (e.g., "memory", "hkask-mcp-spec") to a ToolSubsystem.
     ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  server_name is a non-empty string
+    /// post: returns the corresponding ToolSubsystem variant; Other if unknown
     pub fn from_server_name(server_name: &str) -> Self {
         let name = server_name
             .strip_prefix("hkask-mcp-")
@@ -197,6 +212,9 @@ impl ToolSubsystem {
 }
 
 impl CnsSpan {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  self is a valid CnsSpan variant
+    /// post: returns the canonical namespace string (e.g. "cns.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
     ///
     /// This output must match the existing `CANONICAL_NAMESPACES` strings
     /// byte-for-byte to preserve backward compatibility with ν-event serialization
@@ -240,6 +258,12 @@ impl CnsSpan {
             CnsSpan::WalletChainError => "cns.wallet.chain_error",
             CnsSpan::ArchitectureSeamCoverage => "cns.architecture.seam.coverage",
             CnsSpan::ArchitectureSeamDrift => "cns.architecture.seam.drift",
+            CnsSpan::ContractViolated => "cns.contract.violated",
+            CnsSpan::ContractCoverage => "cns.contract.coverage",
+            CnsSpan::ContractProposed => "cns.contract.proposed",
+            CnsSpan::ContractAccepted => "cns.contract.accepted",
+            CnsSpan::ContractRejected => "cns.contract.rejected",
+            CnsSpan::ContractQualityViolated => "cns.contract.quality.violated",
             CnsSpan::AcpReplicantMemorySize => "cns.acp.replicant.memory_size",
             CnsSpan::AcpIdeConnectionState => "cns.acp.ide.connection_state",
             CnsSpan::RoleAssigned => "cns.multi.role.assigned",
@@ -258,6 +282,9 @@ impl std::fmt::Display for CnsSpan {
 impl std::str::FromStr for CnsSpan {
     type Err = ();
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  s is a string matching a canonical CnsSpan namespace
+    /// post: returns Ok(CnsSpan) for canonical strings; Err(()) for unknown strings
     ///
     /// Only strings matching canonical `CnsSpan` namespaces parse
     /// successfully. Unknown strings return `Err(())`.
@@ -319,6 +346,12 @@ impl std::str::FromStr for CnsSpan {
             "cns.wallet.chain_error" => Ok(CnsSpan::WalletChainError),
             "cns.architecture.seam.coverage" => Ok(CnsSpan::ArchitectureSeamCoverage),
             "cns.architecture.seam.drift" => Ok(CnsSpan::ArchitectureSeamDrift),
+            "cns.contract.violated" => Ok(CnsSpan::ContractViolated),
+            "cns.contract.coverage" => Ok(CnsSpan::ContractCoverage),
+            "cns.contract.proposed" => Ok(CnsSpan::ContractProposed),
+            "cns.contract.accepted" => Ok(CnsSpan::ContractAccepted),
+            "cns.contract.rejected" => Ok(CnsSpan::ContractRejected),
+            "cns.contract.quality.violated" => Ok(CnsSpan::ContractQualityViolated),
             "cns.acp.replicant.memory_size" => Ok(CnsSpan::AcpReplicantMemorySize),
             "cns.acp.ide.connection_state" => Ok(CnsSpan::AcpIdeConnectionState),
             "cns.multi.role.assigned" => Ok(CnsSpan::RoleAssigned),
@@ -345,6 +378,10 @@ mod cns_span_tests {
         );
         assert_eq!(CnsSpan::Inference.to_string(), "cns.inference");
         assert_eq!(CnsSpan::WalletBalance.to_string(), "cns.wallet.balance");
+        assert_eq!(
+            CnsSpan::ContractViolated.to_string(),
+            "cns.contract.violated"
+        );
     }
 
     #[test]
@@ -363,6 +400,7 @@ mod cns_span_tests {
             "cns.agent_pod",
             "cns.sovereignty",
             "cns.wallet.balance",
+            "cns.contract.violated",
         ];
         for s in variants {
             let span: CnsSpan = s.parse().expect("should parse");
@@ -421,6 +459,11 @@ mod cns_span_tests {
             CnsSpan::WalletChainError,
             CnsSpan::ArchitectureSeamCoverage,
             CnsSpan::ArchitectureSeamDrift,
+            CnsSpan::ContractViolated,
+            CnsSpan::ContractCoverage,
+            CnsSpan::ContractProposed,
+            CnsSpan::ContractAccepted,
+            CnsSpan::ContractRejected,
             CnsSpan::AcpReplicantMemorySize,
             CnsSpan::AcpIdeConnectionState,
             CnsSpan::RoleAssigned,
@@ -520,11 +563,17 @@ fn default_multiplier() -> f64 {
 }
 
 impl RetryConfig {
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  attempt >= 0; self.initial_delay_ms, self.multiplier, self.max_delay_ms are valid
+    /// post: returns the exponential backoff delay in ms, capped at self.max_delay_ms
     pub fn delay_for_attempt(&self, attempt: u32) -> u64 {
         let delay = (self.initial_delay_ms as f64 * self.multiplier.powi(attempt as i32)) as u64;
         delay.min(self.max_delay_ms)
     }
 
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  status is a valid HTTP status code (u16)
+    /// post: returns true if status is in the retryable_status list
     pub fn is_retryable_status(&self, status: u16) -> bool {
         self.retryable_status.contains(&status)
     }

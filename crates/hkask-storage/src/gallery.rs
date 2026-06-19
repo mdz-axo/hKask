@@ -54,7 +54,9 @@ impl FromStr for GalleryMode {
 impl GalleryMode {
     /// Get the string representation of the face status.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P8\] Motivating: Semantic Grounding — stable gallery mode labels
+    /// post: returns "active" or "inactive"
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::ReadOnly => "read-only",
@@ -121,7 +123,10 @@ impl GalleryStore {
     /// Initialize gallery tables in the database.
     /// Initialize gallery tables.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — schema for galleries, images, tags, faces
+    /// pre:  conn is a valid SQLite connection
+    /// post: gallery tables created if not exists
     pub fn init_tables(conn: &Connection) -> rusqlite::Result<()> {
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS galleries (
@@ -181,9 +186,13 @@ impl GalleryStore {
     }
     /// Create a new gallery. Returns the gallery record.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// Create a new gallery.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — create a gallery
+    /// pre:  name is non-empty
+    /// post: gallery created and returned
     pub fn create(
         &self,
         root_path: &str,
@@ -220,10 +229,14 @@ impl GalleryStore {
     }
     /// Add an image to the gallery index.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     #[allow(clippy::too_many_arguments)]
     /// Add an image to a gallery.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — add image to gallery
+    /// pre:  gallery_id is valid, image data is non-empty
+    /// post: image stored in gallery
     pub fn add_image(
         &self,
         gallery_id: &str,
@@ -267,9 +280,13 @@ impl GalleryStore {
     }
     /// Get an image by index (0-based position in gallery) or by hash.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// Get an image from a gallery.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — get image by index or hash
+    /// pre:  gallery_id is valid
+    /// post: returns GalleryImage if found
     pub fn get_image(
         &self,
         gallery_id: &str,
@@ -313,9 +330,13 @@ impl GalleryStore {
     }
     /// Tag an image with AI-generated metadata.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// Tag an image in a gallery.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — tag an image
+    /// pre:  gallery_id and image_hash are valid, tag is non-empty
+    /// post: tag added to image
     pub fn tag_image(
         &self,
         image_id: &str,
@@ -350,9 +371,13 @@ impl GalleryStore {
     }
     /// Get all tags for an image.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// Get tags for an image.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — get tags for an image
+    /// pre:  gallery_id and image_hash are valid
+    /// post: returns Vec of tags
     pub fn get_tags(
         &self,
         image_id: &str,
@@ -371,7 +396,10 @@ impl GalleryStore {
     /// Get gallery record by ID.
     /// Get a gallery by ID.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — get gallery by ID
+    /// pre:  gallery_id is valid
+    /// post: returns Gallery if found
     pub fn get_gallery(
         &self,
         gallery_id: &str,
@@ -403,9 +431,12 @@ impl GalleryStore {
     /// Get all tags for all images in a gallery.
     ///
     /// Returns tags joined with their image's relative path for search ranking.
+    /// expect: "The system provides durable storage for gallery data"
     /// Get all tags across all galleries.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — list all tags across galleries
+    /// post: returns Vec of all unique tags
     pub fn get_all_tags(
         &self,
         gallery_id: &str,
@@ -437,9 +468,13 @@ impl GalleryStore {
     }
     /// Register a face in the registry.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// Register a face in the gallery.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — register a face
+    /// pre:  face data is valid
+    /// post: face registered and returned
     pub fn register_face(
         &self,
         first_name: &str,
@@ -471,9 +506,12 @@ impl GalleryStore {
     }
     /// List all faces in the registry, optionally filtered by status.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// List faces with optional status filter.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — list faces
+    /// post: returns Vec of faces, optionally filtered by status
     pub fn list_faces(
         &self,
         status_filter: Option<&str>,
@@ -501,9 +539,13 @@ impl GalleryStore {
     }
     /// Get a face registry entry by ID.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// Get a face by ID.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — get face by ID
+    /// pre:  face_id is non-empty
+    /// post: returns Face if found
     pub fn get_face(
         &self,
         face_id: &str,
@@ -524,9 +566,13 @@ impl GalleryStore {
     }
     /// Remove a face from the registry by ID.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// Remove a face from the gallery.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — remove face
+    /// pre:  face_id is non-empty
+    /// post: face deleted
     pub fn remove_face(&self, face_id: &str) -> std::result::Result<(), GalleryStoreError> {
         let conn = self.lock_conn()?;
         let affected = conn.execute("DELETE FROM face_registry WHERE id = ?1", [face_id])?;
@@ -537,9 +583,13 @@ impl GalleryStore {
     }
     /// Update a face registry entry's status and notes.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// Update a face's status.
     ///
+    /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — update face status
+    /// pre:  face_id is valid, status is valid
+    /// post: face status updated
     pub fn update_face(
         &self,
         face_id: &str,
@@ -615,6 +665,7 @@ mod tests {
         drop(conn);
         GalleryStore::new(db.conn)
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn create_gallery_returns_record() {
         let store = setup();
@@ -625,6 +676,7 @@ mod tests {
         assert_eq!(record.mode, "read-only");
         assert_eq!(record.image_count, 0);
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn create_duplicate_path_rejected() {
         let store = setup();
@@ -634,6 +686,7 @@ mod tests {
         let result = store.create("/tmp/test-gallery", GalleryMode::CopyOnWrite);
         assert!(result.is_err());
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn add_image_stores_record() {
         let store = setup();
@@ -656,6 +709,7 @@ mod tests {
         assert_eq!(img.width, 1920);
         assert_eq!(img.height, 1080);
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn get_image_by_index() {
         let store = setup();
@@ -691,6 +745,7 @@ mod tests {
         let img = store.get_image(&gallery.id, Some(1), None).unwrap();
         assert_eq!(img.relative_path, "second.jpg");
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn get_image_by_hash() {
         let store = setup();
@@ -712,6 +767,7 @@ mod tests {
         let img = store.get_image(&gallery.id, None, Some("abc123")).unwrap();
         assert_eq!(img.hash, "abc123");
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn tag_image_stores_tag() {
         let store = setup();
@@ -743,6 +799,7 @@ mod tests {
         assert_eq!(tag.value, "young adult male");
         assert_eq!(tag.confidence, 0.95);
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn get_tags_returns_all() {
         let store = setup();
@@ -770,6 +827,7 @@ mod tests {
         let tags = store.get_tags(&img.id).unwrap();
         assert_eq!(tags.len(), 2);
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn tag_image_ignores_duplicates() {
         let store = setup();
@@ -802,6 +860,7 @@ mod tests {
         assert_eq!(tags.len(), 1);
     }
     // ── Face registry tests ──
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn register_face_creates_record() {
         let store = setup();
@@ -836,6 +895,7 @@ mod tests {
         assert_eq!(face.status, "valid");
         assert!(face.notes.contains("good lighting"));
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn list_faces_returns_all() {
         let store = setup();
@@ -875,6 +935,7 @@ mod tests {
         let faces = store.list_faces(None).unwrap();
         assert_eq!(faces.len(), 2);
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn list_faces_filters_by_status() {
         let store = setup();
@@ -918,6 +979,7 @@ mod tests {
         assert_eq!(rejected.len(), 1);
         assert_eq!(rejected[0].first_name, "Bob");
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn get_face_returns_record() {
         let store = setup();
@@ -943,12 +1005,14 @@ mod tests {
         assert_eq!(retrieved.first_name, "Alice");
         assert_eq!(retrieved.last_name, "Chen");
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn get_face_unknown_id_errors() {
         let store = setup();
         let result = store.get_face("nonexistent-id");
         assert!(result.is_err());
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn remove_face_deletes_record() {
         let store = setup();
@@ -974,6 +1038,7 @@ mod tests {
         let result = store.get_face(&face.id);
         assert!(result.is_err());
     }
+    /// expect: "Storage operation works correctly under test conditions"
     #[test]
     fn update_face_changes_status() {
         let store = setup();

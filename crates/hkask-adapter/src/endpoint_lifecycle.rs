@@ -9,6 +9,7 @@ use std::fmt;
 
 /// Endpoint lifecycle phases.
 ///
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
 /// [P9] Homeostatic Self-Regulation — endpoint phases are observable and transition-constrained
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EndpointPhase {
@@ -76,7 +77,10 @@ pub enum EndpointPhaseError {
 /// and produces a CNS span. Cost accrual is computed based on
 /// the duration spent in billable phases.
 ///
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
 /// [P9] Homeostatic Self-Regulation — endpoint phases are observable and transition-constrained
+/// pre:  current phase allows the requested transition
+/// post: phase is updated with timestamp, cost_accrued is accurate
 #[derive(Debug, Clone)]
 pub struct EndpointLifecycle {
     /// Current phase
@@ -94,6 +98,9 @@ pub struct EndpointLifecycle {
 impl EndpointLifecycle {
     /// Create a new lifecycle starting in Provisioning phase.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// pre:  hourly_rate > 0.0
+    /// post: returns EndpointLifecycle in Provisioning phase with zero accrued cost
     pub fn new(hourly_rate: f64) -> Result<Self, EndpointPhaseError> {
         if hourly_rate <= 0.0 {
             return Err(EndpointPhaseError::InvalidTransition {
@@ -116,6 +123,11 @@ impl EndpointLifecycle {
     /// Validates that the transition is legal, accrues cost for the time
     /// spent in the current billable phase, and updates the phase timestamp.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// pre:  new_phase is a valid transition from self.phase
+    /// post: phase is updated, cost_accrued updated if previous phase was billable
+    /// post: returns Ok(()) on success
+    /// post: returns Err(EndpointPhaseError) on invalid transition
     pub fn transition(&mut self, new_phase: EndpointPhase) -> Result<(), EndpointPhaseError> {
         // Validate transition
         if !self.phase.valid_next().contains(&new_phase) {
@@ -142,6 +154,9 @@ impl EndpointLifecycle {
 
     /// Accrue cost for a specific duration.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// pre:  duration_seconds >= 0.0
+    /// post: cost_accrued increased by (duration_seconds / 3600) * hourly_rate
     pub fn accrue_cost(&mut self, duration_seconds: f64) {
         if duration_seconds > 0.0 {
             self.cost_accrued += (duration_seconds / 3600.0) * self.hourly_rate;
@@ -160,6 +175,9 @@ impl EndpointLifecycle {
 
     /// Check whether the accrued cost exceeds a budget limit.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// pre:  budget_limit >= 0.0
+    /// post: returns true if cost_accrued > budget_limit
     pub fn is_over_budget(&self, budget_limit: f64) -> bool {
         self.cost_accrued > budget_limit
     }

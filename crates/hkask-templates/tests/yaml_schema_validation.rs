@@ -31,7 +31,7 @@ struct ManifestHeader {
 }
 
 // [P3] Motivating: Generative Space — validates registry manifests are well-formed
-// [P8] Constraining: Semantic Grounding — required fields present and correctly typed
+//Constraining: Semantic Grounding — required fields present and correctly typed
 // All registry manifests are well-formed YAML with required fields.
 
 #[test]
@@ -117,7 +117,7 @@ fn all_skill_manifests_are_well_formed() {
 }
 
 // [P3] Motivating: Generative Space — validates registry manifests are well-formed
-// [P8] Constraining: Semantic Grounding — required fields present and correctly typed
+//Constraining: Semantic Grounding — required fields present and correctly typed
 #[test]
 fn invalid_yaml_is_rejected() {
     let invalid = "id: 123\nname: []\n"; // name should be string, not array

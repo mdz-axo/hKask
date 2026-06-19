@@ -35,6 +35,10 @@ pub struct McpTool {
 impl McpTool {
     /// Validate tool input arguments against the tool's JSON Schema.
     ///
+    /// pre:  input is a valid JSON Value
+    /// post: returns Ok(()) if input conforms to self.input_schema
+    /// post: returns Err with validation errors if input violates schema
+    /// post: returns Ok(()) if input_schema is empty or not a valid JSON Schema (graceful)
     pub fn validate_input(&self, input: &Value) -> Result<(), Vec<String>> {
         // If schema is empty or not an object, skip validation (graceful degradation)
         if !self.input_schema.is_object()
@@ -106,6 +110,7 @@ pub struct McpRuntime {
 impl McpRuntime {
     /// Create a new MCP runtime.
     ///
+    /// post: returns McpRuntime with empty servers, tool_registry, connections
     pub fn new() -> Self {
         Self {
             servers: Arc::new(RwLock::new(HashMap::new())),

@@ -1,6 +1,8 @@
 //! BackupService — policy layer on top of GitCASPort.
 //! # REQ: P1 (User Sovereignty) — user controls what is tracked.
+//! expect: "My backup data is tracked under my sovereignty control"
 //! # REQ: P4 (Clear Boundaries) — delegates to hexagonal GitCASPort, never raw git.
+//! expect: "Backup operations delegate through OCAP boundaries"
 //!
 //! The backup service adds backup-specific semantics (scoped snapshot/restore,
 //! retention pruning, CNS alerting) on top of the content-addressed git storage
@@ -107,6 +109,9 @@ impl BackupService {
     /// If an encryption passphrase is available via the `HKASK_BACKUP_PASSPHRASE`
     /// env var or OS keychain, encryption is enabled automatically.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  cas must be a valid GitCASPort
+    /// post: returns BackupService with config loaded from disk and encryption key derived if passphrase available
     pub fn new(cas: Arc<dyn GitCASPort>) -> Self {
         let config = crate::config::load_backup_config();
         let encryption_key = Self::derive_key(&config);
@@ -119,6 +124,9 @@ impl BackupService {
 
     /// Create a new backup service with an explicit config (for testing).
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  cas must be a valid GitCASPort; config must be a valid BackupConfig
+    /// post: returns BackupService with explicit config and derived encryption key
     pub fn with_config(cas: Arc<dyn GitCASPort>, config: BackupConfig) -> Self {
         let encryption_key = Self::derive_key(&config);
         Self {
@@ -189,6 +197,9 @@ impl BackupService {
     ///
     /// CNS span: `backup.snapshot` — records artifact_count, repos, duration_ms.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  scope must be a valid BackupScope; artifacts must be non-empty after filtering tracked types
+    /// post: returns SnapshotMetadata with commits, artifact_count, trigger=Manual, and timestamp; Err(NoSnapshots) if no artifacts after filtering; Err(Config) if scope types not tracked
     #[instrument(skip(self, artifacts), fields(artifact_count, repo_count))]
     pub async fn snapshot(
         &self,
@@ -269,6 +280,9 @@ impl BackupService {
     /// Callers are responsible for writing restored data back to the
     /// appropriate store (registry, memory, etc.).
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  target must be a valid CommitHash; scope must be a valid RestoreScope
+    /// post: returns Vec<(ArtifactType, String, Vec<u8>)> of restored artifacts; empty Vec if none match; Err on CAS or deserialization failure
     pub async fn restore(
         &self,
         target: &CommitHash,
@@ -329,6 +343,9 @@ impl BackupService {
     /// Returns snapshots across all tracked repos, filtered by artifact type
     /// and limited by count. Newest first.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  filter.limit defaults to 20 if None
+    /// post: returns Vec<SnapshotMetadata> sorted by timestamp descending, truncated to limit; Err(NoSnapshots) if no snapshots found
     pub async fn list(&self, filter: ListFilter) -> Result<Vec<SnapshotMetadata>, BackupError> {
         let repos: Vec<RepoId> = if let Some(ref at) = filter.artifact_type {
             vec![at.repo_id()]
@@ -369,6 +386,9 @@ impl BackupService {
     /// then monthly beyond. In dry-run mode, reports what WOULD be removed.
     /// In execute mode, rewrites git history to remove pruned commits.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  retention policy must be configured; dry_run=true only reports, dry_run=false executes pruning
+    /// post: returns PruneReport with evaluated count, removed commits, and retained count; empty report if no retention policy configured
     pub async fn prune(&self, dry_run: bool) -> Result<PruneReport, BackupError> {
         let policy = match &self.config.retention {
             Some(p) => p.clone(),
@@ -473,6 +493,9 @@ impl BackupService {
     /// CNS span: `backup.verify` — records total_blobs, corrupt_count per repo.
     /// CNS alert: `backup.integrity_failure` if any repo has corrupt blobs.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  tracked repos must be accessible via CAS
+    /// post: returns Vec<VerificationReport> per repo with total_blobs and corrupt_hashes; empty Vec if no tracked repos
     #[instrument(skip(self), fields(repo_count, total_blobs, corrupt_count))]
     pub async fn verify(
         &self,
@@ -524,12 +547,18 @@ impl BackupService {
 
     /// 6. Get current backup configuration.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  none (always succeeds)
+    /// post: returns reference to current BackupConfig
     pub fn config(&self) -> &BackupConfig {
         &self.config
     }
 
     /// 7. Update backup configuration and persist to disk.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  config must be a valid BackupConfig
+    /// post: config is persisted to disk and self.config is updated; encryption key is re-derived; Err(Config) on save failure
     pub fn update_config(&mut self, config: BackupConfig) -> Result<(), BackupError> {
         self.encryption_key = Self::derive_key(&config);
         crate::config::save_backup_config(&config)
@@ -541,6 +570,9 @@ impl BackupService {
     /// Enable encryption with a passphrase.
     /// Generates a random salt, derives the key, and saves the config.
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  passphrase must be non-empty
+    /// post: encryption is enabled with random salt; config is persisted; encryption_key is derived; Err(Config) on save failure; Err(Encryption) on Argon2 failure
     pub fn enable_encryption(&mut self, passphrase: &str) -> Result<(), BackupError> {
         let mut salt = [0u8; 32];
         rng().fill_bytes(&mut salt);
@@ -566,6 +598,9 @@ impl BackupService {
     /// Run a daily backup snapshot of all tracked artifact types.
     /// Called by the backup scheduler (daemon loop).
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  auto_snapshot must be enabled in config
+    /// post: returns SnapshotMetadata from full snapshot; Err on snapshot failure
     pub async fn run_daily_snapshot(&self) -> Result<SnapshotMetadata, BackupError> {
         info!(target: "cns.backup", "CNS");
         // Snapshot all tracked types. Artifact data is collected by
@@ -581,6 +616,9 @@ impl BackupService {
     /// - `RestoreScope::ByType`: restore all artifacts of one type (registry-level)
     /// - `RestoreScope::ByIds`: restore specific artifacts by ID (file-level)
     ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  target must be a valid CommitHash; scope must be a valid RestoreScope
+    /// post: returns Vec of restored artifacts matching the scope; delegates to restore()
     pub async fn scoped_restore(
         &self,
         target: &CommitHash,

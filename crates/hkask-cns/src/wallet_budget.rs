@@ -42,6 +42,7 @@ pub struct KeyHealth {
 /// delegates balance checks, reservations, and settlements to `WalletManager`.
 ///
 /// # Hard limit
+/// \[DECLARATIVE\] Wallet-backed budgets always have `hard_limit = true`. When the wallet (P4 — Clear Boundaries).
 /// balance is insufficient, operations are rejected — there is no "soft limit"
 /// fallback because rJoules represent real value.
 pub struct WalletBackedBudget {

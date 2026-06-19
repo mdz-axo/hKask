@@ -5,6 +5,9 @@ use hkask_types::sovereignty::DataSovereigntyBoundary;
 
 use crate::commands;
 
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  action is a valid SovereigntyAction variant
+/// post: dispatches to magna_carta verify or sovereignty ops (status, grant, revoke, check)
 pub fn run(action: crate::cli::SovereigntyAction) {
     match action {
         crate::cli::SovereigntyAction::Verify { .. } => commands::magna_carta::run(action),

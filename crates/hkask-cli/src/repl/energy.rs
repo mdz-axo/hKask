@@ -9,6 +9,7 @@
 //! exactly once. No Drop fallback, no release-build gas leaks.
 //!
 //! # REQ: P9-gas-settle — EnergyGuard guarantees settle() is called exactly once
+//! expect: "I can access all hKask functionality through the kask CLI"
 
 use hkask_agents::InferenceLoop;
 use hkask_cns::{CyberneticsLoop, EnergyCost};
@@ -77,6 +78,7 @@ impl EnergyGuard {
     /// Consumes self — compiler-enforced: settle must be called exactly once.
     ///
     /// # REQ: P9-gas-settle — EnergyGuard guarantees settle() is called exactly once
+    /// expect: "I can access all hKask functionality through the kask CLI"
     pub(crate) fn settle(self, actual: u64) {
         let _ = self.rt.block_on(async {
             self.cybernetics_loop

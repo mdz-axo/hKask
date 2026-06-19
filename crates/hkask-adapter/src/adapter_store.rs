@@ -95,7 +95,10 @@ impl std::fmt::Display for Checksum {
 
 /// A trained LoRA adapter — content-addressed, owner-scoped artifact.
 ///
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
 /// [P8] Semantic Grounding — adapter is content-addressed and provenance-chained
+/// pre:  adapter weights pass checksum validation
+/// post: adapter is stored with owner WebID, expertise link, and base model family
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TrainedLoRAAdapter {
     /// Unique identifier
@@ -160,6 +163,8 @@ const ADAPTER_SELECT: &str = "SELECT adapter_id, expertise_name, expertise_domai
 impl AdapterStore {
     /// Run schema migrations — create tables if they don't exist.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// post: trained_adapters table exists
     pub fn migrate(&self) -> Result<(), AdapterStoreError> {
         let conn = self.lock_conn()?;
         conn.execute_batch(
@@ -205,6 +210,9 @@ impl AdapterStore {
 
     /// Store a trained adapter.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// pre:  adapter has a valid expertise, checksum, owner, and storage_path
+    /// post: adapter is persisted to SQLite
     pub fn store(&self, adapter: &TrainedLoRAAdapter) -> Result<(), AdapterStoreError> {
         let conn = self.lock_conn()?;
         let metrics_json =
@@ -246,6 +254,9 @@ impl AdapterStore {
 
     /// Retrieve an adapter by its UUID.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// pre:  id is a valid Uuid
+    /// post: returns Some(TrainedLoRAAdapter) if found, None otherwise
     pub fn get_by_id(&self, id: Uuid) -> Result<Option<TrainedLoRAAdapter>, AdapterStoreError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!("{} WHERE adapter_id = ?1", ADAPTER_SELECT))?;
@@ -287,6 +298,9 @@ impl AdapterStore {
 
     /// List adapters by expertise name.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// pre:  expertise_name is non-empty
+    /// post: returns Vec of adapters matching the expertise name
     pub fn get_by_expertise(
         &self,
         expertise_name: &str,
@@ -330,6 +344,9 @@ impl AdapterStore {
 
     /// List adapters owned by a specific WebID.
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// pre:  owner is a valid WebID
+    /// post: returns Vec of adapters owned by the given WebID
     pub fn list_owner(&self, owner: WebID) -> Result<Vec<TrainedLoRAAdapter>, AdapterStoreError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!("{} WHERE owner_webid = ?1", ADAPTER_SELECT))?;
@@ -372,6 +389,9 @@ impl AdapterStore {
     /// The token is accepted here as documentation of the gate requirement, though actual
     /// token verification happens at the `AdapterPort` boundary (Task 5).
     ///
+    /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
+    /// pre:  adapter exists
+    /// post: adapter row is removed
     pub fn delete(&self, id: Uuid) -> Result<(), AdapterStoreError> {
         let conn = self.lock_conn()?;
         let affected = conn.execute(

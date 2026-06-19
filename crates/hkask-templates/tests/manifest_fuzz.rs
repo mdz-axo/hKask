@@ -9,7 +9,7 @@
 use proptest::prelude::*;
 
 // [P3] Motivating: Generative Space — validates YAML parsing is panic-free
-// [P4] Constraining: Clear Boundaries — arbitrary input must be rejected gracefully
+//Constraining: Clear Boundaries — arbitrary input must be rejected gracefully
 // Arbitrary input to YAML parser never panics.
 
 proptest! {
@@ -25,7 +25,7 @@ proptest! {
     }
 
     // [P3] Motivating: Generative Space — validates YAML parsing is panic-free
-    // [P4] Constraining: Clear Boundaries — arbitrary input must be rejected gracefully
+    //Constraining: Clear Boundaries — arbitrary input must be rejected gracefully
     #[test]
     fn yaml_parser_never_panics_on_arbitrary_strings(
         input in proptest::arbitrary::any::<String>(),

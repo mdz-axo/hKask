@@ -287,6 +287,8 @@ pub(crate) async fn write_notification(
 pub struct StdioTransport {}
 
 impl StdioTransport {
+    /// expect: "The ACP replicant provides IDE agent presence"
+    /// post: returns empty StdioTransport ready for serve()
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {}
@@ -294,6 +296,10 @@ impl StdioTransport {
 
     /// Serve ACP JSON-RPC 2.0 over stdin/stdout.
     ///
+    /// expect: "The ACP replicant provides IDE agent presence"
+    /// pre:  agent is fully built (inference + daemon configured)
+    /// post: reads JSON-RPC requests from stdin, writes responses to stdout
+    /// post: runs until stdin EOF or unrecoverable error
     pub async fn serve(&mut self, agent: Arc<HkaskAcpAgent>) -> Result<(), super::AcpError> {
         let stdin = tokio::io::stdin();
         let mut stdout = tokio::io::stdout();
@@ -302,6 +308,10 @@ impl StdioTransport {
 
     /// Test entry point — serves ACP over arbitrary reader/writer.
     ///
+    /// expect: "The ACP replicant provides IDE agent presence"
+    /// pre:  agent is fully built; reader implements AsyncRead; writer implements AsyncWrite
+    /// post: reads JSON-RPC requests from reader, writes responses to writer
+    /// post: runs until reader EOF or unrecoverable error
     pub async fn serve_with_streams<R: tokio::io::AsyncRead + Unpin>(
         &mut self,
         agent: Arc<HkaskAcpAgent>,

@@ -1,5 +1,6 @@
 //! VerificationService — Magna Carta sovereignty verification.
 //! # REQ: P4 (Clear Boundaries) — verifies P1-P4 are enforced through OCAP gates.
+//! # expect: "Service boundaries enforce OCAP membranes"
 //!
 //! Loads YAML manifests defining assertions against hKask's four Magna Carta
 //! principles (User Sovereignty, Affirmative Consent, Generative Space, Clear
@@ -99,6 +100,9 @@ pub struct VerificationReport {
 pub struct VerificationService;
 
 impl VerificationService {
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  filter if Some must be a valid principle name; manifests must be loadable
+    /// post: returns VerificationReport with principle results, pass/fail/gap/skip counts, and total assertions
     pub fn verify(filter: Option<&str>) -> VerificationReport {
         // P9: CNS span
         tracing::info!(
@@ -120,6 +124,9 @@ impl VerificationService {
         );
         report
     }
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  filter if Some must be a valid principle name
+    /// post: returns serde_json::Value with principles array, totals, and escalation_required flag
     pub fn verify_json(filter: Option<&str>) -> serde_json::Value {
         let report = Self::verify(filter);
         serde_json::json!({

@@ -20,6 +20,9 @@ fn manifests_dir() -> PathBuf {
     cwd.join("registry").join("manifests")
 }
 
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  action is a valid KataAction variant; registry is a valid SqliteRegistry
+/// post: dispatches to list_manifests, show_manifest, or start_kata based on action variant
 pub fn run(action: KataAction, registry: &SqliteRegistry) {
     match action {
         KataAction::List => list_manifests(),
