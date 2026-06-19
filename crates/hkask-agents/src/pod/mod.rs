@@ -60,6 +60,7 @@
 //! ```
 
 mod context;
+mod deployment;
 mod manager;
 mod nu_event;
 mod types;
@@ -83,6 +84,10 @@ use crate::SovereigntyChecker;
 use hkask_mcp::GitCasAdapter;
 
 pub use context::PodContext;
+pub use deployment::{
+    PerPodCnsRuntime, PerPodStorage, PerPodToolBinding, PodDeployError, PodDeployment, PodFactory,
+    PodIndexEntry,
+};
 pub use manager::{PodManager, PodStatus};
 
 pub use hkask_types::template::{TemplateCrate, TemplateFile};

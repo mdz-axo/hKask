@@ -138,6 +138,59 @@ Creation (kask pod create) → Populated → Registered → Activated → Deacti
 
 **If removed:** System becomes a library, not a platform — all infrastructure for agency exists but no agents to inhabit it. P6, P10, P11, P12 violated.
 
+### Pattern D.1 — AgentPod as Solid Pod Isomorphism
+
+**What it is:** The architectural grounding of the agent pod in the five invariants that define a Solid Pod: (1) per-user WebID-grounded identity, (2) self-contained storage, (3) capability-based access control, (4) interoperable data as linked-data triples, (5) the pod IS the deployment unit.
+
+This isomorphism was the original architectural intent, as evidenced by the deployment model's backup design ("Backup as portable archive. Encrypted SQLCipher file. Export from one server, upload to another"). The current `PodManager` implementation chose centralization (in-memory `HashMap<PodID, AgentPod>`, shared `TripleStore` scoped by `owner_webid`) over pod-as-deployment-unit. The migration re-aligns the storage layer with the backup model.
+
+#### The Five Invariants Mapped onto hKask
+
+| # | Solid Invariant | hKask Implementation | Status |
+|---|----------------|---------------------|--------|
+| 1 | WebID-grounded identity | `AgentPod.webid` + `derive_ocap_secret(webid)` (ADR-027) | ✓ Correct |
+| 2 | Self-contained storage (LDP) | `PerPodStorage` with pod-level SQLCipher file at `{data_dir}/pods/{pod_id}.db` | ⚠ Strangler-Fig Phase 1: new types exist alongside shared `TripleStore` |
+| 3 | Capability-based access (WAC/ACP) | `DelegationToken` + `CapabilityChecker` + OCAP dual gate | ✓ Correct |
+| 4 | Interoperable linked-data triples | `Triple` struct with entity/attribute/value/confidence/visibility | ✓ Correct |
+| 5 | Pod IS the deployment unit | `PodDeployment` owns its storage, CNS, and tools directly. `PodFactory` is a stateless constructor. | ⚠ Strangler-Fig Phase 1: coexists with centralized `PodManager` |
+
+#### PodDeployment — The Canonical Type
+
+```rust
+/// A pod IS the deployment unit. No shared state. No service collision surface.
+pub struct PodDeployment {
+    pod_id: PodId,           // WebID is the root of all authority (P1)
+    storage: PerPodStorage,  // Dedicated SQLCipher file — the file IS the pod (P11)
+    cns: PerPodCnsRuntime,   // Variety counters scoped to this pod (P9)
+    tools: PerPodToolBinding,// MCP servers bound to this pod — no cross-pod dispatch (P4)
+}
+```
+
+#### PodFactory — The Canonical Constructor
+
+```rust
+/// PodFactory constructs PodDeployment instances. Stateless — no cache, no pool.
+pub struct PodFactory {
+    template_resolver: Arc<TemplateResolver>,
+    key_material: Arc<KeyMaterial>,
+    server_config: PodServerConfig,
+}
+// One public method: deploy(template_name, persona) -> Result<PodDeployment, PodDeployError>
+```
+
+#### Drift Diagnosis
+
+`PodManager` became a shared service manager instead of a pod lifecycle manager. The `HashMap<PodID, AgentPod>` is a pass-through cache — delete it. `PodFactory` is the replacement. The backup model was accidentally correct; the storage model was wrong. The migration aligns them.
+
+**Full analysis:** [`SOLID_POD_ISOMORPHISM.md`](core/SOLID_POD_ISOMORPHISM.md)  
+**Deployment contract:** [`POD_DEPLOYMENT_CONTRACT.md`](core/POD_DEPLOYMENT_CONTRACT.md)  
+**Migration plan:** [`STRANGLER_FIG_MIGRATION.md`](core/STRANGLER_FIG_MIGRATION.md)
+
+**Crates:** `hkask-agents` (pod, deployment), `hkask-storage`, `hkask-memory`, `hkask-keystore`
+
+**If removed:** The system devolves into a shared multi-tenant service — agents are cache entries, not sovereign deployment units. P6, P11 violated (per-pod boundaries become advisory).
+
+
 ### How They Compose
 
 ```mermaid

@@ -397,6 +397,39 @@ impl CnsRuntime {
         results
     }
 
+    /// Get variety counts across ALL tracked domains, including non-canonical
+    /// namespaces (e.g., per-pod scoped domains). Used by CnsAggregator
+    /// to collect per-pod variety for Curator aggregation.
+    ///
+    /// Unlike `variety()`, this does NOT filter through the canonical
+    /// `CnsSpan` parser — it returns every domain that has been tracked.
+    ///
+    /// expect: "The aggregator can collect variety from all tracked domains" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — raw variety for aggregation
+    /// [P7] Constraining: Evolutionary Architecture — emerged from aggregator needs
+    /// post: returns HashMap of domain string → variety count for all tracked domains
+    #[rs::contract(id = "P9-cns-runtime-raw-variety", principle = "P9")]
+    #[rs::contract(id = "P9-cns-runtime-raw-variety", principle = "P9")]
+    pub async fn raw_variety(&self) -> HashMap<String, u64> {
+        let state = self.state.read().await;
+        let domains: Vec<String> = state
+            .tracker
+            .domains()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        drop(state);
+
+        let mut results = HashMap::new();
+        for domain in &domains {
+            let state = self.state.read().await;
+            let count = state.tracker.variety_for_domain(domain);
+            drop(state);
+            results.insert(domain.clone(), count);
+        }
+        results
+    }
+
     /// Get variety for a specific domain.
     ///
     /// expect: "I can query domain-specific variety counts" [P9]
