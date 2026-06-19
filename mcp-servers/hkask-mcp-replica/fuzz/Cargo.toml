@@ -20,3 +20,4 @@ hkask-test-harness = { path = "../../../crates/hkask-test-harness" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros"] }
+rmcp = { workspace = true, features = ["server", "macros"] }

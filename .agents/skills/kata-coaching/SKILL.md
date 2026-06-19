@@ -92,12 +92,12 @@ Coaching Kata pairs with the **improv** skill for constructive coaching postures
 
 **Activation:** Use `/improv cascade` to compose the recommended sequence for your coaching session.
 
-**CNS span:** `cns.kata.improv.effectiveness` — tracks whether improv modes improve learner automaticity scores vs. baseline coaching.
+**CNS span:** `cns.kata` — tracks whether improv modes improve learner automaticity scores vs. baseline coaching.
 
 ## CNS Integration
 
-- Trace events are emitted under the `hkask.kata` target by the Kata runtime (`crates/hkask-services/src/kata.rs`).
-- The only canonical CNS span that crosses into kata territory is `cns.kata.improv.effectiveness`, emitted by `hkask-improv` when improv modes are active.
+- Trace events are emitted under the `hkask.kata` target by the Kata runtime (`crates/hkask-services-kata/src/lib.rs`).
+- The only canonical CNS span that crosses into kata territory is `cns.kata`, emitted by `hkask-improv` when improv modes are active.
 - Do not reference `cns.prompt.kata.coaching` or counters like `kata.coaching.sessions`; they are not canonical CNS span names.
 
 ## Registry Templates
@@ -106,7 +106,7 @@ This skill's runtime templates live in `registry/templates/kata-coaching/`:
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `coaching-cycle.j2` | FlowDef | 5-question Coaching Kata dialogue flow (orchestrates all five) |
+| `coaching-cycle.j2` | KnowAct | 5-question Coaching Kata dialogue flow (orchestrates all five) |
 | `coaching-q1-target.j2` | WordAct | Question 1: What is the target condition? |
 | `coaching-q2-actual.j2` | WordAct | Question 2: What is the actual condition now? |
 | `coaching-q3-obstacles.j2` | WordAct | Question 3: What obstacles? Which one now? |
@@ -115,7 +115,7 @@ This skill's runtime templates live in `registry/templates/kata-coaching/`:
 
 ## Bundle Manifest
 
-Process manifest: `registry/manifests/coaching-kata.yaml` — 5-question dialogue flow with gas, CNS, and OCAP configuration.
+Process manifest: `registry/manifests/kata-coaching.yaml` — 5-question dialogue flow with gas, CNS, and OCAP configuration.
 
 ## When to Use
 

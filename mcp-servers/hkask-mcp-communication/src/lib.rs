@@ -19,6 +19,8 @@
 
 pub mod types;
 
+use types::*;
+
 // Re-export core communication types for backward compatibility
 pub use hkask_communication::agent_registration;
 pub use hkask_communication::listener;

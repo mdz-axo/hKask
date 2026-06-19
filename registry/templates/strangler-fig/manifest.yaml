@@ -23,7 +23,7 @@ templates:
   - id: strangler-fig/strangler-fig-execute
     path: strangler-fig-execute.j2
     type: KnowAct
-    lexicon_terms: [execute, wire, verify, constrain, migrate]
+    lexicon_terms: [install, route, verify, constrain, transform]
     description: >
       Execute one domain migration step: create new component, wire one consumer
       at a time, verify each consumer, delete old code only after full wiring.

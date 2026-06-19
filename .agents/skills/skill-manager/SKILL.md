@@ -17,7 +17,7 @@ A skill is **complete** when its registry crate exists and is valid. The SKILL.m
 
 **Skill struct** (`hkask-types/src/ports/mod.rs`): `id`, `domain` (TemplateType), `word_act`, `flow_def`, `know_act`, `polarity`, `content_hash`, `visibility` (Private/Public/Shared), `zone` (Private/Public), `namespace`.
 
-**TemplateType** (`hkask-types/src/lexicon.rs`): `WordAct` | `KnowAct` | `FlowDef` only. DDMVSS names (Cognition, Prompt, Process) are spec aliases — **never** use them in .j2 frontmatter.
+**TemplateType** (`crates/hkask-types/src/template_type.rs`): `WordAct` | `KnowAct` | `FlowDef` only. DDMVSS names (Cognition, Prompt, Process) are spec aliases — **never** use them in .j2 frontmatter.
 
 **Visibility**: `Private` | `Public` | `Shared` (in .j2 `[inference]` frontmatter and `Skill.visibility`).
 
@@ -56,7 +56,7 @@ Check registry first (authoritative), then SKILL.md (companion).
 | R5 | template_type is valid | Each `.j2` frontmatter `template_type` in {WordAct, KnowAct, FlowDef} |
 | R6 | Visibility is valid | Each `.j2` frontmatter `visibility` in {Private, Public, Shared} |
 | R7 | Contract valid | Each `.j2` has `contract.input` and `contract.output` with typed fields |
-| R8 | energy_cap in range | Each `.j2` `energy_cap` is an integer in [1024, 16384] |
+| R8 | energy_cap in range | Each `.j2` `energy_cap` is an integer in [2048, 8192] |
 | R9 | .j2 file exists | Each template entry's `path` resolves to an actual `.j2` file |
 | R10 | [inference] frontmatter valid | Each `.j2` starts with `[inference]` block |
 | R11 | vocabulary terms exist | All `lexicon_terms` reference terms in known vocabulary |

@@ -74,8 +74,8 @@ Each experiment moves your knowledge threshold forward. The path won't be straig
 
 ## CNS Integration
 
-- Trace events are emitted under the `hkask.kata` target by the Kata runtime (`crates/hkask-services/src/kata.rs`).
-- The only canonical CNS span that crosses into kata territory is `cns.kata.improv.effectiveness`, emitted by `hkask-improv` when improv modes are active.
+- Trace events are emitted under the `hkask.kata` target by the Kata runtime (`crates/hkask-services-kata/src/lib.rs`).
+- The only canonical CNS span that crosses into kata territory is `cns.kata`, emitted by `hkask-improv` when improv modes are active.
 - Do not reference `cns.prompt.kata.improvement` or counters like `kata.improvement.cycles`; they are not canonical CNS span names.
 
 ## Registry Templates
@@ -84,7 +84,7 @@ This skill's runtime templates live in `registry/templates/kata-improvement/`:
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `improvement-cycle.j2` | FlowDef | 4-step Improvement Kata process (orchestrates all four steps) |
+| `improvement-cycle.j2` | KnowAct | 4-step Improvement Kata process (orchestrates all four steps) |
 | `improvement-step1-direction.j2` | WordAct | Step 1: Understand the direction and challenge |
 | `improvement-step2-current.j2` | WordAct | Step 2: Grasp current condition with facts and data |
 | `improvement-step3-target.j2` | WordAct | Step 3: Establish next target condition with metrics and deadline |
@@ -92,7 +92,7 @@ This skill's runtime templates live in `registry/templates/kata-improvement/`:
 
 ## Bundle Manifest
 
-Process manifest: `registry/manifests/improvement-kata.yaml` — 4-step scientific pattern with gas, CNS, and OCAP configuration.
+Process manifest: `registry/manifests/kata-improvement.yaml` — 4-step scientific pattern with gas, CNS, and OCAP configuration.
 
 ## When to Use
 

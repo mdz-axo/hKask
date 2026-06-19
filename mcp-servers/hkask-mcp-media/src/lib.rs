@@ -54,7 +54,7 @@ pub struct MediaServer {
     pub face_analyzer: Option<Arc<FaceAnalyzer>>,
 }
 
-mod types;
+pub mod types;
 use types::*;
 
 /// Compute normalized Levenshtein similarity between two strings.

@@ -61,53 +61,62 @@ fn fuzz_kanban_deserialize_never_panics() {
     });
 }
 
-/// Full tool dispatch path must never panic under arbitrary deserialized input.
-#[test]
-fn fuzz_kanban_tool_dispatch_never_panics() {
-    check!().with_type::<String>().for_each(|s| {
-        let server = test_server();
+// ── Pattern (a): Tool dispatch — one test per tool (equal coverage) ─────
 
-        // Try board_create
-        if let Ok(req) = serde_json::from_str::<BoardCreateRequest>(s) {
-            let _output = call_tool(server.kanban_board_create(Parameters(req)));
-            return;
+macro_rules! dispatch_test {
+    ($name:ident, $ty:ty, $method:ident) => {
+        #[test]
+        fn $name() {
+            check!().with_type::<String>().for_each(|s| {
+                if let Ok(req) = serde_json::from_str::<$ty>(s) {
+                    let server = test_server();
+                    let _ = call_tool(server.$method(Parameters(req)));
+                }
+            });
         }
-        // Try task_create
-        if let Ok(req) = serde_json::from_str::<TaskCreateRequest>(s) {
-            let _output = call_tool(server.kanban_task_create(Parameters(req)));
-            return;
-        }
-        // Try task_move
-        if let Ok(req) = serde_json::from_str::<TaskMoveRequest>(s) {
-            let _output = call_tool(server.kanban_task_move(Parameters(req)));
-            return;
-        }
-        // Try task_assign
-        if let Ok(req) = serde_json::from_str::<TaskAssignRequest>(s) {
-            let _output = call_tool(server.kanban_task_assign(Parameters(req)));
-            return;
-        }
-        // Try task_verify
-        if let Ok(req) = serde_json::from_str::<TaskVerifyRequest>(s) {
-            let _output = call_tool(server.kanban_task_verify(Parameters(req)));
-            return;
-        }
-        // Try task_list
-        if let Ok(req) = serde_json::from_str::<TaskListRequest>(s) {
-            let _output = call_tool(server.kanban_task_list(Parameters(req)));
-            return;
-        }
-        // Try board_list
-        if let Ok(req) = serde_json::from_str::<BoardListRequest>(s) {
-            let _output = call_tool(server.kanban_board_list(Parameters(req)));
-            return;
-        }
-        // Try contract_propose_expect
-        if let Ok(req) = serde_json::from_str::<ContractProposeExpect>(s) {
-            let _output = call_tool(server.contract_propose_expect(Parameters(req)));
-        }
-    });
+    };
 }
+
+dispatch_test!(
+    fuzz_kanban_dispatch_board_create,
+    BoardCreateRequest,
+    kanban_board_create
+);
+dispatch_test!(
+    fuzz_kanban_dispatch_board_list,
+    BoardListRequest,
+    kanban_board_list
+);
+dispatch_test!(
+    fuzz_kanban_dispatch_task_create,
+    TaskCreateRequest,
+    kanban_task_create
+);
+dispatch_test!(
+    fuzz_kanban_dispatch_task_list,
+    TaskListRequest,
+    kanban_task_list
+);
+dispatch_test!(
+    fuzz_kanban_dispatch_task_move,
+    TaskMoveRequest,
+    kanban_task_move
+);
+dispatch_test!(
+    fuzz_kanban_dispatch_task_assign,
+    TaskAssignRequest,
+    kanban_task_assign
+);
+dispatch_test!(
+    fuzz_kanban_dispatch_task_verify,
+    TaskVerifyRequest,
+    kanban_task_verify
+);
+dispatch_test!(
+    fuzz_kanban_dispatch_contract_propose,
+    ContractProposeExpect,
+    contract_propose_expect
+);
 
 // ── Pattern (b): CNS span contract holds ────────────────────────────────
 
@@ -410,7 +419,11 @@ fn extract_field(val: &serde_json::Value, field: &str) -> String {
 /// Verifies that no operation sequence causes a panic and that final state is consistent.
 #[test]
 fn fuzz_kanban_state_machine_sequence() {
-    check!().with_type::<Vec<KanbanOp>>().for_each(|ops| {
+    check!().with_type::<String>().for_each(|json_str| {
+        let ops: Vec<KanbanOp> = match serde_json::from_str(json_str) {
+            Ok(o) => o,
+            Err(_) => return,
+        };
         if ops.is_empty() || ops.len() > 20 {
             return;
         }
@@ -420,7 +433,7 @@ fn fuzz_kanban_state_machine_sequence() {
         let mut task_ids: Vec<String> = Vec::new();
         let mut task_board_map: Vec<usize> = Vec::new(); // task_idx -> board_idx
 
-        for op in ops.iter() {
+        for op in ops.iter().cloned() {
             match op {
                 KanbanOp::CreateBoard { name } => {
                     if name.is_empty() || name.len() > 128 {
@@ -439,14 +452,14 @@ fn fuzz_kanban_state_machine_sequence() {
                     }
                 }
                 KanbanOp::CreateTask { board_idx, title } => {
-                    if board_ids.is_empty() || *board_idx >= board_ids.len() {
+                    if board_ids.is_empty() || board_idx >= board_ids.len() {
                         continue;
                     }
                     if title.is_empty() || title.len() > 256 {
                         continue;
                     }
                     let req = TaskCreateRequest {
-                        board_id: board_ids[*board_idx].clone(),
+                        board_id: board_ids[board_idx].clone(),
                         title: title.clone(),
                         description: None,
                         criteria: None,
@@ -458,18 +471,18 @@ fn fuzz_kanban_state_machine_sequence() {
                     let tid = extract_field(&val, "task_id");
                     if !tid.is_empty() {
                         task_ids.push(tid);
-                        task_board_map.push(*board_idx);
+                        task_board_map.push(board_idx);
                     }
                 }
                 KanbanOp::MoveTask {
                     task_idx,
                     target_status,
                 } => {
-                    if task_ids.is_empty() || *task_idx >= task_ids.len() {
+                    if task_ids.is_empty() || task_idx >= task_ids.len() {
                         continue;
                     }
                     let req = TaskMoveRequest {
-                        task_id: task_ids[*task_idx].clone(),
+                        task_id: task_ids[task_idx].clone(),
                         target_status: target_status.clone(),
                         capability_token: None,
                     };
@@ -485,11 +498,11 @@ fn fuzz_kanban_state_machine_sequence() {
                         .expect("board_list output must be valid JSON");
                 }
                 KanbanOp::ListTasks { board_idx } => {
-                    if board_ids.is_empty() || *board_idx >= board_ids.len() {
+                    if board_ids.is_empty() || board_idx >= board_ids.len() {
                         continue;
                     }
                     let req = TaskListRequest {
-                        board_id: board_ids[*board_idx].clone(),
+                        board_id: board_ids[board_idx].clone(),
                         status: None,
                         capability_token: None,
                     };

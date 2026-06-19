@@ -100,7 +100,7 @@ Mode switching mid-conversation is supported via the REPL `/improv` command. The
 
 ## CNS Monitoring
 
-The improv skill registers six CNS spans for observability:
+The improv skill monitors 5 derived trace target strings for observability. These are **not** canonical `CnsSpan` enum variants — the CNS registry has no `Improv` variant. The canonical span is `cns.kata` (the only enum variant relevant to improv). These strings are derived trace targets monitored by the improv runtime and surfaced through `cns.kata` instrumentation:
 
 | Span | What it measures |
 |------|-----------------|

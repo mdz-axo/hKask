@@ -52,47 +52,54 @@ fn fuzz_replica_deserialize_never_panics() {
     });
 }
 
-// ── Pattern (a): Tool dispatch never panics ───────────────────────────────
+// ── Pattern (a): Tool dispatch — one test per tool (equal coverage) ─────
 
-/// Full tool dispatch path must never panic under arbitrary deserialized input.
-#[test]
-fn fuzz_replica_tool_dispatch_never_panics() {
-    check!().with_type::<String>().for_each(|s| {
-        let server = test_server();
-
-        // Try replica_build
-        if let Ok(req) = serde_json::from_str::<BuildRequest>(s) {
-            let _output = call_tool(server.replica_build(Parameters(req)));
-            return;
+macro_rules! dispatch_test {
+    ($name:ident, $ty:ty, $method:ident) => {
+        #[test]
+        fn $name() {
+            check!().with_type::<String>().for_each(|s| {
+                if let Ok(req) = serde_json::from_str::<$ty>(s) {
+                    let server = test_server();
+                    let _ = call_tool(server.$method(Parameters(req)));
+                }
+            });
         }
-        // Try replica_compose
-        if let Ok(req) = serde_json::from_str::<ComposeRequest>(s) {
-            let _output = call_tool(server.replica_compose(Parameters(req)));
-            return;
-        }
-        // Try replica_compare
-        if let Ok(req) = serde_json::from_str::<CompareRequest>(s) {
-            let _output = call_tool(server.replica_compare(Parameters(req)));
-            return;
-        }
-        // Try replica_mashup
-        if let Ok(req) = serde_json::from_str::<MashupRequest>(s) {
-            let _output = call_tool(server.replica_mashup(Parameters(req)));
-            return;
-        }
-        // Try replica_registry
-        if let Ok(req) = serde_json::from_str::<RegistryRequest>(s) {
-            let _output = call_tool(server.replica_registry(Parameters(req)));
-            return;
-        }
-        // Try replica_discover
-        if let Ok(req) = serde_json::from_str::<DiscoverRequest>(s) {
-            let _output = call_tool(server.replica_discover(Parameters(req)));
-            return;
-        }
-        // Try replica_cache_work
-        if let Ok(req) = serde_json::from_str::<CacheWorkRequest>(s) {
-            let _output = call_tool(server.replica_cache_work(Parameters(req)));
-        }
-    });
+    };
 }
+
+dispatch_test!(
+    fuzz_replica_dispatch_replica_build,
+    BuildRequest,
+    replica_build
+);
+dispatch_test!(
+    fuzz_replica_dispatch_replica_compose,
+    ComposeRequest,
+    replica_compose
+);
+dispatch_test!(
+    fuzz_replica_dispatch_replica_compare,
+    CompareRequest,
+    replica_compare
+);
+dispatch_test!(
+    fuzz_replica_dispatch_replica_mashup,
+    MashupRequest,
+    replica_mashup
+);
+dispatch_test!(
+    fuzz_replica_dispatch_replica_registry,
+    RegistryRequest,
+    replica_registry
+);
+dispatch_test!(
+    fuzz_replica_dispatch_replica_discover,
+    DiscoverRequest,
+    replica_discover
+);
+dispatch_test!(
+    fuzz_replica_dispatch_replica_cache_work,
+    CacheWorkRequest,
+    replica_cache_work
+);

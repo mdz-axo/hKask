@@ -1,7 +1,7 @@
 mod cache;
 mod db;
 pub mod providers;
-mod rss_types;
+pub mod rss_types;
 pub mod strip_html;
 pub mod types;
 

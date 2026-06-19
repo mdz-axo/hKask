@@ -45,7 +45,7 @@ use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 mod analysis;
 mod portfolio;
 mod providers;
-mod types;
+pub mod types;
 
 use portfolio::PortfolioManager;
 use providers::companies_get;

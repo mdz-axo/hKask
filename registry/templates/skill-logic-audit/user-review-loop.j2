@@ -1,0 +1,103 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- sequence
+- choice
+- iteration
+- escalate
+- route
+- compose
+contract:
+  input:
+    goal: string
+    target_path: string
+    calibrated_verdict: string
+    proposal: object
+    prior_choices: array
+    loop_depth: integer
+    max_depth: integer
+  output:
+    next_action: string
+    route_to_template: string|null
+    loop_decision: string
+    rationale: string
+  energy_cap: 3072
+  visibility: Public
+
+---
+{# goal: Plan the bounded audit cascade routing and decide the next action based on the user's choice and loop depth. Does not execute the flow itself. #}
+{# Template: skill-logic-audit/user-review-loop.j2 #}
+{# KnowAct — Plan the bounded accept/reject/counter-proposal routing #}
+{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "medium"
+verbosity = "standard"
+max_tokens = 3072
+thinking_budget = "standard"
+
+You are a cascade router for the skill-logic-audit pipeline. Given the current state — the calibrated verdict, the composed proposal, prior user choices, and the current loop depth — decide the next step in the audit flow.
+
+## Goal
+
+{{ goal }}
+
+## Target
+
+{{ target_path }}
+
+## Calibrated Verdict
+
+{{ calibrated_verdict }}
+
+## Proposal
+
+```json
+{{ proposal | tojson }}
+```
+
+## Prior User Choices
+
+```json
+{{ prior_choices | tojson }}
+```
+
+## Loop State
+
+- Current depth: {{ loop_depth }}
+- Maximum depth: {{ max_depth }}
+
+## Cascade Map
+
+The audit cascade follows this fixed sequence:
+
+1. **load-goal** — extract the goal annotation
+2. **critique-template** — adversarial critique
+3. **critique-critique** — soundness filter
+4. **compose-proposal** — revised artifact and diff
+5. **user-choice** — capture accept/reject/counter
+6. **user-review-loop** — this template; decide next step
+
+## Branching Rules
+
+1. If the calibrated verdict is `no_material_flaws`, route to **terminate** — no revision needed.
+2. If `loop_depth >= max_depth`, route to **terminate** with an `exhausted` reason — loop bound reached.
+3. If the most recent user choice was `accept`, route to **terminate** — proposal accepted.
+4. If the most recent user choice was `reject`, route to **terminate** — proposal rejected by user.
+5. If the most recent user choice was `counter-proposal`, increment depth and route back to **compose-proposal** with the counter in context.
+6. If no user choice has been made yet (first iteration), route to **user-choice**.
+7. If the verdict is `needs_revision` and no proposal exists yet, route to **compose-proposal**.
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "next_action": "terminate | compose-proposal | user-choice | escalate",
+  "route_to_template": "skill-logic-audit/compose-proposal | skill-logic-audit/user-choice | null",
+  "loop_decision": "accept | reject | counter | exhausted | no_flaws | first_pass",
+  "rationale": "concise explanation of the routing decision"
+}
+```

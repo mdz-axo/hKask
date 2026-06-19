@@ -46,6 +46,12 @@
 //! - `HKASK_AXOLOTL_PATH` — Path to axolotl CLI (for Axolotl host)
 //! - `HKASK_PYTHON_PATH` — Path to python3 interpreter (for Unsloth host)
 
+pub mod adapters;
+pub mod dataset;
+pub mod huggingface;
+pub mod providers;
+pub mod types;
+
 use crate::adapters::{
     AdapterMetrics, AdapterStore, InMemoryAdapterStore, JobStore, LoRAAdapter, SqliteAdapterStore,
 };
@@ -392,9 +398,8 @@ impl TrainingServer {
         }
 
         // Resolve model provenance before submitting — catches gated/invalid models early
-        let resolver = hkask_mcp_training::huggingface::LocalModelResolver;
-        let provenance =
-            hkask_mcp_training::huggingface::ModelResolver::resolve(&resolver, &base_model);
+        let resolver = crate::huggingface::LocalModelResolver;
+        let provenance = crate::huggingface::ModelResolver::resolve(&resolver, &base_model);
         if let Ok(ref p) = provenance {
             tracing::info!(
                 target: "cns.training.provenance.resolved",
@@ -2154,7 +2159,7 @@ impl TrainingServer {
                 .clone()
         };
 
-        let format = hkask_mcp_training::dataset::DatasetFormat::detect(&file_path);
+        let format = crate::dataset::DatasetFormat::detect(&file_path);
 
         match pipeline.ingest(&file_path) {
             Ok(normalized_path) => {

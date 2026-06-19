@@ -65,11 +65,11 @@ The bundle uses `kata-selector.j2` to route agents based on context:
 
 ## CNS Integration
 
-The bundle emits structured tracing events under the `hkask.kata` target. The canonical CNS spans are managed by the Kata runtime (`crates/hkask-services/src/kata.rs`) and by the improv module (`crates/hkask-improv/src/cns.rs`) when improv is active:
+The bundle emits structured tracing events under the `hkask.kata` target. The canonical CNS spans are managed by the Kata runtime (`crates/hkask-services-kata/src/lib.rs`) and by the improv module (`crates/hkask-improv/src/kata.rs`) when improv is active:
 
 | Span | Source | Meaning |
 |------|--------|---------|
-| `cns.kata.improv.effectiveness` | `hkask-improv` | Automaticity score delta when improv modes are active vs. baseline |
+| `cns.kata` | `hkask-improv` | Automaticity score delta when improv modes are active vs. baseline |
 
 Variety and outcome counters are derived from the `hkask.kata` trace events; they are not separate canonical CNS span names. Do not invent span namespaces like `cns.prompt.kata` or `kata.practices.completed` — the runtime does not emit them.
 

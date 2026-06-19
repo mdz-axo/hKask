@@ -77,82 +77,89 @@ fn fuzz_memory_deserialize_never_panics() {
     });
 }
 
-// ── Pattern (a): Tool dispatch never panics ───────────────────────────────
+// ── Pattern (a): Tool dispatch — one test per tool (equal coverage) ─────
 
-/// Full tool dispatch path must never panic under arbitrary deserialized input.
-#[test]
-fn fuzz_memory_tool_dispatch_never_panics() {
-    check!().with_type::<String>().for_each(|s| {
-        let server = test_memory_server();
-
-        // Try episodic_store
-        if let Ok(req) = serde_json::from_str::<StoreRequest>(s) {
-            let _output = call_tool(server.episodic_store(Parameters(req)));
-            return;
+macro_rules! dispatch_test {
+    ($name:ident, $ty:ty, $method:ident) => {
+        #[test]
+        fn $name() {
+            check!().with_type::<String>().for_each(|s| {
+                if let Ok(req) = serde_json::from_str::<$ty>(s) {
+                    let server = test_memory_server();
+                    let _ = call_tool(server.$method(Parameters(req)));
+                }
+            });
         }
-        // Try episodic_recall
-        if let Ok(req) = serde_json::from_str::<RecallRequest>(s) {
-            let _output = call_tool(server.episodic_recall(Parameters(req)));
-            return;
-        }
-        // Try episodic_budget
-        if let Ok(req) = serde_json::from_str::<BudgetRequest>(s) {
-            let _output = call_tool(server.episodic_budget(Parameters(req)));
-            return;
-        }
-        // Try episodic_consolidate_status
-        if let Ok(req) = serde_json::from_str::<ConsolidateStatusRequest>(s) {
-            let _output = call_tool(server.episodic_consolidate_status(Parameters(req)));
-            return;
-        }
-        // Try semantic_store
-        if let Ok(req) = serde_json::from_str::<StoreRequest>(s) {
-            let _output = call_tool(server.semantic_store(Parameters(req)));
-            return;
-        }
-        // Try semantic_recall
-        if let Ok(req) = serde_json::from_str::<RecallRequest>(s) {
-            let _output = call_tool(server.semantic_recall(Parameters(req)));
-            return;
-        }
-        // Try semantic_embed
-        if let Ok(req) = serde_json::from_str::<EmbedRequest>(s) {
-            let _output = call_tool(server.semantic_embed(Parameters(req)));
-            return;
-        }
-        // Try semantic_search
-        if let Ok(req) = serde_json::from_str::<SearchRequest>(s) {
-            let _output = call_tool(server.semantic_search(Parameters(req)));
-            return;
-        }
-        // Try semantic_centroid
-        if let Ok(req) = serde_json::from_str::<CentroidRequest>(s) {
-            let _output = call_tool(server.semantic_centroid(Parameters(req)));
-            return;
-        }
-        // Try semantic_purge
-        if let Ok(req) = serde_json::from_str::<PurgeRequest>(s) {
-            let _output = call_tool(server.semantic_purge(Parameters(req)));
-            return;
-        }
-        // Try semantic_chunk
-        if let Ok(req) = serde_json::from_str::<ChunkTextRequest>(s) {
-            let _output = call_tool(server.semantic_chunk(Parameters(req)));
-            return;
-        }
-        // Try semantic_count
-        if let Ok(req) = serde_json::from_str::<CountRequest>(s) {
-            let _output = call_tool(server.semantic_count(Parameters(req)));
-            return;
-        }
-        // Try memory_backup
-        if let Ok(req) = serde_json::from_str::<BackupRequest>(s) {
-            let _output = call_tool(server.memory_backup(Parameters(req)));
-            return;
-        }
-        // Try memory_restore
-        if let Ok(req) = serde_json::from_str::<RestoreRequest>(s) {
-            let _output = call_tool(server.memory_restore(Parameters(req)));
-        }
-    });
+    };
 }
+
+dispatch_test!(
+    fuzz_memory_dispatch_episodic_store,
+    StoreRequest,
+    episodic_store
+);
+dispatch_test!(
+    fuzz_memory_dispatch_episodic_recall,
+    RecallRequest,
+    episodic_recall
+);
+dispatch_test!(
+    fuzz_memory_dispatch_episodic_budget,
+    BudgetRequest,
+    episodic_budget
+);
+dispatch_test!(
+    fuzz_memory_dispatch_episodic_consolidate_status,
+    ConsolidateStatusRequest,
+    episodic_consolidate_status
+);
+dispatch_test!(
+    fuzz_memory_dispatch_semantic_store,
+    StoreRequest,
+    semantic_store
+);
+dispatch_test!(
+    fuzz_memory_dispatch_semantic_recall,
+    RecallRequest,
+    semantic_recall
+);
+dispatch_test!(
+    fuzz_memory_dispatch_semantic_embed,
+    EmbedRequest,
+    semantic_embed
+);
+dispatch_test!(
+    fuzz_memory_dispatch_semantic_search,
+    SearchRequest,
+    semantic_search
+);
+dispatch_test!(
+    fuzz_memory_dispatch_semantic_centroid,
+    CentroidRequest,
+    semantic_centroid
+);
+dispatch_test!(
+    fuzz_memory_dispatch_semantic_purge,
+    PurgeRequest,
+    semantic_purge
+);
+dispatch_test!(
+    fuzz_memory_dispatch_semantic_chunk,
+    ChunkTextRequest,
+    semantic_chunk
+);
+dispatch_test!(
+    fuzz_memory_dispatch_semantic_count,
+    CountRequest,
+    semantic_count
+);
+dispatch_test!(
+    fuzz_memory_dispatch_memory_backup,
+    BackupRequest,
+    memory_backup
+);
+dispatch_test!(
+    fuzz_memory_dispatch_memory_restore,
+    RestoreRequest,
+    memory_restore
+);

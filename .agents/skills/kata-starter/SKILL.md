@@ -87,7 +87,7 @@ Starter Kata pairs with the **improv** skill for constructive coaching postures:
 
 **Activation:** Use `/improv cascade` to compose the recommended sequence for your kata session.
 
-**CNS span:** `cns.kata.improv.effectiveness` — tracks automaticity score delta when improv is active vs. baseline.
+**CNS span:** `cns.kata` — tracks automaticity score delta when improv is active vs. baseline.
 
 ## Registry Templates
 
@@ -103,7 +103,7 @@ This skill's runtime templates live in `registry/templates/kata-starter/`:
 
 ## Bundle Manifest
 
-Process manifest: `registry/manifests/starter-kata.yaml` — 3-step practice flow (select routine → execute → record).
+Process manifest: `registry/manifests/kata-starter.yaml` — 3-step practice flow (select routine → execute → record).
 
 ## Anti-Patterns
 

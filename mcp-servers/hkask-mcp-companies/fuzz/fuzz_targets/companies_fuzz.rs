@@ -70,125 +70,154 @@ fn fuzz_companies_deserialize_never_panics() {
     });
 }
 
-// ── Pattern (a): Tool dispatch never panics ───────────────────────────────
+// ── Pattern (a): Tool dispatch — one test per tool (equal coverage) ─────
 
-/// Full tool dispatch path must never panic under arbitrary deserialized input.
+macro_rules! dispatch_test {
+    ($name:ident, $ty:ty, $method:ident) => {
+        #[test]
+        fn $name() {
+            check!().with_type::<String>().for_each(|s| {
+                if let Ok(req) = serde_json::from_str::<$ty>(s) {
+                    let server = test_server();
+                    let _ = call_tool(server.$method(Parameters(req)));
+                }
+            });
+        }
+    };
+}
+
+dispatch_test!(
+    fuzz_companies_dispatch_company_profile,
+    SymbolRequest,
+    company_profile
+);
+dispatch_test!(
+    fuzz_companies_dispatch_stock_quote,
+    SymbolRequest,
+    stock_quote
+);
+dispatch_test!(
+    fuzz_companies_dispatch_income_statement,
+    SymbolLimitRequest,
+    income_statement
+);
+dispatch_test!(
+    fuzz_companies_dispatch_balance_sheet,
+    SymbolLimitRequest,
+    balance_sheet
+);
+dispatch_test!(
+    fuzz_companies_dispatch_cash_flow_statement,
+    SymbolLimitRequest,
+    cash_flow_statement
+);
+dispatch_test!(
+    fuzz_companies_dispatch_key_metrics,
+    SymbolLimitRequest,
+    key_metrics
+);
+dispatch_test!(
+    fuzz_companies_dispatch_historical_price,
+    HistoricalRequest,
+    historical_price
+);
+dispatch_test!(
+    fuzz_companies_dispatch_symbol_search,
+    SearchRequest,
+    symbol_search
+);
+dispatch_test!(
+    fuzz_companies_dispatch_moat_check,
+    SymbolRequest,
+    moat_check
+);
+dispatch_test!(
+    fuzz_companies_dispatch_management_scorecard,
+    SymbolRequest,
+    management_scorecard
+);
+dispatch_test!(
+    fuzz_companies_dispatch_working_capital_cycle,
+    SymbolLimitRequest,
+    working_capital_cycle
+);
+dispatch_test!(
+    fuzz_companies_dispatch_expectations_gap,
+    ExpectationsGapRequest,
+    expectations_gap
+);
+dispatch_test!(
+    fuzz_companies_dispatch_portfolio_delete,
+    PortfolioNameRequest,
+    portfolio_delete
+);
+dispatch_test!(
+    fuzz_companies_dispatch_ledger_import,
+    LedgerImportRequest,
+    ledger_import
+);
+dispatch_test!(
+    fuzz_companies_dispatch_ledger_export,
+    LedgerExportRequest,
+    ledger_export
+);
+dispatch_test!(
+    fuzz_companies_dispatch_transaction_note_append,
+    TransactionNoteRequest,
+    transaction_note_append
+);
+dispatch_test!(
+    fuzz_companies_dispatch_portfolio_comparison,
+    PortfolioCompareRequest,
+    portfolio_comparison
+);
+dispatch_test!(
+    fuzz_companies_dispatch_portfolio_returns,
+    PortfolioReturnsRequest,
+    portfolio_returns
+);
+dispatch_test!(fuzz_companies_dispatch_note_add, NoteAddRequest, note_add);
+dispatch_test!(
+    fuzz_companies_dispatch_note_list,
+    NoteListRequest,
+    note_list
+);
+dispatch_test!(
+    fuzz_companies_dispatch_note_delete,
+    NoteDeleteRequest,
+    note_delete
+);
+dispatch_test!(
+    fuzz_companies_dispatch_file_attach,
+    FileAttachRequest,
+    file_attach
+);
+dispatch_test!(
+    fuzz_companies_dispatch_file_list,
+    FileListRequest,
+    file_list
+);
+dispatch_test!(
+    fuzz_companies_dispatch_file_delete,
+    FileDeleteRequest,
+    file_delete
+);
+dispatch_test!(
+    fuzz_companies_dispatch_portfolio_attribution,
+    AttributionRequest,
+    portfolio_attribution
+);
+dispatch_test!(
+    fuzz_companies_dispatch_portfolio_characteristics,
+    CharacteristicsRequest,
+    portfolio_characteristics
+);
+
+/// portfolio_list takes no parameters — always dispatchable.
 #[test]
-fn fuzz_companies_tool_dispatch_never_panics() {
-    check!().with_type::<String>().for_each(|s| {
+fn fuzz_companies_dispatch_portfolio_list() {
+    check!().with_type::<String>().for_each(|_s| {
         let server = test_server();
-
-        // Try company_profile
-        if let Ok(req) = serde_json::from_str::<SymbolRequest>(s) {
-            let _output = call_tool(server.company_profile(Parameters(req)));
-            return;
-        }
-        // Try income_statement
-        if let Ok(req) = serde_json::from_str::<SymbolLimitRequest>(s) {
-            let _output = call_tool(server.income_statement(Parameters(req)));
-            return;
-        }
-        // Try historical_price
-        if let Ok(req) = serde_json::from_str::<HistoricalRequest>(s) {
-            let _output = call_tool(server.historical_price(Parameters(req)));
-            return;
-        }
-        // Try symbol_search
-        if let Ok(req) = serde_json::from_str::<SearchRequest>(s) {
-            let _output = call_tool(server.symbol_search(Parameters(req)));
-            return;
-        }
-        // Try moat_check
-        if let Ok(req) = serde_json::from_str::<SymbolRequest>(s) {
-            let _output = call_tool(server.moat_check(Parameters(req)));
-            return;
-        }
-        // Try management_scorecard
-        if let Ok(req) = serde_json::from_str::<SymbolRequest>(s) {
-            let _output = call_tool(server.management_scorecard(Parameters(req)));
-            return;
-        }
-        // Try working_capital_cycle
-        if let Ok(req) = serde_json::from_str::<SymbolLimitRequest>(s) {
-            let _output = call_tool(server.working_capital_cycle(Parameters(req)));
-            return;
-        }
-        // Try expectations_gap
-        if let Ok(req) = serde_json::from_str::<ExpectationsGapRequest>(s) {
-            let _output = call_tool(server.expectations_gap(Parameters(req)));
-            return;
-        }
-        // Try portfolio_delete
-        if let Ok(req) = serde_json::from_str::<PortfolioNameRequest>(s) {
-            let _output = call_tool(server.portfolio_delete(Parameters(req)));
-            return;
-        }
-        // Try ledger_import
-        if let Ok(req) = serde_json::from_str::<LedgerImportRequest>(s) {
-            let _output = call_tool(server.ledger_import(Parameters(req)));
-            return;
-        }
-        // Try ledger_export
-        if let Ok(req) = serde_json::from_str::<LedgerExportRequest>(s) {
-            let _output = call_tool(server.ledger_export(Parameters(req)));
-            return;
-        }
-        // Try transaction_note_append
-        if let Ok(req) = serde_json::from_str::<TransactionNoteRequest>(s) {
-            let _output = call_tool(server.transaction_note_append(Parameters(req)));
-            return;
-        }
-        // Try portfolio_comparison
-        if let Ok(req) = serde_json::from_str::<PortfolioCompareRequest>(s) {
-            let _output = call_tool(server.portfolio_comparison(Parameters(req)));
-            return;
-        }
-        // Try portfolio_returns
-        if let Ok(req) = serde_json::from_str::<PortfolioReturnsRequest>(s) {
-            let _output = call_tool(server.portfolio_returns(Parameters(req)));
-            return;
-        }
-        // Try note_add
-        if let Ok(req) = serde_json::from_str::<NoteAddRequest>(s) {
-            let _output = call_tool(server.note_add(Parameters(req)));
-            return;
-        }
-        // Try note_list
-        if let Ok(req) = serde_json::from_str::<NoteListRequest>(s) {
-            let _output = call_tool(server.note_list(Parameters(req)));
-            return;
-        }
-        // Try note_delete
-        if let Ok(req) = serde_json::from_str::<NoteDeleteRequest>(s) {
-            let _output = call_tool(server.note_delete(Parameters(req)));
-            return;
-        }
-        // Try file_attach
-        if let Ok(req) = serde_json::from_str::<FileAttachRequest>(s) {
-            let _output = call_tool(server.file_attach(Parameters(req)));
-            return;
-        }
-        // Try file_list
-        if let Ok(req) = serde_json::from_str::<FileListRequest>(s) {
-            let _output = call_tool(server.file_list(Parameters(req)));
-            return;
-        }
-        // Try file_delete
-        if let Ok(req) = serde_json::from_str::<FileDeleteRequest>(s) {
-            let _output = call_tool(server.file_delete(Parameters(req)));
-            return;
-        }
-        // Try portfolio_attribution
-        if let Ok(req) = serde_json::from_str::<AttributionRequest>(s) {
-            let _output = call_tool(server.portfolio_attribution(Parameters(req)));
-            return;
-        }
-        // Try portfolio_characteristics
-        if let Ok(req) = serde_json::from_str::<CharacteristicsRequest>(s) {
-            let _output = call_tool(server.portfolio_characteristics(Parameters(req)));
-            return;
-        }
-        // portfolio_list takes no parameters — always dispatchable fallback
-        let _output = call_tool(server.portfolio_list());
+        let _ = call_tool(server.portfolio_list());
     });
 }

@@ -187,7 +187,7 @@ In **advisory mode**, the report also includes:
 
 ## hKask Runtime Integration
 
-When running within hKask, use the `essentialist/essentialist-flow` FlowDef template, which orchestrates:
+When running within hKask, use the `essentialist/essentialist-flow` KnowAct template, which orchestrates:
 - Iteration over `[G1, G2, G3]` gates
 - Delegation to `deep-module/deep-module-delete` (G1), `deep-module/deep-module-assess` (G2), `coding-guidelines/guidelines-verify` (G3)
 - `choice` on pass/fail with gate-specific branching
