@@ -43,7 +43,7 @@ mds_categories: [lifecycle, curation]
 - Approves new ADRs for structural correctness
 
 ### Documentation Steward
-- Maintains `DOCUMENTATION_STANDARDS.md`, `MDS_SCAFFOLD.md`, `WRITING_EXCELLENCE.md`
+- Maintains `DOCUMENTATION_STANDARDS.md`, `WRITING_EXCELLENCE.md`, `MDS.md` (documentation structure §9)
 - Runs document corpus hygiene sweeps (per release or when corpus grows >10%)
 - Owns the `corpus_inventory.yaml` regeneration process
 - Owns the `docs/archive/MANIFEST.md`
@@ -84,7 +84,7 @@ Every formal document (with YAML frontmatter) MUST carry `version` matching the 
 
 ### Exceptions
 
-- Documents tracking their own semantic version (e.g., `MDS_SCAFFOLD.md` at 2.5.0, `test-inventory.md` at 2.4.0) diverge intentionally. Document the divergence in `corpus_inventory.yaml` notes.
+- Documents tracking their own semantic version diverge intentionally. Document the divergence in `corpus_inventory.yaml` notes.
 - Auto-generated files (`docs/generated/cli-reference.md`) inherit workspace version automatically.
 - Handoffs and audit documents have no frontmatter (exempt).
 

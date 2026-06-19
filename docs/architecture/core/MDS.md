@@ -440,7 +440,46 @@ coherence_metric:
 
 ---
 
-## 9. References
+## 9. Documentation Structure
+
+> **Incorporated from:** `docs/specifications/specs/MDS_SCAFFOLD.md`
+
+### 9.1 Category → Directory Mapping
+
+Where each MDS category's authoritative documents live:
+
+| # | MDS Category | Primary Directory | Key Documents |
+|---|--------------|-------------------|---------------|
+| 1 | **Domain** | `architecture/` | MDS.md, FUNCTIONAL_SPECIFICATION.md |
+| 2 | **Composition** | `architecture/` | MDS.md, loop-architecture.md |
+| 3 | **Trust** | `architecture/` | magna-carta.md, PRINCIPLES.md |
+| 4 | **Lifecycle** | `architecture/` + `plans/` | MDS.md, deployment-and-backup.md |
+| 5 | **Curation** | `architecture/` + `specifications/` | WRITING_EXCELLENCE.md, DOCUMENTATION_STANDARDS.md |
+
+**Rule:** New documents go in the directory of their primary MDS category. Cross-cutting documents go in the directory of their dominant category.
+
+### 9.2 Document Lifecycle
+
+```
+Draft → Active → Deprecated → Superseded → Removed
+```
+
+| State | Rule |
+|-------|------|
+| **Active** | Must map to ≥1 MDS category via `mds_categories` frontmatter |
+| **Deprecated** | Move to `docs/archive/YYYY-MM-DD-<label>/` |
+| **Superseded** | Move to archive; successor must reference it |
+| **Removed** | `git rm` from working tree; git history is archive of record |
+
+### 9.3 Verification
+
+```bash
+bash docs/ci/check-links.sh    # Zero broken cross-references
+```
+
+---
+
+## 10. References
 
 [^w3c-rdf]: W3C. (2014). *RDF 1.1 Concepts and Abstract Syntax*. <https://www.w3.org/TR/rdf11-concepts/>.
 [^miller-robust]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University.
@@ -450,4 +489,4 @@ coherence_metric:
 
 ---
 
-*MDS v0.28.0 — supersedes previous MDS. Five categories, five tools, one predicate.*
+*MDS v0.28.0 — five categories, five tools, one predicate. Includes documentation structure (absorbed from MDS_SCAFFOLD.md).*

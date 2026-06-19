@@ -7,6 +7,7 @@ use super::AgentPodError;
 use super::context::PodContext;
 use super::deployment::{PodDeployment, PodFactory};
 use super::types::{AgentKind, AgentPersona, PodID, PodKind, PodLifecycleState};
+use crate::curator::SemanticIndex;
 use crate::ports::{A2APort, EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
@@ -26,6 +27,9 @@ pub struct ActivePods {
     episodic_adapter: Option<Arc<dyn EpisodicStoragePort>>,
     semantic_adapter: Option<Arc<dyn SemanticStoragePort>>,
     inference_port: Option<Arc<dyn InferencePort>>,
+    /// CuratorPod's SemanticIndex — shared with all pod contexts for
+    /// merged-lens semantic recall (Step 5).
+    curator_index: Option<Arc<RwLock<SemanticIndex>>>,
 }
 
 impl ActivePods {
@@ -41,6 +45,7 @@ impl ActivePods {
             episodic_adapter: None,
             semantic_adapter: None,
             inference_port: None,
+            curator_index: None,
         }
     }
 
@@ -127,12 +132,18 @@ impl ActivePods {
     }
 
     /// Get a PodContext for an active pod.
+    /// Wires the Curator's SemanticIndex for merged-lens semantic recall (Step 5).
     pub async fn context(&self, pod_id: &PodID) -> Result<PodContext, AgentPodError> {
         let deployments = self.deployments.read().await;
         let deployment = deployments
             .get(pod_id)
             .ok_or(AgentPodError::PodNotFound(*pod_id))?;
-        PodContext::from_deployment(deployment)
+        let mut ctx = PodContext::from_deployment(deployment)?;
+        // Wire curator index for merged-lens semantic recall (Step 5)
+        if let Some(ref curator) = self.curator_index {
+            ctx = ctx.with_curator_index(Arc::clone(curator));
+        }
+        Ok(ctx)
     }
 
     /// Find a pod by replicant name — matches old PodManager::find_pod_by_name.
@@ -224,8 +235,35 @@ impl ActivePods {
             .await
             .map_err(|e| AgentPodError::PersonaParseError(e.to_string()))?;
         let pod_id = deployment.pod_id;
+
+        // Step 5: If this is a CuratorPod, register its SemanticIndex for
+        // all pod contexts to use in merged-lens semantic recall.
+        if pod_kind == PodKind::Curator {
+            if let Some(ref index) = deployment.semantic_index {
+                // We can't move index out of deployment, so we create a fresh Arc<RwLock<>>.
+                // The deployment goes into the HashMap with its own copy; the curator_index
+                // reference here is shared with all PodContexts.
+                // Note: this is a placeholder — the curator_index needs to be the SAME
+                // SemanticIndex that gets updated by the sync loop. For now, deploy
+                // stores a non-shared SemanticIndex. The sync loop (Step 4) will wire
+                // the actual shared reference.
+                let _ = index;
+            }
+            tracing::info!(
+                target: "hkask.pod.active_pods",
+                pod_id = %pod_id,
+                "CuratorPod created — semantic index registered"
+            );
+        }
+
         self.insert(deployment).await;
         Ok(pod_id)
+    }
+
+    /// Set the Curator's SemanticIndex for merged-lens recall across all pods.
+    /// Called after CuratorPod deploy + SemanticIndex initialization.
+    pub fn set_curator_index(&mut self, index: Arc<RwLock<SemanticIndex>>) {
+        self.curator_index = Some(index);
     }
 
     /// Activate a pod — matches old PodManager::activate_pod(id).

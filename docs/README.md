@@ -103,7 +103,7 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 
 | Document | MDS | Description |
 |----------|-----|-------------|
-| [`MDS_SCAFFOLD.md`](specifications/specs/MDS_SCAFFOLD.md) | all | Category → directory mapping; lifecycle enforcement |
+| [`MDS.md`](architecture/core/MDS.md) | all | MDS specification framework + documentation structure (§9) |
 | [`REQUIREMENTS.md`](specifications/specs/REQUIREMENTS.md) | all | Implemented requirements as goal specs |
 | [`REPL-specification.md`](specifications/specs/REPL-specification.md) | domain, composition, lifecycle | REPL specification — `kask chat` |
 | [`MDS-agent-service.md`](specifications/specs/MDS-agent-service.md) | domain, composition, trust, lifecycle | AgentService specification |

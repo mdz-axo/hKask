@@ -95,6 +95,7 @@ pub struct PerPodStorage {
 /// PerPodCnsRuntime is a CNS runtime scoped to a single pod.
 ///
 ///Constraining: Digital Public/Private Sphere — CNS isolation
+#[derive(Clone)]
 pub struct PerPodCnsRuntime {
     /// The pod this CNS runtime is scoped to
     pod_id: PodID,

@@ -21,9 +21,10 @@ use hkask_types::{
 use std::sync::Arc;
 
 use super::AgentPodError;
-use super::deployment::PodDeployment;
+use super::deployment::{PerPodCnsRuntime, PodDeployment};
 use super::types::PodID;
 use crate::SovereigntyChecker;
+use crate::curator::SemanticIndex;
 use crate::ports::{
     EpisodicStoragePort, MCPRuntimePort, RecallRequest, RecalledEpisode, RecalledSemantic,
     SemanticStoragePort, StorageRequest,
@@ -58,6 +59,12 @@ pub struct PodContext {
     /// manager was constructed without sovereignty wiring; in that case
     /// `require_sovereignty` denies by default.
     sovereignty_checker: Option<Arc<SovereigntyChecker>>,
+    /// Per-pod CNS runtime — used to emit `cns.semantic.published` events
+    /// on semantic writes. Cloned from PodDeployment (CnsRuntime is Arc-wrapped).
+    cns: PerPodCnsRuntime,
+    /// CuratorPod's SemanticIndex — available on non-Curator pods for
+    /// merged-lens semantic recall. `None` if no CuratorPod is active.
+    curator_index: Option<Arc<tokio::sync::RwLock<SemanticIndex>>>,
 }
 
 impl PodContext {
@@ -77,7 +84,16 @@ impl PodContext {
             governed_tool: deployment.tools.governed_tool.clone(),
             capability_checker: deployment.capability_checker.clone(),
             sovereignty_checker: Some(Arc::new(deployment.sovereignty_checker.clone())),
+            cns: deployment.cns.clone(),
+            curator_index: None,
         })
+    }
+
+    /// Wire this context to a CuratorPod's SemanticIndex for merged-lens
+    /// semantic recall. Called by ActivePods when a CuratorPod is active.
+    pub fn with_curator_index(mut self, index: Arc<tokio::sync::RwLock<SemanticIndex>>) -> Self {
+        self.curator_index = Some(index);
+        self
     }
 
     fn require_capability(
@@ -267,6 +283,9 @@ impl PodContext {
     ///
     /// OCAP: Agents with consolidation capability can store semantic triples.
     /// Semantic triples have no perspective (consolidated from episodic).
+    ///
+    /// On success, fires `cns.semantic.published` to trigger the Curator's
+    /// sense loop — this is the push-then-pull lazy sync protocol.
     pub fn store_semantic(
         &self,
         entity: &str,
@@ -282,14 +301,33 @@ impl PodContext {
         self.require_sovereignty(&DataCategory::SemanticMemory, &self.webid)?;
         let request =
             StorageRequest::semantic(entity, attribute, value, confidence.into(), self.webid);
-        self.semantic_storage
+        let result = self
+            .semantic_storage
             .store_semantic(request, &self.capability_token)
-            .map_err(AgentPodError::from)
+            .map_err(AgentPodError::from)?;
+
+        // Step 3: Emit CNS event to trigger Curator sense loop.
+        // increment_variety parses "cns.semantic.published" as CnsSpan::SemanticPublished,
+        // then notifies CnsObserver subscribers whose interest mask includes this namespace.
+        // The semantic state (entity name) is passed as the state_name for variety tracking.
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.block_on(
+                self.cns
+                    .inner()
+                    .increment_variety("cns.semantic.published", entity),
+            );
+        }
+
+        Ok(result)
     }
 
     /// Recall semantic triples (shared, deduplicated knowledge).
     ///
     /// OCAP: Any agent with a valid capability token can read semantic triples.
+    ///
+    /// Step 5: When a CuratorPod is wired, routes through the Curator's
+    /// SemanticIndex for a merged-lens view across all pods. Falls back
+    /// to local semantic storage if no Curator is available.
     pub fn recall_semantic(&self, query: &str) -> Result<Vec<RecalledSemantic>, AgentPodError> {
         self.require_capability(
             DelegationResource::Registry,
@@ -297,6 +335,27 @@ impl PodContext {
             DelegationAction::Read,
         )?;
         self.require_sovereignty(&DataCategory::SemanticMemory, &self.webid)?;
+
+        // Route through Curator's merged index when available (Step 5)
+        if let Some(ref index_lock) = self.curator_index {
+            let handle = tokio::runtime::Handle::try_current()
+                .map_err(|_| AgentPodError::InferenceUnavailable("No tokio runtime".to_string()))?;
+            let index = handle.block_on(index_lock.read());
+            let triples = index
+                .query_by_entity(query)
+                .map_err(|e| AgentPodError::MemoryError(e.to_string()))?;
+            return Ok(triples
+                .into_iter()
+                .map(|t| RecalledSemantic {
+                    entity: t.entity,
+                    attribute: t.attribute,
+                    value: t.value,
+                    confidence: t.confidence,
+                })
+                .collect());
+        }
+
+        // Fallback: local semantic store
         let request = RecallRequest::semantic(query, self.capability_token.clone());
         self.semantic_storage
             .recall_semantic(&request)

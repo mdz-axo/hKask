@@ -101,7 +101,7 @@ Stale handoffs follow the same procedure as superseded ones: remove from working
 ## 5. Relationship to Other Lifecycle Policies
 
 - **`DOCUMENTATION_STANDARDS.md`** governs formal documents with frontmatter. Handoffs skip frontmatter — they are transient, not formal docs.
-- **`MDS_SCAFFOLD.md`** governs document placement. Handoffs live only in `docs/handoffs/`.
+- **`MDS.md` §9** governs document placement. Handoffs live only in `docs/handoffs/`.
 - **`docs/archive/MANIFEST.md`** records retired non-handoff documents. Git commit history tracks handoff archival.
 - **`docs/plans/`** holds forward-looking work. Rewrite handoffs that drift into planning as plan documents.
 

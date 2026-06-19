@@ -2,297 +2,184 @@
 name: document-update
 visibility: public
 description: >
-  Systematic documentation corpus maintenance workflow. Activates when user says
-  "update docs", "documentation sweep", "align specs", "fix metadata", or "audit
-  documentation". Wraps the hkask-mcp-spec server's 5-tool surface into a 7-task
-  document-specific workflow: inventory classification, metadata alignment,
-  writing quality gate, cross-corpus coherence, spec-code drift resolution,
-  archive/consolidation, and portal refresh. Follows deep-module discipline
-  (Ousterhout): ≤7 public operations, each doing one thing well. The deletion
-  test: if you delete this skill, does the complexity of document updates
-  reappear scattered across agent prompts? If yes, the skill earns its existence.
+  Document consolidation and maintenance. Activates when user says "update docs",
+  "consolidate docs", "documentation sweep", or "audit documentation". Primary
+  goal: sweep information into core documents and archive the originals, reducing
+  corpus size and eliminating redundancy. Works with plain files and shell tools
+  — no running hKask instance required.
 ---
 
 # Document Update Skill
 
-You are a documentation corpus maintainer. Your job is to execute a systematic
-7-task documentation sweep using the hKask documentation infrastructure:
-`hkask-mcp-spec` (5-tool surface), `hkask-mcp-replica` (style tools), condenser
-(persistence), and CI verification scripts.
+You are a documentation consolidator. Your job is to reduce document sprawl by
+merging information into core documents and archiving the originals. You work
+with the file system, grep, and sed — no MCP server needed.
+
+**Core principle:** Information belongs in the fewest authoritative documents
+possible. Every document that isn't a consolidation target must justify its
+existence by the deletion test: if you delete it, does unique information
+disappear? If yes, merge that information into its parent target, then delete.
 
 ## When to Activate
 
-Activate this skill when the user says any of:
-- "update docs"
-- "documentation sweep"
-- "align specs"
-- "fix metadata"
-- "audit documentation"
-- "refresh portal"
-- "check cross-references"
+- "update docs" / "documentation sweep" / "consolidate docs"
+- "audit documentation" / "fix docs"
+- Any task involving the document corpus
 
-## The 7-Task Workflow
+## The 5-Phase Workflow
 
-Execute tasks sequentially. Each task has defined Input, Action, Output,
-Infrastructure, and Verification. Do not skip verification.
+### Phase 0 — Audit & Map
 
-### Task 1 — Corpus Inventory & Lifecycle Classification
+**Goal:** Understand what exists and what should absorb what.
 
-**Input:** `docs/` directory tree, `docs/specifications/specs/MDS_SCAFFOLD.md` §3
-lifecycle policy.
+Walk `docs/` (excluding `archive/` and `generated/`). For each document, note:
+- Line count (thin docs are consolidation candidates)
+- Whether it's a consolidation target (see below) or a child
+- Whether it contains unique information or just rephrases its parent
 
-**Action:** Walk every `.md` file in `docs/architecture/`, `docs/specifications/`,
-`docs/status/`, `docs/plans/`, `docs/user-guides/`. For each document, extract
-the YAML frontmatter metadata block. Classify each document's lifecycle state
-against the MDS_SCAFFOLD state machine (`Draft → Active → Deprecated →
-Superseded → Removed`). Flag documents where:
-- `status` field is stale (claims "Active" but `last_updated` predates a
-  structural change)
-- `mds_categories` is missing or references the deprecated 9-category DDMVSS
-  taxonomy instead of the current 5-category MDS taxonomy
-  (`[domain, composition, trust, lifecycle, curation]`)
-- Document content references removed/superseded subsystems (violating
-  `AGENTS.md` §2.4)
+**Consolidation targets** (these absorb related docs — never delete these):
+| Target | Absorbs |
+|--------|---------|
+| `docs/architecture/hKask-architecture-master.md` | Architecture patterns, kata-kanban, loop-architecture, energy architecture, PUBLIC_SURFACE |
+| `docs/architecture/core/PRINCIPLES.md` | P12-replicant-host-mandate (if wholly contained) |
+| `docs/architecture/core/MDS.md` | MDS_SCAFFOLD (if MDS.md already covers directory/lifecycle) |
+| `docs/architecture/core/TESTING_DISCIPLINE.md` | Testing methodology docs |
+| `docs/architecture/core/FUNCTIONAL_SPECIFICATION.md` | CNS-domain-spec, CNS memory verb contracts |
+| `docs/specifications/standards/DOCUMENTATION_STANDARDS.md` | DOCUMENT_OWNERSHIP, template-header-standard |
+| `docs/plans/deployment-and-backup.md` | DEPLOYMENT guide, admin-install-guide |
 
-**Output:** `docs/status/corpus_inventory.yaml` mapping
-`path → {status, mds_categories, last_updated, lifecycle_action}` where
-`lifecycle_action ∈ {keep, deprecate, supersede, remove, fix_metadata}`.
+**Verification:** `find docs/ -name '*.md' -not -path '*/archive/*' -not -path '*/generated/*' | wc -l` — know the starting count. Target: reduce by at least 20%.
 
-**Infrastructure:** Use `spec_graph_query` with `query: "lifecycle"` and
-`depth: 2` to discover cross-reference chains. Use `spec_goal_capture` with
-`context: "lifecycle"` to register each lifecycle transition as a governed goal.
+### Phase 1 — Identify Candidates
 
-**Verification:** Manual review against `DOCUMENTATION_STANDARDS.md` §2 metadata requirements.
+**Goal:** Flag documents that should be merged.
 
-### Task 2 — Metadata Header Alignment
+For each non-target document, ask:
+1. **Does it contain information not present in its target?** → Extract unique content
+2. **Is it a stub/redirect?** → Delete immediately (don't archive)
+3. **Is it a historical status report?** → Archive, don't merge
+4. **Does it overlap with another non-target?** → Merge them together, then merge into target
+5. **Is it a standalone guide/spec with no overlap?** → Keep
 
-**Input:** `corpus_inventory.yaml` from Task 1,
-`docs/specifications/standards/DOCUMENTATION_STANDARDS.md` §2 (6-field metadata header),
-§11.1 (mds_categories extension).
+Output a merge plan as a simple list:
+```
+MERGE: kata-kanban-integration.md → hKask-architecture-master.md (unique: kata-kanban pattern)
+MERGE: loop-architecture.md → hKask-architecture-master.md (unique: four-loop decomposition, rate-limiting subsumption)
+MERGE: energy-gas-payments-api-keys.md → hKask-architecture-master.md (unique: energy budget model)
+MERGE: energy_accounting_hardening_audit.md → hKask-architecture-master.md (unique: tamper-evidence audit)
+ARCHIVE: cargo-bolero-qa-plan.md (historical plan, not active architecture)
+```
 
-**Action:** For every document flagged with metadata violations, apply surgical
-edits to the YAML frontmatter. Specifically:
-- (a) Ensure `mds_categories` uses the 5-category MDS taxonomy
-  (`[domain, composition, trust, lifecycle, curation]`), not the deprecated
-  9-category DDMVSS taxonomy
-- (b) Update `last_updated` to the date of the edit
-- (c) Set `status` to the correct lifecycle state
-- (d) Ensure `version` matches the project version (`0.27.0`) for framework
-  documents
-Do not touch document body content — this task is metadata-only, following the
-surgical-change principle (Karpathy).
+**Verification:** Every non-target document has a disposition: MERGE, ARCHIVE, or KEEP. No document is left unclassified.
 
-**Output:** Updated frontmatter on all flagged documents.
-`corpus_inventory.yaml` updated with `metadata_aligned: true` flags.
+### Phase 2 — Extract & Merge
 
-**Infrastructure:** The `spec_require_writing_quality` tool's Gentle dimension
-(agent-correctness) provides the verification lens: would an agent consuming
-only the metadata header route correctly to the right document?
+**Goal:** Move unique information into target documents without losing anything.
 
-**Verification:** All active documents have correct frontmatter per `DOCUMENTATION_STANDARDS.md` §2.
-`grep -r "ddmvss_categories" docs/` returns zero matches (all migrated to
-`mds_categories`).
+For each MERGE candidate:
+1. Read the child document fully
+2. Read the target document to find the right insertion point
+3. Identify information in the child that does NOT appear in the target
+4. Add that information to the target as a new section or subsection
+5. Preserve code references, diagrams, and citations from the child
+6. If information conflicts (child says X, target says Y), flag for manual resolution — do not silently pick one
 
-### Task 3 — Writing Quality Gate
+**Rules for merging:**
+- Add a `> **Incorporated from:** <child-path>` attribution at the start of merged sections
+- Keep section structure: each merged doc becomes a `##` or `###` section in the target
+- Don't duplicate: if the target already covers a topic adequately, skip it
+- Mermaid diagrams from the child should be moved to the target
+- Code references (`crates/hkask-*/src/...`) must be verified against actual file paths
 
-**Input:** All specification documents in `docs/specifications/` and
-`docs/architecture/`. Also consult `docs/specifications/standards/WRITING_EXCELLENCE.md`.
+**Verification:** After merging, the target document contains all unique information from the child. The child can be deleted without information loss.
 
-**Action:** For each specification document, invoke
-`spec_require_writing_quality` via the `hkask-mcp-spec` server. The server
-assesses 4 dimensions (Hopper/Lovelace/Schriver/Gentle) per
-`WRITING_EXCELLENCE.md` §3. Documents scoring below 3/4 are flagged for
-revision. For each flagged document, apply the structural discipline from
-`WRITING_EXCELLENCE.md` §2.3: every section must follow
-Statement→Evidence→Diagram→Implications. Add missing citations per §2.4
-(architecture docs: ≥1 external source per `##` section; specifications: ≥1
-external source or code-path verification). Split sentences exceeding 35 words
-(§2.2). Replace passive voice with active (§2.2).
+### Phase 3 — Archive
 
-For embedding-based dimension scoring, invoke
-`spec_require_writing_quality` with `replica_persona: "gentle-lovelace"`,
-`db_path`, and `db_passphrase`. The server now performs the embedding
-comparison internally — it embeds the spec content, queries the Gentle
-Lovelace dimension centroids, and returns per-dimension cosine distances
-with qualitative labels ("strong" ≤0.2, "aligned" ≤0.4, "divergent" >0.4).
+**Goal:** Remove merged documents and update cross-references.
 
-The response includes `weakest_dimension` (the dimension with the highest
-cosine distance) and a pre-built `rewrite_prompt` that can be passed
-directly to `spec_replica_rewrite`.
+For each merged document:
+1. `git rm` the child document (or move to `docs/archive/` if preserving history)
+2. Find all cross-references to the child across the corpus:
+   ```bash
+   grep -rl "child-filename" docs/ --include="*.md" | grep -v archive
+   ```
+3. Update each reference to point to the target document and section
+4. Run `bash docs/ci/check-links.sh` to verify no broken links
 
-**Rewrite flow:** When `rewrite_prompt` is present, invoke
-`spec_replica_rewrite` with `dimension: <weakest_dimension>` and
-`passage: <rewrite_prompt>`. The tool retrieves exemplar passages from
-the target dimension's centroid and generates improved prose. Re-run
-`spec_require_writing_quality` to verify the cosine distance improved.
+**For stubs and redirects:** Delete immediately — don't waste time archiving a 6-line file that says "see other doc."
 
-**Output:** `docs/status/writing_quality_report.yaml` with per-document scores
-and revision actions taken. All specification documents at ≥3/4 heuristic AND
-composite cosine distance ≤0.4 from the Gentle Lovelace composite centroid.
+**Verification:** `bash docs/ci/check-links.sh` passes with zero broken links. `grep -r "deleted-filename" docs/ --include="*.md"` returns zero matches outside archive/ and historical TODO/status files.
 
-**Infrastructure:** `spec_require_writing_quality` (hkask-mcp-spec) handles
-both heuristic assessment and embedding-based comparison in a single call.
-`spec_replica_rewrite` (hkask-mcp-spec) handles dimension-targeted rewriting.
-No separate `replica_compare` call is needed — the spec server owns the full
-writing-quality pipeline.
+### Phase 4 — Portal Refresh
 
-**Verification:** Re-run `spec_require_writing_quality` on each revised
-document; all return `meets_publication_standard: true`.
+**Goal:** Update navigation indexes to reflect the new corpus.
 
-### Task 4 — Cross-Corpus Coherence Validation
+1. Update `docs/README.md`:
+   - Remove entries for archived/deleted docs
+   - Update entries for merged docs (new paths/sections)
+   - Update the active document count in the footer
+2. Update `docs/architecture/hKask-architecture-master.md`:
+   - Remove archived references from the document tree
+   - Update the total document count
+3. Update `docs/DIAGRAMS_INDEX.md` if diagram references changed
 
-**Input:** Full document corpus (all active `.md` files).
+**Verification:** Starting from `docs/README.md`, every listed document exists. `find docs/ -name '*.md' -not -path '*/archive/*' -not -path '*/generated/*' | wc -l` shows the reduced count.
 
-**Action:** Invoke `spec_graph_coherence` on the corpus. The server computes
-Jaccard similarity of declared vs. registered verbs across all specs, flags
-category gaps, and identifies incomplete specs. For each violation and
-suggestion in the response, apply the corresponding fix:
-- (a) Missing categories → ensure at least one document anchors each of the 5
-  MDS categories
-- (b) Incomplete specs → add missing criteria per the category-specific
-  requirements in `DOCUMENTATION_STANDARDS.md` §11.3
-- (c) Cross-reference violations → verify every `cross_references` entry in
-  MDS template manifests resolves to an existing document
+## Consolidation Targets (Definitive)
 
-**Output:** `docs/status/coherence_report.yaml` with `coherence_score ≥ 0.7`
-(the MDS threshold), zero category gaps, and all cross-references resolved.
+These 7 documents are the "sinks" — they absorb related content:
 
-**Infrastructure:** Use `spec_graph_query` with `query: "cross-reference"` and
-`depth: 3` to trace reference chains and detect dangling links. The condenser's
-`condenser_persist` tool records each coherence fix as an episodic memory
-triple `(document, has_coherence_fix, action)` for future audit.
+| # | Target | Role |
+|---|--------|------|
+| 1 | `hKask-architecture-master.md` | Authoritative architecture index — absorbs all architecture pattern docs |
+| 2 | `PRINCIPLES.md` | P1-P12 with elaboration — absorbs related mandates |
+| 3 | `MDS.md` | MDS specification framework — absorbs MDS_SCAFFOLD |
+| 4 | `TESTING_DISCIPLINE.md` | All testing methodology — single source of truth |
+| 5 | `FUNCTIONAL_SPECIFICATION.md` | AgentService functional spec — absorbs CNS domain specs |
+| 6 | `DOCUMENTATION_STANDARDS.md` | All documentation policies — absorbs ownership, template standards |
+| 7 | `deployment-and-backup.md` | All deployment architecture — absorbs deployment guides |
 
-**Verification:** Re-run `spec_graph_coherence`; `coherence_score ≥ 0.7` and
-`violations` array is empty.
+Documents NOT in this list are consolidation candidates unless they are:
+- Standalone specifications (wallet-spec, REPL-spec, salience-spec, etc.)
+- User guides (these serve a different audience)
+- ADRs (immutable decision records)
+- Status reports (historical snapshots — archive, don't merge)
 
-### Task 5 — Spec-Code Drift Resolution
+## utoipa / API Documentation
 
-**Input:** `corpus_inventory.yaml` entries whose `status` or `code_reality` field
-indicates a divergence between a spec document and the implemented code.
+API documentation is auto-generated from code:
+- `docs/generated/openapi.json` — OpenAPI 3.1 spec (generated by utoipa from `#[derive(ToSchema)]` annotations)
+- `docs/generated/cli-reference.md` — CLI reference (generated from clap annotations)
 
-**Action:** For each divergence with an accepted resolution path, apply the
-fix to either code or spec. This is a surgical task — touch only the files
-named in the divergence's `spec_reference` and `code_reality` fields.
-- For `spec_ahead` items: the spec describes something code doesn't have yet —
-  add minimal stubs with `FocusingAssumption` annotations
-- For `code_ahead` items: code has evolved past the spec skeleton — update spec
-  to reflect actual method names and types
-- For `divergent` items: naming or structural mismatch — apply the type-alias
-  or spec-update resolution
-Follow the Graydon Hoare pattern: each type exists because it models a domain
-truth, not because the spec mentioned it. If a stub earns its existence only by
-satisfying a drift item, mark it with
-`// REQ: DRIFT-<id> — existence justified by spec-code alignment, deletion test pending`.
+The `docs/architecture/reference/utoipa-implementation.md` document describes *how* utoipa is wired into hKask. It should be a brief section in the architecture master, not a standalone document. The actual API reference is the generated OpenAPI spec and `cargo doc` output.
 
-**Output:** All drift items resolved. `corpus_inventory.yaml` updated with
-`status: resolved` and `resolved_at` timestamps. Zero remaining `spec_ahead`,
-`code_ahead`, or `divergent` items.
+Do not manually maintain API documentation that can be generated from code. When the code changes, regenerate — don't update prose.
 
-**Infrastructure:** Use `cargo check -p hkask-types -p hkask-templates -p
-hkask-storage -p hkask-agents` to verify stub additions compile. Use
-`cargo test -p hkask-storage` to verify SpecStore method name alignment doesn't
-break tests.
+## User Guide Adequacy
 
-### Task 6 — Archive & Consolidation
+When auditing user guides, check:
+1. **Coverage:** Does every `kask` subcommand have a guide section? (check `kask --help` output)
+2. **Accuracy:** Do the commands shown actually work? (test them)
+3. **Completeness:** Does the guide cover error recovery, not just happy path?
+4. **Freshness:** Is `last_updated` within the last 30 days, and does the content match current CLI behavior?
 
-**Input:** `corpus_inventory.yaml` from Task 1 (documents flagged `deprecate`,
-`supersede`, `remove`).
-
-**Action:** For each document flagged `deprecate` or `supersede`: move to
-`docs/archive/YYYY-MM-DD-<label>/` where `<label>` is the document's title
-slug. The `docs/archive/` directory is gitignored per
-`DOCUMENTATION_STANDARDS.md` §3 — git history is the archive of record. For
-documents flagged `remove`: `git rm` from the active tree. Update all
-cross-references in remaining active documents to point to the replacement
-document (for superseded) or remove the reference (for removed). No active-tree
-document may contain `formerly`, `previously known as`, or
-backward-compatibility annotations — git history serves this purpose.
-
-**Output:** Clean active tree with zero deprecated/superseded/removed
-documents. `docs/archive/` populated with date-stamped snapshots. Zero broken
-cross-references.
-
-**Infrastructure:** Use `spec_graph_query` with
-`query: "<removed-document-path>"` to discover all inbound cross-references
-before deletion. The condenser's `condenser_thread_summary` can generate a
-one-paragraph archival note for each removed document, persisted via
-`condenser_persist` as `(document, was_archived, reason)`.
-
-**Verification:** `bash docs/ci/check-links.sh` passes with zero broken links.
-`grep -r "formerly\|previously known as\|backward.compatible" docs/ --include="*.md"`
-returns zero matches.
-
-### Task 7 — Portal & Index Refresh
-
-**Input:** Updated corpus from Tasks 1-6.
-
-**Action:** Update `docs/README.md` (the Documentation Portal) to reflect the
-current corpus:
-- (a) Verify every document listed in the portal tables exists at its stated
-  path
-- (b) Add entries for any active documents not currently listed
-- (c) Remove entries for archived/removed documents
-- (d) Update the MDS category tags on each entry to match the document's actual
-  `mds_categories` frontmatter
-- (e) Update `docs/DIAGRAMS_INDEX.md` to reflect any diagram changes from
-  Tasks 3-5
-Update `docs/architecture/hKask-architecture-master.md` (the architecture
-index) to point to current authoritative documents.
-
-**Output:** Portal and index documents accurately reflect the active corpus.
-Every document reachable from the portal in ≤2 clicks (Schriver findability:
-30-second rule).
-
-**Infrastructure:** Use `spec_graph_query` with `query: "portal"` and
-`depth: 1` to verify the portal's link graph is complete. The
-`spec_goal_capture` tool registers the portal refresh as a governed goal with
-OCAP boundary `"portal:write requires CuratorId authority"`.
-
-**Verification:** Manual walk: starting from `docs/README.md`, every document
-in the active tree is reachable. `bash docs/ci/check-links.sh` passes.
-
-## Deep-Module Discipline (Ousterhout)
-
-This skill's public interface is exactly 7 operations (the 7 tasks above). Each
-task does one thing well:
-1. `inventory` — classify lifecycle states
-2. `align-metadata` — fix frontmatter headers
-3. `quality-gate` — assess and improve writing quality
-4. `coherence` — validate cross-corpus consistency
-5. `drift-resolve` — align spec with code
-6. `archive` — remove deprecated documents
-7. `refresh-portal` — update navigation indexes
-
-**The deletion test:** If you delete this skill, does the complexity of
-document updates reappear scattered across agent prompts? Yes — each task
-requires knowledge of `MDS_SCAFFOLD.md`, `DOCUMENTATION_STANDARDS.md`,
-`WRITING_EXCELLENCE.md`, `corpus_inventory.yaml`, CI scripts, and the spec server
-tool surface. Without this skill, an agent must rediscover these dependencies
-on every documentation edit. The skill earns its existence.
-
-## Registry Templates
-
-This skill's runtime templates live in `registry/templates/document-update/`:
-
-| Template | Type | Purpose |
-|----------|------|--------|
-| `doc-inventory.j2` | KnowAct | Walk corpus, extract frontmatter, classify lifecycle |
-| `doc-align-metadata.j2` | KnowAct | Apply surgical metadata fixes to flagged documents |
-| `doc-quality-gate.j2` | KnowAct | Invoke writing-quality assessment, apply revisions |
-| `doc-coherence.j2` | KnowAct | Validate cross-corpus coherence, fix violations |
-| `doc-drift-resolve.j2` | KnowAct | Resolve spec-code drift items per curation decisions |
-| `doc-archive.j2` | KnowAct | Move deprecated documents to archive, fix cross-references |
-| `doc-refresh-portal.j2` | KnowAct | Update portal and index to reflect current corpus |
-
-The SKILL.md (this file) teaches the Zed coding agent the document-update
-methodology. The `.j2` templates are executable process steps the hKask
-runtime invokes during `kask chat` sessions.
+Guides that fail these checks should be flagged for revision — not silently kept.
 
 ## Anti-Patterns
 
-1. Editing document body content during metadata-only tasks (Task 2)
-2. Adding "formerly" or "previously known as" annotations (violates
-   DOCUMENTATION_STANDARDS.md §3)
-3. Creating archive indexes or migration guides (git history is the archive)
-4. Skipping verification — every task has a verification command; run it
-5. Touching files outside the task's scope (surgical changes only)
+1. Adding frontmatter to documents instead of consolidating them — metadata alignment is not consolidation
+2. Creating new "overview" or "index" documents instead of merging into existing targets
+3. Using MCP server tools (`spec_graph_query`, etc.) when grep and file reads suffice
+4. Archiving without merging unique content first — information loss
+5. Merging documents that serve different audiences (e.g., don't merge a user guide into an architecture spec)
+6. Keeping stubs and redirects — delete them immediately
+7. Adding "formerly" or "previously known as" annotations — git history is the archive
+
+## Success Criteria
+
+A documentation sweep is successful when:
+- Active document count is ≤40 (from current ~60)
+- Zero stubs or redirect documents exist
+- `bash docs/ci/check-links.sh` passes with zero broken links
+- Every consolidation target has absorbed its children's unique content
+- No information was lost (verify by diffing pre-merge child against post-merge target section)

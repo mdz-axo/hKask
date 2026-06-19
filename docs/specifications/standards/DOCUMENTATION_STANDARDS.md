@@ -43,7 +43,7 @@ is the operational quality standard that governs publication decisions.
 
 The metadata, diagram, citation, and writing excellence conventions below implement these biases. Violations block publication.
 
-**Role:** This document is the verification gate. It confirms that documentation is correct and complete. [`MDS_SCAFFOLD.md`](../specs/MDS_SCAFFOLD.md) governs what to create and where to put it.
+**Role:** This document is the verification gate. It confirms that documentation is correct and complete. [`MDS.md`](../../architecture/core/MDS.md) §9 governs the documentation structure — what to create and where to put it.
 
 ---
 
@@ -74,7 +74,7 @@ Conventions:
 | Last-Updated | ISO 8601 date on every content-bearing edit[^iso8601]. |
 | Status | Exactly one of the four values. `Deprecated` and `Superseded` documents are removed from the active tree (`git rm`) at the next review; git history is the canonical archive of record. A local `docs/archive/` snapshot may be kept on a maintainer's disk for personal reference but is gitignored. |
 | Audience | Named roles; avoid "everyone." |
-| MDS Categories | One or more of the 5 MDS categories defined in [`../architecture/MDS.md`](../../architecture/core/MDS.md) §1: `domain`, `composition`, `trust`, `lifecycle`, `curation`. See [`MDS_SCAFFOLD.md`](../specs/MDS_SCAFFOLD.md) for category → directory mapping. Documents that spanned the deprecated 9-category DDMVSS taxonomy have been migrated; the old categories map as: `capability`→`trust`, `interface`→`composition`, `observability`→`lifecycle`, `persistence`→`lifecycle`. |
+| MDS Categories | One or more of the 5 MDS categories defined in [`../architecture/MDS.md`](../../architecture/core/MDS.md) §1: `domain`, `composition`, `trust`, `lifecycle`, `curation`. See [`MDS.md`](../../architecture/core/MDS.md) §9.1 for category → directory mapping. Documents that spanned the deprecated 9-category DDMVSS taxonomy have been migrated; the old categories map as: `capability`→`trust`, `interface`→`composition`, `observability`→`lifecycle`, `persistence`→`lifecycle`. |
 | Domain | Optional for cross-cutting documents; mandatory for domain-specific documents. |
 
 ## 3. Lifecycle

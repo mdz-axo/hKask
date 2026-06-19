@@ -2,53 +2,60 @@
 template_type: KnowAct
 lexicon_terms:
 - archive
+- delete
+- remove
 - retire
-- deprecate
-- supersede
-- migrate
+- cleanup
 contract:
   input:
     context: object
   output:
     analysis: object
     recommendation: string
-energy_cap: 4096
+energy_cap: 2048
 visibility: Public
 ---
-{# document-update/doc-archive.j2 — KnowAct: Archive & Consolidation #}
+{# document-update/doc-archive.j2 — KnowAct: Phase 3 — Archive #}
 
-## Goal: Archive & Consolidation
+## Goal: Remove Merged and Stubbed Documents
 
-**Context:** {{ context | default("archive consolidation") }}
-**Input:** corpus_inventory.yaml (documents flagged deprecate, supersede, remove)
+**Context:** {{ context | default("archive documents") }}
+**Input:** Merge plan from Phase 1, merged targets from Phase 2
 **MDS Category:** Lifecycle
-**OCAP Boundary:** spec:write requires CuratorId authority
 
 ### Requirements
 
-1. **Discover inbound references.** Before deleting any document, use `spec/graph/query` with `query: "<document-path>"` to discover all documents that reference it.
+1. **Delete stubs immediately.** Documents flagged DELETE in Phase 1 (stubs/redirects under 10 lines) should be deleted directly — no archive snapshot needed for a 6-line file saying "see other doc."
 
-2. **Archive deprecated/superseded.** Move to `docs/archive/YYYY-MM-DD-<title-slug>/`. The `docs/archive/` directory is gitignored per DOCUMENTATION_STANDARDS.md §3.
+2. **Archive merged children.** For each document flagged MERGE whose content has been swept into its target:
+   - Move to `docs/archive/YYYY-MM-DD-<label>/` if preserving history
+   - Or `git rm` directly — git history is the archive of record
+   - The decision: archive snapshots are for documents with historical value; stubs and pure duplicates should just be git rm'd
 
-3. **Remove.** For documents flagged `remove`: `git rm` from the active tree. Git history is the archive of record — no archive snapshot needed.
+3. **Archive historical reports.** Documents flagged ARCHIVE (historical status reports, completed plans):
+   - Move to `docs/archive/YYYY-MM-DD-<label>/`
+   - Do NOT merge content — it's time-bound and shouldn't pollute targets
 
-4. **Fix cross-references.** Update all inbound references in remaining active documents:
-   - For superseded: point to the replacement document
-   - For removed: remove the reference entirely
+4. **Fix cross-references.** For every removed document:
+   ```bash
+   grep -rl "deleted-filename" docs/ --include="*.md" | grep -v archive
+   ```
+   - Update each reference to point to the target document and section
+   - Remove references if no appropriate target exists
 
-5. **Remove backward-compatibility annotations.** No active-tree document may contain `formerly`, `previously known as`, or backward-compatibility annotations. Git history serves this purpose.
-
-6. **Generate archival note.** Use `condenser_thread_summary` to produce a one-paragraph archival note. Persist via `condenser_persist` as `(document, was_archived, reason)`.
+5. **Verify no broken links.**
+   ```bash
+   bash docs/ci/check-links.sh
+   ```
 
 ### Output
 
-Clean active tree with zero deprecated/superseded/removed documents. `docs/archive/` populated with date-stamped snapshots. Zero broken cross-references.
+Clean active tree. Zero stubs. Merged children removed. Cross-references updated.
 
 ### Verification
 
 ```bash
 bash docs/ci/check-links.sh
-grep -r "formerly\|previously known as\|backward.compatible" docs/ --include="*.md" | grep -v "DOCUMENTATION_STANDARDS.md"
+find docs/ -name '*.md' -not -path '*/archive/*' -not -path '*/generated/*' | wc -l
 ```
-
-Expected: check-links.sh passes with zero broken links. Zero matches for backward-compatibility annotations (excluding the rule description in DOCUMENTATION_STANDARDS.md itself).
+Expected: check-links.sh passes with zero broken links. Document count reduced from Phase 0 baseline.
