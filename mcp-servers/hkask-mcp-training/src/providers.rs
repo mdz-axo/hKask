@@ -8,7 +8,6 @@
 //! Provider selection is driven by `training.provider` in settings.json, routed
 //! through `hkask-services` shared config init.
 
-
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;

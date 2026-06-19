@@ -206,7 +206,44 @@ docker logs conduit  # or: podman logs conduit
 
 ---
 
-## 8. Backup & Recovery
+## 8. QA & Testing
+
+Run automated QA on every change:
+
+```bash
+# Property-based fuzzing (fast, runs on every CI push)
+cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz \
+           -p hkask-wallet-fuzz -p hkask-storage-fuzz -p hkask-templates-fuzz \
+           -p hkask-memory-fuzz -p hkask-services-core-fuzz -p hkask-improv-fuzz
+
+# Coverage-guided fuzzing (nightly, finds edge cases)
+cargo +nightly bolero test -p hkask-types-fuzz fuzz_cns_span_parse_never_panics -T 60s -e libfuzzer
+
+# Mutation testing (measures test suite quality)
+cargo mutants -p hkask-types --timeout 120
+
+# Triage bolero failures with LLM classifier
+export DEEPINFRA_API_KEY="your-key"
+cargo test -p hkask-types-fuzz 2>&1 | kask qa triage
+
+# Suggest fuzz targets from surviving mutants
+export DEEPINFRA_API_KEY="your-key"
+cargo mutants -p hkask-types --timeout 120 2>&1 | grep "Uncaught" | kask qa suggest-fuzz
+```
+
+### Interpreting QA Output
+
+| Command | Output | Action |
+|---------|--------|--------|
+| `kask qa triage` | "No bolero failures detected" | System is healthy |
+| `kask qa triage` | "HIGH confidence: ..." | Check for auto-repair PR |
+| `kask qa triage` | "LOW confidence: ..." | Open investigation issue |
+| `kask qa suggest-fuzz` | "→ [suggestion]" | Consider adding suggested fuzz target |
+| `cargo mutants` | "Uncaught mutants in ..." | Test gap — add test or fuzz target |
+
+---
+
+## 9. Backup & Recovery
 
 ### Back Up These Files
 
@@ -224,7 +261,7 @@ docker logs conduit  # or: podman logs conduit
 
 ---
 
-## 9. Shutdown
+## 10. Shutdown
 
 ```bash
 # Stop daemon

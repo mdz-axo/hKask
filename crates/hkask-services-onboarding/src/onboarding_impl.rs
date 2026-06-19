@@ -2,7 +2,6 @@
 //! # REQ: P1 (User Sovereignty) — keychain secrets, passphrase-derived keys.
 //! # expect: "My service operations flow through sovereignty-verifying boundaries"
 
-
 use std::sync::Arc;
 
 use hkask_agents::A2ARuntime;

@@ -17,7 +17,6 @@
 //! 6. `config` — get current backup configuration
 //! 7. `update_config` — update backup configuration
 
-
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Instant;

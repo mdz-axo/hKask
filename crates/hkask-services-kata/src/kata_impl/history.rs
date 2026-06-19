@@ -3,7 +3,6 @@
 //! Cybernetic feedback types for Improvement Kata signal computation.
 //! Persisted per agent to enable composition (graduation criteria, habit monitoring).
 
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;

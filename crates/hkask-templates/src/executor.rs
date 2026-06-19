@@ -25,7 +25,6 @@
 //! `InferencePort` (for select/populate) and `McpPort` (for execute),
 //! both of which are already dependencies of this crate.
 
-
 use crate::ports::{McpPort, Result, TemplateError};
 use hkask_types::bundle::BundleManifestStep;
 use hkask_types::ports::{InferencePort, InferenceResult};

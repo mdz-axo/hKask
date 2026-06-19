@@ -1,6 +1,5 @@
 //! Style composition — exemplar retrieval, prose generation, centroid validation.
 
-
 use std::path::PathBuf;
 use std::sync::Arc;
 

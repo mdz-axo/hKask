@@ -444,11 +444,16 @@ impl PodFactory {
         let pods_out = output_dir.join("pods");
         std::fs::create_dir_all(&pods_out).map_err(PodDeployError::Io)?;
 
-        // Copy the pod's database and webid files
+        // Copy the pod's database, webid, and salt files
         std::fs::copy(&db_path, pods_out.join(format!("{}.db", pod_id)))
             .map_err(PodDeployError::Io)?;
         if webid_path.exists() {
             std::fs::copy(&webid_path, pods_out.join(format!("{}.webid", pod_id)))
+                .map_err(PodDeployError::Io)?;
+        }
+        let salt_path = db_path.with_extension("db.salt");
+        if salt_path.exists() {
+            std::fs::copy(&salt_path, pods_out.join(format!("{}.db.salt", pod_id)))
                 .map_err(PodDeployError::Io)?;
         }
 

@@ -688,4 +688,53 @@ mod tests {
             let _ = parse_bolero_stdin(s.as_bytes());
         }
     }
+
+    // ── Regression: parser bugs fixed 2026-06-19 ─────────────────────────
+
+    #[test]
+    fn regression_absolute_path_extracts_crate_name() {
+        // Bug: absolute paths like /home/.../crates/hkask-cns/... produced empty crate_name.
+        // Fix: parser now finds "crates/" substring and extracts from there.
+        let input = "thread 'fuzz_test' panicked at /home/user/.cargo/registry/src/crates/hkask-cns/fuzz/fuzz_targets/cns_fuzz.rs:42:9:\nassertion failed\n";
+        let failures = parse_bolero_stdin(input.as_bytes()).unwrap();
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].crate_name, "hkask-cns");
+        assert!(
+            !failures[0].crate_name.is_empty(),
+            "crate name must not be empty for absolute paths"
+        );
+    }
+
+    #[test]
+    fn regression_multiline_panic_message_captured() {
+        // Bug: panic message on the line after "panicked at" was lost.
+        // Fix: parser captures the next line as the panic message.
+        let input = "thread 'fuzz_test' panicked at crates/hkask-types/fuzz/types_fuzz.rs:10:9:\ndeliberate panic for triage pipeline test\n";
+        let failures = parse_bolero_stdin(input.as_bytes()).unwrap();
+        assert_eq!(failures.len(), 1);
+        assert!(
+            failures[0].panic_message.contains("deliberate panic"),
+            "panic message should contain 'deliberate panic', got: {}",
+            failures[0].panic_message
+        );
+    }
+
+    #[test]
+    fn regression_bolero_internal_panic_does_not_overwrite_crate() {
+        // Bug: bolero's internal re-panic overwrote the test's panic info.
+        // Fix: parser only extracts from the first "panicked at" line.
+        let input = "thread 'fuzz_test' panicked at crates/hkask-types/src/lib.rs:1:1:\ntest panic\n\nthread 'fuzz_test' panicked at /home/user/.cargo/registry/src/bolero-0.13.4/src/test/mod.rs:383:21:\ntest failed\n";
+        let failures = parse_bolero_stdin(input.as_bytes()).unwrap();
+        assert!(failures.len() >= 1);
+        // The first failure should have the real panic, not bolero's internal one
+        let first = &failures[0];
+        assert_eq!(
+            first.crate_name, "hkask-types",
+            "should extract crate from test panic, not bolero internal"
+        );
+        assert!(
+            first.panic_message.contains("test panic"),
+            "should capture test panic message"
+        );
+    }
 }

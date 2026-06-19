@@ -6,7 +6,6 @@
 //! CLI and API surfaces delegate to a single implementation rather than
 //! duplicating ~400 lines of business logic.
 
-
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};

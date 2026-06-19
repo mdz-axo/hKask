@@ -7,7 +7,6 @@
 //! ensuring template capability declarations are consistent with the agent's
 //! granted capabilities.
 
-
 use crate::ports::{Result, TemplateError};
 use hkask_types::capability::{CapabilitySpec, DelegationToken, capabilities_match};
 

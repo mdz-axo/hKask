@@ -7,7 +7,6 @@
 //! - Layer 1: Memory recall dedup (this module)
 //! - Layer 2: Prompt assembly dedup (hkask-templates/src/context_assembly.rs)
 
-
 use hkask_storage::Triple;
 use std::collections::HashSet;
 

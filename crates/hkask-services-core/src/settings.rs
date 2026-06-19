@@ -4,7 +4,6 @@
 //!
 //! Also provides `HkaskSettings` for model defaults shared across all servers.
 
-
 use serde::{Deserialize, Serialize};
 
 /// Returns the canonical path to `~/.config/hkask/settings.json`,

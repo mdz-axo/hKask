@@ -989,6 +989,8 @@ docs/architecture/
 ├── loop-architecture.md                   # Framework (4-loop authority model)
 ├── energy-gas-payments-api-keys.md        # Framework (gas, payments, API key system)
 ├── matrix-integration-architecture.md     # Specification (Matrix transport, Conduit sidecar)
+├── qa/
+│   └── QA_PLAN.md                         # Framework (fuzz, mutation, LLM triage)
 ├── core/
 │   ├── magna-carta.md                     # Foundation (4 inviolable principles)
 │   ├── PRINCIPLES.md                      # Framework (P1-P12)
@@ -1008,7 +1010,7 @@ docs/architecture/
     └── hKask-Curator-persona.md           # Persona spec
 ```
 
-**Total:** 13 architecture documents (8 core + 1 mandate + 3 root + 2 ADRs + 1 reference). API docs (utoipa) in §API Documentation.
+**Total:** 14 architecture documents (8 core + 1 mandate + 3 root + 2 ADRs + 1 reference + 1 qa). API docs (utoipa) in §API Documentation.
 
 **Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, etc.), `docs/guides/` (kata-user-guide.md, lora-training-guide.md), `docs/user-guides/` (kanban-user-guide.md, lora-adapter-store-guide.md)
 

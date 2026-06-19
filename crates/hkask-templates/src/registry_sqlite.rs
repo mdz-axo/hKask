@@ -4,7 +4,6 @@
 //! consistent with `hkask_storage::Database::conn_arc()`. Use `new_with_conn()`
 //! when opening through `hkask_storage::Database` (SQLCipher-encrypted).
 
-
 use crate::ports::{Result, TemplateError};
 use hkask_types::bundle::SkillPolarity;
 use hkask_types::ports::{

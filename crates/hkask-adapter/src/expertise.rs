@@ -4,7 +4,6 @@
 //! capability with a manifest linking to its training source. This replaces
 //! ad-hoc "skill name" strings with a provable semantic type.
 
-
 use serde::{Deserialize, Serialize};
 
 /// Domain categories recognized by the MDS (Minimal Domain Specification).

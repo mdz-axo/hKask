@@ -5,7 +5,6 @@
 //! calling `pod_manager()` directly with duplicated error mapping and
 //! pod ID parsing logic.
 
-
 use hkask_agents::pod::{AgentPersona, PodID, PodStatusInfo};
 
 use crate::ServiceError;
@@ -73,7 +72,12 @@ impl PodService {
         })?;
         let pm = ctx.pod_manager();
         let pod_id = pm
-            .create_pod(&req.template, &persona, req.name, hkask_agents::pod::PodKind::Replicant)
+            .create_pod(
+                &req.template,
+                &persona,
+                req.name,
+                hkask_agents::pod::PodKind::Replicant,
+            )
             .await
             .map_err(|e| ServiceError::Pod {
                 message: e.to_string(),

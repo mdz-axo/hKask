@@ -1,6 +1,5 @@
 //! Kata execution state — runtime accumulator and output envelope.
 
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

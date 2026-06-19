@@ -6,7 +6,6 @@
 //! Both CLI and API surfaces were previously calling
 //! `escalation_queue()` directly with duplicated error mapping.
 
-
 use std::sync::Arc;
 
 use hkask_agents::curator_agent::CuratorAgent;

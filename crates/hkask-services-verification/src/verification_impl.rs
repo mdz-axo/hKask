@@ -6,7 +6,6 @@
 //! principles (User Sovereignty, Affirmative Consent, Generative Space, Clear
 //! Boundaries), dispatches verification methods, and produces structured reports.
 
-
 use hkask_types::sovereignty::{DataCategory, DataSovereigntyBoundary};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};

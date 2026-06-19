@@ -6,7 +6,6 @@
 //! This module provides a deserialization wrapper that flattens this structure
 //! into the canonical `BundleManifest` type.
 
-
 use hkask_types::Visibility;
 use hkask_types::bundle::{
     AuditConfig, BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep,

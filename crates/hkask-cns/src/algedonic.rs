@@ -61,14 +61,8 @@ impl RuntimeAlert {
     /// pre:  domain is non-empty, threshold > 0
     /// post: returns RuntimeAlert with severity based on deficit vs threshold
     pub fn new(domain: &str, deficit: u64, threshold: u64) -> Self {
-        assert!(
-            !domain.is_empty(),
-            "domain must be non-empty"
-        );
-        assert!(
-            threshold > 0,
-            "threshold must be > 0"
-        );
+        assert!(!domain.is_empty(), "domain must be non-empty");
+        assert!(threshold > 0, "threshold must be > 0");
 
         let severity = if deficit > threshold {
             AlertSeverity::Critical

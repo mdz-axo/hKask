@@ -3,7 +3,6 @@
 //! Together AI exposes `/v1/chat/completions` and `/v1/models`.
 //! Requires Bearer token authentication via `TOGETHER_API_KEY`.
 
-
 use crate::chat_protocol::{
     ChatResponse, build_chat_request, chat_response_to_result, stream_chat_completion,
     validate_prompt,

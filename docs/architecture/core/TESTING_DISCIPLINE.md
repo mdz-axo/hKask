@@ -322,7 +322,163 @@ Tests accumulate the scar tissue of every production incident. They become the r
 - `docs/architecture/core/PRINCIPLES.md` — P1–P12 governing principles
 - `.agents/skills/tdd/SKILL.md` — TDD process (RED→GREEN→REFACTOR with spec anchoring)
 - `docs/architecture/core/MDS.md` — Minimal Domain Specification
+- `docs/architecture/qa/QA_PLAN.md` — QA architecture (fuzz, mutation, LLM triage)
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.29.0*
+## 8. Fuzz Testing with cargo-bolero
+
+### 8.1 Overview
+
+hKask uses `cargo-bolero` for unified fuzz + property testing across 9 crates (18 test functions).
+Bolero provides three engines:
+
+| Engine | Requires | Use Case |
+|--------|----------|----------|
+| Property testing (`cargo test`) | Stable Rust | Fast feedback on every push — generates random inputs, shrinks on failure |
+| libFuzzer (`cargo +nightly bolero test -e libfuzzer`) | Nightly Rust | Coverage-guided — finds edge cases property testing misses |
+| Kani (`cargo bolero test -e kani`) | Kani installed | Formal verification for selected targets |
+
+### 8.2 Running Fuzz Tests
+
+```bash
+# Property-based (stable, CI on every push)
+cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz \
+           -p hkask-wallet-fuzz -p hkask-storage-fuzz -p hkask-templates-fuzz \
+           -p hkask-memory-fuzz -p hkask-services-core-fuzz -p hkask-improv-fuzz
+
+# Coverage-guided (nightly, runs in CI on schedule)
+cargo +nightly bolero test -p hkask-types-fuzz fuzz_cns_span_parse_never_panics -T 60s -e libfuzzer
+```
+
+### 8.3 Fuzz Target Structure
+
+Fuzz targets live in `crates/hkask-{crate}/fuzz/fuzz_targets/`. Each target is a `#[test]`
+function using bolero's `check!()` macro:
+
+```rust
+use bolero::check;
+
+#[test]
+fn fuzz_cns_span_parse_never_panics() {
+    check!().with_type::<String>().for_each(|s| {
+        let _ = s.parse::<hkask_types::cns::CnsSpan>();
+    });
+}
+```
+
+### 8.4 Fuzz Target Priority
+
+| Priority | Surface | Rationale |
+|----------|---------|-----------|
+| 1 | `pub fn` containing `unsafe` | Highest bug density |
+| 2 | Parsers/deserializers (`FromStr`, `Deserialize`) | Input boundary — where malformed data enters |
+| 3 | Functions with `Vec`, `HashMap`, indexing | Panic surface |
+| 4 | Functions with arithmetic operations | Silent overflow/corruption |
+| 5 | Everything else | Diminishing returns |
+
+---
+
+## 9. Mutation Testing with cargo-mutants
+
+### 9.1 Overview
+
+Mutation testing verifies that the test suite catches deliberately introduced bugs.
+`cargo-mutants` systematically changes operators (`>` → `>=`, `+` → `-`, etc.) and
+checks whether any test fails. Mutants that survive represent gaps in test coverage.
+
+```bash
+cargo mutants -p hkask-types --timeout 120
+```
+
+### 9.2 Integration with QA Pipeline
+
+Surviving mutants feed into the `kask qa suggest-fuzz` pipeline:
+
+```bash
+cargo mutants -p hkask-types --timeout 120 2>&1 | grep "Uncaught" \
+  | cargo run --bin kask -- qa suggest-fuzz
+```
+
+This formats each surviving mutant as a passage for the `qa-feedback` classifier
+(Gemma 4 26B), which suggests new fuzz targets that would catch the mutant.
+
+**Critical:** Never use `--in-place` mode in CI. If CI is killed mid-mutation,
+the working tree is corrupted. Use the default temp-dir mode.
+
+---
+
+## 10. LLM-Powered QA Triage
+
+### 10.1 Overview
+
+When bolero finds a failure, `kask qa triage` classifies it via Gemma 4 26B and
+routes by confidence:
+
+| Confidence | Action | CNS Span |
+|-----------|--------|----------|
+| ≥ 0.95 | `gh pr create` with proposed fix | `cns.qa.repair_verified` |
+| 0.70–0.94 | `gh issue create` with suggestion | `cns.qa.bolero_failure` |
+| < 0.70 | `gh issue create` for investigation | `cns.qa.bolero_failure` |
+| Unparseable | `gh issue create` with raw output | `cns.qa.bolero_failure` |
+
+### 10.2 CNS QA Spans
+
+| Span | Meaning |
+|------|---------|
+| `cns.qa.bolero_failure` | A fuzz target caught a failure |
+| `cns.qa.repair_attempted` | An autonomous repair was attempted |
+| `cns.qa.repair_verified` | A repair passed verification (all tests green) |
+| `cns.qa.repair_exhausted` | Repairs exhausted — human investigation needed |
+| `cns.qa.mutant_survived` | A mutant survived — test suite has a gap |
+
+### 10.3 Architecture
+
+```
+CI: cargo bolero test --all 2>&1 | kask qa triage
+                                   │
+                                   ▼
+                          hkask-test-harness (lib)
+                          ├── parse bolero output
+                          ├── classify_batch (Gemma 4 26B)
+                          ├── route by confidence
+                          ├── git: check --apply + rollback
+                          ├── dedup: check existing branches/PRs
+                          └── open PR or issue (gh CLI)
+```
+
+### 10.4 Feedback Loops
+
+**Path A — Rejected repairs:** When a human closes an auto-repair PR without merging,
+the rejection reason + correct fix are formatted as a "correction passage" and fed
+back through the `qa-feedback` classifier. This improves future classifications via
+in-context learning.
+
+**Path B — Surviving mutants:** When `cargo-mutants` reports uncaught mutants, each
+surviving mutant's location and mutation are formatted as a passage. The classifier
+suggests a fuzz target that would catch it.
+
+---
+
+## 11. Updated Test Pyramid
+
+| Layer | What | Verification |
+|-------|------|-------------|
+| **Unit** | Single function's behavior | Proptest on the function directly |
+| **Integration** | Cross-function chains | Proptest on the entry point; CNS spans verify called functions' behavior |
+| **State machine** | Invariants across operation sequences | Proptest on operation sequences; CNS `cns.gas` spans track budget invariants |
+| **Fuzz** | Input surface robustness | Bolero property testing (stable) + libFuzzer (nightly); verifies no panic |
+| **Mutation** | Test suite adequacy | cargo-mutants; surviving mutants → fuzz target suggestions |
+| **Triage** | Failure diagnosis | LLM classifier (Gemma 4 26B); routes by confidence → PR or issue |
+| **System** | End-to-end workflows | Integration tracer bullet (TDD skill); verifies full vertical slice |
+
+---
+
+## References
+
+### Property-Based Testing
+
+- Claessen, K. & Hughes, J. (2000). "QuickCheck: A Lightweight Tool for Random Testing of Haskell Programs." *ICFP.*
+- MacIver, D. (2019). "Property-Based Testing: What Is It?" The theoretical basis for PBT.
+
+### Cybernetic Foundations

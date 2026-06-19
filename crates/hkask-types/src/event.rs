@@ -690,19 +690,19 @@ mod tests {
         }
 
         proptest! {
-                    #[test]
-                    fn from_short_name_unknown_prefix(
-                        prefix in "[a-z][a-z0-9_]*"
-                    ) {
-                        prop_assume!(prefix != "variety" && prefix != "gas"
-                            && prefix != "curation" && prefix != "spec"
-                            && prefix != "inference"
-                            && prefix != "agent_pod" && prefix != "connector");
-                        let category = SpanCategory::from_short_name(&prefix);
-                        prop_assert!(category == SpanCategory::Unknown,
-                            "unknown prefix should be Unknown: {prefix}");
-                    }
-                }
+            #[test]
+            fn from_short_name_unknown_prefix(
+                prefix in "[a-z][a-z0-9_]*"
+            ) {
+                prop_assume!(prefix != "variety" && prefix != "gas"
+                    && prefix != "curation" && prefix != "spec"
+                    && prefix != "inference"
+                    && prefix != "agent_pod" && prefix != "connector");
+                let category = SpanCategory::from_short_name(&prefix);
+                prop_assert!(category == SpanCategory::Unknown,
+                    "unknown prefix should be Unknown: {prefix}");
+            }
+        }
 
         proptest! {
             #[test]

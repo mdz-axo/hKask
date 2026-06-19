@@ -4,7 +4,6 @@
 //! axum HTTP server. CLI commands issued while the server is running
 //! operate on the same shared state.
 
-
 use hkask_api::ApiState;
 use hkask_mcp::runtime::McpRuntime;
 

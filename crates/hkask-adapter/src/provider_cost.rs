@@ -4,7 +4,6 @@
 //! GPU hourly rate, setup time, and teardown grace period. This enables
 //! budget-aware deployment decisions.
 
-
 use hkask_inference::ProviderId;
 use serde::{Deserialize, Serialize};
 

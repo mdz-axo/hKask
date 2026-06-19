@@ -27,7 +27,6 @@
 //! - `ServiceError` does NOT depend on surface types (CLI errors, API errors).
 //!   Dependency direction: surface → service → domain. Never the reverse.
 
-
 use thiserror::Error;
 
 use hkask_types::InfrastructureError;

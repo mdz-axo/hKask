@@ -2,7 +2,6 @@
 //! # REQ: P8 (Semantic Grounding) — every type encodes a distinct domain concept.
 //! expect: "Backup scope types encode distinct domain concepts"
 
-
 use serde::{Deserialize, Serialize};
 
 /// Types of artifacts the backup system can track.

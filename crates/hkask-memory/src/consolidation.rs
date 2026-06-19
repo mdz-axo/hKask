@@ -9,7 +9,6 @@
 //! This is a ONE-WAY operation: Episodic → Semantic. No reverse flow.
 //! Authority: Curation directs, Cybernetics regulates (budget enforcement).
 
-
 use std::sync::Arc;
 
 use crate::episodic::EpisodicMemory;

@@ -50,7 +50,10 @@ impl SemanticIndex {
 
     /// Get the PodID from a triple's source provenance (stored in access.perspective).
     pub fn source_pod_of(triple: &Triple) -> Option<PodID> {
-        triple.access.perspective.map(|webid| PodID::from_uuid(webid.as_uuid()))
+        triple
+            .access
+            .perspective
+            .map(|webid| PodID::from_uuid(webid.as_uuid()))
     }
 
     /// Query triples by entity and attribute.

@@ -27,7 +27,6 @@
 //! - `TG/Qwen/Qwen2.5-7B-Instruct-Turbo` → Together AI (cloud)
 //! - No prefix → default provider (configurable, default: DeepInfra)
 
-
 use serde::{Deserialize, Serialize};
 
 use hkask_types::secret::SecretRef;

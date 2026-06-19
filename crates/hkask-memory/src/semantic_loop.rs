@@ -9,7 +9,6 @@
 //!    confidence at or below the low-confidence threshold (default 0.33).
 //!    These triples are too uncertain to be useful and should be pruned.
 
-
 use std::collections::BTreeMap;
 use std::sync::Arc;
 

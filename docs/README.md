@@ -46,11 +46,17 @@ by [MDS](architecture/core/MDS.md) category. 64 active documents. hKask v0.30.0.
 | [`magna-carta.md`](architecture/core/magna-carta.md) | all | User sovereignty charter — 4 inviolable principles |
 | [`PRINCIPLES.md`](architecture/core/PRINCIPLES.md) | all | Architecture principles (P1-P12) |
 | [`MDS.md`](architecture/core/MDS.md) | all | Minimal Domain Specification — 5 categories, 5 tools |
-| [`TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | all | Contract-anchored testing — DbC + PBT specification |
+| [`TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | all | Contract-anchored testing — DbC, PBT, fuzz, mutation, LLM triage |
 | [`CNS-DOMAIN-SPECIFICATION.md`](architecture/core/CNS-DOMAIN-SPECIFICATION.md) | domain, composition, lifecycle | CNS specification — 6 sub-domains, 44 contracts |
 | [`SOLID_POD_ISOMORPHISM.md`](architecture/core/SOLID_POD_ISOMORPHISM.md) | domain, composition | AgentPod↔Solid Pod isomorphism — drift analysis, deployment types, semantic map |
 | [`MULTI_POD_ARCHITECTURE.md`](architecture/core/MULTI_POD_ARCHITECTURE.md) | domain, composition, lifecycle | Multi-pod tiers — CuratorPod + TeamPod + ReplicantPod |
 | [`FUNCTIONAL_SPECIFICATION.md`](architecture/core/FUNCTIONAL_SPECIFICATION.md) | domain, composition | AgentService functional specification |
+
+### QA (`architecture/qa/`)
+
+| Document | MDS | Description |
+|----------|-----|-------------|
+| [`QA_PLAN.md`](architecture/qa/QA_PLAN.md) | all | QA architecture — fuzz targets, mutation testing, LLM triage, auto-repair, feedback loops |
 
 ### Mandates
 
@@ -161,4 +167,4 @@ by [MDS](architecture/core/MDS.md) category. 64 active documents. hKask v0.30.0.
 bash docs/ci/check-links.sh      # link integrity — zero broken links
 ```
 
-*ℏKask — A Minimal Viable Container for Agents — v0.28.0 — 57 active documents*
+*ℏKask — A Minimal Viable Container for Agents — v0.28.0 — 58 active documents*

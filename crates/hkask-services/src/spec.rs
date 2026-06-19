@@ -8,7 +8,6 @@
 //! Category inference delegates to `hkask_storage::spec_types::infer_spec_category` —
 //! the single source of truth for context-keyword → MDS category mapping.
 
-
 use hkask_agents::DefaultSpecCurator;
 use hkask_storage::SpecStore;
 use hkask_storage::spec_types::SpecCurator;

@@ -1,6 +1,5 @@
 //! Curator commands — delegates to CuratorService.
 
-
 use hkask_services::{CuratorService, ServiceError};
 use hkask_storage::EscalationEntry;
 

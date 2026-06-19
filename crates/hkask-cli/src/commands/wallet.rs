@@ -3,7 +3,6 @@
 //! Implements CLI display logic for wallet operations: balance, deposits,
 //! withdrawals, API key management, and transaction history.
 
-
 use crate::cli::{KeyAction, WalletAction};
 use hkask_services::WalletService;
 use hkask_storage::WalletStore;

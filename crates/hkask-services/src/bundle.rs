@@ -20,7 +20,6 @@
 //! - **OCAP gates** — Stay in domain crates. BundleService does NOT mint
 //!   delegation tokens; callers pass pre-resolved secrets.
 
-
 use std::sync::Arc;
 
 use hkask_templates::BundleManifest;

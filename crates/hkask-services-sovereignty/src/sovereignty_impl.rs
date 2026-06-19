@@ -3,7 +3,6 @@
 //! SovereigntyService wraps `ConsentManager` so external callers (CLI/API)
 //! never access raw store internals. Created via `AgentService::build()`.
 
-
 use std::sync::Arc;
 
 use hkask_agents::consent::ConsentManager;

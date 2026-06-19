@@ -698,6 +698,25 @@ mod retry_config_tests {
         assert!(!cfg.is_retryable_status(200)); // OK
     }
 
+    // ── Regression: mutation corruption guard ────────────────────────────
+    // 2026-06-19: cargo-mutants --in-place replaced delay_for_attempt body
+    // with `1 /* ~ changed by cargo-mutants ~ */`. This test catches that
+    // specific corruption — if the function ever returns a constant, it fails.
+
+    #[test]
+    fn regression_delay_for_attempt_is_exponential_not_constant() {
+        let cfg = test_config();
+        // The mutation changed the body to `1`. Verify it actually computes.
+        let d0 = cfg.delay_for_attempt(0); // 100
+        let d1 = cfg.delay_for_attempt(1); // 200
+        let d2 = cfg.delay_for_attempt(2); // 400
+        let d3 = cfg.delay_for_attempt(3); // 800
+        assert_eq!(d0, 100, "attempt 0 must be initial_delay_ms, not constant");
+        assert_ne!(d1, d0, "delay must change between attempts, not constant");
+        assert!(d2 > d1, "delay must grow exponentially");
+        assert!(d3 > d2, "delay must grow exponentially");
+    }
+
     // ── Proptest: RetryConfig serialization round-trip ──────
 
     proptest::proptest! {

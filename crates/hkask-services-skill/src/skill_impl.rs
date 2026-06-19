@@ -9,7 +9,6 @@
 //!
 //! ℏKask - A Minimal Viable Container for Agents
 
-
 use hkask_templates::SkillLoader;
 use hkask_types::ports::{Skill, SkillZone};
 use hkask_types::visibility::Visibility;

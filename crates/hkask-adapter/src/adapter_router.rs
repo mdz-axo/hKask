@@ -6,7 +6,6 @@
 //! All three provider backends (Together, Runpod, Baseten) have real HTTP integration
 //! for adapter upload, endpoint provisioning, and inference.
 
-
 use crate::AdapterStore;
 use crate::adapter_config::AdapterConfig;
 use crate::adapter_port::{

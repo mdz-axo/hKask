@@ -14,7 +14,6 @@
 //! - **Depth test** — Deleting this module would cause inference port
 //!   construction logic to reappear in 11+ call sites. Passes deletion test.
 
-
 use std::sync::Arc;
 
 use hkask_inference::{InferenceConfig, InferenceRouter, ProviderId, RouterModelEntry};

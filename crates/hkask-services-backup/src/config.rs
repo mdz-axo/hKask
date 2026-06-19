@@ -2,7 +2,6 @@
 //! # REQ: P1 (User Sovereignty) — user controls what is tracked and for how long.
 //! expect: "I control what backup data is tracked and for how long"
 
-
 use serde::{Deserialize, Serialize};
 
 use crate::scope::ArtifactType;

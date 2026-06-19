@@ -6,7 +6,6 @@
 //! REQ: P5-svc-skills-095 — Implement dual-layer skill audit as a reusable service.
 //! expect: "The service layer exposes minimal, essential interfaces shared by all surfaces"
 
-
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};

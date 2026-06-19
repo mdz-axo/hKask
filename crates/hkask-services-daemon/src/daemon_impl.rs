@@ -14,7 +14,6 @@
 //! observing in the MCP session — the same way a chat-mode agent thinks about
 //! conversation turns.
 
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -160,9 +159,7 @@ impl DaemonHandler for ServiceDaemonHandler {
             }
         };
 
-        let ctx = match self.pod_manager.context(&pod_id)
-            .await
-        {
+        let ctx = match self.pod_manager.context(&pod_id).await {
             Ok(ctx) => ctx,
             Err(e) => {
                 tracing::warn!(target: "hkask.daemon", replicant = %replicant, error = %e, "Failed to create PodContext");
@@ -246,13 +243,12 @@ impl DaemonHandler for ServiceDaemonHandler {
             }
         };
 
-        let ctx =
-            match self.pod_manager.context(&pod_id).await {
-                Ok(ctx) => ctx,
-                Err(e) => {
-                    return (false, None, Some(format!("PodContext error: {}", e)));
-                }
-            };
+        let ctx = match self.pod_manager.context(&pod_id).await {
+            Ok(ctx) => ctx,
+            Err(e) => {
+                return (false, None, Some(format!("PodContext error: {}", e)));
+            }
+        };
 
         match ctx.invoke_tool(tool, input.clone()) {
             Ok(output) => (true, Some(output), None),

@@ -319,7 +319,6 @@ mod tests {
         ReplSettings::default()
     }
 
-
     #[test]
     fn apply_setting_rejects_zero_loop_limit() {
         let mut s = default_settings();
@@ -361,7 +360,6 @@ mod tests {
         assert!(!apply_setting(&mut s, "temp", "not-a-number"));
         assert!((s.temperature - 0.7).abs() < f32::EPSILON);
     }
-
 
     #[test]
     fn apply_setting_accepts_valid_temperature() {

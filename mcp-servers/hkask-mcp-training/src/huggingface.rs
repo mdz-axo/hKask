@@ -11,7 +11,6 @@
 //! - AdapterRegistry → Lifecycle entity: AdapterPublication
 //! - DatasetRegistry → Domain entity: DatasetSource
 
-
 use std::path::{Path, PathBuf};
 
 // ── HuggingFace error ─────────────────────────────────────────────────────

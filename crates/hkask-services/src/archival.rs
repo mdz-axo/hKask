@@ -2,7 +2,6 @@
 //! # REQ: P4 (Clear Boundaries) — GitHub operations via adapter, not raw HTTP.
 //! # expect: "Service boundaries enforce OCAP membranes"
 
-
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64_STANDARD};
 use hkask_mcp::server::{api_get, api_put, resolve_credential};
 use hkask_storage::AgentRegistryStore;

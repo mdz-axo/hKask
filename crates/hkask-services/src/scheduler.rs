@@ -2,7 +2,6 @@
 //! Each agent owns its own scheduled tasks, stored in the registry DB.
 //! The curation loop checks for due tasks each cycle.
 
-
 use hkask_storage::AgentRegistryStore;
 use hkask_types::ScheduledTask;
 

@@ -4,7 +4,6 @@
 //! the adapter's rank, alpha, target modules, base model, and format version.
 //! Providers validate this config before accepting the adapter for upload.
 
-
 use serde::{Deserialize, Serialize};
 
 /// Parsed contents of adapter_config.json (Hugging Face PEFT format).

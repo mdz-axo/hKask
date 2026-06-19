@@ -3,7 +3,6 @@
 //! All domain operations (A2A, store) come from AgentService.
 //! No direct Database::open(), A2ARuntime::new(), or AgentRegistryStore::new().
 
-
 use std::str::FromStr;
 
 use crate::block_on;

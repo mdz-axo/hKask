@@ -4,7 +4,6 @@
 //! enforcement. Budget regulation is now owned by this loop (Cybernetics
 //! concern), not by domain code in `EpisodicMemory`.
 
-
 use std::sync::Arc;
 
 use crate::consolidation::ConsolidationBridge;

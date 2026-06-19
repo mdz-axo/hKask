@@ -22,7 +22,6 @@
 //! - `FA/paddleocr` → fal.ai
 //! - No prefix → default provider (configurable, default: DeepInfra)
 
-
 pub mod chat_protocol;
 pub mod config;
 pub mod deepinfra_backend;

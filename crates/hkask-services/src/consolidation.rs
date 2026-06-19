@@ -2,7 +2,6 @@
 //! # REQ: P2 (Affirmative Consent) — consolidation requires passphrase verification.
 //! # expect: "Service operations require explicit, scoped consent"
 
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 

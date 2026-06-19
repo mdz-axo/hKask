@@ -1,4 +1,3 @@
-
 use hkask_types::ports::registry::RegistryEntry;
 
 /// Known vocabulary terms — bootstrapped from manifest `lexicon_terms` across the skill corpus.

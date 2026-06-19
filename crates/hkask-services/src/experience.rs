@@ -9,7 +9,6 @@
 //! silently skipped with a warning log. CLI commands never fail because of
 //! memory unavailability.
 
-
 use hkask_mcp::DaemonClient;
 use hkask_types::time::now_rfc3339;
 use serde_json::json;

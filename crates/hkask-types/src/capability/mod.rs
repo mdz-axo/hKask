@@ -218,15 +218,15 @@ mod tests {
         }
 
         proptest! {
-                    #[test]
-                    fn action_hierarchy_permits_read(
-                        action in valid_action_str()
-                    ) {
-                        let parsed = DelegationAction::parse_str(&action).unwrap();
-                        // All actions permit read
-                        prop_assert!(parsed.permits_read());
-                    }
-                }
+            #[test]
+            fn action_hierarchy_permits_read(
+                action in valid_action_str()
+            ) {
+                let parsed = DelegationAction::parse_str(&action).unwrap();
+                // All actions permit read
+                prop_assert!(parsed.permits_read());
+            }
+        }
 
         // ── capabilities_match ──────────────────────────────────────────────
 
@@ -298,14 +298,14 @@ mod tests {
         }
 
         proptest! {
-                #[test]
-                fn non_prefixed_server_id_returns_none(
-                    server_id in "[a-z][a-z0-9_-]*"
-                ) {
-                    prop_assume!(!server_id.starts_with("hkask-mcp-"));
-                    prop_assert!(capability_from_server_id(&server_id).is_none());
-                    }
-                }
+        #[test]
+        fn non_prefixed_server_id_returns_none(
+            server_id in "[a-z][a-z0-9_-]*"
+        ) {
+            prop_assume!(!server_id.starts_with("hkask-mcp-"));
+            prop_assert!(capability_from_server_id(&server_id).is_none());
+            }
+        }
     }
 
     // ── DelegationToken Tests ────────────────────────────────────────────

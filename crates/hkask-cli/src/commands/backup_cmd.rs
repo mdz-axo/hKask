@@ -3,7 +3,6 @@
 //! Implements CLI display logic for backup operations. All business logic
 //! delegates to `hkask_services::BackupService`.
 
-
 use std::sync::Arc;
 
 use hkask_services::RetentionPolicy;

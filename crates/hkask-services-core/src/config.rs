@@ -7,7 +7,6 @@
 //! surfaces construct a `ServiceConfig` from environment variables, keychain
 //! secrets, or explicit parameters, then pass it to `AgentService::build()`.
 
-
 use crate::error::ServiceError;
 use hkask_inference::InferenceConfig;
 use hkask_types::wallet::WalletConfig;

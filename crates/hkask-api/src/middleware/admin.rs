@@ -2,7 +2,6 @@
 //!
 //! REQ: P1-multi-admin-middleware — Admin role gates admin endpoints.
 
-
 use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response};
 use hkask_storage::user_store::UserStore;
 use hkask_types::WebID;

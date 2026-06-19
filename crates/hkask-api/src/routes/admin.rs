@@ -3,7 +3,6 @@
 //! All admin routes are gated by the admin middleware (Role::Admin required).
 //! These implement the multi-user contracts from FUNCTIONAL_SPECIFICATION.md §3.16.
 
-
 use crate::middleware::AuthContext;
 use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use hkask_types::identity::{Invite, UserSession};
