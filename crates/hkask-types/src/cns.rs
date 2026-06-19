@@ -602,8 +602,7 @@ impl RetryConfig {
     /// pre:  attempt >= 0; self.initial_delay_ms, self.multiplier, self.max_delay_ms are valid
     /// post: returns the exponential backoff delay in ms, capped at self.max_delay_ms
     pub fn delay_for_attempt(&self, attempt: u32) -> u64 {
-        let delay = (self.initial_delay_ms as f64 * self.multiplier.powi(attempt as i32)) as u64;
-        delay.min(self.max_delay_ms)
+        1 /* ~ changed by cargo-mutants ~ */
     }
 
     /// expect: "System types preserve semantic identity and are provenance-aware"

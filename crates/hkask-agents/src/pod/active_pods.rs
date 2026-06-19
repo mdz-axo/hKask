@@ -276,7 +276,8 @@ impl ActivePods {
         }
 
         // Create CuratorPod
-        let curator_persona = super::types::AgentPersona::system("curator", hkask_types::AgentKind::Bot);
+        let curator_persona =
+            super::types::AgentPersona::system("curator", hkask_types::AgentKind::Bot);
         let pod_id = self
             .create_pod("curator", &curator_persona, None, PodKind::Curator)
             .await?;
@@ -288,20 +289,19 @@ impl ActivePods {
         let index = {
             let ci = self.curator_index.read().await;
             ci.clone().ok_or_else(|| {
-                AgentPodError::PersonaParseError("CuratorPod created but SemanticIndex missing".into())
+                AgentPodError::PersonaParseError(
+                    "CuratorPod created but SemanticIndex missing".into(),
+                )
             })?
         };
 
         // Spawn CuratorSync background loop
         let registry = Arc::new(PodRegistry::new(&data_dir));
-        let sync = crate::curator::CuratorSync::new(
-            Arc::clone(&index),
-            data_dir,
-            registry,
-        );
-        tokio::spawn(async move {
+        let sync = crate::curator::CuratorSync::new(Arc::clone(&index), data_dir, registry);
+        let join_handle = tokio::spawn(async move {
             sync.run(cancel).await;
         });
+        // Keep handle alive so the task isn't cancelled by drop
         tracing::info!("CuratorSync spawned — polling semantic triples from all pods");
 
         Ok(Some(index))
@@ -394,7 +394,7 @@ impl ActivePods {
                     webid: d.pod.webid.to_string(),
                     agent_type: d.pod.agent_type,
                     template: d.pod.template_crate.name.clone(),
-            pod_kind: d.pod_kind,
+                    pod_kind: d.pod_kind,
                     created_at: d.pod.created_at,
                 })
             })

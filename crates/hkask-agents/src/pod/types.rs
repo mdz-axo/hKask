@@ -188,7 +188,7 @@ impl AgentPersona {
                 description: format!("System pod: {}", name),
                 editor: "system".to_string(),
             },
-            capabilities: vec!["semantic_memory:read".to_string(), "semantic_memory:write".to_string()],
+            capabilities: vec!["tool:execute".to_string()],
             rights: vec![],
             responsibilities: vec!["curate_and_aggregate".to_string()],
             visibility: VisibilitySettings {

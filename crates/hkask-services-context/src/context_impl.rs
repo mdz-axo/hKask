@@ -955,6 +955,9 @@ struct McpPods {
     capability_checker: Arc<CapabilityChecker>,
     daemon_handler: Arc<hkask_services_daemon::ServiceDaemonHandler>,
     energy_estimator: Arc<hkask_cns::CalibratedEnergyEstimator>,
+    /// Keeps the CuratorSync cancellation channel alive.
+    #[allow(dead_code)]
+    _curator_cancel: tokio::sync::watch::Sender<bool>,
 }
 
 async fn build_mcp_and_pods(
@@ -1000,7 +1003,9 @@ async fn build_mcp_and_pods(
         tokio::runtime::Handle::current(),
     );
     let mut pods = hkask_agents::pod::ActivePods::new()
-        .with_a2a_runtime(l.a2a_runtime.clone() as Arc<dyn hkask_agents::ports::A2APort + Send + Sync>)
+        .with_a2a_runtime(
+            l.a2a_runtime.clone() as Arc<dyn hkask_agents::ports::A2APort + Send + Sync>
+        )
         .with_factory_and_ports(
             Arc::new(hkask_agents::pod::PodFactory::new(
                 Arc::new(hkask_mcp::GitCasAdapter::from_path(
@@ -1027,10 +1032,17 @@ async fn build_mcp_and_pods(
     let curator_pm = Arc::clone(&pod_manager);
     let curator_data_dir = std::path::PathBuf::from(&config.db_path);
     tokio::spawn(async move {
-        match curator_pm.ensure_curator(curator_data_dir, curator_cancel_rx).await {
-            Ok(Some(_)) => tracing::info!(target: "hkask.startup", "CuratorPod activated and CuratorSync running"),
+        match curator_pm
+            .ensure_curator(curator_data_dir, curator_cancel_rx)
+            .await
+        {
+            Ok(Some(_)) => {
+                tracing::info!(target: "hkask.startup", "CuratorPod activated and CuratorSync running")
+            }
             Ok(None) => tracing::info!(target: "hkask.startup", "CuratorPod already active"),
-            Err(e) => tracing::error!(target: "hkask.startup", error = %e, "Failed to start CuratorPod"),
+            Err(e) => {
+                tracing::error!(target: "hkask.startup", error = %e, "Failed to start CuratorPod")
+            }
         }
     });
     // Store cancel_tx for graceful shutdown

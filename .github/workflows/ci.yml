@@ -97,3 +97,23 @@ jobs:
             echo "::error::Hardcoded secrets found — use env vars or keystore"
             exit 1
           fi
+
+  # ── Stage 5: Fuzz (property-based, stable Rust, depends on test) ────────
+  fuzz:
+    name: Fuzz (property)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - name: Install bolero system deps
+        run: sudo apt-get install -y --no-install-recommends binutils-dev libunwind-dev
+      - name: Fuzz (property-based testing)
+        run: cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz
+      # TODO: Wire kask qa triage after CLI subcommand exists (step 3)
+      # - name: Triage failures
+      #   if: failure()
+      #   env:
+      #     DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
+      #   run: cargo test ... 2>&1 | kask qa triage

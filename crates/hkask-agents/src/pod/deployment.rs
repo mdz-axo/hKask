@@ -369,6 +369,11 @@ impl PodFactory {
                     reason: e.to_string(),
                 })?;
 
+        // Write webid metadata so CuratorSync can derive the passphrase.
+        // The webid file lives next to the database file.
+        let webid_path = db_path.with_extension("webid");
+        let _ = std::fs::write(&webid_path, persona.webid().to_string());
+
         Ok((
             PerPodStorage {
                 db,

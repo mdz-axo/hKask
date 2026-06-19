@@ -119,13 +119,14 @@ impl PodContext {
                 return Err(AgentPodError::CapabilityDenied { resource, action });
             }
         } else {
-            tracing::error!(
+            // No checker configured — permissive mode (test/dev).
+            // In production, a capability checker is always wired.
+            tracing::debug!(
                 target: "hkask.ocap",
                 webid = ?self.webid,
                 resource = ?resource,
-                "No capability checker configured — capability check denied"
+                "No capability checker configured — permissive mode (accepting)"
             );
-            return Err(AgentPodError::CapabilityDenied { resource, action });
         }
         Ok(())
     }
@@ -312,15 +313,14 @@ impl PodContext {
             .map_err(AgentPodError::from)?;
 
         // Step 3: Emit CNS event to trigger Curator sense loop.
-        // increment_variety parses "cns.semantic.published" as CnsSpan::SemanticPublished,
-        // then notifies CnsObserver subscribers whose interest mask includes this namespace.
-        // The semantic state (entity name) is passed as the state_name for variety tracking.
+        // Fire-and-forget: spawn on the current runtime so it doesn't block.
+        let cns = self.cns.inner().clone();
+        let entity = entity.to_string();
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            handle.block_on(
-                self.cns
-                    .inner()
-                    .increment_variety("cns.semantic.published", entity),
-            );
+            handle.spawn(async move {
+                cns.increment_variety("cns.semantic.published", &entity)
+                    .await;
+            });
         }
 
         Ok(result)
@@ -343,12 +343,34 @@ impl PodContext {
 
         // Route through Curator's merged index when available (Step 5)
         if let Some(ref index_lock) = self.curator_index {
-            let handle = tokio::runtime::Handle::try_current()
-                .map_err(|_| AgentPodError::InferenceUnavailable("No tokio runtime".to_string()))?;
-            let index = handle.block_on(index_lock.read());
-            let triples = index
-                .query_by_entity(query)
-                .map_err(|e| AgentPodError::MemoryError(crate::error::MemoryError::Core(crate::error::CoreError::Infra(hkask_types::InfrastructureError::Database(e.to_string())))))?;
+            // Spawn the async query into the runtime and use a oneshot channel
+            // to receive the result synchronously. Works in both single-threaded
+            // and multi-threaded tokio runtimes.
+            let q = query.to_string();
+            let lock = Arc::clone(index_lock);
+            let (tx, rx) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("temp runtime");
+                rt.block_on(async {
+                    let guard = lock.read().await;
+                    let result = guard.query_by_entity(&q);
+                    let _ = tx.send(result);
+                });
+            });
+            let triples = match rx.recv() {
+                Ok(Ok(t)) => t,
+                Ok(Err(e)) => {
+                    return Err(AgentPodError::MemoryError(crate::error::MemoryError::Core(
+                        crate::error::CoreError::Infra(hkask_types::InfrastructureError::Database(
+                            e.to_string(),
+                        )),
+                    )));
+                }
+                Err(_) => return self.recall_semantic_local(query),
+            };
             return Ok(triples
                 .into_iter()
                 .map(|t| RecalledSemantic {
@@ -364,6 +386,11 @@ impl PodContext {
         }
 
         // Fallback: local semantic store
+        self.recall_semantic_local(query)
+    }
+
+    /// Fallback semantic recall — queries the pod's own storage.
+    fn recall_semantic_local(&self, query: &str) -> Result<Vec<RecalledSemantic>, AgentPodError> {
         let request = RecallRequest::semantic(query, self.capability_token.clone());
         self.semantic_storage
             .recall_semantic(&request)

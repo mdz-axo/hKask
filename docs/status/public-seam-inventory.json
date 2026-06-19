@@ -1,0 +1,12 @@
+{
+  "generated": "2026-06-19T00:00:00Z",
+  "totals": {
+    "crate_name": "workspace",
+    "total_items": 0,
+    "covered_items": 0,
+    "uncovered_items": 0,
+    "coverage_pct": 0.0,
+    "req_tests": 0
+  },
+  "crates": {}
+}

@@ -23,17 +23,41 @@
 //! [P9] Homeostasis — polling loop is the regulation cycle
 //! [P11] Digital Sphere — only Public triples are synced
 
+use crate::PodID;
 use crate::PodKind;
 use crate::PodRegistry;
 use crate::curator::SemanticIndex;
-use crate::PodID;
 use hkask_storage::Database;
-use hkask_types::Visibility;
+use hkask_types::{Visibility, WebID};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing;
+
+/// Derive the SQLCipher passphrase for a pod from its webid metadata file.
+/// Same derivation as PodFactory::create_pod_storage (HKDF-SHA256 from master key).
+fn derive_passphrase(db_path: &PathBuf) -> Result<String, String> {
+    let webid_path = db_path.with_extension("webid");
+    let webid_str = std::fs::read_to_string(&webid_path)
+        .map_err(|e| format!("Failed to read webid file {:?}: {e}", webid_path))?;
+    let webid: WebID = webid_str
+        .trim()
+        .parse()
+        .map_err(|e| format!("Failed to parse WebID from {:?}: {e}", webid_path))?;
+    let context = format!(
+        "{}:{}",
+        hkask_types::secret::derivation_contexts::OCAP_SECRET,
+        webid
+    );
+    let secret_ref = hkask_types::secret::SecretRef::derived(
+        hkask_types::secret::derivation_contexts::MASTER_KEY_ENV,
+        &context,
+    );
+    let bytes =
+        hkask_keystore::resolve(&secret_ref).map_err(|e| format!("Key derivation failed: {e}"))?;
+    Ok(hex::encode(&*bytes))
+}
 
 /// The Curator's sync engine.
 ///
@@ -146,10 +170,15 @@ impl CuratorSync {
         };
 
         // Open source pod's database read-only
-        let db = self.open_read_only(db_path)?;
+        let db = match self.open_read_only(db_path) {
+            Ok(db) => db,
+            Err(e) => {
+                return Err(e);
+            }
+        };
 
         // Query triples published since cursor, filtering for Public visibility only
-        let query = "SELECT rowid, entity, attribute, value, confidence FROM triples WHERE rowid > ?1 AND visibility = 'Public' ORDER BY rowid ASC";
+        let query = "SELECT rowid, entity, attribute, value, confidence FROM triples WHERE rowid > ?1 AND visibility = 'public' ORDER BY rowid ASC";
         // Collect rows in a scoped block so Statement is dropped before any .await
         let rows: Vec<(i64, String, String, String, f64)> = {
             let conn_arc = db.conn_arc();
@@ -218,9 +247,11 @@ impl CuratorSync {
         Ok(count)
     }
 
-    /// Open a pod's SQLCipher database read-only.
+    /// Open a pod's SQLCipher database. The Curator only reads (SELECT queries),
+    /// so opening without mode=ro is safe — SQLCipher needs write access for its salt file.
     fn open_read_only(&self, db_path: &PathBuf) -> Result<Database, String> {
-        let uri = format!("file:{}?mode=ro", db_path.display());
-        Database::open(&uri, "").map_err(|e| format!("Failed to open pod DB read-only: {e}"))
+        let passphrase = derive_passphrase(db_path)?;
+        let path_str = db_path.to_string_lossy().to_string();
+        Database::open(&path_str, &passphrase).map_err(|e| format!("Failed to open pod DB: {e}"))
     }
 }
