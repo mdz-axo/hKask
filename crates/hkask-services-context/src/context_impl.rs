@@ -22,7 +22,6 @@
 //! 2. Does it already have a home crate/module? If yes, access it there.
 //! 3. Is it surface-specific (CLI-only or API-only)? If yes, put it in the surface.
 
-
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -68,7 +67,6 @@ use hkask_services_core::ServiceError;
 use hkask_services_sovereignty::SovereigntyService;
 use hkask_services_wallet::WalletService;
 
-mod contract_monitor;
 mod matrix;
 mod seam_monitor;
 
@@ -657,13 +655,6 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     // Spawn periodic seam drift check (R7.3 background watcher).
     spawn_seam_drift_check(&seam_watcher, &cns_runtime, &cns_event_sink);
 
-    // Spawn periodic contract test monitor — runs cargo test on priority crates
-    // and emits cns.contract.violated spans on REQ-tagged failures.
-    let workspace_root = std::env::current_dir()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|_| ".".to_string());
-    spawn_contract_test_loop(&cns_event_sink, &triple_store, &workspace_root);
-
     Ok(Foundation {
         db,
         primary_conn,
@@ -692,20 +683,6 @@ fn spawn_seam_drift_check(
 
 /// Spawn a background task that periodically runs `cargo test` on priority
 /// crates and emits `cns.contract.violated` CNS spans on REQ-tagged failures.
-///
-/// This closes the sense-loop for contract violations: test failures that
-/// were previously invisible to the CNS (only visible in CI logs) are now
-/// surfaced as CNS events that the CyberneticsLoop and CurationLoop can act on.
-///
-/// The interval is controlled by `HKASK_CONTRACT_TEST_INTERVAL_SECS`
-/// (default: 3600 = 1 hour). Set to 0 to disable.
-fn spawn_contract_test_loop(
-    event_sink: &Arc<dyn NuEventSink>,
-    triple_store: &Arc<TripleStore>,
-    workspace_root: &str,
-) {
-    self::contract_monitor::spawn_contract_test_loop(event_sink, triple_store, workspace_root)
-}
 
 /// Loops: cybernetics, inference, episodic, semantic, curation, snapshot, backup.
 struct Loops {

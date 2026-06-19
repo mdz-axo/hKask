@@ -59,12 +59,10 @@ impl RuntimeAlert {
     pub fn new(domain: &str, deficit: u64, threshold: u64) -> Self {
         assert!(
             !domain.is_empty(),
-            "P9-cns-algedonic-alert-new",
             "domain must be non-empty"
         );
         assert!(
             threshold > 0,
-            "P9-cns-algedonic-alert-new",
             "threshold must be > 0"
         );
 
@@ -94,7 +92,6 @@ impl RuntimeAlert {
                     && deficit > threshold / 2
                     && deficit <= threshold)
                 || (result.severity == AlertSeverity::Info && deficit <= threshold / 2),
-            "P9-cns-algedonic-alert-new",
             "severity must match deficit vs threshold"
         );
         result
@@ -107,7 +104,6 @@ impl RuntimeAlert {
         let result = self.escalated;
         debug_assert!(
             result == (self.severity == AlertSeverity::Critical),
-            "P9-cns-algedonic-alert-should-escalate",
             "result must match critical severity"
         );
         result
@@ -120,7 +116,6 @@ impl RuntimeAlert {
         let result = self.severity == AlertSeverity::Critical;
         debug_assert!(
             result == (self.severity == AlertSeverity::Critical),
-            "P9-cns-algedonic-alert-is-critical",
             "result must match critical severity"
         );
         result
@@ -133,7 +128,6 @@ impl RuntimeAlert {
         let result = self.severity == AlertSeverity::Warning;
         debug_assert!(
             result == (self.severity == AlertSeverity::Warning),
-            "P9-cns-algedonic-alert-is-warning",
             "result must match warning severity"
         );
         result

@@ -12,7 +12,7 @@ pub mod cns;
 pub mod compose;
 
 pub mod consolidation;
-pub mod contract;
+
 pub mod curator;
 pub mod daemon;
 pub mod discover;

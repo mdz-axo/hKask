@@ -207,7 +207,6 @@ impl EnergyBudget {
     pub fn new(cap: EnergyCost) -> Self {
         assert!(
             cap.0 > 0,
-            "P9-cns-energy-budget-new",
             "precondition: cap must be positive"
         );
         let cap_raw = cap.0;
@@ -265,7 +264,6 @@ impl EnergyBudget {
         let result = gas.0 <= available.0 || !self.hard_limit;
         debug_assert!(
             !self.hard_limit || gas.0 > available.0 || result,
-            "P9-cns-energy-budget-can-proceed",
             "postcondition: hard_limit implies result iff gas fits within available"
         );
         result
@@ -279,7 +277,6 @@ impl EnergyBudget {
         let result = EnergyCost(self.remaining.0.saturating_sub(self.reserved.0));
         debug_assert!(
             result.0 <= self.remaining.0,
-            "P9-cns-energy-budget-available",
             "postcondition: available never exceeds remaining"
         );
         result
@@ -296,7 +293,6 @@ impl EnergyBudget {
         let available = self.available();
         if self.hard_limit && gas.0 > available.0 {
             return Err(
-                "P9-cns-energy-budget-reserve",
                 EnergyError::BudgetExceeded {
                     requested: gas,
                     remaining: available,
@@ -306,7 +302,6 @@ impl EnergyBudget {
         self.reserved = EnergyCost(self.reserved.0.saturating_add(gas.0));
         debug_assert!(
             self.reserved.0 <= self.remaining.0,
-            "P9-cns-energy-budget-reserve",
             "invariant: reserved ≤ remaining"
         );
         Ok(gas)
@@ -335,7 +330,6 @@ impl EnergyBudget {
         // Deduct actual cost from remaining
         if self.hard_limit && actual_gas.0 > self.remaining.0 {
             return Err(
-                "P9-cns-energy-budget-settle",
                 EnergyError::BudgetExceeded {
                     requested: actual_gas,
                     remaining: self.remaining,
@@ -345,7 +339,6 @@ impl EnergyBudget {
         self.remaining = EnergyCost(self.remaining.0.saturating_sub(actual_gas.0));
         debug_assert!(
             self.remaining.0 + self.reserved.0 <= self.cap.0,
-            "P9-cns-energy-budget-settle",
             "invariant: remaining + reserved ≤ cap"
         );
         Ok(actual_gas)
@@ -360,7 +353,6 @@ impl EnergyBudget {
     pub fn consume(&mut self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
         if self.hard_limit && gas.0 > self.remaining.0 {
             return Err(
-                "P9-cns-energy-budget-consume",
                 EnergyError::BudgetExceeded {
                     requested: gas,
                     remaining: self.remaining,
@@ -388,7 +380,6 @@ impl EnergyBudget {
         }
         debug_assert!(
             self.remaining.0 <= self.cap.0,
-            "P9-cns-energy-budget-replenish",
             "postcondition: remaining never exceeds cap"
         );
     }
@@ -400,7 +391,6 @@ impl EnergyBudget {
         self.remaining = EnergyCost(self.remaining.0.saturating_add(amount.0).min(self.cap.0));
         debug_assert!(
             self.remaining.0 <= self.cap.0,
-            "P9-cns-energy-budget-replenish-by",
             "postcondition: remaining never exceeds cap"
         );
     }
@@ -421,7 +411,6 @@ impl EnergyBudget {
         let delta = EnergyCost(self.remaining.0 - before);
         debug_assert!(
             self.remaining.0 <= self.cap.0,
-            "P9-cns-energy-budget-replenish-by-weighted",
             "postcondition: remaining never exceeds cap"
         );
         delta

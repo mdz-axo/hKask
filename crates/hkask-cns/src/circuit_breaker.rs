@@ -115,7 +115,6 @@ impl CircuitBreaker {
             result
                 == (matches!(state, CircuitState::Closed | CircuitState::HalfOpen)
                     || state == CircuitState::Open),
-            "P9-cns-circuit-allow-request",
             "postcondition: result matches circuit state gating"
         );
         result
