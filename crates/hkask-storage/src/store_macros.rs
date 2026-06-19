@@ -162,10 +162,10 @@ macro_rules! collect_rows_strict {
 ///
 /// # Example
 /// ```ignore
-/// let triples: `Vec<Triple>` = collect_rows!(
+/// let triples: Vec<Triple> = collect_rows!(
 ///     stmt,
 ///     rusqlite::params![entity],
-///     |row: &rusqlite::Row<'_>| -> rusqlite::`Result<TripleRow>` {
+///     |row: &rusqlite::Row<'_>| -> rusqlite::Result<TripleRow> {
 ///         Ok(TripleRow { ... })
 ///     },
 ///     TripleStore::row_to_triple

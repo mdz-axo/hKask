@@ -17,7 +17,7 @@
 //! ```rust,ignore
 //! use hkask_mcp::startup::verify_startup_gates;
 //!
-//! async fn try_daemon_flow(replicant: &str) -> anyhow::`Result<()>` {
+//! async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
 //!     let client = hkask_mcp::DaemonClient::new();
 //!     let result = verify_startup_gates(
 //!         &client,
