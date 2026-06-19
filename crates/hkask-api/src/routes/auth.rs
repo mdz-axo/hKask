@@ -518,7 +518,8 @@ pub async fn accept_invite(
             .body(axum::body::Body::empty())
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?);
     }
-    let session_id = session_cookie.ok_or((StatusCode::UNAUTHORIZED, "No session cookie".into()))?
+    let session_id = session_cookie
+        .ok_or((StatusCode::UNAUTHORIZED, "No session cookie".into()))?
         .trim_matches('"')
         .to_string();
     let session = user_store
