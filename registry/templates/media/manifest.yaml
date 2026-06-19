@@ -45,21 +45,30 @@ templates:
       thirds, leading lines, depth of field, perspective, framing,
       symmetry, and negative space.
 
-  - id: media/logo-single-shot
-    path: logo-single-shot.j2
+  - id: media/logo-formal-prompt
+    path: logo-formal-prompt.j2
     type: KnowAct
-    lexicon_terms: [generate, design, create]
+    lexicon_terms: [generate, design, create, formalize]
     description: >
-      Generate a professional logo from business identity inputs (name,
-      industry, style, palette, logo type). Single-pass image generation
-      using a curated prompt template tuned for logo-quality output.
+      Core logo generation prompt encoding Bokhua's five design gates:
+      simplicity, monochrome viability, grid discipline, negative space,
+      and scalability. Every logo generation flow delegates to this template.
+
+  - id: media/logo-discovery-map
+    path: logo-discovery-map.j2
+    type: KnowAct
+    lexicon_terms: [classify, map, recommend, strategize]
+    description: >
+      Map qualitative brand identity inputs (industry, audience, values) to
+      formal logo design parameters (style, type, shape, palette, density)
+      using strategic brand reasoning. From Martin's Minimum Viable Brand.
 
   - id: media/logo-iterative-refine
     path: logo-iterative-refine.yaml
     type: FlowDef
-    lexicon_terms: [generate, critique, refine, iterate]
+    lexicon_terms: [generate, critique, refine, iterate, score]
     description: >
-      Multi-phase logo design pipeline: generate N candidates, critique
-      each with a vision LLM, select the best, and refine through up to 3
-      critique-and-regenerate cycles. Final output is background-removed
-      for transparent PNG deliverables.
+      Peters-inspired iterative logo pipeline: generate N candidates, score
+      each against 7 weighted critique dimensions (5 Bokhua gates + brand-fit
+      + distinctiveness), select best, refine through critique cycles.
+      Final output is background-removed for transparent PNG deliverables.

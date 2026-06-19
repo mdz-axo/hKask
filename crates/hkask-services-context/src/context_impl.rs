@@ -314,7 +314,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<dyn NuEventSink>
+    /// post: returns `&Arc<dyn NuEventSink>`
     pub fn event_sink(&self) -> &Arc<dyn NuEventSink> {
         &self.event_sink
     }
@@ -335,7 +335,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<RwLock<`Option<SeamWatcher>`>>
+    /// post: returns ``&Arc<RwLock<Option<SeamWatcher>>>``
     pub fn seam_watcher(&self) -> &Arc<RwLock<Option<SeamWatcher>>> {
         &self.seam_watcher
     }
@@ -381,7 +381,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<McpRuntime>
+    /// post: returns `&Arc<McpRuntime>`
     pub fn mcp_runtime(&self) -> &Arc<McpRuntime> {
         &self.mcp_runtime
     }
@@ -389,7 +389,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<ActivePods>
+    /// post: returns `&Arc<ActivePods>`
     pub fn pod_manager(&self) -> &Arc<ActivePods> {
         &self.pod_manager
     }
