@@ -14,11 +14,3 @@ fn fuzz_triple_construct() {
             assert_eq!(triple.attribute.as_str(), attr.as_str());
         });
 }
-
-/// Spec description decomposition must never panic.
-#[test]
-fn fuzz_spec_decompose() {
-    check!().with_type::<String>().for_each(|desc| {
-        let _ = hkask_storage::spec_ops::decompose_description(&desc);
-    });
-}

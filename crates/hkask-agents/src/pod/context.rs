@@ -313,14 +313,21 @@ impl PodContext {
             .map_err(AgentPodError::from)?;
 
         // Step 3: Emit CNS event to trigger Curator sense loop.
-        // Fire-and-forget: spawn on the current runtime so it doesn't block.
         let cns = self.cns.inner().clone();
         let entity = entity.to_string();
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            handle.spawn(async move {
-                cns.increment_variety("cns.semantic.published", &entity)
-                    .await;
-            });
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) => {
+                handle.spawn(async move {
+                    cns.increment_variety("cns.semantic.published", &entity).await;
+                });
+            }
+            Err(_) => {
+                tracing::warn!(
+                    target: "hkask.pod.context",
+                    pod_id = %self.pod_id,
+                    "No tokio runtime — CNS semantic.published event not emitted"
+                );
+            }
         }
 
         Ok(result)

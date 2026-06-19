@@ -31,19 +31,20 @@ use hkask_storage::Database;
 use hkask_types::{Visibility, WebID};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing;
 
-/// Derive the SQLCipher passphrase for a pod from its webid metadata file.
+/// Derive the SQLCipher passphrase for a pod from its .webid sidecar file.
+/// The .webid file is the bootstrapping mechanism — you can't read the database
+/// without the passphrase, and you can't derive the passphrase without the webid.
 /// Same derivation as PodFactory::create_pod_storage (HKDF-SHA256 from master key).
 fn derive_passphrase(db_path: &PathBuf) -> Result<String, String> {
     let webid_path = db_path.with_extension("webid");
     let webid_str = std::fs::read_to_string(&webid_path)
         .map_err(|e| format!("Failed to read webid file {:?}: {e}", webid_path))?;
-    let webid: WebID = webid_str
-        .trim()
-        .parse()
+    let webid: WebID = webid_str.trim().parse()
         .map_err(|e| format!("Failed to parse WebID from {:?}: {e}", webid_path))?;
     let context = format!(
         "{}:{}",
@@ -75,6 +76,8 @@ pub struct CuratorSync {
     registry: Arc<PodRegistry>,
     /// Polling interval
     interval: Duration,
+    /// Consecutive tick failures — escalates to CNS alert after threshold
+    consecutive_failures: std::sync::atomic::AtomicU64,
 }
 
 impl CuratorSync {
@@ -91,6 +94,7 @@ impl CuratorSync {
             data_dir,
             registry,
             interval: Duration::from_secs(1),
+            consecutive_failures: AtomicU64::new(0),
         }
     }
 
@@ -107,11 +111,22 @@ impl CuratorSync {
             tokio::select! {
                 _ = tokio::time::sleep(self.interval) => {
                     if let Err(e) = self.tick().await {
+                        let failures = self.consecutive_failures.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
                         tracing::warn!(
                             target: "hkask.curator.sync",
                             error = %e,
+                            consecutive_failures = failures,
                             "Curator sync tick failed"
                         );
+                        // Escalate after 10 consecutive failures (~10s)
+                        if failures >= 10 {
+                            tracing::error!(
+                                target: "cns.curator.sync.degraded",
+                                consecutive_failures = failures,
+                                "CURATOR_SYNC_DEGRADED: {} consecutive sync failures — check passphrase derivation and pod availability",
+                                failures
+                            );
+                        }
                     }
                 }
                 _ = cancel.changed() => {
@@ -157,6 +172,8 @@ impl CuratorSync {
             }
         }
 
+        // Reset failure counter on successful tick
+        self.consecutive_failures.store(0, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
 

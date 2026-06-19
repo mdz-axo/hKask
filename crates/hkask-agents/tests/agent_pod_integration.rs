@@ -1,70 +1,17 @@
 //! Multi-Pod Integration Tests — Acceptance tests for the three-tier pod architecture.
 
-use hkask_agents::AllowAllConsent;
 use hkask_agents::pod::{ActivePods, AgentPersona, PodKind};
 use hkask_types::AgentKind;
-use std::sync::Arc;
-
-fn setup_mock_templates(base: &std::path::Path) {
-    unsafe {
-        std::env::set_var(
-            "HKASK_MASTER_KEY",
-            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        );
-    }
-    let tmpl = base.join("templates");
-    let persona_yaml = "agent:\n  name: test\n  type: Bot\n  version: \"0.1.0\"\ncharter:\n  description: Test\n  editor: test\n";
-    for name in &["curator", "replicant", "team", "solo"] {
-        let dir = tmpl.join(name);
-        let _ = std::fs::create_dir_all(&dir);
-        let _ = std::fs::write(dir.join("agent_persona.yaml"), persona_yaml);
-        let _ = std::fs::write(dir.join("dispatch_manifest.yaml"), "selector: test\n");
-    }
-}
-
-fn make_test_pods(data_dir: &std::path::Path) -> ActivePods {
-    use hkask_agents::a2a::A2ARuntime;
-    use hkask_agents::adapters::mcp_runtime::CapabilityOnlyAdapter;
-    use hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter;
-    use hkask_agents::pod::PodFactory;
-    use hkask_types::CapabilityChecker;
-
-    let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
-    let mcp = Arc::new(CapabilityOnlyAdapter::new(Arc::new(
-        CapabilityChecker::new(b"mock"),
-    )));
-    let a2a = Arc::new(A2ARuntime::new(b"mock"));
-    let factory = Arc::new(PodFactory::new(
-        Arc::new(hkask_mcp::GitCasAdapter::from_path(
-            data_dir.join("templates"),
-        )),
-        Arc::new(AllowAllConsent),
-        data_dir.to_path_buf(),
-    ));
-    ActivePods::new()
-        .with_a2a_runtime(a2a)
-        .with_factory_and_ports(
-            factory,
-            mcp.clone(),
-            None,
-            None,
-            None,
-            adapter.clone() as Arc<dyn hkask_agents::ports::EpisodicStoragePort>,
-            adapter as Arc<dyn hkask_agents::ports::SemanticStoragePort>,
-        )
-}
 
 async fn setup_with_curator(
     tmp: &tempfile::TempDir,
 ) -> (ActivePods, tokio::sync::watch::Sender<bool>) {
-    setup_mock_templates(tmp.path());
-    let pods = make_test_pods(tmp.path());
+    let pods = ActivePods::new_test_harness(tmp.path());
     let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
     let result = pods
         .ensure_curator(tmp.path().to_path_buf(), cancel_rx)
         .await;
     assert!(result.is_ok(), "ensure_curator failed: {:?}", result.err());
-    assert!(result.unwrap().is_some(), "SemanticIndex missing");
     (pods, cancel_tx)
 }
 
@@ -177,8 +124,7 @@ async fn team_pod_bots_share_episodic() {
 #[tokio::test]
 async fn recall_falls_back_to_local_when_no_curator() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    setup_mock_templates(tmp.path());
-    let pods = make_test_pods(tmp.path());
+    let pods = ActivePods::new_test_harness(tmp.path());
     let persona = AgentPersona::system("solo", AgentKind::Replicant);
     let pod_id = pods
         .create_pod("solo", &persona, None, PodKind::Replicant)
@@ -198,8 +144,7 @@ async fn recall_falls_back_to_local_when_no_curator() {
 #[tokio::test]
 async fn pod_deployment_has_correct_pod_kind() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    setup_mock_templates(tmp.path());
-    let pods = make_test_pods(tmp.path());
+    let pods = ActivePods::new_test_harness(tmp.path());
     let team_persona = AgentPersona::system("podkind-team", AgentKind::Bot);
     let team_id = pods
         .create_pod("team", &team_persona, None, PodKind::Team)

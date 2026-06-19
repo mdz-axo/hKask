@@ -51,33 +51,56 @@ impl ActivePods {
 
     /// Create a mock ActivePods for testing — matches old PodManager::new_mock().
     /// Wires in-memory adapters and a test factory so create_pod/activate_pod work.
-    pub fn new_mock() -> Self {
+    /// Full test harness with in-memory adapters, AllowAllConsent,
+    /// mock templates, and master key set. One call sets up everything
+    /// needed for integration tests.
+    pub fn new_test_harness(data_dir: &std::path::Path) -> Self {
+        // Set test master key for ADR-027 key derivation
+        unsafe {
+            std::env::set_var("HKASK_MASTER_KEY",
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        }
+        // Create mock template directories
+        let tmpl = data_dir.join("templates");
+        let persona_yaml = "agent:\n  name: test\n  type: Bot\n  version: \"0.1.0\"\ncharter:\n  description: Test\n  editor: test\n";
+        for name in &["curator", "replicant", "team", "solo"] {
+            let dir = tmpl.join(name);
+            let _ = std::fs::create_dir_all(&dir);
+            let _ = std::fs::write(dir.join("agent_persona.yaml"), persona_yaml);
+            let _ = std::fs::write(dir.join("dispatch_manifest.yaml"), "selector: test\n");
+        }
+        Self::new_test_harness_inner(data_dir)
+    }
+
+    /// Inner test harness — shared with new_mock for backward compatibility.
+    fn new_test_harness_inner(data_dir: &std::path::Path) -> Self {
         use crate::a2a::A2ARuntime;
         use crate::adapters::mcp_runtime::CapabilityOnlyAdapter;
         use crate::adapters::memory_loop_adapter::MemoryLoopAdapter;
+        use crate::pod::PodFactory;
+        use crate::AllowAllConsent;
         use hkask_types::CapabilityChecker;
 
         let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
-        let mcp = Arc::new(CapabilityOnlyAdapter::new(Arc::new(
-            CapabilityChecker::new(b"mock"),
-        )));
+        let mcp = Arc::new(CapabilityOnlyAdapter::new(Arc::new(CapabilityChecker::new(b"mock"))));
         let a2a = Arc::new(A2ARuntime::new(b"mock"));
         let factory = Arc::new(PodFactory::new(
-            Arc::new(hkask_mcp::GitCasAdapter::from_path(
-                std::path::PathBuf::from("/tmp/hkask-mock"),
-            )),
-            Arc::new(crate::DenyAllConsent),
-            std::path::PathBuf::from("/tmp/hkask-mock-pods"),
+            Arc::new(hkask_mcp::GitCasAdapter::from_path(data_dir.join("templates"))),
+            Arc::new(AllowAllConsent),
+            data_dir.to_path_buf(),
         ));
-        Self::new().with_a2a_runtime(a2a).with_factory_and_ports(
-            factory,
-            mcp.clone(),
-            None,
-            None,
-            None,
-            adapter.clone() as Arc<dyn EpisodicStoragePort>,
-            adapter as Arc<dyn SemanticStoragePort>,
-        )
+        Self::new()
+            .with_a2a_runtime(a2a)
+            .with_factory_and_ports(
+                factory, mcp.clone(), None, None, None,
+                adapter.clone() as Arc<dyn EpisodicStoragePort>,
+                adapter as Arc<dyn SemanticStoragePort>,
+            )
+    }
+
+    /// Legacy mock — delegates to new_test_harness_inner with /tmp path.
+    pub fn new_mock() -> Self {
+        Self::new_test_harness_inner(&std::path::PathBuf::from("/tmp/hkask-mock"))
     }
 
     /// Wire the factory and port adapters so create_pod/activate_pod work
@@ -227,6 +250,15 @@ impl ActivePods {
         let mcp = Arc::clone(self.mcp_runtime.as_ref().ok_or_else(|| {
             AgentPodError::PersonaParseError("ActivePods not wired with MCP runtime".into())
         })?);
+        // Enforce CuratorPod singleton (P5 Essentialism)
+        if pod_kind == PodKind::Curator {
+            let ci = self.curator_index.read().await;
+            if ci.is_some() {
+                return Err(AgentPodError::PersonaParseError(
+                    "CuratorPod already exists — only one CuratorPod per system".into(),
+                ));
+            }
+        }
         let deployment = factory
             .deploy(
                 template_name,

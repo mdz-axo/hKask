@@ -36,6 +36,10 @@ pub use calibrated_energy_estimator::{
 };
 pub use circuit_breaker::CircuitBreaker;
 pub use composite_energy_estimator::CompositeEnergyEstimator;
+pub mod contract_events;
+pub use contract_events::{
+    emit_contract_accepted, emit_contract_proposed, emit_contract_rejected, emit_contract_violated,
+};
 pub use cybernetics_loop::CyberneticsLoop;
 pub use dynamic_gas_table::DynamicGasTable;
 pub use energy::{

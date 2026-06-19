@@ -1,8 +1,8 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-06-18
-version: "0.29.0"
+last_updated: 2026-06-19
+version: "0.30.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -11,7 +11,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 # hKask Documentation Portal
 
 **Purpose:** Single entry point indexing every active document in `docs/`, tagged
-by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
+by [MDS](architecture/core/MDS.md) category. 64 active documents. hKask v0.30.0.
 
 > **Lifecycle:** Retired documents are removed via `git rm`. The gitignored
 > `docs/archive/` holds date-stamped snapshots for reference.
@@ -22,7 +22,9 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 
 | Document | What It Is |
 |----------|------------|
-| [`architecture/hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | Authoritative architecture index — 4 patterns, kata, kanban, LoRA, deployment |
+| [`architecture/hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | Authoritative architecture index — 4 patterns, three-tier pods, kata, kanban, LoRA, deployment |
+| [`architecture/core/SOLID_POD_ISOMORPHISM.md`](architecture/core/SOLID_POD_ISOMORPHISM.md) | AgentPod↔Solid Pod isomorphism — drift analysis and resolution |
+| [`architecture/core/MULTI_POD_ARCHITECTURE.md`](architecture/core/MULTI_POD_ARCHITECTURE.md) | Three-tier pod architecture (CuratorPod, TeamPod, ReplicantPod) |
 | [`architecture/core/MDS.md`](architecture/core/MDS.md) | 5-category specification framework and MDS methodology |
 | [`architecture/core/PRINCIPLES.md`](architecture/core/PRINCIPLES.md) | Architecture principles (P1-P12) |
 | [`architecture/core/TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | Contract-anchored testing — DbC + PBT specification |

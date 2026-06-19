@@ -277,7 +277,9 @@ impl PodFactory {
         let semantic_index = if pod_kind == PodKind::Curator {
             let conn = storage.db.conn_arc();
             let index_store = TripleStore::new(conn);
-            Some(Arc::new(std::sync::RwLock::new(SemanticIndex::new(index_store))))
+            Some(Arc::new(std::sync::RwLock::new(SemanticIndex::new(
+                index_store,
+            ))))
         } else {
             None
         };
@@ -369,11 +371,35 @@ impl PodFactory {
                     reason: e.to_string(),
                 })?;
 
-        // Write webid metadata so CuratorSync can derive the passphrase.
-        // The webid file lives next to the database file.
+        // Write webid sidecar for CuratorSync passphrase bootstrapping.
+        // The .webid file is read BEFORE the database is opened (chicken-and-egg
+        // resolution: need webid to derive passphrase, need passphrase to open DB).
         let webid_path = db_path.with_extension("webid");
         if let Err(e) = std::fs::write(&webid_path, persona.webid().to_string()) {
-            tracing::warn!(target: "hkask.pod.deployment", path = %webid_path.display(), error = %e, "Failed to write webid metadata — CuratorSync will not be able to derive passphrase for this pod");
+            tracing::warn!(target: "hkask.pod.deployment", path = %webid_path.display(), error = %e,
+                "Failed to write webid sidecar — CuratorSync will not be able to sync this pod");
+        }
+        // Also write pod metadata into the database for backup/portability.
+        {
+            let conn = db.conn_arc();
+            let conn = conn.lock().map_err(|e| PodDeployError::StorageInitFailed {
+                path: db_path.clone(),
+                reason: format!("Lock failed: {e}"),
+            })?;
+            let now = chrono::Utc::now().to_rfc3339();
+            for (key, value) in &[
+                ("webid", persona.webid().to_string()),
+                ("pod_kind", format!("{:?}", pod_kind)),
+                ("created_at", now),
+            ] {
+                conn.execute(
+                    "INSERT OR REPLACE INTO pod_meta (key, value) VALUES (?1, ?2)",
+                    rusqlite::params![key, value],
+                ).map_err(|e| PodDeployError::StorageInitFailed {
+                    path: db_path.clone(),
+                    reason: format!("Failed to write pod_meta.{}: {e}", key),
+                })?;
+            }
         }
 
         Ok((

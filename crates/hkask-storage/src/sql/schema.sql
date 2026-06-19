@@ -39,3 +39,6 @@ CREATE TABLE IF NOT EXISTS kata_history (id INTEGER PRIMARY KEY AUTOINCREMENT, a
 CREATE INDEX IF NOT EXISTS idx_kata_history_agent ON kata_history(agent_name);
 CREATE INDEX IF NOT EXISTS idx_kata_history_date ON kata_history(date);
 CREATE INDEX IF NOT EXISTS idx_kata_history_type ON kata_history(kata_type);
+-- Pod metadata — webid, pod_kind, created_at for passphrase derivation and discovery
+CREATE TABLE IF NOT EXISTS pod_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+INSERT OR IGNORE INTO pod_meta (key, value) VALUES ('schema_version', '1');

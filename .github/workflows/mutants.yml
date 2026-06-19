@@ -63,12 +63,12 @@ jobs:
           cargo bolero test -p hkask-inference-fuzz fuzz_provider_id_parse_model -T 300s -e libfuzzer 2>&1 | tee -a bolero-deep-output.txt
         continue-on-error: true
 
-      # TODO: Wire kask qa triage after CLI subcommand exists (step 3)
-      # - name: Triage failures
-      #   if: failure()
-      #   env:
-      #     DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
-      #   run: cat bolero-deep-output.txt | kask qa triage
+      - name: Triage failures
+        if: failure()
+        env:
+          DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: cat bolero-deep-output.txt | cargo run --bin kask -- qa triage
 
       - name: Upload fuzz artifacts
         if: always()

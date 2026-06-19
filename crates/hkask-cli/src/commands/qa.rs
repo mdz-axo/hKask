@@ -5,7 +5,7 @@
 
 use crate::cli::QaAction;
 use hkask_services_classify::{self, ClassifierConfig};
-use hkask_test_harness::triage::{BoleroFailure, TriageReport};
+use hkask_test_harness::triage::{self, BoleroFailure, QaDiagnosis, TriageReport};
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -80,7 +80,7 @@ async fn triage(input_path: Option<PathBuf>) -> Result<(), Box<dyn std::error::E
 
             match diagnosis {
                 Ok(diag) => {
-                    emit_cns_span_for(failure, &diag);
+                    triage::emit_cns_span(failure, &diag);
 
                     if diag.is_flake {
                         println!(
@@ -165,23 +165,6 @@ fn find_registry_dir() -> PathBuf {
     home.join(".config").join("hkask").join("registry")
 }
 
-#[derive(Debug, serde::Deserialize)]
-struct QaDiagnosis {
-    failure_type: String,
-    root_cause: String,
-    confidence: f64,
-    #[serde(default)]
-    proposed_fix: String,
-    #[serde(default)]
-    affected_file: String,
-    #[serde(default)]
-    affected_line: u32,
-    #[serde(default)]
-    is_flake: bool,
-    #[serde(default)]
-    suggested_fuzz_target: String,
-}
-
 fn parse_diagnosis(raw: &str) -> Result<QaDiagnosis, serde_json::Error> {
     // Strip markdown code fences if present
     let json = raw
@@ -191,19 +174,6 @@ fn parse_diagnosis(raw: &str) -> Result<QaDiagnosis, serde_json::Error> {
         .map(str::trim)
         .unwrap_or(raw);
     serde_json::from_str(json)
-}
-
-fn emit_cns_span_for(failure: &BoleroFailure, diagnosis: &QaDiagnosis) {
-    tracing::info!(
-        target: "cns.qa.bolero_failure",
-        crate_name = %failure.crate_name,
-        test_name = %failure.test_name,
-        failure_type = %diagnosis.failure_type,
-        root_cause = %diagnosis.root_cause,
-        confidence = diagnosis.confidence,
-        is_flake = diagnosis.is_flake,
-        suggested_fuzz_target = %diagnosis.suggested_fuzz_target,
-    );
 }
 
 fn emit_cns_spans(failures: &[BoleroFailure]) {

@@ -16,19 +16,19 @@ use std::process::Command;
 
 #[derive(Debug, Deserialize)]
 pub struct QaDiagnosis {
-    failure_type: String,
-    root_cause: String,
-    confidence: f64,
+    pub failure_type: String,
+    pub root_cause: String,
+    pub confidence: f64,
     #[serde(default)]
-    proposed_fix: String,
+    pub proposed_fix: String,
     #[serde(default)]
-    affected_file: String,
+    pub affected_file: String,
     #[serde(default)]
-    affected_line: u32,
+    pub affected_line: u32,
     #[serde(default)]
-    is_flake: bool,
+    pub is_flake: bool,
     #[serde(default)]
-    suggested_fuzz_target: String,
+    pub suggested_fuzz_target: String,
 }
 
 // ── Bolero failure model ─────────────────────────────────────────────────────
@@ -273,6 +273,9 @@ pub fn attempt_auto_repair(
     ])?;
     run_git(&["push", "-u", "origin", &branch])?;
 
+    // 6. Open PR
+    open_pull_request(failure, diagnosis, &branch)?;
+
     tracing::info!(target: "cns.qa.repair_verified", "Repair verified and pushed");
 
     Ok(())
@@ -346,8 +349,10 @@ pub fn emit_cns_span(failure: &BoleroFailure, diagnosis: &QaDiagnosis) {
         crate_name = %failure.crate_name,
         test_name = %failure.test_name,
         failure_type = %diagnosis.failure_type,
+        root_cause = %diagnosis.root_cause,
         confidence = diagnosis.confidence,
         is_flake = diagnosis.is_flake,
+        suggested_fuzz_target = %diagnosis.suggested_fuzz_target,
     );
 }
 
@@ -365,38 +370,200 @@ pub enum TriageError {
     Parse(String),
 }
 
-// ── GitHub integration stubs ──────────────────────────────────────────────────
-// These are placeholders for future octocrab or gh CLI integration.
+// ── GitHub integration (gh CLI) ──────────────────────────────────────────────
 
-#[allow(dead_code)]
-fn open_pull_request(
-    _failure: &BoleroFailure,
-    _diagnosis: &QaDiagnosis,
-    _branch: &str,
+/// Open an auto-repair pull request via `gh pr create`.
+pub fn open_pull_request(
+    failure: &BoleroFailure,
+    diagnosis: &QaDiagnosis,
+    branch: &str,
 ) -> Result<(), TriageError> {
-    // TODO: implement with octocrab or gh CLI
+    let title = format!(
+        "auto-heal: {} in {} (confidence: {:.2})",
+        failure.test_name, failure.crate_name, diagnosis.confidence
+    );
+    let body = format!(
+        "## Auto-repair for bolero fuzz failure\n\n\
+         **Crate:** {crate}\n\
+         **Test:** {test}\n\
+         **Failure type:** {ftype}\n\
+         **Root cause:** {cause}\n\
+         **Confidence:** {conf:.2}\n\
+         **Suggested fuzz target:** {fuzz}\n\n\
+         ### Proposed fix\n```diff\n{fix}\n```\n",
+        crate = failure.crate_name,
+        test = failure.test_name,
+        ftype = diagnosis.failure_type,
+        cause = diagnosis.root_cause,
+        conf = diagnosis.confidence,
+        fuzz = diagnosis.suggested_fuzz_target,
+        fix = diagnosis.proposed_fix,
+    );
+
+    let output = Command::new("gh")
+        .args([
+            "pr", "create", "--title", &title, "--body", &body, "--base", "main", "--head", branch,
+        ])
+        .output()
+        .map_err(|e| TriageError::Git(format!("gh pr create failed: {e}")))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(TriageError::Git(format!("gh pr create: {stderr}")));
+    }
+
+    let pr_url = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    tracing::info!(target: "cns.qa.repair_verified", pr_url = %pr_url, "Auto-repair PR opened");
     Ok(())
 }
 
-#[allow(dead_code)]
-fn open_issue_with_suggestion(
-    _failure: &BoleroFailure,
-    _diagnosis: &QaDiagnosis,
+/// Open an issue with classifier suggestion (medium confidence).
+pub fn open_issue_with_suggestion(
+    failure: &BoleroFailure,
+    diagnosis: &QaDiagnosis,
 ) -> Result<(), TriageError> {
+    let title = format!(
+        "[QA] Fuzz failure: {} in {}",
+        failure.test_name, failure.crate_name
+    );
+    let body = format!(
+        "## Bolero fuzz failure\n\n\
+         **Crate:** {crate}\n\
+         **Test:** {test}\n\
+         **Failure type:** {ftype}\n\
+         **Root cause (LLM):** {cause}\n\
+         **Confidence:** {conf:.2}\n\
+         **Failing input:** `{input}`\n\n\
+         ### Suggested fix\n```diff\n{fix}\n```\n\n\
+         ### Suggested fuzz target\n{fuzz}\n",
+        crate = failure.crate_name,
+        test = failure.test_name,
+        ftype = diagnosis.failure_type,
+        cause = diagnosis.root_cause,
+        conf = diagnosis.confidence,
+        input = failure.failing_input,
+        fix = diagnosis.proposed_fix,
+        fuzz = diagnosis.suggested_fuzz_target,
+    );
+
+    let output = Command::new("gh")
+        .args(["issue", "create", "--title", &title, "--body", &body])
+        .output()
+        .map_err(|e| TriageError::Git(format!("gh issue create failed: {e}")))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        tracing::warn!(target: "cns.qa", error = %stderr, "Failed to open issue");
+    }
     Ok(())
 }
 
-#[allow(dead_code)]
-fn open_issue_for_investigation(
-    _failure: &BoleroFailure,
-    _diagnosis: &QaDiagnosis,
+/// Open an issue for human investigation (low confidence).
+pub fn open_issue_for_investigation(
+    failure: &BoleroFailure,
+    diagnosis: &QaDiagnosis,
 ) -> Result<(), TriageError> {
+    let title = format!(
+        "[QA] Investigate fuzz failure: {} in {}",
+        failure.test_name, failure.crate_name
+    );
+    let body = format!(
+        "## Bolero fuzz failure — needs human investigation\n\n\
+         **Crate:** {crate}\n\
+         **Test:** {test}\n\
+         **Panic:** {panic}\n\
+         **Failing input:** `{input}`\n\
+         **LLM diagnosis (low confidence {conf:.2}):** {cause}\n\
+         **Failure type:** {ftype}\n",
+        crate = failure.crate_name,
+        test = failure.test_name,
+        panic = failure.panic_message,
+        input = failure.failing_input,
+        conf = diagnosis.confidence,
+        cause = diagnosis.root_cause,
+        ftype = diagnosis.failure_type,
+    );
+
+    let output = Command::new("gh")
+        .args(["issue", "create", "--title", &title, "--body", &body])
+        .output()
+        .map_err(|e| TriageError::Git(format!("gh issue create failed: {e}")))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        tracing::warn!(target: "cns.qa", error = %stderr, "Failed to open investigation issue");
+    }
     Ok(())
 }
 
-#[allow(dead_code)]
-fn open_raw_failure_issue(_failure: &BoleroFailure, _raw_output: &str) -> Result<(), TriageError> {
-    // Classifier returned unparseable JSON — open issue with raw bolero output
-    let _ = _raw_output;
+/// Open an issue when classifier returns unparseable JSON.
+pub fn open_raw_failure_issue(
+    failure: &BoleroFailure,
+    raw_output: &str,
+) -> Result<(), TriageError> {
+    let title = format!(
+        "[QA] Unparseable classifier output: {} in {}",
+        failure.test_name, failure.crate_name
+    );
+    let body = format!(
+        "## Classifier returned unparseable JSON\n\n\
+         **Crate:** {crate}\n\
+         **Test:** {test}\n\
+         **Panic:** {panic}\n\
+         **Failing input:** `{input}`\n\n\
+         ### Raw classifier output\n```\n{raw}\n```\n",
+        crate = failure.crate_name,
+        test = failure.test_name,
+        panic = failure.panic_message,
+        input = failure.failing_input,
+        raw = raw_output,
+    );
+
+    let output = Command::new("gh")
+        .args(["issue", "create", "--title", &title, "--body", &body])
+        .output()
+        .map_err(|e| TriageError::Git(format!("gh issue create failed: {e}")))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        tracing::warn!(target: "cns.qa", error = %stderr, "Failed to open raw failure issue");
+    }
     Ok(())
+}
+
+// ── Feedback loops ─────────────────────────────────────────────────────────
+
+/// Feed a rejected repair back to the classifier as a correction passage.
+/// Call this when a human closes an auto-repair PR without merging.
+pub fn feed_rejected_repair(
+    original_failure: &BoleroFailure,
+    incorrect_diagnosis: &QaDiagnosis,
+    correct_fix: &str,
+) -> String {
+    format!(
+        "CORRECTION:\n\
+         Original failure: {failure}\n\
+         You diagnosed: {incorrect}\n\
+         Correct diagnosis: {correct}\n\
+         Learn from this discrepancy.",
+        failure = original_failure.to_passage(),
+        incorrect = incorrect_diagnosis.root_cause,
+        correct = correct_fix,
+    )
+}
+
+/// Format surviving mutants as passages for fuzz target suggestion.
+pub fn format_mutant_for_suggestion(
+    crate_name: &str,
+    file: &str,
+    line: u32,
+    original: &str,
+    mutated: &str,
+) -> String {
+    format!(
+        "CRATE: {crate}\nFILE: {file}\nLINE: {line}\n\
+         MUTATION: changed {original} to {mutated}\n\
+         Suggest a fuzz target that would catch this mutant.",
+        crate = crate_name,
+    )
 }
