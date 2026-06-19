@@ -110,9 +110,8 @@ for root in crates mcp-servers; do
             end=$((line_num - 1))
             prior_lines=$(sed -n "${start},${end}p" "$file" 2>/dev/null)
 
-            req_match=$(echo "$prior_lines" | grep -E '(// REQ:|/// REQ:|/// expect:|// contract:)' | tail -1 || true)
-
-            if [ -n "$req_match" ]; then
+            req_match=$(echo "$prior_lines" | grep -E 'REQ:|expect:|contract:' | tail -1 || true)
+            if [ -n "$req_match" ] && ! echo "$req_match" | grep -q 'expect:/post:'; then
                 total_with_req=$((total_with_req + 1))
                 crate_with_req["$crate"]=$((${crate_with_req["$crate"]:-0} + 1))
 

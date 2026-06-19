@@ -49,7 +49,9 @@ jobs:
             pkg-config \
             libssl-dev \
             libsqlite3-dev \
-            libdbus-1-dev
+            libdbus-1-dev \
+            mold \
+            clang
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2

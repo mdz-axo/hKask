@@ -46,7 +46,9 @@ jobs:
             pkg-config \
             libssl-dev \
             libsqlite3-dev \
-            libdbus-1-dev
+            libdbus-1-dev \
+            mold \
+            clang
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -98,7 +100,9 @@ jobs:
             pkg-config \
             libssl-dev \
             libsqlite3-dev \
-            libdbus-1-dev
+            libdbus-1-dev \
+            mold \
+            clang
 
       - name: Install cross (for musl + AArch64)
         if: matrix.target != 'x86_64-unknown-linux-gnu'
