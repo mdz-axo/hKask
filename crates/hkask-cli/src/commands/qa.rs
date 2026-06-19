@@ -76,7 +76,16 @@ async fn triage(input_path: Option<PathBuf>) -> Result<(), Box<dyn std::error::E
         // Classify each failure
         println!("[QA] Classifying {} failure(s) with LLM...", failures.len());
         let passages: Vec<String> = failures.iter().map(|f| f.to_passage()).collect();
-        let results = hkask_services_classify::classify_batch(&passages, cfg).await?;
+        let results = match hkask_services_classify::classify_batch(&passages, cfg).await {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("[QA] Classifier API error: {e}");
+                eprintln!("[QA] Is DEEPINFRA_API_KEY valid? Is network available?");
+                print_failures(&failures);
+                emit_cns_spans(&failures);
+                return Ok(());
+            }
+        };
 
         let mut report = TriageReport::default();
 
