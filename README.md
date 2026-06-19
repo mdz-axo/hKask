@@ -139,7 +139,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 ---
 
-## Success Criterion (18 Items)
+## Success Criterion (17 Items)
 
 hKask is "done" when a single user can:
 
@@ -148,18 +148,18 @@ hKask is "done" when a single user can:
 3. Use `/model qwen` to fuzzy search models; `/model qwen3:8b` to switch the LLM
 4. Observe ≥3 subsystem-curator bots spawn at startup
 5. Trigger ensemble session with ≥2 subsystem-curators deliberating
-7. Invoke any operation through CLI or HTTP API with identical behavior
-8. Invoke any tool from 11 MCP set; observe routing
-9. Compose two tools via process template
-10. Record episodic memory with confidence
-11. Retrieve memory; observe `as-of` query returns historical state
-12. Observe another agent cannot read private memory without OCAP delegation
-13. Generate embedding via embedding MCP; stored in same SQLite transaction
-14. `fork` public template via storage MCP; observe divergent branch
-15. Merge two branches; observe structural success + conflict requiring ensemble
-16. Attempt to clone private artifact; observe OCAP rejection
-17. Observe curator reflect on inference outcomes, propose template revision
-18. CNS records change, observes new outcomes
+6. Invoke any operation through CLI or HTTP API with identical behavior
+7. Invoke any tool from 11 MCP set; observe routing
+8. Compose two tools via process template
+9. Record episodic memory with confidence
+10. Retrieve memory; observe `as-of` query returns historical state
+11. Observe another agent cannot read private memory without OCAP delegation
+12. Generate embedding via embedding MCP; stored in same SQLite transaction
+13. `fork` public template via storage MCP; observe divergent branch
+14. Merge two branches; observe structural success + conflict requiring ensemble
+15. Attempt to clone private artifact; observe OCAP rejection
+16. Observe curator reflect on inference outcomes, propose template revision
+17. CNS records change, observes new outcomes
 
 ---
 

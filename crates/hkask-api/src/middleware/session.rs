@@ -23,9 +23,10 @@ pub(crate) fn extract_cookie(headers: &axum::http::HeaderMap, name: &str) -> Opt
     for part in cookie_header.split(';') {
         let trimmed = part.trim();
         if let Some((key, value)) = trimmed.split_once('=')
-            && key.trim() == name {
-                return Some(value.trim().to_string());
-            }
+            && key.trim() == name
+        {
+            return Some(value.trim().to_string());
+        }
     }
     None
 }
