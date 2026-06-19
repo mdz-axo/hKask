@@ -6,7 +6,7 @@
 //! pod ID parsing logic.
 
 
-use hkask_agents::pod::{AgentPersona, PodID, PodStatus};
+use hkask_agents::pod::{AgentPersona, PodID, PodStatusInfo};
 
 use crate::ServiceError;
 use hkask_services_context::AgentService;
@@ -34,8 +34,8 @@ pub struct PodStatusResponse {
     pub created_at: i64,
 }
 
-impl From<PodStatus> for PodStatusResponse {
-    fn from(s: PodStatus) -> Self {
+impl From<PodStatusInfo> for PodStatusResponse {
+    fn from(s: PodStatusInfo) -> Self {
         Self {
             pod_id: s.pod_id,
             name: s.name,
@@ -73,7 +73,7 @@ impl PodService {
         })?;
         let pm = ctx.pod_manager();
         let pod_id = pm
-            .create_pod(&req.template, &persona, req.name)
+            .create_pod(&req.template, &persona, req.name, hkask_agents::pod::PodKind::Replicant)
             .await
             .map_err(|e| ServiceError::Pod {
                 message: e.to_string(),
@@ -225,7 +225,7 @@ mod tests {
 
     #[test]
     fn pod_status_to_response_maps_fields() {
-        let status = PodStatus {
+        let status = PodStatusInfo {
             pod_id: "pod-1".into(),
             name: Some("TestPod".into()),
             state: hkask_agents::pod::PodLifecycleState::Registered,

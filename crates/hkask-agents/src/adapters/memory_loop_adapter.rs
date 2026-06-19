@@ -196,11 +196,17 @@ impl MemoryLoopForwarder {
     }
 
     fn from_database(db: Database) -> Result<Self, MemoryError> {
-        let conn = db.conn_arc();
+        Self::from_connection(db.conn_arc())
+    }
+
+    /// Create from a shared database connection (the pod's own SQLCipher conn).
+    pub fn from_connection(
+        conn: Arc<std::sync::Mutex<rusqlite::Connection>>,
+    ) -> Result<Self, MemoryError> {
         let triple_store = TripleStore::new(Arc::clone(&conn));
         let episodic = EpisodicMemory::new(triple_store);
         let triple_store2 = TripleStore::new(Arc::clone(&conn));
-        let embedding_store = EmbeddingStore::new(conn);
+        let embedding_store = EmbeddingStore::new(Arc::clone(&conn));
         let semantic = SemanticMemory::new(triple_store2, embedding_store);
         Ok(Self::new(episodic, semantic))
     }

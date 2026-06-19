@@ -29,6 +29,34 @@ impl std::fmt::Display for AgentMode {
     }
 }
 
+/// Pod tier — determines isolation model and filename convention.
+///
+/// - Curator: singleton, owns SemanticIndex, CNS aggregation
+/// - Team: shared bot workspace, bots share episodic
+/// - Replicant: per-user sovereign pod
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PodKind {
+    Curator,
+    Team,
+    Replicant,
+}
+
+impl std::fmt::Display for PodKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PodKind::Curator => write!(f, "curator"),
+            PodKind::Team => write!(f, "team"),
+            PodKind::Replicant => write!(f, "replicant"),
+        }
+    }
+}
+
+impl Default for PodKind {
+    fn default() -> Self {
+        PodKind::Replicant
+    }
+}
+
 /// Pod lifecycle state machine
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PodLifecycleState {

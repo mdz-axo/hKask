@@ -144,7 +144,7 @@ async fn create_pod(
         message: e.to_string(),
     })?;
     let pm = state.agent_service.pod_manager();
-    let pod_id = pm.create_pod(&req.template, &persona, req.name).await?;
+    let pod_id = pm.create_pod(&req.template, &persona, req.name, hkask_agents::pod::PodKind::Replicant).await?;
     Ok(Json(CreatePodResponse {
         pod_id: pod_id.to_string(),
     }))

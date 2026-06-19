@@ -31,7 +31,7 @@ use hkask_agents::LoopSystem;
 use hkask_agents::consent::ConsentManager;
 use hkask_agents::curator_agent::CuratorAgent;
 use hkask_agents::loop_system::CyberneticsLoopHandle;
-use hkask_agents::pod::PodManager;
+use hkask_agents::pod::ActivePods;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{
     CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, GovernedTool,
@@ -133,7 +133,7 @@ pub struct AgentService {
     curation_inbox_tx: Option<tokio::sync::mpsc::UnboundedSender<CurationInput>>,
 
     /// Pod manager for agent lifecycle.
-    pod_manager: Arc<PodManager>,
+    pod_manager: Arc<ActivePods>,
 
     /// Capability checker for OCAP verification.
     ///
@@ -389,8 +389,8 @@ impl AgentService {
     ///
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<PodManager>
-    pub fn pod_manager(&self) -> &Arc<PodManager> {
+    /// post: returns &Arc<ActivePods>
+    pub fn pod_manager(&self) -> &Arc<ActivePods> {
         &self.pod_manager
     }
 
@@ -951,7 +951,7 @@ async fn build_loops(
 struct McpPods {
     mcp_runtime: Arc<McpRuntime>,
     mcp_dispatcher: Arc<McpDispatcher>,
-    pod_manager: Arc<PodManager>,
+    pod_manager: Arc<ActivePods>,
     capability_checker: Arc<CapabilityChecker>,
     daemon_handler: Arc<hkask_services_daemon::ServiceDaemonHandler>,
     energy_estimator: Arc<hkask_cns::CalibratedEnergyEstimator>,
@@ -999,34 +999,29 @@ async fn build_mcp_and_pods(
         Arc::new((*mcp_runtime).clone()),
         tokio::runtime::Handle::current(),
     );
-    let pod_manager = Arc::new(PodManager::new(
-        Some(Arc::new(hkask_mcp::GitCasAdapter::from_path(
-            std::path::PathBuf::from(&config.template_cache_path),
-        ))),
-        Some(l.a2a_runtime.clone()),
-        Some(Arc::new(mcp_runtime_adapter)),
-        Some(Arc::clone(&l.episodic_storage) as Arc<dyn EpisodicStoragePort>),
-        Some(Arc::clone(&l.semantic_storage) as Arc<dyn SemanticStoragePort>),
-        None,
-        Some(Arc::new(CapabilityChecker::new(&config.a2a_secret))),
-        Some(governed_tool.clone()),
-        None,
-    ));
-
-    // Matrix auto-registration hook for pod activation.
-    {
-        let homeserver_url = std::env::var("HKASK_MATRIX_URL")
-            .unwrap_or_else(|_| "http://localhost:8008".to_string());
-        pod_manager
-            .register_activation_hook(Box::new(move |webid, pod_name| {
-                let url = homeserver_url.clone();
-                let name = pod_name.clone();
-                tokio::spawn(async move {
-                    register_pod_on_matrix(&url, &webid, &name).await;
-                });
-            }))
-            .await;
+    let mut pods = hkask_agents::pod::ActivePods::new()
+        .with_a2a_runtime(l.a2a_runtime.clone() as Arc<dyn hkask_agents::ports::A2APort + Send + Sync>)
+        .with_factory_and_ports(
+            Arc::new(hkask_agents::pod::PodFactory::new(
+                Arc::new(hkask_mcp::GitCasAdapter::from_path(
+                    std::path::PathBuf::from(&config.template_cache_path),
+                )),
+                Arc::new(hkask_agents::DenyAllConsent),
+                std::path::PathBuf::from(&config.db_path),
+            )),
+            Arc::new(mcp_runtime_adapter),
+            Some(governed_tool.clone()),
+            Some(Arc::new(CapabilityChecker::new(&config.a2a_secret))),
+            None,
+            Arc::clone(&l.episodic_storage) as Arc<dyn EpisodicStoragePort>,
+            Arc::clone(&l.semantic_storage) as Arc<dyn SemanticStoragePort>,
+        );
+    if let Some(inf) = l.inference_port.clone() {
+        pods = pods.with_inference_port(inf);
     }
+    let pod_manager: Arc<hkask_agents::pod::ActivePods> = Arc::new(pods);
+
+    // Matrix auto-registration — deferred to per-pod activation
 
     // Daemon handler + listener (skip socket in test mode)
     let daemon_handler = Arc::new(hkask_services_daemon::ServiceDaemonHandler::new(

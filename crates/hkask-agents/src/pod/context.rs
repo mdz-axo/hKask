@@ -21,7 +21,7 @@ use hkask_types::{
 use std::sync::Arc;
 
 use super::AgentPodError;
-use super::manager::PodManager;
+use super::deployment::PodDeployment;
 use super::types::PodID;
 use crate::SovereigntyChecker;
 use crate::ports::{
@@ -61,27 +61,22 @@ pub struct PodContext {
 }
 
 impl PodContext {
-    pub async fn from_manager(manager: &PodManager, pod_id: &PodID) -> Result<Self, AgentPodError> {
-        let pods = manager.pods.read().await;
-        let pod = pods
-            .get(pod_id)
-            .ok_or_else(|| AgentPodError::PodNotFound(*pod_id))?;
-
-        if pod.state != super::types::PodLifecycleState::Activated {
+    pub fn from_deployment(deployment: &PodDeployment) -> Result<Self, AgentPodError> {
+        if deployment.pod.state != super::types::PodLifecycleState::Activated {
             return Err(AgentPodError::PodNotActivated);
         }
 
         Ok(Self {
-            pod_id: *pod_id,
-            webid: pod.webid,
-            capability_token: pod.capability_token.clone(),
-            inference_port: manager.inference_port().clone(),
-            episodic_storage: Arc::clone(&manager.episodic_storage),
-            semantic_storage: Arc::clone(&manager.semantic_storage),
-            mcp_runtime: Arc::clone(&manager.mcp_runtime),
-            governed_tool: manager.governed_tool.clone(),
-            capability_checker: manager.capability_checker.clone(),
-            sovereignty_checker: manager.sovereignty_checker_for(pod_id).await,
+            pod_id: deployment.pod_id,
+            webid: deployment.pod.webid,
+            capability_token: deployment.pod.capability_token.clone(),
+            inference_port: deployment.inference_port.clone(),
+            episodic_storage: Arc::clone(&deployment.episodic_storage),
+            semantic_storage: Arc::clone(&deployment.semantic_storage),
+            mcp_runtime: Arc::clone(&deployment.mcp_runtime),
+            governed_tool: deployment.tools.governed_tool.clone(),
+            capability_checker: deployment.capability_checker.clone(),
+            sovereignty_checker: Some(Arc::new(deployment.sovereignty_checker.clone())),
         })
     }
 

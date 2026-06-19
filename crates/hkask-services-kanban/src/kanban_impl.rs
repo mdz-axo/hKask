@@ -34,7 +34,7 @@ pub(crate) mod verification;
 #[derive(Clone)]
 pub struct KanbanService {
     store: TripleStore,
-    pod_manager: Option<Arc<hkask_agents::pod::PodManager>>,
+    pod_manager: Option<Arc<hkask_agents::pod::ActivePods>>,
 }
 
 // Triple entity prefixes
@@ -59,7 +59,7 @@ impl KanbanService {
     /// pre:  pm is a valid Arc<PodManager>
     /// post: returns Self with pod_manager set to Some(pm)
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_pod_manager(mut self, pm: Arc<hkask_agents::pod::PodManager>) -> Self {
+    pub fn with_pod_manager(mut self, pm: Arc<hkask_agents::pod::ActivePods>) -> Self {
         self.pod_manager = Some(pm);
         self
     }

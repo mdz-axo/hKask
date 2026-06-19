@@ -72,7 +72,7 @@ impl KanbanService {
     }
 
     fn activate_pod(
-        pm: &hkask_agents::pod::PodManager,
+        pm: &hkask_agents::pod::ActivePods,
         agent_type: &str,
         persona: &hkask_agents::pod::AgentPersona,
         pod_name: &str,
@@ -80,7 +80,12 @@ impl KanbanService {
     ) -> Result<String, KanbanError> {
         let rt = tokio::runtime::Handle::current();
         let pod_id = rt
-            .block_on(pm.create_pod(agent_type, persona, Some(pod_name.to_string())))
+            .block_on(pm.create_pod(
+                agent_type,
+                persona,
+                Some(pod_name.to_string()),
+                hkask_agents::pod::PodKind::Team,
+            ))
             .map_err(|e| KanbanError::Internal(format!("Pod creation failed: {}", e)))?;
         rt.block_on(pm.activate_pod(&pod_id))
             .map_err(|e| KanbanError::Internal(format!("Pod activation failed: {}", e)))?;

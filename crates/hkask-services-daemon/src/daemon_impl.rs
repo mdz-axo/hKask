@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use hkask_agents::pod::PodManager;
+use hkask_agents::pod::ActivePods;
 use hkask_mcp::daemon::DaemonHandler;
 use hkask_storage::user_store::UserStore;
 use hkask_types::ports::InferencePort;
@@ -44,7 +44,7 @@ const NARRATIVE_SYSTEM_PROMPT: &str = "You are an observant agent monitoring an 
 /// Wraps PodManager for assignment/capability/memory queries,
 /// UserStore for authentication, and InferencePort for narrative generation.
 pub struct ServiceDaemonHandler {
-    pod_manager: Arc<PodManager>,
+    pod_manager: Arc<ActivePods>,
     user_store: Arc<std::sync::Mutex<UserStore>>,
     /// Inference port for narrative generation (None if inference unavailable)
     inference_port: Option<Arc<dyn InferencePort>>,
@@ -54,10 +54,10 @@ pub struct ServiceDaemonHandler {
 
 impl ServiceDaemonHandler {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  pod_manager must be a valid Arc<PodManager>; user_store must be a valid Arc<Mutex<UserStore>>
+    /// pre:  pod_manager must be a valid Arc<ActivePods>; user_store must be a valid Arc<Mutex<UserStore>>
     /// post: returns ServiceDaemonHandler with all fields initialized; inference_port may be None
     pub fn new(
-        pod_manager: Arc<PodManager>,
+        pod_manager: Arc<ActivePods>,
         user_store: Arc<std::sync::Mutex<UserStore>>,
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Self {
@@ -160,7 +160,7 @@ impl DaemonHandler for ServiceDaemonHandler {
             }
         };
 
-        let ctx = match hkask_agents::pod::PodContext::from_manager(&self.pod_manager, &pod_id)
+        let ctx = match self.pod_manager.context(&pod_id)
             .await
         {
             Ok(ctx) => ctx,
@@ -247,7 +247,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         };
 
         let ctx =
-            match hkask_agents::pod::PodContext::from_manager(&self.pod_manager, &pod_id).await {
+            match self.pod_manager.context(&pod_id).await {
                 Ok(ctx) => ctx,
                 Err(e) => {
                     return (false, None, Some(format!("PodContext error: {}", e)));
@@ -267,7 +267,7 @@ impl DaemonHandler for ServiceDaemonHandler {
 /// formats them as a log, calls inference to produce observations, and
 /// stores those observations as new episodic memories.
 async fn generate_narrative(
-    pod_manager: &PodManager,
+    pod_manager: &ActivePods,
     inference: &dyn InferencePort,
     replicant: &str,
 ) {
@@ -282,7 +282,7 @@ async fn generate_narrative(
         }
     };
 
-    let ctx = match hkask_agents::pod::PodContext::from_manager(pod_manager, &pod_id).await {
+    let ctx = match pod_manager.context(&pod_id).await {
         Ok(ctx) => ctx,
         Err(e) => {
             tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, error = %e, "Failed to create PodContext for narrative");

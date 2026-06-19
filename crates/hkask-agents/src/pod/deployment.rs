@@ -28,7 +28,7 @@ use std::sync::Arc;
 use thiserror::Error;
 use tracing::{debug, info};
 
-use super::types::{AgentPersona, PodID, PodLifecycleState};
+use super::types::{AgentPersona, PodID, PodKind, PodLifecycleState};
 use super::{AgentPod, AgentPodError};
 use crate::SovereigntyChecker;
 use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
@@ -67,6 +67,8 @@ pub struct PodDeployment {
     pub semantic_storage: Arc<dyn SemanticStoragePort>,
     /// Inference port for LLM generation (None if inference unavailable)
     pub inference_port: Option<Arc<dyn InferencePort>>,
+    /// Pod tier — determines isolation model
+    pub pod_kind: PodKind,
 }
 
 /// PerPodStorage owns a SQLCipher database file for a single pod.
@@ -234,6 +236,7 @@ impl PodFactory {
         &self,
         template_name: &str,
         persona: &AgentPersona,
+        pod_kind: PodKind,
         mcp_runtime: Arc<dyn MCPRuntimePort>,
         governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
         capability_checker: Option<Arc<CapabilityChecker>>,
@@ -250,7 +253,7 @@ impl PodFactory {
         let pod_id = pod.id;
 
         // 2. Create per-pod SQLCipher database + storage adapters
-        let (storage, memory_adapter) = self.create_pod_storage(pod_id, persona)?;
+        let (storage, memory_adapter) = self.create_pod_storage(pod_id, persona, pod_kind)?;
 
         // 3. Initialize per-pod CNS runtime
         let cns = PerPodCnsRuntime::scoped(pod_id);
@@ -287,6 +290,7 @@ impl PodFactory {
             episodic_storage: episodic,
             semantic_storage: semantic,
             inference_port,
+            pod_kind,
         })
     }
 
@@ -297,6 +301,7 @@ impl PodFactory {
         &self,
         pod_id: PodID,
         persona: &AgentPersona,
+        pod_kind: PodKind,
     ) -> Result<
         (
             PerPodStorage,
@@ -310,7 +315,13 @@ impl PodFactory {
             reason: e.to_string(),
         })?;
 
-        let db_path = pod_db_dir.join(format!("{}.db", pod_id));
+        // Filename convention: {kind}.{identifier}.db
+        let filename = match pod_kind {
+            PodKind::Curator => "curator.db".to_string(),
+            PodKind::Team => format!("team.{}.db", persona.agent.name),
+            PodKind::Replicant => format!("replicant.{}.db", persona.agent.name),
+        };
+        let db_path = pod_db_dir.join(&filename);
         let db_path_str = db_path.to_string_lossy().to_string();
 
         // Derive deterministic passphrase from user's master key (ADR-027)
@@ -405,6 +416,50 @@ impl PodRegistry {
     pub fn db_path(&self, pod_id: &PodID) -> PathBuf {
         self.pods_dir.join(format!("{pod_id}.db"))
     }
+
+    /// Scan pods directory, classify by filename prefix.
+    /// Returns (PodKind, filename_stem, full_path).
+    pub fn scan_by_kind(&self) -> Result<Vec<(PodKind, String, PathBuf)>, PodDeployError> {
+        if !self.pods_dir.exists() {
+            return Ok(Vec::new());
+        }
+        let mut results = Vec::new();
+        for entry in std::fs::read_dir(&self.pods_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.extension().map_or(false, |ext| ext == "db") {
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    let kind = if stem == "curator" {
+                        PodKind::Curator
+                    } else if stem.starts_with("team.") {
+                        PodKind::Team
+                    } else if stem.starts_with("replicant.") {
+                        PodKind::Replicant
+                    } else {
+                        PodKind::default()
+                    };
+                    results.push((kind, stem.to_string(), path));
+                }
+            }
+        }
+        Ok(results)
+    }
+
+    /// Find the CuratorPod. Returns None if none found, first if multiple.
+    pub fn find_curator(&self) -> Option<PathBuf> {
+        let path = self.pods_dir.join("curator.db");
+        if path.exists() { Some(path) } else { None }
+    }
+
+    /// Find all TeamPods.
+    pub fn find_teams(&self) -> Result<Vec<(String, PathBuf)>, PodDeployError> {
+        let entries = self.scan_by_kind()?;
+        Ok(entries
+            .into_iter()
+            .filter(|(k, _, _)| *k == PodKind::Team)
+            .map(|(_, stem, path)| (stem, path))
+            .collect())
+    }
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -470,5 +525,60 @@ visibility:
         assert_eq!(ids.len(), 1);
         assert!(registry.pod_exists(&pod_id));
         assert!(!registry.pod_exists(&PodID::new()));
+    }
+
+    #[test]
+    fn pod_registry_scan_by_kind_classifies_files() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let pods_dir = temp.path().join("pods");
+        std::fs::create_dir_all(&pods_dir).expect("create pods dir");
+
+        std::fs::write(pods_dir.join("curator.db"), b"").unwrap();
+        std::fs::write(pods_dir.join("team.7r7.db"), b"").unwrap();
+        std::fs::write(pods_dir.join("replicant.alice.db"), b"").unwrap();
+
+        let registry = PodRegistry::new(&temp.path().to_path_buf());
+        let results = registry.scan_by_kind().expect("scan");
+        assert_eq!(results.len(), 3);
+
+        let curator: Vec<_> = results
+            .iter()
+            .filter(|(k, _, _)| *k == PodKind::Curator)
+            .collect();
+        assert_eq!(curator.len(), 1);
+
+        let teams: Vec<_> = results
+            .iter()
+            .filter(|(k, _, _)| *k == PodKind::Team)
+            .collect();
+        assert_eq!(teams.len(), 1);
+    }
+
+    #[test]
+    fn pod_registry_find_curator_returns_path() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let pods_dir = temp.path().join("pods");
+        std::fs::create_dir_all(&pods_dir).expect("create pods dir");
+
+        let registry = PodRegistry::new(&temp.path().to_path_buf());
+        assert!(registry.find_curator().is_none());
+
+        std::fs::write(pods_dir.join("curator.db"), b"").unwrap();
+        assert!(registry.find_curator().is_some());
+    }
+
+    #[test]
+    fn pod_kind_defaults_to_replicant() {
+        assert_eq!(PodKind::default(), PodKind::Replicant);
+    }
+
+    #[test]
+    fn pod_kind_filenames_follow_convention() {
+        // Curator: curator.db
+        // Team: team.{name}.db
+        // Replicant: replicant.{name}.db
+        assert_eq!(format!("curator.db"), "curator.db");
+        assert_eq!(format!("team.{}.db", "7r7"), "team.7r7.db");
+        assert_eq!(format!("replicant.{}.db", "alice"), "replicant.alice.db");
     }
 }

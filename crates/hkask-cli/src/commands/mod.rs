@@ -52,7 +52,6 @@ pub use template::{
 };
 
 // Re-exports from pod
-pub use hkask_agents::pod::PodStatus;
 pub use pod::{
     activate_pod, assign_role, create_pod, deactivate_pod, get_pod_status, list_pods, set_mode,
 };

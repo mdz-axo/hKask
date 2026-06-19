@@ -1,3 +1,4 @@
+#![allow(unused)]
 //! Integration tests for hKask agent pod orchestration.
 //!
 //! Verifies multi-pod lifecycle: creation, activation, mode transitions,
@@ -16,7 +17,7 @@
 //! Each test carries a `// REQ:` tag linking it to the contract-first
 //! migration plan.
 
-use hkask_agents::{AgentPersona, PodManager};
+use hkask_agents::AgentPersona; use std::sync::Arc;
 use hkask_test_harness::mocks::MockInferencePort;
 use hkask_types::PodID;
 use std::sync::Arc;

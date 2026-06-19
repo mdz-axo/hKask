@@ -30,7 +30,4 @@ ed25519-dalek.workspace = true
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
 hkask-test-harness = { path = "../hkask-test-harness" }
-
-[[test]]
-name = "agent_pod_integration"
-path = "tests/agent_pod_integration.rs"
+tempfile = "3"

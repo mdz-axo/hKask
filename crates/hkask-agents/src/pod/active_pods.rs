@@ -6,7 +6,7 @@
 use super::AgentPodError;
 use super::context::PodContext;
 use super::deployment::{PodDeployment, PodFactory};
-use super::types::{AgentKind, AgentPersona, PodID, PodLifecycleState};
+use super::types::{AgentKind, AgentPersona, PodID, PodKind, PodLifecycleState};
 use crate::ports::{A2APort, EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
@@ -202,6 +202,7 @@ impl ActivePods {
         template_name: &str,
         persona: &AgentPersona,
         _name: Option<String>,
+        pod_kind: PodKind,
     ) -> Result<PodID, AgentPodError> {
         let factory = self.factory.as_ref().ok_or_else(|| {
             AgentPodError::PersonaParseError("ActivePods not wired with PodFactory".into())
@@ -213,6 +214,7 @@ impl ActivePods {
             .deploy(
                 template_name,
                 persona,
+                pod_kind,
                 mcp,
                 self.governed_tool.clone(),
                 self.capability_checker.clone(),

@@ -55,6 +55,7 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 | [`POD_DEPLOYMENT_CONTRACT.md`](architecture/core/POD_DEPLOYMENT_CONTRACT.md) | domain, composition, trust | PodDeployment contract — per-pod SQLCipher, CNS, MCP bindings |
 | [`STRANGLER_FIG_MIGRATION.md`](architecture/core/STRANGLER_FIG_MIGRATION.md) | lifecycle, curation | Migration plan — PodManager → PodDeployment (complete) |
 | [`OPEN_QUESTIONS_POD.md`](architecture/core/OPEN_QUESTIONS_POD.md) | lifecycle | Open questions — cross-pod A2A, portability, containers |
+| [`MULTI_POD_ARCHITECTURE.md`](architecture/core/MULTI_POD_ARCHITECTURE.md) | domain, composition, lifecycle | Multi-pod tiers — CuratorPod + TeamPod + ReplicantPod |
 | [`FUNCTIONAL_SPECIFICATION.md`](architecture/core/FUNCTIONAL_SPECIFICATION.md) | domain, composition | AgentService functional specification |
 
 ### Mandates
