@@ -16,7 +16,5 @@ bolero = { workspace = true }
 hkask-mcp-spec = { path = ".." }
 hkask-mcp = { path = "../../../crates/hkask-mcp" }
 hkask-types = { path = "../../../crates/hkask-types" }
-hkask-test-harness = { path = "../../../crates/hkask-test-harness" }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true, features = ["rt", "macros"] }

@@ -18,6 +18,15 @@ crate:
     the gallery as regular images — no separate storage.
 
 templates:
+  - id: media/logo-discovery
+    path: ../media/logo-discovery.yaml
+    type: FlowDef
+    lexicon_terms: [classify, map, strategize, discover]
+    description: >
+      Discovery-phase pipeline: map qualitative brand identity inputs to
+      formal logo design parameters, then select the appropriate generation
+      strategy. Agent-coordinated; uses inference router for classification.
+
   - id: media/logo-discovery-map
     path: ../media/logo-discovery-map.j2
     type: KnowAct
@@ -45,3 +54,12 @@ templates:
       each against 7 weighted critique dimensions (5 Bokhua gates + brand-fit
       + distinctiveness), select best, refine through critique cycles.
       Final output is background-removed for transparent PNG deliverables.
+
+  - id: media/logo-presentation
+    path: ../media/logo-presentation.yaml
+    type: FlowDef
+    lexicon_terms: [package, export, deliver, present]
+    description: >
+      Generate a complete logo deliverables package from a refined logo:
+      transparent PNG, monochrome variant, icon-only mark, and context
+      mockup showing the logo in real-world use.

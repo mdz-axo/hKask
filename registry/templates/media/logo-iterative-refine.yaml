@@ -61,8 +61,8 @@ cost_tier: high
 steps:
   - id: generate-candidates
     tool: generate_image
-    description: "Generate {variants} initial logo candidates using logo-single-shot template"
-    template: media/logo-single-shot
+    description: "Generate {variants} initial logo candidates using logo-formal-prompt template"
+    template: media/logo-formal-prompt
     count: "{{ variants }}"
 
   - id: critique
@@ -86,12 +86,12 @@ steps:
     prompt: "Redesign this logo concept addressing the following critique: {{ critique_summary }}. Keep the same business name, industry, and style direction. Fix the identified weaknesses while preserving the strengths."
 
   - id: finalize
-    tool: remove_background
+    tool: image_remove_background
     description: "Remove background from the final selected logo for transparent PNG output"
     condition: "refine_rounds > 0"
 ---
 # Logo Iterative Refinement Pipeline
-# Phase 1: Generate N candidates via generate_image with logo-single-shot template
+# Phase 1: Generate N candidates via generate_image with logo-formal-prompt template
 # Phase 2: Vision LLM critique each candidate via describe_image
 # Phase 3: Select best candidate (highest aggregate score)
 # Phase 4: Regenerate with critique feedback incorporated (repeat refine_rounds times)
