@@ -16,6 +16,8 @@ serde_json.workspace = true
 serde.workspace = true
 rand.workspace = true
 proptest = "1"
+thiserror.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }

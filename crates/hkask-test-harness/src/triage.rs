@@ -15,7 +15,7 @@ use std::process::Command;
 // ── Classifier output types ──────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
-struct QaDiagnosis {
+pub struct QaDiagnosis {
     failure_type: String,
     root_cause: String,
     confidence: f64,
@@ -225,7 +225,7 @@ pub fn attempt_auto_repair(
 
     // 2. Check that diff applies cleanly
     let diff = diagnosis.proposed_fix.as_bytes();
-    let check = Command::new("git")
+    let mut check = Command::new("git")
         .args(["apply", "--check"])
         .stdin(std::process::Stdio::piped())
         .spawn()
@@ -233,7 +233,7 @@ pub fn attempt_auto_repair(
 
     // Write diff to stdin...
     use std::io::Write;
-    if let Some(mut stdin) = check.stdin {
+    if let Some(ref mut stdin) = check.stdin {
         stdin.write_all(diff).map_err(|e| TriageError::Io(e))?;
     }
     let check_status = check

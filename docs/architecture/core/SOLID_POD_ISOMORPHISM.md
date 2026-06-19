@@ -1,9 +1,9 @@
 ---
 title: "AgentPod↔Solid Pod Isomorphism — Architecture Drift Analysis"
 audience: [architects, developers]
-last_updated: 2026-06-18
-version: "0.29.0"
-status: "Drift resolved — PodManager deleted. Per-pod SQLCipher implemented."
+last_updated: 2026-06-19
+version: "0.30.0"
+status: "Drift resolved — PodManager deleted. Per-pod SQLCipher implemented. Three-tier pod architecture (Curator/Team/Replicant) deployed."
 domain: "Agent Pod Lifecycle"
 pragmatic_axes: [IS/OUGHT, Declarative/Probabilistic/Subjunctive, Evidence/Hypothesis/Guardrail]
 ---
@@ -59,26 +59,26 @@ erDiagram
     SolidPod ||--|| DeploymentUnit : "IS the (invariant 5)"
 
     AgentPod ||--|| WebID : "owner ✓ [P1]"
-    AgentPod ||--|| SQLCipherStore : "self-contained ⚠ [P11]"
+    AgentPod ||--|| SQLCipherStore : "self-contained ✓ [P11]"
     AgentPod ||--|| OCAPToken : "governed by ✓ [P4]"
     AgentPod ||--|| TripleStore : "stores as ✓"
     AgentPod ||--|| PodDeployment : "IS the ✗ (currently shared PodManager)"
 
     AgentPod ||--|| TemplateRegistry : "renders from [Pattern A]"
-    AgentPod ||--|| CNSRuntime : "regulated by ⚠ [Pattern B]"
+    AgentPod ||--|| CNSRuntime : "regulated by ✓ [Pattern B]"
     AgentPod ||--|| NuEventSink : "provenance anchor ✓ [P8]"
     AgentPod ||--|| InferencePort : "generative space ✓ [P3]"
-    AgentPod ||--o{ MCPServer : "tools attached ⚠ [Pattern A dispatch]"
+    AgentPod ||--o{ MCPServer : "tools attached ✓ [Pattern A dispatch]"
     AgentPod ||--|| EnsembleSession : "communicates via [Pattern C]"
 
     SolidPod { string pod_uri "https://user.example/pod/" }
     AgentPod { PodID id "UUIDv4" WebID webid PodLifecycleState state }
 
-    CurrentState ||--o{ AgentPod : "centralized HashMap cache ✗"
-    CurrentState ||--|| SharedTripleStore : "scoped by owner_webid ✗"
-    IntendedState ||--o{ AgentPod : "each pod IS the deployment unit ✓"
-    IntendedState ||--|| PerPodSQLCipher : "one database file per pod ✓"
-    IntendedState ||--o{ PerPodMCPServers : "no service collision surface ✓"
+    CurrentState ||--o{ AgentPod : "centralized HashMap cache (DELETED)"
+    CurrentState ||--|| SharedTripleStore : "scoped by owner_webid (DELETED)"
+    IntendedState ||--o{ AgentPod : "each pod IS the deployment unit ✓ (CURRENT)"
+    IntendedState ||--|| PerPodSQLCipher : "one database file per pod ✓ (CURRENT)"
+    IntendedState ||--o{ PerPodMCPServers : "no service collision surface ✓ (CURRENT)"
 ```
 
 ### Drift Diagnosis: Current vs. Intended
@@ -86,10 +86,10 @@ erDiagram
 | Solid Invariant | hKask Implementation | Status | Drift |
 |-----------------|---------------------|--------|-------|
 | 1. WebID-grounded identity | `AgentPod.webid` + `derive_ocap_secret(webid)` | ✓ | Correct. WebID is root of authority. |
-| 2. Self-contained storage | Shared `Arc<dyn EpisodicStoragePort>` + `Arc<dyn SemanticStoragePort>` on `PodManager` | ✗ | **Drift.** Storage is shared across all pods. `owner_webid` scoping is a workaround, not structural isolation. |
+| 2. Self-contained storage | `PerPodStorage` with per-pod SQLCipher file at `{data_dir}/pods/{kind}.{name}.db`. `MemoryLoopAdapter::from_connection()` wraps pod-owned `TripleStore` + `EmbeddingStore`. | ✓ | **Resolved.** Each pod owns its database file. Passphrase derived deterministically from WebID via HKDF-SHA256 (ADR-027). |
 | 3. Capability-based access | `DelegationToken` + `CapabilityChecker` + OCAP dual gate | ✓ | Correct. OCAP tokens gate every operation. |
 | 4. Interoperable triples | `Triple` struct with entity/attribute/value/confidence/visibility | ✓ | Correct. Triple-based storage with provenance. |
-| 5. Pod IS deployment unit | `PodManager` is a centralized service holding `HashMap<PodID, AgentPod>` | ✗ | **Principal drift.** PodManager is a shared orchestrator, not a pod lifecycle manager. Pods are cache entries, not deployment units. |
+| 5. Pod IS deployment unit | `PodDeployment` with `PodFactory` (stateless constructor), `ActivePods` (runtime registry), `PodRegistry` (filesystem scan). Three-tier: `PodKind::Curator | Team | Replicant`. | ✓ | **Resolved.** PodManager deleted. Pods are filesystem entries, not cache entries. Three-tier architecture deployed. |
 
 ---
 
@@ -178,6 +178,70 @@ erDiagram
 
 ---
 
-## Next: Task Group β — PodDeployment Type Definitions
 
-See [`POD_DEPLOYMENT_CONTRACT.md`](POD_DEPLOYMENT_CONTRACT.md) for the deployment contract and Rust type definitions.
+---
+## Drift Resolution — Complete (v0.30.0)
+
+**`PodManager` has been deleted.** Replaced by:
+- **`PodDeployment`** — canonical pod type. Owns its `PerPodStorage`, `PerPodCnsRuntime`, and `PerPodToolBinding`.
+- **`PodFactory`** — stateless constructor. Does not cache, pool, or share pods.
+- **`ActivePods`** — runtime registry (lightweight `HashMap`, no shared storage).
+- **`PodRegistry`** — filesystem-based discovery (scans `{data_dir}/pods/*.db`).
+
+**Three-tier pod architecture:** `PodKind::Curator` (singleton, `SemanticIndex` owner), `PodKind::Team` (shared bot workspace), `PodKind::Replicant` (per-user sovereign).
+
+**Semantic sync:** Lazy one-way — `CuratorSync` polling loop opens source pods read-only, syncs Public triples into `SemanticIndex`. `PodContext::recall_semantic()` routes through Curator for merged-lens view.
+
+Full details: [`MULTI_POD_ARCHITECTURE.md`](MULTI_POD_ARCHITECTURE.md)
+
+---
+
+## PodDeployment Types
+
+> **Incorporated from:** `docs/architecture/core/POD_DEPLOYMENT_CONTRACT.md`
+
+### Five Dedicated Resources Per Pod
+
+| Resource | Mechanism |
+|----------|-----------|
+| SQLCipher database | `{data_dir}/pods/{pod_id}.db`, per-pod key derived from master key |
+| Keystore root | `derive_ocap_secret(webid)` — deterministic, portable |
+| CNS runtime | `PerPodCnsRuntime` — per-pod variety counters, span namespace `cns.agent_pod.{pod_id}.*` |
+| MCP server binding | `PerPodToolBinding` — pod-scoped OCAP-gated tool handles |
+| Template registry | Crate-level; pods inherit |
+
+### Core Types
+
+```rust
+pub struct PodDeployment {
+    pod_id: PodId,
+    storage: PerPodStorage,      // {data_dir}/pods/{pod_id}.db
+    cns: PerPodCnsRuntime,        // per-pod CNS
+    tools: PerPodToolBinding,     // pod-scoped MCP handles
+    state: PodState,
+}
+
+pub struct PodFactory {
+    template_resolver: Arc<TemplateResolver>,
+    key_material: Arc<KeyMaterial>,
+    server_config: PodServerConfig,
+}
+// PodFactory::deploy() → PodDeployment
+// Stateless constructor. No cache, no pool, no share.
+```
+
+### Service Collision Elimination
+
+| Current (Shared) | Target (Per-Pod) |
+|-----------------|------------------|
+| One `mcp_runtime` on PodManager | `PerPodToolBinding` with pod-scoped handles |
+| Shared `episodic_storage` | Pod-level SQLCipher file |
+| Server-global `CnsRuntime` | `PerPodCnsRuntime` per pod |
+
+### Deletion Test
+
+| Artifact | Verdict |
+|----------|---------|
+| `PodManager::pods: HashMap` | **DELETE** — pass-through cache, replace with filesystem listing |
+| `PodManager` (entire struct) | **STRANGLER-FIG** — migrate to PodFactory, then delete |
+| `PodFactory` | **KEEP** — behavior (pod construction) would reappear in callers |

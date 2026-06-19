@@ -7,7 +7,11 @@ edition.workspace = true
 [package.metadata]
 cargo-fuzz = true
 
+[[test]]
+name = "cns_fuzz"
+path = "fuzz_targets/cns_fuzz.rs"
+
 [dependencies]
 bolero = { workspace = true }
 hkask-cns = { path = ".." }
-hkask-types = { path = "../hkask-types" }
+hkask-types = { path = "../../hkask-types" }

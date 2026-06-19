@@ -958,11 +958,12 @@ Representative domains:
 
 ### 3.8 Agents (`hkask-agents`)
 
-**30 contracts** — agents span four motivating principles:
-- **P1 (User Sovereignty)** — `AgentPod`, `PodDeployment`, `PodFactory`, `SovereigntyChecker`
+**30 contracts** (+ ~27 new in v0.30) — agents span five motivating principles:
+- **P1 (User Sovereignty)** — `AgentPod`, `PodDeployment`, `PodFactory`, `ActivePods`, `PodRegistry`, `SovereigntyChecker`
 - **P2 (Affirmative Consent)** — `ConsentRecord`, `ConsentManager`
-- **P4 (Clear Boundaries)** — A2A runtime, root authority, MCP capability adapters
-- **P9 (Homeostatic Self-Regulation)** — Curator, Metacognition, LoopSystem, BotHealth, prompt classification
+- **P4 (Clear Boundaries)** — `PodKind` (Curator/Team/Replicant), A2A runtime, MCP capability adapters, `PerPodToolBinding`
+- **P9 (Homeostatic Self-Regulation)** — `CuratorSync`, `SemanticIndex`, Curator, Metacognition, LoopSystem, BotHealth, prompt classification
+- **P11 (Digital Sphere)** — `PerPodStorage`, `PerPodCnsRuntime`, per-pod SQLCipher files
 
 **Crate:** `hkask-agents` | **Sources:** `src/consent.rs`, `src/sovereignty.rs`, `src/loop_system.rs`, `src/prompt_analysis.rs`, `src/registry_loader.rs`, `src/acp/**/*.rs`, `src/curator/**/*.rs`, `src/curator_agent/**/*.rs`, `src/pod/**/*.rs`, `src/adapters/**/*.rs`, `src/ports/memory_storage.rs`, `tests/agent_pod_integration.rs`
 
@@ -982,8 +983,9 @@ Representative domains:
 | Curator | P9 | `P9-agt-curator-persona-check`, `P9-agt-curator-persona-strip`, `P9-agt-curator-loop-new`, `P9-agt-curator-loop-new-with-consolidation`, `P9-agt-curator-loop-inbox`, `P9-agt-curator-loop-context`, `P9-agt-curator-loop-handle`, `P9-agt-curator-loop-restore-cursor`, `P9-agt-curator-context-new`, `P9-agt-curator-context-with-store`, `P9-agt-curator-context-with-acp`, `P9-agt-curator-context-handle`, `P9-agt-curator-context-directive` |
 | Curator Agent | P9 | `P9-agt-curator-agent-escalation-check`, `P9-agt-curator-agent-meta-new`, `P9-agt-curator-agent-tick`, `P9-agt-curator-agent-summary`, `P9-agt-curator-agent-direct`, `P9-agt-curator-agent-issue-directive`, `P9-agt-curator-agent-new`, `P9-agt-curator-agent-new-with-config`, `P9-agt-curator-agent-new-with-consolidation`, `P9-agt-curator-agent-curation-loop`, `P9-agt-curator-agent-metacognition-loop`, `P9-agt-curator-agent-context`, `P9-agt-curator-agent-spec-curator`, `P9-agt-curator-agent-spec-new`, `P9-agt-curator-agent-spec-calibrate`, `P9-agt-curator-agent-spec-with-config`, `P9-agt-curator-agent-spec-drift-threshold`, `P9-agt-curator-agent-spec-with-sink`, `P9-agt-curator-agent-spec-channel`, `P9-agt-curator-agent-spec-check` |
 | Bot Health | P9 | `P9-agt-bot-health-classify` |
+| Semantic Sync (v0.30) | P9, P1, P11 | `P9-agt-curator-sync-new`, `P9-agt-curator-sync-run`, `P9-agt-curator-sync-tick`, `P9-agt-curator-sync-pod`, `P9-agt-semantic-index-new`, `P9-agt-semantic-index-insert`, `P9-agt-semantic-index-query`, `P9-agt-semantic-index-cursor` |
 | Pod Lifecycle | P1 | `P1-agt-pod-new`, `P1-agt-pod-register`, `P1-agt-pod-activate`, `P1-agt-pod-deactivate`, `P1-agt-pod-delegate`, `P1-agt-pod-is-active`, `P1-agt-pod-state`, `P1-agt-pod-enter-server-mode`, `P1-agt-pod-enter-chat-mode`, `P1-agt-pod-exit-mode`, `P1-agt-pod-is-server-mode`, `P1-agt-pod-set-voice`, `P1-agt-pod-get-voice`, `P1-agt-pod-voice-description`, `P1-agt-pod-is-chat-mode`, `P1-agt-pod-check-sovereignty` |
-| Pod Manager | P1 | `P1-agt-pod-manager-new`, `P1-agt-pod-manager-with-consent`, `P1-agt-pod-manager-activation-hook`, `P1-agt-pod-manager-with-checker`, `P1-agt-pod-manager-with-sink`, `P1-agt-pod-manager-with-governed-tool`, `P1-agt-pod-manager-with-ports`, `P1-agt-pod-manager-inference-port`, `P1-agt-pod-manager-sovereignty-checker`, `P1-agt-pod-manager-default`, `P1-agt-pod-manager-create-pod`, `P1-agt-pod-manager-activate-pod`, `P1-agt-pod-manager-deactivate-pod`, `P1-agt-pod-manager-recall-lifecycle`, `P1-agt-pod-manager-status`, `P1-agt-pod-manager-list-status`, `P1-agt-pod-manager-acp-port`, `P1-agt-pod-manager-find-by-name`, `P1-agt-pod-manager-webid`, `P1-agt-pod-manager-has-role`, `P1-agt-pod-manager-has-capability`, `P1-agt-pod-manager-assign-role`, `P1-agt-pod-manager-set-mode` |
+| Pod Deployment (v0.30) | P1, P4, P11 | `P1-agt-pod-deployment-new`, `P1-agt-pod-factory-deploy`, `P4-agt-pod-kind-enum`, `P11-agt-per-pod-storage`, `P11-agt-per-pod-cns-runtime`, `P4-agt-per-pod-tool-binding`, `P1-agt-pod-registry-scan`, `P1-agt-pod-registry-scan-by-kind`, `P1-agt-pod-registry-find-curator`, `P1-agt-pod-registry-find-teams`, `P1-agt-active-pods-new`, `P1-agt-active-pods-context`, `P1-agt-active-pods-create-pod`, `P1-agt-active-pods-activate-pod`, `P1-agt-active-pods-deactivate-pod`, `P1-agt-active-pods-status`, `P1-agt-active-pods-list-pods`, `P1-agt-active-pods-find-by-name`, `P1-agt-active-pods-webid`, `P1-agt-active-pods-has-role`, `P1-agt-active-pods-has-capability`, `P1-agt-active-pods-assign-role`, `P1-agt-active-pods-set-mode`, `P1-agt-pod-context-new`, `P1-agt-pod-context-store-semantic`, `P1-agt-pod-context-recall-semantic`, `P1-agt-pod-context-invoke-tool` |
 | Pod Types | P4 | `P4-agt-pod-lifecycle-can-transition` |
 
 > **Note:** The inventory generator reports 30 contracts because it groups by unique ID. Production contract occurrences in `hkask-agents` total **174** (including repeated annotations on struct + impl + tests). Each production function retains the same contract ID across its struct comment, impl comment, and test comment.

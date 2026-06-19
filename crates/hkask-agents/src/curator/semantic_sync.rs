@@ -150,27 +150,32 @@ impl CuratorSync {
 
         // Query triples published since cursor, filtering for Public visibility only
         let query = "SELECT rowid, entity, attribute, value, confidence FROM triples WHERE rowid > ?1 AND visibility = 'Public' ORDER BY rowid ASC";
-        let conn_arc = db.conn_arc();
-        let conn = conn_arc
-            .lock()
-            .map_err(|e| format!("Failed to lock pod DB: {e}"))?;
-        let mut stmt = conn
-            .prepare(query)
-            .map_err(|e| format!("Failed to prepare query: {e}"))?;
+        // Collect rows in a scoped block so Statement is dropped before any .await
+        let rows: Vec<(i64, String, String, String, f64)> = {
+            let conn_arc = db.conn_arc();
+            let conn = conn_arc
+                .lock()
+                .map_err(|e| format!("Failed to lock pod DB: {e}"))?;
+            let mut stmt = conn
+                .prepare(query)
+                .map_err(|e| format!("Failed to prepare query: {e}"))?;
 
-        let rows: Vec<(i64, String, String, String, f64)> = stmt
-            .query_map(rusqlite::params![cursor as i64], |row| {
-                Ok((
-                    row.get(0)?,
-                    row.get(1)?,
-                    row.get(2)?,
-                    row.get(3)?,
-                    row.get(4)?,
-                ))
-            })
-            .map_err(|e| format!("Failed to query triples: {e}"))?
-            .filter_map(|r| r.ok())
-            .collect();
+            let rows = stmt
+                .query_map(rusqlite::params![cursor as i64], |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                })
+                .map_err(|e| format!("Failed to query triples: {e}"))?
+                .filter_map(|r| r.ok())
+                .collect::<Vec<_>>();
+            // stmt and conn dropped here — Send-safe
+            rows
+        };
 
         if rows.is_empty() {
             return Ok(0);

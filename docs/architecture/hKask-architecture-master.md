@@ -1,8 +1,8 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-18
-version: "0.28.0"
+last_updated: 2026-06-19
+version: "0.30.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -174,19 +174,35 @@ Creation (kask pod create) → Populated → Registered → Activated → Deacti
 
 **What it is:** The architectural grounding of the agent pod in the five invariants that define a Solid Pod: (1) per-user WebID-grounded identity, (2) self-contained storage, (3) capability-based access control, (4) interoperable data as linked-data triples, (5) the pod IS the deployment unit.
 
-This isomorphism was the original architectural intent, as evidenced by the deployment model's backup design ("Backup as portable archive. Encrypted SQLCipher file. Export from one server, upload to another"). The current `PodManager` implementation chose centralization (in-memory `HashMap<PodID, AgentPod>`, shared `TripleStore` scoped by `owner_webid`) over pod-as-deployment-unit. The migration re-aligns the storage layer with the backup model.
+This isomorphism was the original architectural intent, as evidenced by the deployment model's backup design ("Backup as portable archive. Encrypted SQLCipher file. Export from one server, upload to another"). The migration from centralized `PodManager` to per-pod `PodDeployment` was completed in v0.30.0.
 
 #### The Five Invariants Mapped onto hKask
 
 | # | Solid Invariant | hKask Implementation | Status |
 |---|----------------|---------------------|--------|
-| 1 | WebID-grounded identity | `AgentPod.webid` + `derive_ocap_secret(webid)` (ADR-027) | ✓ Correct |
-| 2 | Self-contained storage (LDP) | `PerPodStorage` with pod-level SQLCipher file at `{data_dir}/pods/{pod_id}.db` | ⚠ Strangler-Fig Phase 1: new types exist alongside shared `TripleStore` |
-| 3 | Capability-based access (WAC/ACP) | `DelegationToken` + `CapabilityChecker` + OCAP dual gate | ✓ Correct |
-| 4 | Interoperable linked-data triples | `Triple` struct with entity/attribute/value/confidence/visibility | ✓ Correct |
-| 5 | Pod IS the deployment unit | `PodDeployment` owns its storage, CNS, and tools directly. `PodFactory` is a stateless constructor. | ⚠ Strangler-Fig Phase 1: coexists with centralized `PodManager` |
+| 1 | WebID-grounded identity | `AgentPod.webid` + `derive_ocap_secret(webid)` (ADR-027) | ✓ |
+| 2 | Self-contained storage (LDP) | `PerPodStorage` with per-pod SQLCipher file at `{data_dir}/pods/{kind}.{name}.db` | ✓ |
+| 3 | Capability-based access (WAC/ACP) | `DelegationToken` + `CapabilityChecker` + OCAP dual gate | ✓ |
+| 4 | Interoperable linked-data triples | `Triple` struct with entity/attribute/value/confidence/visibility | ✓ |
+| 5 | Pod IS the deployment unit | `PodDeployment` owns its storage, CNS, and tools directly. `PodDeployment` includes `pod_kind`, `semantic_index`, and per-pod CNS runtime. `PodManager` deleted. `PodFactory` is stateless. | ✓ |
 
-#### PodDeployment — The Canonical Type (v0.29.0 — implemented)
+#### Three-Tier Pod Architecture (v0.30.0)
+
+hKask extends the Solid Pod isomorphism into three pod tiers:
+
+| Tier | `PodKind` | Filename | Owner | Semantic Behavior |
+|------|-----------|----------|-------|-------------------|
+| **CuratorPod** | `Curator` | `curator.db` | System (singleton) | `SemanticIndex` owner — aggregates Public triples from all pods |
+| **TeamPod** | `Team` | `team.{name}.db` | Shared bots | Bots share episodic storage; semantic published to Curator |
+| **ReplicantPod** | `Replicant` | `replicant.{webid}.db` | Human+replicant pair | Episodic private; semantic published to Curator |
+
+**Startup order:** CuratorPod → TeamPods → ReplicantPods (on demand).
+**Data flow:** `store_semantic()` writes locally → CNS event `cns.semantic.published` → `CuratorSync` polling loop opens source pod read-only → inserts Public triples into `SemanticIndex` with cursor tracking.
+**Semantic recall:** `PodContext::recall_semantic()` routes through Curator's `SemanticIndex` for merged-lens view when Curator is active; falls back to local storage.
+**Full spec:** [`MULTI_POD_ARCHITECTURE.md`](core/MULTI_POD_ARCHITECTURE.md)
+
+
+#### PodDeployment — The Canonical Type (v0.30.0)
 
 `PodDeployment` is now the canonical pod type. `PodManager` has been deleted.
 
@@ -204,9 +220,7 @@ pub struct PodDeployment {
 **ActivePods** is the runtime registry (lightweight HashMap, no shared storage).
 **PodRegistry** is filesystem-based discovery (scans `{data_dir}/pods/*.db`).
 
-**Full analysis:** [`SOLID_POD_ISOMORPHISM.md`](core/SOLID_POD_ISOMORPHISM.md)  
-**Deployment contract:** [`POD_DEPLOYMENT_CONTRACT.md`](core/POD_DEPLOYMENT_CONTRACT.md)  
-**Migration plan:** [`STRANGLER_FIG_MIGRATION.md`](core/STRANGLER_FIG_MIGRATION.md)
+**Full analysis:** [`SOLID_POD_ISOMORPHISM.md`](core/SOLID_POD_ISOMORPHISM.md) (includes deployment types)
 
 **Crates:** `hkask-agents` (pod, deployment), `hkask-storage`, `hkask-memory`, `hkask-keystore`
 
@@ -268,7 +282,7 @@ CLOUD SERVER (single binary, all crates compiled)
   Conduit (Docker) - Matrix homeserver
   hkask-api - OAuth, WebSocket /terminal, backup endpoints
   hkask-core - daemon, MCP servers, agents, CNS, wallet, memory
-  Per-pod SQLCipher files ({data_dir}/pods/{pod_id}.db) — one database per pod
+  Per-pod SQLCipher files ({data_dir}/pods/{kind}.{name}.db) — one database per pod, three-tier (Curator/Team/Replicant)
 
 Access (all via HTTPS/Caddy):
   Browser (xterm.js) - primary
@@ -980,8 +994,10 @@ docs/architecture/
 │   ├── PRINCIPLES.md                      # Framework (P1-P12)
 │   ├── MDS.md                             # Framework (5 categories, 5 tools)
 │   ├── TESTING_DISCIPLINE.md              # Specification (contract-anchored testing)
-│   ├── CNS-DOMAIN-SPECIFICATION.md        # Specification (197 CNS contracts)
+│   ├── CNS-DOMAIN-SPECIFICATION.md        # Specification (CNS + memory verb contracts)
 │   ├── FUNCTIONAL_SPECIFICATION.md        # Specification (AgentService)
+│   ├── SOLID_POD_ISOMORPHISM.md           # Specification (pod drift analysis + deployment types + semantic map)
+│   ├── MULTI_POD_ARCHITECTURE.md          # Specification (3-tier pod structure)
 ├── mandates/
 │   └── P12-replicant-host-mandate.md      # Framework (replicant host mandate)
 ├── ADRs/
@@ -992,7 +1008,7 @@ docs/architecture/
     └── hKask-Curator-persona.md           # Persona spec
 ```
 
-**Total:** 15 architecture documents (8 core + 1 mandate + 3 root + 2 ADRs + 1 reference). API docs (utoipa) in §API Documentation, kata-kanban in §Kata-Kanban-CNS Integration.
+**Total:** 13 architecture documents (8 core + 1 mandate + 3 root + 2 ADRs + 1 reference). API docs (utoipa) in §API Documentation.
 
 **Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, etc.), `docs/guides/` (kata-user-guide.md, lora-training-guide.md), `docs/user-guides/` (kanban-user-guide.md, lora-adapter-store-guide.md)
 

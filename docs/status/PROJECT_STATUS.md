@@ -1,8 +1,8 @@
 ---
 title: "Project Status"
 audience: [architects, developers, agents]
-last_updated: 2026-06-18
-version: "0.28.0"
+last_updated: 2026-06-19
+version: "0.30.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [lifecycle]
@@ -12,7 +12,16 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** v0.28.0 Phase C — Multi-user foundation complete: Role enum, Invite system, admin middleware, admin routes (invite/sessions/config), CNS spans (RoleAssigned, InviteSent, InviteAccepted). Google OAuth. rSolidity build regression fixed (circular import + 6 misplaced deps). Workspace: 0 errors, 28 warnings (proc-macro dead-code analysis limitation). Expect: coverage: CNS 100% (115), Wallet 100% (13), Memory 100% (55). All docs v0.28.0. (2026-06-18)
+**Current session:** v0.30.0 — Multi-Pod Architecture Complete: Three-tier Solid Pod isomorphism (CuratorPod/TeamPod/ReplicantPod).
+- PodManager deleted → PodDeployment + PodFactory + ActivePods + PodRegistry. Per-pod SQLCipher files at `{data_dir}/pods/{kind}.{name}.db`.
+- Per-pod CNS (`PerPodCnsRuntime`, `cns.agent_pod.{pod_id}.*` namespace). Per-pod MCP tool binding.
+- `CuratorSync` polling loop: lazy one-way semantic sync from ReplicantPods/TeamPods → CuratorPod SemanticIndex.
+- `PodContext::recall_semantic()` routes through Curator for merged-lens view.
+- `CnsSpan::SemanticPublished` emitted on every `store_semantic()`.
+- `PodKind` enum (Curator/Team/Replicant) with filename convention, `PodRegistry::scan_by_kind()`.
+- `PodStatusInfo` exposes `pod_kind` for API/CLI consumers.
+- Specification docs updated: SOLID_POD_ISOMORPHISM.md, MULTI_POD_ARCHITECTURE.md, hKask-architecture-master.md.
+- Build: clean (0 errors). Tests: 45/45 pass in `hkask-agents`. (2026-06-19)
 
 ---
 
@@ -263,8 +272,11 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 
 | Priority | Task |
 |----------|------|
+| MEDIUM | Integration tests for multi-pod sync: CNS span emission, CuratorSync polling, cross-pod contradictory triple recall, TeamPod bot sharing |
 | LOW | Citation compliance: 23 files have fewer footnote citations than `##` sections (PS-07 gap). Audit complete 2026-06-11 — see §Citation Audit below. |
+| LOW | `CuratorSync` integration test — verify sync loop picks up triples within 1s |
 | NOT YET DONE | End-to-end onboarding smoke test (needs live Okapi) |
+| DEFERRED | Pod container export (`kask pod export-container`) — ζ.5 (container boundary) |
 
 ### Communication Server — Remaining Items
 
@@ -314,4 +326,4 @@ Fixing these requires domain knowledge to assign appropriate external citations 
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.28.0*
+*ℏKask — A Minimal Viable Container for Agents — v0.30.0*

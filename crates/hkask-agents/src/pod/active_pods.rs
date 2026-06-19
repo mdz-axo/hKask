@@ -5,7 +5,7 @@
 
 use super::AgentPodError;
 use super::context::PodContext;
-use super::deployment::{PodDeployment, PodFactory};
+use super::deployment::{PodDeployment, PodFactory, PodRegistry};
 use super::types::{AgentKind, AgentPersona, PodID, PodKind, PodLifecycleState};
 use crate::curator::SemanticIndex;
 use crate::ports::{A2APort, EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
@@ -118,6 +118,12 @@ impl ActivePods {
     /// Get the inference port, if one is wired.
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
         self.inference_port.clone()
+    }
+
+    /// Get a clone of the Curator's shared SemanticIndex, if a CuratorPod
+    /// has been deployed. Used to construct CuratorSync at startup.
+    pub async fn curator_index(&self) -> Option<Arc<RwLock<SemanticIndex>>> {
+        self.curator_index.read().await.clone()
     }
 
     pub async fn insert(&self, deployment: PodDeployment) {
@@ -248,6 +254,57 @@ impl ActivePods {
 
         self.insert(deployment).await;
         Ok(pod_id)
+    }
+
+    /// Ensure a CuratorPod exists, is activated, and has CuratorSync running.
+    /// Idempotent — if a Curator already exists, returns its SemanticIndex.
+    /// If not, creates one, activates it, spawns the sync loop.
+    ///
+    /// Returns the shared SemanticIndex Arc for consumers that need it.
+    /// The sync loop runs as a background task until the cancellation token fires.
+    pub async fn ensure_curator(
+        &self,
+        data_dir: std::path::PathBuf,
+        cancel: tokio::sync::watch::Receiver<bool>,
+    ) -> Result<Option<Arc<RwLock<SemanticIndex>>>, AgentPodError> {
+        // Check if curator already exists
+        {
+            let ci = self.curator_index.read().await;
+            if let Some(ref index) = *ci {
+                return Ok(Some(Arc::clone(index)));
+            }
+        }
+
+        // Create CuratorPod
+        let curator_persona = super::types::AgentPersona::system("curator", hkask_types::AgentKind::Bot);
+        let pod_id = self
+            .create_pod("curator", &curator_persona, None, PodKind::Curator)
+            .await?;
+
+        // Activate it
+        self.activate_pod(&pod_id).await?;
+
+        // Extract the SemanticIndex (set by create_pod when PodKind::Curator)
+        let index = {
+            let ci = self.curator_index.read().await;
+            ci.clone().ok_or_else(|| {
+                AgentPodError::PersonaParseError("CuratorPod created but SemanticIndex missing".into())
+            })?
+        };
+
+        // Spawn CuratorSync background loop
+        let registry = Arc::new(PodRegistry::new(&data_dir));
+        let sync = crate::curator::CuratorSync::new(
+            Arc::clone(&index),
+            data_dir,
+            registry,
+        );
+        tokio::spawn(async move {
+            sync.run(cancel).await;
+        });
+        tracing::info!("CuratorSync spawned — polling semantic triples from all pods");
+
+        Ok(Some(index))
     }
 
     /// Activate a pod — matches old PodManager::activate_pod(id).

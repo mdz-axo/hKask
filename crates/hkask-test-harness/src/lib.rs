@@ -22,6 +22,7 @@ pub mod mocks;
 mod schema;
 pub mod strategies;
 pub mod test_runner;
+pub mod triage;
 
 pub use schema::SCHEMA_SQL;
 pub use test_runner::ExpectProposal;

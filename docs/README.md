@@ -46,9 +46,7 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 | [`MDS.md`](architecture/core/MDS.md) | all | Minimal Domain Specification — 5 categories, 5 tools |
 | [`TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | all | Contract-anchored testing — DbC + PBT specification |
 | [`CNS-DOMAIN-SPECIFICATION.md`](architecture/core/CNS-DOMAIN-SPECIFICATION.md) | domain, composition, lifecycle | CNS specification — 6 sub-domains, 44 contracts |
-| [`SOLID_POD_ISOMORPHISM.md`](architecture/core/SOLID_POD_ISOMORPHISM.md) | domain, composition | AgentPod↔Solid Pod isomorphism — drift analysis and resolution |
-| [`POD_DEPLOYMENT_CONTRACT.md`](architecture/core/POD_DEPLOYMENT_CONTRACT.md) | domain, composition, trust | PodDeployment contract — per-pod SQLCipher, CNS, MCP bindings |
-| [`STRANGLER_FIG_MIGRATION.md`](architecture/core/STRANGLER_FIG_MIGRATION.md) | lifecycle, curation | Migration plan — PodManager → PodDeployment (complete) |
+| [`SOLID_POD_ISOMORPHISM.md`](architecture/core/SOLID_POD_ISOMORPHISM.md) | domain, composition | AgentPod↔Solid Pod isomorphism — drift analysis, deployment types, semantic map |
 | [`MULTI_POD_ARCHITECTURE.md`](architecture/core/MULTI_POD_ARCHITECTURE.md) | domain, composition, lifecycle | Multi-pod tiers — CuratorPod + TeamPod + ReplicantPod |
 | [`FUNCTIONAL_SPECIFICATION.md`](architecture/core/FUNCTIONAL_SPECIFICATION.md) | domain, composition | AgentService functional specification |
 
@@ -122,7 +120,6 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 | Document | Description |
 |----------|-------------|
 | [`kata-user-guide.md`](guides/kata-user-guide.md) | Toyota Kata — research, technical build, kanban integration, user how-to |
-| [`admin-install-guide.md`](guides/admin-install-guide.md) | Admin install — cloud server setup, OAuth, domain, sidecar deployment |
 | [`DEPLOYMENT.md`](guides/DEPLOYMENT.md) | Deployment — production server, systemd, health checks, security hardening |
 | [`OPERATIONS_RUNBOOK.md`](guides/OPERATIONS_RUNBOOK.md) | Operations — health checks, troubleshooting, backup/recovery |
 | [`lora-training-guide.md`](guides/lora-training-guide.md) | LoRA training — dataset prep to CNS-verified deployment, hardening, troubleshooting |

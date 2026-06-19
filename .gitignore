@@ -4,6 +4,10 @@
 **/target/debug/
 *.rs.bk
 
+# Mutation testing (cargo-mutants) output
+mutants.out/
+mutants.out.old/
+
 # Rust
 # Cargo.lock is tracked for reproducible binary builds
 

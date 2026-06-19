@@ -105,7 +105,7 @@ export DEEPINFRA_BASE_URL="https://api.deepinfra.com/v1/openai"
 
 For a full step-by-step server deployment including OAuth, Caddy + Conduit sidecars, DNS, and first sign-in, see:
 
-→ **[Admin Install Guide](admin-install-guide.md)**
+→ **[Deployment Plan](../plans/deployment-and-backup.md)**
 
 Quick summary:
 ```bash
@@ -202,7 +202,7 @@ Model names use 2-letter provider prefixes for routing:
 - `FA/` → fal.ai (cloud) — requires `FA_API_KEY`
 - No prefix → defaults to DeepInfra
 
-API keys can be set in environment variables or in a `providers.env` file. The `kask` binary auto-loads `.env` on startup via `dotenvy`. For OAuth credentials (GitHub/Google client IDs and secrets), see the [Admin Install Guide](admin-install-guide.md).
+API keys can be set in environment variables or in a `providers.env` file. The `kask` binary auto-loads `.env` on startup via `dotenvy`. For OAuth credentials (GitHub/Google client IDs and secrets), see the [Deployment Plan](../plans/deployment-and-backup.md).
 
 ### 4.2 Chat Configuration
 
@@ -573,7 +573,7 @@ curl https://api.deepinfra.com/v1/embeddings \
 - Issue tracker: https://github.com/mdz-axo/hKask/issues
 - Architecture: `docs/architecture/hKask-architecture-master.md`
 - API Reference: `kask docs openapi` or `docs/openapi.json`
-- Step-by-step setup: [Admin Install Guide](admin-install-guide.md)
+- Step-by-step setup: [Deployment Plan](../plans/deployment-and-backup.md)
 
 ---
 
@@ -692,6 +692,6 @@ curl -s https://hkask.your-domain.com/api/openapi.json -o openapi.json
 
 ---
 
-*This deployment guide is part of hKask v0.28.0 documentation. For architecture details, see `docs/architecture/hKask-architecture-master.md`. For step-by-step server setup, see [Admin Install Guide](admin-install-guide.md).*
+*This deployment guide is part of hKask v0.28.0 documentation. For architecture details, see `docs/architecture/hKask-architecture-master.md`. For step-by-step server setup, see [Deployment Plan](../plans/deployment-and-backup.md).*
 
 **ℏKask - A Minimal Viable Container for Agents**
