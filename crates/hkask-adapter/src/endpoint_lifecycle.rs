@@ -9,7 +9,7 @@ use std::fmt;
 /// Endpoint lifecycle phases.
 ///
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
-/// [P9] Homeostatic Self-Regulation — endpoint phases are observable and transition-constrained
+/// \[P9\] Homeostatic Self-Regulation — endpoint phases are observable and transition-constrained
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EndpointPhase {
     /// Provider is provisioning the endpoint (cost accrual begins)
@@ -77,7 +77,7 @@ pub enum EndpointPhaseError {
 /// the duration spent in billable phases.
 ///
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
-/// [P9] Homeostatic Self-Regulation — endpoint phases are observable and transition-constrained
+/// \[P9\] Homeostatic Self-Regulation — endpoint phases are observable and transition-constrained
 /// pre:  current phase allows the requested transition
 /// post: phase is updated with timestamp, cost_accrued is accurate
 #[derive(Debug, Clone)]

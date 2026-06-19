@@ -73,7 +73,7 @@ impl CircuitBreaker {
     /// Create a default circuit breaker for inference.
     ///
     /// expect: "The system creates circuit breakers with safe default thresholds for inference calls"
-    /// [P9] Motivating: Homeostatic Self-Regulation — CNS regulation loop enforces boundary
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — CNS regulation loop enforces boundary
     /// \[P4\] Constraining: Clear Boundaries — default thresholds establish failure boundary
     /// pre:  name is non-empty
     /// post: returns CircuitBreaker with default thresholds
@@ -84,7 +84,7 @@ impl CircuitBreaker {
     /// Check if a request is allowed through the circuit breaker.
     ///
     /// expect: "I can check whether the circuit allows requests through"
-    /// [P9] Motivating: Homeostatic Self-Regulation — the check-before-execute gateway
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — the check-before-execute gateway
     /// \[P4\] Constraining: Clear Boundaries — state-driven gating enforces the boundary
     /// post: returns true if circuit is closed or half-open, false if open
     pub fn allow_request(&self) -> bool {
@@ -130,7 +130,7 @@ impl CircuitBreaker {
     /// Record a successful request.
     ///
     /// expect: "The circuit tracks successes and transitions back to closed when healthy"
-    /// [P9] Motivating: Homeostatic Self-Regulation — success count drives loop closure
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — success count drives loop closure
     /// \[P4\] Constraining: Clear Boundaries — threshold-based state transition enforces boundary
     /// post: success counted, may transition circuit to closed
     pub fn record_success(&self) {

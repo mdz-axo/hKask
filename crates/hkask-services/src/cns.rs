@@ -24,7 +24,7 @@ pub struct CnsService {
 impl CnsService {
     /// Create from the shared CNS runtime.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  runtime must be a valid Arc<RwLock<CnsRuntime>>
     /// post: returns CnsService wrapping the runtime
     pub fn new(runtime: Arc<RwLock<CnsRuntime>>) -> Self {
@@ -33,7 +33,7 @@ impl CnsService {
 
     /// Current CNS health snapshot.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  runtime must be initialized
     /// post: returns CnsHealth with healthy flag, alert count, and deficit summary
     pub async fn health(&self) -> CnsHealth {
@@ -42,7 +42,7 @@ impl CnsService {
 
     /// Active algedonic alerts.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  runtime must be initialized
     /// post: returns Vec<RuntimeAlert> of currently active alerts; empty Vec if none
     pub async fn alerts(&self) -> Vec<RuntimeAlert> {
@@ -51,7 +51,7 @@ impl CnsService {
 
     /// Variety counter snapshots keyed by canonical CNS namespace.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  runtime must be initialized
     /// post: returns HashMap<SpanNamespace, u64> of variety counters; empty map if no counters
     pub async fn variety(&self) -> HashMap<SpanNamespace, u64> {
@@ -63,7 +63,7 @@ impl CnsService {
     /// Reads from the active runtime when available, falling back to
     /// defaults from environment (`HKASK_CNS_CONFIG`) or hard-coded values.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns SetPoints from env config or hard-coded defaults
     pub fn get_set_points(&self) -> SetPoints {
@@ -75,7 +75,7 @@ impl CnsService {
     /// Missing fields fall back to defaults. Does not persist —
     /// persistence to YAML and runtime update is a separate operation.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must be a valid SetPointsConfig; missing fields use defaults
     /// post: returns SetPoints computed from config merged with defaults
     pub fn update_set_points(&self, config: &SetPointsConfig) -> SetPoints {

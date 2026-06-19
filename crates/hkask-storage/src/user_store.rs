@@ -611,7 +611,7 @@ impl UserStore {
     /// Create an invite code for a new member.
     ///
     /// expect: "I can send an invite to bring a new user onto my server"
-    /// [P2] Goal: Affirmative Consent — admin explicitly invites each member
+    /// \[P2\] Goal: Affirmative Consent — admin explicitly invites each member
     ///Constraining: User Sovereignty — invite expires and is revocable
     /// pre:  created_by is a valid UserID with Admin role
     /// post: invite row created with status Pending, 7-day expiry

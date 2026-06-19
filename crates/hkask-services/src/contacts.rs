@@ -12,7 +12,7 @@ pub struct ContactService;
 impl ContactService {
     /// Add a contact to an agent's registry.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized; agent_name and contact_name must be non-empty
     /// post: contact is persisted to the registry store; Err(AgentRegistryStore) on store failure
     pub fn add(
@@ -37,7 +37,7 @@ impl ContactService {
 
     /// Find contacts by name or relationship. Returns all matches.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized; agent_name and query must be non-empty
     /// post: returns Vec<Contact> matching the query; empty Vec if no matches; Err(AgentRegistryStore) on store failure
     pub fn find(
@@ -54,7 +54,7 @@ impl ContactService {
 
     /// List all contacts for an agent.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized; agent_name must be non-empty
     /// post: returns Vec<Contact> for the agent; empty Vec if no contacts; Err(AgentRegistryStore) on store failure
     pub fn list(

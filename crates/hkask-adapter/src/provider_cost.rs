@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// Cost model for a specific inference provider.
 ///
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
-/// [P9] Homeostatic Self-Regulation — cost transparency enables budget-aware decisions
+/// \[P9\] Homeostatic Self-Regulation — cost transparency enables budget-aware decisions
 /// pre:  provider is a recognized ProviderId variant
 /// post: CostModel returns honest estimates: gpu_hourly_rate, setup_minutes, teardown_grace
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

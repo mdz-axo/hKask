@@ -20,8 +20,8 @@ use uuid::Uuid;
 /// The core trait for trained adapter lifecycle operations.
 ///
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
-/// [P4] Clear Boundaries — composition is explicit, OCAP-gated, and provider-validated
-/// [P7] Evolutionary Architecture — the trait is the seam for provider backends
+/// \[P4\] Clear Boundaries — composition is explicit, OCAP-gated, and provider-validated
+/// \[P7\] Evolutionary Architecture — the trait is the seam for provider backends
 ///
 /// Every method requires a `DelegationToken` with the appropriate capability:
 /// - `adapter:read`  → list_adapters, endpoint_status
@@ -162,7 +162,7 @@ pub struct EndpointStatus {
 /// Result of provider selection — returned by `AdapterRouter::select_provider()`.
 ///
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
-/// [P2] Affirmative Consent — the caller must present this to the user and obtain explicit consent
+/// \[P2\] Affirmative Consent — the caller must present this to the user and obtain explicit consent
 #[derive(Debug, Clone)]
 pub struct ProviderSelection {
     pub adapter_id: Uuid,

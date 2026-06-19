@@ -77,7 +77,7 @@ pub struct PodDeployment {
 /// accidentally query another pod's data because you have no
 /// connection handle to its file.
 ///
-/// [P11] Goal: Digital Public/Private Sphere — storage isolation
+/// \[P11\] Goal: Digital Public/Private Sphere — storage isolation
 pub struct PerPodStorage {
     /// The encrypted database connection
     pub db: Database,

@@ -269,7 +269,7 @@ async fn classify_one(
 /// Returns results in the same order as the input texts.
 /// Failed classifications default to "Statement".
 ///
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  texts must be non-empty; config must have valid timeout and concurrency
 /// post: returns Vec<ClassifyResult> in input order; failed classifications fall back to config.fallback_category; all fallback if no API key
 pub async fn classify_batch(
@@ -354,7 +354,7 @@ pub async fn classify_batch(
 /// Failed extractions default to empty TripleExtraction.
 /// Graceful degradation: no API key → all empty extractions.
 ///
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  texts must be non-empty; config must have valid timeout and concurrency
 /// post: returns Vec<TripleExtraction> in input order; failed extractions fall back to empty; all empty if no API key
 pub async fn extract_triples_batch(

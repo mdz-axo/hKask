@@ -57,7 +57,7 @@ impl GovernedInference {
     /// Create a new governed inference wrapper.
     ///
     /// expect: "The system creates a governed inference membrane that gates LLM calls behind energy budgets"
-    /// [P9] Motivating: Homeostatic Self-Regulation — inference governance enables cybernetic control
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — inference governance enables cybernetic control
     /// \[P4\] Constraining: Clear Boundaries — membrane wraps inner InferencePort at OCAP boundary
     /// \[P12\] Constraining: Affirmative Consent — agent identity is required for attribution
     /// pre:  inference is valid, cns is valid
@@ -81,7 +81,7 @@ impl GovernedInference {
     /// Set the agent WebID for attribution.
     ///
     /// expect: "I can bind an agent identity to the inference membrane for attribution"
-    /// [P12] Motivating: Affirmative Consent — agent identity is the consent anchor
+    /// \[P12\] Motivating: Affirmative Consent — agent identity is the consent anchor
     /// \[P4\] Constraining: Clear Boundaries — OCAP gate enforces boundary per inference call
     /// @must_use because builder methods must be chained or assigned
     /// post: returns Self with agent set (builder pattern)

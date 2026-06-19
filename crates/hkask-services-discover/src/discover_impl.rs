@@ -140,7 +140,7 @@ impl DiscoveryService {
     /// `hkask-mcp-research` server with configured providers.
     /// `token` is a delegation token for OCAP-gated tool invocation.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  req.author_name must be non-empty; mcp must be connected; token must be valid
     /// post: returns DiscoverResult with discovered works, sources, and academic works; output and cache directories created; Err on MCP or I/O failure
     pub async fn discover(
@@ -455,7 +455,7 @@ impl DiscoveryService {
 /// they are included in the generated config. Sets `corpus_type: "academic"`
 /// since this is the academic discovery pipeline.
 ///
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  author_slug must be non-empty; works must be non-empty; output_dir must exist
 /// post: corpus.yaml is written to output_dir; returns PathBuf to the written file; Err on serialization or I/O failure
 pub fn generate_corpus_yaml(
@@ -528,7 +528,7 @@ pub fn generate_corpus_yaml(
 /// Shared between `generate_corpus_yaml` and the CLI curation section
 /// to prevent default drift. All corpus config defaults live here.
 ///
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  author_slug must be non-empty
 /// post: returns CorpusConfig with default embedding, chunking, validation, and budget settings
 pub fn default_corpus_config(author_slug: &str) -> CorpusConfig {
@@ -1297,7 +1297,7 @@ async fn fetch_youtube_transcript(
 
 /// Download content from a URL and cache it to disk.
 ///
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  url must be a valid HTTP/HTTPS URL; cache_path's parent directory must exist
 /// post: content is downloaded, PDFs are text-extracted (with OCR fallback), HTML is stripped, and result is written to cache_path; Err on HTTP failure, empty content, or I/O error
 pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), ServiceError> {
@@ -1433,7 +1433,7 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
 
 // ── Utilities ───────────────────────────────────────────────────────────────
 
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  s may be any string (including empty)
 /// post: returns lowercase, alphanumeric-only slug with hyphens; empty string becomes empty slug
 pub fn slugify(s: &str) -> String {

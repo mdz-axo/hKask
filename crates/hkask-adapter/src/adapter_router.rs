@@ -672,7 +672,7 @@ impl AdapterRouter {
     /// Build the router from an `AdapterStore` and available providers.
     ///
     /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
-    /// [P4] Clear Boundaries — router assembled from configured provider boundaries
+    /// \[P4\] Clear Boundaries — router assembled from configured provider boundaries
     /// pre:  store is a valid AdapterStore
     /// post: returns AdapterRouter with backends for adapter-capable providers
     /// post: previously active endpoints are loaded from store (metadata only — backends
@@ -776,7 +776,7 @@ impl AdapterRouter {
     /// Select a provider for adapter composition — user-in-the-loop (P2 Affirmative Consent).
     ///
     /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
-    /// [P2] Affirmative Consent — provider selection is explicit, informed, and user-driven
+    /// \[P2\] Affirmative Consent — provider selection is explicit, informed, and user-driven
     /// pre:  adapter exists in store, at least one provider supports LoRA composition
     /// post: returns list of compatible providers with cost estimates; caller selects
     ///
@@ -1213,7 +1213,7 @@ impl AdapterPort for AdapterRouter {
 /// RAII guard that tears down an endpoint on drop.
 ///
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
-/// [P5] Essentialism — every resource earns its existence; idle endpoints must drain
+/// \[P5\] Essentialism — every resource earns its existence; idle endpoints must drain
 /// pre:  guard is created after successful endpoint provisioning
 /// post: on drop, the endpoint is transitioned to Draining → Terminated
 ///

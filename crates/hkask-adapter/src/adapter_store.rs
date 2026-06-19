@@ -95,7 +95,7 @@ impl std::fmt::Display for Checksum {
 /// A trained LoRA adapter — content-addressed, owner-scoped artifact.
 ///
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
-/// [P8] Semantic Grounding — adapter is content-addressed and provenance-chained
+/// \[P8\] Semantic Grounding — adapter is content-addressed and provenance-chained
 /// pre:  adapter weights pass checksum validation
 /// post: adapter is stored with owner WebID, expertise link, and base model family
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

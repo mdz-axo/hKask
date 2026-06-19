@@ -99,7 +99,7 @@ pub struct VerificationReport {
 pub struct VerificationService;
 
 impl VerificationService {
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  filter if Some must be a valid principle name; manifests must be loadable
     /// post: returns VerificationReport with principle results, pass/fail/gap/skip counts, and total assertions
     pub fn verify(filter: Option<&str>) -> VerificationReport {
@@ -123,7 +123,7 @@ impl VerificationService {
         );
         report
     }
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  filter if Some must be a valid principle name
     /// post: returns serde_json::Value with principles array, totals, and escalation_required flag
     pub fn verify_json(filter: Option<&str>) -> serde_json::Value {

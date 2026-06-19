@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 /// User role for multi-user access control.
 ///
 /// expect: "I can assign roles to users to control what they can access"
-/// [P1] Goal: User Sovereignty — roles enforce who can manage the server
+/// \[P1\] Goal: User Sovereignty — roles enforce who can manage the server
 ///Constraining: Affirmative Consent — admin role is explicitly granted, never default
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -208,7 +208,7 @@ impl UserSession {
 /// Invite status for multi-user onboarding.
 ///
 /// expect: "I can send invites to bring other users onto my server"
-/// [P2] Goal: Affirmative Consent — invite requires explicit admin action
+/// \[P2\] Goal: Affirmative Consent — invite requires explicit admin action
 ///Constraining: User Sovereignty — invite is scoped to a specific server
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

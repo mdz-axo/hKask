@@ -50,7 +50,7 @@ async fn build_test_service() -> AgentService {
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 ///
 /// `AgentService::build()` with `ServiceConfig::in_memory()` succeeds
 /// and all accessors return valid references.
@@ -77,7 +77,7 @@ async fn service_builds_with_in_memory_config() {
     let _sovereignty = svc.sovereignty();
 }
 
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 ///
 /// Grant consent through the sovereignty service and verify
 /// the consent manager reflects the grant.
@@ -102,7 +102,7 @@ async fn sovereignty_consent_round_trip() {
     assert!(has_consent, "consent should be granted after grant_consent");
 }
 
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 ///
 /// Create a goal through the goal repository and read it back.
 #[tokio::test]
@@ -130,7 +130,7 @@ async fn goal_write_read_round_trip() {
     assert_eq!(retrieved.webid, webid);
 }
 
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 ///
 /// Create a specification and read it back.
 #[tokio::test]
@@ -149,7 +149,7 @@ async fn spec_write_read_round_trip() {
     assert_eq!(retrieved.category, SpecCategory::Lifecycle);
 }
 
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 ///
 /// After granting consent, a CNS event can be persisted in the
 /// shared event store (visible because all stores share one DB).
@@ -182,7 +182,7 @@ async fn cross_store_consent_visible_to_cns_events() {
         .expect("event sink should accept events on shared connection");
 }
 
-/// [P7] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
+/// \[P7\] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
 ///
 /// The shared CalibratedEnergyEstimator observes cns.gas.settled events persisted
 /// through the CNS event sink and updates per-server cost estimates.
@@ -227,7 +227,7 @@ async fn service_energy_estimator_calibrates_from_events() {
     );
 }
 
-/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 ///
 /// The wallet store is wired into the shared database and can
 /// perform balance operations.

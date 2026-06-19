@@ -40,7 +40,7 @@ impl AdapterConfig {
     /// Parse adapter_config.json from raw bytes.
     ///
     /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
-    /// [P8] Semantic Grounding — adapter config carries training provenance
+    /// \[P8\] Semantic Grounding — adapter config carries training provenance
     /// pre:  bytes is valid JSON matching the PEFT adapter_config.json schema
     /// post: returns AdapterConfig with base_model_name_or_path populated
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, AdapterConfigError> {

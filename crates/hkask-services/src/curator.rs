@@ -57,7 +57,7 @@ pub struct CuratorService;
 impl CuratorService {
     /// List pending escalations.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.escalation_queue() must be initialized
     /// post: returns Vec<EscalationResponse> of pending escalations; empty Vec if none; Err(Escalation) on queue error
     /// # Returns
@@ -72,7 +72,7 @@ impl CuratorService {
 
     /// Resolve an escalation by ID.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.escalation_queue() must be initialized; id must be a valid escalation ID; resolved_by must be non-empty
     /// post: escalation is resolved; CNS event emitted; Ok(()) on success; Err(EscalationNotFound) if ID not found; Err(Escalation) on queue error
     /// # Returns
@@ -111,7 +111,7 @@ impl CuratorService {
 
     /// Dismiss an escalation by ID.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.escalation_queue() must be initialized; id must be a valid escalation ID; dismissed_by must be non-empty
     /// post: escalation is dismissed; CNS event emitted; Ok(()) on success; Err(EscalationNotFound) if ID not found; Err(Escalation) on queue error
     /// # Returns
@@ -153,7 +153,7 @@ impl CuratorService {
     /// Constructs a `CuratorAgent` from the AgentService's escalation queue
     /// and CNS runtime, runs one metacognition cycle, and generates a summary.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.escalation_queue() and ctx.cns_runtime() must be initialized
     /// post: returns human-readable summary string from metacognition cycle; Err(Metacognition) on cycle failure; Err(Cns) if CNS runtime unavailable
     /// # Returns

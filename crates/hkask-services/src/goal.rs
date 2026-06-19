@@ -45,7 +45,7 @@ pub struct GoalService;
 impl GoalService {
     /// Create a new goal for the given owner.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.goal_repo() must be initialized; req.text must be non-empty; req.visibility must be "private" or "public"
     /// post: goal is persisted and returned as GoalResponse; Err(ValidationError) on invalid visibility; Err(GoalRepo) on store failure
     pub fn create_goal(
@@ -72,7 +72,7 @@ impl GoalService {
 
     /// List goals for the given owner, optionally filtered by state.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.goal_repo() must be initialized; owner must be a valid WebID; state_filter if Some must be a valid GoalState string
     /// post: returns Vec<GoalResponse> for matching goals; empty Vec if none; Err(ValidationError) on invalid state filter; Err(GoalRepo) on store failure
     pub fn list_goals(
@@ -102,7 +102,7 @@ impl GoalService {
 
     /// Set the state of an existing goal.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.goal_repo() must be initialized; goal_id_str must be a valid GoalID; new_state_str must be a valid GoalState
     /// post: goal state is updated and returned as GoalResponse; Err(ValidationError) on invalid ID or state; Err(GoalRepo) on store failure; Err(ValidationError) if owner does not match goal's owner
     pub fn set_goal_state(

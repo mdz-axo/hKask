@@ -61,7 +61,7 @@ pub enum EmbedPhase {
 }
 
 impl EmbedProgress {
-    /// [P7] Motivating: Evolutionary Architecture — display formatting emerges from usage.
+    /// \[P7\] Motivating: Evolutionary Architecture — display formatting emerges from usage.
     /// pre:  self is a valid EmbedProgress
     /// post: returns formatted "TODO [N pages · X%] ::: DONE [N pages · Y%]" string
     pub fn format_page_progress(&self) -> String {
@@ -85,7 +85,7 @@ impl EmbedProgress {
         )
     }
 
-    /// [P7] Motivating: Evolutionary Architecture — full status formatting.
+    /// \[P7\] Motivating: Evolutionary Architecture — full status formatting.
     /// pre:  self is a valid EmbedProgress
     /// post: returns formatted "[phase] author — work — page_progress" string
     pub fn format_full(&self) -> String {
@@ -1458,7 +1458,7 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
 /// Strip HTML tags from text, decoding common entities and preserving
 /// paragraph breaks from existing newlines in the HTML source.
 ///
-/// [P7] Motivating: Evolutionary Architecture — HTML stripping utility emerged from embedding needs.
+/// \[P7\] Motivating: Evolutionary Architecture — HTML stripping utility emerged from embedding needs.
 /// pre:  html is a valid HTML string
 /// post: returns plain text with tags removed, common entities decoded, whitespace collapsed
 pub fn strip_html_tags(html: &str) -> String {

@@ -35,7 +35,7 @@ impl CliExperienceRecorder {
     /// Returns a recorder even if the daemon is unreachable — recording
     /// will silently skip in that case.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns CliExperienceRecorder; daemon is Some if socket exists, None otherwise
     pub fn new() -> Self {
@@ -64,7 +64,7 @@ impl CliExperienceRecorder {
     /// - `outcome`: "success" or "failure"
     /// - `detail`: structured JSON with command-specific statistics
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  replicant, tool, input_summary, outcome must be non-empty; detail must be valid JSON
     /// post: experience is sent to daemon for dual encoding; silently skipped if daemon unavailable
     pub async fn record(

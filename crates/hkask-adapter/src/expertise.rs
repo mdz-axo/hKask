@@ -92,7 +92,7 @@ pub struct TrainingProvenance {
 /// ad-hoc "skill name" strings with a semantic type carrying provenance.
 ///
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"
-/// [P8] Semantic Grounding — expertise is a named, domain-scoped capability descriptor
+/// \[P8\] Semantic Grounding — expertise is a named, domain-scoped capability descriptor
 /// pre:  name is non-empty, domain is a recognized MDS domain category
 /// post: Expertise carries a capability_manifest linking to the training source
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

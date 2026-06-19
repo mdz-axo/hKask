@@ -533,8 +533,8 @@ fn extract_function_name(line: &str) -> String {
         .to_string()
 }
 
-/// Extract the [P{N}] principle tag from a text string.
-/// Matches patterns like "[P9]" or "[P12]" and returns the tag.
+/// Extract the `[P{N}]` principle tag from a text string.
+/// Matches patterns like `[P9]` or `\[P12\]` and returns the tag.
 fn extract_principle_tag(text: &str) -> Option<String> {
     let start = text.find("[P")?;
     let rest = &text[start..];

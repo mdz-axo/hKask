@@ -24,7 +24,7 @@ pub struct PracticeEntry {
 }
 
 impl KataHistory {
-    /// [P9] Motivating: Homeostatic Self-Regulation — practice history persisted for habit tracking.
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — practice history persisted for habit tracking.
     /// pre:  path may or may not exist
     /// post: returns Ok(KataHistory) from file, or default if file missing, or Err on parse failure
     pub fn load(path: &Path) -> Result<Self, KataError> {
@@ -42,7 +42,7 @@ impl KataHistory {
             .map_err(|e| KataError::ParseFailed(format!("Failed to parse history: {}", e)))
     }
 
-    /// [P9] Motivating: Homeostatic Self-Regulation — practice history serialized to disk.
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — practice history serialized to disk.
     /// pre:  self is valid; path is a writable filesystem location
     /// post: history serialized as pretty JSON to path, or Err on failure
     pub fn save(&self, path: &Path) -> Result<(), KataError> {
@@ -58,7 +58,7 @@ impl KataHistory {
         Ok(())
     }
 
-    /// [P9] Motivating: Homeostatic Self-Regulation — each practice session recorded.
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — each practice session recorded.
     /// pre:  agent is non-empty; entry is a valid PracticeEntry
     /// post: entry appended to agent's practice history list
     pub fn record(&mut self, agent: &str, entry: PracticeEntry) {
@@ -68,7 +68,7 @@ impl KataHistory {
             .push(entry);
     }
 
-    /// [P9] Motivating: Homeostatic Self-Regulation — streak computation for habit health.
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — streak computation for habit health.
     /// pre:  agent is non-empty; today is a YYYY-MM-DD date string
     /// post: returns consecutive day streak including today, or 0 if today missing
     pub fn current_streak(&self, agent: &str, today: &str) -> u32 {
@@ -98,7 +98,7 @@ impl KataHistory {
         streak
     }
 
-    /// [P9] Motivating: Homeostatic Self-Regulation — automaticity score for kata graduation.
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — automaticity score for kata graduation.
     /// pre:  agent is non-empty; today is a YYYY-MM-DD date string
     /// post: returns score 0.0–1.0 based on streak (target 21d) with decay for gaps >3d
     pub fn compute_automaticity(&self, agent: &str, today: &str) -> f64 {
@@ -114,7 +114,7 @@ impl KataHistory {
         (auto * 100.0).round() / 100.0
     }
 
-    /// [P9] Motivating: Homeostatic Self-Regulation — gap detection for habit decay.
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — gap detection for habit decay.
     /// pre:  agent is non-empty; today is a YYYY-MM-DD date string
     /// post: returns days since last practice, or u32::MAX if no history
     pub fn days_since_last(&self, agent: &str, today: &str) -> u32 {
@@ -129,14 +129,14 @@ impl KataHistory {
         }
     }
 
-    /// [P9] Motivating: Homeostatic Self-Regulation — starter kata graduation gate.
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — starter kata graduation gate.
     /// pre:  agent is non-empty; today is a YYYY-MM-DD date string
     /// post: returns true if automaticity > 0.5 (graduation threshold)
     pub fn can_graduate_from_starter(&self, agent: &str, today: &str) -> bool {
         self.compute_automaticity(agent, today) > 0.5
     }
 
-    /// [P9] Motivating: Homeostatic Self-Regulation — habit decay intervention trigger.
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — habit decay intervention trigger.
     /// pre:  agent is non-empty; today is a YYYY-MM-DD date string
     /// post: returns true if 3+ days since last practice (intervention needed)
     pub fn needs_habit_intervention(&self, agent: &str, today: &str) -> bool {
