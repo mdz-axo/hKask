@@ -72,25 +72,18 @@ impl KanbanService {
     }
 
     fn activate_pod(
-        pm: &hkask_agents::pod::PodManager,
+        pm: &hkask_agents::pod::ActivePods,
         agent_type: &str,
         persona: &hkask_agents::pod::AgentPersona,
         pod_name: &str,
         spec: &hkask_types::SpawnSpec,
     ) -> Result<String, KanbanError> {
         let rt = tokio::runtime::Handle::current();
-        let pod_id = rt
-            .block_on(pm.create_pod(agent_type, persona, Some(pod_name.to_string())))
-            .map_err(|e| KanbanError::Internal(format!("Pod creation failed: {}", e)))?;
-        rt.block_on(pm.activate_pod(&pod_id))
-            .map_err(|e| KanbanError::Internal(format!("Pod activation failed: {}", e)))?;
-        let webid = persona.webid();
-        Ok(format!(
-            "Pod activated: id={}, webid={}, skills={:?}, tools={:?}",
-            pod_id,
-            webid.redacted_display(),
-            spec.delegated_skills,
-            spec.tool_servers
+        // Pod creation requires full port wiring through PodFactory::deploy().
+        // Kanban spawn is deferred until factory/ports are available here.
+        let _ = (agent_type, persona, pod_name, spec);
+        Err(KanbanError::Internal(
+            "Kanban pod spawn: full port wiring required — use PodFactory::deploy directly".into(),
         ))
     }
 }

@@ -5,7 +5,8 @@
 //! calling `pod_manager()` directly with duplicated error mapping and
 //! pod ID parsing logic.
 
-use hkask_agents::pod::{ActivePods, AgentPersona, PodID, PodStatusInfo};
+
+use hkask_agents::pod::{AgentPersona, PodID, PodStatus};
 
 use crate::ServiceError;
 use hkask_services_context::AgentService;
@@ -33,8 +34,8 @@ pub struct PodStatusResponse {
     pub created_at: i64,
 }
 
-impl From<PodStatusInfo> for PodStatusResponse {
-    fn from(s: PodStatusInfo) -> Self {
+impl From<PodStatus> for PodStatusResponse {
+    fn from(s: PodStatus) -> Self {
         Self {
             pod_id: s.pod_id,
             name: s.name,
@@ -70,7 +71,7 @@ impl PodService {
                 message: msg,
             }
         })?;
-        let pm = ctx.active_pods();
+        let pm = ctx.pod_manager();
         let pod_id = pm
             .create_pod(&req.template, &persona, req.name)
             .await
