@@ -159,4 +159,4 @@ expect: "[P{N}]" → pre:/post: → Code → Test
 ```
 The goal principle (`[P{N}]` on `expect:`) is the structural origin point. The user expectation (the OUGHT from the functional spec) is encoded as the `expect:` field on every contract and verified by the test suite. The `#[contract(id=..., principle=...)]` attribute carries the same information as structured metadata.
 
-**rSolidity enforcement:** The behavioral contract (pre/post/invariant) is made executable via rSolidity macros (`require!`, `assert!`, `revert!`, `#[contract]`, `#[ocap]`) per `RSOLIDITY_VOCABULARY.md`. rSolidity was formally adopted as the contracting language on 2026-06-18. The contract `/// REQ:` doc-comment remains the authoritative specification; rSolidity macros provide runtime enforcement with CNS span emission for violations.
+**rSolidity enforcement:** The behavioral contract is made executable via rSolidity macros (`require!`, `assert!`, `revert!`, `#[contract]`, `#[ocap]`) per [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md) §3. rSolidity was formally adopted as the contracting language on 2026-06-18.

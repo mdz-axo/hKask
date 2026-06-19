@@ -1695,7 +1695,7 @@ ER diagrams have been added for all 8 CNS domains (§2) and the deployment domai
 | Last Updated | 2026-06-18 |
 | Contract Count | 99 CNS + wallet/agents/storage/memory/inference(cloud-only)/templates (complete) + 61 new (web 19 + multi-user 12 + backup 18 + deployment 16, spec written) |
 | Build Status | `cargo check` workspace — PASS |
-| rSolidity Status | **Formally adopted as the contracting language** (2026-06-18). 774 `#[rs::contract]` attributes across 4 crates (52.8% migration). See `RSOLIDITY_VOCABULARY.md` §6.1 for status table. |
+| rSolidity Status | **Formally adopted as the contracting language** (2026-06-18). See [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md) §3.3 for migration status. |
 | Governance | PRINCIPLES.md §0–§1.4 |
 | Deployment Reference | §3.18 deployment domain, `docs/plans/deployment-and-backup.md`, `docs/guides/DEPLOYMENT.md` |
 | ERDs | §2 — 8 CNS domain ER diagrams; §3.18 — deployment domain ER diagram; §4 — Core domain model, deployment model, contract-anchoring model; §5.0 — Magna Carta hierarchy ER diagram |
@@ -1732,7 +1732,7 @@ ER diagrams have been added for all 8 CNS domains (§2) and the deployment domai
 - [PRINCIPLES.md](PRINCIPLES.md) — 12 governing principles
 - [MDS.md](MDS.md) — Minimum Definition Specification
 - [TESTING_DISCIPLINE.md](TESTING_DISCIPLINE.md) — Contract testing discipline
-- [RSOLIDITY_VOCABULARY.md](RSOLIDITY_VOCABULARY.md) — rSolidity macro vocabulary design
+- [CONTRACT_SPECIFICATION.md](CONTRACT_SPECIFICATION.md) — Definitive contract standard
 - [hKask Architecture Master](../hKask-architecture-master.md) — Full architecture reference
 
 ---

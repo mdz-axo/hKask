@@ -45,7 +45,7 @@ Preferred auxiliary tooling:
 
 - Shell (`bash`) for repository-level scripts under `scripts/`.
 - Rust binaries or `build.rs` for anything that needs to parse source or Cargo metadata.
-- `scripts/ci/contract-audit.sh` — contract coverage source-of-truth; scans `/// REQ:` and `// REQ:` comments directly.
+- `scripts/ci/contract-audit.sh` — contract audit source-of-truth; scans `#[contract]` attributes, `/// REQ:` (transitional), and `// contract:` test annotations directly. See [`CONTRACT_SPECIFICATION.md`](docs/architecture/core/CONTRACT_SPECIFICATION.md).
 
 ---
 

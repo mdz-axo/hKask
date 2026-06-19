@@ -238,7 +238,7 @@ All gaps from 2026-06-15 are now closed. Current open gaps:
 
 | Gap | Severity | Status | Description |
 |-----|----------|--------|-------------|
-| **Kata documentation narrative** | Low | **Open** | Kata engine and skills are fully implemented (4 skills, 23 templates, 5 manifests) and documented in the architecture master and user guide, but CNS narrative companion (analogous to TESTING_NARRATIVE.md) has not been commissioned. Decision deferred per Task 9. |
+| **Kata documentation narrative** | Low | **Open** | CNS narrative companion for kata coaching has not been commissioned. Decision deferred per Task 9. |
 | **Skill ↔ MCP server documentation boundary** | Low | **Open** | Skills live in `.agents/skills/` (Zed agent layer) and `registry/templates/` (hKask runtime layer). MCP servers live in `mcp-servers/`. No unified "capability documentation" showing how a skill, its templates, and its MCP surface compose. Deferred per Task 9. |
 | **utoipa annotation completeness** | Medium | **Open** | No `#[utoipa::path]` annotations found in `crates/`. The OpenAPI spec (`docs/generated/openapi.json`, 4454 lines) may be manually maintained. Unannotated endpoints are invisible to auto-generation. Task 6 audits this. |
 | **Versioned documentation** | Low | **Open** | No versioning strategy for docs. As codebase evolves (kanban v2, kata refinements, additional MCP servers), documentation will drift again. Deferred per Task 9. |
@@ -860,10 +860,10 @@ docs/architecture/
 │   ├── PRINCIPLES.md                      # Framework (P1-P12)
 │   ├── MDS.md                             # Framework (5 categories, 5 tools)
 │   ├── TESTING_DISCIPLINE.md              # Specification (contract-anchored testing)
-│   ├── TESTING_NARRATIVE.md               # Narrative companion to testing discipline
-│   ├── CNS-DOMAIN-SPECIFICATION.md        # Specification (6 sub-domains, 44 contracts)
+│   ├── CNS-DOMAIN-SPECIFICATION.md        # Specification (197 CNS contracts)
 │   ├── FUNCTIONAL_SPECIFICATION.md        # Specification (AgentService)
-│   └── RSOLIDITY_VOCABULARY.md            # Reference (rSolidity terms)
+│   ├── CONTRACT_SPECIFICATION.md          # Specification (definitive contract standard)
+│   ├── RSOLIDITY_VOCABULARY.md            # Reference (archived → merged into CONTRACT_SPECIFICATION.md)
 ├── mandates/
 │   └── P12-replicant-host-mandate.md      # Framework (replicant host mandate)
 ├── ADRs/
