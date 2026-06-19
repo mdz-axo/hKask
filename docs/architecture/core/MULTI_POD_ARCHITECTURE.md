@@ -178,28 +178,28 @@ Emitted in `PodContext::store_semantic()` after successful local write. Payload:
 
 ### Step 3: CNS Event on Semantic Write
 **Contract:** `store_semantic()` fires CNS event after local write.
-- [ ] Emit `cns.semantic.published` in `PodContext::store_semantic()`
+- [x] Emit `cns.semantic.published` in `PodContext::store_semantic()`
 - [ ] Test: write semantic triple → verify CNS span emitted with correct payload
 
 ### Step 4: Curator Sense Loop — Poll and Index
 **Contract:** Curator polls source pod's triples on CNS event, inserts into SemanticIndex within 1 second.
-- [ ] CuratorPod subscribes to `cns.semantic.published` events
-- [ ] On event: open source pod's DB with deterministic passphrase, query triples since cursor
-- [ ] Insert into SemanticIndex with `source_pod_id` metadata
-- [ ] Advance cursor
+- [x] CuratorPod subscribes to `cns.semantic.published` events
+- [x] On event: open source pod's DB with deterministic passphrase, query triples since cursor
+- [x] Insert into SemanticIndex with `source_pod_id` metadata
+- [x] Advance cursor
 - [ ] Test: Pod A writes semantic triple → verify Curator sees it within 1s
 - [ ] Test: CuratorPod restart → verify catch-up replays all missed triples
 
 ### Step 5: recall_semantic() → Curator
 **Contract:** `PodContext::recall_semantic()` queries CuratorPod's SemanticIndex.
-- [ ] Route recall_semantic through CuratorPod when available
+- [x] Route recall_semantic through CuratorPod when available
 - [ ] Test: 2 pods write contradictory triples → recall returns both with source metadata
 
 ### Step 6: TeamPod
 **Contract:** Bots get delegated OCAP tokens into a shared TeamPod.
-- [ ] `PodFactory::deploy(PodKind::Team, "7r7")`
-- [ ] TeamPod stores bot episodic data in shared SQLCipher (bots can see each other's episodic)
-- [ ] Semantic published to Curator same as ReplicantPod
+- [x] `PodFactory::deploy(PodKind::Team, "7r7")`
+- [x] TeamPod stores bot episodic data in shared SQLCipher (bots can see each other's episodic)
+- [x] Semantic published to Curator same as ReplicantPod
 - [ ] Test: 2 bots write to TeamPod → both visible in team episodic, both published to Curator
 
 ---

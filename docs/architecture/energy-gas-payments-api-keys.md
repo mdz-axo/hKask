@@ -384,7 +384,40 @@ The rJoule maps to an on-chain token (anticipated: ERC-20 or similar). The token
 
 ---
 
-## 9. References
+## 9. Energy Accounting Audit
+
+> **Incorporated from:** `docs/status/energy_accounting_hardening_audit.md`
+
+### Call Chain (7 operations, 5 layers)
+
+```
+GovernedTool → CyberneticsLoop (pass-through) → EnergyBudgetManager (dispatch)
+  ├── EnergyBudget (in-memory)
+  └── WalletBackedBudget → WalletManager → WalletStore (SQLite, atomic CAS)
+```
+
+### Key Findings
+
+| Finding | Severity | Status |
+|---------|----------|--------|
+| `CyberneticsLoop` pass-through layer (6 methods, 0 behavior) | Medium | Candidate for removal |
+| `EnergyBudget` is in-memory only — no tamper-evidence for free-tier agents | Low | Acceptable risk |
+| `WalletStore` SQL constraints are the sole tamper-evident anchor | Info | Documented |
+| Bypassing `WalletManager::consume()` loses CNS span emission | Medium | Observability gap |
+| EMA gas calibration introduces time-of-day non-determinism | High | Needs fixed calibration schedule |
+| Gas↔rJoule conversion uses `Ordering::Relaxed` — no happens-before | High | Use Acquire/Release |
+| Float `f64` alert threshold — platform-dependent | Medium | Replace with Rational |
+
+### Recommendations
+
+1. **Remove `CyberneticsLoop` pass-through** — migrate callers to use `Arc<EnergyBudgetManager>` directly, eliminating 6 public surface methods and one delegation hop.
+2. **Add CNS span on every `settle()`/`consume()`** — emit `cns.energy.budget_state` for post-hoc audit trail.
+3. **Fix gas calibration determinism** — use fixed schedule, saturating fixed-point arithmetic, `Ordering::Acquire/Release`.
+4. **Reproducibility test** — run identical workload twice, verify identical energy accounting outcomes.
+
+---
+
+## 10. References
 
 - P12-replicant-host-mandate.md §API — Bot Host — key request flow, approval criteria, metering
 - canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`CnsSpan`) — CNS spans and variety counters

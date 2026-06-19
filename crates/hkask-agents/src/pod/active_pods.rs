@@ -250,7 +250,6 @@ impl ActivePods {
         Ok(pod_id)
     }
 
-
     /// Activate a pod — matches old PodManager::activate_pod(id).
     /// Handles full lifecycle: Populated → Registered → Activated.
     pub async fn activate_pod(&self, pod_id: &PodID) -> Result<(), AgentPodError> {
@@ -319,6 +318,7 @@ impl ActivePods {
             webid: d.pod.webid.to_string(),
             agent_type: d.pod.agent_type,
             template: d.pod.template_crate.name.clone(),
+            pod_kind: d.pod_kind,
             created_at: d.pod.created_at,
         })
     }
@@ -337,6 +337,7 @@ impl ActivePods {
                     webid: d.pod.webid.to_string(),
                     agent_type: d.pod.agent_type,
                     template: d.pod.template_crate.name.clone(),
+            pod_kind: d.pod_kind,
                     created_at: d.pod.created_at,
                 })
             })
@@ -392,6 +393,7 @@ pub struct PodStatusInfo {
     pub webid: String,
     pub agent_type: AgentKind,
     pub template: String,
+    pub pod_kind: PodKind,
     pub created_at: i64,
 }
 

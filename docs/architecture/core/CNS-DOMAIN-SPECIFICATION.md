@@ -199,4 +199,28 @@ kask cns health
 
 ---
 
+## Memory Verb Contracts
+
+> **Incorporated from:** `docs/architecture/core/CNS_MEMORY_VERB_CONTRACTS.md`
+
+13 CNS `MemoryEncode` NuEvents emitted by autonomous memory operations:
+
+| # | Verb | Source | Trigger |
+|---|------|--------|---------|
+| 1 | `episodic_stored` | `episodic.rs` | `store()` succeeds |
+| 2 | `semantic_stored` | `semantic.rs` | `store()` succeeds |
+| 3 | `consolidated` | `semantic.rs` | `store_consolidated()` succeeds |
+| 4 | `episodic_consolidated` | `episodic_loop.rs` | Consolidation bridge, outcome > 0 |
+| 5 | `episodic_consolidation_failed` | `episodic_loop.rs` | Bridge returns Err |
+| 6 | `episodic_budget_exceeded_no_bridge` | `episodic_loop.rs` | Budget exceeded, no bridge |
+| 7 | `episodic_calibrate` | `episodic_loop.rs` | Non-budget calibration action |
+| 8 | `episodic_regulate` | `episodic_loop.rs` | Unhandled regulatory action |
+| 9 | `confidence_decayed` | `episodic.rs` | Decay at recall |
+| 10 | `semantic_condensed` | `semantic_loop.rs` | Old triples condensed |
+| 11 | `semantic_budget_enforced` | `semantic_loop.rs` | Low-confidence review deletes |
+| 12 | `consolidation_completed` | `consolidation.rs` | Bridge finishes |
+| 13 | `consolidation_service_completed` | `consolidation_service.rs` | Service finishes all 3 phases |
+
+---
+
 *ℏKask - A Minimal Viable Container for Agents — v0.28.0*

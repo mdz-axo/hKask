@@ -158,6 +158,26 @@ The migration must **strengthen Loop B** (per-user pod boundaries) while **stran
 
 ---
 
+## Drift Semantic Map
+
+> **Incorporated from:** `docs/architecture/pod-drift-semantic-map.md`
+
+**Root cause:** `:Service` became the mutable data store (shared state) instead of `:Pod` holding its own `:TripleStore` within the sovereignty perimeter.
+
+```mermaid
+erDiagram
+    User ||--o{ Pod : owns
+    Replicant ||--|| Pod : operatesIn
+    Pod ||--o{ Capability : grants
+    Capability }o--|| Tool : binds
+    Pod ||--|| TripleStore : storesIn
+    TripleStore ||--|| Pod : locatedIn
+```
+
+**Drift:** `:Service :holds :TripleStore` (shared mutable state) — violates P12 (anonymous agency), P1 (blurred sovereignty perimeter). **Correct:** `:Pod :storesIn :TripleStore` with `:TripleStore :locatedIn :Pod`.
+
+---
+
 ## Next: Task Group β — PodDeployment Type Definitions
 
 See [`POD_DEPLOYMENT_CONTRACT.md`](POD_DEPLOYMENT_CONTRACT.md) for the deployment contract and Rust type definitions.

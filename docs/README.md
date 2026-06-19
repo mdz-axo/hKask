@@ -71,7 +71,6 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 
 | Document | Description |
 |----------|-------------|
-| [`utoipa-implementation.md`](architecture/reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`hKask-Curator-persona.md`](architecture/reference/hKask-Curator-persona.md) | Curator persona specification |
 
 ---
@@ -90,7 +89,6 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 
 | Document | MDS | Description |
 |----------|-----|-------------|
-| [`DOCUMENT_OWNERSHIP.md`](specifications/policies/DOCUMENT_OWNERSHIP.md) | lifecycle, curation | Document category ownership, version sync policy |
 | [`HANDOFF_LIFECYCLE.md`](specifications/policies/HANDOFF_LIFECYCLE.md) | lifecycle, curation | Handoff lifecycle — states, 30-day staleness, archive |
 
 ### System Specifications — WHAT the system does
