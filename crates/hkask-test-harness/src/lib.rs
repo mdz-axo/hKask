@@ -20,11 +20,13 @@
 pub mod feedback;
 pub mod fuzz;
 pub mod mocks;
+pub mod prob_contract;
 mod schema;
 pub mod strategies;
 pub mod test_runner;
 pub mod triage;
 
+pub use prob_contract::{ProbContractResult, ProbContractRunner};
 pub use schema::SCHEMA_SQL;
 pub use test_runner::ExpectProposal;
 

@@ -17,6 +17,7 @@ use hkask_types::id::WebID;
 ///
 /// This function creates and persists a NuEvent for pod lifecycle transitions.
 /// It gracefully handles persistence failures by logging a warning.
+#[allow(dead_code)]
 pub fn emit_pod_event(
     sink: &dyn NuEventSink,
     agent: WebID,
@@ -37,6 +38,7 @@ pub fn emit_pod_event(
 }
 
 /// Emit a pod registration event.
+#[allow(dead_code)]
 pub fn emit_pod_registered(sink: &dyn NuEventSink, agent: WebID, pod_id: &str, agent_type: &str) {
     emit_pod_event(
         sink,
@@ -50,6 +52,7 @@ pub fn emit_pod_registered(sink: &dyn NuEventSink, agent: WebID, pod_id: &str, a
 }
 
 /// Emit a pod activation event.
+#[allow(dead_code)]
 pub fn emit_pod_activated(sink: &dyn NuEventSink, agent: WebID, pod_id: &str) {
     emit_pod_event(
         sink,
@@ -62,6 +65,7 @@ pub fn emit_pod_activated(sink: &dyn NuEventSink, agent: WebID, pod_id: &str) {
 }
 
 /// Emit a pod deactivation event.
+#[allow(dead_code)]
 pub fn emit_pod_deactivated(sink: &dyn NuEventSink, agent: WebID, pod_id: &str) {
     emit_pod_event(
         sink,

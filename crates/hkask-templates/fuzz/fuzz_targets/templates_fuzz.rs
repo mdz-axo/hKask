@@ -4,7 +4,7 @@ use bolero::check;
 #[test]
 fn fuzz_skill_front_matter_parse() {
     check!().with_type::<String>().for_each(|s| {
-        let _ = hkask_templates::skill_loader::SkillLoader::parse_front_matter(&s);
+        let _ = hkask_templates::skill_loader::SkillLoader::parse_front_matter(s.as_str());
     });
 }
 
@@ -13,6 +13,6 @@ fn fuzz_skill_front_matter_parse() {
 fn fuzz_capability_validate() {
     check!().with_type::<String>().for_each(|template_id| {
         let validator = hkask_templates::capability_validator::CapabilityAwareValidator::new();
-        let _ = validator.validate_capabilities(&template_id, &[], &[]);
+        let _ = validator.validate_capabilities(template_id.as_str(), &[], &[]);
     });
 }

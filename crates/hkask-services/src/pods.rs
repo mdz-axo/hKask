@@ -236,6 +236,7 @@ mod tests {
             webid: "webid-1".into(),
             agent_type: hkask_agents::pod::AgentKind::Replicant,
             template: "test".into(),
+            pod_kind: hkask_agents::pod::PodKind::Replicant,
             created_at: 1234567890,
         };
         let resp = PodStatusResponse::from(status);

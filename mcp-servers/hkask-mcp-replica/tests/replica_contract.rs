@@ -233,13 +233,15 @@ fn self_consistency_under_prob_contract() {
 #[test]
 fn recovery_window_rescues_failing_contract() {
     // A failing predicate that passes only on the second call per trial
-    let mut call_count = 0u32;
+    let call_count = std::sync::atomic::AtomicU32::new(0);
     let runner = ProbContractRunner::new(0.99, 0.0, 9);
     let result = runner.evaluate(
         30,
         || {
-            call_count += 1;
-            call_count.is_multiple_of(2) // passes on every second call
+            call_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            call_count
+                .load(std::sync::atomic::Ordering::Relaxed)
+                .is_multiple_of(2) // passes on every second call
         },
         |b| *b,
     );

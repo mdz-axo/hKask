@@ -9,8 +9,8 @@
 //! # Principles
 //!
 //! - [P6] Goal: Space for Replicants — each replicant inhabits its own pod
-//! -Constraining: Digital Public/Private Sphere — per-pod SQLCipher boundary
-//! -Constraining: Clear Boundaries — OCAP tokens scoped to this pod
+//!   - Constraining: Digital Public/Private Sphere — per-pod SQLCipher boundary
+//!   - Constraining: Clear Boundaries — OCAP tokens scoped to this pod
 //! - [P5] Goal: Essentialism — factory only; no runtime cache
 //! - [P9] Goal: Homeostatic Self-Regulation — per-pod variety tracking
 
@@ -20,7 +20,7 @@ use hkask_mcp::RawMcpToolPort;
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_types::event::SpanNamespace;
 use hkask_types::{CapabilityChecker, DelegationToken, InferencePort, NuEventSink, WebID};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::{debug, info};
@@ -233,6 +233,7 @@ impl PodFactory {
     /// same pod key material, independent of server.
     ///
     ///Constraining: Digital Public/Private Sphere — per-pod SQLCipher
+    #[allow(clippy::too_many_arguments)]
     pub async fn deploy(
         &self,
         template_name: &str,
@@ -490,7 +491,7 @@ pub struct PodRegistry {
 }
 
 impl PodRegistry {
-    pub fn new(data_dir: &PathBuf) -> Self {
+    pub fn new(data_dir: &Path) -> Self {
         Self {
             pods_dir: data_dir.join("pods"),
         }
@@ -505,12 +506,11 @@ impl PodRegistry {
         for entry in std::fs::read_dir(&self.pods_dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "db") {
-                if let Some(stem) = path.file_stem() {
-                    if let Ok(id) = stem.to_string_lossy().parse::<PodID>() {
-                        ids.push(id);
-                    }
-                }
+            if path.extension().is_some_and(|ext| ext == "db")
+                && let Some(stem) = path.file_stem()
+                && let Ok(id) = stem.to_string_lossy().parse::<PodID>()
+            {
+                ids.push(id);
             }
         }
         Ok(ids)
@@ -536,19 +536,19 @@ impl PodRegistry {
         for entry in std::fs::read_dir(&self.pods_dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "db") {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    let kind = if stem == "curator" {
-                        PodKind::Curator
-                    } else if stem.starts_with("team.") {
-                        PodKind::Team
-                    } else if stem.starts_with("replicant.") {
-                        PodKind::Replicant
-                    } else {
-                        PodKind::default()
-                    };
-                    results.push((kind, stem.to_string(), path));
-                }
+            if path.extension().is_some_and(|ext| ext == "db")
+                && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+            {
+                let kind = if stem == "curator" {
+                    PodKind::Curator
+                } else if stem.starts_with("team.") {
+                    PodKind::Team
+                } else if stem.starts_with("replicant.") {
+                    PodKind::Replicant
+                } else {
+                    PodKind::default()
+                };
+                results.push((kind, stem.to_string(), path));
             }
         }
         Ok(results)
@@ -577,6 +577,7 @@ impl PodRegistry {
 mod tests {
     use super::*;
 
+    #[allow(dead_code)]
     fn make_test_persona() -> AgentPersona {
         let yaml = r#"
 agent:
@@ -619,7 +620,7 @@ visibility:
     #[test]
     fn pod_registry_discovers_pods() {
         let temp = tempfile::TempDir::new().expect("tempdir");
-        let registry = PodRegistry::new(&temp.path().to_path_buf());
+        let registry = PodRegistry::new(temp.path());
         // Empty directory — no pods
         let ids = registry.list_pod_ids().expect("list");
         assert!(ids.is_empty());
@@ -646,7 +647,7 @@ visibility:
         std::fs::write(pods_dir.join("team.7r7.db"), b"").unwrap();
         std::fs::write(pods_dir.join("replicant.alice.db"), b"").unwrap();
 
-        let registry = PodRegistry::new(&temp.path().to_path_buf());
+        let registry = PodRegistry::new(temp.path());
         let results = registry.scan_by_kind().expect("scan");
         assert_eq!(results.len(), 3);
 
@@ -669,7 +670,7 @@ visibility:
         let pods_dir = temp.path().join("pods");
         std::fs::create_dir_all(&pods_dir).expect("create pods dir");
 
-        let registry = PodRegistry::new(&temp.path().to_path_buf());
+        let registry = PodRegistry::new(temp.path());
         assert!(registry.find_curator().is_none());
 
         std::fs::write(pods_dir.join("curator.db"), b"").unwrap();

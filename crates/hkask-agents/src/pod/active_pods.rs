@@ -113,6 +113,7 @@ impl ActivePods {
 
     /// Wire the factory and port adapters so create_pod/activate_pod work
     /// with the simple old PodManager-style signatures.
+    #[allow(clippy::too_many_arguments)]
     pub fn with_factory_and_ports(
         mut self,
         factory: Arc<PodFactory>,
@@ -285,11 +286,11 @@ impl ActivePods {
         // Step 5: If this is a CuratorPod, wire its SemanticIndex as the
         // shared curator_index that all PodContexts use for merged-lens recall.
         // The sync loop (Step 4) writes to the same Arc<RwLock<>> that PodContext reads from.
-        if pod_kind == PodKind::Curator {
-            if let Some(ref index) = deployment.semantic_index {
-                let mut ci = self.curator_index.write().await;
-                *ci = Some(Arc::clone(index));
-            }
+        if pod_kind == PodKind::Curator
+            && let Some(ref index) = deployment.semantic_index
+        {
+            let mut ci = self.curator_index.write().await;
+            *ci = Some(Arc::clone(index));
         }
 
         self.insert(deployment).await;

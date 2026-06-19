@@ -29,7 +29,7 @@ use crate::PodRegistry;
 use crate::curator::SemanticIndex;
 use hkask_storage::Database;
 use hkask_types::{Visibility, WebID};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
@@ -39,7 +39,7 @@ use tracing;
 /// The .webid file is the bootstrapping mechanism — you can't read the database
 /// without the passphrase, and you can't derive the passphrase without the webid.
 /// Same derivation as PodFactory::create_pod_storage (HKDF-SHA256 from master key).
-fn derive_passphrase(db_path: &PathBuf) -> Result<String, String> {
+fn derive_passphrase(db_path: &Path) -> Result<String, String> {
     let webid_path = db_path.with_extension("webid");
     let webid_str = std::fs::read_to_string(&webid_path)
         .map_err(|e| format!("Failed to read webid file {:?}: {e}", webid_path))?;
@@ -179,14 +179,14 @@ impl CuratorSync {
     /// Open a source pod's database read-only, query new public triples
     /// since last cursor, insert into SemanticIndex, advance cursor.
     /// Uses spawn_blocking for database I/O to avoid blocking the tokio worker.
-    async fn sync_pod(&self, pod_id: PodID, db_path: &PathBuf) -> Result<usize, String> {
+    async fn sync_pod(&self, pod_id: PodID, db_path: &Path) -> Result<usize, String> {
         // Get current cursor for this pod
         let cursor = {
             let index = self.index.read().unwrap();
             index.cursor_for(&pod_id)
         };
 
-        let db_path = db_path.clone();
+        let db_path = db_path.to_path_buf();
         let index = Arc::clone(&self.index);
         tokio::task::spawn_blocking(move || {
             let db = open_source_db(&db_path)?;
@@ -244,7 +244,7 @@ impl CuratorSync {
 }
 
 /// Open a pod's SQLCipher database. Free function so it can be called from spawn_blocking.
-fn open_source_db(db_path: &PathBuf) -> Result<Database, String> {
+fn open_source_db(db_path: &Path) -> Result<Database, String> {
     let passphrase = derive_passphrase(db_path)?;
     let path_str = db_path.to_string_lossy().to_string();
     Database::open(&path_str, &passphrase).map_err(|e| format!("Failed to open pod DB: {e}"))
@@ -253,7 +253,7 @@ fn open_source_db(db_path: &PathBuf) -> Result<Database, String> {
 impl CuratorSync {
     /// Open a pod's SQLCipher database (kept for backward compatibility).
     #[allow(dead_code)]
-    fn open_read_only(&self, db_path: &PathBuf) -> Result<Database, String> {
+    fn open_read_only(&self, db_path: &Path) -> Result<Database, String> {
         open_source_db(db_path)
     }
 }

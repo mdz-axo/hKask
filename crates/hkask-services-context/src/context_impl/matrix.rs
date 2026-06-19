@@ -64,6 +64,7 @@ pub(crate) async fn build_matrix()
     }
 }
 
+#[allow(dead_code)]
 pub(crate) async fn register_pod_on_matrix(
     homeserver_url: &str,
     _webid: &hkask_types::WebID,

@@ -221,7 +221,7 @@ async fn suggest_fuzz(input_path: Option<PathBuf>) -> Result<(), Box<dyn std::er
     // Parse surviving mutant lines
     let mutants: Vec<hkask_test_harness::feedback::SurvivingMutant> = stdin
         .lines()
-        .filter_map(|l| l.ok())
+        .map_while(|l| l.ok())
         .filter_map(|line| hkask_test_harness::feedback::parse_mutant_line(&line))
         .collect();
 

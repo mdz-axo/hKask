@@ -100,10 +100,10 @@ pub fn parse_bolero_stdin(stdin: impl BufRead) -> Result<Vec<BoleroFailure>, Tri
         let is_panic = line.starts_with("thread '") && line.contains("panicked");
         let is_separator = line.contains("Test Failure") || line.starts_with("failures:");
         if is_panic || is_separator {
-            if let Some(builder) = current.take() {
-                if let Ok(f) = builder.build() {
-                    failures.push(f);
-                }
+            if let Some(builder) = current.take()
+                && let Ok(f) = builder.build()
+            {
+                failures.push(f);
             }
             current = Some(BoleroFailureBuilder::new());
         }
@@ -111,10 +111,10 @@ pub fn parse_bolero_stdin(stdin: impl BufRead) -> Result<Vec<BoleroFailure>, Tri
             b.feed(&line);
         }
     }
-    if let Some(builder) = current.take() {
-        if let Ok(f) = builder.build() {
-            failures.push(f);
-        }
+    if let Some(builder) = current.take()
+        && let Ok(f) = builder.build()
+    {
+        failures.push(f);
     }
 
     Ok(failures)
@@ -158,18 +158,18 @@ impl BoleroFailureBuilder {
             }
             // Extract panic message (everything after first "panicked at ",
             // which is the test's panic, not bolero's internal re-panic)
-            if self.panic_message.is_empty() {
-                if let Some(rest) = line.split("panicked at ").nth(1) {
-                    self.expect_panic_line = true; // actual message on next line
-                    // Extract crate name from path: "crates/hkask-types/..."
-                    // or absolute path containing "/crates/"
-                    if let Some(crates_idx) = rest.find("crates/") {
-                        let after_crates = &rest[crates_idx + 7..]; // skip "crates/"
-                        if let Some(crate_name) = after_crates.split('/').next() {
-                            if self.crate_name.is_empty() {
-                                self.crate_name = crate_name.to_string();
-                            }
-                        }
+            if self.panic_message.is_empty()
+                && let Some(rest) = line.split("panicked at ").nth(1)
+            {
+                self.expect_panic_line = true; // actual message on next line
+                // Extract crate name from path: "crates/hkask-types/..."
+                // or absolute path containing "/crates/"
+                if let Some(crates_idx) = rest.find("crates/") {
+                    let after_crates = &rest[crates_idx + 7..]; // skip "crates/"
+                    if let Some(crate_name) = after_crates.split('/').next()
+                        && self.crate_name.is_empty()
+                    {
+                        self.crate_name = crate_name.to_string();
                     }
                 }
             }
@@ -254,7 +254,7 @@ pub fn attempt_auto_repair(
     // Write diff to stdin...
     use std::io::Write;
     if let Some(ref mut stdin) = check.stdin {
-        stdin.write_all(diff).map_err(|e| TriageError::Io(e))?;
+        stdin.write_all(diff).map_err(TriageError::Io)?;
     }
     let check_status = check
         .wait()
@@ -725,7 +725,7 @@ mod tests {
         // Fix: parser only extracts from the first "panicked at" line.
         let input = "thread 'fuzz_test' panicked at crates/hkask-types/src/lib.rs:1:1:\ntest panic\n\nthread 'fuzz_test' panicked at /home/user/.cargo/registry/src/bolero-0.13.4/src/test/mod.rs:383:21:\ntest failed\n";
         let failures = parse_bolero_stdin(input.as_bytes()).unwrap();
-        assert!(failures.len() >= 1);
+        assert!(!failures.is_empty());
         // The first failure should have the real panic, not bolero's internal one
         let first = &failures[0];
         assert_eq!(

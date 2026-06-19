@@ -746,14 +746,14 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     let cns_event_sink: Arc<dyn NuEventSink> = Arc::clone(&gas_event_store) as Arc<dyn NuEventSink>;
 
     // Triple store for kanban task bridge — contract violations create tasks here.
-    let triple_store = Arc::new(TripleStore::new(Arc::clone(&primary_conn)));
+    let _triple_store = Arc::new(TripleStore::new(Arc::clone(&primary_conn)));
 
     // Spawn periodic seam drift check (R7.3 background watcher).
     spawn_seam_drift_check(&seam_watcher, &cns_runtime, &cns_event_sink);
 
     // Spawn periodic contract test monitor — runs cargo test on priority crates
     // and emits cns.contract.violated spans on REQ-tagged failures.
-    let workspace_root = std::env::current_dir()
+    let _workspace_root = std::env::current_dir()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|_| ".".to_string());
 
@@ -1304,6 +1304,7 @@ fn build_wallet(
 ///
 /// Called from the pod activation hook. Uses MatrixTransport from the
 /// core communication crate for registration.
+#[allow(dead_code)]
 async fn register_pod_on_matrix(homeserver_url: &str, webid: &hkask_types::WebID, pod_name: &str) {
     self::matrix::register_pod_on_matrix(homeserver_url, webid, pod_name).await
 }

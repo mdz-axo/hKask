@@ -34,10 +34,11 @@ impl std::fmt::Display for AgentMode {
 /// - Curator: singleton, owns SemanticIndex, CNS aggregation
 /// - Team: shared bot workspace, bots share episodic
 /// - Replicant: per-user sovereign pod
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum PodKind {
     Curator,
     Team,
+    #[default]
     Replicant,
 }
 
@@ -48,12 +49,6 @@ impl std::fmt::Display for PodKind {
             PodKind::Team => write!(f, "team"),
             PodKind::Replicant => write!(f, "replicant"),
         }
-    }
-}
-
-impl Default for PodKind {
-    fn default() -> Self {
-        PodKind::Replicant
     }
 }
 

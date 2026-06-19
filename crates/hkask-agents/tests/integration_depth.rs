@@ -205,7 +205,7 @@ async fn source_pod_provenance_round_trips() {
 #[tokio::test]
 async fn pod_meta_table_contains_metadata() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    let (pods, _cancel) = setup_curator(&tmp).await;
+    let (_pods, _cancel) = setup_curator(&tmp).await;
 
     // Open the curator.db directly and check pod_meta
     use hkask_storage::Database;
