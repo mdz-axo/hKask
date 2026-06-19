@@ -1,0 +1,20 @@
+[package]
+name = "hkask-mcp-companies-fuzz"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+
+[package.metadata]
+cargo-fuzz = true
+
+[[test]]
+name = "companies_fuzz"
+path = "fuzz_targets/companies_fuzz.rs"
+
+[dependencies]
+bolero = { workspace = true }
+hkask-mcp-companies = { path = ".." }
+hkask-mcp = { path = "../../../crates/hkask-mcp" }
+hkask-types = { path = "../../../crates/hkask-types" }
+serde = { workspace = true }
+serde_json = { workspace = true }

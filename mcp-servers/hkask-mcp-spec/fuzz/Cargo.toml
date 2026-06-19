@@ -1,0 +1,22 @@
+[package]
+name = "hkask-mcp-spec-fuzz"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+
+[package.metadata]
+cargo-fuzz = true
+
+[[test]]
+name = "spec_fuzz"
+path = "fuzz_targets/spec_fuzz.rs"
+
+[dependencies]
+bolero = { workspace = true }
+hkask-mcp-spec = { path = ".." }
+hkask-mcp = { path = "../../../crates/hkask-mcp" }
+hkask-types = { path = "../../../crates/hkask-types" }
+hkask-test-harness = { path = "../../../crates/hkask-test-harness" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }

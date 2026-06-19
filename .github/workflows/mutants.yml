@@ -68,6 +68,7 @@ jobs:
           cargo bolero test -p hkask-types-fuzz fuzz_cns_span_parse_never_panics -T 300s -e libfuzzer 2>&1 | tee bolero-deep-output.txt
           cargo bolero test -p hkask-cns-fuzz fuzz_cns_span_parse_never_panics -T 300s -e libfuzzer 2>&1 | tee -a bolero-deep-output.txt
           cargo bolero test -p hkask-inference-fuzz fuzz_provider_id_parse_model -T 300s -e libfuzzer 2>&1 | tee -a bolero-deep-output.txt
+          cargo bolero test -p hkask-mcp-kanban-fuzz fuzz_kanban_tool_dispatch_never_panics -T 300s -e libfuzzer 2>&1 | tee -a bolero-deep-output.txt
         continue-on-error: true
 
       - name: Triage failures
@@ -125,7 +126,9 @@ jobs:
             hkask-cns-fuzz::fuzz_energy_budget_construct \
             hkask-inference-fuzz::fuzz_model_name_prefix_never_panics \
             hkask-inference-fuzz::fuzz_provider_id_parse_model \
-            hkask-inference-fuzz::fuzz_prompt_validation_never_panics; do
+            hkask-inference-fuzz::fuzz_prompt_validation_never_panics \
+            hkask-mcp-kanban-fuzz::fuzz_kanban_deserialize_never_panics \
+            hkask-mcp-kanban-fuzz::fuzz_kanban_tool_dispatch_never_panics; do
             cargo bolero test -p "${target%%::*}" "${target##*::}" -T 600s -e libfuzzer 2>&1 | tee -a bolero-exhaustive-output.txt
           done
         continue-on-error: true

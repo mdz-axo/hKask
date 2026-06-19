@@ -4333,6 +4333,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-communication-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-mcp",
+ "hkask-mcp-communication",
+ "hkask-types",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "hkask-mcp-companies"
 version = "0.28.0"
 dependencies = [
@@ -4356,6 +4368,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-companies-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-mcp",
+ "hkask-mcp-companies",
+ "hkask-types",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "hkask-mcp-condenser"
 version = "0.28.0"
 dependencies = [
@@ -4376,6 +4400,19 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "hkask-mcp-condenser-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-condenser",
+ "hkask-mcp",
+ "hkask-mcp-condenser",
+ "hkask-types",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -4409,6 +4446,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-docproc-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-mcp",
+ "hkask-mcp-docproc",
+ "hkask-types",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "hkask-mcp-kanban"
 version = "0.28.0"
 dependencies = [
@@ -4430,6 +4479,25 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "hkask-mcp-kanban-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-mcp",
+ "hkask-mcp-kanban",
+ "hkask-services",
+ "hkask-services-kanban",
+ "hkask-storage",
+ "hkask-test-harness",
+ "hkask-types",
+ "rmcp",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -4466,6 +4534,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-media-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-mcp",
+ "hkask-mcp-media",
+ "hkask-types",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "hkask-mcp-memory"
 version = "0.28.0"
 dependencies = [
@@ -4486,6 +4566,20 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "hkask-mcp-memory-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-mcp",
+ "hkask-mcp-memory",
+ "hkask-test-harness",
+ "hkask-types",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -4510,6 +4604,20 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "hkask-mcp-replica-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-mcp",
+ "hkask-mcp-replica",
+ "hkask-test-harness",
+ "hkask-types",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -4542,6 +4650,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-research-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-mcp",
+ "hkask-mcp-research",
+ "hkask-test-harness",
+ "hkask-types",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "hkask-mcp-spec"
 version = "0.28.0"
 dependencies = [
@@ -4566,6 +4688,20 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+]
+
+[[package]]
+name = "hkask-mcp-spec-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-mcp",
+ "hkask-mcp-spec",
+ "hkask-test-harness",
+ "hkask-types",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -4595,6 +4731,20 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "hkask-mcp-training-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-mcp",
+ "hkask-mcp-training",
+ "hkask-test-harness",
+ "hkask-types",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

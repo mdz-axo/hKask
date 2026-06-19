@@ -59,6 +59,18 @@ members = [
     "mcp-servers/hkask-mcp-training",
     "mcp-servers/hkask-mcp-replica",
     "mcp-servers/hkask-mcp-kanban",
+    # MCP server fuzz targets
+    "mcp-servers/hkask-mcp-kanban/fuzz",
+    "mcp-servers/hkask-mcp-communication/fuzz",
+    "mcp-servers/hkask-mcp-companies/fuzz",
+    "mcp-servers/hkask-mcp-condenser/fuzz",
+    "mcp-servers/hkask-mcp-docproc/fuzz",
+    "mcp-servers/hkask-mcp-media/fuzz",
+    "mcp-servers/hkask-mcp-memory/fuzz",
+    "mcp-servers/hkask-mcp-replica/fuzz",
+    "mcp-servers/hkask-mcp-research/fuzz",
+    "mcp-servers/hkask-mcp-spec/fuzz",
+    "mcp-servers/hkask-mcp-training/fuzz",
 ]
 
 [workspace.package]

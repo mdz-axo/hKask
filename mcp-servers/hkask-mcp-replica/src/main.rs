@@ -19,8 +19,7 @@ use hkask_types::time::now_rfc3339;
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -99,14 +98,10 @@ impl ReplicaServer {
     }
 }
 
-// ── Request/Response types ──────────────────────────────────────────────────
+mod types;
+use types::*;
 
-#[derive(Debug, Deserialize, JsonSchema)]
-struct BuildRequest {
-    config_path: String,
-    db_path: String,
-    passphrase: String,
-}
+// ── Response types ──────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize)]
 struct BuildResult {
@@ -122,30 +117,12 @@ struct BuildResult {
     embedding_only: usize,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
-struct ComposeRequest {
-    prompt: String,
-    author: String,
-    db_path: String,
-    passphrase: String,
-    #[serde(default = "default_false")]
-    no_validate: bool,
-}
-
-fn default_false() -> bool {
-    false
-}
-
 #[derive(Debug, Serialize)]
 struct ComposeResult {
     prose: String,
     exemplar_count: usize,
     centroid_distance: Option<f64>,
     style_passed: Option<bool>,
-}
-
-fn default_compare_mode() -> String {
-    "per-dimension".to_string()
 }
 
 fn qualitative_label(distance: f64) -> String {
@@ -168,25 +145,6 @@ fn is_centroid_entity(entity_ref: &str) -> bool {
     } else {
         false
     }
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-struct CompareRequest {
-    db_path: String,
-    passphrase: String,
-    /// Scope comparison to a specific persona's centroids (e.g., "gentle-lovelace").
-    /// When set, only centroids under style:{persona}: are considered.
-    #[serde(default)]
-    persona: Option<String>,
-    /// Document content to embed and compare against centroids.
-    /// When set, compares document embedding to persona centroids instead
-    /// of doing pairwise author comparison.
-    #[serde(default)]
-    document_content: Option<String>,
-    /// Comparison mode: "per-dimension" returns scores for each dimension
-    /// centroid + composite; "composite" returns only the weighted composite.
-    #[serde(default = "default_compare_mode")]
-    compare_mode: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -242,21 +200,6 @@ struct AuthorDistance {
     compatible: bool,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
-struct MashupRequest {
-    prompt: String,
-    author_a: String,
-    author_b: String,
-    #[serde(default = "default_half")]
-    blend: f64,
-    db_path: String,
-    passphrase: String,
-}
-
-fn default_half() -> f64 {
-    0.5
-}
-
 #[derive(Debug, Serialize)]
 struct MashupResult {
     prose: String,
@@ -266,21 +209,6 @@ struct MashupResult {
     centroid_distance: Option<f64>,
     distance_a: f64,
     distance_b: f64,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-#[serde(tag = "action", rename_all = "lowercase")]
-enum RegistryAction {
-    List,
-    Remove { author: String },
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-struct RegistryRequest {
-    #[serde(flatten)]
-    action: RegistryAction,
-    db_path: String,
-    passphrase: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -297,36 +225,6 @@ struct RegistryResult {
 }
 
 // ── Replica Discovery types ──────────────────────────────────────────────────
-
-#[derive(Debug, Deserialize, JsonSchema)]
-struct DiscoverRequest {
-    /// Full name of the academic author to research (e.g., "David Dunning")
-    author_name: String,
-    /// Discovery mode: "agentic" (fully automated) or "curated" (human-in-the-loop)
-    #[serde(default = "default_curated")]
-    mode: String,
-    /// Maximum number of works to include in the corpus
-    #[serde(default = "default_max_works")]
-    max_works: u32,
-    /// Whether to search for and include YouTube transcripts
-    #[serde(default = "default_true")]
-    include_transcripts: bool,
-    /// Whether to include institutional pages and open web content
-    #[serde(default = "default_true")]
-    include_web: bool,
-    /// Optional path to write the generated corpus.yaml
-    output_path: Option<String>,
-}
-
-fn default_curated() -> String {
-    "curated".to_string()
-}
-fn default_max_works() -> u32 {
-    20
-}
-fn default_true() -> bool {
-    true
-}
 
 #[derive(Debug, Serialize)]
 struct DiscoverResult {
@@ -349,16 +247,6 @@ struct DiscoverPhase {
 }
 
 // ── Cache Work types ─────────────────────────────────────────────────────────
-
-#[derive(Debug, Deserialize, JsonSchema)]
-struct CacheWorkRequest {
-    /// Work slug (used as filename: {slug}.txt)
-    slug: String,
-    /// Extracted markdown/text content to cache
-    content: String,
-    /// Cache directory path (e.g., "./.cache")
-    cache_dir: String,
-}
 
 #[derive(Debug, Serialize)]
 struct CacheWorkResult {

@@ -40,6 +40,7 @@ pub mod adapters;
 pub mod dataset;
 pub mod huggingface;
 pub mod providers;
+pub mod types;
 
 pub use adapters::{
     AdapterMetrics, AdapterStore, AdapterStoreError, InMemoryAdapterStore, JobStore, LoRAAdapter,

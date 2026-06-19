@@ -2,3 +2,4 @@
 pub mod analysis;
 pub mod portfolio;
 pub mod providers;
+pub mod types;

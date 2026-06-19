@@ -1,7 +1,7 @@
 //! Embedding router — multi-provider embedding generation.
 //!
-//! Routes embedding requests to DeepInfra based on
-//! the 2-letter provider prefix. DeepInfra uses OpenAI-compatible `/v1/embeddings`.
+//! Routes embedding requests to DeepInfra or OpenRouter based on
+//! the 2-letter provider prefix. Both use OpenAI-compatible `/v1/embeddings`.
 
 use crate::config::{InferenceConfig, ProviderId};
 use hkask_types::ports::EmbeddingGenerationError;
@@ -11,10 +11,11 @@ use tracing::{info, warn};
 
 /// Multi-provider embedding router.
 ///
-/// DeepInfra uses `/v1/embeddings` (OpenAI).
+/// DeepInfra and OpenRouter use `/v1/embeddings` (OpenAI-compatible).
 pub struct EmbeddingRouter {
     config: InferenceConfig,
     deepinfra_client: Option<Arc<reqwest::Client>>,
+    openrouter_client: Option<Arc<reqwest::Client>>,
 }
 
 impl EmbeddingRouter {
@@ -26,9 +27,11 @@ impl EmbeddingRouter {
     /// post: returns EmbeddingRouter with configured backends
     pub fn new(config: InferenceConfig) -> Self {
         let deepinfra_client = Self::build_deepinfra_client(&config);
+        let openrouter_client = Self::build_openrouter_client(&config);
         Self {
             config,
             deepinfra_client,
+            openrouter_client,
         }
     }
 
@@ -43,18 +46,38 @@ impl EmbeddingRouter {
             warn!(target: "cns.inference", "DeepInfra embeddings unavailable (no API key)");
             None
         } else {
+            Some(Arc::clone(&client))
+        };
+
+        let openrouter_client = if config.openrouter_api_key.is_empty() {
+            warn!(target: "cns.inference", "OpenRouter embeddings unavailable (no API key)");
+            None
+        } else {
             Some(client)
         };
 
         Self {
             config: config.clone(),
             deepinfra_client,
+            openrouter_client,
         }
     }
 
     fn build_deepinfra_client(config: &InferenceConfig) -> Option<Arc<reqwest::Client>> {
         if config.deepinfra_api_key.is_empty() {
             warn!(target: "cns.inference", "DeepInfra embeddings unavailable (no API key)");
+            return None;
+        }
+        config
+            .build_client()
+            .map(Arc::new)
+            .map_err(|e| warn!(target: "cns.inference", "Embedding client build failed: {}", e))
+            .ok()
+    }
+
+    fn build_openrouter_client(config: &InferenceConfig) -> Option<Arc<reqwest::Client>> {
+        if config.openrouter_api_key.is_empty() {
+            warn!(target: "cns.inference", "OpenRouter embeddings unavailable (no API key)");
             return None;
         }
         config
@@ -71,6 +94,7 @@ impl EmbeddingRouter {
 
         let available = match provider {
             ProviderId::DeepInfra => self.deepinfra_client.is_some(),
+            ProviderId::OpenRouter => self.openrouter_client.is_some(),
             ProviderId::Fal => false,
             ProviderId::Together => false,
             ProviderId::Runpod | ProviderId::Baseten => false,
@@ -132,6 +156,19 @@ impl EmbeddingRouter {
                 return Err(EmbeddingGenerationError::Connection(
                     "Together AI embedding client not yet implemented".into(),
                 ));
+            }
+            ProviderId::OpenRouter => {
+                let client = self.openrouter_client.as_ref().ok_or_else(|| {
+                    EmbeddingGenerationError::Connection("OpenRouter client not initialized".into())
+                })?;
+                self.embed_openai(
+                    client,
+                    &self.config.openrouter_base_url,
+                    &self.config.openrouter_api_key,
+                    &model,
+                    &texts,
+                )
+                .await?
             }
             ProviderId::Runpod | ProviderId::Baseten => {
                 return Err(EmbeddingGenerationError::Connection(

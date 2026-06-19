@@ -10,6 +10,7 @@ use crate::config::{InferenceConfig, ProviderId};
 use crate::deepinfra_backend::DeepInfraBackend;
 use crate::embedding_router::EmbeddingRouter;
 use crate::fal_backend::FalBackend;
+use crate::openrouter_backend::OpenRouterBackend;
 use crate::together_backend::TogetherBackend;
 use hkask_types::ports::{InferenceError, InferencePort, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
@@ -27,6 +28,7 @@ pub struct InferenceRouter {
     deepinfra: Option<DeepInfraBackend>,
     fal: Option<FalBackend>,
     together: Option<TogetherBackend>,
+    openrouter: Option<OpenRouterBackend>,
     embedding: EmbeddingRouter,
 }
 
@@ -46,6 +48,7 @@ impl InferenceRouter {
         let deepinfra = DeepInfraBackend::new(&config).ok();
         let fal = FalBackend::new(&config).ok();
         let together = TogetherBackend::new(&config).ok();
+        let openrouter = OpenRouterBackend::new(&config).ok();
 
         if deepinfra.is_none() {
             warn!(target: "cns.inference", "DeepInfra backend unavailable (no API key)");
@@ -55,6 +58,9 @@ impl InferenceRouter {
         }
         if together.is_none() {
             warn!(target: "cns.inference", "Together AI backend unavailable (no API key)");
+        }
+        if openrouter.is_none() {
+            warn!(target: "cns.inference", "OpenRouter backend unavailable (no API key)");
         }
 
         let shared_client = config.build_client().map(Arc::new).ok();
@@ -68,6 +74,7 @@ impl InferenceRouter {
             deepinfra,
             fal,
             together,
+            openrouter,
             embedding,
         }
     }
@@ -84,6 +91,7 @@ impl InferenceRouter {
             ProviderId::DeepInfra => self.deepinfra.is_some(),
             ProviderId::Fal => self.fal.is_some(),
             ProviderId::Together => self.together.is_some(),
+            ProviderId::OpenRouter => self.openrouter.is_some(),
             ProviderId::Runpod | ProviderId::Baseten => false,
         };
 
@@ -140,6 +148,15 @@ impl InferenceRouter {
                     .generate(model, prompt, params)
                     .await
             }
+            ProviderId::OpenRouter => {
+                self.openrouter
+                    .as_ref()
+                    .ok_or_else(|| {
+                        InferenceError::Connection("OpenRouter backend unavailable".to_string())
+                    })?
+                    .generate(model, prompt, params)
+                    .await
+            }
             ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
                 "Runpod/Baseten are adapter providers".to_string(),
             )),
@@ -186,6 +203,18 @@ impl InferenceRouter {
             for m in models {
                 entries.push(RouterModelEntry::from_model_entry(
                     ProviderId::Together,
+                    &m.id,
+                ));
+            }
+        }
+
+        // OpenRouter models
+        if let Some(ref backend) = self.openrouter
+            && let Ok(models) = backend.list_models().await
+        {
+            for m in models {
+                entries.push(RouterModelEntry::from_model_entry(
+                    ProviderId::OpenRouter,
                     &m.id,
                 ));
             }
@@ -280,6 +309,15 @@ impl InferenceRouter {
                     .as_ref()
                     .ok_or_else(|| {
                         InferenceError::Connection("Together AI backend unavailable".to_string())
+                    })?
+                    .generate_vision(&model, &prompt, &images, &params)
+                    .await
+            }
+            ProviderId::OpenRouter => {
+                self.openrouter
+                    .as_ref()
+                    .ok_or_else(|| {
+                        InferenceError::Connection("OpenRouter backend unavailable".to_string())
                     })?
                     .generate_vision(&model, &prompt, &images, &params)
                     .await
@@ -577,6 +615,15 @@ impl InferencePort for InferenceRouter {
                         .generate(&model, &prompt, &parameters)
                         .await
                 }
+                ProviderId::OpenRouter => {
+                    self.openrouter
+                        .as_ref()
+                        .ok_or_else(|| {
+                            InferenceError::Connection("OpenRouter backend unavailable".to_string())
+                        })?
+                        .generate(&model, &prompt, &parameters)
+                        .await
+                }
                 ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
                     "Runpod/Baseten are adapter providers".to_string(),
                 )),
@@ -681,6 +728,14 @@ impl InferencePort for InferenceRouter {
             ProviderId::Together => {
                 match self.together.as_ref().ok_or_else(|| {
                     InferenceError::Connection("Together backend unavailable".to_string())
+                }) {
+                    Ok(b) => b.generate_stream(&model, &prompt, &parameters),
+                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
+                }
+            }
+            ProviderId::OpenRouter => {
+                match self.openrouter.as_ref().ok_or_else(|| {
+                    InferenceError::Connection("OpenRouter backend unavailable".to_string())
                 }) {
                     Ok(b) => b.generate_stream(&model, &prompt, &parameters),
                     Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),

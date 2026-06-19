@@ -1,0 +1,20 @@
+[package]
+name = "hkask-mcp-media-fuzz"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+
+[package.metadata]
+cargo-fuzz = true
+
+[[test]]
+name = "media_fuzz"
+path = "fuzz_targets/media_fuzz.rs"
+
+[dependencies]
+bolero = { workspace = true }
+hkask-mcp-media = { path = ".." }
+hkask-mcp = { path = "../../../crates/hkask-mcp" }
+hkask-types = { path = "../../../crates/hkask-types" }
+serde = { workspace = true }
+serde_json = { workspace = true }

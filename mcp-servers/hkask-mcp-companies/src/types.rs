@@ -1,0 +1,141 @@
+//! Request types for hkask-mcp-companies MCP tools.
+//!
+//! Extracted from main.rs — these are the tool input structs that derive
+//! Deserialize + JsonSchema for MCP parameter deserialization.
+
+use schemars::JsonSchema;
+use serde::Deserialize;
+
+// ── Financial data request structs ──────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SymbolRequest {
+    pub symbol: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SymbolLimitRequest {
+    pub symbol: String,
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct HistoricalRequest {
+    pub symbol: String,
+    pub from: String,
+    pub to: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SearchRequest {
+    pub query: String,
+    pub limit: Option<u32>,
+}
+
+// ── Portfolio request structs ─────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PortfolioNameRequest {
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TransactionNoteRequest {
+    pub portfolio: String,
+    pub tx_id: String,
+    pub note: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct LedgerImportRequest {
+    pub portfolio: String,
+    pub format: String, // "csv" or "json"
+    pub data: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct LedgerExportRequest {
+    pub portfolio: String,
+    pub format: String, // "csv" or "json"
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PortfolioCompareRequest {
+    pub portfolio_a: String,
+    pub portfolio_b: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AttributionRequest {
+    pub portfolio: String,
+    pub from: String,
+    pub to: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CharacteristicsRequest {
+    pub portfolio: String,
+    pub date: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ExpectationsGapRequest {
+    pub symbol: String,
+    pub target_return: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PortfolioReturnsRequest {
+    pub portfolio: String,
+    pub from: String,
+    pub to: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct NoteAddRequest {
+    pub portfolio: String,
+    pub symbol: String,
+    pub date: String,
+    pub title: String,
+    pub body: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct NoteListRequest {
+    pub portfolio: String,
+    pub symbol: String,
+    pub date_from: Option<String>,
+    pub date_to: Option<String>,
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct NoteDeleteRequest {
+    pub note_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FileAttachRequest {
+    pub portfolio: String,
+    pub symbol: String,
+    pub date: String,
+    pub filename: String,
+    pub mime_type: String,
+    /// Base64-encoded file content
+    pub data: String,
+    #[serde(default)]
+    pub notes: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FileListRequest {
+    pub portfolio: String,
+    pub symbol: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FileDeleteRequest {
+    pub file_id: String,
+}
