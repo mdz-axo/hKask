@@ -44,7 +44,7 @@ mds_categories: [composition, curation]
 
 Every crate above passes the deletion test: delete it and its complexity reappears duplicated across consumers. The public surface count reflects **breadth of domain concerns**, not shallow design. Individual submodules within each crate consistently stay at or near the ≤7 threshold.
 
-**Verification:** `scripts/check-public-surface.sh` audits surface sizes programmatically. All 16 crates have been reviewed and accepted.
+**Verification:** Public surface sizes are audited as part of the deep-module discipline. All 16 crates have been reviewed and accepted.
 
 ---
 

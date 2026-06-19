@@ -137,6 +137,8 @@ pub enum CnsSpan {
     InviteSent,
     /// Multi-user invite accepted.
     InviteAccepted,
+    /// Semantic triple published — triggers Curator sync.
+    SemanticPublished,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -269,6 +271,7 @@ impl CnsSpan {
             CnsSpan::RoleAssigned => "cns.multi.role.assigned",
             CnsSpan::InviteSent => "cns.multi.invite.sent",
             CnsSpan::InviteAccepted => "cns.multi.invite.accepted",
+            CnsSpan::SemanticPublished => "cns.semantic.published",
         }
     }
 }
@@ -357,6 +360,7 @@ impl std::str::FromStr for CnsSpan {
             "cns.multi.role.assigned" => Ok(CnsSpan::RoleAssigned),
             "cns.multi.invite.sent" => Ok(CnsSpan::InviteSent),
             "cns.multi.invite.accepted" => Ok(CnsSpan::InviteAccepted),
+            "cns.semantic.published" => Ok(CnsSpan::SemanticPublished),
             _ => Err(()),
         }
     }

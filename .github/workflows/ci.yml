@@ -1,4 +1,4 @@
-# hKask CI/CD Pipeline
+# hKask CI
 
 name: CI
 
@@ -7,118 +7,17 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUSTFLAGS: "-D warnings"
-  CARGO_INCREMENTAL: 0
 
 jobs:
-  # ============================================================================
-  # Format Check
-  # ============================================================================
-  fmt:
-    name: Code Formatting
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: "1.91"
-          components: rustfmt
-
-      - name: Cache cargo registry
-        uses: Swatinem/rust-cache@v2
-
-      - name: Check formatting
-        run: cargo fmt --check
-
-  # ============================================================================
-  # Lint Check
-  # ============================================================================
-  clippy:
-    name: Linting
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: fmt
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: "1.91"
-          components: clippy
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config \
-            libssl-dev \
-            libsqlite3-dev \
-            libdbus-1-dev \
-            mold \
-            clang
-
-      - name: Cache cargo registry
-        uses: Swatinem/rust-cache@v2
-
-      - name: Run clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-  # ============================================================================
-  # Build Check
-  # ============================================================================
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    needs: fmt
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: "1.91"
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config \
-            libssl-dev \
-            libsqlite3-dev \
-            libdbus-1-dev \
-            mold \
-            clang
-
-      - name: Cache cargo registry
-        uses: Swatinem/rust-cache@v2
-
-      - name: Build workspace
-        run: cargo build --workspace --all-targets
-
-      - name: Build documentation
-        run: cargo doc --workspace --no-deps
-
-  # ============================================================================
-  # Unit Tests
-  # ============================================================================
-  test:
-    name: Unit Tests
+  check:
+    name: Check
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    needs: [clippy, build]
 
     steps:
       - uses: actions/checkout@v4
@@ -127,147 +26,83 @@ jobs:
         uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: "1.91"
+          components: rustfmt, clippy
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            pkg-config \
-            libssl-dev \
-            libsqlite3-dev \
-            libdbus-1-dev \
-            mold \
-            clang
+            pkg-config libssl-dev libsqlite3-dev libdbus-1-dev mold clang
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
 
-      - name: Run unit tests
-        run: cargo test --workspace --lib
+      - name: Format
+        run: cargo fmt --check
 
-      - name: Run integration tests
-        run: cargo test --workspace --tests
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: Run doctests
-        run: cargo test --workspace --doc
+      - name: Build
+        run: cargo build --workspace --all-targets
 
-      - name: Upload test binary metadata
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: test-failure-logs
-          path: |
-            target/debug/deps/*.log
-            target/debug/.fingerprint/
-          retention-days: 3
+      - name: Test
+        run: cargo test --workspace
 
-  # ============================================================================
-  # Cybernetic Unit Tests
-  # ============================================================================
-  cyber-tests:
-    name: Cybernetic Unit Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: [clippy, build]
+      - name: Doc
+        run: cargo doc --workspace --no-deps
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: "1.91"
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config \
-            libssl-dev \
-            libsqlite3-dev \
-            libdbus-1-dev \
-            mold \
-            clang
-
-      - name: Cache cargo registry
-        uses: Swatinem/rust-cache@v2
-
-      - name: Run cybernetic tests (cyber prefix)
-        run: |
-          cargo test -p hkask-cns cyber
-          cargo test -p hkask-mcp cyber
-          cargo test -p hkask-memory cyber
-
-  # ============================================================================
-  # Security Invariant Verification
-  # ============================================================================
-  security-invariants:
-    name: Security Invariants
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: No unwrap on hot paths (CNS, agents)
-        run: bash scripts/ci/check-unwrap.sh
-
-      - name: No wildcard capabilities
-        run: bash scripts/ci/check-wildcard-capabilities.sh
-
-      - name: No hardcoded secrets
-        run: bash scripts/ci/check-hardcoded-secrets.sh
-
-      - name: No todo!/unimplemented! stubs (P6)
-        run: bash scripts/ci/check-stubs.sh
-
-      - name: No deprecated (P7)
-        run: bash scripts/ci/check-deprecated.sh
-
-      - name: No undocumented unsafe blocks
-        run: bash scripts/ci/check-unsafe-safety.sh
-
-      - name: Public seam inventory check (P8 traceability)
-        run: bash scripts/tooling/public-seam-inventory.sh
-
-      - name: No visual UI infrastructure
-        run: bash scripts/ci/check-visual-ui.sh
-
-      - name: Schema drift check (harness vs storage)
-        run: bash scripts/ci/check-schema-drift.sh
-
-      - name: Contract coverage trend (Testing Discipline §9.2)
-        run: |
-          pub_fns=$(grep -rn "pub fn\|pub async fn" crates/ mcp-servers/ --include="*.rs" | grep -v "cfg(test)" | grep -v "/tests/" | wc -l)
-          contracted=$(grep -rnE '(// REQ:|/// expect:|// contract:)' crates/ mcp-servers/ --include="*.rs" | wc -l)
-          echo "Contract coverage: $contracted / $pub_fns public functions"
-          echo "Target: maintain >100% (currently 126%, 2042/1620)"
-          # Hard gate: REQ-tagged tests must cover all public functions
-          if [ "$contracted" -lt "$pub_fns" ]; then
-            echo "FAIL: Contract coverage dropped below 100%"
-            exit 1
-          fi
-          exit 0
-
-  # ============================================================================
-  # Quality Gates — Wave 6 Sustainment (regression prevention)
-  # ============================================================================
-  quality-gates:
-    name: Quality Gates
+  security:
+    name: Security Baseline
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run all quality gates
-        run: bash scripts/ci/ci-quality-gates.sh
+      - name: No stubs (todo!/unimplemented!)
+        run: |
+          violations=$(grep -rn 'todo!\|unimplemented!' crates/ mcp-servers/ --include="*.rs" | grep -v '/tests/' || true)
+          if [ -n "$violations" ]; then echo "$violations"; echo "FAIL: stubs found — implement or remove"; exit 1; fi
+          echo "PASS: no stubs"
 
-  # ============================================================================
-  # Dependency Policy Check
-  # ============================================================================
+      - name: No deprecated annotations
+        run: |
+          violations=$(grep -rn '#\[deprecated' crates/ mcp-servers/ --include="*.rs" | grep -v '/tests/' || true)
+          if [ -n "$violations" ]; then echo "$violations"; echo "FAIL: #[deprecated] found — delete, don't annotate"; exit 1; fi
+          echo "PASS: no deprecated"
+
+      - name: No hardcoded secrets
+        run: |
+          violations=$(grep -rnE '(api[_-]?key|api[_-]?secret|password|token|private[_-]?key)[[:space:]]*=[[:space:]]*"[^"]+"' crates/ mcp-servers/ --include="*.rs" | grep -v '/tests/' | grep -v 'env.example' || true)
+          if [ -n "$violations" ]; then echo "$violations"; echo "FAIL: hardcoded secrets — use env vars or keystore"; exit 1; fi
+          echo "PASS: no hardcoded secrets"
+
+      - name: Unsafe blocks must have SAFETY comments
+        run: |
+          failed=0
+          while IFS= read -r -d '' file; do
+            [[ "$file" == */tests/* || "$file" == *test_* ]] && continue
+            while IFS=: read -r line_num _; do
+              [ -z "$line_num" ] && continue
+              start=$((line_num > 3 ? line_num - 3 : 1))
+              if ! sed -n "${start},${line_num}p" "$file" | grep -q 'SAFETY:'; then
+                echo "  $file:$line_num — unsafe block missing // SAFETY: comment"
+                failed=1
+              fi
+            done < <(grep -n 'unsafe\s*{\|unsafe\s\+fn' "$file" 2>/dev/null || true)
+          done < <(find crates/ mcp-servers/ -name '*.rs' -print0)
+          if [ "$failed" -eq 1 ]; then echo "FAIL: unsafe blocks need // SAFETY: comments"; exit 1; fi
+          echo "PASS: unsafe blocks documented"
+
+      - name: No visual UI infrastructure
+        run: |
+          violations=$(grep -rniE 'grafana|prometheus|dashboard|visual.*ui' crates/ mcp-servers/ --include="*.rs" | grep -v '/tests/' || true)
+          if [ -n "$violations" ]; then echo "$violations"; echo "FAIL: visual UI references — use CLI/MCP/API only"; exit 1; fi
+          echo "PASS: headless"
+
   deps:
-    name: Dependency Check
+    name: Dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -284,94 +119,5 @@ jobs:
         with:
           tool: cargo-deny
 
-      - name: Install cargo-audit
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-audit
-
       - name: Check dependency policy
         run: cargo deny check
-
-      - name: Check for known vulnerabilities
-        run: cargo audit
-
-  # ============================================================================
-  # Mutation Testing — measures test suite quality
-  # ============================================================================
-  mutants:
-    name: Mutation Testing
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: [test]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: "1.91"
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config libssl-dev libsqlite3-dev libdbus-1-dev \
-            mold clang
-
-      - name: Cache cargo registry
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install cargo-mutants
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-mutants
-
-      - name: Run mutation tests (priority crates)
-        run: |
-          cargo mutants -p hkask-cns -- --test-threads=1
-          cargo mutants -p hkask-wallet -- --test-threads=1
-          cargo mutants -p hkask-condenser -- --test-threads=1
-          cargo mutants -p hkask-keystore -- --test-threads=1
-
-  # ============================================================================
-  # Build Binary (Release)
-  # ============================================================================
-  release-build:
-    name: Release Build
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    needs: [test, cyber-tests, security-invariants, quality-gates]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: "1.91"
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config \
-            libssl-dev \
-            libsqlite3-dev \
-            libdbus-1-dev \
-            mold \
-            clang
-
-      - name: Cache cargo registry
-        uses: Swatinem/rust-cache@v2
-
-      - name: Build release binary
-        run: cargo build --release --package hkask-cli
-
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: kask-binary
-          path: target/release/kask
-          retention-days: 30

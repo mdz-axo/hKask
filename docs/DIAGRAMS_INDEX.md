@@ -33,7 +33,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | Diagram ID | Description | Document | Verified Against | Status |
 |-----------|-------------|----------|-----------------|--------|
 | DIAG-IC-001 | MCP ≡ CLI ≡ API Equivalence Model | [MDS.md](architecture/core/MDS.md) §1 | `crates/hkask-cli/src/cli/mod.rs:33`, `crates/hkask-api/src/lib.rs:636`, `crates/hkask-mcp/src/runtime.rs:59` | ✅ VERIFIED |
-| DIAG-IC-002 | Hexagonal Architecture — Ports, Adapters, Core | [MDS.md](architecture/core/MDS.md) §2 | `docs/architecture/reference/ports-inventory.md` (19 traits) | ✅ VERIFIED |
+| DIAG-IC-002 | Hexagonal Architecture — Ports, Adapters, Core | [MDS.md](architecture/core/MDS.md) §2 | `crates/hkask-types/src/ports/` (7 port traits) | ✅ VERIFIED |
 | DIAG-IC-003 | Unified Registry with template_type discriminator | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-templates/src/` (SqliteRegistry) | ✅ VERIFIED |
 | DIAG-IC-004 | Template Cascade Flow (depth ≤ 7, DependencyGraph acyclic) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-templates/src/dependency.rs` | ✅ VERIFIED |
 | DIAG-IC-005 | Rendering Pipeline — Template → Jinja2 → LLM | [MDS.md](architecture/core/MDS.md) §6 | `crates/hkask-templates/src/` (minijinja integration) | ✅ VERIFIED |
@@ -68,7 +68,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-FW-001 | MDS RDF/Turtle Semantic Graph | [`MDS.md`](architecture/core/MDS.md) §1.1 | `docs/architecture/MDS.md` | ✅ VERIFIED |
 | DIAG-FW-002 | MDS Entity Relationship Diagram (Spec ↔ Goal ↔ Curation) | [`MDS.md`](architecture/core/MDS.md) §1.2 | `docs/architecture/MDS.md` | ✅ VERIFIED |
 | DIAG-FW-003 | MVSDD Cycle Sequence Diagram (Specify → Grant → Compose → Curate → Reflect) | [`MDS.md`](architecture/core/MDS.md) §4.3 | `docs/architecture/MDS.md` | ✅ VERIFIED |
-| DIAG-FW-004 | Hexagonal Component Diagram (HKaskHexagon) | [`MDS.md`](architecture/core/MDS.md) §6.1 | `docs/architecture/reference/ports-inventory.md` | ✅ VERIFIED |
+| DIAG-FW-004 | Hexagonal Component Diagram (HKaskHexagon) | [`MDS.md`](architecture/core/MDS.md) §6.1 | `crates/hkask-types/src/ports/` | ✅ VERIFIED |
 
 ## 6. Reference Diagrams
 

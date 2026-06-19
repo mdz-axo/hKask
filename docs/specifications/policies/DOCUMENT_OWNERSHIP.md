@@ -50,7 +50,7 @@ mds_categories: [lifecycle, curation]
 - Owns `docs/README.md` portal accuracy
 
 ### CI/CD Steward
-- Maintains `docs/ci/` scripts (`check-links.sh`, `check-metadata.sh`)
+- Maintains `docs/ci/` scripts (`check-links.sh`)
 - Ensures status inventories are regenerated on build
 - Owns `docs/status/PROJECT_STATUS.md`
 - Owns version synchronization automation
@@ -92,13 +92,11 @@ Every formal document (with YAML frontmatter) MUST carry `version` matching the 
 
 On workspace version bump:
 1. Update `Cargo.toml` workspace version.
-2. Run `docs/ci/check-metadata.sh` to identify version anomalies.
-3. For documents intentionally tracking their own version: verify the divergence is documented.
-4. For all other documents: bump `version` field to match workspace.
+2. Run `bash docs/ci/check-links.sh` to verify document integrity.
 
 ### Automation
 
-`docs/ci/sync-versions.sh` automates Step 4. Run with `--dry-run` to preview changes. The script's exclusion list documents intentionally divergent versions.
+Version fields in document frontmatter should be updated manually when the workspace version changes.
 
 ---
 

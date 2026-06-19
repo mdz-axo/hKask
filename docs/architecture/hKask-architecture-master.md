@@ -854,7 +854,6 @@ Detailed lookup tables and diagrams in `reference/`:
 | Artifact | Purpose |
 |----------|---------|
 
-| [`reference/ports-inventory.md`](reference/ports-inventory.md) | Hexagonal port trait signatures |
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
@@ -911,13 +910,12 @@ docs/architecture/
 │   ├── ADR-031-consolidation-authorization.md # Active
 │   └── ADR-035-replicant-server-mode.md   # Active
 └── reference/
-    ├── ports-inventory.md                 # Port reference
     ├── utoipa-implementation.md           # API guide
     ├── template-header-standard.md        # Format reference
     └── hKask-Curator-persona.md           # Persona spec
 ```
 
-**Total:** 19 architecture documents (8 core + 1 mandate + 4 root + 2 ADRs + 1 template + 5 reference) + 1 PUBLIC_SURFACE justification.
+**Total:** 18 architecture documents (8 core + 1 mandate + 4 root + 2 ADRs + 1 template + 4 reference) + 1 PUBLIC_SURFACE justification.
 
 **Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, MDS_SCAFFOLD.md, etc.), `docs/guides/` (kata-user-guide.md, lora-training-guide.md), `docs/user-guides/` (kanban-user-guide.md, lora-adapter-store-guide.md)
 

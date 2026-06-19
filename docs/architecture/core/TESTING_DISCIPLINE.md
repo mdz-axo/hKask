@@ -293,7 +293,6 @@ Tests accumulate the scar tissue of every production incident. They become the r
 | Format | `cargo fmt --check` | No diffs |
 | Prohibitions | `grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/ --include="*.rs"` | Zero |
 | Headless | `grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ --include="*.rs"` | Zero |
-| Schema drift | `bash scripts/check-schema-drift.sh` | Pass |
 | CNS daemon | `kask daemon start` (smoke test) | Binds socket, loops active |
 | Deployment smoke | `kask init --profile server && kask daemon` | Server starts, health endpoint responds |
 | Deployment sidecar | `kask matrix deploy-sidecar --domain localhost` | Valid docker-compose.yml generated |

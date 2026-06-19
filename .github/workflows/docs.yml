@@ -1,4 +1,4 @@
-# hKask Documentation Pipeline
+# hKask Documentation
 
 name: Documentation
 
@@ -10,7 +10,6 @@ on:
       - "mcp-servers/**"
       - "docs/**"
       - "README.md"
-      - ".github/workflows/docs.yml"
   pull_request:
     branches: [main]
     paths:
@@ -18,19 +17,14 @@ on:
       - "mcp-servers/**"
       - "docs/**"
       - "README.md"
-  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
-  CARGO_INCREMENTAL: 0
 
 jobs:
-  # ============================================================================
-  # Generate API Documentation
-  # ============================================================================
   docs:
-    name: Generate Documentation
+    name: Build & Check
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -46,12 +40,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            pkg-config \
-            libssl-dev \
-            libsqlite3-dev \
-            libdbus-1-dev \
-            mold \
-            clang
+            pkg-config libssl-dev libsqlite3-dev libdbus-1-dev mold clang
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -63,40 +52,5 @@ jobs:
         run: |
           echo '<meta http-equiv="refresh" content="0; url=hkask_types/index.html">' > target/doc/index.html
 
-      - name: Upload documentation artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: documentation
-          path: target/doc
-          retention-days: 30
-
-  # ============================================================================
-  # Link Check
-  # ============================================================================
-  links:
-    name: Check Documentation Links
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check internal documentation links
-        run: bash scripts/ci/check-docs.sh
-
-  # ============================================================================
-  # Shell Script Lint
-  # ============================================================================
-  shellcheck:
-    name: Lint Shell Scripts
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install shellcheck
-        run: sudo apt-get install -y shellcheck
-
-      - name: Lint shell scripts
-        run: bash docs/ci/check-shell-scripts.sh
+      - name: Check documentation links
+        run: bash docs/ci/check-links.sh

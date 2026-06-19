@@ -31,6 +31,7 @@ use tracing::{debug, info};
 use super::types::{AgentPersona, PodID, PodKind, PodLifecycleState};
 use super::{AgentPod, AgentPodError};
 use crate::SovereigntyChecker;
+use crate::curator::SemanticIndex;
 use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
 use hkask_mcp::GitCasAdapter;
 
@@ -69,6 +70,8 @@ pub struct PodDeployment {
     pub inference_port: Option<Arc<dyn InferencePort>>,
     /// Pod tier — determines isolation model
     pub pod_kind: PodKind,
+    /// Semantic index — only set on CuratorPod
+    pub semantic_index: Option<SemanticIndex>,
 }
 
 /// PerPodStorage owns a SQLCipher database file for a single pod.
@@ -269,6 +272,15 @@ impl PodFactory {
         let episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();
         let semantic: Arc<dyn SemanticStoragePort> = adapter;
 
+        // Create SemanticIndex if this is a CuratorPod
+        let semantic_index = if pod_kind == PodKind::Curator {
+            let conn = storage.db.conn_arc();
+            let index_store = TripleStore::new(conn);
+            Some(SemanticIndex::new(index_store))
+        } else {
+            None
+        };
+
         info!(
             target: "hkask.pod.deployment",
             pod_id = %pod_id, template = %template_name,
@@ -291,6 +303,7 @@ impl PodFactory {
             semantic_storage: semantic,
             inference_port,
             pod_kind,
+            semantic_index,
         })
     }
 

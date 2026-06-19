@@ -77,7 +77,6 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 
 | Document | Description |
 |----------|-------------|
-| [`ports-inventory.md`](architecture/reference/ports-inventory.md) | Hexagonal port inventory |
 | [`utoipa-implementation.md`](architecture/reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`template-header-standard.md`](architecture/reference/template-header-standard.md) | Template metadata format |
 | [`hKask-Curator-persona.md`](architecture/reference/hKask-Curator-persona.md) | Curator persona specification |
@@ -124,7 +123,6 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 |----------|-------------|
 | [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | Build, test, and CI health |
 | [`corpus_inventory.yaml`](status/corpus_inventory.yaml) | Document corpus lifecycle classification |
-| [`public-seam-inventory.md`](status/public-seam-inventory.md) | Public seam inventory — 77 seams across 18 crates |
 | [`public-seam-priority.md`](status/public-seam-priority.md) | Public seam priority ranking |
 
 ---
@@ -172,8 +170,6 @@ by [MDS](architecture/core/MDS.md) category. 63 active documents. hKask v0.29.0.
 
 ```bash
 bash docs/ci/check-links.sh      # link integrity — zero broken links
-bash docs/ci/check-metadata.sh   # mandatory metadata headers
-bash scripts/contract-audit.sh   # contract coverage (128.1%, 2274 REQ: tags)
 ```
 
-*ℏKask — A Minimal Viable Container for Agents — v0.28.0 — 59 active documents*
+*ℏKask — A Minimal Viable Container for Agents — v0.28.0 — 57 active documents*

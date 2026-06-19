@@ -111,7 +111,6 @@ cargo clippy --workspace -- -D warnings
 
 # Documentation health
 bash docs/ci/check-links.sh
-bash docs/ci/check-metadata.sh
 
 # Sovereignty compliance
 kask sovereignty verify

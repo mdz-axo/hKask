@@ -76,8 +76,6 @@ Per [`DOCUMENTATION_STANDARDS.md`](../standards/DOCUMENTATION_STANDARDS.md) §2.
 
 ```bash
 bash docs/ci/check-links.sh      # Zero broken cross-references
-bash docs/ci/check-metadata.sh   # All active docs have required frontmatter
-bash docs/ci/sync-versions.sh --dry-run  # Version fields match workspace Cargo.toml
 ```
 
 ---

@@ -20,6 +20,8 @@
 pub mod context;
 pub mod curation_loop;
 pub mod persona_filter;
+pub mod semantic_index;
 
 pub use context::CuratorContext;
 pub use curation_loop::CurationLoop;
+pub use semantic_index::SemanticIndex;
