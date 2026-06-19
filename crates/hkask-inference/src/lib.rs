@@ -14,7 +14,8 @@
 //!   └── OpenRouterBackend   — OR/ prefix → openrouter.ai/api
 //!
 //! EmbeddingRouter
-//!   └── DeepInfraEmbedding — DI/ prefix → /v1/embeddings
+//!   ├── DeepInfraEmbedding — DI/ prefix → /v1/embeddings
+//!   └── OpenRouterEmbedding — OR/ prefix → /v1/embeddings
 //! ```
 //!
 //! # Model Naming

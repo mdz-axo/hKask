@@ -3,7 +3,7 @@ name = "hkask-inference"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Multi-provider inference router for hKask — DeepInfra, fal.ai, Together AI"
+description = "Multi-provider inference router for hKask — DeepInfra, Together AI, fal.ai, OpenRouter"
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }

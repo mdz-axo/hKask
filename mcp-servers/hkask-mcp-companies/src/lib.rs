@@ -1754,9 +1754,8 @@ fn cagr_from_series(yoy_growths: &[f64]) -> f64 {
     product.powf(1.0 / yoy_growths.len() as f64) - 1.0
 }
 
-// ── Main ───────────────────────────────────────────────────────────
+// ── Entry point ─────────────────────────────────────────────────────
 
-#[tokio::main]
 /// Run the companies MCP server (used by binary target).
 pub async fn run(
     replicant: String,
@@ -1796,15 +1795,4 @@ pub async fn run(
         ],
     )
     .await
-}
-
-async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
-    let client = DaemonClient::new();
-    let result = hkask_mcp::verify_startup_gates(&client, replicant, "companies", &[]).await?;
-    tracing::info!(target: "cns.mcp.companies", replicant = %replicant,
-        "P4 gates verified{}",
-        if result.denied_tools.is_empty() { String::new() }
-        else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }
-    );
-    Ok(())
 }
