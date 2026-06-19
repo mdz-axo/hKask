@@ -176,6 +176,12 @@ pub enum Commands {
         action: AdapterAction,
     },
 
+    /// QA — fuzz triage and mutation analysis
+    Qa {
+        #[command(subcommand)]
+        action: QaAction,
+    },
+
     /// List available LLM models
     Models,
 

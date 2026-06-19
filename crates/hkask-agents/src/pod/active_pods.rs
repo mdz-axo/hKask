@@ -29,7 +29,7 @@ pub struct ActivePods {
     inference_port: Option<Arc<dyn InferencePort>>,
     /// CuratorPod's SemanticIndex — shared with all pod contexts for
     /// merged-lens semantic recall (Step 5).
-    curator_index: RwLock<Option<Arc<RwLock<SemanticIndex>>>>,
+    curator_index: RwLock<Option<Arc<std::sync::RwLock<SemanticIndex>>>>,
 }
 
 impl ActivePods {
@@ -122,7 +122,7 @@ impl ActivePods {
 
     /// Get a clone of the Curator's shared SemanticIndex, if a CuratorPod
     /// has been deployed. Used to construct CuratorSync at startup.
-    pub async fn curator_index(&self) -> Option<Arc<RwLock<SemanticIndex>>> {
+    pub async fn curator_index(&self) -> Option<Arc<std::sync::RwLock<SemanticIndex>>> {
         self.curator_index.read().await.clone()
     }
 
@@ -266,7 +266,7 @@ impl ActivePods {
         &self,
         data_dir: std::path::PathBuf,
         cancel: tokio::sync::watch::Receiver<bool>,
-    ) -> Result<Option<Arc<RwLock<SemanticIndex>>>, AgentPodError> {
+    ) -> Result<Option<Arc<std::sync::RwLock<SemanticIndex>>>, AgentPodError> {
         // Check if curator already exists
         {
             let ci = self.curator_index.read().await;
@@ -298,7 +298,7 @@ impl ActivePods {
         // Spawn CuratorSync background loop
         let registry = Arc::new(PodRegistry::new(&data_dir));
         let sync = crate::curator::CuratorSync::new(Arc::clone(&index), data_dir, registry);
-        let join_handle = tokio::spawn(async move {
+        tokio::spawn(async move {
             sync.run(cancel).await;
         });
         // Keep handle alive so the task isn't cancelled by drop

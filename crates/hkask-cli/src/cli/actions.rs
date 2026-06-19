@@ -916,3 +916,14 @@ pub enum AdapterAction {
         deployment_id: String,
     },
 }
+
+/// QA actions — fuzz triage and mutation analysis
+#[derive(Debug, Subcommand)]
+pub enum QaAction {
+    /// Triage bolero fuzz failures from stdin
+    Triage {
+        /// Path to bolero output file (default: stdin)
+        #[arg(short, long)]
+        input: Option<PathBuf>,
+    },
+}

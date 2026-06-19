@@ -1045,8 +1045,7 @@ async fn build_mcp_and_pods(
             }
         }
     });
-    // Store cancel_tx for graceful shutdown
-    let _curator_cancel = curator_cancel_tx;
+    // cancel_tx stored in McpPods for lifecycle
 
     // Matrix auto-registration — deferred to per-pod activation
 
@@ -1083,6 +1082,7 @@ async fn build_mcp_and_pods(
         capability_checker,
         daemon_handler,
         energy_estimator,
+        _curator_cancel: curator_cancel_tx,
     })
 }
 

@@ -85,7 +85,7 @@ async fn curator_starts_and_has_empty_index() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let (pods, _cancel) = setup_with_curator(&tmp).await;
     let ci = pods.curator_index().await.expect("curator index");
-    let idx = ci.read().await;
+    let idx = ci.read().unwrap();
     assert_eq!(
         idx.source_count(),
         0,
@@ -103,7 +103,7 @@ async fn replicant_writes_semantic_and_curator_sees_it() {
         .expect("store_semantic");
     tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
     let ci = pods.curator_index().await.expect("curator index exists");
-    let idx = ci.read().await;
+    let idx = ci.read().unwrap();
     let all = idx.query_by_entity("Bitcoin").unwrap_or_default();
     assert!(
         !all.is_empty(),
@@ -128,7 +128,7 @@ async fn contradictory_triples_both_returned() {
         .expect("bob store");
     tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
     let ci = pods.curator_index().await.expect("curator index");
-    let idx = ci.read().await;
+    let idx = ci.read().unwrap();
     let all = idx.query_by_entity("Bitcoin").unwrap_or_default();
     let price_triples: Vec<_> = all.iter().filter(|t| t.attribute == "price").collect();
     assert!(
@@ -166,7 +166,7 @@ async fn team_pod_bots_share_episodic() {
         .expect("team store semantic");
     tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
     let ci = pods.curator_index().await.expect("curator index");
-    let idx = ci.read().await;
+    let idx = ci.read().unwrap();
     let all = idx.query_by_entity("team:discovery").unwrap_or_default();
     assert!(
         !all.is_empty(),

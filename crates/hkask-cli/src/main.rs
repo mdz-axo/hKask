@@ -99,6 +99,7 @@ fn main() {
         }
         Commands::Adapter { action } => commands::adapter::run(action),
 
+        Commands::Qa { action } => commands::qa::run(action),
 
         Commands::Kata { action } => commands::kata::run(action, &registry),
 

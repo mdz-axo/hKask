@@ -67,7 +67,7 @@ fn derive_passphrase(db_path: &PathBuf) -> Result<String, String> {
 /// cursor, inserts into index, advances cursor.
 pub struct CuratorSync {
     /// Shared SemanticIndex — writes here, PodContext reads from here
-    index: Arc<RwLock<SemanticIndex>>,
+    index: Arc<std::sync::RwLock<SemanticIndex>>,
     /// Directory where pod database files live
     #[allow(dead_code)]
     data_dir: PathBuf,
@@ -82,7 +82,7 @@ impl CuratorSync {
     ///
     /// `index` must be the same Arc that ActivePods.curator_index points to.
     pub fn new(
-        index: Arc<RwLock<SemanticIndex>>,
+        index: Arc<std::sync::RwLock<SemanticIndex>>,
         data_dir: PathBuf,
         registry: Arc<PodRegistry>,
     ) -> Self {
@@ -165,7 +165,7 @@ impl CuratorSync {
     async fn sync_pod(&self, pod_id: PodID, db_path: &PathBuf) -> Result<usize, String> {
         // Get current cursor for this pod
         let cursor = {
-            let index = self.index.read().await;
+            let index = self.index.read().unwrap();
             index.cursor_for(&pod_id)
         };
 
@@ -212,7 +212,7 @@ impl CuratorSync {
 
         let mut new_cursor = cursor;
         let mut count = 0;
-        let mut index = self.index.write().await;
+        let mut index = self.index.write().unwrap();
 
         for (rowid, entity, attribute, value_str, _confidence) in &rows {
             let value: serde_json::Value = serde_json::from_str(value_str)

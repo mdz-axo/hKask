@@ -71,7 +71,7 @@ pub struct PodDeployment {
     /// Pod tier — determines isolation model
     pub pod_kind: PodKind,
     /// Semantic index — only set on CuratorPod
-    pub semantic_index: Option<Arc<tokio::sync::RwLock<SemanticIndex>>>,
+    pub semantic_index: Option<Arc<std::sync::RwLock<SemanticIndex>>>,
 }
 
 /// PerPodStorage owns a SQLCipher database file for a single pod.
@@ -277,7 +277,7 @@ impl PodFactory {
         let semantic_index = if pod_kind == PodKind::Curator {
             let conn = storage.db.conn_arc();
             let index_store = TripleStore::new(conn);
-            Some(Arc::new(tokio::sync::RwLock::new(SemanticIndex::new(index_store))))
+            Some(Arc::new(std::sync::RwLock::new(SemanticIndex::new(index_store))))
         } else {
             None
         };
@@ -372,7 +372,9 @@ impl PodFactory {
         // Write webid metadata so CuratorSync can derive the passphrase.
         // The webid file lives next to the database file.
         let webid_path = db_path.with_extension("webid");
-        let _ = std::fs::write(&webid_path, persona.webid().to_string());
+        if let Err(e) = std::fs::write(&webid_path, persona.webid().to_string()) {
+            tracing::warn!(target: "hkask.pod.deployment", path = %webid_path.display(), error = %e, "Failed to write webid metadata — CuratorSync will not be able to derive passphrase for this pod");
+        }
 
         Ok((
             PerPodStorage {

@@ -166,3 +166,9 @@ matrix-sdk = { version = "0.16", default-features = false, features = ["native-t
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(feature, values("solana", "hedera", "hinkal"))'] }
+
+# Fuzz profile for cargo-bolero libfuzzer (requires nightly)
+[profile.fuzz]
+inherits = "release"
+debug = 1
+codegen-units = 1

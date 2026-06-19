@@ -64,7 +64,7 @@ pub struct PodContext {
     cns: PerPodCnsRuntime,
     /// CuratorPod's SemanticIndex — available on non-Curator pods for
     /// merged-lens semantic recall. `None` if no CuratorPod is active.
-    curator_index: Option<Arc<tokio::sync::RwLock<SemanticIndex>>>,
+    curator_index: Option<Arc<std::sync::RwLock<SemanticIndex>>>,
 }
 
 impl PodContext {
@@ -96,7 +96,7 @@ impl PodContext {
 
     /// Wire this context to a CuratorPod's SemanticIndex for merged-lens
     /// semantic recall. Called by ActivePods when a CuratorPod is active.
-    pub fn with_curator_index(mut self, index: Arc<tokio::sync::RwLock<SemanticIndex>>) -> Self {
+    pub fn with_curator_index(mut self, index: Arc<std::sync::RwLock<SemanticIndex>>) -> Self {
         self.curator_index = Some(index);
         self
     }
@@ -343,34 +343,20 @@ impl PodContext {
 
         // Route through Curator's merged index when available (Step 5)
         if let Some(ref index_lock) = self.curator_index {
-            // Spawn the async query into the runtime and use a oneshot channel
-            // to receive the result synchronously. Works in both single-threaded
-            // and multi-threaded tokio runtimes.
-            let q = query.to_string();
-            let lock = Arc::clone(index_lock);
-            let (tx, rx) = std::sync::mpsc::channel();
-            std::thread::spawn(move || {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("temp runtime");
-                rt.block_on(async {
-                    let guard = lock.read().await;
-                    let result = guard.query_by_entity(&q);
-                    let _ = tx.send(result);
-                });
-            });
-            let triples = match rx.recv() {
-                Ok(Ok(t)) => t,
-                Ok(Err(e)) => {
-                    return Err(AgentPodError::MemoryError(crate::error::MemoryError::Core(
-                        crate::error::CoreError::Infra(hkask_types::InfrastructureError::Database(
-                            e.to_string(),
-                        )),
-                    )));
-                }
-                Err(_) => return self.recall_semantic_local(query),
-            };
+            let index = index_lock
+                .read()
+                .map_err(|e| AgentPodError::MemoryError(crate::error::MemoryError::Core(
+                    crate::error::CoreError::Infra(hkask_types::InfrastructureError::Io(
+                        format!("Curator index lock poisoned: {e}"),
+                    )),
+                )))?;
+            let triples = index.query_by_entity(query).map_err(|e| {
+                AgentPodError::MemoryError(crate::error::MemoryError::Core(
+                    crate::error::CoreError::Infra(hkask_types::InfrastructureError::Database(
+                        e.to_string(),
+                    )),
+                ))
+            })?;
             return Ok(triples
                 .into_iter()
                 .map(|t| RecalledSemantic {
