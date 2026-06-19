@@ -79,7 +79,7 @@ impl SovereigntyService {
     ///
     /// \[P4\] Motivating: Clear Boundaries — consent query through membrane.
     /// pre:  self must be created; webid is non-empty
-    /// post: returns Ok(Vec<String>) listing granted category names, or Err if consent store unavailable
+    /// post: returns Ok(`Vec<String>`) listing granted category names, or Err if consent store unavailable
     pub fn get_granted_categories(&self, webid: &str) -> Result<Vec<String>, ServiceError> {
         self.consent
             .get_granted_categories(webid)

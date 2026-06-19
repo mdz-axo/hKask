@@ -82,7 +82,7 @@ pub struct AgentListResponse {
 ///
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  none
-/// post: returns OpenApiRouter<ApiState> with A2A routes registered
+/// post: returns OpenApi`Router<ApiState>` with A2A routes registered
 pub fn a2a_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .route("/api/v1/a2a/register", axum::routing::post(a2a_register))

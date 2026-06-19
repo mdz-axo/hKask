@@ -59,7 +59,7 @@ impl CuratorService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.escalation_queue() must be initialized
-    /// post: returns Vec<EscalationResponse> of pending escalations; empty Vec if none; Err(Escalation) on queue error
+    /// post: returns `Vec<EscalationResponse>` of pending escalations; empty Vec if none; Err(Escalation) on queue error
     /// # Returns
     /// `ServiceError::Escalation` on queue error.
     pub fn list_escalations(ctx: &AgentService) -> Result<Vec<EscalationResponse>, ServiceError> {

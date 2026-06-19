@@ -271,7 +271,7 @@ async fn classify_one(
 ///
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  texts must be non-empty; config must have valid timeout and concurrency
-/// post: returns Vec<ClassifyResult> in input order; failed classifications fall back to config.fallback_category; all fallback if no API key
+/// post: returns `Vec<ClassifyResult>` in input order; failed classifications fall back to config.fallback_category; all fallback if no API key
 pub async fn classify_batch(
     texts: &[String],
     config: ClassifierConfig,
@@ -356,7 +356,7 @@ pub async fn classify_batch(
 ///
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  texts must be non-empty; config must have valid timeout and concurrency
-/// post: returns Vec<TripleExtraction> in input order; failed extractions fall back to empty; all empty if no API key
+/// post: returns `Vec<TripleExtraction>` in input order; failed extractions fall back to empty; all empty if no API key
 pub async fn extract_triples_batch(
     texts: &[String],
     config: &ClassifierConfig,

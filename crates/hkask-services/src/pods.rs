@@ -91,7 +91,7 @@ impl PodService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.pod_manager() must be initialized
-    /// post: returns Vec<PodStatusResponse> for all pods; empty Vec if none; Err(Pod) on upstream error
+    /// post: returns `Vec<PodStatusResponse>` for all pods; empty Vec if none; Err(Pod) on upstream error
     pub async fn list_pods(ctx: &AgentService) -> Result<Vec<PodStatusResponse>, ServiceError> {
         let pm = ctx.pod_manager();
         let pods = pm.list_pods().await.map_err(|e| ServiceError::Pod {

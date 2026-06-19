@@ -55,7 +55,7 @@ impl WalletService {
     /// Create a new WalletService from its components.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  manager must be a valid Arc<WalletManager>; issuer must be a valid Arc<ApiKeyIssuer>
+    /// pre:  manager must be a valid `Arc<WalletManager>`; issuer must be a valid Arc<ApiKeyIssuer>
     /// post: returns WalletService with manager and issuer wired; cybernetics and consent_manager default to None
     pub fn new(manager: Arc<WalletManager>, issuer: Arc<ApiKeyIssuer>) -> Self {
         Self {
@@ -69,7 +69,7 @@ impl WalletService {
     /// Attach a CyberneticsLoop for CNS wallet budget registration.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  loop_ must be a valid Arc<RwLock<CyberneticsLoop>>
+    /// pre:  loop_ must be a valid Arc<Rw`Lock<CyberneticsLoop>`>
     /// post: returns self with cybernetics set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_cybernetics(mut self, loop_: Arc<RwLock<CyberneticsLoop>>) -> Self {
@@ -111,7 +111,7 @@ impl WalletService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must be valid; store must be initialized; event_sink must be valid; cybernetics must be valid
-    /// post: returns Arc<WalletService> with chain ports, price feed, WalletManager, and ApiKeyIssuer all wired; Err on construction failure
+    /// post: returns `Arc<WalletService>` with chain ports, price feed, WalletManager, and ApiKeyIssuer all wired; Err on construction failure
     /// # Parameters
     /// - `config`: Wallet subsystem configuration (chains, privacy, price feed)
     /// - `store`: Shared wallet store for balances, keys, transactions
@@ -392,7 +392,7 @@ impl WalletService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  wallet_id must be valid; limit must be > 0
-    /// post: returns Vec<WalletTransaction>; empty Vec if no transactions; Err(Wallet) on manager error
+    /// post: returns `Vec<WalletTransaction>`; empty Vec if no transactions; Err(Wallet) on manager error
     pub fn get_transactions(
         &self,
         wallet_id: WalletId,
@@ -587,7 +587,7 @@ impl WalletService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  wallet_id must be valid
-    /// post: returns Vec<ApiKeyCapability> of active keys; empty Vec if none; Err(Wallet) on issuer error
+    /// post: returns `Vec<ApiKeyCapability>` of active keys; empty Vec if none; Err(Wallet) on issuer error
     pub fn list_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, ServiceError> {
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "list_keys", wallet_id = %wallet_id, "CNS");

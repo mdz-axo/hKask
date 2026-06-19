@@ -185,7 +185,7 @@ impl Registry {
     ///
     /// expect: "The system manages a template registry for skill rendering"
     /// \[P3\] Motivating: Generative Space — lists registered skills
-    /// post: returns Vec<Skill> with all registered skills
+    /// post: returns `Vec<Skill>` with all registered skills
     pub fn list_skills(&self) -> Vec<Skill> {
         self.skills.values().cloned().collect()
     }
@@ -195,7 +195,7 @@ impl Registry {
     /// expect: "The system manages a template registry for skill rendering"
     /// \[P3\] Motivating: Generative Space — visibility-filtered skill listing
     /// pre:  visibility is a valid Visibility variant
-    /// post: returns Vec<Skill> filtered by visibility
+    /// post: returns `Vec<Skill>` filtered by visibility
     pub fn list_skills_by_visibility(&self, visibility: Visibility) -> Vec<Skill> {
         self.skills
             .values()
@@ -239,7 +239,7 @@ impl Registry {
     /// expect: "The system manages a template registry for skill rendering"
     /// \[P3\] Motivating: Generative Space — domain-filtered skill listing
     /// pre:  domain is a valid TemplateType
-    /// post: returns Vec<Skill> filtered by domain
+    /// post: returns `Vec<Skill>` filtered by domain
     pub fn skills_by_domain(&self, domain: TemplateType) -> Vec<Skill> {
         self.skills
             .values()
@@ -253,7 +253,7 @@ impl Registry {
     /// expect: "The system manages a template registry for skill rendering"
     /// \[P3\] Motivating: Generative Space — reverse skill lookup by template
     /// pre:  template_id is non-empty
-    /// post: returns Vec<Skill> referencing the given template
+    /// post: returns `Vec<Skill>` referencing the given template
     pub fn skills_referencing_template(&self, template_id: &str) -> Vec<Skill> {
         self.skills
             .values()
@@ -290,7 +290,7 @@ impl Registry {
     ///
     /// expect: "The system manages a template registry for skill rendering"
     /// \[P3\] Motivating: Generative Space — lists registered bundles
-    /// post: returns Vec<&BundleManifest> with all registered bundles
+    /// post: returns `Vec<&BundleManifest>` with all registered bundles
     pub fn list_bundles(&self) -> Vec<&hkask_types::BundleManifest> {
         self.bundles.values().collect()
     }

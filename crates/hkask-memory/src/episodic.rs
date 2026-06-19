@@ -138,7 +138,7 @@ impl EpisodicMemory {
     /// \[P3\] Motivating: Generative Space — recalls deduplicated episodic triples for an entity
     /// \[P9\] Constraining: Homeostatic Self-Regulation — applies confidence decay and temporal attention at recall
     /// pre:  entity is non-empty, perspective is valid
-    /// post: returns Vec<Triple> filtered by perspective, decayed, deduped, sorted by recency
+    /// post: returns `Vec<Triple>` filtered by perspective, decayed, deduped, sorted by recency
     /// post: confidence decayed via e^(-λt) for each triple
     pub fn query_for_deduped(
         &self,

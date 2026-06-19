@@ -1,6 +1,6 @@
 //! SQLite registry adapter — persistent template registry backed by SQLite.
 //!
-//! Connection stored as `Arc<Mutex<Connection>>` for thread-safe shared access,
+//! Connection stored as `Arc<`Mutex<Connection>`>` for thread-safe shared access,
 //! consistent with `hkask_storage::Database::conn_arc()`. Use `new_with_conn()`
 //! when opening through `hkask_storage::Database` (SQLCipher-encrypted).
 
@@ -270,7 +270,7 @@ impl SqliteRegistry {
     /// \[P3\] Motivating: Generative Space — vocabulary-aware template search
     /// \[P8\] Constraining: Semantic Grounding — search uses lexicon terms
     /// pre:  term is non-empty
-    /// post: returns Vec<RegistryEntry> for templates declaring this term
+    /// post: returns `Vec<RegistryEntry>` for templates declaring this term
     pub fn search_by_lexicon(&self, term: &str) -> Result<Vec<RegistryEntry>> {
         let conn = self
             .conn
@@ -598,7 +598,7 @@ impl SqliteRegistry {
     ///
     /// expect: "The system persists template registrations to SQLite"
     /// \[P3\] Motivating: Generative Space — lists owned skill records
-    /// post: returns Vec<Skill> with all registered skills
+    /// post: returns `Vec<Skill>` with all registered skills
     pub fn list_skills_owned(&self) -> Vec<Skill> {
         self.query_skills(Self::_SKILLS_SELECT, &[])
     }
@@ -608,7 +608,7 @@ impl SqliteRegistry {
     /// expect: "The system persists template registrations to SQLite"
     /// \[P3\] Motivating: Generative Space — domain-filtered owned skill listing
     /// pre:  domain is a valid TemplateType
-    /// post: returns Vec<Skill> filtered by domain
+    /// post: returns `Vec<Skill>` filtered by domain
     pub fn skills_by_domain_owned(&self, domain: TemplateType) -> Vec<Skill> {
         self.query_skills(
             &format!("{} WHERE domain = ?1", Self::_SKILLS_SELECT),
@@ -621,7 +621,7 @@ impl SqliteRegistry {
     /// expect: "The system persists template registrations to SQLite"
     /// \[P3\] Motivating: Generative Space — reverse owned skill lookup
     /// pre:  tid is non-empty
-    /// post: returns Vec<Skill> referencing the given template ID
+    /// post: returns `Vec<Skill>` referencing the given template ID
     pub fn skills_referencing_template_owned(&self, tid: &str) -> Vec<Skill> {
         self.query_skills(
             &format!(

@@ -17,11 +17,11 @@
 //!
 //! ## Principles
 //!
-//! [P1] User Sovereignty — Curator opens pods read-only, never writes
-//! [P4] Clear Boundaries — deterministic passphrase, OCAP gating
-//! [P5] Essentialism — 1 struct, 1 loop, no new crates
-//! [P9] Homeostasis — polling loop is the regulation cycle
-//! [P11] Digital Sphere — only Public triples are synced
+//! \[P1\] User Sovereignty — Curator opens pods read-only, never writes
+//! \[P4\] Clear Boundaries — deterministic passphrase, OCAP gating
+//! \[P5\] Essentialism — 1 struct, 1 loop, no new crates
+//! \[P9\] Homeostasis — polling loop is the regulation cycle
+//! \[P11\] Digital Sphere — only Public triples are synced
 
 use crate::PodID;
 use crate::PodKind;

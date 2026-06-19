@@ -20,7 +20,7 @@ use crate::ApiState;
 ///
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  none
-/// post: returns OpenApiRouter<ApiState> with CNS routes registered
+/// post: returns OpenApi`Router<ApiState>` with CNS routes registered
 pub fn cns_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(cns_health))

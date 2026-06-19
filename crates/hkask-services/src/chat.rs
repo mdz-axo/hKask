@@ -697,7 +697,7 @@ impl ChatService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  episodic_port must be initialized; agent_webid must be valid; token must be valid; limit must be > 0
-    /// post: returns Vec<Value> of {role, content} messages; empty Vec if no episodes or recall fails
+    /// post: returns `Vec<Value>` of {role, content} messages; empty Vec if no episodes or recall fails
     pub fn recall_raw_episodes(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         agent_webid: &WebID,

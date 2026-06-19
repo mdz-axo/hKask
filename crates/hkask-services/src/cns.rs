@@ -25,7 +25,7 @@ impl CnsService {
     /// Create from the shared CNS runtime.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  runtime must be a valid Arc<RwLock<CnsRuntime>>
+    /// pre:  runtime must be a valid Arc<Rw`Lock<CnsRuntime>`>
     /// post: returns CnsService wrapping the runtime
     pub fn new(runtime: Arc<RwLock<CnsRuntime>>) -> Self {
         Self { runtime }
@@ -44,7 +44,7 @@ impl CnsService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  runtime must be initialized
-    /// post: returns Vec<RuntimeAlert> of currently active alerts; empty Vec if none
+    /// post: returns `Vec<RuntimeAlert>` of currently active alerts; empty Vec if none
     pub async fn alerts(&self) -> Vec<RuntimeAlert> {
         self.runtime.read().await.alerts().await
     }
@@ -53,7 +53,7 @@ impl CnsService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  runtime must be initialized
-    /// post: returns HashMap<SpanNamespace, u64> of variety counters; empty map if no counters
+    /// post: returns Hash`Map<SpanNamespace, u64>` of variety counters; empty map if no counters
     pub async fn variety(&self) -> HashMap<SpanNamespace, u64> {
         self.runtime.read().await.variety().await
     }

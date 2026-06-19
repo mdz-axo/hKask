@@ -15,7 +15,7 @@ pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusResponse, ServiceEr
 
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  none
-/// post: returns Ok(Vec<PodStatusResponse>) with all pod statuses
+/// post: returns Ok(`Vec<PodStatusResponse>`) with all pod statuses
 /// post: delegates to PodService::list_pods
 pub async fn list_pods() -> Result<Vec<PodStatusResponse>, ServiceError> {
     let ctx = super::helpers::build_service_context();

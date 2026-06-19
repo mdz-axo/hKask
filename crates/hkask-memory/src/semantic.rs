@@ -190,7 +190,7 @@ impl SemanticMemory {
     /// \[P3\] Motivating: Generative Space — queries shared triples by attribute
     /// \[P8\] Constraining: Semantic Grounding — attribute-based recall expands context
     /// pre:  attribute is non-empty
-    /// post: returns Vec<Triple> with matching attribute
+    /// post: returns `Vec<Triple>` with matching attribute
     pub fn query_by_attribute(&self, attribute: &str) -> Result<Vec<Triple>, SemanticMemoryError> {
         Ok(self.triple_store.query_by_attribute(attribute)?)
     }
@@ -228,7 +228,7 @@ impl SemanticMemory {
     /// \[P3\] Motivating: Generative Space — KNN search augments recall beyond exact matches
     /// \[P8\] Constraining: Semantic Grounding — results ordered by embedding distance
     /// pre:  query_vector is non-empty, limit > 0
-    /// post: returns Vec<SimilarityResult> ordered by ascending distance
+    /// post: returns `Vec<SimilarityResult>` ordered by ascending distance
     pub fn search_similar(
         &self,
         query_vector: &[f32],

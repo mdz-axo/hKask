@@ -104,7 +104,7 @@ pub struct DeactivateBundleResponse {
 ///
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  none
-/// post: returns OpenApiRouter<ApiState> with bundle routes registered
+/// post: returns OpenApi`Router<ApiState>` with bundle routes registered
 pub fn bundles_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
     utoipa_axum::router::OpenApiRouter::new()
         .routes(utoipa_axum::routes!(list_bundles))

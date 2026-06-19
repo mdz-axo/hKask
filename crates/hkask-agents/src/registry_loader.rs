@@ -274,7 +274,7 @@ impl AgentRegistryLoader {
     /// expect: "The system loads and adapts agent registries for generative use"
     /// \[P3\] Motivating: Generative Space — load agent definitions from filesystem
     /// pre:  The registry path contains valid YAML agent definitions.
-    /// post: Returns `Ok(Vec<RegisteredAgent>)` with all successfully
+    /// post: Returns `Ok(`Vec<RegisteredAgent>`)` with all successfully
     ///       loaded and A2A-registered agents; individual load failures
     ///       are logged and skipped.
     pub async fn load_all(&self) -> Result<Vec<RegisteredAgent>, RegistryLoaderError> {

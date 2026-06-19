@@ -99,7 +99,7 @@ impl InferenceService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must have valid inference_config; model must be non-empty
-    /// post: returns Arc<dyn InferencePort> — shared port if model matches default, else fresh InferenceRouter; Err on connection failure
+    /// post: returns `Arc<dyn InferencePort>` — shared port if model matches default, else fresh InferenceRouter; Err on connection failure
     /// # REQ: P9-svc-inference-svc-inf-001 — resolve_port returns shared port for default model
     /// # expect: "The service layer provides CNS health and regulation queries"
     /// # REQ: P9-svc-inference-svc-inf-002 — resolve_port creates fresh instance for non-default model
@@ -129,7 +129,7 @@ impl InferenceService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must have valid inference_config
-    /// post: returns Vec<ModelInfo> from all configured providers; empty Vec if none
+    /// post: returns `Vec<ModelInfo>` from all configured providers; empty Vec if none
     /// # REQ: P9-svc-inference-svc-inf-004 — list_models returns model metadata from all providers
     /// # expect: "The service layer provides CNS health and regulation queries"
     pub async fn list_models(ctx: &InferenceContext) -> Result<Vec<ModelInfo>, ServiceError> {
@@ -145,7 +145,7 @@ impl InferenceService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must have valid inference_config; query must be non-empty
-    /// post: returns Vec<ModelInfo> matching query; empty Vec if no matches
+    /// post: returns `Vec<ModelInfo>` matching query; empty Vec if no matches
     /// # REQ: P9-svc-inference-svc-inf-005 — search_models filters models by query substring
     /// # expect: "The service layer provides CNS health and regulation queries"
     pub async fn search_models(

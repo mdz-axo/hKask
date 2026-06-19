@@ -12,7 +12,7 @@ use crate::middleware::AuthContext;
 
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  none
-/// post: returns OpenApiRouter<ApiState> with goal routes registered
+/// post: returns OpenApi`Router<ApiState>` with goal routes registered
 pub fn goal_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_goals))

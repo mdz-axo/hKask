@@ -228,7 +228,7 @@ impl BundleService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.registry() must be initialized
-    /// post: returns Vec<BundleManifest> of all registered bundles; empty Vec if none
+    /// post: returns `Vec<BundleManifest>` of all registered bundles; empty Vec if none
     pub async fn list(ctx: &AgentService) -> Result<Vec<BundleManifest>, ServiceError> {
         let registry = ctx.registry();
         let guard = registry.lock().await;
@@ -318,7 +318,7 @@ impl BundleService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.registry() must be initialized
-    /// post: returns Vec<Skill> of all registered skills; empty Vec if none
+    /// post: returns `Vec<Skill>` of all registered skills; empty Vec if none
     pub async fn list_skills(
         ctx: &AgentService,
     ) -> Result<Vec<hkask_types::ports::Skill>, ServiceError> {

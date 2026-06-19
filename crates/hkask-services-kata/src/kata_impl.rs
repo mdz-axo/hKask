@@ -196,7 +196,7 @@ impl KataEngine {
     /// practice and checks algedonic thresholds after cycle completion.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  cns must be a valid Arc<RwLock<CnsRuntime>>
+    /// pre:  cns must be a valid Arc<Rw`Lock<CnsRuntime>`>
     /// post: returns self with cns_runtime set; kata cycles will increment variety and check alerts
     pub fn with_cns_runtime(mut self, cns: Arc<RwLock<CnsRuntime>>) -> Self {
         self.cns_runtime = Some(cns);

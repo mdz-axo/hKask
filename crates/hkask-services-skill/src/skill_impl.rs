@@ -48,7 +48,7 @@ pub struct SkillInfo {
 
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  zone_dir must be a readable directory; each subdirectory with SKILL.md is treated as a skill
-/// post: returns Vec<SkillInfo> sorted by name, each with path, name, visibility, namespace, and content_hash; Err on I/O failure
+/// post: returns `Vec<SkillInfo>` sorted by name, each with path, name, visibility, namespace, and content_hash; Err on I/O failure
 pub fn discover_skills(zone_dir: &Path) -> Result<Vec<SkillInfo>, ServiceError> {
     let mut skills = Vec::new();
     let entries = fs::read_dir(zone_dir).map_err(|e| {

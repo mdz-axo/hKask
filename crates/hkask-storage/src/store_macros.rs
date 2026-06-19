@@ -1,7 +1,7 @@
 //! Store trait and declarative macros for store boilerplate elimination
 //!
 //! `Store` provides the shared `conn_arc()` and `lock_conn()` methods
-//! over `Arc<Mutex<Connection>>`. Every store struct implements this trait.
+//! over `Arc<`Mutex<Connection>`>`. Every store struct implements this trait.
 //! `define_store!` generates the struct + `Store` impl for each store.
 //! `impl_from_rusqlite!` generates the canonical `From<rusqlite::Error>` impl.
 use hkask_types::InfrastructureError;
@@ -19,7 +19,7 @@ pub use hkask_types::time::now_rfc3339;
 /// Shared trait for all SQLite-backed stores.
 ///
 /// Provides the standard `conn_arc()` and `lock_conn()` methods over
-/// `Arc<Mutex<Connection>>`. Every store struct implements this trait.
+/// `Arc<`Mutex<Connection>`>`. Every store struct implements this trait.
 ///
 /// `lock_conn()` is a required method (not a default) because the
 /// `MutexGuard` borrows from the `Mutex` inside the `Arc`, and the
@@ -35,11 +35,11 @@ pub trait Store {
     /// panicked while holding the lock.
     fn lock_conn(&self) -> Result<MutexGuard<'_, rusqlite::Connection>, InfrastructureError>;
 }
-/// Define a store struct with the standard `Arc<Mutex<Connection>>` pattern.
+/// Define a store struct with the standard `Arc<`Mutex<Connection>`>` pattern.
 ///
 /// Generates:
-/// - `pub struct $name { conn: Arc<Mutex<Connection>> }`
-/// - `pub fn new(conn: Arc<Mutex<Connection>>) -> Self`
+/// - `pub struct $name { conn: Arc<`Mutex<Connection>`> }`
+/// - `pub fn new(conn: Arc<`Mutex<Connection>`>) -> Self`
 /// - `impl Store for $name` (provides `conn_arc()` and `lock_conn()`)
 ///
 /// # Example
@@ -162,10 +162,10 @@ macro_rules! collect_rows_strict {
 ///
 /// # Example
 /// ```ignore
-/// let triples: Vec<Triple> = collect_rows!(
+/// let triples: `Vec<Triple>` = collect_rows!(
 ///     stmt,
 ///     rusqlite::params![entity],
-///     |row: &rusqlite::Row<'_>| -> rusqlite::Result<TripleRow> {
+///     |row: &rusqlite::Row<'_>| -> rusqlite::`Result<TripleRow>` {
 ///         Ok(TripleRow { ... })
 ///     },
 ///     TripleStore::row_to_triple

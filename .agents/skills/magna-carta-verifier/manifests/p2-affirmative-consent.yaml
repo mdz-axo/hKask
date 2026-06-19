@@ -10,25 +10,39 @@ assertions:
   - id: p2a
     name: default_deny
     claim: >
-      The default consent state is deny. DenyAllConsent returns false for
-      all queries. PodManager initializes with DenyAllConsent when no
-      consent port is wired. SovereigntyChecker denies when no checker
-      is configured. Access without explicit consent is impossible.
+      The default consent state is deny. DenyAllConsent (hkask-agents::sovereignty)
+      implements SovereigntyConsent, returning false for all queries. PodFactory::new()
+      accepts consent: Arc<dyn SovereigntyConsent> — the constructor injection point
+      where default-deny is wired into every pod. ServiceContext::build() passes
+      DenyAllConsent to PodFactory at the service boundary, ensuring no pod can be
+      constructed without a consent implementation. SovereigntyChecker denies when
+      no checker is configured — sovereignty must fail closed.
     method: structural_audit
     targets:
       - crate: hkask-agents
         module: sovereignty
+        structs: [DenyAllConsent]
         methods:
-          - DenyAllConsent
           - has_consent
         gate: SovereigntyConsent
       - crate: hkask-agents
-        module: pod::active_pods
+        module: pod::deployment
+        structs: [PodFactory]
         methods:
           - new
-          - with_inference_port
-          - new_mock
+        gate: SovereigntyConsent
+        note: >
+          PodFactory::new(consent: Arc<dyn SovereigntyConsent>) — the constructor
+          injection point where default-deny is wired. Every pod created through
+          this factory inherits the consent implementation passed at construction time.
+      - crate: hkask-services-context
+        module: context_impl
+        methods:
+          - build
         gate: DenyAllConsent
+        note: >
+          ServiceContext::build() passes hkask_agents::DenyAllConsent to PodFactory::new().
+          This is the canonical wiring point — if this line is removed, sovereignty fails open.
       - crate: hkask-agents
         module: pod::context
         methods:
@@ -114,10 +128,11 @@ assertions:
   - id: p2e
     name: fail_closed
     claim: >
-      Misconfiguration defaults to deny. When no consent port is wired,
-      PodManager uses DenyAllConsent. When no SovereigntyChecker is
-      configured, require_sovereignty denies by default. Storage errors
-      in ConsentManager translate to deny (fail closed, never open).
+      Misconfiguration defaults to deny. When no consent is wired,
+      PodFactory defaults to DenyAllConsent via ServiceContext::build().
+      When no SovereigntyChecker is configured, require_sovereignty denies
+      by default. Storage errors in ConsentManager translate to deny
+      (fail closed, never open).
     method: behavioral_probe
     targets:
       - crate: hkask-agents

@@ -49,7 +49,7 @@ pub struct ConsolidateResponse {
 
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  none
-/// post: returns OpenApiRouter<ApiState> with consolidation route registered
+/// post: returns OpenApi`Router<ApiState>` with consolidation route registered
 pub fn consolidation_router() -> OpenApiRouter<crate::ApiState> {
     OpenApiRouter::new().routes(routes!(consolidate))
 }

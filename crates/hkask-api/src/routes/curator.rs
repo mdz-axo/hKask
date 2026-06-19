@@ -119,7 +119,7 @@ pub struct MetacognitionStatusResponse {
 
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  none
-/// post: returns OpenApiRouter<ApiState> with curator routes registered
+/// post: returns OpenApi`Router<ApiState>` with curator routes registered
 pub fn curator_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_escalations))

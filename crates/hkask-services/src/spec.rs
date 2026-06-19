@@ -157,7 +157,7 @@ impl SpecService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.spec_store() must be initialized; category_filter if Some must be a valid SpecCategory string
-    /// post: returns Vec<SpecListEntry> for all matching specs; Err(ValidationError) on invalid category
+    /// post: returns `Vec<SpecListEntry>` for all matching specs; Err(ValidationError) on invalid category
     pub fn list(
         ctx: &AgentService,
         category_filter: Option<&str>,

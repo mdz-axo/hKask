@@ -714,7 +714,7 @@ impl EntityTags {
 /// \[P3\] Motivating: Generative Space — scores passage salience to gate triple storage budget
 /// \[P9\] Constraining: Homeostatic Self-Regulation — graph centrality bounded by neighbor sampling
 /// pre:  all_tags is a slice of EntityTags
-/// post: returns Vec<f32> with one salience score per passage
+/// post: returns `Vec<f32>` with one salience score per passage
 /// post: passages with zero tags get salience 0.0
 /// post: returns empty Vec for empty input
 pub fn compute_salience_batch(all_tags: &[EntityTags]) -> Vec<f32> {

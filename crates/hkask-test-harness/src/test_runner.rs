@@ -597,7 +597,7 @@ pub struct ExpectProposal {
 /// contract: HARN-056
 /// expect: "I can see which contracts need user-expectation grounding so I can fill them in"
 /// pre:  crate_name exists in workspace at workspace_root/{crates,mcp-servers}/crate_name/src
-/// post: returns Vec<ExpectProposal> for each contracted function without expect:
+/// post: returns `Vec<ExpectProposal>` for each contracted function without expect:
 pub fn propose_missing_expect_annotations(
     crate_name: &str,
     workspace_root: &str,

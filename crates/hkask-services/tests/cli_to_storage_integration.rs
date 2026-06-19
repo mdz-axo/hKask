@@ -11,7 +11,7 @@
 //!   → AgentService::build()
 //!     → ConsentStore ──┐
 //!     → GoalRepo ──────┤
-//!     → SpecStore ─────┼── all share ONE Arc<Mutex<Connection>>
+//!     → SpecStore ─────┼── all share ONE Arc<`Mutex<Connection>`>
 //!     → UserStore ─────┤
 //!     → WalletStore ───┤
 //!     → NuEventStore ──┘

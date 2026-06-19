@@ -21,7 +21,7 @@ use hkask_types::Confidence;
 ///
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  none
-/// post: returns OpenApiRouter<ApiState> with episodic routes registered
+/// post: returns OpenApi`Router<ApiState>` with episodic routes registered
 pub fn episodic_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(store_episode))

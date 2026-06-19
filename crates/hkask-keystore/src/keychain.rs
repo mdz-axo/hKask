@@ -175,7 +175,7 @@ impl Default for Keychain {
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
 /// pre:  derivation_context, env_var, keychain_key are valid
 /// post: tries derivation → env → keychain in order
-/// post: returns Ok(Zeroizing<Vec<u8>>) on first success
+/// post: returns Ok(Zeroizing<`Vec<u8>`>) on first success
 /// post: returns Err if all three sources fail
 pub fn resolve_secret_chain(
     derivation_context: (&str, &str),
@@ -202,7 +202,7 @@ pub fn resolve_secret_chain(
 /// environment variables for backward compatibility.
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// post: returns Zeroizing<Vec<u8>> from first successful resolution step
+/// post: returns Zeroizing<`Vec<u8>`> from first successful resolution step
 pub fn resolve_a2a_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
         (
@@ -227,7 +227,7 @@ pub fn resolve_a2a_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// since they share the same authority chain.
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// post: returns Zeroizing<Vec<u8>> from first successful resolution step
+/// post: returns Zeroizing<`Vec<u8>`> from first successful resolution step
 /// post: falls back to A2A secret if MCP key unavailable
 pub fn resolve_mcp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
@@ -249,7 +249,7 @@ pub fn resolve_mcp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// Chain: master key derivation → env var → OS keychain.
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// post: returns Zeroizing<Vec<u8>> from first successful resolution step
+/// post: returns Zeroizing<`Vec<u8>`> from first successful resolution step
 pub fn resolve_mcp_security_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
         (
@@ -269,7 +269,7 @@ pub fn resolve_mcp_security_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// Chain: master key derivation → env var → OS keychain.
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// post: returns Zeroizing<Vec<u8>> from first successful resolution step
+/// post: returns Zeroizing<`Vec<u8>`> from first successful resolution step
 pub fn resolve_capability_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
         (
@@ -295,7 +295,7 @@ pub fn resolve_capability_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// the database with a derived key that the user didn't consent to.
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// post: returns Zeroizing<Vec<u8>> from env var or keychain
+/// post: returns Zeroizing<`Vec<u8>`> from env var or keychain
 pub fn resolve_db_passphrase() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve(&SecretRef::env("HKASK_DB_PASSPHRASE"))
         .or_else(|_| resolve(&SecretRef::keychain("hkask-db-passphrase")))
@@ -309,7 +309,7 @@ pub fn resolve_db_passphrase() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// 3. Random generation (last resort — tokens will not survive restart)
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// post: returns Zeroizing<Vec<u8>> from derivation, keychain, or random generation
+/// post: returns Zeroizing<`Vec<u8>`> from derivation, keychain, or random generation
 pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     // Prefer deterministic derivation from master key
     let derived = resolve(&SecretRef::derived(
@@ -422,7 +422,7 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
 /// pre:  chain is a valid ChainId (Solana, Hedera, or Hinkal)
-/// post: returns Ok(Zeroizing<Vec<u8>>) — 32-byte HKDF-derived seed
+/// post: returns Ok(Zeroizing<`Vec<u8>`>) — 32-byte HKDF-derived seed
 /// post: same master key → same treasury key for given chain (deterministic)
 ///
 /// Uses HKDF-SHA256 with domain-separated context strings.
@@ -451,7 +451,7 @@ pub fn resolve_treasury_key(chain: ChainId) -> Result<Zeroizing<Vec<u8>>, Keycha
 /// Derive the wallet seed for HD derivation, deposit references, and API key signing.
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// post: returns Ok(Zeroizing<Vec<u8>>) — 32-byte HKDF-derived seed
+/// post: returns Ok(Zeroizing<`Vec<u8>`>) — 32-byte HKDF-derived seed
 /// post: same master key → same wallet seed (deterministic)
 ///
 /// Context: `"hkask:wallet-seed"`

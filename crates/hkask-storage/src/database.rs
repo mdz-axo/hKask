@@ -205,7 +205,7 @@ impl Database {
     ///
     /// expect: "The system enforces OCAP boundaries on storage access"
     /// \[P4\] Motivating: Clear Boundaries — share connection Arc with stores
-    /// post: returns Arc<Mutex<Connection>> for Store constructors
+    /// post: returns Arc<`Mutex<Connection>`> for Store constructors
     pub fn conn_arc(&self) -> Arc<Mutex<Connection>> {
         Arc::clone(&self.conn)
     }

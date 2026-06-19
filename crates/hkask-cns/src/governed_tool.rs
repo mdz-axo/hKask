@@ -67,7 +67,7 @@ pub trait EnergyEstimator: Send + Sync {
 /// # Composition
 ///
 /// ```ignore
-/// let inner: Arc<RawMcpToolPort> = Arc::new(RawMcpToolPort::new(runtime));
+/// let inner: `Arc<RawMcpToolPort>` = Arc::new(RawMcpToolPort::new(runtime));
 /// let governed = GovernedTool::new(
 ///     inner,
 ///     cybernetics_loop,

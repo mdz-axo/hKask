@@ -50,11 +50,11 @@ fn inference_config() -> hkask_inference::InferenceConfig {
 }
 
 pub struct ReplicaServer {
-    webid: WebID,
+    pub webid: WebID,
     /// Replicant identity serving this MCP server (for narrative memory)
-    replicant: String,
+    pub replicant: String,
     /// Daemon client for dual-encoding experiences (None if daemon unavailable)
-    daemon: Option<hkask_mcp::DaemonClient>,
+    pub daemon: Option<hkask_mcp::DaemonClient>,
 }
 
 fn internal_error(span: ToolSpanGuard, context: &str, e: impl std::fmt::Display) -> String {

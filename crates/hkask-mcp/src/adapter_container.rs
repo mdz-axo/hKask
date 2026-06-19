@@ -9,7 +9,7 @@ use std::sync::{Arc, RwLock};
 /// Container for shared MCP adapter instances
 ///
 /// Holds the hexagonal GitCASPort and base path for MCP server use.
-/// Thread-safe via Arc<RwLock<>> pattern.
+/// Thread-safe via `Arc<RwLock<>`> pattern.
 #[derive(Clone)]
 pub struct AdapterContainer {
     /// Hexagonal GitCASPort for all CAS operations.

@@ -281,7 +281,7 @@ impl BackupService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  target must be a valid CommitHash; scope must be a valid RestoreScope
-    /// post: returns Vec<(ArtifactType, String, Vec<u8>)> of restored artifacts; empty Vec if none match; Err on CAS or deserialization failure
+    /// post: returns Vec<(ArtifactType, String, `Vec<u8>`)> of restored artifacts; empty Vec if none match; Err on CAS or deserialization failure
     pub async fn restore(
         &self,
         target: &CommitHash,
@@ -344,7 +344,7 @@ impl BackupService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  filter.limit defaults to 20 if None
-    /// post: returns Vec<SnapshotMetadata> sorted by timestamp descending, truncated to limit; Err(NoSnapshots) if no snapshots found
+    /// post: returns `Vec<SnapshotMetadata>` sorted by timestamp descending, truncated to limit; Err(NoSnapshots) if no snapshots found
     pub async fn list(&self, filter: ListFilter) -> Result<Vec<SnapshotMetadata>, BackupError> {
         let repos: Vec<RepoId> = if let Some(ref at) = filter.artifact_type {
             vec![at.repo_id()]
@@ -494,7 +494,7 @@ impl BackupService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  tracked repos must be accessible via CAS
-    /// post: returns Vec<VerificationReport> per repo with total_blobs and corrupt_hashes; empty Vec if no tracked repos
+    /// post: returns `Vec<VerificationReport>` per repo with total_blobs and corrupt_hashes; empty Vec if no tracked repos
     #[instrument(skip(self), fields(repo_count, total_blobs, corrupt_count))]
     pub async fn verify(
         &self,

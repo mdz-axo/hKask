@@ -232,7 +232,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns Some(&Arc<WalletService>) if wallet configured; None otherwise
+    /// post: returns Some(&`Arc<WalletService>`) if wallet configured; None otherwise
     pub fn wallet(&self) -> Option<&Arc<WalletService>> {
         self.wallet_service.as_ref()
     }
@@ -241,7 +241,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns Some(&Arc<WalletStore>) if wallet store configured; None otherwise
+    /// post: returns Some(&`Arc<WalletStore>`) if wallet store configured; None otherwise
     pub fn wallet_store(&self) -> Option<&Arc<WalletStore>> {
         self.wallet_store.as_ref()
     }
@@ -250,7 +250,7 @@ impl AgentService {
     ///
     /// \[P7\] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
     /// pre:  self must be fully built
-    /// post: returns Some(&Arc<WalletGasCalibrator>) if wallet is configured; None otherwise
+    /// post: returns Some(&`Arc<WalletGasCalibrator>`) if wallet is configured; None otherwise
     pub fn wallet_gas_calibrator(&self) -> Option<&Arc<hkask_cns::WalletGasCalibrator>> {
         self.wallet_gas_calibrator.as_ref()
     }
@@ -272,7 +272,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<Mutex<SqliteRegistry>>
+    /// post: returns &Arc<`Mutex<SqliteRegistry>`>
     pub fn registry(&self) -> &Arc<tokio::sync::Mutex<SqliteRegistry>> {
         &self.registry
     }
@@ -290,7 +290,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<RwLock<CnsRuntime>>
+    /// post: returns &Arc<Rw`Lock<CnsRuntime>`>
     pub fn cns_runtime(&self) -> &Arc<RwLock<CnsRuntime>> {
         &self.cns_runtime
     }
@@ -298,7 +298,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<RwLock<CyberneticsLoop>>
+    /// post: returns &Arc<Rw`Lock<CyberneticsLoop>`>
     pub fn cybernetics_loop(&self) -> &Arc<RwLock<CyberneticsLoop>> {
         &self.cybernetics_loop
     }
@@ -323,7 +323,7 @@ impl AgentService {
     ///
     /// \[P7\] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
     /// pre:  self must be fully built
-    /// post: returns &Arc<CalibratedEnergyEstimator> sharing the same background
+    /// post: returns &`Arc<CalibratedEnergyEstimator>` sharing the same background
     ///       calibration loop as the service's governed tool
     pub fn energy_estimator(&self) -> &Arc<hkask_cns::CalibratedEnergyEstimator> {
         &self.energy_estimator
@@ -335,7 +335,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<RwLock<Option<SeamWatcher>>>
+    /// post: returns &Arc<RwLock<`Option<SeamWatcher>`>>
     pub fn seam_watcher(&self) -> &Arc<RwLock<Option<SeamWatcher>>> {
         &self.seam_watcher
     }
@@ -373,7 +373,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns Some(Arc<dyn InferencePort>) if configured; None otherwise
+    /// post: returns Some(`Arc<dyn InferencePort>`) if configured; None otherwise
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
         self.inference_port.clone()
     }
@@ -399,7 +399,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns (&WebID, &Arc<A2ARuntime>) tuple
+    /// post: returns (&WebID, &`Arc<A2ARuntime>`) tuple
     pub fn identity(&self) -> (&WebID, &Arc<hkask_agents::A2ARuntime>) {
         (&self.system_webid, &self.a2a_runtime)
     }
@@ -422,7 +422,7 @@ impl AgentService {
     ///
     /// \[P3\] Motivating: Generative Space — A2A runtime access without ambient authority.
     /// pre:  self must be fully built
-    /// post: returns &Arc<A2ARuntime> reference
+    /// post: returns &`Arc<A2ARuntime>` reference
     pub fn a2a_runtime(&self) -> &Arc<hkask_agents::A2ARuntime> {
         &self.a2a_runtime
     }
@@ -431,7 +431,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Option<UnboundedSender<CurationInput>>
+    /// post: returns &Option<Unbounded`Sender<CurationInput>`>
     pub fn curation_inbox_tx(&self) -> &Option<tokio::sync::mpsc::UnboundedSender<CurationInput>> {
         &self.curation_inbox_tx
     }
@@ -473,7 +473,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns &Arc<Mutex<UserStore>>
+    /// post: returns &Arc<`Mutex<UserStore>`>
     pub fn user_store(&self) -> &Arc<std::sync::Mutex<UserStore>> {
         &self.user_store
     }
@@ -494,7 +494,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns Some(&Arc<Mutex<MatrixTransport>>) if connected; None otherwise
+    /// post: returns Some(&Arc<`Mutex<MatrixTransport>`>) if connected; None otherwise
     pub fn matrix_transport(
         &self,
     ) -> Option<&Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>> {

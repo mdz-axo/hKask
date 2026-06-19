@@ -44,7 +44,7 @@ use hkask_types::ports::ToolInfo;
 
 /// MCP port for tool invocation
 ///
-/// Object-safe trait for dynamic dispatch. Uses `Pin<Box<dyn Future>>`
+/// Object-safe trait for dynamic dispatch. Uses `Pin<`Box<dyn Future>`>`
 /// return types to be dyn-compatible, matching the pattern used by
 /// `InferencePort` in `hkask_types::ports`.
 ///

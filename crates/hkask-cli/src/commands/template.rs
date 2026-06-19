@@ -12,7 +12,7 @@ use serde_json::Value;
 ///
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  registry is a valid RegistryIndex
-/// post: returns Vec<RegistryEntry> filtered by optional template_type
+/// post: returns `Vec<RegistryEntry>` filtered by optional template_type
 /// post: delegates to registry.list()
 pub fn list_templates(
     registry: &dyn RegistryIndex,
@@ -25,7 +25,7 @@ pub fn list_templates(
 ///
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  none
-/// post: returns Vec<RegistryEntry> from in-memory SqliteRegistry
+/// post: returns `Vec<RegistryEntry>` from in-memory SqliteRegistry
 /// post: if registry creation fails twice → returns empty Vec (graceful degradation)
 pub fn list_templates_local() -> Vec<RegistryEntry> {
     let registry = match SqliteRegistry::new(None) {
@@ -96,7 +96,7 @@ pub fn get_template(registry: &dyn RegistryIndex, id: &str) -> Result<RegistryEn
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  registry is a valid SqliteRegistry
 /// pre:  term is a non-empty search string
-/// post: returns Ok(Vec<RegistryEntry>) with matching templates
+/// post: returns Ok(`Vec<RegistryEntry>`) with matching templates
 /// post: returns Err(ServiceError) if search fails
 pub fn search_templates(
     registry: &SqliteRegistry,
@@ -113,7 +113,7 @@ pub fn search_templates(
 ///
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  runtime is a valid McpRuntime
-/// post: returns Vec<McpServer> with all registered servers
+/// post: returns `Vec<McpServer>` with all registered servers
 /// post: delegates to runtime.list_servers()
 pub async fn list_mcp_servers(runtime: &McpRuntime) -> Vec<McpServer> {
     runtime.list_servers().await
@@ -123,7 +123,7 @@ pub async fn list_mcp_servers(runtime: &McpRuntime) -> Vec<McpServer> {
 ///
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  runtime is a valid McpRuntime
-/// post: returns Vec<String> with all discovered tool names
+/// post: returns `Vec<String>` with all discovered tool names
 /// post: delegates to runtime.discover_tools()
 pub async fn list_mcp_tools(runtime: &McpRuntime) -> Vec<String> {
     runtime.discover_tools().await

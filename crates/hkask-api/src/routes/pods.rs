@@ -67,7 +67,7 @@ pub struct ListPodsResponse {
 
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  none
-/// post: returns OpenApiRouter<ApiState> with pod routes registered
+/// post: returns OpenApi`Router<ApiState>` with pod routes registered
 pub fn pods_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .route("/api/pods", axum::routing::get(list_pods))

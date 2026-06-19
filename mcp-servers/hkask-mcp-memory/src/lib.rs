@@ -40,14 +40,14 @@ use types::*;
 // ── Server ──────────────────────────────────────────────────────────
 
 pub struct MemoryServer {
-    episodic: EpisodicMemory,
-    semantic: Arc<SemanticMemory>,
-    db: Option<Arc<std::sync::Mutex<rusqlite::Connection>>>,
-    webid: WebID,
+    pub episodic: EpisodicMemory,
+    pub semantic: Arc<SemanticMemory>,
+    pub db: Option<Arc<std::sync::Mutex<rusqlite::Connection>>>,
+    pub webid: WebID,
     /// Replicant identity serving this MCP server (for narrative memory)
-    replicant: String,
+    pub replicant: String,
     /// Daemon client for dual-encoding experiences (None if daemon unavailable)
-    daemon: Option<hkask_mcp::DaemonClient>,
+    pub daemon: Option<hkask_mcp::DaemonClient>,
 }
 
 impl MemoryServer {

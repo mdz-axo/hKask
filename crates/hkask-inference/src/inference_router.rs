@@ -172,7 +172,7 @@ impl InferenceRouter {
     /// expect: "I can discover available models across providers"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — aggregated model variety across providers
     /// pre:  backends are initialized (may be None)
-    /// post: returns Vec<RouterModelEntry> with all available models across providers
+    /// post: returns `Vec<RouterModelEntry>` with all available models across providers
     /// post: if a backend fails → its models are omitted (graceful degradation)
     pub async fn list_models(&self) -> Vec<RouterModelEntry> {
         let mut entries = Vec::new();
@@ -228,7 +228,7 @@ impl InferenceRouter {
     /// expect: "I can discover available models across providers"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — searchable model catalog for routing
     /// pre:  query may be empty (returns all models)
-    /// post: returns Vec<RouterModelEntry> filtered by case-insensitive substring match
+    /// post: returns `Vec<RouterModelEntry>` filtered by case-insensitive substring match
     /// post: if query is empty → returns all models (delegates to list_models)
     pub async fn search_models(&self, query: &str) -> Vec<RouterModelEntry> {
         let all = self.list_models().await;
@@ -249,7 +249,7 @@ impl InferenceRouter {
     /// expect: "I can discover available models across providers"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — vision-capable model discovery
     /// pre:  none (delegates to list_models)
-    /// post: returns Vec<RouterModelEntry> filtered to supports_vision == Some(true)
+    /// post: returns `Vec<RouterModelEntry>` filtered to supports_vision == Some(true)
     pub async fn list_vision_models(&self) -> Vec<RouterModelEntry> {
         self.list_models()
             .await

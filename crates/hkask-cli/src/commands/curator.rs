@@ -8,7 +8,7 @@ use crate::cli::CuratorAction;
 
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  none
-/// post: returns Ok(Vec<EscalationEntry>) with all pending escalations
+/// post: returns Ok(`Vec<EscalationEntry>`) with all pending escalations
 /// post: delegates to escalation_queue.list_pending()
 pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();

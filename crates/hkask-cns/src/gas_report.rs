@@ -170,7 +170,7 @@ impl GasReport {
     /// * `until` — End of the query window (exclusive).
     ///
     /// # Returns
-    /// * `Ok(Vec<AgentGasSummary>)` — Sorted per-agent summaries.
+    /// * `Ok(`Vec<AgentGasSummary>`)` — Sorted per-agent summaries.
     /// * `Err(InfrastructureError)` — If the underlying store query fails.
     pub fn query_all_agents(
         &self,

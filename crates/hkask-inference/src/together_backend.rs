@@ -208,7 +208,7 @@ impl TogetherBackend {
     /// expect: "I can discover available models across providers"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — model variety discovery
     /// pre:  self.client and self.base_url are initialized
-    /// post: returns Ok(Vec<TogetherModel>) with all available models
+    /// post: returns Ok(`Vec<TogetherModel>`) with all available models
     /// post: if API returns non-success → Err(InferenceError::Connection)
     /// post: if connection fails → Err(InferenceError::Connection)
     pub async fn list_models(&self) -> Result<Vec<TogetherModel>, InferenceError> {

@@ -60,7 +60,7 @@ struct SnapshotState {
 /// - **Compute**: Produce snapshot actions for repos that need them
 /// - **Act**: Call `snapshot()` on the GitCASPort for each due repo
 ///
-/// Interior mutability via `parking_lot::RwLock<HashMap<String, SnapshotState>>`
+/// Interior mutability via `parking_lot::RwLock<Hash`Map<String, SnapshotState>`>`
 /// allows `act()` to record successful snapshot timestamps despite the
 /// `&self` signature required by `HkaskLoop`.
 pub struct SnapshotLoop {

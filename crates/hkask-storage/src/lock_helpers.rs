@@ -5,7 +5,7 @@
 //!
 //! # Why not `From<PoisonError>`?
 //!
-//! `InfrastructureError` already implements `From<PoisonError<T>>` (hkask-types),
+//! `InfrastructureError` already implements `From<Poison`Error<T>`>` (hkask-types),
 //! so `lock.lock()?` works when the caller's error type has `#[from] InfrastructureError`.
 //! The helpers below provide a named, self-documenting call site and keep the
 //! `?` ergonomics intact while also supporting explicit `.map_err()` chains

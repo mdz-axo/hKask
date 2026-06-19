@@ -275,7 +275,7 @@ impl BundleManifest {
             .collect()
     }
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns Vec<String> of all skill ids in the bundle
+    /// post: returns `Vec<String>` of all skill ids in the bundle
     pub fn skill_ids(&self) -> Vec<String> {
         self.skills.iter().map(|s| s.id.clone()).collect()
     }

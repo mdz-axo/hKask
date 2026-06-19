@@ -168,7 +168,7 @@ impl DynamicGasTable {
     ///
     /// expect: "I can run a calibration pass that adjusts server costs when EMA ratios exceed tolerance"
     /// expect: "I can export the calibrated server cost table for estimator construction"
-    /// post: returns a HashMap<String, u64> of server → cost mappings
+    /// post: returns a Hash`Map<String, u64>` of server → cost mappings
     pub fn report_table(&self) -> HashMap<String, u64> {
         self.server_costs.clone()
     }
@@ -179,7 +179,7 @@ impl DynamicGasTable {
     /// Unobserved servers are omitted.
     ///
     /// expect: "I can query per-server EMA ratios for diagnostics and monitoring"
-    /// post: returns a HashMap<String, f64> of server → EMA ratio mappings
+    /// post: returns a Hash`Map<String, f64>` of server → EMA ratio mappings
     pub fn current_ratios(&self) -> HashMap<String, f64> {
         self.ema_ratios.clone()
     }

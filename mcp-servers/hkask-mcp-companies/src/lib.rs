@@ -61,15 +61,15 @@ fn validate_symbol(symbol: &str) -> Result<(), McpToolError> {
 // ── Server struct ──────────────────────────────────────────────────
 
 pub struct CompaniesServer {
-    webid: WebID,
+    pub webid: WebID,
     /// Replicant identity serving this MCP server (for narrative memory)
-    replicant: String,
+    pub replicant: String,
     /// Daemon client for dual-encoding experiences (None if daemon unavailable)
-    daemon: Option<DaemonClient>,
-    client: reqwest::Client,
-    fmp_api_key: String,
-    eodhd_api_key: String,
-    portfolio: PortfolioManager,
+    pub daemon: Option<DaemonClient>,
+    pub client: reqwest::Client,
+    pub fmp_api_key: String,
+    pub eodhd_api_key: String,
+    pub portfolio: PortfolioManager,
 }
 
 impl CompaniesServer {

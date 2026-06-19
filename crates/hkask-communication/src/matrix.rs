@@ -211,7 +211,7 @@ impl MatrixTransport {
     /// pre:  client is authenticated (login() called)
     /// pre:  room_id is a valid Matrix room ID
     /// pre:  limit > 0
-    /// post: returns Vec<MatrixMessage> with at most `limit` messages
+    /// post: returns `Vec<MatrixMessage>` with at most `limit` messages
     /// post: returns Err(NotLoggedIn) if not authenticated
     /// post: returns Err(Room) if room not found
     pub async fn get_messages(
@@ -414,7 +414,7 @@ impl MatrixTransport {
     ///
     /// expect: "Agents communicate through user-owned channels"
     /// pre:  client is authenticated (login() called)
-    /// post: returns Vec<Thread> with all joined rooms
+    /// post: returns `Vec<Thread>` with all joined rooms
     /// post: each Thread has room_id, title, and participants populated
     /// post: returns Err(NotLoggedIn) if not authenticated
     pub async fn list_rooms(&self) -> Result<Vec<Thread>, MatrixError> {

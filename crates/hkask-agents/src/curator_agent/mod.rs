@@ -13,9 +13,9 @@
 //!
 //! ```text
 //! CuratorAgent
-//! ├── curation_loop: Arc<CurationLoop>   // pure regulatory
-//! ├── metacognition: Arc<MetacognitionLoop> // persona: observe & adapt
-//! └── context: Arc<CuratorContext>       // capability-disciplined access
+//! ├── curation_loop: `Arc<CurationLoop>`   // pure regulatory
+//! ├── metacognition: `Arc<MetacognitionLoop>` // persona: observe & adapt
+//! └── context: `Arc<CuratorContext>`       // capability-disciplined access
 //! ```
 
 pub mod bot_health;

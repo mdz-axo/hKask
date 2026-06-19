@@ -42,7 +42,7 @@ impl SchedulerService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized; agent_name must be non-empty
-    /// post: returns Vec<ScheduledTask> for the agent; empty Vec if none; Err(AgentRegistryStore) on store failure
+    /// post: returns `Vec<ScheduledTask>` for the agent; empty Vec if none; Err(AgentRegistryStore) on store failure
     pub fn list(
         store: &AgentRegistryStore,
         agent_name: &str,
@@ -58,7 +58,7 @@ impl SchedulerService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized; now must be a valid timestamp string
-    /// post: returns Vec<ScheduledTask> of all due tasks; empty Vec if none; Err(AgentRegistryStore) on store failure
+    /// post: returns `Vec<ScheduledTask>` of all due tasks; empty Vec if none; Err(AgentRegistryStore) on store failure
     pub fn due_tasks(
         store: &AgentRegistryStore,
         now: &str,

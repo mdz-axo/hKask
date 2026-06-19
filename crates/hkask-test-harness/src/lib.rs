@@ -85,9 +85,9 @@ impl TestDb {
         self.conn.lock().expect("mutex should not be poisoned")
     }
 
-    /// Get the Arc<Mutex<Connection>> for Store constructors.
+    /// Get the Arc<`Mutex<Connection>`> for Store constructors.
     ///
-    /// post: returns `Arc<Mutex<Connection>>` clone for Store::new()
+    /// post: returns `Arc<`Mutex<Connection>`>` clone for Store::new()
     pub fn conn_arc(&self) -> Arc<Mutex<Connection>> {
         Arc::clone(&self.conn)
     }

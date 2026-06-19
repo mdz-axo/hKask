@@ -329,7 +329,7 @@ impl OnboardingService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config.db_path must be set; returns empty Vec on any failure
-    /// post: returns Vec<RegisteredAgent> of replicants; empty Vec if DB inaccessible or no replicants
+    /// post: returns `Vec<RegisteredAgent>` of replicants; empty Vec if DB inaccessible or no replicants
     pub fn try_list_existing_replicants(config: &ServiceConfig) -> Vec<RegisteredAgent> {
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "try_list_existing_replicants", "CNS");
@@ -538,7 +538,7 @@ impl OnboardingService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  homeserver_url must be valid and reachable
-    /// post: returns HashMap<String, String> of bot_name → user_id for successfully registered bots; failed registrations are silently skipped
+    /// post: returns Hash`Map<String, String>` of bot_name → user_id for successfully registered bots; failed registrations are silently skipped
     pub async fn register_system_accounts(
         homeserver_url: &str,
     ) -> Result<std::collections::HashMap<String, String>, ServiceError> {

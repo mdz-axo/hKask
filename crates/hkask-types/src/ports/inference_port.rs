@@ -5,7 +5,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-/// LLM invocation boundary. Uses `Pin<Box<dyn Future>>` (not `async_trait`) for object-safety.
+/// LLM invocation boundary. Uses `Pin<`Box<dyn Future>`>` (not `async_trait`) for object-safety.
 /// Impls: `InferenceRouter` (hkask-inference), `Arc<dyn InferencePort>` (blanket).
 pub trait InferencePort: Send + Sync {
     fn generate(
@@ -103,7 +103,7 @@ impl From<InferenceResult> for InferenceStreamChunk {
     }
 }
 
-/// Blanket impl — enables `InferenceLoop<Arc<dyn InferencePort>>` default type param.
+/// Blanket impl — enables `InferenceLoop<`Arc<dyn InferencePort>`>` default type param.
 /// Vtable dispatch only at construction; hot path uses static dispatch.
 impl InferencePort for Arc<dyn InferencePort> {
     fn generate(

@@ -347,7 +347,7 @@ impl ConsentManager {
     /// expect: "Agent consent is explicitly granted, scoped, and revocable"
     /// \[P2\] Motivating: Affirmative Consent — list granted categories for disclosure
     /// pre:  `webid` is a non-empty string.
-    /// post: Returns `Ok(Vec<String>)` containing all granted category
+    /// post: Returns `Ok(`Vec<String>`)` containing all granted category
     ///       names for an active record; returns `Ok(vec![])` if no active
     ///       record exists for `webid`.
     pub fn get_granted_categories(&self, webid: &str) -> Result<Vec<String>, ConsentError> {

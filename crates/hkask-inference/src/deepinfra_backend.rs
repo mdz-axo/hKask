@@ -204,7 +204,7 @@ impl DeepInfraBackend {
     /// expect: "I can discover available models across providers"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — model variety discovery with freshness filter
     /// pre:  self.client and self.base_url are initialized
-    /// post: returns Ok(Vec<DeepInfraModelEntry>) with models updated in last 180 days
+    /// post: returns Ok(`Vec<DeepInfraModelEntry>`) with models updated in last 180 days
     /// post: if API returns non-success → Ok(Vec::new()) (graceful degradation)
     /// post: if connection fails → Err(InferenceError::Connection)
     pub async fn list_models(&self) -> Result<Vec<DeepInfraModelEntry>, InferenceError> {

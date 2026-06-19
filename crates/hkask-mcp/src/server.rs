@@ -7,7 +7,7 @@
 //! use hkask_mcp::server::{run_stdio_server, CredentialRequirement, ServerContext};
 //
 //! #[tokio::main]
-//! async fn main() -> anyhow::Result<()> {
+//! async fn main() -> anyhow::`Result<()>` {
 //!     run_stdio_server(
 //!         "hkask-mcp-web",
 //!         env!("CARGO_PKG_VERSION"),

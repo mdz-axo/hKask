@@ -86,7 +86,7 @@ pub struct UpdateSettingsRequest {
 
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  none
-/// post: returns OpenApiRouter<ApiState> with settings route registered
+/// post: returns OpenApi`Router<ApiState>` with settings route registered
 pub fn settings_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new().route("/api/settings", get(get_settings).put(update_settings))
 }

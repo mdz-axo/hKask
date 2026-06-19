@@ -24,7 +24,7 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # async fn example() -> Result<(), `Box<dyn std::error::Error>`> {
 //! use hkask_agents::pod::{AgentPod, AgentPersona, PodLifecycleState};
 //! use hkask_mcp::GitCasAdapter;
 //! use hkask_agents::a2a::A2ARuntime;
@@ -51,7 +51,7 @@
 //!     "test-bot",
 //!     &persona,
 //!     &git_adapter,
-//!     Arc::new(DenyAllConsent) as Arc<dyn SovereigntyConsent>,
+//!     Arc::new(DenyAllConsent) as `Arc<dyn SovereigntyConsent>`,
 //! )?;
 //! pod.register(a2a_runtime.as_ref()).await?;
 //! pod.activate(&mcp_runtime)?;

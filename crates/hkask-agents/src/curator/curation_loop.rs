@@ -105,7 +105,7 @@ impl CurationLoop {
     /// expect: "The system regulates agent behavior through cybernetic feedback"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — unified inbox receives CurationInput
     /// pre:  `rx` is a valid `UnboundedReceiver<CurationInput>`.
-    /// post: Returns `self` with `inbox` set to `Some(Arc<RwLock<rx>>)`.
+    /// post: Returns `self` with `inbox` set to `Some(Arc<Rw`Lock<rx>`>)`.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_inbox(mut self, rx: mpsc::UnboundedReceiver<CurationInput>) -> Self {
         self.inbox = Some(Arc::new(RwLock::new(rx)));

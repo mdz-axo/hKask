@@ -202,7 +202,7 @@ pub struct StreamDelta {
 /// expect: "The system constructs and validates regulated LLM requests"
 /// \[P9\] Motivating: Homeostatic Self-Regulation — structured tool-call results for routing
 /// pre:  calls is a valid slice of RawToolCall
-/// post: returns Vec<StructuredToolCall> with parsed arguments
+/// post: returns `Vec<StructuredToolCall>` with parsed arguments
 pub fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
     calls
         .iter()
@@ -229,7 +229,7 @@ pub fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
 /// expect: "The system constructs and validates regulated LLM requests"
 /// \[P9\] Motivating: Homeostatic Self-Regulation — token probability metadata for monitoring
 /// pre:  probs is a valid slice of RawTokenProb
-/// post: returns Vec<TokenProbability> with mapped fields
+/// post: returns `Vec<TokenProbability>` with mapped fields
 pub fn map_token_probs(probs: &[RawTokenProb]) -> Vec<TokenProbability> {
     probs
         .iter()
@@ -379,7 +379,7 @@ pub fn validate_prompt(prompt: &str) -> Result<(), InferenceError> {
 /// pre:  client is a configured reqwest::Client
 /// pre:  base_url and auth_header_value are non-empty
 /// pre:  model and prompt are non-empty
-/// post: returns Pin<Box<Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send>>
+/// post: returns Pin<Box<Stream<Item = `Result<InferenceStreamChunk, InferenceError>`> + Send>>
 pub fn stream_chat_completion(
     client: std::sync::Arc<reqwest::Client>,
     base_url: String,

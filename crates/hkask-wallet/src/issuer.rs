@@ -200,7 +200,7 @@ impl ApiKeyIssuer {
     /// \[P4\] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
     /// \[P1\] Constraining: User Sovereignty — private keys are returned once and never stored
     /// pre:  wallet_id is a valid WalletId
-    /// post: returns Ok(Vec<ApiKeyCapability>) containing only non-revoked keys
+    /// post: returns Ok(`Vec<ApiKeyCapability>`) containing only non-revoked keys
     pub fn list_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, WalletError> {
         self.store.list_api_keys(wallet_id)
     }

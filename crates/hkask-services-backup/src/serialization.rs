@@ -18,7 +18,7 @@ use crate::scope::ArtifactType;
 ///
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  artifact_type must be a valid ArtifactType; artifact_id must be non-empty; data must be Serialize
-/// post: returns Vec<u8> of JSON-encoded ArtifactEnvelope; Err on serialization failure
+/// post: returns `Vec<u8>` of JSON-encoded ArtifactEnvelope; Err on serialization failure
 pub fn serialize_artifact(
     artifact_type: &ArtifactType,
     artifact_id: &str,

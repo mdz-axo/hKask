@@ -7,7 +7,7 @@ use std::path::Path;
 
 /// Unwrap a `Result` or print an error message and exit.
 /// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  result is a Result<T, E>; label is a human-readable context string
+/// pre:  result is a `Result<T, E>`; label is a human-readable context string
 /// post: returns Ok value or prints "{label}: {error}" to stderr and exits with code 1
 pub fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T {
     match result {

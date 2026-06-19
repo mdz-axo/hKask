@@ -166,7 +166,7 @@ impl ArchivalService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  repo_owner, repo_name must be non-empty; GitHub credentials must be in keychain
-    /// post: returns Vec<String> of commit SHAs; empty Vec if no commits; Err(Archival) on API failure
+    /// post: returns `Vec<String>` of commit SHAs; empty Vec if no commits; Err(Archival) on API failure
     pub async fn list_archives(
         repo_owner: &str,
         repo_name: &str,

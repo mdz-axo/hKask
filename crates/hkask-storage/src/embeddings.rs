@@ -206,7 +206,7 @@ impl EmbeddingStore {
     /// expect: "The system provides durable storage for embedding data"
     /// \[P3\] Motivating: Generative Space — vector similarity search
     /// pre:  query_vector matches store dimension, limit > 0
-    /// post: returns Vec<SimilarityResult> ordered by ascending distance
+    /// post: returns `Vec<SimilarityResult>` ordered by ascending distance
     pub fn search(
         &self,
         query_vector: &[f32],

@@ -8,11 +8,11 @@
 //!
 //! # Principles
 //!
-//! - [P6] Goal: Space for Replicants — each replicant inhabits its own pod
+//! - \[P6\] Goal: Space for Replicants — each replicant inhabits its own pod
 //!   - Constraining: Digital Public/Private Sphere — per-pod SQLCipher boundary
 //!   - Constraining: Clear Boundaries — OCAP tokens scoped to this pod
-//! - [P5] Goal: Essentialism — factory only; no runtime cache
-//! - [P9] Goal: Homeostatic Self-Regulation — per-pod variety tracking
+//! - \[P5\] Goal: Essentialism — factory only; no runtime cache
+//! - \[P9\] Goal: Homeostatic Self-Regulation — per-pod variety tracking
 
 use hkask_cns::CnsRuntime;
 use hkask_cns::GovernedTool;
