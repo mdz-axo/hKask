@@ -26,21 +26,31 @@ impl SemanticIndex {
     }
 
     /// Insert a semantic triple from a source pod.
-    /// Returns true if this is a new triple (not a duplicate by entity+attribute+value).
+    /// The source_pod is stored in the triple's `access.perspective` field
+    /// (reused as provenance metadata — SemantiIndex triples have no episodic perspective).
+    /// Returns true on successful insert.
     pub fn insert(
         &mut self,
         triple: &Triple,
         source_pod: PodID,
     ) -> Result<bool, hkask_storage::TripleError> {
-        self.store.insert(triple)?;
-        // Track cursor advancement — the caller manages the actual cursor value
-        let _ = source_pod;
+        // Attach source pod provenance to the triple before storing.
+        // PodID → WebID via UUID extraction (both are Id<T> wrapping Uuid).
+        let mut triple = triple.clone();
+        let webid = hkask_types::WebID::from_uuid(source_pod.as_uuid());
+        triple.access = triple.access.with_perspective(webid);
+        self.store.insert(&triple)?;
         Ok(true)
     }
 
     /// Query all triples for an entity across all source pods.
     pub fn query_by_entity(&self, entity: &str) -> Result<Vec<Triple>, hkask_storage::TripleError> {
         self.store.query_by_entity(entity)
+    }
+
+    /// Get the PodID from a triple's source provenance (stored in access.perspective).
+    pub fn source_pod_of(triple: &Triple) -> Option<PodID> {
+        triple.access.perspective.map(|webid| PodID::from_uuid(webid.as_uuid()))
     }
 
     /// Query triples by entity and attribute.

@@ -4125,6 +4125,7 @@ dependencies = [
  "hkask-mcp",
  "hkask-memory",
  "hkask-services",
+ "hkask-services-classify",
  "hkask-storage",
  "hkask-templates",
  "hkask-test-harness",
@@ -4220,6 +4221,14 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tracing",
+]
+
+[[package]]
+name = "hkask-improv-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-improv",
 ]
 
 [[package]]
@@ -4605,6 +4614,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-memory-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-memory",
+]
+
+[[package]]
 name = "hkask-services"
 version = "0.28.0"
 dependencies = [
@@ -4749,6 +4766,14 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "hkask-services-core-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-services-core",
 ]
 
 [[package]]
@@ -5005,6 +5030,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-storage-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-storage",
+ "hkask-types",
+ "serde_json",
+]
+
+[[package]]
 name = "hkask-templates"
 version = "0.28.0"
 dependencies = [
@@ -5024,6 +5059,14 @@ dependencies = [
  "tracing",
  "uuid",
  "walkdir",
+]
+
+[[package]]
+name = "hkask-templates-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-templates",
 ]
 
 [[package]]
@@ -5111,6 +5154,15 @@ dependencies = [
  "tracing",
  "wiremock",
  "zeroize",
+]
+
+[[package]]
+name = "hkask-wallet-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-types",
+ "hkask-wallet",
 ]
 
 [[package]]

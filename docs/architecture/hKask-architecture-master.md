@@ -511,7 +511,7 @@ graph TD
     MCP["hkask-mcp-kanban"] --> SVC
     SVC --> TYPES["hkask-types (kanban)"]
     SVC --> STORAGE["hkask-storage (TripleStore)"]
-    SVC -.-> AGENTS["hkask-agents (PodManager)"]
+    SVC -.-> AGENTS["hkask-agents (ActivePods)"]
 ```
 
 `hkask-mcp-kanban` depends on `hkask-services` — permitted as a tri-surface for KanbanService.
@@ -708,12 +708,12 @@ Replicants can operate in **server mode**, presenting as MCP servers to IDEs (Ze
 graph TD
     subgraph "hKask System (Background Service)"
         AS["AgentService::build()"]
-        PM["PodManager"]
+        AP["ActivePods"]
         US["UserStore"]
         IP["InferencePort"]
         DH["ServiceDaemonHandler"]
         DL["DaemonListener<br/>(~/.config/hkask/daemon.sock)"]
-        AS --> PM
+        AS --> AP
         AS --> US
         AS --> IP
         AS --> DH
@@ -771,7 +771,7 @@ Concurrent chat+server mode planned for future release (3-6 months).
 
 1. **P4 Dual Gate:** Every MCP server startup requires both capability verification (OCAP token) and assignment verification (sovereignty/consent).
 2. **P2 Affirmative Consent:** Passphrase entry via `kask login` creates session. Daemon checks session existence — no passphrase stored with MCP binary.
-3. **Out-of-process isolation:** MCP binaries communicate with hKask only through the daemon socket. No direct access to PodManager, memory, or inference.
+3. **Out-of-process isolation:** MCP binaries communicate with hKask only through the daemon socket. No direct access to ActivePods, memory, or inference.
 4. **Mode mutual exclusion (initial):** An agent can be in Chat mode OR Server mode, not both.
 
 ---

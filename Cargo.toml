@@ -41,6 +41,12 @@ members = [
     "crates/hkask-types/fuzz",
     "crates/hkask-cns/fuzz",
     "crates/hkask-inference/fuzz",
+    "crates/hkask-wallet/fuzz",
+    "crates/hkask-storage/fuzz",
+    "crates/hkask-templates/fuzz",
+    "crates/hkask-memory/fuzz",
+    "crates/hkask-services-core/fuzz",
+    "crates/hkask-improv/fuzz",
     # MCP servers
     "mcp-servers/hkask-mcp-condenser",
     "mcp-servers/hkask-mcp-research",

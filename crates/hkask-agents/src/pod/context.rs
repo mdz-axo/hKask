@@ -343,13 +343,13 @@ impl PodContext {
 
         // Route through Curator's merged index when available (Step 5)
         if let Some(ref index_lock) = self.curator_index {
-            let index = index_lock
-                .read()
-                .map_err(|e| AgentPodError::MemoryError(crate::error::MemoryError::Core(
-                    crate::error::CoreError::Infra(hkask_types::InfrastructureError::Io(
-                        format!("Curator index lock poisoned: {e}"),
-                    )),
-                )))?;
+            let index = index_lock.read().map_err(|e| {
+                AgentPodError::MemoryError(crate::error::MemoryError::Core(
+                    crate::error::CoreError::Infra(hkask_types::InfrastructureError::Io(format!(
+                        "Curator index lock poisoned: {e}"
+                    ))),
+                ))
+            })?;
             let triples = index.query_by_entity(query).map_err(|e| {
                 AgentPodError::MemoryError(crate::error::MemoryError::Core(
                     crate::error::CoreError::Infra(hkask_types::InfrastructureError::Database(

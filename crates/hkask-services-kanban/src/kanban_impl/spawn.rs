@@ -33,7 +33,7 @@ impl KanbanService {
         }
 
         let spawn_note = format!(
-            "Spawn configured (no PodManager): level={}, skills={:?}, memory={}, tools={:?}",
+            "Spawn configured (no ActivePods): level={}, skills={:?}, memory={}, tools={:?}",
             spawn_spec.delegation_level,
             spawn_spec.delegated_skills,
             spawn_spec.memory_scope,
@@ -44,7 +44,7 @@ impl KanbanService {
         task.updated_at = chrono::Utc::now();
         self.update_task_triple(&task)?;
         Ok(format!(
-            "Spawn configured for '{}' (no PodManager — string mode). Skills: {:?}",
+            "Spawn configured for '{}' (no ActivePods — string mode). Skills: {:?}",
             task.title, spawn_spec.delegated_skills
         ))
     }

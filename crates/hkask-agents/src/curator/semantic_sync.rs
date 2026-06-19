@@ -214,12 +214,14 @@ impl CuratorSync {
         let mut count = 0;
         let mut index = self.index.write().unwrap();
 
-        for (rowid, entity, attribute, value_str, _confidence) in &rows {
+        for (rowid, entity, attribute, value_str, confidence) in &rows {
             let value: serde_json::Value = serde_json::from_str(value_str)
                 .unwrap_or(serde_json::Value::String(value_str.to_string()));
 
+            let conf: hkask_types::Confidence = (*confidence).into();
             let triple =
                 hkask_storage::Triple::new(entity, attribute, value, hkask_types::WebID::default())
+                    .with_confidence(conf)
                     .with_visibility(Visibility::Public);
 
             // Insert into SemanticIndex
