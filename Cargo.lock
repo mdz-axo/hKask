@@ -4497,7 +4497,6 @@ dependencies = [
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
- "libfuzzer-sys",
  "rmcp",
  "rusqlite",
  "serde",
