@@ -20,6 +20,7 @@ CHECKED=0
 INTENTIONAL_PLACEHOLDERS=(
     "docs/specifications/cns-protocol-reference.md"  # Deferred
     ".github/scripts/check_links.sh"                 # External CI
+    "../../../guides/CONTRACT_GUIDE.md"               # Contract standard — being established
 )
 
 echo "=== hKask Documentation Link Checker ==="
