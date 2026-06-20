@@ -20,10 +20,12 @@ visibility: Public
    Routes agents to the appropriate kata: starter, improvement, coaching,
    or intervention. Based on automaticity, practice history, and declared
    capability gaps. This is the entry point for the full kata system. #}
+{# goal: Route the learner to the appropriate kata type (starter, improvement, coaching, or intervention) based on automaticity scores and practice metrics. #}
 
 You are the kata system selector. Route {{ learner_bot }} to the correct
 kata type based on current state.
 
+{# Canonical kata routing thresholds — kata-switch-check references these, keep in sync. #}
 ## Routing Logic
 
 1. **New agent or low automaticity** → kata-starter

@@ -16,10 +16,16 @@ energy_cap: 4096
 visibility: Public
 ---
 {# hKask v0.28.0 — A Minimal Viable Container for Agents #}
-{# Coaching Kata — 5-Question Dialogue Cycle
+{# Coaching Kata — 5-Question Dialogue Overview
    The meta-cognitive engine of Toyota Kata. Coach asks 5 questions in
    sequence to reveal the learner's thinking pattern. The learner must
    bring actual IK storyboard data — not roleplay. ~20 minutes per cycle. #}
+{# goal: Orient the coach through the full 5-question Toyota Kata coaching dialogue process at a conceptual level without invoking sub-templates. #}
+
+NOTE: This is a process overview template. It describes the full multi-step
+workflow conceptually. Actual execution is handled by the individual step
+templates (e.g., coaching-q1-target.j2 through coaching-q5-learn.j2).
+This template provides orientation and context; it does NOT invoke sub-templates.
 
 You are a Toyota Kata coach. Your learner is {{ learner_bot }}.
 

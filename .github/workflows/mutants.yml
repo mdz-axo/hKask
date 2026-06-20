@@ -53,7 +53,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             pkg-config libssl-dev libsqlite3-dev libdbus-1-dev mold clang \
-            binutils-dev libunwind-dev
+            binutils-dev libunwind-dev libbfd-dev
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -63,13 +63,18 @@ jobs:
         with:
           tool: cargo-bolero
 
-      - name: Deep fuzz (coverage-guided, 300s per target)
+      - name: Deep fuzz — libfuzzer (300s per target)
         run: |
           cargo bolero test -p hkask-types-fuzz fuzz_cns_span_parse_never_panics -T 300s -e libfuzzer 2>&1 | tee bolero-deep-output.txt
           cargo bolero test -p hkask-cns-fuzz fuzz_cns_span_parse_never_panics -T 300s -e libfuzzer 2>&1 | tee -a bolero-deep-output.txt
           cargo bolero test -p hkask-inference-fuzz fuzz_provider_id_parse_model -T 300s -e libfuzzer 2>&1 | tee -a bolero-deep-output.txt
           cargo bolero test -p hkask-mcp-kanban-fuzz fuzz_kanban_dispatch_board_create -T 300s -e libfuzzer --seed-dir mcp-servers/hkask-mcp-kanban/fuzz/seeds 2>&1 | tee -a bolero-deep-output.txt
           cargo bolero test -p hkask-mcp-replica-fuzz fuzz_replica_dispatch_build -T 300s -e libfuzzer 2>&1 | tee -a bolero-deep-output.txt
+
+      - name: Deep fuzz — honggfuzz (300s per target)
+        run: |
+          cargo bolero test -p hkask-mcp-kanban-fuzz fuzz_kanban_dispatch_task_create -T 300s -e honggfuzz --seed-dir mcp-servers/hkask-mcp-kanban/fuzz/seeds 2>&1 | tee -a bolero-deep-output.txt
+          cargo bolero test -p hkask-mcp-replica-fuzz fuzz_replica_dispatch_compose -T 300s -e honggfuzz 2>&1 | tee -a bolero-deep-output.txt
         continue-on-error: true
 
       - name: Triage failures

@@ -21,27 +21,25 @@ visibility: Public
    from starter to improvement? From improvement to coaching? From solo
    practice to coached practice? Switching happens when readiness signals
    (automaticity, capability gap, coach availability) align. #}
+{# goal: Determine whether the learner should switch kata types based on threshold crossings in automaticity and practice data. #}
 
 You are the kata composition switch checker for {{ learner_bot }}.
 
 The agent is currently practicing one kata type. Determine if a switch
 to another kata is warranted.
 
+{# Routing thresholds: see kata-selector.j2 for canonical definitions. These thresholds must match. #}
 ## Switch Triggers
 
-1. **Starter → Improvement:** Automaticity > 0.5 AND a specific,
-   measurable capability gap is declared. The agent is ready for the
-   real 4-step Improvement Kata.
+Refer to kata-selector thresholds for the canonical routing definitions. Evaluate the current agent state against those thresholds:
 
-2. **Improvement → Coaching:** An active IK cycle with a target condition
-   exists AND a coach is available. The 5-question dialogue can ground
-   in real data.
+1. **Starter → Improvement:** Trigger when automaticity crosses the improvement threshold AND a specific, measurable capability gap is declared.
 
-3. **Coaching → Improvement:** Coaching cycle completed. The learner has
-   clarity on next experiment. Return to improvement to execute.
+2. **Improvement → Coaching:** Trigger when an active IK cycle with a target condition exists AND a coach is available.
 
-4. **Any → Intervention:** Practice gap exceeds 3 days OR automaticity
-   drops below 0.2. Route to habit intervention.
+3. **Coaching → Improvement:** Trigger when coaching cycle completes and the learner has clarity on next experiment.
+
+4. **Any → Intervention:** Trigger when practice gap exceeds the intervention threshold OR automaticity drops below the intervention floor.
 
 ## State
 

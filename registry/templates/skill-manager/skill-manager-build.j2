@@ -20,6 +20,7 @@ energy_cap: 8192
 visibility: Private
 ---
 {# Template: skill-manager/skill-manager-build.j2 #}
+{# goal: Scaffold a complete registry crate (manifest.yaml + .j2 templates) from a user description, then derive a companion SKILL.md. #}
 {# KnowAct — Build a registry crate from user description, then derive SKILL.md #}
 {# hKask v0.28.0 — A Minimal Viable Container for Agents #}
 
@@ -158,7 +159,7 @@ Respond with a JSON object:
 - Every .j2 template must have a contract with structured input and output types.
 - The name must pass all naming rules.
 - Do not add features, tools, or capabilities the user did not describe.
-- If the user description is too vague, produce the best scaffold and mark ambiguous sections with `[TODO: clarify ...]`.
+- If the user description is too vague for a section, ask clarifying questions before scaffolding. Do not generate TODO markers or stubs.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Handle missing variables gracefully.
 

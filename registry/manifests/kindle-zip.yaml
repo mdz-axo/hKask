@@ -1,0 +1,135 @@
+# Kindle Zip Manifest
+# hKask v0.30.0 — Personal-use format-shifting workflow
+#
+# Captures a book from Kindle Cloud Reader (read.amazon.com/kindle-library)
+# as page-by-page screenshots, then assembles them into a PDF.
+#
+# Precondition: User already authenticated in Kindle Cloud Reader browser session.
+
+manifest:
+  id: kindle-zip
+  name: Kindle Zip
+  description: >
+    Opens a Kindle Cloud Reader book by title, captures each page as a screenshot
+    via browser automation, and assembles the captures into a single PDF.
+  version: 0.1.0
+  functional_role: flowdef
+  editor: curator-or-human-admin
+  visibility: Public
+
+# ── Input Parameters ──────────────────────────────────────────────────────
+parameters:
+  book_title:
+    type: string
+    description: "Exact or partial title of the book in the Kindle library"
+    required: true
+  output_pdf:
+    type: string
+    description: >
+      Path for the output PDF file.
+      When empty, prompts the user interactively at dispatch time.
+    default: ~/documents/kindle-library/${book_title | slugify}.pdf
+    interactive: true
+    interactive_prompt: "Where should the PDF be saved?"
+  max_pages:
+    type: integer
+    description: "Safety limit — maximum pages to capture"
+    default: 500
+  page_wait_ms:
+    type: integer
+    description: "Milliseconds to wait after each page turn"
+    default: 1500
+
+# ── Gas / Energy Budget ───────────────────────────────────────────────────
+gas:
+  cap: 16384
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+# ── Pipeline Steps ────────────────────────────────────────────────────────
+steps:
+  # Step 1 — Kindle zip capture (docproc owns document processing)
+  - ordinal: 1
+    title: "Capture Book from Kindle Cloud Reader"
+    action: execute
+    description: >
+      Opens the book by title in Kindle Cloud Reader, pages through it,
+      captures each page as a screenshot, and assembles into a PDF.
+      Internally uses browser automation (via research's Firecrawl provider)
+      and image-to-PDF assembly (via media server).
+    mcp: hkask-mcp-docproc
+    tool: docproc_kindle_zip
+    arguments:
+      book_title: "${book_title}"
+      output_pdf: "${output_pdf}"
+      max_pages: "${max_pages}"
+      page_wait_ms: "${page_wait_ms}"
+    gas_cap: 12288
+    timeout_seconds: "${max_pages * 5 + 60}"
+    output_schema:
+      pdf_path: string
+      pages_captured: integer
+      file_size_bytes: integer
+
+  # Step 2 — CNS feedback
+  - ordinal: 2
+    title: "Emit Completion Metrics"
+    action: feedback
+    description: >
+      Record the capture outcome in the CNS for observability.
+    mcp: null
+    gas_cap: 500
+    timeout_seconds: 5
+    feedback:
+      book_title: "${book_title}"
+      pages_captured: integer
+      output_pdf: string
+      file_size_bytes: integer
+    output_schema:
+      cns_event_id: string
+
+# ── Error Handling ─────────────────────────────────────────────────────────
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout:
+    action: warn_partial
+    note: "May have captured partial book; check output PDF"
+  max_retries: 1
+  retry_backoff_seconds: 2
+  on_book_not_found:
+    action: abort
+    message: "Could not find book titled '${book_title}' in the Kindle library"
+
+# ── OCAP Configuration ─────────────────────────────────────────────────────
+ocap:
+  required_capabilities:
+    - resource: document
+      action: kindle_zip
+      gas_budget: 12288
+    - resource: cns
+      action: emit
+      gas_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# ── CNS Monitoring ─────────────────────────────────────────────────────────
+cns:
+  emit_spans: true
+  span_namespace: cns.tool.docproc.kindle_zip
+  variety_monitoring: false
+  algedonic_threshold: 100
+  escalation_target: Curator
+
+# ── Audit Trail ────────────────────────────────────────────────────────────
+audit:
+  enabled: true
+  log_level: info
+  include_input: false
+  include_output: true
+  include_gas_cost: true
+  include_cns_events: true
+  redact_fields:
+    - screenshot_data_url

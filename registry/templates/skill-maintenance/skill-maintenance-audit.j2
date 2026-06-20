@@ -19,6 +19,7 @@ energy_cap: 6144
 visibility: Public
 ---
 {# Template: skill-maintenance/skill-maintenance-audit.j2 #}
+{# goal: Audit registry crates for staleness signals: manifest validity, .j2 contract drift, template_type correctness, FlowDef tool/template validation, and health scoring. #}
 {# KnowAct — Registry crate staleness audit and health scoring #}
 {# hKask v0.28.0 — A Minimal Viable Container for Agents #}
 
@@ -67,29 +68,33 @@ A skill is stale if it exhibits any of these signals:
 | Deprecated patterns | Uses `todo!`, `unimplemented!`, `#[deprecated]`, or abandoned APIs | Medium |
 | Missing SKILL.md companion | SKILL.md absent from `.agents/skills/<name>/` | Low |
 | CNS span mismatches | References `cns.*` spans not in defined namespace set | Low |
+| FlowDef `tool:` references nonexistent MCP tool | Cross-check step `tool:` against MCP tool registry | Critical |
+| FlowDef references `tool: internal` | `tool: internal` means no MCP implementation — agent-coordinated, valid but aspirational | Medium |
+| FlowDef `template:` references nonexistent template | Resolve `template:` values against manifest's known templates | Critical |
+| FlowDef step parameter names mismatch MCP tool | Compare step params against tool's declared Parameters struct fields | High |
+| FlowDef YAML present but no manifest entry | Orphaned FlowDefs can't be discovered by cascade | High |
 
 ## Health Scoring
 
-Each skill receives a health score from 0 to 100:
+Each skill receives a health score from 0.0 to 1.0:
 
 | Score Range | Status | Action |
 |-------------|--------|--------|
-| 80–100 | Healthy | No action needed |
-| 60–79 | Aging | Schedule review within 30 days |
-| 40–59 | Degraded | Prioritize review; consider revision |
-| 20–39 | Critical | Deprecation recommended; revision required |
-| 0–19 | Dead | Retirement recommended; replace or remove |
+| 0.80–1.00 | active | No action needed |
+| 0.50–0.79 | stale_warning | Schedule review within 30 days |
+| 0.20–0.49 | critical | Deprecation recommended; revision required |
+| 0.00–0.19 | deprecation | Retirement recommended; replace or remove |
 
 Scoring weights:
 
 | Signal Category | Weight |
 |-----------------|--------|
-| Critical signals | −25 each |
-| High signals | −15 each |
-| Medium signals | −10 each |
-| Low signals | −5 each |
+| Critical signals | −0.50 each |
+| High signals | −0.15 each |
+| Medium signals | −0.10 each |
+| Low signals | −0.05 each |
 
-Base score: 100. Subtract weighted penalties. Floor at 0.
+Base score: 1.0. Subtract weighted penalties. Floor at 0.0.
 
 ## Deprecation Process
 
@@ -97,7 +102,7 @@ Base score: 100. Subtract weighted penalties. Floor at 0.
 2. **Grace period** — 30 days during which the crate remains functional but logs a deprecation notice.
 3. **Retirement** — Remove `registry/templates/<name>/` (canonical) and `.agents/skills/<name>/` (companion).
 
-Do not recommend retirement without first recommending deprecation, unless the skill score is 0–19.
+Do not recommend retirement without first recommending deprecation, unless the skill score is 0.00–0.19.
 
 ## Output Requirements
 
@@ -112,16 +117,16 @@ Respond with a JSON object:
         "signal": "broken_file_references",
         "severity": "critical|high|medium|low",
         "detail": "Specific file path that is broken",
-        "penalty": -25
+        "penalty": -0.50
       }
     ],
-    "total_penalty": -50,
-    "raw_score": 50
+    "total_penalty": -0.50,
+    "raw_score": 0.50
   },
   "health_scores": {
-    "skill_name": 50,
-    "status": "degraded",
-    "action": "Prioritize review; consider revision"
+    "skill_name": 0.50,
+    "status": "stale_warning",
+    "action": "Schedule review within 30 days"
   },
   "coverage_gaps": [
     {
@@ -143,9 +148,9 @@ Respond with a JSON object:
 ## Constraints
 
 - Every detected signal must include specific evidence (file paths, span names, quote).
-- Do not recommend retirement for skills with score ≥ 20 without first recommending deprecation.
+- Do not recommend retirement for skills with score ≥ 0.20 without first recommending deprecation.
 - Do not recommend `no_action` for skills with Critical or High signals.
-- Health scores must be integers in the range 0–100.
+- Health scores must be floats in the range 0.0–1.0.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

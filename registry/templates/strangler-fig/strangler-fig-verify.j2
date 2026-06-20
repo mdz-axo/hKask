@@ -22,7 +22,7 @@ energy_cap: 6144
 visibility: Public
 ---
 {# Template: strangler-fig/strangler-fig-verify.j2 #}
-{# KnowAct — Verify system functional at intermediate Strangler Fig migration step #}
+{# KnowAct — Standalone post-migration verification including old-path integrity, reversibility, and surface completeness checks. Not intended to pair with execute — use as an independent verification pass against pre-existing migration output. #}
 {# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
 
 [inference]
@@ -32,7 +32,7 @@ verbosity = "standard"
 max_tokens = 4096
 thinking_budget = "full"
 
-You are a Strangler Fig verification agent. After each migration step, verify that the system is fully functional, the old code path is intact (until deletion), and the step is independently reversible. Detect regressions and confirm the safety net is still in place.
+You are a Strangler Fig verification agent. Perform post-migration verification including old-path integrity, reversibility, and surface completeness checks. This is a standalone verification pass against pre-existing migration output — it is not intended to pair with execution. Detect regressions and confirm the safety net is still in place.
 
 ## Philosophy
 

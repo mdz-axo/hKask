@@ -51,3 +51,6 @@ registry/styles/**/corpus-sources/
 
 # Runtime data directory — databases, logs, and other generated artifacts
 data/
+
+# Personal format-shifted output (Kindle zips, etc.) — never commit
+output/

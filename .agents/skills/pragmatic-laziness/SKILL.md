@@ -1,12 +1,12 @@
 ---
 name: pragmatic-laziness
 visibility: public
-description: Procedural composition skill. Finds the path of least action through meaning-space by orchestrating pragmatic-semantics, pragmatic-cybernetics, essentialist, and grill-me through a 3-phase lazy loop. Activate when the user says "be lazy about this", "find the lazy path", "least action", "decompose this", or "pragmatic laziness review".
+description: Procedural composition skill. Finds the path of least action through meaning-space by describing the intersection of pragmatic-semantics, pragmatic-cybernetics, essentialist, and grill-me through a 3-phase lazy loop. Activate when the user says "be lazy about this", "find the lazy path", "least action", "decompose this", or "pragmatic laziness review".
 ---
 
 # Pragmatic Laziness
 
-A procedural composition skill. Finds the path of least action through meaning-space by orchestrating other skills through a 3-phase lazy loop. Does not teach — it sequences. Does not add — it delegates.
+A procedural composition skill. Finds the path of least action through meaning-space by covering the intersection of pragmatic-semantics, pragmatic-cybernetics, essentialist, and grill-me through a 3-phase lazy loop. Does not teach — it describes. Does not add — it maps.
 
 **Governing principle:** *The universe is lazy. Be lazier.* Every artifact, step, and abstraction must justify itself against: "Does this reduce total system action, or does it add friction?"
 
@@ -14,9 +14,9 @@ A procedural composition skill. Finds the path of least action through meaning-s
 
 | Property | Value |
 |----------|-------|
-| **Polarity** | Procedural (orchestrates flow; backbone) |
+| **Polarity** | Procedural (describes discipline intersection; backbone) |
 | **Phase** | Core (can span pre→core→post when used as primary process) |
-| **Delegates to** | `pragmatic-semantics`, `pragmatic-cybernetics`, `essentialist`, `grill-me` |
+| **Draws on** | `pragmatic-semantics`, `pragmatic-cybernetics`, `essentialist`, `grill-me` |
 | **Regulative across phases** | `constraint-forces` |
 | **Convergence** | δS = 0 — no further action reduction on repeat pass |
 | **Max iterations** | 3, then escalate |
@@ -88,7 +88,7 @@ This skill's runtime templates live in `registry/templates/pragmatic-laziness/`:
 
 | Template | Type | Purpose |
 |----------|------|---------|
-| `pragmatic-laziness-flow.j2` | KnowAct | Orchestrate the 3-phase cascade: delegate to semantics → cybernetics → essentialist + grill-me, loop until δS = 0 |
+| `pragmatic-laziness-flow.j2` | KnowAct | Cover the 3-phase cascade through semantics → cybernetics → essentialist + grill-me territory, loop until δS = 0 |
 | `pragmatic-laziness-converge.j2` | KnowAct | δS = 0 check: compare current configuration to previous; has action reached stationary point? |
 
 Two templates. The skill is lazy.

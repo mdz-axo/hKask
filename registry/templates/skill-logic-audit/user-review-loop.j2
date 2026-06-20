@@ -26,6 +26,7 @@ contract:
 
 ---
 {# goal: Plan the bounded audit cascade routing and decide the next action based on the user's choice and loop depth. Does not execute the flow itself. #}
+{# goal: Plan the bounded audit cascade routing at both entry (post-critique) and exit (post-user-choice) positions, enforcing max depth. #}
 {# Template: skill-logic-audit/user-review-loop.j2 #}
 {# KnowAct — Plan the bounded accept/reject/counter-proposal routing #}
 {# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
@@ -79,15 +80,31 @@ The audit cascade follows this fixed sequence:
 5. **user-choice** — capture accept/reject/counter
 6. **user-review-loop** — this template; decide next step
 
+## Invocation Mode
+
+This template is invoked at two points in the cascade:
+
+**Entry** (after critique-critique, before compose-proposal):
+- Check verdict only.
+- If `no_material_flaws` → terminate (clean audit, nothing to fix).
+- If `needs_revision` or `minor_polish` → route to compose-proposal.
+- Do NOT apply the branching rules below (they require user choice context).
+
+**Exit** (after user-choice):
+- Apply the full branching rules below.
+- `first_pass` → route to user-choice (proposal exists from step 4, choice hasn't been made yet).
+
 ## Branching Rules
 
 1. If the calibrated verdict is `no_material_flaws`, route to **terminate** — no revision needed.
-2. If `loop_depth >= max_depth`, route to **terminate** with an `exhausted` reason — loop bound reached.
-3. If the most recent user choice was `accept`, route to **terminate** — proposal accepted.
-4. If the most recent user choice was `reject`, route to **terminate** — proposal rejected by user.
-5. If the most recent user choice was `counter-proposal`, increment depth and route back to **compose-proposal** with the counter in context.
-6. If no user choice has been made yet (first iteration), route to **user-choice**.
-7. If the verdict is `needs_revision` and no proposal exists yet, route to **compose-proposal**.
+2. If the calibrated verdict is `minor_polish`, route to **user-choice** — changes are optional, let the user decide whether to accept as-is or refine.
+3. If `loop_depth >= max_depth`, route to **terminate** with an `exhausted` reason — loop bound reached.
+4. If the most recent user choice was `accept`, route to **terminate** — proposal accepted.
+5. If the most recent user choice was `reject`, route to **terminate** — proposal rejected by user.
+6. If the most recent user choice was `counter-proposal`, increment depth and route back to **compose-proposal** with the counter in context.
+7. (EXIT MODE ONLY) If no user choice has been made yet (first iteration after compose-proposal produced output), route to **user-choice**. The proposal exists from step 4.
+8. If the verdict is `needs_revision` and no proposal exists yet, route to **compose-proposal**.
+9. If ambiguity cannot be resolved from the above rules, set `next_action: "escalate"` and route the decision to the user for manual resolution.
 
 ## Output Requirements
 
@@ -97,7 +114,7 @@ Respond with a JSON object:
 {
   "next_action": "terminate | compose-proposal | user-choice | escalate",
   "route_to_template": "skill-logic-audit/compose-proposal | skill-logic-audit/user-choice | null",
-  "loop_decision": "accept | reject | counter | exhausted | no_flaws | first_pass",
+  "loop_decision": "accept | reject | counter | exhausted | no_flaws | first_pass | needs_revision | minor_polish"
   "rationale": "concise explanation of the routing decision"
 }
 ```

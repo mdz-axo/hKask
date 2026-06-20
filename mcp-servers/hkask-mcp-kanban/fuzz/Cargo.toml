@@ -15,10 +15,10 @@ path = "fuzz_targets/kanban_fuzz.rs"
 bolero = { workspace = true }
 hkask-mcp-kanban = { path = ".." }
 hkask-mcp = { path = "../../../crates/hkask-mcp" }
-hkask-services = { path = "../../../crates/hkask-services" }
-hkask-services-kanban = { path = "../../../crates/hkask-services-kanban" }
 hkask-types = { path = "../../../crates/hkask-types" }
 hkask-storage = { path = "../../../crates/hkask-storage" }
+hkask-services = { path = "../../../crates/hkask-services" }
+hkask-services-kanban = { path = "../../../crates/hkask-services-kanban" }
 hkask-test-harness = { path = "../../../crates/hkask-test-harness" }
 rmcp = { workspace = true, features = ["server", "macros"] }
 serde = { workspace = true }

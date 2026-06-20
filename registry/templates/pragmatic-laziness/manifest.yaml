@@ -6,8 +6,9 @@ crate:
   version: "0.30.0"
   description: >
     Procedural composition skill that finds the path of least action through
-    meaning-space. Orchestrates pragmatic-semantics, pragmatic-cybernetics,
-    essentialist, and grill-me through a 3-phase lazy loop.
+    meaning-space. Describes the intersection of pragmatic-semantics,
+    pragmatic-cybernetics, essentialist, and grill-me through a 3-phase lazy
+    loop.
 
 templates:
   - id: pragmatic-laziness/pragmatic-laziness-flow

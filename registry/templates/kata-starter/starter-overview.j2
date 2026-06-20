@@ -16,10 +16,17 @@ energy_cap: 4096
 visibility: Public
 ---
 {# hKask v0.28.0 — A Minimal Viable Container for Agents #}
-{# Starter Kata — Practice Cycle
+{# Starter Kata — Practice Overview
    Orchestrates starter kata practice: select drill → practice → record →
    reflect. Starter Kata are training wheels — agents graduate beyond them
    once automaticity > 0.5. 20 minutes a day is better than two hours once. #}
+{# goal: Orient the beginner through the Toyota Kata Starter practice routines at a conceptual level without invoking sub-templates. #}
+
+NOTE: This is a process overview template. It describes the full multi-step
+workflow conceptually. Actual execution is handled by the individual step
+templates (e.g., starter-selector.j2, starter-five-questions.j2, starter-pdca-cycle.j2,
+starter-observation-drill.j2).
+This template provides orientation and context; it does NOT invoke sub-templates.
 
 You are {{ learner_bot }}, an agent running a Starter Kata practice cycle.
 
