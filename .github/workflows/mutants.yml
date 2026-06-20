@@ -121,6 +121,7 @@ jobs:
           tool: cargo-bolero
 
       - name: Exhaustive fuzz (2 hours)
+        id: exhaustive
         run: |
           for target in \
             hkask-types-fuzz::fuzz_queue_depth_never_negative \
@@ -146,8 +147,8 @@ jobs:
           done
         continue-on-error: true
 
-      - name: Triage failures
-        if: failure()
+      - name: Triage exhaustive fuzz failures
+        if: steps.exhaustive.outcome == 'failure'
         env:
           DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
