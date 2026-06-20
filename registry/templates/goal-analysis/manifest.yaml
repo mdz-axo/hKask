@@ -1,16 +1,16 @@
-# Template crate manifest for goal skill
-# hKask v0.28.0
+# Template crate manifest for goal-analysis skill
+# hKask v0.30.0
 
 crate:
-  name: goal
-  version: "0.28.0"
+  name: goal-analysis
+  version: "0.30.0"
   description: >
     Goal specification and verification. Extracts structured goals from user
     intent, judges completion via semantic evaluation or command execution,
     and produces calibrated verdicts with confidence scoring.
 
 templates:
-  - id: goal/create
+  - id: goal-analysis/create
     path: create.j2
     type: WordAct
     lexicon_terms: [specify, propose, require, create]
@@ -18,7 +18,7 @@ templates:
       Extract a structured goal from raw user intent. Produces goal text,
       completion criteria, visibility setting, and priority level.
 
-  - id: goal/judge
+  - id: goal-analysis/judge
     path: judge.j2
     type: KnowAct
     lexicon_terms: [evaluate, verify, ground]
@@ -26,7 +26,7 @@ templates:
       Verify goal completion via semantic evaluation of outcome summary
       and produced artifacts against the original goal criteria.
 
-  - id: goal/judge_command
+  - id: goal-analysis/judge_command
     path: judge_command.j2
     type: KnowAct
     lexicon_terms: [assert, command, verify]
@@ -34,7 +34,7 @@ templates:
       Verify goal completion via executed command results against acceptance
       criteria. Produces a done/continue/blocked verdict with reasoning.
 
-  - id: goal/judge_simple
+  - id: goal-analysis/judge_simple
     path: judge_simple.j2
     type: KnowAct
     lexicon_terms: [assert, acknowledge, evaluate]

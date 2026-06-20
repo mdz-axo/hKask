@@ -1,17 +1,17 @@
-# Template crate manifest for scenario skill
-# hKask v0.28.0
+# Template crate manifest for scenario-builder skill
+# hKask v0.30.0
 
 crate:
-  name: scenario
-  version: "0.28.0"
+  name: scenario-builder
+  version: "0.30.0"
   description: >
-    Scenario planning methodology following Schoemaker's framework. Refines
+    Scenario planning methodology following Schwartz's framework. Refines
     focal questions, maps key forces and macro-level driving forces, generates
     divergent 2x2 scenario narratives, and derives implications with
     early-warning indicators.
 
 templates:
-  - id: scenario/axes-and-narratives
+  - id: scenario-builder/axes-and-narratives
     path: axes-and-narratives.j2
     type: KnowAct
     lexicon_terms: [synthesize, explore, structure]
@@ -20,7 +20,7 @@ templates:
       uncertainty axes from identified driving forces. Produces four
       quadrant scenarios with internally consistent narratives.
 
-  - id: scenario/driving-forces
+  - id: scenario-builder/driving-forces
     path: driving-forces.j2
     type: KnowAct
     lexicon_terms: [analyze, classify, rank]
@@ -29,7 +29,7 @@ templates:
       environment, politics) against an importance-uncertainty matrix to
       identify critical uncertainties.
 
-  - id: scenario/focal-question
+  - id: scenario-builder/focal-question
     path: focal-question.j2
     type: KnowAct
     lexicon_terms: [specify, plan, structure]
@@ -37,7 +37,7 @@ templates:
       Refine and bound the focal question with decision relevance, time
       horizon, and scope boundaries. Produces a current state summary.
 
-  - id: scenario/implications-indicators
+  - id: scenario-builder/implications-indicators
     path: implications-indicators.j2
     type: KnowAct
     lexicon_terms: [monitor, recommend, predict]
@@ -46,7 +46,7 @@ templates:
       Produces robust strategies (for all scenarios) and contingent
       strategies (for specific unfoldings).
 
-  - id: scenario/key-forces
+  - id: scenario-builder/key-forces
     path: key-forces.j2
     type: KnowAct
     lexicon_terms: [analyze, elicit, classify]

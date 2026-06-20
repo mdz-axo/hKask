@@ -20,7 +20,7 @@ cascade:
       template:
         type: Cognition
         lexicon_terms: [evaluate, assert, ground]
-        template_ref: registry/templates/goal_judge.j2
+        template_ref: goal-analysis/judge
       description: "Judge goal completion via LLM"
       output_schema:
         verdict: string
@@ -51,9 +51,9 @@ cascade:
 error_handling:
   catch:
     - type: template_error
-      fallback: registry/templates/goal_judge_simple.j2
+      fallback: goal-analysis/judge_simple
     - type: llm_timeout
-      fallback: registry/templates/goal_judge_command.j2
+      fallback: goal-analysis/judge_command
     - type: confidence_low
       threshold: 0.7
       action: request_human_review

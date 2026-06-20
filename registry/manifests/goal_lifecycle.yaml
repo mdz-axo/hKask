@@ -41,7 +41,7 @@ cascade:
       template:
         type: Prompt
         lexicon_terms: [pledge, commit]
-        template_ref: registry/templates/goal_create.j2
+        template_ref: goal-analysis/create
       description: "Extract structured goal from user intent"
       output_schema:
         type: object
@@ -108,7 +108,7 @@ cascade:
       template:
         type: Cognition
         lexicon_terms: [evaluate, assert, ground]
-        template_ref: registry/templates/goal_judge.j2
+        template_ref: goal-analysis/judge
       description: "Verify goal completion via LLM judge"
       input:
         goal_text: "${goal_text}"
@@ -149,10 +149,10 @@ cascade:
 error_handling:
   catch:
     - type: template_error
-      fallback: registry/templates/goal_create.j2
+      fallback: goal-analysis/create
       action: retry_with_simpler_template
     - type: llm_timeout
-      fallback: registry/templates/goal_judge_simple.j2
+      fallback: goal-analysis/judge_simple
       action: use_simple_verification
     - type: storage_error
       action: emit_cns_alert

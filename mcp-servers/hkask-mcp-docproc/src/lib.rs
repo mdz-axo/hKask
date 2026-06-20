@@ -21,16 +21,16 @@ use crate::ocr::llm_ocr::LlmOcrExecutor;
 use crate::ocr::pipeline::{self, OcrExecutor};
 use crate::ocr::tesseract::TesseractExecutor;
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
+use hkask_mcp::DaemonClient;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
-use hkask_mcp::DaemonClient;
 use hkask_memory::SemanticMemory;
 use hkask_types::McpErrorKind;
+use hkask_types::WebID;
 use hkask_types::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use hkask_types::ports::{CnsObserver, InferencePort};
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
-use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -76,6 +76,10 @@ pub struct DocProcServer {
     /// In-memory vector index for RAG query/retrieval. Passages indexed by `docproc_chunk`
     /// are stored here with their embeddings for cosine-similarity search via `docproc_query`.
     pub index: Mutex<Vec<IndexedPassage>>,
+    /// Firecrawl API key for browser automation (Kindle zip, web capture, etc.).
+    pub firecrawl_api_key: Option<String>,
+    /// Shared HTTP client for Firecrawl API calls.
+    pub http_client: reqwest::Client,
 }
 
 /// A passage stored in the in-memory vector index with its embedding.
@@ -98,6 +102,8 @@ impl DocProcServer {
         inference_config: InferenceConfig,
         ocr_thresholds: ThresholdConfig,
         embedding_router: Option<EmbeddingRouter>,
+        firecrawl_api_key: Option<String>,
+        http_client: reqwest::Client,
     ) -> anyhow::Result<Self> {
         let cns_observer = DocProcCnsObserver::new(daemon.clone(), &replicant);
         Ok(Self {
@@ -111,6 +117,8 @@ impl DocProcServer {
             cns_observer,
             cv_accumulator: Mutex::new(Vec::new()),
             index: Mutex::new(Vec::new()),
+            firecrawl_api_key,
+            http_client,
         })
     }
 
@@ -658,6 +666,27 @@ pub struct ClearIndexRequest {
     /// Optional index_id to clear a specific index. If absent, clears all.
     #[serde(default)]
     pub index_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct KindleZipRequest {
+    /// Exact or partial title of the book in the Kindle library.
+    pub book_title: String,
+    /// Output PDF file path.
+    pub output_pdf: String,
+    /// Safety limit — maximum pages to capture.
+    #[serde(default = "default_kindle_max_pages")]
+    pub max_pages: usize,
+    /// Milliseconds to wait after each page turn.
+    #[serde(default = "default_kindle_page_wait_ms")]
+    pub page_wait_ms: u64,
+}
+
+fn default_kindle_max_pages() -> usize {
+    500
+}
+fn default_kindle_page_wait_ms() -> u64 {
+    1500
 }
 
 // ── Extract outcome enum ───────────────────────────────────────────────────
@@ -1791,6 +1820,448 @@ impl DocProcServer {
         index.clear();
         span.ok_json(json!({"cleared": cleared}))
     }
+
+    #[tool(
+        description = "Capture a Kindle Cloud Reader book by title: opens the book, pages through it taking screenshots, and assembles them into a PDF. Requires FIRECRAWL_API_KEY env var for browser automation."
+    )]
+    pub async fn docproc_kindle_zip(
+        &self,
+        Parameters(KindleZipRequest {
+            book_title,
+            output_pdf,
+            max_pages,
+            page_wait_ms,
+        }): Parameters<KindleZipRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("docproc_kindle_zip", &self.webid);
+        validate_field!(span, "book_title", &book_title, 512);
+        validate_field!(span, "output_pdf", &output_pdf, 4096);
+
+        let api_key = match self.firecrawl_api_key.as_ref() {
+            Some(k) => k.clone(),
+            None => {
+                return span.error(
+                    McpErrorKind::FailedPrecondition,
+                    McpToolError::failed_precondition(
+                        "FIRECRAWL_API_KEY is required for Kindle Cloud Reader browser automation. Set it via env var or credential.",
+                    )
+                    .to_json_string(),
+                );
+            }
+        };
+
+        let fc = FirecrawlClient::new(self.http_client.clone(), api_key);
+
+        // Step 1: Open the Kindle library, search for the book, click to open reader
+        let kindle_url = "https://read.amazon.com/kindle-library";
+        let open_actions = serde_json::json!([
+            {"type": "wait", "milliseconds": 3000},
+            {"type": "click", "selector": "input[type='search'], input[placeholder*='earch'], input[placeholder*='title']"},
+            {"type": "wait", "milliseconds": 1000},
+            {"type": "write", "text": book_title},
+            {"type": "press", "key": "Enter"},
+            {"type": "wait", "milliseconds": 3000},
+            {"type": "screenshot"},
+        ]);
+
+        let scrape_result = match fc.scrape(kindle_url, &open_actions).await {
+            Ok(r) => r,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Failed to open Kindle library: {e}"))
+                        .to_json_string(),
+                );
+            }
+        };
+
+        let scrape_id = match scrape_result.get("scrapeId").and_then(|v| v.as_str()) {
+            Some(id) => id.to_string(),
+            None => {
+                // Try to find the book and click it via interact
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(
+                        "Could not obtain browser session. The Kindle library page may require manual login.",
+                    )
+                    .to_json_string(),
+                );
+            }
+        };
+
+        // Step 2: Click the book in the library to open the reader
+        let click_book_prompt = format!(
+            "Find the book titled '{book_title}' in the library grid. Click on its cover image or title to open the reader. Wait for the reader to fully load (look for the book text/content to appear).",
+        );
+
+        if let Err(e) = fc.interact(&scrape_id, &click_book_prompt, 30).await {
+            return span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Failed to open book '{}': {e}", book_title))
+                    .to_json_string(),
+            );
+        }
+
+        // Step 3: Page through the book, capturing screenshots
+        let mut screenshots: Vec<Vec<u8>> = Vec::with_capacity(max_pages.min(500));
+
+        for page_num in 1..=max_pages {
+            // Take screenshot of current page
+            let ss_prompt = format!(
+                "Take a full-page screenshot of the Kindle reader viewport. This is page {} of the book.",
+                page_num
+            );
+
+            match fc.interact_screenshot(&scrape_id, &ss_prompt, 15).await {
+                Ok(png_bytes) => {
+                    if png_bytes.len() < 1024 {
+                        tracing::warn!(
+                            target: "hkask.mcp.docproc",
+                            page = page_num,
+                            byte_len = png_bytes.len(),
+                            "Screenshot too small — possible end of book or blank page"
+                        );
+                    }
+                    screenshots.push(png_bytes);
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "hkask.mcp.docproc",
+                        page = page_num,
+                        error = %e,
+                        "Screenshot failed, stopping capture"
+                    );
+                    break;
+                }
+            }
+
+            // Turn to next page (unless we're at max_pages)
+            if page_num < max_pages {
+                let next_prompt = format!(
+                    "Click on the right-hand side of the Kindle reader viewport to advance to the next page. Wait {}ms for the page to render.",
+                    page_wait_ms
+                );
+
+                if let Err(e) = fc.interact(&scrape_id, &next_prompt, 20).await {
+                    tracing::info!(
+                        target: "hkask.mcp.docproc",
+                        page = page_num,
+                        error = %e,
+                        "Page turn failed — likely end of book"
+                    );
+                    break;
+                }
+
+                // Small delay to let the page render
+                tokio::time::sleep(std::time::Duration::from_millis(page_wait_ms)).await;
+            }
+        }
+
+        if screenshots.is_empty() {
+            return span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(
+                    "No pages were captured. The book may not have opened correctly.",
+                )
+                .to_json_string(),
+            );
+        }
+
+        // Step 4: Assemble screenshots into a PDF
+        let pages_captured = screenshots.len();
+        match assemble_kindle_pdf(&screenshots, &output_pdf) {
+            Ok(file_size) => {
+                self.record_experience(
+                    "docproc_kindle_zip",
+                    &book_title,
+                    "success",
+                    json!({"pages_captured": pages_captured, "file_size_bytes": file_size}),
+                );
+                span.ok_json(json!({
+                    "pdf_path": output_pdf,
+                    "pages_captured": pages_captured,
+                    "file_size_bytes": file_size,
+                }))
+            }
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("PDF assembly failed: {e}")).to_json_string(),
+            ),
+        }
+    }
+}
+
+// ── Firecrawl API client (used by docproc_kindle_zip) ─────────────────────
+
+const FIRECRAWL_V2: &str = "https://api.firecrawl.dev/v2";
+
+struct FirecrawlClient {
+    client: reqwest::Client,
+    api_key: String,
+}
+
+impl FirecrawlClient {
+    fn new(client: reqwest::Client, api_key: String) -> Self {
+        Self { client, api_key }
+    }
+
+    fn auth_header(&self) -> String {
+        format!("Bearer {}", self.api_key)
+    }
+
+    /// POST /v2/scrape with screenshot format and actions.
+    /// Returns the parsed JSON response.
+    async fn scrape(
+        &self,
+        url: &str,
+        actions: &serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        let payload = serde_json::json!({
+            "url": url,
+            "formats": ["screenshot", "markdown"],
+            "actions": actions,
+            "waitFor": 5000,
+        });
+
+        let resp = self
+            .client
+            .post(format!("{FIRECRAWL_V2}/scrape"))
+            .header("Authorization", self.auth_header())
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .timeout(std::time::Duration::from_secs(120))
+            .send()
+            .await
+            .map_err(|e| format!("Firecrawl scrape request failed: {e}"))?;
+
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+
+        if !status.is_success() {
+            let snippet: String = body.chars().take(300).collect();
+            return Err(format!("Firecrawl scrape error {status}: {snippet}"));
+        }
+
+        let parsed: serde_json::Value = serde_json::from_str(&body)
+            .map_err(|e| format!("Failed to parse scrape response: {e}"))?;
+
+        if parsed.get("success").and_then(|v| v.as_bool()) != Some(true) {
+            let err_msg = parsed
+                .get("error")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown error");
+            return Err(format!("Firecrawl scrape failed: {err_msg}"));
+        }
+
+        // Extract scrapeId from metadata
+        let scrape_id = parsed
+            .pointer("/data/metadata/scrapeId")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        let mut result = serde_json::Map::new();
+        if let Some(id) = scrape_id {
+            result.insert("scrapeId".into(), serde_json::Value::String(id));
+        }
+        // Extract first screenshot if present
+        if let Some(screenshot) = parsed.pointer("/data/screenshot").and_then(|v| v.as_str()) {
+            result.insert(
+                "screenshot".into(),
+                serde_json::Value::String(screenshot.to_string()),
+            );
+        }
+
+        Ok(serde_json::Value::Object(result))
+    }
+
+    /// POST /v2/interact — send a natural-language instruction to the browser session.
+    async fn interact(
+        &self,
+        scrape_id: &str,
+        prompt: &str,
+        timeout_secs: u64,
+    ) -> Result<serde_json::Value, String> {
+        let payload = serde_json::json!({
+            "scrapeId": scrape_id,
+            "prompt": prompt,
+            "timeout": timeout_secs.min(120),
+        });
+
+        let resp = self
+            .client
+            .post(format!("{FIRECRAWL_V2}/interact"))
+            .header("Authorization", self.auth_header())
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .timeout(std::time::Duration::from_secs(timeout_secs + 10))
+            .send()
+            .await
+            .map_err(|e| format!("Firecrawl interact request failed: {e}"))?;
+
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+
+        if !status.is_success() {
+            let snippet: String = body.chars().take(300).collect();
+            return Err(format!("Firecrawl interact error {status}: {snippet}"));
+        }
+
+        serde_json::from_str(&body).map_err(|e| format!("Failed to parse interact response: {e}"))
+    }
+
+    /// Convenience: interact + extract base64 screenshot from response.
+    async fn interact_screenshot(
+        &self,
+        scrape_id: &str,
+        prompt: &str,
+        timeout_secs: u64,
+    ) -> Result<Vec<u8>, String> {
+        let result = self.interact(scrape_id, prompt, timeout_secs).await?;
+
+        // Try to find screenshot data in the response.
+        // Firecrawl returns screenshots as base64 in various possible paths.
+        let b64 = result
+            .pointer("/data/screenshot")
+            .or_else(|| result.pointer("/screenshot"))
+            .or_else(|| result.get("screenshot"))
+            .and_then(|v| v.as_str());
+
+        match b64 {
+            Some(data) => base64::Engine::decode(&base64::engine::general_purpose::STANDARD, data)
+                .map_err(|e| format!("Failed to decode screenshot base64: {e}")),
+            None => Err("No screenshot data in interact response".into()),
+        }
+    }
+}
+
+// ── Minimal PDF assembler (PNG images → single PDF) ───────────────────────
+
+/// Assembles a vector of PNG byte buffers into a single PDF, one image per page.
+/// Uses the `image` crate to read dimensions and a minimal hand-rolled PDF builder.
+fn assemble_kindle_pdf(pages: &[Vec<u8>], output_path: &str) -> Result<u64, String> {
+    use std::io::Write;
+
+    if pages.is_empty() {
+        return Err("No pages to assemble".into());
+    }
+
+    // Read all page dimensions first
+    struct PageInfo {
+        width: u32,
+        height: u32,
+        data: Vec<u8>,
+    }
+
+    let mut page_infos: Vec<PageInfo> = Vec::with_capacity(pages.len());
+    for (i, png_bytes) in pages.iter().enumerate() {
+        let img = image::load_from_memory(png_bytes)
+            .map_err(|e| format!("Failed to decode page {i} PNG: {e}"))?;
+        let (w, h) = (img.width(), img.height());
+        // Re-encode as JPEG for smaller PDF size
+        let mut jpeg_bytes: Vec<u8> = Vec::new();
+        img.write_to(
+            &mut std::io::Cursor::new(&mut jpeg_bytes),
+            image::ImageFormat::Jpeg,
+        )
+        .map_err(|e| format!("Failed to re-encode page {i} as JPEG: {e}"))?;
+        page_infos.push(PageInfo {
+            width: w,
+            height: h,
+            data: jpeg_bytes,
+        });
+    }
+
+    // Build minimal PDF
+    let mut pdf: Vec<u8> = Vec::new();
+    let mut offsets: Vec<u64> = Vec::new();
+
+    // PDF header
+    writeln!(pdf, "%PDF-1.4").unwrap();
+    // Binary comment for PDF readers (high bytes to signal binary content)
+    pdf.extend_from_slice(b"%\xe2\xe3\xcf\xd3\n");
+
+    let n = page_infos.len() as u32;
+
+    // Object 1: Catalog
+    offsets.push(pdf.len() as u64);
+    writeln!(pdf, "1 0 obj").unwrap();
+    writeln!(pdf, "<< /Type /Catalog /Pages 2 0 R >>").unwrap();
+    writeln!(pdf, "endobj").unwrap();
+
+    // Object 2: Pages
+    offsets.push(pdf.len() as u64);
+    write!(pdf, "2 0 obj\n<< /Type /Pages /Kids [").unwrap();
+    // Page objects start at 3, image objects at 3+n, content streams at 3+2n
+    for i in 0..n {
+        write!(pdf, "{} 0 R ", 3 + i * 3).unwrap();
+    }
+    writeln!(pdf, "] /Count {} >>", n).unwrap();
+    writeln!(pdf, "endobj").unwrap();
+
+    // Per-page objects: Page, Image XObject, Content stream
+    for (i, info) in page_infos.iter().enumerate() {
+        let page_obj = 3 + i as u32 * 3;
+        let img_obj = page_obj + 1;
+        let content_obj = page_obj + 2;
+
+        // Image XObject
+        offsets.push(pdf.len() as u64);
+        writeln!(pdf, "{} 0 obj", img_obj).unwrap();
+        writeln!(
+            pdf,
+            "<< /Type /XObject /Subtype /Image /Width {} /Height {} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {} >>",
+            info.width, info.height, info.data.len()
+        )
+        .unwrap();
+        writeln!(pdf, "stream").unwrap();
+        pdf.write_all(&info.data).unwrap();
+        writeln!(pdf, "\nendstream").unwrap();
+        writeln!(pdf, "endobj").unwrap();
+
+        // Content stream (scale image to fill page)
+        offsets.push(pdf.len() as u64);
+        let content = format!("q\n{} 0 0 {} 0 0 cm\n/Im0 Do\nQ", info.width, info.height);
+        writeln!(pdf, "{} 0 obj", content_obj).unwrap();
+        writeln!(pdf, "<< /Length {} >>", content.len()).unwrap();
+        writeln!(pdf, "stream").unwrap();
+        write!(pdf, "{}", content).unwrap();
+        writeln!(pdf, "\nendstream").unwrap();
+        writeln!(pdf, "endobj").unwrap();
+
+        // Page object
+        offsets.push(pdf.len() as u64);
+        writeln!(pdf, "{} 0 obj", page_obj).unwrap();
+        writeln!(
+            pdf,
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {} {}] /Contents {} 0 R /Resources << /XObject << /Im0 {} 0 R >> >> >>",
+            info.width, info.height, content_obj, img_obj
+        )
+        .unwrap();
+        writeln!(pdf, "endobj").unwrap();
+    }
+
+    // Cross-reference table
+    let xref_offset = pdf.len() as u64;
+    writeln!(pdf, "xref").unwrap();
+    writeln!(pdf, "0 {}", offsets.len() as u32 + 1).unwrap();
+    writeln!(pdf, "0000000000 65535 f ").unwrap();
+    for off in &offsets {
+        writeln!(pdf, "{:010} 00000 n ", off).unwrap();
+    }
+
+    // Trailer
+    writeln!(pdf, "trailer").unwrap();
+    writeln!(pdf, "<< /Size {} /Root 1 0 R >>", offsets.len() as u32 + 1).unwrap();
+    writeln!(pdf, "startxref").unwrap();
+    writeln!(pdf, "{xref_offset}").unwrap();
+    writeln!(pdf, "%%EOF").unwrap();
+
+    // Write to disk
+    let file_size = pdf.len() as u64;
+    std::fs::write(output_path, &pdf)
+        .map_err(|e| format!("Failed to write PDF to '{}': {e}", output_path))?;
+
+    Ok(file_size)
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -2004,7 +2475,16 @@ pub async fn run(
                 .credentials
                 .get("HKASK_OCR_MODEL")
                 .cloned();
+            let firecrawl_api_key = ctx
+                .credentials
+                .get("FIRECRAWL_API_KEY")
+                .cloned();
             let inference_config = InferenceConfig::from_env();
+
+            let http_client = reqwest::Client::builder()
+                .user_agent(format!("hkask-docproc/{}", env!("CARGO_PKG_VERSION")))
+                .build()
+                .map_err(|e| hkask_mcp::McpError::Other(anyhow::anyhow!("Failed to build HTTP client: {e}")))?;
 
             let ocr_thresholds = ThresholdConfig {
                 simple_max: std::env::var("HKASK_OCR_SIMPLE_MAX")
@@ -2035,12 +2515,18 @@ pub async fn run(
                 inference_config,
                 ocr_thresholds,
                 Some(embedding_router),
+                firecrawl_api_key,
+                http_client,
             )?)
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_OCR_MODEL",
                 "Vision model for OCR (must exist in inference catalog). Required for OCR functionality.",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "FIRECRAWL_API_KEY",
+                "Firecrawl API key for browser automation (required for docproc_kindle_zip).",
             ),
         ],
     )

@@ -137,6 +137,13 @@ jobs:
             hkask-mcp-kanban-fuzz::fuzz_kanban_dispatch_board_create; do
             cargo bolero test -p "${target%%::*}" "${target##*::}" -T 600s -e libfuzzer 2>&1 | tee -a bolero-exhaustive-output.txt
           done
+
+          # Ensemble pass — AFL (deterministic mutations)
+          for target in \
+            hkask-mcp-kanban-fuzz::fuzz_kanban_dispatch_board_create \
+            hkask-mcp-kanban-fuzz::fuzz_kanban_dispatch_task_create; do
+            cargo bolero test -p "${target%%::*}" "${target##*::}" -T 300s -e afl 2>&1 | tee -a bolero-exhaustive-output.txt
+          done
         continue-on-error: true
 
       - name: Triage failures

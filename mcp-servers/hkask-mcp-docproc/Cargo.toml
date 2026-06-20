@@ -26,6 +26,8 @@ hkask-storage = { path = "../../crates/hkask-storage" }
 # Protocol + utilities
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true
+tokio-tungstenite.workspace = true
+futures-util.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 schemars.workspace = true

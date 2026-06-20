@@ -46,7 +46,7 @@ steps:
       real choice), time-bounded, and scope-bounded. Bad: "Will X happen?"
       Good: "What should we do about X given we don't know what will happen?"
     renderer: minijinja
-    template_ref: scenario/focal-question
+    template_ref: scenario-builder/focal-question
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
@@ -78,7 +78,7 @@ steps:
       competitor behavior, resource availability. Cluster into themes and
       assess each for impact and predictability.
     renderer: minijinja
-    template_ref: scenario/key-forces
+    template_ref: scenario-builder/key-forces
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -107,7 +107,7 @@ steps:
       Economy, Environment, Politics). Plot on importance × uncertainty matrix.
       Identify the two most critical uncertainties as scenario axes.
     renderer: minijinja
-    template_ref: scenario/driving-forces
+    template_ref: scenario-builder/driving-forces
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -144,7 +144,7 @@ steps:
       scenario must be plausible, divergent, internally consistent, and at
       least one must challenge current assumptions.
     renderer: minijinja
-    template_ref: scenario/axes-and-narratives
+    template_ref: scenario-builder/axes-and-narratives
     gas_cap: 8000
     timeout_seconds: 120
     input_mapping:
@@ -189,7 +189,7 @@ steps:
       specific early indicators), and early indicators (tripwires) for each
       scenario. Output must be actionable, not just descriptive.
     renderer: minijinja
-    template_ref: scenario/implications-indicators
+    template_ref: scenario-builder/implications-indicators
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -217,7 +217,7 @@ steps:
       robust strategies found, and early indicators count.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5
     feedback:
