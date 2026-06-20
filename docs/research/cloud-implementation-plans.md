@@ -92,55 +92,118 @@ pub struct EnvVarSpec {
 
 ### 2.2 Architecture Diagram
 
+Two Conduit deployment models are viable. **Model A (per-pod Conduit sidecar)** preserves OCAP isolation at the Matrix layer. **Model B (shared Conduit app)** is simpler but creates a shared dependency outside the pod boundary.
+
+#### Model A: Per-Pod Conduit Sidecar (OCAP-Aligned)
+
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Fly.io Organization                   │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │              Fly App: hkask-pod-{id}              │    │
-│  │                                                   │    │
-│  │  ┌──────────────────────────────────────────┐    │    │
-│  │  │          Fly Machine (Firecracker)         │    │    │
-│  │  │                                           │    │    │
-│  │  │  ┌─────────┐  ┌──────────────────────┐   │    │    │
-│  │  │  │Litestream│  │     kask binary      │   │    │    │
-│  │  │  │ restore  │  │                      │   │    │    │
-│  │  │  │ (init)   │  │  kask serve          │   │    │    │
-│  │  │  │          │  │  --pod-id {id}       │   │    │    │
-│  │  │  │          │  │  --data-dir /data    │   │    │    │
-│  │  │  └─────────┘  └──────────┬───────────┘   │    │    │
-│  │  │                          │               │    │    │
-│  │  │  ┌───────────────────────┼───────────┐   │    │    │
-│  │  │  │  Litestream sidecar   │           │   │    │    │
-│  │  │  │  litestream replicate │           │   │    │    │
-│  │  │  │  -exec "kask serve"   │           │   │    │    │
-│  │  │  └───────────┬───────────┘           │   │    │    │
-│  │  │              │                       │   │    │    │
-│  │  │     ┌────────▼──────────┐            │   │    │    │
-│  │  │     │  Fly Volume       │            │   │    │    │
-│  │  │     │  /data/kask.db    │            │   │    │    │
-│  │  │     │  (SQLCipher, WAL) │            │   │    │    │
-│  │  │     │  1GB → 10GB auto  │            │   │    │    │
-│  │  │     └───────────────────┘            │   │    │    │
-│  │  └──────────────────────────────────────┘    │    │
-│  │                                              │    │
-│  │  auto_stop_machines: true                    │    │
-│  │  auto_start_machines: true                   │    │
-│  │  min_machines_running: 0                     │    │
-│  └──────────────────────────────────────────────┘    │
-│                         │                             │
-│         ┌───────────────┼───────────────┐            │
-│         ▼               ▼               ▼            │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐     │
-│  │Tigris/     │  │Fly Secrets │  │Fly Metrics  │     │
-│  │Backblaze B2│  │(API keys,  │  │(Prometheus) │     │
-│  │(Litestream │  │ keystore   │  │             │     │
-│  │ replica)   │  │ passphrase)│  │             │     │
-│  └────────────┘  └────────────┘  └────────────┘     │
-└─────────────────────────────────────────────────────────┘
++------------------------------------------------------------------+
+|                      Fly.io Organization                          |
+|                                                                   |
+|  +------------------------------------------------------------+   |
+|  |                 Fly App: hkask-pod-{id}                     |   |
+|  |                                                             |   |
+|  |  +------------------------------------------------------+  |   |
+|  |  |             Fly Machine (Firecracker)                 |  |   |
+|  |  |                                                       |  |   |
+|  |  |  +----------+ +----------+ +----------------------+  |  |   |
+|  |  |  |Litestream| | Conduit  | |     kask binary      |  |  |   |
+|  |  |  | restore  | | sidecar  | |                      |  |  |   |
+|  |  |  | (init)   | |          | |  kask serve          |  |  |   |
+|  |  |  |          | | :8448    | |  --pod-id {id}       |  |  |   |
+|  |  |  |          | | Matrix   | |  --data-dir /data    |  |  |   |
+|  |  |  |          | | federation| |  --matrix-url        |  |  |   |
+|  |  |  |          | | port     | |  http://localhost:8008|  | |   |
+|  |  |  +----------+ +----+-----+ +----------+-----------+  |  |   |
+|  |  |                    |                   |              |  |   |
+|  |  |  +-----------------+-------------------+----------+   |  |   |
+|  |  |  | Litestream      |  kask <-Matrix->  |          |   |  |   |
+|  |  |  | replicate       |  Conduit          |          |   |  |   |
+|  |  |  | -exec           |  OCAP-gated       |          |   |  |   |
+|  |  |  | supervisord     |  A2A messages     |          |   |  |   |
+|  |  |  +--------+--------+-------------------+----------+   |  |   |
+|  |  |           |                            |              |  |   |
+|  |  |  +--------+----------------------------+----------+   |  |   |
+|  |  |  |              Fly Volume                         |   |  |   |
+|  |  |  |  /data/kask.db        (SQLCipher, WAL)         |   |  |   |
+|  |  |  |  /data/conduit.db     (Conduit homeserver DB)  |   |  |   |
+|  |  |  |  1GB -> 10GB auto-expand                        |   |  |   |
+|  |  |  +------------------------------------------------+   |  |   |
+|  |  +------------------------------------------------------+  |   |
+|  |                                                             |   |
+|  |  auto_stop_machines: true    (scale-to-zero on idle)       |   |
+|  |  auto_start_machines: true   (wake on HTTP or Matrix msg)  |   |
+|  |  min_machines_running: 0                                   |   |
+|  +------------------------------------------------------------+   |
+|                         |                                          |
+|         +---------------+---------------+--------------+          |
+|         v               v               v              v          |
+|  +------------+ +------------+ +------------+ +--------------+    |
+|  |Tigris/     | |Fly Secrets | |Fly Metrics | |Matrix        |    |
+|  |Backblaze B2| |(API keys,  | |(Prometheus)| |Federation    |    |
+|  |(Litestream | | keystore,  | |            | |(Conduit      |    |
+|  | replica)   | | matrix     | |            | | :8448)       |    |
+|  |            | | signingKey)| |            | |              |    |
+|  +------------+ +------------+ +------------+ +------+-------+    |
+|                                                       |           |
+|         Pod-to-pod A2A: Matrix federation over        |           |
+|         Fly.io private WireGuard network              |           |
+|         +---------------------------------------------+           |
+|         v                                                         |
+|  +----------------------------------------------------------+     |
+|  |              Other hKask Pods (Fly Apps)                  |     |
+|  |  +--------------+  +--------------+  +----------------+  |     |
+|  |  | hkask-pod-2  |  | hkask-pod-3  |  | hkask-pod-N    |  |     |
+|  |  | Conduit      |  | Conduit      |  | Conduit        |  |     |
+|  |  | :8448        |  | :8448        |  | :8448          |  |     |
+|  |  +--------------+  +--------------+  +----------------+  |     |
+|  +----------------------------------------------------------+     |
++------------------------------------------------------------------+
 ```
 
-### 2.3 Dockerfile
+#### Model B: Shared Conduit App
+
+Pods share a single Conduit Fly App as their Matrix homeserver. `kask --matrix-url http://hkask-conduit.internal:8008`. Simpler to operate but Conduit becomes a shared dependency outside the OCAP perimeter.
+
+#### Model Comparison
+
+| Criterion | Model A (Per-Pod) | Model B (Shared) |
+|-----------|-------------------|------------------|
+| OCAP isolation | Pod owns its Matrix server | Shared server |
+| Operational simplicity | N+1 Conduit instances | Single Conduit |
+| Resource overhead | ~50MB RAM/pod | One for all pods |
+| Federation resilience | Each pod federates independently | Single point of failure |
+| Scale-to-zero | ❌ Conduit must stay warm for messages | Shared stays warm |
+| P4.1 alignment | Messaging inside pod boundary | Messaging outside pod boundary |
+
+**Recommendation:** Model A for production. Model B for initial deployment. Both use the same `kask --matrix-url` flag — switching is a configuration change.
+
+### 2.3 Conduit Sidecar Configuration (Model A)
+
+Conduit runs as a process managed by `supervisord` alongside kask and Litestream. It listens on `:8008` (client API, kask connects here) and `:8448` (federation, other pods connect here).
+
+```yaml
+# /etc/conduit/conduit.toml
+global:
+  server_name: "pod-{{ pod_id }}.hkask.local"
+  address: "0.0.0.0"
+  port: 8008
+  federation:
+    enabled: true
+    address: "0.0.0.0"
+    port: 8448
+  database:
+    backend: "sqlite"
+    path: "/data/conduit.db"
+  registration:
+    enabled: false
+  allow_federation:
+    - "*.hkask.local"
+```
+
+Each pod gets a Matrix identity: `@pod-{pod_id}:pod-{pod_id}.hkask.local`. OCAP DelegationTokens are carried as custom Matrix event fields (`hkask.ocap_token`). Pods discover each other via Fly.io internal DNS (`<app-name>.internal`) on the WireGuard private network.
+
+### 2.4 Dockerfile
 
 ```dockerfile
 # Stage 1: Build kask
@@ -150,29 +213,40 @@ WORKDIR /app
 COPY . .
 RUN cargo build --release --bin kask
 
-# Stage 2: Build Litestream (or copy binary)
+# Stage 2: Build Litestream
 FROM golang:1.23-bookworm AS litestream-builder
 RUN go install github.com/benbjohnson/litestream/cmd/litestream@v0.5.0
 
-# Stage 3: Runtime
+# Stage 3: Build Conduit (Matrix homeserver, Rust)
+FROM rust:1.85-slim-bookworm AS conduit-builder
+RUN apt-get update && apt-get install -y pkg-config libssl-dev libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+RUN git clone --depth 1 https://gitlab.com/famedly/conduit.git /conduit
+WORKDIR /conduit
+RUN cargo build --release --bin conduit
+
+# Stage 4: Runtime
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libsqlite3-0 \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/kask /usr/local/bin/kask
 COPY --from=litestream-builder /root/go/bin/litestream /usr/local/bin/litestream
+COPY --from=conduit-builder /conduit/target/release/conduit /usr/local/bin/conduit
 
-# Litestream configuration template
+# Configuration templates
 COPY deploy/fly/litestream.yml /etc/litestream.yml.template
+COPY deploy/fly/conduit.toml /etc/conduit/conduit.toml.template
+COPY deploy/fly/supervisord.conf /etc/supervisor/conf.d/hkask.conf
 
-# Entrypoint script: restore → migrate → replicate
+# Entrypoint script: render configs -> restore -> migrate -> supervisord
 COPY deploy/fly/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 VOLUME /data
-EXPOSE 3000
+EXPOSE 3000 8008 8448
 
 ENV HKASK_DATA_DIR=/data
 ENV LITESTREAM_CONFIG=/etc/litestream.yml
@@ -180,7 +254,9 @@ ENV LITESTREAM_CONFIG=/etc/litestream.yml
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 ```
 
-### 2.4 Entrypoint Script
+### 2.5 Entrypoint Script (with Conduit)
+
+The entrypoint now uses `supervisord` to manage three long-running processes: kask, Litestream, and Conduit.
 
 ```bash
 #!/bin/bash
@@ -188,12 +264,12 @@ set -e
 
 DATA_DIR="${HKASK_DATA_DIR:-/data}"
 DB_PATH="${DATA_DIR}/kask.db"
-LITESTREAM_CONFIG="${LITESTREAM_CONFIG:-/etc/litestream.yml}"
 
-# Render litestream config from template (injects S3 credentials from env)
+# Render config templates from environment variables
 envsubst < /etc/litestream.yml.template > /etc/litestream.yml
+envsubst < /etc/conduit/conduit.toml.template > /etc/conduit/conduit.toml
 
-# Restore database from S3 if no local copy exists
+# Restore kask database from S3 if no local copy exists
 if [ ! -f "$DB_PATH" ]; then
     echo "No local database found. Attempting restore from Litestream replica..."
     litestream restore -if-replica-exists -config /etc/litestream.yml "$DB_PATH" || {
@@ -204,12 +280,51 @@ fi
 # Run database migrations (idempotent)
 kask migrate --data-dir "$DATA_DIR"
 
-# Start Litestream replication with kask as child process
-# Litestream monitors WAL and streams to S3; if kask exits, Litestream flushes and exits
-exec litestream replicate -config /etc/litestream.yml -exec "kask serve --data-dir $DATA_DIR"
+# Start supervisord which manages all three processes:
+#   - conduit:  Matrix homeserver (Matrix federation preserved across restarts)
+#   - litestream: WAL replication to S3
+#   - kask: main application
+# supervisord runs as PID 1; all child processes are monitored and restarted on failure
+exec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
 ```
 
-### 2.5 Litestream Configuration Template
+### 2.6 Supervisord Configuration
+
+```ini
+# /etc/supervisor/conf.d/hkask.conf
+[supervisord]
+nodaemon=true
+logfile=/dev/stdout
+logfile_maxbytes=0
+
+[program:conduit]
+command=/usr/local/bin/conduit
+environment=CONDUIT_CONFIG="/etc/conduit/conduit.toml"
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+[program:litestream]
+command=/usr/local/bin/litestream replicate -config /etc/litestream.yml
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+[program:kask]
+command=/usr/local/bin/kask serve --data-dir /data
+environment=POD_ID="%(ENV_POD_ID)s",HKASK_DATA_DIR="/data",HKASK_MATRIX_URL="http://localhost:8008"
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+```
+
+### 2.7 Litestream Configuration Template
 
 ```yaml
 # /etc/litestream.yml.template — rendered by envsubst at container start
@@ -242,7 +357,7 @@ primary_region = "{{ primary_region }}"
 [[vm]]
   cpu_kind = "shared"
   cpus = 1
-  memory_mb = 512
+  memory_mb = 768
 
 [mounts]
   source = "hkask_data"
@@ -268,6 +383,19 @@ primary_region = "{{ primary_region }}"
   auto_start_machines = true
   min_machines_running = 0
 
+# Matrix Federation service (Conduit :8448)
+# Exposed publicly so other pods' Conduit instances can federate
+# Note: this service does NOT auto-stop - Conduit must stay reachable
+[[services]]
+  protocol = "tcp"
+  internal_port = 8448
+
+  [[services.ports]]
+    port = 8448
+    handlers = ["tls"]
+
+  auto_stop_machines = false
+
 [experimental]
   auto_rollback = true
 
@@ -279,7 +407,7 @@ primary_region = "{{ primary_region }}"
   POD_ID = "{{ pod_id }}"
 ```
 
-### 2.7 Fly Secrets (Generated, Never Committed)
+### 2.9 Fly Secrets (Generated, Never Committed)
 
 ```bash
 # Generated by `kask pod export fly --secrets`
@@ -293,10 +421,13 @@ fly secrets set \
   LITESTREAM_SECRET_ACCESS_KEY="xxx" \
   LITESTREAM_FORCE_PATH_STYLE="true" \
   POD_ID="pod_abc123" \
-  HKASK_KEYSTORE_PASSPHRASE="xxx"
+  HKASK_KEYSTORE_PASSPHRASE="xxx" \
+  CONDUIT_MATRIX_SIGNING_KEY="ed25519_xxx"
 ```
 
-### 2.8 Fly Machines API Integration (Rust)
+> **`CONDUIT_MATRIX_SIGNING_KEY`** is the Ed25519 private key Conduit uses to sign Matrix federation events. It must be stable across pod restarts — if it changes, other pods will reject federation requests. Store it as a Fly Secret, not in the volume (volume restore from Litestream doesn't cover Conduit state).
+
+### 2.10 Fly Machines API Integration (Rust)
 
 The `kask pod activate` command will use the Machines API directly, not `flyctl`, to enable programmatic pod lifecycle management:
 
@@ -402,16 +533,18 @@ impl FlyClient {
 }
 ```
 
-### 2.9 Pod Lifecycle Mapping (Fly.io)
+### 2.11 Pod Lifecycle Mapping (Fly.io with Conduit)
 
-| hKask Pod State | Fly.io Operation | API Call |
-|-----------------|-----------------|----------|
-| `Create` | `POST /apps` + `POST /apps/{app}/volumes` | create_app + create_volume |
-| `Populate` | `POST /apps/{app}/secrets` | set_secrets |
-| `Register` | `POST /apps/{app}/machines` | create_machine |
-| `Activate` | Machine already running from create | — |
-| `Deactivate` | `POST /apps/{app}/machines/{id}/stop` | stop_machine |
-| `Destroy` | `DELETE /apps/{app}/machines/{id}` + `DELETE /apps/{app}/volumes/{id}` | delete_machine + delete_volume |
+| hKask Pod State | Fly.io Operation | Notes |
+|-----------------|-----------------|-------|
+| `Create` | `POST /apps` + `POST /apps/{app}/volumes` + `POST /apps/{app}/secrets` (signing key) | Volume created, Conduit signing key stored as secret |
+| `Populate` | `POST /apps/{app}/secrets` | Remaining secrets (S3 creds, keystore passphrase) |
+| `Register` | `POST /apps/{app}/machines` | Machine boots, entrypoint renders configs, supervisord starts conduit + litestream + kask |
+| `Activate` | Machine running | Conduit federates with other pods; kask connects to localhost:8008 |
+| `Deactivate` | `POST /apps/{app}/machines/{id}/stop` | Conduit gracefully shuts down federation; Litestream flushes WAL to S3 |
+| `Destroy` | `DELETE /apps/{app}/machines/{id}` + `DELETE /apps/{app}/volumes/{id}` | Volume deleted; S3 Litestream replica remains for migration |
+
+> **Scale-to-zero tradeoff:** Model A (per-pod Conduit) cannot scale to zero because Conduit must be reachable for inbound Matrix federation messages. The HTTP API service (port 3000) can auto-stop, but the Matrix federation service (port 8448) must remain running. This means idle pods still incur the Machine cost (~$1.94/mo). Model B (shared Conduit) avoids this — only the shared Conduit stays warm, and kask pods can scale to zero. Choose based on whether OCAP isolation or cost efficiency is the higher priority.
 
 ---
 
@@ -1011,9 +1144,11 @@ For partners running hKask as critical infrastructure, the following are non-neg
 ## 6. Implementation Sequence
 
 ### Phase 1: Foundation (P0)
-- [ ] `Dockerfile` (multi-stage Rust + Litestream)
-- [ ] `entrypoint.sh` (restore → migrate → replicate)
+- [ ] `Dockerfile` (multi-stage Rust + Litestream + Conduit)
+- [ ] `entrypoint.sh` (render configs → restore → supervisord)
+- [ ] `supervisord.conf` (conduit, litestream, kask)
 - [ ] `litestream.yml.template` (S3 configuration)
+- [ ] `conduit.toml.template` (Matrix homeserver configuration)
 - [ ] CI/CD pipeline to build and push container image
 - [ ] SQLCipher + Litestream compatibility test
 
@@ -1021,9 +1156,10 @@ For partners running hKask as critical infrastructure, the following are non-neg
 - [ ] `CloudProvider` trait in `hkask-types`
 - [ ] `FlyClient` in `hkask-cli` (Machines API)
 - [ ] `kask pod export fly <pod-id>` command
-- [ ] `fly.toml` Jinja2 template
+- [ ] `fly.toml` Jinja2 template (HTTP :3000 + Matrix :8448 services)
 - [ ] `kask pod activate` → `fly machines start`
 - [ ] `kask pod deactivate` → `fly machines stop`
+- [ ] Conduit federation test: pod-1 ↔ pod-2 Matrix messaging
 - [ ] Integration test: create → activate → deactivate → destroy on Fly.io
 
 ### Phase 3: Hetzner K3s (P2)

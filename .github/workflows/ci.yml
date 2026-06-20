@@ -102,23 +102,43 @@ jobs:
           fi
 
   # ── Stage 5: Fuzz (property-based, stable Rust, depends on test) ────────
+  # Split across parallel matrix jobs to stay under timeout while compiling
+  # all 20 fuzz targets from scratch (each pulls in the full workspace).
   fuzz:
     name: Fuzz (property)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: fuzz-${{ matrix.group }}
       - name: Install bolero system deps
         run: sudo apt-get install -y --no-install-recommends binutils-dev libunwind-dev
-      - name: Fuzz (property-based testing)
+      - name: Fuzz group ${{ matrix.group }}
         id: fuzz
-        run: cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz -p hkask-wallet-fuzz -p hkask-storage-fuzz -p hkask-templates-fuzz -p hkask-memory-fuzz -p hkask-services-core-fuzz -p hkask-improv-fuzz -p hkask-mcp-fuzz -p hkask-mcp-kanban-fuzz -p hkask-mcp-communication-fuzz -p hkask-mcp-companies-fuzz -p hkask-mcp-condenser-fuzz -p hkask-mcp-docproc-fuzz -p hkask-mcp-media-fuzz -p hkask-mcp-memory-fuzz -p hkask-mcp-replica-fuzz -p hkask-mcp-research-fuzz -p hkask-mcp-spec-fuzz -p hkask-mcp-training-fuzz 2>&1 | tee bolero-output.txt
+        run: |
+          case ${{ matrix.group }} in
+            1) cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz -p hkask-wallet-fuzz -p hkask-storage-fuzz -p hkask-templates-fuzz -p hkask-memory-fuzz 2>&1 | tee bolero-output-group-${{ matrix.group }}.txt ;;
+            2) cargo test -p hkask-services-core-fuzz -p hkask-improv-fuzz -p hkask-mcp-fuzz -p hkask-mcp-kanban-fuzz -p hkask-mcp-communication-fuzz -p hkask-mcp-companies-fuzz -p hkask-mcp-condenser-fuzz 2>&1 | tee bolero-output-group-${{ matrix.group }}.txt ;;
+            3) cargo test -p hkask-mcp-docproc-fuzz -p hkask-mcp-media-fuzz -p hkask-mcp-memory-fuzz -p hkask-mcp-replica-fuzz -p hkask-mcp-research-fuzz -p hkask-mcp-spec-fuzz -p hkask-mcp-training-fuzz 2>&1 | tee bolero-output-group-${{ matrix.group }}.txt ;;
+          esac
         continue-on-error: true
-      - name: Triage fuzz failures
+      - name: Triage fuzz failures (group ${{ matrix.group }})
         if: steps.fuzz.outcome == 'failure'
         env:
           DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: cat bolero-output.txt | cargo run --bin kask -- qa triage
+        run: cat bolero-output-group-${{ matrix.group }}.txt | cargo run --bin kask -- qa triage
+      - name: Upload fuzz logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolero-output-group-${{ matrix.group }}
+          path: bolero-output-group-${{ matrix.group }}.txt
+          retention-days: 7
