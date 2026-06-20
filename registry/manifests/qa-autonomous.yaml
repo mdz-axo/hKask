@@ -8,6 +8,7 @@
 manifest:
   id: qa-autonomous
   name: QA Autonomous Cycle
+  version: 0.30.0
   description: >
     Autonomous QA pipeline that runs bolero fuzz tests, classifies failures with
     the LLM classifier, and branches on confidence: high-confidence failures

@@ -445,7 +445,7 @@ impl QaScriptRunner {
         let classifier_name =
             step.classifier
                 .as_deref()
-                .ok_or_else(|| QaScriptError::NoClassifierConfig {
+                .ok_or(QaScriptError::NoClassifierConfig {
                     ordinal: step.ordinal,
                 })?;
 
