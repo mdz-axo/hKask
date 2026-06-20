@@ -10,6 +10,7 @@
 
 pub mod convert;
 pub mod ocr;
+pub mod kindle;
 
 // ── Imports ────────────────────────────────────────────────────────────────
 
@@ -1819,190 +1820,84 @@ impl DocProcServer {
     }
 
     #[tool(
-        description = "Capture a Kindle Cloud Reader book from your local Chrome browser. Chrome must be running with --remote-debugging-port=9222 and the book already open in Kindle Cloud Reader. Pages through the book taking screenshots via Chrome DevTools Protocol, then assembles them into a PDF."
+        description = "Capture a Kindle Cloud Reader book by title. Chrome must be running with --remote-debugging-port=9222. Discovers the book in the library, opens the reader, pages through capturing each page, and assembles into a PDF."
     )]
     pub async fn docproc_kindle_zip(
         &self,
-        Parameters(KindleZipRequest {
-            book_title,
-            output_pdf,
-            max_pages,
-            page_wait_ms,
-        }): Parameters<KindleZipRequest>,
+        Parameters(KindleZipRequest { book_title, output_pdf, max_pages, page_wait_ms }): Parameters<KindleZipRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("docproc_kindle_zip", &self.webid);
         validate_field!(span, "book_title", &book_title, 512);
         validate_field!(span, "output_pdf", &output_pdf, 4096);
 
-        // Connect to local Chrome via DevTools Protocol.
-        // Chrome must be running with --remote-debugging-port=9222.
         let mut chrome = match ChromeCdpClient::connect(&self.http_client).await {
             Ok(c) => c,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Unavailable,
-                    McpToolError::internal(format!(
-                        "Cannot connect to Chrome DevTools on localhost:9222. {e}"
-                    ))
-                    .to_json_string(),
-                );
-            }
+            Err(e) => return span.error(McpErrorKind::Unavailable,
+                McpToolError::internal(format!("Cannot connect to Chrome: {e}")).to_json_string()),
         };
 
-        let current_url = chrome
-            .evaluate("window.location.href")
-            .await
-            .unwrap_or_default();
-
-        // Step 1: Navigate to Kindle library if not already there
-        if !current_url.contains("read.amazon.com/kindle-library") {
-            tracing::info!(
-                target: "hkask.mcp.docproc",
-                current = %current_url,
-                "Navigating to Kindle library"
-            );
-            chrome
-                .evaluate("window.location.href = 'https://read.amazon.com/kindle-library'")
-                .await
-                .ok();
+        // Step 1: Navigate to library and discover book ASIN
+        let current = chrome.evaluate("window.location.href").await.unwrap_or_default();
+        if !current.contains("kindle-library") {
+            chrome.evaluate("window.location.href = 'https://read.amazon.com/kindle-library'").await.ok();
             tokio::time::sleep(std::time::Duration::from_secs(4)).await;
         }
 
-        // Step 2: Search for the book by title in the library
-        let escaped_title = book_title.replace('\'', "\\'").replace('"', "\\\"");
-        let search_js = format!(
-            "(function() {{ var input = document.querySelector('input[type=\"search\"], input[placeholder*=\"Search\" i], input[placeholder*=\"search\" i]'); if (!input) return 'SEARCH_NOT_FOUND'; input.focus(); input.value = ''; var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(input, '{}'); input.dispatchEvent(new Event('input', {{ bubbles: true }})); input.dispatchEvent(new KeyboardEvent('keydown', {{ key: 'Enter', bubbles: true }})); input.dispatchEvent(new KeyboardEvent('keyup', {{ key: 'Enter', bubbles: true }})); return 'SEARCH_SENT'; }})()",
-            escaped_title
-        );
+        let asin = match kindle::discovery::find_asin_by_title(&mut chrome, &book_title).await {
+            Ok(Some(a)) => a,
+            Ok(None) => return span.error(McpErrorKind::NotFound,
+                McpToolError::internal(format!("Book '{}' not found in library", book_title)).to_json_string()),
+            Err(e) => return span.error(McpErrorKind::Internal,
+                McpToolError::internal(format!("Library search failed: {e}")).to_json_string()),
+        };
+        tracing::info!(target: "hkask.mcp.docproc", asin = %asin, "Found book");
 
-        match chrome.evaluate(&search_js).await {
-            Ok(result) => {
-                tracing::info!(target: "hkask.mcp.docproc", result = %result, "Search executed");
-            }
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Search failed: {e}")).to_json_string(),
-                );
-            }
+        // Step 2: Open reader and inject blob interception
+        if let Err(e) = kindle::capture::open_reader(&mut chrome, &asin).await {
+            return span.error(McpErrorKind::Internal,
+                McpToolError::internal(format!("Failed to open reader: {e}")).to_json_string());
         }
+        kindle::capture::inject_blob_intercept(&mut chrome).await.ok();
+        let blob_capture = kindle::capture::BlobCapture::new();
 
-        // Wait for search results to load
-        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-
-        // Step 3: Click the book cover/title to open the reader
-        let click_js = format!(
-            "(function() {{ var t = '{}'; var lower = t.toLowerCase(); var items = document.querySelectorAll('img[alt], [aria-label]'); for (var i = 0; i < items.length; i++) {{ var attr = (items[i].getAttribute('alt') || '') + (items[i].getAttribute('aria-label') || ''); if (attr.toLowerCase().indexOf(lower) >= 0 && items[i].offsetParent !== null) {{ items[i].closest('a, button, [role=\"button\"], [role=\"link\"]')?.click(); items[i].click(); return 'CLICKED'; }} }} var all = document.querySelectorAll('*'); for (var i = 0; i < all.length; i++) {{ if (all[i].children.length > 0) continue; if (all[i].textContent && all[i].textContent.toLowerCase().indexOf(lower) >= 0 && all[i].offsetParent !== null) {{ all[i].click(); return 'CLICKED_TEXT'; }} }} return 'NOT_FOUND'; }})()",
-            escaped_title
-        );
-
-        match chrome.evaluate(&click_js).await {
-            Ok(result) => {
-                tracing::info!(target: "hkask.mcp.docproc", result = %result, "Book click result");
-            }
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Failed to open book: {e}")).to_json_string(),
-                );
-            }
-        }
-
-        // Wait for the reader to load
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
-        // Verify we're now in the reader
-        let reader_url = chrome
-            .evaluate("window.location.href")
-            .await
-            .unwrap_or_default();
-        tracing::info!(
-            target: "hkask.mcp.docproc",
-            url = %reader_url,
-            book_title = %book_title,
-            "Reader opened"
-        );
-
-        // Step 4: Page through the book, capturing screenshots
-
-        // Page through the book, capturing screenshots
+        // Step 3: Page through the book
         let mut screenshots: Vec<Vec<u8>> = Vec::with_capacity(max_pages.min(500));
-
         for page_num in 1..=max_pages {
-            // Take screenshot of the current page
-            match chrome.capture_screenshot().await {
-                Ok(png_bytes) => {
-                    if png_bytes.len() < 1024 {
-                        tracing::warn!(
-                            target: "hkask.mcp.docproc",
-                            page = page_num,
-                            byte_len = png_bytes.len(),
-                            "Screenshot too small — possible blank page"
-                        );
-                    }
-                    screenshots.push(png_bytes);
+            match kindle::capture::capture_page(&mut chrome, &blob_capture).await {
+                Ok(png) => {
+                    if png.len() < 512 { tracing::warn!(target: "hkask.mcp.docproc", page = page_num, "Page too small — stopping"); break; }
+                    screenshots.push(png);
                 }
-                Err(e) => {
-                    tracing::warn!(
-                        target: "hkask.mcp.docproc",
-                        page = page_num,
-                        error = %e,
-                        "Screenshot failed, stopping capture"
-                    );
-                    break;
-                }
+                Err(e) => { tracing::warn!(target: "hkask.mcp.docproc", page = page_num, error = %e, "Capture failed"); break; }
             }
-
-            // Turn to next page (unless we're at max_pages)
             if page_num < max_pages {
-                // Kindle Cloud Reader advances pages with the right arrow key
-                if let Err(e) = chrome.press_key("ArrowRight").await {
-                    tracing::warn!(
-                        target: "hkask.mcp.docproc",
-                        page = page_num,
-                        error = %e,
-                        "Page turn failed, stopping capture"
-                    );
-                    break;
+                match kindle::capture::next_page(&mut chrome).await {
+                    Ok(true) => {}
+                    Ok(false) => { tracing::info!(target: "hkask.mcp.docproc", page = page_num, "End of book"); break; }
+                    Err(e) => { tracing::warn!(target: "hkask.mcp.docproc", page = page_num, error = %e, "Page turn failed"); break; }
                 }
-
-                // Wait for the page to render
                 tokio::time::sleep(std::time::Duration::from_millis(page_wait_ms)).await;
             }
         }
 
         if screenshots.is_empty() {
-            return span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(
-                    "No pages were captured. Ensure a book is open in Kindle Cloud Reader.",
-                )
-                .to_json_string(),
-            );
+            return span.error(McpErrorKind::Internal,
+                McpToolError::internal("No pages captured").to_json_string());
         }
 
-        // Assemble screenshots into a PDF
+        // Step 4: Assemble PDF
         let pages_captured = screenshots.len();
-        match assemble_kindle_pdf(&screenshots, &output_pdf) {
+        match kindle::assembly::assemble(&screenshots, &output_pdf) {
             Ok(file_size) => {
-                self.record_experience(
-                    "docproc_kindle_zip",
-                    &book_title,
-                    "success",
-                    json!({"pages_captured": pages_captured, "file_size_bytes": file_size}),
-                );
-                span.ok_json(json!({
-                    "pdf_path": output_pdf,
-                    "pages_captured": pages_captured,
-                    "file_size_bytes": file_size,
-                }))
+                self.record_experience("docproc_kindle_zip", &book_title, "success",
+                    json!({"pages_captured": pages_captured, "file_size_bytes": file_size}));
+                span.ok_json(json!({"pdf_path": output_pdf, "pages_captured": pages_captured, "file_size_bytes": file_size}))
             }
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("PDF assembly failed: {e}")).to_json_string(),
-            ),
+            Err(e) => span.error(McpErrorKind::Internal,
+                McpToolError::internal(format!("PDF assembly failed: {e}")).to_json_string()),
         }
     }
+
 }
 
 // ── Chrome DevTools Protocol client ───────────────────────────────────────
@@ -2014,14 +1909,14 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungsten
 
 /// Drives a local Chrome browser via DevTools Protocol (CDP).
 /// Chrome must be launched with `--remote-debugging-port=9222`.
-struct ChromeCdpClient {
+pub(crate) struct ChromeCdpClient {
     ws: WebSocketStream<MaybeTlsStream<TcpStream>>,
     msg_id: AtomicU64,
 }
 
 impl ChromeCdpClient {
     /// Connect to local Chrome DevTools, finding the Kindle Cloud Reader tab.
-    async fn connect(http: &reqwest::Client) -> Result<Self, String> {
+    pub(crate) async fn connect(http: &reqwest::Client) -> Result<Self, String> {
         // Discover open tabs
         let resp = http
             .get("http://localhost:9222/json")
@@ -2074,7 +1969,7 @@ impl ChromeCdpClient {
     }
 
     /// Send a CDP command and wait for the result.
-    async fn send_command(
+    pub(crate) async fn send_command(
         &mut self,
         method: &str,
         params: serde_json::Value,
@@ -2185,131 +2080,6 @@ impl ChromeCdpClient {
     }
 }
 
-fn assemble_kindle_pdf(pages: &[Vec<u8>], output_path: &str) -> Result<u64, String> {
-    use std::io::Write;
-
-    if pages.is_empty() {
-        return Err("No pages to assemble".into());
-    }
-
-    // Read all page dimensions first
-    struct PageInfo {
-        width: u32,
-        height: u32,
-        data: Vec<u8>,
-    }
-
-    let mut page_infos: Vec<PageInfo> = Vec::with_capacity(pages.len());
-    for (i, png_bytes) in pages.iter().enumerate() {
-        let img = image::load_from_memory(png_bytes)
-            .map_err(|e| format!("Failed to decode page {i} PNG: {e}"))?;
-        let (w, h) = (img.width(), img.height());
-        // Re-encode as JPEG for smaller PDF size
-        let mut jpeg_bytes: Vec<u8> = Vec::new();
-        img.write_to(
-            &mut std::io::Cursor::new(&mut jpeg_bytes),
-            image::ImageFormat::Jpeg,
-        )
-        .map_err(|e| format!("Failed to re-encode page {i} as JPEG: {e}"))?;
-        page_infos.push(PageInfo {
-            width: w,
-            height: h,
-            data: jpeg_bytes,
-        });
-    }
-
-    // Build minimal PDF
-    let mut pdf: Vec<u8> = Vec::new();
-    let mut offsets: Vec<u64> = Vec::new();
-
-    // PDF header
-    writeln!(pdf, "%PDF-1.4").unwrap();
-    // Binary comment for PDF readers (high bytes to signal binary content)
-    pdf.extend_from_slice(b"%\xe2\xe3\xcf\xd3\n");
-
-    let n = page_infos.len() as u32;
-
-    // Object 1: Catalog
-    offsets.push(pdf.len() as u64);
-    writeln!(pdf, "1 0 obj").unwrap();
-    writeln!(pdf, "<< /Type /Catalog /Pages 2 0 R >>").unwrap();
-    writeln!(pdf, "endobj").unwrap();
-
-    // Object 2: Pages
-    offsets.push(pdf.len() as u64);
-    write!(pdf, "2 0 obj\n<< /Type /Pages /Kids [").unwrap();
-    // Page objects start at 3, image objects at 3+n, content streams at 3+2n
-    for i in 0..n {
-        write!(pdf, "{} 0 R ", 3 + i * 3).unwrap();
-    }
-    writeln!(pdf, "] /Count {} >>", n).unwrap();
-    writeln!(pdf, "endobj").unwrap();
-
-    // Per-page objects: Page, Image XObject, Content stream
-    for (i, info) in page_infos.iter().enumerate() {
-        let page_obj = 3 + i as u32 * 3;
-        let img_obj = page_obj + 1;
-        let content_obj = page_obj + 2;
-
-        // Image XObject
-        offsets.push(pdf.len() as u64);
-        writeln!(pdf, "{} 0 obj", img_obj).unwrap();
-        writeln!(
-            pdf,
-            "<< /Type /XObject /Subtype /Image /Width {} /Height {} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {} >>",
-            info.width, info.height, info.data.len()
-        )
-        .unwrap();
-        writeln!(pdf, "stream").unwrap();
-        pdf.write_all(&info.data).unwrap();
-        writeln!(pdf, "\nendstream").unwrap();
-        writeln!(pdf, "endobj").unwrap();
-
-        // Content stream (scale image to fill page)
-        offsets.push(pdf.len() as u64);
-        let content = format!("q\n{} 0 0 {} 0 0 cm\n/Im0 Do\nQ", info.width, info.height);
-        writeln!(pdf, "{} 0 obj", content_obj).unwrap();
-        writeln!(pdf, "<< /Length {} >>", content.len()).unwrap();
-        writeln!(pdf, "stream").unwrap();
-        write!(pdf, "{}", content).unwrap();
-        writeln!(pdf, "\nendstream").unwrap();
-        writeln!(pdf, "endobj").unwrap();
-
-        // Page object
-        offsets.push(pdf.len() as u64);
-        writeln!(pdf, "{} 0 obj", page_obj).unwrap();
-        writeln!(
-            pdf,
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {} {}] /Contents {} 0 R /Resources << /XObject << /Im0 {} 0 R >> >> >>",
-            info.width, info.height, content_obj, img_obj
-        )
-        .unwrap();
-        writeln!(pdf, "endobj").unwrap();
-    }
-
-    // Cross-reference table
-    let xref_offset = pdf.len() as u64;
-    writeln!(pdf, "xref").unwrap();
-    writeln!(pdf, "0 {}", offsets.len() as u32 + 1).unwrap();
-    writeln!(pdf, "0000000000 65535 f ").unwrap();
-    for off in &offsets {
-        writeln!(pdf, "{:010} 00000 n ", off).unwrap();
-    }
-
-    // Trailer
-    writeln!(pdf, "trailer").unwrap();
-    writeln!(pdf, "<< /Size {} /Root 1 0 R >>", offsets.len() as u32 + 1).unwrap();
-    writeln!(pdf, "startxref").unwrap();
-    writeln!(pdf, "{xref_offset}").unwrap();
-    writeln!(pdf, "%%EOF").unwrap();
-
-    // Write to disk
-    let file_size = pdf.len() as u64;
-    std::fs::write(output_path, &pdf)
-        .map_err(|e| format!("Failed to write PDF to '{}': {e}", output_path))?;
-
-    Ok(file_size)
-}
 
 // ── Tests ──────────────────────────────────────────────────────────────────
 
@@ -2522,7 +2292,7 @@ mod kindle_zip_tests {
             pages.push(buf.into_inner());
         }
         let tmp = std::env::temp_dir().join("test_kindle_output.pdf");
-        let result = assemble_kindle_pdf(&pages, tmp.to_str().unwrap());
+        let result = kindle::assembly::assemble(&pages, tmp.to_str().unwrap());
         assert!(result.is_ok(), "PDF assembly failed: {:?}", result.err());
         let bytes = std::fs::read(&tmp).unwrap();
         assert!(bytes.starts_with(b"%PDF-1.4"), "Not a valid PDF");
@@ -2534,7 +2304,7 @@ mod kindle_zip_tests {
 
     #[test]
     fn pdf_assembler_rejects_empty() {
-        assert!(assemble_kindle_pdf(&[], "x.pdf").is_err());
+        assert!(kindle::assembly::assemble(&[], "x.pdf").is_err());
     }
 
     #[test]
