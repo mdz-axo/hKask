@@ -2,6 +2,7 @@
 name: chain-of-density
 visibility: public
 description: Iterative density-increase summarization based on Gao et al. (2024). Produces increasingly dense summaries by identifying missing entities from prior summaries, merging them in, and removing redundant language — all while maintaining fixed length. Converges when density improvement falls below threshold between passes. Use when you need a maximally information-dense summary at a fixed length, or when "summarize this" needs to preserve more entities than a single-pass summary can hold.
+activation: "summarize this densely"
 ---
 
 # Chain-of-Density Summarization

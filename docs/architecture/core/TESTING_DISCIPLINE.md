@@ -243,8 +243,8 @@ Tests accumulate the scar tissue of every production incident. They become the r
 |-----------|----------|------------|
 | Unit (same-module) | `#[cfg(test)] mod tests` inside source file | For testing public interface of a single module |
 | Integration | `tests/` directory at crate root | For testing cross-module behavior through crate public API |
-| Fuzz | `tests/` directory at crate root | For panic-free verification on arbitrary input |
-| MCP server | `#[cfg(test)] mod tests` in `main.rs` | For testing tool handlers and response types |
+| Fuzz (bolero) | `fuzz/fuzz_targets/` directory at crate root | For panic-free verification on arbitrary input via `bolero::check!()` |
+| MCP server fuzz | `mcp-servers/*/fuzz/fuzz_targets/` directory | For full tool dispatch path fuzzing under `catch_unwind` |
 
 ### 6.2 Testing Rules
 
@@ -330,52 +330,192 @@ Tests accumulate the scar tissue of every production incident. They become the r
 
 ### 8.1 Overview
 
-hKask uses `cargo-bolero` for unified fuzz + property testing across 9 crates (18 test functions).
-Bolero provides three engines:
+hKask uses `cargo-bolero` for unified fuzz + property testing across **12 crates** (**78 test functions**).
+One `#[test] fn` works with all engines — bolero abstracts the engine behind `check!()`.
+
+Bolero supports five engines:
 
 | Engine | Requires | Use Case |
 |--------|----------|----------|
-| Property testing (`cargo test`) | Stable Rust | Fast feedback on every push — generates random inputs, shrinks on failure |
-| libFuzzer (`cargo +nightly bolero test -e libfuzzer`) | Nightly Rust | Coverage-guided — finds edge cases property testing misses |
-| Kani (`cargo bolero test -e kani`) | Kani installed | Formal verification for selected targets |
+| Property testing (`cargo test`) | Stable Rust | Every push — 100 iterations of random input, shrinks on failure |
+| libFuzzer (`-e libfuzzer`) | Nightly Rust | Coverage-guided — SanitizerCoverage instrumentation |
+| Honggfuzz (`-e honggfuzz`) | Nightly Rust | Hardware counter-guided — finds paths SanitizerCoverage misses |
+| AFL (`-e afl`) | Nightly Rust | Deterministic mutations — fork-server model, different crash handling |
+| Kani (`-e kani`) | Kani installed | Formal verification for selected targets |
 
-### 8.2 Running Fuzz Tests
+Ensemble fuzzing runs multiple engines on the same targets — standard practice
+(Google OSS-Fuzz runs libfuzzer + AFL + honggfuzz on every target).
 
-```bash
-# Property-based (stable, CI on every push)
-cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz \
-           -p hkask-wallet-fuzz -p hkask-storage-fuzz -p hkask-templates-fuzz \
-           -p hkask-memory-fuzz -p hkask-services-core-fuzz -p hkask-improv-fuzz
+### 8.2 CI Fuzz Architecture
 
-# Coverage-guided (nightly, runs in CI on schedule)
-cargo +nightly bolero test -p hkask-types-fuzz fuzz_cns_span_parse_never_panics -T 60s -e libfuzzer
+```
+┌──────────────┬──────────────┬──────────────┬──────────────┐
+│   STABLE     │   NIGHTLY     │   NIGHTLY     │   NIGHTLY     │
+│   ci.yml     │   mutants.yml │   mutants.yml │   mutants.yml │
+│   every push │   push + tag  │   push + tag  │   daily only   │
+├──────────────┼──────────────┼──────────────┼──────────────┤
+│ cargo test   │ libfuzzer     │ honggfuzz     │ libfuzzer     │
+│ 100 iters    │ 300s/target   │ 300s/target   │ 600s/target   │
+│ 78 tests     │ 5 targets     │ 2 targets     │ 13 targets    │
+│              │ --seed-dir    │ --seed-dir    │               │
+│              │               │               │ AFL           │
+│              │               │               │ 300s/target   │
+│              │               │               │ 2 targets     │
+└──────────────┴──────────────┴──────────────┴──────────────┘
 ```
 
-### 8.3 Fuzz Target Structure
+### 8.3 Fuzz Crate Inventory
 
-Fuzz targets live in `crates/hkask-{crate}/fuzz/fuzz_targets/`. Each target is a `#[test]`
-function using bolero's `check!()` macro:
+| # | Crate | Tests | Target Surface |
+|---|-------|-------|---------------|
+| 1 | `hkask-types-fuzz` | 4 | CnsSpan, EnergyCost, budget types |
+| 2 | `hkask-cns-fuzz` | 3 | CNS span parsing, energy construction |
+| 3 | `hkask-inference-fuzz` | 3 | Model name parsing, prompt validation |
+| 4 | `hkask-wallet-fuzz` | 1 | Wallet operations |
+| 5 | `hkask-storage-fuzz` | 1 | Triple construction |
+| 6 | `hkask-templates-fuzz` | 1 | Skill template parsing |
+| 7 | `hkask-memory-fuzz` | 1 | Salience computation |
+| 8 | `hkask-services-core-fuzz` | 1 | Settings model resolution |
+| 9 | `hkask-improv-fuzz` | 1 | Riffing string matching |
+| 10 | `hkask-mcp-fuzz` | 5 | validate_identifier, validate_tool_url, classify_http_error |
+| 11 | `hkask-mcp-kanban-fuzz` | 15 | All 8 kanban tools: deser + dispatch + CNS span + state-machine |
+| 12–21 | 10 remaining MCP server fuzz crates | 10 | Deserialization never-panics (all 171 request types covered) |
+| — | Additional via `dispatch_test!` macro | +41 | Per-tool dispatch tests for companies (27), memory (14), replica (7), kanban (8) |
+| **Total** | | **78** | |
+
+### 8.4 Fuzz Target Patterns
+
+hKask uses four fuzz patterns, each verifying a different class of invariant:
+
+#### Pattern A: Deserialization never panics
 
 ```rust
-use bolero::check;
-
 #[test]
-fn fuzz_cns_span_parse_never_panics() {
+fn fuzz_kanban_deserialize_never_panics() {
     check!().with_type::<String>().for_each(|s| {
-        let _ = s.parse::<hkask_types::cns::CnsSpan>();
+        let _ = serde_json::from_str::<BoardCreateRequest>(s);
+        let _ = serde_json::from_str::<TaskCreateRequest>(s);
+        // ... all request types
     });
 }
 ```
 
-### 8.4 Fuzz Target Priority
+#### Pattern A (dispatch): One test per tool — equal coverage
+
+Uses `dispatch_test!` macro to eliminate short-circuit bias:
+
+```rust
+macro_rules! dispatch_test {
+    ($name:ident, $ty:ty, $method:ident) => {
+        #[test] fn $name() {
+            check!().with_type::<String>().for_each(|s| {
+                if let Ok(req) = serde_json::from_str::<$ty>(s) {
+                    let server = test_server();
+                    let _ = call_tool(server.$method(Parameters(req)));
+                }
+            });
+        }
+    };
+}
+dispatch_test!(fuzz_kanban_dispatch_board_create, BoardCreateRequest, kanban_board_create);
+// ... one invocation per tool
+```
+
+#### Pattern B: CNS span contract
+
+Verifies ToolSpanGuard invariants through observable output:
+
+```rust
+#[test]
+fn fuzz_kanban_cns_span_contract_holds() {
+    check!().with_type::<String>().for_each(|s| {
+        // ... dispatch tool ...
+        assert!(!output.is_empty(), "span leaked — no output");
+        let val: Value = serde_json::from_str(&output).expect("valid JSON");
+        assert!(val.get("content").is_some() || val.get("error").is_some());
+    });
+}
+```
+
+#### Pattern C: State-machine roundtrip
+
+Generates operation sequences, executes on shared server state, verifies consistency:
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+enum KanbanOp { CreateBoard { name: String }, CreateTask { board_idx: usize, title: String }, ... }
+
+#[test]
+fn fuzz_kanban_state_machine_sequence() {
+    check!().with_type::<String>().for_each(|json| {
+        let ops: Vec<KanbanOp> = serde_json::from_str(json).unwrap_or_default();
+        // Execute sequence on shared server state, verify final consistency
+    });
+}
+```
+
+### 8.5 Seed Corpora
+
+Seed corpora give libfuzzer/honggfuzz/AFL valid starting points to mutate.
+Without seeds, engines waste time generating invalid JSON that doesn't parse.
+
+```
+mcp-servers/hkask-mcp-kanban/fuzz/seeds/
+├── board_create.json    # {"BoardCreate":{"name":"Seed Board",...}}
+├── board_list.json      # {"BoardList":{...}}
+├── task_create.json     # {"TaskCreate":{"board_id":"...","title":"Seed Task",...}}
+├── task_move.json       # {"TaskMove":{"task_id":"...","target_status":"InProgress",...}}
+└── sequence.json        # Multi-operation sequence
+```
+
+Used via: `cargo bolero test --seed-dir mcp-servers/hkask-mcp-kanban/fuzz/seeds`
+
+### 8.6 Running Fuzz Tests
+
+```bash
+# Property-based (stable, CI on every push — all 12 crates)
+cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz \
+           -p hkask-wallet-fuzz -p hkask-storage-fuzz -p hkask-templates-fuzz \
+           -p hkask-memory-fuzz -p hkask-services-core-fuzz -p hkask-improv-fuzz \
+           -p hkask-mcp-fuzz -p hkask-mcp-kanban-fuzz \
+           -p hkask-mcp-communication-fuzz -p hkask-mcp-companies-fuzz \
+           -p hkask-mcp-condenser-fuzz -p hkask-mcp-docproc-fuzz \
+           -p hkask-mcp-media-fuzz -p hkask-mcp-memory-fuzz \
+           -p hkask-mcp-replica-fuzz -p hkask-mcp-research-fuzz \
+           -p hkask-mcp-spec-fuzz -p hkask-mcp-training-fuzz
+
+# Coverage-guided (nightly, CI deep fuzz — with seed corpora)
+cargo +nightly bolero test -p hkask-mcp-kanban-fuzz fuzz_kanban_dispatch_board_create \
+  -T 300s -e libfuzzer --seed-dir mcp-servers/hkask-mcp-kanban/fuzz/seeds
+
+# Ensemble — run different engines on same target
+cargo +nightly bolero test -p hkask-mcp-kanban-fuzz fuzz_kanban_dispatch_task_create \
+  -T 300s -e honggfuzz --seed-dir mcp-servers/hkask-mcp-kanban/fuzz/seeds
+cargo +nightly bolero test -p hkask-mcp-kanban-fuzz fuzz_kanban_dispatch_board_create \
+  -T 300s -e afl --seed-dir mcp-servers/hkask-mcp-kanban/fuzz/seeds
+```
+
+### 8.7 Fuzz Target Priority
 
 | Priority | Surface | Rationale |
 |----------|---------|-----------|
 | 1 | `pub fn` containing `unsafe` | Highest bug density |
-| 2 | Parsers/deserializers (`FromStr`, `Deserialize`) | Input boundary — where malformed data enters |
-| 3 | Functions with `Vec`, `HashMap`, indexing | Panic surface |
-| 4 | Functions with arithmetic operations | Silent overflow/corruption |
-| 5 | Everything else | Diminishing returns |
+| 2 | MCP tool routers (deserialize + ToolSpanGuard + service) | External trust boundary — where arbitrary JSON enters the system |
+| 3 | Parsers/deserializers (`FromStr`, `Deserialize`) | Input boundary — where malformed data enters |
+| 4 | Validation functions (`validate_identifier`, `validate_tool_url`) | SSRF and injection surface |
+| 5 | Type constructors (`Triple::new`, `EnergyCost`) | Value construction guardrails |
+
+### 8.8 Mutatis Investigation
+
+The `mutatis` crate (v0.5.3, by Nick Fitzgerald) was investigated for structure-aware
+fuzzing via `fuzz_mutator!`. It is blocked because `mutatis::DefaultMutate` is not
+implemented for `String`, `Vec<T>`, or `Option<T>` — the primary field types in
+MCP request structs. If a future mutatis release adds these impls, switching to
+structure-aware mutation would require zero server-crate changes (method enum +
+`fuzz_mutator!` in the fuzz crate only).
+
+Seed corpora fill this gap today: libfuzzer gets valid JSON starting points to
+mutate, achieving similar coverage through a different mechanism.
 
 ---
 

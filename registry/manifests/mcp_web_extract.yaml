@@ -2,8 +2,8 @@
 # ℏKask v0.21.0 - A Minimal Viable Container for Agents
 
 manifest:
-  id: mcp/web_extract
-  name: MCP Web Extractor
+  id: prompt-templates/web_extract
+  name: Prompt-Templates Web Extractor
   description: >
     Search and extract information from web sources.
     Supports source filtering, freshness constraints, and relevance ranking.
@@ -26,7 +26,7 @@ steps:
     description: >
       Render web extraction template with query and parameters.
     renderer: minijinja
-    template_ref: mcp/web_extract
+    template_ref: prompt-templates/web_extract
     mcp: null
     gas_cap: 1000
     timeout_seconds: 10
@@ -79,15 +79,15 @@ ocap:
   required_capabilities:
     - resource: template
       action: render
-      template_id: mcp/web_extract
+      template_id: prompt-templates/web_extract
       gas_budget: 2000
     - resource: web
       action: search
-      template_id: mcp/web_extract
+      template_id: prompt-templates/web_extract
       gas_budget: 4000
     - resource: cns
       action: emit
-      template_id: mcp/web_extract
+      template_id: prompt-templates/web_extract
       gas_budget: 500
   delegation_chain_required: true
   signature_algorithm: ed25519

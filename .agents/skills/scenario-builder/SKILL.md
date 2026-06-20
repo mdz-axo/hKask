@@ -2,6 +2,7 @@
 name: scenario-builder
 visibility: public
 description: Scenario planning methodology following Schwartz's framework. Refines focal questions, maps key forces and macro-level driving forces through STEEP analysis, generates divergent 2x2 scenario narratives, and derives implications with early-warning indicators. Use when exploring strategic uncertainty, preparing for multiple futures, or stress-testing decisions against alternative worlds.
+activation: "build scenarios"
 ---
 
 # Scenario Builder

@@ -2,10 +2,10 @@
 # ℏKask v0.21.0 - A Minimal Viable Container for Agents
 
 manifest:
-  id: mcp/inference_call
-  name: MCP Inference Call
+  id: prompt-templates/inference_call
+  name: Prompt-Templates Inference Call
   description: >
-    LLM inference call via MCP with capability validation and CNS monitoring.
+    LLM inference call via prompt templates with capability validation and CNS monitoring.
     Supports model tier selection, temperature control, and token budgeting.
   functional_role: flowdef
   version: 0.21.0
@@ -27,7 +27,7 @@ steps:
       Render inference call template with prompt and parameters.
       Apply safety mode if enabled.
     renderer: minijinja
-    template_ref: mcp/inference_call
+    template_ref: prompt-templates/inference_call
     mcp: null
     gas_cap: 1000
     timeout_seconds: 10
@@ -79,15 +79,15 @@ ocap:
   required_capabilities:
     - resource: template
       action: render
-      template_id: mcp/inference_call
+      template_id: prompt-templates/inference_call
       gas_budget: 1000
     - resource: inference
       action: call
-      template_id: mcp/inference_call
+      template_id: prompt-templates/inference_call
       gas_budget: 8192
     - resource: cns
       action: emit
-      template_id: mcp/inference_call
+      template_id: prompt-templates/inference_call
       gas_budget: 500
   delegation_chain_required: true
   signature_algorithm: ed25519

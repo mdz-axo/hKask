@@ -13,8 +13,8 @@ pub mod ocr;
 
 // ── Imports ────────────────────────────────────────────────────────────────
 
-use async_trait::async_trait;
 use anyhow;
+use async_trait::async_trait;
 
 use crate::ocr::calibration::{analyze_threshold_drift, emit_drift_alert};
 use crate::ocr::decimation;
@@ -1818,7 +1818,6 @@ impl DocProcServer {
         span.ok_json(json!({"cleared": cleared}))
     }
 
-
     #[tool(
         description = "Capture a Kindle Cloud Reader book from your local Chrome browser. Chrome must be running with --remote-debugging-port=9222 and the book already open in Kindle Cloud Reader. Pages through the book taking screenshots via Chrome DevTools Protocol, then assembles them into a PDF."
     )]
@@ -1957,9 +1956,9 @@ impl DocProcServer {
 // ── Chrome DevTools Protocol client ───────────────────────────────────────
 
 use futures_util::{SinkExt, StreamExt};
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite::Message};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Drives a local Chrome browser via DevTools Protocol (CDP).
 /// Chrome must be launched with `--remote-debugging-port=9222`.
@@ -1978,7 +1977,10 @@ impl ChromeCdpClient {
             .await
             .map_err(|e| format!("Chrome DevTools not reachable on localhost:9222 — is Chrome running with --remote-debugging-port=9222? ({e})"))?;
 
-        let body = resp.text().await.map_err(|e| format!("Failed to read tab list: {e}"))?;
+        let body = resp
+            .text()
+            .await
+            .map_err(|e| format!("Failed to read tab list: {e}"))?;
         let tabs: Vec<serde_json::Value> =
             serde_json::from_str(&body).map_err(|e| format!("Failed to parse tab list: {e}"))?;
 
@@ -2041,8 +2043,8 @@ impl ChromeCdpClient {
         while let Some(msg) = self.ws.next().await {
             match msg {
                 Ok(Message::Text(text)) => {
-                    let resp: serde_json::Value = serde_json::from_str(&text)
-                        .map_err(|e| format!("CDP parse error: {e}"))?;
+                    let resp: serde_json::Value =
+                        serde_json::from_str(&text).map_err(|e| format!("CDP parse error: {e}"))?;
                     if resp.get("id").and_then(|v| v.as_u64()) == Some(id) {
                         if let Some(err) = resp.get("error") {
                             return Err(format!(
@@ -2052,7 +2054,10 @@ impl ChromeCdpClient {
                                     .unwrap_or("unknown")
                             ));
                         }
-                        return Ok(resp.get("result").cloned().unwrap_or(serde_json::Value::Null));
+                        return Ok(resp
+                            .get("result")
+                            .cloned()
+                            .unwrap_or(serde_json::Value::Null));
                     }
                     // Otherwise it's an event notification — ignore and continue
                 }
@@ -2447,6 +2452,43 @@ mod tests {
     fn chunk_defaults_index_true() {
         // Verify the default_true helper
         assert!(default_true());
+    }
+}
+
+#[cfg(test)]
+mod kindle_zip_tests {
+    use super::*;
+
+    #[test]
+    fn pdf_assembler_produces_valid_pdf() {
+        use image::{Rgb, RgbImage};
+        let mut pages = Vec::new();
+        for color in [Rgb([255, 0, 0]), Rgb([0, 0, 255])] {
+            let img = RgbImage::from_pixel(200, 300, color);
+            let mut buf = std::io::Cursor::new(Vec::new());
+            img.write_to(&mut buf, image::ImageFormat::Png).unwrap();
+            pages.push(buf.into_inner());
+        }
+        let tmp = std::env::temp_dir().join("test_kindle_output.pdf");
+        let result = assemble_kindle_pdf(&pages, tmp.to_str().unwrap());
+        assert!(result.is_ok(), "PDF assembly failed: {:?}", result.err());
+        let bytes = std::fs::read(&tmp).unwrap();
+        assert!(bytes.starts_with(b"%PDF-1.4"), "Not a valid PDF");
+        assert!(bytes.windows(5).any(|w| w == b"%%EOF"), "Missing EOF");
+        let pm: Vec<_> = bytes.windows(9).filter(|w| *w == b"/MediaBox").collect();
+        assert_eq!(pm.len(), 2, "Expected 2 pages, found {}", pm.len());
+        std::fs::remove_file(&tmp).ok();
+    }
+
+    #[test]
+    fn pdf_assembler_rejects_empty() {
+        assert!(assemble_kindle_pdf(&[], "x.pdf").is_err());
+    }
+
+    #[test]
+    fn kindle_zip_request_defaults() {
+        assert_eq!(default_kindle_max_pages(), 500);
+        assert_eq!(default_kindle_page_wait_ms(), 1500);
     }
 }
 

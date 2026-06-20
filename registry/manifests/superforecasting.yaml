@@ -1,0 +1,628 @@
+# Superforecasting Pipeline FlowDef
+# ℏKask v0.30.0 — A Minimal Viable Container for Agents
+#
+# Implements Tetlock's Good Judgment Project 8-stage methodology:
+#   stage_0_triage → stage_1_fermi_decompose → stage_2_outside_view
+#   → stage_3_inside_view → stage_4_evidence_update → stage_5_synthesis
+#   → stage_6_calibration → stage_7_record
+#
+# Each stage's output cascades to the next via input_mapping contracts.
+# Convergence criteria: synthesis agrees with evidence-update, triage gate,
+# and confidence threshold met.
+
+manifest:
+  id: superforecasting
+  name: Superforecasting Pipeline
+  description: >
+    Multi-stage iterative estimation pipeline for quality forecasting.
+    Implements Tetlock's Fermi-ization methodology with outside/inside view,
+    Bayesian updating, dragonfly-eye causal synthesis, probability calibration,
+    and structured forecast recording for post-mortem Brier scoring.
+    Eight cascading stages following the Good Judgment Project protocol.
+  functional_role: flowdef
+  version: "0.30.0"
+  editor: Curator
+  visibility: Public
+
+# ── Pipeline Inputs ──────────────────────────────────────────────────────────
+inputs:
+  - name: forecasting_question
+    type: string
+    description: "The forecasting question to estimate (e.g. 'Will X happen by date Y?')"
+    required: true
+  - name: domain
+    type: string
+    description: "Optional domain classification (geopolitics, economics, technology, etc.)"
+    required: false
+  - name: time_horizon
+    type: string
+    description: "Optional time horizon for the forecast (e.g. '6 months', '2027-01-01')"
+    required: false
+  - name: resolution_criteria
+    type: string
+    description: "How will this forecast be judged as correct/incorrect? Required for tracking."
+    required: false
+  - name: expiration_date
+    type: string
+    description: "When the forecasting window closes (ISO 8601 date)"
+    required: false
+  - name: new_evidence
+    type: array
+    description: "Optional new evidence items to feed into Bayesian updating (stage 4)"
+    required: false
+
+# ── Convergence Criteria ─────────────────────────────────────────────────────
+#
+# The pipeline is considered converged when:
+#   1. Triage gate passed (proceed_recommendation is true OR triage overridden)
+#   2. Synthesis-evidence agreement: |synthesized_probability - updated_probability| ≤ 0.05
+#   3. Confidence threshold: calibration confidence_level is "medium" or "high"
+#
+# If triage recommends against proceeding, the pipeline records a "not forecasted"
+# result and skips stages 1-6 (gate at ordinal_1).
+convergence:
+  triage_gate:
+    enabled: true
+    condition: "proceed_recommendation == true"
+    fallback: "record_not_forecasted"
+  synthesis_agreement_threshold: 0.05
+  min_confidence_level: "medium"
+  max_cascade_depth: 8
+
+# ── Energy Budget ────────────────────────────────────────────────────────────
+gas:
+  accounting:
+    framework: GHG-Protocol-Scope-2
+    version: 2024-edition
+    reporting_method: dual
+
+  grid_intensity:
+    source: IEA-Emission-Factors-2026
+    default_location_based: 0.370
+    market_based: null
+
+  inference_energy:
+    source: LLMCO2-AAAI-2026
+    fast_local: 0.0003
+    balanced: 0.0008
+    reasoning_local: 0.0015
+
+  pue: 1.15
+  token_budget: 35000
+  cost_per_token: 0.0008
+  alert_threshold: 0.8
+  hard_limit: true
+
+  carbon_accounting:
+    location_based_co2e: "(energy_wh × pue × grid_intensity_location)"
+    market_based_co2e: "(energy_wh × pue × grid_intensity_market)"
+    unit: kg-CO₂e
+
+# ── Pipeline Steps ───────────────────────────────────────────────────────────
+steps:
+  # ── Stage 0: Triage ──────────────────────────────────────────────────────
+  - ordinal: 1
+    action: populate
+    description: >
+      Triage the forecasting question to determine difficulty level
+      (clocklike / goldilocks / cloudlike) and whether the pipeline
+      investment is likely to pay off.
+    renderer: minijinja
+    template_ref: superforecasting/stage_0_triage
+    token_cap: 3000
+    timeout_seconds: 30
+    input_mapping:
+      forecasting_question: "{{ forecasting_question }}"
+      domain: "{{ domain | default(null) }}"
+      time_horizon: "{{ time_horizon | default(null) }}"
+    output_schema:
+      type: object
+      properties:
+        difficulty_level:
+          type: string
+          enum: [clocklike, goldilocks, cloudlike]
+        goldilocks_zone:
+          type: boolean
+        proceed_recommendation:
+          type: boolean
+        rationale:
+          type: string
+
+  # ── Gate: Skip if triage says not worth it ────────────────────────────────
+  - ordinal: 2
+    action: validate
+    description: >
+      Triage gate — if proceed_recommendation is false, skip Fermi
+      decomposition and record a "not forecasted" result immediately.
+    renderer: null
+    template_ref: null
+    token_cap: 200
+    timeout_seconds: 5
+    condition: "{{ ordinal_1.proceed_recommendation == false }}"
+    validation_rules:
+      - triage_gate_check
+    output_schema:
+      type: object
+      properties:
+        gated:
+          type: boolean
+        reason:
+          type: string
+
+  # ── Stage 1: Fermi Decomposition ─────────────────────────────────────────
+  - ordinal: 3
+    action: populate
+    description: >
+      Fermi-decompose the forecasting question into independent, tractable
+      sub-questions. Separate knowns from unknowns and document assumptions.
+    renderer: minijinja
+    template_ref: superforecasting/stage_1_fermi_decompose
+    token_cap: 5000
+    timeout_seconds: 60
+    condition: "{{ ordinal_1.proceed_recommendation == true }}"
+    input_mapping:
+      forecasting_question: "{{ forecasting_question }}"
+      triage_output: "{{ ordinal_1 }}"
+    output_schema:
+      type: object
+      properties:
+        sub_questions:
+          type: array
+          items:
+            type: string
+        assumptions:
+          type: array
+          items:
+            type: object
+            properties:
+              assumption: { type: string }
+              confidence: { type: string }
+              notes: { type: string }
+        knowns:
+          type: array
+          items:
+            type: string
+        unknowns:
+          type: array
+          items:
+            type: string
+
+  # ── Stage 2: Outside View ────────────────────────────────────────────────
+  - ordinal: 4
+    action: populate
+    description: >
+      Establish base rates from reference classes. Determine how often
+      similar events occur in similar situations — the outside-view
+      anchor before case-specific analysis.
+    renderer: minijinja
+    template_ref: superforecasting/stage_2_outside_view
+    token_cap: 5000
+    timeout_seconds: 60
+    condition: "{{ ordinal_1.proceed_recommendation == true }}"
+    input_mapping:
+      forecasting_question: "{{ forecasting_question }}"
+      sub_questions: "{{ ordinal_3.sub_questions }}"
+      knowns: "{{ ordinal_3.knowns }}"
+    output_schema:
+      type: object
+      properties:
+        reference_classes:
+          type: array
+          items:
+            type: object
+            properties:
+              class_name: { type: string }
+              description: { type: string }
+              relevance: { type: string }
+        base_rates:
+          type: array
+          items:
+            type: object
+            properties:
+              reference_class: { type: string }
+              frequency: { type: string }
+              probability: { type: number }
+              data_quality: { type: string }
+        starting_probability:
+          type: number
+          description: "Base-rate anchor before inside-view adjustment"
+
+  # ── Stage 3: Inside View ─────────────────────────────────────────────────
+  - ordinal: 5
+    action: populate
+    description: >
+      Generate and evaluate multiple causal hypotheses for how the
+      outcome could occur. Adjust the outside-view anchor based on
+      case-specific evidence.
+    renderer: minijinja
+    template_ref: superforecasting/stage_3_inside_view
+    token_cap: 6000
+    timeout_seconds: 90
+    condition: "{{ ordinal_1.proceed_recommendation == true }}"
+    input_mapping:
+      forecasting_question: "{{ forecasting_question }}"
+      sub_questions: "{{ ordinal_3.sub_questions }}"
+      starting_probability: "{{ ordinal_4.starting_probability }}"
+      outside_view_output:
+        reference_classes: "{{ ordinal_4.reference_classes }}"
+        base_rates: "{{ ordinal_4.base_rates }}"
+        starting_probability: "{{ ordinal_4.starting_probability }}"
+    output_schema:
+      type: object
+      properties:
+        hypotheses:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              description: { type: string }
+              required_conditions:
+                type: array
+                items: { type: string }
+              evidence_for:
+                type: array
+                items: { type: string }
+              evidence_against:
+                type: array
+                items: { type: string }
+              individual_probability: { type: number }
+        hypothesis_probabilities:
+          type: object
+          properties:
+            primary_hypothesis: { type: string }
+            primary_probability: { type: number }
+            combined_probability: { type: number }
+            reasoning: { type: string }
+
+  # ── Stage 4: Evidence Update (Bayesian) ──────────────────────────────────
+  #
+  # CONTRACT NOTE — prior_probability mapping:
+  #   The prior_probability input to Bayesian updating is the inside-view
+  #   combined_probability from stage 3, NOT the raw outside-view
+  #   starting_probability from stage 2. The outside view provides a
+  #   base-rate anchor; the inside view adjusts it for case-specific
+  #   factors. Bayesian updating then revises this case-adjusted prior
+  #   based on new evidence strength.
+  #
+  #   Data flow:
+  #     stage_2.starting_probability  →  stage_3 (inside-view adjustment)
+  #     stage_3.combined_probability  →  stage_4.prior_probability (this step)
+  #     stage_4.updated_probability   →  stage_5 (synthesis)
+  - ordinal: 6
+    action: populate
+    description: >
+      Incorporate new evidence via Bayesian updating with likelihood
+      ratios. Revise the inside-view-adjusted prior probability based
+      on evidence strength and direction.
+    renderer: minijinja
+    template_ref: superforecasting/stage_4_evidence_update
+    token_cap: 4000
+    timeout_seconds: 45
+    condition: "{{ ordinal_1.proceed_recommendation == true }}"
+    input_mapping:
+      forecasting_question: "{{ forecasting_question }}"
+      # Maps from stage 3's combined_probability (inside-view-adjusted anchor),
+      # NOT from stage 2's starting_probability (raw base-rate).
+      prior_probability: "{{ ordinal_5.hypothesis_probabilities.combined_probability }}"
+      hypothesis_analysis: "{{ ordinal_5.hypothesis_probabilities }}"
+      new_evidence: "{{ new_evidence | default(null) }}"
+    output_schema:
+      type: object
+      properties:
+        evidence_items:
+          type: array
+          items:
+            type: object
+            properties:
+              evidence: { type: string }
+              strength:
+                type: string
+                enum: [weak, moderate, strong]
+              direction:
+                type: string
+                enum: [supports, contradicts, neutral]
+              likelihood_ratio: { type: number }
+        likelihood_ratios:
+          type: array
+          items:
+            type: number
+        updated_probability:
+          type: number
+          description: "Posterior probability after Bayesian evidence updates"
+
+  # ── Stage 5: Dragonfly-Eye Synthesis ─────────────────────────────────────
+  - ordinal: 7
+    action: populate
+    description: >
+      Synthesize a dragonfly-eye view by integrating multiple causal
+      models and perspectives. Steel-man dissenting views and aggregate
+      judgments into a synthesized probability.
+    renderer: minijinja
+    template_ref: superforecasting/stage_5_synthesis
+    token_cap: 4000
+    timeout_seconds: 45
+    condition: "{{ ordinal_1.proceed_recommendation == true }}"
+    input_mapping:
+      forecasting_question: "{{ forecasting_question }}"
+      updated_probability: "{{ ordinal_6.updated_probability }}"
+      hypothesis_analysis: "{{ ordinal_5.hypothesis_probabilities }}"
+      inside_view_output:
+        hypotheses: "{{ ordinal_5.hypotheses }}"
+        hypothesis_probabilities: "{{ ordinal_5.hypothesis_probabilities }}"
+    output_schema:
+      type: object
+      properties:
+        causal_models:
+          type: array
+          items:
+            type: object
+            properties:
+              model_name: { type: string }
+              perspective: { type: string }
+              implied_probability: { type: number }
+              confidence: { type: string }
+        synthesized_probability:
+          type: number
+          description: "Integrated probability after dragonfly-eye synthesis"
+        dissenting_views:
+          type: array
+          items:
+            type: object
+            properties:
+              view: { type: string }
+              steelmanned_argument: { type: string }
+              weight_considered: { type: number }
+
+  # ── Stage 6: Probability Calibration ─────────────────────────────────────
+  - ordinal: 8
+    action: populate
+    description: >
+      Calibrate the final probability using the full 0-100% scale.
+      Justify precision against known calibration principles and the
+      pipeline's accumulated evidence trail.
+    renderer: minijinja
+    template_ref: superforecasting/stage_6_calibration
+    token_cap: 2000
+    timeout_seconds: 30
+    condition: "{{ ordinal_1.proceed_recommendation == true }}"
+    input_mapping:
+      forecasting_question: "{{ forecasting_question }}"
+      synthesized_probability: "{{ ordinal_7.synthesized_probability }}"
+      synthesis_output:
+        causal_models: "{{ ordinal_7.causal_models }}"
+        synthesized_probability: "{{ ordinal_7.synthesized_probability }}"
+        dissenting_views: "{{ ordinal_7.dissenting_views }}"
+      pipeline_outputs:
+        triage: "{{ ordinal_1 }}"
+        fermi: "{{ ordinal_3 }}"
+        outside_view: "{{ ordinal_4 }}"
+        inside_view: "{{ ordinal_5 }}"
+        evidence_update: "{{ ordinal_6 }}"
+        synthesis: "{{ ordinal_7 }}"
+    output_schema:
+      type: object
+      properties:
+        final_probability:
+          type: number
+          description: "Calibrated forecast probability (0.0-1.0)"
+        confidence_level:
+          type: string
+          enum: [low, medium, high]
+        precision_justification:
+          type: string
+        defensible_range:
+          type: object
+          properties:
+            lower: { type: number }
+            upper: { type: number }
+
+  # ── Convergence Check ────────────────────────────────────────────────────
+  - ordinal: 9
+    action: validate
+    description: >
+      Check convergence criteria. Forecast is converged when synthesis
+      agrees with the evidence-updated probability (delta ≤ 0.05) and
+      calibration confidence is at least "medium". If not converged,
+      the pipeline may be re-invoked with refined evidence.
+    renderer: null
+    template_ref: null
+    token_cap: 200
+    timeout_seconds: 5
+    condition: "{{ ordinal_1.proceed_recommendation == true }}"
+    validation_rules:
+      - synthesis_evidence_agreement
+      - confidence_threshold_met
+    output_schema:
+      type: object
+      properties:
+        converged:
+          type: boolean
+        synthesis_delta:
+          type: number
+          description: "|synthesized_probability - updated_probability|"
+        convergence_reason:
+          type: string
+
+  # ── Stage 7: Forecast Recording ──────────────────────────────────────────
+  #
+  # CNS spans (cns.prompt.select, cns.prompt.render, cns.prompt.outcome)
+  # are emitted automatically by the flow engine for populate actions.
+  # The template body's CNS Integration section is instructional for the
+  # LLM — explicit cns_spans are not declared on WordAct steps.
+  - ordinal: 10
+    action: populate
+    description: >
+      Create a structured forecast record with resolution criteria and
+      expiration date for later tracking, Brier scoring, and post-mortem
+      analysis. Records the full pipeline summary for auditability.
+    renderer: minijinja
+    template_ref: superforecasting/stage_7_record
+    token_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      forecasting_question: "{{ forecasting_question }}"
+      final_probability: "{{ ordinal_8.final_probability if ordinal_1.proceed_recommendation else 0.5 }}"
+      confidence_level: "{{ ordinal_8.confidence_level if ordinal_1.proceed_recommendation else 'low' }}"
+      pipeline_summary:
+        triage_difficulty: "{{ ordinal_1.difficulty_level }}"
+        proceed_recommendation: "{{ ordinal_1.proceed_recommendation }}"
+        sub_question_count: "{{ ordinal_3.sub_questions | length if ordinal_1.proceed_recommendation else 0 }}"
+        reference_class_count: "{{ ordinal_4.reference_classes | length if ordinal_1.proceed_recommendation else 0 }}"
+        hypothesis_count: "{{ ordinal_5.hypotheses | length if ordinal_1.proceed_recommendation else 0 }}"
+        evidence_count: "{{ ordinal_6.evidence_items | length if ordinal_1.proceed_recommendation else 0 }}"
+        converged: "{{ ordinal_9.converged if ordinal_1.proceed_recommendation else false }}"
+      resolution_criteria: "{{ resolution_criteria | default(null) }}"
+      expiration_date: "{{ expiration_date | default(null) }}"
+    output_schema:
+      type: object
+      properties:
+        forecast_record:
+          type: object
+          properties:
+            question: { type: string }
+            probability: { type: number }
+            confidence: { type: string }
+            timestamp: { type: string }
+            resolution_criteria: { type: string }
+            expiration_date: { type: string }
+            reasoning_summary: { type: string }
+            key_assumptions:
+              type: array
+              items: { type: string }
+        tracking_id:
+          type: string
+        cns_event_id:
+          type: string
+
+# ── Error Handling ───────────────────────────────────────────────────────────
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 2
+  on_validation_failure: abort
+  on_capability_denied: escalate
+  on_triage_gate: record_not_forecasted
+  on_convergence_not_reached: record_with_warning
+
+# ── OCAP Configuration ───────────────────────────────────────────────────────
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_0_triage
+      gas_budget: 3000
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_1_fermi_decompose
+      gas_budget: 5000
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_2_outside_view
+      gas_budget: 5000
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_3_inside_view
+      gas_budget: 6000
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_4_evidence_update
+      gas_budget: 4000
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_5_synthesis
+      gas_budget: 4000
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_6_calibration
+      gas_budget: 2000
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_7_record
+      gas_budget: 2000
+    - resource: manifest
+      action: execute
+      template_id: superforecasting
+      gas_budget: 500
+    - resource: cns
+      action: emit
+      template_id: superforecasting
+      gas_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# ── CNS Monitoring ───────────────────────────────────────────────────────────
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.superforecasting
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+
+  # Carbon tracking (integrated)
+  carbon_tracking:
+    enabled: true
+    counter_id: superforecast.carbon.cumulative
+    unit: kg-CO₂e
+    grid_intensity_source: IEA-Emission-Factors-2026
+    pue: 1.15
+
+  variety_counters:
+    - counter_id: superforecast.pipelines.completed
+      increment_on: pipeline_completion
+      baseline:
+        expected: 5
+        unit: per_week
+        warning_threshold: 0.6
+        critical_threshold: 0.4
+    - counter_id: superforecast.triage.gated
+      increment_on: triage_gate_activated
+      baseline:
+        expected: 2
+        unit: per_week
+        warning_threshold: 2.0
+        critical_threshold: 3.0
+    - counter_id: superforecast.convergence.rate
+      increment_on: convergence_check
+      baseline:
+        expected: 0.8
+        unit: ratio
+        warning_threshold: 0.6
+        critical_threshold: 0.4
+    - counter_id: superforecast.hypothesis.count
+      increment_on: inside_view_complete
+    - counter_id: superforecast.reference_class.count
+      increment_on: outside_view_complete
+    - counter_id: superforecast.evidence_item.count
+      increment_on: evidence_update_complete
+
+  algedonic_alerts:
+    - trigger: low_convergence_rate
+      condition: convergence_rate < 0.4
+      escalate_to: Curator
+    - trigger: excessive_triage_gates
+      condition: triage_gated_rate > 0.6
+      escalate_to: Curator
+    - trigger: pipeline_token_alert
+      condition: token_usage > 80_percent_of_budget
+      escalate_to: Curator
+
+# ── Audit Trail ──────────────────────────────────────────────────────────────
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_token_count: true
+  include_energy_wh: true
+  include_co2e_kg: true
+  include_cns_events: true
+  include_stage_outputs: true
+  methodology_disclosure:
+    framework: GHG-Protocol-Scope-2-2024
+    grid_intensity_source: IEA-Emission-Factors-2026
+    pue_assumption: 1.15
+    uncertainty_range: "±50%"

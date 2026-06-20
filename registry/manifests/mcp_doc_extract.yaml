@@ -2,8 +2,8 @@
 # ℏKask v0.21.0 - A Minimal Viable Container for Agents
 
 manifest:
-  id: mcp/doc_extract
-  name: MCP Document Extractor
+  id: prompt-templates/doc_extract
+  name: Prompt-Templates Document Extractor
   description: >
     Extract structured content from documents (PDF, DOCX, HTML, etc.).
     Supports custom extraction schemas and metadata capture.
@@ -26,7 +26,7 @@ steps:
     description: >
       Render extraction template with document content and schema.
     renderer: minijinja
-    template_ref: mcp/doc_extract
+    template_ref: prompt-templates/doc_extract
     mcp: null
     gas_cap: 1000
     timeout_seconds: 10
@@ -79,15 +79,15 @@ ocap:
   required_capabilities:
     - resource: template
       action: render
-      template_id: mcp/doc_extract
+      template_id: prompt-templates/doc_extract
       gas_budget: 2000
     - resource: document
       action: extract
-      template_id: mcp/doc_extract
+      template_id: prompt-templates/doc_extract
       gas_budget: 8000
     - resource: cns
       action: emit
-      template_id: mcp/doc_extract
+      template_id: prompt-templates/doc_extract
       gas_budget: 500
   delegation_chain_required: true
   signature_algorithm: ed25519

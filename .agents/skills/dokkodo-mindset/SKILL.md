@@ -2,6 +2,7 @@
 name: dokkodo-mindset
 visibility: public
 description: Metacognitive perceptual filter based on Miyamoto Musashi's 21 Dokkodo precepts. Applies the precepts as a lens to clarify perception by removing attachment, preference, resentment, fear, and customary bias. Composes with pragmatic-laziness — clears the perceptual field before the lazy loop evaluates the action landscape. Activate when the user says "apply the Dokkodo", "warrior mindset", "see this clearly", "perceptual reset", or when a decision feels distorted by attachment or preference.
+activation: "apply the Dokkodo"
 ---
 
 # Dokkodo Mindset

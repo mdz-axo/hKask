@@ -1,9 +1,9 @@
 # Template crate manifest for superforecasting skill
-# hKask v0.28.0
+# hKask v0.30.0
 
 crate:
   name: superforecasting
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Superforecasting pipeline following Tetlock's Good Judgment Project
     methodology. Eight-stage process from question triage through Fermi
@@ -79,3 +79,13 @@ templates:
       Create a structured forecast record with resolution criteria and
       expiration date for later tracking, Brier scoring, and post-mortem
       analysis.
+
+# FlowDef orchestrator — chains all 8 stages with convergence criteria.
+# CNS spans (cns.prompt.{select,render,outcome}) are emitted automatically
+# by the flow engine for WordAct populate steps; no explicit cns_spans needed.
+flowdef:
+  manifest: registry/manifests/superforecasting.yaml
+  description: >
+    Cascading 8-stage pipeline from triage through forecast recording.
+    Implements convergence criteria (triage gate, synthesis-evidence
+    agreement ≤ 0.05, min confidence "medium") and gas accounting.

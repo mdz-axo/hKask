@@ -2,6 +2,7 @@
 name: adversarial-red-team
 visibility: public
 description: Adversarial robustness testing for agent outputs. Selects targets, generates adversarial inputs across multiple vulnerability categories (injection, hijacking, exfiltration, tool misuse), executes multi-turn attack scripts, and evaluates resistance rates. Implements systematic red-teaming with ATLAS/GARAK-aligned adversarial taxonomy. Use when testing agent resilience, auditing prompt defenses, or hardening an agent against adversarial input.
+activation: "red-team this"
 ---
 
 # Adversarial Red-Team

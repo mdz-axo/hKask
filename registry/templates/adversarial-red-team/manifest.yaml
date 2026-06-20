@@ -1,31 +1,28 @@
 # Template crate manifest for adversarial-red-team skill
-# hKask v0.28.0
+# hKask v0.30.0
 
 crate:
   name: adversarial-red-team
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Adversarial robustness testing. Select targets, generate adversarial inputs
-    across multiple categories (injection, hijacking, exfiltration, tool misuse),
-    execute multi-turn attack scripts, and evaluate resistance rates against
-    generated adversarial inputs.
+    across multiple categories (injection, hijacking, exfiltration, tool misuse)
+    at configurable persistence levels (single-shot, iterative multi-turn, or
+    persistent adaptive attacks), and evaluate resistance rates against generated
+    adversarial inputs.
 
 templates:
   - id: adversarial-red-team/generate-adversarial
     path: generate-adversarial.j2
     type: KnowAct
-    lexicon_terms: [assess, detect, analyze, synthesize, probe, classify]
+    lexicon_terms:
+      [assess, detect, analyze, synthesize, probe, classify, sequence, escalate]
     description: >
       Generate adversarial inputs targeting a specific output across multiple
-      vulnerability categories and injection vectors at a given intensity level.
-
-  - id: adversarial-red-team/multi-turn-attack
-    path: multi-turn-attack.j2
-    type: KnowAct
-    lexicon_terms: [sequence, probe, evaluate, classify, detect, escalate]
-    description: >
-      Construct multi-turn attack scripts that probe a target across multiple
-      attack categories, escalating through turn sequences to test defense depth.
+      vulnerability categories and injection vectors. Supports three persistence
+      levels: single (one batch), iterative (multi-turn escalating scripts
+      building on prior findings), and persistent (ongoing adaptive attack
+      scripts with response-driven adaptation rules).
 
   - id: adversarial-red-team/select-target
     path: select-target.j2

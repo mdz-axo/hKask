@@ -2,6 +2,7 @@
 name: gentle-lovelace
 visibility: public
 description: Four-dimensional technical documentation quality evaluator. Scores writing on accessibility (Hopper), precision (Lovelace), findability (Schriver), and agent-correctness (Gentle) against embedded exemplar centroids. Use when you want a document's writing quality scored against canonical standards, or when running the document-update skill's Task 3 writing quality gate.
+activation: "evaluate this document"
 ---
 
 # Gentle Lovelace — Writing Quality Evaluator

@@ -2,6 +2,7 @@
 name: superforecasting
 visibility: public
 description: Calibrated probability forecasting following Tetlock's Good Judgment Project methodology. Eight-stage pipeline from question triage through Fermi decomposition, outside/inside views, Bayesian evidence updating, dragonfly-eye synthesis, probability calibration, and forecast recording. Use when making predictions about uncertain future events, estimating probabilities, or calibrating judgment against known baselines.
+activation: "forecast this"
 ---
 
 # Superforecasting

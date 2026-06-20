@@ -2,6 +2,7 @@
 name: structured-extraction
 visibility: public
 description: Structured data extraction from unstructured text. Identifies entities against a target schema, extracts inter-entity relations as subject-predicate-object triples, and maps extracted data to target schemas with field-level coverage tracking and inferred field population. Use when you need to extract structured data (JSON) from unstructured text, populate a schema from prose, or audit extraction coverage.
+activation: "extract structured data"
 ---
 
 # Structured Extraction

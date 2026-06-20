@@ -41,6 +41,24 @@ Governance  →  magna-carta-verifier, pragmatic-semantics/cybernetics
 
 Skills at higher layers feed clarified perception to lower layers. `constraint-forces` runs across all layers — Prohibitions and Guardrails are never relaxed.
 
+### 1.2 The Essential Five — Skills Every Agent Should Know
+
+Start here. These five skills compose together into the most common workflow and teach the foundational patterns:
+
+| # | Skill | Why it matters | First trigger to try |
+|---|-------|---------------|---------------------|
+| 1 | `dokkodo-mindset` | Clears attachment, preference, and fear before analysis — transforms how you see the problem | "apply the Dokkodo" |
+| 2 | `pragmatic-laziness` | Finds the path of least action through any design or decision | "be lazy about this" |
+| 3 | `essentialist` | Deletes what doesn't earn its existence — the deletion test | "simplify this" |
+| 4 | `coding-guidelines` | Constrains HOW you code — think first, keep it simple, touch only what you must | "use coding-guidelines" |
+| 5 | `constraint-forces` | Classifies every constraint so you know what's inviolable and what's negotiable | "what force is this constraint?" |
+
+**The primary chain:** `dokkodo-mindset` → `pragmatic-laziness` → `essentialist` → `coding-guidelines`, with `constraint-forces` running across all stages. Learn these five and you can navigate any hKask task.
+
+### 1.3 Why Some Skills Lack SKILL.md
+
+Of the ~74 registry crates in `registry/templates/`, 45 have SKILL.md companions in `.agents/skills/`. The remaining ~29 are **infrastructure crates** — runtime dispatch, storage, monitoring, and orchestration templates that run the system rather than perform user-facing tasks. A skill with only a registry crate (`.j2` + `manifest.yaml`) is runtime-complete — the cascade can execute it. The SKILL.md is a **generated companion** for the Zed coding agent during development. When both exist, the registry crate is authoritative. See `hKask-architecture-master.md` Pattern A for the full derivation rule.
+
 ---
 
 ## 2. Discovering Skills
@@ -228,9 +246,90 @@ Toyota Kata scientific thinking for agent improvement.
 |-------|---------|---------|
 | `document-update` | 7-task documentation maintenance workflow | "update docs", "consolidate docs" |
 
+### 4.14 Which Skill for What?
+
+Don't know which skill you need? Find your problem:
+
+| I need to... | Use |
+|-------------|-----|
+| Clear my head before making a decision | `dokkodo-mindset` |
+| See a problem from multiple angles | `falstaffian-perspective` |
+| Find the simplest path through a design | `pragmatic-laziness` |
+| Know what can be deleted | `essentialist` |
+| Stress-test my understanding | `grill-me` |
+| Know which rules are inviolable | `constraint-forces` |
+| Choose between multiple options | `mcda` |
+| Predict a future outcome with calibration | `superforecasting` |
+| Plan for multiple possible futures | `scenario-builder` |
+| Record a decision and check if I was right later | `decision-journal` |
+| Track whether I achieved a specific goal | `goal-analysis` |
+| Extract structured data from prose | `structured-extraction` |
+| Summarize text densely without losing facts | `chain-of-density` |
+| Compress prose to bare essentials | `caveman` |
+| Get the bigger picture on unfamiliar code | `zoom-out` |
+| Debug a failure systematically | `diagnose` |
+| Find the root cause of an incident | `diagnose` → then `improve-codebase-architecture` |
+| Refactor a messy codebase | `improve-codebase-architecture` → `refactor-service-layer` |
+| Migrate from old code to new incrementally | `strangler-fig` |
+| Write tests before code | `tdd` |
+| Write idiomatic Rust | `rust-expertise` |
+| Enforce coding discipline | `coding-guidelines` |
+| Design a logo | `logo-builder` |
+| Evaluate document quality | `gentle-lovelace` |
+| Review my own reasoning for gaps | `review` |
+| Revise a draft through critique cycles | `self-critique-revision` |
+| Hand off work between sessions | `handoff` |
+| Resume work after context reset | `condenser-continuation` |
+| Red-team an agent's security | `adversarial-red-team` |
+| Improve agent capability through practice | `kata-starter` → `kata-improvement` → `kata-coaching` |
+| Update project documentation | `document-update` |
+| Verify Magna Carta compliance | `magna-carta-verifier` |
+| Audit or manage skills | `skill-maintenance`, `skill-manager`, `skill-discovery` |
+| Verify sovereignty or consent boundaries | `magna-carta-verifier` |
+
 ---
 
-## 5. Skill Summary — All 45 Skills
+## 5. Composition Patterns
+
+Skills don't work in isolation. Here are the three most common chains:
+
+### Pattern 1: Perception → Analysis → Action
+
+```
+dokkodo-mindset → pragmatic-laziness → essentialist → coding-guidelines
+     ↑                                                    ↑
+constraint-forces runs across all stages, never relaxed
+```
+
+**When:** You face a design decision, architecture problem, or code review. The Dokkodo clears your perceptual field. Pragmatic laziness finds the least-action path. Essentialist deletes what doesn't earn existence. Coding guidelines enforce discipline throughout.
+
+### Pattern 2: Forecast → Decide → Record → Verify
+
+```
+superforecasting → mcda → decision-journal → goal-analysis
+```
+
+**When:** You're making a consequential decision under uncertainty. Superforecasting produces calibrated probabilities. MCDA ranks alternatives on weighted criteria. The decision journal records the reasoning and schedules a revisit. Goal analysis tracks whether the outcome matches the prediction.
+
+### Pattern 3: Diagnose → Extract → Fix → Harden
+
+```
+diagnose → structured-extraction → refactor-service-layer → adversarial-red-team
+```
+
+**When:** Something broke. Diagnose finds the bug. Structured extraction maps the incident to a root cause schema. Refactor-service-layer fixes it systematically. Adversarial red-team tests whether the fix holds under attack.
+
+### Pattern 4: Explore → Summarize → Compress
+
+```
+zoom-out → chain-of-density → caveman
+```
+
+**When:** You need to understand a large unfamiliar codebase and communicate it concisely. Zoom out for context. Chain-of-density for maximum factual density. Caveman for final stylistic compression.
+
+---
+
+## 6. Skill Summary — All 45 Skills
 
 | # | Skill | Category | Type | What it does |
 |---|-------|----------|------|-------------|
@@ -282,7 +381,7 @@ Toyota Kata scientific thinking for agent improvement.
 
 ---
 
-## 6. Understanding Template Types
+## 7. Understanding Template Types
 
 When a skill has registry templates, each `.j2` file is typed:
 
@@ -296,7 +395,7 @@ You rarely need to know the template type — the runtime dispatches correctly. 
 
 ---
 
-## 7. Visibility and P11
+## 8. Visibility and P11
 
 Every skill has a visibility field:
 
@@ -309,9 +408,9 @@ P11 (Digital Public/Private Sphere) governs this. You control what is shared via
 
 ---
 
-## 8. Checking Skill Health
+## 9. Checking Skill Health
 
-### 8.1 CNS Health
+### 9.1 CNS Health
 
 ```bash
 kask cns health
@@ -319,7 +418,7 @@ kask cns health
 
 Shows CNS span health for all active skills.
 
-### 8.2 Schema Validation
+### 9.2 Schema Validation
 
 ```bash
 cargo test -p hkask-templates yaml_schema_validation
@@ -327,7 +426,7 @@ cargo test -p hkask-templates yaml_schema_validation
 
 Validates all manifest YAML files. Run after installing new skills.
 
-### 8.3 Contract Audit
+### 9.3 Contract Audit
 
 ```bash
 scripts/contract-audit.sh --summary
@@ -337,7 +436,7 @@ Checks template contracts are complete and consistent with manifests.
 
 ---
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|

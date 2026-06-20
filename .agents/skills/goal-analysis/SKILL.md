@@ -2,6 +2,7 @@
 name: goal-analysis
 visibility: public
 description: Goal specification and verification. Extracts structured goals from user intent, judges completion via semantic evaluation or command execution, and produces calibrated verdicts with confidence scoring. Use when you need to track whether a specific objective has been achieved, when you want lightweight goal tracking without kanban boards, or when an agent's work output needs structured completion verification.
+activation: "create a goal"
 ---
 
 # Goal Analysis

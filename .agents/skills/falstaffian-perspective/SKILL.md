@@ -2,6 +2,7 @@
 name: falstaffian-perspective
 visibility: public
 description: Multi-iteration perspective generation through Falstaffian semantic shape transforms. Applies calibrated experience and affirmed spirit through rotation vectors to carry tension without breaking. Use when you need to see a situation from multiple angles, reframe criticism, or generate diverse perspectives on a problem.
+activation: "reframe this"
 ---
 
 # Falstaffian Perspective Engine

@@ -1,7 +1,7 @@
 ---
 title: "hKask Skill Designer Guide — Creating and Maintaining Agent Skills"
 audience: [developers, architects, agents]
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 version: "0.30.0"
 status: "Active"
 domain: "Technology"
@@ -91,6 +91,7 @@ Brief domain context the agent needs.
 | `name` | Yes | kebab-case, matches directory name | Must match `.agents/skills/<name>/` |
 | `visibility` | Yes | `Public` or `Private` | P11 — governs who can discover and load the skill |
 | `description` | Yes | Single line, ~80 chars | Shown in `kask skill list`; must include activation trigger |
+| `activation` | **Yes** | Trigger phrase the user says | The exact words that activate this skill. Must be unique across the corpus. Validated by `skill-manager`. |
 
 **No other frontmatter fields are required.** The SKILL.md body is freeform Markdown.
 
@@ -113,9 +114,31 @@ Every SKILL.md must reference only canonical CNS spans from `crates/hkask-types/
 - [ ] `name` matches directory name
 - [ ] `visibility` is `Public` or `Private` (not `Shared`)
 - [ ] `description` includes activation trigger ("Use when...")
+- [ ] `activation` field present with unique trigger phrase
 - [ ] CNS spans reference canonical names from `cns.rs`
 - [ ] No `kask /status` or other hallucinated CLI commands
 - [ ] Constraints are grounded in PRINCIPLES.md (cite P# where applicable)
+- [ ] `## Composition` section lists skills this skill composes with
+- [ ] A "Which Skill for What?" entry exists describing the problem this skill solves
+
+### 2.5 Composition Affinities
+
+Every SKILL.md should include a `## Composition` section declaring which skills this skill composes with and how. This feeds the global `skill-composition-guide.md` and the "Which Skill for What?" table in `skill-user-guide.md`.
+
+Each entry describes the problem the skill solves in user-facing language:
+
+```markdown
+## Composition
+
+### Which Skill for What?
+
+- **I need to find the simplest path through a design** → use this skill before `essentialist`
+- **I need to make a calibrated prediction** → use this skill, then feed output to `decision-journal`
+```
+
+When creating or updating a skill, add its entries to:
+1. The skill's own SKILL.md `## Composition` section
+2. `docs/user-guides/skill-user-guide.md` §4.14 ("Which Skill for What?")
 
 ---
 
@@ -377,7 +400,7 @@ Example: `registry/manifests/kata-pattern.yaml` bundles `kata-starter`, `kata-im
 ### New Skill: From Zero to Production
 
 1. **Classify the skill type** (§1.1) — Type 1/2/3/4?
-2. **Write SKILL.md** (§2) — if Type 1, 2, or 4
+2. **Write SKILL.md** (§2) — if Type 1, 2, or 4. Include `activation:` field and `## Composition` section.
 3. **Create registry directory** (§3.1) — if Type 3 or 4
 4. **Write manifest.yaml** (§3.2) — correct crate name, version, template types
 5. **Write .j2 templates** (§3.3) — correct `template_type` (WordAct/KnowAct), no DDMVSS aliases
@@ -386,7 +409,9 @@ Example: `registry/manifests/kata-pattern.yaml` bundles `kata-starter`, `kata-im
 8. **Register in bootstrap-registry.yaml** (§4) — add entries for each template
 9. **Run schema validation** (§6.1) — `cargo test -p hkask-templates yaml_schema_validation`
 10. **Run CNS health** (§6.3) — `kask cns health`
-11. **Commit** with message: `feat(skills): add <skill-name> — <one-line purpose>`
+11. **Update skill catalog** — add entry to `docs/user-guides/skill-user-guide.md` §6 (summary table) and §4.14 (Which Skill for What?)
+12. **Update composition guide** — add composition chains to `docs/user-guides/skill-composition-guide.md` if this skill introduces new patterns
+13. **Commit** with message: `feat(skills): add <skill-name> — <one-line purpose>`
 
 ### Existing Skill: Maintenance
 

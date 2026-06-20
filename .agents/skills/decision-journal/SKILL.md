@@ -2,6 +2,7 @@
 name: decision-journal
 visibility: public
 description: Kahneman-style decision journal for improving judgment quality. Records decisions with full context (reasoning, assumptions, alternatives, emotional state, bias awareness), defines calibrated probability predictions with time horizons, revisits outcomes to measure accuracy via Brier scores, and evaluates process quality independently of outcome quality. Use when making consequential decisions, tracking judgment calibration over time, or running decision post-mortems.
+activation: "journal this decision"
 ---
 
 # Decision Journal

@@ -2,6 +2,7 @@
 name: mcda
 visibility: public
 description: Multi-Criteria Decision Analysis. Identifies decision criteria, weights and scores alternatives, ranks options with compensation masking detection, and performs sensitivity analysis to assess decision robustness. Use when choosing between multiple alternatives on multiple criteria, when you need structured decision rationale to defend, or when you suspect a "cheap but dangerous" option is hiding behind a single strong score.
+activation: "compare these options"
 ---
 
 # MCDA — Multi-Criteria Decision Analysis
