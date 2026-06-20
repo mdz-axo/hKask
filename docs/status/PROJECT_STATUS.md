@@ -168,7 +168,7 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 
 **R7.3 Public Seam Watcher — P8 Runtime Enforcement:**
 
-- Plan: `docs/plans/r7.3-public-seam-watcher-v0.28.0.md` — 5-wave implementation plan with adversarial pragmatics+grill-me review. 5 gaps found and resolved (afferent signal, deployment path, surface count, temporal mismatch, asymmetric observability).
+- Plan: `docs/plans/r7.3-public-seam-watcher-v0.30.0.md` — 5-wave implementation plan with adversarial pragmatics+grill-me review. 5 gaps found and resolved (afferent signal, deployment path, surface count, temporal mismatch, asymmetric observability).
 - JSON inventory: `scripts/public-seam-inventory.sh` extended with `build_json_inventory()` — generates machine-readable `docs/status/public-seam-inventory.json` alongside markdown. Both CI-enforced for drift.
 - Types: `SeamCoverage`, `SeamInventory` in `hkask-types::cns`. `SignalMetric::SeamCoverage` + `ActionType::Notify` in `hkask-types::loops`. 2 new canonical CNS spans: `cns.architecture.seam.coverage`, `cns.architecture.seam.drift` (30→32 total).
 - Core module: `hkask-cns/src/seam_watcher.rs` — `SeamWatcher` (load, register_domains, check_drift, refresh, summary), `SeamDrift`, `SeamSummary`. Embedded JSON via `include_str!()` for deployment safety. File path override via `HKASK_SEAM_INVENTORY_PATH` for development. 9 REQ-tagged tests.
@@ -177,7 +177,7 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 - Curator surface: `/status` command displays R7.3 seam coverage — color-coded bar (green ≥60%, yellow 30–60%, red <30%), crate count, covered/total items, coverage %, REQ test count.
 - R7.3 identity: domains updated to `["cns", "seam"]`, description updated.
 - Build: all 18 workspace members compile. 35/35 CNS tests pass (9 new + 26 existing). CI inventory gate passes (markdown + JSON).
-- Docs updated: `hKask-architecture-master.md` (Pattern C table, key properties, crates, identified gaps, CNS span count, mermaid), `PROJECT_STATUS.md` (this update), `docs/plans/r7.3-public-seam-watcher-v0.28.0.md` (implementation summary).
+- Docs updated: `hKask-architecture-master.md` (Pattern C table, key properties, crates, identified gaps, CNS span count, mermaid), `PROJECT_STATUS.md` (this update), `docs/plans/r7.3-public-seam-watcher-v0.30.0.md` (implementation summary).
 
 **Pragmatics Codebase Audit + REQ Tag Coverage + MCP Server Tool Audit + Communication Tests:**
 
@@ -320,8 +320,8 @@ Fixing these requires domain knowledge to assign appropriate external citations 
 |-----|----------|--------|-------------|
 | **Real `provision_endpoint` API integration** | Medium | ✅ Complete (P1-12) | Runpod: GraphQL `saveEndpoint` mutation. Baseten: REST `POST /v1/models`. Both use real HTTP calls with API keys. **Caveat:** exact GraphQL schema fields (`saveEndpoint`, response `data.saveEndpoint.id`) and Baseten REST response shape (`id` field, endpoint URL format `model-{id}.api.baseten.co`) may need adjustment based on actual provider API responses at runtime. |
 | **Manual contract-to-spec review** | High | ⬜ TODO | All 1,419 REQ-tagged contracts have pre/post conditions, but need human verification against the functional specification. Each REQ tag should trace to a real spec document. See `kask contract review` for inventory, `/improv plussing` for collaborative review. 25 duplicate REQ IDs need consolidation analysis. 250 simple constructors may benefit from explicit preconditions. |
-| **Contract ID → Domain Principle Alignment (v0.28.0)** | Medium | ⬜ TODO | `contract-audit.sh` reports 2362 REQ tags across 1776 pub fns (132.9% coverage). Every domain in `FUNCTIONAL_SPECIFICATION.md` §1 has contracts in the corresponding crate — verified. Contract ID prefix (`P{N}`) should match the domain map's goal principle. Not all contracts have been verified for prefix→goal-principle alignment (manual audit required). |
-| **`expect:` field coverage (v0.28.0)** | Medium | ⬜ Pattern Only | The `expect:` syntax is demonstrated as a pattern in `TESTING_DISCIPLINE.md` §1.2 and `FUNCTIONAL_SPECIFICATION.md` §5.2. Not yet present on all 1,419 contracts — full migration is deferred per `FUNCTIONAL_SPECIFICATION.md` §Future Work. |
+| **Contract ID → Domain Principle Alignment (v0.30.0)** | Medium | ⬜ TODO | `contract-audit.sh` reports 2362 REQ tags across 1776 pub fns (132.9% coverage). Every domain in `FUNCTIONAL_SPECIFICATION.md` §1 has contracts in the corresponding crate — verified. Contract ID prefix (`P{N}`) should match the domain map's goal principle. Not all contracts have been verified for prefix→goal-principle alignment (manual audit required). |
+| **`expect:` field coverage (v0.30.0)** | Medium | ⬜ Pattern Only | The `expect:` syntax is demonstrated as a pattern in `TESTING_DISCIPLINE.md` §1.2 and `FUNCTIONAL_SPECIFICATION.md` §5.2. Not yet present on all 1,419 contracts — full migration is deferred per `FUNCTIONAL_SPECIFICATION.md` §Future Work. |
 | **Deployment domain ER diagram ↔ code sync** | Low | ⬜ TODO | ER diagram in `FUNCTIONAL_SPECIFICATION.md` §3.18 aligned with deployment plan but not verified against actual type definitions in `hkask-api` and `kask` CLI. |
 | **Domain ER diagrams for non-CNS domains** | Low | ⬜ Partial | ER diagrams added for 8 CNS domains (§2) and deployment (§3.18). Remaining 18 non-CNS domains (§3) have entity models described in tables but not yet diagrammed. |
 

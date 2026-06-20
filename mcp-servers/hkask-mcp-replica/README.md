@@ -22,3 +22,20 @@ Style replica MCP server — embed author corpora, compose prose, and manage sty
 |----------|-------------|
 | `HKASK_DB_PATH` | SQLite database path |
 | `HKASK_DB_PASSPHRASE` | Database encryption passphrase |
+
+## Quick Start
+
+```bash
+# The server starts automatically with kask
+kask chat
+# Or standalone:
+hkask-mcp-replica
+```
+
+## Usage
+
+```
+"Build a style replica from Hemingway's works"   → replica_build
+"Compose a paragraph in Hemingway's style"        → replica_compose
+"Compare Orwell vs Huxley"                        → replica_compare
+```

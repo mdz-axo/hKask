@@ -120,6 +120,45 @@ The README must contain at minimum:
 - Tool/function listing (for MCP servers: every tool by name)
 - Configuration requirements (environment variables, dependencies)
 
+**Step 6: Frontmatter freshness — `last_updated` and `version` in every doc.**
+
+```bash
+# Check frontmatter version matches Cargo.toml
+cargo_version=$(grep '^version' Cargo.toml | grep -oP '[0-9]+\.[0-9]+\.[0-9]+')
+for f in $(find docs/ -name '*.md' -not -path '*/archive/*'); do
+  doc_version=$(grep -oP 'version:\s*"?\K[0-9]+\.[0-9]+\.[0-9]+' "$f" 2>/dev/null)
+  if [ -n "$doc_version" ] && [ "$doc_version" != "$cargo_version" ]; then
+    echo "VERSION MISMATCH: $f → $doc_version (should be $cargo_version)"
+  fi
+done
+
+# Check last_updated is not stale (>30 days)
+thirty_days_ago=$(date -d '30 days ago' +%s)
+for f in $(find docs/ -name '*.md' -not -path '*/archive/*'); do
+  doc_date=$(grep -oP 'last_updated:\s*\K[0-9]{4}-[0-9]{2}-[0-9]{2}' "$f" 2>/dev/null)
+  if [ -n "$doc_date" ]; then
+    doc_epoch=$(date -d "$doc_date" +%s 2>/dev/null)
+    if [ -n "$doc_epoch" ] && [ "$doc_epoch" -lt "$thirty_days_ago" ]; then
+      echo "STALE: $f last_updated $doc_date (>30 days)"
+    fi
+  fi
+done
+```
+
+**Step 7: Tool count verification — MCP server READMEs must list every tool.**
+
+```bash
+# For each MCP server, compare README tool count to code
+for dir in mcp-servers/hkask-mcp-*/; do
+  name=$(basename "$dir")
+  readme_tools=$(grep -c '| \`' "$dir/README.md" 2>/dev/null || echo 0)
+  code_tools=$(grep -rn 'pub async fn' "$dir/src" --include='*.rs' 2>/dev/null | wc -l)
+  if [ "$readme_tools" -lt "$code_tools" ]; then
+    echo "TOOL GAP: $name — README lists $readme_tools, code has $code_tools pub async fn"
+  fi
+done
+```
+
 **Correction Rules:**
 
 1. **Delete stale references** — if a doc mentions a crate/command/feature that no longer exists, remove or update.
@@ -295,7 +334,7 @@ Do not delete a README without a replacement. Do not archive READMEs — they ar
 ## Success Criteria
 
 A documentation sweep is successful when:
-- **Task 0 complete:** All README files pass fact-checking — version matches Cargo.toml, all counts verified, zero stale crate names or references. Every MCP server has a README. Every core crate has a README (or documented exemption).
+- **Task 0 complete:** All README files pass fact-checking — version matches Cargo.toml, all counts verified, zero stale crate names or references. Every MCP server has a README. Every core crate has a README (or documented exemption). All frontmatter `last_updated` dates are ≤30 days. All MCP server README tool counts match code.
 - Active document count is ≤40 (from current ~56)
 - Zero stubs or redirect documents exist
 - `bash docs/ci/check-links.sh` passes with zero broken links

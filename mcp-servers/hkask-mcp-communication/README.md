@@ -31,3 +31,13 @@ Thin MCP wrapper over core `hkask-communication` crate. Matrix transport, agent 
 |----------|-------------|---------|
 | `HKASK_MATRIX_URL` | Matrix homeserver URL | `http://localhost:8008` |
 | `HKASK_MATRIX_REGISTRATION_TOKEN` | Registration token | `hkask-dev` |
+
+## Quick Start
+
+```bash
+# Requires a running Matrix homeserver (Conduit)
+./scripts/conduit/conduit-docker.sh start
+
+# The server starts automatically with kask
+kask chat
+```

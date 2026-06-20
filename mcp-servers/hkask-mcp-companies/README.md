@@ -44,3 +44,26 @@ Company financial data MCP server — FMP + EODHD dual-provider integration for 
 |----------|-------------|
 | `FMP_API_KEY` | Financial Modeling Prep API key |
 | `EODHD_API_KEY` | EOD Historical Data API key |
+
+## Quick Start
+
+```bash
+# Set API keys
+export FMP_API_KEY="your-fmp-key"
+export EODHD_API_KEY="your-eodhd-key"
+
+# The server starts automatically with kask
+kask chat
+# Or standalone:
+hkask-mcp-companies
+```
+
+## Usage
+
+```
+# In kask chat, invoke tools via the MCP router:
+"Look up AAPL company profile"   → company_profile
+"What's TSLA's P/E ratio?"        → key_metrics
+"Show me MSFT income statement"   → income_statement
+"Compare my tech portfolio"       → portfolio_comparison
+```

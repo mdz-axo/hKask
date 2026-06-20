@@ -30,3 +30,12 @@ Unified episodic + semantic memory MCP server with cloud backup.
 |----------|-------------|---------|
 | `HKASK_DB_PATH` | SQLite database path | In-memory |
 | `HKASK_DB_PASSPHRASE` | Database encryption passphrase | Required if DB path set |
+
+## Quick Start
+
+```bash
+# In-memory by default (no config needed)
+kask chat
+# With persistence:
+HKASK_DB_PATH=./memory.db HKASK_DB_PASSPHRASE=secret kask chat
+```

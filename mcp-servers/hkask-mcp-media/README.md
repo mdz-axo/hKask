@@ -25,3 +25,22 @@ Media generation MCP server — image, video, audio, and 3D generation via fal.a
 ## Configuration
 
 Provider API keys configured via standard environment variables (`FW_API_KEY`, `FAL_KEY`, etc.).
+
+## Quick Start
+
+```bash
+export FAL_KEY="your-fal-ai-key"
+# The server starts automatically with kask
+kask chat
+# Or standalone:
+hkask-mcp-media
+```
+
+## Usage
+
+```
+"Generate an image of a sunset over mountains"  → image generation via fal.ai
+"Detect faces in this photo"                     → detect_faces
+"Convert this video to GIF"                      → to_gif
+"Analyze the color palette of this image"        → analyze_colors
+```

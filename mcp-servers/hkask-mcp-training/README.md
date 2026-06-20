@@ -23,3 +23,11 @@ Per `docs/OPEN_QUESTIONS.md` §8.2: 15 tools fully implemented across 5 provider
 | `TOGETHER_API_KEY` | Together AI API key |
 | `BASETEN_API_KEY` | Baseten API key |
 | `RUNPOD_API_KEY` | Runpod API key |
+
+## Quick Start
+
+```bash
+export TOGETHER_API_KEY="your-key"
+# The server starts automatically with kask
+kask chat
+```

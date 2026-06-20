@@ -26,3 +26,12 @@ Specification authoring, curation, and validation MCP server.
 |----------|-------------|
 | `HKASK_DB_PATH` | SQLite database path |
 | `HKASK_DB_PASSPHRASE` | Database encryption passphrase |
+
+## Quick Start
+
+```bash
+# The server starts automatically with kask
+kask chat
+# Or standalone:
+hkask-mcp-spec
+```

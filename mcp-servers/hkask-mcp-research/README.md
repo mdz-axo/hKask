@@ -35,3 +35,22 @@ Web search, extraction, and feed-based research MCP server.
 | `get` | Get item |
 | `insert` | Insert item |
 | `run` | Main run loop |
+
+## Quick Start
+
+```bash
+# No API keys required for web search (uses free providers with fallback)
+# The server starts automatically with kask
+kask chat
+# Or standalone:
+hkask-mcp-research
+```
+
+## Usage
+
+```
+"Search for latest AI research papers"   → web_search
+"Browse this URL and summarize it"        → web_browse
+"Subscribe to the Rust blog RSS feed"     → rss_subscribe
+"What's new in my feeds?"                → rss_get_entries
+```

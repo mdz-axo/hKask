@@ -22,3 +22,20 @@ Kanban board coordination MCP server — task management with WIP limits, OCAP d
 |----------|-------------|
 | `HKASK_DB_PATH` | SQLite database path |
 | `HKASK_DB_PASSPHRASE` | Database encryption passphrase |
+
+## Quick Start
+
+```bash
+# The server starts automatically with kask
+kask chat
+# Or standalone:
+hkask-mcp-kanban
+```
+
+## Usage
+
+```
+"Create a kanban board for my writing project"  → kanban_board_create
+"Add a task to draft chapter 3"                 → kanban_task_create
+"Move the review task to Done"                  → kanban_task_move
+```
