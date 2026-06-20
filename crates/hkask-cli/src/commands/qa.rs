@@ -2,9 +2,13 @@
 //!
 //! Reads bolero output from stdin, classifies each failure via
 //! `classify_batch`, routes by confidence, emits CNS spans.
+//!
+//! Autonomous interactive scripts: `kask qa run --script <manifest.yaml>`
+//! executes a YAML-defined QA pipeline with classifier-driven branching.
 
 use crate::cli::QaAction;
 use hkask_services_classify::{self, ClassifierConfig};
+use hkask_test_harness::qa_script::{ClassifyResult, QaScriptRunner};
 use hkask_test_harness::triage::{self, BoleroFailure, QaDiagnosis, TriageReport};
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
@@ -21,6 +25,12 @@ pub fn run(rt: &tokio::runtime::Runtime, action: QaAction) {
         QaAction::SuggestFuzz { input } => {
             if let Err(e) = rt.block_on(suggest_fuzz(input)) {
                 eprintln!("QA suggest-fuzz error: {e}");
+                std::process::exit(1);
+            }
+        }
+        QaAction::RunScript { script } => {
+            if let Err(e) = rt.block_on(run_script(script)) {
+                eprintln!("QA script error: {e}");
                 std::process::exit(1);
             }
         }
@@ -314,4 +324,96 @@ fn print_mutant_summary(mutants: &[hkask_test_harness::feedback::SurvivingMutant
         );
     }
     println!("\n[QA] Set DEEPINFRA_API_KEY for LLM-powered fuzz target suggestions.");
+}
+
+// ── Autonomous script runner ───────────────────────────────────────────────────
+
+async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    println!("[QA] Loading script: {}", script_path.display());
+
+    // Load classifier configs for the classify closure
+    let registry_dir = find_registry_dir();
+    let registry_dir_clone = registry_dir.clone();
+
+    // Build classify closure that calls hkask_services_classify::classify_batch
+    let classify = move |config_name: &str, passages: &[String]| {
+        let rd = registry_dir_clone.clone();
+        let cfg_name = config_name.to_string();
+        let passages_owned: Vec<String> = passages.to_vec();
+
+        let handle = tokio::runtime::Handle::current();
+        handle.block_on(async move {
+            let config = hkask_services_classify::load_classifier_config(&cfg_name, &rd)
+                .map_err(|e| format!("Failed to load classifier '{}': {}", cfg_name, e))?;
+
+            let cfg = ClassifierConfig::from_def(&config);
+            if cfg.api_key.is_empty() {
+                return Err(format!(
+                    "No API key for classifier '{}' — set DEEPINFRA_API_KEY or equivalent",
+                    cfg_name
+                ));
+            }
+
+            let results = hkask_services_classify::classify_batch(&passages_owned, cfg)
+                .await
+                .map_err(|e| format!("Classify API error: {}", e))?;
+
+            Ok(results
+                .into_iter()
+                .map(|r| ClassifyResult {
+                    category: r.category,
+                })
+                .collect::<Vec<_>>())
+        })
+    };
+
+    let runner = {
+        let content = std::fs::read_to_string(&script_path)
+            .map_err(|e| format!("Cannot read {}: {}", script_path.display(), e))?;
+        let manifest: hkask_test_harness::qa_script::QaScriptManifest =
+            serde_yaml_neo::from_str(&content)
+                .map_err(|e| format!("Failed to parse {}: {}", script_path.display(), e))?;
+        QaScriptRunner::new(manifest, Box::new(classify))
+    };
+
+    println!(
+        "[QA] Running script '{}' — {} steps",
+        runner.manifest().id,
+        runner.step_count()
+    );
+    println!("[QA] ──────────────────────────────────────────────");
+
+    let report = runner.run()?;
+
+    println!("[QA] ──────────────────────────────────────────────");
+    println!(
+        "[QA] Script complete: {} steps executed, terminal outcome: {}",
+        report.total_steps, report.terminal_outcome
+    );
+
+    for step in &report.steps_executed {
+        let classify_info = match &step.classify_category {
+            Some(cat) if cat.len() > 80 => format!(" | category: {}…", &cat[..80]),
+            Some(cat) => format!(" | category: {cat}"),
+            None => String::new(),
+        };
+        println!(
+            "  [{ordinal}] {action} → {outcome} ({duration_ms}ms{retry_info}){classify_info}",
+            ordinal = step.ordinal,
+            action = step.action,
+            outcome = step.outcome,
+            duration_ms = step.duration_ms,
+            retry_info = if step.retries > 0 {
+                format!(", {} retries", step.retries)
+            } else {
+                String::new()
+            },
+        );
+    }
+
+    if report.exceeded_gas {
+        println!("[QA] ⚠ Gas budget exceeded");
+    }
+
+    Ok(())
 }

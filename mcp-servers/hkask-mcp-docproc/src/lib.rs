@@ -10,11 +10,9 @@
 
 pub mod convert;
 pub mod ocr;
-pub mod kindle;
 
 // ── Imports ────────────────────────────────────────────────────────────────
 
-use anyhow;
 use async_trait::async_trait;
 
 use crate::ocr::calibration::{analyze_threshold_drift, emit_drift_alert};
@@ -78,8 +76,6 @@ pub struct DocProcServer {
     /// In-memory vector index for RAG query/retrieval. Passages indexed by `docproc_chunk`
     /// are stored here with their embeddings for cosine-similarity search via `docproc_query`.
     pub index: Mutex<Vec<IndexedPassage>>,
-    /// Shared HTTP client (Chrome DevTools tab discovery, etc.).
-    pub http_client: reqwest::Client,
 }
 
 /// A passage stored in the in-memory vector index with its embedding.
@@ -102,7 +98,6 @@ impl DocProcServer {
         inference_config: InferenceConfig,
         ocr_thresholds: ThresholdConfig,
         embedding_router: Option<EmbeddingRouter>,
-        http_client: reqwest::Client,
     ) -> anyhow::Result<Self> {
         let cns_observer = DocProcCnsObserver::new(daemon.clone(), &replicant);
         Ok(Self {
@@ -1824,7 +1819,12 @@ impl DocProcServer {
     )]
     pub async fn docproc_kindle_zip(
         &self,
-        Parameters(KindleZipRequest { book_title, output_pdf, max_pages, page_wait_ms }): Parameters<KindleZipRequest>,
+        Parameters(KindleZipRequest {
+            book_title,
+            output_pdf,
+            max_pages,
+            page_wait_ms,
+        }): Parameters<KindleZipRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("docproc_kindle_zip", &self.webid);
         validate_field!(span, "book_title", &book_title, 512);
@@ -1832,32 +1832,56 @@ impl DocProcServer {
 
         let mut chrome = match ChromeCdpClient::connect(&self.http_client).await {
             Ok(c) => c,
-            Err(e) => return span.error(McpErrorKind::Unavailable,
-                McpToolError::internal(format!("Cannot connect to Chrome: {e}")).to_json_string()),
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Unavailable,
+                    McpToolError::internal(format!("Cannot connect to Chrome: {e}"))
+                        .to_json_string(),
+                );
+            }
         };
 
         // Step 1: Navigate to library and discover book ASIN
-        let current = chrome.evaluate("window.location.href").await.unwrap_or_default();
+        let current = chrome
+            .evaluate("window.location.href")
+            .await
+            .unwrap_or_default();
         if !current.contains("kindle-library") {
-            chrome.evaluate("window.location.href = 'https://read.amazon.com/kindle-library'").await.ok();
+            chrome
+                .evaluate("window.location.href = 'https://read.amazon.com/kindle-library'")
+                .await
+                .ok();
             tokio::time::sleep(std::time::Duration::from_secs(4)).await;
         }
 
         let asin = match kindle::discovery::find_asin_by_title(&mut chrome, &book_title).await {
             Ok(Some(a)) => a,
-            Ok(None) => return span.error(McpErrorKind::NotFound,
-                McpToolError::internal(format!("Book '{}' not found in library", book_title)).to_json_string()),
-            Err(e) => return span.error(McpErrorKind::Internal,
-                McpToolError::internal(format!("Library search failed: {e}")).to_json_string()),
+            Ok(None) => {
+                return span.error(
+                    McpErrorKind::NotFound,
+                    McpToolError::internal(format!("Book '{}' not found in library", book_title))
+                        .to_json_string(),
+                );
+            }
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Library search failed: {e}")).to_json_string(),
+                );
+            }
         };
         tracing::info!(target: "hkask.mcp.docproc", asin = %asin, "Found book");
 
         // Step 2: Open reader and inject blob interception
         if let Err(e) = kindle::capture::open_reader(&mut chrome, &asin).await {
-            return span.error(McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to open reader: {e}")).to_json_string());
+            return span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Failed to open reader: {e}")).to_json_string(),
+            );
         }
-        kindle::capture::inject_blob_intercept(&mut chrome).await.ok();
+        kindle::capture::inject_blob_intercept(&mut chrome)
+            .await
+            .ok();
         let blob_capture = kindle::capture::BlobCapture::new();
 
         // Step 3: Page through the book
@@ -1865,39 +1889,58 @@ impl DocProcServer {
         for page_num in 1..=max_pages {
             match kindle::capture::capture_page(&mut chrome, &blob_capture).await {
                 Ok(png) => {
-                    if png.len() < 512 { tracing::warn!(target: "hkask.mcp.docproc", page = page_num, "Page too small — stopping"); break; }
+                    if png.len() < 512 {
+                        tracing::warn!(target: "hkask.mcp.docproc", page = page_num, "Page too small — stopping");
+                        break;
+                    }
                     screenshots.push(png);
                 }
-                Err(e) => { tracing::warn!(target: "hkask.mcp.docproc", page = page_num, error = %e, "Capture failed"); break; }
+                Err(e) => {
+                    tracing::warn!(target: "hkask.mcp.docproc", page = page_num, error = %e, "Capture failed");
+                    break;
+                }
             }
             if page_num < max_pages {
                 match kindle::capture::next_page(&mut chrome).await {
                     Ok(true) => {}
-                    Ok(false) => { tracing::info!(target: "hkask.mcp.docproc", page = page_num, "End of book"); break; }
-                    Err(e) => { tracing::warn!(target: "hkask.mcp.docproc", page = page_num, error = %e, "Page turn failed"); break; }
+                    Ok(false) => {
+                        tracing::info!(target: "hkask.mcp.docproc", page = page_num, "End of book");
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.mcp.docproc", page = page_num, error = %e, "Page turn failed");
+                        break;
+                    }
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(page_wait_ms)).await;
             }
         }
 
         if screenshots.is_empty() {
-            return span.error(McpErrorKind::Internal,
-                McpToolError::internal("No pages captured").to_json_string());
+            return span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal("No pages captured").to_json_string(),
+            );
         }
 
         // Step 4: Assemble PDF
         let pages_captured = screenshots.len();
         match kindle::assembly::assemble(&screenshots, &output_pdf) {
             Ok(file_size) => {
-                self.record_experience("docproc_kindle_zip", &book_title, "success",
-                    json!({"pages_captured": pages_captured, "file_size_bytes": file_size}));
+                self.record_experience(
+                    "docproc_kindle_zip",
+                    &book_title,
+                    "success",
+                    json!({"pages_captured": pages_captured, "file_size_bytes": file_size}),
+                );
                 span.ok_json(json!({"pdf_path": output_pdf, "pages_captured": pages_captured, "file_size_bytes": file_size}))
             }
-            Err(e) => span.error(McpErrorKind::Internal,
-                McpToolError::internal(format!("PDF assembly failed: {e}")).to_json_string()),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("PDF assembly failed: {e}")).to_json_string(),
+            ),
         }
     }
-
 }
 
 // ── Chrome DevTools Protocol client ───────────────────────────────────────
@@ -1909,7 +1952,7 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungsten
 
 /// Drives a local Chrome browser via DevTools Protocol (CDP).
 /// Chrome must be launched with `--remote-debugging-port=9222`.
-pub(crate) struct ChromeCdpClient {
+pub struct ChromeCdpClient {
     ws: WebSocketStream<MaybeTlsStream<TcpStream>>,
     msg_id: AtomicU64,
 }
@@ -2038,6 +2081,7 @@ impl ChromeCdpClient {
     }
 
     /// Press a keyboard key (e.g., "ArrowRight", "ArrowLeft").
+    #[allow(dead_code)]
     async fn press_key(&mut self, key: &str) -> Result<(), String> {
         // Key down
         self.send_command(
@@ -2079,7 +2123,6 @@ impl ChromeCdpClient {
             .to_string())
     }
 }
-
 
 // ── Tests ──────────────────────────────────────────────────────────────────
 

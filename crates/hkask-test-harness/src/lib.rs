@@ -21,6 +21,7 @@ pub mod feedback;
 pub mod fuzz;
 pub mod mocks;
 pub mod prob_contract;
+pub mod qa_script;
 mod schema;
 pub mod strategies;
 pub mod test_runner;
