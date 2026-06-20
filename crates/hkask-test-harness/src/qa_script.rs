@@ -196,6 +196,8 @@ pub struct ClassifyResult {
     /// Actual API cost in micro-rJoules (µrJ) — computed by the classify service
     /// from token usage × provider pricing. Accumulated directly by CostTracker.
     pub cost_urj: u64,
+    /// True if the API call failed but token/cost data was recovered from the error response.
+    pub failed: bool,
 }
 
 /// Tracks all costs across the lifetime of a script run.
@@ -205,17 +207,41 @@ pub struct ClassifyResult {
 pub struct CostTracker {
     pub gas_used: u64,
     pub api_token_urj: u64,
+    pub failed_api_cost_urj: u64,
     pub training_urj: u64,
     pub classify_calls: u64,
 }
 
 impl CostTracker {
     pub fn total_urj(&self) -> u64 {
-        (self.gas_used * 4) + self.api_token_urj + self.training_urj
+        (self.gas_used * 4) + self.api_token_urj + self.failed_api_cost_urj + self.training_urj
     }
     pub fn rjoule_cap_urj(&self, gas_cap: u64) -> u64 {
         gas_cap * 4
     }
+    /// Compute the cost delta since a snapshot — used for per-step cost breakdown.
+    pub fn step_cost_since(&self, snapshot: &CostSnapshot) -> StepCost {
+        StepCost {
+            gas_urj: (self.gas_used - snapshot.gas_used) * 4,
+            api_token_urj: self.api_token_urj - snapshot.api_token_urj,
+            failed_api_urj: self.failed_api_cost_urj - snapshot.failed_api_cost_urj,
+        }
+    }
+    pub fn snapshot(&self) -> CostSnapshot {
+        CostSnapshot {
+            gas_used: self.gas_used,
+            api_token_urj: self.api_token_urj,
+            failed_api_cost_urj: self.failed_api_cost_urj,
+        }
+    }
+}
+
+/// Snapshot of CostTracker for computing per-step deltas.
+#[derive(Debug, Clone)]
+pub struct CostSnapshot {
+    pub gas_used: u64,
+    pub api_token_urj: u64,
+    pub failed_api_cost_urj: u64,
 }
 
 /// Result of a single script step execution.
@@ -233,6 +259,19 @@ pub struct StepResult {
     pub retries: u32,
     /// Execution duration in milliseconds
     pub duration_ms: u64,
+    /// Cost breakdown for this step in µrJ
+    pub cost: StepCost,
+}
+
+/// Cost breakdown for a single step.
+#[derive(Debug, Clone, Default)]
+pub struct StepCost {
+    /// Gas charged for this step in µrJ.
+    pub gas_urj: u64,
+    /// API token cost from this step's classify call in µrJ (successful calls).
+    pub api_token_urj: u64,
+    /// API cost recovered from failed calls in µrJ.
+    pub failed_api_urj: u64,
 }
 
 /// Report summarizing a full script execution.
@@ -249,12 +288,14 @@ pub struct QaScriptReport {
 /// Cost summary for a completed script run, in micro-rJoules (µrJ).
 #[derive(Debug, Clone, Default)]
 pub struct CostSummary {
-    /// Total gas consumed (×2 = µrJ).
+    /// Total gas consumed.
     pub gas_used: u64,
-    /// Gas-derived µrJ.
+    /// Gas-derived µrJ (gas_used × 4).
     pub gas_urj: u64,
-    /// API token costs in µrJ.
+    /// API token costs from successful calls in µrJ.
     pub api_token_urj: u64,
+    /// API costs recovered from failed calls in µrJ.
+    pub failed_api_cost_urj: u64,
     /// Training costs in µrJ.
     pub training_urj: u64,
     /// Run total in µrJ.
@@ -404,6 +445,7 @@ impl QaScriptRunner {
         while current_idx < steps.len() {
             let step = &steps[current_idx];
             let start = std::time::Instant::now();
+            let pre_snapshot = cost.snapshot();
 
             // CNS span
             if self.manifest.cns.emit_spans {
@@ -432,6 +474,7 @@ impl QaScriptRunner {
                         classify_category: None,
                         retries: 0,
                         duration_ms: start.elapsed().as_millis() as u64,
+                        cost: StepCost::default(),
                     }
                 }
             };
@@ -439,6 +482,7 @@ impl QaScriptRunner {
             let duration_ms = start.elapsed().as_millis() as u64;
             let mut result = outcome;
             result.duration_ms = duration_ms;
+            result.cost = cost.step_cost_since(&pre_snapshot);
 
             if self.manifest.cns.emit_spans {
                 tracing::info!(
@@ -452,6 +496,17 @@ impl QaScriptRunner {
             }
 
             results.push(result.clone());
+
+            // Verify: step gas tracked (emit if step didn't increment gas counter)
+            if cost.gas_used == pre_snapshot.gas_used {
+                tracing::warn!(
+                    target: "cns.qa.cost.step_untracked",
+                    manifest = %self.manifest.manifest.id,
+                    ordinal = %step.ordinal,
+                    action = %step.action,
+                    "Step executed but gas counter was not incremented"
+                );
+            }
 
             // Determine next step via branching
             if let Some(&target) = step.branching.get(&result.outcome) {
@@ -516,16 +571,28 @@ impl QaScriptRunner {
             }
         }
 
+        let exceeded = total_urj >= cap_urj && self.manifest.gas.hard_limit;
+        if exceeded {
+            tracing::error!(
+                target: "cns.qa.cost.cap_exceeded",
+                manifest = %self.manifest.manifest.id,
+                total_urj = total_urj,
+                cap_urj = cap_urj,
+                "rJoule budget cap exceeded"
+            );
+        }
+
         Ok(QaScriptReport {
             manifest_id: self.manifest.manifest.id.clone(),
             total_steps: results.len(),
             steps_executed: results,
             terminal_outcome,
-            exceeded_gas: total_urj >= cap_urj && self.manifest.gas.hard_limit,
+            exceeded_gas: exceeded,
             cost: CostSummary {
                 gas_used: cost.gas_used,
                 gas_urj: cost.gas_used * 4,
                 api_token_urj: cost.api_token_urj,
+                failed_api_cost_urj: cost.failed_api_cost_urj,
                 training_urj: cost.training_urj,
                 total_urj,
                 cap_urj,
@@ -569,9 +636,38 @@ impl QaScriptRunner {
         cost.gas_used += gas_per_fn;
         cost.classify_calls += 1;
 
-        // Track API cost: accumulated directly from classify result cost_urj
+        // Track API cost: route to failed bucket if classify call failed
+        let urj_before = cost.api_token_urj + cost.failed_api_cost_urj;
+        let mut classify_tokens = 0u64;
         for r in &result {
-            cost.api_token_urj += r.cost_urj;
+            classify_tokens += r.prompt_tokens + r.completion_tokens;
+            if r.failed {
+                cost.failed_api_cost_urj += r.cost_urj;
+            } else {
+                cost.api_token_urj += r.cost_urj;
+            }
+        }
+
+        // CNS: missing token data — classify succeeded but API returned no usage
+        if classify_tokens == 0 {
+            tracing::warn!(
+                target: "cns.qa.cost.missing_token_data",
+                manifest = %self.manifest.manifest.id,
+                ordinal = step.ordinal,
+                "Classify returned zero token usage — API may not support usage tracking"
+            );
+        }
+
+        // CNS: API cost untracked — tokens consumed but zero cost (classifier config missing pricing)
+        let total_urj_tracked = cost.api_token_urj + cost.failed_api_cost_urj;
+        if classify_tokens > 0 && total_urj_tracked == urj_before {
+            tracing::warn!(
+                target: "cns.qa.cost.api_untracked",
+                manifest = %self.manifest.manifest.id,
+                ordinal = step.ordinal,
+                tokens = classify_tokens,
+                "Tokens consumed but cost_urj is zero — classifier config may be missing cost_input_nj_per_token / cost_output_nj_per_token"
+            );
         }
 
         let category = result
@@ -601,6 +697,7 @@ impl QaScriptRunner {
             classify_category: Some(category),
             retries: 0,
             duration_ms: 0,
+            cost: StepCost::default(),
         })
     }
 
@@ -630,6 +727,7 @@ impl QaScriptRunner {
             classify_category: None,
             retries: 0,
             duration_ms: 0,
+            cost: StepCost::default(),
         })
     }
 
@@ -683,8 +781,33 @@ impl QaScriptRunner {
                             }
                         })?;
                         // Track API cost from classify result
+                        let loop_urj_before = cost.api_token_urj + cost.failed_api_cost_urj;
+                        let mut loop_tokens = 0u64;
                         for r in &result {
-                            cost.api_token_urj += r.cost_urj;
+                            loop_tokens += r.prompt_tokens + r.completion_tokens;
+                            if r.failed {
+                                cost.failed_api_cost_urj += r.cost_urj;
+                            } else {
+                                cost.api_token_urj += r.cost_urj;
+                            }
+                        }
+                        if loop_tokens == 0 {
+                            tracing::warn!(
+                                target: "cns.qa.cost.missing_token_data",
+                                manifest = %self.manifest.manifest.id,
+                                ordinal = step.ordinal,
+                                "Loop classify returned zero token usage"
+                            );
+                        }
+                        let loop_total_tracked = cost.api_token_urj + cost.failed_api_cost_urj;
+                        if loop_tokens > 0 && loop_total_tracked == loop_urj_before {
+                            tracing::warn!(
+                                target: "cns.qa.cost.api_untracked",
+                                manifest = %self.manifest.manifest.id,
+                                ordinal = step.ordinal,
+                                tokens = loop_tokens,
+                                "Loop classify: tokens consumed but cost_urj is zero"
+                            );
                         }
                         cost.classify_calls += 1;
                         result
@@ -712,6 +835,7 @@ impl QaScriptRunner {
                         classify_category: None,
                         retries: iter + 1,
                         duration_ms: 0,
+                        cost: StepCost::default(),
                     });
                 }
             }
@@ -728,6 +852,7 @@ impl QaScriptRunner {
             classify_category: None,
             retries: max_iters,
             duration_ms: 0,
+            cost: StepCost::default(),
         })
     }
 }
@@ -824,6 +949,7 @@ mod tests {
                     classify_category: None,
                     retries: 0,
                     duration_ms: 100,
+                    cost: StepCost::default(),
                 },
                 StepResult {
                     ordinal: 2,
@@ -832,6 +958,7 @@ mod tests {
                     classify_category: None,
                     retries: 0,
                     duration_ms: 50,
+                    cost: StepCost::default(),
                 },
                 StepResult {
                     ordinal: 3,
@@ -840,6 +967,7 @@ mod tests {
                     classify_category: None,
                     retries: 1,
                     duration_ms: 200,
+                    cost: StepCost::default(),
                 },
             ],
             total_steps: 3,
@@ -957,6 +1085,7 @@ cns:
                 prompt_tokens: 400,
                 completion_tokens: 300,
                 cost_urj: 30,
+                failed: false,
             }])
         });
         let runner = QaScriptRunner::new(manifest, classify);

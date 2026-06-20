@@ -6,20 +6,32 @@ crate:
   version: "0.30.0"
   description: >
     Design and generate autonomous QA pipeline manifests for the hKask QA system.
-    Walks through a structured discover→design→generate→validate pipeline: maps
-    testing intent to QA system capabilities (fuzz, classify, branch, loop,
-    auto-repair), designs the branching state machine, and produces a valid YAML
-    manifest for `kask qa run --script`.
+    Walks through a structured persona→discover→design→generate→validate pipeline: generates
+    diverse testing scenarios from persona + goal, maps testing intent to QA system
+    capabilities (fuzz, classify, branch, loop, auto-repair), designs the branching
+    state machine, and produces a valid YAML manifest for `kask qa run --script`.
 
 templates:
+  - id: qa-script-builder/qa-persona
+    path: qa-persona.j2
+    type: KnowAct
+    lexicon_terms: [persona, scenario, explore, generate, diversify]
+    description: >
+      Generate diverse QA testing scenarios from a user persona and goal.
+      Applies Falstaffian perspective rotation (obvious, shadow, adjacent, inversion,
+      wildcard) and grill-me adversarial probing to produce a scenario_set — a family
+      of hardened testing intents that stress-test different MCP servers and central
+      services.
+
   - id: qa-script-builder/qa-discover
     path: qa-discover.j2
     type: KnowAct
     lexicon_terms: [discover, map, survey, inventory, analyze]
     description: >
-      Discover the test surface from user intent: what crate, what failure
-      modes, what existing fuzz coverage, what classifier configs are available,
-      what gas budget applies.
+      Discover the test surface from user intent or persona-generated scenario:
+      what crate, what failure modes, what existing fuzz coverage, what classifier
+      configs are available, what gas budget applies. Accepts scenario objects from
+      the persona phase for narrowed, persona-aware discovery.
 
   - id: qa-script-builder/qa-design
     path: qa-design.j2

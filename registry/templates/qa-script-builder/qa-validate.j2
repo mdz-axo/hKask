@@ -70,7 +70,7 @@ You are a QA manifest validator. Given a generated YAML manifest, validate it st
 |----|------|-------------|
 | W1 | Orphan steps | Every step should be reachable from step 1 via branching |
 | W2 | Terminal exists | Script must have at least one terminal state (step with no outgoing branches) |
-| W3 | Gas budget sensible | Gas cap should exceed estimated token cost (classify steps × ~500 tokens each) |
+| W3 | Gas budget sensible | Gas cap should exceed estimated cost: (steps × 400 µrJ) + (classify_steps × ~30 µrJ) |
 | W4 | CNS namespace valid | `span_namespace` should follow `cns.qa.<script-id>` convention |
 | W5 | Loop has escape | Every `loop` step should have a `loop_exhausted` branch or a reachable terminal condition |
 | W6 | Classify has all branches | `classify` steps should cover high/medium/low/flake/unparseable or have `default_next` |
@@ -125,7 +125,7 @@ Respond with a JSON object:
 - Validation is mechanical. If a rule is triggered, it's a finding. No judgment calls.
 - Do not modify the manifest; only report findings.
 - Classifier existence is checked against `available_classifiers`, not the file system.
-- For W3, estimate classify steps × 500 tokens each for the gas budget check.
+- For W3, estimate (step_count × 400 µrJ) + (classify_count × 30 µrJ) for the gas budget check.
 - For W1, trace reachability from step 1 through all branch paths.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.

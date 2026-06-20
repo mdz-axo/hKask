@@ -365,6 +365,7 @@ async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Erro
                     prompt_tokens: r.prompt_tokens,
                     completion_tokens: r.completion_tokens,
                     cost_urj: r.cost_urj,
+                    failed: r.failed,
                 })
                 .collect::<Vec<_>>())
         })
@@ -400,8 +401,21 @@ async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Erro
             Some(cat) => format!(" | category: {cat}"),
             None => String::new(),
         };
+        let cost_total = step.cost.gas_urj + step.cost.api_token_urj + step.cost.failed_api_urj;
+        let mut cost_parts = vec![format!("{} gas", step.cost.gas_urj)];
+        if step.cost.api_token_urj > 0 {
+            cost_parts.push(format!("{} API", step.cost.api_token_urj));
+        }
+        if step.cost.failed_api_urj > 0 {
+            cost_parts.push(format!("{} failed", step.cost.failed_api_urj));
+        }
+        let cost_str = if cost_total > 0 {
+            format!(" | {} µrJ ({})", cost_total, cost_parts.join(" + "))
+        } else {
+            String::new()
+        };
         println!(
-            "  [{ordinal}] {action} → {outcome} ({duration_ms}ms{retry_info}){classify_info}",
+            "  [{ordinal}] {action} → {outcome} ({duration_ms}ms{retry_info}){classify_info}{cost_str}",
             ordinal = step.ordinal,
             action = step.action,
             outcome = step.outcome,
@@ -415,7 +429,14 @@ async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Erro
     }
 
     if report.exceeded_gas {
-        println!("[QA] ⚠ Gas budget exceeded");
+        println!("[QA] ⚠ rJoule budget cap exceeded");
+        tracing::warn!(
+            target: "cns.qa.cost.cap_exceeded",
+            manifest_id = %report.manifest_id,
+            total_urj = %report.cost.total_urj,
+            cap_urj = %report.cost.cap_urj,
+            "rJoule budget cap exceeded"
+        );
     }
 
     // Cost summary
@@ -438,6 +459,13 @@ async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Erro
         "       API tokens:         {} calls, {} µrJ    ({:.6} rJ)",
         c.classify_calls, c.api_token_urj, api_rj
     );
+    if c.failed_api_cost_urj > 0 {
+        let failed_rj = c.failed_api_cost_urj as f64 / 1_000_000.0;
+        println!(
+            "       API failed calls:                     {} µrJ    ({:.6} rJ)",
+            c.failed_api_cost_urj, failed_rj
+        );
+    }
     println!("       ───────────────────────────────────────────────────");
     println!(
         r"       Run total:                              {} µrJ    ({:.6} rJ, ${:.6})",

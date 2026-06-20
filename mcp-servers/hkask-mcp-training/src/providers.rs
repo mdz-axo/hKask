@@ -107,6 +107,11 @@ pub struct TrainingJob {
     /// Semantic/generic fine-tuning leaves this `None`.
     #[serde(default)]
     pub skill_name: Option<String>,
+    /// Estimated cost of this training job in micro-rJoules (µrJ).
+    /// Computed from host provider pricing + model size + estimated GPU-hours.
+    /// None if the host doesn't support cost estimation.
+    #[serde(default)]
+    pub estimated_cost_urj: Option<u64>,
 }
 
 impl TrainingJob {
@@ -128,6 +133,7 @@ impl TrainingJob {
             harness,
             owner: None,
             skill_name: None,
+            estimated_cost_urj: None,
         }
     }
 }

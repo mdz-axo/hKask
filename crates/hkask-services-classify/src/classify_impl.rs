@@ -25,6 +25,8 @@ pub struct ClassifyResult {
     /// Computed as (prompt_tokens × input_nj + completion_tokens × output_nj) / 1,000,000.
     /// Zero when no API key, fallback, or pricing not configured.
     pub cost_urj: u64,
+    /// True if the API call failed but token/cost data was recovered from the error response.
+    pub failed: bool,
 }
 
 /// Semantic triple extraction result for a single passage.
@@ -256,20 +258,30 @@ async fn classify_one(
     let status = resp.status();
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
-        // Parse usage from error response if available — provider may still charge for input tokens
-        let _tokens = serde_json::from_str::<ErrorResponse>(&body)
+        // Recover token usage from error response — provider may still charge for input tokens
+        let error_tokens = serde_json::from_str::<ErrorResponse>(&body)
             .ok()
             .and_then(|e| e.usage)
             .map(|u| (u.prompt_tokens, u.completion_tokens))
             .unwrap_or((0, 0));
-        return Err(ServiceError::Embed {
-            source: None,
-            message: format!(
-                "Classifier error {status}: {}",
-                body.chars().take(200).collect::<String>()
-            ),
-            // Note: token usage is dropped on error — caller receives Err, not ClassifyResult.
-            // Callers that need failed-call cost tracking should handle this at the batch level.
+
+        let error_cost = (error_tokens.0 * config.cost_input_nj_per_token) / 1_000_000
+            + (error_tokens.1 * config.cost_output_nj_per_token) / 1_000_000;
+
+        tracing::warn!(
+            status = %status.as_u16(),
+            prompt_tokens = error_tokens.0,
+            completion_tokens = error_tokens.1,
+            cost_urj_recovered = error_cost,
+            "Classifier HTTP error — returning fallback with recovered cost data"
+        );
+
+        return Ok(ClassifyResult {
+            category: config.fallback_category.clone(),
+            prompt_tokens: error_tokens.0,
+            completion_tokens: error_tokens.1,
+            cost_urj: error_cost,
+            failed: true,
         });
     }
 
@@ -320,6 +332,7 @@ async fn classify_one(
         prompt_tokens: tokens.0,
         completion_tokens: tokens.1,
         cost_urj: input_cost + output_cost,
+        failed: false,
     })
 }
 
@@ -348,6 +361,7 @@ pub async fn classify_batch(
                 prompt_tokens: 0,
                 completion_tokens: 0,
                 cost_urj: 0,
+                failed: false,
             })
             .collect());
     }
@@ -393,6 +407,7 @@ pub async fn classify_batch(
                     prompt_tokens: 0,
                     completion_tokens: 0,
                     cost_urj: 0,
+                    failed: true,
                 });
             }
             Err(e) => {
@@ -409,6 +424,7 @@ pub async fn classify_batch(
                 prompt_tokens: 0,
                 completion_tokens: 0,
                 cost_urj: 0,
+                failed: true,
             })
         })
         .collect())

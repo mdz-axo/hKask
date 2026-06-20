@@ -201,13 +201,9 @@ The `classify_batch` function computes `cost_urj` from actual token usage × pro
 | File | Change |
 |------|--------|
 | `crates/hkask-services-classify/src/classify_impl.rs` | Add `Usage` to `ChatResponse`; add `prompt_tokens` + `completion_tokens` to `ClassifyResult`; parse from both success and error responses |
-| `crates/hkask-test-harness/src/qa_script.rs` | Add `CostTracker` (integer µrJ); replace `cost_per_token` with `gas_per_function` + `api_cost_*_urj_per_token`; track gas per step; implement `alert_threshold`; update `QaScriptReport` with `CostSummary`; add verification invariant |
+| `crates/hkask-test-harness/src/qa_script.rs` | Add `CostTracker` (integer µrJ); replace `cost_per_token` with `gas_per_function`; track gas per step; implement `alert_threshold`; update `QaScriptReport` with `CostSummary`; add verification invariant |
 | `crates/hkask-cli/src/commands/qa.rs` | Propagate token counts through classify closure; display CostSummary |
 | `hKask/docs/architecture/specs/rjoule-cost-system.md` | This document |
-
-### Backward Compatibility
-
-Scripts without new `GasConfig` fields get defaults. `cost_per_token` is silently ignored. No breaking change.
 
 ## 9. CLI Output
 
@@ -248,7 +244,7 @@ The CostTracker must be auditable. The following invariants are checked:
 |-----------|-------|-----------|
 | Gas per step | `gas_used == step_count × gas_per_function` | `cns.qa.cost.gas_mismatch` |
 | API cost per classify | `api_token_urj` increments by token count × per-token cost for each classify call | `cns.qa.cost.api_untracked` |
-| No missing steps | Every action type (run_command, classify, loop) increments gas | `cns.qa.cost.step_untracked` |
+| No missing steps | Every action type (run_command, classify, loop) increments gas | Covered by `gas_mismatch` invariant |
 | Total within cap | `total_urj < gas_cap × 4` when hard_limit is true | `cns.qa.cost.cap_exceeded` |
 | Alert threshold | `total_urj / (cap × 4) >= alert_threshold` emits warning | `cns.qa.cost.threshold_warning` |
 | Classify has token data | Every classify call returns non-zero `prompt_tokens` + `completion_tokens` (except fallback/no-key mode) | `cns.qa.cost.missing_token_data` |

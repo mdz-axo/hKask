@@ -1158,11 +1158,11 @@ For partners running hKask as critical infrastructure, the following are non-neg
 ## 6. Implementation Sequence
 
 ### Phase 1: Foundation — P0 (Both Paths)
-- [ ] `Dockerfile` (multi-stage Rust + Litestream + Conduit)
-- [ ] `entrypoint.sh` (render configs → restore → supervisord)
-- [ ] `supervisord.conf` (conduit, litestream, kask)
-- [ ] `litestream.yml.template` (Tigris + Hetzner OS endpoints)
-- [ ] `conduit.toml.template` (Matrix homeserver)
+- [x] `Dockerfile` (multi-stage Rust + Litestream + Conduit) → `deploy/Dockerfile`
+- [x] `entrypoint.sh` (render configs → restore → supervisord) → `deploy/fly/entrypoint.sh`
+- [x] `supervisord.conf` (conduit, litestream, kask) → `deploy/fly/supervisord.conf`
+- [x] `litestream.yml.template` (Tigris + Hetzner OS endpoints) → `deploy/fly/litestream.yml.template`
+- [x] `conduit.toml.template` (Matrix homeserver) → `deploy/fly/conduit.toml.template`
 - [ ] CI/CD pipeline to build and push container image
 - [ ] SQLCipher + Litestream compatibility test
 
@@ -1170,8 +1170,8 @@ For partners running hKask as critical infrastructure, the following are non-neg
 - [ ] `CloudProvider` trait in `hkask-types`
 - [ ] `FlyClient` in `hkask-cli` (Machines API)
 - [ ] `TigrisClient` in `hkask-cli` (bucket provisioning)
-- [ ] `kask pod export fly <pod-id>` command (generates fly.toml with Tigris endpoint)
-- [ ] `fly.toml` Jinja2 template (HTTP :3000 + Matrix :8448 + Tigris env)
+- [x] `kask pod export fly <pod-id>` command → `crates/hkask-cli/src/commands/pod.rs::export_fly`
+- [x] `fly.toml` generation (embedded template in export_fly)
 - [ ] `kask pod activate` → `fly machines start`
 - [ ] `kask pod deactivate` → `fly machines stop`
 - [ ] Conduit federation test: pod-1 ↔ pod-2 Matrix messaging

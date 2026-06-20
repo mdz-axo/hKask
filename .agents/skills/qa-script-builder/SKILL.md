@@ -1,7 +1,7 @@
 ---
 name: qa-script-builder
 visibility: public
-description: "Design and generate autonomous QA pipeline manifests for the hKask QA system. Walks through a structured discovery→design→generate→validate pipeline: maps testing intent to the QA system's capabilities (fuzz, classify, branch, loop, auto-repair), designs the branching state machine, and produces a valid YAML manifest for `kask qa run --script`. Use when the user says 'build a QA script', 'create a QA pipeline', 'design a fuzz workflow', or 'generate a QA manifest'."
+description: "Design and generate autonomous QA pipeline manifests for the hKask QA system. Walks through a structured persona→discover→design→generate→validate pipeline: generates diverse testing scenarios from persona + goal, maps testing intent to the QA system's capabilities (fuzz, classify, branch, loop, auto-repair), designs the branching state machine, and produces a valid YAML manifest for `kask qa run --script`. Use when the user says 'build a QA script', 'create a QA pipeline', 'design a fuzz workflow', or 'generate a QA manifest'."
 ---
 
 # QA Script Builder
@@ -23,10 +23,11 @@ This skill's runtime templates live in `registry/templates/qa-script-builder/`:
 
 | Template | Type | Purpose |
 |----------|------|---------|
-| `qa-discover.j2` | KnowAct | Discover the test surface — crate, failure modes, existing fuzz coverage, what needs testing |
-| `qa-design.j2` | KnowAct | Design the branching state machine from testing intent to step topology |
-| `qa-generate.j2` | KnowAct | Generate the complete YAML manifest from the designed topology |
-| `qa-validate.j2` | KnowAct | Validate the manifest against schema, check branch referential integrity, ensure classifier configs exist |
+| `qa-persona.j2` | KnowAct | Phase 0: Generate diverse QA testing scenarios from persona + goal using Falstaffian perspective rotation and grill-me adversarial probing |
+| `qa-discover.j2` | KnowAct | Phase 1: Discover the test surface — crate, failure modes, existing fuzz coverage, what needs testing (accepts persona scenario or raw intent) |
+| `qa-design.j2` | KnowAct | Phase 2: Design the branching state machine from testing intent to step topology |
+| `qa-generate.j2` | KnowAct | Phase 3: Generate the complete YAML manifest from the designed topology |
+| `qa-validate.j2` | KnowAct | Phase 4: Validate the manifest against schema, check branch referential integrity, ensure classifier configs exist |
 
 The SKILL.md (this file) teaches the Zed coding agent the QA script design methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
 
@@ -129,11 +130,37 @@ Both live at `registry/classify/<name>.yaml` and require `DEEPINFRA_API_KEY`.
 - Cannot spawn sub-scripts (no nested manifest execution)
 - Cannot run classifiers without an API key (`DEEPINFRA_API_KEY`)
 
-## The 4-Phase Pipeline
+## The 5-Phase Pipeline
+
+### Phase 0: Persona (Scenario Generation)
+
+Generate diverse testing scenarios from a user persona and goal. This phase produces a `scenario_set` — a family of testing intents that stress-test different MCP servers and central services from different angles.
+
+**Input:** A persona description ("You are an SRE responsible for MCP server reliability") and a goal ("I want to monitor flake rates across all services").
+
+**Process:** Apply Falstaffian perspective rotation to generate diversity:
+1. **Obvious path** — the most direct interpretation of the goal
+2. **Shadow path** — the failure mode the persona fears but isn't saying
+3. **Adjacent path** — a neighboring concern one hop away
+4. **Inversion** — the complementary scenario (verify non-failures, not detect failures)
+5. **Wildcard** (optional) — a capability the persona is overlooking
+
+Then apply grill-me adversarial probing to each scenario: "What assumption might not hold?" "What's the smallest input that could break this?" Output hardened scenarios with `grill_hardened: true`.
+
+**Output:** A `scenario_set` array of 3–5 scenarios, each with:
+- `user_intent` — natural-language testing intent (feeds into Phase 1)
+- `testing_angle` — unique angle (fuzz, contract, flake, alert, CNS, gas, loop, repair)
+- `failure_mode` — what they're testing against
+- `suggested_tool` — which tool produces failures
+- `alert_posture` — escalation severity mapping
+- `gas_environment` — CI-tight or local-generous
+- `stress_target` — which MCP server or central service this exercises
+
+**When to skip Phase 0:** When the user already has a specific testing intent and doesn't need scenario diversity.
 
 ### Phase 1: Discover
 
-Map the user's testing intent to the QA system's capabilities. Ask:
+Map the user's testing intent (or a persona-generated scenario) to the QA system's capabilities. Ask:
 
 1. **What are we testing?** Crate? Function? Behavior? Invariant?
 2. **What failure modes matter?** Panics? Assertions? Timeouts? Flakes? Logic errors?

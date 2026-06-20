@@ -110,6 +110,17 @@ pub enum PodAction {
         #[arg(short, long, default_value = "./pod-build")]
         output: PathBuf,
     },
+    /// Export a pod as a Fly.io deployment (fly.toml + secrets)
+    ExportFly {
+        #[arg()]
+        pod_id: String,
+        #[arg(short, long, default_value = "iad")]
+        region: String,
+        #[arg(short = 'v', long, default_value = "1")]
+        volume_size_gb: u32,
+        #[arg(short, long, default_value = "./fly-deploy")]
+        output: PathBuf,
+    },
 }
 
 #[derive(Debug, Subcommand)]

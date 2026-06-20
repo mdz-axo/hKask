@@ -58,13 +58,14 @@ manifest:
   editor: system                # Who authored it
   visibility: Public            # Public or Private
 
-gas:                            # Cost controls
-  cap: 50000                    # Gas units (default: 15000)
-  cost_per_token: 0.25          # Per-token cost estimate
-  alert_threshold: 0.8          # Warn at this fraction of cap
+gas:                            # Cost controls (rJoule system)
+  cap: 15000                    # Gas units (default: 15000)
+  gas_per_function: 100         # Gas per software function call
+  alert_threshold: 0.7          # Warn at this fraction of rJ budget
   hard_limit: true              # Abort when exceeded
+  monthly_subscriptions_urj: 0  # Monthly recurring costs in µrJ
 
-alert:                          # Algedonic escalation
+alert:                          # Algedonic escalation (direct to Curator)
   enabled: true                 # Master switch
   default_domain: qa.my-script  # Fallback alert domain
   default_threshold: 5          # Escalate after N failures
@@ -141,7 +142,7 @@ audit:                          # Audit trail
 1. **manifest.id**: slug from the user's intent or `manifest_id` variable. Lowercase, hyphens only.
 2. **manifest.name**: human-readable, title case.
 3. **manifest.description**: 2-3 sentences covering what the script tests, what tooling it uses, and what happens on failure.
-4. **gas**: use discovery's `gas_constraints.suggested_cap`. CI scripts should have `hard_limit: true`.
+4. **gas**: use discovery's `gas_constraints.suggested_cap`. Set `gas_per_function` to 100 (SCI-derived default). Set `monthly_subscriptions_urj` if applicable. CI scripts should have `hard_limit: true`.
 5. **steps**: generate from the step topology. Map each topology entry to the correct YAML structure.
    - `run_command` steps get `command` and `branching` (success/failure).
    - `classify` steps get `classifier`, `branching` (confidence levels), and optional `alert` config.
@@ -167,9 +168,9 @@ Respond with a JSON object where `yaml_manifest` is the complete YAML as a strin
     "classify_steps": 1,
     "loop_steps": 1,
     "terminal_steps": 3,
-    "gas_cap": 5000,
-    "estimated_max_tokens": 1200,
-    "estimated_max_cost_usd": 0.00030
+    "gas_cap": 15000,
+    "estimated_gas_urj": 2400,
+    "estimated_max_urj": 3000
   }
 }
 ```
