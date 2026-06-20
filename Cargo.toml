@@ -93,9 +93,6 @@ utoipa-axum = "0.2"
 # MCP protocol (tool protocol)
 rmcp = "1"
 
-# Agent Client Protocol (IDE ↔ agent communication)
-agent-client-protocol = "0.14"
-
 # Storage
 rusqlite = { version = "0.39", features = ["bundled-sqlcipher", "blob", "backup"] }
 sqlite-vec = "0.1"
@@ -164,11 +161,6 @@ bolero = "0.13"
 
 # Pattern matching (for migration)
 regex = "1"
-
-# Proc-macro support
-proc-macro2 = "1"
-quote = "1"
-syn = { version = "2", features = ["full"] }
 
 # Futures utilities
 futures-util = "0.3"
