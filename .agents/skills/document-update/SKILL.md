@@ -29,109 +29,104 @@ disappear? If yes, merge that information into its parent target, then delete.
 
 ## The 7-Task Workflow
 
-### Task 0 — README Fact Audit (NEW — run first, every sweep)
+### Task 0 — Docs-vs-Code Reconciliation (NEW — run first, every sweep)
 
-**Goal:** Verify every numeric assertion, crate listing, version number, and count in every README-like file in the project. These files rot silently because they contain hand-maintained stats that nobody updates when code changes.
+**Goal:** Every document assertion must be verifiable against codebase ground truth. Documents follow code — not the reverse. When code changes (crate added/removed/renamed, command added/removed, API surface changes), the docs MUST be updated.
 
-**README-like files that MUST be audited every sweep:**
+**Principle:** Don't search for known stale patterns. Extract the set of "what exists" from the codebase, then find everything in docs that references something that doesn't.
 
-| File | Contains |
-|------|----------|
-| `./README.md` | Version, crate counts, LOC, subcommand/route counts, phase status, MCP server list, skill counts, doc counts |
-| `./AGENTS.md` | Crate listing, command examples, verification commands |
-| `./docs/README.md` | Document portal index, active doc count, section links |
-| `./docs/status/PROJECT_STATUS.md` | Project phase, completion percentages, component status |
-| `./mcp-servers/hkask-mcp-condenser/README.md` | Tool counts, test counts, dependency references |
+**Step 1: Build the ground-truth set from code.**
 
-#### Fact-Checking Protocol
-
-For each README file, verify every assertion against the codebase. Do not trust any number. Extract ground truth from the codebase, not from other docs.
-
-**Version number:**
 ```bash
-grep '^version' Cargo.toml | head -1
-# Compare against version in README header, footer, and docs references
+# Crate names (from workspace)
+grep -oP 'crates/hkask-[a-z0-9_-]+' Cargo.toml | cut -d/ -f2 | sort -u > /tmp/exists-crates.txt
+grep -oP 'mcp-servers/hkask-mcp-[a-z0-9_-]+' Cargo.toml | cut -d/ -f2 | sort -u > /tmp/exists-mcps.txt
+
+# CLI subcommand names
+./target/release/kask --help 2>&1 | grep -A100 'Commands:' | grep -oP '^  \K[a-z][a-z-]+' | sort -u > /tmp/exists-commands.txt
+
+# Skill names
+ls .agents/skills/ | sort -u > /tmp/exists-skills.txt
+
+# API route names
+ls crates/hkask-api/src/routes/ | sed 's/\.rs$//' | sort -u > /tmp/exists-routes.txt
+
+# Active doc files (to verify doc cross-references)
+find docs/ -name '*.md' -not -path '*/archive/*' | sed 's|^docs/||' | sort -u > /tmp/exists-docs.txt
 ```
 
-**Crate counts:**
+**Step 2: Extract all references from docs.**
+
 ```bash
-# Count workspace crates (exclude fuzz targets)
-grep 'crates/hkask-' Cargo.toml | grep -v fuzz | wc -l
-# Count MCP servers
-grep 'mcp-servers/hkask-' Cargo.toml | grep -v fuzz | wc -l
-# Verify every listed crate exists
-ls -d crates/hkask-*/
-ls -d mcp-servers/hkask-mcp-*/
+# All crate-like names mentioned in docs
+grep -roPh 'hkask-[a-z0-9_-]+' docs/ --include='*.md' | sort -u > /tmp/refs-crates.txt
+
+# All CLI commands mentioned in docs (look for `kask <word>` patterns)
+grep -roPh '(?<=\bkask )[a-z][a-z-]+' docs/ --include='*.md' | sort -u > /tmp/refs-commands.txt
 ```
 
-**Line counts (LOC):**
+**Step 3: Diff — find references to things that don't exist.**
+
 ```bash
-# Core src/ only (exclude fuzz/ and tests/ if measuring separately)
-find crates/ -path '*/src/*.rs' -not -path '*/fuzz/*' | xargs wc -l | tail -1
-# MCP server src/ only
-find mcp-servers/ -path '*/src/*.rs' -not -path '*/fuzz/*' | xargs wc -l | tail -1
-# Per-crate breakdown (for README tables)
-for crate in crates/hkask-*/; do
-  name=$(basename "$crate")
-  count=$(find "$crate/src" -name '*.rs' 2>/dev/null | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
-  echo "  $name: ${count:-0}"
+# Crates mentioned in docs but missing from Cargo.toml
+echo "=== Stale crate references in docs ==="
+comm -23 /tmp/refs-crates.txt /tmp/exists-crates.txt | while read name; do
+  echo "  STALE: $name"
+  grep -rl "$name" docs/ --include='*.md' | head -5
+  echo ""
+done
+
+# CLI commands mentioned in docs but not actual subcommands
+echo "=== Stale command references in docs ==="
+comm -23 /tmp/refs-commands.txt /tmp/exists-commands.txt | while read cmd; do
+  echo "  STALE: kask $cmd"
+  grep -rl "kask $cmd" docs/ --include='*.md' | head -5
+  echo ""
 done
 ```
 
-**CLI subcommand count:**
+**Step 4: Verify the specific README files.**
+
+For `./README.md`, `./AGENTS.md`, `./docs/README.md`, `./docs/status/PROJECT_STATUS.md`:
+- Version number vs `grep '^version' Cargo.toml`
+- Every numeric assertion (LOC, counts, test numbers) vs codebase
+- Every listed crate name exists in Cargo.toml
+- Every listed MCP server exists in filesystem
+- Phase/roadmap status reflects current reality
+- No references to removed crates, commands, or concepts
+
+**Step 5: Missing documentation check — every component MUST have a README.**
+
 ```bash
-./target/release/kask --help 2>&1 | grep -A50 'Commands:' | grep -c '^  [a-z]'
-# Or count from source:
-grep -c 'pub enum Command' crates/hkask-cli/src/cli/mod.rs 2>/dev/null
+# Every MCP server must have a README.md
+for dir in mcp-servers/hkask-mcp-*/; do
+  if [ ! -f "$dir/README.md" ]; then
+    echo "MISSING README: $(basename $dir)"
+  fi
+done
+
+# Every crate must have a README.md (or document why not)
+for dir in crates/hkask-*/; do
+  if [ ! -f "$dir/README.md" ]; then
+    echo "MISSING README: $(basename $dir)"
+  fi
+done
 ```
 
-**API route group count:**
-```bash
-ls crates/hkask-api/src/routes/*.rs | wc -l
-```
+**Rule:** Every public-facing component (MCP server, core crate) MUST have a `README.md`. Internal implementation crates (services, adapters) may defer, but the absence must be intentional and documented. When a new crate or MCP server is added, its README must be created in the same commit.
 
-**Test file count:**
-```bash
-# Files containing #[cfg(test)] modules (exclude fuzz/)
-find crates/ mcp-servers/ -name '*.rs' -not -path '*/fuzz/*' | xargs grep -l '#\[cfg(test)\]' 2>/dev/null | wc -l
-```
+The README must contain at minimum:
+- Component name and one-line purpose
+- Tool/function listing (for MCP servers: every tool by name)
+- Configuration requirements (environment variables, dependencies)
 
-**Skill counts:**
-```bash
-ls .agents/skills/ | wc -l                              # installed skills
-find registry/ -name 'manifest.yaml' | wc -l            # registry crates
-find registry/ -name '*.j2' | wc -l                     # Jinja2 templates
-```
+**Correction Rules:**
 
-**Document counts:**
-```bash
-find docs/ -name '*.md' -not -path '*/archive/*' -not -path '*/generated/*' | wc -l   # active
-find docs/archive/ -name '*.md' | wc -l                                               # archived
-```
-
-**Crate existence (every listed crate must exist):**
-```bash
-# For each crate named in README: test -d "crates/$name" || echo "MISSING: $name"
-# For each MCP server named in README: test -d "mcp-servers/$name" || echo "MISSING: $name"
-```
-
-**Stale references (names that no longer exist):**
-```bash
-# Search for old crate names, old version strings, removed concepts
-grep -rni 'hkask-ensemble\|cybertest\|v0\.28\|v0\.29' README.md docs/README.md AGENTS.md
-# Each hit is a correction candidate
-```
-
-#### Correction Rules
-
-1. **Numbers must match exactly** (or be rounded to the nearest 1000 for LOC with `~` prefix).
-2. **Crate names must match the filesystem** — no renamed-but-not-updated names.
-3. **Phase status must reflect current reality** — if condenser is done, mark it done.
-4. **Command examples must work** — run them to verify.
-5. **Remove stale sections** — if a referenced crate/feature doesn't exist, remove or update the section.
-6. **Don't add new content** — this task is audit-and-correct, not expand.
-
-**Verification:** After corrections, re-run all fact-checking commands. Every assertion in every README must be verifiable from the codebase. Zero stale references. Version matches Cargo.toml.
+1. **Delete stale references** — if a doc mentions a crate/command/feature that no longer exists, remove or update.
+2. **Numbers must match** — rerun the counting command and update.
+3. **Crate names must match filesystem** — no renamed-but-not-updated names.
+4. **Phase status must reflect current reality** — don't claim something is "in progress" if it shipped.
+5. **Documents follow code** — Magna Carta and PRINCIPLES excepted (those constrain code).
 
 ---
 
@@ -300,7 +295,7 @@ Do not delete a README without a replacement. Do not archive READMEs — they ar
 ## Success Criteria
 
 A documentation sweep is successful when:
-- **Task 0 complete:** All README files pass fact-checking — version matches Cargo.toml, all counts verified, zero stale crate names or references
+- **Task 0 complete:** All README files pass fact-checking — version matches Cargo.toml, all counts verified, zero stale crate names or references. Every MCP server has a README. Every core crate has a README (or documented exemption).
 - Active document count is ≤40 (from current ~56)
 - Zero stubs or redirect documents exist
 - `bash docs/ci/check-links.sh` passes with zero broken links

@@ -13,9 +13,9 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 
 **Version:** v0.28.0
 **Created:** 2026-06-16
-**Status:** Active — anchor for the Testing Discipline and rSolidity (formally adopted as the contracting language)  
+**Status:** Active — anchor for the Testing Discipline. Contract enforcement uses `/// REQ:` conventions with CNS-observed behavioral contracts.
 **Last Updated:** 2026-06-18  
-**Decision:** 2026-06-18 — rSolidity is formally adopted as the contracting language for hKask. The contract standard is defined in [`CONTRACT_GUIDE.md`](../../../guides/CONTRACT_GUIDE.md). `#[contract(id=..., principle=...)]` is the target contract identity marker; `/// REQ:` is the transitional convention.
+**Decision:** 2026-06-20 — Behavioral contracts use `/// REQ:` annotations with CNS-observable pre/post conditions. The `#[contract]` macro has been removed; contract enforcement is through CNS span observation and property-based testing.
 
 > This document maps the complete system to its motivating principles, enumerates functional requirements per domain, and links each requirement to the contracts that implement it. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the other principles that constrain how the goal is achieved). See [`CONTRACT_GUIDE.md`](../../../guides/CONTRACT_GUIDE.md) for the definitive contract standard — this document defines the *domain-to-contract mapping*, not the contract format itself.
 
@@ -44,7 +44,7 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 15 | MCP Servers | `mcp` | mcp-servers/ | 41 | System provides single-responsibility tool servers | P5 (Essentialism) |
 | 16 | Service Layer | `services` | hkask-services | 305+ | System composes a single service layer shared by CLI and API | P5 + P7 (Essentialism + Evolution) |
 | 17 | Agent Runtime | `agents` | hkask-agents | 159 | User's agents operate within sovereignty boundaries | P1 (User Sovereignty) |
-| 18 | Communication | `comm` | hkask-comm | 6 | Agents communicate through user-owned channels | P1 (User Sovereignty) |
+| 18 | Communication | `comm` | hkask-communication | 25 | Agents communicate through user-owned channels | P1 (User Sovereignty) |
 | 19 | Keystore | `keystore` | hkask-keystore | 5 | User's keys are generated, stored, and rotated securely | P1 (User Sovereignty) |
 | 20 | Type System | `types` | hkask-types | 40 | System types are semantically grounded and provenance-aware | P8 (Semantic Grounding) |
 | 21 | API Surface | `api` | hkask-api | 25 | User accesses all functionality through a REST API with sovereignty enforcement | P1 + P4 (Sovereignty + Boundaries) |
@@ -996,9 +996,9 @@ Representative domains:
 > **Note:** The inventory generator reports 30 contracts because it groups by unique ID. Production contract occurrences in `hkask-agents` total **174** (including repeated annotations on struct + impl + tests). Each production function retains the same contract ID across its struct comment, impl comment, and test comment.
 
 ### 3.2 Storage (`hkask-storage`)
-### 3.9 Communication (`hkask-comm`)
+### 3.9 Communication (`hkask-communication`)
 
-**6 contracts** — P1 (User Sovereignty)
+**25 contracts** — P1 (User Sovereignty)
 - `Channel` — message passing between agents (P1)
 - `Broadcast` — pub/sub event distribution (P1)
 - Message serialization, delivery guarantees
@@ -1699,11 +1699,11 @@ ER diagrams have been added for all 8 CNS domains (§2) and the deployment domai
 |-------|-------|
 | Version | v0.28.0 |
 | Created | 2026-06-16 |
-| Status | Active — anchor for the rSolidity contract vocabulary and the Testing Discipline |
+| Status | Active — anchor for contract vocabulary and the Testing Discipline |
 | Last Updated | 2026-06-18 |
 | Contract Count | 99 CNS + wallet/agents/storage/memory/inference(cloud-only)/templates (complete) + 61 new (web 19 + multi-user 12 + backup 18 + deployment 16, spec written) |
 | Build Status | `cargo check` workspace — PASS |
-| rSolidity Status | **Formally adopted as the contracting language** (2026-06-18). See [`CONTRACT_GUIDE.md`](../../../guides/CONTRACT_GUIDE.md) §3.3 for migration status. |
+| Contract Status | `/// REQ:` annotations with CNS-observed pre/post conditions (2026-06-20). See [`CONTRACT_GUIDE.md`](../../../guides/CONTRACT_GUIDE.md). |
 | Governance | PRINCIPLES.md §0–§1.4 |
 | Deployment Reference | §3.18 deployment domain, `docs/plans/deployment-and-backup.md`, `docs/guides/DEPLOYMENT.md` |
 | ERDs | §2 — 8 CNS domain ER diagrams; §3.18 — deployment domain ER diagram; §4 — Core domain model, deployment model, contract-anchoring model; §5.0 — Magna Carta hierarchy ER diagram |

@@ -685,8 +685,7 @@ curl https://hkask.your-domain.com/health     # Health check
 
 ## 11. References
 
-- [`.env.example`](../../.env.example) — Complete environment variable template
-- [`docs/guides/provider-api-keys.md`](./provider-api-keys.md) — Per-provider API key setup (to be created)
+- [`.env.example`](../../.env.example) — Complete environment variable template. Provider API keys configured via `FW_API_KEY`, `DI_API_KEY`, etc.
 - [`docs/research/cloud-implementation-plans.md`](../research/cloud-implementation-plans.md) — Detailed cloud architecture
 - [`docs/research/cloud-deployment-research-report.md`](../research/cloud-deployment-research-report.md) — Provider evaluation
 - [Fly.io Machines API](https://fly.io/docs/machines/api/)

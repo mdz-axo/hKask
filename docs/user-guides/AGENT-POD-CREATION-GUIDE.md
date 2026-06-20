@@ -727,7 +727,7 @@ tracing = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-hkask-testing = { path = "../hkask-testing" }
+hkask-test-harness = { path = "../hkask-test-harness" }
 ```
 
 ### 5.3 Workspace Integration

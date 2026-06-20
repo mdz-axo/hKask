@@ -3,7 +3,7 @@
 </p>
 # ℏKask - A Minimal Viable Container for Agents
 
-**Version:** v0.30.0 | **Status:** Phase 8 complete — skill system, QA, condenser, CI green
+**Version:** v0.30.0 | **Status:** Phase 8 complete — skill system, QA, condenser, CI green, 39 CLI commands + 26 API route groups
 
 ---
 
@@ -73,8 +73,8 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-agents` | Pods, ACP, bot/replicant, Curator |
 | `hkask-keystore` | OS keychain, AES-256-GCM |
 | `hkask-mcp` | MCP runtime, dispatch, security |
-| `hkask-cli` | CLI (20 subcommands + REPL) |
-| `hkask-api` | HTTP API, utoipa OpenAPI (25 route groups) |
+| `hkask-cli` | CLI (39 subcommands + REPL) |
+| `hkask-api` | HTTP API, utoipa OpenAPI (26 route groups) |
 
 ### Infrastructure (7 crates)
 | Crate | Purpose |
@@ -141,8 +141,8 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | **Test Files** | 144 (with `#[cfg(test)]` modules) |
 | **Core Crates** | 35 (10 foundation + 7 infra + 17 services + 1 wallet) |
 | **MCP Servers** | 11 |
-| **CLI Subcommands** | 20 |
-| **API Route Groups** | 25 |
+| **CLI Subcommands** | 39 |
+| **API Route Groups** | 26 |
 | **Build/Clippy/Fmt/Test** | All passing |
 | **Skills** | 45 (72 registry crates, 232 Jinja2 templates) |
 | **QA Pipeline** | Fuzz triage, mutation analysis, autonomous script runner |
@@ -180,8 +180,8 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 
 ### Phase 6: CLI/API Commands ✓
 - [x] `hkask-mcp` — MCP runtime, dispatch, security
-- [x] `hkask-api` — axum + utoipa, 25 route groups
-- [x] `hkask-cli` — 20 subcommand groups + REPL with `/model` slash command
+- [x] `hkask-api` — axum + utoipa, 26 route groups
+- [x] `hkask-cli` — 39 subcommand groups + REPL with `/model` slash command
 
 ### Phase 7: Documentation Refresh ✓
 - [x] DDMVSS-aligned architecture documentation (9/9 categories)
@@ -296,4 +296,4 @@ cargo fmt --check
 
 *ℏKask - A Minimal Viable Container for Agents — v0.30.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*
-*Operational hardening. CI green. 20 commands. 35 crates. 11 MCP servers.*
+*CI green. 39 commands. 35 crates. 11 MCP servers. 45 skills.*

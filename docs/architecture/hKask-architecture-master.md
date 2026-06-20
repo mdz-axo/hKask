@@ -495,7 +495,7 @@ Kanban provides headless task coordination for agents and replicants. Boards con
 ### Key Features
 
 - **WIP limits** per column (Anderson §4: "limit WIP to expose problems")
-- **rSolidity contracts**: task assignment IS a contract with pre/post conditions
+- **CNS behavioral contracts**: task assignment uses `/// REQ:` with pre/post conditions
 - **Kata integration**: coaching, improvement, and starter katas available as task primitives
 - **Capability packages**: reusable OCAP delegation bundles stored as YAML
 - **Board templates**: `software-project`, `writing-project`, `scientific-research`, `investment-research`

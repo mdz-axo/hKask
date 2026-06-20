@@ -1,7 +1,7 @@
 ---
 title: "Project Status"
 audience: [architects, developers, agents]
-last_updated: 2026-06-19
+last_updated: 2026-06-20
 version: "0.30.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -27,15 +27,14 @@ Single source of truth for build, test, and CI health. Updated per session.
 
 ## Build
 
-All 25 workspace members.
+All 35 workspace members (excluding fuzz targets).
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo check --workspace`) | ✅ Pass (0 errors, 28 warnings) | 2026-06-18 |
-| Core crates (all 25+) | ✅ Pass | 2026-06-18 |
-| rSolidity chain (macros + runtime) | ✅ Pass (circular import fixed) | 2026-06-18 |
-| Multi-user crates (types, storage, api, middleware) | ✅ Pass | 2026-06-18 |
-| Warnings | 28 (all `unused import: hkask_rsolidity as rs` — proc-macro limitation) | 2026-06-18 |
+| Workspace (`cargo check --workspace`) | ✅ Pass (0 errors, 0 warnings) | 2026-06-20 |
+| Core crates (all 35) | ✅ Pass | 2026-06-20 |
+| Workspace (all 35 crates + 11 MCP servers + fuzz) | ✅ Pass | 2026-06-20 |
+| Warnings | 0 | 2026-06-20 |
 
 ---
 
@@ -96,14 +95,16 @@ All 25 workspace members.
 
 | Metric | Value |
 |--------|-------|
-| Source files (crates) | 324 |
-| Source files (MCP servers) | 70 |
-| Source files (total) | 394 |
-| Workspace members | 26 |
-| Skills | 28 |
+| Source files (crates) | 640+ |
+| Source files (MCP servers) | 120+ |
+| Source files (total) | 760+ |
+| Core LOC (src/) | ~124,000 |
+| MCP Server LOC (src/) | ~34,500 |
+| Workspace members | 35 |
+| Skills | 45 (72 registry crates, 232 Jinja2 templates) |
 | MCP servers | 11 |
 | ACP replicant | 1 (`hkask-acp`) — IDE agent presence via Agent Client Protocol |
-| CNS spans | 84 (10 adapter/endpoint lifecycle spans added) |
+| CNS spans | 84+ |
 
 ---
 
@@ -114,8 +115,8 @@ Verification gates in `.github/workflows/ci.yml` on every PR and push to main:
 | Check | Method | Result | Date |
 |-------|--------|--------|------|
 | Format | `cargo fmt --check` | ✅ Pass | 2026-06-18 |
-| Clippy | `cargo clippy --workspace -- -D warnings` | ✅ Pass | 2026-06-18 |
-| Build | `cargo build --workspace --all-targets` | ✅ Pass | 2026-06-18 |
+| Clippy | `cargo clippy --workspace --all-targets -- -D warnings` | ✅ Pass | 2026-06-20 |
+| Build | `cargo build --workspace --lib` | ✅ Pass | 2026-06-20 |
 | Tests | `cargo test --workspace` | ✅ Pass | 2026-06-18 |
 | Security baseline | No stubs, deprecated, secrets, visual UI; unsafe blocks documented | ✅ Pass | 2026-06-18 |
 | Dependencies | `cargo deny check` | ✅ Pass | 2026-06-18 |

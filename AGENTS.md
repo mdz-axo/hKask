@@ -59,7 +59,7 @@ Activate the relevant skill via `skill` tool when its conditions are met. **45 s
 | **skill-logic-audit** | Adversarial audit of .j2 template logic against stated goals. Soundness filter, revision proposals. |
 | **skill-bundler** | Orchestrate and compose multiple skills into a cohesive bundle with conflict resolution and cascade ordering. |
 | **skill-translator** | Translate external skills into hKask registry crates and generate SKILL.md companions. |
-| **document-update** | Systematic documentation corpus maintenance. 7-task workflow: inventory, metadata alignment, writing quality, cross-corpus coherence, spec-code drift, archive, portal refresh. |
+| **document-update** | Systematic documentation corpus maintenance. 7-task workflow: README fact audit, docs inventory, identify merge candidates, extract & merge, archive, portal refresh. |
 | **handoff** | Session handoff protocol. Captures what was done, what remains, key decisions, and next steps. |
 | **condenser-continuation** | Resuming condenser implementation after context reset. Restores session state, prioritizes remaining tasks, verifies build health. |
 
