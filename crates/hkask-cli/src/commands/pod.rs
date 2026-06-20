@@ -3,6 +3,90 @@
 use hkask_services::{PodService, PodStatusResponse, ServiceError};
 
 use crate::cli::PodAction;
+use crate::cloud::fly::FlyClient;
+
+/// Attempt to start the Fly.io Machine for this pod, if Fly.io is configured.
+/// No-op if FLY_API_TOKEN is not set or the Machine doesn't exist (yet).
+async fn cloud_activate(pod_id: &str) {
+    let token = match std::env::var("FLY_API_TOKEN") {
+        Ok(t) if !t.is_empty() => t,
+        _ => return,
+    };
+    let app_name = format!("hkask-pod-{pod_id}");
+    let client = FlyClient::new(token);
+
+    // List machines to find the one matching this pod
+    match client.list_machines(&app_name).await {
+        Ok(machines) => {
+            if let Some(machine) = machines.first() {
+                if let Err(e) = client.start_machine(&app_name, &machine.id).await {
+                    tracing::warn!(
+                        target: "cns.cloud",
+                        pod_id = %pod_id,
+                        error = %e,
+                        "Failed to start Fly Machine"
+                    );
+                } else {
+                    tracing::info!(
+                        target: "cns.cloud",
+                        pod_id = %pod_id,
+                        machine_id = %machine.id,
+                        "Fly Machine started"
+                    );
+                }
+            }
+        }
+        Err(e) => {
+            tracing::warn!(
+                target: "cns.cloud",
+                pod_id = %pod_id,
+                error = %e,
+                "Failed to list Fly Machines"
+            );
+        }
+    }
+}
+
+/// Attempt to stop the Fly.io Machine for this pod, if Fly.io is configured.
+async fn cloud_deactivate(pod_id: &str) {
+    let token = match std::env::var("FLY_API_TOKEN") {
+        Ok(t) if !t.is_empty() => t,
+        _ => return,
+    };
+    let app_name = format!("hkask-pod-{pod_id}");
+    let client = FlyClient::new(token);
+
+    match client.list_machines(&app_name).await {
+        Ok(machines) => {
+            for machine in &machines {
+                if let Err(e) = client.stop_machine(&app_name, &machine.id).await {
+                    tracing::warn!(
+                        target: "cns.cloud",
+                        pod_id = %pod_id,
+                        machine_id = %machine.id,
+                        error = %e,
+                        "Failed to stop Fly Machine"
+                    );
+                } else {
+                    tracing::info!(
+                        target: "cns.cloud",
+                        pod_id = %pod_id,
+                        machine_id = %machine.id,
+                        "Fly Machine stopped"
+                    );
+                }
+            }
+        }
+        Err(e) => {
+            tracing::warn!(
+                target: "cns.cloud",
+                pod_id = %pod_id,
+                error = %e,
+                "Failed to list Fly Machines during deactivation"
+            );
+        }
+    }
+}
 
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  pod_id is a valid pod identifier
@@ -54,7 +138,10 @@ pub async fn create_pod(
 /// post: delegates to PodService::activate_pod
 pub async fn activate_pod(pod_id: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
-    PodService::activate_pod(&ctx, pod_id).await
+    PodService::activate_pod(&ctx, pod_id).await?;
+    // Best-effort cloud activation: start Fly Machine if configured
+    cloud_activate(pod_id).await;
+    Ok(())
 }
 
 /// expect: "I can access all hKask functionality through the kask CLI"
@@ -63,7 +150,10 @@ pub async fn activate_pod(pod_id: &str) -> Result<(), ServiceError> {
 /// post: delegates to PodService::deactivate_pod
 pub async fn deactivate_pod(pod_id: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
-    PodService::deactivate_pod(&ctx, pod_id).await
+    PodService::deactivate_pod(&ctx, pod_id).await?;
+    // Best-effort cloud deactivation: stop Fly Machine if configured
+    cloud_deactivate(pod_id).await;
+    Ok(())
 }
 
 /// expect: "I can access all hKask functionality through the kask CLI"
@@ -232,6 +322,133 @@ fly secrets set \
     Ok(())
 }
 
+/// Export a pod as K8s manifests for Hetzner K3s deployment.
+/// Writes to output_dir: namespace.yaml, networkpolicy.yaml, statefulset.yaml,
+/// configmap.yaml, secrets.yaml, hpa.yaml
+pub fn export_k8s(
+    pod_id: &str,
+    volume_size_gb: u32,
+    max_replicas: u32,
+    output_dir: &std::path::Path,
+) -> Result<(), String> {
+    std::fs::create_dir_all(output_dir)
+        .map_err(|e| format!("Failed to create output directory: {e}"))?;
+
+    let namespace = format!("hkask-pod-{pod_id}");
+    let container_registry =
+        std::env::var("CONTAINER_REGISTRY").unwrap_or_else(|_| "ghcr.io/mdz-axo/hkask".to_string());
+    let version = std::env::var("HKASK_VERSION").unwrap_or_else(|_| "0.30.0".to_string());
+
+    // --- namespace.yaml ---
+    let namespace_yaml = format!(
+        "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: {namespace}\n  labels:\n    app: hkask\n    pod-id: \"{pod_id}\"\n"
+    );
+    std::fs::write(output_dir.join("namespace.yaml"), &namespace_yaml)
+        .map_err(|e| format!("Failed to write namespace.yaml: {e}"))?;
+
+    // --- networkpolicy.yaml ---
+    let netpol_yaml = format!(
+        "apiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: pod-isolation\n  namespace: {namespace}\nspec:\n  podSelector: {{}}\n  policyTypes: [Ingress, Egress]\n  ingress:\n    - from:\n        - namespaceSelector:\n            matchLabels:\n              name: hkask-ingress\n      ports:\n        - port: 3000\n          protocol: TCP\n  egress:\n    - to:\n        - namespaceSelector: {{}}\n    - to:\n        - ipBlock:\n            cidr: 0.0.0.0/0\n            except: [10.0.0.0/8]\n      ports:\n        - port: 443\n          protocol: TCP\n        - port: 80\n          protocol: TCP\n"
+    );
+    std::fs::write(output_dir.join("networkpolicy.yaml"), &netpol_yaml)
+        .map_err(|e| format!("Failed to write networkpolicy.yaml: {e}"))?;
+
+    // --- statefulset.yaml ---
+    let sts_yaml = format!(
+        "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: kask\n  namespace: {namespace}\nspec:\n  serviceName: kask\n  replicas: 1\n  selector:\n    matchLabels:\n      app: kask\n  template:\n    metadata:\n      labels:\n        app: kask\n        pod-id: \"{pod_id}\"\n    spec:\n      containers:\n        - name: kask\n          image: {container_registry}:kask-{version}\n          args: [\"serve\", \"--data-dir\", \"/data\", \"--pod-id\", \"{pod_id}\"]\n          ports:\n            - containerPort: 3000\n              protocol: TCP\n          envFrom:\n            - secretRef:\n                name: kask-secrets\n          volumeMounts:\n            - name: data\n              mountPath: /data\n          resources:\n            requests:\n              cpu: 100m\n              memory: 128Mi\n            limits:\n              cpu: 500m\n              memory: 512Mi\n        - name: litestream\n          image: litestream/litestream:0.5.0\n          args: [\"replicate\"]\n          envFrom:\n            - secretRef:\n                name: litestream-replica\n          volumeMounts:\n            - name: data\n              mountPath: /data\n        - name: conduit\n          image: {container_registry}:kask-{version}\n          command: [\"/usr/local/bin/conduit\"]\n          volumeMounts:\n            - name: data\n              mountPath: /data\n      volumes:\n        - name: litestream-config\n          configMap:\n            name: litestream-config\n  volumeClaimTemplates:\n    - metadata:\n        name: data\n      spec:\n        storageClassName: hcloud-volumes\n        accessModes: [ReadWriteOnce]\n        resources:\n          requests:\n            storage: {volume_size_gb}Gi\n"
+    );
+    std::fs::write(output_dir.join("statefulset.yaml"), &sts_yaml)
+        .map_err(|e| format!("Failed to write statefulset.yaml: {e}"))?;
+
+    // --- hpa.yaml ---
+    let hpa_yaml = format!(
+        "apiVersion: autoscaling/v2\nkind: HorizontalPodAutoscaler\nmetadata:\n  name: kask-hpa\n  namespace: {namespace}\nspec:\n  scaleTargetRef:\n    apiVersion: apps/v1\n    kind: StatefulSet\n    name: kask\n  minReplicas: 1\n  maxReplicas: {max_replicas}\n  metrics:\n    - type: Resource\n      resource:\n        name: cpu\n        target:\n          type: Utilization\n          averageUtilization: 70\n  behavior:\n    scaleDown:\n      stabilizationWindowSeconds: 300\n      policies:\n        - type: Percent\n          value: 50\n          periodSeconds: 60\n    scaleUp:\n      stabilizationWindowSeconds: 60\n      policies:\n        - type: Percent\n          value: 100\n          periodSeconds: 30\n"
+    );
+    std::fs::write(output_dir.join("hpa.yaml"), &hpa_yaml)
+        .map_err(|e| format!("Failed to write hpa.yaml: {e}"))?;
+
+    let litestream_endpoint = std::env::var("LITESTREAM_ENDPOINT").unwrap_or_default();
+    let litestream_bucket = std::env::var("LITESTREAM_BUCKET").unwrap_or_default();
+
+    // --- configmap.yaml ---
+    let cm_vars = format!(
+        r#"            access-key-id: ${{LITESTREAM_ACCESS_KEY_ID}}
+            secret-access-key: ${{LITESTREAM_SECRET_ACCESS_KEY}}"#
+    );
+    let cm_yaml = format!(
+        r#"apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litestream-config
+  namespace: {namespace}
+data:
+  litestream.yml: |
+    addr: ":9090"
+    sync-interval: 1s
+    snapshot-interval: 6h
+    dbs:
+      - path: /data/kask.db
+        replicas:
+          - type: s3
+            bucket: {litestream_bucket}
+            path: pods/{pod_id}/kask.db
+            endpoint: {litestream_endpoint}
+            region: auto
+{cm_vars}
+            force-path-style: true
+      - path: /data/conduit.db
+        replicas:
+          - type: s3
+            bucket: {litestream_bucket}
+            path: pods/{pod_id}/conduit.db
+            endpoint: {litestream_endpoint}
+            region: auto
+{cm_vars}
+            force-path-style: true
+"#
+    );
+    std::fs::write(output_dir.join("configmap.yaml"), &cm_yaml)
+        .map_err(|e| format!("Failed to write configmap.yaml: {e}"))?;
+
+    // --- secrets.yaml ---
+    let litestream_access_key = std::env::var("LITESTREAM_ACCESS_KEY_ID").unwrap_or_default();
+    let litestream_secret_key = std::env::var("LITESTREAM_SECRET_ACCESS_KEY").unwrap_or_default();
+    let keystore_passphrase = std::env::var("HKASK_KEYSTORE_PASSPHRASE").unwrap_or_default();
+    let base_url = std::env::var("HKASK_BASE_URL").unwrap_or_default();
+
+    let secrets_yaml = format!(
+        r#"apiVersion: v1
+kind: Secret
+metadata:
+  name: litestream-replica
+  namespace: {namespace}
+stringData:
+  LITESTREAM_BUCKET: "{litestream_bucket}"
+  LITESTREAM_ENDPOINT: "{litestream_endpoint}"
+  LITESTREAM_REGION: "auto"
+  LITESTREAM_ACCESS_KEY_ID: "{litestream_access_key}"
+  LITESTREAM_SECRET_ACCESS_KEY: "{litestream_secret_key}"
+  LITESTREAM_FORCE_PATH_STYLE: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kask-secrets
+  namespace: {namespace}
+stringData:
+  POD_ID: "{pod_id}"
+  HKASK_DATA_DIR: "/data"
+  HKASK_BASE_URL: "{base_url}"
+  HKASK_KEYSTORE_PASSPHRASE: "{keystore_passphrase}"
+"#
+    );
+    std::fs::write(output_dir.join("secrets.yaml"), &secrets_yaml)
+        .map_err(|e| format!("Failed to write secrets.yaml: {e}"))?;
+
+    Ok(())
+}
+
+/// Try to activate a pod on Hetzner K3s by applying its manifests.
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  rt is a valid tokio runtime
 /// pre:  action is a valid PodAction variant
@@ -356,6 +573,31 @@ pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
                 println!("  2. fly deploy --config {}/fly.toml", output.display());
             }
             Err(e) => eprintln!("Fly export failed: {e}"),
+        },
+        PodAction::ExportK8s {
+            pod_id,
+            volume_size_gb,
+            max_replicas,
+            output,
+        } => match export_k8s(&pod_id, volume_size_gb, max_replicas, &output) {
+            Ok(()) => {
+                println!("K8s manifests exported: {}", pod_id);
+                for f in &[
+                    "namespace.yaml",
+                    "networkpolicy.yaml",
+                    "statefulset.yaml",
+                    "hpa.yaml",
+                    "configmap.yaml",
+                    "secrets.yaml",
+                ] {
+                    println!("  {}/{f}", output.display());
+                }
+                println!();
+                println!("Next steps:");
+                println!("  1. kubectl apply -f {}/", output.display());
+                println!("  2. kubectl get pods -n hkask-pod-{pod_id}",);
+            }
+            Err(e) => eprintln!("K8s export failed: {e}"),
         },
     }
 }

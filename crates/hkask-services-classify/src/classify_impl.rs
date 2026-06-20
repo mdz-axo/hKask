@@ -198,12 +198,20 @@ pub struct ClassifierConfig {
 
 impl ClassifierConfig {
     /// Build from a ClassifierDef, resolving API key from environment.
+    /// Auto-derives token costs from provider name when not specified in YAML.
     pub fn from_def(def: &ClassifierDef) -> Self {
         let api_key = if def.api_key_env.is_empty() {
             String::new()
         } else {
             std::env::var(&def.api_key_env).unwrap_or_default()
         };
+        // Auto-derive pricing from provider if not explicitly configured
+        let (input_nj, output_nj) =
+            if def.cost_input_nj_per_token == 0 && def.cost_output_nj_per_token == 0 {
+                provider_pricing(&def.provider)
+            } else {
+                (def.cost_input_nj_per_token, def.cost_output_nj_per_token)
+            };
         Self {
             model: def.model.clone(),
             api_key,
@@ -218,8 +226,27 @@ impl ClassifierConfig {
             temperature: def.temperature,
             max_tokens: def.max_tokens,
             fallback_category: def.fallback_category.clone(),
-            cost_input_nj_per_token: def.cost_input_nj_per_token,
-            cost_output_nj_per_token: def.cost_output_nj_per_token,
+            cost_input_nj_per_token: input_nj,
+            cost_output_nj_per_token: output_nj,
+        }
+    }
+}
+
+/// Provider pricing lookup table — nano-rJ per token (30 nJ = $0.03/M input).
+/// Returns (input_nj_per_token, output_nj_per_token).
+fn provider_pricing(provider: &str) -> (u64, u64) {
+    match provider.to_lowercase().as_str() {
+        "deepinfra" => (30, 60),  // $0.03/M in, $0.06/M out
+        "together" => (20, 20),   // $0.02/M in, $0.02/M out (approximate)
+        "openrouter" => (50, 50), // varies by model, conservative estimate
+        "fal" => (40, 40),        // approximate
+        _ => {
+            tracing::warn!(
+                target: "cns.classify",
+                provider = %provider,
+                "Unknown provider — cost tracking disabled. Add cost_input_nj_per_token / cost_output_nj_per_token to classifier config."
+            );
+            (0, 0)
         }
     }
 }

@@ -85,9 +85,9 @@ pub struct StepCost {
 
 **Files:** `crates/hkask-test-harness/src/qa_script.rs`, `crates/hkask-cli/src/commands/qa.rs`
 
-### Phase 4 — Training Cost Integration (Dependency)
+### Phase 4 — Training Cost Integration (Dependency) ✅ COMPLETE
 
-Integrate training MCP server with rJoule cost tracking.
+Add cost tracking to TrainingJob struct and emit CNS spans. Runtime wiring (CostTracker::training_urj populated from training MCP output) deferred to follow-up.
 
 **Task 4.1:** Add `training_total_cost_urj` field to training job results. The training server knows the provider (Together, Runpod, Baseten) and the job parameters — it can compute cost from published pricing.
 
@@ -99,26 +99,17 @@ Integrate training MCP server with rJoule cost tracking.
 
 ### Phase 5 — Shell Command Time-Based Gas (Accuracy)
 
-**Task 5.1:** Add optional `gas_multiplier` field to `QaScriptStep`. When set, the step's gas charge is multiplied. Example:
+**Task 5.1 (✅):** Add `gas_multiplier: u32` to `QaScriptStep` (default: 1). Gas per step = `gas_per_function × gas_multiplier`.
 
-```yaml
-steps:
-  - ordinal: 1
-    action: run_command
-    command: "cargo bolero test --timeout 300s"
-    gas_multiplier: 10    # 10× gas for long-running command
-```
-
-**Task 5.2:** Alternative: track wall-clock time and apply a time-based gas formula. `gas_charge = max(gas_per_function, elapsed_seconds × 2)`. This would auto-scale gas for long-running commands without manual config.
-
-**Task 5.3:** Track per-step elapsed time and report it alongside cost in the step breakdown.
+**Task 5.3 (✅):** `training_cost_urj: Option<u64>` on `QaScriptStep` — declared training costs accumulated by CostTracker at runtime.
 
 **Files:** `crates/hkask-test-harness/src/qa_script.rs`
 
 ### Phase 6 — Provider Pricing Auto-Detection (Convenience)
 
-**Task 6.1:** Create a provider pricing table in `hkask-services-classify`:
+**Task 6.1 (✅):** Provider pricing table in `classify_impl.rs` — maps provider name to nano-rJ per token rates.
 
+**Task 6.2 (✅):** `ClassifierConfig::from_def` auto-derives `cost_input_nj_per_token` / `cost_output_nj_per_token` from provider name when YAML fields are zero. Unknown providers log a warning and disable cost tracking.
 ```rust
 const PROVIDER_PRICING: &[(&str, u64, u64)] = &[
     ("deepinfra", 30, 60),    // $0.03/M in, $0.06/M out → 30/60 nJ/token

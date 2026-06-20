@@ -412,6 +412,7 @@ impl TrainingServer {
             );
         }
 
+        let num_epochs = params.as_ref().map(|p| p.num_epochs).unwrap_or(3);
         let job = TrainingJob {
             id: uuid::Uuid::new_v4().to_string(),
             dataset_path: normalized_path.clone(),
@@ -423,6 +424,11 @@ impl TrainingServer {
             harness: self.harness_id,
             owner: None,
             skill_name: None,
+            estimated_cost_urj: crate::providers::estimate_training_cost_urj(
+                &self.host_id,
+                num_epochs,
+                &base_model,
+            ),
         };
 
         // Persist job for survival across server restarts
@@ -455,6 +461,14 @@ impl TrainingServer {
                     "base_model": base_model,
                     "host": format!("{:?}", self.host_id),
                 });
+                result["estimated_cost_urj"] = json!(job.estimated_cost_urj);
+                tracing::info!(
+                    target: "cns.qa.cost.training_job",
+                    job_id = %job_id,
+                    host = %format!("{:?}", self.host_id),
+                    estimated_cost_urj = job.estimated_cost_urj,
+                    "Training job submitted with estimated cost"
+                );
                 if !token_warnings.is_empty() {
                     result["token_warnings"] = json!(token_warnings);
                     result["token_warning_count"] = json!(token_warnings.len());
@@ -2045,6 +2059,7 @@ impl TrainingServer {
             harness: self.harness_id,
             owner: None,
             skill_name: Some(skill_name.clone()),
+            estimated_cost_urj: 0,
         };
 
         // Persist job
@@ -2243,6 +2258,7 @@ impl TrainingServer {
                             harness: self.harness_id,
                             owner: None,
                             skill_name: None,
+                            estimated_cost_urj: 0,
                         };
                         tracing::info!(target: "cns.training.sweep.iteration", idx = idx, lr = lr, r = r, bs = bs, epochs = ne, "Sweep job submitted");
                         match self.host.submit(&job).await {

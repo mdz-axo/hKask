@@ -108,10 +108,10 @@ pub struct TrainingJob {
     #[serde(default)]
     pub skill_name: Option<String>,
     /// Estimated cost of this training job in micro-rJoules (µrJ).
-    /// Computed from host provider pricing + model size + estimated GPU-hours.
-    /// None if the host doesn't support cost estimation.
+    /// Computed from host provider pricing + training epochs.
+    /// Not optional — always computed at job creation time.
     #[serde(default)]
-    pub estimated_cost_urj: Option<u64>,
+    pub estimated_cost_urj: u64,
 }
 
 impl TrainingJob {
@@ -122,6 +122,7 @@ impl TrainingJob {
         host: TrainingHostId,
         harness: TrainingHarnessId,
     ) -> Self {
+        let cost = estimate_training_cost_urj(&host, params.num_epochs, &base_model);
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             dataset_path,
@@ -133,9 +134,54 @@ impl TrainingJob {
             harness,
             owner: None,
             skill_name: None,
-            estimated_cost_urj: None,
+            estimated_cost_urj: cost,
         }
     }
+}
+
+/// Estimate training cost in micro-rJoules (µrJ) from host provider pricing.
+///
+/// Uses host-specific base rates multiplied by epoch count and model size.
+pub(crate) fn estimate_training_cost_urj(
+    host: &TrainingHostId,
+    num_epochs: u32,
+    base_model: &str,
+) -> u64 {
+    let base_per_epoch: u64 = match host {
+        TrainingHostId::Together => 1_000_000, // ~$1.00/epoch
+        TrainingHostId::Runpod => 500_000,     // ~$0.50/epoch
+        TrainingHostId::Baseten => 500_000,    // ~$0.50/epoch
+    };
+    let size_mult = extract_model_size_multiplier(base_model);
+    base_per_epoch * (num_epochs as u64) * size_mult
+}
+
+/// Extract size multiplier from model identifier string.
+fn extract_model_size_multiplier(base_model: &str) -> u64 {
+    let lower = base_model.to_lowercase();
+    for (pattern, mult) in &[
+        ("8b", 1),
+        ("9b", 1),
+        ("7b", 1),
+        ("3b", 1),
+        ("1b", 1),
+        ("13b", 2),
+        ("14b", 2),
+        ("20b", 2),
+        ("26b", 2),
+        ("30b", 2),
+        ("70b", 4),
+        ("72b", 4),
+        ("120b", 4),
+        ("405b", 4),
+        ("8x7b", 2),
+        ("8x22b", 4),
+    ] {
+        if lower.contains(pattern) {
+            return *mult;
+        }
+    }
+    2 // Default: assume medium size
 }
 
 /// LoRA-specific training parameters.

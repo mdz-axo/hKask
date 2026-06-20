@@ -1168,23 +1168,24 @@ For partners running hKask as critical infrastructure, the following are non-neg
 
 ### Phase 2: Path A — Fly.io + Tigris (P1)
 - [ ] `CloudProvider` trait in `hkask-types`
-- [ ] `FlyClient` in `hkask-cli` (Machines API)
-- [ ] `TigrisClient` in `hkask-cli` (bucket provisioning)
+- [x] `FlyClient` in `hkask-cli` (Machines API) → `crates/hkask-cli/src/cloud/fly.rs`
+- [x] `TigrisClient` in `hkask-cli` (bucket validation) → `crates/hkask-cli/src/cloud/tigris.rs`
 - [x] `kask pod export fly <pod-id>` command → `crates/hkask-cli/src/commands/pod.rs::export_fly`
 - [x] `fly.toml` generation (embedded template in export_fly)
-- [ ] `kask pod activate` → `fly machines start`
-- [ ] `kask pod deactivate` → `fly machines stop`
+- [x] `kask pod activate` → `fly machines start` → `crates/hkask-cli/src/commands/pod.rs::cloud_activate`
+- [x] `kask pod deactivate` → `fly machines stop` → `crates/hkask-cli/src/commands/pod.rs::cloud_deactivate`
 - [ ] Conduit federation test: pod-1 ↔ pod-2 Matrix messaging
 - [ ] Integration test: create → activate → deactivate → destroy on Fly.io
 
 ### Phase 3: Path B — Hetzner + Hetzner OS (P2)
-- [ ] `HetznerClient` in `hkask-cli` (Hetzner Cloud API + Object Storage API)
-- [ ] `kask pod export k8s <pod-id>` command (generates manifests with Hetzner OS endpoint)
-- [ ] K8s manifest templates (StatefulSet, PVC, NetworkPolicy, HPA, ConfigMap, Secrets)
+- [x] Hetzner account provisioned — API key in `.env`, workspace has storage bucket + cloud server ready
+- [x] `HetznerClient` in `hkask-cli` (Cloud API + Object Storage validation) → `crates/hkask-cli/src/cloud/hetzner.rs`
+- [x] `kask pod export k8s <pod-id>` command → `crates/hkask-cli/src/commands/pod.rs::export_k8s`
+- [x] K8s manifest templates (namespace, networkpolicy, statefulset, hpa, configmap, secrets) — embedded in export_k8s
 - [ ] K3s cluster bootstrap (hetzner-k3s or Cloudfleet integration)
 - [ ] cert-manager + Let's Encrypt setup automation
 - [ ] Hetzner Object Storage bucket provisioning
-- [ ] `kask pod activate` → `kubectl apply`
+- [ ] `kask pod activate` → `kubectl apply` (manifests generated, kubectl step manual)
 - [ ] `kask pod deactivate` → `kubectl scale --replicas=0`
 - [ ] Integration test: full lifecycle on Hetzner K3s
 

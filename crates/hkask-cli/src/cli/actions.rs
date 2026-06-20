@@ -121,6 +121,17 @@ pub enum PodAction {
         #[arg(short, long, default_value = "./fly-deploy")]
         output: PathBuf,
     },
+    /// Export a pod as K8s manifests for Hetzner K3s deployment
+    ExportK8s {
+        #[arg()]
+        pod_id: String,
+        #[arg(short = 'v', long, default_value = "10")]
+        volume_size_gb: u32,
+        #[arg(short = 'r', long, default_value = "3")]
+        max_replicas: u32,
+        #[arg(short, long, default_value = "./k8s-manifests")]
+        output: PathBuf,
+    },
 }
 
 #[derive(Debug, Subcommand)]

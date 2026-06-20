@@ -79,6 +79,9 @@ impl Default for GasConfig {
 fn default_gas_cap() -> u64 {
     15000
 }
+fn default_gas_multiplier() -> u32 {
+    1
+}
 fn default_gas_per_function() -> u64 {
     100
 }
@@ -128,9 +131,18 @@ pub struct QaScriptStep {
     /// Delay between iterations in seconds
     #[serde(default)]
     pub iteration_delay_secs: Option<u64>,
+    /// Training cost for this step in µrJ (declared in manifest, added to CostTracker).
+    /// Use when a step triggers a training job with known cost.
+    #[serde(default)]
+    pub training_cost_urj: Option<u64>,
     /// CNS span target for this step
     #[serde(default)]
     pub cns_span: Option<String>,
+    /// Gas multiplier for this step — scales the per-function gas cost.
+    /// Use for long-running commands (e.g., 10× for `cargo bolero test --timeout 300s`).
+    /// Default: 1 (100 gas per function call).
+    #[serde(default = "default_gas_multiplier")]
+    pub gas_multiplier: u32,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -444,6 +456,13 @@ impl QaScriptRunner {
 
         while current_idx < steps.len() {
             let step = &steps[current_idx];
+            let step_gas = gas_per_fn * step.gas_multiplier as u64;
+
+            // Track declared training cost if present on the step
+            if let Some(train_cost) = step.training_cost_urj {
+                cost.training_urj += train_cost;
+            }
+
             let start = std::time::Instant::now();
             let pre_snapshot = cost.snapshot();
 
@@ -459,14 +478,14 @@ impl QaScriptRunner {
             }
 
             let outcome = match step.action.as_str() {
-                "classify" => self.execute_classify(step, &mut cost, gas_cap, gas_per_fn)?,
+                "classify" => self.execute_classify(step, &mut cost, gas_cap, step_gas)?,
                 "run_command" => {
-                    cost.gas_used += gas_per_fn;
+                    cost.gas_used += step_gas;
                     self.execute_command(step)?
                 }
-                "loop" => self.execute_loop(current_idx, steps, &mut cost, gas_cap, gas_per_fn)?,
+                "loop" => self.execute_loop(current_idx, steps, &mut cost, gas_cap, step_gas)?,
                 _ => {
-                    cost.gas_used += gas_per_fn;
+                    cost.gas_used += step_gas;
                     StepResult {
                         ordinal: step.ordinal,
                         action: step.action.clone(),
@@ -546,12 +565,12 @@ impl QaScriptRunner {
         let total_urj = cost.total_urj();
         let cap_urj = cost.rjoule_cap_urj(gas_cap);
 
-        // Verification invariant: gas_used must equal step_count × gas_per_function
-        let expected_gas = results.len() as u64 * gas_per_fn;
-        if cost.gas_used != expected_gas {
+        // Verification: gas_used must be >= minimum expected (each step charges at least gas_per_fn)
+        let min_expected_gas = results.len() as u64 * gas_per_fn;
+        if cost.gas_used < min_expected_gas {
             tracing::warn!(
                 target: "cns.qa.cost.gas_mismatch",
-                expected = expected_gas,
+                expected = min_expected_gas,
                 actual = cost.gas_used,
                 "Gas tracking mismatch"
             );

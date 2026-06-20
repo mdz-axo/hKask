@@ -301,6 +301,15 @@ Step 3: echo "no surviving mutants"      [terminal]
 
 ## Workflow
 
+### Persona-Driven Path (when user describes a role + goal)
+
+1. **User describes persona + goal** — "I am an SRE. I want to monitor flake rates across all MCP servers."
+2. **Phase 0: Persona** — Apply Falstaffian perspective rotation to generate 3–5 diverse testing scenarios. Present the `perspective_summary`. Ask: "Do these angles cover what you need?"
+3. **For each scenario:** Run Phase 1→4 to produce a script manifest.
+4. **User saves and runs** — `kask qa run --script <path>/<scenario-name>.yaml`
+
+### Direct Path (when user has a specific testing intent)
+
 1. **User describes testing intent** — "I want to fuzz hkask-types and auto-repair panics"
 2. **Phase 1: Discover** — Load the test surface (crate, existing fuzz targets, classifier configs). Name ambiguities.
 3. **Phase 2: Design** — Present the branching topology as a mermaid diagram or text graph. Ask: "Does this flow match what you want?"
