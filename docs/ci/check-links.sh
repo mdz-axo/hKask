@@ -19,8 +19,8 @@ CHECKED=0
 # Intentional placeholders (links that are known to point to future deliverables)
 INTENTIONAL_PLACEHOLDERS=(
     "docs/specifications/cns-protocol-reference.md"  # Deferred
+    "../../../guides/CONTRACT_GUIDE.md"              # Deferred (rSolidity contracting standard)
     ".github/scripts/check_links.sh"                 # External CI
-    "../../../guides/CONTRACT_GUIDE.md"               # Contract standard — being established
 )
 
 echo "=== hKask Documentation Link Checker ==="
