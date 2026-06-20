@@ -204,7 +204,7 @@ impl AgentPod {
     /// \[P4\] Constraining: Clear Boundaries — OCAP secret + capability token on creation
     /// pre:  `crate_name` is a non-empty string; `persona` is a valid
     ///       `AgentPersona`; `git` is a valid `GitCasAdapter`; `consent`
-    ///       is a valid Arc<dyn SovereigntyConsent>.
+    ///       is a valid `Arc<dyn SovereigntyConsent>`.
     /// post: Returns `Ok(AgentPod)` in `Populated` state with a derived
     ///       OCAP secret, capability token, and sovereignty checker.
     ///       Returns `Err` if template loading or key derivation fails.
