@@ -1,8 +1,8 @@
 ---
 title: "hKask Skill User Guide — Discovering and Using Agent Skills"
 audience: [developers, operators, curators]
-last_updated: 2026-06-16
-version: "0.27.0"
+last_updated: 2026-06-19
+version: "0.30.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [composition]
@@ -10,7 +10,7 @@ mds_categories: [composition]
 
 # hKask Skill User Guide
 
-**Purpose:** How to discover, load, and use skills in hKask. Covers the `kask skill` CLI, skill list, activation triggers, and the dual-layer runtime model.
+**Purpose:** How to discover, load, and use skills in hKask. Covers the `kask skill` CLI, skill list, activation triggers, the dual-layer runtime model, and a catalog of all 45 available skills organized by functional category.
 
 **Companion doc:** [`skill-designer-guide.md`](../../docs/guides/skill-designer-guide.md) — for creating and maintaining skills.
 
@@ -27,6 +27,20 @@ Skills are composable agent capabilities. They teach the Zed coding agent domain
 
 A skill may have one or both layers. You don't need to know which — the system handles routing.
 
+### 1.1 Skill Architecture Layers
+
+Skills are organized into five composition layers, running top-to-bottom:
+
+```
+Perceptual  →  dokkodo-mindset (clears attachment, preference, fear)
+Regulative  →  constraint-forces (enforces boundaries across all layers)
+Analytic    →  pragmatic-laziness, essentialist, grill-me, mcda
+Executive   →  coding-guidelines, domain skills, task-specific skills
+Governance  →  magna-carta-verifier, pragmatic-semantics/cybernetics
+```
+
+Skills at higher layers feed clarified perception to lower layers. `constraint-forces` runs across all layers — Prohibitions and Guardrails are never relaxed.
+
 ---
 
 ## 2. Discovering Skills
@@ -37,14 +51,7 @@ A skill may have one or both layers. You don't need to know which — the system
 kask skill list
 ```
 
-Output shows name, visibility, description, and activation trigger for every installed skill:
-
-```
-Name                    Visibility   Description
-coding-guidelines       Public       Enforce Karpathy's four coding behavioral principles...
-caveman                 Public       Compress a draft response into ultra-compact caveman mode...
-kata-starter            Public       Toyota Kata Starter practice routines for building...
-```
+Output shows name, visibility, description, and activation trigger for every installed skill.
 
 ### 2.2 Show Skill Details
 
@@ -52,19 +59,13 @@ kata-starter            Public       Toyota Kata Starter practice routines for b
 kask skill show coding-guidelines
 ```
 
-Displays the full SKILL.md content, template inventory, CNS spans, and contract signatures.
+Displays the full SKILL.md content, template inventory, and contract signatures.
 
 ### 2.3 Filter by Visibility
 
 ```bash
 kask skill list --visibility Public     # Shared/discoverable skills
 kask skill list --visibility Private    # Your personal/namespace skills
-```
-
-### 2.4 Discover via CNS
-
-```bash
-kask cns spans --filter skill     # Show all skill-related CNS spans
 ```
 
 ---
@@ -79,17 +80,15 @@ Skills activate when a Zed agent's prompt matches the skill's `description` trig
 Use the coding-guidelines skill before reviewing this PR.
 ```
 
-The Zed agent loads `SKILL.md`, absorbs the procedural knowledge, and applies it to the task. No runtime template is rendered — this is pure agent instruction.
+The Zed agent loads `SKILL.md`, absorbs the procedural knowledge, and applies it to the task.
 
 ### 3.2 Via the kask CLI (Registry Layer)
-
-Skills with registry templates can be invoked directly:
 
 ```bash
 kask skill invoke coding-guidelines/guidelines-assess --input task_description="review auth module"
 ```
 
-This renders the `.j2` KnowAct template with your input, executes it through the inference router, and returns the structured assessment.
+Renders the `.j2` template with your input, executes through the inference router, returns structured output.
 
 ### 3.3 Via Bundles
 
@@ -99,95 +98,205 @@ Bundles compose multiple skills into workflows:
 kask bundle run kata-pattern --bot Alice
 ```
 
-The `kata-pattern` bundle routes to `kata-starter`, `kata-improvement`, or `kata-coaching` based on the bot's current automaticity score.
+The `kata-pattern` bundle routes to `kata-starter`, `kata-improvement`, or `kata-coaching` based on the bot's automaticity score.
 
 ---
 
-## 4. Skill Categories
+## 4. Skill Catalog
 
-### 4.1 Behavioral Guardrails
+### 4.1 Perceptual
 
-Skills that constrain HOW an agent works, not WHAT it builds:
+Skills that transform *how the agent sees* — run before analysis.
 
-| Skill | Purpose |
-|-------|---------|
-| `coding-guidelines` | Karpathy's four coding principles |
-| `essentialist` | Delete-before-add, three-gate challenge loop |
-| `deep-module` | Ousterhout's module depth discipline |
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `dokkodo-mindset` | Musashi's 21 precepts as perceptual filter — clears attachment, preference, resentment, fear | "apply the Dokkodo", "warrior mindset" |
+| `falstaffian-perspective` | Multi-iteration perspective generation through semantic shape transforms | "reframe this", "falstaffian take" |
 
-### 4.2 Kata System (Capability Development)
+### 4.2 Regulative
 
-Toyota Kata scientific thinking for agent improvement:
+Skills that enforce boundaries and classify constraints.
 
-| Skill | Type | Purpose |
-|-------|------|---------|
-| `kata-starter` | Primary | Foundational habit practice (Type 1) |
-| `kata-improvement` | Primary | 4-step PDCA scientific pattern (Type 4) |
-| `kata-coaching` | Primary | 5-question dialogue (Type 4) |
-| `kata` | Bundle | Full system orchestration with CNS monitoring |
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `constraint-forces` | Classify constraints as Prohibition/Guardrail/Guideline/Evidence/Hypothesis | "what force is this constraint?" |
+| `magna-carta-verifier` | Verify Magna Carta principle compliance | "verify sovereignty" |
 
-### 4.3 Composition & Orchestration
+### 4.3 Analytic — Structural
 
-| Skill | Purpose |
-|-------|---------|
-| `pragmatic-laziness` | Composes 5 sub-skills for least-action pathfinding |
-| `skill-bundler` | Orchestrates multiple skills into a cohesive bundle |
-| `improv` | Agent interaction grammar (Plussing, Yes And, etc.) |
+Skills that evaluate, decompose, and minimize.
 
-### 4.4 Domain Expertise
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `pragmatic-laziness` | 3-phase lazy loop for least-action pathfinding | "be lazy about this", "least action" |
+| `pragmatic-semantics` | Epistemic discipline — classify statements by certainty | "how do you know that?" |
+| `pragmatic-cybernetics` | CNS feedback loop analysis | "analyze feedback loops" |
+| `essentialist` | 3-gate eliminative interrogation (Exist → Surface → Contract) | "simplify this", "what can be deleted" |
+| `deep-module` | Ousterhout's module depth discipline with deletion test | "deepen this module" |
+| `grill-me` | Socratic interrogation — stress-test understanding | "grill me about X" |
 
-| Skill | Domain |
-|-------|--------|
-| `rust-expertise` | Idiomatic Rust design (Graydon Hoare philosophy) |
-| `diagnose` | Disciplined debugging loop |
-| `refactor-service-layer` | Strangler fig service extraction |
-| `tdd` | Red-green-refactor with contract grounding |
+### 4.4 Analytic — Decision & Strategy
 
-### 4.5 Meta-Cognition
+Skills that support structured choice, prediction, and planning.
 
-| Skill | Purpose |
-|-------|---------|
-| `review` | Self-critique reasoning outputs |
-| `self-critique-revision` | Iterative critique-revise cycle |
-| `handoff` | Session handoff documentation |
-| `condenser-continuation` | Resume work after context reset |
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `mcda` | Multi-criteria decision analysis with compensation masking detection | "compare these options", "MCDA" |
+| `decision-journal` | Kahneman-style decision recording with Brier score calibration | "journal this decision" |
+| `superforecasting` | Tetlock 8-stage calibrated probability forecasting | "forecast this", "superforecast" |
+| `scenario-builder` | Schwartz method scenario planning — STEEP, 2×2 matrix, robust strategies | "build scenarios", "explore futures" |
 
-### 4.6 Skill Management
+### 4.5 Analytic — Extraction & Summarization
 
-| Skill | Purpose |
-|-------|---------|
-| `skill-discovery` | Find and install skills |
-| `skill-manager` | CRUD for the skill corpus |
-| `skill-maintenance` | Audit skills for staleness and quality |
-| `skill-translator` | Convert skills between formats |
-| `skill-logic-audit` | Audit template logic against stated goals |
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `structured-extraction` | Schema-driven entity and relation extraction with coverage tracking | "extract structured data", "populate this schema" |
+| `chain-of-density` | Gao et al. iterative density-increase summarization | "summarize this densely", "CoD this" |
+| `caveman` | Ultra-compact style compression — drop filler, preserve substance | "caveman mode", "compress this" |
+| `zoom-out` | Broader context and higher-level perspective on unfamiliar code | "zoom out", "bigger picture" |
 
-### 4.7 Governance
+### 4.6 Executive — Behavioral Guardrails
 
-| Skill | Purpose |
-|-------|---------|
-| `magna-carta-verifier` | Verify Magna Carta principle compliance |
-| `constraint-forces` | Classify constraints by enforcement level |
-| `pragmatic-semantics` | Epistemic discipline for statement classification |
-| `pragmatic-cybernetics` | CNS feedback loop analysis |
+Skills that constrain HOW an agent works.
+
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `coding-guidelines` | Karpathy's four principles — think first, simplicity, surgical, goal-driven | "use coding-guidelines" |
+| `tdd` | Red-green-refactor with contract grounding | "write tests first", "red-green-refactor" |
+| `rust-expertise` | Idiomatic Rust via Graydon Hoare's design philosophy | "rust expertise", "idiomatic Rust" |
+
+### 4.7 Executive — Diagnostics & Repair
+
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `diagnose` | Disciplined diagnosis loop — reproduce, anchor, hypothesize, instrument, fix | "diagnose this", "debug this" |
+| `improve-codebase-architecture` | Find deepening opportunities, shallow modules, tight coupling | "improve architecture", "ball of mud" |
+| `refactor-service-layer` | Strangler fig service extraction from CLI/API/MCP surfaces | "refactor service layer" |
+| `strangler-fig` | Incremental architectural migration — new alongside old | "strangler fig", "migrate architecture" |
+
+### 4.8 Executive — Security
+
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `adversarial-red-team` | Systematic red-teaming with ATLAS/GARAK taxonomy | "red-team this", "adversarial test" |
+
+### 4.9 Executive — Creativity & Media
+
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `logo-builder` | Pragmatic logo design with Bokhua's five formal gates | "design a logo" |
+| `improv` | Agent interaction grammar — Plussing, Yes And, Yes But, Riffing | "/improv" in REPL |
+
+### 4.10 Meta-Cognition
+
+Skills that evaluate the agent's own thinking and process.
+
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `review` | Self-critique reasoning outputs for contradictions and gaps | "review this" |
+| `self-critique-revision` | Iterative draft → critique → revise cycle | "self-critique this" |
+| `handoff` | Session handoff documentation for context preservation | "create handoff" |
+| `condenser-continuation` | Resume work after context reset | "condenser continuation" |
+| `goal-analysis` | Lightweight goal specification and completion verification | "create a goal to...", "goal analysis" |
+| `gentle-lovelace` | 4-dimension writing quality evaluation (Hopper/Lovelace/Schriver/Gentle) | "evaluate this document", "gentle lovelace" |
+
+### 4.11 Kata System (Capability Development)
+
+Toyota Kata scientific thinking for agent improvement.
+
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `kata-starter` | Foundational habit practice — Five Questions Drill, PDCA, Observation | "kata starter" |
+| `kata-improvement` | 4-step PDCA scientific pattern for capability gaps | "kata improvement" |
+| `kata-coaching` | 5-question coaching dialogue | "kata coaching" |
+| `kata` | Full system orchestration with CNS monitoring | "kata" |
+
+### 4.12 Skill Management
+
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `skill-discovery` | Find and install skills | "find a skill for X" |
+| `skill-manager` | CRUD for the skill corpus | "manage skills" |
+| `skill-maintenance` | Audit skills for staleness, drift, and quality | "audit skills" |
+| `skill-translator` | Convert skills between formats | "translate this skill" |
+| `skill-logic-audit` | Audit template logic against stated goals | "audit template logic" |
+| `skill-bundler` | Orchestrate multiple skills into a cohesive bundle | "bundle skills" |
+
+### 4.13 Documentation
+
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `document-update` | 7-task documentation maintenance workflow | "update docs", "consolidate docs" |
 
 ---
 
-## 5. Understanding Template Types
+## 5. Skill Summary — All 45 Skills
+
+| # | Skill | Category | Type | What it does |
+|---|-------|----------|------|-------------|
+| 1 | `adversarial-red-team` | Security | KnowAct | Red-team agent outputs with ATLAS/GARAK taxonomy |
+| 2 | `caveman` | Extraction/Summarization | WordAct | Ultra-compact prose compression |
+| 3 | `chain-of-density` | Extraction/Summarization | KnowAct | Iterative density-increase summarization (Gao et al.) |
+| 4 | `coding-guidelines` | Behavioral Guardrails | KnowAct | Karpathy's four coding principles |
+| 5 | `condenser-continuation` | Meta-Cognition | KnowAct | Resume work after context reset |
+| 6 | `constraint-forces` | Regulative | KnowAct | Classify constraints by enforcement level |
+| 7 | `decision-journal` | Decision & Strategy | KnowAct | Kahneman decision journal with Brier scoring |
+| 8 | `deep-module` | Structural Analysis | KnowAct | Ousterhout module depth with deletion test |
+| 9 | `diagnose` | Diagnostics | KnowAct | Disciplined diagnosis loop |
+| 10 | `document-update` | Documentation | KnowAct | 7-task doc maintenance workflow |
+| 11 | `dokkodo-mindset` | Perceptual | KnowAct | Musashi's 21 precepts as perceptual filter |
+| 12 | `essentialist` | Structural Analysis | KnowAct | 3-gate eliminative interrogation |
+| 13 | `falstaffian-perspective` | Perceptual | KnowAct | Semantic shape transforms for perspective-taking |
+| 14 | `gentle-lovelace` | Meta-Cognition | KnowAct | 4D writing quality evaluation |
+| 15 | `goal-analysis` | Meta-Cognition | KnowAct | Goal specification and completion verification |
+| 16 | `grill-me` | Structural Analysis | KnowAct | Socratic interrogation |
+| 17 | `handoff` | Meta-Cognition | KnowAct | Session handoff documentation |
+| 18 | `improv` | Creativity | FlowDef | Agent interaction grammar |
+| 19 | `improve-codebase-architecture` | Diagnostics | KnowAct | Find deepening opportunities |
+| 20 | `kata` | Kata System | Bundle | Full Toyota Kata orchestration |
+| 21 | `kata-coaching` | Kata System | KnowAct | 5-question coaching dialogue |
+| 22 | `kata-improvement` | Kata System | KnowAct | 4-step PDCA scientific pattern |
+| 23 | `kata-starter` | Kata System | KnowAct | Foundational scientific thinking habits |
+| 24 | `logo-builder` | Creativity | FlowDef | Logo design with Bokhua's five gates |
+| 25 | `magna-carta-verifier` | Regulative | KnowAct | Verify Magna Carta compliance |
+| 26 | `mcda` | Decision & Strategy | KnowAct | Multi-criteria decision analysis with masking detection |
+| 27 | `pragmatic-cybernetics` | Structural Analysis | KnowAct | CNS feedback loop analysis |
+| 28 | `pragmatic-laziness` | Structural Analysis | KnowAct | 3-phase lazy loop for least-action pathfinding |
+| 29 | `pragmatic-semantics` | Structural Analysis | KnowAct | Epistemic statement classification |
+| 30 | `refactor-service-layer` | Diagnostics | KnowAct | Strangler fig service extraction |
+| 31 | `review` | Meta-Cognition | KnowAct | Self-critique reasoning outputs |
+| 32 | `rust-expertise` | Behavioral Guardrails | KnowAct | Idiomatic Rust design principles |
+| 33 | `scenario-builder` | Decision & Strategy | KnowAct | Schwartz method scenario planning |
+| 34 | `self-critique-revision` | Meta-Cognition | KnowAct | Iterative draft → critique → revise |
+| 35 | `skill-bundler` | Skill Management | KnowAct | Orchestrate skills into bundles |
+| 36 | `skill-discovery` | Skill Management | KnowAct | Find and install skills |
+| 37 | `skill-logic-audit` | Skill Management | KnowAct | Audit template logic |
+| 38 | `skill-maintenance` | Skill Management | KnowAct | Audit skills for staleness and quality |
+| 39 | `skill-manager` | Skill Management | KnowAct | CRUD for the skill corpus |
+| 40 | `skill-translator` | Skill Management | KnowAct | Convert skills between formats |
+| 41 | `strangler-fig` | Diagnostics | KnowAct | Incremental architectural migration |
+| 42 | `structured-extraction` | Extraction/Summarization | KnowAct | Schema-driven entity and relation extraction |
+| 43 | `superforecasting` | Decision & Strategy | WordAct | Tetlock 8-stage calibrated forecasting |
+| 44 | `tdd` | Behavioral Guardrails | KnowAct | Red-green-refactor with contract grounding |
+| 45 | `zoom-out` | Extraction/Summarization | KnowAct | Broader context on unfamiliar code |
+
+---
+
+## 6. Understanding Template Types
 
 When a skill has registry templates, each `.j2` file is typed:
 
 | Type | What It Does | Example |
 |------|-------------|---------|
-| **WordAct** | Produces text or structured output | `kata-coaching/coaching-q1-target.j2` — asks Question 1 |
-| **KnowAct** | Reasons, classifies, evaluates, decides | `coding-guidelines/guidelines-assess.j2` — assesses task against principles |
-| **FlowDef** | Orchestrates WordAct/KnowAct templates | `essentialist/essentialist-flow.j2` — iterates G1→G2→G3 gates |
+| **WordAct** | Produces text or structured output | `superforecasting/stage_7_record.j2` — creates forecast record |
+| **KnowAct** | Reasons, classifies, evaluates, decides | `dokkodo-mindset/dokkodo-perceive.j2` — applies perceptual filter |
+| **FlowDef** | Orchestrates WordAct/KnowAct in a pipeline | `essentialist/essentialist-flow.j2` — iterates G1→G2→G3 gates |
 
 You rarely need to know the template type — the runtime dispatches correctly. But when debugging: WordAct = "what to say", KnowAct = "how to think", FlowDef = "what to do".
 
 ---
 
-## 6. Visibility and P11
+## 7. Visibility and P11
 
 Every skill has a visibility field:
 
@@ -196,47 +305,47 @@ Every skill has a visibility field:
 | `Public` | Discoverable and usable by all agents and users |
 | `Private` | Only usable by the owning replicant or namespace |
 
-P11 (Digital Public/Private Sphere) governs this. You control what is shared via explicit consent boundaries. No skill is loaded without matching visibility scope.
+P11 (Digital Public/Private Sphere) governs this. You control what is shared via explicit consent boundaries.
 
 ---
 
-## 7. Checking Skill Health
+## 8. Checking Skill Health
 
-### 7.1 CNS Health
+### 8.1 CNS Health
 
 ```bash
 kask cns health
 ```
 
-Shows CNS span health for all active skills. Red spans indicate missing or malformed declarations.
+Shows CNS span health for all active skills.
 
-### 7.2 Schema Validation
+### 8.2 Schema Validation
 
 ```bash
 cargo test -p hkask-templates yaml_schema_validation
 ```
 
-Validates all manifest YAML files. Run this after installing new skills.
+Validates all manifest YAML files. Run after installing new skills.
 
-### 7.3 Contract Audit
+### 8.3 Contract Audit
 
 ```bash
 scripts/contract-audit.sh --summary
 ```
 
-Checks that template contracts are complete and consistent with their manifests.
+Checks template contracts are complete and consistent with manifests.
 
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
-| Skill doesn't appear in `kask skill list` | Not registered in bootstrap | Check `registry/templates/bootstrap-registry.yaml` |
-| "CNS span not found" | SKILL.md references a non-canonical span | Use only spans from `crates/hkask-types/src/cns.rs` |
+| Skill doesn't appear in `kask skill list` | Not registered or visibility mismatch | Check `visibility` field and registry bootstrap |
 | "Template render failed" | `.j2` has prohibited `template_type` | Must be `WordAct` or `KnowAct` (not `FlowDef`) |
-| "Permission denied" | Visibility mismatch (P11) | Check `visibility` field in skill SKILL.md frontmatter |
-| Bundle doesn't compose | Constituent skill score < 0.8 | Calibrate constituent skills first |
+| "Permission denied" | Visibility mismatch (P11) | Check `visibility` in SKILL.md frontmatter |
+| Bundle doesn't compose | Constituent skill score < threshold | Calibrate constituent skills first |
+| Two skills with same name | Duplicate installation | Use `kask skill list` to identify and prune |
 
 ---
 
@@ -245,3 +354,4 @@ Checks that template contracts are complete and consistent with their manifests.
 - [Skill Designer Guide](../../docs/guides/skill-designer-guide.md) — Creating and maintaining skills
 - [PRINCIPLES.md](../architecture/core/PRINCIPLES.md) — P1–P12 principles
 - [AGENTS.md](../../AGENTS.md) — Agent operating guide
+- [dokkodo-user-guide.md](dokkodo-user-guide.md) — Using the Dokkodo mindset skill

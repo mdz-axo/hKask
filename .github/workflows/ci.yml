@@ -110,7 +110,7 @@ jobs:
       - name: Install bolero system deps
         run: sudo apt-get install -y --no-install-recommends binutils-dev libunwind-dev
       - name: Fuzz (property-based testing)
-        run: cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz -p hkask-wallet-fuzz -p hkask-storage-fuzz -p hkask-templates-fuzz -p hkask-memory-fuzz -p hkask-services-core-fuzz -p hkask-improv-fuzz -p hkask-mcp-kanban-fuzz -p hkask-mcp-communication-fuzz -p hkask-mcp-companies-fuzz -p hkask-mcp-condenser-fuzz -p hkask-mcp-docproc-fuzz -p hkask-mcp-media-fuzz -p hkask-mcp-memory-fuzz -p hkask-mcp-replica-fuzz -p hkask-mcp-research-fuzz -p hkask-mcp-spec-fuzz -p hkask-mcp-training-fuzz 2>&1 | tee bolero-output.txt
+        run: cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz -p hkask-wallet-fuzz -p hkask-storage-fuzz -p hkask-templates-fuzz -p hkask-memory-fuzz -p hkask-services-core-fuzz -p hkask-improv-fuzz -p hkask-mcp-fuzz -p hkask-mcp-kanban-fuzz -p hkask-mcp-communication-fuzz -p hkask-mcp-companies-fuzz -p hkask-mcp-condenser-fuzz -p hkask-mcp-docproc-fuzz -p hkask-mcp-media-fuzz -p hkask-mcp-memory-fuzz -p hkask-mcp-replica-fuzz -p hkask-mcp-research-fuzz -p hkask-mcp-spec-fuzz -p hkask-mcp-training-fuzz 2>&1 | tee bolero-output.txt
         continue-on-error: true
       - name: Triage failures
         if: failure()

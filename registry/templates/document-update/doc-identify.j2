@@ -15,6 +15,7 @@ contract:
 energy_cap: 2048
 visibility: Public
 ---
+{# goal: For each non-target document, determine its disposition: MERGE (unique content → sweep into target), ARCHIVE (historical, no unique content), or KEEP (standalone, no overlap). #}
 {# document-update/doc-identify.j2 — KnowAct: Phase 1 — Identify Candidates #}
 
 ## Goal: Classify Every Non-Target Document

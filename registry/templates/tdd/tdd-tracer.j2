@@ -37,6 +37,7 @@ contract:
   visibility: Public
 ---
 {# Template: tdd/tdd-tracer.j2 #}
+{# goal: Execute a tracer bullet by writing one contract, one failing test, and minimal implementation for one behavior anchored to a spec requirement. #}
 {# KnowAct — Tracer bullet: one contract, one failing test, one behavior, minimal pass, spec-anchored #}
 {# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
 
@@ -151,7 +152,7 @@ Default: integration test through public API.
    - `[P{N}]` on `expect:` — Which principle justifies this contract? (exactly one, also encoded in the contract ID prefix). See selection guideline below.
    - `[P{N}] Constraining:` — What can't the code do? (zero to many, from all applicable principles). At minimum, every applicable Magna Carta principle (P1-P4) must be annotated.
    - `pre:/post:/inv:` — What are the caller/function obligations? (machine-checkable)
-   
+
    The contract IS the specification of the test. Without all layers, the test verifies *something*, but it's not clear that it's the right thing against the right constraints.
 2. **Write the rSolidity enforcement.** After the `#[rs::contract]` attribute and `/// REQ:` contract, generate the equivalent rSolidity runtime macros in the function body using the strangler-fig pattern:
    - `rs::require!(<pre-condition>, "P{N}-{domain}-{operation}", "<message>")` for each `pre:`
@@ -159,7 +160,7 @@ Default: integration test through public API.
    - `rs::revert!("P{N}-{domain}-{operation}", err)` for failure paths
    - `rs::emit!(CnsSpan::ContractCoverage, "measured", Phase::Sense, payload)` for CNS observability
    - The `/// REQ:` doc-comment stays in place — it remains authoritative for `scripts/contract-audit.sh`
-   
+
    Output the rSolidity code as `rsolidity_code` in the response.
 3. **Write the TEST.** It must fail — this is RED. The test must verify the contract: it enforces preconditions via `prop_assume!` and asserts postconditions via `prop_assert!`.
 4. **Write the MINIMAL implementation.** Only enough code to satisfy the contract — this is GREEN. No speculative features.

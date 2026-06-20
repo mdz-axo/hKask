@@ -47,6 +47,7 @@ members = [
     "crates/hkask-memory/fuzz",
     "crates/hkask-services-core/fuzz",
     "crates/hkask-improv/fuzz",
+    "crates/hkask-mcp/fuzz",
     # MCP servers
     "mcp-servers/hkask-mcp-condenser",
     "mcp-servers/hkask-mcp-research",

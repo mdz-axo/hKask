@@ -1,0 +1,18 @@
+[package]
+name = "hkask-mcp-fuzz"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+
+[package.metadata]
+cargo-fuzz = true
+
+[[test]]
+name = "mcp_fuzz"
+path = "fuzz_targets/mcp_fuzz.rs"
+
+[dependencies]
+bolero = { workspace = true }
+hkask-mcp = { path = ".." }
+hkask-types = { path = "../../hkask-types" }
+reqwest = { workspace = true }

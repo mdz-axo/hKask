@@ -14,6 +14,7 @@ pub mod ocr;
 // ── Imports ────────────────────────────────────────────────────────────────
 
 use async_trait::async_trait;
+use anyhow;
 
 use crate::ocr::calibration::{analyze_threshold_drift, emit_drift_alert};
 use crate::ocr::decimation;
@@ -76,9 +77,7 @@ pub struct DocProcServer {
     /// In-memory vector index for RAG query/retrieval. Passages indexed by `docproc_chunk`
     /// are stored here with their embeddings for cosine-similarity search via `docproc_query`.
     pub index: Mutex<Vec<IndexedPassage>>,
-    /// Firecrawl API key for browser automation (Kindle zip, web capture, etc.).
-    pub firecrawl_api_key: Option<String>,
-    /// Shared HTTP client for Firecrawl API calls.
+    /// Shared HTTP client (Chrome DevTools tab discovery, etc.).
     pub http_client: reqwest::Client,
 }
 
@@ -102,7 +101,6 @@ impl DocProcServer {
         inference_config: InferenceConfig,
         ocr_thresholds: ThresholdConfig,
         embedding_router: Option<EmbeddingRouter>,
-        firecrawl_api_key: Option<String>,
         http_client: reqwest::Client,
     ) -> anyhow::Result<Self> {
         let cns_observer = DocProcCnsObserver::new(daemon.clone(), &replicant);
@@ -117,7 +115,6 @@ impl DocProcServer {
             cns_observer,
             cv_accumulator: Mutex::new(Vec::new()),
             index: Mutex::new(Vec::new()),
-            firecrawl_api_key,
             http_client,
         })
     }
@@ -1821,8 +1818,9 @@ impl DocProcServer {
         span.ok_json(json!({"cleared": cleared}))
     }
 
+
     #[tool(
-        description = "Capture a Kindle Cloud Reader book by title: opens the book, pages through it taking screenshots, and assembles them into a PDF. Requires FIRECRAWL_API_KEY env var for browser automation."
+        description = "Capture a Kindle Cloud Reader book from your local Chrome browser. Chrome must be running with --remote-debugging-port=9222 and the book already open in Kindle Cloud Reader. Pages through the book taking screenshots via Chrome DevTools Protocol, then assembles them into a PDF."
     )]
     pub async fn docproc_kindle_zip(
         &self,
@@ -1837,89 +1835,58 @@ impl DocProcServer {
         validate_field!(span, "book_title", &book_title, 512);
         validate_field!(span, "output_pdf", &output_pdf, 4096);
 
-        let api_key = match self.firecrawl_api_key.as_ref() {
-            Some(k) => k.clone(),
-            None => {
-                return span.error(
-                    McpErrorKind::FailedPrecondition,
-                    McpToolError::failed_precondition(
-                        "FIRECRAWL_API_KEY is required for Kindle Cloud Reader browser automation. Set it via env var or credential.",
-                    )
-                    .to_json_string(),
-                );
-            }
-        };
-
-        let fc = FirecrawlClient::new(self.http_client.clone(), api_key);
-
-        // Step 1: Open the Kindle library, search for the book, click to open reader
-        let kindle_url = "https://read.amazon.com/kindle-library";
-        let open_actions = serde_json::json!([
-            {"type": "wait", "milliseconds": 3000},
-            {"type": "click", "selector": "input[type='search'], input[placeholder*='earch'], input[placeholder*='title']"},
-            {"type": "wait", "milliseconds": 1000},
-            {"type": "write", "text": book_title},
-            {"type": "press", "key": "Enter"},
-            {"type": "wait", "milliseconds": 3000},
-            {"type": "screenshot"},
-        ]);
-
-        let scrape_result = match fc.scrape(kindle_url, &open_actions).await {
-            Ok(r) => r,
+        // Connect to local Chrome via DevTools Protocol.
+        // Precondition: Chrome running with --remote-debugging-port=9222,
+        // and the book is already open in a Kindle Cloud Reader tab.
+        let mut chrome = match ChromeCdpClient::connect(&self.http_client).await {
+            Ok(c) => c,
             Err(e) => {
                 return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Failed to open Kindle library: {e}"))
-                        .to_json_string(),
-                );
-            }
-        };
-
-        let scrape_id = match scrape_result.get("scrapeId").and_then(|v| v.as_str()) {
-            Some(id) => id.to_string(),
-            None => {
-                // Try to find the book and click it via interact
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(
-                        "Could not obtain browser session. The Kindle library page may require manual login.",
-                    )
+                    McpErrorKind::Unavailable,
+                    McpToolError::internal(format!(
+                        "Cannot connect to Chrome DevTools on localhost:9222. {e}"
+                    ))
                     .to_json_string(),
                 );
             }
         };
 
-        // Step 2: Click the book in the library to open the reader
-        let click_book_prompt = format!(
-            "Find the book titled '{book_title}' in the library grid. Click on its cover image or title to open the reader. Wait for the reader to fully load (look for the book text/content to appear).",
-        );
-
-        if let Err(e) = fc.interact(&scrape_id, &click_book_prompt, 30).await {
+        // Verify we're on a Kindle Cloud Reader page
+        let url_check = chrome
+            .evaluate("window.location.href")
+            .await
+            .unwrap_or_default();
+        if !url_check.contains("read.amazon.com") {
             return span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to open book '{}': {e}", book_title))
-                    .to_json_string(),
+                McpErrorKind::FailedPrecondition,
+                McpToolError::failed_precondition(format!(
+                    "Active Chrome tab is not a Kindle Cloud Reader page (found: {}). Open the book in read.amazon.com first.",
+                    url_check
+                ))
+                .to_json_string(),
             );
         }
 
-        // Step 3: Page through the book, capturing screenshots
+        tracing::info!(
+            target: "hkask.mcp.docproc",
+            url = %url_check,
+            book_title = %book_title,
+            "Connected to Kindle Cloud Reader tab"
+        );
+
+        // Page through the book, capturing screenshots
         let mut screenshots: Vec<Vec<u8>> = Vec::with_capacity(max_pages.min(500));
 
         for page_num in 1..=max_pages {
-            // Take screenshot of current page
-            let ss_prompt = format!(
-                "Take a full-page screenshot of the Kindle reader viewport. This is page {} of the book.",
-                page_num
-            );
-
-            match fc.interact_screenshot(&scrape_id, &ss_prompt, 15).await {
+            // Take screenshot of the current page
+            match chrome.capture_screenshot().await {
                 Ok(png_bytes) => {
                     if png_bytes.len() < 1024 {
                         tracing::warn!(
                             target: "hkask.mcp.docproc",
                             page = page_num,
                             byte_len = png_bytes.len(),
-                            "Screenshot too small — possible end of book or blank page"
+                            "Screenshot too small — possible blank page"
                         );
                     }
                     screenshots.push(png_bytes);
@@ -1937,22 +1904,18 @@ impl DocProcServer {
 
             // Turn to next page (unless we're at max_pages)
             if page_num < max_pages {
-                let next_prompt = format!(
-                    "Click on the right-hand side of the Kindle reader viewport to advance to the next page. Wait {}ms for the page to render.",
-                    page_wait_ms
-                );
-
-                if let Err(e) = fc.interact(&scrape_id, &next_prompt, 20).await {
-                    tracing::info!(
+                // Kindle Cloud Reader advances pages with the right arrow key
+                if let Err(e) = chrome.press_key("ArrowRight").await {
+                    tracing::warn!(
                         target: "hkask.mcp.docproc",
                         page = page_num,
                         error = %e,
-                        "Page turn failed — likely end of book"
+                        "Page turn failed, stopping capture"
                     );
                     break;
                 }
 
-                // Small delay to let the page render
+                // Wait for the page to render
                 tokio::time::sleep(std::time::Duration::from_millis(page_wait_ms)).await;
             }
         }
@@ -1961,13 +1924,13 @@ impl DocProcServer {
             return span.error(
                 McpErrorKind::Internal,
                 McpToolError::internal(
-                    "No pages were captured. The book may not have opened correctly.",
+                    "No pages were captured. Ensure a book is open in Kindle Cloud Reader.",
                 )
                 .to_json_string(),
             );
         }
 
-        // Step 4: Assemble screenshots into a PDF
+        // Assemble screenshots into a PDF
         let pages_captured = screenshots.len();
         match assemble_kindle_pdf(&screenshots, &output_pdf) {
             Ok(file_size) => {
@@ -1991,153 +1954,180 @@ impl DocProcServer {
     }
 }
 
-// ── Firecrawl API client (used by docproc_kindle_zip) ─────────────────────
+// ── Chrome DevTools Protocol client ───────────────────────────────────────
 
-const FIRECRAWL_V2: &str = "https://api.firecrawl.dev/v2";
+use futures_util::{SinkExt, StreamExt};
+use tokio::net::TcpStream;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite::Message};
+use std::sync::atomic::{AtomicU64, Ordering};
 
-struct FirecrawlClient {
-    client: reqwest::Client,
-    api_key: String,
+/// Drives a local Chrome browser via DevTools Protocol (CDP).
+/// Chrome must be launched with `--remote-debugging-port=9222`.
+struct ChromeCdpClient {
+    ws: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    msg_id: AtomicU64,
 }
 
-impl FirecrawlClient {
-    fn new(client: reqwest::Client, api_key: String) -> Self {
-        Self { client, api_key }
-    }
-
-    fn auth_header(&self) -> String {
-        format!("Bearer {}", self.api_key)
-    }
-
-    /// POST /v2/scrape with screenshot format and actions.
-    /// Returns the parsed JSON response.
-    async fn scrape(
-        &self,
-        url: &str,
-        actions: &serde_json::Value,
-    ) -> Result<serde_json::Value, String> {
-        let payload = serde_json::json!({
-            "url": url,
-            "formats": ["screenshot", "markdown"],
-            "actions": actions,
-            "waitFor": 5000,
-        });
-
-        let resp = self
-            .client
-            .post(format!("{FIRECRAWL_V2}/scrape"))
-            .header("Authorization", self.auth_header())
-            .header("Content-Type", "application/json")
-            .json(&payload)
-            .timeout(std::time::Duration::from_secs(120))
+impl ChromeCdpClient {
+    /// Connect to local Chrome DevTools, finding the Kindle Cloud Reader tab.
+    async fn connect(http: &reqwest::Client) -> Result<Self, String> {
+        // Discover open tabs
+        let resp = http
+            .get("http://localhost:9222/json")
             .send()
             .await
-            .map_err(|e| format!("Firecrawl scrape request failed: {e}"))?;
+            .map_err(|e| format!("Chrome DevTools not reachable on localhost:9222 — is Chrome running with --remote-debugging-port=9222? ({e})"))?;
 
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
+        let body = resp.text().await.map_err(|e| format!("Failed to read tab list: {e}"))?;
+        let tabs: Vec<serde_json::Value> =
+            serde_json::from_str(&body).map_err(|e| format!("Failed to parse tab list: {e}"))?;
 
-        if !status.is_success() {
-            let snippet: String = body.chars().take(300).collect();
-            return Err(format!("Firecrawl scrape error {status}: {snippet}"));
+        if tabs.is_empty() {
+            return Err("No open tabs found in Chrome".into());
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| format!("Failed to parse scrape response: {e}"))?;
+        // Prefer a Kindle Cloud Reader tab, fall back to any tab
+        let target = tabs
+            .iter()
+            .find(|t| {
+                t.get("url")
+                    .and_then(|u| u.as_str())
+                    .map(|u| u.contains("read.amazon.com"))
+                    .unwrap_or(false)
+            })
+            .or_else(|| tabs.first())
+            .ok_or("No open tabs found")?;
 
-        if parsed.get("success").and_then(|v| v.as_bool()) != Some(true) {
-            let err_msg = parsed
-                .get("error")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown error");
-            return Err(format!("Firecrawl scrape failed: {err_msg}"));
-        }
+        let ws_url = target
+            .get("webSocketDebuggerUrl")
+            .and_then(|u| u.as_str())
+            .ok_or("Tab has no WebSocket debugger URL")?;
 
-        // Extract scrapeId from metadata
-        let scrape_id = parsed
-            .pointer("/data/metadata/scrapeId")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+        let (ws, _) = connect_async(ws_url)
+            .await
+            .map_err(|e| format!("WebSocket connection failed: {e}"))?;
 
-        let mut result = serde_json::Map::new();
-        if let Some(id) = scrape_id {
-            result.insert("scrapeId".into(), serde_json::Value::String(id));
-        }
-        // Extract first screenshot if present
-        if let Some(screenshot) = parsed.pointer("/data/screenshot").and_then(|v| v.as_str()) {
-            result.insert(
-                "screenshot".into(),
-                serde_json::Value::String(screenshot.to_string()),
-            );
-        }
+        tracing::info!(
+            target: "hkask.mcp.docproc.cdp",
+            ws_url = %ws_url,
+            "Connected to Chrome DevTools"
+        );
 
-        Ok(serde_json::Value::Object(result))
+        Ok(Self {
+            ws,
+            msg_id: AtomicU64::new(1),
+        })
     }
 
-    /// POST /v2/interact — send a natural-language instruction to the browser session.
-    async fn interact(
-        &self,
-        scrape_id: &str,
-        prompt: &str,
-        timeout_secs: u64,
+    /// Send a CDP command and wait for the result.
+    async fn send_command(
+        &mut self,
+        method: &str,
+        params: serde_json::Value,
     ) -> Result<serde_json::Value, String> {
-        let payload = serde_json::json!({
-            "scrapeId": scrape_id,
-            "prompt": prompt,
-            "timeout": timeout_secs.min(120),
+        let id = self.msg_id.fetch_add(1, Ordering::Relaxed);
+        let cmd = serde_json::json!({
+            "id": id,
+            "method": method,
+            "params": params,
         });
 
-        let resp = self
-            .client
-            .post(format!("{FIRECRAWL_V2}/interact"))
-            .header("Authorization", self.auth_header())
-            .header("Content-Type", "application/json")
-            .json(&payload)
-            .timeout(std::time::Duration::from_secs(timeout_secs + 10))
-            .send()
+        self.ws
+            .send(Message::Text(cmd.to_string().into()))
             .await
-            .map_err(|e| format!("Firecrawl interact request failed: {e}"))?;
+            .map_err(|e| format!("CDP send error: {e}"))?;
 
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-
-        if !status.is_success() {
-            let snippet: String = body.chars().take(300).collect();
-            return Err(format!("Firecrawl interact error {status}: {snippet}"));
+        // Read responses until we get one matching our id
+        while let Some(msg) = self.ws.next().await {
+            match msg {
+                Ok(Message::Text(text)) => {
+                    let resp: serde_json::Value = serde_json::from_str(&text)
+                        .map_err(|e| format!("CDP parse error: {e}"))?;
+                    if resp.get("id").and_then(|v| v.as_u64()) == Some(id) {
+                        if let Some(err) = resp.get("error") {
+                            return Err(format!(
+                                "CDP error: {}",
+                                err.get("message")
+                                    .and_then(|m| m.as_str())
+                                    .unwrap_or("unknown")
+                            ));
+                        }
+                        return Ok(resp.get("result").cloned().unwrap_or(serde_json::Value::Null));
+                    }
+                    // Otherwise it's an event notification — ignore and continue
+                }
+                Ok(Message::Close(_)) => return Err("CDP connection closed".into()),
+                Err(e) => return Err(format!("CDP read error: {e}")),
+                _ => {} // ignore binary/ping/pong
+            }
         }
-
-        serde_json::from_str(&body).map_err(|e| format!("Failed to parse interact response: {e}"))
+        Err("CDP stream ended unexpectedly".into())
     }
 
-    /// Convenience: interact + extract base64 screenshot from response.
-    async fn interact_screenshot(
-        &self,
-        scrape_id: &str,
-        prompt: &str,
-        timeout_secs: u64,
-    ) -> Result<Vec<u8>, String> {
-        let result = self.interact(scrape_id, prompt, timeout_secs).await?;
+    /// Capture a screenshot of the current page as PNG bytes.
+    async fn capture_screenshot(&mut self) -> Result<Vec<u8>, String> {
+        let result = self
+            .send_command(
+                "Page.captureScreenshot",
+                serde_json::json!({
+                    "format": "png",
+                    "fromSurface": true,
+                }),
+            )
+            .await?;
 
-        // Try to find screenshot data in the response.
-        // Firecrawl returns screenshots as base64 in various possible paths.
         let b64 = result
-            .pointer("/data/screenshot")
-            .or_else(|| result.pointer("/screenshot"))
-            .or_else(|| result.get("screenshot"))
-            .and_then(|v| v.as_str());
+            .get("data")
+            .and_then(|v| v.as_str())
+            .ok_or("No screenshot data in CDP response")?;
 
-        match b64 {
-            Some(data) => base64::Engine::decode(&base64::engine::general_purpose::STANDARD, data)
-                .map_err(|e| format!("Failed to decode screenshot base64: {e}")),
-            None => Err("No screenshot data in interact response".into()),
-        }
+        base64::Engine::decode(&base64::engine::general_purpose::STANDARD, b64)
+            .map_err(|e| format!("Failed to decode screenshot: {e}"))
+    }
+
+    /// Press a keyboard key (e.g., "ArrowRight", "ArrowLeft").
+    async fn press_key(&mut self, key: &str) -> Result<(), String> {
+        // Key down
+        self.send_command(
+            "Input.dispatchKeyEvent",
+            serde_json::json!({
+                "type": "keyDown",
+                "key": key,
+            }),
+        )
+        .await?;
+        // Key up
+        self.send_command(
+            "Input.dispatchKeyEvent",
+            serde_json::json!({
+                "type": "keyUp",
+                "key": key,
+            }),
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Evaluate JavaScript in the page and return the result as a string.
+    async fn evaluate(&mut self, expression: &str) -> Result<String, String> {
+        let result = self
+            .send_command(
+                "Runtime.evaluate",
+                serde_json::json!({
+                    "expression": expression,
+                    "returnByValue": true,
+                }),
+            )
+            .await?;
+
+        Ok(result
+            .pointer("/result/value")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string())
     }
 }
 
-// ── Minimal PDF assembler (PNG images → single PDF) ───────────────────────
-
-/// Assembles a vector of PNG byte buffers into a single PDF, one image per page.
-/// Uses the `image` crate to read dimensions and a minimal hand-rolled PDF builder.
 fn assemble_kindle_pdf(pages: &[Vec<u8>], output_path: &str) -> Result<u64, String> {
     use std::io::Write;
 
@@ -2475,16 +2465,12 @@ pub async fn run(
                 .credentials
                 .get("HKASK_OCR_MODEL")
                 .cloned();
-            let firecrawl_api_key = ctx
-                .credentials
-                .get("FIRECRAWL_API_KEY")
-                .cloned();
             let inference_config = InferenceConfig::from_env();
 
             let http_client = reqwest::Client::builder()
                 .user_agent(format!("hkask-docproc/{}", env!("CARGO_PKG_VERSION")))
                 .build()
-                .map_err(|e| hkask_mcp::McpError::Other(anyhow::anyhow!("Failed to build HTTP client: {e}")))?;
+                .map_err(|e| hkask_mcp::McpError::from(anyhow::anyhow!("Failed to build HTTP client: {e}")))?;
 
             let ocr_thresholds = ThresholdConfig {
                 simple_max: std::env::var("HKASK_OCR_SIMPLE_MAX")
@@ -2515,7 +2501,6 @@ pub async fn run(
                 inference_config,
                 ocr_thresholds,
                 Some(embedding_router),
-                firecrawl_api_key,
                 http_client,
             )?)
         },
@@ -2523,10 +2508,6 @@ pub async fn run(
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_OCR_MODEL",
                 "Vision model for OCR (must exist in inference catalog). Required for OCR functionality.",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "FIRECRAWL_API_KEY",
-                "Firecrawl API key for browser automation (required for docproc_kindle_zip).",
             ),
         ],
     )

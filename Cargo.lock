@@ -4464,6 +4464,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-fuzz"
+version = "0.0.0"
+dependencies = [
+ "bolero",
+ "hkask-mcp",
+ "hkask-types",
+ "reqwest",
+]
+
+[[package]]
 name = "hkask-mcp-kanban"
 version = "0.30.0"
 dependencies = [
