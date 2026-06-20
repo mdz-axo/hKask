@@ -208,18 +208,22 @@ Why: $0.006/GB/mo (cheapest). 10GB free. Publishes drive failure statistics open
 
 Why: Built by Fly.io. Zero egress fees. Single endpoint serves all regions. Versioning and object lock built in. Best if your compute is on Fly.io.
 
-1. Go to https://www.tigrisdata.com/ and sign up
+1. Go to https://www.tigrisdata.com/ and sign up, or access via Fly.io dashboard
 2. Create a bucket (name: `hkask-pods-backup`)
-3. Create an Access Key from the dashboard
+3. Create an Access Key from the Tigris Console
+   - Access Key ID starts with `tid_`
+   - Secret Access Key starts with `tsec_`
 4. `.env`:
    ```
    LITESTREAM_BUCKET=hkask-pods-backup
    LITESTREAM_ENDPOINT=https://fly.storage.tigris.dev
    LITESTREAM_REGION=auto
-   LITESTREAM_ACCESS_KEY_ID=your-access-key-id
-   LITESTREAM_SECRET_ACCESS_KEY=your-secret-access-key
+   LITESTREAM_ACCESS_KEY_ID=tid_your_access_key
+   LITESTREAM_SECRET_ACCESS_KEY=tsec_your_secret_key
    LITESTREAM_FORCE_PATH_STYLE=false
    ```
+
+> **Endpoint note:** Tigris uses `https://fly.storage.tigris.dev` when accessed from Fly.io (zero egress within Fly.io network). For standalone Tigris outside Fly.io, use `https://t3.storage.dev`. Tigris uses virtual hosted-style addressing (`LITESTREAM_FORCE_PATH_STYLE=false`), unlike Backblaze B2 which uses path-style.
 
 #### Hetzner Object Storage — EU Data Residency
 
@@ -270,12 +274,45 @@ CONTAINER_REGISTRY=ghcr.io/your-org/hkask
 
 ### 5.2 Cloud Provider: Fly.io
 
-1. Install flyctl: `curl -L https://fly.io/install.sh | sh`
-2. `fly auth login` (opens browser)
-3. Get token: `fly auth token`
-4. `.env`: `FLY_API_TOKEN=your-token`
-5. Get org slug: `fly orgs list`
-6. `.env`: `FLY_ORG_SLUG=your-org-slug`
+Fly.io has two token types relevant to hKask. Use the right one for each purpose:
+
+| Token Type | Command | Scope | Use For |
+|-----------|---------|-------|---------|
+| **Org deploy token** | `fly tokens create org -o <org-slug>` | All apps in an org | Curator setup, pod lifecycle automation |
+| **App deploy token** | `fly tokens create deploy -a <app-name>` | Single app only | CI/CD (GitHub Actions), per-app least-privilege |
+| **Read-only token** | `fly tokens create readonly` | Read org-wide | Monitoring, health checks, CNS observability |
+
+**Initial setup (Curator):**
+
+```bash
+# 1. Install flyctl
+curl -L https://fly.io/install.sh | sh
+
+# 2. Login (opens browser, creates personal auth session)
+fly auth login
+
+# 3. Create your organization (one-time)
+fly orgs create hkask
+
+# 4. Create an org-scoped deploy token for automation
+#    This token can create/manage apps, volumes, secrets across the org.
+#    Default 20-year expiry. Set shorter for production.
+fly tokens create org -o hkask -n hkask-curator -x 87600h
+#    Copy the FULL output including "FlyV1 " prefix.
+
+# 5. Set in .env:
+FLY_API_TOKEN=FlyV1 fm2_...
+FLY_ORG_SLUG=hkask
+```
+
+**CI/CD token (per-pod, least privilege):**
+
+```bash
+# After pod creation, generate a deploy token scoped to that app only
+fly tokens create deploy -a hkask-pod-my-first-pod -n cicd-token -x 87600h
+```
+
+> **Security principle:** The Curator uses an org token during setup and pod lifecycle (`kask pod create`, `kask pod activate`). CI/CD pipelines use app-scoped deploy tokens. Never use `fly auth token` (full personal token) in automation — it has unrestricted access to your account.
 
 ### 5.3 Cloud Provider: Hetzner Cloud
 

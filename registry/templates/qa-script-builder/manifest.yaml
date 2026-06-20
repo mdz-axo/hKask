@@ -1,0 +1,49 @@
+# Template crate manifest for qa-script-builder skill
+# hKask v0.30.0
+
+crate:
+  name: qa-script-builder
+  version: "0.30.0"
+  description: >
+    Design and generate autonomous QA pipeline manifests for the hKask QA system.
+    Walks through a structured discover→design→generate→validate pipeline: maps
+    testing intent to QA system capabilities (fuzz, classify, branch, loop,
+    auto-repair), designs the branching state machine, and produces a valid YAML
+    manifest for `kask qa run --script`.
+
+templates:
+  - id: qa-script-builder/qa-discover
+    path: qa-discover.j2
+    type: KnowAct
+    lexicon_terms: [discover, map, survey, inventory, analyze]
+    description: >
+      Discover the test surface from user intent: what crate, what failure
+      modes, what existing fuzz coverage, what classifier configs are available,
+      what gas budget applies.
+
+  - id: qa-script-builder/qa-design
+    path: qa-design.j2
+    type: KnowAct
+    lexicon_terms: [design, route, branch, structure, topology]
+    description: >
+      Design the branching state machine from the discovered test surface.
+      Produce a step topology (ordinals, actions, branch conditions, terminal
+      states, loop configurations).
+
+  - id: qa-script-builder/qa-generate
+    path: qa-generate.j2
+    type: KnowAct
+    lexicon_terms: [generate, produce, emit, format, serialize]
+    description: >
+      Generate the complete YAML manifest from the designed step topology.
+      Include all sections: manifest metadata, gas, steps, error_handling,
+      CNS, and audit.
+
+  - id: qa-script-builder/qa-validate
+    path: qa-validate.j2
+    type: KnowAct
+    lexicon_terms: [validate, check, verify, audit, enforce]
+    description: >
+      Validate a generated manifest against the QaScriptManifest schema.
+      Check branch referential integrity, classifier config existence,
+      gas budget sensibility, orphan steps, and duplicate ordinals.

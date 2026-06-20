@@ -1,0 +1,186 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- generate
+- produce
+- emit
+- format
+- serialize
+contract:
+  input:
+    step_topology: array
+    discovery: object
+    manifest_id: string
+    manifest_name: string
+  output:
+    yaml_manifest: string
+    manifest_summary: object
+energy_cap: 6144
+visibility: Public
+---
+{# Template: qa-script-builder/qa-generate.j2 #}
+{# goal: Generate a complete YAML manifest from the designed step topology. #}
+{# KnowAct — Produce the YAML manifest for kask qa run --script #}
+{# ℏKask v0.30.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.0
+reasoning_effort = "medium"
+verbosity = "standard"
+max_tokens = 6144
+thinking_budget = "full"
+
+You are a QA manifest generator. Given a designed step topology and discovery results, produce a complete YAML manifest that the `QaScriptRunner` can parse and execute.
+
+## Step Topology
+
+```json
+{{ step_topology | tojson }}
+```
+
+## Discovery Results
+
+```json
+{{ discovery | tojson }}
+```
+
+## Manifest Schema
+
+The manifest must follow this structure exactly:
+
+```yaml
+manifest:
+  id: {{ manifest_id }}         # Slug, alphanumeric + hyphens
+  name: {{ manifest_name }}     # Human-readable
+  version: 0.30.0               # Match current hKask version
+  description: >                # Multi-line, what the script does
+    Description here.
+  editor: system                # Who authored it
+  visibility: Public            # Public or Private
+
+gas:                            # Cost controls
+  cap: 50000                    # Gas units (default: 15000)
+  cost_per_token: 0.25          # Per-token cost estimate
+  alert_threshold: 0.8          # Warn at this fraction of cap
+  hard_limit: true              # Abort when exceeded
+
+alert:                          # Algedonic escalation
+  enabled: true                 # Master switch
+  default_domain: qa.my-script  # Fallback alert domain
+  default_threshold: 5          # Escalate after N failures
+  default_cooldown_secs: 600    # Suppress repeat alerts
+  escalate_to_curator: true     # Route alerts to Curation Loop
+
+inputs:                         # Optional declared inputs
+  - name: workspace_root
+    required: false
+    description: "Path to workspace"
+
+steps:                          # Ordered steps (required)
+  - ordinal: 1                  # Unique integer
+    action: run_command         # run_command | classify | loop
+    command: "shell command"    # (run_command, loop)
+    description: "What this step does"
+    branching:                  # Target ordinals
+      success: 2
+      failure: 5
+    default_next: 2             # Fallback if no branch matches
+    cns_span: cns.qa.custom.X   # Optional CNS span target
+    alert:                      # Optional algedonic escalation
+      escalate_on:              # Outcomes that trigger alerts
+        - high_confidence
+        - medium_confidence
+      severity_map:             # Outcome → severity
+        high_confidence: critical
+        medium_confidence: warning
+        flake: info
+      domain: qa.my-crate.fuzz  # Alert domain for correlation
+      threshold: 3              # Escalate after N failures
+      cooldown_secs: 300        # Don't re-escalate within window
+
+  - ordinal: 2
+    action: classify
+    classifier: qa-triage       # Classifier config name
+    description: "What to classify"
+    branching:
+      high_confidence: 3
+      medium_confidence: 4
+      low_confidence: 4
+      flake: 5
+      unparseable: 4
+    cns_span: cns.qa.custom.classify
+
+  - ordinal: 5
+    action: loop
+    command: "echo retry"       # Or classifier: qa-triage
+    description: "Retry loop"
+    max_iterations: 3
+    iteration_delay_secs: 10
+    branching:
+      success: 1
+      loop_exhausted: 4
+    cns_span: cns.qa.custom.retry
+
+error_handling:                 # Error behavior
+  on_gas_exceeded: abort        # abort | retry | continue
+  on_timeout: retry             # abort | retry | continue
+  max_retries: 2
+  retry_backoff_seconds: 1
+
+cns:                            # CNS observability
+  emit_spans: true
+  span_namespace: cns.qa.{{ manifest_id }}
+
+audit:                          # Audit trail
+  enabled: true
+  log_level: info
+```
+
+## Generation Rules
+
+1. **manifest.id**: slug from the user's intent or `manifest_id` variable. Lowercase, hyphens only.
+2. **manifest.name**: human-readable, title case.
+3. **manifest.description**: 2-3 sentences covering what the script tests, what tooling it uses, and what happens on failure.
+4. **gas**: use discovery's `gas_constraints.suggested_cap`. CI scripts should have `hard_limit: true`.
+5. **steps**: generate from the step topology. Map each topology entry to the correct YAML structure.
+   - `run_command` steps get `command` and `branching` (success/failure).
+   - `classify` steps get `classifier`, `branching` (confidence levels), and optional `alert` config.
+   - `loop` steps get `command` or `classifier`, plus `max_iterations` and `iteration_delay_secs`. Loops can also declare `alert` on `loop_exhausted`.
+   - Terminal steps don't need `branching` but should declare `alert` if they represent escalation endpoints.
+6. **alert**: use discovery's `alert_requirements`. The global `alert` section sets defaults; per-step `alert` overrides per-outcome.
+7. **cns.span_namespace**: use `cns.qa.<manifest_id>` unless discovery specifies otherwise.
+8. **classifier names**: must match discovery's `available_classifiers`.
+9. **Indentation**: 2 spaces. No tabs.
+10. **Multi-line strings**: use `>` (folded) for descriptions, `|` (literal) for commands that need newlines.
+
+## Output Requirements
+
+Respond with a JSON object where `yaml_manifest` is the complete YAML as a string:
+
+```json
+{
+  "yaml_manifest": "manifest:\n  id: my-script\n  name: My Script\n  ...",
+  "manifest_summary": {
+    "id": "my-script",
+    "name": "My Script",
+    "step_count": 6,
+    "classify_steps": 1,
+    "loop_steps": 1,
+    "terminal_steps": 3,
+    "gas_cap": 5000,
+    "estimated_max_tokens": 1200,
+    "estimated_max_cost_usd": 0.00030
+  }
+}
+```
+
+## Constraints
+
+- The YAML must be syntactically valid (parseable by `serde_yaml_neo`).
+- Every branch target must be an existing ordinal from the step topology.
+- Classifier names must be valid (from discovery's `available_classifiers`).
+- Ordinals must be unique integers, no gaps required but no duplicates.
+- Do not include comments in the generated YAML unless they add critical context.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).

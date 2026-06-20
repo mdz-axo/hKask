@@ -15,8 +15,16 @@ use std::time::Duration;
 /// Classification result for a single passage.
 #[derive(Debug, Clone)]
 pub struct ClassifyResult {
-    /// The classified section type: "Statement", "Evidence", "Diagram", or "Implications".
+    /// The classified section type.
     pub category: String,
+    /// Number of prompt (input) tokens consumed.
+    pub prompt_tokens: u64,
+    /// Number of completion (output) tokens consumed.
+    pub completion_tokens: u64,
+    /// Actual API cost in micro-rJoules (µrJ).
+    /// Computed as (prompt_tokens × input_nj + completion_tokens × output_nj) / 1,000,000.
+    /// Zero when no API key, fallback, or pricing not configured.
+    pub cost_urj: u64,
 }
 
 /// Semantic triple extraction result for a single passage.
@@ -41,10 +49,12 @@ pub struct TripleExtraction {
     pub extra: std::collections::HashMap<String, serde_json::Value>,
 }
 
-/// OpenAI-compatible chat completion response (minimal fields).
+/// OpenAI-compatible chat completion response.
 #[derive(Debug, Deserialize)]
 struct ChatResponse {
     choices: Vec<Choice>,
+    #[serde(default)]
+    usage: Option<Usage>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -55,6 +65,20 @@ struct Choice {
 #[derive(Debug, Deserialize)]
 struct Message {
     content: String,
+}
+
+/// Token usage from the API response.
+#[derive(Debug, Deserialize)]
+struct Usage {
+    prompt_tokens: u64,
+    completion_tokens: u64,
+}
+
+/// Error response body that may still include usage data.
+#[derive(Debug, Deserialize)]
+struct ErrorResponse {
+    #[serde(default)]
+    usage: Option<Usage>,
 }
 
 /// Classifier configuration loaded from registry/classify/{name}.yaml.
@@ -83,6 +107,13 @@ pub struct ClassifierDef {
     pub max_tokens: u32,
     #[serde(default = "default_fallback")]
     pub fallback_category: String,
+    /// API input token cost in nano-rJ per token (e.g., 30,000 for DeepInfra $0.03/M).
+    /// 1 µrJ = 1,000 nJ. Zero means cost tracking disabled.
+    #[serde(default)]
+    pub cost_input_nj_per_token: u64,
+    /// API output token cost in nano-rJ per token (e.g., 60,000 for DeepInfra $0.06/M).
+    #[serde(default)]
+    pub cost_output_nj_per_token: u64,
 }
 
 impl Default for ClassifierDef {
@@ -99,6 +130,8 @@ impl Default for ClassifierDef {
             temperature: 0.0,
             max_tokens: 15,
             fallback_category: "Statement".to_string(),
+            cost_input_nj_per_token: 0,
+            cost_output_nj_per_token: 0,
         }
     }
 }
@@ -157,6 +190,8 @@ pub struct ClassifierConfig {
     pub temperature: f64,
     pub max_tokens: u32,
     pub fallback_category: String,
+    pub cost_input_nj_per_token: u64,
+    pub cost_output_nj_per_token: u64,
 }
 
 impl ClassifierConfig {
@@ -181,6 +216,8 @@ impl ClassifierConfig {
             temperature: def.temperature,
             max_tokens: def.max_tokens,
             fallback_category: def.fallback_category.clone(),
+            cost_input_nj_per_token: def.cost_input_nj_per_token,
+            cost_output_nj_per_token: def.cost_output_nj_per_token,
         }
     }
 }
@@ -219,12 +256,20 @@ async fn classify_one(
     let status = resp.status();
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
+        // Parse usage from error response if available — provider may still charge for input tokens
+        let _tokens = serde_json::from_str::<ErrorResponse>(&body)
+            .ok()
+            .and_then(|e| e.usage)
+            .map(|u| (u.prompt_tokens, u.completion_tokens))
+            .unwrap_or((0, 0));
         return Err(ServiceError::Embed {
             source: None,
             message: format!(
                 "Classifier error {status}: {}",
                 body.chars().take(200).collect::<String>()
             ),
+            // Note: token usage is dropped on error — caller receives Err, not ClassifyResult.
+            // Callers that need failed-call cost tracking should handle this at the batch level.
         });
     }
 
@@ -261,7 +306,21 @@ async fn classify_one(
         }
     };
 
-    Ok(ClassifyResult { category })
+    let tokens = chat
+        .usage
+        .map(|u| (u.prompt_tokens, u.completion_tokens))
+        .unwrap_or((0, 0));
+
+    // Compute API cost from actual usage × provider pricing
+    let input_cost = (tokens.0 * config.cost_input_nj_per_token) / 1_000_000;
+    let output_cost = (tokens.1 * config.cost_output_nj_per_token) / 1_000_000;
+
+    Ok(ClassifyResult {
+        category,
+        prompt_tokens: tokens.0,
+        completion_tokens: tokens.1,
+        cost_urj: input_cost + output_cost,
+    })
 }
 
 /// Classify a batch of passages concurrently.
@@ -286,6 +345,9 @@ pub async fn classify_batch(
             .iter()
             .map(|_| ClassifyResult {
                 category: fallback.clone(),
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                cost_urj: 0,
             })
             .collect());
     }
@@ -328,6 +390,9 @@ pub async fn classify_batch(
                 tracing::warn!(index = i, error = %e, "Classifier failed for passage, using fallback");
                 results[i] = Some(ClassifyResult {
                     category: config.fallback_category.clone(),
+                    prompt_tokens: 0,
+                    completion_tokens: 0,
+                    cost_urj: 0,
                 });
             }
             Err(e) => {
@@ -341,6 +406,9 @@ pub async fn classify_batch(
         .map(|r| {
             r.unwrap_or(ClassifyResult {
                 category: config.fallback_category.clone(),
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                cost_urj: 0,
             })
         })
         .collect())

@@ -50,21 +50,28 @@ pub struct ManifestMeta {
 pub struct GasConfig {
     #[serde(default = "default_gas_cap")]
     pub cap: u64,
-    #[serde(default = "default_cost_per_token")]
-    pub cost_per_token: f64,
+    /// Gas per software function call — SCI-derived carbon shadow price.
+    /// Default: 100 gas = 0.02 kWh × 400 gCO₂e/kWh × $50/t × 250,000 gas/rJ.
+    #[serde(default = "default_gas_per_function")]
+    pub gas_per_function: u64,
+    /// Fraction of rJoule budget that triggers a CNS warning.
     #[serde(default = "default_alert_threshold")]
     pub alert_threshold: f64,
     #[serde(default = "default_true")]
     pub hard_limit: bool,
+    /// Monthly recurring subscription costs in µrJ (informational, not per-run).
+    #[serde(default)]
+    pub monthly_subscriptions_urj: u64,
 }
 
 impl Default for GasConfig {
     fn default() -> Self {
         Self {
             cap: default_gas_cap(),
-            cost_per_token: default_cost_per_token(),
+            gas_per_function: default_gas_per_function(),
             alert_threshold: default_alert_threshold(),
             hard_limit: default_true(),
+            monthly_subscriptions_urj: 0,
         }
     }
 }
@@ -72,8 +79,8 @@ impl Default for GasConfig {
 fn default_gas_cap() -> u64 {
     15000
 }
-fn default_cost_per_token() -> f64 {
-    0.25
+fn default_gas_per_function() -> u64 {
+    100
 }
 fn default_alert_threshold() -> f64 {
     0.7
@@ -184,6 +191,31 @@ pub struct AuditConfig {
 #[derive(Debug, Clone)]
 pub struct ClassifyResult {
     pub category: String,
+    pub prompt_tokens: u64,
+    pub completion_tokens: u64,
+    /// Actual API cost in micro-rJoules (µrJ) — computed by the classify service
+    /// from token usage × provider pricing. Accumulated directly by CostTracker.
+    pub cost_urj: u64,
+}
+
+/// Tracks all costs across the lifetime of a script run.
+/// All values are in micro-rJoules (µrJ) — integer for transferability.
+/// 1 µrJ = 0.000001 rJ = $0.000001 USD. 1 gas = 4 µrJ (250,000 gas = 1 rJ).
+#[derive(Debug, Clone, Default)]
+pub struct CostTracker {
+    pub gas_used: u64,
+    pub api_token_urj: u64,
+    pub training_urj: u64,
+    pub classify_calls: u64,
+}
+
+impl CostTracker {
+    pub fn total_urj(&self) -> u64 {
+        (self.gas_used * 4) + self.api_token_urj + self.training_urj
+    }
+    pub fn rjoule_cap_urj(&self, gas_cap: u64) -> u64 {
+        gas_cap * 4
+    }
 }
 
 /// Result of a single script step execution.
@@ -211,6 +243,28 @@ pub struct QaScriptReport {
     pub total_steps: usize,
     pub terminal_outcome: String,
     pub exceeded_gas: bool,
+    pub cost: CostSummary,
+}
+
+/// Cost summary for a completed script run, in micro-rJoules (µrJ).
+#[derive(Debug, Clone, Default)]
+pub struct CostSummary {
+    /// Total gas consumed (×2 = µrJ).
+    pub gas_used: u64,
+    /// Gas-derived µrJ.
+    pub gas_urj: u64,
+    /// API token costs in µrJ.
+    pub api_token_urj: u64,
+    /// Training costs in µrJ.
+    pub training_urj: u64,
+    /// Run total in µrJ.
+    pub total_urj: u64,
+    /// Budget cap in µrJ.
+    pub cap_urj: u64,
+    /// Number of classify calls made.
+    pub classify_calls: u64,
+    /// Monthly recurring costs in µrJ (informational, not included in run total).
+    pub monthly_subscriptions_urj: u64,
 }
 
 impl QaScriptReport {
@@ -342,8 +396,9 @@ impl QaScriptRunner {
         }
 
         let mut results: Vec<StepResult> = Vec::new();
-        let mut gas_used: u64 = 0;
+        let mut cost = CostTracker::default();
         let gas_cap = self.manifest.gas.cap;
+        let gas_per_fn = self.manifest.gas.gas_per_function;
         let mut current_idx: usize = 0;
 
         while current_idx < steps.len() {
@@ -362,17 +417,23 @@ impl QaScriptRunner {
             }
 
             let outcome = match step.action.as_str() {
-                "classify" => self.execute_classify(step, &mut gas_used, gas_cap)?,
-                "run_command" => self.execute_command(step)?,
-                "loop" => self.execute_loop(current_idx, steps, &mut gas_used, gas_cap)?,
-                _ => StepResult {
-                    ordinal: step.ordinal,
-                    action: step.action.clone(),
-                    outcome: "success".into(),
-                    classify_category: None,
-                    retries: 0,
-                    duration_ms: start.elapsed().as_millis() as u64,
-                },
+                "classify" => self.execute_classify(step, &mut cost, gas_cap, gas_per_fn)?,
+                "run_command" => {
+                    cost.gas_used += gas_per_fn;
+                    self.execute_command(step)?
+                }
+                "loop" => self.execute_loop(current_idx, steps, &mut cost, gas_cap, gas_per_fn)?,
+                _ => {
+                    cost.gas_used += gas_per_fn;
+                    StepResult {
+                        ordinal: step.ordinal,
+                        action: step.action.clone(),
+                        outcome: "success".into(),
+                        classify_category: None,
+                        retries: 0,
+                        duration_ms: start.elapsed().as_millis() as u64,
+                    }
+                }
             };
 
             let duration_ms = start.elapsed().as_millis() as u64;
@@ -427,20 +488,59 @@ impl QaScriptRunner {
             .map(|r| r.outcome.clone())
             .unwrap_or_else(|| "completed".into());
 
+        let total_urj = cost.total_urj();
+        let cap_urj = cost.rjoule_cap_urj(gas_cap);
+
+        // Verification invariant: gas_used must equal step_count × gas_per_function
+        let expected_gas = results.len() as u64 * gas_per_fn;
+        if cost.gas_used != expected_gas {
+            tracing::warn!(
+                target: "cns.qa.cost.gas_mismatch",
+                expected = expected_gas,
+                actual = cost.gas_used,
+                "Gas tracking mismatch"
+            );
+        }
+
+        // Alert threshold check
+        if self.manifest.gas.alert_threshold > 0.0 && cap_urj > 0 {
+            let fraction = total_urj as f64 / cap_urj as f64;
+            if fraction >= self.manifest.gas.alert_threshold {
+                tracing::warn!(
+                    target: "cns.qa.cost.threshold_warning",
+                    total_urj = total_urj,
+                    cap_urj = cap_urj,
+                    fraction = %format!("{:.1}%", fraction * 100.0),
+                    "Cost threshold reached"
+                );
+            }
+        }
+
         Ok(QaScriptReport {
             manifest_id: self.manifest.manifest.id.clone(),
             total_steps: results.len(),
             steps_executed: results,
             terminal_outcome,
-            exceeded_gas: gas_used >= gas_cap,
+            exceeded_gas: total_urj >= cap_urj && self.manifest.gas.hard_limit,
+            cost: CostSummary {
+                gas_used: cost.gas_used,
+                gas_urj: cost.gas_used * 4,
+                api_token_urj: cost.api_token_urj,
+                training_urj: cost.training_urj,
+                total_urj,
+                cap_urj,
+                classify_calls: cost.classify_calls,
+                monthly_subscriptions_urj: self.manifest.gas.monthly_subscriptions_urj,
+            },
         })
     }
 
     fn execute_classify(
         &self,
         step: &QaScriptStep,
-        gas_used: &mut u64,
+        cost: &mut CostTracker,
         gas_cap: u64,
+        gas_per_fn: u64,
     ) -> Result<StepResult, QaScriptError> {
         let classifier_name =
             step.classifier
@@ -449,7 +549,7 @@ impl QaScriptRunner {
                     ordinal: step.ordinal,
                 })?;
 
-        if *gas_used >= gas_cap {
+        if cost.total_urj() >= cost.rjoule_cap_urj(gas_cap) && self.manifest.gas.hard_limit {
             return Err(QaScriptError::GasExceeded { cap: gas_cap });
         }
 
@@ -465,8 +565,14 @@ impl QaScriptRunner {
             }
         })?;
 
-        // Estimate gas: ~1 token per character for prompt + response
-        *gas_used += step.description.len() as u64;
+        // Track gas: one software function call
+        cost.gas_used += gas_per_fn;
+        cost.classify_calls += 1;
+
+        // Track API cost: accumulated directly from classify result cost_urj
+        for r in &result {
+            cost.api_token_urj += r.cost_urj;
+        }
 
         let category = result
             .first()
@@ -531,17 +637,21 @@ impl QaScriptRunner {
         &self,
         current_idx: usize,
         steps: &[QaScriptStep],
-        gas_used: &mut u64,
+        cost: &mut CostTracker,
         gas_cap: u64,
+        gas_per_fn: u64,
     ) -> Result<StepResult, QaScriptError> {
         let step = &steps[current_idx];
         let max_iters = step.max_iterations.unwrap_or(5);
         let delay = std::time::Duration::from_secs(step.iteration_delay_secs.unwrap_or(1));
 
         for iter in 0..max_iters {
-            if *gas_used >= gas_cap {
+            if cost.total_urj() >= cost.rjoule_cap_urj(gas_cap) && self.manifest.gas.hard_limit {
                 return Err(QaScriptError::GasExceeded { cap: gas_cap });
             }
+
+            // Track gas: one function call per iteration
+            cost.gas_used += gas_per_fn;
 
             // Execute the action specified in the loop step
             let inner_result = match step.command.as_deref() {
@@ -572,7 +682,11 @@ impl QaScriptRunner {
                                 reason: e,
                             }
                         })?;
-                        *gas_used += step.description.len() as u64;
+                        // Track API cost from classify result
+                        for r in &result {
+                            cost.api_token_urj += r.cost_urj;
+                        }
+                        cost.classify_calls += 1;
                         result
                             .first()
                             .map(|r| r.category.clone())
@@ -731,6 +845,7 @@ mod tests {
             total_steps: 3,
             terminal_outcome: "medium_confidence".into(),
             exceeded_gas: false,
+            cost: CostSummary::default(),
         };
         assert_eq!(report.classify_steps(), 2);
         assert_eq!(report.total_retries(), 1);
@@ -748,9 +863,10 @@ mod tests {
             },
             gas: GasConfig {
                 cap: 1000,
-                cost_per_token: 0.25,
+                gas_per_function: 100,
                 alert_threshold: 0.7,
                 hard_limit: true,
+                monthly_subscriptions_urj: 0,
             },
             inputs: vec![],
             steps: vec![],
@@ -838,6 +954,9 @@ cns:
             Ok(vec![ClassifyResult {
                 category: r#"{"confidence":0.96,"is_flake":false,"root_cause":"off-by-one"}"#
                     .into(),
+                prompt_tokens: 400,
+                completion_tokens: 300,
+                cost_urj: 30,
             }])
         });
         let runner = QaScriptRunner::new(manifest, classify);

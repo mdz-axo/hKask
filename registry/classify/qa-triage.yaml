@@ -31,3 +31,5 @@ classifier:
   max_tokens: 500
 
   fallback_category: Unknown
+  cost_input_nj_per_token: 30 # $0.03/M input tokens → 30 nJ/token
+  cost_output_nj_per_token: 60 # $0.06/M output tokens → 60 nJ/token

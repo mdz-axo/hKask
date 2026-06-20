@@ -362,6 +362,9 @@ async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Erro
                 .into_iter()
                 .map(|r| ClassifyResult {
                     category: r.category,
+                    prompt_tokens: r.prompt_tokens,
+                    completion_tokens: r.completion_tokens,
+                    cost_urj: r.cost_urj,
                 })
                 .collect::<Vec<_>>())
         })
@@ -414,6 +417,43 @@ async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Erro
     if report.exceeded_gas {
         println!("[QA] ⚠ Gas budget exceeded");
     }
+
+    // Cost summary
+    let c = &report.cost;
+    let gas_rj = c.gas_urj as f64 / 1_000_000.0;
+    let api_rj = c.api_token_urj as f64 / 1_000_000.0;
+    let total_rj = c.total_urj as f64 / 1_000_000.0;
+    let _cap_rj = c.cap_urj as f64 / 1_000_000.0;
+    let pct = if c.cap_urj > 0 {
+        (c.total_urj as f64 / c.cap_urj as f64) * 100.0
+    } else {
+        0.0
+    };
+    println!("[QA] Cost summary:");
+    println!(
+        "       Gas (software):     {} gas              {} µrJ    ({:.6} rJ)",
+        c.gas_used, c.gas_urj, gas_rj
+    );
+    println!(
+        "       API tokens:         {} calls, {} µrJ    ({:.6} rJ)",
+        c.classify_calls, c.api_token_urj, api_rj
+    );
+    println!("       ───────────────────────────────────────────────────");
+    println!(
+        r"       Run total:                              {} µrJ    ({:.6} rJ, ${:.6})",
+        c.total_urj, total_rj, total_rj
+    );
+    if c.monthly_subscriptions_urj > 0 {
+        let sub_rj = c.monthly_subscriptions_urj as f64 / 1_000_000.0;
+        println!(
+            r"       Monthly recurring: ${:.2} = {} µrJ (not in run total)",
+            sub_rj, c.monthly_subscriptions_urj
+        );
+    }
+    println!(
+        "[QA] Budget: {} / {} µrJ ({:.1}%)",
+        c.total_urj, c.cap_urj, pct
+    );
 
     Ok(())
 }

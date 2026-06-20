@@ -22,3 +22,5 @@ classifier:
   max_tokens: 300
 
   fallback_category: Unknown
+  cost_input_nj_per_token: 30
+  cost_output_nj_per_token: 60
