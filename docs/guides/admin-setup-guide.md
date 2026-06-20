@@ -32,8 +32,8 @@ You do not need all providers to start. Three tiers are available:
 | Tier | Providers | What You Get |
 |------|-----------|-------------|
 | **CORE** | 1 inference provider (DeepInfra, fal.ai, Together, or OpenRouter) | Agent chat, basic inference |
-| **STANDARD** | + 2 search providers + 1 financial data | Web search, company research, adapter training |
-| **FULL** | + Cloud provider + S3 storage + Matrix | Cloud deployment, database backups, cross-pod federation |
+| **STANDARD** | + 2 search providers + 1 financial data + Litestream backups | Web search, company research, adapter training, database persistence |
+| **FULL** | + Cloud provider + Matrix + custom domain | Cloud deployment, cross-pod federation |
 
 ---
 
@@ -123,7 +123,7 @@ cargo run --bin kask -- doctor
 
 ---
 
-## 4. Step-by-Step: STANDARD Tier (Search + Financial Data)
+## 4. Step-by-Step: STANDARD Tier (Search + Financial Data + Backups)
 
 ### 4.1 Web Search Providers
 
@@ -181,6 +181,34 @@ Pick at least ONE. More providers = better search coverage via RRF (Reciprocal R
 
 ---
 
+
+### 4.4 Litestream Object Storage (Database Backups)
+
+hKask uses Litestream for continuous SQLite backup to object storage. This is the canonical persistence strategy — used everywhere, not tied to any cloud provider.
+
+**Backblaze B2 (recommended, 10GB free):**
+
+1. Go to https://www.backblaze.com/cloud-storage
+2. Create account, then Create a Bucket (name: `hkask-pods-backup`)
+3. App Keys, then Add a New Application Key
+4. Copy keyID and applicationKey
+5. `.env`:
+   ```
+   LITESTREAM_BUCKET=hkask-pods-backup
+   LITESTREAM_ENDPOINT=https://s3.us-west-000.backblazeb2.com
+   LITESTREAM_REGION=us-west-000
+   LITESTREAM_ACCESS_KEY_ID=your-key-id
+   LITESTREAM_SECRET_ACCESS_KEY=your-application-key
+   LITESTREAM_FORCE_PATH_STYLE=true
+   ```
+
+**Cloudflare R2 (alternative, 10GB free, no egress fees):**
+
+1. https://dash.cloudflare.com/ , then R2, then Create bucket
+2. Manage R2 API Tokens, then Create token (Edit permissions)
+3. `.env`: `LITESTREAM_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`
+
+
 ## 5. Step-by-Step: FULL Tier (Cloud Deployment)
 
 ### 5.1 Container Registry
@@ -200,33 +228,7 @@ echo "$GITHUB_TOKEN" | docker login ghcr.io -u YOUR_USERNAME --password-stdin
 CONTAINER_REGISTRY=ghcr.io/your-org/hkask
 ```
 
-### 5.2 Litestream S3 Storage (Database Backups)
-
-hKask uses Litestream for continuous SQLite backup to S3-compatible storage.
-
-**Backblaze B2 (recommended, 10GB free):**
-
-1. Go to https://www.backblaze.com/cloud-storage
-2. Create account → Create a Bucket (name: `hkask-pods-backup`)
-3. Go to App Keys → Add a New Application Key
-4. Copy keyID and applicationKey
-5. `.env`:
-   ```
-   LITESTREAM_S3_BUCKET=hkask-pods-backup
-   LITESTREAM_S3_ENDPOINT=https://s3.us-west-000.backblazeb2.com
-   LITESTREAM_S3_REGION=us-west-000
-   LITESTREAM_ACCESS_KEY_ID=your-key-id
-   LITESTREAM_SECRET_ACCESS_KEY=your-application-key
-   LITESTREAM_FORCE_PATH_STYLE=true
-   ```
-
-**Cloudflare R2 (alternative, 10GB free, no egress fees):**
-
-1. Go to https://dash.cloudflare.com/ → R2 → Create bucket
-2. Manage R2 API Tokens → Create token (Edit permissions)
-3. `.env`: `LITESTREAM_S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`
-
-### 5.3 Cloud Provider: Fly.io
+### 5.2 Cloud Provider: Fly.io
 
 1. Install flyctl: `curl -L https://fly.io/install.sh | sh`
 2. `fly auth login` (opens browser)
@@ -235,11 +237,88 @@ hKask uses Litestream for continuous SQLite backup to S3-compatible storage.
 5. Get org slug: `fly orgs list`
 6. `.env`: `FLY_ORG_SLUG=your-org-slug`
 
-### 5.4 Cloud Provider: Hetzner Cloud (Optional Secondary)
+### 5.3 Cloud Provider: Hetzner Cloud
+
+Hetzner is the cost leader (3-5x cheaper than Fly.io at scale) and the recommended choice for EU-regulated workloads (BSI C5, ISO 27001, GDPR-compliant by jurisdiction). It requires more operational setup than Fly.io but delivers substantial savings at scale.
+
+**Step 1: Create Hetzner account and API token**
 
 1. Go to https://console.hetzner.cloud/
-2. Create project → Security → API Tokens → Generate
+2. Create project, then Security, then API Tokens, then Generate (Read and Write)
 3. `.env`: `HCLOUD_TOKEN=your-token`
+
+**Step 2: Create K3s cluster**
+
+Choose one path:
+
+*Path A: Self-managed K3s (cheapest)*
+
+```bash
+# Install hetzner-k3s
+curl -sL https://github.com/vitobotta/hetzner-k3s/releases/latest/download/hetzner-k3s-linux-amd64 -o hetzner-k3s
+chmod +x hetzner-k3s
+
+# Create cluster (2-3 minutes)
+hetzner-k3s create \
+  --name hkask-prod \
+  --location nbg1 \
+  --masters 3 --master-type cx33 \
+  --workers 3 --worker-type cx43 \
+  --network-zone eu-central \
+  --autoscaling-enabled
+
+# Outputs kubeconfig to ./kubeconfig
+export KUBECONFIG=$(pwd)/kubeconfig
+kubectl get nodes
+```
+
+*Path B: Cloudfleet managed K8s (simpler, from free tier)*
+
+1. Go to https://cloudfleet.ai/ and sign up (free Basic tier, up to 24 vCPUs)
+2. Connect your Hetzner account (provide API token)
+3. Create cluster, select Hetzner region, deploy
+4. Download kubeconfig from Cloudfleet dashboard
+
+**Step 3: Install cert-manager for TLS**
+
+Unlike Fly.io, Hetzner does not auto-provision TLS. Use cert-manager:
+
+```bash
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
+
+cat <<EOF | kubectl apply -f -
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: your-email@example.com
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+EOF
+```
+
+### 5.4 Provider Decision: Fly.io vs Hetzner
+
+| Factor | Fly.io | Hetzner + K3s |
+|--------|--------|---------------|
+| Setup time | 10 minutes | 30-60 minutes |
+| Cost per pod | $2-10/mo | 4-6 EUR/mo |
+| Scale-to-zero | Yes (under 300ms) | No (always-on) |
+| TLS | Auto-provisioned | Manual (cert-manager) |
+| Global regions | 35+ | 6 |
+| Compliance | SOC2, HIPAA | ISO 27001, BSI C5, GDPR |
+| GPU | Deprecated (Aug 2026) | None |
+| Ops burden | Low (PaaS) | Medium-High (K8s) |
+| Best for | Global, bursty, fast setup | EU-regulated, cost-sensitive, always-on |
+
+Recommendation: Start with Fly.io for fast time-to-deploy. Add Hetzner as secondary for cost optimization and EU compliance. Both share the same Litestream object storage bucket so migrating pods requires no data migration.
 
 ### 5.5 Matrix / Conduit (Curator-Managed)
 
@@ -253,9 +332,10 @@ The Matrix Conduit server is **set up once by the Curator** during system instal
 
 ```bash
 # Curator initializes the system (one-time):
-kask curator init --matrix-domain hkask.local
-# This generates the Conduit signing key and stores it in the Curator's keystore.
-# It also deploys the shared Conduit Fly App (Model B).
+kask curator init --domain hkask.your-domain.com
+# This generates the Conduit signing key, stores it in the Curator's keystore,
+# and deploys the shared Conduit Fly App (Model B).
+# The --domain flag sets the Matrix server_name (e.g., hkask.your-domain.com).
 
 # Curator creates a pod (per-pod):
 kask pod create my-first-pod
@@ -266,24 +346,113 @@ kask pod export fly my-first-pod
 # Credentials are baked into the generated fly-secrets.sh — nothing to configure.
 ```
 
+### 5.6 DNS Configuration
+
+DNS setup depends on your cloud provider. Do this BEFORE deploying (DNS propagation takes time).
+
+#### Fly.io DNS
+
+```bash
+# 1. Set your domain
+HKASK_BASE_URL=https://hkask.your-domain.com
+
+# 2. Add DNS records at your registrar:
+#    Type: A     Name: hkask     Value: <Fly.io IPv4>     (from: fly ips list)
+#    Type: AAAA  Name: hkask     Value: <Fly.io IPv6>     (from: fly ips list)
+
+# 3. Certify Fly.io to handle TLS:
+fly certs create hkask.your-domain.com
+
+# 4. Verify DNS:
+dig hkask.your-domain.com +short
+```
+
+#### Hetzner DNS
+
+```bash
+# 1. Set your domain
+HKASK_BASE_URL=https://hkask.your-domain.com
+
+# 2. Deploy the K8s ingress first (get the Load Balancer IP):
+kask pod export k8s my-first-pod
+kubectl apply -f k8s-manifests/
+kubectl get svc -n hkask-pod-my-first-pod
+# Note the EXTERNAL-IP of the LoadBalancer service
+
+# 3. Add DNS records at your registrar:
+#    Type: A     Name: hkask     Value: <LoadBalancer EXTERNAL-IP>
+
+# 4. Verify DNS:
+dig hkask.your-domain.com +short
+
+# 5. Verify TLS (cert-manager auto-provisions after DNS resolves):
+curl https://hkask.your-domain.com/health
+```
+
+> **DNS propagation note:** DNS changes can take up to 48 hours to propagate globally, though most resolvers update within 15-30 minutes. Start DNS setup early.
+
 ---
 
 ## 6. Build and Deploy
 
-### 6.1 Build the Container
+hKask uses a container image (`kask` binary + Litestream + Conduit). You have three options for getting this image:
+
+| Path | Build Where | Requires | Best For |
+|------|------------|----------|----------|
+| **A: Pre-built (fastest)** | None — pull from GHCR | Nothing | Quick start, no customizations |
+| **B: Cloud build (recommended)** | GitHub Actions | GitHub repo | Custom builds, CI/CD pipeline |
+| **C: Local build** | Your machine | Docker + 4GB RAM | Development, testing changes |
+
+### 6.1 Path A: Pre-Built Image (No Build Required)
 
 ```bash
-# Build the Docker image (includes kask + Litestream + Conduit)
+# Skip the build entirely. Use the official image from GitHub Container Registry.
+# Set in .env:
+CONTAINER_REGISTRY=ghcr.io/mdz-axo/hkask
+
+# Tag doesn't need docker pull — Fly.io and K8s pull from registry at deploy time.
+# Just reference the image in your deployment files and deploy.
+```
+
+### 6.2 Path B: Cloud Build via GitHub Actions
+
+```yaml
+# .github/workflows/build.yml
+name: Build and Push
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+```
+
+Push a tag to trigger: `git tag v0.30.0 && git push origin v0.30.0`
+
+### 6.3 Path C: Local Build
+
+```bash
+# Requires: Docker with 4GB+ memory allocated
+# WARNING: Rust + Conduit compilation can take 10-20 minutes on first build
+
 docker build -t kask:0.30.0 .
-
-# Tag for registry
 docker tag kask:0.30.0 ghcr.io/your-org/hkask:kask-0.30.0
-
-# Push
 docker push ghcr.io/your-org/hkask:kask-0.30.0
 ```
 
-### 6.2 Deploy to Fly.io
+### 6.4 Deploy to Fly.io
 
 ```bash
 # Generate deployment files for a pod
@@ -294,12 +463,11 @@ kask pod export fly my-first-pod \
 # This creates:
 #   fly.toml           — Fly.io app configuration
 #   fly-secrets.sh     — secrets to set (run once)
-#   deploy.sh          — deployment script
 
 # Set secrets
 source fly-secrets.sh
 
-# Deploy
+# Deploy (Fly.io pulls the image from your registry)
 fly deploy --config fly.toml
 
 # Verify
@@ -307,20 +475,48 @@ fly status
 fly logs
 ```
 
-### 6.3 Verify Deployment
+### 6.5 Deploy to Hetzner K3s
 
 ```bash
-# Check pod health
-curl https://hkask-pod-my-first-pod.fly.dev/health
+# Generate K8s manifests for a pod
+kask pod export k8s my-first-pod \
+  --volume-size-gb 10 \
+  --max-replicas 3
+
+# This creates:
+#   k8s-manifests/namespace.yaml
+#   k8s-manifests/networkpolicy.yaml
+#   k8s-manifests/statefulset.yaml
+#   k8s-manifests/configmap.yaml
+#   k8s-manifests/secrets.yaml
+#   k8s-manifests/hpa.yaml
+
+# Deploy
+kubectl apply -f k8s-manifests/
+
+# Verify
+kubectl get pods -n hkask-pod-my-first-pod
+kubectl logs -n hkask-pod-my-first-pod statefulset/kask
+```
+
+### 6.6 Verify Deployment
+
+```bash
+# Check pod health (both providers)
+curl https://hkask.your-domain.com/health
 # Expected: {"status":"ok","pod_id":"my-first-pod"}
 
-# Check Litestream replication
+# Check Litestream replication (Fly.io)
 fly ssh console -C "litestream generations /data/kask.db"
-# Expected: list of generations in S3
 
-# Check Conduit federation (if Matrix configured)
-curl https://hkask-pod-my-first-pod.fly.dev:8448/_matrix/federation/v1/version
-# Expected: {"server":{"name":"pod-my-first-pod.hkask.local","version":"..."}}
+# Check Litestream replication (Hetzner)
+kubectl exec -n hkask-pod-my-first-pod statefulset/kask -c litestream -- \
+  litestream generations /data/kask.db
+# Expected: list of generations in object storage
+
+# Check Conduit federation (both providers)
+curl https://hkask.your-domain.com:8448/_matrix/federation/v1/version
+# Expected: {"server":{"name":"hkask.your-domain.com","version":"..."}}
 ```
 
 ---
@@ -389,7 +585,7 @@ $ kask doctor
   ⚠️ HCLOUD_TOKEN         — not set
 
   Storage
-  ✅ LITESTREAM_S3_BUCKET — Backblaze B2 (valid, 3 generations found)
+  ✅ LITESTREAM_BUCKET — Backblaze B2 (valid, 3 generations found)
 
   Matrix
   ✅ HKASK_MATRIX_URL     — http://localhost:8008 (Conduit reachable)
@@ -447,7 +643,7 @@ These will be added to the CORE tier as optional providers (no wallet = no gas a
 |---------|-------------|-----|
 | `kask doctor` shows all providers missing | `.env` not loaded | `source .env` before running commands |
 | `DI_API_KEY: set but INVALID` | Wrong key or expired | Regenerate at deepinfra.com/dash/api_keys |
-| `litestream: No replica found` | S3 bucket not created or wrong credentials | Check `LITESTREAM_S3_*` vars, create bucket |
+| `litestream: No replica found` | Bucket not created or wrong credentials | Check `LITESTREAM_*` vars, create bucket |
 | `fly deploy: authentication failed` | Token expired | `fly auth login`, update `FLY_API_TOKEN` |
 | `conduit: federation rejected` | Wrong signing key or DNS | Check `CONDUIT_MATRIX_SIGNING_KEY`, verify `<app>.fly.dev:8448` is reachable |
 | Container build fails (out of memory) | Rust + Conduit both compile | Increase Docker memory limit to 4GB, or build in CI |
@@ -458,26 +654,31 @@ These will be added to the CORE tier as optional providers (no wallet = no gas a
 ## 10. Quick Reference Card
 
 ```bash
-# ─── First Time Setup ───────────────────────────────────────
+# --- First Time Setup ---
 cp .env.example .env                          # Create config
 # Edit .env with at least one inference key
-kask setup wizard                             # Interactive setup (Phase 2)
 kask doctor                                   # Validate configuration
 
-# ─── Build ───────────────────────────────────────────────────
-docker build -t kask:0.30.0 .                 # Build container
-docker tag kask:0.30.0 ghcr.io/org/hkask:kask-0.30.0
-docker push ghcr.io/org/hkask:kask-0.30.0
+# --- Build (pick one path) ---
+# Path A: Pre-built image (skip to deploy)
+# Path B: Cloud build — git tag v0.30.0 && git push origin v0.30.0
+# Path C: Local build — docker build -t kask:0.30.0 . && docker push
 
-# ─── Deploy (Fly.io) ────────────────────────────────────────
-kask pod export fly my-pod                    # Generate deployment files
+# --- Deploy (Fly.io) ---
+kask pod export fly my-pod                    # Generate fly.toml + secrets
 source fly-secrets.sh                         # Set secrets
-fly deploy --config fly.toml                  # Deploy to Fly.io
+fly deploy --config fly.toml                  # Fly.io pulls image from registry
 fly logs                                      # Watch logs
 
-# ─── Verify ──────────────────────────────────────────────────
-curl https://hkask-pod-my-pod.fly.dev/health  # Health check
-fly ssh console -C "litestream generations /data/kask.db"
+# --- Deploy (Hetzner K3s) ---
+kask pod export k8s my-pod                    # Generate K8s manifests
+kubectl apply -f k8s-manifests/               # Deploy to cluster
+kubectl logs -n hkask-pod-my-pod statefulset/kask
+
+# --- Verify (both providers) ---
+curl https://hkask.your-domain.com/health     # Health check
+# Litestream: fly ssh console / kubectl exec — litestream generations
+# Conduit:    curl :8448/_matrix/federation/v1/version
 ```
 
 ---

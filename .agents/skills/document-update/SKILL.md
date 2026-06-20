@@ -4,9 +4,10 @@ visibility: public
 description: >
   Document consolidation and maintenance. Activates when user says "update docs",
   "consolidate docs", "documentation sweep", or "audit documentation". Primary
-  goal: sweep information into core documents and archive the originals, reducing
-  corpus size and eliminating redundancy. Works with plain files and shell tools
-  — no running hKask instance required.
+  goals: (1) fact-check all README files against codebase ground truth, (2) sweep
+  information into core documents and archive the originals, reducing corpus size
+  and eliminating redundancy. Works with plain files and shell tools — no running
+  hKask instance required.
 ---
 
 # Document Update Skill
@@ -26,9 +27,115 @@ disappear? If yes, merge that information into its parent target, then delete.
 - "audit documentation" / "fix docs"
 - Any task involving the document corpus
 
-## The 5-Phase Workflow
+## The 7-Task Workflow
 
-### Phase 0 — Audit & Map
+### Task 0 — README Fact Audit (NEW — run first, every sweep)
+
+**Goal:** Verify every numeric assertion, crate listing, version number, and count in every README-like file in the project. These files rot silently because they contain hand-maintained stats that nobody updates when code changes.
+
+**README-like files that MUST be audited every sweep:**
+
+| File | Contains |
+|------|----------|
+| `./README.md` | Version, crate counts, LOC, subcommand/route counts, phase status, MCP server list, skill counts, doc counts |
+| `./AGENTS.md` | Crate listing, command examples, verification commands |
+| `./docs/README.md` | Document portal index, active doc count, section links |
+| `./docs/status/PROJECT_STATUS.md` | Project phase, completion percentages, component status |
+| `./mcp-servers/hkask-mcp-condenser/README.md` | Tool counts, test counts, dependency references |
+
+#### Fact-Checking Protocol
+
+For each README file, verify every assertion against the codebase. Do not trust any number. Extract ground truth from the codebase, not from other docs.
+
+**Version number:**
+```bash
+grep '^version' Cargo.toml | head -1
+# Compare against version in README header, footer, and docs references
+```
+
+**Crate counts:**
+```bash
+# Count workspace crates (exclude fuzz targets)
+grep 'crates/hkask-' Cargo.toml | grep -v fuzz | wc -l
+# Count MCP servers
+grep 'mcp-servers/hkask-' Cargo.toml | grep -v fuzz | wc -l
+# Verify every listed crate exists
+ls -d crates/hkask-*/
+ls -d mcp-servers/hkask-mcp-*/
+```
+
+**Line counts (LOC):**
+```bash
+# Core src/ only (exclude fuzz/ and tests/ if measuring separately)
+find crates/ -path '*/src/*.rs' -not -path '*/fuzz/*' | xargs wc -l | tail -1
+# MCP server src/ only
+find mcp-servers/ -path '*/src/*.rs' -not -path '*/fuzz/*' | xargs wc -l | tail -1
+# Per-crate breakdown (for README tables)
+for crate in crates/hkask-*/; do
+  name=$(basename "$crate")
+  count=$(find "$crate/src" -name '*.rs' 2>/dev/null | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
+  echo "  $name: ${count:-0}"
+done
+```
+
+**CLI subcommand count:**
+```bash
+./target/release/kask --help 2>&1 | grep -A50 'Commands:' | grep -c '^  [a-z]'
+# Or count from source:
+grep -c 'pub enum Command' crates/hkask-cli/src/cli/mod.rs 2>/dev/null
+```
+
+**API route group count:**
+```bash
+ls crates/hkask-api/src/routes/*.rs | wc -l
+```
+
+**Test file count:**
+```bash
+# Files containing #[cfg(test)] modules (exclude fuzz/)
+find crates/ mcp-servers/ -name '*.rs' -not -path '*/fuzz/*' | xargs grep -l '#\[cfg(test)\]' 2>/dev/null | wc -l
+```
+
+**Skill counts:**
+```bash
+ls .agents/skills/ | wc -l                              # installed skills
+find registry/ -name 'manifest.yaml' | wc -l            # registry crates
+find registry/ -name '*.j2' | wc -l                     # Jinja2 templates
+```
+
+**Document counts:**
+```bash
+find docs/ -name '*.md' -not -path '*/archive/*' -not -path '*/generated/*' | wc -l   # active
+find docs/archive/ -name '*.md' | wc -l                                               # archived
+```
+
+**Crate existence (every listed crate must exist):**
+```bash
+# For each crate named in README: test -d "crates/$name" || echo "MISSING: $name"
+# For each MCP server named in README: test -d "mcp-servers/$name" || echo "MISSING: $name"
+```
+
+**Stale references (names that no longer exist):**
+```bash
+# Search for old crate names, old version strings, removed concepts
+grep -rni 'hkask-ensemble\|cybertest\|v0\.28\|v0\.29' README.md docs/README.md AGENTS.md
+# Each hit is a correction candidate
+```
+
+#### Correction Rules
+
+1. **Numbers must match exactly** (or be rounded to the nearest 1000 for LOC with `~` prefix).
+2. **Crate names must match the filesystem** — no renamed-but-not-updated names.
+3. **Phase status must reflect current reality** — if condenser is done, mark it done.
+4. **Command examples must work** — run them to verify.
+5. **Remove stale sections** — if a referenced crate/feature doesn't exist, remove or update the section.
+6. **Don't add new content** — this task is audit-and-correct, not expand.
+
+**Verification:** After corrections, re-run all fact-checking commands. Every assertion in every README must be verifiable from the codebase. Zero stale references. Version matches Cargo.toml.
+
+---
+
+### Task 1 — Audit & Map
 
 **Goal:** Understand what exists and what should absorb what.
 
@@ -50,7 +157,7 @@ Walk `docs/` (excluding `archive/` and `generated/`). For each document, note:
 
 **Verification:** `find docs/ -name '*.md' -not -path '*/archive/*' -not -path '*/generated/*' | wc -l` — know the starting count. Target: reduce by at least 20%.
 
-### Phase 1 — Identify Candidates
+### Task 2 — Identify Candidates
 
 **Goal:** Flag documents that should be merged.
 
@@ -72,7 +179,7 @@ ARCHIVE: cargo-bolero-qa-plan.md (historical plan, not active architecture)
 
 **Verification:** Every non-target document has a disposition: MERGE, ARCHIVE, or KEEP. No document is left unclassified.
 
-### Phase 2 — Extract & Merge
+### Task 3 — Extract & Merge
 
 **Goal:** Move unique information into target documents without losing anything.
 
@@ -93,7 +200,7 @@ For each MERGE candidate:
 
 **Verification:** After merging, the target document contains all unique information from the child. The child can be deleted without information loss.
 
-### Phase 3 — Archive
+### Task 4 — Archive
 
 **Goal:** Remove merged documents and update cross-references.
 
@@ -110,7 +217,7 @@ For each merged document:
 
 **Verification:** `bash docs/ci/check-links.sh` passes with zero broken links. `grep -r "deleted-filename" docs/ --include="*.md"` returns zero matches outside archive/ and historical TODO/status files.
 
-### Phase 4 — Portal Refresh
+### Task 5 — Portal Refresh
 
 **Goal:** Update navigation indexes to reflect the new corpus.
 
@@ -165,6 +272,21 @@ When auditing user guides, check:
 
 Guides that fail these checks should be flagged for revision — not silently kept.
 
+## README Files — Update vs Regenerate
+
+README files are special: they contain both **machine-verifiable facts** (counts, versions, crate names) and **human-authored content** (vision, design philosophy, roadmap). The audit-and-correct approach (Task 0) is preferred over deletion+regeneration because:
+
+- Human-authored prose (Vision, Design Philosophy, Hallucinations to Avoid) cannot be generated from code
+- Roadmap/phase status requires human judgment about what is "done"
+- Success criteria and anchor descriptions are aspirational, not purely factual
+
+However, if a README becomes **more than 50% stale** (half its assertions are wrong), consider:
+1. Running Task 0 to identify every stale assertion
+2. Rewriting the entire README from scratch against current codebase ground truth
+3. Deleting the old README only after the new one is committed
+
+Do not delete a README without a replacement. Do not archive READMEs — they are not docs, they are project portals.
+
 ## Anti-Patterns
 
 1. Adding frontmatter to documents instead of consolidating them — metadata alignment is not consolidation
@@ -178,7 +300,8 @@ Guides that fail these checks should be flagged for revision — not silently ke
 ## Success Criteria
 
 A documentation sweep is successful when:
-- Active document count is ≤40 (from current ~60)
+- **Task 0 complete:** All README files pass fact-checking — version matches Cargo.toml, all counts verified, zero stale crate names or references
+- Active document count is ≤40 (from current ~56)
 - Zero stubs or redirect documents exist
 - `bash docs/ci/check-links.sh` passes with zero broken links
 - Every consolidation target has absorbed its children's unique content

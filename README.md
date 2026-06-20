@@ -3,7 +3,7 @@
 </p>
 # ℏKask - A Minimal Viable Container for Agents
 
-**Version:** v0.28.0 | **Status:** Phase 8 complete — Distillation done, operational hardening in progress
+**Version:** v0.30.0 | **Status:** Phase 8 complete — skill system, QA, condenser, CI green
 
 ---
 
@@ -40,38 +40,90 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
 | 2 | **Essential Tools** | 11 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter) |
-| 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating |
+| 3 | **User Sovereignty** | OCAP, SQLCipher, keystore, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
-| 5 | **Composition** | Unified registry with template_type discriminator |
+| 5 | **Composition** | Unified registry with template_type discriminator, 45 composable skills, 232 Jinja2 templates |
+
+---
+
+## Skills & Composition
+
+hKask's behavioral surface is defined by **45 skills** — composable agent instructions stored as YAML manifests with Jinja2 templates. Skills are not code. They are declarative, user-editable, and versioned in a unified registry.
+
+| Layer | Format | Count | Purpose |
+|-------|--------|-------|--------|
+| **Skill manifests** | `manifest.yaml` | 72 registry crates | Skill metadata, contracts, constraints |
+| **Templates** | `*.j2` (Jinja2) | 232 | Executable process steps (KnowAct, KnowCheck, etc.) |
+| **Skills** | `.agents/skills/` | 45 | Categorized: coding, reasoning, kata, meta, specialized |
+
+Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa triage`, `kask qa run-script`). The skill system includes discovery, bundling, translation, lifecycle management, and adversarial logic auditing.
 
 ---
 
 ## Crate Structure
 
-### Core (11 crates)
-- `hkask-types` — ID types, nu-event, vocabulary, visibility
-- `hkask-storage` — SQLite + SQLCipher, triples, embeddings, blobs, Git CAS
-- `hkask-memory` — Semantic/episodic pipelines (memory consolidation: episodic → semantic)
-- `hkask-cns` — Cybernetic Nervous System
-- `hkask-templates` — Registry, vocabulary, cascade, resolver
-- `hkask-agents` — Pods, ACP, bot/replicant, Curator
-- `hkask-ensemble` — Multi-agent chat
-- `hkask-keystore` — OS keychain, AES-256-GCM
-- `hkask-mcp` — MCP runtime, dispatch, security
-- `hkask-cli` — CLI commands
-- `hkask-api` — HTTP API, utoipa OpenAPI
+### Foundation (10 crates)
+| Crate | Purpose |
+|-------|--------|
+| `hkask-types` | ID types, nu-event, vocabulary, visibility, CNS spans |
+| `hkask-storage` | SQLite + SQLCipher, triples, embeddings, blobs, Git CAS |
+| `hkask-memory` | Semantic/episodic pipelines (consolidation: episodic → semantic) |
+| `hkask-cns` | Cybernetic Nervous System |
+| `hkask-templates` | Registry, vocabulary, cascade, resolver |
+| `hkask-agents` | Pods, ACP, bot/replicant, Curator |
+| `hkask-keystore` | OS keychain, AES-256-GCM |
+| `hkask-mcp` | MCP runtime, dispatch, security |
+| `hkask-cli` | CLI (20 subcommands + REPL) |
+| `hkask-api` | HTTP API, utoipa OpenAPI (25 route groups) |
+
+### Infrastructure (7 crates)
+| Crate | Purpose |
+|-------|--------|
+| `hkask-inference` | Inference router (provider dispatch, model selection) |
+| `hkask-communication` | Matrix transport, agent registry, 7R7 listener |
+| `hkask-improv` | Constructive interaction protocol (plussing, yes-and, yes-but, freestyling, riffing) |
+| `hkask-condenser` | Context condensation engine (7 tools, 51 tests) |
+| `hkask-acp` | Agent Communication Protocol |
+| `hkask-adapter` | External provider adapters (Hugging Face, etc.) |
+| `hkask-test-harness` | Test infrastructure (TestDb, TestWebId, mocks, strategies) |
+
+### Services (17 crates)
+| Crate | Purpose |
+|-------|--------|
+| `hkask-services` | Facade: all service ports via dependency inversion |
+| `hkask-services-core` | Core service traits and port definitions |
+| `hkask-services-backup` | Backup policy layer on Git CAS |
+| `hkask-services-classify` | Content classification |
+| `hkask-services-context` | Context window management |
+| `hkask-services-daemon` | Background daemon services |
+| `hkask-services-discover` | Content discovery and search |
+| `hkask-services-embed` | Embedding generation and storage |
+| `hkask-services-inference-svc` | Inference service orchestration |
+| `hkask-services-kanban` | Kanban board coordination |
+| `hkask-services-kata` | Toyota Kata coaching/improvement loops |
+| `hkask-services-lifecycle` | Agent lifecycle management |
+| `hkask-services-onboarding` | First-run and user onboarding |
+| `hkask-services-skill` | Skill registry and discovery |
+| `hkask-services-sovereignty` | Magna Carta enforcement |
+| `hkask-services-verification` | Capability verification |
+| `hkask-services-wallet` | Crypto wallet and chain port selection |
+
+### Wallet & Identity (1 crate)
+| Crate | Purpose |
+|-------|--------|
+| `hkask-wallet` | Multi-chain wallet (Solana, Hedera, Hinkal optional) |
 
 ### MCP Servers (11 crates)
-- `hkask-mcp-condenser` — Context condensation (thin wrapper around hkask-condenser domain crate)
+- `hkask-mcp-condenser` — Context condensation (thin wrapper around hkask-condenser)
 - `hkask-mcp-research` — Web search, extraction, and feed-based research
 - `hkask-mcp-spec` — Specification authoring, curation, and validation
 - `hkask-mcp-companies` — Company financial data (FMP + EODHD dual-provider)
 - `hkask-mcp-communication` — Thin MCP wrapper over core communication crate
-- `hkask-mcp-media` — Media generation (image, video, audio, 3D via fal.ai, Together AI, OpenRouter, and other providers)
+- `hkask-mcp-media` — Media generation (image, video, audio, 3D via fal.ai and other providers)
 - `hkask-mcp-replica` — Authorial style embedding and prose composition
-- `hkask-mcp-docproc` — Unified document processing (format conversion, OCR, chunking, parsing, QA generation)
+- `hkask-mcp-docproc` — Unified document processing (format conversion, OCR, chunking, QA generation)
 - `hkask-mcp-memory` — Unified episodic + semantic memory with cloud backup
-- `hkask-mcp-training` — Model training (QA pairs and training data ingestion for fine-tuning pipelines)
+- `hkask-mcp-training` — Model training (QA pairs and training data for fine-tuning pipelines)
 - `hkask-mcp-kanban` — Kanban board coordination
 
 ---
@@ -80,12 +132,20 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 | Metric | Value |
 |--------|-------|
-| **Core LOC (Rust)** | ~40,814 |
-| **MCP Server LOC (Rust)** | ~4,890 |
-| **Test Files** | 36 |
-| **Core Crates** | 11 (all complete) |
-| **MCP Servers** | 11 (all complete) |
-| **Build/Clippy/Fmt** | All passing |
+| **Foundation LOC** | ~80,000 |
+| **Infrastructure LOC** | ~16,000 |
+| **Services LOC** | ~21,000 |
+| **Wallet LOC** | ~6,800 |
+| **Core Total (src/)** | ~124,000 |
+| **MCP Server LOC (src/)** | ~34,500 |
+| **Test Files** | 144 (with `#[cfg(test)]` modules) |
+| **Core Crates** | 35 (10 foundation + 7 infra + 17 services + 1 wallet) |
+| **MCP Servers** | 11 |
+| **CLI Subcommands** | 20 |
+| **API Route Groups** | 25 |
+| **Build/Clippy/Fmt/Test** | All passing |
+| **Skills** | 45 (72 registry crates, 232 Jinja2 templates) |
+| **QA Pipeline** | Fuzz triage, mutation analysis, autonomous script runner |
 
 ---
 
@@ -94,7 +154,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 ### Phase 0: Workspace Skeleton ✓
 - [x] Virtual workspace at root
 - [x] `[workspace.dependencies]` with pinned versions
-- [x] Empty crate stubs for all 21 crates
+- [x] Empty crate stubs for all 35 crates
 - [x] CI verification: `cargo check`, `test`, `clippy`, `fmt`
 
 ### Phase 1: Security Foundation ✓
@@ -114,28 +174,34 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - [x] Comprehensive security hardening (ADR-022)
 - [x] Test coverage across core crates
 
-### Phase 5: CNS & Ensemble Integration ✓
+### Phase 5: CNS & Improv Integration ✓
 - [x] `hkask-cns` — outcome ingestion, `cns.*` span emission, variety counters
-- [x] `hkask-ensemble` — multi-agent chat, confidence escalation
+- [x] `hkask-improv` — multi-agent interaction protocol (plussing, yes-and, yes-but, freestyling, riffing)
 
 ### Phase 6: CLI/API Commands ✓
 - [x] `hkask-mcp` — MCP runtime, dispatch, security
-- [x] `hkask-api` — axum + utoipa, 12 route groups
-- [x] `hkask-cli` — 14 subcommand groups + `/model` slash command
+- [x] `hkask-api` — axum + utoipa, 25 route groups
+- [x] `hkask-cli` — 20 subcommand groups + REPL with `/model` slash command
 
 ### Phase 7: Documentation Refresh ✓
 - [x] DDMVSS-aligned architecture documentation (9/9 categories)
-- [x] 94 documents archived, 36 active documents curated
+- [x] 56 active documents curated, stale archives pruned
+
+### Phase 8: Skill System ✓
+- [x] 45 skills across the corpus (coding, reasoning, kata, meta, specialized)
+- [x] 72 registry crates (manifest.yaml + Jinja2 .j2 templates)
+- [x] 232 Jinja2 templates — composable, declarative, user-editable
+- [x] Skill discovery, bundler, translator, manager, logic auditor
+- [x] QA system — fuzz triage, mutation analysis, autonomous script runner
 
 ### In Progress
 - [x] Context condensation in condenser MCP server (7 tools, 51 tests)
-- [ ] Integration tests for inference pipeline
-- [ ] `hkask-storage` trait mismatches (goals.rs)
+- [ ] Service-layer refactor (strangler fig: CLI/API/MCP → shared services)
+- [ ] Seed templates (prompt/process/cognition)
 
 ### Upcoming
-- [ ] Seed templates (prompt/process/cognition)
 - [ ] Curator instantiation
-- [ ] Success criterion test (16 items from master spec)
+- [ ] Success criterion test (17 items from master spec)
 
 ---
 
@@ -147,7 +213,7 @@ hKask is "done" when a single user can:
 2. Open `kask chat` and converse with Curator (episodic memory recorded)
 3. Use `/model qwen` to fuzzy search models; `/model qwen3:8b` to switch the LLM
 4. Observe ≥3 subsystem-curator bots spawn at startup
-5. Trigger ensemble session with ≥2 subsystem-curators deliberating
+5. Trigger improv session with ≥2 subsystem-curators deliberating
 6. Invoke any operation through CLI or HTTP API with identical behavior
 7. Invoke any tool from 11 MCP set; observe routing
 8. Compose two tools via process template
@@ -156,7 +222,7 @@ hKask is "done" when a single user can:
 11. Observe another agent cannot read private memory without OCAP delegation
 12. Generate embedding via embedding MCP; stored in same SQLite transaction
 13. `fork` public template via storage MCP; observe divergent branch
-14. Merge two branches; observe structural success + conflict requiring ensemble
+14. Merge two branches; observe structural success + conflict requiring improv resolution
 15. Attempt to clone private artifact; observe OCAP rejection
 16. Observe curator reflect on inference outcomes, propose template revision
 17. CNS records change, observes new outcomes
@@ -167,44 +233,18 @@ hKask is "done" when a single user can:
 
 ```bash
 # Verification
-cargo check
-cargo test
-cargo clippy -- -D warnings
+cargo check --workspace
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --check
-
-# Cybernetic unit tests (policy + disturbance + telemetry assertions)
-cargo test -p hkask-cns cyber_
-cargo test -p hkask-mcp cyber_
-```
-
----
-
-## Cybernetic Unit Tests
-
-hKask now includes a minimal cybernetic test harness (`hkask-cybertest`) for unit-scale control-loop testing.
-
-### Conventions
-
-- Use `*_cybertests.rs` for cybernetic test files.
-- Prefix test names with `cyber_` for selective execution.
-- Each cybernetic test should define:
-  - policy objective,
-  - disturbance injected,
-  - expected telemetry (`cns.*` spans),
-  - adaptation/escalation expectation.
-
-### Local commands
-
-```bash
-cargo test -p hkask-cns cyber_
-cargo test -p hkask-mcp cyber_
 ```
 
 ---
 
 ## Documentation
 
-- `docs/architecture/hKask-architecture-master.md` — Architecture index (v0.28.0)
+- `docs/architecture/hKask-architecture-master.md` — Architecture index
+- `docs/architecture/core/PRINCIPLES.md` — Magna Carta principles (P1–P12)
 - `docs/architecture/reference/hKask-erd.md` — Entity relationship diagrams
 - `docs/architecture/interface-and-composition.md` — Registry & templating design
 - `docs/status/PROJECT_STATUS.md` — Project status (single source of truth)
@@ -254,6 +294,6 @@ cargo test -p hkask-mcp cyber_
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.28.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.30.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*
-*Distillation complete. Operational hardening in progress.*
+*Operational hardening. CI green. 20 commands. 35 crates. 11 MCP servers.*

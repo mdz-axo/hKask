@@ -90,7 +90,7 @@ primary_region = "iad"
 ```dockerfile
 # In the kask Dockerfile:
 COPY --from=litestream /usr/local/bin/litestream /usr/local/bin/
-# Entrypoint wraps kask with Litestream continuous replication to S3/R2
+# Entrypoint wraps kask with Litestream continuous replication to object storage
 ```
 
 ---
@@ -295,7 +295,7 @@ hKask's per-pod SQLite+SQLCipher database is the hardest deployment constraint. 
 │  │  binary    │    │  sidecar         │  │
 │  │            │    │                  │  │
 │  │  Reads/    │    │  Monitors WAL    │  │
-│  │  Writes    │    │  Streams to S3   │  │
+│  │  Writes    │    │  Streams to object storage   │  │
 │  │  SQLite    │    │  Compatible      │  │
 │  │  WAL mode  │    │  Storage         │  │
 │  └─────┬──────┘    └────────┬─────────┘  │
@@ -312,9 +312,9 @@ hKask's per-pod SQLite+SQLCipher database is the hardest deployment constraint. 
                     │ Litestream replicate
                     ▼
 ┌──────────────────────────────────────────┐
-│  S3-Compatible Storage                    │
+│  Object Storage                    │
 │  (Backblaze B2, Cloudflare R2,           │
-│   Hetzner Object Storage, AWS S3)        │
+│   Hetzner Object Storage, or other providers)        │
 │                                          │
 │  Sub-second RPO                          │
 │  Point-in-time recovery                  │
@@ -323,10 +323,10 @@ hKask's per-pod SQLite+SQLCipher database is the hardest deployment constraint. 
 
 **Startup sequence:**
 1. Init container runs `litestream restore -if-db-not-exists -if-replica-exists /data/kask.db`
-2. If no local DB exists but replica does → restore from S3
+2. If no local DB exists but replica does → restore from object storage
 3. If local DB exists → use it (pod restart after crash)
 4. `kask` binary starts
-5. Litestream sidecar continuously replicates WAL to S3
+5. Litestream sidecar continuously replicates WAL to object storage
 
 **WAL mode is essential.** hKask must use SQLite WAL mode for Litestream compatibility and concurrent read performance. This is already supported via `rusqlite` in `hkask-storage`.
 
@@ -467,11 +467,11 @@ They already deprecated GPUs (August 2026). They changed inter-region private ne
 
 **Q3: What is the actual cold start for a Litestream restore on Fly.io?**
 
-This is untested and must be measured. The sequence is: Machine start (<300ms) → init container restores DB from S3 (depends on DB size + network) → kask binary starts. For a 100MB SQLite database over S3, Litestream restore typically takes 5-30 seconds depending on network conditions. This is additive to the Fly Machine cold start. Mitigation: keep Machines warm (disable auto_stop for latency-sensitive pods) or use Active Workers on RunPod.
+This is untested and must be measured. The sequence is: Machine start (<300ms) → init container restores DB from object storage (depends on DB size + network) → kask binary starts. For a 100MB SQLite database over the network, Litestream restore typically takes 5-30 seconds depending on network conditions. This is additive to the Fly Machine cold start. Mitigation: keep Machines warm (disable auto_stop for latency-sensitive pods) or use Active Workers on RunPod.
 
 **Q4: How does Litestream interact with SQLCipher encryption?**
 
-Litestream replicates the WAL at the file level — it does not need to decrypt the database. The SQLCipher-encrypted database file and WAL are replicated as opaque binary blobs. This means the S3 backup is encrypted at rest (by SQLCipher) and in transit (by TLS). However: this also means Litestream cannot do page-level incremental backups — it replicates the full WAL. For SQLCipher databases, this is functionally equivalent to unencrypted SQLite from Litestream's perspective. This needs explicit testing before production deployment.
+Litestream replicates the WAL at the file level — it does not need to decrypt the database. The SQLCipher-encrypted database file and WAL are replicated as opaque binary blobs. This means the object storage backup is encrypted at rest (by SQLCipher) and in transit (by TLS). However: this also means Litestream cannot do page-level incremental backups — it replicates the full WAL. For SQLCipher databases, this is functionally equivalent to unencrypted SQLite from Litestream's perspective. This needs explicit testing before production deployment.
 
 **Q5: How does Hetzner's April 2026 +30% price increase affect the recommendation?**
 
