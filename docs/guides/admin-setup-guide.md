@@ -184,9 +184,11 @@ Pick at least ONE. More providers = better search coverage via RRF (Reciprocal R
 
 ### 4.4 Litestream Object Storage (Database Backups)
 
-hKask uses Litestream for continuous SQLite backup to object storage. This is the canonical persistence strategy — used everywhere, not tied to any cloud provider.
+hKask uses Litestream for continuous SQLite backup to object storage. This is the canonical persistence strategy — used everywhere, not tied to any cloud provider. Choose one backend:
 
-**Backblaze B2 (recommended, 10GB free):**
+#### Backblaze B2 — Cheapest, Most Transparent
+
+Why: $0.006/GB/mo (cheapest). 10GB free. Publishes drive failure statistics openly. Bandwidth Alliance with Cloudflare for free egress.
 
 1. Go to https://www.backblaze.com/cloud-storage
 2. Create account, then Create a Bucket (name: `hkask-pods-backup`)
@@ -202,11 +204,49 @@ hKask uses Litestream for continuous SQLite backup to object storage. This is th
    LITESTREAM_FORCE_PATH_STYLE=true
    ```
 
-**Cloudflare R2 (alternative, 10GB free, no egress fees):**
+#### Tigris — Zero Egress, Globally Distributed
 
-1. https://dash.cloudflare.com/ , then R2, then Create bucket
-2. Manage R2 API Tokens, then Create token (Edit permissions)
-3. `.env`: `LITESTREAM_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`
+Why: Built by Fly.io. Zero egress fees. Single endpoint serves all regions. Versioning and object lock built in. Best if your compute is on Fly.io.
+
+1. Go to https://www.tigrisdata.com/ and sign up
+2. Create a bucket (name: `hkask-pods-backup`)
+3. Create an Access Key from the dashboard
+4. `.env`:
+   ```
+   LITESTREAM_BUCKET=hkask-pods-backup
+   LITESTREAM_ENDPOINT=https://fly.storage.tigris.dev
+   LITESTREAM_REGION=auto
+   LITESTREAM_ACCESS_KEY_ID=your-access-key-id
+   LITESTREAM_SECRET_ACCESS_KEY=your-secret-access-key
+   LITESTREAM_FORCE_PATH_STYLE=false
+   ```
+
+#### Hetzner Object Storage — EU Data Residency
+
+Why: €5/TB/mo. Data stays in EU. Same provider as your K3s cluster (lower latency, simpler billing). 1TB free egress.
+
+1. Go to https://console.hetzner.cloud/ , then Object Storage
+2. Create a bucket (name: `hkask-pods-backup`, region: same as your K3s cluster)
+3. Generate Access Key + Secret Key
+4. `.env`:
+   ```
+   LITESTREAM_BUCKET=hkask-pods-backup
+   LITESTREAM_ENDPOINT=https://nbg1.your-objectstorage.com
+   LITESTREAM_REGION=nbg1
+   LITESTREAM_ACCESS_KEY_ID=your-access-key
+   LITESTREAM_SECRET_ACCESS_KEY=your-secret-key
+   LITESTREAM_FORCE_PATH_STYLE=true
+   ```
+
+#### Decision Guide
+
+| If you... | Choose |
+|-----------|--------|
+| Want the cheapest option and don't anticipate heavy egress | **Backblaze B2** |
+| Run compute on Fly.io and want zero egress + global distribution | **Tigris** |
+| Run K3s on Hetzner and need EU data residency | **Hetzner Object Storage** |
+| Do frequent pod restores and worry about egress costs | **Tigris** or **Cloudflare R2** |
+| Need air-gapped or self-hosted | **MinIO** |
 
 
 ## 5. Step-by-Step: FULL Tier (Cloud Deployment)

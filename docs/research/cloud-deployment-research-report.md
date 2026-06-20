@@ -313,8 +313,8 @@ hKask's per-pod SQLite+SQLCipher database is the hardest deployment constraint. 
                     ▼
 ┌──────────────────────────────────────────┐
 │  Object Storage                    │
-│  (Backblaze B2, Cloudflare R2,           │
-│   Hetzner Object Storage, or other providers)        │
+│  (Backblaze B2 | Tigris | Hetzner OS           │
+│   Cloudflare R2 also supported)        │
 │                                          │
 │  Sub-second RPO                          │
 │  Point-in-time recovery                  │
@@ -379,31 +379,220 @@ hKask's per-pod SQLite+SQLCipher database is the hardest deployment constraint. 
 
 ---
 
-## 6. Recommendations
+## 6. Implementation Paths
 
-### 6.1 Primary Path: Fly.io + Litestream
+hKask offers two implementation paths. Both share the same codebase, the same `kask` binary, the same Litestream persistence model, and the same `kask pod export-*` interface. They differ in compute provider, object storage backend, and operational model.
 
-**Why:** Firecracker microVM isolation is the closest cloud primitive to hKask's OCAP per-pod boundary. Scale-to-zero matches agent workload patterns (bursty inference, idle between sessions). 35+ regions enable low-latency agent pods near users. Per-second billing aligns with P0 (Principle of Least Action) — pay only for what you use.
+### Path A: Fly.io + Tigris — The All-Fly.io Stack
 
-**What needs building:**
-1. `Dockerfile` for `kask` binary (multi-stage Rust build, Litestream sidecar)
-2. `kask pod export-fly` command → generates `fly.toml` + `fly secrets` per pod
-3. Fly Machines API integration for pod lifecycle (`kask pod activate` → `fly machines start`)
-4. Matrix Conduit Fly app for cross-pod federation (pending POD-1 resolution)
+**Compute:** Fly.io (Firecracker microVMs, 35+ regions, scale-to-zero)
+**Object storage:** Tigris (zero egress, globally distributed, built by Fly.io)
+**Matrix:** Shared Conduit on Fly.io, or per-pod Conduit sidecar
+**TLS:** Auto-provisioned by Fly.io
+**Container registry:** Fly.io or GitHub Container Registry
 
-### 6.2 Cost-Optimized Path: Hetzner Cloud + K3s
+#### Container Architecture
 
-**Why:** 4-10× cheaper than managed K8s elsewhere. 20TB free egress is unmatched. CSI driver provides persistent volumes per pod. Full control over network topology for Matrix federation.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Fly.io Organization                       │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │              Fly App: hkask-pod-{id}                       │   │
+│  │                                                            │   │
+│  │  ┌────────────────────────────────────────────────────┐   │   │
+│  │  │           Fly Machine (Firecracker microVM)          │   │   │
+│  │  │                                                     │   │   │
+│  │  │  ┌──────────┐ ┌──────────┐ ┌────────────────────┐  │   │   │
+│  │  │  │Litestream│ │ Conduit  │ │   kask binary      │  │   │   │
+│  │  │  │ sidecar  │ │ sidecar  │ │                    │  │   │   │
+│  │  │  │ streams  │ │ Matrix   │ │ kask serve         │  │   │   │
+│  │  │  │ WAL to   │ │ :8448    │ │ --matrix-url       │  │   │   │
+│  │  │  │ Tigris   │ │          │ │ localhost:8008     │  │   │   │
+│  │  │  └────┬─────┘ └──────────┘ └────────────────────┘  │   │   │
+│  │  │       │                                              │   │   │
+│  │  │  ┌────▼──────────────────────────────────────────┐  │   │   │
+│  │  │  │              Fly Volume (NVMe)                  │  │   │   │
+│  │  │  │  /data/kask.db       SQLCipher-encrypted      │  │   │   │
+│  │  │  │  /data/conduit.db    Conduit SQLite           │  │   │   │
+│  │  │  │  1GB, auto-expand to 10GB                     │  │   │   │
+│  │  │  └───────────────────────────────────────────────┘  │   │   │
+│  │  └────────────────────────────────────────────────────┘   │   │
+│  │                                                            │   │
+│  │  Fly Secrets: LITESTREAM_*, POD_ID, keystore passphrase   │   │
+│  │  Fly Metrics: Prometheus-compatible CNS spans             │   │
+│  │  auto_stop: true (HTTP), false (Matrix :8448)            │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                          │                                       │
+│                   HTTPS  │  (Litestream WAL streaming)           │
+│                          ▼                                       │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                    Tigris Object Storage                   │   │
+│  │  Globally distributed. Zero egress. Single endpoint.      │   │
+│  │  pods/{pod_id}/kask.db     ← encrypted SQLCipher pages   │   │
+│  │  pods/{pod_id}/conduit.db  ← Conduit database backup     │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-**What needs building:**
-1. `kask pod export-k8s` command → generates StatefulSet + PVC + Service manifests
-2. K3s cluster bootstrap script (or hetzner-k3s / Cloudfleet)
-3. HPA configuration based on CNS span metrics
-4. Litestream with Backblaze B2 or Hetzner Object Storage
+#### What This Path Entails
 
-### 6.3 GPU Workloads: RunPod
+| Layer | Component | Setup Effort |
+|-------|-----------|-------------|
+| Compute | Fly.io account + flyctl | 5 minutes |
+| Object storage | Tigris account + bucket + access key | 5 minutes |
+| Container | `kask pod export fly` → `fly deploy` | 2 minutes |
+| TLS | Auto-provisioned (Let's Encrypt via Fly.io) | 0 minutes |
+| DNS | A/AAAA records → Fly.io IPs | 5 minutes |
+| Matrix | `kask curator init` deploys shared Conduit | 5 minutes |
+| **Total** | | **~20 minutes** |
 
-**Why:** Already in hKask's architecture. Best GPU pricing. Serverless autoscaling for inference. CPU pods available for orchestrator co-location. Network volumes for model caching.
+#### Strengths
+
+- Firecracker hardware isolation is the strongest OCAP perimeter available
+- Scale-to-zero: idle user pods cost near-zero (HTTP service auto-stops; Matrix :8448 stays warm)
+- Tigris zero egress: Litestream WAL streaming costs nothing in bandwidth
+- Globally distributed: Tigris serves data from the nearest edge, Litestream restores are fast anywhere
+- Single vendor for compute + storage simplifies billing and support
+- Fastest time-to-deploy of any path
+
+#### Weaknesses
+
+- Fly.io is a US company (GDPR implications require SCCs)
+- GPU deprecated (Aug 2026) — inference must route externally
+- Tigris has no free tier (storage costs start immediately)
+- Fly.io pricing changed multiple times in 2024-2026
+- Per-pod Conduit disables scale-to-zero for Matrix port
+
+---
+
+### Path B: Hetzner + Hetzner Object Storage — The EU Sovereignty Stack
+
+**Compute:** Hetzner Cloud (K3s on VPS, self-managed or Cloudfleet)
+**Object storage:** Hetzner Object Storage (EU data residency, €5/TB/mo, 1TB free egress)
+**Matrix:** Conduit deployed as a K8s workload
+**TLS:** cert-manager + Let's Encrypt
+**Container registry:** GitHub Container Registry
+
+#### Container Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Hetzner Cloud Project                         │
+│                                                                   │
+│  ┌───────────────────────────────────────────────────────────┐   │
+│  │                   K3s Cluster (VPS)                         │   │
+│  │                                                             │   │
+│  │  ┌─────────────────────────────────────────────────────┐   │   │
+│  │  │  Namespace: hkask-pod-{id}                            │   │   │
+│  │  │                                                       │   │   │
+│  │  │  ┌───────────────────────────────────────────────┐   │   │   │
+│  │  │  │              Pod (StatefulSet)                  │   │   │   │
+│  │  │  │                                                │   │   │   │
+│  │  │  │  ┌───────────┐ ┌───────────┐ ┌─────────────┐  │   │   │   │
+│  │  │  │  │Litestream │ │ Conduit   │ │ kask binary │  │   │   │   │
+│  │  │  │  │ sidecar   │ │ sidecar   │ │             │  │   │   │   │
+│  │  │  │  │ streams   │ │ Matrix   │ │ kask serve  │  │   │   │   │
+│  │  │  │  │ WAL to    │ │           │ │             │  │   │   │   │
+│  │  │  │  │ Hetzner OS│ │           │ │             │  │   │   │   │
+│  │  │  │  └─────┬─────┘ └───────────┘ └─────────────┘  │   │   │   │
+│  │  │  │        │                                        │   │   │   │
+│  │  │  │  ┌─────▼────────────────────────────────────┐  │   │   │   │
+│  │  │  │  │         Hetzner CSI Volume                │  │   │   │   │
+│  │  │  │  │  /data/kask.db      SQLCipher-encrypted  │  │   │   │   │
+│  │  │  │  │  /data/conduit.db   Conduit SQLite       │  │   │   │   │
+│  │  │  │  │  €0.044/GB/mo                             │  │   │   │   │
+│  │  │  │  └──────────────────────────────────────────┘  │   │   │   │
+│  │  │  └───────────────────────────────────────────────┘   │   │   │
+│  │  │                                                       │   │   │
+│  │  │  NetworkPolicy: per-namespace isolation               │   │   │
+│  │  │  HPA: CPU + CNS variety metrics (min=1, max=N)       │   │   │
+│  │  └─────────────────────────────────────────────────────┘   │   │
+│  │                                                             │   │
+│  │  ┌─────────────────────────────────────────────────────┐   │   │
+│  │  │  Hetzner Load Balancer → Ingress → cert-manager TLS │   │   │
+│  │  │  Free DDoS protection. 20TB free egress.            │   │   │
+│  │  └─────────────────────────────────────────────────────┘   │   │
+│  └───────────────────────────────────────────────────────────┘   │
+│                          │                                        │
+│                   HTTPS  │  (Litestream WAL streaming)            │
+│                          ▼                                        │
+│  ┌───────────────────────────────────────────────────────────┐   │
+│  │              Hetzner Object Storage                         │   │
+│  │  EU data residency. €5/TB/mo. 1TB free egress.            │   │
+│  │  pods/{pod_id}/kask.db     ← encrypted SQLCipher pages    │   │
+│  │  pods/{pod_id}/conduit.db  ← Conduit database backup      │   │
+│  └───────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### What This Path Entails
+
+| Layer | Component | Setup Effort |
+|-------|-----------|-------------|
+| Compute | Hetzner account + API token | 5 minutes |
+| K8s cluster | hetzner-k3s or Cloudfleet | 5-15 minutes |
+| Object storage | Hetzner Object Storage bucket + access key | 5 minutes |
+| TLS | cert-manager + Let's Encrypt ClusterIssuer | 10 minutes |
+| Container | `kask pod export k8s` → `kubectl apply` | 2 minutes |
+| DNS | A record → Hetzner Load Balancer IP | 5 minutes |
+| Matrix | Conduit deployed as K8s workload | 10 minutes |
+| **Total** | | **~45 minutes** |
+
+#### Strengths
+
+- GDPR-compliant by jurisdiction (German GmbH, EU data centers)
+- BSI C5:2020 Type 2 + ISO/IEC 27001 certified
+- KRITIS operator — legally mandated security standards for German critical infrastructure
+- Object storage in the same provider as compute: lower latency, single bill
+- 20TB free egress on compute; 1TB free egress on object storage
+- Privately held, profitable since 1997 — no VC pressure, no acquisition risk
+- Cheapest per-pod cost at scale (€4-6/pod/month)
+- Full K8s control: custom HPA metrics, NetworkPolicy isolation, CSI encryption
+
+#### Weaknesses
+
+- No scale-to-zero: idle pods incur full cost (server billing continues while object exists)
+- No hardware-level isolation between pods (K8s namespace + NetworkPolicy only)
+- No GPU instances for inference workloads
+- K8s operational expertise required (mitigated by Cloudfleet)
+- cert-manager TLS setup is manual (vs Fly.io auto-provisioning)
+- SLA covers individual Cloud Servers only, not the platform
+
+---
+
+### 6.3 Path Comparison
+
+| Dimension | Path A (Fly.io + Tigris) | Path B (Hetzner + Hetzner OS) |
+|-----------|--------------------------|-------------------------------|
+| Time to first pod | ~20 minutes | ~45 minutes |
+| Cost per pod (idle) | ~$0 (scale-to-zero HTTP) | €4-6/mo (always-on) |
+| Cost per pod (active) | $2-10/mo | €4-6/mo |
+| Object storage (10GB) | ~$0.05/mo (Tigris) | ~€0.05/mo (Hetzner OS) |
+| OCAP isolation | Hardware (Firecracker) | Software (K8s + NetworkPolicy) |
+| Compliance | SOC2, HIPAA | ISO 27001, BSI C5, GDPR, KRITIS |
+| Global regions | 35+ | 6 (DE, FI, US, SG) |
+| Scale-to-zero | Yes (HTTP), No (Matrix) | No |
+| TLS | Auto-provisioned | cert-manager + Let's Encrypt |
+| GPU | Deprecated (Aug 2026) | None (dispatch externally) |
+| Ops burden | Low (PaaS) | Medium-High (K8s) |
+| Vendor lock-in risk | Fly.io + Tigris (same ecosystem) | Hetzner (compute + storage, but standard K8s/S3) |
+
+#### Common Infrastructure (Both Paths)
+
+| Component | Shared Across Both |
+|-----------|-------------------|
+| `kask` binary | Same Docker image, same codebase |
+| Litestream config | Same YAML template, different endpoint |
+| Conduit config | Same Matrix server, different deployment |
+| Inference providers | Same API keys (DeepInfra, Together, etc.) |
+| Web search providers | Same API keys (Brave, Firecrawl, etc.) |
+| `.env.example` | Same file, different sections filled |
+| Pod migration | `kask pod export-k8s` → `kubectl apply` → Litestream restores from same bucket |
+
+### 6.4 GPU Workloads: RunPod (Both Paths)
+
+**Why:** Already in hKask's architecture. Best GPU pricing. Serverless autoscaling for inference. CPU pods available for orchestrator co-location. Network volumes for model caching. Works identically with both Path A and Path B.
 
 **What needs building:**
 1. RunPod template for `kask` orchestrator (CPU pod)
@@ -411,7 +600,7 @@ hKask's per-pod SQLite+SQLCipher database is the hardest deployment constraint. 
 3. Network volume configuration for model weights
 4. `kask pod export-runpod` command
 
-### 6.4 Not Recommended: DigitalOcean App Platform
+### 6.5 Not Recommended: DigitalOcean App Platform
 
 Eliminated due to no persistent volume support. SQLite on App Platform is explicitly discouraged. Use DO Droplets if DO is required, but lose auto-scaling benefits.
 
@@ -419,17 +608,20 @@ Eliminated due to no persistent volume support. SQLite on App Platform is explic
 
 ## 7. Implementation Priority
 
-| Priority | Artifact | Depends On | Effort |
-|----------|----------|-----------|--------|
-| **P0** | `Dockerfile` (multi-stage Rust build) | — | Small |
-| **P0** | Litestream sidecar integration | Dockerfile | Small |
-| **P1** | `kask pod export-fly` command | Dockerfile, pod identity resolution | Medium |
-| **P1** | `fly.toml` template | Dockerfile | Small |
-| **P2** | `kask pod export-k8s` command | Dockerfile | Medium |
-| **P2** | K8s manifests (StatefulSet, PVC, HPA) | export-k8s | Medium |
-| **P3** | `kask pod export-runpod` command | Dockerfile | Small |
-| **P3** | RunPod serverless template | existing adapter infrastructure | Small |
-| **P4** | Cross-pod A2A via Matrix on Fly.io | POD-1 resolution | Large |
+| Priority | Artifact | Path | Depends On | Effort |
+|----------|----------|------|-----------|--------|
+| **P0** | `Dockerfile` (multi-stage Rust + Litestream + Conduit) | Both | — | Small |
+| **P0** | Litestream sidecar integration | Both | Dockerfile | Small |
+| **P0** | `litestream.yml.template` (Tigris + Hetzner OS endpoints) | Both | — | Small |
+| **P1** | `kask pod export fly` command | Path A | Dockerfile | Medium |
+| **P1** | `fly.toml` template | Path A | Dockerfile | Small |
+| **P1** | Tigris bucket provisioning | Path A | Tigris account | Small |
+| **P2** | `kask pod export k8s` command | Path B | Dockerfile | Medium |
+| **P2** | K8s manifests (StatefulSet, PVC, HPA, NetworkPolicy) | Path B | export-k8s | Medium |
+| **P2** | Hetzner Object Storage bucket provisioning | Path B | Hetzner account | Small |
+| **P3** | `kask pod export runpod` command | Both | Dockerfile | Small |
+| **P3** | RunPod serverless template | Both | existing adapter infrastructure | Small |
+| **P4** | Cross-pod A2A via Matrix | Both | POD-1 resolution | Large |
 
 ---
 
@@ -541,7 +733,7 @@ The warrior's path is the path that:
 4. **Accepts that complexity will be shed.** The cloud deployment layer will be pruned by the essentialist in future iterations. What survives the deletion test will stay. The rest will be deleted without attachment.
 5. **Preserves sovereignty at every layer.** No shared database. No admin-only control plane. No ambient authority. Every pod owns its SQLite. Every pod carries its own DelegationToken. The cloud is a substrate, not an authority.
 
-The warrior does not choose the easiest path. The warrior chooses the correct path and walks it without hesitation. The correct path for hKask cloud deployment is: Dockerfile → Fly.io → Litestream → export commands → multi-provider support. Walk it.
+The warrior does not choose the easiest path. The warrior chooses the correct path and walks it without hesitation. The correct path for hKask cloud deployment is: Dockerfile → object storage (Litestream + B2/Tigris/Hetzner) → Fly.io → export commands → multi-provider support. Walk it.
 
 ---
 

@@ -88,7 +88,7 @@ pub struct EnvVarSpec {
 | **Infrastructure** | Own bare-metal servers in 35+ regions. Custom Rust hypervisor. Firecracker microVMs. |
 | **API** | Machines REST API (OpenAPI 3.0). GraphQL for org/provisioning operations. |
 | **Auth** | Macaroon tokens (since May 2025). Deploy tokens scoped to app or org. |
-| **Key dependency** | Litestream (built and maintained by Fly.io's Ben Johnson). |
+| **Key dependency** | Litestream (MIT-licensed; provider-agnostic — works with any S3-protocol object storage: Backblaze B2, Tigris, Hetzner OS, Cloudflare R2). |
 
 ### 2.2 Architecture Diagram
 
@@ -1157,45 +1157,48 @@ For partners running hKask as critical infrastructure, the following are non-neg
 
 ## 6. Implementation Sequence
 
-### Phase 1: Foundation (P0)
+### Phase 1: Foundation — P0 (Both Paths)
 - [ ] `Dockerfile` (multi-stage Rust + Litestream + Conduit)
 - [ ] `entrypoint.sh` (render configs → restore → supervisord)
 - [ ] `supervisord.conf` (conduit, litestream, kask)
-- [ ] `litestream.yml.template` (object storage configuration)
-- [ ] `conduit.toml.template` (Matrix homeserver configuration)
+- [ ] `litestream.yml.template` (Tigris + Hetzner OS endpoints)
+- [ ] `conduit.toml.template` (Matrix homeserver)
 - [ ] CI/CD pipeline to build and push container image
 - [ ] SQLCipher + Litestream compatibility test
 
-### Phase 2: Fly.io (P1)
+### Phase 2: Path A — Fly.io + Tigris (P1)
 - [ ] `CloudProvider` trait in `hkask-types`
 - [ ] `FlyClient` in `hkask-cli` (Machines API)
-- [ ] `kask pod export fly <pod-id>` command
-- [ ] `fly.toml` Jinja2 template (HTTP :3000 + Matrix :8448 services)
+- [ ] `TigrisClient` in `hkask-cli` (bucket provisioning)
+- [ ] `kask pod export fly <pod-id>` command (generates fly.toml with Tigris endpoint)
+- [ ] `fly.toml` Jinja2 template (HTTP :3000 + Matrix :8448 + Tigris env)
 - [ ] `kask pod activate` → `fly machines start`
 - [ ] `kask pod deactivate` → `fly machines stop`
 - [ ] Conduit federation test: pod-1 ↔ pod-2 Matrix messaging
 - [ ] Integration test: create → activate → deactivate → destroy on Fly.io
 
-### Phase 3: Hetzner K3s (P2)
-- [ ] `HetznerClient` in `hkask-cli` (Hetzner Cloud API)
-- [ ] `kask pod export k8s <pod-id>` command
+### Phase 3: Path B — Hetzner + Hetzner OS (P2)
+- [ ] `HetznerClient` in `hkask-cli` (Hetzner Cloud API + Object Storage API)
+- [ ] `kask pod export k8s <pod-id>` command (generates manifests with Hetzner OS endpoint)
 - [ ] K8s manifest templates (StatefulSet, PVC, NetworkPolicy, HPA, ConfigMap, Secrets)
-- [ ] K3s bootstrap script / Cloudfleet integration
+- [ ] K3s cluster bootstrap (hetzner-k3s or Cloudfleet integration)
+- [ ] cert-manager + Let's Encrypt setup automation
+- [ ] Hetzner Object Storage bucket provisioning
 - [ ] `kask pod activate` → `kubectl apply`
 - [ ] `kask pod deactivate` → `kubectl scale --replicas=0`
 - [ ] Integration test: full lifecycle on Hetzner K3s
 
-### Phase 4: RunPod (P3)
+### Phase 4: RunPod — GPU Workloads (P3, Both Paths)
 - [ ] `kask pod export runpod <pod-id>` command
 - [ ] RunPod CPU pod template
 - [ ] RunPod serverless GPU endpoint template
 - [ ] Integration test: orchestrate inference via RunPod serverless
 
-### Phase 5: Multi-Provider (P4)
-- [ ] Cross-provider migration test (Fly.io → Hetzner via Litestream)
-- [ ] CNS span for cloud provider health
-- [ ] Provider health dashboard (which pods on which provider)
-- [ ] Automated failover (if Fly.io region down → spawn on Hetzner)
+### Phase 5: Multi-Provider Resilience (P4, Both Paths)
+- [ ] Cross-provider migration test (Path A → Path B via Litestream)
+- [ ] CNS span for cloud provider + object storage health
+- [ ] Provider health dashboard (which pods on which path)
+- [ ] Automated failover (if Fly.io region down → spawn on Hetzner K3s)
 
 ---
 
@@ -1212,4 +1215,7 @@ For partners running hKask as critical infrastructure, the following are non-neg
 - [Cloudfleet Managed Kubernetes](https://cloudfleet.ai/lp/managed-hetzner-kubernetes/)
 - [Litestream Documentation](https://litestream.io/)
 - [Litestream VFS (Fly.io blog)](https://fly.io/blog/litestream-vfs/)
+- [Backblaze B2](https://www.backblaze.com/cloud-storage)
+- [Tigris Object Storage](https://www.tigrisdata.com/)
+- [Hetzner Object Storage](https://www.hetzner.com/storage/object-storage)
 - [hetzner-k3s](https://vitobotta.github.io/hetzner-k3s/)
