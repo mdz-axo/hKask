@@ -9,12 +9,10 @@ echo "Data directory: $DATA_DIR"
 
 # Ensure data directory exists
 mkdir -p "$DATA_DIR"
-mkdir -p /etc/conduit
 
-# Render configuration templates from environment variables
-echo "Rendering configuration templates..."
+# Render Litestream configuration from environment variables
+echo "Rendering Litestream configuration..."
 envsubst < /etc/litestream.yml.template > /etc/litestream.yml
-envsubst < /etc/conduit/conduit.toml.template > /etc/conduit/conduit.toml
 
 # Restore kask database from object storage if no local copy exists
 if [ ! -f "$DB_PATH" ]; then
@@ -32,9 +30,8 @@ fi
 echo "Running database migrations..."
 kask migrate --data-dir "$DATA_DIR" || echo "Warning: migrate command failed (may not exist yet)"
 
-# Start supervisord which manages:
-#   - conduit:  Matrix homeserver (federation on :8448)
-#   - litestream: WAL replication to object storage
-#   - kask: main application (HTTP on :3000)
-echo "Starting supervisord..."
-exec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
+# Start Litestream replication with kask as child process.
+# Litestream monitors the WAL and streams changed pages to object storage.
+# If kask exits, Litestream flushes remaining WAL and exits.
+echo "Starting kask with Litestream replication..."
+exec litestream replicate -config /etc/litestream.yml -exec "kask serve --data-dir $DATA_DIR"

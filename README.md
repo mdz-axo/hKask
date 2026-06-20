@@ -38,7 +38,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 | # | Anchor | Implementation |
 |---|--------|----------------|
-| 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
+| 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, A2A, Episodic and Semantic Memory and kask services |
 | 2 | **Essential Tools** | 11 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter) |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, keystore, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |

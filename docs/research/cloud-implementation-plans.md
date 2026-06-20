@@ -1158,24 +1158,25 @@ For partners running hKask as critical infrastructure, the following are non-neg
 ## 6. Implementation Sequence
 
 ### Phase 1: Foundation — P0 (Both Paths)
-- [x] `Dockerfile` (multi-stage Rust + Litestream + Conduit) → `deploy/Dockerfile`
-- [x] `entrypoint.sh` (render configs → restore → supervisord) → `deploy/fly/entrypoint.sh`
-- [x] `supervisord.conf` (conduit, litestream, kask) → `deploy/fly/supervisord.conf`
-- [x] `litestream.yml.template` (Tigris + Hetzner OS endpoints) → `deploy/fly/litestream.yml.template`
-- [x] `conduit.toml.template` (Matrix homeserver) → `deploy/fly/conduit.toml.template`
-- [ ] CI/CD pipeline to build and push container image
-- [ ] SQLCipher + Litestream compatibility test
+- [x] `Dockerfile` (Rust + Litestream, 3-stage, 28 lines) → `deploy/Dockerfile`
+- [x] `entrypoint.sh` (restore → migrate → `litestream replicate -exec "kask serve"`) → `deploy/fly/entrypoint.sh`
+- [x] `litestream.yml.template` (kask.db only) → `deploy/fly/litestream.yml.template`
+- [x] CI/CD pipeline (GitHub Actions, builds on tag push) → `.github/workflows/build.yml`
+- [ ] SQLCipher + Litestream compatibility test (test structure written, needs runtime)
 
 ### Phase 2: Path A — Fly.io + Tigris (P1)
-- [ ] `CloudProvider` trait in `hkask-types`
-- [x] `FlyClient` in `hkask-cli` (Machines API) → `crates/hkask-cli/src/cloud/fly.rs`
-- [x] `TigrisClient` in `hkask-cli` (bucket validation) → `crates/hkask-cli/src/cloud/tigris.rs`
-- [x] `kask pod export fly <pod-id>` command → `crates/hkask-cli/src/commands/pod.rs::export_fly`
-- [x] `fly.toml` generation (embedded template in export_fly)
-- [x] `kask pod activate` → `fly machines start` → `crates/hkask-cli/src/commands/pod.rs::cloud_activate`
-- [x] `kask pod deactivate` → `fly machines stop` → `crates/hkask-cli/src/commands/pod.rs::cloud_deactivate`
-- [ ] Conduit federation test: pod-1 ↔ pod-2 Matrix messaging
-- [ ] Integration test: create → activate → deactivate → destroy on Fly.io
+- [x] `FlyClient` (7 methods) → `crates/hkask-cli/src/cloud/fly.rs`
+- [x] `TigrisClient` (bucket validation) → `crates/hkask-cli/src/cloud/tigris.rs`
+- [x] `kask pod export fly` → `crates/hkask-cli/src/commands/pod.rs::export_fly`
+- [x] `fly.toml` generation (1 service :3000, scale-to-zero, auto-extend volume)
+- [x] `kask pod activate/deactivate` → Fly Machine start/stop → `pod.rs::cloud_activate/cloud_deactivate`
+
+  **Conduit architecture simplified:** Conduit is now a shared Fly App deployed by `kask curator init`, not a per-pod sidecar. All pods connect as Matrix clients. No federation, no :8448, no supervisord. Scale-to-zero works. Memory: 512MB.
+
+- [ ] `kask curator init` — deploys shared Conduit Fly App, creates Matrix accounts
+- [ ] DNS automation — `fly certs create` + validation
+- [ ] Admin workflow test — end-to-end: account creation → .env → `kask pod export fly` → `fly deploy` → health check
+- [ ] Conduit messaging test — pod-1 sends Matrix message to pod-2 via shared Conduit
 
 ### Phase 3: Path B — Hetzner + Hetzner OS (P2)
 - [x] Hetzner account provisioned — API key in `.env`, workspace has storage bucket + cloud server ready
@@ -1184,9 +1185,9 @@ For partners running hKask as critical infrastructure, the following are non-neg
 - [x] K8s manifest templates (namespace, networkpolicy, statefulset, hpa, configmap, secrets) — embedded in export_k8s
 - [ ] K3s cluster bootstrap (hetzner-k3s or Cloudfleet integration)
 - [ ] cert-manager + Let's Encrypt setup automation
-- [ ] Hetzner Object Storage bucket provisioning
-- [ ] `kask pod activate` → `kubectl apply` (manifests generated, kubectl step manual)
-- [ ] `kask pod deactivate` → `kubectl scale --replicas=0`
+- [ ] Hetzner Object Storage bucket provisioning (API call)
+- [x] `kask pod activate` → `kubectl apply` → `crates/hkask-cli/src/commands/pod.rs::cloud_activate_k8s`
+- [x] `kask pod deactivate` → `kubectl scale --replicas=0` → `crates/hkask-cli/src/commands/pod.rs::cloud_deactivate_k8s`
 - [ ] Integration test: full lifecycle on Hetzner K3s
 
 ### Phase 4: RunPod — GPU Workloads (P3, Both Paths)

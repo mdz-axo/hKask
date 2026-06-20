@@ -139,8 +139,9 @@ pub async fn create_pod(
 pub async fn activate_pod(pod_id: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
     PodService::activate_pod(&ctx, pod_id).await?;
-    // Best-effort cloud activation: start Fly Machine if configured
+    // Best-effort cloud activation: try Fly.io first, then Hetzner K3s
     cloud_activate(pod_id).await;
+    cloud_activate_k8s(pod_id);
     Ok(())
 }
 
@@ -151,8 +152,9 @@ pub async fn activate_pod(pod_id: &str) -> Result<(), ServiceError> {
 pub async fn deactivate_pod(pod_id: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
     PodService::deactivate_pod(&ctx, pod_id).await?;
-    // Best-effort cloud deactivation: stop Fly Machine if configured
+    // Best-effort cloud deactivation: try Fly.io first, then Hetzner K3s
     cloud_deactivate(pod_id).await;
+    cloud_deactivate_k8s(pod_id);
     Ok(())
 }
 
@@ -223,7 +225,7 @@ primary_region = "{region}"
 [[vm]]
   cpu_kind = "shared"
   cpus = 1
-  memory_mb = 768
+  memory_mb = 512
 
 [mounts]
   source = "hkask_data"
@@ -248,16 +250,6 @@ primary_region = "{region}"
   auto_stop_machines = true
   auto_start_machines = true
   min_machines_running = 0
-
-[[services]]
-  protocol = "tcp"
-  internal_port = 8448
-
-  [[services.ports]]
-    port = 8448
-    handlers = ["tls"]
-
-  auto_stop_machines = false
 
 [experimental]
   auto_rollback = true
@@ -355,7 +347,106 @@ pub fn export_k8s(
 
     // --- statefulset.yaml ---
     let sts_yaml = format!(
-        "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: kask\n  namespace: {namespace}\nspec:\n  serviceName: kask\n  replicas: 1\n  selector:\n    matchLabels:\n      app: kask\n  template:\n    metadata:\n      labels:\n        app: kask\n        pod-id: \"{pod_id}\"\n    spec:\n      containers:\n        - name: kask\n          image: {container_registry}:kask-{version}\n          args: [\"serve\", \"--data-dir\", \"/data\", \"--pod-id\", \"{pod_id}\"]\n          ports:\n            - containerPort: 3000\n              protocol: TCP\n          envFrom:\n            - secretRef:\n                name: kask-secrets\n          volumeMounts:\n            - name: data\n              mountPath: /data\n          resources:\n            requests:\n              cpu: 100m\n              memory: 128Mi\n            limits:\n              cpu: 500m\n              memory: 512Mi\n        - name: litestream\n          image: litestream/litestream:0.5.0\n          args: [\"replicate\"]\n          envFrom:\n            - secretRef:\n                name: litestream-replica\n          volumeMounts:\n            - name: data\n              mountPath: /data\n        - name: conduit\n          image: {container_registry}:kask-{version}\n          command: [\"/usr/local/bin/conduit\"]\n          volumeMounts:\n            - name: data\n              mountPath: /data\n      volumes:\n        - name: litestream-config\n          configMap:\n            name: litestream-config\n  volumeClaimTemplates:\n    - metadata:\n        name: data\n      spec:\n        storageClassName: hcloud-volumes\n        accessModes: [ReadWriteOnce]\n        resources:\n          requests:\n            storage: {volume_size_gb}Gi\n"
+        r#"apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kask
+  namespace: {namespace}
+spec:
+  serviceName: kask
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kask
+  template:
+    metadata:
+      labels:
+        app: kask
+        pod-id: "{pod_id}"
+    spec:
+      initContainers:
+        - name: litestream-restore
+          image: litestream/litestream:0.5.0
+          args:
+            - restore
+            - -if-db-not-exists
+            - -if-replica-exists
+            - /data/kask.db
+          envFrom:
+            - secretRef:
+                name: litestream-replica
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: litestream-config
+              mountPath: /etc/litestream.yml
+              subPath: litestream.yml
+        - name: kask-migrate
+          image: {container_registry}:kask-{version}
+          command: ["kask", "migrate", "--data-dir", "/data"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      containers:
+        - name: kask
+          image: {container_registry}:kask-{version}
+          args: ["serve", "--data-dir", "/data", "--pod-id", "{pod_id}"]
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: kask-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+        - name: litestream
+          image: litestream/litestream:0.5.0
+          args: ["replicate"]
+          envFrom:
+            - secretRef:
+                name: litestream-replica
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: litestream-config
+              mountPath: /etc/litestream.yml
+              subPath: litestream.yml
+        - name: conduit
+          image: {container_registry}:kask-{version}
+          command: ["/usr/local/bin/conduit"]
+          env:
+            - name: CONDUIT_CONFIG
+              value: /etc/conduit/conduit.toml
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: conduit-config
+              mountPath: /etc/conduit
+      volumes:
+        - name: litestream-config
+          configMap:
+            name: litestream-config
+        - name: conduit-config
+          configMap:
+            name: conduit-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        storageClassName: hcloud-volumes
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: {volume_size_gb}Gi
+"#
     );
     std::fs::write(output_dir.join("statefulset.yaml"), &sts_yaml)
         .map_err(|e| format!("Failed to write statefulset.yaml: {e}"))?;
@@ -369,12 +460,10 @@ pub fn export_k8s(
 
     let litestream_endpoint = std::env::var("LITESTREAM_ENDPOINT").unwrap_or_default();
     let litestream_bucket = std::env::var("LITESTREAM_BUCKET").unwrap_or_default();
+    let litestream_access_key = std::env::var("LITESTREAM_ACCESS_KEY_ID").unwrap_or_default();
+    let litestream_secret_key = std::env::var("LITESTREAM_SECRET_ACCESS_KEY").unwrap_or_default();
 
-    // --- configmap.yaml ---
-    let cm_vars = format!(
-        r#"            access-key-id: ${{LITESTREAM_ACCESS_KEY_ID}}
-            secret-access-key: ${{LITESTREAM_SECRET_ACCESS_KEY}}"#
-    );
+    // --- configmap.yaml (litestream + conduit) ---
     let cm_yaml = format!(
         r#"apiVersion: v1
 kind: ConfigMap
@@ -394,7 +483,8 @@ data:
             path: pods/{pod_id}/kask.db
             endpoint: {litestream_endpoint}
             region: auto
-{cm_vars}
+            access-key-id: {litestream_access_key}
+            secret-access-key: {litestream_secret_key}
             force-path-style: true
       - path: /data/conduit.db
         replicas:
@@ -403,8 +493,32 @@ data:
             path: pods/{pod_id}/conduit.db
             endpoint: {litestream_endpoint}
             region: auto
-{cm_vars}
+            access-key-id: {litestream_access_key}
+            secret-access-key: {litestream_secret_key}
             force-path-style: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: conduit-config
+  namespace: {namespace}
+data:
+  conduit.toml: |
+    [global]
+    server_name = "{pod_id}.hkask.local"
+    address = "0.0.0.0"
+    port = 8008
+    [global.federation]
+    enabled = true
+    address = "0.0.0.0"
+    port = 8448
+    [global.database]
+    backend = "sqlite"
+    path = "/data/conduit.db"
+    [global.registration]
+    enabled = false
+    [global.allow_federation]
+    servers = ["*.hkask.local"]
 "#
     );
     std::fs::write(output_dir.join("configmap.yaml"), &cm_yaml)
@@ -446,6 +560,86 @@ stringData:
         .map_err(|e| format!("Failed to write secrets.yaml: {e}"))?;
 
     Ok(())
+}
+
+/// Try to activate a pod on Hetzner K3s by applying its manifests.
+/// No-op if kubectl is not available or KUBECONFIG is not set.
+fn cloud_activate_k8s(pod_id: &str) {
+    // Check kubectl availability
+    if std::process::Command::new("kubectl")
+        .arg("version")
+        .arg("--client")
+        .output()
+        .is_err()
+    {
+        return;
+    }
+
+    let namespace = format!("hkask-pod-{pod_id}");
+    let output_dir = std::env::temp_dir().join(format!("hkask-k8s-{pod_id}"));
+
+    // Generate manifests
+    if let Err(e) = export_k8s(pod_id, 10, 3, &output_dir) {
+        tracing::warn!(target: "cns.cloud", pod_id = %pod_id, error = %e, "Failed to generate K8s manifests");
+        return;
+    }
+
+    // Apply
+    match std::process::Command::new("kubectl")
+        .arg("apply")
+        .arg("-f")
+        .arg(&output_dir)
+        .output()
+    {
+        Ok(out) if out.status.success() => {
+            tracing::info!(target: "cns.cloud", pod_id = %pod_id, "K8s manifests applied");
+        }
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            tracing::warn!(target: "cns.cloud", pod_id = %pod_id, error = %stderr, "kubectl apply failed");
+        }
+        Err(e) => {
+            tracing::warn!(target: "cns.cloud", pod_id = %pod_id, error = %e, "Failed to run kubectl");
+        }
+    }
+
+    // Clean up temp manifests
+    let _ = std::fs::remove_dir_all(&output_dir);
+}
+
+/// Try to deactivate a pod on Hetzner K3s by scaling its StatefulSet to zero.
+fn cloud_deactivate_k8s(pod_id: &str) {
+    if std::process::Command::new("kubectl")
+        .arg("version")
+        .arg("--client")
+        .output()
+        .is_err()
+    {
+        return;
+    }
+
+    let namespace = format!("hkask-pod-{pod_id}");
+
+    match std::process::Command::new("kubectl")
+        .arg("scale")
+        .arg("statefulset")
+        .arg("kask")
+        .arg("--replicas=0")
+        .arg("-n")
+        .arg(&namespace)
+        .output()
+    {
+        Ok(out) if out.status.success() => {
+            tracing::info!(target: "cns.cloud", pod_id = %pod_id, "K8s StatefulSet scaled to zero");
+        }
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            tracing::warn!(target: "cns.cloud", pod_id = %pod_id, error = %stderr, "kubectl scale failed");
+        }
+        Err(e) => {
+            tracing::warn!(target: "cns.cloud", pod_id = %pod_id, error = %e, "Failed to run kubectl");
+        }
+    }
 }
 
 /// Try to activate a pod on Hetzner K3s by applying its manifests.

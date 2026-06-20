@@ -28,6 +28,7 @@ members = [
     "crates/hkask-templates",
     "crates/hkask-agents",
     "crates/hkask-keystore",
+    "crates/hkask-ledger",
     "crates/hkask-wallet",
     "crates/hkask-mcp",
     "crates/hkask-cli",
