@@ -10,15 +10,6 @@ crate:
     corrective action plans with verification steps.
 
 templates:
-  - id: rca/corrective-action
-    path: corrective-action.j2
-    type: KnowAct
-    lexicon_terms: [fix, plan, recommend, verify]
-    description: >
-      Define corrective actions for validated root causes. Produces
-      action items with owners, deadlines, systemic improvements,
-      and a verification plan.
-
   - id: rca/define-problem
     path: define-problem.j2
     type: KnowAct
@@ -26,14 +17,7 @@ templates:
     description: >
       Define and scope a problem with precise, measurable specification.
       Distinguishes symptoms from potential causes and assigns severity.
-
-  - id: rca/five-whys-chain
-    path: five-whys-chain.j2
-    type: KnowAct
-    lexicon_terms: [trace, analyze, verify]
-    description: >
-      Build 5-Whys causal chains from prioritized causes to validated root
-      causes. Cross-references chain outputs for consistency.
+      First step in the RCA pipeline.
 
   - id: rca/ishikawa-6m
     path: ishikawa-6m.j2
@@ -42,4 +26,23 @@ templates:
     description: >
       Perform Ishikawa fishbone analysis across the 6M categories:
       Machine, Method, Material, Measurement, Man, and Environment.
-      Produces prioritized potential causes.
+      Produces prioritized potential causes. Second step: takes the
+      problem definition and decomposes it into candidate causes.
+
+  - id: rca/five-whys-chain
+    path: five-whys-chain.j2
+    type: KnowAct
+    lexicon_terms: [trace, analyze, verify]
+    description: >
+      Build 5-Whys causal chains from the prioritized causes produced
+      by ishikawa-6m. Validates each cause path to a confirmed root
+      cause. Third step in the RCA pipeline.
+
+  - id: rca/corrective-action
+    path: corrective-action.j2
+    type: KnowAct
+    lexicon_terms: [fix, plan, recommend, verify]
+    description: >
+      Define corrective actions for validated root causes. Produces
+      action items with owners, deadlines, systemic improvements,
+      and a verification plan. Final step in the RCA pipeline.

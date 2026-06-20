@@ -36,15 +36,6 @@ templates:
       omissions. Analyzes what is not said against expectations, biases,
       and assumptions.
 
-  - id: knowact/falstaffian-perspective
-    path: falstaffian-perspective.j2
-    type: KnowAct
-    lexicon_terms: [calibrate, reflect, evaluate]
-    description: >
-      Generate multiple perspective variants from a given input using the
-      Falstaffian perspective engine. Produces diverse viewpoints with
-      variance reporting for controlled exploration.
-
   - id: knowact/reflect
     path: reflect.j2
     type: KnowAct

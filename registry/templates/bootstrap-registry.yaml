@@ -101,7 +101,7 @@
   cascade_level: 0
   matroshka_limit: 7
 
-- id: knowact/falstaffian-perspective
+- id: falstaffian-perspective/falstaffian-perspective
   template_type: KnowAct
   name: "Falstaffian Perspective"
   lexicon_terms:
@@ -110,8 +110,12 @@
     - select
     - execute
     - verify
-  description: "Multi-iteration perspective generation through semantic shape transforms"
-  source_path: registry/templates/knowact/falstaffian-perspective.j2
+    - compose
+    - transform
+    - discriminate
+    - evaluate
+  description: "Multi-iteration perspective generation through Falstaffian shape vectors"
+  source_path: registry/templates/falstaffian-perspective/falstaffian-perspective.j2
   required_capabilities: []
   cascade_level: 0
   matroshka_limit: 7

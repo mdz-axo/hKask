@@ -64,12 +64,12 @@ Recommend specific defenses from each applicable layer:
 
 | Layer | Defense Type | Focus | hKask Component |
 |-------|-------------|-------|----------------|
-| **1. Sanitize** | Input sanitization | Strip/neutralize injection patterns | `InferenceFilter` trait |
-| **2. Isolate** | Instruction isolation | Separate system instructions from user data | `InstructionSeparator` |
-| **3. Canary** | Canary tokens | Embed detectable markers in system prompts | `CanaryManager` |
-| **4. Restrict** | Capability restriction | Limit available tools/actions per context | OCAP capabilities |
-| **5. Monitor** | Output monitoring | Detect leakage in model outputs | `OutputMonitor` |
-| **6. Audit** | Audit logging | Record all inputs/outputs for forensic analysis | `AuditLog` |
+| **1. Sanitize** | Input sanitization | Strip/neutralize injection patterns | `[PLANNED]` InferenceFilter (model selector) |
+| **2. Isolate** | Instruction isolation | Separate system instructions from user data | `[PLANNED]` InstructionSeparator |
+| **3. Canary** | Canary tokens | Embed detectable markers in system prompts | `[PLANNED]` CanaryManager |
+| **4. Restrict** | Capability restriction | Limit available tools/actions per context | `kask sovereignty verify` (OCAP consent) |
+| **5. Monitor** | Output monitoring | Detect leakage in model outputs | `cns.emit` (CNS span observability) |
+| **6. Audit** | Audit logging | Record all inputs/outputs for forensic analysis | `cns.tool.audit` (CNS span) |
 
 ## Recommendation Rules
 
@@ -77,7 +77,7 @@ Recommend specific defenses from each applicable layer:
 2. **Prefer the earliest layer** that can block the attack (defense in depth).
 3. **Note tradeoffs** — over-sanitization can break legitimate functionality. Example: stripping all markdown prevents markdown injection but also breaks markdown-formatted legitimate input.
 4. **Flag Rust-level changes separately** from YAML-level changes:
-   - **Rust-level**: Changes to `InferenceFilter` trait, `CanaryManager`, `OutputMonitor`, or other Rust components.
+   - **Rust-level**: Changes to `[PLANNED]` InferenceFilter, `[PLANNED]` CanaryManager, `[PLANNED]` OutputMonitor, or other Rust components.
    - **YAML-level**: Changes to manifest configuration, template prompts, or capability grants that can be done without code changes.
 
 ## Output Requirements
@@ -101,7 +101,7 @@ Respond with a JSON object:
   ],
   "rust_level_changes": [
     {
-      "component": "InferenceFilter|CanaryManager|OutputMonitor|other",
+      "component": "[PLANNED] InferenceFilter|[PLANNED] CanaryManager|[PLANNED] OutputMonitor|cns.emit|cns.tool.audit|other",
       "change": "What code change is needed",
       "rationale": "Why a Rust-level change is required instead of YAML configuration"
     }

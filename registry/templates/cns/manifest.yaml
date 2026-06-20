@@ -1,7 +1,7 @@
 # Infrastructure config manifest for cns
 # hKask v0.28.0
-# This directory contains CNS span selectors and configuration.
-# Not a skill template crate — no [inference] .j2 templates.
+# This directory contains CNS monitoring templates — alert selector
+# (alert-selector.j2) for the cns-monitoring FlowDef pipeline.
 
 infrastructure:
   name: cns

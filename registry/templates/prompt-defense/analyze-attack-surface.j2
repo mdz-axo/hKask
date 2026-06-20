@@ -74,16 +74,16 @@ What data could be exfiltrated through the identified attack vectors?
 
 ### 3. Trust Boundaries
 
-What trust boundaries could the attack cross?
+What trust boundaries could the attack cross? Map to hKask CNS spans where applicable.
 - User ↔ Agent boundary
-- Agent ↔ Tool boundary
-- Agent ↔ Memory boundary
+- Agent ↔ Tool boundary → `cns.tool.audit` (CNS span)
+- Agent ↔ Memory boundary → `cns.memory.crud` (CNS span)
 - Agent ↔ External system boundary
 
 ### 4. Persistence Mechanisms
 
 Could the attack establish persistence?
-- Memory contamination across sessions
+- Memory contamination across sessions → `cns.memory.crud` (CNS span)
 - Tool configuration changes
 - Stored instruction injection
 
@@ -99,7 +99,7 @@ Map concrete attack paths from threats to outcomes:
 Estimate the blast radius if the attack succeeds:
 - What data is at risk?
 - What actions could the attacker take?
-- Could the attack escalate to higher privilege?
+- Could the attack escalate to higher privilege? → `kask sovereignty verify` (OCAP consent)
 
 ## Output Requirements
 

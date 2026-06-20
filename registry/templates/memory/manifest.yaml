@@ -1,15 +1,15 @@
 # Infrastructure config manifest for memory
 # hKask v0.28.0
-# This directory contains memory subsystem selectors and template configs.
-# Not a skill template crate — no [inference] .j2 templates.
+# Memory operation templates — selector (operation-selector.j2) and
+# operation templates (remember.j2, recall.j2) for the memory-ops FlowDef pipeline.
 
 infrastructure:
   name: memory
   version: "0.28.0"
   description: >
-    Memory subsystem configuration: storage selectors and template dispatch
-    for conversation summarization, condenser integration, and context
-    window management.
+    Memory operation templates — selector (operation-selector.j2) and
+    operation templates (remember.j2, recall.j2) for the memory-ops
+    FlowDef pipeline.
   role: config
   contains:
     - selectors/

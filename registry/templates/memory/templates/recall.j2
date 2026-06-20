@@ -1,8 +1,11 @@
-{# Template: memory/templates/recall.j2 #}
-{# functional_role: wordact #}
-{# implementation_type: jinja2 #}
-{# produces: memory_retrieval_results #}
-{# Retrieve memory with visibility gating and confidence scoring #}
+[inference]
+template_type = "WordAct"
+energy_cap = 4096
+visibility = "Public"
+
+[inference.contract]
+input = ["query", "visibility_filter"]
+output = ["retrieved_memories"]
 
 You are a memory retrieval engine for hKask.
 

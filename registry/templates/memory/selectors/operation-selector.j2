@@ -1,8 +1,11 @@
-{# Template: memory/selectors/operation-selector.j2 #}
-{# functional_role: knowact #}
-{# implementation_type: jinja2 #}
-{# produces: memory_operation_selection #}
-{# Purpose: Select memory operation (remember/recall/query) #}
+[inference]
+template_type = "KnowAct"
+energy_cap = 3072
+visibility = "Public"
+
+[inference.contract]
+input = ["user_request", "context"]
+output = ["selected_operation", "confidence", "rationale"]
 
 You are a memory operation classifier for the hKask memory system.
 
@@ -16,10 +19,10 @@ Given the user's request, determine the appropriate memory operation.
 
 1. **remember** — Store new triple (entity, attribute, value)
    - Use when: User provides new information to persist
-   
+
 2. **recall** — Retrieve specific triple by entity/attribute
    - Use when: User asks for specific fact
-   
+
 3. **query** — Search triples with filters
    - Use when: User asks broad question or wants similarity search
 

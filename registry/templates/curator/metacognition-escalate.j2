@@ -1,5 +1,22 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [escalate, prioritize, rank, evaluate, classify]
+contract:
+  input:
+    critical_issues: array
+    system_health: string
+    variety_deficit: number
+    active_alerts: array
+    bot_failures: array
+    energy_budget_status: string
+    required_actions: array
+  output:
+    notification: string
+energy_cap: 4096
+visibility: Public
+---
 {# Template: curator/metacognition-escalate.j2 #}
-{# functional_role: wordact #}
+{# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# produces: administrator_escalation #}
 {# Purpose: Prepare escalation to hKask Administrator #}

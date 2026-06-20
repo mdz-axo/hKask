@@ -1,8 +1,11 @@
-{# Template: cns/selectors/alert-selector.j2 #}
-{# functional_role: knowact #}
-{# implementation_type: jinja2 #}
-{# produces: alert_classification #}
-{# Purpose: Select CNS alert type based on span observations #}
+[inference]
+template_type = "KnowAct"
+energy_cap = 3072
+visibility = "Public"
+
+[inference.contract]
+input = ["span_observations"]
+output = ["alert_classification"]
 
 You are a CNS alert classifier for the hKask cybernetic monitoring system.
 

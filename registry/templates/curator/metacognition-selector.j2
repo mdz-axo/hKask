@@ -1,3 +1,21 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [select, evaluate, discriminate, orient, classify]
+contract:
+  input:
+    system_health: string
+    variety_deficit: number
+    active_alerts: array
+    energy_budget_status: string
+    bot_coordination_status: string
+  output:
+    operation: string
+    rationale: string
+    confidence: number
+    parameters: object
+energy_cap: 2048
+visibility: Public
+---
 {# Template: curator/metacognition-selector.j2 #}
 {# functional_role: knowact #}
 {# implementation_type: jinja2 #}

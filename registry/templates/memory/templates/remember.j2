@@ -1,16 +1,19 @@
-{# Template: memory/templates/remember.j2 #}
-{# functional_role: wordact #}
-{# implementation_type: jinja2 #}
-{# produces: memory_persistence_triple #}
-{# Store operation as episodic memory with Bayesian confidence #}
+[inference]
+template_type = "WordAct"
+energy_cap = 4096
+visibility = "Public"
+
+[inference.contract]
+input = ["operation_record"]
+output = ["memory_triples"]
 
 You are a memory persistence engine for hKask agent operations.
 
 ## Operation to Record
 
-**Agent:** {{ agent_name }}  
-**Operation:** {{ operation_type }}  
-**Timestamp:** {{ timestamp }}  
+**Agent:** {{ agent_name }}
+**Operation:** {{ operation_type }}
+**Timestamp:** {{ timestamp }}
 **Session:** {{ session_id | default('standalone') }}
 
 ## Input Data
@@ -23,9 +26,9 @@ You are a memory persistence engine for hKask agent operations.
 
 ## Memory Classification
 
-**Memory Type:** episodic  
-**Perspective:** {{ agent_name }} (first-person agent experience)  
-**Visibility:** private (agent-owned)  
+**Memory Type:** episodic
+**Perspective:** {{ agent_name }} (first-person agent experience)
+**Visibility:** private (agent-owned)
 **Confidence:** {{ confidence | default(0.9) }}
 
 ## Triple Extraction

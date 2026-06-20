@@ -442,3 +442,54 @@ Conclusion:
 The Curator guards the space for what is not inferno.
 BaNANa.
 {% endmacro %}
+
+{# =============================================================================
+   OUTPUT — Invoke macros against contract inputs
+   Contract: (text, expectations, biases, assumptions, domain) → (analysis: object)
+   ============================================================================= #}
+
+{% set text = text | default('') %}
+{% set expectations = expectations | default([]) %}
+{% set biases = biases | default([]) %}
+{% set assumptions = assumptions | default([]) %}
+{% set domain = domain | default('general') %}
+
+{% if text | length > 0 %}
+
+# Ellipsis Analysis
+
+**Domain:** {{ domain }}
+**Biases checked:** {{ biases | length }}
+**Assumptions questioned:** {{ assumptions | length }}
+**Expectations mapped:** {{ expectations | length }}
+
+---
+
+## 1. Read Deeply
+
+{{ read_deeply(text) }}
+
+## 2. Mind the Gaps
+
+{{ mind_the_gaps(text, expectations) }}
+
+## 3. See Past Yourself
+
+{{ see_past_yourself(biases, assumptions) }}
+
+## 4. Curator's Bloom Analysis
+
+{{ curator_analysis(text, domain) }}
+
+---
+
+*Ellipsis Analysis — Bloom Method*
+*"We owe mediocrity nothing." — Harold Bloom*
+
+{% else %}
+
+# Ellipsis Analysis
+
+*No text provided. Analysis empty.*
+
+{% endif %}

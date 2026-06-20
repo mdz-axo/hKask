@@ -10,11 +10,5 @@ crate:
     detailed reasoning per criterion.
 
 templates:
-  - id: kanban-task-delegation/verify-completion
-    path: verify-completion.j2
-    type: KnowAct
-    lexicon_terms: [verify, evaluate, assess]
-    description: >
-      Verify a delegated task's completion by evaluating each acceptance
-      criterion against delivered artifacts and provided evidence.
-      Produces a pass/fail verdict with per-criterion results.
+  # verify-completion.j2 is now served by the kanban-task-management crate.
+  # Both delegation and management paths resolve to the same template.

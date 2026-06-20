@@ -1,5 +1,25 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [monitor, observe, verify, assess, evaluate]
+contract:
+  input:
+    system_health: string
+    variety_deficit: number
+    threshold: number
+    active_alerts: array
+    bot_success_rate: number
+    energy_efficiency: number
+    next_synthesis_interval: string
+  output:
+    status: string
+    intervention_required: boolean
+    next_check: string
+    watch_items: array
+energy_cap: 2048
+visibility: Public
+---
 {# Template: curator/metacognition-maintain.j2 #}
-{# functional_role: wordact #}
+{# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# produces: maintenance_status #}
 {# Purpose: Continue normal operations with no intervention #}

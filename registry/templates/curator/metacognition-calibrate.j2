@@ -1,5 +1,18 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [calibrate, regulate, assess, evaluate, adapt]
+contract:
+  input:
+    bot_configs: array
+  output:
+    adjustments: array
+    rationale: string
+    expected_improvement: object
+energy_cap: 4096
+visibility: Public
+---
 {# Template: curator/metacognition-calibrate.j2 #}
-{# functional_role: wordact #}
+{# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# produces: calibration_adjustments #}
 {# Purpose: Calibrate system thresholds and energy budgets #}

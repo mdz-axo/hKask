@@ -1,3 +1,26 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [synthesize, observe, analyze, assess, orient]
+contract:
+  input:
+    bot_reports: array
+    cns: object
+    system_health: string
+    uptime: string
+    energy_budget_remaining: number
+    active_sessions: number
+    dispatch_success_rate: number
+  output:
+    system_health: string
+    variety_deficit: number
+    active_alerts: array
+    bot_status: object
+    priority_issues: array
+    metacognition_required: boolean
+    escalation_required: boolean
+energy_cap: 4096
+visibility: Public
+---
 {# Template: curator/system_state_gather.j2 #}
 {# functional_role: knowact #}
 {# implementation_type: jinja2 #}

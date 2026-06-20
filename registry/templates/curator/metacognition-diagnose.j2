@@ -1,5 +1,20 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [detect, analyze, evaluate, classify, infer]
+contract:
+  input:
+    issues: array
+  output:
+    diagnosis: string
+    affected_components: array
+    remediation_plan: array
+    estimated_recovery_time: string
+    administrator_action_required: boolean
+energy_cap: 4096
+visibility: Public
+---
 {# Template: curator/metacognition-diagnose.j2 #}
-{# functional_role: wordact #}
+{# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# produces: diagnosis_result #}
 {# Purpose: Diagnose system issues and propose remediation #}

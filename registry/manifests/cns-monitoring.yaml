@@ -24,14 +24,6 @@ steps:
           enum: [low, medium, high, critical]
 
   - ordinal: 2
-    action: populate
-    template_ref: cns/templates/variety-counter.j2
-    renderer: minijinja
-    bindings:
-      span_namespace: "${input.span_namespace}"
-      time_window: "${input.time_window}"
-
-  - ordinal: 3
     action: execute
     target: cns_alert
     mcp: hkask-mcp-memory # CNS feedback now via memory server
