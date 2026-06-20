@@ -26,8 +26,8 @@ This skill's runtime templates live in `registry/templates/qa-script-builder/`:
 | `qa-persona.j2` | KnowAct | Phase 0: Generate diverse QA testing scenarios from persona + goal using Falstaffian perspective rotation and grill-me adversarial probing |
 | `qa-discover.j2` | KnowAct | Phase 1: Discover the test surface — crate, failure modes, existing fuzz coverage, what needs testing (accepts persona scenario or raw intent) |
 | `qa-design.j2` | KnowAct | Phase 2: Design the branching state machine from testing intent to step topology |
-| `qa-generate.j2` | KnowAct | Phase 3: Generate the complete YAML manifest from the designed topology |
-| `qa-validate.j2` | KnowAct | Phase 4: Validate the manifest against schema, check branch referential integrity, ensure classifier configs exist |
+| `qa-generate.j2` | KnowAct | Phase 3: Generate the YAML manifest. Supports `caveman` mode for ultra-minimal CI output. |
+| `qa-validate.j2` | KnowAct | Phase 4: Validate the manifest. Supports `essentialist` mode for 3-gate deletion test. |
 
 The SKILL.md (this file) teaches the Zed coding agent the QA script design methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
 
@@ -201,6 +201,8 @@ Produce the YAML manifest with all sections: `manifest`, `gas`, `steps`, `error_
 
 Every step ordinal must be unique. Every branch target must reference an existing ordinal. Classifier names must match existing configs in `registry/classify/`.
 
+**Caveman mode** (`caveman: true`): For CI-tight budgets, strips descriptions, uses inline branching syntax, caps gas at minimum viable, and removes non-execution-critical sections (`inputs`, `audit`, `cns_span` on non-alert steps).
+
 ### Phase 4: Validate
 
 Check the generated manifest:
@@ -216,6 +218,12 @@ Check the generated manifest:
 | Gas budget is sensible | Warning | For CI scripts, cap should reflect actual token estimates |
 | No duplicate ordinals | Error | Every step must have a unique ordinal |
 | At least one terminal state | Warning | Script must be able to terminate |
+
+**Essentialist mode** (`essentialist: true`): Applies 3-gate deletion test to every step:
+- **Exist** — delete the step; does any behavior vanish?
+- **Surface** — do multiple branch conditions route to the same target? Merge them.
+- **Contract** — would a single retry suffice instead of a loop? Tighten it.
+Emits an `essentialist_report` with findings classified by constraint force (prohibition/guardrail/guideline/hypothesis).
 
 ## Common Script Patterns
 

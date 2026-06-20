@@ -425,48 +425,11 @@ kask pod export fly my-first-pod
 
 ### 5.6 DNS Configuration
 
-DNS setup depends on your cloud provider. Do this BEFORE deploying (DNS propagation takes time).
+**For v1, no DNS configuration is needed.** Fly.io automatically provides `{app-name}.fly.dev` domains with TLS certificates for every app. Your pods are accessible at `hkask-pod-{id}.fly.dev` and Conduit at `hkask-conduit.fly.dev`.
 
-#### Fly.io DNS
+Custom domains (e.g., `hkask.your-domain.com`) are a v2 feature alongside crypto integration.
 
-```bash
-# 1. Set your domain
-HKASK_BASE_URL=https://hkask.your-domain.com
-
-# 2. Add DNS records at your registrar:
-#    Type: A     Name: hkask     Value: <Fly.io IPv4>     (from: fly ips list)
-#    Type: AAAA  Name: hkask     Value: <Fly.io IPv6>     (from: fly ips list)
-
-# 3. Certify Fly.io to handle TLS:
-fly certs create hkask.your-domain.com
-
-# 4. Verify DNS:
-dig hkask.your-domain.com +short
-```
-
-#### Hetzner DNS
-
-```bash
-# 1. Set your domain
-HKASK_BASE_URL=https://hkask.your-domain.com
-
-# 2. Deploy the K8s ingress first (get the Load Balancer IP):
-kask pod export k8s my-first-pod
-kubectl apply -f k8s-manifests/
-kubectl get svc -n hkask-pod-my-first-pod
-# Note the EXTERNAL-IP of the LoadBalancer service
-
-# 3. Add DNS records at your registrar:
-#    Type: A     Name: hkask     Value: <LoadBalancer EXTERNAL-IP>
-
-# 4. Verify DNS:
-dig hkask.your-domain.com +short
-
-# 5. Verify TLS (cert-manager auto-provisions after DNS resolves):
-curl https://hkask.your-domain.com/health
-```
-
-> **DNS propagation note:** DNS changes can take up to 48 hours to propagate globally, though most resolvers update within 15-30 minutes. Start DNS setup early.
+> If you do want a custom domain now: add A/AAAA records at your registrar pointing to Fly.io IPs (from `fly ips list`), then run `fly certs create your-domain.com`. After DNS propagates, update `HKASK_BASE_URL` and restart Conduit.
 
 ---
 
@@ -752,10 +715,9 @@ kask pod export k8s my-pod                    # Generate K8s manifests
 kubectl apply -f k8s-manifests/               # Deploy to cluster
 kubectl logs -n hkask-pod-my-pod statefulset/kask
 
-# --- Verify (both providers) ---
-curl https://hkask.your-domain.com/health     # Health check
-# Litestream: fly ssh console / kubectl exec — litestream generations
-# Conduit:    curl :8448/_matrix/federation/v1/version
+# --- Verify ---
+curl https://hkask-pod-my-pod.fly.dev/health      # Health check
+# Litestream: fly ssh console -C "litestream generations /data/kask.db"
 ```
 
 ---

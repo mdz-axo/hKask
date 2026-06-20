@@ -10,11 +10,13 @@ contract:
   input:
     yaml_manifest: string
     available_classifiers: array
+    essentialist: boolean
   output:
     valid: boolean
     errors: array
     warnings: array
     fix_suggestions: array
+    essentialist_report: object
 energy_cap: 4096
 visibility: Public
 ---
@@ -31,6 +33,38 @@ max_tokens = 4096
 thinking_budget = "full"
 
 You are a QA manifest validator. Given a generated YAML manifest, validate it structurally and semantically. The manifest will be executed by `QaScriptRunner` via `kask qa run --script`. You must catch errors before runtime.
+
+{% if essentialist %}
+## ESSENTIALIST MODE — 3-Gate Deletion Test
+
+In addition to standard validation, apply the eliminative interrogation to every step. The default answer to "should this exist?" is **no**.
+
+**Gate 1 — Exist (Deletion Test).** For each step, ask: "If I delete this step, does any behavior vanish?"
+- If the step only echoes a message (e.g., `echo "escalated"`) and no downstream step depends on its outcome — suggest deletion.
+- If deleting the step causes no branch to become unresolvable — the step is decorative. Flag it.
+
+**Gate 2 — Surface (Branch Merge).** For each branching table, ask: "Do multiple branch conditions route to the same target?"
+- If `medium_confidence` and `low_confidence` both route to ordinal 4 — suggest merging into a single `ambiguous` condition.
+- If a step has 5 branch conditions but only 2 distinct targets — the branching is overspecified. Suggest compression.
+
+**Gate 3 — Contract (Loop Necessity).** For each loop step, ask: "Would a single retry suffice?"
+- If `max_iterations > 2` and the loop's success rate is unknown — suggest reducing to 2.
+- If a loop has no `loop_exhausted` branch AND no terminal condition reachable within iterations — flag as potential infinite loop.
+- If the loop command is stateless (e.g., `echo retry`) — the loop is testing loop infrastructure, not the system. Flag as meta-test.
+
+**Output format for each finding:**
+```
+{ "step": 3, "gate": "exist", "finding": "Terminal step prints no actionable information", "force": "guideline", "suggestion": "Delete step 3 — no behavior lost" }
+```
+
+**Force classification (constraint-forces):**
+- `prohibition`: Behavior absolutely lost on deletion — do NOT suggest deletion.
+- `guardrail`: Step is overspecified but functional — suggest merge/compress.
+- `guideline`: Step adds no value but deleting it doesn't break anything — suggest deletion.
+- `hypothesis`: Unclear if step is needed — flag for human review.
+
+Every finding must include a concrete `suggestion`. Do not flag what you can't fix.
+{% endif %}
 
 ## Manifest to Validate
 
@@ -110,7 +144,35 @@ Respond with a JSON object:
       "description": "Replace ordinal 99 with 4 (escalation step)",
       "diff": "  branching:\n    high_confidence: 4"
     }
-  ]
+  ],
+  "essentialist_report": {
+    "steps_pruned": 1,
+    "branches_merged": 2,
+    "loops_tightened": 1,
+    "findings": [
+      {
+        "step": 3,
+        "gate": "exist",
+        "finding": "Terminal step prints no actionable information",
+        "force": "guideline",
+        "suggestion": "Delete step 3 — no behavior lost"
+      },
+      {
+        "step": 2,
+        "gate": "surface",
+        "finding": "medium_confidence and low_confidence both route to ordinal 4",
+        "force": "guardrail",
+        "suggestion": "Merge into single 'ambiguous' branch condition"
+      },
+      {
+        "step": 5,
+        "gate": "contract",
+        "finding": "Loop max_iterations=5 but success rate unknown",
+        "force": "guideline",
+        "suggestion": "Reduce max_iterations to 2 — add loop_exhausted branch"
+      }
+    ]
+  }
 }
 ```
 
@@ -119,6 +181,7 @@ Respond with a JSON object:
 - Every error must include a concrete `fix` suggestion.
 - Every warning must include a concrete `recommendation`.
 - `fix_suggestions` should provide actionable diffs or rewrites.
+- `essentialist_report` is present only when `essentialist: true`. When enabled, it contains findings from the 3-gate deletion test. Findings are advisory — they don't affect `valid`. The report summarizes `steps_pruned`, `branches_merged`, and `loops_tightened` counts.
 
 ## Constraints
 

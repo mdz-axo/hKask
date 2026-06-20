@@ -1,8 +1,11 @@
-//! Cloud provider integrations for pod lifecycle management.
+//! Cloud provider integrations.
 //!
-//! Each provider implements operations needed by `kask pod activate`,
-//! `kask pod deactivate`, and `kask pod export`.
+//! Re-exports from hkask-services-cloud for CLI access.
+//! The canonical implementations live in the service layer.
 
-pub mod fly;
-pub mod hetzner;
-pub mod tigris;
+pub use hkask_services_cloud::fly::{
+    self, FlyClient, MachineConfig, MachineGuest, MachineMount, MachinePort, MachineService,
+    MachineSpec,
+};
+pub use hkask_services_cloud::tigris;
+pub use hkask_services_cloud::hetzner;

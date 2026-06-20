@@ -82,7 +82,7 @@ Activate the relevant skill via `skill` tool when its conditions are met. **45 s
 | **dokkodo-mindset** | Perceptual filter based on Musashi's 21 Dokkodo precepts. Clarifies perception by removing attachment and bias. |
 | **falstaffian-perspective** | Multi-iteration perspective generation through semantic shape transforms with inference enrichment. |
 | **logo-builder** | Pragmatic logo design using LLM-assisted generation. 3-phase pipeline: discovery → formal generation → refinement. |
-| **qa-script-builder** | Design and generate autonomous QA pipeline manifests. 4-phase pipeline: discover → design → generate → validate. Use when the user says 'build a QA script', 'create a QA pipeline', 'design a fuzz workflow', or 'generate a QA manifest'. |
+| **qa-script-builder** | Design and generate autonomous QA pipeline manifests. 5-phase pipeline: persona → discover → design → generate → validate. Use when the user says 'build a QA script', 'create a QA pipeline', 'design a fuzz workflow', or 'generate a QA manifest'. |
 
 ---
 

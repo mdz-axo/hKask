@@ -1173,9 +1173,9 @@ For partners running hKask as critical infrastructure, the following are non-neg
 
   **Conduit architecture simplified:** Conduit is now a shared Fly App deployed by `kask curator init`, not a per-pod sidecar. All pods connect as Matrix clients. No federation, no :8448, no supervisord. Scale-to-zero works. Memory: 512MB.
 
-- [ ] `kask curator init` — deploys shared Conduit Fly App, creates Matrix accounts
-- [ ] DNS automation — `fly certs create` + validation
-- [ ] Admin workflow test — end-to-end: account creation → .env → `kask pod export fly` → `fly deploy` → health check
+  Fly.io provides auto-generated domains (`hkask-conduit.fly.dev`, `hkask-pod-{id}.fly.dev`) with automatic TLS. No DNS configuration needed for v1. Custom domains deferred to v2.
+
+- [ ] Admin workflow test — end-to-end: account creation → .env → `kask curator init` → `kask pod export fly` → `fly deploy` → health check
 - [ ] Conduit messaging test — pod-1 sends Matrix message to pod-2 via shared Conduit
 
 ### Phase 3: Path B — Hetzner + Hetzner OS (P2)

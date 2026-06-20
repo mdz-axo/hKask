@@ -1,7 +1,7 @@
 # rJoule Dual-Track Cost System — Specification
 
 **Version:** v0.30.0  
-**Status:** Approved — pending implementation  
+**Status:** Implemented (v0.30.0)  
 **Last updated:** 2026-06-20  
 **Reference:** [Software Carbon Intensity Specification](https://sci.greensoftware.foundation/) — [SCI GitHub](https://github.com/Green-Software-Foundation/sci)
 

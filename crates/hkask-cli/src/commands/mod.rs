@@ -16,6 +16,7 @@ pub mod curator;
 pub mod daemon;
 pub mod discover;
 pub mod docs;
+pub mod doctor;
 pub mod embed_corpus;
 pub mod git_cmd;
 pub mod goal;

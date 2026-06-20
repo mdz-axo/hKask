@@ -112,6 +112,10 @@ pub async fn list_pods() -> Result<Vec<PodStatusResponse>, ServiceError> {
 /// post: returns Ok(String) with the created pod ID
 /// post: if persona file unreadable → Err(ServiceError::Infra)
 /// post: delegates to PodService::create_pod
+/// Deploy a new replicant pod via Fly.io.
+///
+/// Creates a Fly App, volume, secrets, and machine for the replicant.
+/// The replicant name becomes the pod identifier (e.g., "alice" → hkask-pod-alice).
 pub async fn create_pod(
     template: &str,
     persona_path: &std::path::PathBuf,
@@ -119,6 +123,7 @@ pub async fn create_pod(
 ) -> Result<String, ServiceError> {
     let yaml = std::fs::read_to_string(persona_path)
         .map_err(|e| ServiceError::Infra(hkask_types::InfrastructureError::Io(e.to_string())))?;
+
     let ctx = super::helpers::build_service_context();
     let resp = PodService::create_pod(
         &ctx,
@@ -129,7 +134,17 @@ pub async fn create_pod(
         },
     )
     .await?;
-    Ok(resp.pod_id)
+    let pod_id = resp.pod_id.clone();
+
+    // Deploy via Fly.io if configured
+    let config = hkask_services_cloud::DeployConfig::from_env(&pod_id);
+    if config.fly_token.is_empty() {
+        return Ok(pod_id);
+    }
+
+    PodService::deploy_fly_pod(&pod_id, &config).await?;
+
+    Ok(pod_id)
 }
 
 /// expect: "I can access all hKask functionality through the kask CLI"
@@ -575,7 +590,6 @@ fn cloud_activate_k8s(pod_id: &str) {
         return;
     }
 
-    let namespace = format!("hkask-pod-{pod_id}");
     let output_dir = std::env::temp_dir().join(format!("hkask-k8s-{pod_id}"));
 
     // Generate manifests
@@ -661,11 +675,12 @@ pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
                 commands::create_pod(&template, &persona, name.as_deref()),
                 "Failed to create pod"
             );
-            println!("Created agent pod: {}", pod_id);
+            println!("Pod deployed: {}", pod_id);
+            println!("URL: https://hkask-pod-{}.fly.dev", pod_id);
             println!("Template: {}", template);
             println!("Persona file: {}", persona.display());
             if let Some(n) = &name {
-                println!("Pod name: {}", n);
+                println!("Replicant: {}", n);
             }
         }
         PodAction::Activate { pod_id } => {
@@ -674,7 +689,7 @@ pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
                 commands::activate_pod(&pod_id),
                 "Failed to activate pod"
             );
-            println!("Activated agent pod: {}", pod_id);
+            println!("Pod activated: {}", pod_id);
         }
         PodAction::Deactivate { pod_id } => {
             crate::block_on!(
@@ -682,7 +697,7 @@ pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
                 commands::deactivate_pod(&pod_id),
                 "Failed to deactivate pod"
             );
-            println!("Deactivated agent pod: {}", pod_id);
+            println!("Pod deactivated: {}", pod_id);
         }
         PodAction::Status { pod_id, verbose } => {
             let status = crate::block_on!(

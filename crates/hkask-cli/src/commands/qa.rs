@@ -430,13 +430,6 @@ async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Erro
 
     if report.exceeded_gas {
         println!("[QA] ⚠ rJoule budget cap exceeded");
-        tracing::warn!(
-            target: "cns.qa.cost.cap_exceeded",
-            manifest_id = %report.manifest_id,
-            total_urj = %report.cost.total_urj,
-            cap_urj = %report.cost.cap_urj,
-            "rJoule budget cap exceeded"
-        );
     }
 
     // Cost summary

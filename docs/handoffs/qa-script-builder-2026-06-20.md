@@ -54,12 +54,22 @@ Added `qa-script-builder` to the Specialized skills table in `hKask/AGENTS.md` (
 ## 2. Build & Test Status
 
 ```
-cargo check              → Clean, zero warnings
-cargo test -p hkask-test-harness → 57 passed, 0 failed
-manifest.yaml             → Valid YAML (python3 yaml parse)
+cargo check                               → Clean, zero errors, 3 pre-existing dead_code warnings (hkask-cli)
+cargo test -p hkask-test-harness          → 57 passed, 0 failed
+cargo test -p hkask-cli                   → 8 passed, 0 failed
+manifest.yaml                             → Valid YAML
+qa-persona.j2                             → Valid front matter + 7 Jinja2 expressions
 ```
 
-**⚠ hkask-cli compile error:** Pre-existing, unrelated to our changes. `reqwest::Response::text` ownership issue in `src/commands/qa.rs` (the `runpod_list_machines` function). hkask-cli lib won't compile for tests. Our `cns.qa.cost.cap_exceeded` change in `commands/qa.rs` is in the `run_script` function (line 417+) which is unaffected by the pre-existing error.
+**All CNS spans verified present in code:**
+```
+cns.qa.cost.gas_mismatch      → qa_script.rs:571-577  (warn)
+cns.qa.cost.threshold_warning → qa_script.rs:583-589  (warn)
+cns.qa.cost.api_untracked     → qa_script.rs:673-680  (warn)
+cns.qa.cost.missing_token_data → qa_script.rs:663-670  (warn)
+cns.qa.cost.cap_exceeded      → qa_script.rs:595-601  (error) — runner emits, CLI prints user message
+cns.qa.cost.step_untracked    → qa_script.rs:520-527  (warn)
+```
 
 ---
 
@@ -75,6 +85,7 @@ manifest.yaml             → Valid YAML (python3 yaml parse)
 | `crates/hkask-test-harness/src/qa_script.rs` | Modified | Added `gas_before` tracking + `step_untracked` CNS span |
 | `crates/hkask-cli/src/commands/qa.rs` | Modified | Added `cap_exceeded` CNS span (tracing::warn!) |
 | `docs/handoffs/qa-script-builder-2026-06-20.md` | Modified | This handoff |
+| `docs/architecture/specs/rjoule-cost-system.md` | Modified | Status: Approved→Implemented |
 
 ---
 

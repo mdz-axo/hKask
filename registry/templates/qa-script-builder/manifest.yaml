@@ -49,7 +49,8 @@ templates:
     description: >
       Generate the complete YAML manifest from the designed step topology.
       Include all sections: manifest metadata, gas, steps, error_handling,
-      CNS, and audit.
+      CNS, and audit. Supports `caveman` mode for ultra-minimal CI-optimized output
+      (strips descriptions, tight gas caps, minimal branching).
 
   - id: qa-script-builder/qa-validate
     path: qa-validate.j2
@@ -58,4 +59,6 @@ templates:
     description: >
       Validate a generated manifest against the QaScriptManifest schema.
       Check branch referential integrity, classifier config existence,
-      gas budget sensibility, orphan steps, and duplicate ordinals.
+      gas budget sensibility, orphan steps, and duplicate ordinals. Supports
+      `essentialist` mode for 3-gate deletion test (Exist → Surface → Contract)
+      with constraint-force classified findings.

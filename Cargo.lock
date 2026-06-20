@@ -4082,6 +4082,7 @@ dependencies = [
  "hkask-memory",
  "hkask-services",
  "hkask-services-backup",
+ "hkask-services-cloud",
  "hkask-storage",
  "hkask-templates",
  "hkask-types",
@@ -4126,6 +4127,7 @@ dependencies = [
  "hkask-memory",
  "hkask-services",
  "hkask-services-classify",
+ "hkask-services-cloud",
  "hkask-storage",
  "hkask-templates",
  "hkask-test-harness",
@@ -4280,6 +4282,21 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "zeroize",
+]
+
+[[package]]
+name = "hkask-ledger"
+version = "0.30.0"
+dependencies = [
+ "chrono",
+ "hkask-test-harness",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -4806,6 +4823,7 @@ dependencies = [
  "hkask-memory",
  "hkask-services-backup",
  "hkask-services-classify",
+ "hkask-services-cloud",
  "hkask-services-context",
  "hkask-services-core",
  "hkask-services-daemon",
@@ -4875,6 +4893,17 @@ dependencies = [
  "serde_json",
  "serde_yaml_neo",
  "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "hkask-services-cloud"
+version = "0.30.0"
+dependencies = [
+ "hkask-types",
+ "reqwest",
+ "serde",
+ "serde_json",
  "tracing",
 ]
 

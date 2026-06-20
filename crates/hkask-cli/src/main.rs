@@ -105,6 +105,8 @@ fn main() {
 
         Commands::Models => commands::models::run(&rt),
 
+        Commands::Doctor => commands::doctor::run_doctor_cmd(&rt),
+
         Commands::Onboard => commands::onboard::run(&rt),
 
         Commands::Settings { action } => commands::settings::run(action),

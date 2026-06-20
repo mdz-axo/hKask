@@ -3,7 +3,6 @@
 use axum::Json;
 use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
-use hkask_agents::pod::AgentPersona;
 use hkask_services::ServiceError;
 use hkask_types::DelegationResource;
 use utoipa_axum::router::OpenApiRouter;
@@ -120,8 +119,8 @@ async fn create_pod(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, ServiceErrorResponse> {
-    // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_create", "CNS");
+
     let token = auth.token.as_ref().ok_or_else(|| ServiceError::A2A {
         message: "Session auth not supported for pod creation".to_string(),
     })?;
@@ -140,20 +139,25 @@ async fn create_pod(
         }
         .into());
     }
-    let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| ServiceError::Pod {
-        message: e.to_string(),
-    })?;
-    let pm = state.agent_service.pod_manager();
-    let pod_id = pm
-        .create_pod(
-            &req.template,
-            &persona,
-            req.name,
-            hkask_agents::pod::PodKind::Replicant,
-        )
-        .await?;
+
+    let resp = hkask_services::PodService::create_pod(
+        &state.agent_service,
+        hkask_services::CreatePodRequest {
+            template: req.template,
+            persona_yaml: req.persona_yaml,
+            name: req.name,
+        },
+    )
+    .await?;
+
+    // Deploy via Fly.io if the Curator pod has FLY_API_TOKEN configured
+    let config = hkask_services_cloud::DeployConfig::from_env(&resp.pod_id);
+    if !config.fly_token.is_empty() {
+        let _url = hkask_services::PodService::deploy_fly_pod(&resp.pod_id, &config).await?;
+    }
+
     Ok(Json(CreatePodResponse {
-        pod_id: pod_id.to_string(),
+        pod_id: resp.pod_id,
     }))
 }
 

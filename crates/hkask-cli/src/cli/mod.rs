@@ -185,6 +185,9 @@ pub enum Commands {
     /// List available LLM models
     Models,
 
+    /// Validate all configured providers and API keys
+    Doctor,
+
     /// Add a new replicant to an existing hKask installation
     Onboard,
 

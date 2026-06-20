@@ -365,6 +365,12 @@ pub enum CuratorAction {
         id: String,
     },
     Metacognition,
+    /// Initialize the hKask system: deploy shared Conduit, create org tokens
+    Init {
+        /// Domain for the hKask installation (e.g., hkask.example.com)
+        #[arg(long, default_value = "localhost")]
+        domain: String,
+    },
 }
 
 /// Replicant identity actions
