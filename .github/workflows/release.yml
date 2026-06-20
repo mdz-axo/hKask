@@ -13,10 +13,14 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  RUSTFLAGS: "-D warnings"
+  RUSTFLAGS: "-D warnings -C link-arg=-Wl,-z,relro,-z,now"
   CARGO_INCREMENTAL: 0
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
@@ -45,7 +49,7 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Run tests
-        run: cargo test --workspace --lib
+        run: cargo test --workspace
 
       - name: Build documentation
         run: cargo doc --workspace --no-deps
@@ -93,6 +97,7 @@ jobs:
       - name: Package binary
         run: |
           mkdir -p release
+          strip target/${{ matrix.target }}/release/kask
           cp target/${{ matrix.target }}/release/kask release/
           cp README.md release/
           if [ -f LICENSE ]; then cp LICENSE release/; fi

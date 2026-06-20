@@ -12,6 +12,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -51,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
-      - run: cargo build --workspace --all-targets
+      - run: cargo build --workspace --lib
 
   # ── Stage 3: Test + doc (depends on clippy + build) ──────────────────────
   test:
@@ -116,8 +120,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
-        with:
-          cache-key: fuzz-${{ matrix.group }}
       - name: Install bolero system deps
         run: sudo apt-get install -y --no-install-recommends binutils-dev libunwind-dev
       - name: Fuzz group ${{ matrix.group }}

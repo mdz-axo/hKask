@@ -241,12 +241,20 @@ clone_repo() {
     rm -rf "$clone_dir"
 
     # Try version tag first, fall back to main branch
-    if git clone --depth 1 --branch "v${HKASK_VERSION}" "$HKASK_REPO_URL" "$clone_dir" 2>/dev/null; then
+    local clone_err
+    clone_err=$(git clone --depth 1 --branch "v${HKASK_VERSION}" "$HKASK_REPO_URL" "$clone_dir" 2>&1) && {
         log "Checked out tag v${HKASK_VERSION}"
-    else
-        log "Tag v${HKASK_VERSION} not found, cloning main branch"
-        git clone --depth 1 "$HKASK_REPO_URL" "$clone_dir"
-    fi
+    } || {
+        # Only fall back if the error is "tag not found", not a network failure
+        if echo "$clone_err" | grep -qE '(Remote branch.*not found|pathspec.*did not match|could not find remote branch)'; then
+            log "Tag v${HKASK_VERSION} not found, cloning main branch"
+            git clone --depth 1 "$HKASK_REPO_URL" "$clone_dir"
+        else
+            log_error "Failed to clone repository:"
+            echo "$clone_err" >&2
+            exit 1
+        fi
+    }
     HKASK_SOURCE_DIR="$clone_dir"
     log_success "Repository cloned to $HKASK_SOURCE_DIR"
 }
@@ -285,6 +293,12 @@ install_binary() {
     fi
 
     chmod +x "$BIN_DIR/kask"
+
+    # Strip debug symbols (reduces binary size ~60%, non-fatal if missing)
+    if command -v strip &> /dev/null; then
+        strip "$BIN_DIR/kask" 2>/dev/null || true
+        log "Stripped debug symbols from binary"
+    fi
 
     log_success "Binary installed to $BIN_DIR/kask"
 }
