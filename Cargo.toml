@@ -166,9 +166,6 @@ regex = "1"
 futures-util = "0.3"
 async-stream = "0.3"
 
-# WebSocket
-tokio-tungstenite = "0.26"
-
 # URL parsing
 url = "2"
 

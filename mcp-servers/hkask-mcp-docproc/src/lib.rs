@@ -111,7 +111,6 @@ impl DocProcServer {
             cns_observer,
             cv_accumulator: Mutex::new(Vec::new()),
             index: Mutex::new(Vec::new()),
-            http_client,
         })
     }
 
@@ -659,27 +658,6 @@ pub struct ClearIndexRequest {
     /// Optional index_id to clear a specific index. If absent, clears all.
     #[serde(default)]
     pub index_id: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct KindleZipRequest {
-    /// Exact or partial title of the book in the Kindle library.
-    pub book_title: String,
-    /// Output PDF file path.
-    pub output_pdf: String,
-    /// Safety limit — maximum pages to capture.
-    #[serde(default = "default_kindle_max_pages")]
-    pub max_pages: usize,
-    /// Milliseconds to wait after each page turn.
-    #[serde(default = "default_kindle_page_wait_ms")]
-    pub page_wait_ms: u64,
-}
-
-fn default_kindle_max_pages() -> usize {
-    500
-}
-fn default_kindle_page_wait_ms() -> u64 {
-    1500
 }
 
 // ── Extract outcome enum ───────────────────────────────────────────────────
@@ -1813,315 +1791,6 @@ impl DocProcServer {
         index.clear();
         span.ok_json(json!({"cleared": cleared}))
     }
-
-    #[tool(
-        description = "Capture a Kindle Cloud Reader book by title. Chrome must be running with --remote-debugging-port=9222. Discovers the book in the library, opens the reader, pages through capturing each page, and assembles into a PDF."
-    )]
-    pub async fn docproc_kindle_zip(
-        &self,
-        Parameters(KindleZipRequest {
-            book_title,
-            output_pdf,
-            max_pages,
-            page_wait_ms,
-        }): Parameters<KindleZipRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("docproc_kindle_zip", &self.webid);
-        validate_field!(span, "book_title", &book_title, 512);
-        validate_field!(span, "output_pdf", &output_pdf, 4096);
-
-        let mut chrome = match ChromeCdpClient::connect(&self.http_client).await {
-            Ok(c) => c,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Unavailable,
-                    McpToolError::internal(format!("Cannot connect to Chrome: {e}"))
-                        .to_json_string(),
-                );
-            }
-        };
-
-        // Step 1: Navigate to library and discover book ASIN
-        let current = chrome
-            .evaluate("window.location.href")
-            .await
-            .unwrap_or_default();
-        if !current.contains("kindle-library") {
-            chrome
-                .evaluate("window.location.href = 'https://read.amazon.com/kindle-library'")
-                .await
-                .ok();
-            tokio::time::sleep(std::time::Duration::from_secs(4)).await;
-        }
-
-        let asin = match kindle::discovery::find_asin_by_title(&mut chrome, &book_title).await {
-            Ok(Some(a)) => a,
-            Ok(None) => {
-                return span.error(
-                    McpErrorKind::NotFound,
-                    McpToolError::internal(format!("Book '{}' not found in library", book_title))
-                        .to_json_string(),
-                );
-            }
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Library search failed: {e}")).to_json_string(),
-                );
-            }
-        };
-        tracing::info!(target: "hkask.mcp.docproc", asin = %asin, "Found book");
-
-        // Step 2: Open reader and inject blob interception
-        if let Err(e) = kindle::capture::open_reader(&mut chrome, &asin).await {
-            return span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to open reader: {e}")).to_json_string(),
-            );
-        }
-        kindle::capture::inject_blob_intercept(&mut chrome)
-            .await
-            .ok();
-        let blob_capture = kindle::capture::BlobCapture::new();
-
-        // Step 3: Page through the book
-        let mut screenshots: Vec<Vec<u8>> = Vec::with_capacity(max_pages.min(500));
-        for page_num in 1..=max_pages {
-            match kindle::capture::capture_page(&mut chrome, &blob_capture).await {
-                Ok(png) => {
-                    if png.len() < 512 {
-                        tracing::warn!(target: "hkask.mcp.docproc", page = page_num, "Page too small — stopping");
-                        break;
-                    }
-                    screenshots.push(png);
-                }
-                Err(e) => {
-                    tracing::warn!(target: "hkask.mcp.docproc", page = page_num, error = %e, "Capture failed");
-                    break;
-                }
-            }
-            if page_num < max_pages {
-                match kindle::capture::next_page(&mut chrome).await {
-                    Ok(true) => {}
-                    Ok(false) => {
-                        tracing::info!(target: "hkask.mcp.docproc", page = page_num, "End of book");
-                        break;
-                    }
-                    Err(e) => {
-                        tracing::warn!(target: "hkask.mcp.docproc", page = page_num, error = %e, "Page turn failed");
-                        break;
-                    }
-                }
-                tokio::time::sleep(std::time::Duration::from_millis(page_wait_ms)).await;
-            }
-        }
-
-        if screenshots.is_empty() {
-            return span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal("No pages captured").to_json_string(),
-            );
-        }
-
-        // Step 4: Assemble PDF
-        let pages_captured = screenshots.len();
-        match kindle::assembly::assemble(&screenshots, &output_pdf) {
-            Ok(file_size) => {
-                self.record_experience(
-                    "docproc_kindle_zip",
-                    &book_title,
-                    "success",
-                    json!({"pages_captured": pages_captured, "file_size_bytes": file_size}),
-                );
-                span.ok_json(json!({"pdf_path": output_pdf, "pages_captured": pages_captured, "file_size_bytes": file_size}))
-            }
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("PDF assembly failed: {e}")).to_json_string(),
-            ),
-        }
-    }
-}
-
-// ── Chrome DevTools Protocol client ───────────────────────────────────────
-
-use futures_util::{SinkExt, StreamExt};
-use std::sync::atomic::{AtomicU64, Ordering};
-use tokio::net::TcpStream;
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite::Message};
-
-/// Drives a local Chrome browser via DevTools Protocol (CDP).
-/// Chrome must be launched with `--remote-debugging-port=9222`.
-pub struct ChromeCdpClient {
-    ws: WebSocketStream<MaybeTlsStream<TcpStream>>,
-    msg_id: AtomicU64,
-}
-
-impl ChromeCdpClient {
-    /// Connect to local Chrome DevTools, finding the Kindle Cloud Reader tab.
-    pub(crate) async fn connect(http: &reqwest::Client) -> Result<Self, String> {
-        // Discover open tabs
-        let resp = http
-            .get("http://localhost:9222/json")
-            .send()
-            .await
-            .map_err(|e| format!("Chrome DevTools not reachable on localhost:9222 — is Chrome running with --remote-debugging-port=9222? ({e})"))?;
-
-        let body = resp
-            .text()
-            .await
-            .map_err(|e| format!("Failed to read tab list: {e}"))?;
-        let tabs: Vec<serde_json::Value> =
-            serde_json::from_str(&body).map_err(|e| format!("Failed to parse tab list: {e}"))?;
-
-        if tabs.is_empty() {
-            return Err("No open tabs found in Chrome".into());
-        }
-
-        // Prefer a Kindle Cloud Reader tab, fall back to any tab
-        let target = tabs
-            .iter()
-            .find(|t| {
-                t.get("url")
-                    .and_then(|u| u.as_str())
-                    .map(|u| u.contains("read.amazon.com"))
-                    .unwrap_or(false)
-            })
-            .or_else(|| tabs.first())
-            .ok_or("No open tabs found")?;
-
-        let ws_url = target
-            .get("webSocketDebuggerUrl")
-            .and_then(|u| u.as_str())
-            .ok_or("Tab has no WebSocket debugger URL")?;
-
-        let (ws, _) = connect_async(ws_url)
-            .await
-            .map_err(|e| format!("WebSocket connection failed: {e}"))?;
-
-        tracing::info!(
-            target: "hkask.mcp.docproc.cdp",
-            ws_url = %ws_url,
-            "Connected to Chrome DevTools"
-        );
-
-        Ok(Self {
-            ws,
-            msg_id: AtomicU64::new(1),
-        })
-    }
-
-    /// Send a CDP command and wait for the result.
-    pub(crate) async fn send_command(
-        &mut self,
-        method: &str,
-        params: serde_json::Value,
-    ) -> Result<serde_json::Value, String> {
-        let id = self.msg_id.fetch_add(1, Ordering::Relaxed);
-        let cmd = serde_json::json!({
-            "id": id,
-            "method": method,
-            "params": params,
-        });
-
-        self.ws
-            .send(Message::Text(cmd.to_string().into()))
-            .await
-            .map_err(|e| format!("CDP send error: {e}"))?;
-
-        // Read responses until we get one matching our id
-        while let Some(msg) = self.ws.next().await {
-            match msg {
-                Ok(Message::Text(text)) => {
-                    let resp: serde_json::Value =
-                        serde_json::from_str(&text).map_err(|e| format!("CDP parse error: {e}"))?;
-                    if resp.get("id").and_then(|v| v.as_u64()) == Some(id) {
-                        if let Some(err) = resp.get("error") {
-                            return Err(format!(
-                                "CDP error: {}",
-                                err.get("message")
-                                    .and_then(|m| m.as_str())
-                                    .unwrap_or("unknown")
-                            ));
-                        }
-                        return Ok(resp
-                            .get("result")
-                            .cloned()
-                            .unwrap_or(serde_json::Value::Null));
-                    }
-                    // Otherwise it's an event notification — ignore and continue
-                }
-                Ok(Message::Close(_)) => return Err("CDP connection closed".into()),
-                Err(e) => return Err(format!("CDP read error: {e}")),
-                _ => {} // ignore binary/ping/pong
-            }
-        }
-        Err("CDP stream ended unexpectedly".into())
-    }
-
-    /// Capture a screenshot of the current page as PNG bytes.
-    async fn capture_screenshot(&mut self) -> Result<Vec<u8>, String> {
-        let result = self
-            .send_command(
-                "Page.captureScreenshot",
-                serde_json::json!({
-                    "format": "png",
-                    "fromSurface": true,
-                }),
-            )
-            .await?;
-
-        let b64 = result
-            .get("data")
-            .and_then(|v| v.as_str())
-            .ok_or("No screenshot data in CDP response")?;
-
-        base64::Engine::decode(&base64::engine::general_purpose::STANDARD, b64)
-            .map_err(|e| format!("Failed to decode screenshot: {e}"))
-    }
-
-    /// Press a keyboard key (e.g., "ArrowRight", "ArrowLeft").
-    #[allow(dead_code)]
-    async fn press_key(&mut self, key: &str) -> Result<(), String> {
-        // Key down
-        self.send_command(
-            "Input.dispatchKeyEvent",
-            serde_json::json!({
-                "type": "keyDown",
-                "key": key,
-            }),
-        )
-        .await?;
-        // Key up
-        self.send_command(
-            "Input.dispatchKeyEvent",
-            serde_json::json!({
-                "type": "keyUp",
-                "key": key,
-            }),
-        )
-        .await?;
-        Ok(())
-    }
-
-    /// Evaluate JavaScript in the page and return the result as a string.
-    async fn evaluate(&mut self, expression: &str) -> Result<String, String> {
-        let result = self
-            .send_command(
-                "Runtime.evaluate",
-                serde_json::json!({
-                    "expression": expression,
-                    "returnByValue": true,
-                }),
-            )
-            .await?;
-
-        Ok(result
-            .pointer("/result/value")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string())
-    }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -2320,43 +1989,6 @@ mod tests {
     }
 }
 
-#[cfg(test)]
-mod kindle_zip_tests {
-    use super::*;
-
-    #[test]
-    fn pdf_assembler_produces_valid_pdf() {
-        use image::{Rgb, RgbImage};
-        let mut pages = Vec::new();
-        for color in [Rgb([255, 0, 0]), Rgb([0, 0, 255])] {
-            let img = RgbImage::from_pixel(200, 300, color);
-            let mut buf = std::io::Cursor::new(Vec::new());
-            img.write_to(&mut buf, image::ImageFormat::Png).unwrap();
-            pages.push(buf.into_inner());
-        }
-        let tmp = std::env::temp_dir().join("test_kindle_output.pdf");
-        let result = kindle::assembly::assemble(&pages, tmp.to_str().unwrap());
-        assert!(result.is_ok(), "PDF assembly failed: {:?}", result.err());
-        let bytes = std::fs::read(&tmp).unwrap();
-        assert!(bytes.starts_with(b"%PDF-1.4"), "Not a valid PDF");
-        assert!(bytes.windows(5).any(|w| w == b"%%EOF"), "Missing EOF");
-        let pm: Vec<_> = bytes.windows(9).filter(|w| *w == b"/MediaBox").collect();
-        assert_eq!(pm.len(), 2, "Expected 2 pages, found {}", pm.len());
-        std::fs::remove_file(&tmp).ok();
-    }
-
-    #[test]
-    fn pdf_assembler_rejects_empty() {
-        assert!(kindle::assembly::assemble(&[], "x.pdf").is_err());
-    }
-
-    #[test]
-    fn kindle_zip_request_defaults() {
-        assert_eq!(default_kindle_max_pages(), 500);
-        assert_eq!(default_kindle_page_wait_ms(), 1500);
-    }
-}
-
 // ── Entry point ────────────────────────────────────────────────────────────
 
 /// Run the docproc MCP server (used by binary target).
@@ -2373,11 +2005,6 @@ pub async fn run(
                 .get("HKASK_OCR_MODEL")
                 .cloned();
             let inference_config = InferenceConfig::from_env();
-
-            let http_client = reqwest::Client::builder()
-                .user_agent(format!("hkask-docproc/{}", env!("CARGO_PKG_VERSION")))
-                .build()
-                .map_err(|e| hkask_mcp::McpError::from(anyhow::anyhow!("Failed to build HTTP client: {e}")))?;
 
             let ocr_thresholds = ThresholdConfig {
                 simple_max: std::env::var("HKASK_OCR_SIMPLE_MAX")
@@ -2408,7 +2035,6 @@ pub async fn run(
                 inference_config,
                 ocr_thresholds,
                 Some(embedding_router),
-                http_client,
             )?)
         },
         vec![

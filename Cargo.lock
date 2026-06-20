@@ -710,7 +710,7 @@ dependencies = [
  "sha1",
  "sync_wrapper",
  "tokio",
- "tokio-tungstenite 0.29.0",
+ "tokio-tungstenite",
  "tower 0.5.3",
  "tower-layer",
  "tower-service",
@@ -4430,7 +4430,6 @@ dependencies = [
  "chrono",
  "dirs",
  "dotenvy",
- "futures-util",
  "hkask-inference",
  "hkask-mcp",
  "hkask-memory",
@@ -4448,7 +4447,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
- "tokio-tungstenite 0.26.2",
  "tracing",
 ]
 
@@ -11433,18 +11431,6 @@ dependencies = [
 
 [[package]]
 name = "tokio-tungstenite"
-version = "0.26.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a9daff607c6d2bf6c16fd681ccb7eecc83e4e2cdc1ca067ffaadfca5de7f084"
-dependencies = [
- "futures-util",
- "log",
- "tokio",
- "tungstenite 0.26.2",
-]
-
-[[package]]
-name = "tokio-tungstenite"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f72a05e828585856dacd553fba484c242c46e391fb0e58917c942ee9202915c"
@@ -11452,7 +11438,7 @@ dependencies = [
  "futures-util",
  "log",
  "tokio",
- "tungstenite 0.29.0",
+ "tungstenite",
 ]
 
 [[package]]
@@ -11784,23 +11770,6 @@ name = "ttf-parser"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
-
-[[package]]
-name = "tungstenite"
-version = "0.26.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4793cb5e56680ecbb1d843515b23b6de9a75eb04b66643e256a396d43be33c13"
-dependencies = [
- "bytes",
- "data-encoding",
- "http",
- "httparse",
- "log",
- "rand 0.9.4",
- "sha1",
- "thiserror 2.0.18",
- "utf-8",
-]
 
 [[package]]
 name = "tungstenite"
