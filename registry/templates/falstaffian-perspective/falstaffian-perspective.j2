@@ -6,61 +6,60 @@ lexicon_terms:
 - select
 - execute
 - verify
+- enrich
+- synthesize
 contract:
   input:
-    input_criticism: string
+    text: string
+    perspective_vectors: string[]
+    enrichment_depth: string
     context: string
-    desired_outcome: string
-    iteration_count: integer
     base_seed: integer
   output:
-    perspective: string
+    perspectives: object[]
     variance_report: object
-energy_cap: 4096
+energy_cap: 8192
 visibility: Public
 ---
-# Cognition — Falstaffian Perspective Engine
-# ℏKask v0.28.0 - A Minimal Viable Container for Agents
-
-{# Falstaffian Perspective Generator — ℏKask Registry Version
-   Owner: The Curator (hKask)
-   License: CC-BY-4.0
-   Version: 2.2 (Adapted for hKask registry)
-
-   A metacognitive instrument for perspective-taking through semantic rotation.
-   Shapes are not rhetorical devices — they are abstract vectors that transform
-   semantic space. The genius is the TENSION between experience and spirit.
-
-   Five metacognitive steps:
-     1. Calibrate — Know what you know (success AND failure)
-     2. Affirm   — Love what you love (life, play, hope)
-     3. Select   — Choose shape that expresses tension
-     4. Execute  — Speak shape through playful form
-     5. Verify   — Check that neither bitterness nor naivety emerged
-#}
+{# Template: falstaffian-perspective/falstaffian-perspective.j2 #}
+{# Functional Role: KnowAct (multi-iteration perspective generation with LLM enrichment) #}
+{# Implementation: Jinja2 prompt + LLM inference enrichment #}
+{# Produces: enriched perspectives array with variance report #}
+{# Falstaffian Perspective Engine v3.0 — Inference-Augmented #}
 
 {# =============================================================================
    CONFIGURATION VARIABLES
    ============================================================================= #}
 
-{% set input_criticism = input_criticism | default("You lack honor") %}
+{% set text = text | default("You lack honor") %}
 {% set context = context | default("Business meeting where abstract values are invoked") %}
-{% set desired_outcome = desired_outcome | default("Express truth without triggering defense") %}
 
-{% set iteration_count = iteration_count | default(4) %}
-{% if iteration_count < 3 %}{% set iteration_count = 3 %}{% endif %}
-{% if iteration_count > 5 %}{% set iteration_count = 5 %}{% endif %}
+{% set enrichment_depth = enrichment_depth | default("medium") %}
+{% set valid_depths = ["light", "medium", "deep"] %}
+{% if enrichment_depth not in valid_depths %}
+{% set enrichment_depth = "medium" %}
+{% endif %}
 
 {% set base_seed = base_seed | default(42) %}
 
-{# Pre-assigned shapes per iteration (deterministic based on iteration_count) #}
-{% if iteration_count == 3 %}
-{% set shape_sequence = ['predicate_hollow', 'subject_expansion', 'counterfeit_inversion'] %}
-{% elif iteration_count == 4 %}
-{% set shape_sequence = ['predicate_hollow', 'subject_expansion', 'counterfeit_inversion', 'object_inversion'] %}
+{# Determine which perspectives to generate #}
+{% set all_shapes = ['predicate_hollow', 'subject_expansion', 'counterfeit_inversion', 'object_inversion', 'direction_reversal', 'physiological_causal', 'liability_transmutation', 'linguistic_precision'] %}
+
+{% if perspective_vectors is not defined or perspective_vectors | length == 0 %}
+{% set active_shapes = all_shapes[:5] %}
 {% else %}
-{% set shape_sequence = ['predicate_hollow', 'subject_expansion', 'counterfeit_inversion', 'object_inversion', 'direction_reversal'] %}
+{% set active_shapes = [] %}
+{% for shape in perspective_vectors %}
+{% if shape in all_shapes %}
+{% set _ = active_shapes.append(shape) %}
 {% endif %}
+{% endfor %}
+{% if active_shapes | length == 0 %}
+{% set active_shapes = all_shapes[:5] %}
+{% endif %}
+{% endif %}
+
+{% set iteration_count = active_shapes | length %}
 
 {# Shape lookup tables #}
 {% set shape_sources = {
@@ -89,6 +88,21 @@ visibility: Public
 {% set temperatures = [0.7, 0.8, 0.9] %}
 
 {# =============================================================================
+   ENRICHMENT DEPTH CONFIGURATION
+   ============================================================================= #}
+
+{% if enrichment_depth == "light" %}
+{% set enrichment_dimensions = ['emotional_texture'] %}
+{% set enrichment_guidance = "Add brief emotional/narrative texture only. One paragraph per perspective." %}
+{% elif enrichment_depth == "medium" %}
+{% set enrichment_dimensions = ['emotional_texture', 'implicit_assumptions'] %}
+{% set enrichment_guidance = "Add emotional texture and surface one key implicit assumption the deterministic rotation missed. Two paragraphs per perspective." %}
+{% else %}
+{% set enrichment_dimensions = ['emotional_texture', 'implicit_assumptions', 'counter_perspectives', 'contextual_awareness'] %}
+{% set enrichment_guidance = "Full enrichment: add emotional texture, surface multiple implicit assumptions, generate at least one counter-perspective or edge case, and add contextual awareness of where this perspective applies and where it breaks. Three to four paragraphs per perspective." %}
+{% endif %}
+
+{# =============================================================================
    THREE-FOLD STRUCTURE (Reference)
    ============================================================================= #}
 
@@ -106,21 +120,22 @@ visibility: Public
 #}
 
 {# =============================================================================
-   FALSTAFFIAN SHAPE MACROS
+   FALSTAFFIAN SHAPE MACROS — DETERMINISTIC CORE (Phase 1)
+   These macros remain unchanged from v2.2 — they are the deterministic engine.
    ============================================================================= #}
 
-{% macro apply_predicate_hollow(criticism, outcome, voice) %}
+{% macro apply_predicate_hollow(criticism, voice) %}
 **Shape:** Predicate Hollow Vector ({{ shape_sources['predicate_hollow'] }})
 **Voice:** {{ voice }}
 
 What is the predicate? A word. What is in that word? Air.
 Can it set to a leg? No. Can it heal a wound? No.
 
-"{{ criticism }}" becomes irrelevant when honor is recognized as air.
-{{ outcome }} through catechism: question → answer → conclusion.
+"{{ criticism }}" becomes irrelevant when its key term is recognized as air.
+The catechism: question → answer → conclusion. The term cannot bear the weight placed upon it.
 {% endmacro %}
 
-{% macro apply_subject_expansion(criticism, ctx, outcome, voice) %}
+{% macro apply_subject_expansion(criticism, ctx, voice) %}
 **Shape:** Subject Expansion Vector ({{ shape_sources['subject_expansion'] }})
 **Voice:** {{ voice }}
 
@@ -128,10 +143,10 @@ Not just the subject, but the world itself.
 To criticize one is to criticize all.
 
 {{ ctx }} expanded: the individual contains the universal.
-{{ outcome }} through expansion: make criticism cosmological.
+The criticism cannot be contained — it radiates outward until it consumes its own source.
 {% endmacro %}
 
-{% macro apply_counterfeit_inversion(criticism, ctx, outcome, voice) %}
+{% macro apply_counterfeit_inversion(criticism, ctx, voice) %}
 **Shape:** Counterfeit Inversion Vector ({{ shape_sources['counterfeit_inversion'] }})
 **Voice:** {{ voice }}
 
@@ -139,43 +154,43 @@ To die is to be a counterfeit.
 To live is the true image of life indeed.
 
 {{ ctx }} inverted: dead heroes are counterfeit, living cowards are true.
-{{ outcome }} through paradox: life as meta-value.
+The paradox reveals life as the meta-value — all other values are subordinate to it.
 {% endmacro %}
 
-{% macro apply_object_inversion(criticism, ctx, outcome, voice) %}
+{% macro apply_object_inversion(criticism, ctx, voice) %}
 **Shape:** Object Inversion Vector ({{ shape_sources['object_inversion'] }})
 **Voice:** {{ voice }}
 
 Care I for great men? No.
 Give me the spare men.
 
-{{ ctx }} pragmatically: great ones are marks for enemy, spare ones survive.
-{{ outcome }} through inversion: liability becomes asset.
+{{ ctx }} pragmatically: great ones are marks for the enemy, spare ones survive.
+The inversion: what is devalued is revalued. Liability becomes asset.
 {% endmacro %}
 
-{% macro apply_direction_reversal(criticism, ctx, outcome, voice) %}
+{% macro apply_direction_reversal(criticism, ctx, voice) %}
 **Shape:** Direction Reversal Vector ({{ shape_sources['direction_reversal'] }})
 **Voice:** {{ voice }}
 
 Not 'you should have better X' but 'X should get better you'.
 The evaluator becomes evaluated.
 
-{{ ctx }} reversed: who evaluates whom?
-{{ outcome }} through redirect: transform the frame.
+{{ ctx }} reversed: who evaluates whom? The frame itself is the target.
+What if the criteria are the problem, not the subject?
 {% endmacro %}
 
-{% macro apply_physiological_causal(criticism, ctx, outcome, voice) %}
+{% macro apply_physiological_causal(criticism, ctx, voice) %}
 **Shape:** Physiological Causal Chain Vector ({{ shape_sources['physiological_causal'] }})
 **Voice:** {{ voice }}
 
 Not morality but physiology: stimulus → processing → response.
 The chain: sack → brain → vapors → wit → valor.
 
-{{ ctx }} mediated: insert physiological chain.
-{{ outcome }} through elaboration: elaborate the mechanism.
+{{ ctx }} mediated: insert physiological chain between judgment and response.
+Every accusation has a body. Follow the chain back to its physical root.
 {% endmacro %}
 
-{% macro apply_liability_transmutation(criticism, ctx, outcome, voice) %}
+{% macro apply_liability_transmutation(criticism, ctx, voice) %}
 **Shape:** Liability-to-Asset Transmutation Vector ({{ shape_sources['liability_transmutation'] }})
 **Voice:** {{ voice }}
 
@@ -183,10 +198,10 @@ The gout becomes pension justification.
 A good wit will make use of any thing.
 
 {{ ctx }} transmuted: limitation in one context is resource in another.
-{{ outcome }} through alchemy: turn diseases to commodity.
+Alchemy: turn the disease to commodity, the flaw to feature.
 {% endmacro %}
 
-{% macro apply_linguistic_precision(criticism, ctx, outcome, voice) %}
+{% macro apply_linguistic_precision(criticism, ctx, voice) %}
 **Shape:** Linguistic Precision Vector ({{ shape_sources['linguistic_precision'] }})
 **Voice:** {{ voice }}
 
@@ -194,144 +209,267 @@ Waste (moral) → waist (physical).
 The category error revealed.
 
 {{ ctx }} precisely: moral criticism rotated to physical fact.
-{{ outcome }} through wordplay: linguistic truth cuts true.
+The word carries two meanings. Choosing the other one changes everything.
 {% endmacro %}
 
 {# =============================================================================
    SHAPE DISPATCH MACRO
    ============================================================================= #}
 
-{% macro apply_shape(shape, criticism, ctx, outcome, voice) %}
+{% macro apply_shape(shape, criticism, ctx, voice) %}
 {% if shape == 'predicate_hollow' %}
-{{ apply_predicate_hollow(criticism, outcome, voice) }}
+{{ apply_predicate_hollow(criticism, voice) }}
 {% elif shape == 'subject_expansion' %}
-{{ apply_subject_expansion(criticism, ctx, outcome, voice) }}
+{{ apply_subject_expansion(criticism, ctx, voice) }}
 {% elif shape == 'counterfeit_inversion' %}
-{{ apply_counterfeit_inversion(criticism, ctx, outcome, voice) }}
+{{ apply_counterfeit_inversion(criticism, ctx, voice) }}
 {% elif shape == 'object_inversion' %}
-{{ apply_object_inversion(criticism, ctx, outcome, voice) }}
+{{ apply_object_inversion(criticism, ctx, voice) }}
 {% elif shape == 'direction_reversal' %}
-{{ apply_direction_reversal(criticism, ctx, outcome, voice) }}
+{{ apply_direction_reversal(criticism, ctx, voice) }}
 {% elif shape == 'physiological_causal' %}
-{{ apply_physiological_causal(criticism, ctx, outcome, voice) }}
+{{ apply_physiological_causal(criticism, ctx, voice) }}
 {% elif shape == 'liability_transmutation' %}
-{{ apply_liability_transmutation(criticism, ctx, outcome, voice) }}
+{{ apply_liability_transmutation(criticism, ctx, voice) }}
 {% elif shape == 'linguistic_precision' %}
-{{ apply_linguistic_precision(criticism, ctx, outcome, voice) }}
+{{ apply_linguistic_precision(criticism, ctx, voice) }}
 {% endif %}
 {% endmacro %}
 
 {# =============================================================================
-   METACOGNITIVE APPLICATION (5 Steps)
+   PHASE 1: DETERMINISTIC PERSPECTIVE GENERATION
+   Compute base structural rotations for each active shape.
    ============================================================================= #}
 
-{# Step 1: Calibrate — Know what you know (success AND failure) #}
-{# Step 2: Affirm   — Love what you love (life, play, hope)      #}
-{# Step 3: Select   — Choose shape that expresses tension          #}
-{# Step 4: Execute  — Speak shape through playful form            #}
-{# Step 5: Verify   — Check that neither bitterness nor naivety  #}
-
-{# =============================================================================
-   FINAL OUTPUT
-   ============================================================================= #}
-
-# Falstaffian Perspective — Multi-Iteration Generation
+# Falstaffian Perspective Engine v3.0 — Inference-Augmented Generation
 
 ## Generation Parameters
-- **Iterations:** {{ iteration_count }}
+- **Input Text:** {{ text }}
+- **Context:** {{ context }}
+- **Perspectives Requested:** {{ iteration_count }} ({{ active_shapes | join(', ') }})
+- **Enrichment Depth:** {{ enrichment_depth }} ({{ enrichment_dimensions | join(', ') }})
 - **Base Seed:** {{ base_seed }}
-- **Voice Cycle:** {{ voice_emphasis | join(', ') }}
-- **Temperature Cycle:** {{ temperatures | join(', ') }}
 
-## Variance Analysis
+---
 
-### Shape Distribution
-{% for i in range(iteration_count) %}
-- **Iteration {{ i + 1 }}:** {{ shape_sequence[i] }}
-{% endfor %}
+## Phase 1: Deterministic Perspective Rotations
 
-### Agreement Metrics
-{% if iteration_count == 3 %}
-- **Shape Variety:** 3 unique shapes in 3 iterations
-- **Agreement Level:** low (exploratory)
-- **Agreement Score:** 0.5
-{% elif iteration_count == 4 %}
-- **Shape Variety:** 4 unique shapes in 4 iterations
-- **Agreement Level:** low (exploratory)
-- **Agreement Score:** 0.5
-{% else %}
-- **Shape Variety:** 5 unique shapes in 5 iterations
-- **Agreement Level:** low (exploratory)
-- **Agreement Score:** 0.5
-{% endif %}
-
-**Note:** Each iteration uses a different shape to explore diverse perspectives.
-High agreement would indicate convergent thinking; low agreement indicates broad exploration.
-
-## All Iterations
+The following perspectives are structural rotations of the input through Falstaffian shape vectors.
+Each is a deterministic transformation — the raw semantic rotation before enrichment.
 
 {% for i in range(iteration_count) %}
-{% set current_shape = shape_sequence[i] %}
+{% set current_shape = active_shapes[i] %}
 {% set current_voice = voice_emphasis[i % voice_emphasis|length] %}
 {% set current_temp = temperatures[i % temperatures|length] %}
 {% set current_seed = base_seed + (i * 17) %}
 
----
-
-### Iteration {{ i + 1 }}
-- **Shape:** {{ current_shape }}
+### Perspective {{ i + 1 }}: {{ current_shape }}
 - **Voice:** {{ current_voice }}
 - **Temperature:** {{ current_temp }}
-- **Seed:** {{ current_seed }}
 - **Source:** {{ shape_sources[current_shape] }}
 - **Example:** {{ shape_examples[current_shape] }}
 
-{{ apply_shape(current_shape, input_criticism, context, desired_outcome, current_voice) }}
-
-{% endfor %}
-
-## Final Response
-
-{% set primary_shape = shape_sequence[0] %}
-{% set secondary_shape = shape_sequence[1] %}
-
-**Opening ({{ primary_shape }}):**
-{% if primary_shape == 'predicate_hollow' %}
-What is the predicate? A word. What is in that word? Air.
-{% elif primary_shape == 'subject_expansion' %}
-Not just the subject, but the world itself.
-{% elif primary_shape == 'counterfeit_inversion' %}
-To die is to be a counterfeit. To live is true.
-{% else %}
-The frame itself transforms.
-{% endif %}
-
-**Core ({{ secondary_shape }}):**
-{% if secondary_shape == 'subject_expansion' %}
-To criticize one is to criticize all. {{ context }} expanded.
-{% elif secondary_shape == 'counterfeit_inversion' %}
-Life is the meta-value. All else is secondary.
-{% elif secondary_shape == 'object_inversion' %}
-Give me the spare men, spare me the great ones.
-{% else %}
-The inversion reveals what actually matters.
-{% endif %}
-
-**Closing:**
-{{ desired_outcome }} — spoken through play, not sermon.
-
-## Confidence Statement
-
-This response was generated through {{ iteration_count }} independent iterations.
-- **Iteration Count:** {{ iteration_count }}
-- **Shape Variety:** {{ iteration_count }} unique shapes
-- **Agreement Level:** exploratory (each iteration uses different shape)
-
-**Interpretation:** Low agreement indicates broad exploration across the Falstaffian shape space.
-Each iteration explores a different semantic transformation. Use the iteration that best fits your context.
+**Deterministic Rotation:**
+{{ apply_shape(current_shape, text, context, current_voice) }}
 
 ---
 
-*Generated by Falstaffian Perspective Engine v2.2 (ℏKask Registry)*
+{% endfor %}
+
+{# =============================================================================
+   PHASE 2: LLM INFERENCE ENRICHMENT
+   For each deterministic perspective, the LLM enriches with nuance, emotional
+   depth, implicit assumptions, counter-perspectives, and contextual awareness.
+   ============================================================================= #}
+
+## Phase 2: Inference Enrichment
+
+{% if enrichment_depth == "light" %}
+**Enrichment mode: LIGHT** — Brief emotional/narrative texture only.
+
+For each deterministic perspective below, add a single paragraph of enrichment:
+- What emotional truth does this perspective surface?
+- What human experience does it connect to?
+
+Keep responses concise — one paragraph per perspective.
+{% elif enrichment_depth == "medium" %}
+**Enrichment mode: MEDIUM** — Emotional texture + implicit assumptions.
+
+For each deterministic perspective below, add enrichment with:
+1. **Emotional texture** — What emotional truth does this perspective surface? What does it feel like?
+2. **Implicit assumptions** — What hidden assumptions does the deterministic rotation miss? What does the original situation take for granted that this perspective exposes?
+
+Two paragraphs per perspective.
+{% else %}
+**Enrichment mode: DEEP** — Full multi-dimensional enrichment.
+
+For each deterministic perspective below, add enrichment with:
+1. **Emotional texture** — What emotional truth does this perspective surface? What does it feel like?
+2. **Implicit assumptions** — What hidden assumptions does the deterministic rotation miss? What does the original situation take for granted that this perspective exposes?
+3. **Counter-perspectives** — What would someone who disagrees say? What edge case breaks this perspective?
+4. **Contextual awareness** — Where does this perspective apply well? Where does it break down? What conditions make it useful vs. misleading?
+
+Three to four paragraphs per perspective. Be specific, grounded in the deterministic rotation above, and maintain the Falstaffian voice (playful truth-telling, not academic analysis).
+{% endif %}
+
+{% for i in range(iteration_count) %}
+{% set current_shape = active_shapes[i] %}
+{% set current_voice = voice_emphasis[i % voice_emphasis|length] %}
+
+### Enrichment for Perspective {{ i + 1 }}: {{ current_shape }} ({{ current_voice }} voice)
+
+**Deterministic rotation to enrich:**
+{{ apply_shape(current_shape, text, context, current_voice) }}
+
+Now enrich this perspective. The deterministic rotation provides the structural frame — you provide the flesh.
+
+{% if enrichment_depth == "light" %}
+**Emotional Texture:**
+[LLM: Add one paragraph of emotional/narrative texture specific to this perspective.]
+{% elif enrichment_depth == "medium" %}
+**Emotional Texture:**
+[LLM: Add one paragraph of emotional/narrative texture specific to this perspective.]
+
+**Implicit Assumptions:**
+[LLM: What does the original situation assume that this perspective reveals as questionable? What hidden premise does the deterministic rotation expose?]
+{% else %}
+**Emotional Texture:**
+[LLM: Add emotional/narrative texture. What does it feel like to see things this way? What human truth does this perspective connect to?]
+
+**Implicit Assumptions:**
+[LLM: What hidden assumptions does the original situation make? What does it take for granted? How does this perspective expose those assumptions?]
+
+**Counter-Perspectives:**
+[LLM: What would a critic of this perspective say? Where does it break? What edge case or context would undermine it?]
+
+**Contextual Awareness:**
+[LLM: When is this perspective most useful? When should it NOT be applied? What conditions make it illuminating vs. evasive?]
+{% endif %}
+
+---
+
+{% endfor %}
+
+{# =============================================================================
+   PHASE 3: SYNTHESIS
+   Merge deterministic structure with LLM enrichment into unified perspectives.
+   ============================================================================= #}
+
+## Phase 3: Synthesis
+
+Merge the deterministic rotation from Phase 1 with the enrichment from Phase 2 into a unified perspective for each shape. The synthesis should:
+
+1. Lead with the structural insight from the deterministic rotation
+2. Weave in the emotional/narrative texture naturally
+3. Surface implicit assumptions gracefully (not as a list, but as revealed insights)
+{% if enrichment_depth == "deep" %}
+4. Acknowledge the counter-perspective or edge case without undermining the core insight
+5. Show contextual awareness — when this lens helps and when another might serve better
+{% endif %}
+
+**Critical constraint:** Maintain the Falstaffian voice throughout. This is playful truth-telling, not academic analysis. The goal is wisdom carried through wit — experience without bitterness, spirit without naivety. If the output sounds like a textbook, rewrite it. If it sounds like a sermon, rewrite it. The shape must feel lived, not analyzed.
+
+---
+
+{% for i in range(iteration_count) %}
+{% set current_shape = active_shapes[i] %}
+{% set current_voice = voice_emphasis[i % voice_emphasis|length] %}
+
+### Synthesized Perspective {{ i + 1 }}: {{ current_shape }}
+
+**Shape:** {{ current_shape }}
+**Voice:** {{ current_voice }}
+**Source:** {{ shape_sources[current_shape] }}
+
+**Deterministic Core (from Phase 1):**
+{{ apply_shape(current_shape, text, context, current_voice) }}
+
+**Enriched Synthesis:**
+[LLM: Write the enriched synthesis here. Merge the deterministic rotation above with your enrichment from Phase 2. One to three paragraphs in the Falstaffian voice — playful, worldly, generous, truth-telling through wit.]
+
+---
+
+{% endfor %}
+
+{# =============================================================================
+   VARIANCE REPORT
+   ============================================================================= #}
+
+## Variance Report
+
+- **Iteration Count:** {{ iteration_count }}
+- **Shape Variety:** {{ iteration_count }} unique shapes
+- **Shapes Used:** {{ active_shapes | join(', ') }}
+- **Enrichment Depth:** {{ enrichment_depth }}
+- **Enrichment Dimensions:** {{ enrichment_dimensions | join(', ') }}
+- **Agreement Level:** exploratory (each iteration explores a different semantic transformation)
+- **Agreement Score:** 0.5 (ideal exploratory — shapes deliberately diverge)
+
+**Interpretation:** Low agreement across perspectives is intentional — the Falstaffian engine explores the shape space, not converges on consensus. Each perspective is an independent semantic rotation. The value is in their collective field of view, not in their agreement.
+
+---
+
+## Validation Check
+
+{% set tension_held = true %}
+{% set bitterness_detected = false %}
+{% set naivety_detected = false %}
+
+{% for i in range(iteration_count) %}
+{% if active_shapes[i] not in all_shapes %}
+{% set tension_held = false %}
+{% endif %}
+{% endfor %}
+
+- **Tension Preserved:** {% if tension_held %}yes (experience + spirit both present){% else %}no (check shape validity){% endif %}
+- **Bitterness Detected:** {% if bitterness_detected %}yes (experience without spirit){% else %}no{% endif %}
+- **Naivety Detected:** {% if naivety_detected %}yes (spirit without experience){% else %}no{% endif %}
+- **Shape Diversity:** {% if iteration_count >= 3 %}sufficient ({{ iteration_count }} unique){% else %}insufficient (need at least 3){% endif %}
+- **Enrichment Applied:** {% if enrichment_depth in valid_depths %}yes ({{ enrichment_depth }}){% else %}no (invalid depth){% endif %}
+
+---
+
+## Structured Output
+
+The perspectives below are the final enriched output. Each object contains the shape, voice, deterministic core, enrichment dimensions, and the synthesized perspective. Use this array as the canonical output.
+
+{% for i in range(iteration_count) %}
+{% set current_shape = active_shapes[i] %}
+{% set current_voice = voice_emphasis[i % voice_emphasis|length] %}
+{% set current_temp = temperatures[i % temperatures|length] %}
+{% set current_seed = base_seed + (i * 17) %}
+
+### Output Object {{ i + 1 }}
+
+```json
+{
+  "index": {{ i }},
+  "shape": "{{ current_shape }}",
+  "voice": "{{ current_voice }}",
+  "temperature": {{ current_temp }},
+  "seed": {{ current_seed }},
+  "source": "{{ shape_sources[current_shape] }}",
+  "deterministic_rotation": "[LLM: Include the deterministic rotation text from Phase 1 Perspective {{ i + 1 }}]",
+  "enrichment": {
+{% if enrichment_depth == "light" %}
+    "emotional_texture": "[LLM: Include the emotional texture from Phase 2 Enrichment for Perspective {{ i + 1 }}]"
+{% elif enrichment_depth == "medium" %}
+    "emotional_texture": "[LLM: Include the emotional texture from Phase 2 Enrichment for Perspective {{ i + 1 }}]",
+    "implicit_assumptions": "[LLM: Include the implicit assumptions from Phase 2 Enrichment for Perspective {{ i + 1 }}]"
+{% else %}
+    "emotional_texture": "[LLM: Include the emotional texture from Phase 2 Enrichment for Perspective {{ i + 1 }}]",
+    "implicit_assumptions": "[LLM: Include the implicit assumptions from Phase 2 Enrichment for Perspective {{ i + 1 }}]",
+    "counter_perspectives": "[LLM: Include the counter-perspectives from Phase 2 Enrichment for Perspective {{ i + 1 }}]",
+    "contextual_awareness": "[LLM: Include the contextual awareness from Phase 2 Enrichment for Perspective {{ i + 1 }}]"
+{% endif %}
+  },
+  "synthesized_perspective": "[LLM: Include the synthesized perspective from Phase 3 for Perspective {{ i + 1 }}]"
+}
+```
+
+{% endfor %}
+
+---
+*Generated by Falstaffian Perspective Engine v3.0 (ℏKask Registry)*
 *The Curator (hKask) — CC-BY-4.0*
-*Ba-nana. (under breath)*
+*"A good wit will make use of any thing." — 2H4.1.2*

@@ -5,12 +5,17 @@ crate:
   name: falstaffian-perspective
   version: "0.30.0"
   description: >
-    Multi-iteration perspective generation through Falstaffian semantic shape
-    transforms. Applies calibrated experience and affirmed spirit through five
-    rotation vectors (predicate hollow, subject expansion, counterfeit inversion,
-    object inversion, direction reversal) to carry tension without breaking into
-    bitterness or naivety. Five metacognitive steps: calibrate → affirm → select
-    → execute → verify.
+    Inference-augmented multi-iteration perspective generation through Falstaffian
+    semantic shape transforms. Three-phase pipeline: (1) deterministic rotation
+    via Jinja2 macros applies calibrated experience and affirmed spirit through
+    eight rotation vectors (predicate hollow, subject expansion, counterfeit
+    inversion, object inversion, direction reversal, physiological causal,
+    liability transmutation, linguistic precision), (2) LLM inference enriches
+    each perspective with emotional texture, implicit assumptions,
+    counter-perspectives, and contextual awareness at configurable depth
+    (light/medium/deep), (3) synthesis merges deterministic structure with
+    enrichment into unified perspectives. Carries tension without breaking into
+    bitterness or naivety.
 
 templates:
   - id: falstaffian-perspective/falstaffian-perspective
@@ -23,15 +28,18 @@ templates:
         select,
         execute,
         verify,
+        enrich,
+        synthesize,
         compose,
         transform,
         discriminate,
         evaluate,
       ]
     description: >
-      Generate multi-iteration perspectives through Falstaffian shape vectors.
-      Each iteration applies a different semantic rotation with varied voice
-      emphasis and temperature. Produces a perspective with variance report
-      (shape distribution, agreement level, agreement score). Verifies that
-      neither bitterness (experience without spirit) nor naivety (spirit
-      without experience) emerged.
+      Inference-augmented perspective generation through Falstaffian shape
+      vectors. Phase 1: deterministic Jinja2 macros compute structural rotations
+      from input text and selected perspective vectors. Phase 2: LLM inference
+      enriches each rotation with emotional depth, implicit assumption surfacing,
+      counter-perspective generation, and contextual awareness (configurable via
+      enrichment_depth: light/medium/deep). Phase 3: synthesis merges structural
+      core with enrichment into unified perspectives with variance reporting.

@@ -1,58 +1,62 @@
 # Falstaffian Perspective Engine Manifest
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.30.0 - A Minimal Viable Container for Agents
 
 manifest:
   id: falstaffian-perspective
   name: Falstaffian Perspective Engine
   description: >
-    Multi-iteration perspective generation through semantic shape transforms.
-    Applies calibrated experience and affirmed spirit through Falstaffian
-    rotation vectors (predicate hollow, subject expansion, counterfeit inversion,
-    object inversion, direction reversal) to carry tension without breaking.
+    Inference-augmented multi-iteration perspective generation through Falstaffian
+    semantic shape transforms. Three-phase pipeline: deterministic rotation via
+    Jinja2 macros → LLM inference enrichment → synthesis. Configurable enrichment
+    depth (light/medium/deep) controls emotional texture, implicit assumption
+    surfacing, counter-perspective generation, and contextual awareness.
   functional_role: knowact
-  version: 0.21.0
+  version: 0.30.0
   editor: curator
   visibility: Public
 
 # Energy Budget Configuration
 gas:
-  cap: 12000
+  cap: 20000
   cost_per_token: 0.25
   alert_threshold: 0.8
   hard_limit: true
 
 # Process Steps
 # The 5 metacognitive steps map to 4 manifest ordinals:
-#   1. Calibrate experience dimension, affirm spirit (select)
-#   2. Generate multi-iteration perspective output (populate)
-#   3. Verify tension was carried through and shapes are diverse (validate)
+#   1. Calibrate + configure enrichment parameters (select)
+#   2. Generate + enrich + synthesize multi-iteration perspectives (populate)
+#   3. Verify tension, diversity, enrichment quality (validate)
 #   4. Emit CNS span for variety tracking (feedback)
 steps:
   - ordinal: 1
     action: select
     description: >
-      Calibrate experience dimension and affirm spirit.
-      Render the Falstaffian perspective template with calibration inputs:
-      identify criticism, context, and desired outcome.
-      This corresponds to metacognitive steps 1 (calibrate) and 2 (affirm).
+      Calibrate experience dimension, affirm spirit, and configure enrichment.
+      Accepts the input text (situation), requested perspective vectors, and
+      enrichment depth. Defaults to top 5 shapes with medium enrichment if not
+      specified. This corresponds to metacognitive steps 1 (calibrate) and 2
+      (affirm).
     renderer: minijinja
     template_ref: cognition/falstaffian-perspective
-    gas_cap: 4000
-    timeout_seconds: 60
+    gas_cap: 2000
+    timeout_seconds: 30
     input_mapping:
-      input_criticism: "{{ input_criticism }}"
+      text: "{{ input_criticism | default(text) }}"
       context: "{{ context }}"
-      desired_outcome: "{{ desired_outcome }}"
-      iteration_count: "{{ iteration_count | default(4) }}"
+      perspective_vectors: "{{ perspective_vectors | default([]) }}"
+      enrichment_depth: "{{ enrichment_depth | default('medium') }}"
       base_seed: "{{ base_seed | default(42) }}"
     output_schema:
       type: object
       properties:
-        calibrated_criticism:
+        active_shapes:
+          type: array
+          items:
+            type: string
+        enrichment_depth:
           type: string
-        affirmed_spirit:
-          type: string
-        shape_sequence:
+        enrichment_dimensions:
           type: array
           items:
             type: string
@@ -60,26 +64,52 @@ steps:
   - ordinal: 2
     action: populate
     description: >
-      Generate multi-iteration perspective output through Falstaffian shape vectors.
-      Each iteration applies a different semantic rotation (predicate hollow,
-      subject expansion, counterfeit inversion, object inversion, direction reversal)
-      with varied voice emphasis and temperature.
-      This corresponds to metacognitive steps 3 (select shape) and 4 (execute through play).
+      Three-phase inference-augmented perspective generation. Phase 1: deterministic
+      Jinja2 macros compute structural rotations through Falstaffian shape vectors
+      (predicate hollow, subject expansion, counterfeit inversion, object inversion,
+      direction reversal, physiological causal, liability transmutation, linguistic
+      precision) with varied voice emphasis and temperature. Phase 2: LLM inference
+      enriches each rotation with emotional texture, implicit assumption surfacing,
+      counter-perspective generation, and contextual awareness at the configured
+      depth. Phase 3: synthesis merges deterministic core with enrichment into
+      unified perspectives. This corresponds to metacognitive steps 3 (select shape),
+      4 (execute through play), plus the new enrich and synthesize steps.
     renderer: minijinja
     template_ref: cognition/falstaffian-perspective
-    gas_cap: 8000
-    timeout_seconds: 90
+    gas_cap: 16000
+    timeout_seconds: 120
     input_mapping:
-      input_criticism: "{{ ordinal_1.calibrated_criticism }}"
+      text: "{{ ordinal_1.text | default(input_criticism) }}"
       context: "{{ context }}"
-      desired_outcome: "{{ desired_outcome }}"
-      iteration_count: "{{ iteration_count | default(4) }}"
+      perspective_vectors: "{{ ordinal_1.active_shapes | default([]) }}"
+      enrichment_depth: "{{ ordinal_1.enrichment_depth | default('medium') }}"
       base_seed: "{{ base_seed | default(42) }}"
     output_schema:
       type: object
       properties:
-        perspective:
-          type: string
+        perspectives:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              shape:
+                type: string
+              voice:
+                type: string
+              temperature:
+                type: number
+              seed:
+                type: integer
+              source:
+                type: string
+              deterministic_rotation:
+                type: string
+              enrichment:
+                type: object
+              synthesized_perspective:
+                type: string
         variance_report:
           type: object
           properties:
@@ -87,32 +117,28 @@ steps:
               type: integer
             shape_variety:
               type: integer
+            enrichment_depth:
+              type: string
+            enrichment_dimensions:
+              type: array
+              items:
+                type: string
             agreement_level:
               type: string
             agreement_score:
               type: number
-            shape_distribution:
-              type: array
-              items:
-                type: object
-                properties:
-                  iteration:
-                    type: integer
-                  shape:
-                    type: string
-                  voice:
-                    type: string
 
   - ordinal: 3
     action: validate
     description: >
-      Verify tension was carried through and shapes are diverse.
-      Check that neither bitterness (experience without spirit) nor
-      naivety (spirit without experience) emerged in the output.
+      Verify tension was carried through, shapes are diverse, and enrichment
+      quality meets the configured depth. Check that neither bitterness
+      (experience without spirit) nor naivety (spirit without experience)
+      emerged. Validate that enrichment dimensions match the requested depth.
       This corresponds to metacognitive step 5 (verify tension carried).
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-memory  # was hkask-mcp-storage
+    mcp: hkask-mcp-memory
     gas_cap: 500
     timeout_seconds: 10
     validation_rules:
@@ -120,7 +146,9 @@ steps:
       - tension_preserved_check
       - no_bitterness_detected
       - no_naivety_detected
-      - iteration_count_within_bounds
+      - perspective_count_within_bounds
+      - enrichment_depth_valid
+      - enrichment_dimensions_present
     output_schema:
       type: object
       properties:
@@ -130,6 +158,8 @@ steps:
           type: string
         shape_diversity_score:
           type: number
+        enrichment_quality:
+          type: string
         error_reason:
           type: string
 
@@ -137,16 +167,17 @@ steps:
     action: feedback
     description: >
       Emit feedback to CNS for variety monitoring.
-      Track shape selection patterns and perspective diversity.
+      Track shape selection patterns, perspective diversity, and enrichment depth.
     renderer: null
     template_ref: null
-    mcp: null  # CNS is ambient (CnsRuntime)
+    mcp: null # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:
       variety_delta: integer
       shapes_used: array
       agreement_score: number
+      enrichment_depth: string
     output_schema:
       type: object
       properties:
@@ -170,7 +201,7 @@ ocap:
     - resource: template
       action: render
       template_id: cognition/falstaffian-perspective
-      gas_budget: 8000
+      gas_budget: 16000
     - resource: manifest
       action: execute
       template_id: falstaffian-perspective
