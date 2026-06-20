@@ -1,3 +1,4 @@
+{# goal: Iterative density-increase pass that weaves missing entities into the prior summary, removes redundant language, and maintains the target length. #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -28,7 +29,7 @@ visibility: Public
 ---
 {# Template: chain-of-density/density-pass.j2 #}
 {# Process — Density-increase pass (Gao et al. 2024) #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.30.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

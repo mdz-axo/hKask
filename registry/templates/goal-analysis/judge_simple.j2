@@ -1,3 +1,4 @@
+{# goal: Fallback goal verification with minimal evaluation. Produces a continue verdict and default confidence for lightweight judgment. #}
 {# goal_judge_simple.j2 — Fallback goal verification #}
 {# functional_role: knowact #}
 {# implementation_type: jinja2 #}
@@ -7,6 +8,8 @@ template_type: KnowAct
 functional_role: KnowAct
 implementation_type: jinja2
 lexicon_terms: [assert, acknowledge]
+energy_cap: 2048
+visibility: Public
 contract:
   input:
     goal_text: string

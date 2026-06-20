@@ -1,9 +1,9 @@
 # Template crate manifest for gentle-lovelace skill
-# hKask v0.28.0
+# hKask v0.30.0
 
 crate:
   name: gentle-lovelace
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Four-dimensional technical documentation quality evaluator. Scores writing
     on accessibility (Hopper), precision (Lovelace), findability (Schriver), and

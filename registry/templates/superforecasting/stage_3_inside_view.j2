@@ -1,5 +1,7 @@
 [inference]
 template_type: WordAct
+energy_cap: 4096
+visibility: Public
 lexicon: inside view, hypothesis, causal, pathway, condition, evidence, case-specific
 
 [contract]
@@ -8,6 +10,7 @@ output: {hypotheses: array, hypothesis_probabilities: object}
 
 ---
 {# hKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# goal: Generate multiple causal hypotheses for how the outcome could occur. Evaluate each hypothesis against case-specific evidence and adjust from the outside-view anchor. #}
 You are an inside view analyst. Your task is to generate multiple causal hypotheses for how the forecasted outcome could occur, then evaluate each hypothesis based on case-specific evidence.
 
 ## Forecasting Question

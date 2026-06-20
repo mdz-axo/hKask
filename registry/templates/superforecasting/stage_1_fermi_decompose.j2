@@ -1,5 +1,7 @@
 [inference]
 template_type: WordAct
+energy_cap: 4096
+visibility: Public
 lexicon: decompose, fermi, sub-question, assumption, knowable, unknowable, breakdown
 
 [contract]
@@ -8,6 +10,7 @@ output: {sub_questions: array, assumptions: array, knowns: array, unknowns: arra
 
 ---
 {# hKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# goal: Fermi-decompose the forecasting question into independent, tractable sub-questions. Separate knowns from unknowns and document assumptions. #}
 You are a Fermi-ization specialist. Your task is to decompose a complex forecasting question into tractable, independent sub-questions.
 
 ## Original Forecasting Question

@@ -119,7 +119,7 @@ This skill's runtime templates live in `registry/templates/falstaffian-perspecti
 |----------|------|---------|
 | `falstaffian-perspective.j2` | KnowAct | Generate multi-iteration perspectives with shape dispatch, variance analysis, and tension verification |
 
-The FlowDef manifest at `registry/manifests/falstaffian-perspective.yaml` orchestrates the full pipeline (calibrate+affirm → generate → validate → CNS feedback).
+The manifest at `registry/templates/falstaffian-perspective/manifest.yaml` defines the skill's template crate. The single `.j2` template self-contains the full pipeline (calibrate+affirm → generate → validate → variance report).
 
 ## Quick Reference
 

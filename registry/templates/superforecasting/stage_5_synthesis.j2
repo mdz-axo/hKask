@@ -1,5 +1,7 @@
 [inference]
 template_type: WordAct
+energy_cap: 4096
+visibility: Public
 lexicon: synthesis, dragonfly, causal model, aggregate, steelman, perspective, integration
 
 [contract]
@@ -8,6 +10,7 @@ output: {causal_models: array, synthesized_probability: float, dissenting_views:
 
 ---
 {# hKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# goal: Synthesize a dragonfly-eye view by integrating multiple causal models and perspectives. Steel-man dissenting views and produce a synthesized probability. #}
 You are a synthesis analyst. Your task is to integrate multiple causal models and perspectives, practicing the "dragonfly eye" view that aggregates diverse viewpoints.
 
 ## Forecasting Question

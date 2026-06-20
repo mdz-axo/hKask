@@ -1,7 +1,4 @@
-{# goal_judge_command.j2 — Verify goal via command execution #}
-{# functional_role: knowact #}
-{# implementation_type: jinja2 #}
-{# lexicon_terms: [assert, command] #}
+{# goal: Verify goal completion via executed command results against acceptance criteria. Produces a done/continue/blocked verdict with reasoning. #}
 {# goal_judge_command.j2 — Verify goal via command execution #}
 {# functional_role: knowact #}
 {# implementation_type: jinja2 #}
@@ -11,6 +8,8 @@ template_type: KnowAct
 functional_role: KnowAct
 implementation_type: jinja2
 lexicon_terms: [assert, command]
+energy_cap: 4096
+visibility: Public
 contract:
   input:
     completion_criteria: array

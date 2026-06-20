@@ -1,9 +1,9 @@
 # Template crate manifest for chain-of-density skill
-# hKask v0.28.0
+# hKask v0.30.0
 
 crate:
   name: chain-of-density
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Chain-of-Density iterative text summarization (Gao et al. 2024). Generates
     increasingly dense summaries by merging missing entities into summaries while

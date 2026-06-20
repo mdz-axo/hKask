@@ -1,5 +1,7 @@
 [inference]
 template_type: WordAct
+energy_cap: 4096
+visibility: Public
 lexicon: bayesian, update, evidence, likelihood, prior, posterior, revision
 
 [contract]
@@ -8,6 +10,7 @@ output: {evidence_items: array, likelihood_ratios: array, updated_probability: f
 
 ---
 {# hKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# goal: Incorporate new evidence via Bayesian updating with likelihood ratios. Revise the prior probability based on evidence strength. #}
 You are a Bayesian updating specialist. Your task is to incorporate new evidence and update probabilities using likelihood ratios and Bayesian reasoning.
 
 ## Forecasting Question

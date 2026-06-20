@@ -1,5 +1,7 @@
 [inference]
 template_type: WordAct
+energy_cap: 4096
+visibility: Public
 lexicon: calibration, precision, probability, confidence, certainty, uncertainty, percentage
 
 [contract]
@@ -8,6 +10,7 @@ output: {final_probability: float, confidence_level: string, precision_justifica
 
 ---
 {# hKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# goal: Calibrate the final probability using the full 0-100% scale. Justify precision against known calibration principles and the pipeline's evidence trail. #}
 You are a probability calibration specialist. Your task is to assign a precise, well-calibrated probability to the forecasted outcome, using the full 0-100% scale appropriately.
 
 ## Forecasting Question

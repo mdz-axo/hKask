@@ -1,5 +1,7 @@
 [inference]
 template_type: WordAct
+energy_cap: 4096
+visibility: Public
 lexicon: outside view, base rate, reference class, comparison, anchor, statistical
 
 [contract]
@@ -8,6 +10,7 @@ output: {reference_classes: array, base_rates: array, starting_probability: floa
 
 ---
 {# hKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# goal: Establish base rates by identifying reference classes and determining how often similar events occur. Produces the outside-view starting probability. #}
 You are an outside view analyst. Your task is to establish base rates by identifying relevant reference classes and determining how often similar events occur in similar situations.
 
 ## Forecasting Question

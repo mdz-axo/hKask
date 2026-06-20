@@ -113,6 +113,7 @@ The eight-stage pipeline encodes this process. Each stage produces output that f
 | `stage_5_synthesis.j2` | WordAct | 5 | Dragonfly-eye synthesis |
 | `stage_6_calibration.j2` | WordAct | 6 | Probability calibration |
 | `stage_7_record.j2` | WordAct | 7 | Structured forecast record |
+| `superforecasting.yaml` | FlowDef | — | Cascading 8-stage pipeline orchestrator (convergence criteria, gas accounting, CNS spans) |
 
 All eight are WordAct templates — each produces a structured artifact (triage report, decomposition, probability estimate, forecast record) that feeds the next stage.
 

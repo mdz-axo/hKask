@@ -115,8 +115,7 @@ Red-teaming is a **testing tool**, not an attack tool. Generated adversarial inp
 | Template | Type | Purpose |
 |----------|------|---------|
 | `select-target.j2` | KnowAct | Select target and map vulnerability surface |
-| `generate-adversarial.j2` | KnowAct | Generate adversarial inputs across categories |
-| `multi-turn-attack.j2` | KnowAct | Construct multi-turn escalation scripts |
+| `generate-adversarial.j2` | KnowAct | Generate adversarial inputs across categories at calibrated intensity; multi-turn escalation controlled via `persistence_level` |
 | `test-against-target.j2` | KnowAct | Execute attacks and evaluate resistance rates |
 
 ## Quick Reference

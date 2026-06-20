@@ -1,8 +1,8 @@
 # Superforecasting Pipeline
 
-**Location:** `registry/manifests/superforecasting-pipeline.yaml`  
+**Location:** `registry/manifests/superforecasting.yaml`  
 **Templates:** `registry/templates/superforecasting/`  
-**Version:** 0.21.0
+**Version:** 0.30.0
 
 ## Overview
 
@@ -12,14 +12,14 @@ This pipeline implements Philip Tetlock's Fermi-ization methodology from the Goo
 
 | Stage | Template | Purpose | Energy Cap |
 |-------|----------|---------|------------|
-| 0 | `stage_0_triage.j2` | Classify question difficulty (Goldilocks zone) | 3,000 |
-| 1 | `stage_1_fermi_decompose.j2` | Decompose into tractable sub-questions | 5,000 |
-| 2 | `stage_2_outside_view.j2` | Establish base rates from reference classes | 5,000 |
-| 3 | `stage_3_inside_view.j2` | Generate and evaluate causal hypotheses | 6,000 |
-| 4 | `stage_4_evidence_update.j2` | Bayesian belief revision | 4,000 |
-| 5 | `stage_5_synthesis.j2` | Dragonfly eye aggregation of perspectives | 4,000 |
-| 6 | `stage_6_calibration.j2` | Assign precise, calibrated probability | 2,000 |
-| 7 | `stage_7_record.j2` | Record forecast for tracking/audit | 500 |
+| 0 | `stage_0_triage.j2` | Classify question difficulty (Goldilocks zone) | 2,048 |
+| 1 | `stage_1_fermi_decompose.j2` | Decompose into tractable sub-questions | 4,096 |
+| 2 | `stage_2_outside_view.j2` | Establish base rates from reference classes | 4,096 |
+| 3 | `stage_3_inside_view.j2` | Generate and evaluate causal hypotheses | 4,096 |
+| 4 | `stage_4_evidence_update.j2` | Bayesian belief revision | 4,096 |
+| 5 | `stage_5_synthesis.j2` | Dragonfly eye aggregation of perspectives | 4,096 |
+| 6 | `stage_6_calibration.j2` | Assign precise, calibrated probability | 4,096 |
+| 7 | `stage_7_record.j2` | Record forecast for tracking/audit | 2,048 |
 
 **Total Energy Budget:** 25,000 tokens
 
@@ -41,7 +41,7 @@ Based on Tetlock's **Ten Commandments for Aspiring Superforecasters**:
 
 ```yaml
 # Example pipeline invocation
-manifest_id: superforecasting-pipeline
+manifest_id: superforecasting
 input:
   forecasting_question: "Will [specific outcome] occur by [date]?"
   domain: "geopolitics"  # optional

@@ -76,7 +76,7 @@ This skill's runtime templates live in `registry/templates/gentle-lovelace/`:
 |----------|------|---------|
 | `replica-report.j2` | KnowAct | Produce structured diagnostic report from per-dimension scores with summary and recommendations |
 
-The FlowDef manifest at `registry/manifests/gentle-lovelace.yaml` orchestrates the full 4-step pipeline (retrieve exemplars → compare → aggregate → CNS feedback).
+The 4-step pipeline (retrieve exemplars → compare → aggregate → CNS feedback) is orchestrated internally by the template logic in `registry/templates/gentle-lovelace/`; no separate FlowDef manifest exists.
 
 ## Quick Reference
 

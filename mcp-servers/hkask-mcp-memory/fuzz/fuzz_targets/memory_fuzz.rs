@@ -16,16 +16,22 @@ use std::sync::{Arc, Mutex};
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 fn test_memory_server() -> MemoryServer {
-    let conn = Arc::new(Mutex::new(Connection::open_in_memory().expect("in-memory DB")));
+    let conn = Arc::new(Mutex::new(
+        Connection::open_in_memory().expect("in-memory DB"),
+    ));
     let triple_store = TripleStore::new(conn.clone());
-    triple_store.lock_conn().unwrap().execute_batch(
-        "CREATE TABLE IF NOT EXISTS triples (
+    triple_store
+        .lock_conn()
+        .unwrap()
+        .execute_batch(
+            "CREATE TABLE IF NOT EXISTS triples (
             id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
             value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
             confidence REAL NOT NULL, perspective TEXT, visibility TEXT NOT NULL,
             owner_webid TEXT NOT NULL
-        )"
-    ).expect("DDL");
+        )",
+        )
+        .expect("DDL");
     let episodic = EpisodicMemory::new(triple_store.clone());
     let emb_store = EmbeddingStore::new(conn.clone());
     let semantic = Arc::new(SemanticMemory::new(triple_store, emb_store));

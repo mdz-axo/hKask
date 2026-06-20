@@ -1,9 +1,9 @@
 # Template crate manifest for decision-journal skill
-# hKask v0.28.0
+# hKask v0.30.0
 
 crate:
   name: decision-journal
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
     Kahneman-style decision journal for improving judgment quality. Records
     decisions with reasoning and assumptions, defines calibrated probability

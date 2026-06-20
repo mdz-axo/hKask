@@ -654,7 +654,10 @@ impl ReplicaServer {
     }
 
     #[tool(description = "Manage the registry of built author replicas.")]
-    pub async fn replica_registry(&self, Parameters(params): Parameters<RegistryRequest>) -> String {
+    pub async fn replica_registry(
+        &self,
+        Parameters(params): Parameters<RegistryRequest>,
+    ) -> String {
         let span = ToolSpanGuard::new("replica_registry", &self.webid);
 
         let run = || -> Result<String, String> {
@@ -799,7 +802,10 @@ impl ReplicaServer {
     #[tool(
         description = "Discover an academic author's body of work and generate a corpus.yaml for replica_build. Delegates to the replica-discovery skill manifest which orchestrates multi-source search (Semantic Scholar, arXiv, web, YouTube transcripts), content extraction, and corpus generation. Supports agentic (fully automated) and curated (human-in-the-loop) modes."
     )]
-    pub async fn replica_discover(&self, Parameters(params): Parameters<DiscoverRequest>) -> String {
+    pub async fn replica_discover(
+        &self,
+        Parameters(params): Parameters<DiscoverRequest>,
+    ) -> String {
         let span = ToolSpanGuard::new("replica_discover", &self.webid);
         let author_name = params.author_name.clone();
 
@@ -909,7 +915,10 @@ impl ReplicaServer {
     #[tool(
         description = "Cache an extracted work's content to disk for reuse by replica_build. Writes content to {cache_dir}/{slug}.txt so the embedding pipeline can skip re-downloading."
     )]
-    pub async fn replica_cache_work(&self, Parameters(params): Parameters<CacheWorkRequest>) -> String {
+    pub async fn replica_cache_work(
+        &self,
+        Parameters(params): Parameters<CacheWorkRequest>,
+    ) -> String {
         let span = ToolSpanGuard::new("replica_cache_work", &self.webid);
 
         // Validate slug: alphanumeric + hyphens only, no path traversal

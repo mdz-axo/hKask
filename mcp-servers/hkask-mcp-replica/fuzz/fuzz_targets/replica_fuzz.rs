@@ -12,11 +12,7 @@ use std::panic::{self, AssertUnwindSafe};
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 fn test_server() -> ReplicaServer {
-    ReplicaServer::new(
-        TestWebId::alice(),
-        "fuzz-replicant".into(),
-        None,
-    )
+    ReplicaServer::new(TestWebId::alice(), "fuzz-replicant".into(), None)
 }
 
 fn call_tool<F: std::future::Future<Output = String>>(f: F) -> String {

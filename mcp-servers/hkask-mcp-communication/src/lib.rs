@@ -339,7 +339,7 @@ impl CommunicationServer {
 
 /// Run the communication MCP server (used by binary target).
 pub async fn run(
-    replicant: String,
+    _replicant: String,
     _daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     let homeserver_url =

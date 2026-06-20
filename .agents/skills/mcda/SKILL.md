@@ -56,7 +56,7 @@ The output is not "the right answer." It's a structured rationale you can defend
 │ Perturb weights: what if each criterion were ±10%?           │
 │ Identify rank reversals — does the top choice change?        │
 │ Find critical weights — the value at which ranking flips.    │
-│ Classify robustness: ROBUST / SENSITIVE / HIGHLY SENSITIVE   │
+│ Classify robustness: robust / moderate / fragile             │
 │                                                              │
 │ Output: sensitivity_report, critical_weights[], robustness   │
 └─────────────────────────────────────────────────────────────┘
@@ -105,7 +105,7 @@ Option B wins on composite (72 > 67). But without masking detection, you might n
 2. **Weight** — assign importance weights (direct or swing method)
 3. **Score** — each alternative on each criterion (0–100), normalize
 4. **Rank** — composite scores with compensation masking warnings
-5. **Sensitivity** — perturb weights, find rank reversals, classify robustness
+5. **Sensitivity** — perturb weights, find rank reversals, classify as robust / moderate / fragile
 
 *"When you cannot measure, your knowledge is of a meager and unsatisfactory kind."* — Lord Kelvin
 *"Not everything that counts can be counted, and not everything that can be counted counts."* — William Bruce Cameron

@@ -4318,6 +4318,7 @@ name = "hkask-mcp-communication"
 version = "0.30.0"
 dependencies = [
  "anyhow",
+ "dotenvy",
  "hkask-communication",
  "hkask-mcp",
  "hkask-test-harness",

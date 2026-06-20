@@ -1835,8 +1835,7 @@ impl DocProcServer {
         validate_field!(span, "output_pdf", &output_pdf, 4096);
 
         // Connect to local Chrome via DevTools Protocol.
-        // Precondition: Chrome running with --remote-debugging-port=9222,
-        // and the book is already open in a Kindle Cloud Reader tab.
+        // Chrome must be running with --remote-debugging-port=9222.
         let mut chrome = match ChromeCdpClient::connect(&self.http_client).await {
             Ok(c) => c,
             Err(e) => {
@@ -1850,28 +1849,81 @@ impl DocProcServer {
             }
         };
 
-        // Verify we're on a Kindle Cloud Reader page
-        let url_check = chrome
+        let current_url = chrome
             .evaluate("window.location.href")
             .await
             .unwrap_or_default();
-        if !url_check.contains("read.amazon.com") {
-            return span.error(
-                McpErrorKind::FailedPrecondition,
-                McpToolError::failed_precondition(format!(
-                    "Active Chrome tab is not a Kindle Cloud Reader page (found: {}). Open the book in read.amazon.com first.",
-                    url_check
-                ))
-                .to_json_string(),
+
+        // Step 1: Navigate to Kindle library if not already there
+        if !current_url.contains("read.amazon.com/kindle-library") {
+            tracing::info!(
+                target: "hkask.mcp.docproc",
+                current = %current_url,
+                "Navigating to Kindle library"
             );
+            chrome
+                .evaluate("window.location.href = 'https://read.amazon.com/kindle-library'")
+                .await
+                .ok();
+            tokio::time::sleep(std::time::Duration::from_secs(4)).await;
         }
 
+        // Step 2: Search for the book by title in the library
+        let escaped_title = book_title.replace('\'', "\\'").replace('"', "\\\"");
+        let search_js = format!(
+            "(function() {{ var input = document.querySelector('input[type=\"search\"], input[placeholder*=\"Search\" i], input[placeholder*=\"search\" i]'); if (!input) return 'SEARCH_NOT_FOUND'; input.focus(); input.value = ''; var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(input, '{}'); input.dispatchEvent(new Event('input', {{ bubbles: true }})); input.dispatchEvent(new KeyboardEvent('keydown', {{ key: 'Enter', bubbles: true }})); input.dispatchEvent(new KeyboardEvent('keyup', {{ key: 'Enter', bubbles: true }})); return 'SEARCH_SENT'; }})()",
+            escaped_title
+        );
+
+        match chrome.evaluate(&search_js).await {
+            Ok(result) => {
+                tracing::info!(target: "hkask.mcp.docproc", result = %result, "Search executed");
+            }
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Search failed: {e}")).to_json_string(),
+                );
+            }
+        }
+
+        // Wait for search results to load
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+
+        // Step 3: Click the book cover/title to open the reader
+        let click_js = format!(
+            "(function() {{ var t = '{}'; var lower = t.toLowerCase(); var items = document.querySelectorAll('img[alt], [aria-label]'); for (var i = 0; i < items.length; i++) {{ var attr = (items[i].getAttribute('alt') || '') + (items[i].getAttribute('aria-label') || ''); if (attr.toLowerCase().indexOf(lower) >= 0 && items[i].offsetParent !== null) {{ items[i].closest('a, button, [role=\"button\"], [role=\"link\"]')?.click(); items[i].click(); return 'CLICKED'; }} }} var all = document.querySelectorAll('*'); for (var i = 0; i < all.length; i++) {{ if (all[i].children.length > 0) continue; if (all[i].textContent && all[i].textContent.toLowerCase().indexOf(lower) >= 0 && all[i].offsetParent !== null) {{ all[i].click(); return 'CLICKED_TEXT'; }} }} return 'NOT_FOUND'; }})()",
+            escaped_title
+        );
+
+        match chrome.evaluate(&click_js).await {
+            Ok(result) => {
+                tracing::info!(target: "hkask.mcp.docproc", result = %result, "Book click result");
+            }
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Failed to open book: {e}")).to_json_string(),
+                );
+            }
+        }
+
+        // Wait for the reader to load
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
+        // Verify we're now in the reader
+        let reader_url = chrome
+            .evaluate("window.location.href")
+            .await
+            .unwrap_or_default();
         tracing::info!(
             target: "hkask.mcp.docproc",
-            url = %url_check,
+            url = %reader_url,
             book_title = %book_title,
-            "Connected to Kindle Cloud Reader tab"
+            "Reader opened"
         );
+
+        // Step 4: Page through the book, capturing screenshots
 
         // Page through the book, capturing screenshots
         let mut screenshots: Vec<Vec<u8>> = Vec::with_capacity(max_pages.min(500));
