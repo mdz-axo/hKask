@@ -1,5 +1,5 @@
-use hkask_types::BundleManifest;
-use hkask_types::bundle::SkillPolarity;
+use hkask_templates::BundleManifest;
+use hkask_templates::SkillPolarity;
 use hkask_types::template_type::TemplateType;
 use hkask_types::visibility::Visibility;
 use serde::{Deserialize, Serialize};

@@ -26,7 +26,7 @@ pub mod spec_curator;
 use crate::curator::context::CuratorContext;
 use crate::curator::curation_loop::CurationLoop;
 use hkask_memory::ConsolidationBridge;
-use hkask_types::loops::CurationInput;
+use hkask_cns::types::loops::CurationInput;
 use std::sync::Arc;
 
 /// Curator Agent — the persona layer of Curation (Loop 5).

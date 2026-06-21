@@ -7,8 +7,8 @@ use hkask_types::template_type::TemplateType as Type;
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  s is any string
 /// post: returns DataCategory parsed from s (defaults to Public on unrecognized)
-pub fn parse_data_category(s: &str) -> hkask_types::sovereignty::DataCategory {
-    hkask_types::sovereignty::DataCategory::parse(s)
+pub fn parse_data_category(s: &str) -> hkask_services_sovereignty::DataCategory {
+    hkask_services_sovereignty::DataCategory::parse(s)
 }
 
 /// Parse a template type string into a TemplateType enum

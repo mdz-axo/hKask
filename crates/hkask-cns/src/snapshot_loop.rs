@@ -12,7 +12,7 @@
 //! the `HkaskLoop` trait's `&self` methods can update snapshot timestamps
 //! after successful snapshot actions.
 
-use hkask_types::loops::{
+use crate::types::loops::{
     ActionType, Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 use hkask_ports::git_cas::{

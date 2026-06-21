@@ -12,13 +12,13 @@
 use hkask_storage::spec_types::{Spec, SpecCurationRecord, SpecCurator, SpecError};
 use hkask_capability::SYSTEM_MAX_RECURSION;
 use hkask_types::cns::CnsSpan;
-use hkask_types::curation::{
+use hkask_cns::types::curation::{
     CurationDecision, CurationThresholdConfig, OCAPBoundary, OcapTokenKind,
 };
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::id::WebID;
-use hkask_types::loops::CurationInput;
-use hkask_types::loops::SpecEvent;
+use hkask_cns::types::loops::CurationInput;
+use hkask_cns::types::loops::SpecEvent;
 use std::collections::HashSet;
 use std::sync::Arc;
 

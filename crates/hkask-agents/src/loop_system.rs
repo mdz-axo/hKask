@@ -6,8 +6,8 @@
 //! **Authority DAG:** Curation → Cybernetics → {Inference, Memory}
 
 use hkask_cns::CyberneticsLoop;
-use hkask_types::loops::HkaskLoop;
-use hkask_types::loops::LoopId;
+use hkask_cns::types::loops::HkaskLoop;
+use hkask_cns::types::loops::LoopId;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -24,18 +24,18 @@ impl HkaskLoop for CyberneticsLoopHandle {
         LoopId::Cybernetics
     }
 
-    async fn sense(&self) -> Vec<hkask_types::loops::Signal> {
+    async fn sense(&self) -> Vec<hkask_cns::types::loops::Signal> {
         self.0.read().await.sense().await
     }
 
     async fn compute(
         &self,
-        deviations: &[hkask_types::loops::Deviation],
-    ) -> Vec<hkask_types::loops::LoopAction> {
+        deviations: &[hkask_cns::types::loops::Deviation],
+    ) -> Vec<hkask_cns::types::loops::LoopAction> {
         self.0.read().await.compute(deviations).await
     }
 
-    async fn act(&self, actions: &[hkask_types::loops::LoopAction]) {
+    async fn act(&self, actions: &[hkask_cns::types::loops::LoopAction]) {
         self.0.read().await.act(actions).await
     }
 }

@@ -15,8 +15,8 @@ fn consent_name(value: bool) -> &'static str {
     if value { "required" } else { "open" }
 }
 
-fn parse_data_category(s: &str) -> hkask_types::sovereignty::DataCategory {
-    hkask_types::sovereignty::DataCategory::parse(s)
+fn parse_data_category(s: &str) -> hkask_services_sovereignty::DataCategory {
+    hkask_services_sovereignty::DataCategory::parse(s)
 }
 
 /// expect: "API endpoints enforce OCAP boundaries"

@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use hkask_agents::consent::ConsentManager;
-use hkask_types::sovereignty::DataCategory;
+use crate::DataCategory;
 
 use hkask_services_core::ServiceError;
 

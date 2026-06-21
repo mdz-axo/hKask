@@ -31,7 +31,7 @@ use hkask_capability::{
 };
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanKind, SpanNamespace};
-use hkask_types::loops::ToolConsumptionEvent;
+use crate::types::loops::ToolConsumptionEvent;
 use hkask_ports::{ToolInfo, ToolPort, ToolPortError};
 
 use serde_json::Value;

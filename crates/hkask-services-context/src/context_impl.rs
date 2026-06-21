@@ -55,11 +55,11 @@ use hkask_storage::{
     WalletStore, in_memory_db,
 };
 use hkask_templates::SqliteRegistry;
-use hkask_types::CuratorHandle;
+use hkask_cns::types::loops::CuratorHandle;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
-use hkask_types::loops::HkaskLoop;
-use hkask_types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
+use hkask_cns::types::loops::HkaskLoop;
+use hkask_cns::types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
 use hkask_types::wallet::WalletId;
 
 use hkask_services_core::ServiceConfig;

@@ -1,7 +1,7 @@
 //! Sovereignty command handlers — call consent manager directly.
 
-use hkask_types::sovereignty::DataCategory;
-use hkask_types::sovereignty::DataSovereigntyBoundary;
+use hkask_services_sovereignty::DataCategory;
+use hkask_services_sovereignty::DataSovereigntyBoundary;
 
 use crate::commands;
 

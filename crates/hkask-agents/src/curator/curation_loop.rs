@@ -18,8 +18,8 @@
 use chrono::Utc;
 use hkask_memory::ConsolidationBridge;
 use hkask_ports::ConsolidationRequest;
-use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
-use hkask_types::loops::{
+use hkask_cns::types::loops::curation::{CuratorDirective, CuratorHandle};
+use hkask_cns::types::loops::{
     CurationInput, Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 use std::sync::Arc;
@@ -301,7 +301,7 @@ impl HkaskLoop for CurationLoop {
                     // Algedonic events from NuEvent store require Curation review
                     actions.push(LoopAction::new(
                         LoopId::Cybernetics,
-                        hkask_types::loops::ActionType::Escalate,
+                        hkask_cns::types::loops::ActionType::Escalate,
                         serde_json::json!({
                             "reason": "algedonic_events_exceeded",
                             "count": dev.signal.value,
@@ -312,7 +312,7 @@ impl HkaskLoop for CurationLoop {
                     // Pending escalations require Curator attention
                     actions.push(LoopAction::new(
                         LoopId::Curation,
-                        hkask_types::loops::ActionType::Escalate,
+                        hkask_cns::types::loops::ActionType::Escalate,
                         serde_json::json!({
                             "reason": "pending_escalations_exist",
                             "count": dev.signal.value,
@@ -331,7 +331,7 @@ impl HkaskLoop for CurationLoop {
         for action in actions {
             tracing::info!(target: CUR_TARGET, action_type = ?action.action_type, target_loop = %action.target, "Curation Loop regulatory action");
             let directive = match action.action_type {
-                hkask_types::loops::ActionType::Escalate
+                hkask_cns::types::loops::ActionType::Escalate
                     if action.parameters.get("reason").and_then(|v| v.as_str())
                         == Some("algedonic_events_exceeded") =>
                 {
@@ -343,7 +343,7 @@ impl HkaskLoop for CurationLoop {
                     tracing::warn!(target: CUR_TARGET, count = count, "Algedonic events exceeded threshold — Curation reviewing");
                     None
                 }
-                hkask_types::loops::ActionType::Escalate
+                hkask_cns::types::loops::ActionType::Escalate
                     if action.parameters.get("reason").and_then(|v| v.as_str())
                         == Some("pending_escalations_exist") =>
                 {
@@ -406,7 +406,7 @@ impl HkaskLoop for CurationLoop {
                     }
                     continue;
                 }
-                hkask_types::loops::ActionType::Escalate => {
+                hkask_cns::types::loops::ActionType::Escalate => {
                     // Other escalations go through the escalation queue
                     // (handled by CuratorContext internally)
                     None

@@ -7,7 +7,7 @@
 //! Governance is applied externally via `GovernedTool` (in `hkask-cns`) before
 //! the port is passed to this loop.
 
-use hkask_types::loops::{
+use hkask_cns::types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 use hkask_ports::CircuitBreakerPort;

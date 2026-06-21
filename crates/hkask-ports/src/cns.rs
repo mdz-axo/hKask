@@ -1,7 +1,7 @@
 use hkask_types::cns::CircuitState;
 use hkask_types::event::{NuEvent, SpanNamespace};
 use hkask_types::id::WebID;
-use hkask_types::loops::LoopId;
+use hkask_cns::types::loops::LoopId;
 
 use async_trait::async_trait;
 

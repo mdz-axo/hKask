@@ -36,7 +36,7 @@ use crate::wallet_budget::WalletBackedBudget;
 
 use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanKind};
-use hkask_types::loops::{
+use crate::types::loops::{
     ActionType, CurationInput, CuratorDirective, Deviation, DeviationDirection, HkaskLoop,
     LoopAction, LoopId, LoopQuality, RuntimeAlert, Signal, SignalMetric, ToolConsumptionEvent,
 };

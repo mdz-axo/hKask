@@ -13,7 +13,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use hkask_types::loops::{
+use hkask_cns::types::loops::{
     ActionType, Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 use parking_lot::RwLock;

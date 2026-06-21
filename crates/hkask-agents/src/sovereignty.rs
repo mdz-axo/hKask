@@ -12,7 +12,7 @@
 //! or `POST /consent/grant` are observed on the next sovereignty check.
 
 use hkask_types::WebID;
-use hkask_types::sovereignty::{DataCategory, UserSovereigntyState};
+use hkask_services_sovereignty::{DataCategory, UserSovereigntyState};
 use std::sync::Arc;
 
 /// Port for resolving explicit user consent for a (webid, category) pair.

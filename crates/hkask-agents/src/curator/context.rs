@@ -4,8 +4,8 @@ use crate::ports::A2APort;
 use hkask_cns::CnsRuntime;
 use hkask_storage::EscalationQueue;
 use hkask_storage::NuEventStore;
-use hkask_types::CuratorHandle;
-use hkask_types::loops::curation::CuratorDirective;
+use hkask_cns::types::loops::CuratorHandle;
+use hkask_cns::types::loops::curation::CuratorDirective;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 

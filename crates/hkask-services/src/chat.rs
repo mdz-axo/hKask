@@ -57,7 +57,7 @@ impl TokenUsage {
 mod tests {
     use super::*;
     use hkask_agents::ports::memory_storage::RecalledEpisode;
-    use hkask_types::loops::episodic::ExperienceClassification;
+    use hkask_cns::types::loops::episodic::ExperienceClassification;
 
     #[test]
     fn token_usage_gas_cost_one_to_one() {

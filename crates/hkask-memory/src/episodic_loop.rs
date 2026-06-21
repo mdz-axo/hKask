@@ -12,7 +12,7 @@ use hkask_types::WebID;
 use hkask_capability::tokens::ConsolidationToken;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
-use hkask_types::loops::{
+use hkask_cns::types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 use hkask_ports::ConsolidationRequest;

@@ -9,7 +9,7 @@ use hkask_memory::{ConsolidationBridge, EpisodicMemory, SemanticMemory};
 use hkask_ports::{ConsolidationOutcome, ConsolidationRequest};
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_types::WebID;
-use hkask_types::loops::CuratorHandle;
+use hkask_cns::types::loops::CuratorHandle;
 
 use crate::ServiceError;
 

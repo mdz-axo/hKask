@@ -10,8 +10,8 @@ use hkask_types::BotID;
 use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
 use hkask_types::event::SpanNamespace;
-use hkask_types::loops::curation::CuratorDirective;
-use hkask_types::loops::{
+use hkask_cns::types::loops::curation::CuratorDirective;
+use hkask_cns::types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 use std::collections::HashMap;

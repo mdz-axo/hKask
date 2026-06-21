@@ -31,7 +31,7 @@
 //!    bypass the cooldown by changing its fingerprint.
 
 use hkask_types::WebID;
-use hkask_types::loops::CuratorDirective;
+use crate::types::loops::CuratorDirective;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::Mutex;

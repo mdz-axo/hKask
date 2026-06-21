@@ -21,6 +21,7 @@ hkask-cns = { path = "../hkask-cns" }
 hkask-api = { path = "../hkask-api" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-services = { path = "../hkask-services" }
+hkask-services-sovereignty = { path = "../hkask-services-sovereignty" }
 hkask-services-cloud = { path = "../hkask-services-cloud" }
 hkask-wallet = { path = "../hkask-wallet" }
 hkask-keystore = { path = "../hkask-keystore" }

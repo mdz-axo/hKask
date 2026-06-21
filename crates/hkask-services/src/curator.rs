@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use hkask_agents::curator_agent::CuratorAgent;
 use hkask_storage::EscalationEntry;
-use hkask_types::CuratorHandle;
+use hkask_cns::types::loops::CuratorHandle;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};

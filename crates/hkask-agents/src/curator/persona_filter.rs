@@ -5,7 +5,7 @@
 //! enforced at runtime. This filter checks model output against the constraints
 //! and reports violations.
 
-use hkask_types::PersonaConstraints;
+use crate::PersonaConstraints;
 
 /// Result of checking model output against persona constraints.
 #[derive(Debug, Clone)]
@@ -93,7 +93,6 @@ pub fn strip_forbidden_patterns(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::PersonaConstraints;
 
     fn constraints(forbidden: &[&str]) -> PersonaConstraints {
         PersonaConstraints {

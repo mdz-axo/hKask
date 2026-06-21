@@ -16,6 +16,7 @@ hkask-agents = { path = "../hkask-agents" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
+hkask-services-sovereignty = { path = "../hkask-services-sovereignty" }
 hkask-wallet = { path = "../hkask-wallet" }
 tokio.workspace = true
 tracing.workspace = true

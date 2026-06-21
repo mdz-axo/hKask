@@ -2,7 +2,7 @@
 
 use hkask_services::consolidation;
 use hkask_types::WebID;
-use hkask_types::loops::CuratorHandle;
+use hkask_cns::types::loops::CuratorHandle;
 use hkask_ports::ConsolidationRequest;
 
 /// expect: "I can access all hKask functionality through the kask CLI"
