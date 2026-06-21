@@ -54,6 +54,9 @@ pub const DEFAULT_KEY_VERSION: u32 = 1;
 /// from the master passphrase via HKDF-SHA256.
 #[derive()]
 pub struct InternalSecrets {
+    /// Master key (hex-encoded 256-bit key) — the root from which all sub-keys derive.
+    /// Stored in keychain as HKASK_MASTER_KEY for pod OCAP derivation and restart survival.
+    pub master_key_hex: String,
     /// A2A HMAC signing secret (hex-encoded 256-bit key)
     pub a2a_secret: String,
     /// API capability token signing key (hex-encoded 256-bit key)
@@ -145,6 +148,7 @@ pub fn derive_all_internal_secrets_with_version(
     tracing::info!(target: "cns.keystore", operation = "internal_secrets_derived", latency_ms = start.elapsed().as_millis(), "CNS");
 
     InternalSecrets {
+        master_key_hex: hex::encode(&*master_key),
         a2a_secret,
         capability_key,
         mcp_security_key,

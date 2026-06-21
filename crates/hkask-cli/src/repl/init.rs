@@ -95,6 +95,13 @@ pub(super) fn init_repl_state(
     // Build a ServiceConfig from onboarding outcome for AgentService::build().
     let service_config = match &onboarding_outcome.resolved_secrets {
         Some(secrets) => {
+            // Set HKASK_MASTER_KEY so CuratorPod OCAP derivation works without
+            // a separate keychain lookup (which fails with mock backends).
+            // SAFETY: REPL init runs single-threaded before tokio runtime starts.
+            unsafe {
+                std::env::set_var("HKASK_MASTER_KEY", &secrets.master_key_hex);
+            }
+
             // Onboarding provides A2A + DB secrets. MCP secret is resolved
             // separately since ResolvedSecrets doesn't carry it.
             let mcp_secret = hkask_keystore::keychain::resolve_mcp_secret()

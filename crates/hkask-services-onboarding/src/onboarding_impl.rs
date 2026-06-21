@@ -27,6 +27,7 @@ pub struct ReplicantContactConfig {
 /// mutating environment variables.
 #[derive(Debug, Clone)]
 pub struct ResolvedSecrets {
+    pub master_key_hex: String,
     pub a2a_secret: String,
     pub db_passphrase: String,
 }
@@ -66,6 +67,12 @@ impl OnboardingService {
         if store {
             let keychain = Keychain::default();
             keychain
+                .store_by_key("HKASK_MASTER_KEY", &secrets.master_key_hex)
+                .map_err(|e| ServiceError::Keystore {
+                    source: Some(Box::new(e)),
+                    message: "Failed to store HKASK_MASTER_KEY".into(),
+                })?;
+            keychain
                 .store_by_key("a2a-secret", &secrets.a2a_secret)
                 .map_err(|e| ServiceError::Keystore {
                     source: Some(Box::new(e)),
@@ -86,6 +93,7 @@ impl OnboardingService {
             "CNS"
         );
         Ok(ResolvedSecrets {
+            master_key_hex: secrets.master_key_hex.clone(),
             a2a_secret: secrets.a2a_secret.clone(),
             db_passphrase: secrets.capability_key.clone(),
         })

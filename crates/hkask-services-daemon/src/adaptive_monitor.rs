@@ -19,6 +19,9 @@ struct WatchedProvider {
     api_key: String,
     /// Last known marginal state — used to detect transitions.
     was_marginal: bool,
+    /// True until the first check completes — suppresses false alerts
+    /// for always-marginal providers.
+    first_check: bool,
     /// When to next check this provider.
     next_check: Instant,
     /// Current check interval (adjusted by usage fraction).
@@ -31,8 +34,9 @@ impl WatchedProvider {
             provider,
             api_key,
             was_marginal: false,
-            next_check: Instant::now(), // check immediately on first run
-            interval: Duration::from_secs(24 * 3600), // start at daily
+            first_check: true,
+            next_check: Instant::now(),
+            interval: Duration::from_secs(24 * 3600),
         }
     }
 
@@ -81,8 +85,9 @@ impl WatchedProvider {
             }
         };
 
-        // Detect marginal activation (false → true transition)
-        if cost.is_marginal && !self.was_marginal {
+        // Detect marginal activation (false → true transition).
+        // Suppress on first check — always-marginal providers would false-positive.
+        if cost.is_marginal && !self.was_marginal && !self.first_check {
             tracing::warn!(
                 target: "cns.provider.marginal_activated",
                 provider = %provider_id,
@@ -93,6 +98,7 @@ impl WatchedProvider {
             );
         }
         self.was_marginal = cost.is_marginal;
+        self.first_check = false;
 
         // Adjust check interval based on usage fraction
         let new_interval = Self::interval_for_fraction(usage.fraction);
@@ -360,6 +366,107 @@ mod tests {
         assert!(monitor.providers[0].was_marginal);
 
         // Interval should be 10 minutes (≥90%)
+        assert_eq!(monitor.providers[0].interval.as_secs(), 10 * 60);
+    }
+
+    #[tokio::test]
+    async fn always_marginal_does_not_fire_alert_on_first_check() {
+        // Simulate DeepInfra/Together — always marginal
+        let mock = MockProvider {
+            id: "always-marginal",
+            usage_status: UsageStatus {
+                consumed: 100,
+                limit: u64::MAX,
+                fraction: 0.0,
+                estimated_exhaustion: None,
+            },
+            cost_rate: hkask_services_classify::CostRate {
+                input_nj_per_unit: 30,
+                output_nj_per_unit: 60,
+                cache_read_nj_per_unit: 0,
+                cache_write_nj_per_unit: 0,
+                fixed_nj_per_call: 0,
+                image_nj_per_unit: 0,
+                is_marginal: true,
+            },
+            usage_ok: true,
+        };
+
+        let mut monitor = AdaptiveMonitor::new();
+        monitor.add_provider(Box::new(mock), "test-key".into());
+
+        // First check: first_check is true, should NOT fire alert
+        // (was_marginal starts false, cost.is_marginal is true, but first_check=true suppresses)
+        monitor.providers[0].check().await;
+
+        // After first check, was_marginal should be true, first_check false
+        assert!(monitor.providers[0].was_marginal);
+        assert!(!monitor.providers[0].first_check);
+
+        // Second check: no change, no alert
+        monitor.providers[0].check().await;
+        assert!(monitor.providers[0].was_marginal);
+    }
+
+    #[tokio::test]
+    async fn subscription_tier_transition_detected_at_cap_plus_one() {
+        // Simulate Brave Search: 2000 calls/month cap
+        // First, create below cap
+        let mut monitor = AdaptiveMonitor::new();
+
+        // Check 1: 1999 calls — just below cap, should not be marginal
+        let mock_below = MockProvider {
+            id: "brave",
+            usage_status: UsageStatus {
+                consumed: 1999,
+                limit: 2000,
+                fraction: 0.9995,
+                estimated_exhaustion: None,
+            },
+            cost_rate: hkask_services_classify::CostRate {
+                input_nj_per_unit: 0,
+                output_nj_per_unit: 0,
+                cache_read_nj_per_unit: 0,
+                cache_write_nj_per_unit: 0,
+                fixed_nj_per_call: 0,
+                image_nj_per_unit: 0,
+                is_marginal: false, // still within subscription
+            },
+            usage_ok: true,
+        };
+        monitor.add_provider(Box::new(mock_below), "brave-key".into());
+
+        // First check: establishes baseline (first_check suppresses alert)
+        monitor.providers[0].check().await;
+        assert!(!monitor.providers[0].was_marginal);
+        assert!(!monitor.providers[0].first_check);
+
+        // Now simulate crossing the cap: replace with a provider at 2001 calls
+        let mock_over = MockProvider {
+            id: "brave",
+            usage_status: UsageStatus {
+                consumed: 2001,
+                limit: 2000,
+                fraction: 1.0005,
+                estimated_exhaustion: None,
+            },
+            cost_rate: hkask_services_classify::CostRate {
+                input_nj_per_unit: 0,
+                output_nj_per_unit: 0,
+                cache_read_nj_per_unit: 0,
+                cache_write_nj_per_unit: 0,
+                fixed_nj_per_call: 1_000_000, // overage rate
+                image_nj_per_unit: 0,
+                is_marginal: true, // over the cap
+            },
+            usage_ok: true,
+        };
+        monitor.providers[0].provider = Box::new(mock_over);
+
+        // Check 2: should detect transition (was_marginal was false, now true)
+        monitor.providers[0].check().await;
+        assert!(monitor.providers[0].was_marginal);
+        // Interval should be 10min (fraction > 90%)
         assert_eq!(monitor.providers[0].interval.as_secs(), 10 * 60);
     }
 }

@@ -253,6 +253,7 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
 
     // ── Replicant creation ──
 
+    println!();
     let name = prompt_line("  What first name should your replicant have?")?;
     let name = name.trim().to_string();
     let display_name = user_profile.replicant_display_name(&name);

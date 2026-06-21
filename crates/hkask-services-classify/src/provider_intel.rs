@@ -543,8 +543,10 @@ impl ProviderIntelligence for SelfTrackedProvider {
         _model_name: &str,
     ) -> Result<CostRate, ProviderError> {
         let usage = self.usage(api_key).await?;
-        let over_limit =
-            usage.limit > 0 && usage.limit != u64::MAX && usage.consumed >= usage.limit;
+        // Providers with no tier cap (limit == u64::MAX) are always-marginal.
+        let has_cap = usage.limit > 0 && usage.limit != u64::MAX;
+        // Subscription tiers give "up to X calls" — overage starts at X+1.
+        let over_limit = has_cap && usage.consumed > usage.limit;
         Ok(CostRate {
             input_nj_per_unit: 0,
             output_nj_per_unit: 0,
@@ -556,7 +558,7 @@ impl ProviderIntelligence for SelfTrackedProvider {
                 0
             },
             image_nj_per_unit: 0,
-            is_marginal: over_limit,
+            is_marginal: !has_cap || over_limit,
         })
     }
 }
