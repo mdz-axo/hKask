@@ -81,6 +81,18 @@ impl Database {
                 "Passphrase must be at least 8 characters".to_string(),
             ));
         }
+
+        // Ensure parent directory exists — both salt file and database file need it.
+        if let Some(parent) = std::path::Path::new(path).parent() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                DatabaseError::SqlCipher(format!(
+                    "Failed to create database directory {}: {}",
+                    parent.display(),
+                    e
+                ))
+            })?;
+        }
+
         let salt_path = format!("{}.salt", path);
         let salt = if let Ok(salt_bytes) = std::fs::read(&salt_path) {
             if salt_bytes.len() != SQLCIPHER_SALT_SIZE {

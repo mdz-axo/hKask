@@ -745,7 +745,7 @@ impl EmbedService {
         );
 
         let classify_results =
-            hkask_services_classify::classify_batch(&texts, classifier_config).await?;
+            hkask_services_classify::classify_batch(&texts, classifier_config, None).await?;
 
         for (passage, result) in all_passages.iter_mut().zip(classify_results.iter()) {
             passage.section_type = result.category.clone();

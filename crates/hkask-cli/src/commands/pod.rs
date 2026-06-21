@@ -242,7 +242,7 @@ spec:
     - metadata:
         name: data
       spec:
-        storageClassName: hcloud-volumes
+        storageClassName: local-path
         accessModes: [ReadWriteOnce]
         resources:
           requests:

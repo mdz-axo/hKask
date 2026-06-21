@@ -4887,12 +4887,15 @@ dependencies = [
 name = "hkask-services-classify"
 version = "0.30.0"
 dependencies = [
+ "async-trait",
+ "chrono",
  "hkask-inference",
  "hkask-services-core",
  "reqwest",
  "serde",
  "serde_json",
  "serde_yaml_neo",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
 ]

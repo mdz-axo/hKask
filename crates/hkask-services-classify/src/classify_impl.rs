@@ -374,6 +374,7 @@ async fn classify_one(
 pub async fn classify_batch(
     texts: &[String],
     config: ClassifierConfig,
+    provider: Option<&dyn crate::provider_intel::ProviderIntelligence>,
 ) -> Result<Vec<ClassifyResult>, ServiceError> {
     // P9: CNS span
     tracing::info!(target: "cns.classify", operation = "classify_batch", item_count = texts.len(), "CNS");
@@ -392,6 +393,34 @@ pub async fn classify_batch(
             })
             .collect());
     }
+
+    // Resolve actual pricing: prefer provider intelligence, fall back to static config
+    let (input_cost_nj, output_cost_nj) = if let Some(pi) = provider {
+        match pi.actual_cost(&config.api_key).await {
+            Ok(rate) => (rate.input_nj_per_unit, rate.output_nj_per_unit),
+            Err(_) => {
+                tracing::warn!(
+                    target: "cns.classify",
+                    provider = %pi.provider_id(),
+                    "Failed to fetch actual cost, falling back to static pricing"
+                );
+                (
+                    config.cost_input_nj_per_token,
+                    config.cost_output_nj_per_token,
+                )
+            }
+        }
+    } else {
+        (
+            config.cost_input_nj_per_token,
+            config.cost_output_nj_per_token,
+        )
+    };
+
+    // Apply resolved pricing to config before sharing across tasks
+    let mut config = config;
+    config.cost_input_nj_per_token = input_cost_nj;
+    config.cost_output_nj_per_token = output_cost_nj;
 
     let client = Client::builder()
         .timeout(config.timeout)

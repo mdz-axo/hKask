@@ -3,8 +3,13 @@
 //! Extracted from `hkask-services` to enable parallel compilation.
 
 mod classify_impl;
+mod provider_intel;
 
 pub use classify_impl::{
     ClassifierConfig, TripleExtraction, classify_batch, extract_triples_batch,
     load_classifier_config,
+};
+pub use provider_intel::{
+    CostRate, DeepInfraProvider, LimitUnit, ProviderError, ProviderIntelligence, ProviderState,
+    UsageStatus,
 };

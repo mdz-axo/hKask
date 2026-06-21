@@ -86,7 +86,7 @@ async fn triage(input_path: Option<PathBuf>) -> Result<(), Box<dyn std::error::E
         // Classify each failure
         println!("[QA] Classifying {} failure(s) with LLM...", failures.len());
         let passages: Vec<String> = failures.iter().map(|f| f.to_passage()).collect();
-        let results = match hkask_services_classify::classify_batch(&passages, cfg).await {
+        let results = match hkask_services_classify::classify_batch(&passages, cfg, None).await {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("[QA] Classifier API error: {e}");
@@ -292,7 +292,7 @@ async fn suggest_fuzz(input_path: Option<PathBuf>) -> Result<(), Box<dyn std::er
         })
         .collect();
 
-    let results = hkask_services_classify::classify_batch(&passages, cfg).await?;
+    let results = hkask_services_classify::classify_batch(&passages, cfg, None).await?;
 
     println!("\n[QA] Fuzz target suggestions:\n");
     for (i, result) in results.iter().enumerate() {
@@ -354,7 +354,7 @@ async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Erro
                 ));
             }
 
-            let results = hkask_services_classify::classify_batch(&passages_owned, cfg)
+            let results = hkask_services_classify::classify_batch(&passages_owned, cfg, None)
                 .await
                 .map_err(|e| format!("Classify API error: {}", e))?;
 
