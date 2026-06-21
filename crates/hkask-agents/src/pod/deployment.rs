@@ -443,7 +443,12 @@ impl PodFactory {
         }
 
         let webid_path = db_path.with_extension("webid");
-        let webid = std::fs::read_to_string(&webid_path).unwrap_or_default();
+        let webid = std::fs::read_to_string(&webid_path).map_err(|_| {
+            PodDeployError::StorageInitFailed {
+                path: webid_path.clone(),
+                reason: "Missing webid sidecar — pod identity cannot be resolved for export".into(),
+            }
+        })?;
 
         // Create output directory structure
         let pods_out = output_dir.join("pods");

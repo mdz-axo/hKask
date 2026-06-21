@@ -140,6 +140,9 @@ pub enum AdapterStoreError {
         actual: Checksum,
     },
 
+    #[error("Invalid adapter state: {0}")]
+    InvalidState(String),
+
     #[error("Database error: {0}")]
     Database(#[from] rusqlite::Error),
 
@@ -427,10 +430,12 @@ impl AdapterStore {
             .unwrap_or_default();
 
         let base_model = r.base_model_family.clone();
-        let source: AdapterSource =
-            serde_json::from_str(&r.source_json).unwrap_or_else(|_| AdapterSource::HuggingFace {
-                repo: "unknown".into(),
-            });
+        let source: AdapterSource = serde_json::from_str(&r.source_json).map_err(|e| {
+            AdapterStoreError::InvalidState(format!(
+                "Corrupt adapter source_json for {}: {e}",
+                r.adapter_id
+            ))
+        })?;
         let provenance = TrainingProvenance {
             training_run_id: r.training_run_id,
             training_source: r.training_source,

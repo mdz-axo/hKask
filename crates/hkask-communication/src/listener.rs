@@ -12,7 +12,7 @@
 
 use crate::matrix::MatrixTransport;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{Mutex, RwLock, watch};
 
 // ── 7R7 Listener ───────────────────────────────────────────────────────────
 
@@ -27,6 +27,8 @@ pub struct SevenR7Listener {
     poll_interval_secs: u64,
     /// Whether the listener is active.
     active: RwLock<bool>,
+    /// Cancellation channel — dropping the sender (via stop) signals the loop to exit.
+    cancel_tx: RwLock<Option<watch::Sender<bool>>>,
 }
 
 impl SevenR7Listener {
@@ -41,6 +43,7 @@ impl SevenR7Listener {
             matrix,
             poll_interval_secs,
             active: RwLock::new(false),
+            cancel_tx: RwLock::new(None),
         }
     }
 
@@ -62,54 +65,62 @@ impl SevenR7Listener {
         }
         *self.active.write().await = true;
 
+        let (cancel_tx, mut cancel_rx) = watch::channel(false);
+        *self.cancel_tx.write().await = Some(cancel_tx);
+
         let matrix = Arc::clone(&self.matrix);
         let interval = self.poll_interval_secs;
 
         tokio::spawn(async move {
             let mut timer = tokio::time::interval(std::time::Duration::from_secs(interval));
             loop {
-                timer.tick().await;
+                tokio::select! {
+                    _ = timer.tick() => {
+                        // List known rooms
+                        let rooms = {
+                            let transport = matrix.lock().await;
+                            match transport.list_rooms().await {
+                                Ok(r) => r,
+                                Err(e) => {
+                                    tracing::warn!(
+                                        target: "cns.communication.listener",
+                                        error = %e,
+                                        "7R7 failed to list rooms"
+                                    );
+                                    continue;
+                                }
+                            }
+                        };
 
-                // List known rooms
-                let rooms = {
-                    let transport = matrix.lock().await;
-                    match transport.list_rooms().await {
-                        Ok(r) => r,
-                        Err(e) => {
-                            tracing::warn!(
-                                target: "cns.communication.listener",
-                                error = %e,
-                                "7R7 failed to list rooms"
-                            );
-                            continue;
-                        }
-                    }
-                };
-
-                // Poll each room for recent messages
-                for room in &rooms {
-                    let room_id = room.room_id.as_str();
-                    let transport = matrix.lock().await;
-                    match transport.get_messages(&room.room_id, 10).await {
-                        Ok(messages) => {
-                            for msg in &messages {
-                                tracing::info!(
-                                    target: "cns.communication.message.observed",
-                                    room_id = %room_id,
-                                    sender = %msg.sender.as_str(),
-                                    body_len = %msg.body.len(),
-                                    "7R7 observed message"
-                                );
+                        for room in &rooms {
+                            let room_id = room.room_id.as_str();
+                            let transport = matrix.lock().await;
+                            match transport.get_messages(&room.room_id, 10).await {
+                                Ok(messages) => {
+                                    for msg in &messages {
+                                        tracing::info!(
+                                            target: "cns.communication.message.observed",
+                                            room_id = %room_id,
+                                            sender = %msg.sender.as_str(),
+                                            body_len = %msg.body.len(),
+                                            "7R7 observed message"
+                                        );
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::debug!(
+                                        target: "cns.communication.listener",
+                                        room_id = %room_id,
+                                        error = %e,
+                                        "7R7 failed to poll room"
+                                    );
+                                }
                             }
                         }
-                        Err(e) => {
-                            tracing::debug!(
-                                target: "cns.communication.listener",
-                                room_id = %room_id,
-                                error = %e,
-                                "7R7 failed to poll room"
-                            );
-                        }
+                    }
+                    _ = cancel_rx.changed() => {
+                        tracing::info!(target: "cns.communication.listener", "7R7 listener stopped");
+                        break;
                     }
                 }
             }
@@ -129,6 +140,8 @@ impl SevenR7Listener {
     /// post: idempotent — calling stop() on already-stopped listener is no-op
     pub async fn stop(&self) {
         *self.active.write().await = false;
+        // Dropping the sender triggers the receiver in the select! loop.
+        *self.cancel_tx.write().await = None;
         tracing::info!(target: "cns.communication.listener.stopped", "7R7 listener stopped");
     }
 }

@@ -1327,9 +1327,9 @@ fn build_wallet(
 
 /// Register a pod's replicant as a Matrix user on Conduit.
 ///
-/// Called from the pod activation hook. Uses MatrixTransport from the
-/// core communication crate for registration.
-#[allow(dead_code)]
+/// DEFERRED: Called from the pod activation hook — wiring pending.
+/// When wired: `ActivePods::activate_pod` should call this after A2A registration.
+#[allow(dead_code)] // pending pod activation wiring
 async fn register_pod_on_matrix(homeserver_url: &str, webid: &hkask_types::WebID, pod_name: &str) {
     self::matrix::register_pod_on_matrix(homeserver_url, webid, pod_name).await
 }

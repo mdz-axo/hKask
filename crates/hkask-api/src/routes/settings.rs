@@ -6,6 +6,8 @@
 
 use axum::Json;
 use axum::extract::{Extension, State};
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
 use axum::routing::get;
 
 use crate::middleware::auth::AuthContext;
@@ -104,7 +106,7 @@ async fn update_settings(
     State(_state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<UpdateSettingsRequest>,
-) -> Json<SettingsResponse> {
+) -> impl IntoResponse {
     let _ = auth;
     let mut settings = load_settings();
 
@@ -163,8 +165,22 @@ async fn update_settings(
         settings.auto_condense = v;
     }
 
-    let _ = save_settings(&settings);
-    Json(settings)
+    if let Err(e) = save_settings(&settings) {
+        tracing::error!(
+            target: "cns.settings",
+            error = %e,
+            "Failed to persist settings — changes will be lost on restart"
+        );
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "error": format!("Settings saved to memory but could not be persisted: {}", e),
+                "settings": settings
+            })),
+        )
+            .into_response();
+    }
+    Json(settings).into_response()
 }
 
 #[cfg(test)]

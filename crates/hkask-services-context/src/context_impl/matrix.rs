@@ -64,7 +64,9 @@ pub(crate) async fn build_matrix()
     }
 }
 
-#[allow(dead_code)]
+/// DEFERRED: Register a pod's Matrix user on Conduit.
+/// Wire into `ActivePods::activate_pod` after A2A registration.
+#[allow(dead_code)] // pending pod activation wiring
 pub(crate) async fn register_pod_on_matrix(
     homeserver_url: &str,
     _webid: &hkask_types::WebID,

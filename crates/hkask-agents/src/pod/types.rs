@@ -176,7 +176,15 @@ impl AgentPersona {
             agent_type,
             version: "0.1.0".to_string(),
         };
-        let canonical = serde_json::to_string(&agent).unwrap_or_default();
+        let canonical = serde_json::to_string(&agent).unwrap_or_else(|e| {
+            tracing::error!(
+                target: "cns.agent.identity",
+                error = %e,
+                name = %name,
+                "AgentIdentity serialization failed — WebID will be derived from name only"
+            );
+            name.to_string()
+        });
         Self {
             agent,
             charter: AgentCharter {
@@ -200,7 +208,15 @@ impl AgentPersona {
             .map_err(|e| AgentPodError::PersonaParseError(e.to_string()))?;
 
         // Compute and cache WebID
-        let canonical = serde_json::to_string(&persona.agent).unwrap_or_default();
+        let canonical = serde_json::to_string(&persona.agent).unwrap_or_else(|e| {
+            tracing::error!(
+                target: "cns.agent.identity",
+                error = %e,
+                name = %persona.agent.name,
+                "AgentIdentity serialization failed in from_yaml — WebID will be derived from name only"
+            );
+            persona.agent.name.clone()
+        });
         persona.cached_webid = Some(WebID::from_persona(canonical.as_bytes()));
 
         Ok(persona)
@@ -209,7 +225,15 @@ impl AgentPersona {
     /// Get the agent's WebID (derived deterministically from persona)
     pub fn webid(&self) -> WebID {
         self.cached_webid.unwrap_or_else(|| {
-            let canonical = serde_json::to_string(&self.agent).unwrap_or_default();
+            let canonical = serde_json::to_string(&self.agent).unwrap_or_else(|e| {
+                tracing::error!(
+                    target: "cns.agent.identity",
+                    error = %e,
+                    name = %self.agent.name,
+                    "AgentIdentity serialization failed in webid() — falling back to name"
+                );
+                self.agent.name.clone()
+            });
             WebID::from_persona(canonical.as_bytes())
         })
     }
