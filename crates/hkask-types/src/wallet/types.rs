@@ -228,8 +228,9 @@ pub struct WalletTransaction {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::crypto::Ed25519PublicKey;
     use crate::id::{ApiKeyId, WalletId};
-    use crate::wallet::chain::{ChainId, Ed25519PublicKey, PrivacyMode};
+    use crate::wallet::chain::{ChainId, PrivacyMode};
     use crate::wallet::error::WalletError;
     use crate::wallet::keys::ApiKeyCapability;
 

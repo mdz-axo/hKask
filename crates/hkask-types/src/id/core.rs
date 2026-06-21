@@ -158,7 +158,7 @@ pub enum UserKind {}
 impl private::Sealed for UserKind {}
 impl IdKind for UserKind {}
 
-pub(crate) enum SovereigntyKind {}
+pub enum SovereigntyKind {}
 impl private::Sealed for SovereigntyKind {}
 impl IdKind for SovereigntyKind {}
 
@@ -207,7 +207,7 @@ pub type EventID = Id<EventKind>;
 pub type GoalID = Id<GoalKind>;
 pub type EmbeddingID = Id<EmbeddingKind>;
 pub type UserID = Id<UserKind>;
-pub(crate) type SovereigntyId = Id<SovereigntyKind>;
+pub type SovereigntyId = Id<SovereigntyKind>;
 pub type PodID = Id<PodKind>;
 pub type WalletId = Id<WalletKind>;
 pub type ApiKeyId = Id<ApiKeyKind>;

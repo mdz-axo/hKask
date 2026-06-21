@@ -32,7 +32,7 @@ pub struct Registry {
     templates: HashMap<String, RegistryEntry>,
     skills: HashMap<String, Skill>,
     /// Bundle manifests — composed skill bundles
-    bundles: HashMap<String, hkask_types::BundleManifest>,
+    bundles: HashMap<String, BundleManifest>,
 }
 
 impl Registry {
@@ -273,7 +273,7 @@ impl Registry {
     /// \[P3\] Motivating: Generative Space — registers a skill bundle
     /// pre:  bundle.id is non-empty
     /// post: bundle inserted into bundles map
-    pub fn register_bundle(&mut self, bundle: hkask_types::BundleManifest) {
+    pub fn register_bundle(&mut self, bundle: BundleManifest) {
         self.bundles.insert(bundle.id.clone(), bundle);
     }
 
@@ -283,7 +283,7 @@ impl Registry {
     /// \[P3\] Motivating: Generative Space — retrieves a skill bundle
     /// pre:  id is non-empty
     /// post: returns Some(&BundleManifest) if found, None otherwise
-    pub fn get_bundle(&self, id: &str) -> Option<&hkask_types::BundleManifest> {
+    pub fn get_bundle(&self, id: &str) -> Option<&BundleManifest> {
         self.bundles.get(id)
     }
 
@@ -292,7 +292,7 @@ impl Registry {
     /// expect: "The system manages a template registry for skill rendering"
     /// \[P3\] Motivating: Generative Space — lists registered bundles
     /// post: returns `Vec<&BundleManifest>` with all registered bundles
-    pub fn list_bundles(&self) -> Vec<&hkask_types::BundleManifest> {
+    pub fn list_bundles(&self) -> Vec<&BundleManifest> {
         self.bundles.values().collect()
     }
 
@@ -302,7 +302,7 @@ impl Registry {
     /// \[P3\] Motivating: Generative Space — removes a bundle
     /// pre:  id is non-empty
     /// post: returns Some(BundleManifest) if removed, None if not found
-    pub fn remove_bundle(&mut self, id: &str) -> Option<hkask_types::BundleManifest> {
+    pub fn remove_bundle(&mut self, id: &str) -> Option<BundleManifest> {
         self.bundles.remove(id)
     }
 
@@ -317,7 +317,7 @@ impl Registry {
     pub fn find_bundle_by_skills(
         &self,
         skill_ids: &[String],
-    ) -> Option<&hkask_types::BundleManifest> {
+    ) -> Option<&BundleManifest> {
         let target: std::collections::HashSet<&str> =
             skill_ids.iter().map(|s| s.as_str()).collect();
         self.bundles.values().find(|b| {
@@ -414,23 +414,23 @@ impl SkillRegistryIndex for Registry {
 }
 
 impl BundleRegistryIndex for Registry {
-    fn register_bundle(&mut self, bundle: hkask_types::BundleManifest) {
+    fn register_bundle(&mut self, bundle: BundleManifest) {
         Registry::register_bundle(self, bundle)
     }
 
-    fn get_bundle(&self, id: &str) -> Option<hkask_types::BundleManifest> {
+    fn get_bundle(&self, id: &str) -> Option<BundleManifest> {
         Registry::get_bundle(self, id).cloned()
     }
 
-    fn list_bundles(&self) -> Vec<hkask_types::BundleManifest> {
+    fn list_bundles(&self) -> Vec<BundleManifest> {
         Registry::list_bundles(self).into_iter().cloned().collect()
     }
 
-    fn remove_bundle(&mut self, id: &str) -> Option<hkask_types::BundleManifest> {
+    fn remove_bundle(&mut self, id: &str) -> Option<BundleManifest> {
         Registry::remove_bundle(self, id)
     }
 
-    fn find_bundle_by_skills(&self, skill_ids: &[String]) -> Option<hkask_types::BundleManifest> {
+    fn find_bundle_by_skills(&self, skill_ids: &[String]) -> Option<BundleManifest> {
         Registry::find_bundle_by_skills(self, skill_ids).cloned()
     }
 }

@@ -7,7 +7,7 @@
 //! into the canonical `BundleManifest` type.
 
 use hkask_types::Visibility;
-use hkask_types::bundle::{
+use crate::bundle::{
     AuditConfig, BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep,
     BundleSkill, CnsConfig, ConvergenceConfig, ErrorHandlingConfig, GasConfig, OcapConfig,
 };

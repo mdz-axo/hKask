@@ -14,6 +14,11 @@ pub mod types;
 use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
 use hkask_mcp::validate_field;
 
+use hkask_capability::{
+    CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, TOKEN_ERR_EXPIRED,
+    TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
+    token_err_insufficient_access, verify_delegation_token_now,
+};
 use hkask_cns::{
     emit_contract_accepted, emit_contract_proposed, emit_contract_rejected, emit_contract_violated,
 };
@@ -27,11 +32,7 @@ use hkask_storage::spec_types::{
 };
 use hkask_storage::{Database, EmbeddingStore, NuEventStore, SpecStore, TripleStore};
 use hkask_types::time::now_rfc3339;
-use hkask_types::{
-    CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, McpErrorKind,
-    TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
-    WebID, token_err_insufficient_access, verify_delegation_token_now,
-};
+use hkask_types::{McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use std::sync::Arc;

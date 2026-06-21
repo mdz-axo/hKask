@@ -10,10 +10,10 @@
 //! - 5.1 Escalation Routing (ROUTE) — signal → classify → deliver to consumer
 //! - 5.2 Metacognitive Adaptation (ADAPT) — outcome → compare to desired → adjust parameter
 
-use crate::id::WebID;
-use crate::sovereignty::DataCategory;
-use crate::token::ConsolidationToken;
-use crate::visibility::Visibility;
+use hkask_capability::ConsolidationToken;
+use hkask_types::Visibility;
+use hkask_types::WebID;
+use hkask_types::sovereignty::DataCategory;
 
 // CuratorHandle — Loop 5 capability handle
 
@@ -115,7 +115,7 @@ pub enum CuratorDirective {
     /// Replenish an agent's energy budget by a specific amount.
     ///
     /// Used when an agent has exhausted its budget but Curation
-    /// \[NORMATIVE\] determines it should continue operating. This is the Curator's (P9 — Homeostatic Self-Regulation).
+    /// [NORMATIVE] determines it should continue operating. This is the Curator's (P9 — Homeostatic Self-Regulation).
     /// ability to inject gas into the system, analogous to Ethereum's
     /// gas refund mechanism but governed by human/curator authority.
     ReplenishBudget {

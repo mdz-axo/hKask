@@ -29,7 +29,8 @@
 //! use hkask_mcp::GitCasAdapter;
 //! use hkask_agents::a2a::A2ARuntime;
 //! use hkask_agents::adapters::mcp_runtime::CapabilityOnlyAdapter;
-//! use hkask_types::{CapabilityChecker, WebID};
+//! use hkask_types::WebID;
+//! use hkask_capability::CapabilityChecker;
 //! use hkask_agents::{DenyAllConsent, SovereigntyConsent};
 //! use std::sync::Arc;
 //!

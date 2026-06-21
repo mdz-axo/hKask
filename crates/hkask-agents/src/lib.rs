@@ -28,6 +28,7 @@ pub mod ports;
 pub mod prompt_analysis; // Loop 1 (inference variety sensing — relocated from hkask-cns)
 pub mod registry_loader;
 pub mod sovereignty; // Loop 6 (sovereignty enforcement)
+pub mod types;
 
 pub use a2a::{A2AAgent, A2AError, A2AMessage, A2ARuntime};
 
@@ -50,3 +51,11 @@ pub use ports::{
 pub use prompt_analysis::{PromptAnalysis, SentenceDecomposition, decompose_prompt};
 pub use registry_loader::AgentRegistryLoader;
 pub use sovereignty::{AllowAllConsent, DenyAllConsent, SovereigntyChecker, SovereigntyConsent};
+
+// Re-export agent domain types (moved from hkask-types)
+pub use types::agent::{
+    AgentDefinition, AgentKind, Charter, Contact, PersonaConstraints, RegisteredAgent,
+    Responsibility, Right, ScheduledTask, UserProfile,
+};
+pub use types::audit::{AuditEntry, AuditOutcome};
+pub use types::voice::VoiceDesign;

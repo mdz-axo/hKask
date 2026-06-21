@@ -56,7 +56,7 @@ impl TryFrom<&str> for CurationDecision {
 /// Token-based capability kinds for OCAP boundaries.
 ///
 /// The closed set of capability *kinds* in hKask. Each variant maps to
-/// a ZST token in `crate::capability::tokens`. Adding a new kind
+/// a ZST token in `hkask_capability::tokens`. Adding a new kind
 /// requires editing this enum; the type system then ensures every
 /// `OcapCapability` is exhaustively handled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -109,7 +109,7 @@ impl std::fmt::Display for OcapCapability {
 
 /// OCAPBoundary — Capability boundary for curation decisions
 ///
-/// \[NORMATIVE\] The Curator must master normative behavior to maintain the OCAP boundary. (P4 — Clear Boundaries).
+/// [NORMATIVE] The Curator must master normative behavior to maintain the OCAP boundary. (P4 — Clear Boundaries).
 /// Within the OCAP boundary, The Curator creates non-normative potential.
 /// Authority is expressed via `OcapTokenKind` — no token, no authority.
 ///

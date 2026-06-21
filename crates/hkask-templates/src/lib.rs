@@ -7,6 +7,7 @@
 //! Template types: Prompt (WordAct), Process (FlowDef), Cognition (KnowAct).
 //! Registry adapters: `Registry` (in-memory), `SqliteRegistry` (SQLite).
 
+pub mod bundle;
 pub mod capability_validator;
 pub mod executor;
 pub mod manifest_loader;
@@ -17,9 +18,9 @@ pub mod registry_sqlite;
 pub mod skill_loader;
 pub mod vocabulary;
 
+pub use bundle::BundleManifest;
+pub use bundle::SkillPolarity;
 pub use executor::ManifestExecutor;
-pub use hkask_types::BundleManifest;
-pub use hkask_types::bundle::SkillPolarity;
 pub use hkask_ports::BundleRegistryIndex;
 pub use hkask_ports::InferencePort;
 pub use hkask_ports::Skill;

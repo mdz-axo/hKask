@@ -450,7 +450,7 @@ Hetzner is our primary recommendation, but hKask's K8s manifests are provider-ag
 | Provider | Managed? | Block Storage | Object Storage | Starting Price | Best For |
 |----------|----------|--------------|----------------|---------------|----------|
 | **DigitalOcean DOKS** | Yes | CSI (DO Block, $0.10/GB) | Spaces (S3, $5/250GB) | $12/mo/node | US-focused, simple UX |
-| **Linode LKE** | Yes | CSI (Linode Block, $0.10/GB) | Object Storage (S3, $5/250GB) | $12/mo/node | US/EU/APAC, good docs |
+| **Akamai LKE** | Yes | CSI (Linode Block, $0.10/GB) | Object Storage (S3, $5/250GB) | $12/mo/node | US/EU/APAC, good docs |
 | **Civo** | Yes, K3s-based | CSI (Civo Block, $0.10/GB) | None native (use B2/R2) | ~$5/mo/node | Lightweight, K3s-native |
 | **OVHcloud** | Yes | CSI (OVH Block, EUR 0.06/GB) | Object Storage (S3, EUR 0.01/GB) | ~EUR 10/mo/node | EU-regulated, B2B |
 | **Scaleway** | Yes | CSI (Scaleway Block, EUR 0.08/GB) | Object Storage (S3, EUR 0.015/GB) | EUR 10/mo/node | EU, green energy |
@@ -473,7 +473,7 @@ Providers suited to self-managed K3s:
 |----------|------------------|---------------|----------------|-------|
 | **Hetzner** | CX23: EUR 3.99 (2 vCPU, 4GB) | EUR 0.044/GB | Yes (EUR 5/TB) | Cost leader, primary |
 | **Netcup** | RS 1000 G11: ~EUR 5 (4 vCPU, 8GB) | None native | Use B2/R2 | Cheapest raw compute, no CSI |
-| **Linode** | Nanode: $5 (1 vCPU, 1GB) | $0.10/GB | Yes | Broad regions |
+| **Akamai/Linode** | Nanode: $5 (1 vCPU, 1GB) | $0.10/GB | Yes | Broad regions |
 | **Vultr** | Regular: $6 (1 vCPU, 1GB) | $0.10/GB | Yes | 32 regions, hourly billing |
 
 ### 8.3 Decision Guide

@@ -3,27 +3,24 @@
 
 pub mod agent;
 pub mod audit;
-pub mod bundle;
 pub mod cns;
 pub mod crypto;
-pub mod curation;
+
 pub mod error;
 pub mod event;
-pub mod goal;
+
 pub mod id;
 pub mod identity;
 pub mod kanban;
-pub mod ocr;
 
-pub mod loops;
+
 pub mod r7;
 pub mod secret;
-pub mod sovereignty;
 pub mod template;
 pub mod template_type;
 pub mod text;
 pub mod time;
-pub mod token;
+
 pub mod visibility;
 
 pub mod transcript;
@@ -40,13 +37,13 @@ pub use agent::{
     Responsibility, Right, ScheduledTask, UserProfile,
 };
 pub use audit::{AuditEntry, AuditOutcome};
-pub use bundle::BundleManifest;
+
 pub use cns::CircuitState;
 pub use crypto::Ed25519PublicKey;
-pub use curation::CurationDecision;
+
 pub use error::{InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink};
-pub use goal::Goal;
+
 pub use id::{
     ApiKeyId, BoardId, BotID, ColumnId, CommentId, EmbeddingID, EscalationID, EventID, GoalID, Id,
     IdKind, PhaseId, PodID, TaskId, TemplateID, TripleID, UserID, WalletId, WebID,
@@ -56,7 +53,7 @@ pub use kanban::{
     ContractVerification, Phase, Priority, SpawnSpec, Task, TaskContract, TaskFilter, TaskSpec,
     TaskStatus, Verification, VerificationCriterion,
 };
-pub use loops::{CurationInput, CuratorHandle, ExperienceClassification};
+
 pub use transcript::{TimedWord, TranscriptBundle, TranscriptSegment};
 pub use visibility::{Confidence, Visibility};
 pub use voice::VoiceDesign;

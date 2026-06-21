@@ -4,6 +4,7 @@
 //! Homeostatic self-regulation: variety sensing, algedonic alerts, energy budgets,
 //! OCAP governance, sovereignty enforcement. Per Ashby's Law of Requisite Variety.
 
+pub mod types;
 pub(crate) mod algedonic; // Loop 6 subloop 6.4 — algedonic signal channel
 pub mod api_metering; // API key metering — rate limits, CNS spans, alerts
 pub mod calibrated_energy_estimator; // Loop 6 — self-regulating per-server gas estimator
@@ -61,9 +62,10 @@ pub use runtime::CnsRuntime;
 pub use runtime::NoopEventSink;
 pub use seam_watcher::{SeamDrift, SeamSummary, SeamWatcher};
 pub use set_points::{
-    CurationThresholdConfig, DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD,
+    DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD,
     DEFAULT_CONNECTOR_LATENCY_MAX_SECS, DEFAULT_ENERGY_MIN_REMAINING_RATIO, DEFAULT_ERROR_RATE_MAX,
     DEFAULT_MAX_ITERATIONS, DEFAULT_VARIETY_MAX_DEFICIT, SetPoints, SetPointsConfig,
     load_set_points,
 };
+pub use types::curation::CurationThresholdConfig;
 pub use snapshot_loop::{SnapshotLoop, SnapshotLoopConfig};

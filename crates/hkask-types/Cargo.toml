@@ -28,6 +28,7 @@ async-trait.workspace = true
 rusqlite = { workspace = true, optional = true }
 
 [dev-dependencies]
+hkask-capability = { path = "../hkask-capability" }
 tokio = { workspace = true, features = ["macros", "rt"] }
 proptest = "1"
 hkask-test-harness = { path = "../hkask-test-harness" }

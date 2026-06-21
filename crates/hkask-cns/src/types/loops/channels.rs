@@ -3,7 +3,7 @@
 //! Each pathway gets its own typed `tokio::mpsc` channel. Channel identity replaces
 //! both the former `LoopId` and `DispatchTarget` routing of the old Communication Loop.
 
-use crate::WebID;
+use hkask_types::WebID;
 
 // ── Alerts channel: Cybernetics → Curation ──────────────────────────────────
 
@@ -13,7 +13,7 @@ use crate::WebID;
 /// `tokio::sync::mpsc::Sender<RuntimeAlert>` channel directly from
 /// CyberneticsLoop to CurationLoop's inbox.
 ///
-/// \[NORMATIVE\] This pathway is a Prohibition-level constraint — it must survive unbroken (P9 — Homeostatic Self-Regulation).
+/// [NORMATIVE] This pathway is a Prohibition-level constraint — it must survive unbroken (P9 — Homeostatic Self-Regulation).
 /// because Curation depends on the algedonic signal to detect regulation failure.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RuntimeAlert {
