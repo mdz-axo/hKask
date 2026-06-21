@@ -15,10 +15,10 @@
 //! via the hKask template registry (Jinja2). Inference uses the centralized router.
 
 use hkask_cns::CnsRuntime;
+use hkask_ports::InferencePort;
 use hkask_services_core::HkaskSettings;
 use hkask_storage::KataHistoryStore;
 use hkask_templates::SqliteRegistry;
-use hkask_ports::InferencePort;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
 use std::collections::HashMap;

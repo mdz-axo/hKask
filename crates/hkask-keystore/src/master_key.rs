@@ -148,7 +148,7 @@ pub fn derive_all_internal_secrets_with_version(
     tracing::info!(target: "cns.keystore", operation = "internal_secrets_derived", latency_ms = start.elapsed().as_millis(), "CNS");
 
     InternalSecrets {
-        master_key_hex: hex::encode(&*master_key),
+        master_key_hex: hex::encode(*master_key),
         a2a_secret,
         capability_key,
         mcp_security_key,

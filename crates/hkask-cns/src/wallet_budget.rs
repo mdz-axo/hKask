@@ -18,10 +18,10 @@
 use crate::energy::{EnergyCost, EnergyError};
 use chrono::Utc;
 use hkask_types::id::{ApiKeyId, WalletId};
-use hkask_wallet::{ApiKeyCapability, RJoule};
 use hkask_wallet::WalletManager;
 #[cfg(test)]
 use hkask_wallet::price_feed::StaticPriceFeed;
+use hkask_wallet::{ApiKeyCapability, RJoule};
 use std::sync::Arc;
 
 /// Health status of an API key tracked by a wallet-backed budget.

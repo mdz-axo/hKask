@@ -22,10 +22,10 @@
 
 use std::sync::Arc;
 
+use hkask_ports::{InferencePort, SkillRegistryIndex};
 use hkask_templates::BundleManifest;
 use hkask_templates::BundleRegistryIndex;
 use hkask_types::Visibility;
-use hkask_ports::{InferencePort, SkillRegistryIndex};
 
 use crate::ServiceError;
 use hkask_services_context::AgentService;
@@ -320,9 +320,7 @@ impl BundleService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.registry() must be initialized
     /// post: returns `Vec<Skill>` of all registered skills; empty Vec if none
-    pub async fn list_skills(
-        ctx: &AgentService,
-    ) -> Result<Vec<hkask_ports::Skill>, ServiceError> {
+    pub async fn list_skills(ctx: &AgentService) -> Result<Vec<hkask_ports::Skill>, ServiceError> {
         let registry = ctx.registry();
         let guard = registry.lock().await;
         // list_skills() returns Vec<Skill> — an owned type from SkillRegistryIndex

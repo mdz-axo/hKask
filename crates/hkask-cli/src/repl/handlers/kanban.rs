@@ -5,7 +5,6 @@ use hkask_services::KanbanService;
 use hkask_services_kanban::{ConsentProof, TaskFilter, TaskSpec};
 use hkask_storage::Store;
 use hkask_storage::TripleStore;
-use hkask_types::WebID;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 

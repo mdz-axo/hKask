@@ -18,13 +18,13 @@
 //! 7. Method inference (LLM) → stylometric patterns from cached passages
 //! 8. Generate/augment corpus.yaml
 
+use hkask_capability::DelegationToken;
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_memory::salience::{DeclaredMethod, MethodThresholds};
+use hkask_ports::InferencePort;
 use hkask_services_core::ServiceError;
 use hkask_services_embed::{CorpusConfig, EntityConfig, Work};
 use hkask_templates::ports::McpPort;
-use hkask_capability::DelegationToken;
-use hkask_ports::InferencePort;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 

@@ -5,9 +5,9 @@
 
 use std::sync::Arc;
 
+use hkask_ports::git_cas::GitCASPort;
 use hkask_services::RetentionPolicy;
 use hkask_services::{ArtifactType, BackupScope, BackupService, ListFilter, RestoreScope};
-use hkask_ports::git_cas::GitCASPort;
 
 use crate::block_on;
 use crate::cli::BackupAction;

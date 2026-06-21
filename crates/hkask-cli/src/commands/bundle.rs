@@ -9,9 +9,9 @@
 
 use std::sync::Arc;
 
+use hkask_ports::InferencePort;
 use hkask_services::BundleService;
 use hkask_types::Visibility;
-use hkask_ports::InferencePort;
 
 use crate::block_on;
 use crate::cli::BundleAction;

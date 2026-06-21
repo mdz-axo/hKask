@@ -3,8 +3,8 @@
 //! The Curator maintains the audit trail of all system decisions.
 //! Audit entries record who did what, when, and with what outcome.
 
-use hkask_types::WebID;
 use chrono::{DateTime, Utc};
+use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 
 /// Loop: Curation

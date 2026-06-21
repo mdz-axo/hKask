@@ -36,7 +36,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 ### 1.2 Kanban Domain
 
-**Crate:** `hkask-services-kanban` | **Types crate:** `hkask-types::kanban` | **Goal Principle:** P3 (Generative Space) — agent coordination via headless task boards
+**Crate:** `hkask-services-kanban` | **Goal Principle:** P3 (Generative Space) — agent coordination via headless task boards
 
 | Entity | Description | Key Attributes |
 |--------|-------------|---------------|

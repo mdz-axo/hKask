@@ -49,15 +49,15 @@ impl GoalState {
         if *self == next {
             return true;
         }
-        match (self, next) {
+        matches!(
+            (self, next),
             (GoalState::Pending, GoalState::Active)
-            | (GoalState::Pending, GoalState::Abandoned)
-            | (GoalState::Active, GoalState::Blocked)
-            | (GoalState::Active, GoalState::Completed)
-            | (GoalState::Active, GoalState::Abandoned)
-            | (GoalState::Blocked, GoalState::Active)
-            | (GoalState::Blocked, GoalState::Abandoned) => true,
-            _ => false,
-        }
+                | (GoalState::Pending, GoalState::Abandoned)
+                | (GoalState::Active, GoalState::Blocked)
+                | (GoalState::Active, GoalState::Completed)
+                | (GoalState::Active, GoalState::Abandoned)
+                | (GoalState::Blocked, GoalState::Active)
+                | (GoalState::Blocked, GoalState::Abandoned)
+        )
     }
 }

@@ -24,11 +24,11 @@
 
 use hkask_cns::governed_tool::EnergyEstimator;
 use hkask_services::{AgentService, ServiceConfig};
+use hkask_services_sovereignty::DataCategory;
 use hkask_storage::spec_store::SpecStore;
 use hkask_storage::{DomainAnchor, Spec, SpecCategory};
 use hkask_types::WebID;
 use hkask_types::event::{NuEvent, Phase, Span, SpanKind};
-use hkask_services_sovereignty::DataCategory;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

@@ -28,6 +28,7 @@ pub mod sql_impls;
 // ── Essential re-exports (used by ≥3 downstream crates) ─────────────────
 
 pub use agent::AgentKind;
+pub use agent::PersonaConstraints;
 pub use cns::CircuitState;
 pub use crypto::Ed25519PublicKey;
 pub use curation::{

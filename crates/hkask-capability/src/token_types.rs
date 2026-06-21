@@ -1,10 +1,10 @@
 //! Delegation token types — Ed25519-signed OCAP tokens with cryptographic attenuation.
 
-use hkask_types::WebID;
-use hkask_types::Ed25519PublicKey;
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use hex;
+use hkask_types::Ed25519PublicKey;
+use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

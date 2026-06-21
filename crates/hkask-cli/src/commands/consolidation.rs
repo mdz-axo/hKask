@@ -1,9 +1,9 @@
 //! Consolidation command — user-triggered episodic→semantic consolidation
 
-use hkask_services::consolidation;
-use hkask_types::WebID;
 use hkask_cns::types::loops::CuratorHandle;
 use hkask_ports::ConsolidationRequest;
+use hkask_services::consolidation;
+use hkask_types::WebID;
 
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// expect: "I can access all hKask functionality through the kask CLI"

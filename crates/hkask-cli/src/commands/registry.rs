@@ -4,9 +4,9 @@
 //! `kask list <registry>` lists artifacts. `kask rm <registry>-<artifact>` removes.
 
 use hkask_memory::SemanticMemory;
+use hkask_ports::RegistryIndex;
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_templates::SqliteRegistry;
-use hkask_ports::RegistryIndex;
 
 use std::sync::Arc;
 

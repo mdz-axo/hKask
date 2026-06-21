@@ -75,7 +75,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |----|------------|
 | P2-06-D1 | ✅ Resolved: 5 hierarchical CNS spans registered in `CANONICAL_NAMESPACES` |
 | P2-06-D2 | ✅ Resolved: `Caveat` exists as `pub(crate)` — spec updated to note it's an internal implementation detail |
-| P2-06-D3 | ✅ Resolved: `CapabilityToken` type alias added to `crates/hkask-types/src/capability/mod.rs` |
+| P2-06-D3 | ✅ Resolved: `CapabilityToken` type alias added to `crates/hkask-capability/src/lib.rs` |
 | P2-06-D4 | ✅ Resolved: `ContractValidator` stub added with FocusingAssumption FA-C1 |
 | P2-06-D5 | ✅ Resolved: `CapabilityAwareValidator` stub added with FocusingAssumption FA-T3 |
 | P2-06-D6 | ✅ Resolved: `TemplateInvocation` struct stub added with FocusingAssumption FA-D1 |

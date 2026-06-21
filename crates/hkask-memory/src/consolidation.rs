@@ -13,10 +13,10 @@ use std::sync::Arc;
 
 use crate::episodic::EpisodicMemory;
 use crate::semantic::SemanticMemory;
-use hkask_storage::Triple;
-use hkask_types::WebID;
 use hkask_capability::tokens::ConsolidationToken;
 use hkask_ports::{ConsolidationOutcome, ConsolidationRequest};
+use hkask_storage::Triple;
+use hkask_types::WebID;
 
 /// Consolidation Bridge — Episodic → Semantic
 ///

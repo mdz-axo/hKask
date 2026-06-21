@@ -12,8 +12,8 @@
 
 use std::sync::Arc;
 
-use hkask_services::{AgentService, ChatRequest, ChatService, ResolvedSecrets};
 use hkask_ports::{InferencePort, InferenceUsage};
+use hkask_services::{AgentService, ChatRequest, ChatService, ResolvedSecrets};
 use hkask_types::template::LLMParameters;
 
 /// Build AgentService from secrets or environment.

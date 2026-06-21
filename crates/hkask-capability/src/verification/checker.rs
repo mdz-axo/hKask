@@ -4,9 +4,9 @@
 //! no shared secret is required. The checker validates structural properties
 //! (expiry, resource match, holder match) against the token (P4 — Clear Boundaries).
 
-use hkask_types::WebID;
 use crate::{DelegationAction, DelegationResource, DelegationToken};
 use ed25519_dalek::SigningKey;
+use hkask_types::WebID;
 
 /// Capability checker for composition operations.
 ///

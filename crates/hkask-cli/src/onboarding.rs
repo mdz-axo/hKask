@@ -14,7 +14,7 @@ use hkask_services::{
     MatrixRegistrationResult, OnboardingService, ResolvedSecrets, ServiceConfig, ServiceError,
 };
 use hkask_storage::{RegisteredAgent, UserProfile};
-use hkask_types::{InfrastructureError, UserID};
+use hkask_types::InfrastructureError;
 use thiserror::Error;
 
 use crate::repl::display;

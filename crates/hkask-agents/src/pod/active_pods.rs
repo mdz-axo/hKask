@@ -319,8 +319,7 @@ impl ActivePods {
         }
 
         // Create CuratorPod
-        let curator_persona =
-            super::types::AgentPersona::system("curator", AgentKind::Bot);
+        let curator_persona = super::types::AgentPersona::system("curator", AgentKind::Bot);
         let pod_id = self
             .create_pod("curator", &curator_persona, None, PodKind::Curator)
             .await?;

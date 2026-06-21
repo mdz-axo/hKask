@@ -10,7 +10,6 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use hkask_agents::PersonaConstraints;
 use hkask_agents::curator::persona_filter;
 use hkask_agents::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
@@ -18,6 +17,7 @@ use hkask_agents::ports::{
 };
 use hkask_capability::{AuthContext, DelegationAction, DelegationToken};
 use hkask_ports::{InferencePort, StructuredToolCall};
+use hkask_types::PersonaConstraints;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;

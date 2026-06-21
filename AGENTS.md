@@ -122,6 +122,10 @@ Preferred auxiliary tooling:
 | MDS Specification | `docs/architecture/core/MDS.md` |
 | Canonical CNS span registry | `crates/hkask-types/src/cns.rs` (`CnsSpan`) |
 | Testing Discipline | `docs/architecture/core/TESTING_DISCIPLINE.md` |
+| Foundation types | `crates/hkask-types/src/lib.rs` |
+| OCAP delegation tokens | `crates/hkask-capability/src/lib.rs` |
+| Hexagonal port traits | `crates/hkask-ports/src/lib.rs` |
+| Wallet value types | `crates/hkask-wallet-types/src/lib.rs` |
 
 ---
 

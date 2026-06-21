@@ -20,10 +20,10 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | Diagram ID | Description | Document | Verified Against | Status |
 |-----------|-------------|----------|-----------------|--------|
-| DIAG-DC-001 | hKask Bounded Context (POD → CAP → TPL → CNS) + delegated dependencies | [MDS.md](architecture/core/MDS.md) §1 | `crates/hkask-agents/src/pod/mod.rs:83`, `crates/hkask-types/src/capability/mod.rs:223`, `Cargo.toml` workspace members | ✅ VERIFIED |
+| DIAG-DC-001 | hKask Bounded Context (POD → CAP → TPL → CNS) + delegated dependencies | [MDS.md](architecture/core/MDS.md) §1 | `crates/hkask-agents/src/pod/mod.rs:83`, `crates/hkask-capability/src/lib.rs`, `Cargo.toml` workspace members | ✅ VERIFIED |
 | DIAG-DC-002 | Domain Entity Map — 9 entities with crate/struct locations | [MDS.md](architecture/core/MDS.md) §3.1 | `crates/hkask-types/src/`, `crates/hkask-agents/src/` | ✅ VERIFIED |
 | DIAG-DC-003 | Agent Taxonomy (Bot/Replicant branching) | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-agents/src/pod/types.rs`, `crates/hkask-agents/src/curator_agent/bot_metrics.rs` | ✅ VERIFIED |
-| DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-types/src/capability/mod.rs:223` | ✅ VERIFIED |
+| DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-capability/src/lib.rs` | ✅ VERIFIED |
 | DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | [MDS.md](architecture/core/MDS.md) §6 | `crates/hkask-mcp/src/runtime.rs:59`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
 | DIAG-DC-006 | Standing Session Chat Lifecycle | [MDS.md](architecture/core/MDS.md) §6.4 | `crates/hkask-cli/src/commands/chat.rs`, `mcp-servers/hkask-mcp-research/src/main.rs` | ✅ VERIFIED |
 | DIAG-DC-007 | hKask Container Lifecycle (Create → Register → Activate → Deactivate) | [MDS.md](architecture/core/MDS.md) §6.5 | `crates/hkask-cli/src/commands/chat.rs`, `crates/hkask-agents/src/pod/mod.rs` | ✅ VERIFIED |
@@ -33,7 +33,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | Diagram ID | Description | Document | Verified Against | Status |
 |-----------|-------------|----------|-----------------|--------|
 | DIAG-IC-001 | MCP ≡ CLI ≡ API Equivalence Model | [MDS.md](architecture/core/MDS.md) §1 | `crates/hkask-cli/src/cli/mod.rs:33`, `crates/hkask-api/src/lib.rs:636`, `crates/hkask-mcp/src/runtime.rs:59` | ✅ VERIFIED |
-| DIAG-IC-002 | Hexagonal Architecture — Ports, Adapters, Core | [MDS.md](architecture/core/MDS.md) §2 | `crates/hkask-types/src/ports/` (7 port traits) | ✅ VERIFIED |
+| DIAG-IC-002 | Hexagonal Architecture — Ports, Adapters, Core | [MDS.md](architecture/core/MDS.md) §2 | `crates/hkask-ports/src/` (7 port traits) | ✅ VERIFIED |
 | DIAG-IC-003 | Unified Registry with template_type discriminator | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-templates/src/` (SqliteRegistry) | ✅ VERIFIED |
 | DIAG-IC-004 | Template Cascade Flow (depth ≤ 7, DependencyGraph acyclic) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-templates/src/dependency.rs` | ✅ VERIFIED |
 | DIAG-IC-005 | Rendering Pipeline — Template → Jinja2 → LLM | [MDS.md](architecture/core/MDS.md) §6 | `crates/hkask-templates/src/` (minijinja integration) | ✅ VERIFIED |
@@ -68,7 +68,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-FW-001 | MDS RDF/Turtle Semantic Graph | [`MDS.md`](architecture/core/MDS.md) §1.1 | `docs/architecture/MDS.md` | ✅ VERIFIED |
 | DIAG-FW-002 | MDS Entity Relationship Diagram (Spec ↔ Goal ↔ Curation) | [`MDS.md`](architecture/core/MDS.md) §1.2 | `docs/architecture/MDS.md` | ✅ VERIFIED |
 | DIAG-FW-003 | MVSDD Cycle Sequence Diagram (Specify → Grant → Compose → Curate → Reflect) | [`MDS.md`](architecture/core/MDS.md) §4.3 | `docs/architecture/MDS.md` | ✅ VERIFIED |
-| DIAG-FW-004 | Hexagonal Component Diagram (HKaskHexagon) | [`MDS.md`](architecture/core/MDS.md) §6.1 | `crates/hkask-types/src/ports/` | ✅ VERIFIED |
+| DIAG-FW-004 | Hexagonal Component Diagram (HKaskHexagon) | [`MDS.md`](architecture/core/MDS.md) §6.1 | `crates/hkask-ports/src/` | ✅ VERIFIED |
 
 ## 6. Reference Diagrams
 

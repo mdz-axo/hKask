@@ -1237,12 +1237,7 @@ impl CapabilityPackage {
     ///
     /// Returns a structured representation suitable for rSolidity
     /// contract execution and CNS span emission.
-    pub fn to_task_contract(
-        &self,
-        task: &Task,
-        delegator: WebID,
-        delegate: WebID,
-    ) -> TaskContract {
+    pub fn to_task_contract(&self, task: &Task, delegator: WebID, delegate: WebID) -> TaskContract {
         TaskContract {
             package_name: self.name.clone(),
             delegator,

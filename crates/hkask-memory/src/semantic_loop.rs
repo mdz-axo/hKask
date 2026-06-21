@@ -13,12 +13,12 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::semantic::SemanticMemory;
-use hkask_storage::Triple;
-use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_cns::types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
+use hkask_storage::Triple;
+use hkask_types::cns::CnsSpan;
+use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 
 /// Default storage budget for semantic triple count.
 pub const DEFAULT_SEMANTIC_STORAGE_BUDGET: usize = 25_000;

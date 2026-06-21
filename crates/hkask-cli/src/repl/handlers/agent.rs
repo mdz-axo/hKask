@@ -10,9 +10,19 @@ pub(crate) fn handle_agent(
         println!("  Use \x1b[36m/agent <NAME>\x1b[0m to switch, \x1b[36m/agents\x1b[0m to list");
     } else {
         state.current_agent = arg1.to_string();
-        // Persona constraints require rich AgentDefinition from hkask-agents.
-        // TODO: convert from store type when rich persona fields are needed.
-        state.persona_constraints = None;
+        // Load persona constraints from the agent's stored YAML definition
+        state.persona_constraints = rt
+            .block_on(crate::commands::bot_status(arg1))
+            .ok()
+            .and_then(|agent| {
+                #[derive(serde::Deserialize)]
+                struct PersonaWrapper {
+                    persona: Option<hkask_types::PersonaConstraints>,
+                }
+                serde_yaml_neo::from_str::<PersonaWrapper>(&agent.source_yaml)
+                    .ok()
+                    .and_then(|w| w.persona)
+            });
         println!("  Switched to agent: \x1b[1m{}\x1b[0m", state.current_agent);
     }
     println!();

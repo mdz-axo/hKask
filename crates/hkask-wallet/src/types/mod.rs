@@ -8,9 +8,12 @@
 pub mod chain;
 pub mod error;
 pub mod keys;
-pub mod types;
 
 pub use chain::*;
 pub use error::*;
 pub use keys::*;
-pub use types::*;
+
+// Re-exports from hkask_wallet_types (canonical source for these types)
+pub use hkask_wallet_types::{
+    PriceFeedConfig, RJoule, TransactionType, WalletBalance, WalletConfig, WalletTransaction,
+};

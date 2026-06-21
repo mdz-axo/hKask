@@ -5,8 +5,8 @@
 
 use super::checker::CapabilityChecker;
 use super::types::VerificationOutcome;
-use hkask_types::WebID;
 use crate::{DelegationAction, DelegationResource, DelegationToken};
+use hkask_types::WebID;
 
 /// Verify a delegation token using the current system time.
 ///
@@ -148,8 +148,8 @@ pub fn require_read_access(token: &DelegationToken, store_type: &str) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::WebID;
     use ed25519_dalek::SigningKey;
+    use hkask_types::WebID;
 
     #[test]
     fn verify_delegation_token_returns_no_checker_when_none() {

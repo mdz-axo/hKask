@@ -85,8 +85,8 @@ async fn recall_semantic_falls_back_to_local_when_curator_unavailable() {
 
 // ── #2: CNS cns.semantic.published observer notification ─────────────────────
 
-use hkask_types::event::{NuEvent, SpanNamespace};
 use hkask_ports::CnsObserver;
+use hkask_types::event::{NuEvent, SpanNamespace};
 use std::sync::Mutex;
 
 /// Test observer that records received CNS events

@@ -43,15 +43,15 @@ pub fn build_service_context() -> hkask_services::AgentService {
 pub fn write_or_print(content: &str, output: Option<&Path>, label: &str) {
     match output {
         Some(path) => {
-            if let Some(parent) = path.parent() {
-                if let Err(e) = std::fs::create_dir_all(parent) {
-                    eprintln!(
-                        "Failed to create output directory {}: {}",
-                        parent.display(),
-                        e
-                    );
-                    std::process::exit(1);
-                }
+            if let Some(parent) = path.parent()
+                && let Err(e) = std::fs::create_dir_all(parent)
+            {
+                eprintln!(
+                    "Failed to create output directory {}: {}",
+                    parent.display(),
+                    e
+                );
+                std::process::exit(1);
             }
             if let Err(e) = std::fs::write(path, content) {
                 eprintln!("Failed to write {}: {}", label, e);

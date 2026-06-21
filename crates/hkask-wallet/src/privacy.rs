@@ -7,9 +7,9 @@
 //! When Hinkal is not deployed on a chain, `available_for_chain()` returns false.
 //! Shielded operations return `PrivacyUnavailable` error. Transparent path works normally.
 
+use crate::types::{ChainId, TxHash, WalletError};
 use chrono::{DateTime, Utc};
 use hkask_types::WebID;
-use crate::types::{ChainId, TxHash, WalletError};
 use hkask_types::id::WalletId;
 
 /// A shielded transfer detected in the privacy pool.

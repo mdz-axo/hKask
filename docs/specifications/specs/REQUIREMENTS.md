@@ -105,7 +105,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] Resource + action scoping
   - [x] Caveats for additional restrictions
   - [x] Constant-time comparison via `subtle`
-- **Implementation:** `hkask-types::capability::DelegationToken` (note: `Capability` type alias and `AccessEvaluator` not yet in code; see TODO.md P2-06)
+- **Implementation:** `hkask-capability::DelegationToken` (note: `Capability` type alias and `AccessEvaluator` not yet in code; see TODO.md P2-06)
 - **Tests:** —
 - **Status:** Partially Implemented
 - **Curation:** Merge
@@ -119,7 +119,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `Delegation` type with grantor/grantee/scope
   - [x] `DelegationStore` for persistent tracking
   - [x] `RevocationList` for revoked capabilities
-- **Implementation:** `hkask-types::capability::DelegationToken` (attenuation via `attenuation_level` field; note: `Delegation`, `DelegationStore`, `RevocationList` types not yet in code; see TODO.md P2-06)
+- **Implementation:** `hkask-capability::DelegationToken` (attenuation via `attenuation_level` field; note: `Delegation`, `DelegationStore`, `RevocationList` types not yet in code; see TODO.md P2-06)
 - **Tests:** —
 - **Status:** Partially Implemented
 - **Curation:** Merge

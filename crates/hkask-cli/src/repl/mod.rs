@@ -19,7 +19,6 @@ mod tool_augmented;
 mod turn;
 
 use hkask_agents::InferenceLoop;
-use hkask_agents::PersonaConstraints;
 use hkask_agents::ports::EpisodicStoragePort;
 use hkask_agents::ports::SemanticStoragePort;
 use hkask_cns::GovernedTool;
@@ -29,6 +28,7 @@ use hkask_memory::ConsolidationService;
 use hkask_ports::InferencePort;
 use hkask_services::{AgentService, KanbanService};
 use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};
+use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
 use hkask_types::secret::ZeroizingSecret;
 use rustyline::error::ReadlineError;

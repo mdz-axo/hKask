@@ -1,7 +1,7 @@
 //! Authentication context and signing key derivation.
 
-use hkask_types::WebID;
 use ed25519_dalek::SigningKey;
+use hkask_types::WebID;
 use sha2::{Digest, Sha256};
 
 use super::token_types::DelegationToken;

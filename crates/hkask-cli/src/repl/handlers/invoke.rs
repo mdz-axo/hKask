@@ -4,8 +4,8 @@
 //! the invocation through GovernedTool (OCAP + energy budget + CNS observability).
 
 use hkask_capability::derive_signing_key;
-use hkask_ports::ToolPort;
 use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
+use hkask_ports::ToolPort;
 
 /// Handle `/invoke <tool> [args]` or `/invoke <server>/<tool> [args]`.
 ///

@@ -8,8 +8,8 @@ use std::sync::Arc;
 use crate::block_on;
 use crate::cli::GitAction;
 use hkask_mcp::GixCasAdapter;
-use hkask_services::ArchivalService;
 use hkask_ports::git_cas::{GitCASPort, RepoId, TreeEntryKind};
+use hkask_services::ArchivalService;
 
 /// Resolve the hexagonal `GitCASPort` from the environment.
 ///

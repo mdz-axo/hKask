@@ -1,7 +1,7 @@
 //! REPL info handlers — /history, /pods, /templates, /tools
 
-use hkask_services::ChatService;
 use hkask_ports::ToolPort;
+use hkask_services::ChatService;
 
 pub(crate) fn handle_history(state: &super::super::ReplState) {
     let token = state.service_context.capability_checker().grant_registry(

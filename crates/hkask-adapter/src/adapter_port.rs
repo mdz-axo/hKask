@@ -6,8 +6,8 @@
 use crate::TrainedLoRAAdapter;
 use crate::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
 use crate::provider_cost::{CostModel, ProviderInfo};
-use hkask_inference::ProviderId;
 use hkask_capability::DelegationToken;
+use hkask_inference::ProviderId;
 use hkask_ports::InferenceError;
 use hkask_ports::InferenceResult;
 use hkask_types::template::LLMParameters;

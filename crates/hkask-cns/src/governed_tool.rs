@@ -24,15 +24,13 @@
 
 use crate::cybernetics_loop::CyberneticsLoop;
 use crate::energy::EnergyCost;
+use crate::types::loops::ToolConsumptionEvent;
+use hkask_capability::{DelegationAction, DelegationResource, DelegationToken, capabilities_match};
+use hkask_ports::{ToolInfo, ToolPort, ToolPortError};
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
-use hkask_capability::{
-    DelegationAction, DelegationResource, DelegationToken, capabilities_match,
-};
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanKind, SpanNamespace};
-use crate::types::loops::ToolConsumptionEvent;
-use hkask_ports::{ToolInfo, ToolPort, ToolPortError};
 
 use serde_json::Value;
 use std::sync::Arc;
@@ -480,11 +478,11 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::WebID;
     use hkask_capability::{
         DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
         derive_signing_key,
     };
+    use hkask_types::WebID;
 
     fn make_token(resource_id: &str) -> DelegationToken {
         let sk = derive_signing_key(b"test-secret-32-bytes-long!!");

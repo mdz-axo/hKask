@@ -126,7 +126,7 @@ graph TD
 
 ## 3. Type System
 
-### 3.1 Types in `hkask-types::wallet` (Phase 1)
+### 3.1 Types in `hkask-wallet-types` (Phase 1)
 
 | Type | Kind | Security Constraints |
 |------|------|---------------------|
@@ -475,7 +475,7 @@ graph TD
 
 | Phase | Crate | Status | Tests | Key Deliverables |
 |-------|-------|--------|-------|-----------------|
-| 1 | `hkask-types` | ✅ | 11 | `RJoule`, `ChainId`, `PrivacyMode`, `ApiKeyCapability`, `WalletError` (15 variants), `TxHash`, 14 CNS spans, 3 wallet SignalMetrics |
+| 1 | `hkask-wallet-types` | ✅ | 11 | `RJoule`, `ChainId`, `PrivacyMode`, `ApiKeyCapability`, `WalletError` (15 variants), `TxHash`, 14 CNS spans, 3 wallet SignalMetrics |
 | 2 | `hkask-storage` | ✅ | 34 | `WalletStore` — 5 tables, 16 methods, anti-replay deposit references, MUST-10 property test |
 | 3 | `hkask-keystore` | ✅ | 6 | `resolve_treasury_key(chain)`, `resolve_wallet_seed()`, `sign_api_key_capability()` |
 | 4 | `hkask-wallet` | ✅ | 13 | `ChainPort`, `PrivacyPort`, `signing.rs` (LoadedKey + redacted Debug), `WalletManager` (13 methods + CNS span emission), `ApiKeyIssuer` (CNS span emission) |
@@ -494,7 +494,7 @@ graph TD
 
 | Crate | Tests | REQ Tags |
 |-------|-------|----------|
-| `hkask-types` | 11 (7 wallet) | `P1-wallet-types` |
+| `hkask-wallet-types` | 11 (7 wallet) | `P1-wallet-types` |
 | `hkask-storage` | 34 (11 wallet_store) | `P2-wallet-store`, `MUST-10` |
 | `hkask-keystore` | 6 (6 wallet) | `P3-keystore` |
 | `hkask-wallet` | 13 | `P4-signing`, `P4-manager`, `P4-issuer` |
@@ -526,8 +526,8 @@ graph TD
 
 ```bash
 # Per-crate verification
-cargo check -p hkask-types -p hkask-storage -p hkask-keystore -p hkask-wallet
-cargo test -p hkask-types -p hkask-storage -p hkask-keystore -p hkask-wallet
+cargo check -p hkask-wallet-types -p hkask-storage -p hkask-keystore -p hkask-wallet
+cargo test -p hkask-wallet-types -p hkask-storage -p hkask-keystore -p hkask-wallet
 cargo clippy -p hkask-wallet -- -D warnings
 
 # Full workspace (after all phases)

@@ -478,7 +478,7 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 
 ## Kanban Agent Coordination
 
-**Crates:** `hkask-types` (types), `hkask-services` (KanbanService), `mcp-servers/hkask-mcp-kanban` (MCP surface)
+**Crates:** `hkask-services-kanban` (types + service), `mcp-servers/hkask-mcp-kanban` (MCP surface)
 
 **Tri-surface pattern:** CLI (`kask kanban`), REPL (`/kanban`), MCP (7 tools via `hkask-mcp-kanban`)
 
@@ -509,7 +509,7 @@ Kanban provides headless task coordination for agents and replicants. Boards con
 graph TD
     CLI["hkask-cli"] --> SVC["hkask-services"]
     MCP["hkask-mcp-kanban"] --> SVC
-    SVC --> TYPES["hkask-types (kanban)"]
+    SVC --> TYPES["hkask-services-kanban"]
     SVC --> STORAGE["hkask-storage (TripleStore)"]
     SVC -.-> AGENTS["hkask-agents (ActivePods)"]
 ```

@@ -17,11 +17,11 @@
 
 use crate::cybernetics_loop::CyberneticsLoop;
 use crate::energy::EnergyCost;
+use hkask_ports::{InferenceError, InferencePort, InferenceResult};
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanKind, SpanNamespace};
-use hkask_ports::{InferenceError, InferencePort, InferenceResult};
 use hkask_types::template::LLMParameters;
 
 use std::pin::Pin;

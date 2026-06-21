@@ -15,9 +15,9 @@ use hkask_storage::WalletStore;
 use hkask_storage::database::in_memory_db;
 use hkask_types::crypto::Ed25519PublicKey;
 use hkask_types::id::{ApiKeyId, WalletId};
-use hkask_wallet::{ApiKeyCapability, PrivacyMode, RJoule, WalletConfig};
 use hkask_wallet::WalletManager;
 use hkask_wallet::price_feed::StaticPriceFeed;
+use hkask_wallet::{ApiKeyCapability, PrivacyMode, RJoule, WalletConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
 

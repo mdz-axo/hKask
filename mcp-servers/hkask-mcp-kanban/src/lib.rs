@@ -90,12 +90,14 @@ impl KanbanServer {
             Some(inputs) => inputs
                 .into_iter()
                 .enumerate()
-                .map(
-                    |(i, input)| match hkask_services_kanban::TaskStatus::parse_str(&input.status) {
-                        Some(s) => Ok(hkask_services_kanban::ColumnDef::new(input.name, s, i as u32)),
+                .map(|(i, input)| {
+                    match hkask_services_kanban::TaskStatus::parse_str(&input.status) {
+                        Some(s) => Ok(hkask_services_kanban::ColumnDef::new(
+                            input.name, s, i as u32,
+                        )),
                         None => Err(format!("invalid status: {}", input.status)),
-                    },
-                )
+                    }
+                })
                 .collect::<Result<Vec<_>, _>>(),
             None => Ok(default_columns()),
         };
@@ -414,11 +416,31 @@ impl KanbanServer {
 
 pub fn default_columns() -> Vec<hkask_services_kanban::ColumnDef> {
     vec![
-        hkask_services_kanban::ColumnDef::new("Backlog".into(), hkask_services_kanban::TaskStatus::Backlog, 0),
-        hkask_services_kanban::ColumnDef::new("Ready".into(), hkask_services_kanban::TaskStatus::Ready, 1),
-        hkask_services_kanban::ColumnDef::new("In Progress".into(), hkask_services_kanban::TaskStatus::InProgress, 2),
-        hkask_services_kanban::ColumnDef::new("Review".into(), hkask_services_kanban::TaskStatus::Review, 3),
-        hkask_services_kanban::ColumnDef::new("Done".into(), hkask_services_kanban::TaskStatus::Done, 4),
+        hkask_services_kanban::ColumnDef::new(
+            "Backlog".into(),
+            hkask_services_kanban::TaskStatus::Backlog,
+            0,
+        ),
+        hkask_services_kanban::ColumnDef::new(
+            "Ready".into(),
+            hkask_services_kanban::TaskStatus::Ready,
+            1,
+        ),
+        hkask_services_kanban::ColumnDef::new(
+            "In Progress".into(),
+            hkask_services_kanban::TaskStatus::InProgress,
+            2,
+        ),
+        hkask_services_kanban::ColumnDef::new(
+            "Review".into(),
+            hkask_services_kanban::TaskStatus::Review,
+            3,
+        ),
+        hkask_services_kanban::ColumnDef::new(
+            "Done".into(),
+            hkask_services_kanban::TaskStatus::Done,
+            4,
+        ),
     ]
 }
 

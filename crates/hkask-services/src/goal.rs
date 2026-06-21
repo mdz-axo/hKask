@@ -6,7 +6,9 @@
 //! response mapping logic.
 
 // Re-export domain types from hkask-services-core for backward compatibility
-pub use hkask_services_core::{Goal, GoalArtifact, GoalCriterion, GoalState, IllegalGoalTransition};
+pub use hkask_services_core::{
+    Goal, GoalArtifact, GoalCriterion, GoalState, IllegalGoalTransition,
+};
 
 use hkask_types::id::{GoalID, WebID};
 use hkask_types::visibility::Visibility;

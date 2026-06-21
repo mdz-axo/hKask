@@ -16,8 +16,8 @@
 //! is a standalone struct. The `WalletManager` uses it for fee estimation
 //! during withdrawals.
 
-use async_trait::async_trait;
 use crate::types::{ChainId, PriceFeedConfig, WalletError};
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};

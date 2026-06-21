@@ -12,12 +12,12 @@
 
 use crate::error::McpError;
 use crate::ports::MCPRuntimePort;
-use hkask_mcp::runtime::McpRuntime;
 use hkask_capability::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, TOKEN_ERR_EXPIRED,
     TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
     verify_delegation_token_now,
 };
+use hkask_mcp::runtime::McpRuntime;
 use std::sync::Arc;
 
 /// Verify a delegation token for tool access grant.
@@ -213,9 +213,7 @@ impl MCPRuntimePort for FullMcpAdapter {
             &raw_port, &server_id, tool_name, input, token,
         )) {
             Ok(value) => Ok(value),
-            Err(hkask_ports::ToolPortError::NotFound(msg)) => {
-                Err(McpError::ToolNotFound(msg))
-            }
+            Err(hkask_ports::ToolPortError::NotFound(msg)) => Err(McpError::ToolNotFound(msg)),
             Err(hkask_ports::ToolPortError::InvocationFailed(msg)) => {
                 Err(McpError::InvocationFailed(Box::new(
                     hkask_ports::ToolPortError::InvocationFailed(msg),

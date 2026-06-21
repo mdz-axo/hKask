@@ -5,7 +5,7 @@
 //! enforced at runtime. This filter checks model output against the constraints
 //! and reports violations.
 
-use crate::types::agent::definition::PersonaConstraints;
+use hkask_types::PersonaConstraints;
 
 /// Result of checking model output against persona constraints.
 #[derive(Debug, Clone)]

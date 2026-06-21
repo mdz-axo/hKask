@@ -30,8 +30,8 @@
 //!    oscillation: a different override targeting a different agent cannot
 //!    bypass the cooldown by changing its fingerprint.
 
-use hkask_types::WebID;
 use crate::types::loops::CuratorDirective;
+use hkask_types::WebID;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::Mutex;

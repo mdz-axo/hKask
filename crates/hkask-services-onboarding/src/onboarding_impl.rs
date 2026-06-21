@@ -182,8 +182,8 @@ impl OnboardingService {
         name: &str,
         description: &str,
         user_profile: Option<&UserProfile>,
-        voice_description: Option<&str>,
-        voice_id: Option<&str>,
+        _voice_description: Option<&str>,
+        _voice_id: Option<&str>,
     ) -> Result<(), ServiceError> {
         let display_name = if let Some(profile) = user_profile {
             profile.replicant_display_name(name)

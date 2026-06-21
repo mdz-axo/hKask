@@ -13,9 +13,7 @@ use hkask_mcp::RawMcpToolPort;
 use hkask_ports::{InferencePort, ToolInfo, ToolPort};
 use hkask_services::{AgentService, InferenceContext, InferenceService};
 use hkask_storage::Database;
-use hkask_templates::{ManifestExecutor, McpPort};
 use hkask_types::WebID;
-use hkask_types::template::LLMParameters;
 
 use super::ReplState;
 use super::tool_augmented;
@@ -270,9 +268,19 @@ pub(super) fn init_repl_state(
         state.tool_prompt_section = tool_augmented::format_tool_prompt_section(&tools);
     }
 
-    // Persona constraints require rich AgentDefinition from hkask-agents.
-    // TODO: convert from store type when rich persona fields are needed.
-    state.persona_constraints = None;
+    // Load persona constraints from the agent's stored YAML definition
+    state.persona_constraints = rt
+        .block_on(crate::commands::bot_status(&state.current_agent))
+        .ok()
+        .and_then(|agent| {
+            #[derive(serde::Deserialize)]
+            struct PersonaWrapper {
+                persona: Option<hkask_types::PersonaConstraints>,
+            }
+            serde_yaml_neo::from_str::<PersonaWrapper>(&agent.source_yaml)
+                .ok()
+                .and_then(|w| w.persona)
+        });
 
     // Process manifest loading requires rich AgentDefinition fields.
     // TODO: convert from store type when process_manifest is available.

@@ -34,13 +34,13 @@ use crate::runtime::CnsRuntime;
 use crate::set_points::{DEFAULT_MAX_ITERATIONS, SetPoints};
 use crate::wallet_budget::WalletBackedBudget;
 
-use hkask_types::WebID;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanKind};
 use crate::types::loops::{
     ActionType, CurationInput, CuratorDirective, Deviation, DeviationDirection, HkaskLoop,
     LoopAction, LoopId, LoopQuality, RuntimeAlert, Signal, SignalMetric, ToolConsumptionEvent,
 };
 use hkask_ports::BackpressureSignal;
+use hkask_types::WebID;
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanKind};
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 
