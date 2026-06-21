@@ -730,9 +730,15 @@ impl HkaskLoop for MetacognitionLoop {
                 0,
                 format!("Consolidated batch: {} escalation(s)", batch.entries.len()),
             ) {
-                warn!(target: MC_TARGET, error = %e, "Failed to add consolidated escalation batch");
+                tracing::error!(
+                    target: "cns.curation.escalation",
+                    error = %e,
+                    batch_size = batch.entries.len(),
+                    "Failed to add consolidated escalation batch — escalations LOST"
+                );
             }
         } else {
+            let mut lost_count = 0u32;
             for entry in escalation_entries {
                 if let Err(e) = self.context.escalation_queue().add(
                     entry.template_id,
@@ -742,8 +748,23 @@ impl HkaskLoop for MetacognitionLoop {
                     entry.retry_count,
                     entry.error_context,
                 ) {
-                    warn!(target: MC_TARGET, error = %e, "Failed to add escalation");
+                    lost_count += 1;
+                    tracing::error!(
+                        target: "cns.curation.escalation",
+                        error = %e,
+                        template_id = %entry.template_id,
+                        bot_id = %entry.bot_id,
+                        "Failed to add escalation — escalation LOST"
+                    );
                 }
+            }
+            if lost_count > 0 {
+                tracing::error!(
+                    target: "cns.curation.escalation",
+                    lost = lost_count,
+                    "{} escalation(s) could not be persisted — check escalation queue health",
+                    lost_count
+                );
             }
         }
     }

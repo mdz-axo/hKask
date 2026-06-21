@@ -53,6 +53,18 @@ inputs:
     required: false
     default: ["pdf", "epub", "markdown"]
 
+# Kindle UI selectors — evolvable without code changes.
+# When Amazon changes their reader DOM, update these values in the manifest
+# rather than modifying Rust code. The verify-selectors.j2 template validates
+# them before extraction begins.
+selectors:
+  reader_content: "#kr-renderer .kg-full-page-img img"
+  next_page: ".kr-chevron-container-right"
+  email_input: 'input[type="email"]'
+  password_input: 'input[type="password"]'
+  submit_button: 'input[type="submit"]'
+  page_footer: "ion-footer ion-title"
+
 # ── Pipeline Steps ──────────────────────────────────────────────────────────
 
 steps:

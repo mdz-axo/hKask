@@ -20,25 +20,23 @@ pub mod extract;
 pub mod transcribe;
 pub mod types;
 
-// Re-export only the public API (≤7 items)
+// Public API (≤7 items)
 pub use export_epub::export_epub;
 pub use export_markdown::export_markdown;
 pub use export_pdf::export_pdf;
 pub use extract::extract_kindle_book;
-pub use transcribe::transcribe_pages;
-pub use types::{
-    BookMetadata, ContentChunk, ExportResult, ExtractResult, KindleZipParams, TocItem,
-    TranscribeResult,
-};
+pub(crate) use transcribe::transcribe_pages;
+pub use types::{BookMetadata, ExportResult, ExtractResult, KindleZipParams, TocItem};
 
 use std::path::Path;
 
-use types::{ExportEntry, TocItem};
+use types::ExportEntry;
 
 /// Export assembled book content to the requested formats.
 ///
 /// Dispatch function that routes to format-specific generators.
 /// Single entry point for the `kindle_export` MCP tool.
+#[allow(clippy::too_many_arguments)]
 pub fn export_formats(
     assembled_text: &str,
     _metadata_path: &Path,

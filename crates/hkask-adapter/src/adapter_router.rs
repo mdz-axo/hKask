@@ -222,11 +222,11 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
         let hf_repo = repo.clone();
 
         if self.api_key.is_empty() {
-            tracing::warn!(
-                target: "cns.adapter",
-                "TOGETHER_API_KEY not set — skipping adapter upload"
-            );
-            return Ok(format!("adapter-{}", adapter.id));
+            return Err(AdapterError::Internal(
+                "TOGETHER_API_KEY not set — cannot upload adapter. \
+                 Set the environment variable and retry."
+                    .into(),
+            ));
         }
 
         // Together AI adapter upload API:
@@ -413,35 +413,37 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
     async fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError> {
         // Runpod serverless endpoint deletion is console-only per their docs.
         // Docs: https://docs.runpod.io/serverless/endpoints/manage-endpoints#delete-an-endpoint
-        // DELETE to API endpoint may work but is not officially documented.
-        // Best-effort: attempt DELETE, log warning on failure.
         if self.api_key.is_empty() {
-            tracing::warn!("RUNPOD_API_KEY not set — skipping teardown");
-            return Ok(());
+            return Err(AdapterError::Internal(
+                "RUNPOD_API_KEY not set — cannot teardown endpoint. \
+                 The endpoint may still be active and billing at Runpod."
+                    .into(),
+            ));
         }
-        match self
-            .client
+        self.client
             .delete(endpoint_url)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .send()
             .await
-        {
-            Ok(_) => {
-                tracing::info!(target: "cns.adapter", endpoint_url = %endpoint_url, "Runpod endpoint teardown requested");
-            }
-            Err(e) => {
-                tracing::warn!(target: "cns.adapter", endpoint_url = %endpoint_url, error = %e, "Runpod teardown failed (may require console deletion)");
-            }
-        }
+            .map_err(|e| {
+                AdapterError::Internal(format!(
+                    "Runpod teardown HTTP request failed: {e}. \
+                     Endpoint may need manual deletion via Runpod console."
+                ))
+            })?;
+        tracing::info!(target: "cns.adapter", endpoint_url = %endpoint_url, "Runpod endpoint torn down");
         Ok(())
     }
 
     async fn upload_adapter(
         &self,
-        adapter: &TrainedLoRAAdapter,
+        _adapter: &TrainedLoRAAdapter,
         _config: &AdapterConfig,
     ) -> Result<String, AdapterError> {
-        Ok(format!("adapter-{}", adapter.id))
+        Err(AdapterError::ProviderUnavailable(
+            "Runpod does not support LoRA adapter uploads. Adapters must be baked into the container image."
+                .into(),
+        ))
     }
 
     fn capability(&self) -> ProviderCapability {
@@ -572,10 +574,12 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
 
     async fn upload_adapter(
         &self,
-        adapter: &TrainedLoRAAdapter,
+        _adapter: &TrainedLoRAAdapter,
         _config: &AdapterConfig,
     ) -> Result<String, AdapterError> {
-        Ok(format!("adapter-{}", adapter.id))
+        Err(AdapterError::ProviderUnavailable(
+            "Baseten does not support LoRA adapter uploads via this path.".into(),
+        ))
     }
 
     fn capability(&self) -> ProviderCapability {
@@ -1037,16 +1041,10 @@ impl AdapterPort for AdapterRouter {
             });
         }
 
-        // 4. Parse adapter config and upload to provider (best-effort)
-        let model_name = if let Ok(adapter_config) = AdapterConfig::from_dir(&adapter.storage_path)
-        {
-            backend
-                .upload_adapter(&adapter, &adapter_config)
-                .await
-                .unwrap_or_else(|_| format!("adapter-{}", adapter.id))
-        } else {
-            format!("adapter-{}", adapter.id)
-        };
+        // 4. Parse adapter config and upload to provider
+        let adapter_config = AdapterConfig::from_dir(&adapter.storage_path)
+            .map_err(|e| AdapterError::Internal(format!("Failed to parse adapter config: {e}")))?;
+        let model_name = backend.upload_adapter(&adapter, &adapter_config).await?;
 
         // 5. Provision the endpoint via the provider
         let endpoint_url = backend.provision_endpoint(&adapter).await?;
@@ -1396,7 +1394,11 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires TOGETHER_API_KEY"]
     fn create_endpoint_returns_handle() {
+        unsafe {
+            std::env::set_var("TOGETHER_API_KEY", "test-key");
+        }
         let db = in_memory_db();
         let store = Arc::new(AdapterStore::new(db.conn_arc()));
         store.migrate().expect("migration");
@@ -1416,7 +1418,11 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires TOGETHER_API_KEY"]
     fn endpoint_status_query() {
+        unsafe {
+            std::env::set_var("TOGETHER_API_KEY", "test-key");
+        }
         let db = in_memory_db();
         let store = Arc::new(AdapterStore::new(db.conn_arc()));
         store.migrate().expect("migration");
@@ -1440,7 +1446,11 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires TOGETHER_API_KEY"]
     fn teardown_endpoint() {
+        unsafe {
+            std::env::set_var("TOGETHER_API_KEY", "test-key");
+        }
         let db = in_memory_db();
         let store = Arc::new(AdapterStore::new(db.conn_arc()));
         store.migrate().expect("migration");
@@ -1558,7 +1568,11 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires TOGETHER_API_KEY"]
     fn drain_all_owner_cleans_up() {
+        unsafe {
+            std::env::set_var("TOGETHER_API_KEY", "test-key");
+        }
         let db = in_memory_db();
         let store = Arc::new(AdapterStore::new(db.conn_arc()));
         store.migrate().expect("migration");
@@ -1712,7 +1726,11 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires TOGETHER_API_KEY"]
     fn end_to_end_store_deploy_status_teardown() {
+        unsafe {
+            std::env::set_var("TOGETHER_API_KEY", "test-key");
+        }
         let db = in_memory_db();
         let store = Arc::new(AdapterStore::new(db.conn_arc()));
         store.migrate().expect("migration");

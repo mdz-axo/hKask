@@ -1,9 +1,8 @@
 //! EPUB 3.0 export — ZIP archive of XHTML chapters, OPF manifest, and CSS.
 //!
 //! EPUB is a ZIP of structured XHTML files. No external tool (Calibre) needed.
-//! Public surface: 1 function (`export_epub`).
 
-use crate::kindle_zip::types::{escape_xml, split_into_chapters, TocItem};
+use crate::kindle_zip::types::{TocItem, escape_xml, split_into_chapters};
 
 const EPUB_CONTAINER_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
@@ -15,11 +14,16 @@ const EPUB_CONTAINER_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 const EPUB_CSS: &str = "body{font-family:serif;line-height:1.6;margin:2em}h1{text-align:center;margin-top:2em}p{text-indent:1.5em;margin:0.5em 0}";
 
 /// Generate an EPUB 3.0 file as a byte vector.
-///
-/// Contains: mimetype, container.xml, content.opf (with manifest + spine),
-/// nav.xhtml (TOC), style.css, and per-chapter XHTML files.
-pub fn export_epub(text: &str, title: &str, author: &str, toc: &[TocItem]) -> Result<Vec<u8>, String> {
+pub fn export_epub(
+    text: &str,
+    title: &str,
+    author: &str,
+    toc: &[TocItem],
+) -> Result<Vec<u8>, String> {
     use std::io::{Cursor, Write as _};
+
+    let chapters = split_into_chapters(text, toc);
+    let chapter_count = chapters.len();
 
     let mut buf = Cursor::new(Vec::new());
     {
@@ -29,57 +33,67 @@ pub fn export_epub(text: &str, title: &str, author: &str, toc: &[TocItem]) -> Re
         let stored = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Stored);
 
-        // mimetype (must be first, uncompressed per EPUB spec)
-        zip.start_file("mimetype", stored).map_err(|e| format!("mimetype: {}", e))?;
-        zip.write_all(b"application/epub+zip").map_err(|e| format!("mimetype write: {}", e))?;
+        // mimetype (must be first, uncompressed)
+        zip.start_file("mimetype", stored)
+            .map_err(|e| format!("mimetype: {}", e))?;
+        zip.write_all(b"application/epub+zip")
+            .map_err(|e| format!("mimetype write: {}", e))?;
 
-        // META-INF/container.xml
-        zip.start_file("META-INF/container.xml", opts).map_err(|e| format!("container: {}", e))?;
-        zip.write_all(EPUB_CONTAINER_XML.as_bytes()).map_err(|e| format!("container write: {}", e))?;
+        zip.start_file("META-INF/container.xml", opts)
+            .map_err(|e| format!("container: {}", e))?;
+        zip.write_all(EPUB_CONTAINER_XML.as_bytes())
+            .map_err(|e| format!("container write: {}", e))?;
 
-        // OEBPS/content.opf
-        let opf = build_opf(title, author, toc);
-        zip.start_file("OEBPS/content.opf", opts).map_err(|e| format!("opf: {}", e))?;
-        zip.write_all(opf.as_bytes()).map_err(|e| format!("opf write: {}", e))?;
+        let opf = build_opf(title, author, chapter_count);
+        zip.start_file("OEBPS/content.opf", opts)
+            .map_err(|e| format!("opf: {}", e))?;
+        zip.write_all(opf.as_bytes())
+            .map_err(|e| format!("opf write: {}", e))?;
 
-        // OEBPS/nav.xhtml
-        let nav = build_nav(title, toc);
-        zip.start_file("OEBPS/nav.xhtml", opts).map_err(|e| format!("nav: {}", e))?;
-        zip.write_all(nav.as_bytes()).map_err(|e| format!("nav write: {}", e))?;
+        let nav = build_nav(title, chapter_count);
+        zip.start_file("OEBPS/nav.xhtml", opts)
+            .map_err(|e| format!("nav: {}", e))?;
+        zip.write_all(nav.as_bytes())
+            .map_err(|e| format!("nav write: {}", e))?;
 
-        // OEBPS/style.css
-        zip.start_file("OEBPS/style.css", opts).map_err(|e| format!("css: {}", e))?;
-        zip.write_all(EPUB_CSS.as_bytes()).map_err(|e| format!("css write: {}", e))?;
+        zip.start_file("OEBPS/style.css", opts)
+            .map_err(|e| format!("css: {}", e))?;
+        zip.write_all(EPUB_CSS.as_bytes())
+            .map_err(|e| format!("css write: {}", e))?;
 
-        // Chapter files
-        let chapters = split_into_chapters(text, toc);
         for (i, (ch_title, ch_text)) in chapters.iter().enumerate() {
             let filename = format!("OEBPS/chapter-{:03}.xhtml", i + 1);
             let xhtml = build_chapter(ch_title, ch_text);
-            zip.start_file(&filename, opts).map_err(|e| format!("ch{}: {}", i, e))?;
-            zip.write_all(xhtml.as_bytes()).map_err(|e| format!("ch{} write: {}", i, e))?;
+            zip.start_file(&filename, opts)
+                .map_err(|e| format!("ch{}: {}", i, e))?;
+            zip.write_all(xhtml.as_bytes())
+                .map_err(|e| format!("ch{} write: {}", i, e))?;
         }
         zip.finish().map_err(|e| format!("finish: {}", e))?;
     }
     Ok(buf.into_inner())
 }
 
-fn build_opf(title: &str, author: &str, toc: &[TocItem]) -> String {
+fn build_opf(title: &str, author: &str, chapter_count: usize) -> String {
     let mut manifest = String::new();
     let mut spine = String::new();
 
-    manifest.push_str(r#"    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>"#);
+    manifest.push_str(
+        r#"    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>"#,
+    );
     manifest.push('\n');
     manifest.push_str(r#"    <item id="css" href="style.css" media-type="text/css"/>"#);
     manifest.push('\n');
     spine.push_str(r#"    <itemref idref="nav" linear="no"/>"#);
     spine.push('\n');
 
-    let chapters = split_into_chapters("", toc);
-    for (i, _) in chapters.iter().enumerate() {
+    for i in 0..chapter_count {
         let id = format!("chapter-{:03}", i + 1);
         let href = format!("chapter-{:03}.xhtml", i + 1);
-        manifest.push_str(&format!(r#"    <item id="{}" href="{}" media-type="application/xhtml+xml"/>"#, id, href));
+        manifest.push_str(&format!(
+            r#"    <item id="{}" href="{}" media-type="application/xhtml+xml"/>"#,
+            id, href
+        ));
         manifest.push('\n');
         spine.push_str(&format!(r#"    <itemref idref="{}"/>"#, id));
         spine.push('\n');
@@ -111,16 +125,14 @@ fn build_opf(title: &str, author: &str, toc: &[TocItem]) -> String {
     )
 }
 
-fn build_nav(title: &str, toc: &[TocItem]) -> String {
+fn build_nav(title: &str, chapter_count: usize) -> String {
     let mut items = String::new();
-    let chapters = split_into_chapters("", toc);
-    for (i, (ch_title, _)) in chapters.iter().enumerate() {
+    for i in 0..chapter_count {
         items.push_str(&format!(
-            r#"      <li><a href="chapter-{:03}.xhtml">{}</a></li>"#,
+            "      <li><a href=\"chapter-{:03}.xhtml\">Chapter {}</a></li>\n",
             i + 1,
-            escape_xml(ch_title)
+            i + 1
         ));
-        items.push('\n');
     }
     format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -133,7 +145,8 @@ fn build_nav(title: &str, toc: &[TocItem]) -> String {
   </ol></nav>
 </body>
 </html>"#,
-        escape_xml(title), items
+        escape_xml(title),
+        items
     )
 }
 
@@ -152,6 +165,34 @@ fn build_chapter(title: &str, content: &str) -> String {
 <body><section epub:type="chapter"><h1>{0}</h1>
 {1}
 </section></body></html>"#,
-        escape_xml(title), paragraphs
+        escape_xml(title),
+        paragraphs
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn epub_has_correct_mimetype() {
+        let toc = vec![TocItem {
+            label: "Ch1".into(),
+            depth: 0,
+            page: None,
+            position_id: None,
+        }];
+        let bytes = export_epub("Hello world.", "Test", "Author", &toc).unwrap();
+        // EPUB is a ZIP — check magic bytes
+        assert_eq!(&bytes[0..4], b"PK\x03\x04");
+    }
+
+    #[test]
+    fn epub_empty_content_generates_valid_zip() {
+        let bytes = export_epub("", "Empty", "Author", &[]).unwrap();
+        assert!(
+            bytes.len() > 100,
+            "EPUB should have structure even for empty content"
+        );
+    }
 }

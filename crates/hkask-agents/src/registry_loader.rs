@@ -34,198 +34,7 @@ pub enum RegistryLoaderError {
     InvalidDefinition(String),
 }
 
-#[derive(Debug, Deserialize)]
-struct YamlAgentHeader {
-    name: String,
-    #[serde(rename = "type")]
-    agent_type: String,
-    #[serde(default)]
-    voice_description: Option<String>,
-    #[serde(default)]
-    voice_id: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct YamlCharter {
-    description: String,
-    #[serde(default)]
-    archetype: String,
-    #[serde(default)]
-    visibility: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct YamlPersona {
-    #[serde(default)]
-    tone: String,
-    #[serde(default)]
-    verbosity: String,
-    #[serde(default)]
-    formatting: String,
-    #[serde(default)]
-    forbidden: Vec<String>,
-    #[serde(default)]
-    required: Vec<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct RawYamlAgent {
-    #[serde(default)]
-    agent: Option<YamlAgentHeader>,
-    #[serde(default)]
-    bot: Option<YamlAgentHeader>,
-    #[serde(default)]
-    charter: Option<YamlCharter>,
-    #[serde(default)]
-    capabilities: Vec<String>,
-    #[serde(default)]
-    rights: Vec<std::collections::HashMap<String, String>>,
-    #[serde(default)]
-    responsibilities: Vec<std::collections::HashMap<String, String>>,
-    #[serde(default)]
-    persona: Option<YamlPersona>,
-    #[serde(default)]
-    depends_on: Vec<String>,
-    #[serde(default)]
-    process_manifest: Option<String>,
-}
-
-impl RawYamlAgent {
-    fn convert_rights(rights: Vec<std::collections::HashMap<String, String>>) -> Vec<Right> {
-        rights
-            .into_iter()
-            .filter_map(|map| {
-                if let Some(resource) = map.get("read") {
-                    Some(Right::Read {
-                        resource: resource.clone(),
-                    })
-                } else if let Some(resource) = map.get("write") {
-                    Some(Right::Write {
-                        resource: resource.clone(),
-                    })
-                } else if let Some(action) = map.get("execute") {
-                    Some(Right::Execute {
-                        action: action.clone(),
-                    })
-                } else if let Some(scope) = map.get("coordinate") {
-                    Some(Right::Coordinate {
-                        scope: scope.clone(),
-                    })
-                } else {
-                    map.get("escalate_to").map(|target| Right::EscalateTo {
-                        target: target.clone(),
-                    })
-                }
-            })
-            .collect()
-    }
-
-    fn convert_responsibilities(
-        responsibilities: Vec<std::collections::HashMap<String, String>>,
-    ) -> Vec<Responsibility> {
-        responsibilities
-            .into_iter()
-            .filter_map(|map| {
-                if let Some(target) = map.get("monitor") {
-                    Some(Responsibility::Monitor {
-                        target: target.clone(),
-                    })
-                } else if let Some(input) = map.get("synthesize") {
-                    Some(Responsibility::Synthesize {
-                        input: input.clone(),
-                        output: String::new(),
-                    })
-                } else if let Some(action) = map.get("perform") {
-                    Some(Responsibility::Perform {
-                        action: action.clone(),
-                    })
-                } else if let Some(target) = map.get("calibrate") {
-                    Some(Responsibility::Calibrate {
-                        target: target.clone(),
-                    })
-                } else if let Some(trigger) = map.get("escalate") {
-                    Some(Responsibility::Escalate {
-                        trigger: trigger.clone(),
-                        target: String::new(),
-                    })
-                } else if let Some(resource) = map.get("maintain") {
-                    Some(Responsibility::Maintain {
-                        resource: resource.clone(),
-                    })
-                } else if let Some(span) = map.get("emit") {
-                    Some(Responsibility::Emit { span: span.clone() })
-                } else if let Some(session) = map.get("orchestrate") {
-                    Some(Responsibility::Orchestrate {
-                        session: session.clone(),
-                    })
-                } else if let Some(target) = map.get("record") {
-                    Some(Responsibility::Record {
-                        target: target.clone(),
-                    })
-                } else {
-                    map.get("produce").map(|artifact| Responsibility::Produce {
-                        artifact: artifact.clone(),
-                    })
-                }
-            })
-            .collect()
-    }
-
-    fn into_agent_definition(
-        self,
-        source_path: &str,
-    ) -> Result<AgentDefinition, RegistryLoaderError> {
-        // Destructure self into locals to avoid borrow conflicts
-        let RawYamlAgent {
-            agent,
-            bot,
-            charter,
-            capabilities,
-            rights,
-            responsibilities,
-            persona,
-            depends_on,
-            process_manifest,
-        } = self;
-
-        let header = agent.or(bot).ok_or_else(|| {
-            RegistryLoaderError::InvalidDefinition(format!(
-                "No 'agent:' or 'bot:' section in {}",
-                source_path
-            ))
-        })?;
-        let agent_kind = AgentKind::parse(&header.agent_type).ok_or_else(|| {
-            RegistryLoaderError::InvalidDefinition(format!(
-                "Unknown agent type '{}' in {}",
-                header.agent_type, source_path
-            ))
-        })?;
-
-        Ok(AgentDefinition {
-            name: header.name,
-            agent_kind,
-            charter: charter.map(|c| Charter {
-                description: c.description,
-                archetype: c.archetype,
-                visibility: c.visibility,
-            }),
-            capabilities,
-            rights: Self::convert_rights(rights),
-            responsibilities: Self::convert_responsibilities(responsibilities),
-            persona: persona.map(|p| PersonaConstraints {
-                tone: p.tone,
-                verbosity: p.verbosity,
-                formatting: p.formatting,
-                forbidden: p.forbidden,
-                required: p.required,
-            }),
-            depends_on,
-            process_manifest,
-            voice_description: header.voice_description,
-            voice_id: header.voice_id,
-        })
-    }
-}
+use crate::yaml_types::RawYamlAgent;
 
 pub struct AgentRegistryLoader {
     registry_path: PathBuf,
@@ -332,7 +141,20 @@ impl AgentRegistryLoader {
                 source: e,
             })?;
 
-        let definition = raw.into_agent_definition(path)?;
+        let definition = raw.build_definition(
+            || {
+                RegistryLoaderError::InvalidDefinition(format!(
+                    "No 'agent:' or 'bot:' section in {}",
+                    path
+                ))
+            },
+            |agent_type| {
+                RegistryLoaderError::InvalidDefinition(format!(
+                    "Unknown agent type '{}' in {}",
+                    agent_type, path
+                ))
+            },
+        )?;
 
         let webid = WebID::from_persona(definition.name.as_bytes());
 

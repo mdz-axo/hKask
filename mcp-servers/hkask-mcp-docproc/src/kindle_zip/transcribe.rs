@@ -8,16 +8,15 @@
 use std::path::Path;
 use std::time::Instant;
 
-use crate::kindle_zip::types::{
-    BookMetadata, ContentChunk, ProvenanceRecord, TranscribeResult,
-};
+use crate::kindle_zip::types::{BookMetadata, ContentChunk, ProvenanceRecord, TranscribeResult};
 use crate::ocr::pipeline::run_pipeline;
 
 /// Transcribe page screenshots to text using the OCR pipeline.
 ///
 /// Emits CNS span `kindle-zip.transcribe` with per-page and aggregate metrics.
-pub async fn transcribe_pages(
-    pages_dir: &Path,
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn transcribe_pages(
+    _pages_dir: &Path,
     metadata_path: &Path,
     output_dir: &Path,
     asin: &str,
@@ -30,8 +29,10 @@ pub async fn transcribe_pages(
     let cns_span_id = uuid::Uuid::new_v4().to_string();
 
     // Load metadata
-    let json = std::fs::read_to_string(metadata_path).map_err(|e| format!("Read metadata: {}", e))?;
-    let metadata: BookMetadata = serde_json::from_str(&json).map_err(|e| format!("Parse metadata: {}", e))?;
+    let json =
+        std::fs::read_to_string(metadata_path).map_err(|e| format!("Read metadata: {}", e))?;
+    let metadata: BookMetadata =
+        serde_json::from_str(&json).map_err(|e| format!("Parse metadata: {}", e))?;
 
     // Load page images in sorted order
     let mut sorted: Vec<&crate::kindle_zip::types::PageEntry> = metadata.pages.iter().collect();
@@ -59,19 +60,31 @@ pub async fn transcribe_pages(
     );
 
     // Run the multi-backend OCR pipeline
-    let outcome = run_pipeline(images, expected, ocr_executor, ocr_thresholds, ocr_model, embedding_router).await;
+    let outcome = run_pipeline(
+        images,
+        expected,
+        ocr_executor,
+        ocr_thresholds,
+        ocr_model,
+        embedding_router,
+    )
+    .await;
 
     // Build content chunks with provenance
     let mut chunks: Vec<ContentChunk> = Vec::with_capacity(outcome.results.len());
     let mut total_words = 0usize;
     let mut total_confidence = 0.0f32;
 
-    let param_hash = Some(format!("{:x}", md5::compute(
-        serde_json::to_string(&ocr_thresholds).unwrap_or_default()
-    )));
+    let param_hash = Some(format!(
+        "{:x}",
+        md5::compute(serde_json::to_string(&ocr_thresholds).unwrap_or_default())
+    ));
 
     for result in &outcome.results {
-        let page = page_map.get(result.page_index).copied().unwrap_or(result.page_index + 1);
+        let page = page_map
+            .get(result.page_index)
+            .copied()
+            .unwrap_or(result.page_index + 1);
         let wc = result.text.split_whitespace().count();
         total_words += wc;
         total_confidence += result.confidence;
@@ -94,11 +107,16 @@ pub async fn transcribe_pages(
 
     let transcribed = outcome.results.len();
     let failed = expected.saturating_sub(transcribed);
-    let mean_confidence = if transcribed > 0 { total_confidence / transcribed as f32 } else { 0.0 };
+    let mean_confidence = if transcribed > 0 {
+        total_confidence / transcribed as f32
+    } else {
+        0.0
+    };
 
     // Write content.json
     let content_path = output_dir.join(asin).join("content.json");
-    let content_json = serde_json::to_string_pretty(&chunks).map_err(|e| format!("Serialize: {}", e))?;
+    let content_json =
+        serde_json::to_string_pretty(&chunks).map_err(|e| format!("Serialize: {}", e))?;
     std::fs::write(&content_path, content_json).map_err(|e| format!("Write: {}", e))?;
 
     let elapsed = start.elapsed();

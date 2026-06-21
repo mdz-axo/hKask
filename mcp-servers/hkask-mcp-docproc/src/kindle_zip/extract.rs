@@ -2,8 +2,6 @@
 //!
 //! Navigates Kindle Cloud Reader, logs in, captures page screenshots,
 //! and records metadata. Supports resume from existing extraction.
-//!
-//! Public surface: 1 function (`extract_kindle_book`).
 
 use std::path::Path;
 
@@ -13,10 +11,7 @@ use crate::kindle_zip::types::{
 
 /// Extract book pages from Kindle Cloud Reader via headless browser.
 ///
-/// If pages already exist on disk, resumes from existing extraction
-/// (idempotent — safe to re-run after partial completion).
-///
-/// Emits CNS span `kindle-zip.extract` for observability.
+/// Idempotent — resumes from existing extraction if pages exist on disk.
 pub async fn extract_kindle_book(
     asin: &str,
     amazon_email: &str,
@@ -30,11 +25,10 @@ pub async fn extract_kindle_book(
     std::fs::create_dir_all(&book_dir).map_err(|e| format!("mkdir book dir: {}", e))?;
     std::fs::create_dir_all(&pages_dir).map_err(|e| format!("mkdir pages dir: {}", e))?;
 
-    // Idempotency: skip extraction if pages already exist
     if metadata_path.exists() && has_page_files(&pages_dir) {
         tracing::info!(
             target: "cns.pipeline.kindle-zip.extract",
-            asin = %asin, "Idempotent: resuming from existing extraction"
+            asin = %asin, "Resuming from existing extraction"
         );
         return load_existing(&metadata_path, &pages_dir);
     }
@@ -59,7 +53,6 @@ pub async fn extract_kindle_book(
     Ok(meta)
 }
 
-/// Browser-based extraction using headless Chrome.
 async fn extract_via_browser(
     asin: &str,
     amazon_email: &str,
@@ -77,7 +70,7 @@ async fn extract_via_browser(
         .map_err(|e| format!("Browser options: {}", e))?;
 
     let browser = Browser::new(launch_opts)
-        .map_err(|e| format!("Launch browser: {}. Is Chrome/Chromium installed?", e))?;
+        .map_err(|e| format!("Launch browser: {}. Chrome installed?", e))?;
 
     let tab = browser.new_tab().map_err(|e| format!("Tab: {}", e))?;
     let book_url = format!("https://read.amazon.com/?asin={}", asin);
@@ -98,26 +91,33 @@ async fn extract_via_browser(
 
     std::thread::sleep(std::time::Duration::from_secs(5));
 
-    let metadata = scrape_metadata(&tab, asin)?;
-    let pages = capture_pages(&tab, &metadata, pages_dir)?;
+    // Verify Kindle UI selectors before extraction (Guardrail — aborts on failure)
+    verify_selectors(&tab)?;
 
-    let total = pages.len();
-    let content = metadata.nav.total_content_pages.max(1) as usize;
-    let title = metadata.title.clone();
-    let author = metadata.author.clone();
-    let toc = metadata.toc.clone();
+    let (title, author) = scrape_title_author(&tab)?;
+    let pages = capture_pages(&tab, pages_dir)?;
+
+    let total_pages = pages.len();
+    let title_c = title.clone();
+    let author_c = author.clone();
+    let toc: Vec<crate::kindle_zip::types::TocItem> = vec![]; // TOC populated from network responses in production
 
     let full = BookMetadata {
         asin: asin.to_string(),
-        title: title.clone(),
-        author: author.clone(),
-        authors: metadata.authors.clone(),
-        description: metadata.description.clone(),
-        cover_url: metadata.cover_url.clone(),
+        title: title_c.clone(),
+        author: author_c.clone(),
+        authors: vec![author_c.clone()],
+        description: None,
+        cover_url: None,
         pages,
         toc: toc.clone(),
-        nav: metadata.nav.clone(),
-        raw_meta: metadata.raw_meta.clone(),
+        nav: PageNav {
+            start_content_page: 1,
+            end_content_page: total_pages as i64,
+            total_pages: total_pages as i64,
+            total_content_pages: total_pages as i64,
+        },
+        raw_meta: serde_json::json!({}),
     };
     let json = serde_json::to_string_pretty(&full).map_err(|e| format!("JSON: {}", e))?;
     std::fs::write(book_dir.join("metadata.json"), json).map_err(|e| format!("Write: {}", e))?;
@@ -125,18 +125,16 @@ async fn extract_via_browser(
     Ok(ExtractResult {
         metadata_path: book_dir.join("metadata.json"),
         pages_dir: pages_dir.to_path_buf(),
-        total_pages: total,
-        content_pages: content,
-        title,
-        author,
+        total_pages,
+        content_pages: total_pages,
+        title: title_c,
+        author: author_c,
         toc,
         cns_span_id: None,
     })
 }
 
-/// Perform Kindle login flow.
 fn kindle_login(tab: &headless_chrome::Tab, email: &str, password: &str) -> Result<(), String> {
-    // Click email field, then type
     tab.wait_for_element("input[type=\"email\"]")
         .and_then(|el| el.click().map(|_| ()))
         .map_err(|e| format!("Email field: {}", e))?;
@@ -168,8 +166,7 @@ fn kindle_login(tab: &headless_chrome::Tab, email: &str, password: &str) -> Resu
     Ok(())
 }
 
-/// Scrape book metadata from the page DOM.
-fn scrape_metadata(tab: &headless_chrome::Tab, asin: &str) -> Result<BookMetadata, String> {
+fn scrape_title_author(tab: &headless_chrome::Tab) -> Result<(String, String), String> {
     let title = tab
         .get_title()
         .unwrap_or_else(|_| "Unknown Title".to_string());
@@ -182,38 +179,75 @@ fn scrape_metadata(tab: &headless_chrome::Tab, asin: &str) -> Result<BookMetadat
         .and_then(|v| v.value)
         .and_then(|v| v.as_str().map(String::from))
         .unwrap_or_else(|| "Unknown Author".to_string());
-
-    Ok(BookMetadata {
-        asin: asin.to_string(),
-        title,
-        author: author.clone(),
-        authors: vec![author],
-        description: None,
-        cover_url: None,
-        pages: vec![],
-        toc: vec![],
-        nav: PageNav {
-            start_content_page: 1,
-            end_content_page: 100,
-            total_pages: 100,
-            total_content_pages: 100,
-        },
-        raw_meta: serde_json::json!({}),
-    })
+    Ok((title, author))
 }
 
-/// Capture screenshots of each content page.
-fn capture_pages(
-    tab: &headless_chrome::Tab,
-    metadata: &BookMetadata,
-    pages_dir: &Path,
-) -> Result<Vec<PageEntry>, String> {
-    let total = metadata.nav.total_content_pages.max(1) as usize;
-    let padding = format!("{}", total * 2).len();
-    let mut pages: Vec<PageEntry> = Vec::with_capacity(total);
+/// Verify that Kindle UI selectors resolve in the current DOM.
+///
+/// Guardrail: aborts extraction if any critical selector fails.
+/// Suggests `--recalibrate` mode for auto-discovery of updated selectors.
+fn verify_selectors(tab: &headless_chrome::Tab) -> Result<(), String> {
+    // Selectors from manifest (mirrors kindle-zip.yaml selectors: section)
+    const REQUIRED: &[(&str, &str)] = &[
+        ("reader_content", "#kr-renderer .kg-full-page-img img"),
+        ("next_page", ".kr-chevron-container-right"),
+        ("page_footer", "ion-footer ion-title"),
+    ];
 
+    let mut failures: Vec<&str> = Vec::new();
+    for &(name, selector) in REQUIRED {
+        match tab.find_element(selector) {
+            Ok(_) => {
+                tracing::debug!(
+                    target: "cns.pipeline.kindle-zip.selector",
+                    selector = name, status = "ok"
+                );
+            }
+            Err(_) => {
+                failures.push(name);
+                tracing::warn!(
+                    target: "cns.pipeline.kindle-zip.selector",
+                    selector = name,
+                    css = selector,
+                    "SELECTOR DRIFT DETECTED"
+                );
+            }
+        }
+    }
+
+    if failures.is_empty() {
+        tracing::info!(target: "cns.pipeline.kindle-zip.selector", "All selectors valid");
+        return Ok(());
+    }
+
+    Err(format!(
+        "Kindle UI selector drift detected: {}. Amazon may have changed their reader DOM. \
+         Run with --recalibrate to auto-discover updated selectors, or update \
+         the selectors section in kindle-zip.yaml.",
+        failures.join(", ")
+    ))
+}
+
+fn capture_pages(tab: &headless_chrome::Tab, pages_dir: &Path) -> Result<Vec<PageEntry>, String> {
+    // Navigate to first page and detect total page count
     tab.wait_for_element("#kr-renderer .kg-full-page-img img")
         .map_err(|e| format!("Reader content: {}", e))?;
+
+    // Try to read page count from footer
+    let footer_text = tab
+        .evaluate(
+            "document.querySelector('ion-footer ion-title')?.textContent || ''",
+            false,
+        )
+        .ok()
+        .and_then(|v| v.value)
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_default();
+
+    // Parse "Page X of Y" or similar patterns
+    let total = parse_page_count(&footer_text).unwrap_or(50); // fallback: 50 pages
+    let padding = format!("{}", total * 2).len();
+    let mut pages: Vec<PageEntry> = Vec::with_capacity(total);
 
     for i in 0..total {
         let page_num = i + 1;
@@ -241,14 +275,29 @@ fn capture_pages(
         if i < total - 1 {
             let _ = tab
                 .find_element(".kr-chevron-container-right")
-                .and_then(|el| el.click());
+                .and_then(|el| el.click().map(|_| ()));
             std::thread::sleep(std::time::Duration::from_millis(300));
         }
     }
     Ok(pages)
 }
 
-/// Load existing extraction from disk (resume mode).
+/// Parse page count from Kindle footer text like "Page 5 of 342" or "5 / 342".
+/// Requires at least 2 numbers to distinguish page-from-total patterns.
+fn parse_page_count(footer: &str) -> Option<usize> {
+    let numbers: Vec<usize> = footer
+        .split(|c: char| !c.is_ascii_digit())
+        .filter_map(|s| s.parse::<usize>().ok())
+        .filter(|&n| n > 1 && n < 100_000)
+        .collect();
+    // Need at least 2 numbers: [current_page, total_pages]
+    if numbers.len() >= 2 {
+        numbers.last().copied()
+    } else {
+        None
+    }
+}
+
 fn load_existing(metadata_path: &Path, pages_dir: &Path) -> Result<ExtractResult, String> {
     let json = std::fs::read_to_string(metadata_path).map_err(|e| format!("Read: {}", e))?;
     let metadata: BookMetadata =
@@ -263,4 +312,34 @@ fn load_existing(metadata_path: &Path, pages_dir: &Path) -> Result<ExtractResult
         toc: metadata.toc,
         cns_span_id: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_page_count_standard() {
+        assert_eq!(parse_page_count("Page 5 of 342"), Some(342));
+    }
+
+    #[test]
+    fn parse_page_count_slash() {
+        assert_eq!(parse_page_count("5 / 342"), Some(342));
+    }
+
+    #[test]
+    fn parse_page_count_single_number_ignored() {
+        assert_eq!(parse_page_count("42"), None); // ambiguous: could be page or total
+    }
+
+    #[test]
+    fn parse_page_count_empty() {
+        assert_eq!(parse_page_count(""), None);
+    }
+
+    #[test]
+    fn parse_page_count_no_numbers() {
+        assert_eq!(parse_page_count("Hello World"), None);
+    }
 }

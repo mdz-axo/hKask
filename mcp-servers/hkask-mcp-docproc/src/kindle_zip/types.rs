@@ -60,11 +60,8 @@ pub struct PageNav {
 }
 
 /// A single transcribed page chunk with provenance metadata.
-///
-/// Carries optional confidence score from the OCR backend and the
-/// source screenshot path for traceability.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ContentChunk {
+pub(crate) struct ContentChunk {
     pub index: usize,
     pub page: usize,
     pub text: String,
@@ -102,14 +99,14 @@ pub struct ExtractResult {
     pub title: String,
     pub author: String,
     pub toc: Vec<TocItem>,
-    /// CNS span ID for observability linking.
-    #[serde(default)]
+    /// CNS span ID for observability linking (reserved for future CNS wiring).
+    #[serde(default, skip_serializing)]
     pub cns_span_id: Option<String>,
 }
 
 /// Result of the transcription step — OCR output + quality metrics.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TranscribeResult {
+pub(crate) struct TranscribeResult {
     pub content_path: PathBuf,
     pub total_words: usize,
     pub transcribed_pages: usize,
@@ -263,12 +260,12 @@ pub(crate) fn split_into_chapters(text: &str, toc: &[TocItem]) -> Vec<(String, S
             prev_pos = Some(pos + label.len());
         }
     }
-    if let Some(start) = prev_pos {
-        if !toc.is_empty() {
-            let last_label = &toc[toc.len() - 1].label;
-            let chapter_text = text[start..].trim().to_string();
-            chapters.push((last_label.clone(), chapter_text));
-        }
+    if let Some(start) = prev_pos
+        && !toc.is_empty()
+    {
+        let last_label = &toc[toc.len() - 1].label;
+        let chapter_text = text[start..].trim().to_string();
+        chapters.push((last_label.clone(), chapter_text));
     }
     if chapters.is_empty() {
         chapters.push(("Content".to_string(), text.to_string()));
