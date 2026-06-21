@@ -6,11 +6,11 @@
 //! This module provides a deserialization wrapper that flattens this structure
 //! into the canonical `BundleManifest` type.
 
-use hkask_types::Visibility;
 use crate::bundle::{
     AuditConfig, BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep,
     BundleSkill, CnsConfig, ConvergenceConfig, ErrorHandlingConfig, GasConfig, OcapConfig,
 };
+use hkask_types::Visibility;
 use serde::Deserialize;
 use tracing::info;
 
@@ -172,7 +172,7 @@ pub(crate) fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, Mani
 /// post: returns None if not found (graceful degradation)
 pub fn resolve_manifest(
     reference: &str,
-    registry: &dyn hkask_templates::BundleRegistryIndex,
+    registry: &dyn crate::BundleRegistryIndex,
 ) -> Option<BundleManifest> {
     // Try as a registry ID first
     if let Some(bundle) = registry.get_bundle(reference) {

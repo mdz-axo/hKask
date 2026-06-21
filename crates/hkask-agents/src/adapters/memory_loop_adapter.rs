@@ -12,7 +12,8 @@ use crate::ports::{
 use hkask_memory::{EpisodicMemory, SemanticMemory};
 use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
 use hkask_capability::{require_read_access, require_write_access, DelegationToken};
-use hkask_types::{Confidence, ExperienceClassification};
+use hkask_cns::ExperienceClassification;
+use hkask_types::Confidence;
 use std::sync::Arc;
 
 // ── Template Method helpers (P2.4) ──────────────────────────────────────

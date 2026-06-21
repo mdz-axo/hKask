@@ -3,7 +3,7 @@
 //! Provides in-memory audit logging for A2A messages.
 //! Uses canonical `AuditEntry` from `hkask-types`.
 
-pub use crate::AuditEntry;
+pub use hkask_types::AuditEntry;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

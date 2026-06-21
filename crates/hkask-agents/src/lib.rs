@@ -30,6 +30,11 @@ pub mod registry_loader;
 pub mod sovereignty; // Loop 6 (sovereignty enforcement)
 pub mod types;
 
+// Re-export rich agent domain types from types/ (these are the canonical versions
+// that extend the hkask-types foundation types with additional fields).
+pub use types::agent::definition::{AgentDefinition, Charter, PersonaConstraints, RegisteredAgent};
+pub use types::agent::profile::{Contact, Responsibility, Right, ScheduledTask, UserProfile};
+
 pub use a2a::{A2AAgent, A2AError, A2AMessage, A2ARuntime};
 
 pub use consent::{ConsentError, ConsentManager};
@@ -52,10 +57,5 @@ pub use prompt_analysis::{PromptAnalysis, SentenceDecomposition, decompose_promp
 pub use registry_loader::AgentRegistryLoader;
 pub use sovereignty::{AllowAllConsent, DenyAllConsent, SovereigntyChecker, SovereigntyConsent};
 
-// Re-export agent domain types (moved from hkask-types)
-pub use types::agent::{
-    AgentDefinition, AgentKind, Charter, Contact, PersonaConstraints, RegisteredAgent,
-    Responsibility, Right, ScheduledTask, UserProfile,
-};
-pub use types::audit::{AuditEntry, AuditOutcome};
-pub use types::voice::VoiceDesign;
+// Agent types remain in hkask-types (canonical location for SQL impls).
+// VoiceDesign and audit types moved to hkask-types.

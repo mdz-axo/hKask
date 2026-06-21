@@ -2,6 +2,7 @@
 //!
 
 pub mod agent;
+pub mod audit;
 pub mod cns;
 pub mod crypto;
 pub mod curation;
@@ -18,7 +19,9 @@ pub mod template;
 pub mod template_type;
 pub mod text;
 pub mod time;
+pub mod transcript;
 pub mod visibility;
+pub mod voice;
 pub mod wallet;
 
 #[cfg(feature = "sql")]
@@ -31,6 +34,7 @@ pub use agent::{
     AgentDefinition, Charter, Contact, PersonaConstraints, RegisteredAgent, Responsibility, Right,
     ScheduledTask, UserProfile,
 };
+pub use audit::{AuditEntry, AuditOutcome};
 pub use cns::CircuitState;
 pub use crypto::Ed25519PublicKey;
 pub use curation::{
@@ -52,7 +56,9 @@ pub use loops::LoopId;
 pub use skill::SkillPolarity;
 pub use template::LLMParameters;
 pub use template_type::TemplateType;
+pub use transcript::{TimedWord, TranscriptBundle, TranscriptSegment};
 pub use visibility::{Confidence, Visibility};
+pub use voice::VoiceDesign;
 pub use wallet::{
     ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Encumbrance,
     EncumbranceStatus, PriceFeedConfig, PrivacyMode, RJoule, RateLimitConfig, TransactionType,

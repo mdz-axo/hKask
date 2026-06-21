@@ -11,7 +11,7 @@ pub mod registry_source;
 
 pub use a2a::A2APort;
 pub use hkask_mcp::GitCasAdapter;
-pub use hkask_types::audit::{AuditEntry, AuditOutcome};
+pub use hkask_types::{AuditEntry, AuditOutcome};
 pub use mcp_runtime::MCPRuntimePort;
 pub use memory_storage::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,

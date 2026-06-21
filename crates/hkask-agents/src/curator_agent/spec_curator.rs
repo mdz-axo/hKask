@@ -9,16 +9,16 @@
 //! spec curation is a persona concern (the Curator Agent curates specs),
 //! not a regulatory concern (the Curation Loop regulates).
 
-use hkask_storage::spec_types::{Spec, SpecCurationRecord, SpecCurator, SpecError};
 use hkask_capability::SYSTEM_MAX_RECURSION;
-use hkask_types::cns::CnsSpan;
-use hkask_cns::types::curation::{
-    CurationDecision, CurationThresholdConfig, OCAPBoundary, OcapTokenKind,
-};
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
-use hkask_types::id::WebID;
+use hkask_cns::types::curation::CurationThresholdConfig;
 use hkask_cns::types::loops::CurationInput;
 use hkask_cns::types::loops::SpecEvent;
+use hkask_storage::spec_types::{Spec, SpecCurationRecord, SpecCurator, SpecError};
+use hkask_types::cns::CnsSpan;
+use hkask_types::curation::OCAPBoundary;
+use hkask_types::curation::{CurationDecision, OcapTokenKind};
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+use hkask_types::id::WebID;
 use std::collections::HashSet;
 use std::sync::Arc;
 

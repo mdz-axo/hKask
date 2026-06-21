@@ -5,58 +5,10 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-/// Loop: Curation
-pub enum AgentKind {
-    Bot,
-    Replicant,
-}
+// AgentKind is defined in hkask-types (canonical, with SQL impls). Re-exported.
+pub use hkask_types::AgentKind;
 
-impl AgentKind {
-    /// Get string representation of agent kind.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns "Bot" or "Replicant"
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            AgentKind::Bot => "Bot",
-            AgentKind::Replicant => "Replicant",
-        }
-    }
-
-    /// Return the persona kind string for this agent kind.
-    ///
-    /// Maps `Bot` → `"bot"`, `Replicant` → `"replicant"`.
-    /// Return the persona kind string.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns "bot" or "replicant"
-    pub fn as_persona_kind(&self) -> &'static str {
-        match self {
-            AgentKind::Bot => "bot",
-            AgentKind::Replicant => "replicant",
-        }
-    }
-
-    /// Parse agent kind from string.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns Some(AgentKind) if valid, None otherwise
-    pub fn parse(s: &str) -> Option<Self> {
-        match s {
-            "Bot" | "bot" => Some(AgentKind::Bot),
-            "Replicant" | "replicant" => Some(AgentKind::Replicant),
-            _ => None,
-        }
-    }
-}
-
-impl std::fmt::Display for AgentKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
-
+/// Charter — defines what an agent may do
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// Loop: Curation
 pub struct Charter {

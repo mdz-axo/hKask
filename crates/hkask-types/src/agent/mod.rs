@@ -25,6 +25,19 @@ impl AgentKind {
             _ => None,
         }
     }
+
+    pub fn as_persona_kind(&self) -> &'static str {
+        match self {
+            AgentKind::Bot => "bot",
+            AgentKind::Replicant => "replicant",
+        }
+    }
+}
+
+impl std::fmt::Display for AgentKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 /// Charter — defines what an agent may do

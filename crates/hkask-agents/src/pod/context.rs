@@ -11,12 +11,13 @@
 //! - `semantic_storage` — shared, public knowledge (SemanticStoragePort)
 
 use hkask_capability::{CapabilityChecker, DelegationAction, DelegationResource, DelegationToken};
+use hkask_cns::ExperienceClassification;
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
 use hkask_ports::InferencePort;
 use hkask_ports::ToolPort;
 use hkask_types::DataCategory;
-use hkask_types::{Confidence, ExperienceClassification, WebID};
+use hkask_types::{Confidence, WebID};
 use std::sync::Arc;
 
 use super::AgentPodError;

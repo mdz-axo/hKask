@@ -4,7 +4,6 @@
 //! Homeostatic self-regulation: variety sensing, algedonic alerts, energy budgets,
 //! OCAP governance, sovereignty enforcement. Per Ashby's Law of Requisite Variety.
 
-pub mod types;
 pub(crate) mod algedonic; // Loop 6 subloop 6.4 — algedonic signal channel
 pub mod api_metering; // API key metering — rate limits, CNS spans, alerts
 pub mod calibrated_energy_estimator; // Loop 6 — self-regulating per-server gas estimator
@@ -16,7 +15,8 @@ pub mod energy; // Loop 6 — energy budgets (hJoules)
 pub mod energy_budget_management; // Loop 6 — energy budget registration/reservation/settlement
 pub mod governed_inference; // Loop 6 → inference call membrane
 pub mod governed_tool; // Loop 6 → all tool invocation membranes
-pub(crate) mod inference_estimator; // Loop 6 → Inference energy estimation
+pub(crate) mod inference_estimator;
+pub mod types; // Loop 6 → Inference energy estimation
 
 pub mod dynamic_gas_table;
 pub mod gas_report;
@@ -50,6 +50,7 @@ pub use energy::{
 pub use energy_budget_management::EnergyBudgetManager;
 pub use governed_inference::GovernedInference;
 pub use governed_tool::{EnergyEstimator, GovernedTool};
+pub use types::loops::{CurationInput, CuratorHandle, ExperienceClassification, LoopAction};
 pub use wallet_budget::WalletBackedBudget;
 pub use wallet_energy_estimator::WalletEnergyEstimator;
 pub use wallet_gas_calibrator::{
@@ -62,10 +63,9 @@ pub use runtime::CnsRuntime;
 pub use runtime::NoopEventSink;
 pub use seam_watcher::{SeamDrift, SeamSummary, SeamWatcher};
 pub use set_points::{
-    DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD,
-    DEFAULT_CONNECTOR_LATENCY_MAX_SECS, DEFAULT_ENERGY_MIN_REMAINING_RATIO, DEFAULT_ERROR_RATE_MAX,
-    DEFAULT_MAX_ITERATIONS, DEFAULT_VARIETY_MAX_DEFICIT, SetPoints, SetPointsConfig,
-    load_set_points,
+    DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD, DEFAULT_CONNECTOR_LATENCY_MAX_SECS,
+    DEFAULT_ENERGY_MIN_REMAINING_RATIO, DEFAULT_ERROR_RATE_MAX, DEFAULT_MAX_ITERATIONS,
+    DEFAULT_VARIETY_MAX_DEFICIT, SetPoints, SetPointsConfig, load_set_points,
 };
-pub use types::curation::CurationThresholdConfig;
 pub use snapshot_loop::{SnapshotLoop, SnapshotLoopConfig};
+pub use types::curation::CurationThresholdConfig;

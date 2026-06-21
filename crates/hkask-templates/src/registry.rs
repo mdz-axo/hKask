@@ -8,7 +8,8 @@
 //!
 //! Rust is the loom. YAML/Jinja2 is the thread.
 
-use crate::BundleRegistryIndex;
+use crate::bundle::BundleManifest;
+use crate::bundle::BundleRegistryIndex;
 use crate::ports::{Result, TemplateError};
 use hkask_capability::SYSTEM_MAX_RECURSION;
 use hkask_ports::{RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex};

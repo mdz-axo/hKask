@@ -24,10 +24,10 @@ use proptest::sample::select;
 use proptest::strategy::{BoxedStrategy, Strategy};
 
 use chrono::Utc;
-use hkask_storage::Triple;
 use hkask_capability::{CapabilitySpec, DelegationAction, DelegationResource};
-use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_services_core::{Goal, GoalState};
+use hkask_storage::Triple;
+use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::id::{GoalID, WebID};
 use hkask_types::transcript::TranscriptSegment;
 use hkask_types::visibility::Visibility;

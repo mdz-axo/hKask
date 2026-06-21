@@ -25,13 +25,13 @@
 //! `InferencePort` (for select/populate) and `McpPort` (for execute),
 //! both of which are already dependencies of this crate.
 
+use crate::bundle::BundleManifest;
+use crate::bundle::BundleManifestStep;
 use crate::ports::{McpPort, Result, TemplateError};
 use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
 use hkask_ports::{InferencePort, InferenceResult};
-use crate::bundle::BundleManifestStep;
-use hkask_types::template::LLMParameters;
-use crate::BundleManifest;
 use hkask_types::WebID;
+use hkask_types::template::LLMParameters;
 use minijinja::UndefinedBehavior;
 use serde_json::Value;
 use std::collections::HashMap;

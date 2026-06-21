@@ -2,9 +2,12 @@
 
 use crate::a2a::{A2AError, A2ARuntime};
 use crate::ports::RegistrySourcePort;
+use crate::types::agent::definition::{AgentDefinition, Charter, PersonaConstraints};
+use crate::types::agent::profile::{Responsibility, Right};
 use hkask_storage::{AgentRegistryError, AgentRegistryStore, now_rfc3339};
+use hkask_types::AgentKind;
+use hkask_types::RegisteredAgent;
 use hkask_types::WebID;
-use crate::{AgentDefinition, AgentKind, RegisteredAgent};
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -89,33 +92,30 @@ impl RawYamlAgent {
         self.agent.as_ref().or(self.bot.as_ref())
     }
 
-    fn convert_rights(
-        rights: Vec<std::collections::HashMap<String, String>>,
-    ) -> Vec<crate::Right> {
+    fn convert_rights(rights: Vec<std::collections::HashMap<String, String>>) -> Vec<Right> {
         rights
             .into_iter()
             .filter_map(|map| {
                 if let Some(resource) = map.get("read") {
-                    Some(crate::Right::Read {
+                    Some(Right::Read {
                         resource: resource.clone(),
                     })
                 } else if let Some(resource) = map.get("write") {
-                    Some(crate::Right::Write {
+                    Some(Right::Write {
                         resource: resource.clone(),
                     })
                 } else if let Some(action) = map.get("execute") {
-                    Some(crate::Right::Execute {
+                    Some(Right::Execute {
                         action: action.clone(),
                     })
                 } else if let Some(scope) = map.get("coordinate") {
-                    Some(crate::Right::Coordinate {
+                    Some(Right::Coordinate {
                         scope: scope.clone(),
                     })
                 } else {
-                    map.get("escalate_to")
-                        .map(|target| crate::Right::EscalateTo {
-                            target: target.clone(),
-                        })
+                    map.get("escalate_to").map(|target| Right::EscalateTo {
+                        target: target.clone(),
+                    })
                 }
             })
             .collect()
@@ -123,51 +123,50 @@ impl RawYamlAgent {
 
     fn convert_responsibilities(
         responsibilities: Vec<std::collections::HashMap<String, String>>,
-    ) -> Vec<crate::Responsibility> {
+    ) -> Vec<Responsibility> {
         responsibilities
             .into_iter()
             .filter_map(|map| {
                 if let Some(target) = map.get("monitor") {
-                    Some(crate::Responsibility::Monitor {
+                    Some(Responsibility::Monitor {
                         target: target.clone(),
                     })
                 } else if let Some(input) = map.get("synthesize") {
-                    Some(crate::Responsibility::Synthesize {
+                    Some(Responsibility::Synthesize {
                         input: input.clone(),
                         output: String::new(),
                     })
                 } else if let Some(action) = map.get("perform") {
-                    Some(crate::Responsibility::Perform {
+                    Some(Responsibility::Perform {
                         action: action.clone(),
                     })
                 } else if let Some(target) = map.get("calibrate") {
-                    Some(crate::Responsibility::Calibrate {
+                    Some(Responsibility::Calibrate {
                         target: target.clone(),
                     })
                 } else if let Some(trigger) = map.get("escalate") {
-                    Some(crate::Responsibility::Escalate {
+                    Some(Responsibility::Escalate {
                         trigger: trigger.clone(),
                         target: String::new(),
                     })
                 } else if let Some(resource) = map.get("maintain") {
-                    Some(crate::Responsibility::Maintain {
+                    Some(Responsibility::Maintain {
                         resource: resource.clone(),
                     })
                 } else if let Some(span) = map.get("emit") {
-                    Some(crate::Responsibility::Emit { span: span.clone() })
+                    Some(Responsibility::Emit { span: span.clone() })
                 } else if let Some(session) = map.get("orchestrate") {
-                    Some(crate::Responsibility::Orchestrate {
+                    Some(Responsibility::Orchestrate {
                         session: session.clone(),
                     })
                 } else if let Some(target) = map.get("record") {
-                    Some(crate::Responsibility::Record {
+                    Some(Responsibility::Record {
                         target: target.clone(),
                     })
                 } else {
-                    map.get("produce")
-                        .map(|artifact| crate::Responsibility::Produce {
-                            artifact: artifact.clone(),
-                        })
+                    map.get("produce").map(|artifact| Responsibility::Produce {
+                        artifact: artifact.clone(),
+                    })
                 }
             })
             .collect()
@@ -198,7 +197,7 @@ impl RawYamlAgent {
         Ok(AgentDefinition {
             name: header_name,
             agent_kind,
-            charter: self.charter.map(|c| crate::Charter {
+            charter: self.charter.map(|c| Charter {
                 description: c.description,
                 archetype: c.archetype,
                 visibility: c.visibility,
@@ -206,7 +205,7 @@ impl RawYamlAgent {
             capabilities: self.capabilities,
             rights: Self::convert_rights(self.rights),
             responsibilities: Self::convert_responsibilities(self.responsibilities),
-            persona: self.persona.map(|p| crate::PersonaConstraints {
+            persona: self.persona.map(|p| PersonaConstraints {
                 tone: p.tone,
                 verbosity: p.verbosity,
                 formatting: p.formatting,
@@ -353,7 +352,17 @@ impl AgentRegistryLoader {
         };
 
         let registered = RegisteredAgent {
-            definition: definition.clone(),
+            definition: hkask_types::AgentDefinition {
+                name: definition.name,
+                agent_kind: definition.agent_kind,
+                charter: definition.charter.map(|c| hkask_types::Charter {
+                    purpose: c.description,
+                    constraints: vec![],
+                }),
+                capabilities: definition.capabilities,
+                rights: vec![],
+                responsibilities: vec![],
+            },
             token_hash: hex::encode(token.signature_bytes()),
             registered_at: now_rfc3339(),
             source_yaml: path.to_string(),

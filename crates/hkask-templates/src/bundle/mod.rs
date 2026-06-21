@@ -13,7 +13,7 @@ pub mod manifest;
 
 pub use composition::*;
 pub use config::*;
-pub use manifest::*;
+pub use manifest::{BundleManifest, BundleManifestStep, BundleSkill};
 // cascade types are pub(crate) — not re-exported
 
 /// CRUD for bundle manifests. Read methods return owned values for HashMap/SQLite compat.
