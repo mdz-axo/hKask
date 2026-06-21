@@ -5,7 +5,7 @@
 //! cluster; this client handles the IaaS layer (server provisioning, volume
 //! management, object storage validation).
 //!
-//! API docs: https://docs.hetzner.cloud/
+//! API docs: <https://docs.hetzner.cloud/>
 
 use reqwest::Client;
 use serde::Deserialize;

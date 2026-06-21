@@ -81,10 +81,6 @@ struct RawYamlAgent {
 }
 
 impl RawYamlAgent {
-    fn header(&self) -> Option<&YamlAgentHeader> {
-        self.agent.as_ref().or(self.bot.as_ref())
-    }
-
     fn convert_rights(rights: Vec<std::collections::HashMap<String, String>>) -> Vec<Right> {
         rights
             .into_iter()

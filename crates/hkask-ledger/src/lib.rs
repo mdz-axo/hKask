@@ -87,11 +87,11 @@ pub struct Ledger {
 
 impl Ledger {
     /// REQ: P8-ledger-open
-    /// expect: "I can open a ledger database and it creates the schema if needed" [P8]
+    /// expect: "I can open a ledger database and it creates the schema if needed" \[P8\]
     /// pre:  path is a valid filesystem path
     /// post: returns Ledger with accounts, transactions, postings tables created
     /// inv:  idempotent — opening the same path twice creates the same tables
-    /// [P8] Constraining: Persistence — data survives process restarts
+    /// \[P8\] Constraining: Persistence — data survives process restarts
     pub fn open(path: &std::path::Path) -> Result<Self, LedgerError> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| {
@@ -165,11 +165,11 @@ impl Ledger {
     }
 
     /// REQ: P8-ledger-ensure-account
-    /// expect: "I can create a named account and doing it twice is harmless" [P8]
+    /// expect: "I can create a named account and doing it twice is harmless" \[P8\]
     /// pre:  id and namespace are non-empty strings
     /// post: account exists in the database; second call with same id is a no-op
     /// inv:  idempotent — calling ensure_account twice with same id does not error
-    /// [P8] Constraining: Persistence — account survives restarts
+    /// \[P8\] Constraining: Persistence — account survives restarts
     pub fn ensure_account(&self, id: &str, namespace: &str) -> Result<(), LedgerError> {
         let now = chrono::Utc::now().to_rfc3339();
         let db = self.db.lock().unwrap();
@@ -181,13 +181,13 @@ impl Ledger {
     }
 
     /// REQ: P8-ledger-commit
-    /// expect: "I can commit a transaction and the postings are stored immutably" [P8]
+    /// expect: "I can commit a transaction and the postings are stored immutably" \[P8\]
     /// pre:  tx.id is unique, tx.reference is unique, tx.postings is non-empty
     /// post: transaction and all postings are stored; balances reflect new postings
     /// inv:  idempotent by reference — identical postings succeed silently;
     ///       different postings with same reference return IdempotencyConflict
-    /// [P4] Constraining: Clear Boundaries — committed transactions cannot be modified
-    /// [P8] Constraining: Persistence — committed data survives restarts
+    /// \[P4\] Constraining: Clear Boundaries — committed transactions cannot be modified
+    /// \[P8\] Constraining: Persistence — committed data survives restarts
     pub fn commit(&self, tx: &LedgerTransaction) -> Result<(), LedgerError> {
         if tx.postings.is_empty() {
             return Err(LedgerError::DoubleEntryViolation(0));
@@ -271,11 +271,11 @@ impl Ledger {
     }
 
     /// REQ: P9-ledger-balance
-    /// expect: "I can query the balance of any account and see all credits minus debits" [P9]
+    /// expect: "I can query the balance of any account and see all credits minus debits" \[P9\]
     /// pre:  account is a valid account ID (may or may not exist)
     /// post: returns sum(destination amounts) - sum(source amounts) for matching asset
     /// inv:  read-only — does not modify the ledger; non-existent account returns 0
-    /// [P9] Constraining: Observability — balances are visible to the user
+    /// \[P9\] Constraining: Observability — balances are visible to the user
     pub fn balance(&self, account: &str, asset: Option<&str>) -> Result<i64, LedgerError> {
         let db = self.db.lock().unwrap();
         let (query, params): (&str, Vec<Box<dyn rusqlite::types::ToSql>>) = if let Some(a) = asset {
@@ -304,11 +304,11 @@ impl Ledger {
     }
 
     /// REQ: P9-ledger-namespace-balances
-    /// expect: "I can see all balances in a domain (cost, wallet, portfolio) at once" [P9]
+    /// expect: "I can see all balances in a domain (cost, wallet, portfolio) at once" \[P9\]
     /// pre:  namespace is a valid namespace string
     /// post: returns all (account, asset, balance) triples for accounts in the namespace
     /// inv:  read-only; returns empty vec for unknown namespace
-    /// [P9] Constraining: Observability — all domain balances are visible at once
+    /// \[P9\] Constraining: Observability — all domain balances are visible at once
     pub fn namespace_balances(&self, namespace: &str) -> Result<Vec<AccountBalance>, LedgerError> {
         let db = self.db.lock().unwrap();
         let mut stmt = db.prepare(
@@ -337,11 +337,11 @@ impl Ledger {
     }
 
     /// REQ: P9-ledger-transaction-count
-    /// expect: "I can count how many transactions reference a specific account" [P9]
+    /// expect: "I can count how many transactions reference a specific account" \[P9\]
     /// pre:  destination is a valid account ID
     /// post: returns count of unique transactions with a posting to that account
     /// inv:  read-only
-    /// [P9] Constraining: Observability — transaction volume is queryable
+    /// \[P9\] Constraining: Observability — transaction volume is queryable
     pub fn transaction_count(&self, destination: &str) -> Result<u64, LedgerError> {
         let db = self.db.lock().unwrap();
         let count: i64 = db.query_row(
@@ -353,12 +353,12 @@ impl Ledger {
     }
 
     /// REQ: P9-ledger-query
-    /// expect: "I can query transactions by time range and filter by account or asset" [P9]
+    /// expect: "I can query transactions by time range and filter by account or asset" \[P9\]
     /// pre:  range.start <= range.end (ISO 8601 strings)
     /// post: returns all transactions whose timestamp falls within the range,
     ///       filtered by optional account/asset/namespace criteria
     /// inv:  read-only; returns empty vec if no matches
-    /// [P9] Constraining: Observability — transaction history is queryable
+    /// \[P9\] Constraining: Observability — transaction history is queryable
     pub fn query(
         &self,
         range: &DateRange,

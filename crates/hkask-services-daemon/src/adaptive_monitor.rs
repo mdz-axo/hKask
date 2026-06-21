@@ -143,10 +143,10 @@ pub struct AdaptiveMonitor {
 
 impl AdaptiveMonitor {
     /// REQ: P9-daemon-create
-    /// expect: "I can create an adaptive monitor to watch provider costs" [P9]
+    /// expect: "I can create an adaptive monitor to watch provider costs" \[P9\]
     /// pre:  none
     /// post: returns empty monitor ready for provider registration
-    /// [P9] Constraining: Observability — provider costs are surveilled
+    /// \[P9\] Constraining: Observability — provider costs are surveilled
     pub fn new() -> Self {
         Self {
             providers: Vec::new(),
@@ -160,10 +160,10 @@ impl AdaptiveMonitor {
     }
 
     /// REQ: P9-daemon-add-provider
-    /// expect: "I can register a provider for adaptive cost monitoring" [P9]
+    /// expect: "I can register a provider for adaptive cost monitoring" \[P9\]
     /// pre:  provider is a valid ProviderIntelligence implementation
     /// post: provider is added to the monitoring schedule
-    /// [P9] Constraining: Observability — all registered providers are watched
+    /// \[P9\] Constraining: Observability — all registered providers are watched
     pub fn add_provider(&mut self, provider: Box<dyn ProviderIntelligence>, api_key: String) {
         tracing::info!(
             target: "cns.provider",
@@ -174,11 +174,11 @@ impl AdaptiveMonitor {
     }
 
     /// REQ: P9-daemon-run
-    /// expect: "The daemon watches providers and accelerates checks as limits approach" [P9]
+    /// expect: "The daemon watches providers and accelerates checks as limits approach" \[P9\]
     /// pre:  at least one provider registered (or daemon parks idle)
     /// post: runs indefinitely, checking each provider at its adaptive interval
     /// inv:  returns on shutdown signal
-    /// [P9] Constraining: Observability — continuous provider surveillance
+    /// \[P9\] Constraining: Observability — continuous provider surveillance
     pub async fn run(&mut self) {
         if self.providers.is_empty() {
             tracing::warn!(

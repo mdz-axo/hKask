@@ -701,10 +701,10 @@ impl ProviderIntelligence for RunpodProvider {
 // ── Provider factory ────────────────────────────────────────────────────────────
 
 /// REQ: P7-provider-factory
-/// expect: "I can create a provider by name and it wires up correctly" [P7]
+/// expect: "I can create a provider by name and it wires up correctly" \[P7\]
 /// pre:  provider_id is a known provider string; ledger_path required for self-tracked
 /// post: returns Some(provider) for known IDs, None for unknown
-/// [P7] Constraining: Composition — providers are composable by ID
+/// \[P7\] Constraining: Composition — providers are composable by ID
 pub fn create_provider(
     provider_id: &str,
     ledger_path: Option<PathBuf>,
