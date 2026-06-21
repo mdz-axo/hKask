@@ -6,14 +6,9 @@
 //! pod ID parsing logic.
 
 use hkask_agents::pod::{AgentPersona, PodID, PodStatusInfo};
-use hkask_services_cloud::DeployConfig;
-use hkask_services_cloud::fly::{
-    FlyClient, MachineConfig, MachineGuest, MachineMount, MachinePort, MachineService, MachineSpec,
-};
 
 use crate::ServiceError;
 use hkask_services_context::AgentService;
-use std::collections::HashMap;
 
 /// Request to create a new agent pod.
 pub struct CreatePodRequest {
@@ -90,106 +85,6 @@ impl PodService {
         Ok(PodResponse {
             pod_id: pod_id.to_string(),
         })
-    }
-
-    /// Deploy a pod to Fly.io infrastructure.
-    ///
-    /// Creates Fly App, volume, secrets, and machine for the given pod.
-    /// Returns the deployed pod URL.
-    pub async fn deploy_fly_pod(
-        pod_id: &str,
-        config: &DeployConfig,
-    ) -> Result<String, ServiceError> {
-        let fly = FlyClient::new(config.fly_token.clone());
-        let app_name = format!("hkask-pod-{pod_id}");
-
-        fly.create_app(&app_name, &config.org_slug)
-            .await
-            .map_err(|e| ServiceError::Pod {
-                message: format!("Failed to create Fly App: {e}"),
-            })?;
-
-        fly.create_volume(&app_name, "hkask_data", "iad", 1)
-            .await
-            .map_err(|e| ServiceError::Pod {
-                message: format!("Failed to create volume: {e}"),
-            })?;
-
-        let mut secrets = HashMap::new();
-        secrets.insert("POD_ID".to_string(), pod_id.to_string());
-        secrets.insert("HKASK_DATA_DIR".to_string(), "/data".to_string());
-        secrets.insert("HKASK_BASE_URL".to_string(), config.base_url.clone());
-        secrets.insert("HKASK_MATRIX_URL".to_string(), config.matrix_url.clone());
-        secrets.insert(
-            "HKASK_KEYSTORE_PASSPHRASE".to_string(),
-            config.keystore_passphrase.clone(),
-        );
-        secrets.insert(
-            "LITESTREAM_BUCKET".to_string(),
-            config.litestream_bucket.clone(),
-        );
-        secrets.insert(
-            "LITESTREAM_ENDPOINT".to_string(),
-            config.litestream_endpoint.clone(),
-        );
-        secrets.insert(
-            "LITESTREAM_REGION".to_string(),
-            config.litestream_region.clone(),
-        );
-        secrets.insert(
-            "LITESTREAM_ACCESS_KEY_ID".to_string(),
-            config.litestream_access_key.clone(),
-        );
-        secrets.insert(
-            "LITESTREAM_SECRET_ACCESS_KEY".to_string(),
-            config.litestream_secret_key.clone(),
-        );
-        secrets.insert(
-            "LITESTREAM_FORCE_PATH_STYLE".to_string(),
-            config.litestream_force_path.clone(),
-        );
-
-        fly.set_secrets(&app_name, &secrets)
-            .await
-            .map_err(|e| ServiceError::Pod {
-                message: format!("Failed to set secrets: {e}"),
-            })?;
-
-        let machine_config = MachineConfig {
-            name: pod_id.to_string(),
-            region: "iad".to_string(),
-            config: MachineSpec {
-                image: format!("{}:kask-{}", config.container_registry, config.version),
-                env: Some(secrets),
-                mounts: Some(vec![MachineMount {
-                    volume: "hkask_data".to_string(),
-                    path: "/data".to_string(),
-                }]),
-                services: Some(vec![MachineService {
-                    protocol: "tcp".to_string(),
-                    internal_port: 3000,
-                    ports: Some(vec![MachinePort {
-                        port: 443,
-                        handlers: vec!["tls".to_string(), "http".to_string()],
-                    }]),
-                    autostop: Some(true),
-                    autostart: Some(true),
-                }]),
-                guest: MachineGuest {
-                    cpu_kind: "shared".to_string(),
-                    cpus: 1,
-                    memory_mb: 512,
-                },
-            },
-        };
-
-        fly.create_machine(&app_name, &machine_config)
-            .await
-            .map_err(|e| ServiceError::Pod {
-                message: format!("Failed to create machine: {e}"),
-            })?;
-
-        Ok(format!("https://{app_name}.fly.dev"))
     }
 
     /// List all registered pods.

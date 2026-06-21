@@ -7,14 +7,15 @@ status: "Implementation Planning"
 domain: "Deployment"
 mds_categories: [lifecycle, composition]
 depends_on: ["docs/research/cloud-deployment-research-report.md"]
-gentle_lovelace_score: 92/100 (composite cosine distance: 0.158 — Excellent)
 ---
 
 # hKask Cloud Implementation Plans
 
-**Purpose:** Detailed implementation plans for two cloud providers (Fly.io, Hetzner Cloud), the `kask pod export-*` provider plug-in architecture, due diligence checklists, and critical-infrastructure partner considerations. Complements the [Cloud Deployment Research Report](./cloud-deployment-research-report.md).
+**Purpose:** Detailed implementation plan for Hetzner Cloud + K3s deployment, the `kask pod export-*` provider plug-in architecture, due diligence checklists, and critical-infrastructure partner considerations. Complements the [Cloud Deployment Research Report](./cloud-deployment-research-report.md).
 
-**Status:** Pre-implementation planning. No code exists yet for any cloud export command.
+**Status:** Pre-implementation planning. K8s manifest generation exists. K3s cluster bootstrap and integration testing blocked on Hetzner cluster access.
+
+**Note:** Fly.io was previously evaluated and found architecturally incompatible (container isolation prevents Curator file access to other pods). All fly.io code removed as of v0.30.0.
 
 ---
 
@@ -26,10 +27,9 @@ Per Dokkodo Precept 13 ("Do not be fond of material things") and Precept 20 ("Re
 
 ```
 kask pod export <provider> <pod-id> [--flags]
-├── kask pod export fly <pod-id>     → fly.toml + deploy script
-├── kask pod export k8s <pod-id>     → k8s manifests (StatefulSet, PVC, Service)
-├── kask pod export runpod <pod-id>  → RunPod template
-└── kask pod export docker <pod-id>  → standalone Dockerfile + compose
+├── kask pod export-k8s <pod-id>     → k8s manifests (StatefulSet, PVC, Service)
+├── kask pod export-runpod <pod-id>  → RunPod template
+└── kask pod export-docker <pod-id>  → standalone Dockerfile + compose
 ```
 
 ### 1.2 Crate Architecture
@@ -37,8 +37,6 @@ kask pod export <provider> <pod-id> [--flags]
 ```
 crates/hkask-cli/src/commands/pod/
 ├── mod.rs              # pod command entrypoint
-├── export.rs           # export dispatch (match on provider enum)
-├── export_fly.rs       # Fly.io export logic
 ├── export_k8s.rs       # K8s export logic
 ├── export_runpod.rs    # RunPod export logic
 └── export_docker.rs    # standalone Docker export
@@ -54,11 +52,10 @@ crates/hkask-types/src/
 /// Following deep-module discipline: 4 public methods, ≤ 7 total surface.
 #[async_trait]
 pub trait CloudProvider {
-    /// Provider identifier (e.g., "fly", "hetzner-k8s", "runpod")
+    /// Provider identifier (e.g., "hetzner-k8s", "runpod")
     fn provider_id(&self) -> &'static str;
 
     /// Generate deployment manifests for a pod.
-    /// Returns a map of filename → content suitable for writing to disk.
     fn generate_manifests(&self, pod: &AgentPod, config: &ExportConfig) -> Result<HashMap<String, String>>;
 
     /// Validate that the pod's configuration is compatible with this provider.
@@ -71,137 +68,91 @@ pub trait CloudProvider {
 pub struct EnvVarSpec {
     pub name: String,
     pub description: String,
-    pub secret: bool,  // should be stored as a secret, not plaintext
+    pub secret: bool,
 }
 ```
 
 ---
 
-## 2. Implementation Plan: Fly.io
+## 2. Implementation Plan: Hetzner Cloud + K3s
 
 ### 2.1 Provider Profile
 
 | Attribute | Detail |
 |-----------|--------|
-| **Company** | Fly.io, Inc. |
-| **Founded** | 2017 |
-| **Infrastructure** | Own bare-metal servers in 35+ regions. Custom Rust hypervisor. Firecracker microVMs. |
-| **API** | Machines REST API (OpenAPI 3.0). GraphQL for org/provisioning operations. |
-| **Auth** | Macaroon tokens (since May 2025). Deploy tokens scoped to app or org. |
-| **Key dependency** | Litestream (MIT-licensed; provider-agnostic — works with any S3-protocol object storage: Backblaze B2, Tigris, Hetzner OS, Cloudflare R2). |
+| **Company** | Hetzner Online GmbH |
+| **Founded** | 1997 |
+| **Infrastructure** | Own data centers in 6 regions (DE, FI, US, SG). Self-managed K3s on VPS instances. |
+| **API** | REST API for Cloud management. Standard kubectl for K8s. S3-compatible API for Object Storage. |
+| **Auth** | API tokens (read/write scoped). kubeconfig for K8s. S3 access/secret keys for Object Storage. |
+| **Key dependency** | Litestream (MIT-licensed; provider-agnostic — works with any S3-protocol object storage: Backblaze B2, Hetzner OS, Cloudflare R2). |
 
 ### 2.2 Architecture Diagram
 
-Two Conduit deployment models are viable. **Model A (per-pod Conduit sidecar)** preserves OCAP isolation at the Matrix layer. **Model B (shared Conduit app)** is simpler but creates a shared dependency outside the pod boundary.
-
-#### Model A: Per-Pod Conduit Sidecar (OCAP-Aligned)
-
 ```
-+------------------------------------------------------------------+
-|                      Fly.io Organization                          |
++-----------------------------------------------------------------+
+|                     Hetzner Cloud Project                         |
 |                                                                   |
-|  +------------------------------------------------------------+   |
-|  |                 Fly App: hkask-pod-{id}                     |   |
+|  +-----------------------------------------------------------+   |
+|  |                   K3s Cluster (VPS)                         |   |
 |  |                                                             |   |
-|  |  +------------------------------------------------------+  |   |
-|  |  |             Fly Machine (Firecracker)                 |  |   |
-|  |  |                                                       |  |   |
-|  |  |  +----------+ +----------+ +----------------------+  |  |   |
-|  |  |  |Litestream| | Conduit  | |     kask binary      |  |  |   |
-|  |  |  | restore  | | sidecar  | |                      |  |  |   |
-|  |  |  | (init)   | |          | |  kask serve          |  |  |   |
-|  |  |  |          | | :8448    | |  --pod-id {id}       |  |  |   |
-|  |  |  |          | | Matrix   | |  --data-dir /data    |  |  |   |
-|  |  |  |          | | federation| |  --matrix-url        |  |  |   |
-|  |  |  |          | | port     | |  http://localhost:8008|  | |   |
-|  |  |  +----------+ +----+-----+ +----------+-----------+  |  |   |
-|  |  |                    |                   |              |  |   |
-|  |  |  +-----------------+-------------------+----------+   |  |   |
-|  |  |  | Litestream      |  kask <-Matrix->  |          |   |  |   |
-|  |  |  | replicate       |  Conduit          |          |   |  |   |
-|  |  |  | -exec           |  OCAP-gated       |          |   |  |   |
-|  |  |  | supervisord     |  A2A messages     |          |   |  |   |
-|  |  |  +--------+--------+-------------------+----------+   |  |   |
-|  |  |           |                            |              |  |   |
-|  |  |  +--------+----------------------------+----------+   |  |   |
-|  |  |  |              Fly Volume                         |   |  |   |
-|  |  |  |  /data/kask.db        (SQLCipher, WAL)         |   |  |   |
-|  |  |  |  /data/conduit.db     (Conduit homeserver DB)  |   |  |   |
-|  |  |  |  1GB -> 10GB auto-expand                        |   |  |   |
-|  |  |  +------------------------------------------------+   |  |   |
-|  |  +------------------------------------------------------+  |   |
+|  |  +-----------------------------------------------------+   |   |
+|  |  |  Namespace: hkask-pod-curator                        |   |   |
+|  |  |  +-----------------------------------------------+  |   |   |
+|  |  |  |  Pod: curator (StatefulSet)                    |  |   |   |
+|  |  |  |  kask serve --pod-id curator                   |  |   |   |
+|  |  |  |  SemanticIndex owner                           |  |   |   |
+|  |  |  |  /data/curator.db                              |  |   |   |
+|  |  |  +-----------------------------------------------+  |   |   |
+|  |  +-----------------------------------------------------+   |   |
 |  |                                                             |   |
-|  |  auto_stop_machines: true    (scale-to-zero on idle)       |   |
-|  |  auto_start_machines: true   (wake on HTTP or Matrix msg)  |   |
-|  |  min_machines_running: 0                                   |   |
-|  +------------------------------------------------------------+   |
-|                         |                                          |
-|         +---------------+---------------+--------------+          |
-|         v               v               v              v          |
-|  +------------+ +------------+ +------------+ +--------------+    |
-|  |Tigris/     | |Fly Secrets | |Fly Metrics | |Matrix        |    |
-|  |Backblaze B2| |(API keys,  | |(Prometheus)| |Federation    |    |
-|  |(Litestream | | keystore,  | |            | |(Conduit      |    |
-|  | replica)   | | matrix     | |            | | :8448)       |    |
-|  |            | | signingKey)| |            | |              |    |
-|  +------------+ +------------+ +------------+ +------+-------+    |
-|                                                       |           |
-|         Pod-to-pod A2A: Matrix federation over        |           |
-|         Fly.io private WireGuard network              |           |
-|         +---------------------------------------------+           |
-|         v                                                         |
-|  +----------------------------------------------------------+     |
-|  |              Other hKask Pods (Fly Apps)                  |     |
-|  |  +--------------+  +--------------+  +----------------+  |     |
-|  |  | hkask-pod-2  |  | hkask-pod-3  |  | hkask-pod-N    |  |     |
-|  |  | Conduit      |  | Conduit      |  | Conduit        |  |     |
-|  |  | :8448        |  | :8448        |  | :8448          |  |     |
-|  |  +--------------+  +--------------+  +----------------+  |     |
-|  +----------------------------------------------------------+     |
-+------------------------------------------------------------------+
+|  |  +-----------------------------------------------------+   |   |
+|  |  |  Namespace: hkask-pod-{id} (per replicant)           |   |   |
+|  |  |                                                       |   |   |
+|  |  |  +-----------------------------------------------+  |   |   |
+|  |  |  |              Pod (StatefulSet)                  |  |   |   |
+|  |  |  |                                                |  |   |   |
+|  |  |  |  +-----------+ +-----------+ +-------------+  |  |   |   |
+|  |  |  |  |Litestream | | Conduit   | | kask binary |  |  |   |   |
+|  |  |  |  | sidecar   | | sidecar   | |             |  |  |   |   |
+|  |  |  |  | streams   | | Matrix   | | kask serve  |  |  |   |   |
+|  |  |  |  | WAL to OS | | :8008     | | --pod-id    |  |  |   |   |
+|  |  |  |  +-----+-----+ +-----------+ +-------------+  |  |   |   |
+|  |  |  |        |                                        |  |   |   |
+|  |  |  |  +-----v------------------------------------+  |  |   |   |
+|  |  |  |  |         Hetzner CSI Volume                |  |  |   |   |
+|  |  |  |  |  /data/kask.db      SQLCipher-encrypted  |  |  |   |   |
+|  |  |  |  |  /data/conduit.db   Conduit SQLite       |  |  |   |   |
+|  |  |  |  |  EUR 0.044/GB/mo                            |  |  |   |   |
+|  |  |  |  +-------------------------------------------+  |  |   |   |
+|  |  |  +-----------------------------------------------+  |   |   |
+|  |  |                                                       |   |   |
+|  |  |  NetworkPolicy: per-namespace isolation               |   |   |
+|  |  |  HPA: CPU + CNS variety metrics (min=1, max=N)       |   |   |
+|  |  +-----------------------------------------------------+   |   |
+|  |                                                             |   |
+|  |  +-----------------------------------------------------+   |   |
+|  |  |  Hetzner Load Balancer → Ingress → cert-manager TLS |   |   |
+|  |  |  Free DDoS protection. 20TB free egress.            |   |   |
+|  |  +-----------------------------------------------------+   |   |
+|  +-----------------------------------------------------------+   |
+|                          |                                        |
+|                   HTTPS  |  (Litestream WAL streaming)            |
+|                          v                                        |
+|  +-----------------------------------------------------------+   |
+|  |              Object Storage (S3-compatible)                  |   |
+|  |  pods/{pod_id}/kask.db     ← encrypted SQLCipher pages      |   |
+|  |  pods/{pod_id}/conduit.db  ← Conduit database backup        |   |
+|  |  (Backblaze B2 / Hetzner OS / Cloudflare R2)                |   |
+|  +-----------------------------------------------------------+   |
++-----------------------------------------------------------------+
 ```
 
-#### Model B: Shared Conduit App
+### 2.3 Pod Communication: Matrix (Conduit)
 
-Pods share a single Conduit Fly App as their Matrix homeserver. `kask --matrix-url http://hkask-conduit.internal:8008`. Simpler to operate but Conduit becomes a shared dependency outside the OCAP perimeter.
+Pods communicate via Matrix (Conduit). Each pod gets a Matrix identity: `@pod-{pod_id}:pod-{pod_id}.hkask.local`. OCAP DelegationTokens are carried as custom Matrix event fields (`hkask.ocap_token`). Pods discover each other via the shared Conduit homeserver deployed as a K8s workload.
 
-#### Model Comparison
-
-| Criterion | Model A (Per-Pod) | Model B (Shared) |
-|-----------|-------------------|------------------|
-| OCAP isolation | Pod owns its Matrix server | Shared server |
-| Operational simplicity | N+1 Conduit instances | Single Conduit |
-| Resource overhead | ~50MB RAM/pod | One for all pods |
-| Federation resilience | Each pod federates independently | Single point of failure |
-| Scale-to-zero | ❌ Conduit must stay warm for messages | Shared stays warm |
-| P4.1 alignment | Messaging inside pod boundary | Messaging outside pod boundary |
-
-**Recommendation:** Model A for production. Model B for initial deployment. Both use the same `kask --matrix-url` flag — switching is a configuration change.
-
-### 2.3 Conduit Sidecar Configuration (Model A)
-
-Conduit runs as a process managed by `supervisord` alongside kask and Litestream. It listens on `:8008` (client API, kask connects here) and `:8448` (federation, other pods connect here).
-
-```yaml
-# /etc/conduit/conduit.toml
-global:
-  server_name: "pod-{{ pod_id }}.hkask.local"
-  address: "0.0.0.0"
-  port: 8008
-  federation:
-    enabled: true
-    address: "0.0.0.0"
-    port: 8448
-  database:
-    backend: "sqlite"
-    path: "/data/conduit.db"
-  registration:
-    enabled: false
-  allow_federation:
-    - "*.hkask.local"
-```
-
-Each pod gets a Matrix identity: `@pod-{pod_id}:pod-{pod_id}.hkask.local`. OCAP DelegationTokens are carried as custom Matrix event fields (`hkask.ocap_token`). Pods discover each other via Fly.io internal DNS (`<app-name>.internal`) on the WireGuard private network.
+The Curator pod can directly access other pods' SQLCipher databases because all pods run in the same K3s cluster. This preserves the multi-pod data flow specified in `MULTI_POD_ARCHITECTURE.md` without requiring an API-based sync layer.
 
 ### 2.4 Dockerfile
 
@@ -236,17 +187,15 @@ COPY --from=builder /app/target/release/kask /usr/local/bin/kask
 COPY --from=litestream-builder /root/go/bin/litestream /usr/local/bin/litestream
 COPY --from=conduit-builder /conduit/target/release/conduit /usr/local/bin/conduit
 
-# Configuration templates
-COPY deploy/fly/litestream.yml /etc/litestream.yml.template
-COPY deploy/fly/conduit.toml /etc/conduit/conduit.toml.template
-COPY deploy/fly/supervisord.conf /etc/supervisor/conf.d/hkask.conf
+COPY deploy/k8s/litestream.yml /etc/litestream.yml.template
+COPY deploy/k8s/conduit.toml /etc/conduit/conduit.toml.template
+COPY deploy/k8s/supervisord.conf /etc/supervisor/conf.d/hkask.conf
 
-# Entrypoint script: render configs -> restore -> migrate -> supervisord
-COPY deploy/fly/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY deploy/k8s/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 VOLUME /data
-EXPOSE 3000 8008 8448
+EXPOSE 3000 8008
 
 ENV HKASK_DATA_DIR=/data
 ENV LITESTREAM_CONFIG=/etc/litestream.yml
@@ -254,9 +203,7 @@ ENV LITESTREAM_CONFIG=/etc/litestream.yml
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 ```
 
-### 2.5 Entrypoint Script (with Conduit)
-
-The entrypoint now uses `supervisord` to manage three long-running processes: kask, Litestream, and Conduit.
+### 2.5 Entrypoint Script
 
 ```bash
 #!/bin/bash
@@ -265,11 +212,9 @@ set -e
 DATA_DIR="${HKASK_DATA_DIR:-/data}"
 DB_PATH="${DATA_DIR}/kask.db"
 
-# Render config templates from environment variables
 envsubst < /etc/litestream.yml.template > /etc/litestream.yml
 envsubst < /etc/conduit/conduit.toml.template > /etc/conduit/conduit.toml
 
-# Restore kask database from object storage if no local copy exists
 if [ ! -f "$DB_PATH" ]; then
     echo "No local database found. Attempting restore from Litestream replica..."
     litestream restore -if-replica-exists -config /etc/litestream.yml "$DB_PATH" || {
@@ -277,14 +222,8 @@ if [ ! -f "$DB_PATH" ]; then
     }
 fi
 
-# Run database migrations (idempotent)
 kask migrate --data-dir "$DATA_DIR"
 
-# Start supervisord which manages all three processes:
-#   - conduit:  Matrix homeserver (Matrix federation preserved across restarts)
-#   - litestream: WAL replication to object storage
-#   - kask: main application
-# supervisord runs as PID 1; all child processes are monitored and restarted on failure
 exec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
 ```
 
@@ -342,7 +281,7 @@ dbs:
         region: ${LITESTREAM_REGION}
         access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
         secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
-        force-path-style: ${LITESTREAM_FORCE_PATH_STYLE:-false}
+        force-path-style: ${LITESTREAM_FORCE_PATH_STYLE}
   - path: /data/conduit.db
     replicas:
       - type: s3
@@ -352,744 +291,61 @@ dbs:
         region: ${LITESTREAM_REGION}
         access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
         secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
-        force-path-style: ${LITESTREAM_FORCE_PATH_STYLE:-false}
+        force-path-style: ${LITESTREAM_FORCE_PATH_STYLE}
 ```
 
-### 2.6 fly.toml (Generated by `kask pod export fly`)
+> **`LITESTREAM_FORCE_PATH_STYLE`**: `true` for Backblaze B2 and Hetzner OS (path-style), `false` for Cloudflare R2 (virtual hosted-style). Set to match your chosen backend.
 
-```toml
-app = "hkask-pod-{{ pod_id }}"
-primary_region = "{{ primary_region }}"
+### 2.8 K8s StatefulSet (Generated by `kask pod export-k8s`)
 
-[build]
-  image = "{{ container_registry }}/hkask:kask-{{ version }}"
+The `export_k8s` function generates complete K8s manifests including namespace, networkpolicy (per-pod isolation), statefulset (with init containers for litestream-restore and kask-migrate, plus sidecar containers for litestream and conduit), configmaps (litestream + conduit config), secrets, and HPA.
 
-[[vm]]
-  cpu_kind = "shared"
-  cpus = 1
-  memory_mb = 768
+### 2.9 Pod Lifecycle Mapping (K3s)
 
-[mounts]
-  source = "hkask_data"
-  destination = "/data"
-  initial_size = "1gb"
-  auto_extend_size_increment = "1gb"
-  auto_extend_size_limit = "10gb"
-
-[[services]]
-  protocol = "tcp"
-  internal_port = 3000
-
-  [[services.ports]]
-    port = 443
-    handlers = ["tls", "http"]
-
-  [[services.ports]]
-    port = 80
-    handlers = ["http"]
-    force_https = true
-
-  auto_stop_machines = true
-  auto_start_machines = true
-  min_machines_running = 0
-
-# Matrix Federation service (Conduit :8448)
-# Exposed publicly so other pods' Conduit instances can federate
-# Note: this service does NOT auto-stop - Conduit must stay reachable
-[[services]]
-  protocol = "tcp"
-  internal_port = 8448
-
-  [[services.ports]]
-    port = 8448
-    handlers = ["tls"]
-
-  auto_stop_machines = false
-
-[experimental]
-  auto_rollback = true
-
-[deploy]
-  release_command = "kask migrate --data-dir /data"
-
-[env]
-  HKASK_DATA_DIR = "/data"
-  POD_ID = "{{ pod_id }}"
-  HKASK_BASE_URL = "{{ base_url }}"
-```
-
-### 2.9 Fly Secrets (Generated by `kask pod export fly`, Never Committed)
-
-```bash
-# Generated by `kask pod export fly --secrets`
-# Set via `fly secrets set` or Machines API, never in fly.toml
-# Matrix agent credentials and Conduit signing key are auto-generated,
-# not manually configured.
-
-fly secrets set \
-  LITESTREAM_BUCKET="hkask-pods-backup" \
-  LITESTREAM_ENDPOINT="https://fly.storage.tigris.dev" \
-  LITESTREAM_REGION="auto" \
-  LITESTREAM_ACCESS_KEY_ID="tigris_xxx" \
-  LITESTREAM_SECRET_ACCESS_KEY="xxx" \
-  LITESTREAM_FORCE_PATH_STYLE="false" \
-  POD_ID="pod_abc123" \
-  HKASK_KEYSTORE_PASSPHRASE="xxx" \
-  HKASK_MATRIX_AGENT_USERNAME="pod-pod_abc123" \
-  HKASK_MATRIX_AGENT_PASSWORD="<auto-generated-by-kask-pod-create>"
-```
-
-> **`LITESTREAM_FORCE_PATH_STYLE`**: `false` for Tigris (virtual hosted-style), `true` for Backblaze B2 and Hetzner OS (path-style). Set to match your chosen backend.
-
-### 2.10 Fly Machines API Integration (Rust)
-
-The `kask pod activate` command will use the Machines API directly, not `flyctl`, to enable programmatic pod lifecycle management:
-
-```rust
-// crates/hkask-cli/src/commands/pod/export_fly.rs
-
-use reqwest::Client;
-use serde::{Deserialize, Serialize};
-
-const FLY_API_HOST: &str = "https://api.machines.dev";
-
-pub struct FlyClient {
-    client: Client,
-    token: String,
-    org_slug: String,
-}
-
-impl FlyClient {
-    /// Create a new Fly.io API client.
-    pub fn new(token: String, org_slug: String) -> Self {
-        Self {
-            client: Client::new(),
-            token,
-            org_slug,
-        }
-    }
-
-    /// Create a Fly App for the pod.
-    pub async fn create_app(&self, app_name: &str) -> Result<FlyApp> {
-        let resp = self.client
-            .post(format!("{}/apps", FLY_API_HOST))
-            .header("Authorization", format!("Bearer {}", self.token))
-            .json(&serde_json::json!({
-                "app_name": app_name,
-                "org_slug": self.org_slug,
-            }))
-            .send()
-            .await?;
-        Ok(resp.json().await?)
-    }
-
-    /// Create a Fly Volume for persistent SQLite storage.
-    pub async fn create_volume(
-        &self,
-        app_name: &str,
-        name: &str,
-        region: &str,
-        size_gb: u32,
-    ) -> Result<FlyVolume> {
-        let resp = self.client
-            .post(format!("{}/apps/{}/volumes", FLY_API_HOST, app_name))
-            .header("Authorization", format!("Bearer {}", self.token))
-            .json(&serde_json::json!({
-                "name": name,
-                "region": region,
-                "size_gb": size_gb,
-            }))
-            .send()
-            .await?;
-        Ok(resp.json().await?)
-    }
-
-    /// Create and start a Fly Machine for the pod.
-    pub async fn create_machine(
-        &self,
-        app_name: &str,
-        config: &MachineConfig,
-    ) -> Result<FlyMachine> {
-        let resp = self.client
-            .post(format!("{}/apps/{}/machines", FLY_API_HOST, app_name))
-            .header("Authorization", format!("Bearer {}", self.token))
-            .json(config)
-            .send()
-            .await?;
-        Ok(resp.json().await?)
-    }
-
-    /// Stop a Machine (suspend, not destroy — preserves volume).
-    pub async fn stop_machine(&self, app_name: &str, machine_id: &str) -> Result<()> {
-        let resp = self.client
-            .post(format!(
-                "{}/apps/{}/machines/{}/stop",
-                FLY_API_HOST, app_name, machine_id
-            ))
-            .header("Authorization", format!("Bearer {}", self.token))
-            .send()
-            .await?;
-        resp.error_for_status()?;
-        Ok(())
-    }
-
-    /// Set secrets for an app.
-    pub async fn set_secrets(&self, app_name: &str, secrets: &HashMap<String, String>) -> Result<()> {
-        let resp = self.client
-            .post(format!("{}/apps/{}/secrets", FLY_API_HOST, app_name))
-            .header("Authorization", format!("Bearer {}", self.token))
-            .json(&serde_json::json!({ "secrets": secrets }))
-            .send()
-            .await?;
-        resp.error_for_status()?;
-        Ok(())
-    }
-}
-```
-
-### 2.11 Pod Lifecycle Mapping (Fly.io with Conduit)
-
-| hKask Pod State | Fly.io Operation | Notes |
-|-----------------|-----------------|-------|
-| `Create` | `POST /apps` + `POST /apps/{app}/volumes` | Volume created. Conduit signing key already exists (Curator-managed during `kask curator init`). |
-| `Populate` | `POST /apps/{app}/secrets` | Remaining secrets (object storage creds, keystore passphrase) |
-| `Register` | `POST /apps/{app}/machines` | Machine boots, entrypoint renders configs, supervisord starts conduit + litestream + kask |
-| `Activate` | Machine running | Conduit federates with other pods; kask connects to localhost:8008 |
-| `Deactivate` | `POST /apps/{app}/machines/{id}/stop` | Conduit gracefully shuts down federation; Litestream flushes WAL to object storage |
-| `Destroy` | `DELETE /apps/{app}/machines/{id}` + `DELETE /apps/{app}/volumes/{id}` | Volume deleted; Litestream replica remains for migration |
-
-> **Scale-to-zero tradeoff:** Model A (per-pod Conduit) cannot scale to zero because Conduit must be reachable for inbound Matrix federation messages. The HTTP API service (port 3000) can auto-stop, but the Matrix federation service (port 8448) must remain running. This means idle pods still incur the Machine cost (~$1.94/mo). Model B (shared Conduit) avoids this — only the shared Conduit stays warm, and kask pods can scale to zero. Choose based on whether OCAP isolation or cost efficiency is the higher priority.
+| hKask Pod State | K8s Operation | Notes |
+|-----------------|---------------|-------|
+| `Create` | `kubectl apply -f manifests/` | Namespace + NetworkPolicy + StatefulSet created |
+| `Populate` | Init containers run | litestream-restore → kask-migrate |
+| `Register` | StatefulSet pod starts | supervisord starts conduit + litestream + kask |
+| `Activate` | Pod running | Conduit connects to shared Matrix; kask serves API |
+| `Deactivate` | `kubectl scale --replicas=0` | Graceful shutdown; Litestream flushes WAL |
+| `Destroy` | `kubectl delete namespace` | PVC deleted; Litestream replica remains for migration |
 
 ---
 
-## 3. Implementation Plan: Hetzner Cloud + K3s
+## 3. Due Diligence Checklists
 
-### 3.1 Provider Profile
-
-| Attribute | Detail |
-|-----------|--------|
-| **Company** | Hetzner Online GmbH (German GmbH, privately held) |
-| **Founded** | 1997 |
-| **Infrastructure** | Own data centers in Falkenstein, Nuremberg, Helsinki. Partner DCs in Ashburn (VA), Hillsboro (OR), Singapore. |
-| **API** | Hetzner Cloud API v1 at `api.hetzner.cloud/v1`. hcloud CLI (Go). Terraform provider. Python SDK. |
-| **Certifications** | ISO/IEC 27001 (DE, FI DCs). BSI C5:2020 Type 2. KRITIS operator (German critical infrastructure). GDPR compliant. |
-| **Key dependency** | Self-managed K3s (or Cloudfleet for managed K8s). Hetzner CSI driver for volumes. |
-
-### 3.2 Architecture Diagram
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Hetzner Cloud Project                     │
-│                                                             │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │                  Private Network (10.0.0.0/16)         │   │
-│  │                                                       │   │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │   │
-│  │  │ K3s Server 1 │  │ K3s Server 2 │  │ K3s Server 3 │  │   │
-│  │  │ (control     │  │ (control     │  │ (control     │  │   │
-│  │  │  plane)     │  │  plane)     │  │  plane)     │  │   │
-│  │  │ CX33: €6.49 │  │ CX33: €6.49 │  │ CX33: €6.49 │  │   │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘  │   │
-│  │                         │                             │   │
-│  │  ┌──────────────────────────────────────────────────┐│   │
-│  │  │              K3s Worker Nodes                     ││   │
-│  │  │                                                  ││   │
-│  │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐       ││   │
-│  │  │  │Worker 1  │  │Worker 2  │  │Worker N  │       ││   │
-│  │  │  │CX43      │  │CX43      │  │CX53      │       ││   │
-│  │  │  │8 vCPU    │  │8 vCPU    │  │16 vCPU   │       ││   │
-│  │  │  │16GB RAM  │  │16GB RAM  │  │32GB RAM  │       ││   │
-│  │  │  │€12/mo    │  │€12/mo    │  │€29/mo    │       ││   │
-│  │  │  │          │  │          │  │          │       ││   │
-│  │  │  │ ┌──────┐ │  │ ┌──────┐ │  │ ┌──────┐ │       ││   │
-│  │  │  │ │Pod 1 │ │  │ │Pod 3 │ │  │ │Pod N │ │       ││   │
-│  │  │  │ │Pod 2 │ │  │ │Pod 4 │ │  │ │...   │ │       ││   │
-│  │  │  │ └──────┘ │  │ └──────┘ │  │ └──────┘ │       ││   │
-│  │  │  └──────────┘  └──────────┘  └──────────┘       ││   │
-│  │  └──────────────────────────────────────────────────┘│   │
-│  │                         │                             │   │
-│  │  ┌──────────────────────┼──────────────────────────┐ │   │
-│  │  │         Hetzner Cloud Resources                  │ │   │
-│  │  │  ┌────────────┐  ┌──────────┐  ┌────────────┐  │ │   │
-│  │  │  │ CSI Volumes│  │  Network │  │  Firewall  │  │ │   │
-│  │  │  │ (per pod) │  │  Load    │  │  (DDoS)    │  │ │   │
-│  │  │  │ €0.044/GB │  │  Balancer│  │  Free      │  │ │   │
-│  │  │  │            │  │  €5.89/mo│  │            │  │ │   │
-│  │  │  └────────────┘  └──────────┘  └────────────┘  │ │   │
-│  │  └─────────────────────────────────────────────────┘ │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │         External Services (outside Hetzner)           │   │
-│  │  ┌────────────────────┐  ┌────────────────────────┐  │   │
-│  │  │ Backblaze B2       │  │ Cloudfleet (optional)  │  │   │
-│  │  │ (Litestream        │  │ Managed K8s control     │  │   │
-│  │  │  replica target)   │  │ plane, 99.95% SLA)     │  │   │
-│  │  └────────────────────┘  └────────────────────────┘  │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 3.3 K3s Cluster Bootstrap
-
-Two paths: self-managed K3s (cheapest) or Cloudfleet (managed, SLA-backed).
-
-#### Path A: Self-Managed K3s (via hetzner-k3s)
-
-```bash
-# One-time cluster creation (~2-3 minutes)
-hetzner-k3s create \
-  --name hkask-prod \
-  --location nbg1 \
-  --masters 3 \
-  --master-type cx33 \
-  --workers 3 \
-  --worker-type cx43 \
-  --network-zone eu-central \
-  --autoscaling-enabled
-
-# hetzner-k3s automatically:
-# - Creates private network (10.0.0.0/16)
-# - Installs K3s on all nodes
-# - Deploys Hetzner CCM (load balancer integration)
-# - Deploys Hetzner CSI (volume provisioning)
-# - Deploys Cluster Autoscaler
-# - Outputs kubeconfig
-```
-
-#### Path B: Cloudfleet Managed K8s
-
-```bash
-# Cloudfleet handles control plane. You provide Hetzner API token.
-# No kubeconfig management — Cloudfleet provides API access.
-
-# Cluster created via Cloudfleet UI or API
-# Pro plan: €69/mo + €4.95/vCPU (first 24 vCPUs free)
-# Enterprise: €5,000/mo minimum, 1-hour support SLA, private control plane
-```
-
-### 3.4 K8s Manifests (Generated by `kask pod export k8s`)
-
-#### Namespace + NetworkPolicy (per-pod isolation)
-
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: hkask-pod-{{ pod_id }}
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: pod-isolation
-  namespace: hkask-pod-{{ pod_id }}
-spec:
-  podSelector: {}
-  policyTypes: [Ingress, Egress]
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: hkask-ingress
-      ports:
-        - port: 3000
-          protocol: TCP
-  egress:
-    - to:
-        - namespaceSelector: {}  # allow same-namespace traffic
-    - to:  # allow external API access (inference providers)
-        - ipBlock:
-            cidr: 0.0.0.0/0
-            except: [10.0.0.0/8]  # except internal traffic (handled above)
-      ports:
-        - port: 443
-          protocol: TCP
-        - port: 80
-          protocol: TCP
-```
-
-#### StatefulSet (per-pod deployment)
-
-```yaml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: kask
-  namespace: hkask-pod-{{ pod_id }}
-spec:
-  serviceName: kask
-  replicas: 1
-  selector:
-    matchLabels:
-      app: kask
-  template:
-    metadata:
-      labels:
-        app: kask
-        pod-id: "{{ pod_id }}"
-    spec:
-      # Init container: restore SQLite from Litestream if no local DB
-      initContainers:
-        - name: litestream-restore
-          image: litestream/litestream:0.5.0
-          args:
-            - restore
-            - -if-db-not-exists
-            - -if-replica-exists
-            - /data/kask.db
-          envFrom:
-            - secretRef:
-                name: litestream-s3
-          volumeMounts:
-            - name: data
-              mountPath: /data
-            - name: litestream-config
-              mountPath: /etc/litestream.yml
-              subPath: litestream.yml
-
-      containers:
-        # Main application container
-        - name: kask
-          image: {{ container_registry }}/hkask:kask-{{ version }}
-          args:
-            - serve
-            - --data-dir
-            - /data
-            - --pod-id
-            - "{{ pod_id }}"
-          ports:
-            - containerPort: 3000
-              protocol: TCP
-          envFrom:
-            - secretRef:
-                name: kask-secrets
-          volumeMounts:
-            - name: data
-              mountPath: /data
-          resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 15
-            periodSeconds: 20
-
-        # Litestream sidecar: continuous WAL replication
-        - name: litestream
-          image: litestream/litestream:0.5.0
-          args:
-            - replicate
-          envFrom:
-            - secretRef:
-                name: litestream-s3
-          volumeMounts:
-            - name: data
-              mountPath: /data
-            - name: litestream-config
-              mountPath: /etc/litestream.yml
-              subPath: litestream.yml
-          resources:
-            requests:
-              cpu: 10m
-              memory: 32Mi
-            limits:
-              cpu: 100m
-              memory: 64Mi
-
-      volumes:
-        - name: litestream-config
-          configMap:
-            name: litestream-config
-
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        storageClassName: hcloud-volumes
-        accessModes: [ReadWriteOnce]
-        resources:
-          requests:
-            storage: {{ volume_size_gb }}Gi
-```
-
-#### ConfigMap + Secrets
-
-```yaml
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: litestream-config
-  namespace: hkask-pod-{{ pod_id }}
-data:
-  litestream.yml: |
-    addr: ":9090"
-    sync-interval: 1s
-    snapshot-interval: 6h
-    dbs:
-      - path: /data/kask.db
-        replicas:
-          - type: s3
-            bucket: ${LITESTREAM_BUCKET}
-            path: pods/{{ pod_id }}/kask.db
-            endpoint: ${LITESTREAM_ENDPOINT}
-            region: ${LITESTREAM_REGION}
-            access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
-            secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: litestream-replica
-  namespace: hkask-pod-{{ pod_id }}
-stringData:
-  LITESTREAM_BUCKET: "hkask-pods-backup"
-  LITESTREAM_ENDPOINT: "https://s3.us-west-000.backblazeb2.com"
-  LITESTREAM_REGION: "us-west-000"
-  LITESTREAM_ACCESS_KEY_ID: "<generated>"
-  LITESTREAM_SECRET_ACCESS_KEY: "<generated>"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: kask-secrets
-  namespace: hkask-pod-{{ pod_id }}
-stringData:
-  POD_ID: "{{ pod_id }}"
-  HKASK_DATA_DIR: "/data"
-  HKASK_KEYSTORE_PASSPHRASE: "<generated>"
-```
-
-#### HPA (Horizontal Pod Autoscaler — CNS-driven)
-
-```yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: kask-hpa
-  namespace: hkask-pod-{{ pod_id }}
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: StatefulSet
-    name: kask
-  minReplicas: 1
-  maxReplicas: {{ max_replicas }}
-  metrics:
-    # Scale on HTTP request rate
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
-    # Scale on CNS variety deficit (custom metric — future)
-    # - type: Pods
-    #   pods:
-    #     metric:
-    #       name: hkask_cns_variety_deficit
-    #     target:
-    #       type: AverageValue
-    #       averageValue: 100
-  behavior:
-    scaleDown:
-      stabilizationWindowSeconds: 300
-      policies:
-        - type: Percent
-          value: 50
-          periodSeconds: 60
-    scaleUp:
-      stabilizationWindowSeconds: 60
-      policies:
-        - type: Percent
-          value: 100
-          periodSeconds: 30
-```
-
-### 3.5 Pod Lifecycle Mapping (Hetzner K3s)
-
-| hKask Pod State | K8s Operation | kubectl / API Call |
-|-----------------|---------------|-------------------|
-| `Create` | `kubectl create namespace` + apply manifests | `POST /api/v1/namespaces` |
-| `Populate` | `kubectl create secret` + configmap | `POST /api/v1/namespaces/{ns}/secrets` |
-| `Register` | `kubectl apply -f statefulset.yaml` | `POST /apis/apps/v1/namespaces/{ns}/statefulsets` |
-| `Activate` | Pod auto-starts via StatefulSet | (automatic) |
-| `Deactivate` | `kubectl scale statefulset kask --replicas=0` | `PATCH .../statefulsets/kask/scale` |
-| `Destroy` | `kubectl delete namespace` | `DELETE /api/v1/namespaces/{ns}` |
-
-### 3.6 Hetzner Cloud API Integration (Rust)
-
-```rust
-// crates/hkask-cli/src/commands/pod/export_k8s.rs
-
-const HCLOUD_API: &str = "https://api.hetzner.cloud/v1";
-
-pub struct HetznerClient {
-    client: Client,
-    token: String,
-}
-
-impl HetznerClient {
-    /// Create a new server instance.
-    pub async fn create_server(
-        &self,
-        name: &str,
-        server_type: &str,
-        image: &str,
-        location: &str,
-        ssh_keys: &[String],
-    ) -> Result<HetznerServer> {
-        let resp = self.client
-            .post(format!("{}/servers", HCLOUD_API))
-            .header("Authorization", format!("Bearer {}", self.token))
-            .json(&serde_json::json!({
-                "name": name,
-                "server_type": server_type,
-                "image": image,
-                "location": location,
-                "ssh_keys": ssh_keys,
-                "start_after_create": true,
-            }))
-            .send()
-            .await?;
-        Ok(resp.json().await?)
-    }
-
-    /// Create a volume for persistent storage.
-    pub async fn create_volume(
-        &self,
-        name: &str,
-        size_gb: u32,
-        location: &str,
-    ) -> Result<HetznerVolume> {
-        let resp = self.client
-            .post(format!("{}/volumes", HCLOUD_API))
-            .header("Authorization", format!("Bearer {}", self.token))
-            .json(&serde_json::json!({
-                "name": name,
-                "size": size_gb,
-                "location": location,
-            }))
-            .send()
-            .await?;
-        Ok(resp.json().await?)
-    }
-
-    /// Attach a volume to a server.
-    pub async fn attach_volume(
-        &self,
-        volume_id: u64,
-        server_id: u64,
-    ) -> Result<()> {
-        let resp = self.client
-            .post(format!("{}/volumes/{}/actions/attach", HCLOUD_API, volume_id))
-            .header("Authorization", format!("Bearer {}", self.token))
-            .json(&serde_json::json!({ "server": server_id }))
-            .send()
-            .await?;
-        resp.error_for_status()?;
-        Ok(())
-    }
-
-    /// List all servers in the project.
-    pub async fn list_servers(&self) -> Result<Vec<HetznerServer>> {
-        let resp = self.client
-            .get(format!("{}/servers", HCLOUD_API))
-            .header("Authorization", format!("Bearer {}", self.token))
-            .send()
-            .await?;
-        let body: serde_json::Value = resp.json().await?;
-        Ok(serde_json::from_value(body["servers"].clone())?)
-    }
-}
-```
-
----
-
-## 4. Due Diligence Checklists
-
-### 4.1 Fly.io Due Diligence
+### 3.1 Hetzner Cloud Due Diligence
 
 | # | Check | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | **Data residency.** Where are pod databases physically stored? | ✅ Known | Fly volumes reside in the region selected. replicas in Tigris/Backblaze B2 (configurable). |
-| 2 | **Encryption at rest.** Are volumes encrypted? | ⚠️ Verify | Fly.io volumes are on NVMe — confirm if encryption-at-rest is default or opt-in. SQLCipher provides application-level encryption regardless. |
-| 3 | **SOC2/HIPAA.** Do they have compliance attestations? | ✅ Confirmed | SOC2 Type 2 attested. HIPAA-ready (BAA available, $99/mo). |
-| 4 | **GDPR compliance.** EU data protection? | ⚠️ Partial | Fly.io has EU regions but is a US company. Data Processing Agreement (DPA) needed. |
-| 5 | **SLA coverage.** What's covered and what's excluded? | ✅ Known | 99.9% uptime SLA (Enterprise only, $2,500/mo min). Excludes: free tier, scheduled maintenance, customer-caused issues. |
-| 6 | **Support responsiveness.** What are the actual response times? | ✅ Known | Public dashboard: 99.5% SLA compliance, 55min median first response. Enterprise: 15min urgent, 4hr normal. |
-| 7 | **Vendor lock-in.** How hard is migration? | ✅ Low | Standard Docker containers. `litestream restore` to any SQLite. `fly.toml` is the only proprietary config. |
-| 8 | **GPU deprecation.** Impact on roadmap? | ✅ Assessed | GPUs unavailable after Aug 2026. Core kask doesn't need GPU. Inference dispatches externally. Acceptable. |
-| 9 | **Pricing stability.** History of price changes? | ⚠️ Monitor | Removed free tier (Oct 2024). Added volume snapshot billing (Jan 2026). Changed inter-region networking billing (Feb 2026). |
-| 10 | **Financial viability.** Risk of shutdown/acquisition? | ⚠️ Monitor | Privately held. VC-funded. Revenue not public. Litestream team at Fly.io — if Fly.io fails, Litestream is open-source (MIT). |
-| 11 | **Litestream + SQLCipher compatibility.** Tested? | ❌ Untested | Litestream replicates WAL at file level — should work with SQLCipher. Must test: restore, WAL integrity, encryption key rotation. |
-| 12 | **API stability.** Machines API versioning? | ✅ Known | OpenAPI 3.0 spec at docs.machines.dev. No formal versioning but documented. Macaroon tokens stable since May 2025. |
-
-### 4.2 Hetzner Cloud Due Diligence
-
-| # | Check | Status | Evidence |
-|---|-------|--------|----------|
-| 1 | **Data residency.** Where are pod databases physically stored? | ✅ Known | Customer selects location (DE, FI, US, SG). DE/FI data centers ISO 27001 certified. Volumes stay in selected location. |
-| 2 | **Encryption at rest.** Are volumes encrypted? | ⚠️ Verify | Hetzner volumes are not encrypted by default. Must use Hetzner CSI encryption feature or rely on SQLCipher. Confirm CSI encryption support. |
+| 1 | **Data residency.** Where are pod databases physically stored? | ✅ Known | Customer selects location (DE, FI, US, SG). DE/FI data centers ISO 27001 certified. |
+| 2 | **Encryption at rest.** Are volumes encrypted? | ⚠️ Verify | Hetzner volumes are not encrypted by default. Must use CSI encryption or rely on SQLCipher. |
 | 3 | **ISO/SOC/C5.** Compliance certifications? | ✅ Confirmed | ISO/IEC 27001 (DE, FI DCs). BSI C5:2020 Type 2. KRITIS operator. GDPR-compliant (German GmbH). |
-| 4 | **SLA coverage.** What's covered and what's excluded? | ⚠️ Narrow | 99.9% per Cloud Server. Excludes: load balancers, firewalls, snapshots, backups, network. Credit is per-instance (very small — €0.87 for 185min outage on €0.37/hr server). |
-| 5 | **Support model.** 24/7? Phone? | ✅ Known | 24/7 data center staff for hardware. Email support during business hours for technical issues. No phone support for Cloud (only dedicated servers with password). |
+| 4 | **SLA coverage.** What's covered and what's excluded? | ⚠️ Narrow | 99.9% per Cloud Server. Excludes: load balancers, firewalls, snapshots, backups, network. |
+| 5 | **Support model.** 24/7? Phone? | ✅ Known | 24/7 data center staff for hardware. Email support during business hours. No phone for Cloud. |
 | 6 | **Vendor lock-in.** How hard is migration? | ✅ Low | Standard VPS. Standard K8s. `litestream restore` to any SQLite. K8s manifests are portable. |
 | 7 | **GPU availability.** Options for inference? | ❌ None | No GPU instances. Inference must dispatch to external providers (RunPod, Together, etc.). |
-| 8 | **Scale-to-zero.** Idle cost? | ❌ None | Billing continues while server object exists, even when powered off. Must delete server to stop charges. |
-| 9 | **Pricing stability.** History of price changes? | ⚠️ Monitor | +30-37% increase (April 2026). +33% for some types (June 2026). Upward trend. |
-| 10 | **Operational burden.** K8s expertise required? | ⚠️ High | Self-managed K3s requires K8s operational knowledge. Cloudfleet mitigates (€69/mo + €4.95/vCPU). |
-| 11 | **Network reliability.** DDoS, peering? | ✅ Known | Free DDoS protection. 99.9% network availability per GTC. 20TB free egress. |
-| 12 | **Litestream replica target.** What object storage? | ⚠️ External | Hetzner Object Storage (S3-compatible) or Backblaze B2. Not managed by Hetzner within the Cloud SLA. |
+| 8 | **Scale-to-zero.** Idle cost? | ❌ None | Billing continues while server object exists. Must delete server to stop charges. |
+| 9 | **Pricing stability.** History of price changes? | ⚠️ Monitor | +30-37% increase (April 2026). Upward trend. |
+| 10 | **Operational burden.** K8s expertise required? | ⚠️ High | Self-managed K3s requires K8s knowledge. Cloudfleet mitigates. |
+| 11 | **Network reliability.** DDoS, peering? | ✅ Known | Free DDoS protection. 99.9% network availability. 20TB free egress. |
+| 12 | **Litestream replica target.** What object storage? | ⚠️ External | Hetzner OS (S3-compatible) or Backblaze B2. Not managed by Hetzner within the Cloud SLA. |
 
 ---
 
-## 5. Critical Infrastructure Partner Considerations
+## 4. Critical Infrastructure Partner Considerations
 
-### 5.1 What "Critical Infrastructure" Means for hKask
+### 4.1 What "Critical Infrastructure" Means for hKask
 
 For partners running hKask as critical infrastructure, the following are non-negotiable:
 
 1. **Data sovereignty.** Per P1 (User Sovereignty): users own their data. The cloud provider must not have access to decrypted pod databases. SQLCipher ensures this at the application layer.
-2. **OCAP boundary integrity.** Per P4.1: pod boundary IS the OCAP enforcement perimeter. The cloud provider must not provide a side-channel across pod boundaries. Hardware isolation (Firecracker) is stronger than container isolation (K8s namespaces).
+2. **OCAP boundary integrity.** Per P4.1: pod boundary IS the OCAP enforcement perimeter. K8s namespaces + NetworkPolicy provide the enforcement perimeter.
 3. **No ambient authority.** Per P4: no admin bypass. The cloud provider's support team must not have the ability to access pod data or impersonate pods.
-4. **Portability.** Per P1: data portability is a first-class guarantee. Pods must be migratable between providers via Litestream restore.
+4. **Portability.** Per P1: data portability is a first-class guarantee. Pods must be migratable via Litestream restore.
 
-### 5.2 Fly.io as Critical Infrastructure Partner
-
-**Strengths:**
-- SOC2 Type 2 + HIPAA-ready attestation provides third-party verification of security controls
-- Custom Rust hypervisor reduces supply chain attack surface (no QEMU/KVM CVEs)
-- Memory-safe stack (Rust) for the hypervisor layer
-- Hardware virtualization prevents cross-tenant data leaks at the hypervisor level
-- Macaroon tokens with fine-grained scoping (app-level, org-level)
-- 24/7 enterprise support with 15-minute urgent response
-- Public support metrics dashboard (transparency)
-- Deploy tokens enable CI/CD without human credential exposure
-
-**Weaknesses:**
-- US company — GDPR data transfer implications (Standard Contractual Clauses needed)
-- Smaller company than AWS/GCP — financial viability risk over 5-10 year horizon
-- No BSI C5 certification (relevant for German/EU regulated industries)
-- SLA only on Enterprise plan ($2,500/mo minimum)
-- GPU deprecation signals willingness to cut product lines
-- 2023 reliability issues (acknowledged by CEO) — recovery to mid-tier PaaS reliability in 2026
-
-**Recommendation for critical infrastructure:** Suitable with Enterprise plan + SLA. Mitigate financial risk by maintaining Hetzner as secondary provider with `kask pod export-k8s` as migration path.
-
-### 5.3 Hetzner Cloud as Critical Infrastructure Partner
+### 4.2 Hetzner Cloud as Critical Infrastructure Partner
 
 **Strengths:**
 - KRITIS operator (German critical infrastructure) — legally mandated security standards
@@ -1113,7 +369,7 @@ For partners running hKask as critical infrastructure, the following are non-neg
 
 **Recommendation for critical infrastructure:** Excellent for EU-regulated workloads (GDPR, BSI C5). Pair with Cloudfleet Enterprise for managed K8s + 99.95% SLA + 1-hour support. Mitigate GPU gap with RunPod for inference. Mitigate operational burden with Cloudfleet.
 
-### 5.4 Multi-Provider Resilience Strategy
+### 4.3 Multi-Provider Resilience Strategy
 
 ```
                     ┌──────────────────────────┐
@@ -1124,12 +380,12 @@ For partners running hKask as critical infrastructure, the following are non-neg
             ┌──────────────────┼──────────────────┐
             ▼                  ▼                  ▼
     ┌───────────────┐  ┌───────────────┐  ┌───────────────┐
-    │   Fly.io      │  │  Hetzner+K3s  │  │   RunPod      │
-    │  (primary)    │  │  (secondary)  │  │   (GPU)       │
+    │  Hetzner+K3s  │  │    RunPod     │  │   (future)    │
+    │  (primary)    │  │   (GPU)       │  │               │
     │               │  │               │  │               │
-    │ Orchestrator  │  │ Orchestrator  │  │ Inference     │
-    │ + Litestream  │  │ + Litestream  │  │ + Training    │
-    │ + Volume      │  │ + CSI Volume  │  │ + NW Volume   │
+    │ Orchestrator  │  │ Inference     │  │ Additional    │
+    │ + Litestream  │  │ + Training    │  │ providers     │
+    │ + CSI Volume  │  │ + NW Volume   │  │               │
     └───────┬───────┘  └───────┬───────┘  └───────┬───────┘
             │                  │                  │
             └──────────────────┼──────────────────┘
@@ -1137,7 +393,8 @@ For partners running hKask as critical infrastructure, the following are non-neg
                     ┌──────────▼───────────┐
                     │   Litestream replica  │
                     │   (Backblaze B2 /    │
-                    │    Cloudflare R2)    │
+                    │    Cloudflare R2 /   │
+                    │    Hetzner OS)       │
                     │                      │
                     │   Provider-agnostic  │
                     │   Database replicas  │
@@ -1145,79 +402,54 @@ For partners running hKask as critical infrastructure, the following are non-neg
                     └──────────────────────┘
 ```
 
-**Migration procedure (Fly.io → Hetzner):**
-1. `kask pod export-k8s <pod-id>` — generates K8s manifests
-2. `kubectl apply -f manifests/` — deploys to Hetzner K3s
-3. Litestream init container restores database from same object storage bucket
-4. DNS cutover to Hetzner load balancer
-5. `fly machines destroy <pod-id>` — decommission Fly.io Machine
-6. Database WAL continues replicating to same object storage bucket — no data migration needed
-
 ---
 
-## 6. Implementation Sequence
+## 5. Implementation Sequence
 
-### Phase 1: Foundation — P0 (Both Paths)
-- [x] `Dockerfile` (Rust + Litestream, 3-stage, 28 lines) → `deploy/Dockerfile`
-- [x] `entrypoint.sh` (restore → migrate → `litestream replicate -exec "kask serve"`) → `deploy/fly/entrypoint.sh`
-- [x] `litestream.yml.template` (kask.db only) → `deploy/fly/litestream.yml.template`
-- [x] CI/CD pipeline (GitHub Actions, builds on tag push) → `.github/workflows/build.yml`
-- [ ] SQLCipher + Litestream compatibility test (test structure written, needs runtime)
+### Phase 1: Foundation — P0
 
-### Phase 2: Path A — Fly.io + Tigris (P1)
-- [x] `FlyClient` (7 methods) → `crates/hkask-cli/src/cloud/fly.rs`
-- [x] `TigrisClient` (bucket validation) → `crates/hkask-cli/src/cloud/tigris.rs`
-- [x] `kask pod export fly` → `crates/hkask-cli/src/commands/pod.rs::export_fly`
-- [x] `fly.toml` generation (1 service :3000, scale-to-zero, auto-extend volume)
-- [x] `kask pod activate/deactivate` → Fly Machine start/stop → `pod.rs::cloud_activate/cloud_deactivate`
+- [x] `Dockerfile` (Rust + Litestream + Conduit, multi-stage)
+- [x] `entrypoint.sh` (restore → migrate → supervisord)
+- [x] `litestream.yml.template` (kask.db + conduit.db)
+- [x] CI/CD pipeline (GitHub Actions, builds on tag push)
+- [ ] SQLCipher + Litestream compatibility test
 
-  **Conduit architecture simplified:** Conduit is now a shared Fly App deployed by `kask curator init`, not a per-pod sidecar. All pods connect as Matrix clients. No federation, no :8448, no supervisord. Scale-to-zero works. Memory: 512MB.
+### Phase 2: Hetzner + Object Storage — P1
 
-  Fly.io provides auto-generated domains (`hkask-conduit.fly.dev`, `hkask-pod-{id}.fly.dev`) with automatic TLS. No DNS configuration needed for v1. Custom domains deferred to v2.
-
-- [ ] Admin workflow test — end-to-end: account creation → .env → `kask curator init` → `kask pod export fly` → `fly deploy` → health check
-- [ ] Conduit messaging test — pod-1 sends Matrix message to pod-2 via shared Conduit
-
-### Phase 3: Path B — Hetzner + Hetzner OS (P2)
-- [x] Hetzner account provisioned — API key in `.env`, workspace has storage bucket + cloud server ready
-- [x] `HetznerClient` in `hkask-cli` (Cloud API + Object Storage validation) → `crates/hkask-cli/src/cloud/hetzner.rs`
-- [x] `kask pod export k8s <pod-id>` command → `crates/hkask-cli/src/commands/pod.rs::export_k8s`
-- [x] K8s manifest templates (namespace, networkpolicy, statefulset, hpa, configmap, secrets) — embedded in export_k8s
+- [x] Hetzner account provisioned — API key in `.env`, workspace has storage bucket + cloud server
+- [x] `HetznerClient` in `hkask-services-cloud` (Cloud API + Object Storage validation)
+- [x] `kask pod export-k8s` command — generates 6 YAML manifests
+- [x] K8s manifest templates (namespace, networkpolicy, statefulset, hpa, configmap, secrets)
 - [ ] K3s cluster bootstrap (hetzner-k3s or Cloudfleet integration)
 - [ ] cert-manager + Let's Encrypt setup automation
-- [ ] Hetzner Object Storage bucket provisioning (API call)
-- [x] `kask pod activate` → `kubectl apply` → `crates/hkask-cli/src/commands/pod.rs::cloud_activate_k8s`
-- [x] `kask pod deactivate` → `kubectl scale --replicas=0` → `crates/hkask-cli/src/commands/pod.rs::cloud_deactivate_k8s`
+- [ ] Object Storage bucket provisioning automation
+- [x] `kask pod activate` → `kubectl apply` → `cloud_activate_k8s`
+- [x] `kask pod deactivate` → `kubectl scale --replicas=0` → `cloud_deactivate_k8s`
 - [ ] Integration test: full lifecycle on Hetzner K3s
 
-### Phase 4: RunPod — GPU Workloads (P3, Both Paths)
-- [ ] `kask pod export runpod <pod-id>` command
+### Phase 3: RunPod — GPU Workloads — P2
+
+- [ ] `kask pod export-runpod` command
 - [ ] RunPod CPU pod template
 - [ ] RunPod serverless GPU endpoint template
 - [ ] Integration test: orchestrate inference via RunPod serverless
 
-### Phase 5: Multi-Provider Resilience (P4, Both Paths)
-- [ ] Cross-provider migration test (Path A → Path B via Litestream)
+### Phase 4: Multi-Provider Resilience — P3
+
+- [ ] Cross-provider migration test (Hetzner K3s → new K3s cluster via Litestream)
 - [ ] CNS span for cloud provider + object storage health
-- [ ] Provider health dashboard (which pods on which path)
-- [ ] Automated failover (if Fly.io region down → spawn on Hetzner K3s)
+- [ ] Provider health monitoring (which pods on which infrastructure)
 
 ---
 
-## 7. References
+## 6. References
 
 - [Cloud Deployment Research Report](./cloud-deployment-research-report.md)
-- [Fly.io Machines API](https://fly.io/docs/machines/api/)
-- [Fly.io Enterprise](https://fly.io/enterprise/)
-- [Fly.io SLA](https://fly.io/legal/sla-uptime/)
-- [Fly.io Support](https://fly.io/support/)
 - [Hetzner Cloud API](https://docs.hetzner.cloud/)
 - [Hetzner SLA](https://docs.hetzner.com/general/company-and-policy/slas-cloud/)
 - [Hetzner Security (TOMs)](https://docs.hetzner.com/general/security-and-identify/technical-and-organizational-measures/)
 - [Cloudfleet Managed Kubernetes](https://cloudfleet.ai/lp/managed-hetzner-kubernetes/)
 - [Litestream Documentation](https://litestream.io/)
-- [Litestream VFS (Fly.io blog)](https://fly.io/blog/litestream-vfs/)
 - [Backblaze B2](https://www.backblaze.com/cloud-storage)
-- [Tigris Object Storage](https://www.tigrisdata.com/)
 - [Hetzner Object Storage](https://www.hetzner.com/storage/object-storage)
 - [hetzner-k3s](https://vitobotta.github.io/hetzner-k3s/)

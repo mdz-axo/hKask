@@ -3,90 +3,6 @@
 use hkask_services::{PodService, PodStatusResponse, ServiceError};
 
 use crate::cli::PodAction;
-use crate::cloud::fly::FlyClient;
-
-/// Attempt to start the Fly.io Machine for this pod, if Fly.io is configured.
-/// No-op if FLY_API_TOKEN is not set or the Machine doesn't exist (yet).
-async fn cloud_activate(pod_id: &str) {
-    let token = match std::env::var("FLY_API_TOKEN") {
-        Ok(t) if !t.is_empty() => t,
-        _ => return,
-    };
-    let app_name = format!("hkask-pod-{pod_id}");
-    let client = FlyClient::new(token);
-
-    // List machines to find the one matching this pod
-    match client.list_machines(&app_name).await {
-        Ok(machines) => {
-            if let Some(machine) = machines.first() {
-                if let Err(e) = client.start_machine(&app_name, &machine.id).await {
-                    tracing::warn!(
-                        target: "cns.cloud",
-                        pod_id = %pod_id,
-                        error = %e,
-                        "Failed to start Fly Machine"
-                    );
-                } else {
-                    tracing::info!(
-                        target: "cns.cloud",
-                        pod_id = %pod_id,
-                        machine_id = %machine.id,
-                        "Fly Machine started"
-                    );
-                }
-            }
-        }
-        Err(e) => {
-            tracing::warn!(
-                target: "cns.cloud",
-                pod_id = %pod_id,
-                error = %e,
-                "Failed to list Fly Machines"
-            );
-        }
-    }
-}
-
-/// Attempt to stop the Fly.io Machine for this pod, if Fly.io is configured.
-async fn cloud_deactivate(pod_id: &str) {
-    let token = match std::env::var("FLY_API_TOKEN") {
-        Ok(t) if !t.is_empty() => t,
-        _ => return,
-    };
-    let app_name = format!("hkask-pod-{pod_id}");
-    let client = FlyClient::new(token);
-
-    match client.list_machines(&app_name).await {
-        Ok(machines) => {
-            for machine in &machines {
-                if let Err(e) = client.stop_machine(&app_name, &machine.id).await {
-                    tracing::warn!(
-                        target: "cns.cloud",
-                        pod_id = %pod_id,
-                        machine_id = %machine.id,
-                        error = %e,
-                        "Failed to stop Fly Machine"
-                    );
-                } else {
-                    tracing::info!(
-                        target: "cns.cloud",
-                        pod_id = %pod_id,
-                        machine_id = %machine.id,
-                        "Fly Machine stopped"
-                    );
-                }
-            }
-        }
-        Err(e) => {
-            tracing::warn!(
-                target: "cns.cloud",
-                pod_id = %pod_id,
-                error = %e,
-                "Failed to list Fly Machines during deactivation"
-            );
-        }
-    }
-}
 
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  pod_id is a valid pod identifier
@@ -112,7 +28,7 @@ pub async fn list_pods() -> Result<Vec<PodStatusResponse>, ServiceError> {
 /// post: returns Ok(String) with the created pod ID
 /// post: if persona file unreadable → Err(ServiceError::Infra)
 /// post: delegates to PodService::create_pod
-/// Deploy a new replicant pod via Fly.io.
+/// Create a new replicant pod. Cloud deployment is handled via the K8s export/deploy pipeline.
 ///
 /// Creates a Fly App, volume, secrets, and machine for the replicant.
 /// The replicant name becomes the pod identifier (e.g., "alice" → hkask-pod-alice).
@@ -134,17 +50,7 @@ pub async fn create_pod(
         },
     )
     .await?;
-    let pod_id = resp.pod_id.clone();
-
-    // Deploy via Fly.io if configured
-    let config = hkask_services_cloud::DeployConfig::from_env(&pod_id);
-    if config.fly_token.is_empty() {
-        return Ok(pod_id);
-    }
-
-    PodService::deploy_fly_pod(&pod_id, &config).await?;
-
-    Ok(pod_id)
+    Ok(resp.pod_id)
 }
 
 /// expect: "I can access all hKask functionality through the kask CLI"
@@ -154,8 +60,8 @@ pub async fn create_pod(
 pub async fn activate_pod(pod_id: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
     PodService::activate_pod(&ctx, pod_id).await?;
-    // Best-effort cloud activation: try Fly.io first, then Hetzner K3s
-    cloud_activate(pod_id).await;
+    // Best-effort K8s activation
+    // cloud activation handled by K8s pipeline
     cloud_activate_k8s(pod_id);
     Ok(())
 }
@@ -167,8 +73,8 @@ pub async fn activate_pod(pod_id: &str) -> Result<(), ServiceError> {
 pub async fn deactivate_pod(pod_id: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
     PodService::deactivate_pod(&ctx, pod_id).await?;
-    // Best-effort cloud deactivation: try Fly.io first, then Hetzner K3s
-    cloud_deactivate(pod_id).await;
+    // Best-effort K8s deactivation
+    // cloud deactivation handled by K8s pipeline
     cloud_deactivate_k8s(pod_id);
     Ok(())
 }
@@ -207,126 +113,6 @@ pub async fn export_container(
         .map_err(|e| ServiceError::Pod {
             message: e.to_string(),
         })
-}
-
-/// Export a pod as a Fly.io deployment context (fly.toml + secrets script).
-/// Writes to output_dir:
-///   fly.toml        — Fly.io app configuration
-///   fly-secrets.sh  — secrets to set via `fly secrets set`
-pub async fn export_fly(
-    pod_id: &str,
-    region: &str,
-    volume_size_gb: u32,
-    output_dir: &std::path::Path,
-) -> Result<(), String> {
-    std::fs::create_dir_all(output_dir)
-        .map_err(|e| format!("Failed to create output directory: {e}"))?;
-
-    let app_name = format!("hkask-pod-{pod_id}");
-    let container_registry =
-        std::env::var("CONTAINER_REGISTRY").unwrap_or_else(|_| "ghcr.io/mdz-axo/hkask".to_string());
-    let version = std::env::var("HKASK_VERSION").unwrap_or_else(|_| "0.30.0".to_string());
-    let base_url =
-        std::env::var("HKASK_BASE_URL").unwrap_or_else(|_| format!("https://{app_name}.fly.dev"));
-
-    // --- fly.toml ---
-    let fly_toml = format!(
-        r#"app = "{app_name}"
-primary_region = "{region}"
-
-[build]
-  image = "{container_registry}:kask-{version}"
-
-[[vm]]
-  cpu_kind = "shared"
-  cpus = 1
-  memory_mb = 512
-
-[mounts]
-  source = "hkask_data"
-  destination = "/data"
-  initial_size = "{volume_size_gb}gb"
-  auto_extend_size_increment = "1gb"
-  auto_extend_size_limit = "10gb"
-
-[[services]]
-  protocol = "tcp"
-  internal_port = 3000
-
-  [[services.ports]]
-    port = 443
-    handlers = ["tls", "http"]
-
-  [[services.ports]]
-    port = 80
-    handlers = ["http"]
-    force_https = true
-
-  auto_stop_machines = true
-  auto_start_machines = true
-  min_machines_running = 0
-
-[experimental]
-  auto_rollback = true
-
-[deploy]
-  release_command = "kask migrate --data-dir /data"
-
-[env]
-  HKASK_DATA_DIR = "/data"
-  POD_ID = "{pod_id}"
-  HKASK_BASE_URL = "{base_url}"
-"#
-    );
-
-    std::fs::write(output_dir.join("fly.toml"), &fly_toml)
-        .map_err(|e| format!("Failed to write fly.toml: {e}"))?;
-
-    // --- fly-secrets.sh ---
-    let litestream_bucket = std::env::var("LITESTREAM_BUCKET").unwrap_or_default();
-    let litestream_endpoint = std::env::var("LITESTREAM_ENDPOINT").unwrap_or_default();
-    let litestream_region =
-        std::env::var("LITESTREAM_REGION").unwrap_or_else(|_| "auto".to_string());
-    let litestream_access_key = std::env::var("LITESTREAM_ACCESS_KEY_ID").unwrap_or_default();
-    let litestream_secret_key = std::env::var("LITESTREAM_SECRET_ACCESS_KEY").unwrap_or_default();
-    let litestream_force_path =
-        std::env::var("LITESTREAM_FORCE_PATH_STYLE").unwrap_or_else(|_| "false".to_string());
-    let keystore_passphrase = std::env::var("HKASK_KEYSTORE_PASSPHRASE").unwrap_or_default();
-
-    let secrets_script = format!(
-        r#"#!/bin/bash
-# Generated by: kask pod export fly {pod_id}
-# Run once before first deploy: source fly-secrets.sh
-# WARNING: Contains secrets. Never commit to version control.
-
-fly secrets set \
-  LITESTREAM_BUCKET="{litestream_bucket}" \
-  LITESTREAM_ENDPOINT="{litestream_endpoint}" \
-  LITESTREAM_REGION="{litestream_region}" \
-  LITESTREAM_ACCESS_KEY_ID="{litestream_access_key}" \
-  LITESTREAM_SECRET_ACCESS_KEY="{litestream_secret_key}" \
-  LITESTREAM_FORCE_PATH_STYLE="{litestream_force_path}" \
-  POD_ID="{pod_id}" \
-  HKASK_KEYSTORE_PASSPHRASE="{keystore_passphrase}"
-"#
-    );
-
-    let secrets_path = output_dir.join("fly-secrets.sh");
-    std::fs::write(&secrets_path, &secrets_script)
-        .map_err(|e| format!("Failed to write fly-secrets.sh: {e}"))?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = std::fs::metadata(&secrets_path)
-            .map_err(|e| format!("Failed to read secrets file metadata: {e}"))?
-            .permissions();
-        perms.set_mode(0o700);
-        std::fs::set_permissions(&secrets_path, perms)
-            .map_err(|e| format!("Failed to set secrets file permissions: {e}"))?;
-    }
-
-    Ok(())
 }
 
 /// Export a pod as K8s manifests for Hetzner K3s deployment.
@@ -676,7 +462,7 @@ pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
                 "Failed to create pod"
             );
             println!("Pod deployed: {}", pod_id);
-            println!("URL: https://hkask-pod-{}.fly.dev", pod_id);
+            println!("URL: https://hkask-pod-{}.example.com", pod_id);
             println!("Template: {}", template);
             println!("Persona file: {}", persona.display());
             if let Some(n) = &name {
@@ -766,23 +552,6 @@ pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
                 output.display()
             );
         }
-        PodAction::ExportFly {
-            pod_id,
-            region,
-            volume_size_gb,
-            output,
-        } => match rt.block_on(export_fly(&pod_id, &region, volume_size_gb, &output)) {
-            Ok(()) => {
-                println!("Fly.io deployment exported: {}", pod_id);
-                println!("  fly.toml:        {}/fly.toml", output.display());
-                println!("  fly-secrets.sh:  {}/fly-secrets.sh", output.display());
-                println!();
-                println!("Next steps:");
-                println!("  1. source {}/fly-secrets.sh", output.display());
-                println!("  2. fly deploy --config {}/fly.toml", output.display());
-            }
-            Err(e) => eprintln!("Fly export failed: {e}"),
-        },
         PodAction::ExportK8s {
             pod_id,
             volume_size_gb,

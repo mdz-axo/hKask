@@ -3,7 +3,7 @@ name = "hkask-services-cloud"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "hKask cloud deployment — Fly.io, Tigris, Hetzner API clients"
+description = "hKask cloud deployment — Hetzner K3s API client"
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }

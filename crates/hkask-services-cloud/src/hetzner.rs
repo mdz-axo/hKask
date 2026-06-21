@@ -168,7 +168,7 @@ impl HetznerClient {
 /// Validate that Hetzner Object Storage is reachable with the given credentials.
 ///
 /// Uses the S3-compatible API endpoint. This is the same validation pattern
-/// as Tigris, adapted for Hetzner's path-style addressing.
+/// as other S3-compatible storage, adapted for Hetzner's path-style addressing.
 pub async fn validate_object_storage(
     endpoint: &str,
     bucket: &str,

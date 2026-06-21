@@ -22,7 +22,7 @@ The Hetzner environment is provisioned (API key, storage bucket, cloud server) b
 | 4 | `kask pod export k8s` validation | Manifests are generated correctly (verified by code review), but cannot be applied and tested end-to-end without a running K3s cluster. | Apply manifests against provisioned cluster, verify StatefulSet creates pods, Litestream-sidecar connects to Hetzner OS, Conduit starts, kask serves health endpoint. |
 | 5 | Integration test: full lifecycle | Depends on #1-4. | End-to-end: create pod → deploy to K3s → Litestream backs up to Hetzner OS → activate/deactivate via kubectl → destroy. |
 | 6 | CNS span for cloud provider health | Code exists. Cannot emit real spans without running infrastructure. | Verify span emission once K3s is running. |
-| 7 | Automated failover (Fly.io → Hetzner) | Depends on both Fly.io and Hetzner being operational simultaneously. | Cross-provider migration test: generate K8s manifests → apply → Litestream restores from same object storage bucket → verify pod state identical. |
+| 7 | Automated failover (multi-region K3s) | Depends on multi-cluster K3s and cross-region Litestream restore testing. | Cross-cluster migration test: export K8s manifests → apply to second cluster → Litestream restores from same object storage bucket → verify pod state identical. |
 
 ## What Exists and Is Testable
 
@@ -38,4 +38,4 @@ The Hetzner environment is provisioned (API key, storage bucket, cloud server) b
 
 ## Recommendation
 
-Table Hetzner work until direct cluster access is available. Focus on the Fly.io deployment path which has no infrastructure blockers. The Hetzner code is complete and ready to test — it just needs a cluster to run against.
+Table Hetzner work until direct cluster access is available. Focus on the K8s deployment path. The Hetzner code is complete and ready to test — it just needs a cluster to run against. The fly.io path has been deprecated and all fly.io code removed.

@@ -1,11 +1,8 @@
-pub mod fly;
 pub mod hetzner;
-pub mod tigris;
 
 /// Configuration for deploying a pod to cloud infrastructure.
+/// DeployConfig is used by the Kubernetes-based deployment path (Hetzner K3s).
 pub struct DeployConfig {
-    pub fly_token: String,
-    pub org_slug: String,
     pub container_registry: String,
     pub version: String,
     pub matrix_url: String,
@@ -22,15 +19,12 @@ pub struct DeployConfig {
 impl DeployConfig {
     /// Build from environment variables with sensible defaults.
     pub fn from_env(pod_id: &str) -> Self {
-        let app_name = format!("hkask-pod-{pod_id}");
         Self {
-            fly_token: std::env::var("FLY_API_TOKEN").unwrap_or_default(),
-            org_slug: std::env::var("FLY_ORG_SLUG").unwrap_or_else(|_| "personal".to_string()),
             container_registry: std::env::var("CONTAINER_REGISTRY")
                 .unwrap_or_else(|_| "ghcr.io/mdz-axo/hkask".to_string()),
             version: std::env::var("HKASK_VERSION").unwrap_or_else(|_| "0.30.0".to_string()),
             matrix_url: std::env::var("HKASK_MATRIX_URL")
-                .unwrap_or_else(|_| "http://hkask-conduit.internal:8008".to_string()),
+                .unwrap_or_else(|_| "http://hkask-conduit:8008".to_string()),
             litestream_bucket: std::env::var("LITESTREAM_BUCKET").unwrap_or_default(),
             litestream_endpoint: std::env::var("LITESTREAM_ENDPOINT").unwrap_or_default(),
             litestream_region: std::env::var("LITESTREAM_REGION")
@@ -42,7 +36,7 @@ impl DeployConfig {
                 .unwrap_or_else(|_| "false".to_string()),
             keystore_passphrase: std::env::var("HKASK_KEYSTORE_PASSPHRASE").unwrap_or_default(),
             base_url: std::env::var("HKASK_BASE_URL")
-                .unwrap_or_else(|_| format!("https://{app_name}.fly.dev")),
+                .unwrap_or_else(|_| format!("https://hkask-pod-{pod_id}.example.com")),
         }
     }
 }

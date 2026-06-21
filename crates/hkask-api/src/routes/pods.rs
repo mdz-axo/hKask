@@ -150,11 +150,6 @@ async fn create_pod(
     )
     .await?;
 
-    // Deploy via Fly.io if the Curator pod has FLY_API_TOKEN configured
-    let config = hkask_services_cloud::DeployConfig::from_env(&resp.pod_id);
-    if !config.fly_token.is_empty() {
-        let _url = hkask_services::PodService::deploy_fly_pod(&resp.pod_id, &config).await?;
-    }
 
     Ok(Json(CreatePodResponse {
         pod_id: resp.pod_id,

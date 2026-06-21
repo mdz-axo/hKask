@@ -3,8 +3,6 @@
 //! Checks each provider key is set and makes a lightweight API call
 //! to verify the credentials are valid. Reports tier status.
 
-use crate::block_on;
-
 /// Run a diagnostic check on all configured providers.
 pub async fn run_doctor() {
     println!("hKask Doctor — Provider Health Check\n");
@@ -55,7 +53,6 @@ pub async fn run_doctor() {
     // ── Cloud ──────────────────────────────────────────────
     println!("Cloud Providers");
     println!("───────────────");
-    configured += check_env("FLY_API_TOKEN", "Fly.io", &mut total);
     configured += check_env("HCLOUD_TOKEN", "Hetzner Cloud", &mut total);
     println!();
 
@@ -117,6 +114,6 @@ fn check_env(var: &str, label: &str, total: &mut u32) -> u32 {
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  none
 /// post: prints provider health report to stdout
-pub fn run_doctor_cmd(_rt: &tokio::runtime::Runtime) {
-    block_on!(_rt, run_doctor(), "Doctor check failed");
+pub fn run_doctor_cmd(rt: &tokio::runtime::Runtime) {
+    let _ = rt.block_on(run_doctor());
 }
