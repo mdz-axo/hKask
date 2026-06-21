@@ -46,6 +46,15 @@ impl KataHistory {
     /// pre:  self is valid; path is a writable filesystem location
     /// post: history serialized as pretty JSON to path, or Err on failure
     pub fn save(&self, path: &Path) -> Result<(), KataError> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                KataError::LoadFailed(format!(
+                    "Failed to create history directory {}: {}",
+                    parent.display(),
+                    e
+                ))
+            })?;
+        }
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| KataError::LoadFailed(format!("Failed to serialize history: {}", e)))?;
         std::fs::write(path, &json).map_err(|e| {

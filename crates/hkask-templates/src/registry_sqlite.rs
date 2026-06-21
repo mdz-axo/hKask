@@ -75,8 +75,19 @@ impl SqliteRegistry {
     /// post: returns SqliteRegistry with schema initialized
     pub fn new(path: Option<&str>) -> Result<Self> {
         let conn = match path {
-            Some(p) => Connection::open(p)
-                .map_err(|e| TemplateError::Manifest(format!("Failed to open SQLite: {}", e)))?,
+            Some(p) => {
+                if let Some(parent) = std::path::Path::new(p).parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| {
+                        TemplateError::Manifest(format!(
+                            "Failed to create registry directory {}: {}",
+                            parent.display(),
+                            e
+                        ))
+                    })?;
+                }
+                Connection::open(p)
+                    .map_err(|e| TemplateError::Manifest(format!("Failed to open SQLite: {}", e)))?
+            }
             None => {
                 tracing::warn!(target: "hkask.templates",
                     "No database path — template registry is in-memory and will be lost on restart.");

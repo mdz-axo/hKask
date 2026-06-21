@@ -30,6 +30,15 @@ impl KataState {
     /// pre:  self is a valid KataState; path is a writable filesystem location
     /// post: state serialized to JSON at path, or Err if serialization/write fails
     pub fn save(&self, path: &std::path::Path) -> Result<(), KataError> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                KataError::LoadFailed(format!(
+                    "Failed to create save directory {}: {}",
+                    parent.display(),
+                    e
+                ))
+            })?;
+        }
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| KataError::LoadFailed(format!("Failed to serialize state: {}", e)))?;
         std::fs::write(path, &json).map_err(|e| {

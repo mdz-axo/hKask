@@ -4372,6 +4372,7 @@ dependencies = [
  "chrono",
  "dirs",
  "dotenvy",
+ "hkask-ledger",
  "hkask-mcp",
  "hkask-types",
  "reqwest",

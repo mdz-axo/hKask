@@ -8,6 +8,7 @@ use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use hkask_ledger::{Ledger, LedgerTransaction, Posting};
 use hkask_types::time::now_rfc3339;
 
 // ── Transaction ─────────────────────────────────────────────────────
@@ -57,6 +58,8 @@ pub struct PositionSummary {
 
 pub struct PortfolioManager {
     db_path: PathBuf,
+    /// Optional cost ledger for double-entry accounting.
+    ledger_path: Option<PathBuf>,
 }
 
 impl Default for PortfolioManager {
@@ -139,7 +142,17 @@ impl PortfolioManager {
                 CREATE INDEX IF NOT EXISTS idx_files_symbol ON files(symbol);"
             );
         }
-        Self { db_path: path }
+        Self {
+            db_path: path,
+            ledger_path: None,
+        }
+    }
+
+    /// Attach a ledger for double-entry accounting.
+    /// Transactions will be mirrored to the ledger as postings.
+    pub fn with_ledger(mut self, ledger_path: PathBuf) -> Self {
+        self.ledger_path = Some(ledger_path);
+        self
     }
 
     #[cfg(test)]
@@ -212,7 +225,10 @@ impl PortfolioManager {
                 CREATE INDEX IF NOT EXISTS idx_files_symbol ON files(symbol);"
             );
         }
-        Self { db_path }
+        Self {
+            db_path,
+            ledger_path: None,
+        }
     }
 
     fn open(&self) -> Result<Connection, String> {
@@ -304,7 +320,190 @@ impl PortfolioManager {
             ],
         )
         .map_err(|e| format!("insert: {e}"))?;
+
+        // Mirror to cost ledger if configured
+        if let Some(ref ledger_path) = self.ledger_path {
+            self.commit_to_ledger(ledger_path, name, tx)?;
+        }
+
         Ok(())
+    }
+
+    /// Commit a transaction to the double-entry ledger as postings.
+    fn commit_to_ledger(
+        &self,
+        ledger_path: &std::path::Path,
+        portfolio_name: &str,
+        tx: &Transaction,
+    ) -> Result<(), String> {
+        let ledger = Ledger::open(ledger_path).map_err(|e| format!("ledger open: {e}"))?;
+
+        // Ensure accounts exist (idempotent)
+        let _ = ledger.ensure_account("portfolio:cash/main", "portfolio");
+        let _ = ledger.ensure_account("cost:brokerage/fees", "cost");
+        if let Some(ref sym) = tx.symbol {
+            let pos_account = format!("portfolio:position/{sym}");
+            let _ = ledger.ensure_account(&pos_account, "portfolio");
+        }
+
+        let now = chrono::Utc::now().to_rfc3339();
+        let reference = format!("portfolio:{portfolio_name}:tx:{}", tx.id);
+
+        // Convert amounts to integer cents (µUSD) for ledger
+        let amount_cents = (tx.amount.unwrap_or(0.0) * 100.0) as i64;
+        let commission_cents = (tx.commission.unwrap_or(0.0) * 100.0) as i64;
+
+        match tx.tx_type.as_str() {
+            "buy" => {
+                let symbol = tx.symbol.as_deref().unwrap_or("UNKNOWN");
+                let pos_account = format!("portfolio:position/{symbol}");
+                let total = amount_cents + commission_cents;
+
+                // Cash → Position  +  Brokerage fee
+                let tx_ref = format!("{reference}/buy");
+                let ledger_tx = LedgerTransaction {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    timestamp: now,
+                    reference: tx_ref,
+                    postings: vec![
+                        Posting {
+                            source: "portfolio:cash/main".into(),
+                            destination: pos_account,
+                            asset: "USD".into(),
+                            amount: amount_cents,
+                        },
+                        Posting {
+                            source: "portfolio:cash/main".into(),
+                            destination: "cost:brokerage/fees".into(),
+                            asset: "USD".into(),
+                            amount: commission_cents,
+                        },
+                    ],
+                    metadata: serde_json::json!({
+                        "portfolio": portfolio_name,
+                        "tx_id": tx.id,
+                        "type": "buy",
+                        "symbol": symbol,
+                        "quantity": tx.quantity,
+                        "price": tx.price,
+                    }),
+                };
+                ledger
+                    .commit(&ledger_tx)
+                    .map_err(|e| format!("ledger commit buy: {e}"))?;
+            }
+            "sell" => {
+                let symbol = tx.symbol.as_deref().unwrap_or("UNKNOWN");
+                let pos_account = format!("portfolio:position/{symbol}");
+                let net = amount_cents - commission_cents;
+
+                // Position → Cash, minus brokerage fee
+                let tx_ref = format!("{reference}/sell");
+                let ledger_tx = LedgerTransaction {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    timestamp: now,
+                    reference: tx_ref,
+                    postings: vec![
+                        Posting {
+                            source: pos_account,
+                            destination: "portfolio:cash/main".into(),
+                            asset: "USD".into(),
+                            amount: amount_cents,
+                        },
+                        Posting {
+                            source: "portfolio:cash/main".into(),
+                            destination: "cost:brokerage/fees".into(),
+                            asset: "USD".into(),
+                            amount: commission_cents,
+                        },
+                    ],
+                    metadata: serde_json::json!({
+                        "portfolio": portfolio_name,
+                        "tx_id": tx.id,
+                        "type": "sell",
+                        "symbol": symbol,
+                        "quantity": tx.quantity,
+                        "price": tx.price,
+                    }),
+                };
+                ledger
+                    .commit(&ledger_tx)
+                    .map_err(|e| format!("ledger commit sell: {e}"))?;
+            }
+            "dividend" | "deposit" => {
+                // External → Cash (income)
+                let tx_ref = format!("{reference}/{}", tx.tx_type);
+                let ledger_tx = LedgerTransaction {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    timestamp: now,
+                    reference: tx_ref,
+                    postings: vec![Posting {
+                        source: "external:income".into(),
+                        destination: "portfolio:cash/main".into(),
+                        asset: "USD".into(),
+                        amount: amount_cents,
+                    }],
+                    metadata: serde_json::json!({
+                        "portfolio": portfolio_name,
+                        "tx_id": tx.id,
+                        "type": tx.tx_type,
+                    }),
+                };
+                ledger
+                    .commit(&ledger_tx)
+                    .map_err(|e| format!("ledger commit {type}: {e}", type = tx.tx_type))?;
+            }
+            "withdrawal" => {
+                // Cash → External
+                let tx_ref = format!("{reference}/withdrawal");
+                let ledger_tx = LedgerTransaction {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    timestamp: now,
+                    reference: tx_ref,
+                    postings: vec![Posting {
+                        source: "portfolio:cash/main".into(),
+                        destination: "external:income".into(),
+                        asset: "USD".into(),
+                        amount: amount_cents,
+                    }],
+                    metadata: serde_json::json!({
+                        "portfolio": portfolio_name,
+                        "tx_id": tx.id,
+                        "type": "withdrawal",
+                    }),
+                };
+                ledger
+                    .commit(&ledger_tx)
+                    .map_err(|e| format!("ledger commit withdrawal: {e}"))?;
+            }
+            _ => {} // ignore unknown types
+        }
+
+        Ok(())
+    }
+
+    /// Query the cash balance from the ledger (in cents).
+    pub fn ledger_cash_balance(&self) -> Result<i64, String> {
+        let path = self
+            .ledger_path
+            .as_ref()
+            .ok_or_else(|| "no ledger configured".to_string())?;
+        let ledger = Ledger::open(path).map_err(|e| format!("ledger open: {e}"))?;
+        ledger
+            .balance("portfolio:cash/main", Some("USD"))
+            .map_err(|e| format!("balance query: {e}"))
+    }
+
+    /// Query position balances from the ledger.
+    pub fn ledger_positions(&self) -> Result<Vec<hkask_ledger::AccountBalance>, String> {
+        let path = self
+            .ledger_path
+            .as_ref()
+            .ok_or_else(|| "no ledger configured".to_string())?;
+        let ledger = Ledger::open(path).map_err(|e| format!("ledger open: {e}"))?;
+        ledger
+            .namespace_balances("portfolio")
+            .map_err(|e| format!("balances query: {e}"))
     }
 
     pub fn append_note(&self, name: &str, tx_id: &str, note: &str) -> Result<(), String> {

@@ -1012,7 +1012,11 @@ async fn build_mcp_and_pods(
                     std::path::PathBuf::from(&config.template_cache_path),
                 )),
                 Arc::new(hkask_agents::DenyAllConsent),
-                std::path::PathBuf::from(&config.db_path),
+                // Pod storage lives alongside the main DB, not inside it.
+                std::path::Path::new(&config.db_path)
+                    .parent()
+                    .unwrap_or(std::path::Path::new("."))
+                    .to_path_buf(),
             )),
             Arc::new(mcp_runtime_adapter),
             Some(governed_tool.clone()),
@@ -1030,7 +1034,10 @@ async fn build_mcp_and_pods(
     // Runs as a background task for the lifetime of the service.
     let (curator_cancel_tx, curator_cancel_rx) = tokio::sync::watch::channel(false);
     let curator_pm = Arc::clone(&pod_manager);
-    let curator_data_dir = std::path::PathBuf::from(&config.db_path);
+    let curator_data_dir = std::path::Path::new(&config.db_path)
+        .parent()
+        .unwrap_or(std::path::Path::new("."))
+        .to_path_buf();
     tokio::spawn(async move {
         match curator_pm
             .ensure_curator(curator_data_dir, curator_cancel_rx)

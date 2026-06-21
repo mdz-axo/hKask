@@ -16,6 +16,8 @@ use thiserror::Error;
 /// Errors the ledger can produce.
 #[derive(Debug, Error)]
 pub enum LedgerError {
+    #[error("I/O error: {0}")]
+    Io(String),
     #[error("database error: {0}")]
     Database(#[from] rusqlite::Error),
     #[error("serialization error: {0}")]
@@ -93,6 +95,15 @@ impl Ledger {
     /// inv:  idempotent — opening the same path twice creates the same tables
     /// [P8] Constraining: Persistence — data survives process restarts
     pub fn open(path: &std::path::Path) -> Result<Self, LedgerError> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                LedgerError::Io(format!(
+                    "Failed to create ledger directory {}: {}",
+                    parent.display(),
+                    e
+                ))
+            })?;
+        }
         let db = Connection::open(path)?;
         db.execute_batch(
             "CREATE TABLE IF NOT EXISTS accounts (
