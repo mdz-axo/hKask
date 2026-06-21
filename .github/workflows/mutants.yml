@@ -38,7 +38,12 @@ jobs:
         if: always() && steps.mutants.outcome != 'skipped'
         env:
           DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
-        run: grep 'Uncaught' mutants-output.txt | cargo run --bin kask -- qa suggest-fuzz
+        run: |
+          if grep -q 'Uncaught' mutants-output.txt; then
+            grep 'Uncaught' mutants-output.txt | cargo run --bin kask -- qa suggest-fuzz
+          else
+            echo "No uncaught mutants — all mutations killed."
+          fi
 
   deep-fuzz:
     name: Deep Fuzz (libfuzzer)

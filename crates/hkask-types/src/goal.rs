@@ -39,7 +39,10 @@ impl GoalState {
     }
 
     pub fn is_terminal(&self) -> bool {
-        false /* ~ changed by cargo-mutants ~ */
+        matches!(
+            self,
+            GoalState::Completed | GoalState::Blocked | GoalState::Abandoned
+        )
     }
 
     pub fn can_transition_to(&self, next: GoalState) -> bool {
