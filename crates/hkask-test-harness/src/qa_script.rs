@@ -12,7 +12,7 @@
 //! - P9 (Homeostatic Self-Regulation): autonomous branching adapts to classifier output
 //! - P5 (Essentialism): one runner, one manifest, no framework
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;
@@ -59,6 +59,9 @@ fn default_alert_threshold() -> f64 {
 fn default_hard_limit() -> bool {
     true
 }
+fn default_gas_multiplier() -> u32 {
+    1
+}
 
 /// CNS (Cybernetic Nervous System) configuration.
 #[derive(Debug, Clone, Deserialize)]
@@ -84,7 +87,7 @@ pub struct QaScriptStep {
     #[serde(default)]
     pub branching: HashMap<String, u32>,
     pub default_next: Option<u32>,
-    #[serde(default)]
+    #[serde(default = "default_gas_multiplier")]
     pub gas_multiplier: u32,
     pub training_cost_urj: Option<u64>,
     pub max_iterations: Option<u32>,
@@ -125,6 +128,7 @@ struct DiagnosisFields {
     confidence: f64,
     is_flake: bool,
     root_cause: Option<String>,
+    #[allow(dead_code)]
     proposed_fix: Option<String>,
 }
 
@@ -350,7 +354,7 @@ impl fmt::Display for QaScriptError {
     }
 }
 
-// ── Runner ──────────────────────────────────────────────────────────────────────
+impl std::error::Error for QaScriptError {}
 
 /// Closure type for the classify function.
 pub type ClassifyFn = dyn Fn(&str, &[String]) -> Result<Vec<ClassifyResult>, String> + Send + Sync;
@@ -736,7 +740,7 @@ impl QaScriptRunner {
                 cost: StepCost::default(),
             })
         } else {
-            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            let _stderr = String::from_utf8_lossy(&output.stderr).to_string();
             Ok(StepResult {
                 ordinal: step.ordinal,
                 action: "run_command".into(),
@@ -754,12 +758,12 @@ impl QaScriptRunner {
         start_idx: usize,
         steps: &[QaScriptStep],
         cost: &mut CostTracker,
-        gas_cap: u64,
+        _gas_cap: u64,
         step_gas: u64,
     ) -> Result<StepResult, QaScriptError> {
         let step = &steps[start_idx];
         let max_iter = step.max_iterations.unwrap_or(10);
-        let loop_start = step.ordinal + 1;
+        let _loop_start = step.ordinal + 1;
 
         for i in 0..max_iter {
             cost.gas_used += step_gas;
@@ -881,14 +885,18 @@ gas:
 steps:
   - ordinal: 1
     action: run_command
+    description: "Test command 1"
     command: echo hello
     branching: {}
     retries: 1
   - ordinal: 2
     action: run_command
+    description: "Test command 2"
     command: echo world
     branching: {}
     retries: 1
+cns:
+  emit_spans: false
 "#;
         let manifest: QaScriptManifest = serde_yaml_neo::from_str(yaml).unwrap();
         let classify: Box<ClassifyFn> = Box::new(|_name, _passages| Ok(vec![]));
@@ -918,6 +926,8 @@ steps:
     description: "Test passage"
     branching: {}
     retries: 1
+cns:
+  emit_spans: false
 "#;
         let manifest: QaScriptManifest = serde_yaml_neo::from_str(yaml).unwrap();
         let classify: Box<ClassifyFn> = Box::new(|_name, _passages| {
@@ -956,14 +966,18 @@ steps:
     retries: 1
   - ordinal: 2
     action: run_command
+    description: "Skipped step"
     command: echo skipped
     branching: {}
     retries: 1
   - ordinal: 3
     action: run_command
+    description: "Auto repair step"
     command: echo auto-repair
     branching: {}
     retries: 1
+cns:
+  emit_spans: false
 "#;
         let manifest: QaScriptManifest = serde_yaml_neo::from_str(yaml).unwrap();
         // Mock classify returns high confidence
@@ -1011,11 +1025,16 @@ steps:
     description: "Test classify"
     branching: {}
     retries: 1
+    gas_multiplier: 1
   - ordinal: 2
     action: run_command
+    description: "Test command"
     command: echo ok
     branching: {}
     retries: 1
+    gas_multiplier: 1
+cns:
+  emit_spans: false
 "#;
         let manifest: QaScriptManifest = serde_yaml_neo::from_str(yaml).unwrap();
 
