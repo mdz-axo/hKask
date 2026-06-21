@@ -55,6 +55,16 @@ pub struct UserProfile {
     pub email: String,
 }
 
+impl UserProfile {
+    pub fn replicant_display_name(&self, chosen_first_name: &str) -> String {
+        if chosen_first_name.is_empty() {
+            format!("{} {}", self.first_name, self.last_name)
+        } else {
+            format!("{} ({})", chosen_first_name, self.last_name)
+        }
+    }
+}
+
 /// A right granted to an agent
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Right {

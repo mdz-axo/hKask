@@ -8,7 +8,7 @@
 //! Uses ratatui for rendering, ffplay for audio, crossterm for input.
 
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
-use hkask_mcp_media::TranscriptBundle;
+use hkask_types::TranscriptBundle;
 use ratatui::prelude::CrosstermBackend;
 use ratatui::{
     Frame, Terminal,

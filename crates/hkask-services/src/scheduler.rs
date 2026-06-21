@@ -3,7 +3,7 @@
 //! The curation loop checks for due tasks each cycle.
 
 use hkask_storage::AgentRegistryStore;
-use hkask_agents::ScheduledTask;
+use hkask_types::ScheduledTask;
 
 use crate::ServiceError;
 
@@ -28,7 +28,7 @@ impl SchedulerService {
             trigger: trigger.to_string(),
             action: action.to_string(),
             params: params.map(|s| s.to_string()),
-            next_run: next_run.to_string(),
+            next_run: Some(next_run.to_string()),
             enabled: true,
         };
         store

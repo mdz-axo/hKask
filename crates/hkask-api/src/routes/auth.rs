@@ -15,7 +15,7 @@ use axum::{
     http::{StatusCode, header},
     response::Response,
 };
-use hkask_services_core::OAuthProvider;
+use hkask_types::identity::OAuthProvider;
 use serde::Deserialize;
 use tracing;
 

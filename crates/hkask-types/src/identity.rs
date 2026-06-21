@@ -19,6 +19,17 @@ impl std::fmt::Display for OAuthProvider {
     }
 }
 
+impl std::str::FromStr for OAuthProvider {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "github" => Ok(OAuthProvider::GitHub),
+            "google" => Ok(OAuthProvider::Google),
+            other => Err(format!("Unknown OAuth provider: {other}")),
+        }
+    }
+}
+
 /// User role
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]

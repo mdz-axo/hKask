@@ -13,8 +13,7 @@
 use hkask_services::{
     MatrixRegistrationResult, OnboardingService, ResolvedSecrets, ServiceConfig, ServiceError,
 };
-use hkask_types::{InfrastructureError, UserID};
-use hkask_agents::{RegisteredAgent, UserProfile};
+use hkask_types::{InfrastructureError, RegisteredAgent, UserID, UserProfile};
 use thiserror::Error;
 
 use crate::repl::display;
@@ -796,7 +795,7 @@ fn list_replicants(
     store: &hkask_storage::AgentRegistryStore,
 ) -> Result<Vec<RegisteredAgent>, OnboardingError> {
     store
-        .list_by_kind(hkask_agents::AgentKind::Replicant)
+        .list_by_kind(hkask_types::AgentKind::Replicant)
         .map_err(|e| {
             OnboardingError::Service(ServiceError::AgentRegistryStore {
                 message: e.to_string(),

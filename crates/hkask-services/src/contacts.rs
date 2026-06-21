@@ -3,7 +3,7 @@
 //! These are direct crate calls, not MCP tools.
 
 use hkask_storage::AgentRegistryStore;
-use hkask_agents::Contact;
+use hkask_types::Contact;
 
 use crate::ServiceError;
 

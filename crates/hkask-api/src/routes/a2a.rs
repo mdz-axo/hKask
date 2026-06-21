@@ -98,7 +98,7 @@ async fn a2a_register(
 ) -> Result<Json<A2ARegisterResponse>, ServiceErrorResponse> {
     let webid = parse_webid(&req.webid)?;
 
-    let agent_kind = hkask_agents::AgentKind::parse(&req.agent_type).ok_or_else(|| {
+    let agent_kind = hkask_types::AgentKind::parse(&req.agent_type).ok_or_else(|| {
         ServiceError::InvalidAgentType {
             source: None,
             message: format!(

@@ -5,10 +5,19 @@
 use std::sync::Arc;
 
 use hkask_agents::A2ARuntime;
+use hkask_agents::types::agent::definition::{AgentDefinition, Charter, RegisteredAgent as RichRA};
+use hkask_agents::types::agent::profile::UserProfile;
 use hkask_keystore::{Keychain, master_key::derive_all_internal_secrets};
 use hkask_storage::{AgentRegistryStore, Database};
 use hkask_types::time::now_rfc3339;
-use hkask_types::{AgentDefinition, AgentKind, Charter, RegisteredAgent, UserProfile, WebID};
+use hkask_types::{AgentKind, WebID};
+
+// Type aliases for clarity — onboarding uses hkask-agents rich types internally,
+// converts to hkask-types at storage boundaries.
+use hkask_agents::types::agent::definition::RegisteredAgent;
+// Also import hkask-types versions for storage return types
+use hkask_types::RegisteredAgent as StoreRegisteredAgent;
+use hkask_types::UserProfile as StoreUserProfile;
 
 use hkask_services_core::ServiceConfig;
 use hkask_services_core::ServiceError;
@@ -222,8 +231,18 @@ impl OnboardingService {
             voice_id: voice_id.map(|s| s.to_string()),
         };
 
-        let registered = RegisteredAgent {
-            definition,
+        let registered = hkask_types::RegisteredAgent {
+            definition: hkask_types::AgentDefinition {
+                name: definition.name,
+                agent_kind: definition.agent_kind,
+                charter: definition.charter.map(|c| hkask_types::Charter {
+                    purpose: c.description,
+                    constraints: vec![],
+                }),
+                capabilities: definition.capabilities,
+                rights: vec![],
+                responsibilities: vec![],
+            },
             token_hash: hex::encode(token.signature_bytes()),
             registered_at: now_rfc3339(),
             source_yaml: "onboarding".to_string(),
@@ -254,7 +273,7 @@ impl OnboardingService {
     /// post: profile is persisted to the registry store; Err(AgentRegistryStore) on store failure
     pub fn store_user_profile(
         store: &AgentRegistryStore,
-        profile: &UserProfile,
+        profile: &StoreUserProfile,
     ) -> Result<(), ServiceError> {
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "store_user_profile", "CNS");
@@ -272,7 +291,7 @@ impl OnboardingService {
     /// post: returns Some(UserProfile) if stored; None if no profile; Err(AgentRegistryStore) on store failure
     pub fn get_user_profile(
         store: &AgentRegistryStore,
-    ) -> Result<Option<UserProfile>, ServiceError> {
+    ) -> Result<Option<StoreUserProfile>, ServiceError> {
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "get_user_profile", "CNS");
         store
@@ -338,7 +357,7 @@ impl OnboardingService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config.db_path must be set; returns empty Vec on any failure
     /// post: returns `Vec<RegisteredAgent>` of replicants; empty Vec if DB inaccessible or no replicants
-    pub fn try_list_existing_replicants(config: &ServiceConfig) -> Vec<RegisteredAgent> {
+    pub fn try_list_existing_replicants(config: &ServiceConfig) -> Vec<StoreRegisteredAgent> {
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "try_list_existing_replicants", "CNS");
         let db_path = &config.db_path;

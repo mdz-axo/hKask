@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
+use hkask_agents::PersonaConstraints;
 use hkask_agents::curator::persona_filter;
 use hkask_agents::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
@@ -20,7 +21,7 @@ use hkask_ports::{InferencePort, StructuredToolCall};
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
-use hkask_types::{Confidence, PersonaConstraints, WebID};
+use hkask_types::{Confidence, WebID};
 
 use crate::ServiceError;
 use crate::{InferenceContext, InferenceService};
@@ -366,7 +367,10 @@ impl ChatService {
 
         // Compose system prompt from agent definition
         let mut system_prompt = match agent {
-            Some(registered) => registered.definition.compose_system_prompt(),
+            Some(registered) => format!(
+                "You are {}, a {} in the hKask system.\n\n",
+                registered.definition.name, registered.definition.agent_kind
+            ),
             None => format!("You are {}, an assistant in the hKask system.\n\n", name),
         };
 
