@@ -127,6 +127,35 @@ impl GitCasAdapter {
         })
     }
 
+    /// Load a template crate, synthesizing a minimal one if the directory is missing.
+    ///
+    /// System pods (Curator) and agents created without dedicated template directories
+    /// rely on this path. The synthesized crate contains a minimal agent_persona.yaml
+    /// and dispatch_manifest.yaml so the pod can boot without pre-existing files.
+    pub fn load_template_crate_or_synthesize(
+        &self,
+        crate_name: &str,
+    ) -> Result<TemplateCrate, InfrastructureError> {
+        match self.load_template_crate(crate_name) {
+            Ok(c) => Ok(c),
+            Err(InfrastructureError::NotFound(_)) => {
+                // Synthesize a minimal template crate for system/on-the-fly agents.
+                let persona_yaml = format!(
+                    "agent:\n  name: {crate_name}\n  version: \"0.1.0\"\n  agent_type: Bot\n"
+                );
+                let dispatch_manifest_yaml = "selector: default\n".to_string();
+                Ok(TemplateCrate {
+                    name: crate_name.to_string(),
+                    persona_yaml,
+                    dispatch_manifest_yaml,
+                    templates: Vec::new(),
+                    git_sha: "0000000000000000000000000000000000000000".to_string(),
+                })
+            }
+            Err(e) => Err(e),
+        }
+    }
+
     /// Resolve the current SHA for a crate
     pub(crate) fn resolve_sha(&self, _crate_name: &str) -> Result<String, InfrastructureError> {
         use std::process::Command;

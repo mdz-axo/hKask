@@ -463,6 +463,27 @@ impl OnboardingService {
     ) -> Result<MatrixRegistrationResult, ServiceError> {
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "register_matrix_accounts", replicant = %replicant_display_name, "CNS");
+
+        // ── Ensure Conduit is healthy before attempting registration ──
+        // If the server is unreachable, attempt container recovery, then retry.
+        // This makes Matrix setup self-healing across sessions.
+        if !conduit_ensure_healthy(homeserver_url).await {
+            // Recovery failed — store a marker so we retry on next session.
+            let keychain = Keychain::default();
+            let _ = keychain.store_by_key("matrix-pending-recovery", "true");
+            let _ = keychain.store_by_key("matrix-pending-homeserver", homeserver_url);
+            return Err(ServiceError::Matrix {
+                source: None,
+                message: format!(
+                    "Conduit at {} is unreachable and recovery failed. \
+                     Start it manually: ./scripts/conduit/conduit-docker.sh start",
+                    homeserver_url
+                ),
+            });
+        }
+
+        // Clear any pending-recovery marker on successful connection.
+        let _ = Keychain::default().delete_by_key("matrix-pending-recovery");
         let human_username = matrix_username_from_human(user_profile);
         let replicant_username = matrix_username_from_replicant(replicant_display_name);
 
@@ -528,6 +549,51 @@ impl OnboardingService {
             human_user_id: human_id,
             replicant_user_id: replicant_id,
         })
+    }
+
+    /// Register a single replicant Matrix account on Conduit.
+    ///
+    /// Used by `kask onboard` when adding replicants to an existing installation.
+    /// The human account already exists; only the replicant account is created.
+    /// Uses a generated UUID password (replicant auth is daemon-managed, not human-facing).
+    ///
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence.
+    /// pre:  display_name must be non-empty; homeserver_url must be valid and reachable
+    /// post: returns the full Matrix user ID on success; Err(Matrix) on registration failure
+    pub async fn register_replicant_matrix_account(
+        display_name: &str,
+        homeserver_url: &str,
+    ) -> Result<String, ServiceError> {
+        // ── Ensure Conduit is healthy ──
+        if !conduit_ensure_healthy(homeserver_url).await {
+            let keychain = Keychain::default();
+            let _ = keychain.store_by_key("matrix-pending-recovery", "true");
+            let _ = keychain.store_by_key("matrix-pending-homeserver", homeserver_url);
+            return Err(ServiceError::Matrix {
+                source: None,
+                message: format!(
+                    "Conduit at {} is unreachable and recovery failed",
+                    homeserver_url
+                ),
+            });
+        }
+
+        let localpart = display_name.to_lowercase().replace(' ', "-");
+        let full_username = format!("@{}-bot:localhost", localpart);
+        let password = uuid::Uuid::new_v4().to_string();
+
+        register_on_conduit(homeserver_url, &format!("{}-bot", localpart), &password).await?;
+
+        let keychain = Keychain::default();
+        let _ = keychain.store_by_key(&format!("matrix-replicant-{}", display_name), &password);
+
+        tracing::info!(
+            target: "cns.communication.matrix.onboarding",
+            replicant = %full_username,
+            "Replicant Matrix account registered"
+        );
+
+        Ok(full_username)
     }
 
     /// Register Matrix accounts for system bots (Curator, 7R7) on Conduit.
@@ -700,6 +766,110 @@ async fn register_on_conduit(
         })?;
 
     Ok(user_id.to_string())
+}
+
+/// Attempt to recover a Conduit container that is stopped or missing.
+///
+/// Tries common recovery commands in order:
+/// 1. `docker start hkask-conduit` (container exists but is stopped)
+/// 2. `docker compose -f <compose-file> up -d` (container needs recreating)
+///
+/// Returns `true` if a recovery command was attempted (not whether it succeeded).
+async fn try_conduit_recovery() -> bool {
+    use std::process::Command;
+
+    tracing::info!(target: "cns.communication.matrix.recovery", "Attempting Conduit container recovery");
+
+    // Attempt 1: start existing stopped container
+    let start = Command::new("docker")
+        .args(["start", "hkask-conduit"])
+        .output();
+    if let Ok(ref out) = start
+        && out.status.success()
+    {
+        tracing::info!(target: "cns.communication.matrix.recovery", "Started existing hkask-conduit container");
+        return true;
+    }
+
+    // Attempt 2: try podman
+    let podman_start = Command::new("podman")
+        .args(["start", "hkask-conduit"])
+        .output();
+    if let Ok(ref out) = podman_start
+        && out.status.success()
+    {
+        tracing::info!(target: "cns.communication.matrix.recovery", "Started existing hkask-conduit container via podman");
+        return true;
+    }
+
+    // Attempt 3: run the conduit-docker.sh start script (handles full setup)
+    // Resolve the script relative to the current working directory or known paths.
+    let script_candidates = [
+        "scripts/conduit/conduit-docker.sh",
+        "../scripts/conduit/conduit-docker.sh",
+    ];
+    for candidate in &script_candidates {
+        if std::path::Path::new(candidate).exists() {
+            let result = Command::new("bash").args([candidate, "start"]).output();
+            if let Ok(ref out) = result
+                && out.status.success()
+            {
+                tracing::info!(
+                    target: "cns.communication.matrix.recovery",
+                    script = %candidate,
+                    "Conduit started via conduit-docker.sh"
+                );
+                return true;
+            }
+        }
+    }
+
+    tracing::warn!(target: "cns.communication.matrix.recovery", "All Conduit recovery attempts failed");
+    false
+}
+
+/// Ensure Conduit is healthy, attempting recovery if needed.
+///
+/// 1. Check health via `/_matrix/client/versions`
+/// 2. If unhealthy, attempt container recovery
+/// 3. Wait up to 30s for Conduit to become healthy
+/// 4. Return whether Conduit is now healthy
+///
+/// \[P9\] Constraining: Homeostatic Self-Regulation — the system heals its own transport.
+/// pre:  homeserver_url must be a valid HTTP URL
+/// post: returns true if Conduit is healthy (either already was, or recovered); false if recovery failed
+pub async fn conduit_ensure_healthy(homeserver_url: &str) -> bool {
+    if conduit_health_check(homeserver_url).await {
+        return true;
+    }
+
+    tracing::warn!(
+        target: "cns.communication.matrix.recovery",
+        url = %homeserver_url,
+        "Conduit unhealthy — attempting recovery"
+    );
+
+    try_conduit_recovery().await;
+
+    // Wait for Conduit to become healthy (up to 30 attempts, 1s apart)
+    for attempt in 1..=30 {
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        if conduit_health_check(homeserver_url).await {
+            tracing::info!(
+                target: "cns.communication.matrix.recovery",
+                attempt = attempt,
+                "Conduit recovered and healthy"
+            );
+            return true;
+        }
+    }
+
+    tracing::error!(
+        target: "cns.communication.matrix.recovery",
+        url = %homeserver_url,
+        "Conduit recovery failed after 30s — container may need manual intervention"
+    );
+    false
 }
 
 /// Check whether the Conduit homeserver is healthy and responding.

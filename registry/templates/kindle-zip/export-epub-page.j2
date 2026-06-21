@@ -1,0 +1,24 @@
+{# Template: kindle-zip/export-epub-page.j2 #}
+{# WordAct — EPUB chapter page template (XHTML) #}
+{# ℏKask v0.30.0 — A Minimal Viable Container for Agents #}
+{# goal: Render a single chapter as a valid EPUB 3 XHTML page. #}
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+  <meta charset="UTF-8"/>
+  <title>{{ chapter_title | escape }}</title>
+  <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body epub:type="bodymatter">
+  <section epub:type="chapter">
+    <header>
+      <h1>{{ chapter_title | escape }}</h1>
+    </header>
+    {% for paragraph in paragraphs %}
+    <p>{{ paragraph | escape }}</p>
+    {% endfor %}
+  </section>
+</body>
+</html>

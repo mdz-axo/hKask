@@ -60,6 +60,30 @@ log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 
 cmd_start() {
     log_info "Starting Conduit Matrix homeserver..."
+
+    # Handle pre-existing container from any compose project (or bare docker run).
+    # docker compose ps only sees containers from the current project;
+    # a container created under a different project name will collide by name.
+    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "hkask-conduit"; then
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "hkask-conduit"; then
+            log_info "Conduit container is already running"
+        else
+            log_info "Removing stale Conduit container..."
+            docker rm -f hkask-conduit 2>/dev/null || true
+        fi
+    fi
+
+    # Also handle stale volume from a different compose project.
+    local vol_count
+    vol_count=$(docker volume ls --format '{{.Name}}' 2>/dev/null | grep -c "hkask-conduit-db" || true)
+    if [ "$vol_count" -gt 0 ]; then
+        # Check if the volume is not in use by any container
+        if ! docker ps -a --filter "volume=hkask-conduit-db" --format '{{.Names}}' 2>/dev/null | grep -q .; then
+            log_info "Removing orphaned hkask-conduit-db volume..."
+            docker volume rm -f hkask-conduit-db 2>/dev/null || true
+        fi
+    fi
+
     $DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d
 
     log_info "Waiting for Conduit to become healthy..."
@@ -91,7 +115,9 @@ cmd_start() {
 
 cmd_stop() {
     log_info "Stopping Conduit..."
-    $DOCKER_COMPOSE -f "$COMPOSE_FILE" down
+    $DOCKER_COMPOSE -f "$COMPOSE_FILE" down 2>/dev/null || true
+    # Also handle container created under a different compose project name
+    docker rm -f hkask-conduit 2>/dev/null || true
     log_info "Conduit stopped"
 }
 
@@ -123,8 +149,11 @@ cmd_reset() {
     fi
 
     log_info "Stopping Conduit..."
-    $DOCKER_COMPOSE -f "$COMPOSE_FILE" down -v
-    log_info "Database volume deleted"
+    $DOCKER_COMPOSE -f "$COMPOSE_FILE" down -v 2>/dev/null || true
+    # Force-remove container and volume at Docker level (handles cross-project collisions)
+    docker rm -f hkask-conduit 2>/dev/null || true
+    docker volume rm -f hkask-conduit-db 2>/dev/null || true
+    log_info "Container and database volume removed"
     log_info "Starting fresh Conduit instance..."
     cmd_start
 }

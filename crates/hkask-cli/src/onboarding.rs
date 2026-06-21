@@ -66,6 +66,11 @@ pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
             } else {
                 select_replicant(&replicants)?
             };
+
+            // ── Matrix pending-recovery: if Matrix registration was deferred
+            //     (Conduit was down during onboarding), retry now. ──
+            retry_pending_matrix(&handle).await;
+
             return Ok(OnboardingOutcome {
                 signed_in_agent: agent_name,
                 resolved_secrets: None,
@@ -165,8 +170,20 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         e
     })?;
 
-    // Matrix registration for the new replicant (human account already exists)
-    let matrix_info = register_replicant_matrix(&display_name).await;
+    // Matrix registration for the new replicant (human account already exists).
+    // Recovery logic lives in the service layer.
+    let homeserver_url =
+        std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
+    let matrix_info =
+        match OnboardingService::register_replicant_matrix_account(&display_name, &homeserver_url)
+            .await
+        {
+            Ok(user_id) => Some(user_id),
+            Err(e) => {
+                eprintln!("  \x1b[33m⚠\x1b[0m  Matrix registration failed: {}", e);
+                None
+            }
+        };
 
     // Summary
     println!();
@@ -271,98 +288,45 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
         description.trim().to_string()
     };
 
-    // ── Provider setup (before model selection — models need a provider) ──
+    // ── Interactive prompts (CLI layer, not the state machine) ──
+
+    // Provider setup
     println!();
     setup_provider().await?;
 
-    // Q7: Model selection
+    // Model selection
     println!();
     println!("  \x1b[1mChoose a model\x1b[0m for your replicant to use.");
     println!("  Models determine how your replicant thinks and responds.");
     let selected_model = select_model().await?;
 
-    // Q8: Master passphrase (with confirmation)
+    // Passphrase
     println!();
     println!("  Choose a \x1b[1mmaster passphrase\x1b[0m to encrypt your data.");
     println!("  This passphrase derives all your internal security keys.");
     println!("  \x1b[2mStore it in a password manager — it cannot be recovered if lost.\x1b[0m");
     let passphrase = prompt_passphrase_with_confirm()?;
 
-    // Remove orphaned DB from previous failed attempt.
-    if let Ok(pre_config) = ServiceConfig::from_env()
-        && OnboardingService::remove_orphaned_db(&pre_config)
-    {
-        eprintln!("  Removing orphaned database from previous failed setup...");
-    }
-
-    // Cleanup helper on failure.
-    let cleanup = |config: &ServiceConfig| OnboardingService::cleanup_failed_onboarding(config);
-
-    // Derive secrets and store in keychain
-    let resolved = OnboardingService::derive_secrets(&passphrase, true).inspect_err(|e| {
-        eprintln!("  \x1b[31m✗\x1b[0m Failed to derive security keys: {}", e);
-        eprintln!(
-            "  This may indicate a keychain access issue. Try running with appropriate permissions."
-        );
-        if let Ok(c) = ServiceConfig::from_env() {
-            cleanup(&c);
-        }
-    })?;
-
-    // Initialize registry with the derived secrets directly
-    let config = ServiceConfig::from_secrets(
-        resolved.a2a_secret.clone(),
-        resolved.db_passphrase.clone(),
-        resolved.a2a_secret.clone(), // MCP secret fallback to A2A
-        display_name.clone(),
-    );
-    let handle = OnboardingService::init_registry(&config)
+    // ── Run the state machine for all service calls ──
+    use crate::onboarding_session::OnboardingSession;
+    let session = OnboardingSession::new(user_profile, name, description);
+    let completed = session
+        .run(|| Ok(selected_model.clone()), || Ok(passphrase.clone()))
         .await
-        .inspect_err(|e| {
-            eprintln!("  \x1b[31m✗\x1b[0m Failed to initialize database: {}", e);
-            eprintln!("  Check disk space and permissions, then run `kask chat` to retry.");
-            cleanup(&config);
-        })?;
-
-    // Store the user profile
-    OnboardingService::store_user_profile(&handle.store, &user_profile).inspect_err(|e| {
-        eprintln!("  \x1b[31m✗\x1b[0m Failed to store user profile: {}", e);
-        cleanup(&config);
-    })?;
-
-    // Register the new replicant with naming protocol applied
-    OnboardingService::register_replicant(
-        &handle.a2a,
-        &handle.store,
-        &name,
-        &description,
-        Some(&user_profile),
-        None,
-        None,
-    )
-    .await
-    .inspect_err(|e| {
-        eprintln!("  \x1b[31m✗\x1b[0m Failed to register replicant: {}", e);
-        eprintln!("  Run `kask chat` to retry onboarding.");
-        cleanup(&config);
-    })?;
-
-    // Matrix registration — create accounts on Conduit for human + replicant
-    let matrix_result =
-        register_matrix_for_onboarding(&user_profile, &display_name, &passphrase).await;
+        .map_err(|(_session, e)| e)?;
 
     // Post-creation summary
     print_creation_summary(
-        &display_name,
-        &description,
-        &selected_model,
-        matrix_result.as_ref(),
+        &completed.display_name,
+        &completed.description,
+        &completed.selected_model,
+        completed.matrix_result.as_ref(),
     );
 
     Ok(OnboardingOutcome {
-        signed_in_agent: display_name,
-        resolved_secrets: Some(resolved),
-        selected_model: Some(selected_model),
+        signed_in_agent: completed.display_name,
+        resolved_secrets: completed.resolved_secrets,
+        selected_model: Some(completed.selected_model),
         is_first_run: true,
     })
 }
@@ -658,95 +622,50 @@ async fn setup_provider() -> Result<(), OnboardingError> {
     Ok(())
 }
 
-/// Register a Matrix account for a new replicant (added via `kask onboard`).
-///
-/// The human account already exists from first-run onboarding. Only the
-/// replicant account needs to be created. Uses a generated password derived
-/// from a UUID — the daemon handles replicant authentication, not the human.
-async fn register_replicant_matrix(display_name: &str) -> Option<String> {
-    let homeserver_url =
-        std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
+// ── Private helpers ────────────────────────────────────────────────────────
 
-    let localpart = display_name.to_lowercase().replace(' ', "-");
-    let full_username = format!("@{}-bot:localhost", localpart);
-    let password = uuid::Uuid::new_v4().to_string();
-
-    let url = format!(
-        "{}/_matrix/client/v3/register",
-        homeserver_url.trim_end_matches('/')
-    );
-    let body = serde_json::json!({
-        "username": format!("{}-bot", localpart),
-        "password": &password,
-        "initial_device_display_name": "hKask Replicant",
-        "auth": {"type": "m.login.dummy"}
-    });
-
-    match reqwest::Client::new()
-        .post(&url)
-        .header("Content-Type", "application/json")
-        .json(&body)
-        .send()
-        .await
+/// Retry pending Matrix registration silently on session start.
+async fn retry_pending_matrix(handle: &hkask_services::RegistryHandle) {
+    let keychain = hkask_keystore::Keychain::default();
+    if keychain
+        .retrieve_by_key("matrix-pending-recovery")
+        .unwrap_or_default()
+        != "true"
     {
-        Ok(response) if response.status().is_success() => {
-            let keychain = hkask_keystore::Keychain::default();
-            let _ = keychain.store_by_key(&format!("matrix-replicant-{}", display_name), &password);
-            Some(full_username)
-        }
-        Ok(response) => {
-            eprintln!(
-                "  \x1b[33m⚠\x1b[0m  Matrix registration for replicant failed (HTTP {})",
-                response.status().as_u16()
-            );
-            None
-        }
-        Err(e) => {
-            eprintln!("  \x1b[33m⚠\x1b[0m  Matrix registration failed: {}", e);
-            eprintln!("  Is Conduit running? Start it with:");
-            eprintln!("    \x1b[36m./scripts/conduit-docker.sh start\x1b[0m");
-            None
-        }
+        return;
     }
-}
-
-/// Attempt Matrix account registration during onboarding.
-///
-/// If Conduit is not running, prints a warning and returns `None` —
-/// Matrix registration is non-blocking for onboarding. The user can
-/// register later by running `kask onboard` again or using the
-/// `./scripts/conduit-docker.sh register` helper.
-async fn register_matrix_for_onboarding(
-    user_profile: &UserProfile,
-    replicant_display_name: &str,
-    passphrase: &str,
-) -> Option<MatrixRegistrationResult> {
-    let homeserver_url =
-        std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
-
-    match OnboardingService::register_matrix_accounts(
-        user_profile,
-        replicant_display_name,
-        passphrase,
+    // Already registered? Clear the marker.
+    if keychain
+        .retrieve_by_key("matrix-replicant-username")
+        .is_ok()
+    {
+        let _ = keychain.delete_by_key("matrix-pending-recovery");
+        return;
+    }
+    // Load what we need and delegate to the service (which handles recovery).
+    let homeserver_url = keychain
+        .retrieve_by_key("matrix-pending-homeserver")
+        .unwrap_or_else(|_| "http://localhost:8008".to_string());
+    let user_profile = match hkask_services::OnboardingService::get_user_profile(&handle.store) {
+        Ok(Some(p)) => p,
+        _ => return,
+    };
+    let replicants = match list_replicants(&handle.store) {
+        Ok(r) if !r.is_empty() => r,
+        _ => return,
+    };
+    let replicant_name = replicants[0].definition.name.clone();
+    let passphrase = match keychain.retrieve_by_key("hkask-master-passphrase") {
+        Ok(p) => p,
+        _ => return,
+    };
+    let _ = hkask_services::OnboardingService::register_matrix_accounts(
+        &user_profile,
+        &replicant_name,
+        &passphrase,
         &homeserver_url,
     )
-    .await
-    {
-        Ok(result) => Some(result),
-        Err(e) => {
-            eprintln!();
-            eprintln!(
-                "  \x1b[33m⚠\x1b[0m  Matrix chat accounts could not be registered: {}",
-                e
-            );
-            eprintln!("  Is Conduit running? Start it with:");
-            eprintln!("    \x1b[36m./scripts/conduit-docker.sh start\x1b[0m");
-            eprintln!("  Then register accounts manually:");
-            eprintln!("    \x1b[36m./scripts/conduit-docker.sh register\x1b[0m");
-            eprintln!();
-            None
-        }
-    }
+    .await;
 }
 
 /// Print a summary after successful replicant creation (first-run).

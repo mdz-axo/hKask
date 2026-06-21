@@ -1,0 +1,75 @@
+{# Template: kindle-zip/capture-page.j2 #}
+{# KnowAct — Declarative page capture loop #}
+{# ℏKask v0.30.0 — A Minimal Viable Container for Agents #}
+{# goal: Iterate book pages, invoke screenshot MCP tool, and track progress with CNS spans. #}
+
+{# ── Input variables (bound from manifest step) ── #}
+{#
+  asin:          The book's Amazon ASIN
+  total_pages:   Total content pages to capture (from TOC/metadata)
+  pages_dir:     Output directory for PNG screenshots
+  selectors:     Dictionary of CSS selectors for Kindle UI elements
+  resume:        Boolean — check for existing pages before capture
+#}
+
+{# ── Selector dictionary — evolvable without code changes ── #}
+{#
+  selectors:
+    reader_content: "#kr-renderer .kg-full-page-img img"
+    next_page:      ".kr-chevron-container-right"
+    settings_btn:   "ion-button[aria-label=\"Reader settings\"]"
+    single_column:  "[role=\"radiogroup\"][aria-label$=\" columns\"]"
+    font_ember:     "#AmazonEmber"
+    go_to_page:     "ion-item[role=\"listitem\"]"
+    page_input:     "ion-modal input[placeholder=\"page number\"]"
+    page_footer:    "ion-footer ion-title"
+#}
+
+You are orchestrating the Kindle page capture loop.
+
+## Book
+- ASIN: {{ asin }}
+- Total content pages: {{ total_pages }}
+- Output directory: {{ pages_dir }}
+
+## Capture Strategy
+
+1. For each page `i` from 0 to `{{ total_pages }} - 1`:
+   a. Wait 500ms for page render to stabilize.
+   b. Invoke the `screenshot` tool targeting `{{ selectors.reader_content }}`.
+   c. Save the PNG to `{{ pages_dir }}/<zero-padded-index>-<zero-padded-page>.png`.
+   d. Emit a CNS span: `kindle-zip.capture.page` with `{page, bytes, duration_ms}`.
+   e. If `i < total_pages - 1`, click `{{ selectors.next_page }}` (fallback: ArrowRight key).
+   f. If the page PNG already exists on disk and `resume` is true, skip this page.
+
+2. Track progress:
+   - Log every 10th page with estimated remaining time.
+   - On error (selector not found, timeout), retry up to 3 times with backoff.
+   - If a page fails after retries, record the error and continue.
+
+3. On completion:
+   - Emit aggregate CNS span with `{total_pages, captured, failed, duration_s}`.
+   - Return the list of captured page entries with file paths.
+
+## Selector Variables (Kindle UI version-dependent)
+
+{% for name, selector in selectors.items() %}
+- `{{ name }}`: `{{ selector }}`
+{% endfor %}
+
+If any selector fails to resolve, emit a CNS alert `kindle-zip.selector.drift` and attempt
+LLM-based re-discovery from the current DOM.
+
+## Output Format
+
+Return JSON:
+```json
+{
+  "pages": [
+    {"index": 0, "page": 1, "screenshot": "path/to/000-001.png", "bytes": 12345, "duration_ms": 320}
+  ],
+  "total_captured": N,
+  "total_failed": M,
+  "duration_s": S
+}
+```

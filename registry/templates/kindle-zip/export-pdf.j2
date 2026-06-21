@@ -1,0 +1,33 @@
+{# Template: kindle-zip/export-pdf.j2 #}
+{# KnowAct — PDF export configuration #}
+{# ℏKask v0.30.0 — A Minimal Viable Container for Agents #}
+{# goal: Configure and invoke PDF generation from assembled book content. #}
+
+Generate a PDF from the following book content.
+
+## Book
+- Title: {{ title }}
+- Author: {{ author }}
+- ASIN: {{ asin }}
+
+## PDF Configuration
+
+- Page size: US Letter (8.5" × 11")
+- Title page: Yes (centered title + author byline)
+- Table of Contents: Yes (with page number links)
+- Font: Helvetica (base-14, universally available)
+- Body text: 11pt, 1.5 line spacing
+- Chapter headings: 16pt, centered
+- Margins: 1 inch all sides
+- Page numbers: Bottom center
+
+## TOC Structure
+{{ toc | tojson }}
+
+## Content
+{{ assembled_text }}
+
+## Instructions
+
+Use the `kindle_export` MCP tool with format="pdf" to generate the PDF.
+The tool handles layout, pagination, and TOC embedding internally.

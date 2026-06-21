@@ -1,0 +1,63 @@
+{# Template: kindle-zip/configure-ocr.j2 #}
+{# KnowAct — OCR configuration selector #}
+{# ℏKask v0.30.0 — A Minimal Viable Container for Agents #}
+{# goal: Select optimal OCR model, token budget, and concurrency based on book complexity metrics. #}
+
+You are an OCR configuration selector for the Kindle-Zip pipeline.
+
+Given the book's complexity metrics, select the optimal OCR parameters.
+
+## Book Metrics
+
+- Total pages: {{ total_pages }}
+- Content pages (after TOC filtering): {{ content_pages }}
+- User-specified model override: {{ ocr_model | default('(none — use env default)') }}
+
+## Model Tier Selection Rules
+
+1. **Small book** (< 100 content pages): Use the fastest available vision model.
+   - max_tokens: 4096
+   - concurrency: 8
+
+2. **Medium book** (100–400 content pages): Balance speed with accuracy.
+   - max_tokens: 6144
+   - concurrency: 6
+
+3. **Large book** (> 400 content pages): Prioritize accuracy over speed.
+   - max_tokens: 8192
+   - concurrency: 4
+
+## OCR Strategy
+
+- **incremental**: Transcribe pages one at a time, preserving order (best for structured books).
+- **parallel**: Transcribe pages concurrently, then sort (faster, slight reorder risk).
+- **hybrid**: Parallel transcription with cross-validation sampling (default; best quality/cost balance).
+
+## Model Selection
+
+If a user-specified model override is provided, use it verbatim.
+Otherwise, recommend based on the tier:
+- Small: any vision-capable model with < 1B params
+- Medium: any vision-capable model with 1-8B params
+- Large: any vision-capable model (accuracy > speed)
+
+Do NOT hardcode a specific model name — the runtime resolves available models dynamically.
+
+## Output Format
+
+Return JSON with:
+- model: The model identifier (or empty string to use runtime default)
+- max_tokens: Integer token budget per page
+- concurrency: Integer max concurrent OCR operations
+- strategy: One of "incremental", "parallel", or "hybrid"
+
+## Response
+
+```json
+{
+  "model": "...",
+  "max_tokens": ...,
+  "concurrency": ...,
+  "strategy": "..."
+}
+```

@@ -50,7 +50,7 @@ pub use hkask_services_lifecycle::{
 };
 pub use hkask_services_onboarding::{
     MatrixRegistrationResult, OnboardingService, RegistryHandle, ReplicantContactConfig,
-    ResolvedSecrets, SignInOutcome, conduit_health_check,
+    ResolvedSecrets, SignInOutcome, conduit_ensure_healthy, conduit_health_check,
 };
 pub use hkask_services_skill::resolve_replicant_name;
 pub use hkask_services_sovereignty::SovereigntyService;

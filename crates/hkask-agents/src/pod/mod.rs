@@ -216,7 +216,7 @@ impl AgentPod {
         git: &GitCasAdapter,
         consent: Arc<dyn crate::SovereigntyConsent>,
     ) -> AgentPodResult<Self> {
-        let template_crate = git.load_template_crate(crate_name)?;
+        let template_crate = git.load_template_crate_or_synthesize(crate_name)?;
 
         // Derive OCAP secret per WebID via HKDF-SHA256 from master key
         // (ADR-027: deterministic, restart-safe, per-agent isolation)
