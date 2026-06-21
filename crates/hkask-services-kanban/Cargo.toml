@@ -17,6 +17,7 @@ thiserror.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 hkask-agents = { path = "../hkask-agents" }
+hkask-capability = { path = "../hkask-capability" }
 
 [dev-dependencies]
 rusqlite = { workspace = true, features = ["bundled-sqlcipher"] }

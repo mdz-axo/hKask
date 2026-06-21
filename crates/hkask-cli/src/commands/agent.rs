@@ -7,9 +7,8 @@ use std::str::FromStr;
 
 use crate::block_on;
 use crate::cli::BotAction;
-use hkask_agents::{AgentDefinition, Charter, RegisteredAgent};
 use hkask_services::ServiceError;
-use hkask_types::{AgentKind, WebID};
+use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID};
 
 #[derive(Debug)]
 pub struct AgentReceipt {
@@ -78,11 +77,6 @@ pub async fn agent_register(
         capabilities: vec![],
         rights: vec![],
         responsibilities: vec![],
-        persona: None,
-        depends_on: vec![],
-        process_manifest: None,
-        voice_description: None,
-        voice_id: None,
     };
     let reg = RegisteredAgent {
         definition: def,
@@ -159,8 +153,7 @@ pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
             println!("Agent: {}", def.name);
             println!("  Kind: {}", def.agent_kind);
             if let Some(c) = &def.charter {
-                println!("  Charter: {}", c.description);
-                println!("  Archetype: {}", c.archetype);
+                println!("  Charter: {}", c.purpose);
             }
             println!("  Capabilities:");
             for cap in &def.capabilities {
@@ -168,22 +161,14 @@ pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
             }
             if !def.rights.is_empty() {
                 println!("  Rights:");
-                for r in def.rights_flat() {
-                    println!("    - {}", r);
+                for r in &def.rights {
+                    println!("    - {}", r.name);
                 }
             }
             if !def.responsibilities.is_empty() {
                 println!("  Responsibilities:");
-                for r in def.responsibilities_flat() {
-                    println!("    - {}", r);
-                }
-            }
-            if let Some(p) = &def.persona {
-                println!("  Persona:");
-                println!("    Tone: {}", p.tone);
-                println!("    Verbosity: {}", p.verbosity);
-                if !p.forbidden.is_empty() {
-                    println!("    Forbidden: {}", p.forbidden.join(", "));
+                for r in &def.responsibilities {
+                    println!("    - {}", r.name);
                 }
             }
             println!("  Registered: {}", agent.registered_at);

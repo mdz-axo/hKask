@@ -4,8 +4,9 @@
 //! Task status transitions are column-ordered: Backlog → Ready → InProgress → Review → Done.
 //! Verification criteria accept natural-language acceptance specs with optional LLM evaluation prompts.
 
-use crate::id::{BoardId, ColumnId, CommentId, PhaseId, TaskId, WebID};
 use chrono::{DateTime, Utc};
+use hkask_capability::capability_from_server_id;
+use hkask_types::id::{BoardId, ColumnId, CommentId, PhaseId, TaskId, WebID};
 use serde::{Deserialize, Serialize};
 
 // ── Priority ────────────────────────────────────────────────────────────────
@@ -706,9 +707,9 @@ pub struct TaskContract {
     /// Name of the capability package used.
     pub package_name: String,
     /// The replicant delegating the work.
-    pub delegator: crate::WebID,
+    pub delegator: WebID,
     /// The agent receiving the delegation.
-    pub delegate: crate::WebID,
+    pub delegate: WebID,
     /// The task this contract governs.
     pub task_id: TaskId,
     /// Task title for display.
@@ -751,8 +752,8 @@ impl TaskContract {
     /// post:      /// post: returns new instance with defaults
     pub fn new(
         package_name: String,
-        delegator: crate::WebID,
-        delegate: crate::WebID,
+        delegator: WebID,
+        delegate: WebID,
         task: &Task,
         ocap_gates: Vec<String>,
     ) -> Self {
@@ -1201,15 +1202,14 @@ impl CapabilityPackage {
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  tools list is non-empty
-    /// post:      /// post: returns Vec of derived capability tokens
+    /// post: populates capability_tokens from tool_servers
     /// Converts "hkask-mcp-kanban" → "tool:kanban:execute".
-    ///
-    /// TODO: This method depends on `hkask_capability::capability_from_server_id`.
-    /// It will be restored when `kanban.rs` migrates to `hkask-services-kanban`.
-    #[allow(unused_variables)]
     pub fn derive_tokens_from_tools(&mut self) {
-        // Stubbed — depends on hkask-capability.
-        // Restore from hkask-capability when kanban migrates out of hkask-types.
+        self.capability_tokens = self
+            .tool_servers
+            .iter()
+            .filter_map(|server_id| capability_from_server_id(server_id))
+            .collect();
     }
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
@@ -1240,8 +1240,8 @@ impl CapabilityPackage {
     pub fn to_task_contract(
         &self,
         task: &Task,
-        delegator: crate::WebID,
-        delegate: crate::WebID,
+        delegator: WebID,
+        delegate: WebID,
     ) -> TaskContract {
         TaskContract {
             package_name: self.name.clone(),

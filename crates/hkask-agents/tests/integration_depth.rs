@@ -8,7 +8,7 @@
 //! - pod_meta table population
 
 use hkask_agents::pod::{ActivePods, AgentPersona, PodKind};
-use hkask_agents::AgentKind;
+use hkask_types::AgentKind;
 
 fn setup(tmp: &tempfile::TempDir) -> ActivePods {
     ActivePods::new_test_harness(tmp.path())

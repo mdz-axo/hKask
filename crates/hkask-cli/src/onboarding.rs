@@ -205,7 +205,7 @@ fn select_replicant(replicants: &[RegisteredAgent]) -> Result<String, Onboarding
             .definition
             .charter
             .as_ref()
-            .map(|c| c.description.as_str())
+            .map(|c| c.purpose.as_str())
             .unwrap_or("(no description)");
         println!(
             "    {}. \x1b[36m{}\x1b[0m — {}",

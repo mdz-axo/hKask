@@ -24,6 +24,7 @@ hkask-services = { path = "../hkask-services" }
 hkask-services-core = { path = "../hkask-services-core" }
 hkask-services-sovereignty = { path = "../hkask-services-sovereignty" }
 hkask-services-cloud = { path = "../hkask-services-cloud" }
+hkask-services-kanban = { path = "../hkask-services-kanban" }
 hkask-wallet = { path = "../hkask-wallet" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-memory = { path = "../hkask-memory" }

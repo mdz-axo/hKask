@@ -4,7 +4,7 @@
 //!  Activate it. The agent retains its memory, identity, and capabilities."
 
 use hkask_agents::pod::{ActivePods, AgentPersona, PodKind};
-use hkask_agents::AgentKind;
+use hkask_types::AgentKind;
 
 #[tokio::test]
 async fn pod_portability_across_servers() {

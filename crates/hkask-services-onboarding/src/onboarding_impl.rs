@@ -5,19 +5,10 @@
 use std::sync::Arc;
 
 use hkask_agents::A2ARuntime;
-use hkask_agents::types::agent::definition::{AgentDefinition, Charter, RegisteredAgent as RichRA};
-use hkask_agents::types::agent::profile::UserProfile;
 use hkask_keystore::{Keychain, master_key::derive_all_internal_secrets};
 use hkask_storage::{AgentRegistryStore, Database};
 use hkask_types::time::now_rfc3339;
-use hkask_types::{AgentKind, WebID};
-
-// Type aliases for clarity — onboarding uses hkask-agents rich types internally,
-// converts to hkask-types at storage boundaries.
-use hkask_agents::types::agent::definition::RegisteredAgent;
-// Also import hkask-types versions for storage return types
-use hkask_types::RegisteredAgent as StoreRegisteredAgent;
-use hkask_types::UserProfile as StoreUserProfile;
+use hkask_types::{AgentDefinition, AgentKind, Charter, RegisteredAgent, UserProfile, WebID};
 
 use hkask_services_core::ServiceConfig;
 use hkask_services_core::ServiceError;
@@ -213,33 +204,15 @@ impl OnboardingService {
                 message: e.to_string(),
             })?;
 
-        let definition = AgentDefinition {
-            name: display_name,
-            agent_kind: AgentKind::Replicant,
-            charter: Some(Charter {
-                description: description.to_string(),
-                archetype: String::new(),
-                visibility: String::new(),
-            }),
-            capabilities: default_capabilities,
-            rights: vec![],
-            responsibilities: vec![],
-            persona: None,
-            depends_on: vec![],
-            process_manifest: None,
-            voice_description: voice_description.map(|s| s.to_string()),
-            voice_id: voice_id.map(|s| s.to_string()),
-        };
-
         let registered = hkask_types::RegisteredAgent {
             definition: hkask_types::AgentDefinition {
-                name: definition.name,
-                agent_kind: definition.agent_kind,
-                charter: definition.charter.map(|c| hkask_types::Charter {
-                    purpose: c.description,
+                name: display_name,
+                agent_kind: AgentKind::Replicant,
+                charter: Some(Charter {
+                    purpose: description.to_string(),
                     constraints: vec![],
                 }),
-                capabilities: definition.capabilities,
+                capabilities: default_capabilities,
                 rights: vec![],
                 responsibilities: vec![],
             },
@@ -273,7 +246,7 @@ impl OnboardingService {
     /// post: profile is persisted to the registry store; Err(AgentRegistryStore) on store failure
     pub fn store_user_profile(
         store: &AgentRegistryStore,
-        profile: &StoreUserProfile,
+        profile: &UserProfile,
     ) -> Result<(), ServiceError> {
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "store_user_profile", "CNS");
@@ -291,7 +264,7 @@ impl OnboardingService {
     /// post: returns Some(UserProfile) if stored; None if no profile; Err(AgentRegistryStore) on store failure
     pub fn get_user_profile(
         store: &AgentRegistryStore,
-    ) -> Result<Option<StoreUserProfile>, ServiceError> {
+    ) -> Result<Option<UserProfile>, ServiceError> {
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "get_user_profile", "CNS");
         store
@@ -357,7 +330,7 @@ impl OnboardingService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config.db_path must be set; returns empty Vec on any failure
     /// post: returns `Vec<RegisteredAgent>` of replicants; empty Vec if DB inaccessible or no replicants
-    pub fn try_list_existing_replicants(config: &ServiceConfig) -> Vec<StoreRegisteredAgent> {
+    pub fn try_list_existing_replicants(config: &ServiceConfig) -> Vec<RegisteredAgent> {
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "try_list_existing_replicants", "CNS");
         let db_path = &config.db_path;

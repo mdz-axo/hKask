@@ -25,7 +25,7 @@ proptest! {
     #[test]
     fn goal_json_roundtrip(g in any_goal()) {
         let json = serde_json::to_string(&g).unwrap();
-        let back: hkask_types::goal::Goal = serde_json::from_str(&json).unwrap();
+        let back: hkask_services_core::Goal = serde_json::from_str(&json).unwrap();
         prop_assert_eq!(g.id, back.id);
         prop_assert_eq!(g.text, back.text);
         prop_assert_eq!(g.state, back.state);

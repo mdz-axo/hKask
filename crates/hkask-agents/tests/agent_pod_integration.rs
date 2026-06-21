@@ -1,7 +1,7 @@
 //! Multi-Pod Integration Tests — Acceptance tests for the three-tier pod architecture.
 
 use hkask_agents::pod::{ActivePods, AgentPersona, PodKind};
-use hkask_agents::AgentKind;
+use hkask_types::AgentKind;
 
 async fn setup_with_curator(
     tmp: &tempfile::TempDir,

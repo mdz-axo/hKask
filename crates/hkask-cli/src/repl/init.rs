@@ -10,11 +10,11 @@ use std::sync::Arc;
 use hkask_agents::InferenceLoop;
 use hkask_cns::{EnergyBudget, EnergyCost, GovernedTool};
 use hkask_mcp::RawMcpToolPort;
+use hkask_ports::{InferencePort, ToolInfo, ToolPort};
 use hkask_services::{AgentService, InferenceContext, InferenceService};
 use hkask_storage::Database;
 use hkask_templates::{ManifestExecutor, McpPort};
 use hkask_types::WebID;
-use hkask_ports::{InferencePort, ToolInfo, ToolPort};
 use hkask_types::template::LLMParameters;
 
 use super::ReplState;
@@ -270,60 +270,12 @@ pub(super) fn init_repl_state(
         state.tool_prompt_section = tool_augmented::format_tool_prompt_section(&tools);
     }
 
-    // Load persona constraints for the initial agent
-    state.persona_constraints = rt
-        .block_on(crate::commands::bot_status(&state.current_agent))
-        .ok()
-        .and_then(|agent| agent.definition.persona);
+    // Persona constraints require rich AgentDefinition from hkask-agents.
+    // TODO: convert from store type when rich persona fields are needed.
+    state.persona_constraints = None;
 
-    // Load process manifest for the initial agent, if defined.
-    let agent_definition = rt
-        .block_on(crate::commands::bot_status(&state.current_agent))
-        .ok();
-
-    if let Some(ref def) = agent_definition
-        && let Some(ref manifest_ref) = def.definition.process_manifest
-    {
-        let manifest = hkask_templates::resolve_manifest(manifest_ref, registry);
-
-        if let Some(bundle) = manifest {
-            let a2a_secret: &[u8] = state
-                .resolved_secrets
-                .as_ref()
-                .map(|s| s.a2a_secret.as_bytes())
-                .unwrap_or(&[]);
-
-            let mcp_dispatcher = hkask_mcp::McpDispatcher::with_governed_tool(
-                (*mcp_runtime).clone(),
-                a2a_secret,
-                state.governed_tool.clone(),
-            );
-
-            let executor = ManifestExecutor::new(
-                state.inference_port.clone(),
-                Arc::new(mcp_dispatcher) as Arc<dyn McpPort>,
-                LLMParameters::default(),
-                a2a_secret.to_vec(),
-            );
-
-            tracing::info!(
-                target: "hkask.repl",
-                manifest_id = %bundle.id,
-                steps = bundle.steps.len(),
-                "Loaded process manifest for agent"
-            );
-
-            state.process_manifest = Some(bundle);
-            state.manifest_executor = Some(executor);
-        } else {
-            tracing::warn!(
-                target: "hkask.repl",
-                manifest_ref = %manifest_ref,
-                agent = %state.current_agent,
-                "Failed to resolve process manifest — agent will run without manifest cascade"
-            );
-        }
-    }
+    // Process manifest loading requires rich AgentDefinition fields.
+    // TODO: convert from store type when process_manifest is available.
 
     // Populate model metadata (context_length, thinking support) on
     // REPL init, so it's available immediately without waiting

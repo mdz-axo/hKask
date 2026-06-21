@@ -3,7 +3,7 @@
 </p>
 # ℏKask - A Minimal Viable Container for Agents
 
-**Version:** v0.30.0 | **Status:** Phase 8 complete — skill system, QA, condenser, CI green, 39 CLI commands + 26 API route groups
+**Version:** v0.30.0 | 
 
 ---
 
