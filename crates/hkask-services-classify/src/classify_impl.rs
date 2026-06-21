@@ -21,9 +21,10 @@ pub struct ClassifyResult {
     pub prompt_tokens: u64,
     /// Number of completion (output) tokens consumed.
     pub completion_tokens: u64,
+    /// Number of cached prompt tokens (billed at discounted rate).
+    pub cached_tokens: u64,
     /// Actual API cost in micro-rJoules (µrJ).
-    /// Computed as (prompt_tokens × input_nj + completion_tokens × output_nj) / 1,000,000.
-    /// Zero when no API key, fallback, or pricing not configured.
+    /// Computed as (uncached_input × input_nj + cached × cache_nj + output × output_nj) / 1,000,000.
     pub cost_urj: u64,
     /// True if the API call failed but token/cost data was recovered from the error response.
     pub failed: bool,
@@ -69,11 +70,21 @@ struct Message {
     content: String,
 }
 
-/// Token usage from the API response.
+/// Token usage from the API response, including cached token details.
 #[derive(Debug, Deserialize)]
 struct Usage {
     prompt_tokens: u64,
     completion_tokens: u64,
+    /// Cached prompt tokens (DeepInfra, OpenRouter, Together).
+    /// Returns the number of input tokens served from cache at a discount.
+    #[serde(default)]
+    prompt_tokens_details: Option<PromptTokensDetails>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PromptTokensDetails {
+    #[serde(default)]
+    cached_tokens: u64,
 }
 
 /// Error response body that may still include usage data.
@@ -116,6 +127,10 @@ pub struct ClassifierDef {
     /// API output token cost in nano-rJ per token (e.g., 60,000 for DeepInfra $0.06/M).
     #[serde(default)]
     pub cost_output_nj_per_token: u64,
+    /// API cached input token read cost in nano-rJ per token.
+    /// Only charged if the provider supports prompt caching.
+    #[serde(default)]
+    pub cost_cache_read_nj_per_token: u64,
 }
 
 impl Default for ClassifierDef {
@@ -134,6 +149,7 @@ impl Default for ClassifierDef {
             fallback_category: "Statement".to_string(),
             cost_input_nj_per_token: 0,
             cost_output_nj_per_token: 0,
+            cost_cache_read_nj_per_token: 0,
         }
     }
 }
@@ -194,6 +210,7 @@ pub struct ClassifierConfig {
     pub fallback_category: String,
     pub cost_input_nj_per_token: u64,
     pub cost_output_nj_per_token: u64,
+    pub cost_cache_read_nj_per_token: u64,
 }
 
 impl ClassifierConfig {
@@ -228,6 +245,7 @@ impl ClassifierConfig {
             fallback_category: def.fallback_category.clone(),
             cost_input_nj_per_token: input_nj,
             cost_output_nj_per_token: output_nj,
+            cost_cache_read_nj_per_token: 0,
         }
     }
 }
@@ -307,6 +325,7 @@ async fn classify_one(
             category: config.fallback_category.clone(),
             prompt_tokens: error_tokens.0,
             completion_tokens: error_tokens.1,
+            cached_tokens: 0,
             cost_urj: error_cost,
             failed: true,
         });
@@ -347,18 +366,27 @@ async fn classify_one(
 
     let tokens = chat
         .usage
-        .map(|u| (u.prompt_tokens, u.completion_tokens))
-        .unwrap_or((0, 0));
+        .map(|u| {
+            let cached = u
+                .prompt_tokens_details
+                .map(|d| d.cached_tokens)
+                .unwrap_or(0);
+            (u.prompt_tokens, u.completion_tokens, cached)
+        })
+        .unwrap_or((0, 0, 0));
 
-    // Compute API cost from actual usage × provider pricing
-    let input_cost = (tokens.0 * config.cost_input_nj_per_token) / 1_000_000;
+    // Compute API cost: uncached input + cached input (discounted) + output
+    let uncached_input = tokens.0.saturating_sub(tokens.2);
+    let input_cost = (uncached_input * config.cost_input_nj_per_token) / 1_000_000;
+    let cache_cost = (tokens.2 * config.cost_cache_read_nj_per_token) / 1_000_000;
     let output_cost = (tokens.1 * config.cost_output_nj_per_token) / 1_000_000;
 
     Ok(ClassifyResult {
         category,
         prompt_tokens: tokens.0,
         completion_tokens: tokens.1,
-        cost_urj: input_cost + output_cost,
+        cached_tokens: tokens.2,
+        cost_urj: input_cost + cache_cost + output_cost,
         failed: false,
     })
 }
@@ -388,6 +416,7 @@ pub async fn classify_batch(
                 category: fallback.clone(),
                 prompt_tokens: 0,
                 completion_tokens: 0,
+                cached_tokens: 0,
                 cost_urj: 0,
                 failed: false,
             })
@@ -395,9 +424,13 @@ pub async fn classify_batch(
     }
 
     // Resolve actual pricing: prefer provider intelligence, fall back to static config
-    let (input_cost_nj, output_cost_nj) = if let Some(pi) = provider {
-        match pi.actual_cost(&config.api_key).await {
-            Ok(rate) => (rate.input_nj_per_unit, rate.output_nj_per_unit),
+    let (input_cost_nj, output_cost_nj, cache_read_nj) = if let Some(pi) = provider {
+        match pi.actual_cost(&config.api_key, &config.model).await {
+            Ok(rate) => (
+                rate.input_nj_per_unit,
+                rate.output_nj_per_unit,
+                rate.cache_read_nj_per_unit,
+            ),
             Err(_) => {
                 tracing::warn!(
                     target: "cns.classify",
@@ -407,6 +440,7 @@ pub async fn classify_batch(
                 (
                     config.cost_input_nj_per_token,
                     config.cost_output_nj_per_token,
+                    config.cost_cache_read_nj_per_token,
                 )
             }
         }
@@ -414,6 +448,7 @@ pub async fn classify_batch(
         (
             config.cost_input_nj_per_token,
             config.cost_output_nj_per_token,
+            config.cost_cache_read_nj_per_token,
         )
     };
 
@@ -421,6 +456,7 @@ pub async fn classify_batch(
     let mut config = config;
     config.cost_input_nj_per_token = input_cost_nj;
     config.cost_output_nj_per_token = output_cost_nj;
+    config.cost_cache_read_nj_per_token = cache_read_nj;
 
     let client = Client::builder()
         .timeout(config.timeout)
@@ -462,6 +498,7 @@ pub async fn classify_batch(
                     category: config.fallback_category.clone(),
                     prompt_tokens: 0,
                     completion_tokens: 0,
+                    cached_tokens: 0,
                     cost_urj: 0,
                     failed: true,
                 });
@@ -479,6 +516,7 @@ pub async fn classify_batch(
                 category: config.fallback_category.clone(),
                 prompt_tokens: 0,
                 completion_tokens: 0,
+                cached_tokens: 0,
                 cost_urj: 0,
                 failed: true,
             })

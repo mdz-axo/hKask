@@ -10,6 +10,7 @@ pub use classify_impl::{
     load_classifier_config,
 };
 pub use provider_intel::{
-    CostRate, DeepInfraProvider, LimitUnit, ProviderError, ProviderIntelligence, ProviderState,
-    UsageStatus,
+    CostRate, DeepInfraProvider, FalProvider, FirecrawlProvider, LimitUnit, OpenRouterProvider,
+    ProviderError, ProviderIntelligence, ProviderState, RunpodProvider, SelfTrackedConfig,
+    SelfTrackedProvider, TogetherProvider, UsageStatus, create_provider,
 };

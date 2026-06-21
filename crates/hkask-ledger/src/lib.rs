@@ -256,6 +256,16 @@ impl Ledger {
         Ok(balances)
     }
 
+    /// Count unique transactions with a posting to the given destination account.
+    pub fn transaction_count(&self, destination: &str) -> Result<u64, LedgerError> {
+        let count: i64 = self.db.query_row(
+            "SELECT COUNT(DISTINCT transaction_id) FROM postings WHERE destination = ?1",
+            rusqlite::params![destination],
+            |row| row.get(0),
+        )?;
+        Ok(count as u64)
+    }
+
     /// REQ: P9-ledger-query
     /// expect: "I can query transactions by time range and filter by account or asset" [P9]
     /// pre:  range.start <= range.end (ISO 8601 strings)

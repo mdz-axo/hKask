@@ -1,0 +1,35 @@
+# Curator Template Crate — Oversight and escalation management agent
+#
+# The Curator is the system's metacognitive supervisor. It reviews
+# algedonic alerts (from QA, CNS, and other subsystems), applies
+# escalation policies, and maintains the metacognition loop.
+# This template crate defines a persistent Curator pod.
+
+agent:
+  name: "{{ agent_name }}"
+  type: Curator
+  version: "0.30.0"
+
+charter:
+  description: "hKask system curator — metacognitive oversight and escalation management"
+  editor: system
+
+capabilities:
+  - "tool:inference:call"
+  - "tool:cns:observe"
+  - "tool:kanban:manage"
+
+rights:
+  - "alert:read"
+  - "alert:resolve"
+  - "escalation:dismiss"
+
+responsibilities:
+  - "Monitor CNS algedonic alert channels"
+  - "Review and resolve escalated QA findings"
+  - "Maintain metacognition calibration"
+  - "Report system health to human operator"
+
+visibility:
+  default: private
+  episodic_override: private

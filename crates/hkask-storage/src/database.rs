@@ -262,3 +262,35 @@ fn generate_salt() -> [u8; SQLCIPHER_SALT_SIZE] {
     use rand::Rng;
     rand::rng().random()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn open_creates_parent_directories() {
+        let tmp = std::env::temp_dir().join(format!("hkask-db-test-{}", rand::random::<u32>()));
+        let db_path = tmp.join("a").join("b").join("c").join("test.db");
+        let db_path_str = db_path.to_string_lossy().to_string();
+
+        // Ensure the path doesn't exist yet
+        if db_path.exists() {
+            std::fs::remove_file(&db_path).ok();
+        }
+        // Open with a valid passphrase — should auto-create all parent dirs
+        let result = Database::open(&db_path_str, "test-passphrase-123");
+        assert!(result.is_ok(), "Database::open failed: {:?}", result.err());
+
+        // Verify the database and salt file were created
+        assert!(db_path.exists(), "DB file should exist at {:?}", db_path);
+        let salt_path = format!("{}.salt", db_path_str);
+        assert!(
+            std::path::Path::new(&salt_path).exists(),
+            "Salt file should exist at {}",
+            salt_path
+        );
+
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+}
