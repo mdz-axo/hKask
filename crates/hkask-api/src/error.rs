@@ -150,8 +150,8 @@ impl From<hkask_agents::pod::AgentPodError> for ServiceErrorResponse {
     }
 }
 
-impl From<hkask_types::ports::RegistryError> for ServiceErrorResponse {
-    fn from(e: hkask_types::ports::RegistryError) -> Self {
+impl From<hkask_ports::RegistryError> for ServiceErrorResponse {
+    fn from(e: hkask_ports::RegistryError) -> Self {
         ServiceErrorResponse(hkask_services::ServiceError::Registry {
             message: e.to_string(),
         })

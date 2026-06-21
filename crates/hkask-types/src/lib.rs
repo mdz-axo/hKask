@@ -4,8 +4,8 @@
 pub mod agent;
 pub mod audit;
 pub mod bundle;
-pub mod capability;
 pub mod cns;
+pub mod crypto;
 pub mod curation;
 pub mod error;
 pub mod event;
@@ -16,7 +16,6 @@ pub mod kanban;
 pub mod ocr;
 
 pub mod loops;
-pub mod ports;
 pub mod r7;
 pub mod secret;
 pub mod sovereignty;
@@ -24,6 +23,7 @@ pub mod template;
 pub mod template_type;
 pub mod text;
 pub mod time;
+pub mod token;
 pub mod visibility;
 
 pub mod transcript;
@@ -41,15 +41,8 @@ pub use agent::{
 };
 pub use audit::{AuditEntry, AuditOutcome};
 pub use bundle::BundleManifest;
-pub use capability::{
-    AuthContext, CapabilityChecker, CapabilitySpec, DelegationAction, DelegationResource,
-    DelegationToken, DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
-    TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
-    capabilities_match, capability_from_server_id, require_read_access, require_write_access,
-    token_err_insufficient_access, token_err_tool_access_denied, verify_delegation_token,
-    verify_delegation_token_now,
-};
 pub use cns::CircuitState;
+pub use crypto::Ed25519PublicKey;
 pub use curation::CurationDecision;
 pub use error::{InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink};
@@ -64,17 +57,11 @@ pub use kanban::{
     TaskStatus, Verification, VerificationCriterion,
 };
 pub use loops::{CurationInput, CuratorHandle, ExperienceClassification};
-pub use ports::{
-    BundleRegistryIndex, CircuitBreakerPort, EmbeddingGenerationError, InferenceError,
-    InferencePort, InferenceResult, InferenceStreamChunk, InferenceUsage, RegistryEntry,
-    RegistryError, RegistryIndex, Skill, SkillRegistryIndex, SkillZone, StructuredToolCall,
-    ToolInfo, ToolPort, ToolPortError,
-};
 pub use transcript::{TimedWord, TranscriptBundle, TranscriptSegment};
 pub use visibility::{Confidence, Visibility};
 pub use voice::VoiceDesign;
 pub use wallet::{
-    ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Ed25519PublicKey,
-    Encumbrance, EncumbranceStatus, PriceFeedConfig, PrivacyMode, RJoule, RateLimitConfig,
-    TransactionType, WalletBalance, WalletConfig, WalletError, WalletTransaction,
+    ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Encumbrance,
+    EncumbranceStatus, PriceFeedConfig, PrivacyMode, RJoule, RateLimitConfig, TransactionType,
+    WalletBalance, WalletConfig, WalletError, WalletTransaction,
 };

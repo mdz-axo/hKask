@@ -9,10 +9,11 @@
 //! - Attenuation chain: each delegation reduces authority
 
 use ed25519_dalek::SigningKey;
-use hkask_types::{
+use hkask_capability::{
     DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
-    SYSTEM_MAX_ATTENUATION, WebID,
+    SYSTEM_MAX_ATTENUATION,
 };
+use hkask_types::WebID;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

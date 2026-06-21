@@ -3,9 +3,9 @@
 //! Mints a capability token from the session's A2A secret, then routes
 //! the invocation through GovernedTool (OCAP + energy budget + CNS observability).
 
-use hkask_types::capability::derive_signing_key;
-use hkask_types::ports::ToolPort;
-use hkask_types::{DelegationAction, DelegationResource, DelegationToken};
+use hkask_capability::derive_signing_key;
+use hkask_ports::ToolPort;
+use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
 
 /// Handle `/invoke <tool> [args]` or `/invoke <server>/<tool> [args]`.
 ///

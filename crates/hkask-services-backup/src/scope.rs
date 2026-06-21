@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// Types of artifacts the backup system can track.
 ///
-/// Each variant corresponds to a [`hkask_types::ports::git_cas::RepoId`]
+/// Each variant corresponds to a [`hkask_ports::git_cas::RepoId`]
 /// for storage routing. The mapping is:
 /// - `Template`, `Style`, `RegistryEntry` → `RepoId::Registry`
 /// - `Goal`, `Spec` → `RepoId::GoalsSpecs`
@@ -39,8 +39,8 @@ impl ArtifactType {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid ArtifactType variant
     /// post: returns the corresponding RepoId for storage routing
-    pub fn repo_id(&self) -> hkask_types::ports::git_cas::RepoId {
-        use hkask_types::ports::git_cas::RepoId;
+    pub fn repo_id(&self) -> hkask_ports::git_cas::RepoId {
+        use hkask_ports::git_cas::RepoId;
         match self {
             ArtifactType::Template
             | ArtifactType::Style

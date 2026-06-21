@@ -7,11 +7,11 @@
 //! keeping only what a person would say aloud.
 
 use crate::repl::ReplState;
-use hkask_types::DelegationAction;
-use hkask_types::DelegationResource;
-use hkask_types::DelegationToken;
-use hkask_types::capability::derive_signing_key;
-use hkask_types::ports::ToolPort;
+use hkask_capability::DelegationAction;
+use hkask_capability::DelegationResource;
+use hkask_capability::DelegationToken;
+use hkask_capability::derive_signing_key;
+use hkask_ports::ToolPort;
 
 /// Speech summarizer prompt — condenses agent response for spoken output.
 const SPEECH_SUMMARIZE_PROMPT: &str = "\

@@ -26,13 +26,13 @@ use crate::cybernetics_loop::CyberneticsLoop;
 use crate::energy::EnergyCost;
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
-use hkask_types::capability::{
+use hkask_capability::{
     DelegationAction, DelegationResource, DelegationToken, capabilities_match,
 };
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanKind, SpanNamespace};
 use hkask_types::loops::ToolConsumptionEvent;
-use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
+use hkask_ports::{ToolInfo, ToolPort, ToolPortError};
 
 use serde_json::Value;
 use std::sync::Arc;
@@ -481,7 +481,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
 mod tests {
     use super::*;
     use hkask_types::WebID;
-    use hkask_types::capability::{
+    use hkask_capability::{
         DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
         derive_signing_key,
     };

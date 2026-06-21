@@ -9,6 +9,7 @@ description = "Context condensation MCP server — thin wrapper around hkask-con
 hkask-condenser = { path = "../../crates/hkask-condenser" }
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
+hkask-ports = { path = "../../crates/hkask-ports" }
 hkask-memory = { path = "../../crates/hkask-memory" }
 hkask-storage = { path = "../../crates/hkask-storage" }
 hkask-inference = { path = "../../crates/hkask-inference" }

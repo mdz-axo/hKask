@@ -24,6 +24,8 @@ hkask-services-inference-svc = { path = "../hkask-services-inference-svc" }
 hkask-services-daemon = { path = "../hkask-services-daemon" }
 hkask-services-context = { path = "../hkask-services-context" }
 hkask-types = { path = "../hkask-types" }
+hkask-ports = { path = "../hkask-ports" }
+hkask-capability = { path = "../hkask-capability" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-memory = { path = "../hkask-memory" }

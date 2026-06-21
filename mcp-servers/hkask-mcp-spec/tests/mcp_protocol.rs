@@ -12,7 +12,8 @@
 //!
 //! Run with: cargo test -p hkask-mcp-spec --test mcp_protocol
 
-use hkask_types::{DelegationAction, DelegationResource, DelegationToken, WebID};
+use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
+use hkask_types::WebID;
 use rmcp::model::CallToolRequestParams;
 use rmcp::service::{RoleClient, ServiceExt};
 use rmcp::transport::TokioChildProcess;

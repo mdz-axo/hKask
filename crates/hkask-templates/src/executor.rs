@@ -26,10 +26,11 @@
 //! both of which are already dependencies of this crate.
 
 use crate::ports::{McpPort, Result, TemplateError};
+use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
+use hkask_ports::{InferencePort, InferenceResult};
 use hkask_types::bundle::BundleManifestStep;
-use hkask_types::ports::{InferencePort, InferenceResult};
 use hkask_types::template::LLMParameters;
-use hkask_types::{BundleManifest, DelegationAction, DelegationResource, DelegationToken, WebID};
+use hkask_types::{BundleManifest, WebID};
 use minijinja::UndefinedBehavior;
 use serde_json::Value;
 use std::collections::HashMap;

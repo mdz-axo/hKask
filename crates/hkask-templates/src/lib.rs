@@ -20,10 +20,10 @@ pub mod vocabulary;
 pub use executor::ManifestExecutor;
 pub use hkask_types::BundleManifest;
 pub use hkask_types::bundle::SkillPolarity;
-pub use hkask_types::ports::BundleRegistryIndex;
-pub use hkask_types::ports::InferencePort;
-pub use hkask_types::ports::Skill;
-pub use hkask_types::ports::SkillZone;
+pub use hkask_ports::BundleRegistryIndex;
+pub use hkask_ports::InferencePort;
+pub use hkask_ports::Skill;
+pub use hkask_ports::SkillZone;
 
 pub use manifest_loader::resolve_manifest;
 pub use ports::{McpPort, Result, TemplateError};

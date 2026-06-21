@@ -14,12 +14,14 @@
 //! - \[P5\] Goal: Essentialism — factory only; no runtime cache
 //! - \[P9\] Goal: Homeostatic Self-Regulation — per-pod variety tracking
 
+use hkask_capability::{CapabilityChecker, DelegationToken};
 use hkask_cns::CnsRuntime;
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
+use hkask_ports::InferencePort;
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_types::event::SpanNamespace;
-use hkask_types::{CapabilityChecker, DelegationToken, InferencePort, NuEventSink, WebID};
+use hkask_types::{NuEventSink, WebID};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use thiserror::Error;

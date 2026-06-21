@@ -1,7 +1,7 @@
-use crate::cns::CircuitState;
-use crate::event::{NuEvent, SpanNamespace};
-use crate::id::WebID;
-use crate::loops::LoopId;
+use hkask_types::cns::CircuitState;
+use hkask_types::event::{NuEvent, SpanNamespace};
+use hkask_types::id::WebID;
+use hkask_types::loops::LoopId;
 
 use async_trait::async_trait;
 

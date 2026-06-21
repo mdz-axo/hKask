@@ -19,6 +19,8 @@ hkask-memory = { path = "../hkask-memory" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-types = { path = "../hkask-types" }
+hkask-ports = { path = "../hkask-ports" }
+hkask-capability = { path = "../hkask-capability" }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

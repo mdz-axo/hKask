@@ -10,7 +10,7 @@
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
-use hkask_types::ports::CircuitBreakerPort;
+use hkask_ports::CircuitBreakerPort;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 

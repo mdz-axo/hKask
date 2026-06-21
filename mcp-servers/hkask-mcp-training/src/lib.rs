@@ -69,7 +69,7 @@ use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
 use hkask_memory::SemanticMemory;
 use hkask_storage::Triple;
-use hkask_types::ports::InferencePort;
+use hkask_ports::InferencePort;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{McpErrorKind, Visibility, WebID};
@@ -2597,13 +2597,13 @@ impl TrainingServer {
         if let Some(ref router) = self.adapter_router {
             let canonical = adapter_meta.to_canonical();
             let provider = req.provider.as_provider_id();
-            let token = hkask_types::capability::DelegationToken::new(
-                hkask_types::capability::DelegationResource::Tool,
+            let token = hkask_capability::DelegationToken::new(
+                hkask_capability::DelegationResource::Tool,
                 "adapter:deploy".into(),
-                hkask_types::capability::DelegationAction::Execute,
+                hkask_capability::DelegationAction::Execute,
                 self.webid,
                 self.webid,
-                &hkask_types::capability::auth::derive_signing_key(b"training-mcp-deploy"),
+                &hkask_capability::auth::derive_signing_key(b"training-mcp-deploy"),
             );
 
             // Estimate first (P2 — informed consent)
@@ -2781,13 +2781,13 @@ impl TrainingServer {
         if let Some(ref router) = self.adapter_router
             && let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id)
         {
-            let token = hkask_types::capability::DelegationToken::new(
-                hkask_types::capability::DelegationResource::Tool,
+            let token = hkask_capability::DelegationToken::new(
+                hkask_capability::DelegationResource::Tool,
                 "adapter:read".into(),
-                hkask_types::capability::DelegationAction::Execute,
+                hkask_capability::DelegationAction::Execute,
                 self.webid,
                 self.webid,
-                &hkask_types::capability::auth::derive_signing_key(b"training-mcp-status"),
+                &hkask_capability::auth::derive_signing_key(b"training-mcp-status"),
             );
             if let Ok(status) = AdapterPort::endpoint_status(router.as_ref(), endpoint_id, &token) {
                 return span.ok_json(json!({
@@ -2849,13 +2849,13 @@ impl TrainingServer {
         if let Some(ref router) = self.adapter_router
             && let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id)
         {
-            let token = hkask_types::capability::DelegationToken::new(
-                hkask_types::capability::DelegationResource::Tool,
+            let token = hkask_capability::DelegationToken::new(
+                hkask_capability::DelegationResource::Tool,
                 "adapter:teardown".into(),
-                hkask_types::capability::DelegationAction::Execute,
+                hkask_capability::DelegationAction::Execute,
                 self.webid,
                 self.webid,
-                &hkask_types::capability::auth::derive_signing_key(b"training-mcp-teardown"),
+                &hkask_capability::auth::derive_signing_key(b"training-mcp-teardown"),
             );
             match AdapterPort::teardown_endpoint(router.as_ref(), endpoint_id, &token).await {
                 Ok(()) => {

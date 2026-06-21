@@ -6,7 +6,7 @@
 use hkask_acp::HkaskAcpAgent;
 use hkask_acp::main_impl::protocol::StdioTransport;
 use hkask_inference::{InferenceConfig, InferenceRouter};
-use hkask_types::ports::InferencePort;
+use hkask_ports::InferencePort;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWriteExt, BufReader};
 

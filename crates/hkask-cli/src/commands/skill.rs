@@ -7,7 +7,7 @@ use crate::cli::SkillAction;
 use hkask_services::skill;
 use hkask_services::skills::{SkillAuditor, SkillStatus};
 use hkask_templates::{Registry, SkillLoader};
-use hkask_types::ports::SkillZone;
+use hkask_ports::SkillZone;
 use hkask_types::visibility::Visibility;
 
 use std::path::PathBuf;

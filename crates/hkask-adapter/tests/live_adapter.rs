@@ -22,8 +22,8 @@ use hkask_adapter::{
 };
 use hkask_inference::ProviderId;
 use hkask_storage::in_memory_db;
-use hkask_types::capability::auth::derive_signing_key;
-use hkask_types::capability::{DelegationAction, DelegationResource, DelegationToken};
+use hkask_capability::auth::derive_signing_key;
+use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
 use hkask_types::id::WebID;
 use hkask_types::template::LLMParameters;
 use std::sync::Arc;

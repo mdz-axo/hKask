@@ -10,7 +10,7 @@
 //! not a regulatory concern (the Curation Loop regulates).
 
 use hkask_storage::spec_types::{Spec, SpecCurationRecord, SpecCurator, SpecError};
-use hkask_types::capability::SYSTEM_MAX_RECURSION;
+use hkask_capability::SYSTEM_MAX_RECURSION;
 use hkask_types::cns::CnsSpan;
 use hkask_types::curation::{
     CurationDecision, CurationThresholdConfig, OCAPBoundary, OcapTokenKind,

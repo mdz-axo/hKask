@@ -17,11 +17,11 @@
 
 use chrono::Utc;
 use hkask_memory::ConsolidationBridge;
+use hkask_ports::ConsolidationRequest;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
 use hkask_types::loops::{
     CurationInput, Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
-use hkask_types::ports::ConsolidationRequest;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{RwLock, mpsc};
@@ -375,11 +375,11 @@ impl HkaskLoop for CurationLoop {
                             }
                             if let Some(consolidation) = &self.consolidation {
                                 let handle = self.context.handle();
-                                let token = handle.issue_consolidation_token();
-                                let curator_id = handle.curator_id();
+                                let curator_id = *handle.curator_id();
+                                let token = hkask_capability::ConsolidationToken::new(curator_id);
                                 match consolidation.consolidate(
                                     &token,
-                                    curator_id,
+                                    &curator_id,
                                     ConsolidationRequest {
                                         limit: 100,
                                         ..Default::default()

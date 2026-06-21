@@ -1,10 +1,10 @@
 //! Pod value types — PodLifecycleState, PodID, persona types, template types
 
 pub use hkask_types::PodID;
-use hkask_types::{CapabilitySpec, DelegationResource, WebID};
-use serde::{Deserialize, Serialize};
-
 pub use hkask_types::AgentKind;
+use hkask_capability::{CapabilitySpec, DelegationResource};
+use hkask_types::WebID;
+use serde::{Deserialize, Serialize};
 
 use super::AgentPodError;
 

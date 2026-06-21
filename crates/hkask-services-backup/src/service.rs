@@ -6,7 +6,7 @@
 //!
 //! The backup service adds backup-specific semantics (scoped snapshot/restore,
 //! retention pruning, CNS alerting) on top of the content-addressed git storage
-//! provided by [`hkask_types::ports::git_cas::GitCASPort`].
+//! provided by [`hkask_ports::git_cas::GitCASPort`].
 //!
 //! Public API (7 operations, per essentialist G2):
 //! 1. `snapshot` — capture artifact state to git
@@ -27,7 +27,7 @@ use crate::scope::{ArtifactType, BackupScope, ListFilter, RestoreScope};
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 use argon2::Argon2;
 use chrono::Utc;
-use hkask_types::ports::git_cas::{CommitHash, GitCASPort, GitCasError, LogEntry, RepoId};
+use hkask_ports::git_cas::{CommitHash, GitCASPort, GitCasError, LogEntry, RepoId};
 use rand::RngCore;
 use rand::rng;
 use tracing::{info, instrument, warn};
@@ -498,7 +498,7 @@ impl BackupService {
     #[instrument(skip(self), fields(repo_count, total_blobs, corrupt_count))]
     pub async fn verify(
         &self,
-    ) -> Result<Vec<hkask_types::ports::git_cas::VerificationReport>, BackupError> {
+    ) -> Result<Vec<hkask_ports::git_cas::VerificationReport>, BackupError> {
         let repos = self.tracked_repos();
         let mut reports = Vec::new();
         let mut total_blobs = 0usize;
@@ -728,7 +728,7 @@ mod tests {
     use super::*;
     use crate::config::RetentionPolicy;
     use crate::serialization::serialize_artifact;
-    use hkask_types::ports::git_cas::MockGitCas;
+    use hkask_ports::git_cas::MockGitCas;
 
     fn test_config() -> BackupConfig {
         BackupConfig {

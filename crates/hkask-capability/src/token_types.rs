@@ -1,7 +1,7 @@
 //! Delegation token types — Ed25519-signed OCAP tokens with cryptographic attenuation.
 
-use crate::WebID;
-use crate::wallet::Ed25519PublicKey;
+use hkask_types::WebID;
+use hkask_types::Ed25519PublicKey;
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use hex;

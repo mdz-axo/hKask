@@ -9,9 +9,11 @@ use super::deployment::{PodDeployment, PodFactory, PodRegistry};
 use super::types::{AgentKind, AgentPersona, PodID, PodKind, PodLifecycleState};
 use crate::curator::SemanticIndex;
 use crate::ports::{A2APort, EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
+use hkask_capability::CapabilityChecker;
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
-use hkask_types::{CapabilityChecker, InferencePort, NuEventSink, WebID};
+use hkask_ports::InferencePort;
+use hkask_types::{NuEventSink, WebID};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -81,7 +83,7 @@ impl ActivePods {
         use crate::adapters::mcp_runtime::CapabilityOnlyAdapter;
         use crate::adapters::memory_loop_adapter::MemoryLoopAdapter;
         use crate::pod::PodFactory;
-        use hkask_types::CapabilityChecker;
+        use hkask_capability::CapabilityChecker;
 
         let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
         let mcp = Arc::new(CapabilityOnlyAdapter::new(Arc::new(

@@ -10,6 +10,8 @@ pub mod error;
 pub mod keys;
 pub mod types;
 
+/// Re-export from the shared crypto module (avoids circular deps with hkask-capability).
+pub use crate::crypto::Ed25519PublicKey;
 pub use chain::*;
 pub use error::*;
 pub use keys::*;

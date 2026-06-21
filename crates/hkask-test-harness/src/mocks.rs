@@ -7,7 +7,7 @@
 //! - P5 (Essentialism): each mock does one thing well
 //! - P8 (Semantic Grounding): mock responses are deterministic and verifiable
 
-use hkask_types::ports::{InferenceError, InferencePort, InferenceResult, InferenceUsage};
+use hkask_ports::{InferenceError, InferencePort, InferenceResult, InferenceUsage};
 use hkask_types::template::LLMParameters;
 use serde_json::Value;
 use std::collections::HashMap;

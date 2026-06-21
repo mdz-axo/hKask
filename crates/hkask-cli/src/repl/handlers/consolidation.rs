@@ -1,6 +1,6 @@
 //! REPL /consolidate handler — user-triggered episodic→semantic consolidation
 
-use hkask_types::ports::ConsolidationRequest;
+use hkask_ports::ConsolidationRequest;
 
 pub(crate) fn handle_consolidate(
     arg: &str,

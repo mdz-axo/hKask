@@ -33,6 +33,7 @@ use hkask_agents::curator_agent::CuratorAgent;
 use hkask_agents::loop_system::CyberneticsLoopHandle;
 use hkask_agents::pod::ActivePods;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
+use hkask_capability::CapabilityChecker;
 use hkask_cns::{
     CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, GovernedTool,
     SeamWatcher, SnapshotLoop, load_set_points,
@@ -43,6 +44,8 @@ use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
+use hkask_ports::InferencePort;
+use hkask_ports::git_cas::GitCASPort;
 use hkask_storage::EscalationQueue;
 use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::nu_event_store::NuEventStore;
@@ -52,14 +55,11 @@ use hkask_storage::{
     WalletStore, in_memory_db,
 };
 use hkask_templates::SqliteRegistry;
-use hkask_types::CapabilityChecker;
 use hkask_types::CuratorHandle;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
-use hkask_types::ports::InferencePort;
-use hkask_types::ports::git_cas::GitCASPort;
 use hkask_types::wallet::WalletId;
 
 use hkask_services_core::ServiceConfig;
@@ -140,7 +140,7 @@ pub struct AgentService {
     /// Backed by `config.mcp_secret` — the inter-process HMAC key. Use this
     /// checker to derive tokens for any service operation that needs a verifiable
     /// capability token (e.g., `ChatService::chat()` memory access tokens).
-    capability_checker: Arc<hkask_types::CapabilityChecker>,
+    capability_checker: Arc<hkask_capability::CapabilityChecker>,
 
     /// System WebID for signing capabilities.
     system_webid: WebID,
@@ -513,33 +513,50 @@ impl AgentService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  db must be a valid opened Database
     /// post: returns PerAgentMemory with episodic_storage, semantic_storage, and consolidation_service all sharing the same DB
-    pub fn build_per_agent_memory(db: Database) -> PerAgentMemory {
+    pub fn build_per_agent_memory(
+        db: Database,
+        cns_event_sink: Option<Arc<dyn NuEventSink>>,
+    ) -> PerAgentMemory {
         let conn = db.conn_arc();
 
         // EpisodicMemory + SemanticMemory for ConsolidationService
         let ts1 = TripleStore::new(Arc::clone(&conn));
-        let episodic_memory = Arc::new(EpisodicMemory::new(ts1));
+        let mut episodic_memory = EpisodicMemory::new(ts1);
+        if let Some(ref sink) = cns_event_sink {
+            episodic_memory = episodic_memory.with_cns(Arc::clone(sink));
+        }
+        let episodic_memory = Arc::new(episodic_memory);
         let ts2 = TripleStore::new(Arc::clone(&conn));
         let emb = EmbeddingStore::new(Arc::clone(&conn));
-        let semantic_memory = Arc::new(SemanticMemory::new(ts2, emb));
+        let mut semantic_memory = SemanticMemory::new(ts2, emb);
+        if let Some(ref sink) = cns_event_sink {
+            semantic_memory = semantic_memory.with_cns(Arc::clone(sink));
+        }
+        let semantic_memory = Arc::new(semantic_memory);
 
         // ConsolidationService from the shared memories
         let bridge = Arc::new(ConsolidationBridge::new(
             Arc::clone(&episodic_memory),
             Arc::clone(&semantic_memory),
         ));
-        let handle = CuratorHandle::system();
-        let token = handle.issue_consolidation_token();
+        let curator_id = *CuratorHandle::system().curator_id();
+        let token = hkask_capability::ConsolidationToken::new(curator_id);
         let consolidation_service =
             hkask_memory::ConsolidationService::new(bridge, semantic_memory, token);
 
         // Storage ports via MemoryLoopAdapter — uses the same connection
+        let mut adapter_epi = EpisodicMemory::new(TripleStore::new(Arc::clone(&conn)));
+        let mut adapter_sem = SemanticMemory::new(
+            TripleStore::new(Arc::clone(&conn)),
+            EmbeddingStore::new(Arc::clone(&conn)),
+        );
+        if let Some(ref sink) = cns_event_sink {
+            adapter_epi = adapter_epi.with_cns(Arc::clone(sink));
+            adapter_sem = adapter_sem.with_cns(Arc::clone(sink));
+        }
         let adapter = Arc::new(hkask_agents::adapters::MemoryLoopAdapter::new(
-            EpisodicMemory::new(TripleStore::new(Arc::clone(&conn))),
-            SemanticMemory::new(
-                TripleStore::new(Arc::clone(&conn)),
-                EmbeddingStore::new(Arc::clone(&conn)),
-            ),
+            adapter_epi,
+            adapter_sem,
         ));
 
         PerAgentMemory {
@@ -872,14 +889,16 @@ async fn build_loops(
     let semantic_loop = SemanticLoop::new(Arc::clone(&semantic_memory));
     loop_system.register_loop(Arc::new(semantic_loop)).await;
 
-    // Memory adapter
+    // Memory adapter — with CNS observability on its own store instances
     let memory_adapter = Arc::new(
         hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter::new(
-            EpisodicMemory::new(TripleStore::new(Arc::clone(&mem_conn))),
+            EpisodicMemory::new(TripleStore::new(Arc::clone(&mem_conn)))
+                .with_cns(Arc::clone(&f.cns_event_sink)),
             SemanticMemory::new(
                 TripleStore::new(Arc::clone(&mem_conn)),
                 EmbeddingStore::new(Arc::clone(&mem_conn)),
-            ),
+            )
+            .with_cns(Arc::clone(&f.cns_event_sink)),
         ),
     );
     let episodic_storage: Arc<dyn EpisodicStoragePort> = memory_adapter.clone();

@@ -18,12 +18,12 @@ use crate::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
 use crate::provider_cost::{CostModel, ProviderCapability, ProviderInfo};
 use hkask_inference::ProviderId;
 use hkask_storage::Store;
-use hkask_types::capability::DelegationToken;
-use hkask_types::capability::auth::derive_signing_key;
-use hkask_types::capability::{DelegationAction, DelegationResource};
+use hkask_capability::DelegationToken;
+use hkask_capability::auth::derive_signing_key;
+use hkask_capability::{DelegationAction, DelegationResource};
 use hkask_types::id::WebID;
-use hkask_types::ports::InferenceResult;
-use hkask_types::ports::InferenceUsage;
+use hkask_ports::InferenceResult;
+use hkask_ports::InferenceUsage;
 use hkask_types::template::LLMParameters;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, Weak};
@@ -1303,9 +1303,9 @@ mod tests {
     use crate::adapter_store::Checksum;
     use crate::expertise::{Expertise, MdsDomain, TrainingProvenance};
     use hkask_storage::in_memory_db;
-    use hkask_types::capability::DelegationAction;
-    use hkask_types::capability::DelegationResource;
-    use hkask_types::capability::auth::derive_signing_key;
+    use hkask_capability::DelegationAction;
+    use hkask_capability::DelegationResource;
+    use hkask_capability::auth::derive_signing_key;
     use std::future::Future;
 
     /// Block on a future in a synchronous test context.

@@ -8,7 +8,7 @@
 //! Snapshot strategy: reads files from `cas/`, writes each as a git blob object,
 //! builds a tree from blob OIDs, commits the tree. No index needed.
 
-use hkask_types::ports::git_cas::{
+use hkask_ports::git_cas::{
     CommitHash, ContentHash, DiffKind, FileDiff, GitCASPort, GitCasError, LogEntry, RepoId,
     TreeEntry, TreeEntryKind, VerificationReport,
 };

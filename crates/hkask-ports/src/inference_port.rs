@@ -1,6 +1,6 @@
-use super::inference_types::{InferenceError, InferenceResult, InferenceUsage, StructuredToolCall};
-use crate::template::LLMParameters;
+use crate::inference_types::{InferenceError, InferenceResult, InferenceUsage, StructuredToolCall};
 use futures_util::Stream;
+use hkask_types::template::LLMParameters;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;

@@ -7,6 +7,7 @@ description = "SQLite + SQLCipher storage for hKask"
 
 [dependencies]
 hkask-types = { path = "../hkask-types", features = ["sql"] }
+hkask-ports = { path = "../hkask-ports" }
 hkask-keystore = { path = "../hkask-keystore" }
 rusqlite.workspace = true
 sqlite-vec.workspace = true

@@ -11,7 +11,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use hkask_templates::SkillLoader;
-use hkask_types::ports::{RegistryIndex, SkillRegistryIndex};
+use hkask_ports::{RegistryIndex, SkillRegistryIndex};
 use hkask_types::template_type::TemplateType;
 use hkask_types::visibility::Visibility;
 use serde::{Deserialize, Serialize};
@@ -606,7 +606,7 @@ mod tests {
         let mut skill_index: hkask_templates::Registry = hkask_templates::Registry::new();
         loader.load_into(&mut skill_index);
         // Seed registry with the template entry so list(None) returns it.
-        registry.register(hkask_types::ports::RegistryEntry {
+        registry.register(hkask_ports::RegistryEntry {
             id: "test-skill/test".to_string(),
             template_type: TemplateType::KnowAct,
             name: "test".to_string(),

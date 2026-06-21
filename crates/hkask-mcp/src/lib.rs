@@ -21,7 +21,7 @@ pub use daemon::{DaemonClient, DaemonHandler, DaemonListener, DaemonRequest, Dae
 pub use dispatch::McpDispatcher;
 pub use dispatch::RawMcpToolPort;
 pub use git_cas::{GitCasAdapter, GixCasAdapter};
-pub use hkask_types::ports::ToolInfo;
+pub use hkask_ports::ToolInfo;
 pub use runtime::{McpRuntime, McpServer, McpTool, ServerStartError};
 pub use server::{
     CapabilityTier, CredentialRequirement, McpError, ServerContext, api_get, api_put, load_dotenv,

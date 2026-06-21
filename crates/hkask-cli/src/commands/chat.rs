@@ -13,7 +13,7 @@
 use std::sync::Arc;
 
 use hkask_services::{AgentService, ChatRequest, ChatService, ResolvedSecrets};
-use hkask_types::ports::{InferencePort, InferenceUsage};
+use hkask_ports::{InferencePort, InferenceUsage};
 use hkask_types::template::LLMParameters;
 
 /// Build AgentService from secrets or environment.
@@ -257,7 +257,7 @@ pub async fn chat_with_agent_streaming(
     let mut full_text = String::new();
     let mut final_usage: Option<InferenceUsage> = None;
     let mut final_finish_reason = String::from("stop");
-    let mut final_tool_calls: Vec<hkask_types::ports::StructuredToolCall> = vec![];
+    let mut final_tool_calls: Vec<hkask_ports::StructuredToolCall> = vec![];
 
     use futures_util::StreamExt;
     let mut stream = Box::pin(stream);
@@ -377,7 +377,7 @@ pub async fn chat_with_agent_streaming_with_params(
     let mut full_text = String::new();
     let mut final_usage: Option<InferenceUsage> = None;
     let mut final_finish_reason = String::from("stop");
-    let mut final_tool_calls: Vec<hkask_types::ports::StructuredToolCall> = vec![];
+    let mut final_tool_calls: Vec<hkask_ports::StructuredToolCall> = vec![];
 
     use futures_util::StreamExt;
     let mut stream = Box::pin(stream);

@@ -8,7 +8,7 @@
 //! granted capabilities.
 
 use crate::ports::{Result, TemplateError};
-use hkask_types::capability::{CapabilitySpec, DelegationToken, capabilities_match};
+use hkask_capability::{CapabilitySpec, DelegationToken, capabilities_match};
 
 /// Validates that an agent's capability tokens satisfy a template's requirements.
 ///
@@ -99,7 +99,7 @@ impl Default for CapabilityAwareValidator {
 mod tests {
     use super::*;
     use hkask_types::WebID;
-    use hkask_types::capability::{DelegationAction, DelegationResource, derive_signing_key};
+    use hkask_capability::{DelegationAction, DelegationResource, derive_signing_key};
 
     fn make_token(
         resource: DelegationResource,

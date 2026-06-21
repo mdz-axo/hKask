@@ -21,6 +21,8 @@ members = [
     "crates/hkask-services-context",
     "crates/hkask-condenser",
     "crates/hkask-types",
+    "crates/hkask-capability",
+    "crates/hkask-ports",
     "crates/hkask-inference",
     "crates/hkask-services",
     "crates/hkask-storage",

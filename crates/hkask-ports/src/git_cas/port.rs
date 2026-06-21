@@ -3,7 +3,7 @@ use async_trait::async_trait;
 
 use super::error::GitCasError;
 use super::types::{CommitHash, ContentHash, FileDiff, RepoId, TreeEntry, TreeEntryKind};
-use crate::text::blake3_hash;
+use hkask_types::text::blake3_hash;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::RwLock;

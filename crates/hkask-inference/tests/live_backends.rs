@@ -6,7 +6,7 @@
 //! Run with: DI_API_KEY=... TG_API_KEY=... cargo test -p hkask-inference --test live_backends -- --ignored
 
 use hkask_inference::{InferenceConfig, InferenceRouter, ProviderId};
-use hkask_types::ports::InferencePort;
+use hkask_ports::InferencePort;
 use hkask_types::template::LLMParameters;
 
 fn load_env() {

@@ -11,11 +11,11 @@
 //!     → open TUI transcript viewer
 
 use crate::repl::ReplState;
-use hkask_types::DelegationAction;
-use hkask_types::DelegationResource;
-use hkask_types::DelegationToken;
-use hkask_types::ToolPort;
-use hkask_types::capability::derive_signing_key;
+use hkask_capability::DelegationAction;
+use hkask_capability::DelegationResource;
+use hkask_capability::DelegationToken;
+use hkask_ports::ToolPort;
+use hkask_capability::derive_signing_key;
 use std::path::PathBuf;
 
 /// Directory where transcripts are saved.

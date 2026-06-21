@@ -4,7 +4,7 @@ use crate::cli::TemplateAction;
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
 use hkask_services::ServiceError;
 use hkask_templates::SqliteRegistry;
-use hkask_types::ports::{RegistryEntry, RegistryIndex};
+use hkask_ports::{RegistryEntry, RegistryIndex};
 use hkask_types::template_type::TemplateType;
 use serde_json::Value;
 
@@ -68,7 +68,7 @@ pub fn register_template(
         source_path,
         required_capabilities: vec![],
         cascade_level: 0,
-        matroshka_limit: hkask_types::SYSTEM_MAX_RECURSION as u32,
+        matroshka_limit: hkask_capability::SYSTEM_MAX_RECURSION as u32,
     };
 
     registry

@@ -6,6 +6,9 @@ license.workspace = true
 description = "ID types, nu-event, and visibility types for hKask"
 
 [dependencies]
+# NOTE: hkask-types must NOT depend on hkask-capability (would create a cycle).
+# Modules that need capability types (kanban, goal, loops/curation) are being
+# migrated to their domain crates.
 serde.workspace = true
 serde_yaml_neo.workspace = true
 serde_json.workspace = true

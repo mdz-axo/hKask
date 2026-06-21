@@ -9,9 +9,10 @@
 //! Rust is the loom. YAML/Jinja2 is the thread.
 
 use crate::ports::{Result, TemplateError};
-use hkask_types::ports::{BundleRegistryIndex, RegistryEntry, RegistryIndex, SkillRegistryIndex};
+use hkask_capability::SYSTEM_MAX_RECURSION;
+use hkask_ports::{BundleRegistryIndex, RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex};
+use hkask_types::Visibility;
 use hkask_types::template_type::TemplateType;
-use hkask_types::{SYSTEM_MAX_RECURSION, Skill, Visibility};
 use std::collections::HashMap;
 
 /// Unified template + skill registry
@@ -370,17 +371,14 @@ impl RegistryIndex for Registry {
         }
     }
 
-    fn get(
-        &self,
-        id: &str,
-    ) -> std::result::Result<RegistryEntry, hkask_types::ports::RegistryError> {
+    fn get(&self, id: &str) -> std::result::Result<RegistryEntry, hkask_ports::RegistryError> {
         // Validate path first (security)
         if let Err(e) = Self::validate_template_path(id) {
-            return Err(hkask_types::ports::RegistryError::Other(e.to_string()));
+            return Err(hkask_ports::RegistryError::Other(e.to_string()));
         }
         // Delegate to inherent `get` (avoids trait method name collision)
         Registry::get(self, id).cloned().ok_or_else(|| {
-            hkask_types::ports::RegistryError::NotFound(format!("Template '{}' not found", id))
+            hkask_ports::RegistryError::NotFound(format!("Template '{}' not found", id))
         })
     }
 }

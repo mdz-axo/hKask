@@ -7,6 +7,8 @@ description = "Registry, vocabulary, and template execution for hKask"
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
+hkask-ports = { path = "../hkask-ports" }
+hkask-capability = { path = "../hkask-capability" }
 hkask-storage = { path = "../hkask-storage" }
 minijinja.workspace = true
 serde.workspace = true

@@ -9,7 +9,7 @@
 //! model listing endpoint independently.
 
 use futures_util::StreamExt;
-use hkask_types::ports::{
+use hkask_ports::{
     InferenceError, InferenceResult, InferenceStreamChunk, InferenceUsage, StructuredToolCall,
     TokenProb, TokenProbability,
 };

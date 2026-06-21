@@ -4,7 +4,7 @@
 //! Servers are listed with numbered status; user opts in by name, number pattern,
 //! or "all".
 
-use hkask_types::ports::ToolPort;
+use hkask_ports::ToolPort;
 
 use super::super::builtin_servers;
 
@@ -330,7 +330,7 @@ fn start_selection(
 /// becomes aware of newly available tools.
 fn refresh_tool_section(state: &mut super::super::ReplState, rt: &tokio::runtime::Handle) {
     let tool_names = rt.block_on(state.governed_tool.discover_tools());
-    let mut tools: Vec<hkask_types::ports::ToolInfo> = Vec::new();
+    let mut tools: Vec<hkask_ports::ToolInfo> = Vec::new();
     for name in &tool_names {
         if let Some(info) = rt.block_on(state.governed_tool.get_tool_info(name)) {
             tools.push(info);

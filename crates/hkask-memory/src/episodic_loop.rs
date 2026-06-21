@@ -9,13 +9,13 @@ use std::sync::Arc;
 use crate::consolidation::ConsolidationBridge;
 use crate::episodic::EpisodicMemory;
 use hkask_types::WebID;
-use hkask_types::capability::tokens::ConsolidationToken;
+use hkask_capability::tokens::ConsolidationToken;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
-use hkask_types::ports::ConsolidationRequest;
+use hkask_ports::ConsolidationRequest;
 
 /// Episodic Loop — monitors episodic storage usage against budget and enforces limits.
 ///

@@ -13,7 +13,7 @@
 use crate::error::McpError;
 use crate::ports::MCPRuntimePort;
 use hkask_mcp::runtime::McpRuntime;
-use hkask_types::{
+use hkask_capability::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, TOKEN_ERR_EXPIRED,
     TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
     verify_delegation_token_now,
@@ -209,27 +209,27 @@ impl MCPRuntimePort for FullMcpAdapter {
             .unwrap_or_else(|| "unknown".to_string());
 
         let raw_port = hkask_mcp::RawMcpToolPort::new(self.mcp_runtime.as_ref().clone());
-        match self.handle.block_on(hkask_types::ports::ToolPort::invoke(
+        match self.handle.block_on(hkask_ports::ToolPort::invoke(
             &raw_port, &server_id, tool_name, input, token,
         )) {
             Ok(value) => Ok(value),
-            Err(hkask_types::ports::ToolPortError::NotFound(msg)) => {
+            Err(hkask_ports::ToolPortError::NotFound(msg)) => {
                 Err(McpError::ToolNotFound(msg))
             }
-            Err(hkask_types::ports::ToolPortError::InvocationFailed(msg)) => {
+            Err(hkask_ports::ToolPortError::InvocationFailed(msg)) => {
                 Err(McpError::InvocationFailed(Box::new(
-                    hkask_types::ports::ToolPortError::InvocationFailed(msg),
+                    hkask_ports::ToolPortError::InvocationFailed(msg),
                 )))
             }
-            Err(hkask_types::ports::ToolPortError::CapabilityDenied(msg)) => {
+            Err(hkask_ports::ToolPortError::CapabilityDenied(msg)) => {
                 Err(McpError::CapabilityDenied {
                     resource: "tool".to_string(),
                     action: msg,
                 })
             }
-            Err(hkask_types::ports::ToolPortError::EnergyBudgetExceeded(msg)) => {
+            Err(hkask_ports::ToolPortError::EnergyBudgetExceeded(msg)) => {
                 Err(McpError::InvocationFailed(Box::new(
-                    hkask_types::ports::ToolPortError::EnergyBudgetExceeded(msg),
+                    hkask_ports::ToolPortError::EnergyBudgetExceeded(msg),
                 )))
             }
         }

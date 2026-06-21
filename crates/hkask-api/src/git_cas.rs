@@ -18,7 +18,7 @@ pub(crate) struct GitCasBundle {
     /// Concrete `GitCasAdapter` (legacy — template loading only).
     pub git_cas: Arc<hkask_mcp::GitCasAdapter>,
     /// Trait-object `GitCASPort` (hexagonal boundary) used by stores.
-    pub git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort>,
+    pub git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort>,
 }
 
 /// Initialize the Git CAS adapter and the trait-object port.
@@ -36,7 +36,7 @@ pub(crate) fn init_git_cas() -> Result<GitCasBundle, ApiError> {
         "/tmp/hkask-templates",
     )));
     let fallback_path = PathBuf::from("/tmp/hkask-templates");
-    let git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort> = Arc::new(
+    let git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort> = Arc::new(
         hkask_mcp::GixCasAdapter::from_env()
             .or_else(|_| hkask_mcp::GixCasAdapter::new(fallback_path))
             .map_err(|e| ApiError::Internal {

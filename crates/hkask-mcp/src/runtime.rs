@@ -6,7 +6,7 @@
 //! live `Peer<RoleClient>` connections. `shutdown_all()` terminates
 //! all managed processes.
 
-use hkask_types::ports::ToolInfo;
+use hkask_ports::ToolInfo;
 use rmcp::model::CallToolRequestParams;
 use rmcp::service::{Peer, RoleClient, ServiceExt};
 use rmcp::transport::TokioChildProcess;
@@ -299,7 +299,7 @@ impl McpRuntime {
                 description: t.description.clone(),
                 input_schema: t.input_schema.clone(),
                 server_id: server_id.clone(),
-                required_capability: hkask_types::capability_from_server_id(server_id),
+                required_capability: hkask_capability::capability_from_server_id(server_id),
             })
     }
 

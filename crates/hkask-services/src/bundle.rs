@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 use hkask_templates::BundleManifest;
 use hkask_types::Visibility;
-use hkask_types::ports::{BundleRegistryIndex, InferencePort, SkillRegistryIndex};
+use hkask_ports::{BundleRegistryIndex, InferencePort, SkillRegistryIndex};
 
 use crate::ServiceError;
 use hkask_services_context::AgentService;
@@ -83,7 +83,7 @@ impl BundleService {
         // Resolve skill metadata from the registry.
         let registry = ctx.registry();
         let registry_guard = registry.lock().await;
-        let skills: Vec<hkask_types::ports::Skill> = skill_ids
+        let skills: Vec<hkask_ports::Skill> = skill_ids
             .iter()
             .filter_map(|id| registry_guard.get_skill(id))
             .collect();
@@ -321,10 +321,10 @@ impl BundleService {
     /// post: returns `Vec<Skill>` of all registered skills; empty Vec if none
     pub async fn list_skills(
         ctx: &AgentService,
-    ) -> Result<Vec<hkask_types::ports::Skill>, ServiceError> {
+    ) -> Result<Vec<hkask_ports::Skill>, ServiceError> {
         let registry = ctx.registry();
         let guard = registry.lock().await;
         // list_skills() returns Vec<Skill> — an owned type from SkillRegistryIndex
-        Ok(hkask_types::ports::SkillRegistryIndex::list_skills(&*guard))
+        Ok(hkask_ports::SkillRegistryIndex::list_skills(&*guard))
     }
 }

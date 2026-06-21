@@ -10,8 +10,8 @@ use std::sync::Arc;
 use crate::consolidation::ConsolidationBridge;
 use crate::semantic::SemanticMemory;
 use hkask_types::WebID;
-use hkask_types::capability::tokens::ConsolidationToken;
-use hkask_types::ports::{ConsolidationOutcome, ConsolidationRequest};
+use hkask_capability::tokens::ConsolidationToken;
+use hkask_ports::{ConsolidationOutcome, ConsolidationRequest};
 
 /// Consolidation Service — user-facing combined consolidation + semantic cleanup.
 ///

@@ -12,7 +12,7 @@ use crate::chat_protocol::{
     validate_prompt,
 };
 use crate::config::InferenceConfig;
-use hkask_types::ports::{InferenceError, InferenceResult, InferenceStreamChunk};
+use hkask_ports::{InferenceError, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

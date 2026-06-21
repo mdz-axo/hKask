@@ -14,7 +14,8 @@
 
 use std::fmt;
 
-use crate::capability::SYSTEM_MAX_RECURSION;
+// SYSTEM_MAX_RECURSION (from hkask-capability) = 7
+const MAX_NESTING: u8 = 7;
 pub use crate::id::GoalID;
 use crate::id::WebID;
 use crate::visibility::Visibility;
@@ -272,6 +273,6 @@ impl Goal {
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// post: returns true for non-terminal states with depth < 7
     pub fn can_have_subgoals(&self) -> bool {
-        !self.state.is_terminal() && self.depth < SYSTEM_MAX_RECURSION
+        !self.state.is_terminal() && self.depth < MAX_NESTING
     }
 }

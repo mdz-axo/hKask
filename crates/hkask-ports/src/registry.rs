@@ -1,7 +1,7 @@
-use crate::BundleManifest;
-use crate::bundle::SkillPolarity;
-use crate::template_type::TemplateType;
-use crate::visibility::Visibility;
+use hkask_types::BundleManifest;
+use hkask_types::bundle::SkillPolarity;
+use hkask_types::template_type::TemplateType;
+use hkask_types::visibility::Visibility;
 use serde::{Deserialize, Serialize};
 
 /// Unified registry entry covering all template types with cascade metadata.

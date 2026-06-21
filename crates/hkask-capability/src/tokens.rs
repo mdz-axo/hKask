@@ -7,7 +7,7 @@
 //! Each token can only be constructed by the loop that governs it — private
 //! fields prevent forgery. The module path IS the loop assignment.
 
-use crate::id::WebID;
+use hkask_types::WebID;
 
 /// Token proving that a consolidation (Episodic → Semantic) operation
 /// was authorized.
@@ -25,7 +25,7 @@ pub struct ConsolidationToken {
 }
 
 impl ConsolidationToken {
-    pub(crate) fn new(issuer: WebID) -> Self {
+    pub fn new(issuer: WebID) -> Self {
         Self { issuer }
     }
 

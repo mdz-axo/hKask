@@ -6,10 +6,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use hkask_memory::{ConsolidationBridge, EpisodicMemory, SemanticMemory};
+use hkask_ports::{ConsolidationOutcome, ConsolidationRequest};
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_types::WebID;
 use hkask_types::loops::CuratorHandle;
-use hkask_types::ports::{ConsolidationOutcome, ConsolidationRequest};
 
 use crate::ServiceError;
 
@@ -96,8 +96,8 @@ pub fn consolidate(
         Arc::clone(&episodic_memory),
         Arc::clone(&semantic_memory),
     ));
-    let handle = CuratorHandle::system();
-    let token = handle.issue_consolidation_token();
+    let curator_id = *CuratorHandle::system().curator_id();
+    let token = hkask_capability::ConsolidationToken::new(curator_id);
     let domain_service = hkask_memory::ConsolidationService::new(bridge, semantic_memory, token);
 
     let outcome =

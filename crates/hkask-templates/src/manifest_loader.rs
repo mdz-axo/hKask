@@ -172,7 +172,7 @@ pub(crate) fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, Mani
 /// post: returns None if not found (graceful degradation)
 pub fn resolve_manifest(
     reference: &str,
-    registry: &dyn hkask_types::ports::BundleRegistryIndex,
+    registry: &dyn hkask_ports::BundleRegistryIndex,
 ) -> Option<BundleManifest> {
     // Try as a registry ID first
     if let Some(bundle) = registry.get_bundle(reference) {

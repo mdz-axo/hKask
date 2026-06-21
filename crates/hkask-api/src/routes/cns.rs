@@ -5,7 +5,7 @@ use axum::extract::{Query, State};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use futures_util::stream::Stream;
 use hkask_types::event::{NuEvent, SpanNamespace};
-use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
+use hkask_ports::{BackpressureSignal, CnsObserver, DepletionSignal};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use std::sync::Arc;

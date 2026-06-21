@@ -4,8 +4,8 @@
 //! no shared secret is required. The checker validates structural properties
 //! (expiry, resource match, holder match) against the token (P4 — Clear Boundaries).
 
-use crate::WebID;
-use crate::capability::{DelegationAction, DelegationResource, DelegationToken};
+use hkask_types::WebID;
+use crate::{DelegationAction, DelegationResource, DelegationToken};
 use ed25519_dalek::SigningKey;
 
 /// Capability checker for composition operations.
@@ -272,8 +272,8 @@ impl CapabilityChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::capability::derive_signing_key;
-    use crate::id::WebID;
+    use crate::derive_signing_key;
+    use hkask_types::WebID;
 
     #[test]
     fn capability_checker_new_creates_checker() {

@@ -12,6 +12,8 @@ path = "src/lib.rs"
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
+hkask-ports = { path = "../../crates/hkask-ports" }
+hkask-capability = { path = "../../crates/hkask-capability" }
 hkask-memory = { path = "../../crates/hkask-memory" }
 hkask-storage = { path = "../../crates/hkask-storage" }
 hkask-inference = { path = "../../crates/hkask-inference" }

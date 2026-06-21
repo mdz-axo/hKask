@@ -65,14 +65,14 @@ mod deployment;
 mod nu_event;
 mod types;
 
-use hkask_types::capability::derive_signing_key;
+use hkask_capability::{
+    CapabilitySpec, DelegationAction, DelegationResource, DelegationToken, SYSTEM_MAX_ATTENUATION,
+    derive_signing_key,
+};
 use hkask_types::secret::SecretRef;
 use hkask_types::secret::derivation_contexts;
 use hkask_types::sovereignty::DataCategory;
-use hkask_types::{
-    CapabilitySpec, DelegationAction, DelegationResource, DelegationToken, SYSTEM_MAX_ATTENUATION,
-    VoiceDesign, WebID,
-};
+use hkask_types::{VoiceDesign, WebID};
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::info;
@@ -187,8 +187,8 @@ pub enum AgentPodError {
     RoleNotAssigned(String, Vec<String>),
 }
 
-impl From<hkask_types::ports::ToolPortError> for AgentPodError {
-    fn from(e: hkask_types::ports::ToolPortError) -> Self {
+impl From<hkask_ports::ToolPortError> for AgentPodError {
+    fn from(e: hkask_ports::ToolPortError) -> Self {
         AgentPodError::ToolError(Box::new(e))
     }
 }

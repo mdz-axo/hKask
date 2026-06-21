@@ -26,9 +26,10 @@ pub const TOOL_CALL_FORMAT_INTRO: &str = "\n## Tool Calls\n\
          {\"key\": \"value\"}\n\
          >>\n\
          \n";
-use hkask_types::capability::derive_signing_key;
-use hkask_types::ports::{StructuredToolCall, ToolInfo, ToolPort};
-use hkask_types::{DelegationAction, DelegationResource, DelegationToken, WebID};
+use hkask_capability::derive_signing_key;
+use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
+use hkask_ports::{StructuredToolCall, ToolInfo, ToolPort};
+use hkask_types::WebID;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 

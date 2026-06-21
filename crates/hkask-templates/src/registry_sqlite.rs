@@ -5,12 +5,12 @@
 //! when opening through `hkask_storage::Database` (SQLCipher-encrypted).
 
 use crate::ports::{Result, TemplateError};
-use hkask_types::bundle::SkillPolarity;
-use hkask_types::ports::{
-    BundleRegistryIndex, RegistryEntry, RegistryIndex, SkillRegistryIndex, SkillZone,
+use hkask_ports::{
+    BundleRegistryIndex, RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex, SkillZone,
 };
+use hkask_types::bundle::SkillPolarity;
 use hkask_types::template_type::TemplateType;
-use hkask_types::{BundleManifest, InfrastructureError, Skill, Visibility};
+use hkask_types::{BundleManifest, InfrastructureError, Visibility};
 use rusqlite::{Connection, params};
 use std::sync::{Arc, Mutex};
 use tracing;
@@ -361,13 +361,9 @@ impl RegistryIndex for SqliteRegistry {
             .collect()
     }
 
-    fn get(
-        &self,
-        id: &str,
-    ) -> std::result::Result<RegistryEntry, hkask_types::ports::RegistryError> {
-        self.get_entry(id).map_err(|e| {
-            hkask_types::ports::RegistryError::NotFound(format!("Template '{}': {}", id, e))
-        })
+    fn get(&self, id: &str) -> std::result::Result<RegistryEntry, hkask_ports::RegistryError> {
+        self.get_entry(id)
+            .map_err(|e| hkask_ports::RegistryError::NotFound(format!("Template '{}': {}", id, e)))
     }
 }
 

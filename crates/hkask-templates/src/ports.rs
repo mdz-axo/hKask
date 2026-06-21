@@ -6,7 +6,7 @@
 //! `RegistryEntry`, `RegistryIndex`, and `RegistryError` are canonical in
 //! `hkask_types::ports` and re-exported here for backward compatibility.
 
-use hkask_types::DelegationToken;
+use hkask_capability::DelegationToken;
 use serde_json::Value;
 use std::future::Future;
 use std::pin::Pin;
@@ -24,7 +24,7 @@ pub enum TemplateError {
     #[error("Database error: {0}")]
     Database(#[from] hkask_types::InfrastructureError),
     #[error("Inference error: {0}")]
-    Inference(#[from] hkask_types::InferenceError),
+    Inference(#[from] hkask_ports::InferenceError),
     #[error("MCP error: {0}")]
     Mcp(#[source] Box<dyn std::error::Error + Send + Sync>),
 
@@ -40,7 +40,7 @@ pub enum TemplateError {
 
 pub type Result<T> = std::result::Result<T, TemplateError>;
 
-use hkask_types::ports::ToolInfo;
+use hkask_ports::ToolInfo;
 
 /// MCP port for tool invocation
 ///

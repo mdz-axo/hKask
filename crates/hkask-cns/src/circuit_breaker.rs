@@ -7,7 +7,7 @@
 //! shed load to preserve stability (Ashby's Law of Requisite Variety).
 
 use hkask_types::cns::CircuitState;
-use hkask_types::ports::CircuitBreakerPort;
+use hkask_ports::CircuitBreakerPort;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tracing::{error, info};

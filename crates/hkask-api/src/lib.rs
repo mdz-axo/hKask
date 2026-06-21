@@ -78,7 +78,7 @@ pub struct ApiState {
     /// Git CAS adapter for template archival (legacy — template loading only) — surface-specific
     pub git_cas: Arc<hkask_mcp::GitCasAdapter>,
     /// Git CAS port for all CAS operations (hexagonal boundary) — surface-specific
-    pub git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort>,
+    pub git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort>,
     /// Wallet service for rJoule payments and API key management — surface-specific.
     /// Built from config during `ApiState::with_defaults()` or `from_service_context()`.
     pub wallet_service: Option<Arc<WalletService>>,

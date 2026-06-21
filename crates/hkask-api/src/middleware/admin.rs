@@ -5,7 +5,7 @@
 use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response};
 use hkask_storage::user_store::UserStore;
 use hkask_types::WebID;
-use hkask_types::capability::auth::AuthContext;
+use hkask_capability::auth::AuthContext;
 use hkask_types::identity::Role;
 use std::sync::{Arc, Mutex};
 

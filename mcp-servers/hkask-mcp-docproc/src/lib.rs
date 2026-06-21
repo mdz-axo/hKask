@@ -28,7 +28,7 @@ use hkask_memory::SemanticMemory;
 use hkask_types::McpErrorKind;
 use hkask_types::WebID;
 use hkask_types::ocr::{OcrBackend, OcrResult, ThresholdConfig};
-use hkask_types::ports::{CnsObserver, InferencePort};
+use hkask_ports::{CnsObserver, InferencePort};
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -166,7 +166,7 @@ impl DocProcServer {
 
 // ── CNS Observer ───────────────────────────────────────────────────────────
 
-/// CNS observer that implements the real `hkask_types::ports::CnsObserver` trait.
+/// CNS observer that implements the real `hkask_ports::CnsObserver` trait.
 /// Routes pipeline events through the daemon to NuEventStore → CurationLoop.
 pub struct DocProcCnsObserver {
     daemon: Option<DaemonClient>,
@@ -213,7 +213,7 @@ impl DocProcCnsObserver {
 }
 
 #[async_trait]
-impl hkask_types::ports::CnsObserver for DocProcCnsObserver {
+impl hkask_ports::CnsObserver for DocProcCnsObserver {
     fn interest_mask(&self) -> Vec<hkask_types::event::SpanNamespace> {
         vec![hkask_types::event::SpanNamespace::new("cns.pipeline")]
     }
@@ -223,11 +223,11 @@ impl hkask_types::ports::CnsObserver for DocProcCnsObserver {
         self.persist_span(span_name, event.observation.clone());
     }
 
-    async fn on_depletion(&self, _signal: &hkask_types::ports::DepletionSignal) {
+    async fn on_depletion(&self, _signal: &hkask_ports::DepletionSignal) {
         tracing::warn!(target: "hkask.mcp.docproc.cns", "CNS depletion signal received");
     }
 
-    async fn on_backpressure(&self, _signal: &hkask_types::ports::BackpressureSignal) {
+    async fn on_backpressure(&self, _signal: &hkask_ports::BackpressureSignal) {
         tracing::warn!(target: "hkask.mcp.docproc.cns", "CNS backpressure signal received");
     }
 }

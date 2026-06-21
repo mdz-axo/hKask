@@ -1203,14 +1203,13 @@ impl CapabilityPackage {
     /// pre:  tools list is non-empty
     /// post:      /// post: returns Vec of derived capability tokens
     /// Converts "hkask-mcp-kanban" → "tool:kanban:execute".
+    ///
+    /// TODO: This method depends on `hkask_capability::capability_from_server_id`.
+    /// It will be restored when `kanban.rs` migrates to `hkask-services-kanban`.
+    #[allow(unused_variables)]
     pub fn derive_tokens_from_tools(&mut self) {
-        for server in &self.tool_servers.clone() {
-            if let Some(cap) = crate::capability::capability_from_server_id(server)
-                && !self.capability_tokens.contains(&cap)
-            {
-                self.capability_tokens.push(cap);
-            }
-        }
+        // Stubbed — depends on hkask-capability.
+        // Restore from hkask-capability when kanban migrates out of hkask-types.
     }
 
     /// expect: "System types preserve semantic identity and are provenance-aware"

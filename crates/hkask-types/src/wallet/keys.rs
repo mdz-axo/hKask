@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
-use super::chain::{ChainId, Ed25519PublicKey, PrivacyMode};
+use super::chain::{ChainId, PrivacyMode};
 use super::types::RJoule;
+use crate::crypto::Ed25519PublicKey;
 use crate::id::{ApiKeyId, WalletId};
 
 // ── RateLimitConfig — per-key rate limiting ────────────────────────────────────

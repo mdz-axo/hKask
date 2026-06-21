@@ -3,7 +3,7 @@
 //! Provides thread-safe container for adapter instances used by MCP servers.
 //! Prevents per-call adapter creation and enables runtime configuration.
 
-use hkask_types::ports::git_cas::GitCASPort;
+use hkask_ports::git_cas::GitCASPort;
 use std::sync::{Arc, RwLock};
 
 /// Container for shared MCP adapter instances

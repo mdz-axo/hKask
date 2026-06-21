@@ -15,13 +15,12 @@ use hkask_agents::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
     StorageRequest,
 };
+use hkask_capability::{AuthContext, DelegationAction, DelegationToken};
+use hkask_ports::{InferencePort, StructuredToolCall};
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
-use hkask_types::ports::{InferencePort, StructuredToolCall};
 use hkask_types::template::LLMParameters;
-use hkask_types::{
-    AuthContext, Confidence, DelegationAction, DelegationToken, PersonaConstraints, WebID,
-};
+use hkask_types::{Confidence, PersonaConstraints, WebID};
 
 use crate::ServiceError;
 use crate::{InferenceContext, InferenceService};
@@ -92,7 +91,7 @@ mod tests {
     }
 
     fn test_token(from: WebID, to: WebID) -> DelegationToken {
-        use hkask_types::capability::{DelegationAction, DelegationResource, derive_signing_key};
+        use hkask_capability::{DelegationAction, DelegationResource, derive_signing_key};
         DelegationToken::new(
             DelegationResource::Registry,
             "test".into(),
@@ -1045,7 +1044,7 @@ pub struct TurnRequest {
     /// Number of past turns to include in history suffix
     pub context_turns: usize,
     /// Capability checker for minting memory access tokens
-    pub capability_checker: Arc<hkask_types::CapabilityChecker>,
+    pub capability_checker: Arc<hkask_capability::CapabilityChecker>,
     /// System WebID for token minting
     pub system_webid: WebID,
     /// Iteration counter (0 = first iteration, incremented by caller for continuations)

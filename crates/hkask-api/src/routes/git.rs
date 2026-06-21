@@ -8,7 +8,7 @@
 use axum::extract::Extension;
 use axum::{Json, extract::Path, extract::State};
 use hkask_services::ServiceError;
-use hkask_types::ports::git_cas::RepoId;
+use hkask_ports::git_cas::RepoId;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};

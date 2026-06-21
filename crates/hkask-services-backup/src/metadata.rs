@@ -3,7 +3,7 @@
 //! expect: "Backup metadata types encode distinct domain concepts"
 
 use chrono::{DateTime, Utc};
-use hkask_types::ports::git_cas::{CommitHash, RepoId};
+use hkask_ports::git_cas::{CommitHash, RepoId};
 use serde::{Deserialize, Serialize};
 
 /// What triggered a backup snapshot.

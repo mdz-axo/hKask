@@ -14,10 +14,11 @@
 //! through GovernedTool.
 
 use crate::runtime::McpRuntime;
+use hkask_capability::{CapabilityChecker, DelegationToken};
 use hkask_cns::GovernedTool;
+use hkask_ports::{ToolInfo, ToolPort, ToolPortError};
 use hkask_templates::{McpPort, Result, TemplateError};
-use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
-use hkask_types::{CapabilityChecker, DelegationToken, WebID};
+use hkask_types::WebID;
 use rmcp::model::RawContent;
 use serde_json::Value;
 use std::future::Future;

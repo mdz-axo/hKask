@@ -31,7 +31,7 @@ use thiserror::Error;
 
 use hkask_types::InfrastructureError;
 use hkask_types::McpErrorKind;
-use hkask_types::ports::{EmbeddingGenerationError, InferenceError};
+use hkask_ports::{EmbeddingGenerationError, InferenceError};
 
 /// Unified domain error for all service operations.
 ///

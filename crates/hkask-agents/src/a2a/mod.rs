@@ -31,11 +31,10 @@ pub use audit::AuditEntry;
 pub(crate) use audit::AuditLog;
 pub(crate) use root_authority::RootAuthority;
 
-use hkask_types::capability::derive_signing_key;
-use hkask_types::{
-    AgentKind, AuditOutcome, CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
-    WebID,
+use hkask_capability::{
+    CapabilitySpec, DelegationAction, DelegationResource, DelegationToken, derive_signing_key,
 };
+use hkask_types::{AgentKind, AuditOutcome, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -647,7 +646,8 @@ impl crate::ports::A2APort for A2ARuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::{AgentKind, DelegationResource, WebID};
+    use hkask_capability::DelegationResource;
+    use hkask_types::{AgentKind, WebID};
 
     const TEST_SECRET: &[u8] = b"test-a2a-secret-32-bytes-min!";
 

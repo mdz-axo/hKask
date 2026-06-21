@@ -3,9 +3,9 @@
 use futures_util::Stream;
 use hkask_acp::HkaskAcpAgent;
 use hkask_acp::main_impl::protocol::StdioTransport;
-use hkask_types::ports::InferencePort;
-use hkask_types::ports::inference_port::InferenceStreamChunk;
-use hkask_types::ports::inference_types::{InferenceError, InferenceResult, InferenceUsage};
+use hkask_ports::InferencePort;
+use hkask_ports::inference_port::InferenceStreamChunk;
+use hkask_ports::inference_types::{InferenceError, InferenceResult, InferenceUsage};
 use hkask_types::template::LLMParameters;
 use std::future::Future;
 use std::pin::Pin;

@@ -10,9 +10,9 @@
 //! - 5.1 Escalation Routing (ROUTE) — signal → classify → deliver to consumer
 //! - 5.2 Metacognitive Adaptation (ADAPT) — outcome → compare to desired → adjust parameter
 
-use crate::capability::tokens::ConsolidationToken;
 use crate::id::WebID;
 use crate::sovereignty::DataCategory;
+use crate::token::ConsolidationToken;
 use crate::visibility::Visibility;
 
 // CuratorHandle — Loop 5 capability handle

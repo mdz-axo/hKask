@@ -1,4 +1,4 @@
-use crate::capability::DelegationToken;
+use hkask_capability::DelegationToken;
 
 /// Governance membrane error types.
 #[derive(Debug, Clone, thiserror::Error)]

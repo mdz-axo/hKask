@@ -34,7 +34,7 @@ proptest! {
     #[test]
     fn capability_spec_json_roundtrip(spec in any_capability_spec()) {
         let json = serde_json::to_string(&spec).unwrap();
-        let back: hkask_types::capability::CapabilitySpec = serde_json::from_str(&json).unwrap();
+        let back: hkask_capability::CapabilitySpec = serde_json::from_str(&json).unwrap();
         prop_assert_eq!(spec.resource, back.resource);
         prop_assert_eq!(spec.resource_id, back.resource_id);
         prop_assert_eq!(spec.action, back.action);

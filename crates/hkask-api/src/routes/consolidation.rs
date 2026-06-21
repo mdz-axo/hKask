@@ -4,7 +4,7 @@ use axum::{Extension, Json, extract::State};
 use hkask_services::ServiceError;
 use hkask_services::consolidation;
 use hkask_types::WebID;
-use hkask_types::ports::ConsolidationRequest;
+use hkask_ports::ConsolidationRequest;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};

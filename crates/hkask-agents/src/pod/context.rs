@@ -10,14 +10,13 @@
 //! - `episodic_storage` — private, agent-scoped memory (EpisodicStoragePort)
 //! - `semantic_storage` — shared, public knowledge (SemanticStoragePort)
 
+use hkask_capability::{CapabilityChecker, DelegationAction, DelegationResource, DelegationToken};
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
-use hkask_types::ports::ToolPort;
+use hkask_ports::InferencePort;
+use hkask_ports::ToolPort;
 use hkask_types::sovereignty::DataCategory;
-use hkask_types::{
-    CapabilityChecker, Confidence, DelegationAction, DelegationResource, DelegationToken,
-    ExperienceClassification, InferencePort, WebID,
-};
+use hkask_types::{Confidence, ExperienceClassification, WebID};
 use std::sync::Arc;
 
 use super::AgentPodError;

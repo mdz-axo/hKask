@@ -1,6 +1,6 @@
 //! MCP Runtime Port — Hexagonal boundary for MCP tool invocation
 
-use hkask_types::DelegationToken;
+use hkask_capability::DelegationToken;
 
 /// Port trait for MCP runtime operations
 ///

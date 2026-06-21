@@ -8,6 +8,7 @@ description = "ACP (Agent Client Protocol) replicant — presents hKask coding a
 [dependencies]
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-types = { path = "../hkask-types" }
+hkask-ports = { path = "../hkask-ports" }
 hkask-inference = { path = "../hkask-inference" }
 tokio.workspace = true
 futures-util.workspace = true

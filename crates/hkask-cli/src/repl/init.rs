@@ -14,7 +14,7 @@ use hkask_services::{AgentService, InferenceContext, InferenceService};
 use hkask_storage::Database;
 use hkask_templates::{ManifestExecutor, McpPort};
 use hkask_types::WebID;
-use hkask_types::ports::{InferencePort, ToolInfo, ToolPort};
+use hkask_ports::{InferencePort, ToolInfo, ToolPort};
 use hkask_types::template::LLMParameters;
 
 use super::ReplState;
@@ -222,7 +222,7 @@ pub(super) fn init_repl_state(
             }
             None => hkask_storage::in_memory_db(),
         };
-        let mem = AgentService::build_per_agent_memory(db);
+        let mem = AgentService::build_per_agent_memory(db, Some(Arc::clone(ctx.event_sink())));
         (
             mem.episodic_storage,
             mem.semantic_storage,

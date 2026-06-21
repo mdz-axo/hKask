@@ -26,7 +26,7 @@ use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{CapabilityTier, McpToolError, ToolSpanGuard};
 use hkask_memory::EpisodicMemory;
 use hkask_storage::{Database, Triple};
-use hkask_types::ports::InferencePort;
+use hkask_ports::InferencePort;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{McpErrorKind, Visibility, WebID};

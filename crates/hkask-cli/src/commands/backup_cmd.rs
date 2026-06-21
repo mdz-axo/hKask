@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use hkask_services::RetentionPolicy;
 use hkask_services::{ArtifactType, BackupScope, BackupService, ListFilter, RestoreScope};
-use hkask_types::ports::git_cas::GitCASPort;
+use hkask_ports::git_cas::GitCASPort;
 
 use crate::block_on;
 use crate::cli::BackupAction;
@@ -110,7 +110,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
             let svc = BackupService::new(port);
             let restore_scope = parse_restore_scope(&scope);
 
-            let commit_hash: hkask_types::ports::git_cas::CommitHash =
+            let commit_hash: hkask_ports::git_cas::CommitHash =
                 commit.parse().unwrap_or_else(|e: String| {
                     eprintln!("Invalid commit hash '{}': {}", commit, e);
                     std::process::exit(1);

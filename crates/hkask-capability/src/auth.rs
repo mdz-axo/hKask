@@ -1,6 +1,6 @@
 //! Authentication context and signing key derivation.
 
-use crate::WebID;
+use hkask_types::WebID;
 use ed25519_dalek::SigningKey;
 use sha2::{Digest, Sha256};
 

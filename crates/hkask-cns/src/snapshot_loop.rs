@@ -15,7 +15,7 @@
 use hkask_types::loops::{
     ActionType, Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
-use hkask_types::ports::git_cas::{
+use hkask_ports::git_cas::{
     CommitHash, GitCASPort, RepoId, RepoSnapshotPolicy, RetentionPolicy, RetentionTier,
 };
 use std::collections::HashMap;

@@ -40,7 +40,7 @@ use hkask_types::loops::{
     ActionType, CurationInput, CuratorDirective, Deviation, DeviationDirection, HkaskLoop,
     LoopAction, LoopId, LoopQuality, RuntimeAlert, Signal, SignalMetric, ToolConsumptionEvent,
 };
-use hkask_types::ports::BackpressureSignal;
+use hkask_ports::BackpressureSignal;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 

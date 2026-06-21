@@ -1,0 +1,21 @@
+[package]
+name = "hkask-capability"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "OCAP delegation token system with Ed25519-signed cryptographic attenuation"
+
+[dependencies]
+hkask-types = { path = "../hkask-types" }
+serde.workspace = true
+serde_json.workspace = true
+ed25519-dalek.workspace = true
+sha2.workspace = true
+hmac.workspace = true
+zeroize.workspace = true
+hex.workspace = true
+subtle.workspace = true
+base64 = "0.21"
+chrono.workspace = true
+thiserror.workspace = true
+uuid.workspace = true

@@ -85,31 +85,7 @@ impl FromStr for PrivacyMode {
     }
 }
 
-// ── Ed25519PublicKey — type-safe key material ──────────────────────────────────
-
-/// Ed25519 public key — 32 bytes.
-///
-/// Newtype to prevent accidental mixing with other 32-byte values
-/// (hashes, secrets, UUIDs). Conversion to/from `ed25519_dalek::VerifyingKey`
-/// lives in `hkask-keystore` where the crypto dependency exists.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Ed25519PublicKey(pub [u8; 32]);
-
-impl Ed25519PublicKey {
-    pub fn from_bytes(bytes: [u8; 32]) -> Self {
-        Ed25519PublicKey(bytes)
-    }
-
-    pub fn as_bytes(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
-impl fmt::Display for Ed25519PublicKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::encode(self.0))
-    }
-}
+// (Ed25519PublicKey moved to crate::crypto)
 
 // ── TxHash — on-chain transaction hash ─────────────────────────────────────────
 
