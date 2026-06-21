@@ -199,7 +199,7 @@ impl ToolSubsystem {
             .unwrap_or(server_name);
         match name {
             "memory" => ToolSubsystem::Memory,
-            "condenser" => ToolSubsystem::Condenser,
+             /* ~ changed by cargo-mutants ~ */
             "spec" => ToolSubsystem::SpecServer,
             "research" => ToolSubsystem::Research,
             "companies" => ToolSubsystem::Companies,

@@ -268,22 +268,60 @@ pub(super) fn init_repl_state(
         state.tool_prompt_section = tool_augmented::format_tool_prompt_section(&tools);
     }
 
-    // Load persona constraints from the agent's stored YAML definition
-    state.persona_constraints = rt
+    // Load rich agent definition from stored YAML for persona + process manifest
+    let rich_def = rt
         .block_on(crate::commands::bot_status(&state.current_agent))
         .ok()
         .and_then(|agent| {
-            #[derive(serde::Deserialize)]
-            struct PersonaWrapper {
-                persona: Option<hkask_types::PersonaConstraints>,
-            }
-            serde_yaml_neo::from_str::<PersonaWrapper>(&agent.source_yaml)
-                .ok()
-                .and_then(|w| w.persona)
+            hkask_agents::yaml_parser::parse_agent_from_yaml(&agent.source_yaml).ok()
         });
 
-    // Process manifest loading requires rich AgentDefinition fields.
-    // TODO: convert from store type when process_manifest is available.
+    state.persona_constraints = rich_def.as_ref().and_then(|d| d.persona.clone());
+
+    // Load process manifest for the initial agent, if defined.
+    if let Some(ref def) = rich_def
+        && let Some(ref manifest_ref) = def.process_manifest
+    {
+        let manifest = hkask_templates::resolve_manifest(manifest_ref, registry);
+
+        if let Some(bundle) = manifest {
+            let a2a_secret: &[u8] = state
+                .resolved_secrets
+                .as_ref()
+                .map(|s| s.a2a_secret.as_bytes())
+                .unwrap_or(&[]);
+
+            let mcp_dispatcher = hkask_mcp::McpDispatcher::with_governed_tool(
+                (*mcp_runtime).clone(),
+                a2a_secret,
+                state.governed_tool.clone(),
+            );
+
+            let executor = ManifestExecutor::new(
+                state.inference_port.clone(),
+                Arc::new(mcp_dispatcher) as Arc<dyn McpPort>,
+                LLMParameters::default(),
+                a2a_secret.to_vec(),
+            );
+
+            tracing::info!(
+                target: "hkask.repl",
+                manifest_id = %bundle.id,
+                steps = bundle.steps.len(),
+                "Loaded process manifest for agent"
+            );
+
+            state.process_manifest = Some(bundle);
+            state.manifest_executor = Some(executor);
+        } else {
+            tracing::warn!(
+                target: "hkask.repl",
+                manifest_ref = %manifest_ref,
+                agent = %state.current_agent,
+                "Failed to resolve process manifest — agent will run without manifest cascade"
+            );
+        }
+    }
 
     // Populate model metadata (context_length, thinking support) on
     // REPL init, so it's available immediately without waiting

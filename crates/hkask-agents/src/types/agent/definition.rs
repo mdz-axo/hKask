@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 // AgentKind is defined in hkask-types (canonical, with SQL impls). Re-exported.
 pub use hkask_types::AgentKind;
 
+// PersonaConstraints is defined in hkask-types. Re-exported.
+pub use hkask_types::PersonaConstraints;
+
 /// Charter — defines what an agent may do
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// Loop: Curation
@@ -17,21 +20,6 @@ pub struct Charter {
     pub archetype: String,
     #[serde(default)]
     pub visibility: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-/// Loop: Curation
-pub struct PersonaConstraints {
-    #[serde(default)]
-    pub tone: String,
-    #[serde(default)]
-    pub verbosity: String,
-    #[serde(default)]
-    pub formatting: String,
-    #[serde(default)]
-    pub forbidden: Vec<String>,
-    #[serde(default)]
-    pub required: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

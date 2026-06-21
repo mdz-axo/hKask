@@ -46,7 +46,7 @@ impl std::fmt::Display for AgentKind {
 ///
 /// Used by the persona filter in hkask-agents to enforce behavioral boundaries
 /// on agent output. Define these in agent YAML; loaded at agent switch time.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct PersonaConstraints {
     #[serde(default)]
     pub tone: String,

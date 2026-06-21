@@ -29,6 +29,7 @@ pub mod prompt_analysis; // Loop 1 (inference variety sensing — relocated from
 pub mod registry_loader;
 pub mod sovereignty; // Loop 6 (sovereignty enforcement)
 pub mod types;
+pub mod yaml_parser;
 
 // Re-export rich agent domain types from types/ (these are the canonical versions
 // that extend the hkask-types foundation types with additional fields).

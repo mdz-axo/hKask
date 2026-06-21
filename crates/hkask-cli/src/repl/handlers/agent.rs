@@ -15,13 +15,9 @@ pub(crate) fn handle_agent(
             .block_on(crate::commands::bot_status(arg1))
             .ok()
             .and_then(|agent| {
-                #[derive(serde::Deserialize)]
-                struct PersonaWrapper {
-                    persona: Option<hkask_types::PersonaConstraints>,
-                }
-                serde_yaml_neo::from_str::<PersonaWrapper>(&agent.source_yaml)
+                hkask_agents::yaml_parser::parse_agent_from_yaml(&agent.source_yaml)
                     .ok()
-                    .and_then(|w| w.persona)
+                    .and_then(|def| def.persona)
             });
         println!("  Switched to agent: \x1b[1m{}\x1b[0m", state.current_agent);
     }

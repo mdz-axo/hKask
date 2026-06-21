@@ -54,3 +54,6 @@ data/
 
 # Personal format-shifted output (Kindle zips, etc.) — never commit
 output/
+
+# Python virtual environment (training tools) — not part of the Rust workspace
+.venv-training/

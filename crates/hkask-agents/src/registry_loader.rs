@@ -2,13 +2,14 @@
 
 use crate::a2a::{A2AError, A2ARuntime};
 use crate::ports::RegistrySourcePort;
-use crate::types::agent::definition::{AgentDefinition, Charter, PersonaConstraints};
+use crate::types::agent::definition::{AgentDefinition, Charter};
 use crate::types::agent::profile::{Responsibility, Right};
 use hkask_storage::{
     AgentDefinition as StorageAgentDefinition, AgentRegistryError, AgentRegistryStore,
     Charter as StorageCharter, RegisteredAgent, now_rfc3339,
 };
 use hkask_types::AgentKind;
+use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
 use serde::Deserialize;
 use std::path::PathBuf;
