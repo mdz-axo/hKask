@@ -150,7 +150,6 @@ async fn create_pod(
     )
     .await?;
 
-
     Ok(Json(CreatePodResponse {
         pod_id: resp.pod_id,
     }))

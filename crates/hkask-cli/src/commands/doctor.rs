@@ -115,5 +115,5 @@ fn check_env(var: &str, label: &str, total: &mut u32) -> u32 {
 /// pre:  none
 /// post: prints provider health report to stdout
 pub fn run_doctor_cmd(rt: &tokio::runtime::Runtime) {
-    let _ = rt.block_on(run_doctor());
+    rt.block_on(run_doctor());
 }

@@ -7,12 +7,14 @@
 //! executes a YAML-defined QA pipeline with classifier-driven branching.
 
 use crate::cli::QaAction;
+use hkask_ledger::Ledger;
 use hkask_services_classify::{self, ClassifierConfig};
 use hkask_test_harness::qa_script::{ClassifyResult, QaScriptRunner};
 use hkask_test_harness::triage::{self, BoleroFailure, QaDiagnosis, TriageReport};
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 pub fn run(rt: &tokio::runtime::Runtime, action: QaAction) {
     match action {
@@ -377,7 +379,15 @@ async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Erro
         let manifest: hkask_test_harness::qa_script::QaScriptManifest =
             serde_yaml_neo::from_str(&content)
                 .map_err(|e| format!("Failed to parse {}: {}", script_path.display(), e))?;
-        QaScriptRunner::new(manifest, Box::new(classify))
+
+        // Open cost ledger if possible
+        let ledger_path = cost_ledger_path();
+        let runner = QaScriptRunner::new(manifest, Box::new(classify));
+        if let Some(p) = ledger_path {
+            runner.with_ledger_path(p)
+        } else {
+            runner
+        }
     };
 
     println!(
@@ -475,6 +485,21 @@ async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Erro
         "[QA] Budget: {} / {} µrJ ({:.1}%)",
         c.total_urj, c.cap_urj, pct
     );
+    if c.ledger_committed {
+        println!("[QA] Ledger: costs committed to ledger-cost.db");
+    }
 
     Ok(())
+}
+
+/// Open the cost ledger at the default path. Returns error if the config
+/// directory cannot be created or the ledger cannot be opened.
+fn open_cost_ledger() -> Result<Ledger, String> {
+    let config_dir =
+        dirs::config_dir().ok_or_else(|| "cannot determine config directory".to_string())?;
+    let ledger_dir = config_dir.join("hkask");
+    std::fs::create_dir_all(&ledger_dir)
+        .map_err(|e| format!("cannot create ledger directory: {}", e))?;
+    let path = ledger_dir.join("ledger-cost.db");
+    Ledger::open(&path).map_err(|e| format!("cannot open cost ledger: {}", e))
 }

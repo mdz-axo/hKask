@@ -27,6 +27,7 @@ hkask-improv = { path = "../hkask-improv" }
 hkask-communication = { path = "../hkask-communication" }
 hkask-test-harness = { path = "../hkask-test-harness" }
 hkask-services-classify = { path = "../hkask-services-classify" }
+hkask-ledger = { path = "../hkask-ledger" }
 axum.workspace = true
 clap.workspace = true
 chrono.workspace = true

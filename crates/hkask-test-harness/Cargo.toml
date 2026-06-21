@@ -15,9 +15,11 @@ chrono.workspace = true
 serde_json.workspace = true
 serde.workspace = true
 rand.workspace = true
+uuid.workspace = true
 proptest = "1"
 thiserror.workspace = true
 tracing.workspace = true
+hkask-ledger = { path = "../hkask-ledger" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }

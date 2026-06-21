@@ -43,6 +43,7 @@ struct ApiEnvelope<T> {
     #[serde(default)]
     servers: Option<Vec<T>>,
     #[serde(default)]
+    #[allow(dead_code)]
     volumes: Option<Vec<T>>,
     #[serde(default)]
     server: Option<T>,
@@ -173,7 +174,7 @@ pub async fn validate_object_storage(
     endpoint: &str,
     bucket: &str,
     access_key: &str,
-    secret_key: &str,
+    _secret_key: &str,
 ) -> Result<(), String> {
     let client = Client::new();
 

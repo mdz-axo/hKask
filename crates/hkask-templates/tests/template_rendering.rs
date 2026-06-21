@@ -27,6 +27,21 @@ fn all_templates_render() {
 
     let mut env = Environment::new();
     env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
+
+    // Register custom filters (mirrors render_minijinja in executor.rs)
+    env.add_filter(
+        "truncate",
+        |_state: &minijinja::State, value: String, max_len: usize| -> String {
+            if value.len() <= max_len {
+                value
+            } else {
+                let mut truncated: String = value.chars().take(max_len).collect();
+                truncated.push_str("...");
+                truncated
+            }
+        },
+    );
+
     // Load templates from the workspace registry directory so includes and
     // imports resolve by their registry id path (e.g. gml/macros.j2).
     env.set_loader(minijinja::path_loader(&templates_dir));

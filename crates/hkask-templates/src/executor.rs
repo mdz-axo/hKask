@@ -310,6 +310,21 @@ fn render_minijinja(template: &str, context: &HashMap<String, Value>) -> Result<
     let mut env = minijinja::Environment::new();
     env.set_undefined_behavior(UndefinedBehavior::Lenient);
 
+    // Register custom filters
+    env.add_filter(
+        "truncate",
+        |state: &minijinja::State, value: String, max_len: usize| -> String {
+            let _ = state;
+            if value.len() <= max_len {
+                value
+            } else {
+                let mut truncated: String = value.chars().take(max_len).collect();
+                truncated.push_str("...");
+                truncated
+            }
+        },
+    );
+
     // Add the template to the environment
     env.add_template("step", template)
         .map_err(|e| TemplateError::Render(format!("Invalid template: {}", e)))?;

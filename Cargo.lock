@@ -4123,6 +4123,7 @@ dependencies = [
  "hkask-improv",
  "hkask-inference",
  "hkask-keystore",
+ "hkask-ledger",
  "hkask-mcp",
  "hkask-memory",
  "hkask-services",
@@ -5268,6 +5269,7 @@ version = "0.30.0"
 dependencies = [
  "chrono",
  "hkask-cns",
+ "hkask-ledger",
  "hkask-storage",
  "hkask-types",
  "proptest",
@@ -5280,6 +5282,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
