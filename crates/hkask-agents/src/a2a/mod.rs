@@ -31,10 +31,11 @@ pub use audit::AuditEntry;
 pub(crate) use audit::AuditLog;
 pub(crate) use root_authority::RootAuthority;
 
+use crate::types::audit::AuditOutcome;
 use hkask_capability::{
     CapabilitySpec, DelegationAction, DelegationResource, DelegationToken, derive_signing_key,
 };
-use hkask_types::{AgentKind, AuditOutcome, WebID};
+use hkask_types::{AgentKind, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -13,9 +13,9 @@ use hkask_cns::energy_budget_management::EnergyBudgetManager;
 use hkask_cns::wallet_budget::WalletBackedBudget;
 use hkask_storage::WalletStore;
 use hkask_storage::database::in_memory_db;
-use hkask_types::wallet::{
-    ApiKeyCapability, ApiKeyId, Ed25519PublicKey, PrivacyMode, RJoule, WalletConfig, WalletId,
-};
+use hkask_types::crypto::Ed25519PublicKey;
+use hkask_types::id::{ApiKeyId, WalletId};
+use hkask_wallet::{ApiKeyCapability, PrivacyMode, RJoule, WalletConfig};
 use hkask_wallet::WalletManager;
 use hkask_wallet::price_feed::StaticPriceFeed;
 use std::collections::HashMap;

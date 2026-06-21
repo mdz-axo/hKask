@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(resp.name, Some("TestPod".into()));
         assert_eq!(resp.state, "registered");
         assert_eq!(resp.webid, "webid-1");
-        assert_eq!(resp.agent_type, "Replicant");
+        assert_eq!(resp.agent_type, "replicant");
         assert_eq!(resp.template, "test");
         assert_eq!(resp.created_at, 1234567890);
     }

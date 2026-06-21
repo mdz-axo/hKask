@@ -1,7 +1,7 @@
 #![cfg(feature = "hinkal")]
 use hkask_types::WebID;
-use hkask_types::wallet::{ChainId, WalletError};
 use hkask_wallet::hinkal::HinkalPort;
+use hkask_wallet::{ChainId, WalletError};
 use hkask_wallet::{PrivacyPort, sign_withdrawal};
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

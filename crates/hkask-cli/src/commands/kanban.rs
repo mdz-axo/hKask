@@ -1,9 +1,10 @@
 //! Kanban CLI — board and task management from the command line.
 
 use hkask_services::KanbanService;
+use hkask_services_kanban::{ConsentProof, TaskFilter, TaskSpec, TaskStatus};
 use hkask_storage::Store;
 use hkask_storage::TripleStore;
-use hkask_types::{ConsentProof, TaskFilter, TaskSpec, TaskStatus, WebID};
+use hkask_types::WebID;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
@@ -78,7 +79,7 @@ pub fn run_cli(action: KanbanAction, replicant_webid: WebID, _db_path: Option<&s
             if !criteria.is_empty() {
                 let vcs: Vec<_> = criteria
                     .into_iter()
-                    .map(hkask_types::VerificationCriterion::new)
+                    .map(hkask_services_kanban::VerificationCriterion::new)
                     .collect();
                 spec = spec.with_criteria(vcs);
             }
@@ -244,7 +245,7 @@ pub fn run_cli(action: KanbanAction, replicant_webid: WebID, _db_path: Option<&s
     }
 }
 
-fn parse_columns(cols: &str) -> Vec<hkask_types::ColumnDef> {
+fn parse_columns(cols: &str) -> Vec<hkask_services_kanban::ColumnDef> {
     if cols.is_empty() {
         return default_columns();
     }
@@ -259,18 +260,18 @@ fn parse_columns(cols: &str) -> Vec<hkask_types::ColumnDef> {
                 "done" => TaskStatus::Done,
                 _ => TaskStatus::Backlog,
             };
-            hkask_types::ColumnDef::new(name.trim().to_string(), status, i as u32)
+            hkask_services_kanban::ColumnDef::new(name.trim().to_string(), status, i as u32)
         })
         .collect()
 }
 
-fn default_columns() -> Vec<hkask_types::ColumnDef> {
+fn default_columns() -> Vec<hkask_services_kanban::ColumnDef> {
     vec![
-        hkask_types::ColumnDef::new("Backlog".into(), TaskStatus::Backlog, 0),
-        hkask_types::ColumnDef::new("Ready".into(), TaskStatus::Ready, 1),
-        hkask_types::ColumnDef::new("In Progress".into(), TaskStatus::InProgress, 2),
-        hkask_types::ColumnDef::new("Review".into(), TaskStatus::Review, 3),
-        hkask_types::ColumnDef::new("Done".into(), TaskStatus::Done, 4),
+        hkask_services_kanban::ColumnDef::new("Backlog".into(), TaskStatus::Backlog, 0),
+        hkask_services_kanban::ColumnDef::new("Ready".into(), TaskStatus::Ready, 1),
+        hkask_services_kanban::ColumnDef::new("In Progress".into(), TaskStatus::InProgress, 2),
+        hkask_services_kanban::ColumnDef::new("Review".into(), TaskStatus::Review, 3),
+        hkask_services_kanban::ColumnDef::new("Done".into(), TaskStatus::Done, 4),
     ]
 }
 

@@ -4,7 +4,6 @@ use ed25519_dalek::Signer;
 use hkask_types::WebID;
 use hkask_types::secret::SecretRef;
 use hkask_types::secret::derivation_contexts;
-use hkask_types::wallet::{ApiKeyCapability, ChainId};
 use keyring::{Entry, Error as KeyringError};
 use thiserror::Error;
 use tracing::{info, warn};
@@ -418,30 +417,17 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
 
 // ── Wallet key derivation ──────────────────────────────────────────────────────
 
-/// Derive a chain-specific treasury key seed from the master key.
+/// Resolve the treasury key for a given derivation context string.
+///
+/// The caller is responsible for mapping chain to derivation context.
+/// Context strings are defined in `hkask_types::secret::derivation_contexts`:
+/// - `TREASURY_SOLANA`, `TREASURY_HEDERA`, `TREASURY_HINKAL`
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// pre:  chain is a valid ChainId (Solana, Hedera, or Hinkal)
+/// pre:  context is a valid derivation context string
 /// post: returns Ok(Zeroizing<`Vec<u8>`>) — 32-byte HKDF-derived seed
-/// post: same master key → same treasury key for given chain (deterministic)
-///
-/// Uses HKDF-SHA256 with domain-separated context strings.
-/// Same master passphrase → same treasury key for a given chain.
-///
-/// # Context strings
-/// - Solana: `"hkask:treasury-solana"`
-/// - Hedera: `"hkask:treasury-hedera"`
-///
-/// # Returns
-/// 32-byte seed suitable for constructing a chain-specific keypair
-/// (Ed25519 for Solana, ED25519/ECDSA for Hedera). The actual keypair
-/// construction happens in `hkask-wallet` where the chain SDKs live.
-pub fn resolve_treasury_key(chain: ChainId) -> Result<Zeroizing<Vec<u8>>, KeychainError> {
-    let context = match chain {
-        ChainId::Solana => derivation_contexts::TREASURY_SOLANA,
-        ChainId::Hedera => derivation_contexts::TREASURY_HEDERA,
-        ChainId::Hinkal => derivation_contexts::TREASURY_HINKAL,
-    };
+/// post: same master key → same treasury key for given context (deterministic)
+pub fn resolve_treasury_key(context: &str) -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve(&SecretRef::derived(
         derivation_contexts::MASTER_KEY_ENV,
         context,
@@ -470,28 +456,22 @@ pub fn resolve_wallet_seed() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     ))
 }
 
-/// Sign an `ApiKeyCapability` with the wallet's Ed25519 key.
+/// Sign arbitrary bytes with the wallet seed.
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// pre:  capability is a valid, fully-populated ApiKeyCapability
+/// pre:  bytes are the canonical representation to sign
 /// post: returns Ok(hex_signature) — 128-char hex-encoded Ed25519 signature
 /// post: wallet seed loaded, used for signing, zeroized within this call
 ///
-/// The signature proves the capability was issued by the wallet holder.
-/// Verification: derive public key from wallet seed, verify signature
-/// against the canonical JSON bytes of the capability.
-///
 /// # Returns
 /// 64-byte Ed25519 signature as a hex-encoded string (128 hex chars).
-pub fn sign_api_key_capability(capability: &ApiKeyCapability) -> Result<String, KeychainError> {
+pub fn sign_wallet_bytes(bytes: &[u8]) -> Result<String, KeychainError> {
     let seed = resolve_wallet_seed()?;
     let seed_bytes: [u8; 32] = seed[..32]
         .try_into()
         .map_err(|_| KeychainError::Platform("wallet seed must be 32 bytes".into()))?;
     let signing_key = ed25519_dalek::SigningKey::from_bytes(&seed_bytes);
-    let canonical_bytes =
-        serde_json::to_vec(capability).map_err(|e| KeychainError::Platform(e.to_string()))?;
-    let signature = signing_key.sign(&canonical_bytes);
+    let signature = signing_key.sign(bytes);
     Ok(hex::encode(signature.to_bytes()))
 }
 
@@ -500,8 +480,6 @@ pub fn sign_api_key_capability(capability: &ApiKeyCapability) -> Result<String, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::id::{ApiKeyId, WalletId};
-    use hkask_types::wallet::{Ed25519PublicKey, PrivacyMode, RJoule};
 
     /// Set a test master key in the environment for derivation tests.
     /// Uses a fixed 32-byte hex key so derivations are deterministic.
@@ -518,10 +496,10 @@ mod tests {
     }
 
     #[test]
-    fn treasury_keys_differ_per_chain() {
+    fn treasury_keys_differ_per_context() {
         set_test_master_key();
-        let solana_key = resolve_treasury_key(ChainId::Solana).unwrap();
-        let hedera_key = resolve_treasury_key(ChainId::Hedera).unwrap();
+        let solana_key = resolve_treasury_key(derivation_contexts::TREASURY_SOLANA).unwrap();
+        let hedera_key = resolve_treasury_key(derivation_contexts::TREASURY_HEDERA).unwrap();
         assert_ne!(&*solana_key, &*hedera_key);
         assert_eq!(solana_key.len(), 32);
         assert_eq!(hedera_key.len(), 32);
@@ -530,8 +508,8 @@ mod tests {
     #[test]
     fn treasury_key_is_deterministic() {
         set_test_master_key();
-        let key1 = resolve_treasury_key(ChainId::Solana).unwrap();
-        let key2 = resolve_treasury_key(ChainId::Solana).unwrap();
+        let key1 = resolve_treasury_key(derivation_contexts::TREASURY_SOLANA).unwrap();
+        let key2 = resolve_treasury_key(derivation_contexts::TREASURY_SOLANA).unwrap();
         assert_eq!(&*key1, &*key2);
     }
 
@@ -551,48 +529,19 @@ mod tests {
     }
 
     #[test]
-    fn sign_api_key_capability_produces_signature() {
+    fn sign_wallet_bytes_produces_signature() {
         set_test_master_key();
-        let cap = ApiKeyCapability {
-            wallet_id: WalletId::new(),
-            key_id: ApiKeyId::new(),
-            public_key: Ed25519PublicKey([0u8; 32]),
-            spending_limit_rj: RJoule::new(5000),
-            spent_rj: RJoule::ZERO,
-            scope: vec!["read-specs".to_string()],
-            purpose: "keystore test".to_string(),
-            rate_limit: None,
-            expiry: None,
-            issued_at: chrono::Utc::now(),
-            privacy_mode: PrivacyMode::Transparent,
-            preferred_chain: None,
-        };
-        let sig = sign_api_key_capability(&cap).unwrap();
+        let sig = sign_wallet_bytes(b"test payload").unwrap();
         // Ed25519 signature is 64 bytes → 128 hex chars
         assert_eq!(sig.len(), 128);
         assert!(sig.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
     #[test]
-    fn signature_changes_on_tampered_capability() {
+    fn signature_changes_on_different_bytes() {
         set_test_master_key();
-        let mut cap = ApiKeyCapability {
-            wallet_id: WalletId::new(),
-            key_id: ApiKeyId::new(),
-            public_key: Ed25519PublicKey([0u8; 32]),
-            spending_limit_rj: RJoule::new(5000),
-            spent_rj: RJoule::ZERO,
-            scope: vec!["read-specs".to_string()],
-            purpose: "keystore test".to_string(),
-            rate_limit: None,
-            expiry: None,
-            issued_at: chrono::Utc::now(),
-            privacy_mode: PrivacyMode::Transparent,
-            preferred_chain: None,
-        };
-        let sig1 = sign_api_key_capability(&cap).unwrap();
-        cap.spending_limit_rj = RJoule::new(9999); // tamper
-        let sig2 = sign_api_key_capability(&cap).unwrap();
+        let sig1 = sign_wallet_bytes(b"payload1").unwrap();
+        let sig2 = sign_wallet_bytes(b"payload2").unwrap();
         assert_ne!(sig1, sig2);
     }
 }

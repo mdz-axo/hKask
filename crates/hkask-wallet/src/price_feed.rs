@@ -17,7 +17,7 @@
 //! during withdrawals.
 
 use async_trait::async_trait;
-use hkask_types::wallet::{ChainId, PriceFeedConfig, WalletError};
+use crate::types::{ChainId, PriceFeedConfig, WalletError};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};

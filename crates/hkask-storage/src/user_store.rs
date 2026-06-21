@@ -6,7 +6,7 @@ use base64::Engine;
 use hkask_services_core::{
     HumanUser, Invite, InviteStatus, OAuthProvider, ReplicantIdentity, Role, UserSession,
 };
-use hkask_types::wallet::WalletId;
+use hkask_types::id::WalletId;
 use hkask_types::{InfrastructureError, UserID};
 use rand::RngCore;
 use rusqlite::OptionalExtension;

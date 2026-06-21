@@ -1,9 +1,9 @@
 //! AgentRegistryStore — Persistent storage for registered agents
 use crate::Store;
-use hkask_types::{
-    AgentDefinition, AgentKind, Contact, InfrastructureError, RegisteredAgent, ScheduledTask,
-    UserProfile,
+use crate::registry_types::{
+    AgentDefinition, AgentKind, Contact, RegisteredAgent, ScheduledTask, UserProfile,
 };
+use hkask_types::InfrastructureError;
 use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum AgentRegistryError {

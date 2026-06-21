@@ -22,6 +22,7 @@ hkask-services-core = { path = "../hkask-services-core" }
 hkask-services-cloud = { path = "../hkask-services-cloud" }
 hkask-services-backup = { path = "../hkask-services-backup" }
 hkask-wallet = { path = "../hkask-wallet" }
+hkask-wallet-types = { path = "../hkask-wallet-types" }
 ed25519-dalek.workspace = true
 hex.workspace = true
 axum.workspace = true

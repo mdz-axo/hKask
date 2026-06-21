@@ -20,3 +20,4 @@ tokio.workspace = true
 reqwest.workspace = true
 uuid.workspace = true
 hex.workspace = true
+blake3.workspace = true

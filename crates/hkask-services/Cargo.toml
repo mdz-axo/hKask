@@ -34,6 +34,7 @@ hkask-templates = { path = "../hkask-templates" }
 hkask-agents = { path = "../hkask-agents" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-wallet = { path = "../hkask-wallet" }
+hkask-wallet-types = { path = "../hkask-wallet-types" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-communication = { path = "../hkask-communication" }
 hkask-improv = { path = "../hkask-improv" }

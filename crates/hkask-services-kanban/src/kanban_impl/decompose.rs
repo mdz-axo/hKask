@@ -102,7 +102,7 @@ impl KanbanService {
             for (i, phase_val) in phases.iter().enumerate() {
                 let name = phase_val["name"].as_str().unwrap_or("Unnamed");
                 let desc = phase_val["description"].as_str();
-                let mut phase = hkask_types::Phase::new(name.to_string(), i as u32);
+                let mut phase = crate::kanban::Phase::new(name.to_string(), i as u32);
                 if let Some(d) = desc {
                     phase = phase.with_description(d.to_string());
                 }
@@ -135,20 +135,20 @@ impl KanbanService {
                     .collect()
             })
             .unwrap_or_default();
-        let criteria: Vec<hkask_types::VerificationCriterion> = task_val["criteria"]
+        let criteria: Vec<crate::kanban::VerificationCriterion> = task_val["criteria"]
             .as_array()
             .map(|a| {
                 a.iter()
                     .filter_map(|v| {
                         v.as_str()
-                            .map(|s| hkask_types::VerificationCriterion::new(s.into()))
+                            .map(|s| crate::kanban::VerificationCriterion::new(s.into()))
                     })
                     .collect()
             })
             .unwrap_or_default();
         let priority = task_val["priority"]
             .as_str()
-            .and_then(hkask_types::Priority::parse_str);
+            .and_then(crate::kanban::Priority::parse_str);
 
         let mut spec = TaskSpec::new(title.into());
         if let Some(d) = description {

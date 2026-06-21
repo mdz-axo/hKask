@@ -4,9 +4,11 @@ use crate::a2a::{A2AError, A2ARuntime};
 use crate::ports::RegistrySourcePort;
 use crate::types::agent::definition::{AgentDefinition, Charter, PersonaConstraints};
 use crate::types::agent::profile::{Responsibility, Right};
-use hkask_storage::{AgentRegistryError, AgentRegistryStore, now_rfc3339};
+use hkask_storage::{
+    AgentDefinition as StorageAgentDefinition, AgentRegistryError, AgentRegistryStore,
+    Charter as StorageCharter, RegisteredAgent, now_rfc3339,
+};
 use hkask_types::AgentKind;
-use hkask_types::RegisteredAgent;
 use hkask_types::WebID;
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -352,10 +354,10 @@ impl AgentRegistryLoader {
         };
 
         let registered = RegisteredAgent {
-            definition: hkask_types::AgentDefinition {
+            definition: StorageAgentDefinition {
                 name: definition.name,
                 agent_kind: definition.agent_kind,
-                charter: definition.charter.map(|c| hkask_types::Charter {
+                charter: definition.charter.map(|c| StorageCharter {
                     purpose: c.description,
                     constraints: vec![],
                 }),

@@ -7,6 +7,7 @@ description = "OS keychain integration and AES-256-GCM encryption for hKask"
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
+hkask-wallet-types = { path = "../hkask-wallet-types" }
 keyring.workspace = true
 aes-gcm.workspace = true
 argon2.workspace = true

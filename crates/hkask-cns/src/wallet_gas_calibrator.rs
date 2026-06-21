@@ -260,7 +260,7 @@ mod tests {
         let db = in_memory_db();
         let store = Arc::new(hkask_storage::WalletStore::new(db.conn_arc()));
         let manager = WalletManager::build(
-            hkask_types::wallet::WalletConfig::default(),
+            hkask_wallet::WalletConfig::default(),
             store,
             HashMap::new(),
             None,

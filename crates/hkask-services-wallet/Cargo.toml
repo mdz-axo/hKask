@@ -18,6 +18,7 @@ hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
 hkask-services-sovereignty = { path = "../hkask-services-sovereignty" }
 hkask-wallet = { path = "../hkask-wallet" }
+hkask-wallet-types = { path = "../hkask-wallet-types" }
 tokio.workspace = true
 tracing.workspace = true
 serde.workspace = true

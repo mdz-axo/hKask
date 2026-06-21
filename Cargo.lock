@@ -4096,6 +4096,7 @@ dependencies = [
  "hkask-templates",
  "hkask-types",
  "hkask-wallet",
+ "hkask-wallet-types",
  "proptest",
  "reqwest",
  "serde",
@@ -4160,12 +4161,14 @@ dependencies = [
  "hkask-services-classify",
  "hkask-services-cloud",
  "hkask-services-core",
+ "hkask-services-kanban",
  "hkask-services-sovereignty",
  "hkask-storage",
  "hkask-templates",
  "hkask-test-harness",
  "hkask-types",
  "hkask-wallet",
+ "hkask-wallet-types",
  "minijinja",
  "proptest",
  "rand 0.9.4",
@@ -4198,6 +4201,7 @@ dependencies = [
  "hkask-test-harness",
  "hkask-types",
  "hkask-wallet",
+ "hkask-wallet-types",
  "parking_lot",
  "proptest",
  "serde",
@@ -4308,6 +4312,7 @@ dependencies = [
  "ed25519-dalek 2.2.0",
  "hex",
  "hkask-types",
+ "hkask-wallet-types",
  "hmac 0.12.1",
  "keyring",
  "rand 0.9.4",
@@ -4583,6 +4588,7 @@ dependencies = [
  "chrono",
  "dotenvy",
  "face_id",
+ "hkask-agents",
  "hkask-inference",
  "hkask-mcp",
  "hkask-ports",
@@ -4828,6 +4834,7 @@ name = "hkask-memory"
 version = "0.30.0"
 dependencies = [
  "async-trait",
+ "blake3",
  "chrono",
  "hkask-capability",
  "hkask-cns",
@@ -4855,6 +4862,7 @@ name = "hkask-ports"
 version = "0.30.0"
 dependencies = [
  "async-trait",
+ "blake3",
  "chrono",
  "futures-util",
  "hex",
@@ -4911,6 +4919,7 @@ dependencies = [
  "hkask-test-harness",
  "hkask-types",
  "hkask-wallet",
+ "hkask-wallet-types",
  "image",
  "minijinja",
  "parking_lot",
@@ -5010,6 +5019,7 @@ dependencies = [
  "hkask-templates",
  "hkask-test-harness",
  "hkask-types",
+ "hkask-wallet-types",
  "parking_lot",
  "rand 0.9.4",
  "reqwest",
@@ -5032,6 +5042,7 @@ dependencies = [
  "hkask-keystore",
  "hkask-ports",
  "hkask-types",
+ "hkask-wallet-types",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -5135,6 +5146,7 @@ version = "0.30.0"
 dependencies = [
  "chrono",
  "hkask-agents",
+ "hkask-capability",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
@@ -5210,6 +5222,7 @@ dependencies = [
 name = "hkask-services-skill"
 version = "0.30.0"
 dependencies = [
+ "blake3",
  "chrono",
  "hex",
  "hkask-ports",
@@ -5274,6 +5287,7 @@ dependencies = [
  "hkask-storage",
  "hkask-types",
  "hkask-wallet",
+ "hkask-wallet-types",
  "reqwest",
  "serde",
  "serde_json",
@@ -5298,6 +5312,7 @@ dependencies = [
  "hkask-services-core",
  "hkask-test-harness",
  "hkask-types",
+ "hkask-wallet-types",
  "proptest",
  "rand 0.9.4",
  "rusqlite",
@@ -5365,6 +5380,7 @@ dependencies = [
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
+ "hkask-wallet-types",
  "proptest",
  "rand 0.9.4",
  "rusqlite",
@@ -5426,6 +5442,7 @@ dependencies = [
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
+ "hkask-wallet-types",
  "hmac 0.12.1",
  "proptest",
  "prost 0.13.5",
@@ -5453,6 +5470,19 @@ dependencies = [
  "bolero",
  "hkask-types",
  "hkask-wallet",
+]
+
+[[package]]
+name = "hkask-wallet-types"
+version = "0.30.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "hkask-types",
+ "rusqlite",
+ "serde",
+ "thiserror 2.0.18",
+ "uuid",
 ]
 
 [[package]]

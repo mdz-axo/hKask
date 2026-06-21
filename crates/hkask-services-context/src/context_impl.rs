@@ -34,6 +34,9 @@ use hkask_agents::loop_system::CyberneticsLoopHandle;
 use hkask_agents::pod::ActivePods;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::CapabilityChecker;
+use hkask_cns::types::loops::CuratorHandle;
+use hkask_cns::types::loops::HkaskLoop;
+use hkask_cns::types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
 use hkask_cns::{
     CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, GovernedTool,
     SeamWatcher, SnapshotLoop, load_set_points,
@@ -55,12 +58,9 @@ use hkask_storage::{
     WalletStore, in_memory_db,
 };
 use hkask_templates::SqliteRegistry;
-use hkask_cns::types::loops::CuratorHandle;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
-use hkask_cns::types::loops::HkaskLoop;
-use hkask_cns::types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
-use hkask_types::wallet::WalletId;
+use hkask_types::id::WalletId;
 
 use hkask_services_core::ServiceConfig;
 use hkask_services_core::ServiceError;

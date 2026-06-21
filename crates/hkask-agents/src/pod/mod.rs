@@ -73,7 +73,8 @@ use hkask_capability::{
 use hkask_types::secret::SecretRef;
 use hkask_types::secret::derivation_contexts;
 use hkask_types::DataCategory;
-use hkask_types::{VoiceDesign, WebID};
+use hkask_types::{WebID};
+use crate::VoiceDesign;
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::info;

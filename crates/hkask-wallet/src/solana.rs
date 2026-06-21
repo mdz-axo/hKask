@@ -16,11 +16,11 @@
 //! - HTTP client uses rustls (no openssl)
 //! - Deposit addresses derived deterministically from treasury public key
 
+use crate::types::{ChainId, TxHash, WalletError};
 use async_trait::async_trait;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
-use hkask_types::wallet::{ChainId, TxHash, WalletError};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

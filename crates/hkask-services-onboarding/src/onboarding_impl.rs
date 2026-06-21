@@ -6,9 +6,11 @@ use std::sync::Arc;
 
 use hkask_agents::A2ARuntime;
 use hkask_keystore::{Keychain, master_key::derive_all_internal_secrets};
-use hkask_storage::{AgentRegistryStore, Database};
-use hkask_types::time::now_rfc3339;
-use hkask_types::{AgentDefinition, AgentKind, Charter, RegisteredAgent, UserProfile, WebID};
+use hkask_storage::{
+    AgentDefinition, AgentRegistryStore, Charter, Database, RegisteredAgent, UserProfile,
+    now_rfc3339,
+};
+use hkask_types::{AgentKind, WebID};
 
 use hkask_services_core::ServiceConfig;
 use hkask_services_core::ServiceError;
@@ -204,8 +206,8 @@ impl OnboardingService {
                 message: e.to_string(),
             })?;
 
-        let registered = hkask_types::RegisteredAgent {
-            definition: hkask_types::AgentDefinition {
+        let registered = RegisteredAgent {
+            definition: AgentDefinition {
                 name: display_name,
                 agent_kind: AgentKind::Replicant,
                 charter: Some(Charter {

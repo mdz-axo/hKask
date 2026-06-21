@@ -6,18 +6,19 @@
 //! coupled to wallet_seed and WalletStore — a separate module added no behavior
 //! beyond what inline functions provide.
 
+#[cfg(test)]
+use crate::types::EncumbranceStatus;
+use crate::types::{
+    ApiKeyCapability, ChainId, DepositAddress, DepositReference, Encumbrance, PrivacyMode, RJoule,
+    TransactionType, TxHash, WalletBalance, WalletConfig, WalletError, WalletTransaction,
+};
 use chrono::{Duration, Utc};
 use hkask_keystore::keychain::resolve_wallet_seed;
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
-#[cfg(test)]
-use hkask_types::wallet::EncumbranceStatus;
-use hkask_types::wallet::{
-    ApiKeyId, ChainId, DepositAddress, DepositReference, Encumbrance, PrivacyMode, RJoule,
-    TransactionType, TxHash, WalletBalance, WalletConfig, WalletError, WalletId, WalletTransaction,
-};
+use hkask_types::id::{ApiKeyId, WalletId};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -153,10 +154,7 @@ impl WalletManager {
     /// pre:  key_id is a valid ApiKeyId
     /// post: returns Ok(Some(capability)) if key exists and is active
     /// post: returns Ok(None) if key doesn't exist or is revoked
-    pub fn get_api_key(
-        &self,
-        key_id: hkask_types::wallet::ApiKeyId,
-    ) -> Result<Option<hkask_types::wallet::ApiKeyCapability>, WalletError> {
+    pub fn get_api_key(&self, key_id: ApiKeyId) -> Result<Option<ApiKeyCapability>, WalletError> {
         self.store.get_api_key(key_id)
     }
 
@@ -528,7 +526,8 @@ mod tests {
 
     /// Helper: create a minimal API key so encumbrance FK constraint is satisfied.
     fn ensure_key(store: &Arc<WalletStore>, wallet_id: WalletId, key_id: ApiKeyId) {
-        use hkask_types::wallet::{ApiKeyCapability, Ed25519PublicKey, PrivacyMode};
+        use crate::types::{ApiKeyCapability, PrivacyMode};
+        use hkask_types::crypto::Ed25519PublicKey;
         let capability = ApiKeyCapability {
             wallet_id,
             key_id,

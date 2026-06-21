@@ -17,7 +17,8 @@
 
 use crate::energy::{EnergyCost, EnergyError};
 use chrono::Utc;
-use hkask_types::wallet::{ApiKeyCapability, ApiKeyId, RJoule, WalletId};
+use hkask_types::id::{ApiKeyId, WalletId};
+use hkask_wallet::{ApiKeyCapability, RJoule};
 use hkask_wallet::WalletManager;
 #[cfg(test)]
 use hkask_wallet::price_feed::StaticPriceFeed;
@@ -216,7 +217,8 @@ mod tests {
     use super::*;
     use hkask_storage::WalletStore;
     use hkask_storage::database::in_memory_db;
-    use hkask_types::wallet::{Ed25519PublicKey, PrivacyMode, WalletConfig};
+    use hkask_types::crypto::Ed25519PublicKey;
+    use hkask_wallet::{PrivacyMode, WalletConfig};
 
     // WalletBackedBudget tests require a real WalletManager with an in-memory DB.
     // These are integration-style tests — they validate the gas→rJoule→debit pipeline.

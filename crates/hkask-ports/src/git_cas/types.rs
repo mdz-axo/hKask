@@ -2,7 +2,6 @@
 //!
 //! Content is addressed by BLAKE3 hash. Snapshots are git commits.
 
-use hkask_types::text::blake3_hash;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -23,7 +22,7 @@ impl ContentHash {
     /// post: returns a [`ContentHash`] containing the 32-byte BLAKE3 digest of data;
     ///       same data → same hash (deterministic)
     pub fn from_blake3(data: &[u8]) -> Self {
-        Self(blake3_hash(data))
+        Self(*blake3::hash(data).as_bytes())
     }
 
     /// Return the raw 32-byte hash.

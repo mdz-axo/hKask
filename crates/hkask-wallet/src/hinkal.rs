@@ -15,12 +15,13 @@
 //! UTXO decryption, zero-knowledge proof generation, and transaction building.
 //! Callers authenticate with wallet-signed messages — no SDK required.
 
+use crate::types::{ChainId, TxHash, WalletError};
 use async_trait::async_trait;
 use chrono::Utc;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
-use hkask_types::wallet::{ChainId, TxHash, WalletError, WalletId};
+use hkask_types::id::WalletId;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};

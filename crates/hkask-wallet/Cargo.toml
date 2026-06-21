@@ -7,6 +7,7 @@ description = "rJoule wallet — self-custody multi-chain deposits, API key issu
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
+hkask-wallet-types = { path = "../hkask-wallet-types" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
 ed25519-dalek.workspace = true

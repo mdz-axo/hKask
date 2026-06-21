@@ -17,6 +17,7 @@ serde_json.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+blake3.workspace = true
 
 [dev-dependencies]
 hkask-test-harness = { path = "../hkask-test-harness" }

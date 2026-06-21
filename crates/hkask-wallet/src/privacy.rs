@@ -9,7 +9,8 @@
 
 use chrono::{DateTime, Utc};
 use hkask_types::WebID;
-use hkask_types::wallet::{ChainId, TxHash, WalletError, WalletId};
+use crate::types::{ChainId, TxHash, WalletError};
+use hkask_types::id::WalletId;
 
 /// A shielded transfer detected in the privacy pool.
 #[derive(Debug, Clone)]

@@ -23,6 +23,7 @@ members = [
     "crates/hkask-types",
     "crates/hkask-capability",
     "crates/hkask-ports",
+    "crates/hkask-wallet-types",
     "crates/hkask-inference",
     "crates/hkask-services",
     "crates/hkask-storage",

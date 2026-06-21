@@ -18,9 +18,10 @@
 //!
 //! It does NOT sign deposit transactions (user's primary wallet signs those).
 
+use crate::types::{ApiKeyCapability, ChainId, WalletError};
 use ed25519_dalek::Signer;
 use hkask_keystore::keychain::resolve_treasury_key;
-use hkask_types::wallet::{ApiKeyCapability, ChainId, WalletError};
+use hkask_types::secret::derivation_contexts;
 use zeroize::Zeroizing;
 
 /// Loaded signing key — exists only within signing.rs.
@@ -78,7 +79,7 @@ impl std::fmt::Debug for LoadedKey {
 /// - No key material is returned to the caller — only the signature
 /// - Per-operation key loading: key derived fresh each call, not held long-term
 pub fn sign_withdrawal(chain: ChainId, tx_bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
-    sign_bytes(chain, tx_bytes)
+    sign_bytes(chain_to_context(&chain), tx_bytes)
 }
 
 /// Sign an arbitrary message with the Hinkal treasury key.
@@ -90,11 +91,20 @@ pub fn sign_withdrawal(chain: ChainId, tx_bytes: &[u8]) -> Result<Vec<u8>, Walle
 /// post: returns Ok(signature) — 64-byte Ed25519 signature
 /// post: treasury key loaded, used, and zeroized within this call
 pub fn sign_message(message: &[u8]) -> Result<Vec<u8>, WalletError> {
-    sign_bytes(ChainId::Hinkal, message)
+    sign_bytes(derivation_contexts::TREASURY_HINKAL, message)
 }
 
-fn sign_bytes(chain: ChainId, bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
-    let treasury_key: Zeroizing<Vec<u8>> = resolve_treasury_key(chain).map_err(|e| {
+/// Map ChainId to its HKDF derivation context string.
+fn chain_to_context(chain: &ChainId) -> &'static str {
+    match chain {
+        ChainId::Solana => derivation_contexts::TREASURY_SOLANA,
+        ChainId::Hedera => derivation_contexts::TREASURY_HEDERA,
+        ChainId::Hinkal => derivation_contexts::TREASURY_HINKAL,
+    }
+}
+
+fn sign_bytes(context: &str, bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
+    let treasury_key: Zeroizing<Vec<u8>> = resolve_treasury_key(context).map_err(|e| {
         WalletError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
     })?;
 
@@ -123,7 +133,10 @@ fn sign_bytes(chain: ChainId, bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
 /// # Returns
 /// 64-byte Ed25519 signature as a hex-encoded string (128 hex chars).
 pub fn sign_capability(capability: &ApiKeyCapability) -> Result<String, WalletError> {
-    hkask_keystore::keychain::sign_api_key_capability(capability)
+    let canonical_bytes = serde_json::to_vec(capability).map_err(|e| {
+        WalletError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
+    })?;
+    hkask_keystore::keychain::sign_wallet_bytes(&canonical_bytes)
         .map_err(|e| WalletError::Infra(hkask_types::InfrastructureError::Database(e.to_string())))
 }
 
@@ -132,7 +145,9 @@ pub fn sign_capability(capability: &ApiKeyCapability) -> Result<String, WalletEr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::wallet::{ApiKeyId, Ed25519PublicKey, PrivacyMode, RJoule, WalletId};
+    use crate::types::{PrivacyMode, RJoule};
+    use hkask_types::crypto::Ed25519PublicKey;
+    use hkask_types::id::{ApiKeyId, WalletId};
 
     fn set_test_master_key() {
         // SAFETY: test-only — sets master key env var in isolated test process.

@@ -9,16 +9,16 @@
 //! Each key carries embedded attenuation: spending limit, expiry, privacy mode.
 //! The Ed25519 signature proves it was issued by the wallet holder.
 
+use crate::types::{
+    ApiKeyCapability, ApiKeyMaterial, ChainId, PrivacyMode, RJoule, RateLimitConfig, WalletError,
+};
 use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
 use hkask_storage::WalletStore;
 use hkask_types::cns::CnsSpan;
+use hkask_types::crypto::Ed25519PublicKey;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
-pub use hkask_types::wallet::ApiKeyMaterial;
-use hkask_types::wallet::{
-    ApiKeyCapability, ApiKeyId, ChainId, Ed25519PublicKey, PrivacyMode, RJoule, RateLimitConfig,
-    WalletError, WalletId,
-};
+use hkask_types::id::{ApiKeyId, WalletId};
 use rand::Rng;
 use std::sync::Arc;
 use zeroize::Zeroizing;

@@ -18,17 +18,17 @@ use std::sync::Arc;
 
 use hkask_agents::consent::ConsentManager;
 use hkask_cns::CyberneticsLoop;
+use hkask_services_sovereignty::DataCategory;
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
-use hkask_services_sovereignty::DataCategory;
-use hkask_types::wallet::{
-    ApiKeyCapability, ApiKeyId, ApiKeyMaterial, ChainId, DepositAddress, DepositReference,
-    PrivacyMode, RJoule, TxHash, WalletBalance, WalletConfig, WalletError, WalletId,
-    WalletTransaction,
-};
+use hkask_types::id::{ApiKeyId, WalletId};
 #[cfg(test)]
 use hkask_wallet::price_feed::StaticPriceFeed;
+use hkask_wallet::{
+    ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, PrivacyMode,
+    RJoule, TxHash, WalletBalance, WalletConfig, WalletError, WalletTransaction,
+};
 use hkask_wallet::{ApiKeyIssuer, WalletManager, WithdrawalFee, resolve_price_feed};
 use tokio::sync::RwLock;
 
@@ -542,7 +542,7 @@ impl WalletService {
         preferred_chain: Option<ChainId>,
         scope: Vec<String>,
         purpose: String,
-        rate_limit: Option<hkask_types::wallet::RateLimitConfig>,
+        rate_limit: Option<hkask_wallet::RateLimitConfig>,
     ) -> Result<ApiKeyMaterial, ServiceError> {
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "create_key", wallet_id = %wallet_id, purpose = %purpose, "CNS");
@@ -778,7 +778,7 @@ impl WalletService {
     pub fn get_encumbrance(
         &self,
         key_id: ApiKeyId,
-    ) -> Result<Option<hkask_types::wallet::Encumbrance>, ServiceError> {
+    ) -> Result<Option<hkask_wallet::Encumbrance>, ServiceError> {
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "get_encumbrance", key_id = %key_id, "CNS");
         self.manager.get_encumbrance(key_id).map_err(|e| {
@@ -818,10 +818,10 @@ mod tests {
         use hkask_storage::database::in_memory_db;
         use hkask_types::cns::CnsSpan;
         use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
-        use hkask_types::wallet::{TxHash, WalletConfig};
         use hkask_wallet::{
             ChainPort, DepositEvent, ExchangeRate, PriceFeed, PrivacyPort, ShieldedTransfer,
         };
+        use hkask_wallet::{TxHash, WalletConfig};
         use std::sync::Mutex;
 
         const TEST_MASTER_KEY: &str =

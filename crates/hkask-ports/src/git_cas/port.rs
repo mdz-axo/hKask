@@ -3,7 +3,6 @@ use async_trait::async_trait;
 
 use super::error::GitCasError;
 use super::types::{CommitHash, ContentHash, FileDiff, RepoId, TreeEntry, TreeEntryKind};
-use hkask_types::text::blake3_hash;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -169,7 +168,7 @@ impl GitCASPort for MockGitCas {
 
     async fn snapshot(&self, repo: &RepoId, message: &str) -> Result<CommitHash, GitCasError> {
         // Generate a deterministic commit hash from the message
-        let hash_bytes = blake3_hash(message.as_bytes());
+        let hash_bytes = *blake3::hash(message.as_bytes()).as_bytes();
         let mut commit_bytes = [0u8; 20];
         commit_bytes.copy_from_slice(&hash_bytes[..20]);
         let commit = CommitHash::from_bytes(commit_bytes);

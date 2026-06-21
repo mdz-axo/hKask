@@ -10,11 +10,13 @@
 //!   kanban:task  → {task_id}  → JSON Task
 //!   kanban:board_tasks:{board_id} → {task_id} → task_id (index)
 
-use hkask_storage::{Triple, TripleStore};
-use hkask_types::{
-    Board, BoardId, ColumnDef, Comment, ConsentProof, Phase, PhaseId, Task, TaskFilter, TaskId,
-    TaskSpec, TaskStatus, Verification, WebID,
+use crate::kanban::{
+    Board, ColumnDef, Comment, ConsentProof, Phase, Task, TaskFilter, TaskSpec, TaskStatus,
+    Verification,
 };
+use hkask_storage::{Triple, TripleStore};
+use hkask_types::WebID;
+use hkask_types::id::{BoardId, PhaseId, TaskId};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -233,7 +235,7 @@ impl KanbanService {
             if let Some(s) = TaskStatus::parse_str(f) {
                 tasks.retain(|t| t.status == s);
                 Some(format!("status={}", s))
-            } else if let Some(p) = hkask_types::Priority::parse_str(f) {
+            } else if let Some(p) = crate::kanban::Priority::parse_str(f) {
                 tasks.retain(|t| t.priority == Some(p));
                 Some(format!("priority={}", p))
             } else if f.len() > 30 && f.parse::<WebID>().is_ok() {
@@ -289,8 +291,8 @@ impl KanbanService {
                 let p = task
                     .priority
                     .map(|p| match p {
-                        hkask_types::Priority::Critical => " !!",
-                        hkask_types::Priority::High => " !",
+                        crate::kanban::Priority::Critical => " !!",
+                        crate::kanban::Priority::High => " !",
                         _ => "",
                     })
                     .unwrap_or("");
@@ -624,7 +626,7 @@ impl KanbanService {
         // rSolidity contract-based verification
         // The task IS a contract. Both agent and replicant run the same assertions.
         let mut contract =
-            hkask_types::TaskContract::new("inline".into(), task.owner, verifier, &task, vec![]);
+            crate::kanban::TaskContract::new("inline".into(), task.owner, verifier, &task, vec![]);
         let result = contract.check_completion(evidence);
 
         let passed = result.passed;
@@ -886,8 +888,8 @@ pub enum KanbanError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::kanban::VerificationCriterion;
     use hkask_storage::Store;
-    use hkask_types::VerificationCriterion;
     use rusqlite::Connection;
     use std::sync::Arc;
     use std::sync::Mutex;

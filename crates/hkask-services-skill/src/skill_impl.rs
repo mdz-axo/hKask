@@ -9,8 +9,8 @@
 //!
 //! ℏKask - A Minimal Viable Container for Agents
 
-use hkask_templates::SkillLoader;
 use hkask_ports::{Skill, SkillZone};
+use hkask_templates::SkillLoader;
 use hkask_types::visibility::Visibility;
 
 use std::fs;
@@ -125,7 +125,7 @@ pub fn read_skill_visibility(skill_md_path: &Path) -> Visibility {
 /// Compute BLAKE3 hash of a SKILL.md file's contents.
 fn compute_content_hash(skill_md_path: &Path) -> Option<String> {
     let content = fs::read_to_string(skill_md_path).ok()?;
-    let hash = hkask_types::text::blake3_hash(content.as_bytes());
+    let hash = *blake3::hash(content.as_bytes()).as_bytes();
     Some(hex::encode(hash))
 }
 
@@ -147,7 +147,7 @@ pub fn read_skill_namespace(skill_md_path: &Path) -> Option<String> {
 /// post: returns Some(hex-encoded BLAKE3 hash) on success; None on I/O failure
 pub fn compute_file_hash(path: &Path) -> Option<String> {
     let content = fs::read_to_string(path).ok()?;
-    let hash = hkask_types::text::blake3_hash(content.as_bytes());
+    let hash = *blake3::hash(content.as_bytes()).as_bytes();
     Some(hex::encode(hash))
 }
 

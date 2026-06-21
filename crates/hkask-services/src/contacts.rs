@@ -2,8 +2,7 @@
 //! Each agent owns its own contacts, stored in the registry DB.
 //! These are direct crate calls, not MCP tools.
 
-use hkask_storage::AgentRegistryStore;
-use hkask_types::Contact;
+use hkask_storage::{AgentRegistryStore, Contact};
 
 use crate::ServiceError;
 

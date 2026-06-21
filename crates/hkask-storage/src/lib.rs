@@ -16,6 +16,7 @@ pub mod gallery;
 pub mod goals;
 pub mod kata_history;
 pub mod nu_event_store;
+pub mod registry_types;
 pub mod security;
 pub mod sovereignty;
 pub mod spec_store;
@@ -39,6 +40,10 @@ pub use goals::{GoalRepositoryError, QuarantinedGoal, SqliteGoalRepository};
 pub use hkask_types::TripleID;
 pub use kata_history::{KataHistoryEntry, KataHistoryError, KataHistoryStore};
 pub use nu_event_store::{DecayConfig, NuEventStore, WeightedEvent};
+pub use registry_types::{
+    AgentDefinition, Charter, Contact, RegisteredAgent, Responsibility, Right, ScheduledTask,
+    UserProfile,
+};
 pub use security::sanitize_path;
 pub use sovereignty::{SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError};
 pub use spec_store::SpecStore;

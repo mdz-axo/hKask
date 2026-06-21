@@ -20,7 +20,8 @@ use utoipa_axum::routes;
 use crate::ApiState;
 use crate::middleware::api_key_auth::WalletContext;
 use hkask_types::WebID;
-use hkask_types::wallet::{ChainId, PrivacyMode, RJoule, WalletId};
+use hkask_types::id::WalletId;
+use hkask_wallet::{ChainId, PrivacyMode, RJoule};
 
 /// Create wallet router.
 ///
@@ -802,7 +803,7 @@ async fn withdraw(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::wallet::ApiKeyId;
+    use hkask_types::id::ApiKeyId;
 
     fn wallet_ctx(wallet_id: WalletId) -> WalletContext {
         WalletContext {

@@ -4,7 +4,7 @@ use bolero::check;
 #[test]
 fn fuzz_wallet_config_default() {
     check!().with_type::<()>().for_each(|_| {
-        let _cfg = hkask_types::wallet::WalletConfig::default();
+        let _cfg = hkask_wallet::WalletConfig::default();
     });
 }
 

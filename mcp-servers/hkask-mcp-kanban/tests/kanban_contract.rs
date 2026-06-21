@@ -6,10 +6,13 @@
 //! Tested through the KanbanService public API (the core logic seam),
 //! using `TestDb` for isolated in-memory storage.
 
+use hkask_services_kanban::{
+    ConsentProof, TaskFilter, TaskSpec, TaskStatus, VerificationCriterion,
+};
 use hkask_services_kanban::{KanbanError, KanbanService};
 use hkask_storage::TripleStore;
 use hkask_test_harness::{TestDb, TestWebId};
-use hkask_types::{ConsentProof, TaskFilter, TaskSpec, TaskStatus, VerificationCriterion, WebID};
+use hkask_types::WebID;
 use proptest::prelude::*;
 
 fn setup() -> (KanbanService, WebID) {
@@ -19,13 +22,13 @@ fn setup() -> (KanbanService, WebID) {
     (service, TestWebId::alice())
 }
 
-fn default_columns() -> Vec<hkask_types::ColumnDef> {
+fn default_columns() -> Vec<hkask_services_kanban::ColumnDef> {
     vec![
-        hkask_types::ColumnDef::new("Backlog".into(), TaskStatus::Backlog, 0),
-        hkask_types::ColumnDef::new("Ready".into(), TaskStatus::Ready, 1),
-        hkask_types::ColumnDef::new("In Progress".into(), TaskStatus::InProgress, 2),
-        hkask_types::ColumnDef::new("Review".into(), TaskStatus::Review, 3),
-        hkask_types::ColumnDef::new("Done".into(), TaskStatus::Done, 4),
+        hkask_services_kanban::ColumnDef::new("Backlog".into(), TaskStatus::Backlog, 0),
+        hkask_services_kanban::ColumnDef::new("Ready".into(), TaskStatus::Ready, 1),
+        hkask_services_kanban::ColumnDef::new("In Progress".into(), TaskStatus::InProgress, 2),
+        hkask_services_kanban::ColumnDef::new("Review".into(), TaskStatus::Review, 3),
+        hkask_services_kanban::ColumnDef::new("Done".into(), TaskStatus::Done, 4),
     ]
 }
 

@@ -10,9 +10,10 @@ pub mod types;
 
 use hkask_mcp::server::{ServerContext, ToolSpanGuard};
 use hkask_services::KanbanService;
+use hkask_services_kanban::{ConsentProof, TaskFilter, TaskSpec, VerificationCriterion};
 use hkask_storage::Store;
 use hkask_storage::TripleStore;
-use hkask_types::{ConsentProof, TaskFilter, TaskSpec, VerificationCriterion, WebID};
+use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use rusqlite::Connection;
@@ -90,8 +91,8 @@ impl KanbanServer {
                 .into_iter()
                 .enumerate()
                 .map(
-                    |(i, input)| match hkask_types::TaskStatus::parse_str(&input.status) {
-                        Some(s) => Ok(hkask_types::ColumnDef::new(input.name, s, i as u32)),
+                    |(i, input)| match hkask_services_kanban::TaskStatus::parse_str(&input.status) {
+                        Some(s) => Ok(hkask_services_kanban::ColumnDef::new(input.name, s, i as u32)),
                         None => Err(format!("invalid status: {}", input.status)),
                     },
                 )
@@ -208,7 +209,7 @@ impl KanbanServer {
             Err(e) => return err(span, &format!("invalid board_id: {e}")),
         };
         let filter = match status {
-            Some(s) => match hkask_types::TaskStatus::parse_str(&s) {
+            Some(s) => match hkask_services_kanban::TaskStatus::parse_str(&s) {
                 Some(st) => TaskFilter::by_status(st),
                 None => return err(span, &format!("invalid status: {s}")),
             },
@@ -248,7 +249,7 @@ impl KanbanServer {
             Ok(id) => id,
             Err(e) => return err(span, &format!("invalid task_id: {e}")),
         };
-        let target = match hkask_types::TaskStatus::parse_str(&target_status) {
+        let target = match hkask_services_kanban::TaskStatus::parse_str(&target_status) {
             Some(s) => s,
             None => return err(span, &format!("invalid target_status: {target_status}")),
         };
@@ -411,13 +412,13 @@ impl KanbanServer {
     }
 }
 
-pub fn default_columns() -> Vec<hkask_types::ColumnDef> {
+pub fn default_columns() -> Vec<hkask_services_kanban::ColumnDef> {
     vec![
-        hkask_types::ColumnDef::new("Backlog".into(), hkask_types::TaskStatus::Backlog, 0),
-        hkask_types::ColumnDef::new("Ready".into(), hkask_types::TaskStatus::Ready, 1),
-        hkask_types::ColumnDef::new("In Progress".into(), hkask_types::TaskStatus::InProgress, 2),
-        hkask_types::ColumnDef::new("Review".into(), hkask_types::TaskStatus::Review, 3),
-        hkask_types::ColumnDef::new("Done".into(), hkask_types::TaskStatus::Done, 4),
+        hkask_services_kanban::ColumnDef::new("Backlog".into(), hkask_services_kanban::TaskStatus::Backlog, 0),
+        hkask_services_kanban::ColumnDef::new("Ready".into(), hkask_services_kanban::TaskStatus::Ready, 1),
+        hkask_services_kanban::ColumnDef::new("In Progress".into(), hkask_services_kanban::TaskStatus::InProgress, 2),
+        hkask_services_kanban::ColumnDef::new("Review".into(), hkask_services_kanban::TaskStatus::Review, 3),
+        hkask_services_kanban::ColumnDef::new("Done".into(), hkask_services_kanban::TaskStatus::Done, 4),
     ]
 }
 

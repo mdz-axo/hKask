@@ -7,8 +7,9 @@ use crate::cli::{KeyAction, WalletAction};
 use hkask_services::WalletService;
 use hkask_storage::WalletStore;
 use hkask_storage::database::in_memory_db;
-use hkask_types::wallet::{ChainId, PrivacyMode, RJoule, WalletConfig, WalletId};
+use hkask_types::id::WalletId;
 use hkask_wallet::{ApiKeyIssuer, StaticPriceFeed, WalletManager};
+use hkask_wallet::{ChainId, PrivacyMode, RJoule, WalletConfig};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -388,7 +389,7 @@ fn handle_key_list(svc: &WalletService, wallet: Option<String>) {
 
 fn handle_key_revoke(svc: &WalletService, key_id_str: String) {
     use std::str::FromStr;
-    let key_id = match hkask_types::wallet::ApiKeyId::from_str(&key_id_str) {
+    let key_id = match hkask_types::id::ApiKeyId::from_str(&key_id_str) {
         Ok(id) => id,
         Err(e) => {
             eprintln!("Invalid key ID: {e}");
@@ -471,7 +472,7 @@ fn handle_withdraw(
 
 fn handle_encumber(svc: &WalletService, key_id_str: String, amount: u64, wallet: Option<String>) {
     use std::str::FromStr;
-    let key_id = match hkask_types::wallet::ApiKeyId::from_str(&key_id_str) {
+    let key_id = match hkask_types::id::ApiKeyId::from_str(&key_id_str) {
         Ok(id) => id,
         Err(e) => {
             eprintln!("Invalid key ID: {e}");
@@ -499,7 +500,7 @@ fn handle_encumber(svc: &WalletService, key_id_str: String, amount: u64, wallet:
 
 fn handle_release_encumbrance(svc: &WalletService, key_id_str: String) {
     use std::str::FromStr;
-    let key_id = match hkask_types::wallet::ApiKeyId::from_str(&key_id_str) {
+    let key_id = match hkask_types::id::ApiKeyId::from_str(&key_id_str) {
         Ok(id) => id,
         Err(e) => {
             eprintln!("Invalid key ID: {e}");
@@ -522,7 +523,7 @@ fn handle_release_encumbrance(svc: &WalletService, key_id_str: String) {
 
 fn handle_report(svc: &WalletService, key_id_str: String, wallet: Option<String>) {
     use std::str::FromStr;
-    let key_id = match hkask_types::wallet::ApiKeyId::from_str(&key_id_str) {
+    let key_id = match hkask_types::id::ApiKeyId::from_str(&key_id_str) {
         Ok(id) => id,
         Err(e) => {
             eprintln!("Invalid key ID: {e}");
@@ -555,12 +556,7 @@ fn handle_report(svc: &WalletService, key_id_str: String, wallet: Option<String>
         Ok(txs) => {
             let spends: Vec<_> = txs
                 .iter()
-                .filter(|tx| {
-                    matches!(
-                        tx.tx_type,
-                        hkask_types::wallet::TransactionType::Spend { .. }
-                    )
-                })
+                .filter(|tx| matches!(tx.tx_type, hkask_wallet::TransactionType::Spend { .. }))
                 .collect();
 
             println!("Spending Report");
@@ -584,9 +580,7 @@ fn handle_report(svc: &WalletService, key_id_str: String, wallet: Option<String>
                     std::collections::HashMap::new();
                 let mut total_spent: i64 = 0;
                 for tx in &spends {
-                    if let hkask_types::wallet::TransactionType::Spend { ref tool, gas, .. } =
-                        tx.tx_type
-                    {
+                    if let hkask_wallet::TransactionType::Spend { ref tool, gas, .. } = tx.tx_type {
                         let entry = by_tool.entry(tool.clone()).or_insert((0, 0));
                         entry.0 += gas;
                         entry.1 += 1;
@@ -611,7 +605,7 @@ fn handle_report(svc: &WalletService, key_id_str: String, wallet: Option<String>
                 println!("  ─────────────────────────");
                 for tx in spends.iter().rev().take(10) {
                     let tool_name = match &tx.tx_type {
-                        hkask_types::wallet::TransactionType::Spend { tool, .. } => tool.as_str(),
+                        hkask_wallet::TransactionType::Spend { tool, .. } => tool.as_str(),
                         _ => "unknown",
                     };
                     println!(

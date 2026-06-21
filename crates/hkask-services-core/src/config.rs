@@ -9,7 +9,7 @@
 
 use crate::error::ServiceError;
 use hkask_inference::InferenceConfig;
-use hkask_types::wallet::WalletConfig;
+use hkask_wallet_types::WalletConfig;
 
 // ── Default values ──────────────────────────────────────────────────────────
 // Centralized here so all three constructors share the same defaults.

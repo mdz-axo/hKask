@@ -237,7 +237,7 @@ async fn wallet_store_accessible() {
 
     // Wallet may be None if no chain ports are configured (expected in test mode)
     if let Some(wallet) = svc.wallet() {
-        let wallet_id = hkask_types::wallet::WalletId::new();
+        let wallet_id = hkask_types::id::WalletId::new();
         wallet
             .ensure_wallet(wallet_id)
             .expect("ensure_wallet should succeed");

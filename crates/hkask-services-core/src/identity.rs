@@ -5,7 +5,7 @@
 
 use hkask_types::WebID;
 use hkask_types::id::UserID;
-use hkask_types::wallet::WalletId;
+use hkask_types::id::WalletId;
 use serde::{Deserialize, Serialize};
 
 /// User role for multi-user access control.

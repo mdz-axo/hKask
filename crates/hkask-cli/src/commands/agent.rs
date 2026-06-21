@@ -8,7 +8,8 @@ use std::str::FromStr;
 use crate::block_on;
 use crate::cli::BotAction;
 use hkask_services::ServiceError;
-use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID};
+use hkask_storage::{AgentDefinition, RegisteredAgent};
+use hkask_types::{AgentKind, WebID};
 
 #[derive(Debug)]
 pub struct AgentReceipt {

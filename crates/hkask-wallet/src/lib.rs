@@ -42,6 +42,7 @@ pub mod manager;
 pub mod price_feed;
 pub mod privacy;
 pub mod signing;
+pub mod types;
 
 #[cfg(feature = "solana")]
 pub mod solana;
@@ -53,7 +54,7 @@ pub mod hedera;
 pub mod hinkal;
 
 pub use chain::{ChainPort, DepositEvent};
-pub use issuer::{ApiKeyIssuer, ApiKeyMaterial};
+pub use issuer::ApiKeyIssuer;
 pub use manager::WalletManager;
 pub use price_feed::{
     CoinGeckoPriceFeed, CompositePriceFeed, EodhdPriceFeed, ExchangeRate, PriceFeed,
@@ -61,3 +62,10 @@ pub use price_feed::{
 };
 pub use privacy::{PrivacyPort, ShieldedTransfer};
 pub use signing::{sign_capability, sign_withdrawal};
+
+// Re-export wallet types from types/ (canonical location after migration from hkask-types).
+pub use types::{
+    ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Encumbrance,
+    EncumbranceStatus, PriceFeedConfig, PrivacyMode, RJoule, RateLimitConfig, TransactionType,
+    TxHash, WalletBalance, WalletConfig, WalletError, WalletTransaction,
+};

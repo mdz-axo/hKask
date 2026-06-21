@@ -58,4 +58,4 @@ pub use registry_loader::AgentRegistryLoader;
 pub use sovereignty::{AllowAllConsent, DenyAllConsent, SovereigntyChecker, SovereigntyConsent};
 
 // Agent types remain in hkask-types (canonical location for SQL impls).
-// VoiceDesign and audit types moved to hkask-types.
+pub use types::voice::VoiceDesign;

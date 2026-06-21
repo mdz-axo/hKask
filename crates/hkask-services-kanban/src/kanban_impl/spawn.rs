@@ -4,7 +4,7 @@ impl KanbanService {
     pub fn spawn_task(
         &self,
         task_id: TaskId,
-        spawn_spec: hkask_types::SpawnSpec,
+        spawn_spec: crate::kanban::SpawnSpec,
     ) -> Result<String, KanbanError> {
         let mut task = self
             .task_get(task_id)?
@@ -17,7 +17,7 @@ impl KanbanService {
                 Ok(persona) => {
                     let pod_note =
                         Self::activate_pod(pm, "kanban-agent", &persona, &pod_name, &spawn_spec)?;
-                    let comment = hkask_types::Comment::new(task_id, task.owner, pod_note);
+                    let comment = crate::kanban::Comment::new(task_id, task.owner, pod_note);
                     task.comments.push(comment);
                     task.updated_at = chrono::Utc::now();
                     self.update_task_triple(&task)?;
@@ -39,7 +39,7 @@ impl KanbanService {
             spawn_spec.memory_scope,
             spawn_spec.tool_servers,
         );
-        let comment = hkask_types::Comment::new(task_id, task.owner, spawn_note);
+        let comment = crate::kanban::Comment::new(task_id, task.owner, spawn_note);
         task.comments.push(comment);
         task.updated_at = chrono::Utc::now();
         self.update_task_triple(&task)?;
@@ -56,7 +56,7 @@ impl KanbanService {
         )
     }
 
-    fn build_persona_yaml(pod_name: &str, title: &str, spec: &hkask_types::SpawnSpec) -> String {
+    fn build_persona_yaml(pod_name: &str, title: &str, spec: &crate::kanban::SpawnSpec) -> String {
         let skills = spec
             .delegated_skills
             .iter()
@@ -76,7 +76,7 @@ impl KanbanService {
         agent_type: &str,
         persona: &hkask_agents::pod::AgentPersona,
         pod_name: &str,
-        spec: &hkask_types::SpawnSpec,
+        spec: &crate::kanban::SpawnSpec,
     ) -> Result<String, KanbanError> {
         let rt = tokio::runtime::Handle::current();
         let pod_id = rt
