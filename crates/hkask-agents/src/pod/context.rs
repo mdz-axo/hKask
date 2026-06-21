@@ -430,7 +430,16 @@ impl PodContext {
             let server = self
                 .mcp_runtime
                 .resolve_tool_server(tool_name)
-                .unwrap_or_else(|| "pod".to_string());
+                .ok_or_else(|| {
+                    let msg = format!(
+                        "Tool '{}' not registered on any MCP server — invocation denied",
+                        tool_name
+                    );
+                    AgentPodError::ToolError(Box::new(std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        msg,
+                    )))
+                })?;
 
             let rt = tokio::runtime::Handle::current();
             match rt.block_on(governed.invoke(&server, tool_name, input, &self.capability_token)) {

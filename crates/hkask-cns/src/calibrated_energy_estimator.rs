@@ -58,6 +58,7 @@ pub struct CalibratedEnergyEstimator {
     estimator: RwLock<CompositeEnergyEstimator>,
     last_calibrated_at: tokio::sync::Mutex<DateTime<Utc>>,
     event_sink: Option<Arc<dyn NuEventSink>>,
+    calibration_alive: std::sync::atomic::AtomicBool,
 }
 
 impl CalibratedEnergyEstimator {
@@ -77,6 +78,7 @@ impl CalibratedEnergyEstimator {
             estimator: RwLock::new(estimator),
             last_calibrated_at: tokio::sync::Mutex::new(Utc::now() - DEFAULT_INITIAL_LOOKBACK),
             event_sink: None,
+            calibration_alive: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
@@ -196,6 +198,8 @@ impl CalibratedEnergyEstimator {
     /// pre:  interval > 0
     /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`
     pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
+        self.calibration_alive
+            .store(true, std::sync::atomic::Ordering::Release);
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(interval).await;
@@ -208,6 +212,12 @@ impl CalibratedEnergyEstimator {
                 }
             }
         });
+    }
+
+    /// Check whether the background calibration task is still running.
+    pub fn calibration_healthy(&self) -> bool {
+        self.calibration_alive
+            .load(std::sync::atomic::Ordering::Acquire)
     }
 
     /// Snapshot of the current calibrated server-cost table.

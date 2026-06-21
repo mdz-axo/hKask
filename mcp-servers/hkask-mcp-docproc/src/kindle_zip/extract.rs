@@ -1,17 +1,14 @@
 //! Browser-based extraction of Kindle book pages.
 //!
-//! Navigates Kindle Cloud Reader, logs in, captures page screenshots,
-//! and records metadata. Supports resume from existing extraction.
+//! Navigates Kindle Cloud Reader: login → settings → TOC extraction →
+//! page capture with retry → position restore. Idempotent resume support.
 
 use std::path::Path;
 
 use crate::kindle_zip::types::{
-    BookMetadata, ExtractResult, PageEntry, PageNav, has_page_files, zeropad,
+    BookMetadata, ExtractResult, PageEntry, PageNav, TocItem, has_page_files, zeropad,
 };
 
-/// Extract book pages from Kindle Cloud Reader via headless browser.
-///
-/// Idempotent — resumes from existing extraction if pages exist on disk.
 pub async fn extract_kindle_book(
     asin: &str,
     amazon_email: &str,
@@ -26,30 +23,17 @@ pub async fn extract_kindle_book(
     std::fs::create_dir_all(&pages_dir).map_err(|e| format!("mkdir pages dir: {}", e))?;
 
     if metadata_path.exists() && has_page_files(&pages_dir) {
-        tracing::info!(
-            target: "cns.pipeline.kindle-zip.extract",
-            asin = %asin, "Resuming from existing extraction"
-        );
+        tracing::info!(target: "cns.pipeline.kindle-zip.extract", asin = %asin, "Resuming from existing extraction");
         return load_existing(&metadata_path, &pages_dir);
     }
 
-    tracing::info!(
-        target: "cns.pipeline.kindle-zip.extract",
-        asin = %asin, "Starting browser-based extraction"
-    );
-
+    tracing::info!(target: "cns.pipeline.kindle-zip.extract", asin = %asin, "Starting browser-based extraction");
     let meta =
         extract_via_browser(asin, amazon_email, amazon_password, &book_dir, &pages_dir).await?;
 
-    tracing::info!(
-        target: "cns.pipeline.kindle-zip.extract",
-        asin = %asin,
-        total_pages = meta.total_pages,
-        content_pages = meta.content_pages,
-        title = %meta.title,
-        "Extraction complete"
-    );
-
+    tracing::info!(target: "cns.pipeline.kindle-zip.extract",
+        asin = %asin, total_pages = meta.total_pages, content_pages = meta.content_pages,
+        title = %meta.title, toc_entries = meta.toc.len(), "Extraction complete");
     Ok(meta)
 }
 
@@ -71,7 +55,6 @@ async fn extract_via_browser(
 
     let browser = Browser::new(launch_opts)
         .map_err(|e| format!("Launch browser: {}. Chrome installed?", e))?;
-
     let tab = browser.new_tab().map_err(|e| format!("Tab: {}", e))?;
     let book_url = format!("https://read.amazon.com/?asin={}", asin);
 
@@ -90,17 +73,31 @@ async fn extract_via_browser(
     }
 
     std::thread::sleep(std::time::Duration::from_secs(5));
-
-    // Verify Kindle UI selectors before extraction (Guardrail — aborts on failure)
     verify_selectors(&tab)?;
 
-    let (title, author) = scrape_title_author(&tab)?;
-    let pages = capture_pages(&tab, pages_dir)?;
+    // Gap 2: Apply reader settings (single-column + sans-serif) before capture
+    apply_reader_settings(&tab);
 
+    // Gap 3: Record initial position so we can restore it after extraction
+    let initial_page = read_current_page(&tab);
+    tracing::info!(target: "cns.pipeline.kindle-zip.extract", initial_page, "Position recorded");
+
+    let (title, author) = scrape_title_author(&tab)?;
+
+    // Gap 1: Extract TOC from page context (JS evaluation of Kindle reader state)
+    let toc = extract_toc(&tab)?;
+
+    let pages = capture_pages(&tab, pages_dir)?;
     let total_pages = pages.len();
+
+    // Gap 3: Restore reading position
+    if let Some(start_page) = initial_page {
+        navigate_to_page(&tab, start_page);
+        tracing::info!(target: "cns.pipeline.kindle-zip.extract", start_page, "Position restored");
+    }
+
     let title_c = title.clone();
     let author_c = author.clone();
-    let toc: Vec<crate::kindle_zip::types::TocItem> = vec![]; // TOC populated from network responses in production
 
     let full = BookMetadata {
         asin: asin.to_string(),
@@ -134,6 +131,8 @@ async fn extract_via_browser(
     })
 }
 
+// ── Login ───────────────────────────────────────────────────────────────────
+
 fn kindle_login(tab: &headless_chrome::Tab, email: &str, password: &str) -> Result<(), String> {
     tab.wait_for_element("input[type=\"email\"]")
         .and_then(|el| el.click().map(|_| ()))
@@ -157,14 +156,163 @@ fn kindle_login(tab: &headless_chrome::Tab, email: &str, password: &str) -> Resu
 
     let url = tab.get_url();
     if url.contains("/ap/mfa") || url.contains("/ap/cvf") {
-        tracing::warn!(
-            target: "cns.pipeline.kindle-zip.extract",
-            "2FA detected — waiting 30s for manual entry"
-        );
+        tracing::warn!(target: "cns.pipeline.kindle-zip.extract", "2FA — waiting 30s for manual entry");
         std::thread::sleep(std::time::Duration::from_secs(30));
     }
     Ok(())
 }
+
+// ── Reader Settings (Gap 2) ─────────────────────────────────────────────────
+
+/// Apply optimal reader settings for OCR: single-column layout, sans-serif font.
+/// Mirrors the reference project's `updateSettings()` function.
+fn apply_reader_settings(tab: &headless_chrome::Tab) {
+    // Click settings button
+    let settings_btn = tab.wait_for_element(
+        "ion-button[aria-label=\"Reader settings\"], button[aria-label=\"Reader settings\"]",
+    );
+    if let Ok(el) = settings_btn {
+        let _ = el.click();
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
+        // Select Amazon Ember font (sans-serif, better OCR accuracy)
+        if let Ok(ember) = tab.find_element("#AmazonEmber") {
+            let _ = ember.click();
+            std::thread::sleep(std::time::Duration::from_millis(200));
+        }
+
+        // Switch to single-column layout
+        let single_col = tab.find_element("[role=\"radiogroup\"][aria-label$=\" columns\"]");
+        if let Ok(col) = single_col {
+            let _ = col.click();
+            std::thread::sleep(std::time::Duration::from_millis(200));
+        }
+
+        // Close settings
+        let _ = el.click();
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        tracing::info!(target: "cns.pipeline.kindle-zip.extract", "Reader settings applied: single-column, Amazon Ember");
+    }
+}
+
+// ── Position Tracking (Gap 3) ───────────────────────────────────────────────
+
+fn read_current_page(tab: &headless_chrome::Tab) -> Option<usize> {
+    tab.evaluate(
+        "document.querySelector('ion-footer ion-title')?.textContent || ''",
+        false,
+    )
+    .ok()
+    .and_then(|v| v.value)
+    .and_then(|v| v.as_str().map(String::from))
+    .and_then(|text| {
+        // Extract current page number from "Page X of Y"
+        text.split(|c: char| !c.is_ascii_digit())
+            .find_map(|s| s.parse::<usize>().ok())
+            .filter(|&n| n > 0)
+    })
+}
+
+fn navigate_to_page(tab: &headless_chrome::Tab, page: usize) {
+    // Open reader menu → Go to Page → enter number → confirm
+    if let Ok(menu) = tab.find_element("ion-button[aria-label=\"Reader menu\"]") {
+        let _ = menu.click();
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
+        if let Ok(go_to) = tab.find_element("ion-item[role=\"listitem\"]") {
+            let _ = go_to.click();
+            std::thread::sleep(std::time::Duration::from_millis(300));
+
+            let _ = tab.type_str(&page.to_string());
+            std::thread::sleep(std::time::Duration::from_millis(200));
+
+            if let Ok(go_btn) =
+                tab.find_element("ion-modal ion-button[item-i-d=\"go-to-modal-go-button\"]")
+            {
+                let _ = go_btn.click();
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+        }
+    }
+}
+
+// ── TOC Extraction (Gap 1) ──────────────────────────────────────────────────
+
+/// Extract table of contents from Kindle reader page state.
+///
+/// Attempts to read TOC data from the Kindle reader's JavaScript context.
+/// The Kindle web reader stores TOC in internal state objects.
+/// Falls back gracefully if extraction fails.
+fn extract_toc(tab: &headless_chrome::Tab) -> Result<Vec<TocItem>, String> {
+    // Try to extract TOC from Kindle's internal reader state via JS evaluation.
+    // The Kindle Cloud Reader stores book metadata (including TOC) in
+    // window-scoped JavaScript objects loaded from render TAR responses.
+    let js = r#"
+        (function() {
+            // Attempt to find TOC data in common Kindle reader state locations
+            try {
+                // Method 1: Check for global reader state
+                if (window.kr && window.kr.reader && window.kr.reader.toc) {
+                    return JSON.stringify(window.kr.reader.toc);
+                }
+            } catch(e) {}
+            try {
+                // Method 2: Check for Angular/React component state (Ionic framework)
+                var tocEls = document.querySelectorAll('[ng-reflect-toc], [data-toc]');
+                if (tocEls.length > 0) {
+                    var raw = tocEls[0].getAttribute('ng-reflect-toc') ||
+                               tocEls[0].getAttribute('data-toc');
+                    if (raw) return raw;
+                }
+            } catch(e) {}
+            try {
+                // Method 3: Check for toc data in window.__INITIAL_STATE__ or similar
+                var state = window.__INITIAL_STATE__ || window.__NEXT_DATA__ ||
+                            window.__NUXT__ || window.__GATSBY__;
+                if (state && state.toc) return JSON.stringify(state.toc);
+            } catch(e) {}
+            // Method 4: Extract TOC from DOM (sidebar/navigation elements)
+            try {
+                var items = [];
+                var tocLinks = document.querySelectorAll(
+                    'ion-list[aria-label*="Contents"] ion-item, ' +
+                    '[role="navigation"] a, ' +
+                    '.toc-item, .chapter-link'
+                );
+                tocLinks.forEach(function(el) {
+                    var label = (el.textContent || '').trim();
+                    if (label && label.length > 1) {
+                        items.push({label: label, depth: 0});
+                    }
+                });
+                if (items.length > 0) return JSON.stringify(items);
+            } catch(e) {}
+            return '[]';
+        })()
+    "#;
+
+    let raw = tab
+        .evaluate(js, false)
+        .ok()
+        .and_then(|v| v.value)
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_default();
+
+    // Parse TOC — could be Amazon render TOC format or simple label list
+    let toc: Vec<TocItem> = serde_json::from_str(&raw).unwrap_or_default();
+
+    if toc.is_empty() {
+        tracing::info!(target: "cns.pipeline.kindle-zip.extract",
+            "No TOC extracted from page state — chapter structure will be inferred from text");
+    } else {
+        tracing::info!(target: "cns.pipeline.kindle-zip.extract",
+            toc_entries = toc.len(), "TOC extracted from page state");
+    }
+
+    Ok(toc)
+}
+
+// ── Metadata ────────────────────────────────────────────────────────────────
 
 fn scrape_title_author(tab: &headless_chrome::Tab) -> Result<(String, String), String> {
     let title = tab
@@ -182,12 +330,9 @@ fn scrape_title_author(tab: &headless_chrome::Tab) -> Result<(String, String), S
     Ok((title, author))
 }
 
-/// Verify that Kindle UI selectors resolve in the current DOM.
-///
-/// Guardrail: aborts extraction if any critical selector fails.
-/// Suggests `--recalibrate` mode for auto-discovery of updated selectors.
+// ── Selector Verification (Gap 17: CNS alert on failure) ────────────────────
+
 fn verify_selectors(tab: &headless_chrome::Tab) -> Result<(), String> {
-    // Selectors from manifest (mirrors kindle-zip.yaml selectors: section)
     const REQUIRED: &[(&str, &str)] = &[
         ("reader_content", "#kr-renderer .kg-full-page-img img"),
         ("next_page", ".kr-chevron-container-right"),
@@ -198,19 +343,12 @@ fn verify_selectors(tab: &headless_chrome::Tab) -> Result<(), String> {
     for &(name, selector) in REQUIRED {
         match tab.find_element(selector) {
             Ok(_) => {
-                tracing::debug!(
-                    target: "cns.pipeline.kindle-zip.selector",
-                    selector = name, status = "ok"
-                );
+                tracing::debug!(target: "cns.pipeline.kindle-zip.selector", selector = name, status = "ok")
             }
             Err(_) => {
                 failures.push(name);
-                tracing::warn!(
-                    target: "cns.pipeline.kindle-zip.selector",
-                    selector = name,
-                    css = selector,
-                    "SELECTOR DRIFT DETECTED"
-                );
+                tracing::warn!(target: "cns.pipeline.kindle-zip.selector",
+                    selector = name, css = selector, "SELECTOR DRIFT — CNS ALERT");
             }
         }
     }
@@ -228,12 +366,12 @@ fn verify_selectors(tab: &headless_chrome::Tab) -> Result<(), String> {
     ))
 }
 
+// ── Page Capture (Gap 8: per-page CNS spans, Gap 12: retry, Gap 11: blank detection) ─
+
 fn capture_pages(tab: &headless_chrome::Tab, pages_dir: &Path) -> Result<Vec<PageEntry>, String> {
-    // Navigate to first page and detect total page count
     tab.wait_for_element("#kr-renderer .kg-full-page-img img")
         .map_err(|e| format!("Reader content: {}", e))?;
 
-    // Try to read page count from footer
     let footer_text = tab
         .evaluate(
             "document.querySelector('ion-footer ion-title')?.textContent || ''",
@@ -244,13 +382,17 @@ fn capture_pages(tab: &headless_chrome::Tab, pages_dir: &Path) -> Result<Vec<Pag
         .and_then(|v| v.as_str().map(String::from))
         .unwrap_or_default();
 
-    // Parse "Page X of Y" or similar patterns
-    let total = parse_page_count(&footer_text).unwrap_or(50); // fallback: 50 pages
+    let total = parse_page_count(&footer_text).unwrap_or(50);
     let padding = format!("{}", total * 2).len();
     let mut pages: Vec<PageEntry> = Vec::with_capacity(total);
+    let mut blank_count = 0usize;
+    let mut last_src: Option<String> = None;
+    let mut consecutive_failures = 0u32;
+    const MAX_CONSECUTIVE_FAILURES: u32 = 10;
 
     for i in 0..total {
         let page_num = i + 1;
+        let t_start = std::time::Instant::now();
         std::thread::sleep(std::time::Duration::from_millis(500));
 
         let data = tab
@@ -262,9 +404,32 @@ fn capture_pages(tab: &headless_chrome::Tab, pages_dir: &Path) -> Result<Vec<Pag
             )
             .map_err(|e| format!("Screenshot page {}: {}", page_num, e))?;
 
+        // Gap 11: Detect blank/WebGL-failed images
+        if is_blank_image(&data) {
+            blank_count += 1;
+            tracing::warn!(target: "cns.pipeline.kindle-zip.capture",
+                page = page_num, "Blank/WebGL-failed image detected — page may not have rendered");
+            if blank_count >= 3 {
+                return Err(format!(
+                    "{} consecutive blank pages detected. Kindle reader may require WebGL/GPU. \
+                     Try running with a real display or GPU-enabled environment.",
+                    blank_count
+                ));
+            }
+        } else {
+            blank_count = 0;
+        }
+
         let filename = format!("{}-{}.png", zeropad(i, padding), zeropad(page_num, padding));
         let path = pages_dir.join(&filename);
         std::fs::write(&path, &data).map_err(|e| format!("Write {}: {}", filename, e))?;
+
+        let duration_ms = t_start.elapsed().as_millis() as u64;
+
+        // Gap 8: Per-page CNS span
+        tracing::debug!(target: "cns.pipeline.kindle-zip.capture.page",
+            page = page_num, bytes = data.len(), duration_ms, blank = blank_count > 0,
+            "Page captured");
 
         pages.push(PageEntry {
             index: i,
@@ -272,25 +437,96 @@ fn capture_pages(tab: &headless_chrome::Tab, pages_dir: &Path) -> Result<Vec<Pag
             screenshot: path,
         });
 
+        // Gap 12: Retry logic for page navigation
         if i < total - 1 {
-            let _ = tab
-                .find_element(".kr-chevron-container-right")
-                .and_then(|el| el.click().map(|_| ()));
+            let navigated = navigate_next_page(tab, &mut last_src);
+            if navigated {
+                consecutive_failures = 0;
+            } else {
+                consecutive_failures += 1;
+                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
+                    tracing::error!(target: "cns.pipeline.kindle-zip.capture",
+                        consecutive_failures, page = page_num,
+                        "Page navigation failed repeatedly — breaking capture loop");
+                    break;
+                }
+            }
             std::thread::sleep(std::time::Duration::from_millis(300));
         }
     }
+
+    tracing::info!(target: "cns.pipeline.kindle-zip.capture",
+        captured = pages.len(), total, blank_pages = blank_count, "Page capture complete");
     Ok(pages)
 }
 
-/// Parse page count from Kindle footer text like "Page 5 of 342" or "5 / 342".
-/// Requires at least 2 numbers to distinguish page-from-total patterns.
+/// Navigate to next page. Returns true if navigation likely succeeded.
+fn navigate_next_page(tab: &headless_chrome::Tab, last_src: &mut Option<String>) -> bool {
+    // Read current image src before clicking
+    let before = tab
+        .evaluate(
+            "document.querySelector('#kr-renderer .kg-full-page-img img')?.getAttribute('src') || ''",
+            false,
+        )
+        .ok()
+        .and_then(|v| v.value)
+        .and_then(|v| v.as_str().map(String::from));
+
+    // Click next page button
+    let _ = tab
+        .find_element(".kr-chevron-container-right")
+        .and_then(|el| el.click().map(|_| ()));
+
+    // Wait briefly and check if src changed
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    let after = tab
+        .evaluate(
+            "document.querySelector('#kr-renderer .kg-full-page-img img')?.getAttribute('src') || ''",
+            false,
+        )
+        .ok()
+        .and_then(|v| v.value)
+        .and_then(|v| v.as_str().map(String::from));
+
+    // Navigation succeeded if src changed from what we had
+    let changed = before.is_some() && after.is_some() && before != after;
+    if changed {
+        *last_src = after;
+    } else if before.is_none() {
+        // Can't read src — assume navigation worked
+        return true;
+    }
+    changed
+}
+
+/// Gap 11: Detect images that are blank (WebGL failure) by checking entropy.
+/// A blank white/black image has very low byte variance.
+fn is_blank_image(data: &[u8]) -> bool {
+    if data.len() < 1024 {
+        return true; // too small to be a real page
+    }
+    // Sample bytes to check variance — blank PNGs are highly compressible
+    let sample = &data[data.len() / 4..data.len() * 3 / 4];
+    let mut unique: u8 = sample.first().copied().unwrap_or(0);
+    let mut switches = 0u32;
+    for &b in sample.iter().skip(1).take(256) {
+        if b != unique {
+            switches += 1;
+            unique = b;
+        }
+    }
+    // Very low byte variance suggests a blank/empty render
+    switches < 5
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
 fn parse_page_count(footer: &str) -> Option<usize> {
     let numbers: Vec<usize> = footer
         .split(|c: char| !c.is_ascii_digit())
         .filter_map(|s| s.parse::<usize>().ok())
         .filter(|&n| n > 1 && n < 100_000)
         .collect();
-    // Need at least 2 numbers: [current_page, total_pages]
     if numbers.len() >= 2 {
         numbers.last().copied()
     } else {
@@ -322,24 +558,39 @@ mod tests {
     fn parse_page_count_standard() {
         assert_eq!(parse_page_count("Page 5 of 342"), Some(342));
     }
-
     #[test]
     fn parse_page_count_slash() {
         assert_eq!(parse_page_count("5 / 342"), Some(342));
     }
-
     #[test]
-    fn parse_page_count_single_number_ignored() {
-        assert_eq!(parse_page_count("42"), None); // ambiguous: could be page or total
+    fn parse_page_count_single_ignored() {
+        assert_eq!(parse_page_count("42"), None);
     }
-
     #[test]
     fn parse_page_count_empty() {
         assert_eq!(parse_page_count(""), None);
     }
-
     #[test]
     fn parse_page_count_no_numbers() {
         assert_eq!(parse_page_count("Hello World"), None);
+    }
+
+    #[test]
+    fn blank_detection_real_png() {
+        // A real PNG header followed by varied bytes — should NOT be blank
+        let data: Vec<u8> = (0..2048).map(|i| (i % 256) as u8).collect();
+        assert!(!is_blank_image(&data));
+    }
+
+    #[test]
+    fn blank_detection_uniform_bytes() {
+        // All same byte value — should be blank
+        let data = vec![128u8; 2048];
+        assert!(is_blank_image(&data));
+    }
+
+    #[test]
+    fn blank_detection_too_small() {
+        assert!(is_blank_image(&[0u8; 512]));
     }
 }

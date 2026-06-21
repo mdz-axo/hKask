@@ -206,7 +206,13 @@ impl MCPRuntimePort for FullMcpAdapter {
             .handle
             .block_on(self.mcp_runtime.get_tool_info(tool_name))
             .map(|info| info.server_id)
-            .unwrap_or_else(|| "unknown".to_string());
+            .ok_or_else(|| McpError::CapabilityDenied {
+                resource: tool_name.to_string(),
+                action: format!(
+                    "Tool '{}' not registered on any MCP server — invocation denied",
+                    tool_name
+                ),
+            })?;
 
         let raw_port = hkask_mcp::RawMcpToolPort::new(self.mcp_runtime.as_ref().clone());
         match self.handle.block_on(hkask_ports::ToolPort::invoke(

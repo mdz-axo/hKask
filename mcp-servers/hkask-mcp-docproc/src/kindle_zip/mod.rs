@@ -25,6 +25,7 @@ pub use export_epub::export_epub;
 pub use export_markdown::export_markdown;
 pub use export_pdf::export_pdf;
 pub use extract::extract_kindle_book;
+pub(crate) use transcribe::assemble_chunks;
 pub(crate) use transcribe::transcribe_pages;
 pub use types::{BookMetadata, ExportResult, ExtractResult, KindleZipParams, TocItem};
 

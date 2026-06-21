@@ -61,7 +61,7 @@ pub struct PageNav {
 
 /// A single transcribed page chunk with provenance metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ContentChunk {
+pub struct ContentChunk {
     pub index: usize,
     pub page: usize,
     pub text: String,

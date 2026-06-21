@@ -378,10 +378,12 @@ impl PodFactory {
         // The .webid file is read BEFORE the database is opened (chicken-and-egg
         // resolution: need webid to derive passphrase, need passphrase to open DB).
         let webid_path = db_path.with_extension("webid");
-        if let Err(e) = std::fs::write(&webid_path, persona.webid().to_string()) {
-            tracing::warn!(target: "hkask.pod.deployment", path = %webid_path.display(), error = %e,
-                "Failed to write webid sidecar — CuratorSync will not be able to sync this pod");
-        }
+        std::fs::write(&webid_path, persona.webid().to_string()).map_err(|e| {
+            PodDeployError::StorageInitFailed {
+                path: webid_path.clone(),
+                reason: format!("Failed to write webid sidecar: {e}. CuratorSync depends on this file to sync the pod."),
+            }
+        })?;
         // Also write pod metadata into the database for backup/portability.
         {
             let conn = db.conn_arc();

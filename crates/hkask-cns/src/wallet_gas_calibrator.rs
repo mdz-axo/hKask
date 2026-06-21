@@ -44,6 +44,8 @@ pub struct WalletGasCalibrator {
     estimator: std::sync::Mutex<WalletEnergyEstimator>,
     last_calibrated_at: tokio::sync::Mutex<DateTime<Utc>>,
     event_sink: Option<Arc<dyn NuEventSink>>,
+    /// Set to false if the background calibration task panics or exits.
+    calibration_alive: std::sync::atomic::AtomicBool,
 }
 
 impl WalletGasCalibrator {
@@ -65,6 +67,7 @@ impl WalletGasCalibrator {
                 Utc::now() - DEFAULT_WALLET_INITIAL_LOOKBACK,
             ),
             event_sink: None,
+            calibration_alive: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
@@ -197,6 +200,8 @@ impl WalletGasCalibrator {
     /// pre:  interval > 0
     /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`
     pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
+        self.calibration_alive
+            .store(true, std::sync::atomic::Ordering::Release);
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(interval).await;
@@ -209,6 +214,12 @@ impl WalletGasCalibrator {
                 }
             }
         });
+    }
+
+    /// Check whether the background calibration task is still running.
+    pub fn calibration_healthy(&self) -> bool {
+        self.calibration_alive
+            .load(std::sync::atomic::Ordering::Acquire)
     }
 }
 

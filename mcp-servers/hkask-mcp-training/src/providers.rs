@@ -615,6 +615,66 @@ pub trait HarnessAdapter: Send + Sync {
     fn harness_id(&self) -> TrainingHarnessId;
 }
 
+// ── Shared local-training-provider operations ─────────────────────────────
+// AxolotlLocal and UnslothLocal share identical logic differing only in
+// output directory, adapter marker file, and error-label strings.
+
+struct LocalTrainingConfig {
+    output_dir: &'static str,
+    adapter_marker: &'static str,
+    weight_file: &'static str,
+    framework_name: &'static str,
+}
+
+fn local_list_adapters(cfg: &LocalTrainingConfig) -> Result<Vec<String>, ProviderError> {
+    let output_root = PathBuf::from(cfg.output_dir);
+    if !output_root.exists() {
+        return Ok(vec![]);
+    }
+    let mut adapters = Vec::new();
+    for entry in std::fs::read_dir(&output_root).map_err(|e| {
+        ProviderError::Backend(format!(
+            "Failed to read {} output dir: {}",
+            cfg.framework_name, e
+        ))
+    })? {
+        let entry = entry
+            .map_err(|e| ProviderError::Backend(format!("Failed to read dir entry: {}", e)))?;
+        if entry.path().join(cfg.adapter_marker).exists() {
+            adapters.push(entry.file_name().to_string_lossy().to_string());
+        }
+    }
+    Ok(adapters)
+}
+
+async fn local_delete_adapter(
+    cfg: &LocalTrainingConfig,
+    adapter_id: &str,
+) -> Result<(), ProviderError> {
+    let adapter_dir = PathBuf::from(cfg.output_dir).join(adapter_id);
+    if adapter_dir.exists() {
+        tokio::fs::remove_dir_all(&adapter_dir).await.map_err(|e| {
+            ProviderError::Backend(format!("Failed to delete adapter {}: {}", adapter_id, e))
+        })?;
+        tracing::info!(target: "cns.training.adapter.deleted", adapter_id = %adapter_id, "LoRA adapter deleted");
+    }
+    Ok(())
+}
+
+fn local_adapter_weight_path(
+    cfg: &LocalTrainingConfig,
+    adapter_id: &str,
+) -> Result<Option<PathBuf>, ProviderError> {
+    let path = PathBuf::from(cfg.output_dir)
+        .join(adapter_id)
+        .join(cfg.weight_file);
+    if path.exists() {
+        Ok(Some(path))
+    } else {
+        Ok(None)
+    }
+}
+
 // ── Axolotl harness ────────────────────────────────────────────────────────
 
 /// Renders axolotl YAML configuration from canonical TrainingParams.
@@ -859,50 +919,36 @@ impl TrainingHost for AxolotlProvider {
     }
 
     async fn list_adapters(&self) -> Result<Vec<String>, ProviderError> {
-        let output_root = PathBuf::from("./axolotl-output");
-        if !output_root.exists() {
-            return Ok(vec![]);
-        }
-        let mut adapters = Vec::new();
-        for entry in std::fs::read_dir(&output_root).map_err(|e| {
-            ProviderError::Backend(format!("Failed to read axolotl output dir: {}", e))
-        })? {
-            let entry = entry
-                .map_err(|e| ProviderError::Backend(format!("Failed to read dir entry: {}", e)))?;
-            if entry.path().join("adapter_model.safetensors").exists() {
-                adapters.push(entry.file_name().to_string_lossy().to_string());
-            }
-        }
-        Ok(adapters)
+        static CFG: LocalTrainingConfig = LocalTrainingConfig {
+            output_dir: "./axolotl-output",
+            adapter_marker: "adapter_model.safetensors",
+            weight_file: "adapter_model.safetensors",
+            framework_name: "axolotl",
+        };
+        local_list_adapters(&CFG)
     }
 
     async fn delete_adapter(&self, adapter_id: &str) -> Result<(), ProviderError> {
-        let adapter_dir = PathBuf::from("./axolotl-output").join(adapter_id);
-        if adapter_dir.exists() {
-            tokio::fs::remove_dir_all(&adapter_dir).await.map_err(|e| {
-                ProviderError::Backend(format!("Failed to delete adapter {}: {}", adapter_id, e))
-            })?;
-            tracing::info!(
-                target: "cns.training.adapter.deleted",
-                adapter_id = %adapter_id,
-                "LoRA adapter deleted"
-            );
-        }
-        Ok(())
+        static CFG: LocalTrainingConfig = LocalTrainingConfig {
+            output_dir: "./axolotl-output",
+            adapter_marker: "adapter_model.safetensors",
+            weight_file: "adapter_model.safetensors",
+            framework_name: "axolotl",
+        };
+        local_delete_adapter(&CFG, adapter_id).await
     }
 
     async fn adapter_weight_path(
         &self,
         adapter_id: &str,
     ) -> Result<Option<PathBuf>, ProviderError> {
-        let path = PathBuf::from("./axolotl-output")
-            .join(adapter_id)
-            .join("adapter_model.safetensors");
-        if path.exists() {
-            Ok(Some(path))
-        } else {
-            Ok(None)
-        }
+        static CFG: LocalTrainingConfig = LocalTrainingConfig {
+            output_dir: "./axolotl-output",
+            adapter_marker: "adapter_model.safetensors",
+            weight_file: "adapter_model.safetensors",
+            framework_name: "axolotl",
+        };
+        local_adapter_weight_path(&CFG, adapter_id)
     }
 }
 
@@ -1190,50 +1236,36 @@ impl TrainingHost for UnslothProvider {
     }
 
     async fn list_adapters(&self) -> Result<Vec<String>, ProviderError> {
-        let output_root = PathBuf::from("./unsloth-output");
-        if !output_root.exists() {
-            return Ok(vec![]);
-        }
-        let mut adapters = Vec::new();
-        for entry in std::fs::read_dir(&output_root).map_err(|e| {
-            ProviderError::Backend(format!("Failed to read unsloth output dir: {}", e))
-        })? {
-            let entry = entry
-                .map_err(|e| ProviderError::Backend(format!("Failed to read dir entry: {}", e)))?;
-            if entry.path().join("adapter").exists() {
-                adapters.push(entry.file_name().to_string_lossy().to_string());
-            }
-        }
-        Ok(adapters)
+        static CFG: LocalTrainingConfig = LocalTrainingConfig {
+            output_dir: "./unsloth-output",
+            adapter_marker: "adapter",
+            weight_file: "adapter",
+            framework_name: "unsloth",
+        };
+        local_list_adapters(&CFG)
     }
 
     async fn delete_adapter(&self, adapter_id: &str) -> Result<(), ProviderError> {
-        let adapter_dir = PathBuf::from("./unsloth-output").join(adapter_id);
-        if adapter_dir.exists() {
-            tokio::fs::remove_dir_all(&adapter_dir).await.map_err(|e| {
-                ProviderError::Backend(format!("Failed to delete adapter {}: {}", adapter_id, e))
-            })?;
-            tracing::info!(
-                target: "cns.training.adapter.deleted",
-                adapter_id = %adapter_id,
-                "LoRA adapter deleted"
-            );
-        }
-        Ok(())
+        static CFG: LocalTrainingConfig = LocalTrainingConfig {
+            output_dir: "./unsloth-output",
+            adapter_marker: "adapter",
+            weight_file: "adapter",
+            framework_name: "unsloth",
+        };
+        local_delete_adapter(&CFG, adapter_id).await
     }
 
     async fn adapter_weight_path(
         &self,
         adapter_id: &str,
     ) -> Result<Option<PathBuf>, ProviderError> {
-        let path = PathBuf::from("./unsloth-output")
-            .join(adapter_id)
-            .join("adapter");
-        if path.exists() {
-            Ok(Some(path))
-        } else {
-            Ok(None)
-        }
+        static CFG: LocalTrainingConfig = LocalTrainingConfig {
+            output_dir: "./unsloth-output",
+            adapter_marker: "adapter",
+            weight_file: "adapter",
+            framework_name: "unsloth",
+        };
+        local_adapter_weight_path(&CFG, adapter_id)
     }
 }
 

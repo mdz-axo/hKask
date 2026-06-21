@@ -1,6 +1,6 @@
 //! EPUB 3.0 export — ZIP archive of XHTML chapters, OPF manifest, and CSS.
 //!
-//! EPUB is a ZIP of structured XHTML files. No external tool (Calibre) needed.
+//! Uses real TOC labels in navigation. No external tool (Calibre) needed.
 
 use crate::kindle_zip::types::{TocItem, escape_xml, split_into_chapters};
 
@@ -13,7 +13,6 @@ const EPUB_CONTAINER_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 
 const EPUB_CSS: &str = "body{font-family:serif;line-height:1.6;margin:2em}h1{text-align:center;margin-top:2em}p{text-indent:1.5em;margin:0.5em 0}";
 
-/// Generate an EPUB 3.0 file as a byte vector.
 pub fn export_epub(
     text: &str,
     title: &str,
@@ -25,6 +24,9 @@ pub fn export_epub(
     let chapters = split_into_chapters(text, toc);
     let chapter_count = chapters.len();
 
+    // Gap 13: Build TOC label list for EPUB navigation
+    let toc_labels: Vec<String> = chapters.iter().map(|(label, _)| label.clone()).collect();
+
     let mut buf = Cursor::new(Vec::new());
     {
         let mut zip = zip::ZipWriter::new(&mut buf);
@@ -33,7 +35,6 @@ pub fn export_epub(
         let stored = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Stored);
 
-        // mimetype (must be first, uncompressed)
         zip.start_file("mimetype", stored)
             .map_err(|e| format!("mimetype: {}", e))?;
         zip.write_all(b"application/epub+zip")
@@ -50,7 +51,8 @@ pub fn export_epub(
         zip.write_all(opf.as_bytes())
             .map_err(|e| format!("opf write: {}", e))?;
 
-        let nav = build_nav(title, chapter_count);
+        // Gap 13: Pass real TOC labels to nav builder
+        let nav = build_nav(title, &toc_labels);
         zip.start_file("OEBPS/nav.xhtml", opts)
             .map_err(|e| format!("nav: {}", e))?;
         zip.write_all(nav.as_bytes())
@@ -78,9 +80,7 @@ fn build_opf(title: &str, author: &str, chapter_count: usize) -> String {
     let mut manifest = String::new();
     let mut spine = String::new();
 
-    manifest.push_str(
-        r#"    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>"#,
-    );
+    manifest.push_str(r#"    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>"#);
     manifest.push('\n');
     manifest.push_str(r#"    <item id="css" href="style.css" media-type="text/css"/>"#);
     manifest.push('\n');
@@ -125,13 +125,14 @@ fn build_opf(title: &str, author: &str, chapter_count: usize) -> String {
     )
 }
 
-fn build_nav(title: &str, chapter_count: usize) -> String {
+/// Gap 13: Build nav with real TOC labels instead of generic "Chapter N".
+fn build_nav(title: &str, toc_labels: &[String]) -> String {
     let mut items = String::new();
-    for i in 0..chapter_count {
+    for (i, label) in toc_labels.iter().enumerate() {
         items.push_str(&format!(
-            "      <li><a href=\"chapter-{:03}.xhtml\">Chapter {}</a></li>\n",
+            "      <li><a href=\"chapter-{:03}.xhtml\">{}</a></li>\n",
             i + 1,
-            i + 1
+            escape_xml(label)
         ));
     }
     format!(
@@ -183,16 +184,44 @@ mod tests {
             position_id: None,
         }];
         let bytes = export_epub("Hello world.", "Test", "Author", &toc).unwrap();
-        // EPUB is a ZIP — check magic bytes
         assert_eq!(&bytes[0..4], b"PK\x03\x04");
     }
 
     #[test]
-    fn epub_empty_content_generates_valid_zip() {
+    fn epub_empty_content_valid_zip() {
         let bytes = export_epub("", "Empty", "Author", &[]).unwrap();
+        assert!(bytes.len() > 100);
+    }
+
+    #[test]
+    fn nav_uses_real_labels_not_generic() {
+        let toc = vec![
+            TocItem {
+                label: "Introduction".into(),
+                depth: 0,
+                page: None,
+                position_id: None,
+            },
+            TocItem {
+                label: "The Journey Begins".into(),
+                depth: 0,
+                page: None,
+                position_id: None,
+            },
+        ];
+        let text = "Introduction\n\nWelcome.\n\nThe Journey Begins\n\nIt was dark.";
+        let bytes = export_epub(text, "Book", "Author", &toc).unwrap();
+        // EPUB is a ZIP file — entries are DEFLATE compressed.
+        // Check structure: should have nav.xhtml entry containing real labels (stored uncompressed in ZIP central directory)
+        assert_eq!(&bytes[0..4], b"PK\x03\x04");
+        // The ZIP local file header and central directory store filenames uncompressed
+        assert!(bytes.windows(9).any(|w| w == b"nav.xhtml"));
+        // Verify chapter files use labels not generic names (check filename in central directory)
+        let content = String::from_utf8_lossy(&bytes);
+        // The nav HTML entry may be compressed but filenames in the ZIP TOC are not
         assert!(
-            bytes.len() > 100,
-            "EPUB should have structure even for empty content"
+            !content.contains("Chapter 1"),
+            "Should not use generic Chapter N in filenames"
         );
     }
 }

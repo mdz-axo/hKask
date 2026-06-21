@@ -6,11 +6,10 @@
 //! Run: `cargo test -p hkask-mcp-docproc --test integration -- kindle_zip --ignored`
 //! Or without ignored: `cargo test -p hkask-mcp-docproc --lib -- kindle`
 
-use std::io::Write;
 use std::path::Path;
 
 use hkask_mcp_docproc::kindle_zip::types::{
-    BookMetadata, ContentChunk, ExportResult, PageEntry, PageNav, TocItem,
+    BookMetadata, ContentChunk, PageEntry, PageNav, TocItem,
 };
 use hkask_mcp_docproc::kindle_zip::{export_epub, export_formats, export_markdown, export_pdf};
 
