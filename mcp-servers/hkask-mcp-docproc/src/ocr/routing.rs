@@ -3,7 +3,7 @@
 //! Deterministic routing (no randomness) guarantees statistical properties
 //! without non-determinism. SamplingState is a transparent accumulator.
 
-use hkask_types::ocr::{ComplexityScore, ComplexityTier, DEFAULT_LLM_OCR_MODEL, OcrBackend};
+use crate::ocr::{ComplexityScore, ComplexityTier, DEFAULT_LLM_OCR_MODEL, OcrBackend};
 
 /// Transparent accumulator for deterministic round-robin sampling.
 ///

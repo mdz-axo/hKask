@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp_docproc::ocr::decimation;
 use hkask_mcp_docproc::ocr::pipeline::{self, OcrExecutor};
-use hkask_types::ocr::{OcrBackend, OcrResult, ThresholdConfig};
+use hkask_mcp_docproc::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use image::DynamicImage;
 
 fn inference_available() -> bool {

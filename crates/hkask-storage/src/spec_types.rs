@@ -4,7 +4,7 @@
 //!
 //! Five categories per MDS §1: Domain, Composition, Trust, Lifecycle, Curation.
 use chrono::{DateTime, Utc};
-use hkask_cns::types::curation::{CurationDecision, OCAPBoundary};
+use hkask_types::curation::{CurationDecision, OCAPBoundary};
 use hkask_types::id::{GoalID, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;

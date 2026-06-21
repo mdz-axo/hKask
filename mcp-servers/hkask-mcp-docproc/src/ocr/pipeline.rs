@@ -11,7 +11,7 @@ use std::time::Instant;
 
 use async_trait::async_trait;
 
-use hkask_types::ocr::{
+use crate::ocr::{
     CrossValidation, OcrBackend, OcrResult, PipelineError, PipelineOutcome, ThresholdConfig,
 };
 use image::DynamicImage;

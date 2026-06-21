@@ -7,7 +7,6 @@ description = "Hexagonal port traits — InferencePort, ToolPort, CircuitBreaker
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
-hkask-templates = { path = "../hkask-templates" }
 hkask-capability = { path = "../hkask-capability" }
 serde.workspace = true
 serde_json.workspace = true

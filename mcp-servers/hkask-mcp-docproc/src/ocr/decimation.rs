@@ -8,7 +8,7 @@
 //! optimized for OCR. Optional fal.ai `docres` enhancement available
 //! when `HKASK_USE_FAL_DOCRES=true` and `HKASK_FAL_API_KEY` is set.
 
-use hkask_types::ocr::PipelineError;
+use crate::ocr::PipelineError;
 use image::DynamicImage;
 use std::path::{Path, PathBuf};
 use std::process::Command;

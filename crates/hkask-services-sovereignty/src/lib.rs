@@ -4,4 +4,4 @@
 pub mod types;
 mod sovereignty_impl;
 pub use sovereignty_impl::SovereigntyService;
-pub use types::{DataCategory, DataSovereigntyBoundary, UserSovereigntyState, BoundaryClassification};
+pub use types::{DataSovereigntyBoundary, UserSovereigntyState, BoundaryClassification};

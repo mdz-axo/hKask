@@ -1,9 +1,9 @@
 //! Complexity Scoring Heuristic — Edge-density ratio via Sobel gradient.
 //!
 //! Pure function, deterministic, O(w·h). No new dependencies beyond `image`.
-//! Thresholds from `hkask_types::ocr::ThresholdConfig`.
+//! Thresholds from `crate::ocr::ThresholdConfig`.
 
-use hkask_types::ocr::{ComplexityScore, ThresholdConfig};
+use crate::ocr::{ComplexityScore, ThresholdConfig};
 use image::DynamicImage;
 
 /// Score page complexity by edge-density ratio.
@@ -103,7 +103,7 @@ pub fn score_page_complexity(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::ocr::ComplexityTier;
+    use crate::ocr::ComplexityTier;
     use image::{ImageBuffer, Rgb, RgbImage};
 
     fn default_thresholds() -> ThresholdConfig {

@@ -1,5 +1,4 @@
-use hkask_templates::BundleManifest;
-use hkask_templates::SkillPolarity;
+use hkask_types::SkillPolarity;
 use hkask_types::template_type::TemplateType;
 use hkask_types::visibility::Visibility;
 use serde::{Deserialize, Serialize};
@@ -289,15 +288,6 @@ pub trait SkillRegistryIndex {
             }
         }
     }
-}
-
-/// CRUD for bundle manifests. Read methods return owned values for HashMap/SQLite compat.
-pub trait BundleRegistryIndex {
-    fn register_bundle(&mut self, bundle: BundleManifest);
-    fn get_bundle(&self, id: &str) -> Option<BundleManifest>;
-    fn list_bundles(&self) -> Vec<BundleManifest>;
-    fn remove_bundle(&mut self, id: &str) -> Option<BundleManifest>;
-    fn find_bundle_by_skills(&self, skill_ids: &[String]) -> Option<BundleManifest>;
 }
 
 /// Template registry lookups. Moved to hkask-types for Authority DAG.

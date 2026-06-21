@@ -21,7 +21,7 @@ use hkask_cns::CyberneticsLoop;
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
-use hkask_types::sovereignty::DataCategory;
+use hkask_services_sovereignty::DataCategory;
 use hkask_types::wallet::{
     ApiKeyCapability, ApiKeyId, ApiKeyMaterial, ChainId, DepositAddress, DepositReference,
     PrivacyMode, RJoule, TxHash, WalletBalance, WalletConfig, WalletError, WalletId,

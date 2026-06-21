@@ -5,7 +5,7 @@
 
 use crate::middleware::AuthContext;
 use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
-use hkask_types::identity::{Invite, UserSession};
+use hkask_services_core::{Invite, UserSession};
 use serde::{Deserialize, Serialize};
 
 use crate::ApiState;

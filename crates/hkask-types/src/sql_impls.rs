@@ -99,24 +99,6 @@ impl ToSql for Visibility {
     }
 }
 
-impl FromSql for GoalState {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let s = String::column_result(value)?;
-        GoalState::parse_str(&s).ok_or_else(|| {
-            FromSqlError::Other(Box::new(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("invalid goal state: {s}"),
-            )))
-        })
-    }
-}
-
-impl ToSql for GoalState {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        self.as_str().to_sql()
-    }
-}
-
 impl FromSql for AgentKind {
     fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
         let s = String::column_result(value)?;
@@ -135,7 +117,23 @@ impl ToSql for AgentKind {
     }
 }
 
-// ── Confidence (f64 newtype, clamped [0.0, 1.0]) ──────────────────────────
+impl FromSql for GoalState {
+    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+        let s = String::column_result(value)?;
+        GoalState::parse_str(&s).ok_or_else(|| {
+            FromSqlError::Other(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("invalid goal state: {s}"),
+            )))
+        })
+    }
+}
+
+impl ToSql for GoalState {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+        self.as_str().to_sql()
+    }
+}
 
 impl FromSql for Confidence {
     fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {

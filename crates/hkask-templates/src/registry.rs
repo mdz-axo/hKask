@@ -8,9 +8,10 @@
 //!
 //! Rust is the loom. YAML/Jinja2 is the thread.
 
+use crate::BundleRegistryIndex;
 use crate::ports::{Result, TemplateError};
 use hkask_capability::SYSTEM_MAX_RECURSION;
-use hkask_ports::{BundleRegistryIndex, RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex};
+use hkask_ports::{RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex};
 use hkask_types::Visibility;
 use hkask_types::template_type::TemplateType;
 use std::collections::HashMap;
@@ -314,10 +315,7 @@ impl Registry {
     /// pre:  skill_ids is non-empty
     /// post: returns Some(&BundleManifest) if exact skill set match found
     /// post: returns None if no exact match
-    pub fn find_bundle_by_skills(
-        &self,
-        skill_ids: &[String],
-    ) -> Option<&BundleManifest> {
+    pub fn find_bundle_by_skills(&self, skill_ids: &[String]) -> Option<&BundleManifest> {
         let target: std::collections::HashSet<&str> =
             skill_ids.iter().map(|s| s.as_str()).collect();
         self.bundles.values().find(|b| {

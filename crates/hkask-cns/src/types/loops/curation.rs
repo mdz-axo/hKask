@@ -11,9 +11,9 @@
 //! - 5.2 Metacognitive Adaptation (ADAPT) — outcome → compare to desired → adjust parameter
 
 use hkask_capability::ConsolidationToken;
+use hkask_types::DataCategory;
 use hkask_types::Visibility;
 use hkask_types::WebID;
-use hkask_types::sovereignty::DataCategory;
 
 // CuratorHandle — Loop 5 capability handle
 

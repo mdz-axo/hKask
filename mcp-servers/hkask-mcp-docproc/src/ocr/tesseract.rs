@@ -4,7 +4,7 @@
 //! Falls back gracefully if tesseract is not installed.
 use async_trait::async_trait;
 
-use hkask_types::ocr::{OcrBackend, OcrResult};
+use crate::ocr::{OcrBackend, OcrResult};
 use image::DynamicImage;
 use std::process::Command;
 use std::time::Instant;

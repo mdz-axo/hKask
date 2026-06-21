@@ -19,11 +19,10 @@ pub use cns::{
 pub use embedding::EmbeddingGenerationError;
 pub use inference_port::{InferencePort, InferenceStreamChunk};
 pub use inference_types::{
-    compute_confidence, InferenceError, InferenceResult, InferenceUsage, StructuredToolCall,
-    TokenProb, TokenProbability,
+    InferenceError, InferenceResult, InferenceUsage, StructuredToolCall, TokenProb,
+    TokenProbability, compute_confidence,
 };
 pub use registry::{
-    BundleRegistryIndex, RegistryEntry, RegistryError, RegistryIndex, Skill, SkillRegistryIndex,
-    SkillZone,
+    RegistryEntry, RegistryError, RegistryIndex, Skill, SkillRegistryIndex, SkillZone,
 };
 pub use tool::{ToolInfo, ToolPort, ToolPortError};

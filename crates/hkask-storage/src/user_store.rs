@@ -3,7 +3,9 @@ use crate::Store;
 use crate::archive::MergeReceipt;
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
-use hkask_types::identity::{HumanUser, Invite, InviteStatus, ReplicantIdentity, UserSession};
+use hkask_services_core::{
+    HumanUser, Invite, InviteStatus, OAuthProvider, ReplicantIdentity, Role, UserSession,
+};
 use hkask_types::wallet::WalletId;
 use hkask_types::{InfrastructureError, UserID};
 use rand::RngCore;
@@ -598,7 +600,7 @@ impl UserStore {
                     .get::<_, String>(12)
                     .ok()
                     .and_then(|s| s.parse().ok())
-                    .unwrap_or(hkask_types::identity::Role::Member),
+                    .unwrap_or(Role::Member),
             })
         })
         .map_err(|e| match e {

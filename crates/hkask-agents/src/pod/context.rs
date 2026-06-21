@@ -15,7 +15,7 @@ use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
 use hkask_ports::InferencePort;
 use hkask_ports::ToolPort;
-use hkask_services_sovereignty::DataCategory;
+use hkask_types::DataCategory;
 use hkask_types::{Confidence, ExperienceClassification, WebID};
 use std::sync::Arc;
 

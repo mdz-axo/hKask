@@ -111,7 +111,7 @@ pub(crate) async fn sovereignty_status(
     tracing::info!(target: "cns.api", operation = "sovereignty_status", "CNS");
     let cm = &state.agent_service.sovereignty();
     let webid_str = auth.webid.to_string();
-    let boundary = hkask_types::sovereignty::DataSovereigntyBoundary::hkask_default();
+    let boundary = hkask_services_sovereignty::DataSovereigntyBoundary::hkask_default();
     let granted = cm.get_granted_categories(&webid_str)?;
 
     Ok(Json(SovereigntyStatusResponse {
@@ -222,7 +222,7 @@ pub(crate) async fn sovereignty_check_access(
     let cat = parse_data_category(cat_str);
     let cat_name = cat.as_str();
     let webid_str = auth.webid.to_string();
-    let boundary = hkask_types::sovereignty::DataSovereigntyBoundary::hkask_default();
+    let boundary = hkask_services_sovereignty::DataSovereigntyBoundary::hkask_default();
     let cm = &state.agent_service.sovereignty();
 
     let class = boundary.classify(&cat);

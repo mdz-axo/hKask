@@ -19,12 +19,12 @@ pub mod skill_loader;
 pub mod vocabulary;
 
 pub use bundle::BundleManifest;
-pub use bundle::SkillPolarity;
+pub use bundle::BundleRegistryIndex;
 pub use executor::ManifestExecutor;
-pub use hkask_ports::BundleRegistryIndex;
 pub use hkask_ports::InferencePort;
 pub use hkask_ports::Skill;
 pub use hkask_ports::SkillZone;
+pub use hkask_types::SkillPolarity;
 
 pub use manifest_loader::resolve_manifest;
 pub use ports::{McpPort, Result, TemplateError};

@@ -6,7 +6,7 @@ use crate::cli::ReplicantAction;
 use hkask_services::ServiceError;
 use hkask_storage::user_store::UserStore;
 use hkask_types::UserID;
-use hkask_types::identity::{RegistrationRequest, ReplicantIdentity, UserSession};
+use hkask_services_core::{RegistrationRequest, ReplicantIdentity, UserSession};
 use zeroize::Zeroizing;
 
 type Store = Arc<Mutex<UserStore>>;

@@ -1,14 +1,12 @@
-//! User sovereignty and affirmative consent types
+//! DataCategory — sovereignty classification for data access control
 //!
 //! These types enforce the Magna Carta of hKask:
 //! - Clear boundaries that honor user sovereignty
 //! - Affirmative consent (default deny, explicit yes required)
 //! - Data sovereignty boundaries (sovereign/shared/public)
 
-use crate::id::SovereigntyId;
 use crate::visibility::Visibility;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 /// Data category for sovereignty classification
 ///
@@ -104,16 +102,7 @@ impl DataCategory {
     /// Canonical visibility for this data category.
     ///
     /// This mapping is the single source of truth for which visibility
-    /// level applies to each data category. It encodes the 6-loop model's
-    /// public/private/shared distinction:
-    /// - Private: episodic memory, personal context, capability tokens, OCAP boundaries
-    /// - Shared: semantic memory, template invocations
-    /// - Public: lexicon terms, template registry
-    ///
-    /// Get default visibility for this category.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns Private for sovereign, Public for shared categories
+    /// level applies to each data category.
     pub fn default_visibility(&self) -> Visibility {
         match self {
             Self::EpisodicMemory
@@ -126,6 +115,11 @@ impl DataCategory {
         }
     }
 }
+
+// ── Sovereignty boundary types ───────────────────────────────────────────
+
+use crate::SovereigntyId;
+use std::collections::HashSet;
 
 /// Data sovereignty boundary — defines what data the user controls
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -142,9 +136,6 @@ pub struct DataSovereigntyBoundary {
 }
 
 /// Classification of a data category within a sovereignty boundary.
-///
-/// Single source of truth for the SOVEREIGN/SHARED/PUBLIC/UNKNOWN mapping
-/// previously duplicated across CLI, API, and verification service.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BoundaryClassification {
     Sovereign,
@@ -154,11 +145,6 @@ pub enum BoundaryClassification {
 }
 
 impl BoundaryClassification {
-    /// Human-readable label.
-    /// Get human-readable label.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns label string
     pub fn label(&self) -> &'static str {
         match self {
             BoundaryClassification::Sovereign => "SOVEREIGN",
@@ -168,11 +154,6 @@ impl BoundaryClassification {
         }
     }
 
-    /// Access requirement description.
-    /// Get access level required.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns "sovereign", "shared", or "public"
     pub fn access_required(&self) -> &'static str {
         match self {
             BoundaryClassification::Sovereign => "Requires explicit consent AND owner",
@@ -194,16 +175,6 @@ impl DataSovereigntyBoundary {
         }
     }
 
-    /// Create boundary with typical hKask defaults.
-    ///
-    /// This is the canonical boundary classification referenced by the
-    /// Magna Carta (Data Sovereignty Boundary section). Surfaced as a
-    /// public constructor so external crates (CLI, API) can render the
-    /// same default that runtime types use.
-    /// Create hKask default sovereignty state.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns UserSovereigntyState with all categories sovereign
     pub fn hkask_default() -> Self {
         let mut sovereign_data = HashSet::new();
         sovereign_data.insert(DataCategory::EpisodicMemory);
@@ -227,61 +198,22 @@ impl DataSovereigntyBoundary {
         }
     }
 
-    /// Check if data category is under user sovereignty
-    /// Check if a category is sovereign.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  category is valid
-    /// post: returns true iff category is in sovereign set
     pub fn is_sovereign(&self, category: &DataCategory) -> bool {
         self.sovereign_data.contains(category)
     }
 
-    /// Check if data category is in shared set
-    ///
-    /// F-SYN-003: renamed from `is_shared` to `is_category_shared` to
-    /// resolve the name collision with the (now-removed)
-    /// `Visibility::is_shared` predicate. The new name is
-    /// self-documenting about what the predicate operates on.
-    /// Check if a category is shared.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  category is valid
-    /// post: returns true iff category is in shared set
     pub fn is_category_shared(&self, category: &DataCategory) -> bool {
         self.shared_data.contains(category)
     }
 
-    /// Check if data category is public
-    ///
-    /// F-SYN-003: same rationale as `is_category_shared`.
-    /// Check if a category is public.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  category is valid
-    /// post: returns true iff category is in public set
     pub fn is_category_public(&self, category: &DataCategory) -> bool {
         self.public_data.contains(category)
     }
 
-    /// Whether this boundary requires affirmative consent (default: true)
-    /// Check if affirmative consent is required.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns true (always required under Magna Carta)
     pub fn requires_affirmative_consent(&self) -> bool {
         self.requires_affirmative_consent
     }
 
-    /// Classify a data category within this boundary.
-    ///
-    /// Single source of truth for the SOVEREIGN/SHARED/PUBLIC/UNKNOWN mapping
-    /// previously duplicated across CLI, API, and verification service.
-    /// Classify a category's boundary.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  category is valid
-    /// post: returns BoundaryClassification (Sovereign, Shared, or Public)
     pub fn classify(&self, category: &DataCategory) -> BoundaryClassification {
         if self.is_sovereign(category) {
             BoundaryClassification::Sovereign
@@ -304,17 +236,11 @@ impl Default for DataSovereigntyBoundary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSovereigntyState {
     pub boundary: DataSovereigntyBoundary,
-    /// Whether user has explicitly consented to data sharing
     pub explicit_consent: bool,
-    /// Timestamp of last sovereignty check
     pub last_check: chrono::DateTime<chrono::Utc>,
 }
 
 impl UserSovereigntyState {
-    /// Create a new consent state.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns ConsentState with consent=false
     pub fn new() -> Self {
         Self {
             boundary: DataSovereigntyBoundary::hkask_default(),
@@ -323,20 +249,10 @@ impl UserSovereigntyState {
         }
     }
 
-    /// Grant explicit consent for data sharing
-    /// Grant consent.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: consent set to true
     pub fn grant_consent(&mut self) {
         self.explicit_consent = true;
     }
 
-    /// Revoke explicit consent
-    /// Revoke consent.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: consent set to false
     pub fn revoke_consent(&mut self) {
         self.explicit_consent = false;
     }
@@ -345,5 +261,107 @@ impl UserSovereigntyState {
 impl Default for UserSovereigntyState {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ── Original curation types restored ────────────────────────────────────
+
+/// CurationDecision — The Curator's evaluation of template outputs
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CurationDecision {
+    /// Merge output into codebase
+    Merge,
+    /// Discard output entirely
+    Discard,
+    /// Request revision from bot
+    Revise,
+    /// Insufficient information — revisit later
+    Defer,
+}
+
+impl std::fmt::Display for CurationDecision {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CurationDecision::Merge => write!(f, "merge"),
+            CurationDecision::Discard => write!(f, "discard"),
+            CurationDecision::Revise => write!(f, "revise"),
+            CurationDecision::Defer => write!(f, "defer"),
+        }
+    }
+}
+
+impl TryFrom<&str> for CurationDecision {
+    type Error = String;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "merge" => Ok(CurationDecision::Merge),
+            "discard" => Ok(CurationDecision::Discard),
+            "revise" => Ok(CurationDecision::Revise),
+            "defer" => Ok(CurationDecision::Defer),
+            _ => Err(format!("invalid curation decision: {s}")),
+        }
+    }
+}
+
+/// Token-based capability kinds for OCAP boundaries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OcapTokenKind {
+    /// Curation authority — ConsolidationToken
+    Curation,
+    /// Spec curation authority
+    SpecCurate,
+}
+
+impl std::fmt::Display for OcapTokenKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            OcapTokenKind::Curation => "curation",
+            OcapTokenKind::SpecCurate => "spec_curate",
+        };
+        f.write_str(s)
+    }
+}
+
+/// Parse an `OcapTokenKind` from its canonical snake_case name.
+pub fn parse_ocap_token_kind(s: &str) -> Option<OcapTokenKind> {
+    match s {
+        "curation" => Some(OcapTokenKind::Curation),
+        "spec_curate" => Some(OcapTokenKind::SpecCurate),
+        _ => None,
+    }
+}
+
+/// Capability identifier — typed brand.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct OcapCapability(pub OcapTokenKind);
+
+impl std::fmt::Display for OcapCapability {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.0, f)
+    }
+}
+
+/// OCAPBoundary — Capability boundary for curation decisions
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OCAPBoundary {
+    /// The capability being bounded (a typed brand).
+    pub capability: OcapCapability,
+}
+
+impl OCAPBoundary {
+    /// Create an enforced boundary with a typed token.
+    pub fn token(kind: OcapTokenKind) -> Self {
+        Self {
+            capability: OcapCapability(kind),
+        }
+    }
+
+    /// Parse a typed token from a string, returning `None` for unknown names.
+    pub fn parse_token(name: &str) -> Option<Self> {
+        parse_ocap_token_kind(name).map(Self::token)
     }
 }

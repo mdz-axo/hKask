@@ -5,9 +5,9 @@
 //! (DI/, FW/, OM/) for backend routing.
 use async_trait::async_trait;
 
+use crate::ocr::{OcrBackend, OcrResult};
 use base64::Engine;
 use hkask_inference::{InferenceConfig, InferenceRouter};
-use hkask_types::ocr::{OcrBackend, OcrResult};
 use hkask_types::template::LLMParameters;
 use image::DynamicImage;
 use std::time::Instant;

@@ -12,7 +12,7 @@
 //!   → Human: kask settings set ocr_moderate_max 0.25
 //! ```
 
-use hkask_types::ocr::{ComplexityTier, CrossValidation, PipelineOutcome, ThresholdConfig};
+use crate::ocr::{ComplexityTier, CrossValidation, PipelineOutcome, ThresholdConfig};
 
 /// Evidence backing a threshold drift suggestion.
 #[derive(Debug, Clone)]
@@ -117,7 +117,7 @@ pub fn emit_drift_alert(alert: &ThresholdDriftAlert) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::ocr::{CrossValidation, OcrBackend, PipelineOutcome, VerificationReport};
+    use crate::ocr::{CrossValidation, OcrBackend, PipelineOutcome, VerificationReport};
 
     fn default_thresholds() -> ThresholdConfig {
         ThresholdConfig::default()

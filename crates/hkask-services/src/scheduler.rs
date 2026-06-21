@@ -3,7 +3,7 @@
 //! The curation loop checks for due tasks each cycle.
 
 use hkask_storage::AgentRegistryStore;
-use hkask_types::ScheduledTask;
+use hkask_agents::ScheduledTask;
 
 use crate::ServiceError;
 

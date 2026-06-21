@@ -3,7 +3,7 @@
 //! Observation only (P4: no autonomous routing change).
 //! Data accumulates for future threshold self-tuning.
 
-use hkask_types::ocr::{ComplexityTier, CrossValidation, OcrResult};
+use crate::ocr::{ComplexityTier, CrossValidation, OcrResult};
 
 /// Compute cross-validation between two OCR results for the same page.
 ///
@@ -83,7 +83,7 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::ocr::OcrBackend;
+    use crate::ocr::OcrBackend;
 
     #[test]
     fn identical_texts() {

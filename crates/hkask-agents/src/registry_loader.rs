@@ -3,7 +3,8 @@
 use crate::a2a::{A2AError, A2ARuntime};
 use crate::ports::RegistrySourcePort;
 use hkask_storage::{AgentRegistryError, AgentRegistryStore, now_rfc3339};
-use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID};
+use hkask_types::WebID;
+use crate::{AgentDefinition, AgentKind, RegisteredAgent};
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -90,29 +91,29 @@ impl RawYamlAgent {
 
     fn convert_rights(
         rights: Vec<std::collections::HashMap<String, String>>,
-    ) -> Vec<hkask_types::Right> {
+    ) -> Vec<crate::Right> {
         rights
             .into_iter()
             .filter_map(|map| {
                 if let Some(resource) = map.get("read") {
-                    Some(hkask_types::Right::Read {
+                    Some(crate::Right::Read {
                         resource: resource.clone(),
                     })
                 } else if let Some(resource) = map.get("write") {
-                    Some(hkask_types::Right::Write {
+                    Some(crate::Right::Write {
                         resource: resource.clone(),
                     })
                 } else if let Some(action) = map.get("execute") {
-                    Some(hkask_types::Right::Execute {
+                    Some(crate::Right::Execute {
                         action: action.clone(),
                     })
                 } else if let Some(scope) = map.get("coordinate") {
-                    Some(hkask_types::Right::Coordinate {
+                    Some(crate::Right::Coordinate {
                         scope: scope.clone(),
                     })
                 } else {
                     map.get("escalate_to")
-                        .map(|target| hkask_types::Right::EscalateTo {
+                        .map(|target| crate::Right::EscalateTo {
                             target: target.clone(),
                         })
                 }
@@ -122,49 +123,49 @@ impl RawYamlAgent {
 
     fn convert_responsibilities(
         responsibilities: Vec<std::collections::HashMap<String, String>>,
-    ) -> Vec<hkask_types::Responsibility> {
+    ) -> Vec<crate::Responsibility> {
         responsibilities
             .into_iter()
             .filter_map(|map| {
                 if let Some(target) = map.get("monitor") {
-                    Some(hkask_types::Responsibility::Monitor {
+                    Some(crate::Responsibility::Monitor {
                         target: target.clone(),
                     })
                 } else if let Some(input) = map.get("synthesize") {
-                    Some(hkask_types::Responsibility::Synthesize {
+                    Some(crate::Responsibility::Synthesize {
                         input: input.clone(),
                         output: String::new(),
                     })
                 } else if let Some(action) = map.get("perform") {
-                    Some(hkask_types::Responsibility::Perform {
+                    Some(crate::Responsibility::Perform {
                         action: action.clone(),
                     })
                 } else if let Some(target) = map.get("calibrate") {
-                    Some(hkask_types::Responsibility::Calibrate {
+                    Some(crate::Responsibility::Calibrate {
                         target: target.clone(),
                     })
                 } else if let Some(trigger) = map.get("escalate") {
-                    Some(hkask_types::Responsibility::Escalate {
+                    Some(crate::Responsibility::Escalate {
                         trigger: trigger.clone(),
                         target: String::new(),
                     })
                 } else if let Some(resource) = map.get("maintain") {
-                    Some(hkask_types::Responsibility::Maintain {
+                    Some(crate::Responsibility::Maintain {
                         resource: resource.clone(),
                     })
                 } else if let Some(span) = map.get("emit") {
-                    Some(hkask_types::Responsibility::Emit { span: span.clone() })
+                    Some(crate::Responsibility::Emit { span: span.clone() })
                 } else if let Some(session) = map.get("orchestrate") {
-                    Some(hkask_types::Responsibility::Orchestrate {
+                    Some(crate::Responsibility::Orchestrate {
                         session: session.clone(),
                     })
                 } else if let Some(target) = map.get("record") {
-                    Some(hkask_types::Responsibility::Record {
+                    Some(crate::Responsibility::Record {
                         target: target.clone(),
                     })
                 } else {
                     map.get("produce")
-                        .map(|artifact| hkask_types::Responsibility::Produce {
+                        .map(|artifact| crate::Responsibility::Produce {
                             artifact: artifact.clone(),
                         })
                 }
@@ -197,7 +198,7 @@ impl RawYamlAgent {
         Ok(AgentDefinition {
             name: header_name,
             agent_kind,
-            charter: self.charter.map(|c| hkask_types::Charter {
+            charter: self.charter.map(|c| crate::Charter {
                 description: c.description,
                 archetype: c.archetype,
                 visibility: c.visibility,
@@ -205,7 +206,7 @@ impl RawYamlAgent {
             capabilities: self.capabilities,
             rights: Self::convert_rights(self.rights),
             responsibilities: Self::convert_responsibilities(self.responsibilities),
-            persona: self.persona.map(|p| hkask_types::PersonaConstraints {
+            persona: self.persona.map(|p| crate::PersonaConstraints {
                 tone: p.tone,
                 verbosity: p.verbosity,
                 formatting: p.formatting,

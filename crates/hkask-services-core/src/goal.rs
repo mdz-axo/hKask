@@ -16,10 +16,10 @@ use std::fmt;
 
 // SYSTEM_MAX_RECURSION (from hkask-capability) = 7
 const MAX_NESTING: u8 = 7;
-pub use hkask_types::GoalID;
-use hkask_types::WebID;
-use hkask_types::Visibility;
 use chrono::{DateTime, Utc};
+pub use hkask_types::GoalID;
+use hkask_types::Visibility;
+use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 
 /// Error returned when a goal state transition violates the state machine.
@@ -42,81 +42,9 @@ impl fmt::Display for IllegalGoalTransition {
 
 impl std::error::Error for IllegalGoalTransition {}
 
-/// Goal state — simple, minimal states
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum GoalState {
-    Pending,
-    Active,
-    Completed,
-    Blocked,
-    Abandoned,
-}
-
-impl GoalState {
-    /// Get string representation of state.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns snake_case state name
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            GoalState::Pending => "pending",
-            GoalState::Active => "active",
-            GoalState::Completed => "completed",
-            GoalState::Blocked => "blocked",
-            GoalState::Abandoned => "abandoned",
-        }
-    }
-
-    /// Parse state from string.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns Some(GoalState) if valid, None otherwise
-    pub fn parse_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "pending" => Some(GoalState::Pending),
-            "active" => Some(GoalState::Active),
-            "completed" => Some(GoalState::Completed),
-            "blocked" => Some(GoalState::Blocked),
-            "abandoned" => Some(GoalState::Abandoned),
-            _ => None,
-        }
-    }
-
-    /// Check if this is a terminal state.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns true for Completed, Abandoned, Quarantined
-    pub fn is_terminal(&self) -> bool {
-        matches!(
-            self,
-            GoalState::Completed | GoalState::Blocked | GoalState::Abandoned
-        )
-    }
-
-    /// Whether a transition from `self` to `next` is legal.
-    ///
-    /// The lifecycle is expressed as a total match so illegal transitions are
-    /// caught at the repository boundary rather than silently applied. A
-    /// terminal state (Completed/Abandoned) admits no further transitions;
-    /// `Blocked` may resume to `Active`. Re-stating the current state is a
-    /// [DECLARATIVE] no-op and always permitted. (P7 — Evolutionary Architecture).
-    pub fn can_transition_to(&self, next: GoalState) -> bool {
-        if *self == next {
-            return true;
-        }
-        match (self, next) {
-            (GoalState::Pending, GoalState::Active)
-            | (GoalState::Pending, GoalState::Abandoned)
-            | (GoalState::Active, GoalState::Blocked)
-            | (GoalState::Active, GoalState::Completed)
-            | (GoalState::Active, GoalState::Abandoned)
-            | (GoalState::Blocked, GoalState::Active)
-            | (GoalState::Blocked, GoalState::Abandoned) => true,
-            _ => false,
-        }
-    }
-}
+// GoalState is defined in hkask-types (for SQL impls — Rust orphan rule).
+// hkask-services-core re-exports it for convenience.
+pub use hkask_types::GoalState;
 
 /// Goal criterion — completion condition (LLM-judged)
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -27,7 +27,7 @@ use hkask_mcp::validate_field;
 use hkask_memory::SemanticMemory;
 use hkask_types::McpErrorKind;
 use hkask_types::WebID;
-use hkask_types::ocr::{OcrBackend, OcrResult, ThresholdConfig};
+use crate::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use hkask_ports::{CnsObserver, InferencePort};
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
@@ -72,7 +72,7 @@ pub struct DocProcServer {
     pub cns_observer: DocProcCnsObserver,
     /// Accumulated cross-validations across pipeline runs for threshold self-tuning.
     /// Cleared after a drift alert is emitted to avoid redundant suggestions.
-    pub cv_accumulator: Mutex<Vec<hkask_types::ocr::CrossValidation>>,
+    pub cv_accumulator: Mutex<Vec<crate::ocr::CrossValidation>>,
     /// In-memory vector index for RAG query/retrieval. Passages indexed by `docproc_chunk`
     /// are stored here with their embeddings for cosine-similarity search via `docproc_query`.
     pub index: Mutex<Vec<IndexedPassage>>,
@@ -269,7 +269,7 @@ impl OcrExecutor for DocProcServer {
 
 impl DocProcServer {
     /// Persist pipeline outcome to daemon for CNS observability.
-    pub async fn persist_pipeline_outcome(&self, outcome: &hkask_types::ocr::PipelineOutcome) {
+    pub async fn persist_pipeline_outcome(&self, outcome: &crate::ocr::PipelineOutcome) {
         if let Some(ref daemon) = self.daemon {
             let daemon_clone = daemon.clone();
             let replicant = self.replicant.clone();
@@ -316,7 +316,7 @@ impl DocProcServer {
     }
 
     /// Emit a CNS pipeline event through the CnsObserver.
-    async fn emit_pipeline_event(&self, outcome: &hkask_types::ocr::PipelineOutcome) {
+    async fn emit_pipeline_event(&self, outcome: &crate::ocr::PipelineOutcome) {
         use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 
         let observation = serde_json::json!({
@@ -349,16 +349,16 @@ impl DocProcServer {
     }
 
     /// Accumulate cross-validations and check for threshold drift.
-    fn accumulate_and_check_drift(&self, outcome: &hkask_types::ocr::PipelineOutcome) {
+    fn accumulate_and_check_drift(&self, outcome: &crate::ocr::PipelineOutcome) {
         let mut acc = self
             .cv_accumulator
             .lock()
             .expect("Failed to lock CV accumulator for drift check");
         acc.extend(outcome.cross_validations.clone());
 
-        let synthetic_outcome = hkask_types::ocr::PipelineOutcome {
+        let synthetic_outcome = crate::ocr::PipelineOutcome {
             results: vec![],
-            report: hkask_types::ocr::VerificationReport::new(true, 0.0, vec![], 0, vec![]),
+            report: crate::ocr::VerificationReport::new(true, 0.0, vec![], 0, vec![]),
             cross_validations: acc.clone(),
             errors: vec![],
         };

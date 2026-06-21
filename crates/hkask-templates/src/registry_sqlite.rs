@@ -4,13 +4,12 @@
 //! consistent with `hkask_storage::Database::conn_arc()`. Use `new_with_conn()`
 //! when opening through `hkask_storage::Database` (SQLCipher-encrypted).
 
-use crate::ports::{Result, TemplateError};
-use hkask_ports::{
-    BundleRegistryIndex, RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex, SkillZone,
-};
-use crate::bundle::SkillPolarity;
-use hkask_types::template_type::TemplateType;
 use crate::BundleManifest;
+use crate::BundleRegistryIndex;
+use crate::ports::{Result, TemplateError};
+use hkask_ports::{RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex, SkillZone};
+use hkask_types::SkillPolarity;
+use hkask_types::template_type::TemplateType;
 use hkask_types::{InfrastructureError, Visibility};
 use rusqlite::{Connection, params};
 use std::sync::{Arc, Mutex};

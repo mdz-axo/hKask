@@ -6,7 +6,7 @@ use axum::{extract::Request, http::StatusCode, middleware::Next, response::Respo
 use hkask_storage::user_store::UserStore;
 use hkask_types::WebID;
 use hkask_capability::auth::AuthContext;
-use hkask_types::identity::Role;
+use hkask_services_core::Role;
 use std::sync::{Arc, Mutex};
 
 const ADMIN_PATH_PREFIXES: &[&str] = &["/api/v1/admin"];

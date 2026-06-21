@@ -10,6 +10,7 @@ async-trait.workspace = true
 hkask-services-core = { path = "../hkask-services-core" }
 hkask-types = { path = "../hkask-types" }
 hkask-ports = { path = "../hkask-ports" }
+hkask-cns = { path = "../hkask-cns" }
 aes-gcm = "0.10"
 argon2 = "0.5"
 chrono.workspace = true

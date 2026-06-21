@@ -23,8 +23,9 @@
 use std::sync::Arc;
 
 use hkask_templates::BundleManifest;
+use hkask_templates::BundleRegistryIndex;
 use hkask_types::Visibility;
-use hkask_ports::{BundleRegistryIndex, InferencePort, SkillRegistryIndex};
+use hkask_ports::{InferencePort, SkillRegistryIndex};
 
 use crate::ServiceError;
 use hkask_services_context::AgentService;

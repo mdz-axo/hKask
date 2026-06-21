@@ -4,7 +4,7 @@
 //! Delete it → pipeline produces output with no quality signal.
 //! It earns its existence.
 
-use hkask_types::ocr::{OcrResult, PageVerificationDetail, PipelineError, VerificationReport};
+use crate::ocr::{OcrResult, PageVerificationDetail, PipelineError, VerificationReport};
 
 /// Verify assembled output against expected page count and source images.
 ///
@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn correct_document_passes() {
-        use hkask_types::ocr::OcrBackend;
+        use crate::ocr::OcrBackend;
 
         let results = vec![
             OcrResult {
@@ -124,7 +124,7 @@ mod tests {
 
     #[test]
     fn missing_page_fails() {
-        use hkask_types::ocr::OcrBackend;
+        use crate::ocr::OcrBackend;
 
         let results = vec![OcrResult {
             page_index: 0,
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn empty_page_flagged() {
-        use hkask_types::ocr::OcrBackend;
+        use crate::ocr::OcrBackend;
 
         let results = vec![
             OcrResult {
@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn garbled_text_flags_word_anomaly() {
-        use hkask_types::ocr::OcrBackend;
+        use crate::ocr::OcrBackend;
 
         // Lots of words on a tiny image — should be a word count anomaly
         let mut text = String::new();

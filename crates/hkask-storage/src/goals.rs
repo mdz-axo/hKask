@@ -5,7 +5,7 @@ use crate::{Store, now_rfc3339};
 use chrono::Utc;
 use hkask_types::InfrastructureError;
 use hkask_types::event::NuEventSink;
-use hkask_services::{Goal, GoalArtifact, GoalCriterion, GoalState};
+use hkask_services_core::{Goal, GoalArtifact, GoalCriterion, GoalState};
 use hkask_types::GoalID;
 use hkask_types::id::WebID;
 use hkask_types::visibility::Visibility;
