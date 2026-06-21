@@ -190,6 +190,14 @@ impl WalletStore {
     }
     /// Debit rJoules from a wallet. Returns error if balance insufficient.
     /// The caller must verify `balance >= amount` before calling.
+    ///
+    /// **Idempotency:** This operation is NOT idempotent. Each call independently
+    /// debits the balance. Callers MUST ensure that retries do not result in
+    /// double-charging. For withdrawals, the caller (`WalletManager::withdraw`)
+    /// refunds on chain submission failure via `credit_rjoules`. Callers that
+    /// retry at a higher level MUST track whether the original debit succeeded
+    /// before issuing a second debit.
+    ///
     /// Debit rJoules from a wallet.
     ///
     /// expect: "The system provides durable storage for wallet data"

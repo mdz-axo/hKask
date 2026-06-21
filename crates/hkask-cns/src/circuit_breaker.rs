@@ -187,7 +187,15 @@ impl CircuitBreaker {
             0 => CircuitState::Closed,
             1 => CircuitState::Open,
             2 => CircuitState::HalfOpen,
-            _ => CircuitState::Closed,
+            _ => {
+                tracing::warn!(
+                    target: "hkask.circuit_breaker",
+                    name = %self.name,
+                    raw_state = self.state.load(Ordering::Relaxed),
+                    "Unknown circuit state, defaulting to Open (fail-safe)",
+                );
+                CircuitState::Open
+            }
         }
     }
 

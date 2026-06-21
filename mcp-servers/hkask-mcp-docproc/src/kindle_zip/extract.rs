@@ -14,6 +14,7 @@ pub async fn extract_kindle_book(
     amazon_email: &str,
     amazon_password: &str,
     output_dir: &Path,
+    chrome_profile: Option<&Path>,
 ) -> Result<ExtractResult, String> {
     let book_dir = output_dir.join(asin);
     let pages_dir = book_dir.join("pages");
@@ -28,8 +29,15 @@ pub async fn extract_kindle_book(
     }
 
     tracing::info!(target: "cns.pipeline.kindle-zip.extract", asin = %asin, "Starting browser-based extraction");
-    let meta =
-        extract_via_browser(asin, amazon_email, amazon_password, &book_dir, &pages_dir).await?;
+    let meta = extract_via_browser(
+        asin,
+        amazon_email,
+        amazon_password,
+        &book_dir,
+        &pages_dir,
+        chrome_profile,
+    )
+    .await?;
 
     tracing::info!(target: "cns.pipeline.kindle-zip.extract",
         asin = %asin, total_pages = meta.total_pages, content_pages = meta.content_pages,
@@ -43,13 +51,23 @@ async fn extract_via_browser(
     amazon_password: &str,
     book_dir: &Path,
     pages_dir: &Path,
+    chrome_profile: Option<&Path>,
 ) -> Result<ExtractResult, String> {
     use headless_chrome::{Browser, LaunchOptionsBuilder};
 
-    let launch_opts = LaunchOptionsBuilder::default()
+    let using_profile = chrome_profile.is_some();
+    let mut launch_builder = LaunchOptionsBuilder::default()
         .headless(true)
         .window_size(Some((1280, 720)))
-        .sandbox(false)
+        .sandbox(false);
+
+    if let Some(profile_dir) = chrome_profile {
+        launch_builder.user_data_dir(Some(profile_dir.to_path_buf()))
+        tracing::info!(target: "cns.pipeline.kindle-zip.extract",
+            profile = %profile_dir.display(), "Using Chrome profile for cookie-based auth");
+    }
+
+    let launch_opts = launch_builder
         .build()
         .map_err(|e| format!("Browser options: {}", e))?;
 

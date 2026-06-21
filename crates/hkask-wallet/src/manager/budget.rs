@@ -78,8 +78,10 @@ impl WalletManager {
         reserved: RJoule,
         actual: RJoule,
     ) -> Result<(), WalletError> {
+        if actual > reserved {
+            return Err(WalletError::ReservationExceeded { reserved, actual });
+        }
         self.store.debit_rjoules(wallet_id, actual)?;
-        let _ = reserved;
         Ok(())
     }
 }

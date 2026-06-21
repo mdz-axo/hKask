@@ -143,6 +143,11 @@ pub struct KindleZipParams {
     pub amazon_email: Option<String>,
     #[serde(default)]
     pub amazon_password: Option<String>,
+    /// Path to Chrome/Chromium user data directory for cookie-based auth.
+    /// When set, reuses existing browser session (no login required).
+    /// Typical: ~/.config/google-chrome/Default or ~/.config/chromium/Default
+    #[serde(default)]
+    pub chrome_profile: Option<String>,
     #[serde(default = "default_output_dir")]
     pub output_dir: String,
 

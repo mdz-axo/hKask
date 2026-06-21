@@ -88,13 +88,11 @@ pub fn run_init() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // 8. Set env vars for current session
-    println!("\n✓ Server initialized successfully!\n");
+    println!("\n\u{2713} Server initialized successfully!\n");
     println!("  Add these to your environment or .env file:\n");
     println!("  export HKASK_OAUTH_GITHUB_CLIENT_ID={}", gh_client_id);
-    println!(
-        "  export HKASK_OAUTH_GITHUB_CLIENT_SECRET={}",
-        gh_client_secret
-    );
+    println!("  # Client secret is stored in OS keychain — read with:");
+    println!("  #   security find-generic-password -s hkask-oauth-github-client-secret -w");
     println!("  export HKASK_DOMAIN={}", domain);
     println!("\n  Then run: kask serve");
 

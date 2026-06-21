@@ -4328,6 +4328,7 @@ dependencies = [
  "hkask-keystore",
  "hkask-ledger",
  "hkask-mcp",
+ "hkask-mcp-docproc",
  "hkask-memory",
  "hkask-ports",
  "hkask-services",

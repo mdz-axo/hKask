@@ -50,15 +50,16 @@ pub async fn run_server(
     }
     // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "serve", host = %host, port = port, "CNS");
-    // Resolve configuration from keystore and environment
-    let config = hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
-        tracing::warn!(
-            target: "hkask.serve",
-            error = %e,
-            "Failed to resolve service config from env, using in-memory"
-        );
-        hkask_services::ServiceConfig::in_memory()
-    });
+    // Resolve configuration from keystore and environment.
+    // Refuse to start with in-memory fallback — a server without proper
+    // keystore configuration has no security, no persistence, and no auth.
+    let config = hkask_services::ServiceConfig::from_env().map_err(|e| {
+        format!(
+            "Failed to resolve service configuration: {e}\n\
+             Run 'kask init' first to set up the server, or 'kask chat' to\n\
+             complete onboarding with your master passphrase."
+        )
+    })?;
 
     // Build AgentService with all shared infrastructure
     let ctx = hkask_services::AgentService::build(config)

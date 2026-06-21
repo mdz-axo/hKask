@@ -192,6 +192,9 @@ impl EnergyBudget {
         reserved_gas: EnergyCost,
         actual_gas: EnergyCost,
     ) -> Result<EnergyCost, EnergyError> {
+        // Release the reservation — caller should verify actual <= reserved
+        // if estimation-overrun detection is required. This method enforces
+        // actual <= remaining (budget cap), not actual <= reserved.
         self.reserved = EnergyCost(self.reserved.0.saturating_sub(reserved_gas.0));
         if self.hard_limit && actual_gas.0 > self.remaining.0 {
             tracing::warn!(target: "cns.gas", operation = "settle", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, actual = %actual_gas.0, outcome = "budget_exceeded", "CNS");

@@ -156,6 +156,8 @@ impl WalletBackedBudget {
         }
         // Reservation is optimistic — can_proceed already verified encumbrance/wallet.
         // No debit happens here; actual consumption occurs in settle().
+        // Callers must expect that settle() may fail if the encumbrance was
+        // consumed between reserve and settle (TOCTOU). Retry or escalate.
         Ok(gas)
     }
 

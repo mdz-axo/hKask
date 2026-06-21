@@ -211,6 +211,10 @@ impl WalletManager {
             }),
         );
 
+        let balance = self
+            .store
+            .get_balance(wallet_id)?
+            .expect("balance exists for active wallet");
         self.store.record_transaction(&WalletTransaction {
             id: 0,
             wallet_id,
@@ -220,7 +224,7 @@ impl WalletManager {
                 amount_usdc_micro,
             },
             rjoules_delta: 0,
-            balance_after: 0,
+            balance_after: balance.rjoules,
             timestamp: Utc::now(),
         })?;
 

@@ -331,6 +331,9 @@ pub enum WalletError {
         remaining: RJoule,
         need: RJoule,
     },
+
+    #[error("settlement exceeds reservation: reserved {reserved}, actual {actual}")]
+    ReservationExceeded { reserved: RJoule, actual: RJoule },
 }
 
 impl From<InfrastructureError> for WalletError {

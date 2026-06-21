@@ -38,6 +38,10 @@ inputs:
     type: string
     description: "Amazon account password"
     required: true
+  - name: chrome_profile
+    type: string
+    description: "Path to Chrome/Chromium user data directory for cookie-based auth (e.g., ~/.config/google-chrome/Default). When set, reuses existing browser session."
+    required: false
   - name: output_dir
     type: string
     description: "Output directory for extracted pages and exports"
@@ -85,6 +89,7 @@ steps:
       asin: "{{ asin }}"
       amazon_email: "{{ amazon_email }}"
       amazon_password: "{{ amazon_password }}"
+      chrome_profile: "{{ chrome_profile | default('') }}"
       output_dir: "{{ output_dir | default('output') }}"
     output_schema:
       type: object

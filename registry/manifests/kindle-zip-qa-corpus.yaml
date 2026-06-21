@@ -1,18 +1,20 @@
-# Kindle-Zip QA Script — Honest Pipeline Validation
+# Kindle-Zip QA — Honest Pipeline Validation
 # ℏKask v0.30.0
 #
-# Tests the kindle-zip tool honestly: fails when infrastructure is missing,
-# reports degradation explicitly, never pretends metadata stubs are books.
+# Tests what can be tested via cargo test. Extraction (kindle_extract)
+# cannot be tested by the QA runner — it requires MCP tool invocation
+# with browser + credentials. Inference uses hKask's central service.
 
 manifest:
-  id: kindle-zip-qa-corpus
+  id: kindle-zip-qa
   description: >
-    Honest QA pipeline for kindle-zip. Fails fast when infrastructure is
-    missing (no Chrome, no API key, no credentials). Degraded runs report
-    degradation explicitly — never misreport stubs as books.
+    QA for kindle-zip. Code tests: unit, integration, format generation.
+    Extraction (kindle_extract) is untestable via QA runner — requires
+    interactive MCP tool invocation with Chrome + Amazon credentials.
+    Inference/OCR uses hKask-inference (central service, no API key needed).
 
 gas:
-  cap: 80000
+  cap: 20000
   gas_per_function: 500
   alert_threshold: 0.8
   hard_limit: false
@@ -23,217 +25,102 @@ cns:
   alert: cns.qa.kindle-zip
 
 steps:
-  # ── Step 1: Infrastructure Check ───────────────────────────────────────
-
   - ordinal: 1
     action: run_command
-    description: "Check required infrastructure: Chrome, credentials, API key"
+    description: "Run kindle-zip unit tests"
     command: |
-      echo "=== Infrastructure Check ==="
-      MISSING=""
-      command -v chromium >/dev/null 2>&1 || command -v chromium-browser >/dev/null 2>&1 || command -v google-chrome >/dev/null 2>&1 || { echo "  CHROME: MISSING"; MISSING="$MISSING chrome"; }
-      command -v chromium >/dev/null 2>&1 && echo "  CHROME: $(which chromium)" || true
-      command -v tesseract >/dev/null 2>&1 && echo "  TESSERACT: $(which tesseract)" || echo "  TESSERACT: MISSING (OCR will use LLM fallback only)"
-      [ -n "$DEEPINFRA_API_KEY" ] && echo "  DEEPINFRA_API_KEY: SET" || { echo "  DEEPINFRA_API_KEY: MISSING"; MISSING="$MISSING api_key"; }
-      [ -n "$AMAZON_EMAIL" ] && echo "  AMAZON_EMAIL: SET" || { echo "  AMAZON_EMAIL: MISSING"; MISSING="$MISSING amazon_email"; }
-      [ -n "$AMAZON_PASSWORD" ] && echo "  AMAZON_PASSWORD: SET" || { echo "  AMAZON_PASSWORD: MISSING"; MISSING="$MISSING amazon_password"; }
-      if [ -n "$MISSING" ]; then
-        echo "INFRA_FAIL: missing$MISSING"
-        exit 1
-      else
-        echo "INFRA_PASS"
-        exit 0
-      fi
+      cd /home/mdz-axolotl/Clones/hKask && \
+      cargo test -p hkask-mcp-docproc --lib -- kindle 2>&1 | \
+      tee /tmp/kz-unit.log && \
+      grep -q "test result: ok" /tmp/kz-unit.log && \
+      echo "UNIT_PASS" || { echo "UNIT_FAIL"; exit 1; }
     retries: 1
     branching:
       success: 2
-      failure: 30
-
-  # ── Step 2: Unit Test Gate ─────────────────────────────────────────────
+      failure: 20
 
   - ordinal: 2
     action: run_command
-    description: "Run kindle-zip unit tests — must pass or abort"
-    command: |
-      cd /home/mdz-axolotl/Clones/hKask && \
-      cargo test -p hkask-mcp-docproc --lib -- kindle 2>&1 | \
-      tee /tmp/kindle-zip-unit-tests.log && \
-      grep -q "test result: ok" /tmp/kindle-zip-unit-tests.log && \
-      echo "UNIT_PASS" || echo "UNIT_FAIL"
-    retries: 1
-    branching:
-      success: 3
-      failure: 31
-
-  # ── Step 3: Integration Test Gate ──────────────────────────────────────
-
-  - ordinal: 3
-    action: run_command
-    description: "Run integration tests — must pass or abort"
+    description: "Run kindle-zip integration tests"
     command: |
       cd /home/mdz-axolotl/Clones/hKask && \
       cargo test -p hkask-mcp-docproc --test kindle_zip_integration 2>&1 | \
-      tee /tmp/kindle-zip-integration-tests.log && \
-      grep -q "test result: ok" /tmp/kindle-zip-integration-tests.log && \
-      echo "INTEGRATION_PASS" || echo "INTEGRATION_FAIL"
+      tee /tmp/kz-integration.log && \
+      grep -q "test result: ok" /tmp/kz-integration.log && \
+      echo "INTEGRATION_PASS" || { echo "INTEGRATION_FAIL"; exit 1; }
     retries: 1
     branching:
-      success: 4
-      failure: 32
+      success: 3
+      failure: 21
 
-  # ── Step 4: Format Matrix + Edge Cases ─────────────────────────────────
-
-  - ordinal: 4
+  - ordinal: 3
     action: run_command
-    description: "Validate all export formats produce valid output"
+    description: "Run format generation and edge case tests"
     command: |
       cd /home/mdz-axolotl/Clones/hKask && \
       cargo test -p hkask-mcp-docproc --lib -- \
-        "export_formats_all|empty_toc|export_txt|single_page|multi_page|nav_uses_real" 2>&1 | \
-      tee /tmp/kindle-zip-format-tests.log && \
-      grep -q "test result: ok" /tmp/kindle-zip-format-tests.log && \
-      echo "FORMAT_PASS" || echo "FORMAT_FAIL"
+        "export_formats_all|empty_toc|export_txt|single_page|multi_page|nav_uses_real|valid_pdf_header|epub_has_correct|export_markdown_has" 2>&1 | \
+      tee /tmp/kz-format.log && \
+      grep -q "test result: ok" /tmp/kz-format.log && \
+      echo "FORMAT_PASS" || { echo "FORMAT_FAIL"; exit 1; }
     retries: 2
     branching:
-      success: 5
-      failure: 33
+      success: 10
+      failure: 22
 
-  # ── Step 5: Classify output quality ────────────────────────────────────
-
-  - ordinal: 5
-    action: classify
-    classifier: qa-triage
-    description: "Classify test results — pipeline logic errors vs environment issues"
-    command: null
-    retries: 1
-    branching:
-      high_confidence: 6
-      medium_confidence: 7
-      low_confidence: 8
-      flake: 9
-      unparseable: 34
-    default_next: 34
-
-  # ── Step 6: High confidence → Classifier found real issues ─────────────
-
-  - ordinal: 6
+  - ordinal: 10
     action: run_command
-    description: "Classifier found high-confidence pipeline issues"
-    command: >
-      echo "[QA-FAIL] Classifier found high-confidence issues in pipeline output.
-      Review /tmp/kindle-zip-*.log"
-    retries: 0
-    default_next: 0
-
-  # ── Step 7: Medium confidence → Warning ────────────────────────────────
-
-  - ordinal: 7
-    action: run_command
-    description: "Classifier found medium-confidence issues — warn and continue"
-    command: >
-      echo "[QA-WARN] Classifier found medium-confidence issues.
-      Pipeline may have quality problems."
-    retries: 0
-    default_next: 0
-
-  # ── Step 8: Low confidence → Uncertain ─────────────────────────────────
-
-  - ordinal: 8
-    action: run_command
-    description: "Classifier uncertain — human review recommended"
-    command: >
-      echo "[QA-INFO] Classifier could not confidently assess output quality.
-      Human review recommended before trusting results."
-    retries: 0
-    default_next: 0
-
-  # ── Step 9: Flake → Retry loop ─────────────────────────────────────────
-
-  - ordinal: 9
-    action: loop
-    description: "Retry — flaky test or transient classifier issue"
+    description: "All code tests passed"
+    terminal: true
     command: |
-      cd /home/mdz-axolotl/Clones/hKask && \
-      cargo test -p hkask-mcp-docproc --lib -- kindle 2>&1 | \
-      grep -q "test result: ok" && echo "RETRY_PASS" || echo "RETRY_FAIL"
+      echo ""
+      echo "=============================================="
+      echo "  Kindle-Zip QA: CODE TESTS PASSED"
+      echo "=============================================="
+      echo "  Unit:        $(grep 'test result' /tmp/kz-unit.log 2>/dev/null)"
+      echo "  Integration: $(grep 'test result' /tmp/kz-integration.log 2>/dev/null)"
+      echo "  Format:      $(grep 'test result' /tmp/kz-format.log 2>/dev/null)"
+      echo "=============================================="
+      echo ""
+      echo "UNTESTED: kindle_extract (browser + credentials required)"
+      echo "  The QA runner cannot invoke MCP tools. To test extraction:"
+      echo "    kask docproc kindle_extract --asin B0XXXXXXXXX --amazon_email ... --amazon_password ..."
+      echo ""
+      echo "UNTESTED: kindle_transcribe (OCR — requires extracted pages)"
+      echo "  Once pages are extracted, transcription uses hKask-inference"
+      echo "  (central inference service, no API key needed)."
+      echo ""
+      echo "UNTESTED: kindle_export (requires transcribed content)"
+      echo "  Format generation logic IS tested by the tests above."
+      echo "  PDF/EPUB/MD/TXT generation works correctly."
     retries: 0
-    max_iterations: 3
-    branching:
-      success: 5
-      loop_exhausted: 35
-    default_next: 5
 
-  # ── Terminal 30: Infrastructure missing — no books can be extracted ─────
-
-  - ordinal: 30
+  - ordinal: 20
     action: run_command
-    description: "ABORT: Required infrastructure not available"
+    description: "FAILED: Unit tests broken"
     command: |
-      echo "[QA-ABORT] Cannot extract Kindle books — infrastructure missing."
-      echo "Requirements:"
-      echo "  - Chrome/Chromium (for Kindle Cloud Reader automation)"
-      echo "  - DEEPINFRA_API_KEY (for vision LLM OCR)"
-      echo "  - AMAZON_EMAIL + AMAZON_PASSWORD (for Kindle login)"
-      echo ""
-      echo "To run a degraded validation (logic tests only, no extraction):"
-      echo "  Set QA_DEGRADED=true"
-      echo ""
-      echo "To extract real books, set all required env vars and install Chrome."
+      echo "[QA-FAILED] Unit tests failed."
+      tail -30 /tmp/kz-unit.log 2>/dev/null
       exit 1
     retries: 0
-    default_next: 0
+    terminal: true
 
-  # ── Terminal 31: Unit test failure ─────────────────────────────────────
-
-  - ordinal: 31
+  - ordinal: 21
     action: run_command
-    description: "ABORT: Unit tests failed"
+    description: "FAILED: Integration tests broken"
     command: |
-      echo "[QA-ABORT] Unit tests failed — pipeline logic is broken."
-      tail -20 /tmp/kindle-zip-unit-tests.log 2>/dev/null
+      echo "[QA-FAILED] Integration tests failed."
+      tail -30 /tmp/kz-integration.log 2>/dev/null
+      exit 1
     retries: 0
-    default_next: 0
+    terminal: true
 
-  # ── Terminal 32: Integration test failure ──────────────────────────────
-
-  - ordinal: 32
+  - ordinal: 22
     action: run_command
-    description: "ABORT: Integration tests failed"
+    description: "FAILED: Format generation broken"
     command: |
-      echo "[QA-ABORT] Integration tests failed."
-      tail -20 /tmp/kindle-zip-integration-tests.log 2>/dev/null
+      echo "[QA-FAILED] Format generation tests failed."
+      tail -30 /tmp/kz-format.log 2>/dev/null
+      exit 1
     retries: 0
-    default_next: 0
-
-  # ── Terminal 33: Format generation broken ──────────────────────────────
-
-  - ordinal: 33
-    action: run_command
-    description: "ABORT: Format generation tests failed"
-    command: |
-      echo "[QA-ABORT] Format generation is broken — cannot produce valid PDF/EPUB/MD."
-      tail -20 /tmp/kindle-zip-format-tests.log 2>/dev/null
-    retries: 0
-    default_next: 0
-
-  # ── Terminal 34: Classifier unavailable — cannot validate ───────────────
-
-  - ordinal: 34
-    action: run_command
-    description: "DEGRADED: Classifier unavailable — output quality not validated"
-    command: >
-      echo "[QA-DEGRADED] Classifier returned unparseable result.
-      Output quality CANNOT be validated — set DEEPINFRA_API_KEY to enable."
-    retries: 0
-    default_next: 0
-
-  # ── Terminal 35: Flake loop exhausted ──────────────────────────────────
-
-  - ordinal: 35
-    action: run_command
-    description: "ABORT: Flake retry loop exhausted"
-    command: >
-      echo "[QA-ABORT] Flaky failures persisted after 3 retries.
-      This may indicate an intermittent infrastructure issue."
-    retries: 0
-    default_next: 0
+    terminal: true

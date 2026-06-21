@@ -83,10 +83,19 @@ pub struct QaScriptStep {
     pub classifier: Option<String>,
     pub description: String,
     pub command: Option<String>,
+    /// MCP tool name (for "mcp_tool" action).
+    #[serde(default)]
+    pub tool_name: Option<String>,
+    /// JSON parameters for MCP tool invocation.
+    #[serde(default)]
+    pub tool_params: Option<String>,
     pub retries: u32,
     #[serde(default)]
     pub branching: HashMap<String, u32>,
     pub default_next: Option<u32>,
+    /// If true, this step ends script execution (terminal).
+    #[serde(default)]
+    pub terminal: bool,
     #[serde(default = "default_gas_multiplier")]
     pub gas_multiplier: u32,
     pub training_cost_urj: Option<u64>,
@@ -356,6 +365,11 @@ pub enum QaScriptError {
         ordinal: u32,
         reason: String,
     },
+    ToolFailed {
+        ordinal: u32,
+        tool: String,
+        reason: String,
+    },
     NoClassifierConfig {
         ordinal: u32,
     },
@@ -391,6 +405,13 @@ impl fmt::Display for QaScriptError {
             QaScriptError::ClassifyFailed { ordinal, reason } => {
                 write!(f, "Classify failed at step {}: {}", ordinal, reason)
             }
+            QaScriptError::ToolFailed {
+                ordinal,
+                tool,
+                reason,
+            } => {
+                write!(f, "Tool '{}' failed at step {}: {}", tool, ordinal, reason)
+            }
             QaScriptError::NoClassifierConfig { ordinal } => {
                 write!(f, "No classifier configured for step {}", ordinal)
             }
@@ -419,26 +440,40 @@ impl std::error::Error for QaScriptError {}
 /// Closure type for the classify function.
 pub type ClassifyFn = dyn Fn(&str, &[String]) -> Result<Vec<ClassifyResult>, String> + Send + Sync;
 
+/// Closure type for MCP tool invocation.
+/// Takes tool name and JSON params string, returns JSON result string.
+pub type ToolFn = dyn Fn(&str, &str) -> Result<String, String> + Send + Sync;
+
 /// Executes a QA script manifest autonomously.
 pub struct QaScriptRunner {
     manifest: QaScriptManifest,
     /// Caller-provided classify function
     classify: Box<ClassifyFn>,
+    /// Caller-provided tool invocation function (for "mcp_tool" actions)
+    tool_invoke: Option<Box<ToolFn>>,
+    // Self-healer for automatic error recovery (wire-up deferred)
+    #[allow(dead_code)]
+    healer: crate::self_heal::SelfHealer,
     /// Optional path to cost ledger database
     ledger_path: Option<PathBuf>,
 }
 
 impl QaScriptRunner {
     /// Create a new runner from a parsed manifest.
-    ///
-    /// pre:  manifest must have at least one step
-    /// post: returns runner with classify function wired
     pub fn new(manifest: QaScriptManifest, classify: Box<ClassifyFn>) -> Self {
         Self {
             manifest,
             classify,
+            tool_invoke: None,
+            healer: crate::self_heal::SelfHealer::new(),
             ledger_path: None,
         }
+    }
+
+    /// Attach an MCP tool invocation function.
+    pub fn with_tool_invoke(mut self, f: Box<ToolFn>) -> Self {
+        self.tool_invoke = Some(f);
+        self
     }
 
     /// Attach a cost ledger for immutable accounting. Costs are committed
@@ -497,6 +532,10 @@ impl QaScriptRunner {
 
             let outcome = match step.action.as_str() {
                 "classify" => self.execute_classify(step, &mut cost, gas_cap, step_gas)?,
+                "mcp_tool" => {
+                    cost.gas_used += step_gas;
+                    self.execute_tool(step)?
+                }
                 "run_command" => {
                     cost.gas_used += step_gas;
                     self.execute_command(step)?
@@ -559,13 +598,13 @@ impl QaScriptRunner {
                 }
             }
 
+            // Terminal steps end execution regardless of branching.
+            if step.terminal {
+                break;
+            }
+
             // Use default_next if no branch matched.
-            // default_next: 0 is a sentinel meaning "stop the script" (terminal step).
             if let Some(target) = step.default_next {
-                if target == 0 {
-                    // Terminal step — stop execution
-                    break;
-                }
                 match find_step_index(steps, target) {
                     Some(idx) => {
                         current_idx = idx;
@@ -827,6 +866,52 @@ impl QaScriptRunner {
                 duration_ms: 0,
                 cost: StepCost::default(),
             })
+        }
+    }
+
+    fn execute_tool(&self, step: &QaScriptStep) -> Result<StepResult, QaScriptError> {
+        let tool_name = step.tool_name.as_deref().ok_or(QaScriptError::ToolFailed {
+            ordinal: step.ordinal,
+            tool: "(none)".into(),
+            reason: "No tool_name specified for mcp_tool action".into(),
+        })?;
+
+        let tool_fn = self.tool_invoke.as_ref().ok_or(QaScriptError::ToolFailed {
+            ordinal: step.ordinal,
+            tool: tool_name.into(),
+            reason: "No tool_invoke function wired — use with_tool_invoke()".into(),
+        })?;
+
+        let params = step.tool_params.as_deref().unwrap_or("{}");
+
+        match tool_fn(tool_name, params) {
+            Ok(result) => {
+                // Parse result as step outcome
+                let parsed: serde_json::Value = serde_json::from_str(&result).unwrap_or_default();
+                let outcome = parsed
+                    .get("outcome")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("success");
+                Ok(StepResult {
+                    ordinal: step.ordinal,
+                    action: "mcp_tool".into(),
+                    outcome: outcome.into(),
+                    qa_outcome: if outcome == "success" {
+                        QaOutcome::Passed
+                    } else {
+                        QaOutcome::Failed
+                    },
+                    classify_category: None,
+                    retries: 0,
+                    duration_ms: 0,
+                    cost: StepCost::default(),
+                })
+            }
+            Err(e) => Err(QaScriptError::ToolFailed {
+                ordinal: step.ordinal,
+                tool: tool_name.into(),
+                reason: e,
+            }),
         }
     }
 

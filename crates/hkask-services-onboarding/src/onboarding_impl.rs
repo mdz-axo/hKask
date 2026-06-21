@@ -32,6 +32,7 @@ pub struct ResolvedSecrets {
     pub master_key_hex: String,
     pub a2a_secret: String,
     pub db_passphrase: String,
+    pub mcp_secret: String,
 }
 
 /// Outcome of a successful sign-in attempt.
@@ -86,6 +87,12 @@ impl OnboardingService {
                     source: Some(Box::new(e)),
                     message: "Failed to store hkask-db-passphrase".into(),
                 })?;
+            keychain
+                .store_by_key("mcp-secret", &secrets.mcp_security_key)
+                .map_err(|e| ServiceError::Keystore {
+                    source: Some(Box::new(e)),
+                    message: "Failed to store mcp-secret".into(),
+                })?;
         }
         // P9: CNS span
         tracing::info!(
@@ -98,6 +105,7 @@ impl OnboardingService {
             master_key_hex: secrets.master_key_hex.clone(),
             a2a_secret: secrets.a2a_secret.clone(),
             db_passphrase: secrets.capability_key.clone(),
+            mcp_secret: secrets.mcp_security_key.clone(),
         })
     }
 
@@ -367,6 +375,30 @@ impl OnboardingService {
     /// starting a fresh onboarding. Returns `true` if cleanup was performed.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// Check whether an orphaned database exists from a previous failed onboarding.
+    /// Returns true if the DB file exists and contains no replicants (i.e., is orphaned).
+    /// Does NOT remove the database — caller should confirm before calling remove_orphaned_db.
+    pub fn has_orphaned_db(config: &ServiceConfig) -> bool {
+        let db_path = &config.db_path;
+        if db_path == ":memory:" || !std::path::Path::new(db_path).exists() {
+            return false;
+        }
+        if config.db_passphrase.is_empty() {
+            return false;
+        }
+        match Database::open(db_path, &config.db_passphrase) {
+            Ok(db) => {
+                let store = AgentRegistryStore::new(db.conn_arc());
+                if store.initialize_schema().is_ok() {
+                    matches!(store.list_by_kind(AgentKind::Replicant), Ok(r) if r.is_empty())
+                } else {
+                    true // Can't read schema — likely orphaned
+                }
+            }
+            Err(_) => true, // Can't open — likely orphaned/corrupted
+        }
+    }
+
     /// pre:  config.db_path must be set; :memory: paths are never orphaned
     /// post: returns true if orphaned DB was cleaned up; false if DB has replicants or doesn't exist
     pub fn remove_orphaned_db(config: &ServiceConfig) -> bool {
@@ -470,8 +502,14 @@ impl OnboardingService {
         if !conduit_ensure_healthy(homeserver_url).await {
             // Recovery failed — store a marker so we retry on next session.
             let keychain = Keychain::default();
-            let _ = keychain.store_by_key("matrix-pending-recovery", "true");
-            let _ = keychain.store_by_key("matrix-pending-homeserver", homeserver_url);
+            let _ = keychain.store_by_key(
+                hkask_types::keychain_keys::KEY_MATRIX_PENDING_RECOVERY,
+                "true",
+            );
+            let _ = keychain.store_by_key(
+                hkask_types::keychain_keys::KEY_MATRIX_PENDING_HOMESERVER,
+                homeserver_url,
+            );
             return Err(ServiceError::Matrix {
                 source: None,
                 message: format!(
@@ -483,7 +521,8 @@ impl OnboardingService {
         }
 
         // Clear any pending-recovery marker on successful connection.
-        let _ = Keychain::default().delete_by_key("matrix-pending-recovery");
+        let _ = Keychain::default()
+            .delete_by_key(hkask_types::keychain_keys::KEY_MATRIX_PENDING_RECOVERY);
         let human_username = matrix_username_from_human(user_profile);
         let replicant_username = matrix_username_from_replicant(replicant_display_name);
 

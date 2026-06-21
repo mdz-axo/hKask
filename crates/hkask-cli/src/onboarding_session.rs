@@ -138,10 +138,20 @@ impl OnboardingSession {
         })?;
 
         // Remove orphaned DB from previous failed attempt.
-        if let Ok(pre_config) = ServiceConfig::from_env()
-            && OnboardingService::remove_orphaned_db(&pre_config)
-        {
-            eprintln!("  Removing orphaned database from previous failed setup...");
+        if let Ok(pre_config) = ServiceConfig::from_env() {
+            if OnboardingService::has_orphaned_db(&pre_config) {
+                eprintln!("  A database from a previous failed setup was found.");
+                eprint!("  Remove it? [y/N] ");
+                use std::io::Write;
+                let _ = std::io::stdout().flush();
+                let confirm = crate::onboarding::read_line().unwrap_or_default();
+                if confirm.trim().to_lowercase().starts_with('y') {
+                    OnboardingService::remove_orphaned_db(&pre_config);
+                    eprintln!("  Removed orphaned database.");
+                } else {
+                    eprintln!("  Keeping existing database. Setup will use it if compatible.");
+                }
+            }
         }
 
         // Derive secrets and store in keychain
@@ -154,7 +164,7 @@ impl OnboardingSession {
         let config = ServiceConfig::from_secrets(
             resolved.a2a_secret.clone(),
             resolved.db_passphrase.clone(),
-            resolved.a2a_secret.clone(),
+            resolved.mcp_secret.clone(),
             self.display_name.clone(),
         );
         let handle = OnboardingService::init_registry(&config)

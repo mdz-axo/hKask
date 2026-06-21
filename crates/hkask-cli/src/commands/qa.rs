@@ -7,9 +7,12 @@
 //! executes a YAML-defined QA pipeline with classifier-driven branching.
 
 use crate::cli::QaAction;
+use hkask_inference::InferenceConfig;
+use hkask_mcp_docproc::DocProcServer;
 use hkask_services_classify::{self, ClassifierConfig};
 use hkask_test_harness::qa_script::{ClassifyResult, QaScriptRunner};
 use hkask_test_harness::triage::{self, BoleroFailure, QaDiagnosis, TriageReport};
+use hkask_types::WebID;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -381,9 +384,71 @@ fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
             serde_yaml_neo::from_str(&content)
                 .map_err(|e| format!("Failed to parse {}: {}", script_path.display(), e))?;
 
-        // Open cost ledger if possible
+        // Build tool invocation closure for MCP tool actions.
+        // Creates a DocProcServer on-demand for kindle-zip and docproc tools.
+        let tool_invoke = move |tool_name: &str, params: &str| -> Result<String, String> {
+            let tool = tool_name.to_string();
+            let p = params.to_string();
+            std::thread::spawn(move || {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|e| format!("Tool runtime: {}", e))?
+                    .block_on(async move {
+                        let config = InferenceConfig::from_env();
+                        let ocr_model = std::env::var("HKASK_OCR_MODEL").ok();
+                        let _docproc = DocProcServer::new(
+                            WebID::new(),
+                            "qa-runner".into(),
+                            None,
+                            ocr_model,
+                            config,
+                            hkask_mcp_docproc::ocr::ThresholdConfig::default(),
+                            None,
+                        ).map_err(|e| format!("DocProcServer: {}", e))?;
+                        // Parse params and dispatch to the right tool
+                        let params_val: serde_json::Value =
+                            serde_json::from_str(&p).unwrap_or_default();
+                        let asin = params_val.get("asin").and_then(|v| v.as_str()).unwrap_or("");
+                        let output_dir = params_val.get("output_dir").and_then(|v| v.as_str()).unwrap_or("output");
+                        match tool.as_str() {
+                            "kindle_extract" => {
+                                let email = params_val.get("amazon_email").and_then(|v| v.as_str()).unwrap_or("");
+                                let password = params_val.get("amazon_password").and_then(|v| v.as_str()).unwrap_or("");
+                                let profile = params_val.get("chrome_profile").and_then(|v| v.as_str());
+                                let profile_path = profile.map(std::path::Path::new);
+                                let result = hkask_mcp_docproc::kindle_zip::extract_kindle_book(
+                                    asin, email, password,
+                                    std::path::Path::new(output_dir), profile_path,
+                                ).await.map_err(|e| format!("Extract: {}", e))?;
+                                Ok(serde_json::json!({"outcome": "success", "total_pages": result.total_pages, "title": result.title}).to_string())
+                            }
+                            "kindle_export" => {
+                                let text = params_val.get("assembled_text").and_then(|v| v.as_str()).unwrap_or("");
+                                let title = params_val.get("title").and_then(|v| v.as_str()).unwrap_or("Untitled");
+                                let author = params_val.get("author").and_then(|v| v.as_str()).unwrap_or("Unknown");
+                                let formats: Vec<String> = params_val.get("formats")
+                                    .and_then(|v| v.as_array())
+                                    .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                                    .unwrap_or_else(|| vec!["pdf".into(), "epub".into(), "markdown".into()]);
+                                let meta_path = std::path::Path::new(output_dir).join(asin).join("metadata.json");
+                                let result = hkask_mcp_docproc::kindle_zip::export_formats(
+                                    text, &meta_path, &formats,
+                                    std::path::Path::new(output_dir), asin, title, author, &[],
+                                ).map_err(|e| format!("Export: {}", e))?;
+                                Ok(serde_json::json!({"outcome": "success", "exports": result.exports.len()}).to_string())
+                            }
+                            _ => Err(format!("Tool '{}' not yet wired in QA runner", tool)),
+                        }
+                    })
+            })
+            .join()
+            .map_err(|_| "Tool thread panicked".to_string())?
+        };
+
         let ledger_path = cost_ledger_path();
-        let runner = QaScriptRunner::new(manifest, Box::new(classify));
+        let runner = QaScriptRunner::new(manifest, Box::new(classify))
+            .with_tool_invoke(Box::new(tool_invoke));
         if let Some(p) = ledger_path {
             runner.with_ledger_path(p)
         } else {
