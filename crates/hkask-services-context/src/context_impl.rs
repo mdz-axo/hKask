@@ -587,7 +587,7 @@ impl AgentService {
         let matrix_transport = build_matrix().await;
 
         // ── Registry + wallet: agent records, A2A restore, rJoule ───────
-        let reg_wallet = build_registry_and_wallet(&config, &foundation, &loops, &mcp_pods)?;
+        let reg_wallet = build_registry_and_wallet(&config, &foundation, &loops, &mcp_pods).await?;
 
         Ok(Self {
             registry: reg_wallet.registry,
@@ -1108,7 +1108,7 @@ struct RegWallet {
     wallet_gas_calibrator: Option<Arc<hkask_cns::WalletGasCalibrator>>,
 }
 
-fn build_registry_and_wallet(
+async fn build_registry_and_wallet(
     config: &ServiceConfig,
     f: &Foundation,
     l: &Loops,
@@ -1155,11 +1155,10 @@ fn build_registry_and_wallet(
             })
             .collect();
         let tokens = std::collections::HashMap::new();
-        // A2A restore is async but wallet build is sync — block_on in the sync context.
-        // This is acceptable because build() runs at startup, not in a hot loop.
-        let handle = tokio::runtime::Handle::current();
-        handle
-            .block_on(l.a2a_runtime.restore_from_storage(agents, tokens))
+        // A2A restore is async — await directly since build() is async.
+        l.a2a_runtime
+            .restore_from_storage(agents, tokens)
+            .await
             .map_err(|e| ServiceError::A2A {
                 message: e.to_string(),
             })?;

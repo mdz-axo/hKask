@@ -101,6 +101,8 @@ pub struct ClassifyResult {
     pub completion_tokens: u64,
     pub cost_urj: u64,
     pub failed: bool,
+    /// Provider that served this classification (e.g., "deepinfra").
+    pub provider: String,
 }
 
 /// Parse diagnosis fields from a JSON category string.
@@ -165,6 +167,8 @@ pub struct CostTracker {
     pub failed_api_cost_urj: u64,
     pub training_urj: u64,
     pub classify_calls: u64,
+    /// Per-provider API costs in µrJ (e.g., {"deepinfra": 430, "together": 120}).
+    pub api_costs: std::collections::HashMap<String, u64>,
 }
 
 impl CostTracker {
@@ -598,12 +602,10 @@ impl QaScriptRunner {
         let now = chrono::Utc::now().to_rfc3339();
         let ref_prefix = format!("qa-run:{}", manifest_id);
         let gas_ref = format!("{}/gas", ref_prefix);
-        let api_ref = format!("{}/api", ref_prefix);
 
         // Ensure accounts exist (idempotent)
-        let _ = ledger.ensure_account("cost:qa/run", "cost");
-        let _ = ledger.ensure_account("cost:gas/functions", "cost");
-        let _ = ledger.ensure_account("cost:api/all", "cost");
+        ledger.ensure_account("cost:qa/run", "cost")?;
+        ledger.ensure_account("cost:gas/functions", "cost")?;
 
         // Gas posting: qa/run → gas/functions
         let gas_urj = (cost.gas_used * 4) as i64;
@@ -623,20 +625,25 @@ impl QaScriptRunner {
             ledger.commit(&tx)?;
         }
 
-        // API posting: qa/run → api/all
-        let api_urj = (cost.api_token_urj + cost.failed_api_cost_urj) as i64;
-        if api_urj > 0 {
+        // Per-provider API postings: qa/run → api/<provider>
+        for (provider, provider_urj) in &cost.api_costs {
+            if *provider_urj == 0 {
+                continue;
+            }
+            let account = format!("cost:api/{provider}");
+            ledger.ensure_account(&account, "cost")?;
+            let provider_ref = format!("{}/api/{provider}", ref_prefix);
             let tx = LedgerTransaction {
                 id: uuid::Uuid::new_v4().to_string(),
-                timestamp: now,
-                reference: api_ref,
+                timestamp: now.clone(),
+                reference: provider_ref,
                 postings: vec![Posting {
                     source: "cost:qa/run".into(),
-                    destination: "cost:api/all".into(),
+                    destination: account,
                     asset: "rJ".into(),
-                    amount: api_urj,
+                    amount: *provider_urj as i64,
                 }],
-                metadata: serde_json::json!({"manifest_id": manifest_id, "type": "api"}),
+                metadata: serde_json::json!({"manifest_id": manifest_id, "type": "api", "provider": provider, "failed_cost_urj": cost.failed_api_cost_urj}),
             };
             ledger.commit(&tx)?;
         }
@@ -692,6 +699,13 @@ impl QaScriptRunner {
             cost.failed_api_cost_urj += classify_result.cost_urj;
         } else {
             cost.api_token_urj += classify_result.cost_urj;
+        }
+        // Track per-provider cost
+        if !classify_result.provider.is_empty() {
+            *cost
+                .api_costs
+                .entry(classify_result.provider.clone())
+                .or_insert(0) += classify_result.cost_urj;
         }
 
         let diagnosis = parse_diagnosis_from_category(&classify_result.category);
@@ -937,6 +951,7 @@ cns:
                 completion_tokens: 300,
                 cost_urj: 30,
                 failed: false,
+                provider: "test".into(),
             }])
         });
         let runner = QaScriptRunner::new(manifest, classify);
@@ -989,6 +1004,7 @@ cns:
                 completion_tokens: 300,
                 cost_urj: 30,
                 failed: false,
+                provider: "test".into(),
             }])
         });
         let runner = QaScriptRunner::new(manifest, classify);
@@ -1045,6 +1061,7 @@ cns:
                 completion_tokens: 300,
                 cost_urj: 30,
                 failed: false,
+                provider: "ledger-test".into(),
             }])
         });
 
@@ -1064,9 +1081,12 @@ cns:
             "gas/functions should have positive balance"
         );
 
-        // Verify API cost account
-        let api_balance = ledger.balance("cost:api/all", Some("rJ")).unwrap();
-        assert!(api_balance > 0, "api/all should have positive balance");
+        // Verify API cost account — now per-provider
+        let api_balance = ledger.balance("cost:api/ledger-test", Some("rJ")).unwrap();
+        assert!(
+            api_balance > 0,
+            "api/ledger-test should have positive balance"
+        );
 
         // qa/run should be net-negative (cost sink)
         let qa_balance = ledger.balance("cost:qa/run", Some("rJ")).unwrap();

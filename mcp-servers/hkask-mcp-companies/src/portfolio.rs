@@ -339,25 +339,31 @@ impl PortfolioManager {
         let ledger = Ledger::open(ledger_path).map_err(|e| format!("ledger open: {e}"))?;
 
         // Ensure accounts exist (idempotent)
-        let _ = ledger.ensure_account("portfolio:cash/main", "portfolio");
-        let _ = ledger.ensure_account("cost:brokerage/fees", "cost");
+        ledger
+            .ensure_account("portfolio:cash/main", "portfolio")
+            .map_err(|e| format!("ledger ensure cash account: {e}"))?;
+        ledger
+            .ensure_account("cost:brokerage/fees", "cost")
+            .map_err(|e| format!("ledger ensure fee account: {e}"))?;
         if let Some(ref sym) = tx.symbol {
             let pos_account = format!("portfolio:position/{sym}");
-            let _ = ledger.ensure_account(&pos_account, "portfolio");
+            ledger
+                .ensure_account(&pos_account, "portfolio")
+                .map_err(|e| format!("ledger ensure position account: {e}"))?;
         }
 
         let now = chrono::Utc::now().to_rfc3339();
         let reference = format!("portfolio:{portfolio_name}:tx:{}", tx.id);
 
-        // Convert amounts to integer cents (µUSD) for ledger
-        let amount_cents = (tx.amount.unwrap_or(0.0) * 100.0) as i64;
-        let commission_cents = (tx.commission.unwrap_or(0.0) * 100.0) as i64;
+        // Convert amounts to integer cents (µUSD) for ledger.
+        // Use rounding to avoid f64 precision loss, and saturate on overflow.
+        let amount_cents = (tx.amount.unwrap_or(0.0) * 100.0).round() as i64;
+        let commission_cents = (tx.commission.unwrap_or(0.0) * 100.0).round() as i64;
 
         match tx.tx_type.as_str() {
             "buy" => {
                 let symbol = tx.symbol.as_deref().unwrap_or("UNKNOWN");
                 let pos_account = format!("portfolio:position/{symbol}");
-                let total = amount_cents + commission_cents;
 
                 // Cash → Position  +  Brokerage fee
                 let tx_ref = format!("{reference}/buy");
@@ -395,7 +401,6 @@ impl PortfolioManager {
             "sell" => {
                 let symbol = tx.symbol.as_deref().unwrap_or("UNKNOWN");
                 let pos_account = format!("portfolio:position/{symbol}");
-                let net = amount_cents - commission_cents;
 
                 // Position → Cash, minus brokerage fee
                 let tx_ref = format!("{reference}/sell");

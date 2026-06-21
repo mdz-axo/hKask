@@ -5,12 +5,16 @@
 //!
 //! ## Invariants
 //!
-//! 1. **Idempotency** — same `reference` committed twice is a no-op.
+//! 1. **Idempotency** — same `reference` with identical postings is a no-op.
+//!    Different postings with the same reference return `IdempotencyConflict`.
 //! 2. **Double-entry** — every transaction's postings must sum to 0.
 //! 3. **Immutability** — committed transactions are never modified or deleted.
+//!    DO NOT use INSERT OR REPLACE on the transactions table — it would
+//!    cascade-delete postings and retroactively change account balances.
 
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
 use thiserror::Error;
 
 /// Errors the ledger can produce.
@@ -22,19 +26,10 @@ pub enum LedgerError {
     Database(#[from] rusqlite::Error),
     #[error("serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
-    #[error("account '{0}' already exists in namespace '{1}'")]
-    AccountAlreadyExists(String, String),
     #[error("double-entry violation: postings sum to {0}, must sum to 0")]
     DoubleEntryViolation(i64),
-}
-
-/// A named account in the ledger. Account IDs use colon-separated paths
-/// like `cost:api/deepinfra` or `wallet:hedera/main`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Account {
-    pub id: String,
-    pub namespace: String,
-    pub created_at: String,
+    #[error("idempotency conflict: reference '{reference}' already exists with different postings")]
+    IdempotencyConflict { reference: String },
 }
 
 /// A single entry in a transaction — moves `amount` of `asset` from
@@ -83,8 +78,11 @@ pub struct QueryFilter {
 }
 
 /// The double-entry ledger.
+///
+/// Wraps a SQLite connection in a Mutex for thread-safety.
+/// `Ledger` is `Send + Sync` and can be shared via `Arc`.
 pub struct Ledger {
-    db: Connection,
+    db: Mutex<Connection>,
 }
 
 impl Ledger {
@@ -104,9 +102,16 @@ impl Ledger {
                 ))
             })?;
         }
-        let db = Connection::open(path)?;
-        db.execute_batch(
-            "CREATE TABLE IF NOT EXISTS accounts (
+        let conn = Connection::open(path)?;
+        // Enable WAL mode for concurrent reads + foreign key enforcement
+        conn.execute_batch(
+            "PRAGMA journal_mode=WAL;
+             PRAGMA foreign_keys=ON;
+             CREATE TABLE IF NOT EXISTS _ledger_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS accounts (
                 id TEXT PRIMARY KEY,
                 namespace TEXT NOT NULL,
                 created_at TEXT NOT NULL
@@ -134,7 +139,29 @@ impl Ledger {
             CREATE INDEX IF NOT EXISTS idx_transactions_reference
                 ON transactions(reference);",
         )?;
-        Ok(Self { db })
+
+        // Detect if this is a freshly created database (no prior metadata)
+        let is_new: bool = conn
+            .query_row(
+                "SELECT COUNT(*) FROM _ledger_meta WHERE key = 'created_at'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|c| c == 0)
+            .unwrap_or(true);
+
+        if is_new {
+            let now = chrono::Utc::now().to_rfc3339();
+            let ledger_id = uuid::Uuid::new_v4().to_string();
+            conn.execute(
+                "INSERT INTO _ledger_meta (key, value) VALUES ('created_at', ?1), ('ledger_id', ?2)",
+                rusqlite::params![now, ledger_id],
+            )?;
+        }
+
+        Ok(Self {
+            db: Mutex::new(conn),
+        })
     }
 
     /// REQ: P8-ledger-ensure-account
@@ -145,7 +172,8 @@ impl Ledger {
     /// [P8] Constraining: Persistence — account survives restarts
     pub fn ensure_account(&self, id: &str, namespace: &str) -> Result<(), LedgerError> {
         let now = chrono::Utc::now().to_rfc3339();
-        self.db.execute(
+        let db = self.db.lock().unwrap();
+        db.execute(
             "INSERT OR IGNORE INTO accounts (id, namespace, created_at) VALUES (?1, ?2, ?3)",
             rusqlite::params![id, namespace, now],
         )?;
@@ -156,22 +184,63 @@ impl Ledger {
     /// expect: "I can commit a transaction and the postings are stored immutably" [P8]
     /// pre:  tx.id is unique, tx.reference is unique, tx.postings is non-empty
     /// post: transaction and all postings are stored; balances reflect new postings
-    /// inv:  idempotent by reference; empty postings rejected
+    /// inv:  idempotent by reference — identical postings succeed silently;
+    ///       different postings with same reference return IdempotencyConflict
     /// [P4] Constraining: Clear Boundaries — committed transactions cannot be modified
     /// [P8] Constraining: Persistence — committed data survives restarts
     pub fn commit(&self, tx: &LedgerTransaction) -> Result<(), LedgerError> {
-        // Double-entry invariant is structurally guaranteed:
-        // each posting debits source and credits destination by the same amount.
-        // Require at least one posting.
         if tx.postings.is_empty() {
             return Err(LedgerError::DoubleEntryViolation(0));
         }
 
         let now = chrono::Utc::now().to_rfc3339();
+        let db = self.db.lock().unwrap();
 
-        // Insert transaction row (idempotent by reference)
-        self.db.execute(
-            "INSERT OR IGNORE INTO transactions (id, timestamp, reference, metadata, created_at)
+        // Check if this reference already exists
+        let existing_id: Option<String> = db
+            .query_row(
+                "SELECT id FROM transactions WHERE reference = ?1",
+                rusqlite::params![tx.reference],
+                |row| row.get(0),
+            )
+            .ok();
+
+        if let Some(existing_id) = existing_id {
+            // Reference exists — verify the postings match for true idempotency
+            let mut stmt = db.prepare(
+                "SELECT source, destination, asset, amount
+                 FROM postings WHERE transaction_id = ?1 ORDER BY id",
+            )?;
+            let existing_postings: Vec<(String, String, String, i64)> = stmt
+                .query_map(rusqlite::params![existing_id], |row| {
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+                })?
+                .filter_map(|r| r.ok())
+                .collect();
+
+            if existing_postings.len() != tx.postings.len() {
+                return Err(LedgerError::IdempotencyConflict {
+                    reference: tx.reference.clone(),
+                });
+            }
+            for (i, p) in tx.postings.iter().enumerate() {
+                let (src, dst, ast, amt) = &existing_postings[i];
+                if &p.source != src || &p.destination != dst || &p.asset != ast || p.amount != *amt
+                {
+                    return Err(LedgerError::IdempotencyConflict {
+                        reference: tx.reference.clone(),
+                    });
+                }
+            }
+            // Postings match — true idempotent, no-op
+            return Ok(());
+        }
+
+        // Wrap in SQLite transaction for atomicity
+        db.execute_batch("BEGIN IMMEDIATE")?;
+
+        db.execute(
+            "INSERT INTO transactions (id, timestamp, reference, metadata, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5)",
             rusqlite::params![
                 tx.id,
@@ -182,23 +251,21 @@ impl Ledger {
             ],
         )?;
 
-        // Insert postings only if the transaction was new (check rows_changed)
-        if self.db.changes() > 0 {
-            for posting in &tx.postings {
-                self.db.execute(
-                    "INSERT INTO postings (transaction_id, source, destination, asset, amount, created_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                    rusqlite::params![
-                        tx.id,
-                        posting.source,
-                        posting.destination,
-                        posting.asset,
-                        posting.amount,
-                        now,
-                    ],
-                )?;
-            }
+        for posting in &tx.postings {
+            db.execute(
+                "INSERT INTO postings (transaction_id, source, destination, asset, amount, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                rusqlite::params![
+                    tx.id,
+                    posting.source,
+                    posting.destination,
+                    posting.asset,
+                    posting.amount,
+                    now,
+                ],
+            )?;
         }
+        db.execute_batch("COMMIT")?;
 
         Ok(())
     }
@@ -210,6 +277,7 @@ impl Ledger {
     /// inv:  read-only — does not modify the ledger; non-existent account returns 0
     /// [P9] Constraining: Observability — balances are visible to the user
     pub fn balance(&self, account: &str, asset: Option<&str>) -> Result<i64, LedgerError> {
+        let db = self.db.lock().unwrap();
         let (query, params): (&str, Vec<Box<dyn rusqlite::types::ToSql>>) = if let Some(a) = asset {
             (
                 "SELECT
@@ -227,7 +295,7 @@ impl Ledger {
                 vec![Box::new(account.to_string())],
             )
         };
-        let balance: i64 = self.db.query_row(
+        let balance: i64 = db.query_row(
             query,
             rusqlite::params_from_iter(params.iter().map(|p| p.as_ref())),
             |row| row.get(0),
@@ -242,7 +310,8 @@ impl Ledger {
     /// inv:  read-only; returns empty vec for unknown namespace
     /// [P9] Constraining: Observability — all domain balances are visible at once
     pub fn namespace_balances(&self, namespace: &str) -> Result<Vec<AccountBalance>, LedgerError> {
-        let mut stmt = self.db.prepare(
+        let db = self.db.lock().unwrap();
+        let mut stmt = db.prepare(
             "SELECT a.id,
                     COALESCE(p.asset, '') AS asset,
                     COALESCE(SUM(CASE WHEN p.destination = a.id THEN p.amount ELSE 0 END), 0)
@@ -267,9 +336,15 @@ impl Ledger {
         Ok(balances)
     }
 
-    /// Count unique transactions with a posting to the given destination account.
+    /// REQ: P9-ledger-transaction-count
+    /// expect: "I can count how many transactions reference a specific account" [P9]
+    /// pre:  destination is a valid account ID
+    /// post: returns count of unique transactions with a posting to that account
+    /// inv:  read-only
+    /// [P9] Constraining: Observability — transaction volume is queryable
     pub fn transaction_count(&self, destination: &str) -> Result<u64, LedgerError> {
-        let count: i64 = self.db.query_row(
+        let db = self.db.lock().unwrap();
+        let count: i64 = db.query_row(
             "SELECT COUNT(DISTINCT transaction_id) FROM postings WHERE destination = ?1",
             rusqlite::params![destination],
             |row| row.get(0),
@@ -289,55 +364,54 @@ impl Ledger {
         range: &DateRange,
         filter: &QueryFilter,
     ) -> Result<Vec<LedgerTransaction>, LedgerError> {
-        // Build the query dynamically based on filters
-        let mut sql = String::from(
+        let db = self.db.lock().unwrap();
+
+        // Build query with parameterized conditions
+        let mut conditions = vec!["t.timestamp >= ?1 AND t.timestamp <= ?2".to_string()];
+        if filter.account.is_some() {
+            conditions.push("(p.source = ?3 OR p.destination = ?3)".to_string());
+        }
+        if filter.asset.is_some() {
+            let idx = if filter.account.is_some() { 4 } else { 3 };
+            conditions.push(format!("p.asset = ?{idx}"));
+        }
+        if filter.namespace.is_some() {
+            let idx = 3 + filter.account.is_some() as usize + filter.asset.is_some() as usize;
+            conditions.push(format!(
+                "EXISTS (SELECT 1 FROM accounts a WHERE (a.id = p.source OR a.id = p.destination) AND a.namespace = ?{idx})"
+            ));
+        }
+
+        let sql = format!(
             "SELECT DISTINCT t.id, t.timestamp, t.reference, t.metadata, t.created_at
              FROM transactions t
-             JOIN postings p ON p.transaction_id = t.id",
+             JOIN postings p ON p.transaction_id = t.id
+             WHERE {}
+             ORDER BY t.timestamp, t.id",
+            conditions.join(" AND ")
         );
-        let mut conditions = vec![format!(
-            "t.timestamp >= '{}' AND t.timestamp <= '{}'",
-            range.start, range.end
-        )];
 
-        if let Some(ref account) = filter.account {
-            conditions.push(format!(
-                "(p.source = '{}' OR p.destination = '{}')",
-                account, account
-            ));
-        }
-        if let Some(ref asset) = filter.asset {
-            conditions.push(format!("p.asset = '{}'", asset));
-        }
-        if let Some(ref ns) = filter.namespace {
-            conditions.push(format!(
-                "EXISTS (SELECT 1 FROM accounts a WHERE (a.id = p.source OR a.id = p.destination) AND a.namespace = '{}')",
-                ns
-            ));
-        }
-
-        sql.push_str(" WHERE ");
-        sql.push_str(&conditions.join(" AND "));
-        sql.push_str(" ORDER BY t.timestamp, t.id");
-
-        let mut stmt = self.db.prepare(&sql)?;
-        let tx_rows: Vec<(String, String, String, String, String)> = stmt
-            .query_map([], |row| {
+        let mut stmt = db.prepare(&sql)?;
+        let rows = stmt.query_map(
+            rusqlite::params_from_iter(build_query_params(range, filter)),
+            |row| {
                 Ok((
-                    row.get(0)?,
-                    row.get(1)?,
-                    row.get(2)?,
-                    row.get(3)?,
-                    row.get(4)?,
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
                 ))
-            })?
-            .filter_map(|r| r.ok())
-            .collect();
+            },
+        )?;
+
+        let tx_rows: Vec<(String, String, String, String, String)> =
+            rows.filter_map(|r| r.ok()).collect();
 
         // For each transaction, load its postings
         let mut result = Vec::new();
         for (id, timestamp, reference, metadata, created_at) in tx_rows {
-            let mut pstmt = self.db.prepare(
+            let mut pstmt = db.prepare(
                 "SELECT source, destination, asset, amount
                  FROM postings WHERE transaction_id = ?1 ORDER BY id",
             )?;
@@ -360,7 +434,6 @@ impl Ledger {
                 postings,
                 metadata: serde_json::from_str(&metadata).unwrap_or_default(),
             });
-            // `created_at` is internal metadata, not exposed on LedgerTransaction
             let _ = created_at;
         }
 
@@ -368,9 +441,33 @@ impl Ledger {
     }
 }
 
+/// Build parameter list for the query() method.
+fn build_query_params(
+    range: &DateRange,
+    filter: &QueryFilter,
+) -> Vec<Box<dyn rusqlite::types::ToSql>> {
+    let mut params: Vec<Box<dyn rusqlite::types::ToSql>> =
+        vec![Box::new(range.start.clone()), Box::new(range.end.clone())];
+    if let Some(ref account) = filter.account {
+        params.push(Box::new(account.clone()));
+    }
+    if let Some(ref asset) = filter.asset {
+        params.push(Box::new(asset.clone()));
+    }
+    if let Some(ref ns) = filter.namespace {
+        params.push(Box::new(ns.clone()));
+    }
+    params
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Helper: lock the ledger's internal connection for test queries.
+    fn db(ledger: &Ledger) -> std::sync::MutexGuard<'_, Connection> {
+        ledger.db.lock().unwrap()
+    }
 
     // REQ: P8-ledger-open — ledger opens and schema is created
     #[test]
@@ -381,8 +478,7 @@ mod tests {
         let ledger = Ledger::open(&path).unwrap();
 
         // Verify all expected tables exist
-        let tables: Vec<String> = ledger
-            .db
+        let tables: Vec<String> = db(&ledger)
             .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
             .unwrap()
             .query_map([], |row| row.get(0))
@@ -427,8 +523,7 @@ mod tests {
 
         ledger.ensure_account("cost:api/deepinfra", "cost").unwrap();
 
-        let count: i64 = ledger
-            .db
+        let count: i64 = db(&ledger)
             .query_row(
                 "SELECT COUNT(*) FROM accounts WHERE id = ?1",
                 ["cost:api/deepinfra"],
@@ -450,8 +545,7 @@ mod tests {
         assert!(result.is_ok(), "duplicate ensure_account should succeed");
 
         // Verify only one row exists
-        let count: i64 = ledger
-            .db
+        let count: i64 = db(&ledger)
             .query_row(
                 "SELECT COUNT(*) FROM accounts WHERE id = ?1",
                 ["cost:api/deepinfra"],
@@ -493,8 +587,7 @@ mod tests {
         ledger.commit(&tx).unwrap();
 
         // Verify transaction exists
-        let count: i64 = ledger
-            .db
+        let count: i64 = db(&ledger)
             .query_row(
                 "SELECT COUNT(*) FROM transactions WHERE id = ?1",
                 [&tx.id],
@@ -504,8 +597,7 @@ mod tests {
         assert_eq!(count, 1, "transaction should be stored");
 
         // Verify postings exist
-        let posting_count: i64 = ledger
-            .db
+        let posting_count: i64 = db(&ledger)
             .query_row(
                 "SELECT COUNT(*) FROM postings WHERE transaction_id = ?1",
                 [&tx.id],
@@ -536,8 +628,7 @@ mod tests {
         assert!(result.is_ok(), "duplicate reference should succeed (no-op)");
 
         // Verify still only one transaction with that reference
-        let count: i64 = ledger
-            .db
+        let count: i64 = db(&ledger)
             .query_row(
                 "SELECT COUNT(*) FROM transactions WHERE reference = ?1",
                 ["test-commit-idem"],
@@ -548,6 +639,41 @@ mod tests {
             count, 1,
             "duplicate reference should not create second transaction"
         );
+    }
+
+    // REQ: P8-ledger-commit — rejects different postings with same reference
+    #[test]
+    fn commit_rejects_idempotency_conflict() {
+        let dir = tempfile::tempdir().unwrap();
+        let ledger = Ledger::open(&dir.path().join("test.db")).unwrap();
+        ledger.ensure_account("cost:qa/run", "cost").unwrap();
+        ledger.ensure_account("cost:api/deepinfra", "cost").unwrap();
+
+        // Commit first transaction
+        let tx1 = sample_tx("conflict-ref");
+        ledger.commit(&tx1).unwrap();
+
+        // Different postings, same reference → must fail
+        let tx2 = LedgerTransaction {
+            id: uuid::Uuid::new_v4().to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            reference: "conflict-ref".into(),
+            postings: vec![Posting {
+                source: "cost:qa/run".into(),
+                destination: "cost:api/deepinfra".into(),
+                asset: "rJ".into(),
+                amount: 999, // different amount
+            }],
+            metadata: serde_json::json!({}),
+        };
+        let result = ledger.commit(&tx2);
+        assert!(result.is_err(), "different postings should fail");
+        match result.unwrap_err() {
+            LedgerError::IdempotencyConflict { reference } => {
+                assert_eq!(reference, "conflict-ref");
+            }
+            e => panic!("expected IdempotencyConflict, got {:?}", e),
+        }
     }
 
     // REQ: P8-ledger-commit — rejects empty postings

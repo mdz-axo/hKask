@@ -366,6 +366,7 @@ async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Erro
                     completion_tokens: r.completion_tokens,
                     cost_urj: r.cost_urj,
                     failed: r.failed,
+                    provider: r.provider,
                 })
                 .collect::<Vec<_>>())
         })

@@ -9,7 +9,11 @@
 //! Emits CNS spans when a provider crosses from pre-paid/subscription
 //! into marginal/overage pricing (`cns.provider.marginal_activated`).
 
-use hkask_services_classify::{ProviderIntelligence, UsageStatus};
+use hkask_services_classify::ProviderIntelligence;
+#[cfg(test)]
+use hkask_services_classify::UsageStatus;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::time::Instant;
 
@@ -133,19 +137,33 @@ impl WatchedProvider {
 /// accelerating check frequency as usage approaches limits.
 pub struct AdaptiveMonitor {
     providers: Vec<WatchedProvider>,
+    /// Set to true to trigger graceful shutdown.
+    shutdown: Arc<AtomicBool>,
 }
 
 impl AdaptiveMonitor {
-    /// Create a new adaptive monitor with no providers registered.
+    /// REQ: P9-daemon-create
+    /// expect: "I can create an adaptive monitor to watch provider costs" [P9]
+    /// pre:  none
+    /// post: returns empty monitor ready for provider registration
+    /// [P9] Constraining: Observability — provider costs are surveilled
     pub fn new() -> Self {
         Self {
             providers: Vec::new(),
+            shutdown: Arc::new(AtomicBool::new(false)),
         }
     }
 
-    /// Register a provider for monitoring.
-    ///
-    /// `api_key` is the provider's API key for authenticated usage queries.
+    /// Signal the monitor to shut down gracefully at the next check cycle.
+    pub fn shutdown(&self) {
+        self.shutdown.store(true, Ordering::SeqCst);
+    }
+
+    /// REQ: P9-daemon-add-provider
+    /// expect: "I can register a provider for adaptive cost monitoring" [P9]
+    /// pre:  provider is a valid ProviderIntelligence implementation
+    /// post: provider is added to the monitoring schedule
+    /// [P9] Constraining: Observability — all registered providers are watched
     pub fn add_provider(&mut self, provider: Box<dyn ProviderIntelligence>, api_key: String) {
         tracing::info!(
             target: "cns.provider",
@@ -155,9 +173,12 @@ impl AdaptiveMonitor {
         self.providers.push(WatchedProvider::new(provider, api_key));
     }
 
-    /// Run the monitor daemon. Blocks indefinitely, checking each provider
-    /// at its adaptive interval. Returns only on fatal error or if all
-    /// providers are removed.
+    /// REQ: P9-daemon-run
+    /// expect: "The daemon watches providers and accelerates checks as limits approach" [P9]
+    /// pre:  at least one provider registered (or daemon parks idle)
+    /// post: runs indefinitely, checking each provider at its adaptive interval
+    /// inv:  returns on shutdown signal
+    /// [P9] Constraining: Observability — continuous provider surveillance
     pub async fn run(&mut self) {
         if self.providers.is_empty() {
             tracing::warn!(
@@ -171,6 +192,11 @@ impl AdaptiveMonitor {
         }
 
         loop {
+            if self.shutdown.load(Ordering::SeqCst) {
+                tracing::info!(target: "cns.provider", "Adaptive monitor shutting down");
+                return;
+            }
+
             // Find the provider with the earliest next_check
             let now = Instant::now();
             let mut next_deadline = now + Duration::from_secs(3600); // default: 1 hour

@@ -343,6 +343,7 @@ impl ProviderIntelligence for TogetherProvider {
 
     async fn usage(&self, api_key: &str) -> Result<UsageStatus, ProviderError> {
         #[derive(Deserialize)]
+        #[allow(dead_code)]
         struct UsageEntry {
             #[serde(default)]
             input_tokens: u64,
@@ -483,7 +484,15 @@ impl SelfTrackedProvider {
         let account = format!("cost:api/{}", self.config.id);
         match hkask_ledger::Ledger::open(&self.ledger_path) {
             Ok(ledger) => ledger.transaction_count(&account).unwrap_or(0),
-            Err(_) => 0,
+            Err(e) => {
+                tracing::warn!(
+                    target: "cns.provider",
+                    provider = %self.config.id,
+                    error = %e,
+                    "Failed to open ledger for call count — returning 0"
+                );
+                0
+            }
         }
     }
 
@@ -691,6 +700,11 @@ impl ProviderIntelligence for RunpodProvider {
 
 // ── Provider factory ────────────────────────────────────────────────────────────
 
+/// REQ: P7-provider-factory
+/// expect: "I can create a provider by name and it wires up correctly" [P7]
+/// pre:  provider_id is a known provider string; ledger_path required for self-tracked
+/// post: returns Some(provider) for known IDs, None for unknown
+/// [P7] Constraining: Composition — providers are composable by ID
 pub fn create_provider(
     provider_id: &str,
     ledger_path: Option<PathBuf>,

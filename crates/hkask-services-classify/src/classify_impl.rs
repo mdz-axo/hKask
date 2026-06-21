@@ -24,10 +24,11 @@ pub struct ClassifyResult {
     /// Number of cached prompt tokens (billed at discounted rate).
     pub cached_tokens: u64,
     /// Actual API cost in micro-rJoules (µrJ).
-    /// Computed as (uncached_input × input_nj + cached × cache_nj + output × output_nj) / 1,000,000.
     pub cost_urj: u64,
-    /// True if the API call failed but token/cost data was recovered from the error response.
+    /// True if the API call failed but token/cost data was recovered.
     pub failed: bool,
+    /// Provider that served this classification (e.g., "deepinfra").
+    pub provider: String,
 }
 
 /// Semantic triple extraction result for a single passage.
@@ -328,6 +329,7 @@ async fn classify_one(
             cached_tokens: 0,
             cost_urj: error_cost,
             failed: true,
+            provider: config.model.clone(),
         });
     }
 
@@ -388,6 +390,7 @@ async fn classify_one(
         cached_tokens: tokens.2,
         cost_urj: input_cost + cache_cost + output_cost,
         failed: false,
+        provider: config.model.clone(),
     })
 }
 
@@ -419,6 +422,7 @@ pub async fn classify_batch(
                 cached_tokens: 0,
                 cost_urj: 0,
                 failed: false,
+                provider: String::new(),
             })
             .collect());
     }
@@ -501,6 +505,7 @@ pub async fn classify_batch(
                     cached_tokens: 0,
                     cost_urj: 0,
                     failed: true,
+                    provider: config.model.clone(),
                 });
             }
             Err(e) => {
@@ -519,6 +524,7 @@ pub async fn classify_batch(
                 cached_tokens: 0,
                 cost_urj: 0,
                 failed: true,
+                provider: config.model.clone(),
             })
         })
         .collect())

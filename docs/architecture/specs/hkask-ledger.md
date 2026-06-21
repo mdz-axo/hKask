@@ -208,6 +208,7 @@ cost:qa/run                 — Temporary sink for QA run costs
 wallet:hedera/main          — Hedera main wallet
 wallet:solana/main          — Solana main wallet
 external:hedera             — External Hedera chain (counterparty)
+external:income             — External income source (dividends, deposits)
 portfolio:cash/main         — Cash balance
 portfolio:position/AAPL     — AAPL position
 ```
