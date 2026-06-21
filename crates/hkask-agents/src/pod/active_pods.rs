@@ -32,6 +32,8 @@ pub struct ActivePods {
     /// CuratorPod's SemanticIndex — shared with all pod contexts for
     /// merged-lens semantic recall (Step 5).
     curator_index: RwLock<Option<Arc<std::sync::RwLock<SemanticIndex>>>>,
+    /// Matrix homeserver URL for automatic pod Matrix registration.
+    matrix_homeserver_url: Option<String>,
 }
 
 impl ActivePods {
@@ -48,7 +50,14 @@ impl ActivePods {
             semantic_adapter: None,
             inference_port: None,
             curator_index: RwLock::new(None),
+            matrix_homeserver_url: None,
         }
+    }
+
+    /// Set the Matrix homeserver URL for automatic pod Matrix registration.
+    pub fn with_matrix_homeserver(mut self, url: String) -> Self {
+        self.matrix_homeserver_url = Some(url);
+        self
     }
 
     /// Create a mock ActivePods for testing — matches old PodManager::new_mock().
@@ -393,6 +402,23 @@ impl ActivePods {
         if let Some(token) = token {
             d.pod.capability_token = token;
             d.pod.state = PodLifecycleState::Registered;
+
+            // Matrix registration — auto-register pod on Conduit if configured.
+            // Non-blocking: if Matrix is unavailable the pod still activates.
+            if let Some(ref homeserver_url) = self.matrix_homeserver_url {
+                let pod_name = d.pod.persona.agent.name.clone();
+                let url = homeserver_url.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = register_pod_matrix(&url, &pod_name).await {
+                        tracing::warn!(
+                            target: "cns.communication.matrix.pod_registration",
+                            pod = %pod_name,
+                            error = %e,
+                            "Failed to auto-register pod on Matrix"
+                        );
+                    }
+                });
+            }
         }
         d.pod.activate(mcp.as_ref())
     }
@@ -514,4 +540,52 @@ impl Default for ActivePods {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Register a pod on the Matrix homeserver (Conduit).
+///
+/// Uses m.login.dummy auth — the pod's Matrix identity is daemon-managed.
+/// Credentials are stored in the OS keychain.
+async fn register_pod_matrix(homeserver_url: &str, pod_name: &str) -> Result<(), String> {
+    let localpart = pod_name.to_lowercase().replace(' ', "-");
+    let username = format!("{}-bot", localpart);
+    let password = uuid::Uuid::new_v4().to_string();
+    let full_id = format!("@{username}:localhost");
+
+    let url = format!(
+        "{}/_matrix/client/v3/register",
+        homeserver_url.trim_end_matches('/')
+    );
+    let body = serde_json::json!({
+        "username": &username,
+        "password": &password,
+        "initial_device_display_name": format!("hKask Pod: {}", pod_name),
+        "auth": {"type": "m.login.dummy"}
+    });
+
+    let response = reqwest::Client::new()
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Matrix registration request failed: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Matrix registration HTTP {}",
+            response.status().as_u16()
+        ));
+    }
+
+    let keychain = hkask_keystore::Keychain::default();
+    let _ = keychain.store_by_key(&format!("matrix-pod-{}", pod_name), &password);
+
+    tracing::info!(
+        target: "cns.communication.matrix.pod_registered",
+        pod = %pod_name,
+        matrix_id = %full_id,
+        "Pod registered on Matrix"
+    );
+    Ok(())
 }

@@ -203,14 +203,69 @@ pub struct CostSnapshot {
     pub failed_api_cost_urj: u64,
 }
 
+/// QA-level outcome — distinct from shell exit codes.
+/// Success in QA means "found and surfaced all issues honestly."
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum QaOutcome {
+    /// All checks passed, no issues found.
+    Passed = 0,
+    /// Checks completed but some validations were degraded (classifier unavailable, etc).
+    Degraded = 1,
+    /// QA found issues that need attention.
+    Failed = 2,
+    /// QA infrastructure itself failed (missing dependencies, crashes).
+    Error = 3,
+}
+
+impl fmt::Display for QaOutcome {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            QaOutcome::Passed => write!(f, "PASSED"),
+            QaOutcome::Degraded => write!(f, "DEGRADED"),
+            QaOutcome::Failed => write!(f, "FAILED"),
+            QaOutcome::Error => write!(f, "ERROR"),
+        }
+    }
+}
+
+impl QaOutcome {
+    /// Derive QA outcome from a step's action and shell/classify outcome.
+    pub fn from_step(action: &str, outcome: &str) -> Self {
+        match action {
+            "classify" => match outcome {
+                "high_confidence" | "medium_confidence" => QaOutcome::Failed,
+                "low_confidence" => QaOutcome::Degraded,
+                "unparseable" | "flake" => QaOutcome::Error,
+                _ => QaOutcome::Error,
+            },
+            "loop" => match outcome {
+                "loop_continue" => QaOutcome::Passed,
+                "loop_exhausted" => QaOutcome::Error,
+                _ => QaOutcome::Error,
+            },
+            _ => match outcome {
+                "success" => QaOutcome::Passed,
+                "failure" => QaOutcome::Failed,
+                _ => QaOutcome::Error,
+            },
+        }
+    }
+
+    /// Aggregate: worst outcome wins.
+    pub fn aggregate(outcomes: &[QaOutcome]) -> Self {
+        outcomes.iter().max().cloned().unwrap_or(QaOutcome::Passed)
+    }
+}
+
 /// Result of a single script step execution.
 #[derive(Debug, Clone)]
 pub struct StepResult {
     pub ordinal: u32,
     pub action: String,
-    /// Outcome tag: "high_confidence", "medium_confidence", "low_confidence",
-    /// "flake", "unparseable", "success", "failure", "loop_continue", "loop_exhausted"
+    /// Shell/classify outcome: "success", "failure", "high_confidence", etc.
     pub outcome: String,
+    /// QA-level outcome: what this step actually found.
+    pub qa_outcome: QaOutcome,
     /// If action was "classify", the raw category string from the LLM
     #[allow(dead_code)]
     pub classify_category: Option<String>,
@@ -239,7 +294,8 @@ pub struct QaScriptReport {
     pub manifest_id: String,
     pub steps_executed: Vec<StepResult>,
     pub total_steps: usize,
-    pub terminal_outcome: String,
+    /// Aggregate QA outcome — worst step outcome wins.
+    pub qa_outcome: QaOutcome,
     pub exceeded_gas: bool,
     pub cost: CostSummary,
 }
@@ -452,6 +508,7 @@ impl QaScriptRunner {
                         ordinal: step.ordinal,
                         action: step.action.clone(),
                         outcome: "success".into(),
+                        qa_outcome: QaOutcome::Passed,
                         classify_category: None,
                         retries: 0,
                         duration_ms: start.elapsed().as_millis() as u64,
@@ -502,8 +559,13 @@ impl QaScriptRunner {
                 }
             }
 
-            // Use default_next if no branch matched
+            // Use default_next if no branch matched.
+            // default_next: 0 is a sentinel meaning "stop the script" (terminal step).
             if let Some(target) = step.default_next {
+                if target == 0 {
+                    // Terminal step — stop execution
+                    break;
+                }
                 match find_step_index(steps, target) {
                     Some(idx) => {
                         current_idx = idx;
@@ -519,10 +581,8 @@ impl QaScriptRunner {
             current_idx += 1;
         }
 
-        let terminal_outcome = results
-            .last()
-            .map(|r| r.outcome.clone())
-            .unwrap_or_else(|| "completed".into());
+        let qa_outcomes: Vec<QaOutcome> = results.iter().map(|r| r.qa_outcome.clone()).collect();
+        let qa_outcome = QaOutcome::aggregate(&qa_outcomes);
 
         let total_urj = cost.total_urj();
         let cap_urj = cost.rjoule_cap_urj(gas_cap);
@@ -574,7 +634,7 @@ impl QaScriptRunner {
             manifest_id: self.manifest.manifest.id.clone(),
             total_steps: results.len(),
             steps_executed: results,
-            terminal_outcome,
+            qa_outcome,
             exceeded_gas: exceeded,
             cost: CostSummary {
                 gas_used: cost.gas_used,
@@ -714,7 +774,8 @@ impl QaScriptRunner {
         Ok(StepResult {
             ordinal: step.ordinal,
             action: "classify".into(),
-            outcome,
+            outcome: outcome.clone(),
+            qa_outcome: QaOutcome::from_step("classify", &outcome),
             classify_category: Some(classify_result.category.clone()),
             retries: 0,
             duration_ms: 0,            // filled by caller
@@ -748,6 +809,7 @@ impl QaScriptRunner {
                 ordinal: step.ordinal,
                 action: "run_command".into(),
                 outcome: "success".into(),
+                qa_outcome: QaOutcome::Passed,
                 classify_category: None,
                 retries: 0,
                 duration_ms: 0,
@@ -759,6 +821,7 @@ impl QaScriptRunner {
                 ordinal: step.ordinal,
                 action: "run_command".into(),
                 outcome: "failure".into(),
+                qa_outcome: QaOutcome::Failed,
                 classify_category: None,
                 retries: 0,
                 duration_ms: 0,
@@ -799,6 +862,7 @@ impl QaScriptRunner {
                     ordinal: step.ordinal,
                     action: "loop".into(),
                     outcome: "loop_continue".into(),
+                    qa_outcome: QaOutcome::Passed,
                     classify_category: None,
                     retries: 0,
                     duration_ms: 0,
@@ -811,6 +875,7 @@ impl QaScriptRunner {
             ordinal: step.ordinal,
             action: "loop".into(),
             outcome: "loop_exhausted".into(),
+            qa_outcome: QaOutcome::Error,
             classify_category: None,
             retries: 0,
             duration_ms: 0,

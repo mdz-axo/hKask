@@ -23,6 +23,7 @@ pub mod mocks;
 pub mod prob_contract;
 pub mod qa_script;
 mod schema;
+pub mod self_heal;
 pub mod strategies;
 pub mod test_runner;
 pub mod triage;

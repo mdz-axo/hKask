@@ -464,7 +464,7 @@ The autopoietic loop IS a PDCA cycle:
 | cargo-mutants integration | Type-system-guided mutant generation | `QaMutantSurvived` | High (existing) |
 | LLM triage classification | `kask qa triage` with Gemma 4 26B | `QaRepairAttempted` confidence ≥0.95 | High (existing) |
 | User-defined quality boundaries | P1 sovereignty: user specifies quality criteria | *(user-provided, not CNS-emitted)* | High |
-| Composition with TDD, kata, red-team | FlowDef manifest with delegate steps | Kata PDCA spans | High |
+| Composition with TDD, kata, red-team | Prompt instruction enrichment in .j2 templates + data flow via BundleManifest input_mapping references | Kata PDCA spans | High |
 
 ### 8.2 Speculative (Research Questions)
 

@@ -59,6 +59,11 @@ templates:
     type: KnowAct
     description: "PDF export configuration with typography and TOC embedding"
 
+  - id: kindle-zip/extract-metadata
+    path: extract-metadata.j2
+    type: WordAct
+    description: "Probabilistic metadata recovery — LLM extracts title/author from raw text when deterministic extraction fails"
+
 dependencies:
   - template_id: inference/selectors/model-selector
     purpose: "Model tier selection for OCR"

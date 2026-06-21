@@ -1,0 +1,20 @@
+{# Probabilistic metadata recovery — fallback when deterministic extraction fails.
+   Used when title or author is "Unknown" after headless-chrome extraction.
+   Takes raw page text and asks the LLM to find title and author heuristically.
+
+   This is a self-healing template: deterministic failure → probabilistic fallback.
+   The general pattern: use LLM prompt templates as recovery mechanisms when
+   structured extraction hits its limits. #}
+You are a metadata extraction assistant analyzing raw book content. Extract the title and author from the text below.
+
+Rules:
+- Return ONLY valid JSON: {"title": "...", "author": "..."}
+- If you cannot determine the title, use an empty string: ""
+- If you cannot determine the author, use an empty string: ""
+- The title is usually near the beginning, often the first prominent text
+- Authors often appear near the title, in a byline, or on a copyright page
+- Do NOT include publisher, edition, ISBN, or date info in the title field
+- If multiple candidates, prefer the most prominent/largest text
+
+Content to analyze:
+{{ body }}

@@ -29,7 +29,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: QaAction) {
             }
         }
         QaAction::RunScript { script } => {
-            if let Err(e) = rt.block_on(run_script(script)) {
+            if let Err(e) = run_script(script) {
                 eprintln!("QA script error: {e}");
                 std::process::exit(1);
             }
@@ -328,48 +328,50 @@ fn print_mutant_summary(mutants: &[hkask_test_harness::feedback::SurvivingMutant
 
 // ── Autonomous script runner ───────────────────────────────────────────────────
 
-async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     println!("[QA] Loading script: {}", script_path.display());
 
-    // Load classifier configs for the classify closure
     let registry_dir = find_registry_dir();
-    let registry_dir_clone = registry_dir.clone();
 
-    // Build classify closure that calls hkask_services_classify::classify_batch
+    // Build classify closure. Runs on a dedicated OS thread to avoid
+    // Tokio's nested-block_on restriction (the CLI main runs inside a
+    // Tokio runtime; block_on cannot be called from within it).
     let classify = move |config_name: &str, passages: &[String]| {
-        let rd = registry_dir_clone.clone();
+        let rd = registry_dir.clone();
         let cfg_name = config_name.to_string();
         let passages_owned: Vec<String> = passages.to_vec();
 
-        let handle = tokio::runtime::Handle::current();
-        handle.block_on(async move {
-            let config = hkask_services_classify::load_classifier_config(&cfg_name, &rd)
-                .map_err(|e| format!("Failed to load classifier '{}': {}", cfg_name, e))?;
+        std::thread::spawn(move || {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| format!("Classify runtime: {}", e))?
+                .block_on(async move {
+                    let config = hkask_services_classify::load_classifier_config(&cfg_name, &rd)
+                        .map_err(|e| format!("Failed to load classifier '{}': {}", cfg_name, e))?;
 
-            let cfg = ClassifierConfig::from_def(&config);
-            if cfg.api_key.is_empty() {
-                return Err(format!(
-                    "No API key for classifier '{}' — set DEEPINFRA_API_KEY or equivalent",
-                    cfg_name
-                ));
-            }
+                    let cfg = ClassifierConfig::from_def(&config);
 
-            let results = hkask_services_classify::classify_batch(&passages_owned, cfg, None)
-                .await
-                .map_err(|e| format!("Classify API error: {}", e))?;
+                    let results =
+                        hkask_services_classify::classify_batch(&passages_owned, cfg, None)
+                            .await
+                            .map_err(|e| format!("Classify API error: {}", e))?;
 
-            Ok(results
-                .into_iter()
-                .map(|r| ClassifyResult {
-                    category: r.category,
-                    prompt_tokens: r.prompt_tokens,
-                    completion_tokens: r.completion_tokens,
-                    cost_urj: r.cost_urj,
-                    failed: r.failed,
-                    provider: r.provider,
+                    Ok(results
+                        .into_iter()
+                        .map(|r| ClassifyResult {
+                            category: r.category,
+                            prompt_tokens: r.prompt_tokens,
+                            completion_tokens: r.completion_tokens,
+                            cost_urj: r.cost_urj,
+                            failed: r.failed,
+                            provider: r.provider,
+                        })
+                        .collect::<Vec<_>>())
                 })
-                .collect::<Vec<_>>())
         })
+        .join()
+        .map_err(|_| "Classify thread panicked".to_string())?
     };
 
     let runner = {
@@ -400,8 +402,8 @@ async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Erro
 
     println!("[QA] ──────────────────────────────────────────────");
     println!(
-        "[QA] Script complete: {} steps executed, terminal outcome: {}",
-        report.total_steps, report.terminal_outcome
+        "[QA] Script complete: {} steps executed, QA outcome: {}",
+        report.total_steps, report.qa_outcome
     );
 
     for step in &report.steps_executed {
@@ -424,10 +426,11 @@ async fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Erro
             String::new()
         };
         println!(
-            "  [{ordinal}] {action} → {outcome} ({duration_ms}ms{retry_info}){classify_info}{cost_str}",
+            "  [{ordinal}] {action} → {outcome} ({qa}) ({duration_ms}ms{retry_info}){classify_info}{cost_str}",
             ordinal = step.ordinal,
             action = step.action,
             outcome = step.outcome,
+            qa = step.qa_outcome,
             duration_ms = step.duration_ms,
             retry_info = if step.retries > 0 {
                 format!(", {} retries", step.retries)

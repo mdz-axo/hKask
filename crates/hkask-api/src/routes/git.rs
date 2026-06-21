@@ -9,6 +9,7 @@ use axum::extract::Extension;
 use axum::{Json, extract::Path, extract::State};
 use hkask_ports::git_cas::RepoId;
 use hkask_services::ServiceError;
+use hkask_types::InfrastructureError;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -96,7 +97,11 @@ pub(crate) async fn archive(
         .resolve_ref(&RepoId::Registry, "HEAD")
         .await
         .map(|commit| commit.to_string())
-        .unwrap_or_else(|_| "0000000000000000000000000000000000000000".to_string());
+        .map_err(|e| {
+            ServiceErrorResponse(ServiceError::Infra(InfrastructureError::NotFound(format!(
+                "Failed to resolve git HEAD: {e}"
+            ))))
+        })?;
 
     let templates: Vec<ArchiveEntry> = template_crate
         .templates

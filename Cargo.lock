@@ -4227,6 +4227,7 @@ dependencies = [
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
+ "reqwest",
  "rusqlite",
  "serde",
  "serde_json",
@@ -5549,6 +5550,8 @@ name = "hkask-test-harness"
 version = "0.30.0"
 dependencies = [
  "chrono",
+ "dirs",
+ "dotenvy",
  "hkask-capability",
  "hkask-cns",
  "hkask-ledger",

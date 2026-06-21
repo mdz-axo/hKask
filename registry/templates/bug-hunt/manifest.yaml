@@ -1,0 +1,37 @@
+# Template crate manifest for bug-hunt skill
+# hKask v0.30.0
+
+crate:
+  name: bug-hunt
+  version: "0.30.0"
+  description: >
+    Bug hunting: explores a target crate for threats to user-defined quality.
+    Applies Weinberg's quality definition ("value to some person who matters"),
+    Beizer's bug taxonomy, Bach/Bolton's heuristic test strategy model, and
+    Hendrickson's exploratory testing charters. Reasoning patterns from TDD,
+    diagnose, grill-me, and adversarial-red-team enrich the hunt through
+    prompt instructions. Produces structured bug reports with CNS span
+    attribution (P12). OCAP-gated: requires Tool:test:Execute and Tool:cns:Read.
+
+templates:
+  - id: bug-hunt/bug-hunt-expedition
+    path: bug-hunt-expedition.j2
+    type: FlowDef
+    lexicon_terms: [hunt, explore, probe, detect, classify, report, charter]
+    description: >
+      Run a bug hunting expedition against a target crate. Takes user-defined
+      quality criteria (P1 boundary), generates a testing charter using
+      Hendrickson format and Bach's HTSM, probes the codebase through available
+      MCP tools (file read, code search, terminal, cargo test), evaluates
+      findings through a heuristic oracle (Weinberg: bug = threat to user quality),
+      classifies into Beizer taxonomy, and produces a structured bug report.
+      Each phase emits CNS spans (cns.bughunt.*) for observability (P9).
+      Autopoietic marker: if the learning phase shows heuristic delta across
+      sessions, the skill is self-producing its testing competence.
+    generates_spans:
+      - cns.bughunt.charter
+      - cns.bughunt.probe
+      - cns.bughunt.oracle
+      - cns.bughunt.taxonomize
+      - cns.bughunt.learn
+      - cns.bughunt.report

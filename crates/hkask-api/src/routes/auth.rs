@@ -410,7 +410,15 @@ async fn fetch_github_user(
                 .into_iter()
                 .find(|e| e.primary && e.verified)
                 .map(|e| e.email)
-                .unwrap_or_else(|| format!("{provider_user_id}@github.users.noreply"))
+                .ok_or_else(|| {
+                    (
+                        StatusCode::UNAUTHORIZED,
+                        format!(
+                            "GitHub user '{}' has no verified primary email — cannot establish identity",
+                            provider_user_id
+                        ),
+                    )
+                })?
         }
     };
 

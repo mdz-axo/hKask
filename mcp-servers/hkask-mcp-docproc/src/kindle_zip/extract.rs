@@ -330,6 +330,52 @@ fn scrape_title_author(tab: &headless_chrome::Tab) -> Result<(String, String), S
     Ok((title, author))
 }
 
+/// Recover title/author via LLM when deterministic extraction returns "Unknown".
+///
+/// Returns the current values unchanged, plus an optional prompt for LLM recovery.
+/// The caller wires this prompt through the inference pipeline and parses the JSON
+/// response ({"title": "...", "author": "..."}) to update metadata.
+#[allow(dead_code)] // awaiting inference port wiring in MCP tool handler
+pub(crate) async fn recover_metadata_via_llm(
+    assembled_text: &str,
+    current_title: &str,
+    current_author: &str,
+) -> ((String, String), Option<String>) {
+    let title_needs = current_title == "Unknown Title" || current_title.is_empty();
+    let author_needs = current_author == "Unknown Author" || current_author.is_empty();
+    if !title_needs && !author_needs {
+        return (
+            (current_title.to_string(), current_author.to_string()),
+            None,
+        );
+    }
+
+    let sample = if assembled_text.len() > 8000 {
+        &assembled_text[..8000]
+    } else {
+        assembled_text
+    };
+
+    let prompt = format!(
+        "You are a metadata extraction assistant. Extract title and author from this text.\n\
+         Return ONLY JSON: {{\"title\": \"...\", \"author\": \"...\"}}\n\
+         Content:\n{sample}"
+    );
+
+    tracing::info!(
+        target: "cns.pipeline.kindle-zip.metadata_recovery",
+        title_needs_recovery = title_needs,
+        author_needs_recovery = author_needs,
+        sample_len = sample.len(),
+        "Metadata recovery prompt prepared for LLM extraction"
+    );
+
+    (
+        (current_title.to_string(), current_author.to_string()),
+        Some(prompt),
+    )
+}
+
 // ── Selector Verification (Gap 17: CNS alert on failure) ────────────────────
 
 fn verify_selectors(tab: &headless_chrome::Tab) -> Result<(), String> {

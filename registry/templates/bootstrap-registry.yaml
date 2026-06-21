@@ -753,3 +753,20 @@
   required_capabilities: []
   cascade_level: 0
   matroshka_limit: 7
+
+- id: bug-hunt/bug-hunt-expedition
+  template_type: FlowDef
+  name: "Bug Hunt Expedition"
+  lexicon_terms:
+    - hunt
+    - explore
+    - probe
+    - detect
+    - classify
+    - report
+    - charter
+  description: "Run a bug hunting expedition against a target crate using Weinberg quality criteria, Beizer taxonomy, Bach HTSM, and Hendrickson charters"
+  source_path: registry/templates/bug-hunt/bug-hunt-expedition.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7

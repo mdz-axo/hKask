@@ -38,7 +38,7 @@ principles: [P1, P2, P3, P4, P5, P8, P9, P12]
 |------|-----------|--------|-----------|
 | `CnsSpan` enum extension breaks exhaustive match arms | High | Compile errors in all CNS consumers | Use compiler-driven refactoring; add `BugHunt*` variants in a single commit with all match arms updated |
 | LLM heuristic regeneration produces low-quality charters | Medium | Skill finds no novel bugs, falsifies autopoietic claim early | Accept as empirical result; this IS the falsifiability mechanism |
-| Cross-skill composition creates circular dependencies | Low | Deadlock in FlowDef execution | Skills compose via delegate, not import; each skill is independently executable |
+| Template prompt quality insufficient for heuristic reasoning | Medium | LLM fails to apply Weinberg/Beizer/Bach reasoning patterns correctly | Mitigated by baked-in reasoning instructions in .j2 templates; if LLM can't reason, autopoietic claim falsified early |
 | Skill grows beyond 7 templates | Medium | P5 violation | Freeze at 7; merge or justify any additional |
 
 ### 0.3 Simpler alternatives considered
@@ -816,17 +816,16 @@ pub fn emit_bughunt_learn(
 - `cargo test -p hkask-cns` — new unit tests verify span emission succeeds
 - `grep -r "emit_bughunt" crates/hkask-cns/src/` shows all 6 functions
 
-#### Step 3.2 — Register bug-hunt domain in CNS runtime
+#### Step 3.2 — CNS domain auto-registration (NO CODE CHANGE NEEDED)
 
-**File:** `crates/hkask-cns/src/runtime.rs`  
-**Principle:** P9 (Homeostatic Self-Regulation)  
-**Constraint:** Surgical change — add bug-hunt domain to existing domain initialization, don't restructure the runtime.
+**Verified against:** `crates/hkask-cns/src/runtime.rs` L202–204  
+**Finding:** `VarietyMonitor::counter()` registers domains lazily via `entry(domain).or_default()`. When any code calls `cns_runtime.increment_variety("cns.bughunt.learn", ...)`, the domain is automatically created if it doesn't exist — because `CnsSpan::BugHuntLearn` parses successfully from the canonical namespace string.
 
-Add `"cns.bughunt.charter"`, `"cns.bughunt.probe"`, etc. to the CNS domain initialization list so that `VarietyTracker` monitors bug-hunt spans.
+**No explicit registration step is required.** The only prerequisite is that the 6 `BugHunt*` variants exist in `CnsSpan` (completed in Phase 1). Once CNS spans are emitted through `bug_hunt_events.rs`, the `CnsRuntime` automatically tracks them.
 
 **Verification:**
-- CNS health check returns bug-hunt domain in variety report
-- `kask cns health` shows `cns.bughunt.*` domains
+- After first `emit_bughunt_learn()` call, `kask cns health` shows `cns.bughunt.*` domains
+- `cns_health_check()` aggregates deficit across all domains including auto-registered ones
 
 ---
 
@@ -985,43 +984,65 @@ mod bug_hunt_autopoiesis_tests {
 
 **Why deferred:** Composition requires the base skill to exist and be tested first.
 
+**Corrected mechanism:** Skills compose in hKask through two paths, neither of which is runtime template-to-template dispatch (verified against `crates/hkask-templates/src/executor.rs` — the `ManifestExecutor` has no "delegate to another template" code path):
+
+1. **Prompt instruction enrichment:** `.j2` templates include reasoning-pattern instructions that tell the LLM "think like TDD would think," "think like grill-me would think." The LLM applies these patterns because they're in the prompt. This is the same mechanism the `essentialist` skill uses — its `.j2` says `**Delegate:** deep-module/deep-module-delete` as a prompt instruction to the LLM, not as runtime code dispatch.
+2. **Data flow via BundleManifest `input_mapping`:** Contract data from TDD flows into oracle context through `{{ ordinal_N.field }}` references in the manifest cascade.
+
 #### Step 6.1 — TDD composition (contract oracles)
 
-The `bug-hunt-oracle.j2` template already references `contracts` as Tier 1 oracle input. The TDD skill produces contracts tagged with REQ identifiers. The composition is **data flow**: TDD contracts → oracle context.
+The `bug-hunt-oracle.j2` template includes a prompt instruction:
+```
+### TDD Contract Pattern
+"If no contract exists for this behavior, flag it as a contract gap.
+A behavior without a contract is neither correct nor incorrect —
+it's unverified. The bug may be the MISSING contract, not the behavior."
+```
 
-**No code changes needed.** The FlowDef in `bug-hunt-probe.j2` should include a delegate step to gather contracts from the MDS specification before probing.
+Contract data flows into oracle context via the BundleManifest's `input_mapping`:
+```yaml
+input_mapping:
+  contracts: "{{ context.contracts | default([]) }}"
+```
 
 **Verification:**
-- Manual test: run TDD cycle → run bug-hunt session → oracle references TDD contract names in verdict
+- Manual test: run TDD cycle → run bug-hunt session → oracle output references contract names in verdict rationale
 
 #### Step 6.2 — Adversarial red-team composition (exploration probes)
 
-The adversarial-red-team skill generates attack inputs. The `bug-hunt-probe.j2` template should include adversarial probes as one of its available strategies.
+The `bug-hunt-probe.j2` template includes a prompt instruction:
+```
+### Adversarial Pattern (from adversarial-red-team)
+"Try adversarial inputs: injection, hijacking, exfiltration, tool misuse.
+If the target accepts user input, probe it with attack patterns from ATLAS/GARAK."
+```
 
-If a red-team probe finds a vulnerability that survives defenses, the bug-hunt loop classifies it, learns from it, and generates a regression test. This closes the exploitation→exploration gap.
-
-**Integration point:** `bug-hunt-probe.j2` FlowDef delegates to `adversarial-red-team/test-against-target` as one probe strategy.
+Adversarial tool execution happens via MCP `execute` steps in the BundleManifest, calling `cargo bolero test` or equivalent tooling, not via runtime skill dispatch.
 
 **Verification:**
-- Adversarial finding → oracle classifies as bug → learn phase strengthens heuristic → next charter includes adversarial pattern
+- Probe output includes adversarial findings → oracle classifies as bug → learn phase strengthens heuristic
 
 #### Step 6.3 — Kata composition (PDCA cycles)
 
-The autopoietic loop IS a PDCA cycle. The kata framework's `kata-improvement` skill can wrap the bug-hunt skill as a coached improvement cycle, with the 5 coaching questions mapping to charter phases.
-
-**Integration point:** `kata-improvement` FlowDef delegates to `bug-hunt/` templates for the "Do" and "Check" phases.
+The `bug-hunt-learn.j2` template includes a prompt instruction:
+```
+### Kata PDCA Pattern (from kata-improvement)
+"Plan: what should improve? Do: what did the session find?
+Check: measure against target condition. Act: update heuristics based on gap.
+Apply the 5 coaching questions to structure this learning."
+```
 
 **Verification:**
-- Kata session with bug-hunt as the improvement target produces CNS `cns.kata` spans interleaved with `cns.bughunt.*` spans
+- Learn phase output contains PDCA-structured reasoning in its rationale field
 
 #### Step 6.4 — QA script builder composition (initial charters)
 
 The QA script builder produces static QA pipeline manifests. These serve as **bootstrap charters** — initial exploration structure before the learning loop begins to specialize.
 
-**Integration point:** On first session, `bug-hunt-charter.j2` can accept a QA script manifest as seed input.
+**Integration point:** On first session, the `bug-hunt-charter.j2` template accepts a QA script manifest passed via BundleManifest `input_mapping` as seed input.
 
 **Verification:**
-- QA script builder produces manifest → bug-hunt session 1 uses manifest as initial charter → session 2+ generates novel charters from learned heuristics
+- QA script builder produces manifest → bug-hunt session 1 uses manifest as initial charter seed → session 2+ generates novel charters from learned heuristics
 
 ---
 
@@ -1038,7 +1059,7 @@ Per coding-guidelines principle 2 (Simplicity First), these items are explicitly
 | Causal graph inference from CNS telemetry | Speculative — acknowledged in unified paper §5.2 |
 | A "confidence threshold tuner" configuration system | P5: no configurability that wasn't requested. 0.95 is the threshold; it's in the template, not a config parameter |
 | Integration with external CI systems | Surgical changes only. If CI integration is needed later, it's a separate feature |
-| Real-time fuzzing or continuous background hunting | Phase 1 does session-based hunting, not always-on background processes |
+| Cross-skill runtime delegation | Mechanism doesn't exist — `ManifestExecutor` has no "delegate to other template" code path (verified against `executor.rs`). Skill enrichment achieved through prompt instructions instead. | P7 |
 
 ---
 
@@ -1046,7 +1067,7 @@ Per coding-guidelines principle 2 (Simplicity First), these items are explicitly
 
 | Criterion | Measurement | Pass Condition |
 |-----------|------------|---------------|
-| **SC-1: Skill executes** | `kask skill invoke bug-hunt/bug-hunt-charter` produces valid charter JSON | Charter parses as JSON with all required fields |
+| SC-1: Skill executes | `kask pod invoke --manifest registry/manifests/bug-hunt-session.yaml` produces valid charter JSON and completes all cascade steps | All 7 ordinal steps produce valid output |
 | **SC-2: CNS spans emitted** | After one session, `cns.bughunt.*` spans appear in CNS health report | ≥1 span per template phase emitted |
 | **SC-3: Autopoietic marker nonzero** | After multi-session test, `cns.bughunt.learn` shows `heuristics_added > 0` or `heuristics_strengthened > 0` | Learn span delta is nonzero for at least one session |
 | **SC-4: Deficit decreases** | `CnsHealth.overall_deficit` slope across 5 simulated sessions is negative | Slope < 0 supports autopoietic claim; slope ≥ 0 falsifies |
@@ -1063,8 +1084,8 @@ Every changed file traces to a specific implementation step:
 | File | Phase | Change | Principle |
 |------|-------|--------|-----------|
 | `crates/hkask-types/src/cns.rs` | 1.1–1.3 | Add 6 `BugHunt*` variants to `CnsSpan` enum | P8 |
-| `crates/hkask-cns/src/bug_hunt_events.rs` | 3.1 | New file: CNS span emitter functions | P9 |
-| `crates/hkask-cns/src/runtime.rs` | 3.2 | Register bug-hunt domains | P9 |
+| `crates/hkask-cns/src/bug_hunt_events.rs` | 3.1 | New file: CNS span emitter functions following `contract_events.rs` pattern | P9 |
+| `crates/hkask-cns/src/lib.rs` | 3.1 | Add `pub mod bug_hunt_events` + re-export 6 emitter functions | P5 |
 | `crates/hkask-cns/tests/bug_hunt_autopoiesis.rs` | 5.1 | New file: falsifiability integration tests | P9 |
 | `registry/templates/bug-hunt/manifest.yaml` | 2.1 | New file: skill manifest | P5 |
 | `registry/templates/bug-hunt/bug-hunt-charter.j2` | 2.2 | New file: WordAct template | P5 |
@@ -1073,10 +1094,11 @@ Every changed file traces to a specific implementation step:
 | `registry/templates/bug-hunt/bug-hunt-taxonomize.j2` | 2.2 | New file: KnowAct template | P5 |
 | `registry/templates/bug-hunt/bug-hunt-learn.j2` | 2.2 | New file: KnowAct template (autopoietic core) | P5 |
 | `registry/templates/bug-hunt/bug-hunt-report.j2` | 2.2 | New file: WordAct template | P5 |
+| `registry/manifests/bug-hunt-session.yaml` | 2.3 | New file: BundleManifest (7 cascade steps) | P5 |
 | `registry/templates/bootstrap-registry.yaml` | 4.1 | Add 7 bug-hunt template entries | P5.1 |
-| `.agents/skills/bug-hunt/SKILL.md` | 4.2 | New file: generated companion (derived from registry) | P5.1 |
+| `.agents/skills/bug-hunt/SKILL.md` | 4.2 | New file: generated companion | P5.1 |
 
-**Total: 13 files.** 9 new files, 3 modified files. No adjacent code touched. No existing skills modified.
+**Total: 14 files.** 11 new, 2 modified (`cns.rs`, `bootstrap-registry.yaml`), 1 generated. No `runtime.rs` change needed (CNS domains auto-register). No adjacent code touched. No existing skills modified.
 
 ---
 
@@ -1094,7 +1116,7 @@ Phase 2: Registry Crate (The Skill)
 
 Phase 3: CNS Span Emission Wiring
   └─ Step 3.1: Add CNS span emitter functions
-  └─ Step 3.2: Register bug-hunt domain in CNS runtime
+  └─ Step 3.2: CNS domains auto-register — no code needed (verified: VarietyMonitor::counter() is lazy)
 
 Phase 4: Skill Registration
   └─ Step 4.1: Add bug-hunt to bootstrap registry

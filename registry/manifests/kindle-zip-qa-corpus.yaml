@@ -1,21 +1,15 @@
-# Kindle-Zip QA Script Manifest
-# ℏKask v0.30.0 — Corpus generation & pipeline validation
+# Kindle-Zip QA Script — Honest Pipeline Validation
+# ℏKask v0.30.0
 #
-# Researcher persona: searches local Kindle library for books matching
-# domain-specific terms (knowledge graphs, knowledge production, semantics,
-# pragmatics, essentialism, autopoietic/autopoiesis), extracts top N most
-# relevant, exports to PDF+EPUB in ~/Clones/Library/Knowledge/.
-#
-# QA dimensions: format matrix, corpus size variation, search term semantics,
-# output structure validation, CNS span emission.
+# Tests the kindle-zip tool honestly: fails when infrastructure is missing,
+# reports degradation explicitly, never pretends metadata stubs are books.
 
 manifest:
   id: kindle-zip-qa-corpus
   description: >
-    QA pipeline for kindle-zip book extraction. Iteratively tests format
-    matrix (pdf/epub/md/txt), corpus size (1/3/5), search terms (knowledge
-    graphs, knowledge production, semantics, pragmatics, essentialism,
-    autopoietic/autopoiesis). Validates output structure and CNS spans.
+    Honest QA pipeline for kindle-zip. Fails fast when infrastructure is
+    missing (no Chrome, no API key, no credentials). Degraded runs report
+    degradation explicitly — never misreport stubs as books.
 
 gas:
   cap: 80000
@@ -29,451 +23,217 @@ cns:
   alert: cns.qa.kindle-zip
 
 steps:
-  # ── Step 1: Environment Setup ──────────────────────────────────────────
+  # ── Step 1: Infrastructure Check ───────────────────────────────────────
 
   - ordinal: 1
     action: run_command
-    description: "Initialize output directory and log configuration"
+    description: "Check required infrastructure: Chrome, credentials, API key"
     command: |
-      echo "=== Kindle-Zip QA: Corpus Generation ==="
-      OUTPUT="${OUTPUT_BASE:-$HOME/Clones/Library/Knowledge}"
-      CORPUS="${CORPUS_SIZE:-5}"
-      FORMATS="${EXPORT_FORMATS:-pdf,epub}"
-      TERMS="${SEARCH_TERMS:-knowledge graphs,knowledge production,semantics,pragmatics,essentialism,autopoietic,autopoiesis}"
-      echo "Output base: $OUTPUT"
-      echo "Corpus size: $CORPUS"
-      echo "Formats: $FORMATS"
-      echo "Search terms: $TERMS"
-      mkdir -p "$OUTPUT"
-      echo "env_ready"
+      echo "=== Infrastructure Check ==="
+      MISSING=""
+      command -v chromium >/dev/null 2>&1 || command -v chromium-browser >/dev/null 2>&1 || command -v google-chrome >/dev/null 2>&1 || { echo "  CHROME: MISSING"; MISSING="$MISSING chrome"; }
+      command -v chromium >/dev/null 2>&1 && echo "  CHROME: $(which chromium)" || true
+      command -v tesseract >/dev/null 2>&1 && echo "  TESSERACT: $(which tesseract)" || echo "  TESSERACT: MISSING (OCR will use LLM fallback only)"
+      [ -n "$DEEPINFRA_API_KEY" ] && echo "  DEEPINFRA_API_KEY: SET" || { echo "  DEEPINFRA_API_KEY: MISSING"; MISSING="$MISSING api_key"; }
+      [ -n "$AMAZON_EMAIL" ] && echo "  AMAZON_EMAIL: SET" || { echo "  AMAZON_EMAIL: MISSING"; MISSING="$MISSING amazon_email"; }
+      [ -n "$AMAZON_PASSWORD" ] && echo "  AMAZON_PASSWORD: SET" || { echo "  AMAZON_PASSWORD: MISSING"; MISSING="$MISSING amazon_password"; }
+      if [ -n "$MISSING" ]; then
+        echo "INFRA_FAIL: missing$MISSING"
+        exit 1
+      else
+        echo "INFRA_PASS"
+        exit 0
+      fi
     retries: 1
     branching:
       success: 2
-      failure: 20
-    default_next: 2
+      failure: 30
 
   # ── Step 2: Unit Test Gate ─────────────────────────────────────────────
 
   - ordinal: 2
     action: run_command
-    description: "Run kindle-zip unit tests as baseline sanity gate"
+    description: "Run kindle-zip unit tests — must pass or abort"
     command: |
       cd /home/mdz-axolotl/Clones/hKask && \
       cargo test -p hkask-mcp-docproc --lib -- kindle 2>&1 | \
       tee /tmp/kindle-zip-unit-tests.log && \
       grep -q "test result: ok" /tmp/kindle-zip-unit-tests.log && \
-      echo "unit_tests_pass" || \
-      echo "unit_tests_fail"
+      echo "UNIT_PASS" || echo "UNIT_FAIL"
     retries: 1
     branching:
       success: 3
-      failure: 21
-    default_next: 3
+      failure: 31
 
   # ── Step 3: Integration Test Gate ──────────────────────────────────────
 
   - ordinal: 3
     action: run_command
-    description: "Run integration tests — validates full pipeline logic with mock data"
+    description: "Run integration tests — must pass or abort"
     command: |
       cd /home/mdz-axolotl/Clones/hKask && \
       cargo test -p hkask-mcp-docproc --test kindle_zip_integration 2>&1 | \
       tee /tmp/kindle-zip-integration-tests.log && \
       grep -q "test result: ok" /tmp/kindle-zip-integration-tests.log && \
-      echo "integration_pass" || \
-      echo "integration_fail"
+      echo "INTEGRATION_PASS" || echo "INTEGRATION_FAIL"
     retries: 1
     branching:
       success: 4
-      failure: 22
-    default_next: 4
+      failure: 32
 
-  # ── Step 4: Format Matrix (PDF + EPUB) ─────────────────────────────────
+  # ── Step 4: Format Matrix + Edge Cases ─────────────────────────────────
 
   - ordinal: 4
     action: run_command
-    description: "Validate PDF+EPUB combined export produces valid files on disk"
+    description: "Validate all export formats produce valid output"
     command: |
-      echo "=== Format Matrix: pdf + epub ==="
       cd /home/mdz-axolotl/Clones/hKask && \
-      cargo test -p hkask-mcp-docproc --lib -- export_formats_all_outputs 2>&1 | \
-      tee /tmp/kindle-zip-format-matrix.log && \
-      grep -q "test result: ok" /tmp/kindle-zip-format-matrix.log && \
-      echo "format_pdf_epub_pass" || \
-      echo "format_pdf_epub_fail"
+      cargo test -p hkask-mcp-docproc --lib -- \
+        "export_formats_all|empty_toc|export_txt|single_page|multi_page|nav_uses_real" 2>&1 | \
+      tee /tmp/kindle-zip-format-tests.log && \
+      grep -q "test result: ok" /tmp/kindle-zip-format-tests.log && \
+      echo "FORMAT_PASS" || echo "FORMAT_FAIL"
     retries: 2
     branching:
       success: 5
-      failure: 23
-    default_next: 5
+      failure: 33
 
-  # ── Step 5: Edge Case Tests ────────────────────────────────────────────
+  # ── Step 5: Classify output quality ────────────────────────────────────
 
   - ordinal: 5
-    action: run_command
-    description: "Test edge cases: empty TOC, TXT format, single/multi-page PDF, EPUB nav labels"
-    command: |
-      echo "=== Edge Cases ==="
-      cd /home/mdz-axolotl/Clones/hKask && \
-      cargo test -p hkask-mcp-docproc --lib -- \
-        "empty_toc|export_txt|single_page|multi_page|nav_uses_real" 2>&1 | \
-      tee /tmp/kindle-zip-edge-cases.log && \
-      grep -q "test result: ok" /tmp/kindle-zip-edge-cases.log && \
-      echo "edge_cases_pass" || \
-      echo "edge_cases_fail"
-    retries: 2
-    branching:
-      success: 6
-      failure: 23
-    default_next: 6
-
-  # ── Step 6: Content Quality Classification ─────────────────────────────
-
-  - ordinal: 6
     action: classify
     classifier: qa-triage
-    description: "Classify aggregate test output — pipeline logic errors vs environment issues"
+    description: "Classify test results — pipeline logic errors vs environment issues"
     command: null
     retries: 1
     branching:
-      high_confidence: 7
-      medium_confidence: 8
-      low_confidence: 9
-      flake: 10
-      unparseable: 9
-    default_next: 9
+      high_confidence: 6
+      medium_confidence: 7
+      low_confidence: 8
+      flake: 9
+      unparseable: 34
+    default_next: 34
 
-  # ── Step 7: High Confidence → Critical Alert ───────────────────────────
+  # ── Step 6: High confidence → Classifier found real issues ─────────────
+
+  - ordinal: 6
+    action: run_command
+    description: "Classifier found high-confidence pipeline issues"
+    command: >
+      echo "[QA-FAIL] Classifier found high-confidence issues in pipeline output.
+      Review /tmp/kindle-zip-*.log"
+    retries: 0
+    default_next: 0
+
+  # ── Step 7: Medium confidence → Warning ────────────────────────────────
 
   - ordinal: 7
     action: run_command
-    description: "Escalate high-confidence failures as critical alert"
+    description: "Classifier found medium-confidence issues — warn and continue"
     command: >
-      echo "[QA-CRITICAL] kindle-zip pipeline has high-confidence failures.
-      Output quality compromised. Review /tmp/kindle-zip-*.log immediately."
-    retries: 1
-    default_next: 11
+      echo "[QA-WARN] Classifier found medium-confidence issues.
+      Pipeline may have quality problems."
+    retries: 0
+    default_next: 0
 
-  # ── Step 8: Medium Confidence → Warning ────────────────────────────────
+  # ── Step 8: Low confidence → Uncertain ─────────────────────────────────
 
   - ordinal: 8
     action: run_command
-    description: "Escalate medium-confidence issues as warning"
+    description: "Classifier uncertain — human review recommended"
     command: >
-      echo "[QA-WARNING] kindle-zip pipeline has medium-confidence issues.
-      May need human review of output quality."
-    retries: 1
-    default_next: 11
+      echo "[QA-INFO] Classifier could not confidently assess output quality.
+      Human review recommended before trusting results."
+    retries: 0
+    default_next: 0
 
-  # ── Step 9: Low Confidence → Investigation Flag ────────────────────────
+  # ── Step 9: Flake → Retry loop ─────────────────────────────────────────
 
   - ordinal: 9
-    action: run_command
-    description: "Flag low-confidence results for developer investigation"
-    command: >
-      echo "[QA-INFO] kindle-zip classification was low-confidence or unparseable.
-      Flag for developer investigation."
-    retries: 1
-    default_next: 11
-
-  # ── Step 10: Flake → Retry Loop ────────────────────────────────────────
-
-  - ordinal: 10
     action: loop
-    description: "Retry loop for flaky test failures — up to 3 attempts"
+    description: "Retry — flaky test or transient classifier issue"
     command: |
-      echo "flake_retry_cycle"
       cd /home/mdz-axolotl/Clones/hKask && \
       cargo test -p hkask-mcp-docproc --lib -- kindle 2>&1 | \
-      grep -q "test result: ok" && echo "retry_pass" || echo "retry_fail"
+      grep -q "test result: ok" && echo "RETRY_PASS" || echo "RETRY_FAIL"
     retries: 0
     max_iterations: 3
     branching:
-      success: 6
-      loop_exhausted: 7
-    default_next: 6
+      success: 5
+      loop_exhausted: 35
+    default_next: 5
 
-  # ── Step 11: Corpus Generation Simulation ──────────────────────────────
+  # ── Terminal 30: Infrastructure missing — no books can be extracted ─────
 
-  - ordinal: 11
+  - ordinal: 30
     action: run_command
-    description: "Simulate corpus generation across search terms — produces metadata stubs"
+    description: "ABORT: Required infrastructure not available"
     command: |
-      echo "=== Simulated Corpus Generation ==="
-      OUTPUT="${OUTPUT_BASE:-$HOME/Clones/Library/Knowledge}"
-      CORPUS="${CORPUS_SIZE:-5}"
-      TERMS_STR="${SEARCH_TERMS:-knowledge graphs,knowledge production,semantics,pragmatics,essentialism,autopoietic,autopoiesis}"
-      echo "Search terms: $TERMS_STR"
-      echo "Corpus size: $CORPUS"
-      BOOK_COUNT=0
-      echo "$TERMS_STR" | tr ',' '\n' | while read -r term; do
-        if [ $BOOK_COUNT -ge $CORPUS ]; then break; fi
-        SAFE_TERM=$(echo "$term" | tr ' ' '_' | tr '[:upper:]' '[:lower:]')
-        BOOK_DIR="$OUTPUT/$SAFE_TERM"
-        BOOK_COUNT=$((BOOK_COUNT + 1))
-        echo "--- Book $BOOK_COUNT: $term ---"
-        mkdir -p "$BOOK_DIR"
-        echo "ASIN: SIMULATED_${SAFE_TERM}" > "$BOOK_DIR/metadata.txt"
-        echo "Title: $term" >> "$BOOK_DIR/metadata.txt"
-      done
-      FINAL=$(find "$OUTPUT" -name "metadata.txt" 2>/dev/null | wc -l)
-      echo "corpus_generation_complete books=$FINAL"
-    retries: 1
-    branching:
-      success: 12
-      failure: 24
-    default_next: 12
-
-  # ── Step 12: Output Structure Validation ───────────────────────────────
-
-  - ordinal: 12
-    action: run_command
-    description: "Validate output directory structure — metadata.txt with ASIN and Title"
-    command: |
-      echo "=== Output Structure Validation ==="
-      OUTPUT="${OUTPUT_BASE:-$HOME/Clones/Library/Knowledge}"
-      ISSUES=0
-
-      if [ ! -d "$OUTPUT" ]; then
-        echo "FAIL: Output directory $OUTPUT does not exist"
-        ISSUES=$((ISSUES + 1))
-      fi
-
-      ENTRY_COUNT=$(find "$OUTPUT" -name "metadata.txt" 2>/dev/null | wc -l)
-      echo "Corpus entries found: $ENTRY_COUNT"
-
-      find "$OUTPUT" -name "metadata.txt" 2>/dev/null | while read -r f; do
-        if grep -q "ASIN:" "$f" && grep -q "Title:" "$f"; then
-          echo "  VALID: $f"
-        else
-          echo "  INVALID: $f (missing ASIN or Title)"
-        fi
-      done
-
-      if [ $ISSUES -eq 0 ]; then
-        echo "structure_validation_pass entries=$ENTRY_COUNT"
-      else
-        echo "structure_validation_fail issues=$ISSUES"
-      fi
-    retries: 1
-    branching:
-      success: 13
-      failure: 24
-    default_next: 13
-
-  # ── Step 13: Format Completeness Check ─────────────────────────────────
-
-  - ordinal: 13
-    action: run_command
-    description: "Verify each requested export format produces valid output"
-    command: |
-      echo "=== Format Completeness Check ==="
-      FORMATS="${EXPORT_FORMATS:-pdf,epub}"
-      ALL_PRESENT=true
-      echo "$FORMATS" | tr ',' '\n' | while read -r fmt; do
-        echo "Checking format: $fmt"
-        case "$fmt" in
-          pdf)
-            cd /home/mdz-axolotl/Clones/hKask && \
-            cargo test -p hkask-mcp-docproc --lib -- valid_pdf_header 2>&1 | \
-            grep -q "test result: ok" && echo "  PDF VALID" || { echo "  PDF INVALID"; ALL_PRESENT=false; }
-            ;;
-          epub)
-            cd /home/mdz-axolotl/Clones/hKask && \
-            cargo test -p hkask-mcp-docproc --lib -- epub_has_correct_mimetype 2>&1 | \
-            grep -q "test result: ok" && echo "  EPUB VALID" || { echo "  EPUB INVALID"; ALL_PRESENT=false; }
-            ;;
-          markdown)
-            cd /home/mdz-axolotl/Clones/hKask && \
-            cargo test -p hkask-mcp-docproc --lib -- export_markdown_has_headings 2>&1 | \
-            grep -q "test result: ok" && echo "  MARKDOWN VALID" || { echo "  MARKDOWN INVALID"; ALL_PRESENT=false; }
-            ;;
-          txt)
-            cd /home/mdz-axolotl/Clones/hKask && \
-            cargo test -p hkask-mcp-docproc --lib -- export_txt_format 2>&1 | \
-            grep -q "test result: ok" && echo "  TXT VALID" || { echo "  TXT INVALID"; ALL_PRESENT=false; }
-            ;;
-        esac
-      done
-      if $ALL_PRESENT; then
-        echo "format_completeness_pass"
-      else
-        echo "format_completeness_fail"
-      fi
-    retries: 1
-    branching:
-      success: 14
-      failure: 24
-    default_next: 14
-
-  # ── Step 14: Parameter Variation Loop ──────────────────────────────────
-
-  - ordinal: 14
-    action: loop
-    description: "Iterate through parameter variations: corpus size (1→3→5), formats (pdf→pdf+epub→all)"
-    command: |
-      ITER=${QA_ITERATION:-1}
-      echo "=== Parameter Variation Iteration $ITER of 3 ==="
-
-      case $ITER in
-        1)
-          export CORPUS_SIZE=1
-          export EXPORT_FORMATS="pdf"
-          echo "Config: corpus=1, formats=pdf"
-          ;;
-        2)
-          export CORPUS_SIZE=3
-          export EXPORT_FORMATS="pdf,epub"
-          echo "Config: corpus=3, formats=pdf+epub"
-          ;;
-        3)
-          export CORPUS_SIZE=5
-          export EXPORT_FORMATS="pdf,epub,markdown,txt"
-          echo "Config: corpus=5, formats=all"
-          ;;
-      esac
-
-      cd /home/mdz-axolotl/Clones/hKask && \
-      cargo test -p hkask-mcp-docproc --test kindle_zip_integration -- \
-        export_formats_all_outputs 2>&1 | tail -3 | \
-        tee "/tmp/kindle-zip-iteration-$ITER.log"
-
-      grep -q "test result: ok" "/tmp/kindle-zip-iteration-$ITER.log" && \
-      echo "iteration_${ITER}_pass" || \
-      echo "iteration_${ITER}_fail"
-    retries: 0
-    max_iterations: 3
-    branching:
-      success: 15
-      loop_exhausted: 24
-    default_next: 15
-
-  # ── Step 15: CNS Span Verification ─────────────────────────────────────
-
-  - ordinal: 15
-    action: run_command
-    description: "Verify CNS span targets appear in test output logs"
-    command: |
-      echo "=== CNS Span Verification ==="
-      TARGETS="cns.pipeline.kindle-zip.extract cns.pipeline.kindle-zip.transcribe cns.pipeline.kindle-zip.export cns.pipeline.kindle-zip.capture cns.pipeline.kindle-zip.selector"
-
-      FOUND=0
-      MISSING=0
-      for target in $TARGETS; do
-        if grep -rq "$target" /tmp/kindle-zip-*.log 2>/dev/null; then
-          FOUND=$((FOUND + 1))
-        else
-          echo "  CNS target not observed: $target"
-          MISSING=$((MISSING + 1))
-        fi
-      done
-
-      echo "CNS spans found: $FOUND, missing: $MISSING"
-      if [ $MISSING -le 2 ]; then
-        echo "cns_verification_pass found=$FOUND missing=$MISSING"
-      else
-        echo "cns_verification_fail found=$FOUND missing=$MISSING"
-      fi
-    retries: 1
-    branching:
-      success: 16
-      failure: 25
-    default_next: 16
-
-  # ── Step 16: Final Summary ─────────────────────────────────────────────
-
-  - ordinal: 16
-    action: run_command
-    description: "Print final summary with all test results and corpus configuration"
-    command: |
+      echo "[QA-ABORT] Cannot extract Kindle books — infrastructure missing."
+      echo "Requirements:"
+      echo "  - Chrome/Chromium (for Kindle Cloud Reader automation)"
+      echo "  - DEEPINFRA_API_KEY (for vision LLM OCR)"
+      echo "  - AMAZON_EMAIL + AMAZON_PASSWORD (for Kindle login)"
       echo ""
-      echo "============================================================"
-      echo "     Kindle-Zip QA — Corpus Generation Complete"
-      echo "============================================================"
-      echo " Output: ${OUTPUT_BASE:-$HOME/Clones/Library/Knowledge}"
-      echo " Corpus size: ${CORPUS_SIZE:-5}"
-      echo " Formats: ${EXPORT_FORMATS:-pdf,epub}"
-      echo " Search terms: ${SEARCH_TERMS:-knowledge graphs,knowledge production,semantics,pragmatics,essentialism,autopoietic,autopoiesis}"
-      echo "------------------------------------------------------------"
-      echo " Test results:"
-      grep -h "test result:" /tmp/kindle-zip-*.log 2>/dev/null | sort -u | while read -r line; do
-        echo "   $line"
-      done
-      echo "============================================================"
-      echo "qa_complete"
-    retries: 1
+      echo "To run a degraded validation (logic tests only, no extraction):"
+      echo "  Set QA_DEGRADED=true"
+      echo ""
+      echo "To extract real books, set all required env vars and install Chrome."
+      exit 1
+    retries: 0
     default_next: 0
 
-  # ── Terminal 20: Environment Failure ───────────────────────────────────
+  # ── Terminal 31: Unit test failure ─────────────────────────────────────
 
-  - ordinal: 20
+  - ordinal: 31
     action: run_command
-    description: "Terminal: environment setup failure"
+    description: "ABORT: Unit tests failed"
+    command: |
+      echo "[QA-ABORT] Unit tests failed — pipeline logic is broken."
+      tail -20 /tmp/kindle-zip-unit-tests.log 2>/dev/null
+    retries: 0
+    default_next: 0
+
+  # ── Terminal 32: Integration test failure ──────────────────────────────
+
+  - ordinal: 32
+    action: run_command
+    description: "ABORT: Integration tests failed"
+    command: |
+      echo "[QA-ABORT] Integration tests failed."
+      tail -20 /tmp/kindle-zip-integration-tests.log 2>/dev/null
+    retries: 0
+    default_next: 0
+
+  # ── Terminal 33: Format generation broken ──────────────────────────────
+
+  - ordinal: 33
+    action: run_command
+    description: "ABORT: Format generation tests failed"
+    command: |
+      echo "[QA-ABORT] Format generation is broken — cannot produce valid PDF/EPUB/MD."
+      tail -20 /tmp/kindle-zip-format-tests.log 2>/dev/null
+    retries: 0
+    default_next: 0
+
+  # ── Terminal 34: Classifier unavailable — cannot validate ───────────────
+
+  - ordinal: 34
+    action: run_command
+    description: "DEGRADED: Classifier unavailable — output quality not validated"
     command: >
-      echo "[QA-ABORT] Environment setup failed — cannot create output directory.
-      Check permissions for ${OUTPUT_BASE:-$HOME/Clones/Library/Knowledge}"
+      echo "[QA-DEGRADED] Classifier returned unparseable result.
+      Output quality CANNOT be validated — set DEEPINFRA_API_KEY to enable."
     retries: 0
     default_next: 0
 
-  # ── Terminal 21: Unit Test Failure ─────────────────────────────────────
+  # ── Terminal 35: Flake loop exhausted ──────────────────────────────────
 
-  - ordinal: 21
+  - ordinal: 35
     action: run_command
-    description: "Terminal: unit test failure — abort pipeline"
-    command: |
-      echo "[QA-FAIL] Unit test gate failed — pipeline logic may be broken."
-      echo "Review /tmp/kindle-zip-unit-tests.log"
-      cat /tmp/kindle-zip-unit-tests.log 2>/dev/null | tail -30
-    retries: 0
-    default_next: 0
-
-  # ── Terminal 22: Integration Test Failure ──────────────────────────────
-
-  - ordinal: 22
-    action: run_command
-    description: "Terminal: integration test failure"
-    command: |
-      echo "[QA-FAIL] Integration test gate failed."
-      echo "Review /tmp/kindle-zip-integration-tests.log"
-      cat /tmp/kindle-zip-integration-tests.log 2>/dev/null | tail -30
-    retries: 0
-    default_next: 0
-
-  # ── Terminal 23: Format/Edge Case Failure ──────────────────────────────
-
-  - ordinal: 23
-    action: run_command
-    description: "Terminal: format or edge case test failure"
-    command: |
-      echo "[QA-FAIL] Format matrix or edge case test failed."
-      for log in /tmp/kindle-zip-format-matrix.log /tmp/kindle-zip-edge-cases.log; do
-        echo "=== $log ==="
-        tail -10 "$log" 2>/dev/null
-      done
-    retries: 0
-    default_next: 0
-
-  # ── Terminal 24: Corpus/Structure Failure ──────────────────────────────
-
-  - ordinal: 24
-    action: run_command
-    description: "Terminal: corpus or structure validation failure"
-    command: |
-      echo "[QA-FAIL] Corpus generation or structure validation failed."
-      OUTPUT="${OUTPUT_BASE:-$HOME/Clones/Library/Knowledge}"
-      echo "Output directory: $OUTPUT"
-      ls -la "$OUTPUT" 2>/dev/null || echo "(directory missing)"
-    retries: 0
-    default_next: 0
-
-  # ── Terminal 25: CNS Verification Warning ──────────────────────────────
-
-  - ordinal: 25
-    action: run_command
-    description: "Terminal: CNS span verification warning"
+    description: "ABORT: Flake retry loop exhausted"
     command: >
-      echo "[QA-WARN] CNS span verification found missing targets.
-      This may indicate tracing infrastructure issues rather than pipeline bugs.
-      Check that tracing subscriber is configured and CNS pipeline targets are registered."
+      echo "[QA-ABORT] Flaky failures persisted after 3 retries.
+      This may indicate an intermittent infrastructure issue."
     retries: 0
     default_next: 0

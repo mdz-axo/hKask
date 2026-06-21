@@ -223,11 +223,14 @@ impl AgentPod {
         let ocap_secret = derive_ocap_secret(&persona.webid())?;
 
         // Use first capability from persona, or default to "tool:execute".
-        // The default is the canonical literal; persona capabilities are user-supplied.
         let default_capability = "tool:execute".to_string();
         let capability_str = persona.capabilities.first().unwrap_or(&default_capability);
         let spec = CapabilitySpec::parse(capability_str).unwrap_or_else(|_| {
-            // Malformed user-supplied capability — fall back to safe default.
+            tracing::warn!(
+                target: "cns.capability",
+                capability = %capability_str,
+                "Malformed capability — falling back to 'tool:execute'"
+            );
             CapabilitySpec::parse(&default_capability)
                 .expect("Default capability 'tool:execute' must always parse")
         });
