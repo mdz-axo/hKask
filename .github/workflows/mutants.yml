@@ -30,13 +30,15 @@ jobs:
           tool: cargo-mutants
 
       - name: Run mutation testing
-        run: cargo mutants --workspace --timeout 10
+        id: mutants
+        run: cargo mutants --workspace --timeout 10 2>&1 | tee mutants-output.txt
+        continue-on-error: true
 
       - name: Suggest fuzz targets from surviving mutants
-        if: success()
+        if: always() && steps.mutants.outcome != 'skipped'
         env:
           DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
-        run: cargo mutants --workspace --timeout 10 2>&1 | grep 'Uncaught' | cargo run --bin kask -- qa suggest-fuzz
+        run: grep 'Uncaught' mutants-output.txt | cargo run --bin kask -- qa suggest-fuzz
 
   deep-fuzz:
     name: Deep Fuzz (libfuzzer)

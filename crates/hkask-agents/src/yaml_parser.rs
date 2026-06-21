@@ -166,8 +166,21 @@ impl RawYamlAgent {
     }
 
     fn into_agent_definition(self) -> Result<AgentDefinition, String> {
-        let header = self
-            .header()
+        // Destructure self into locals to avoid borrow conflicts
+        let RawYamlAgent {
+            agent,
+            bot,
+            charter,
+            capabilities,
+            rights,
+            responsibilities,
+            persona,
+            depends_on,
+            process_manifest,
+        } = self;
+
+        let header = agent
+            .or(bot)
             .ok_or_else(|| "No 'agent:' or 'bot:' section in YAML".to_string())?;
         let agent_kind = AgentKind::parse(&header.agent_type)
             .ok_or_else(|| format!("Unknown agent type '{}'", header.agent_type))?;
@@ -175,23 +188,23 @@ impl RawYamlAgent {
         Ok(AgentDefinition {
             name: header.name,
             agent_kind,
-            charter: self.charter.map(|c| Charter {
+            charter: charter.map(|c| Charter {
                 description: c.description,
                 archetype: c.archetype,
                 visibility: c.visibility,
             }),
-            capabilities: self.capabilities,
-            rights: Self::convert_rights(self.rights),
-            responsibilities: Self::convert_responsibilities(self.responsibilities),
-            persona: self.persona.map(|p| PersonaConstraints {
+            capabilities,
+            rights: Self::convert_rights(rights),
+            responsibilities: Self::convert_responsibilities(responsibilities),
+            persona: persona.map(|p| PersonaConstraints {
                 tone: p.tone,
                 verbosity: p.verbosity,
                 formatting: p.formatting,
                 forbidden: p.forbidden,
                 required: p.required,
             }),
-            depends_on: self.depends_on,
-            process_manifest: self.process_manifest,
+            depends_on,
+            process_manifest,
             voice_description: header.voice_description,
             voice_id: header.voice_id,
         })

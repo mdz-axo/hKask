@@ -179,7 +179,20 @@ impl RawYamlAgent {
         self,
         source_path: &str,
     ) -> Result<AgentDefinition, RegistryLoaderError> {
-        let header = self.header().ok_or_else(|| {
+        // Destructure self into locals to avoid borrow conflicts
+        let RawYamlAgent {
+            agent,
+            bot,
+            charter,
+            capabilities,
+            rights,
+            responsibilities,
+            persona,
+            depends_on,
+            process_manifest,
+        } = self;
+
+        let header = agent.or(bot).ok_or_else(|| {
             RegistryLoaderError::InvalidDefinition(format!(
                 "No 'agent:' or 'bot:' section in {}",
                 source_path
@@ -192,33 +205,28 @@ impl RawYamlAgent {
             ))
         })?;
 
-        // Extract header fields before moving out of self (borrow checker)
-        let _voice_description = header.voice_description.clone();
-        let _voice_id = header.voice_id.clone();
-        let header_name = header.name.clone();
-
         Ok(AgentDefinition {
-            name: header_name,
+            name: header.name,
             agent_kind,
-            charter: self.charter.map(|c| Charter {
+            charter: charter.map(|c| Charter {
                 description: c.description,
                 archetype: c.archetype,
                 visibility: c.visibility,
             }),
-            capabilities: self.capabilities,
-            rights: Self::convert_rights(self.rights),
-            responsibilities: Self::convert_responsibilities(self.responsibilities),
-            persona: self.persona.map(|p| PersonaConstraints {
+            capabilities,
+            rights: Self::convert_rights(rights),
+            responsibilities: Self::convert_responsibilities(responsibilities),
+            persona: persona.map(|p| PersonaConstraints {
                 tone: p.tone,
                 verbosity: p.verbosity,
                 formatting: p.formatting,
                 forbidden: p.forbidden,
                 required: p.required,
             }),
-            depends_on: self.depends_on,
-            process_manifest: self.process_manifest,
-            voice_description: _voice_description,
-            voice_id: _voice_id,
+            depends_on,
+            process_manifest,
+            voice_description: header.voice_description,
+            voice_id: header.voice_id,
         })
     }
 }
