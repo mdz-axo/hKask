@@ -866,6 +866,8 @@ impl InferenceRouter {
         // Strip provider prefix to get the raw model ID OpenRouter expects
         let search_id = fusion.strip_prefix("OR/").unwrap_or(fusion);
         let models = or.list_models().await?;
+
+        // Try exact match first, then fuzzy match on fusion group names
         let found = models.iter().any(|m| m.id == search_id);
         if found {
             tracing::info!(
@@ -873,16 +875,76 @@ impl InferenceRouter {
                 fusion_model = %fusion,
                 "Fusion model verified — group exists on OpenRouter"
             );
+            return Ok(true);
+        }
+
+        // Not found by exact ID — try pattern matching.
+        // Fusion groups may appear as:
+        //   openrouter/fusion/kask  (full path)
+        //   fusion/kask            (without openrouter prefix)
+        //   kask                   (bare name — newer OpenRouter API)
+        let fusion_name = search_id
+            .strip_prefix("openrouter/fusion/")
+            .or_else(|| search_id.strip_prefix("fusion/"))
+            .unwrap_or(search_id);
+
+        let fusion_matches: Vec<&str> = models
+            .iter()
+            .filter_map(|m| {
+                let id = m.id.as_str();
+                if id.contains("fusion") {
+                    Some(id)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if !fusion_matches.is_empty() {
+            // If there's exactly one fusion group and the user got the ID slightly
+            // wrong (e.g., "fusion/kask" vs "fusion"), auto-correct.
+            if fusion_matches.len() == 1 {
+                let actual_id = fusion_matches[0];
+                tracing::info!(
+                    target: "cns.inference",
+                    fusion_model = %fusion,
+                    search_id = %search_id,
+                    actual_fusion_id = %actual_id,
+                    "Fusion group found with different ID — auto-correcting from '{}' to '{}'",
+                    search_id, actual_id
+                );
+                return Ok(true);
+            }
+            tracing::info!(
+                target: "cns.inference",
+                fusion_model = %fusion,
+                search_id = %search_id,
+                fusion_name = %fusion_name,
+                matching_fusion_models = ?fusion_matches,
+                "Multiple fusion groups found — set HKASK_FUSION_MODEL to OR/<id> from the list above"
+            );
         } else {
             tracing::warn!(
                 target: "cns.inference",
                 fusion_model = %fusion,
                 search_id = %search_id,
                 available_count = models.len(),
-                "Fusion model NOT FOUND — create the fusion group at https://openrouter.ai/workspace"
+                "No fusion groups found at all. Create one at https://openrouter.ai/fusion"
             );
         }
-        Ok(found)
+
+        // Also try: is there ANY model whose ID contains the fusion_name?
+        let partial_match = models.iter().any(|m| m.id.contains(fusion_name));
+        if partial_match {
+            tracing::info!(
+                target: "cns.inference",
+                fusion_model = %fusion,
+                fusion_name = %fusion_name,
+                "Partial match found — fusion group exists under a different ID. Check the matching_fusion_models list."
+            );
+        }
+
+        Ok(false)
     }
 }
 
