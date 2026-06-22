@@ -9,6 +9,10 @@ description = "hKask MCP Communication — thin MCP wrapper over core communicat
 name = "hkask_mcp_communication"
 path = "src/lib.rs"
 
+[[bin]]
+name = "hkask-mcp-communication"
+path = "src/main.rs"
+
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }

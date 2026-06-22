@@ -9,6 +9,10 @@ description = "Company financial data MCP server — FMP + EODHD dual-provider i
 name = "hkask_mcp_companies"
 path = "src/lib.rs"
 
+[[bin]]
+name = "hkask-mcp-companies"
+path = "src/main.rs"
+
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }

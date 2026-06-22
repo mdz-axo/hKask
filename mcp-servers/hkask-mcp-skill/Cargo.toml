@@ -24,3 +24,9 @@ minijinja.workspace = true
 [lib]
 name = "hkask_mcp_skill"
 path = "src/lib.rs"
+
+[[bin]]
+name = "hkask-mcp-skill"
+path = "src/main.rs"
+
+[dev-dependencies]

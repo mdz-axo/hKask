@@ -25,6 +25,10 @@ dotenvy.workspace = true
 name = "hkask_mcp_memory"
 path = "src/lib.rs"
 
+[[bin]]
+name = "hkask-mcp-memory"
+path = "src/main.rs"
+
 [dev-dependencies]
 hkask-test-harness = { path = "../../crates/hkask-test-harness" }
 hkask-storage = { path = "../../crates/hkask-storage" }

@@ -9,6 +9,10 @@ description = "Web search, extraction, and feed-based research MCP server"
 name = "hkask_mcp_research"
 path = "src/lib.rs"
 
+[[bin]]
+name = "hkask-mcp-research"
+path = "src/main.rs"
+
 [dependencies]
 hkask-memory = { path = "../../crates/hkask-memory" }
 hkask-mcp = { path = "../../crates/hkask-mcp" }

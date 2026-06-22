@@ -27,6 +27,10 @@ dotenvy.workspace = true
 name = "hkask_mcp_condenser"
 path = "src/lib.rs"
 
+[[bin]]
+name = "hkask-mcp-condenser"
+path = "src/main.rs"
+
 [dev-dependencies]
 hkask-test-harness = { path = "../../crates/hkask-test-harness" }
 proptest = "1"

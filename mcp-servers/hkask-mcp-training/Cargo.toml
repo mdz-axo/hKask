@@ -9,6 +9,10 @@ description = "Model training MCP server — ingests QA pairs and training data 
 name = "hkask_mcp_training"
 path = "src/lib.rs"
 
+[[bin]]
+name = "hkask-mcp-training"
+path = "src/main.rs"
+
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }

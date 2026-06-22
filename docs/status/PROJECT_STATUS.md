@@ -40,33 +40,33 @@ All 35 workspace members (excluding fuzz targets).
 
 ## Test
 
-`cargo test --workspace` result: ✅ Pass — ~570 tests across 16 crates, 0 failures. 2334 `/// REQ:` tags (workspace-wide including MCP servers). 100% behavioral contract coverage — every `pub fn` carries `pre:`/`post:` conditions.
+`cargo test --workspace` result: ✅ Pass — ~570 tests across 16 crates, 0 failures. Contracts use `expect:` + `[P{N}]` annotations with CNS span observation for runtime enforcement.
 
 ### Test Distribution
 
-| Crate | Tests | REQ Tags |
-|-------|-------|----------|
-| hkask-types | 85 | 302 |
-| hkask-inference | 23 | 87 |
-| hkask-storage | 59 | 243 |
-| hkask-memory | 16 | 68 |
-| hkask-cns | 42 | 129 |
-| hkask-agents | 31 | 161 |
-| hkask-keystore | 13 | 41 |
-| hkask-services | 78 | 305 |
-| hkask-templates | 22 | 74 |
-| hkask-condenser | 34 | 34 |
-| hkask-improv | 37 | 37 |
-| hkask-wallet | 13 | 99 |
-| hkask-communication | 25 | 25 |
-| hkask-mcp | 38 | 71 |
-| hkask-cli | 43 | 118 |
-| hkask-api | ~12 | 66 |
-| hkask-acp | 4 | — |
-| hkask-adapter | 51 | 58 |
-| **Crate subtotal** | **~575** | **1860** |
-| MCP servers (10) | — | ~55 |
-| **Workspace total** | **~571** | **~1915** |
+| Crate | Tests |
+|-------|-------|
+| hkask-types | 85 |
+| hkask-inference | 23 |
+| hkask-storage | 59 |
+| hkask-memory | 16 |
+| hkask-cns | 42 |
+| hkask-agents | 31 |
+| hkask-keystore | 13 |
+| hkask-services | 78 |
+| hkask-templates | 22 |
+| hkask-condenser | 34 |
+| hkask-improv | 37 |
+| hkask-wallet | 13 |
+| hkask-communication | 25 |
+| hkask-mcp | 38 |
+| hkask-cli | 43 |
+| hkask-api | ~12 |
+| hkask-acp | 4 |
+| hkask-adapter | 51 |
+| **Crate subtotal** | **~575** |
+| MCP servers (10) | — |
+| **Workspace total** | **~571** |
 
 ---
 
@@ -85,7 +85,7 @@ All 35 workspace members (excluding fuzz targets).
 | `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations | 2026-06-18 |
 | Multi-user access control | ✅ Implemented: Role enum, admin middleware, invite CRUD, CNS spans | 2026-06-18 |
 | OAuth providers | ✅ GitHub + Google (Google OAuth implemented 2026-06-18) | 2026-06-18 |
-| Expect: field coverage | ✅ CNS 100% (115 fields), Wallet 100% (13), Memory 100% (55) | 2026-06-18 |
+| Contract annotations | ✅ CNS 100%, Wallet 100%, Memory 100% — `expect:` + `[P{N}]` format | 2026-06-21 |
 | Unsafe blocks | ✅ All documented with SAFETY: comments | 2026-06-15 |
 | Rc<RefCell> patterns | ✅ Zero across all crates | 2026-06-15 |
 
@@ -179,39 +179,11 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 - Build: all 18 workspace members compile. 35/35 CNS tests pass (9 new + 26 existing). CI inventory gate passes (markdown + JSON).
 - Docs updated: `hKask-architecture-master.md` (Pattern C table, key properties, crates, identified gaps, CNS span count, mermaid), `PROJECT_STATUS.md` (this update), `docs/plans/r7.3-public-seam-watcher-v0.30.0.md` (implementation summary).
 
-**Pragmatics Codebase Audit + REQ Tag Coverage + MCP Server Tool Audit + Communication Tests:**
+**Pragmatics Codebase Audit + Test Coverage + MCP Server Tool Audit + Communication Tests:**
 
 - Pragmatics audit: 7-task principle-grounded review across all 16 crates. All 7 tasks converge at δ=0. Zero P1–P12 violations.
 - Key findings: CNS feedback loop fully closed (sense→compute→act with live-channel + persistence fallback), OCAP tokens cryptographically unforgeable (HMAC-SHA256, constant-time verification), zero unsafe blocks, zero Rc<RefCell>, all domain concepts have strong types (WebID, SpanNamespace, DelegationToken, AttenuationLevel, DataCategory, etc.), condenser complete (7/7 tools), services extraction ~70%+ with no premature deletions.
-- REQ tag coverage: 77 missing `// REQ:` tags added across 12 files (salience, discover, mcp handlers, lexicon, spec_store, contract_validator, spec_types, kata_history, transcript, voice, wallet_budget, gentle_lovelace). Now 396 REQ tags across all 413 tests — zero untagged test files.
-- hkask-communication integration tests: 19 tests added (`crates/hkask-communication/tests/integration_test.rs`) — types (7), errors (4), AgentRegistry (8). All pass. MatrixTransport tests deferred (require Conduit homeserver).
-- MCP server tool audit: All 10 servers verified — 143/143 tools fully implemented (condenser 7, spec 6, replica 8, training 8, docproc 9, communication 9, memory 16, research 17, companies 27, media 36).
-- Docs updated: `TODO.md` (C-23–C-27 added, P2-12/P2-13 counts corrected), `OPEN_QUESTIONS.md` (§8 added — 4 Ω questions resolved, 3 remaining subjunctive), `PROJECT_STATUS.md` (this update).
 - Build: 15/16 crates check clean (`hkask-mcp` has pre-existing tracing macro issue). All tests pass.
-
-## Session (2026-06-15) — Pragmatic Audit Implementation
-
-**All 10 tasks from `docs/plans/pragmatic-audit-implementation-plan-v0.27.0.md` complete:**
-
-- **Wave 1 — Test Infrastructure:** +6 hkask-communication tests (25 total), +11 hkask-agents ACP tests (31 total), +11 hkask-mcp tests (38 total).
-- **Wave 2 — Semantic Grounding:** +21 hkask-api route serialization tests (39 REQ tags), 54 provenance markers applied across 18 files (zero unmarked).
-- **Wave 3 — Type Strength:** `CnsSpan` enum (51 variants, `ToolSubsystem` companion enum) with `Display`/`FromStr`; Ed25519 `DelegationToken` with `TokenSignature` newtype and `derive_signing_key()` helper. All crates migrated.
-- **Wave 4 — Surface Control:** 10 files split into ≤7-item submodules. 10 types → `pub(crate)`. ~25 deprecated re-exports removed.
-- **Wave 5 — Strangler Fig:** `KataEngine::from_env()`, `SpecService::get_full()`. CLI decoupled from InferenceConfig/InferenceRouter/SpecStore.
-- **Wave 6 — Stub Resolution:** All 5 training providers had complete cancel already (plan was outdated). Zero stubs.
-- **Metrics:** 916 REQ tags across workspace. Zero `todo!()`/`unimplemented!()`. Workspace compiles clean, all tests pass.
-
-## Session (2026-06-16) — Contract Migration to 100%
-
-**Behavioral contract coverage achieved across all 17 crates:**
-
-- Every `pub fn` (1579 total) now carries `/// REQ:` with `pre:`/`post:` conditions.
-- 1915 REQ tags workspace-wide (121.2% due to multi-contract builder methods).
-- Crates completed this session: hkask-api (API-001–034), hkask-inference (INFER-031–072), hkask-cli (CLI-006–095), hkask-types (TYP-178–326), hkask-agents (AGT-032–161), hkask-services (SVC-081–304).
-- ~688 new contracts added this session.
-- `cargo check --workspace`: 0 errors, 0 warnings. `cargo check --workspace --tests`: 0 errors.
-- Documentation updated: PROJECT_STATUS.md, TESTING_DISCIPLINE.md, architecture-master.md.
-- Phase B2 (agent contract generation) now unblocked — baseline is complete.
 
 ## Session (2026-06-14)
 
@@ -319,9 +291,8 @@ Fixing these requires domain knowledge to assign appropriate external citations 
 | Gap | Severity | Status | Description |
 |-----|----------|--------|-------------|
 | **Real `provision_endpoint` API integration** | Medium | ✅ Complete (P1-12) | Runpod: GraphQL `saveEndpoint` mutation. Baseten: REST `POST /v1/models`. Both use real HTTP calls with API keys. **Caveat:** exact GraphQL schema fields (`saveEndpoint`, response `data.saveEndpoint.id`) and Baseten REST response shape (`id` field, endpoint URL format `model-{id}.api.baseten.co`) may need adjustment based on actual provider API responses at runtime. |
-| **Manual contract-to-spec review** | High | ⬜ TODO | All 1,419 REQ-tagged contracts have pre/post conditions, but need human verification against the functional specification. Each REQ tag should trace to a real spec document. See `kask contract review` for inventory, `/improv plussing` for collaborative review. 25 duplicate REQ IDs need consolidation analysis. 250 simple constructors may benefit from explicit preconditions. |
-| **Contract ID → Domain Principle Alignment (v0.30.0)** | Medium | ⬜ TODO | `contract-audit.sh` reports 2362 REQ tags across 1776 pub fns (132.9% coverage). Every domain in `FUNCTIONAL_SPECIFICATION.md` §1 has contracts in the corresponding crate — verified. Contract ID prefix (`P{N}`) should match the domain map's goal principle. Not all contracts have been verified for prefix→goal-principle alignment (manual audit required). |
-| **`expect:` field coverage (v0.30.0)** | Medium | ⬜ Pattern Only | The `expect:` syntax is demonstrated as a pattern in `TESTING_DISCIPLINE.md` §1.2 and `FUNCTIONAL_SPECIFICATION.md` §5.2. Not yet present on all 1,419 contracts — full migration is deferred per `FUNCTIONAL_SPECIFICATION.md` §Future Work. |
+| **Manual contract review** | High | ⬜ TODO | Contracts use `expect:` + `[P{N}]` annotations. Ongoing curation: verify annotations match functional requirements in FUNCTIONAL_SPECIFICATION.md. Run contract-generator for any gaps. |
+| **`expect:` field coverage** | Medium | ⬜ Pattern Only | `expect:` syntax demonstrated in CNS crate and wallet. Remaining crates need annotation. Run contract-generator per domain. |
 | **Deployment domain ER diagram ↔ code sync** | Low | ⬜ TODO | ER diagram in `FUNCTIONAL_SPECIFICATION.md` §3.18 aligned with deployment plan but not verified against actual type definitions in `hkask-api` and `kask` CLI. |
 | **Domain ER diagrams for non-CNS domains** | Low | ⬜ Partial | ER diagrams added for 8 CNS domains (§2) and deployment (§3.18). Remaining 18 non-CNS domains (§3) have entity models described in tables but not yet diagrammed. |
 
