@@ -23,34 +23,34 @@ gas:
   hard_limit: true
 
 steps:
-  # Step 1: Call condenser_ping — no dependencies
+  # Step 1: Call skill_ping — skill server starts fast, no heavy deps
   - ordinal: 1
     action: mcp_tool
-    tool_name: condenser_ping
+    tool_name: skill_ping
     tool_params: "{}"
-    description: "Call condenser_ping via MCP dispatch"
+    description: "Call skill_ping via MCP dispatch"
     retries: 0
     branching:
       success: 2
       failure: 5
 
-  # Step 2: Call episodic_ping — memory server, no dependencies
+  # Step 2: Call kanban_board_list — kanban starts fast
   - ordinal: 2
     action: mcp_tool
-    tool_name: episodic_ping
+    tool_name: kanban_board_list
     tool_params: "{}"
-    description: "Call episodic_ping via MCP dispatch"
+    description: "Call kanban_board_list via MCP dispatch"
     retries: 0
     branching:
       success: 3
       failure: 6
 
-  # Step 3: Call skill_ping — skill server, no dependencies
+  # Step 3: Call condener_ping (may need model download)
   - ordinal: 3
     action: mcp_tool
-    tool_name: skill_ping
+    tool_name: condenser_ping
     tool_params: "{}"
-    description: "Call skill_ping via MCP dispatch"
+    description: "Call condenser_ping via MCP dispatch"
     retries: 0
     branching:
       success: 4
@@ -59,32 +59,32 @@ steps:
   # Step 4: PASS
   - ordinal: 4
     action: run_command
-    command: "echo '[QA:mcp-dispatch] PASS — condenser_ping, episodic_ping, skill_ping all dispatched successfully'"
+    command: "echo '[QA:mcp-dispatch] PASS — skill_ping, kanban_board_list, condenser_ping all dispatched successfully'"
     description: "All MCP tool dispatch calls succeeded"
     retries: 0
     terminal: true
 
-  # Step 5: condenser_ping failed
+  # Step 5: skill_ping failed
   - ordinal: 5
-    action: run_command
-    command: "echo '[QA:mcp-dispatch] FAIL — condenser_ping dispatch failed'"
-    description: "condenser_ping MCP dispatch failure"
-    retries: 0
-    terminal: true
-
-  # Step 6: episodic_ping failed
-  - ordinal: 6
-    action: run_command
-    command: "echo '[QA:mcp-dispatch] FAIL — episodic_ping dispatch failed'"
-    description: "episodic_ping MCP dispatch failure"
-    retries: 0
-    terminal: true
-
-  # Step 7: skill_ping failed
-  - ordinal: 7
     action: run_command
     command: "echo '[QA:mcp-dispatch] FAIL — skill_ping dispatch failed'"
     description: "skill_ping MCP dispatch failure"
+    retries: 0
+    terminal: true
+
+  # Step 6: kanban_board_list failed
+  - ordinal: 6
+    action: run_command
+    command: "echo '[QA:mcp-dispatch] FAIL — kanban_board_list dispatch failed'"
+    description: "kanban_board_list MCP dispatch failure"
+    retries: 0
+    terminal: true
+
+  # Step 7: condenser_ping failed
+  - ordinal: 7
+    action: run_command
+    command: "echo '[QA:mcp-dispatch] FAIL — condenser_ping dispatch failed'"
+    description: "condenser_ping MCP dispatch failure"
     retries: 0
     terminal: true
 

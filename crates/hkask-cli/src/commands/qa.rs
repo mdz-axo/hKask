@@ -391,6 +391,12 @@ fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         // Pre-condition: server binaries must be built (cargo build --bin ...).
         // Failed server startups are non-fatal — the closure returns an error
         // for tools on unstarted servers, and the QA script handles the failure branch.
+        //
+        // A persistent Tokio runtime keeps background tasks alive for the
+        // lifetime of the script execution. Server connections are established
+        // sequentially (no parallelism needed — rmcp handshakes are fast).
+        let server_rt = tokio::runtime::Runtime::new()
+            .map_err(|e| format!("Failed to create server runtime: {}", e))?;
         let mcp_runtime = McpRuntime::new();
 
         // Server registry: server_id → binary name (relative to target/debug/)
@@ -409,98 +415,123 @@ fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
             ("training", "hkask-mcp-training"),
         ]);
 
-        // Start all servers. Best-effort: warn on failures, continue.
-        // Each server is spawned as a child process and connected via rmcp stdio.
-        for (&server_id, &binary_name) in &servers {
-            let bin_path = format!("./target/debug/{}", binary_name);
-            let rt_clone = mcp_runtime.clone();
-            let sid = server_id.to_string();
-            let bp = bin_path.clone();
+        // Start all servers on the persistent runtime.
+        // Sequential startup is fine — rmcp handshake takes <1s per server.
+        let mut started = 0usize;
+        let mut failed = 0usize;
+        server_rt.block_on(async {
+            for (&server_id, &binary_name) in &servers {
+                let bin_path = format!("./target/debug/{}", binary_name);
+                match mcp_runtime.start_server(server_id, &bin_path).await {
+                    Ok(()) => {
+                        started += 1;
+                        let tools = mcp_runtime.discover_tools().await;
+                        tracing::info!(
+                            target: "cns.qa.mcp",
+                            server = %server_id,
+                            tools = tools.len(),
+                            "MCP server started for QA runner"
+                        );
+                    }
+                    Err(e) => {
+                        failed += 1;
+                        tracing::warn!(
+                            target: "cns.qa.mcp",
+                            server = %server_id,
+                            error = %e,
+                            "MCP server failed to start — tools on this server will be unavailable"
+                        );
+                    }
+                }
+            }
+        });
+        println!(
+            "[QA] MCP servers: {} started, {} failed (of {} total)",
+            started,
+            failed,
+            servers.len()
+        );
 
-            // Spawn each server on a dedicated thread to parallelize startup
-            std::thread::spawn(move || {
-                let server_rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("MCP server runtime");
-                server_rt.block_on(async move {
-                    match rt_clone.start_server(&sid, &bp).await {
-                        Ok(()) => {
-                            let tools = rt_clone.discover_tools().await;
-                            tracing::info!(
-                                target: "cns.qa.mcp",
-                                server = %sid,
-                                tools = tools.len(),
-                                "MCP server started for QA runner"
+        // Verify dispatch works in-situ on server_rt
+        server_rt.block_on(async {
+            let ping_tools = ["skill_ping", "kanban_board_list", "condenser_ping"];
+            for tool in &ping_tools {
+                if let Some(info) = mcp_runtime.get_tool_info(tool).await {
+                    let result = mcp_runtime
+                        .call_tool(&info.server_id, tool, serde_json::Map::new())
+                        .await;
+                    match result {
+                        Ok(r) => {
+                            let text: String = r
+                                .content
+                                .iter()
+                                .filter_map(|c| match &**c {
+                                    rmcp::model::RawContent::Text(t) => Some(t.text.as_str()),
+                                    _ => None,
+                                })
+                                .collect::<Vec<_>>()
+                                .join("\n");
+                            println!(
+                                "[QA] Dispatch verify: {} → OK ({})",
+                                tool,
+                                &text[..text.len().min(80)]
                             );
+                            break;
                         }
                         Err(e) => {
-                            tracing::warn!(
-                                target: "cns.qa.mcp",
-                                server = %sid,
-                                error = %e,
-                                "MCP server failed to start — tools on this server will be unavailable"
-                            );
+                            println!("[QA] Dispatch verify: {} → ERR: {}", tool, e);
                         }
                     }
-                });
-            });
-        }
+                }
+            }
+        });
 
-        // Give servers time to start (parallel spawn + rmcp handshake)
-        std::thread::sleep(std::time::Duration::from_secs(3));
+        let server_rt = std::sync::Arc::new(server_rt);
 
         let tool_invoke = move |tool_name: &str, params: &str| -> Result<String, String> {
             let tool = tool_name.to_string();
             let p = params.to_string();
             let rt = mcp_runtime.clone();
-            std::thread::spawn(move || {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .map_err(|e| format!("Tool runtime: {}", e))?
-                    .block_on(async move {
-                        // Resolve tool → server
-                        let tool_info = rt.get_tool_info(&tool).await.ok_or_else(|| {
-                            format!("Tool '{}' not found in any registered MCP server", tool)
-                        })?;
+            let srt = server_rt.clone();
+            srt.block_on(async move {
+                // Resolve tool → server
+                let tool_info = rt.get_tool_info(&tool).await.ok_or_else(|| {
+                    format!("Tool '{}' not found in any registered MCP server", tool)
+                })?;
 
-                        // Parse params as JSON object
-                        let params_val: serde_json::Value = serde_json::from_str(&p)
-                            .unwrap_or(serde_json::Value::Object(Default::default()));
-                        let args = match params_val {
-                            serde_json::Value::Object(map) => map,
-                            _ => serde_json::Map::new(),
-                        };
+                // Parse params as JSON object
+                let params_val: serde_json::Value = serde_json::from_str(&p)
+                    .unwrap_or(serde_json::Value::Object(Default::default()));
+                let args = match params_val {
+                    serde_json::Value::Object(map) => map,
+                    _ => serde_json::Map::new(),
+                };
 
-                        // Dispatch through MCP protocol
-                        let result = rt
-                            .call_tool(&tool_info.server_id, &tool, args)
-                            .await
-                            .map_err(|e| format!("MCP call '{}' failed: {}", tool, e))?;
+                // Dispatch through MCP protocol
+                let result = rt
+                    .call_tool(&tool_info.server_id, &tool, args)
+                    .await
+                    .map_err(|e| format!("MCP call '{}' failed: {}", tool, e))?;
 
-                        // Extract text content from CallToolResult
-                        let text: String = result
-                            .content
-                            .iter()
-                            .filter_map(|c| match &**c {
-                                rmcp::model::RawContent::Text(t) => Some(t.text.as_str()),
-                                _ => None,
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n");
-
-                        Ok(serde_json::json!({
-                            "outcome": "success",
-                            "text": text,
-                            "server": tool_info.server_id,
-                            "tool": tool
-                        })
-                        .to_string())
+                // Extract text content from CallToolResult
+                let text: String = result
+                    .content
+                    .iter()
+                    .filter_map(|c| match &**c {
+                        rmcp::model::RawContent::Text(t) => Some(t.text.as_str()),
+                        _ => None,
                     })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+
+                let output = serde_json::json!({
+                    "outcome": "success",
+                    "text": text,
+                    "server": tool_info.server_id,
+                    "tool": tool
+                });
+                Ok(output.to_string())
             })
-            .join()
-            .map_err(|_| "Tool thread panicked".to_string())?
         };
 
         let ledger_path = cost_ledger_path();
