@@ -19,6 +19,7 @@ pub use hkask_services_backup::config::{
 };
 pub use hkask_services_backup::r#loop::BackupLoop;
 pub use hkask_services_backup::metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
+pub use hkask_services_backup::pod_ops::{PodBackupCap, PodBackupOps};
 pub use hkask_services_backup::scope::ArtifactType;
 pub use hkask_services_backup::scope::{BackupScope, ListFilter, RestoreScope};
 pub use hkask_services_backup::serialization::{

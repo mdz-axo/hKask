@@ -59,24 +59,29 @@ impl ArtifactType {
     /// pre:  self must be a valid ArtifactType variant
     /// post: returns the corresponding RepoId for storage routing
     pub fn repo_id(&self) -> hkask_ports::git_cas::RepoId {
-        use hkask_ports::git_cas::RepoId;
+        use hkask_ports::git_cas::RepoId::*;
+        #[allow(clippy::match_same_arms)]
         match self {
-            ArtifactType::Template
-            | ArtifactType::Style
-            | ArtifactType::RegistryEntry
-            | ArtifactType::Settings
-            | ArtifactType::AgentArtifact
-            | ArtifactType::AgentGallery
-            | ArtifactType::AgentLibrary
-            | ArtifactType::AgentDocuments
-            | ArtifactType::AgentAdapters => RepoId::Registry,
-            ArtifactType::Goal | ArtifactType::Spec => RepoId::GoalsSpecs,
-            ArtifactType::MemoryTriple | ArtifactType::Embedding => RepoId::Memory,
-            ArtifactType::CnsAudit => RepoId::CnsAudit,
-            ArtifactType::SovereigntyManifest => RepoId::Sovereignty,
-            ArtifactType::Session => RepoId::Sessions,
-            ArtifactType::WalletState => RepoId::Vault,
-            ArtifactType::PodState => RepoId::Pods,
+            // ── Registry group (templates, styles, settings, agent artifacts) ──
+            Self::Template
+            | Self::Style
+            | Self::RegistryEntry
+            | Self::Settings
+            | Self::AgentArtifact
+            | Self::AgentGallery
+            | Self::AgentLibrary
+            | Self::AgentDocuments
+            | Self::AgentAdapters => Registry,
+            // ── Goals & specifications ──
+            Self::Goal | Self::Spec => GoalsSpecs,
+            // ── Memory ──
+            Self::MemoryTriple | Self::Embedding => Memory,
+            // ── Single-repo variants ──
+            Self::CnsAudit => CnsAudit,
+            Self::SovereigntyManifest => Sovereignty,
+            Self::Session => Sessions,
+            Self::WalletState => Vault,
+            Self::PodState => Pods,
         }
     }
 

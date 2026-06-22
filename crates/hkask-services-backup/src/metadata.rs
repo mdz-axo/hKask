@@ -29,9 +29,11 @@ pub struct SnapshotMetadata {
     /// Commit hashes produced, keyed by repository.
     pub commits: Vec<(RepoId, CommitHash)>,
     /// Total number of artifacts included in this snapshot.
-    pub artifact_count: usize,
+    /// `None` when reconstructed from log (git doesn't carry this).
+    pub artifact_count: Option<usize>,
     /// What triggered this snapshot.
-    pub trigger: SnapshotTrigger,
+    /// `None` when reconstructed from log (git doesn't carry this).
+    pub trigger: Option<SnapshotTrigger>,
     /// When the snapshot was created.
     pub timestamp: DateTime<Utc>,
 }

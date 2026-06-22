@@ -147,6 +147,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
                     communication_backpressure_threshold: communication_backpressure_threshold
                         .map(hkask_types::cns::QueueDepth::new),
                     seam_coverage_min: None,
+                    ..Default::default()
                 };
                 let updated = cns_svc.update_set_points(&config);
                 println!();

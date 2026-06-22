@@ -58,6 +58,9 @@ pub trait GitCASPort: Send + Sync {
     /// Retrieve content by its BLAKE3 hash.
     async fn get_blob(&self, repo: &RepoId, hash: &ContentHash) -> Result<Vec<u8>, GitCasError>;
 
+    /// Delete a blob by its BLAKE3 hash.
+    async fn delete_blob(&self, repo: &RepoId, hash: &ContentHash) -> Result<(), GitCasError>;
+
     /// Create a snapshot commit of all staged changes.
     async fn snapshot(&self, repo: &RepoId, message: &str) -> Result<CommitHash, GitCasError>;
 
@@ -87,6 +90,20 @@ pub trait GitCASPort: Send + Sync {
 
 // ── MockGitCas (test helper) ─────────────────────────────────────────────────
 
+/// Return the current Unix timestamp in seconds.
+#[cfg(not(target_arch = "wasm32"))]
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn now_secs() -> u64 {
+    0
+}
+
 /// In-memory mock implementation of [`GitCASPort`] for testing.
 ///
 /// Stores blobs in a `HashMap` and snapshots in a `Vec`. Does not
@@ -94,7 +111,7 @@ pub trait GitCASPort: Send + Sync {
 /// real git repository is unnecessary.
 pub struct MockGitCas {
     blobs: RwLock<HashMap<ContentHash, Vec<u8>>>,
-    snapshots: RwLock<Vec<(RepoId, String, CommitHash)>>,
+    snapshots: RwLock<Vec<(RepoId, String, CommitHash, u64)>>,
 }
 
 impl MockGitCas {
@@ -120,7 +137,9 @@ impl MockGitCas {
         self.snapshots
             .read()
             .unwrap_or_else(|e| e.into_inner())
-            .clone()
+            .iter()
+            .map(|(r, m, c, _)| (r.clone(), m.clone(), c.clone()))
+            .collect()
     }
 
     /// Return the number of blobs stored via `put_blob`.
@@ -159,6 +178,14 @@ impl GitCASPort for MockGitCas {
             .ok_or_else(|| GitCasError::NotFound(hash.to_string()))
     }
 
+    async fn delete_blob(&self, _repo: &RepoId, hash: &ContentHash) -> Result<(), GitCasError> {
+        self.blobs
+            .write()
+            .expect("MockGitCas RwLock write")
+            .remove(hash);
+        Ok(())
+    }
+
     async fn snapshot(&self, repo: &RepoId, message: &str) -> Result<CommitHash, GitCasError> {
         // Generate a deterministic commit hash from the message
         let hash_bytes = *blake3::hash(message.as_bytes()).as_bytes();
@@ -169,7 +196,12 @@ impl GitCASPort for MockGitCas {
         self.snapshots
             .write()
             .expect("MockGitCas RwLock write")
-            .push((repo.clone(), message.to_string(), commit.clone()));
+            .push((
+                repo.clone(),
+                message.to_string(),
+                commit.clone(),
+                now_secs(),
+            ));
         Ok(commit)
     }
 
@@ -225,11 +257,11 @@ impl GitCASPort for MockGitCas {
         let entries: Vec<LogEntry> = snapshots
             .iter()
             .rev() // newest first
-            .filter(|(r, _, _)| r == repo)
-            .map(|(_, message, commit)| LogEntry {
+            .filter(|(r, _, _, _)| r == repo)
+            .map(|(_, message, commit, ts)| LogEntry {
                 commit: commit.clone(),
                 message: message.clone(),
-                timestamp_secs: 0, // mock has no timestamp
+                timestamp_secs: *ts,
             })
             .take(max_count)
             .collect();

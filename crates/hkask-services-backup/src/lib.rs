@@ -11,6 +11,7 @@
 pub mod config;
 pub mod r#loop;
 pub mod metadata;
+pub mod pod_ops;
 pub mod scope;
 pub mod serialization;
 
@@ -23,6 +24,7 @@ pub use r#loop::BackupLoop;
 pub use metadata::{
     PruneReport, RevertReport, SnapshotMetadata, SnapshotTrigger, SpawnAgentReport,
 };
+pub use pod_ops::{PodBackupCap, PodBackupOps};
 pub use scope::ArtifactType;
 pub use scope::{BackupScope, ListFilter, RestoreScope};
 pub use serialization::{

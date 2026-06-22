@@ -24,10 +24,12 @@ use crate::service::BackupService;
 /// State tracked by the BackupLoop across cycles.
 #[derive(Debug, Clone, Default)]
 struct BackupLoopState {
-    /// When the last daily snapshot completed.
+    /// When the last daily snapshot completed successfully.
     last_snapshot: Option<Instant>,
     /// When the last prune completed.
     last_prune: Option<Instant>,
+    /// When the last snapshot attempt failed (for dampening).
+    last_failure: Option<Instant>,
 }
 
 /// Cybernetic loop that runs daily backup snapshots via `BackupService`.
@@ -55,18 +57,31 @@ impl BackupLoop {
         }
     }
 
-    /// Check if auto-snapshot is enabled.
+    /// Check if auto-snapshot is enabled (delegates to BackupService).
     fn auto_snapshot_enabled(&self) -> bool {
-        self.service.config().auto_snapshot
+        self.service.auto_snapshot_enabled()
     }
 
-    /// Check if a daily snapshot is due (24h since last).
+    /// Check if a daily snapshot is due (24h since last success).
+    /// Dampener: if last attempt failed within the past hour, skip.
     fn is_snapshot_due(&self) -> bool {
         let state = self.state.read();
-        match state.last_snapshot {
-            Some(instant) => instant.elapsed().as_secs() >= 86400, // 24 hours
-            None => true,                                          // Never snapshotted — do it now
+        // Dampener: don't retry for 1 hour after a failure
+        if let Some(fail) = state.last_failure {
+            if fail.elapsed().as_secs() < 3600 {
+                return false;
+            }
         }
+        match state.last_snapshot {
+            Some(instant) => instant.elapsed().as_secs() >= 86400,
+            None => true,
+        }
+    }
+
+    /// Record a failed snapshot attempt (for dampening).
+    fn record_failure(&self) {
+        let mut state = self.state.write();
+        state.last_failure = Some(Instant::now());
     }
 
     /// Record a successful snapshot.
@@ -148,14 +163,14 @@ impl HkaskLoop for BackupLoop {
             Ok(metadata) => {
                 info!(
                     target: "cns.backup",
-                    artifact_count = metadata.artifact_count,
+                    artifact_count = metadata.artifact_count.unwrap_or(0),
                     repos = metadata.commits.len(),
                     "CNS"
                 );
                 self.record_snapshot();
 
                 // Optionally verify integrity after snapshot.
-                if self.service.config().verify_after_snapshot {
+                if self.service.verify_after_snapshot_enabled() {
                     match self.service.verify().await {
                         Ok(reports) => {
                             let corrupt: usize =
@@ -179,7 +194,7 @@ impl HkaskLoop for BackupLoop {
                 }
 
                 // Run prune if retention is configured.
-                if self.service.config().retention.is_some() {
+                if self.service.retention_configured() {
                     match self.service.prune(false).await {
                         Ok(report) => {
                             info!(
@@ -207,6 +222,7 @@ impl HkaskLoop for BackupLoop {
                     error = %e,
                     "CNS"
                 );
+                self.record_failure();
             }
         }
     }

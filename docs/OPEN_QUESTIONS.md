@@ -845,15 +845,13 @@ docs/                                Exemplary corpus
 ### BKP-002: History rewriting completeness for prune
 
 **MDS Category:** Persistence  
-**Status:** Open  
-**Opened:** 2026-06-14
+**Status:** Resolved (v0.30.0)  
+**Opened:** 2026-06-14  
+**Resolved:** 2026-06-22
 
-`BackupService::rewrite_history()` creates a new commit chain with only retained commits, but does not garbage-collect the old (pruned) git objects. GIX does not currently expose `git gc`-equivalent functionality. Old objects remain in the ODB until a future GIX release supports packfile optimization and object pruning. This is a memory leak, not a correctness issue — old objects are unreferenced but not deleted.
+~~`BackupService::rewrite_history()` creates a new commit chain with only retained commits, but does not garbage-collect the old (pruned) git objects.~~
 
-**Options:**
-1. Wait for GIX to implement `gc`/`prune` functionality
-2. Manually delete unreferenced objects from `.git/objects/` after history rewrite
-3. Accept the storage overhead until GIX supports it
+**Resolution:** Added `delete_blob` to `GitCASPort` (completing CRUD). `rewrite_history` now collects ContentHashes from pruned commits, computes the set difference with retained hashes, and deletes pruned-only blobs from the CAS directory before creating the orphan commit. Pruning is now effective — orphan commits contain only retained blobs.
 
 ---
 

@@ -966,9 +966,10 @@ async fn build_loops(
     };
     let snapshot_loop = SnapshotLoop::new(Arc::clone(&git_cas_port));
     loop_system.register_loop(Arc::new(snapshot_loop)).await;
-    let backup_service = Arc::new(hkask_services_backup::BackupService::new(Arc::clone(
-        &git_cas_port,
-    )));
+    let backup_service = Arc::new(hkask_services_backup::BackupService::new(
+        Arc::clone(&git_cas_port),
+        hkask_services_backup::load_backup_config(),
+    ));
     let backup_loop = hkask_services_backup::BackupLoop::new(backup_service);
     loop_system.register_loop(Arc::new(backup_loop)).await;
 

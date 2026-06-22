@@ -16,11 +16,11 @@
 //! 5. `verify` — integrity check with CNS alerting
 //! 6. `config` — get current backup configuration
 //! 7. `update_config` — update backup configuration
-//! 8. `revert` — revert a pod to a prior snapshot with safety snapshot
-//! 9. `spawn_agent` — fork a new agent pod from a prior snapshot
+//!
+//! Pod-level operations (`revert`, `spawn_agent`) live in [`super::pod_ops::PodBackupOps`];
+//! construct via [`BackupService::pod_ops`].
 
 use std::collections::HashSet;
-use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -28,9 +28,7 @@ use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 use crate::config::{BackupConfig, EncryptionConfig, RetentionPolicy};
-use crate::metadata::{
-    PruneReport, RevertReport, SnapshotMetadata, SnapshotTrigger, SpawnAgentReport,
-};
+use crate::metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
 use crate::scope::{ArtifactType, BackupScope, ListFilter, RestoreScope};
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 use argon2::Argon2;
@@ -115,44 +113,28 @@ pub struct BackupService {
     encryption_key: Option<[u8; 32]>,
 
     /// Mutual exclusion gate — true while a mutating backup operation is running.
-    in_progress: AtomicBool,
+    in_progress: Arc<AtomicBool>,
 }
 
 impl BackupService {
-    /// Create a new backup service wrapping a CAS port.
+    /// Create a new backup service wrapping a CAS port with explicit config.
     ///
-    /// The config is loaded from disk via [`crate::config::load_backup_config`]
-    /// at construction time. Use [`Self::update_config`] to change it.
+    /// Config is provided by the caller — no hidden filesystem I/O.
+    /// Use [`crate::config::load_backup_config`] to load from disk.
     ///
     /// If an encryption passphrase is available via the `HKASK_BACKUP_PASSPHRASE`
     /// env var or OS keychain, encryption is enabled automatically.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  cas must be a valid GitCASPort
-    /// post: returns BackupService with config loaded from disk and encryption key derived if passphrase available
-    pub fn new(cas: Arc<dyn GitCASPort>) -> Self {
-        let config = crate::config::load_backup_config();
-        let encryption_key = Self::derive_key(&config);
-        Self {
-            cas,
-            config,
-            encryption_key,
-            in_progress: AtomicBool::new(false),
-        }
-    }
-
-    /// Create a new backup service with an explicit config (for testing).
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  cas must be a valid GitCASPort; config must be a valid BackupConfig
-    /// post: returns BackupService with explicit config and derived encryption key
-    pub fn with_config(cas: Arc<dyn GitCASPort>, config: BackupConfig) -> Self {
+    /// post: returns BackupService with provided config and encryption key derived if passphrase available
+    pub fn new(cas: Arc<dyn GitCASPort>, config: BackupConfig) -> Self {
         let encryption_key = Self::derive_key(&config);
         Self {
             cas,
             config,
             encryption_key,
-            in_progress: AtomicBool::new(false),
+            in_progress: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -166,45 +148,6 @@ impl BackupService {
             .hash_password_into(passphrase.as_bytes(), &salt, &mut key)
             .ok()?;
         Some(key)
-    }
-
-    /// Encrypt blob content with AES-256-GCM.
-    /// Returns (nonce_bytes || ciphertext).
-    fn encrypt_blob(&self, data: &[u8]) -> Result<Vec<u8>, BackupError> {
-        let key = self
-            .encryption_key
-            .as_ref()
-            .ok_or_else(|| BackupError::Encryption("Encryption not configured".into()))?;
-        let cipher = Aes256Gcm::new_from_slice(key)
-            .map_err(|e| BackupError::Encryption(format!("AES init: {e}")))?;
-        let mut nonce_bytes = [0u8; 12];
-        rng().fill_bytes(&mut nonce_bytes);
-        let nonce = Nonce::from_slice(&nonce_bytes);
-        let ciphertext = cipher
-            .encrypt(nonce, data)
-            .map_err(|e| BackupError::Encryption(format!("AES encrypt: {e}")))?;
-        let mut result = nonce_bytes.to_vec();
-        result.extend_from_slice(&ciphertext);
-        Ok(result)
-    }
-
-    /// Decrypt blob content.
-    /// Expects (nonce_bytes || ciphertext).
-    fn decrypt_blob(&self, data: &[u8]) -> Result<Vec<u8>, BackupError> {
-        let key = self
-            .encryption_key
-            .as_ref()
-            .ok_or_else(|| BackupError::Encryption("Encryption not configured".into()))?;
-        if data.len() < 12 {
-            return Err(BackupError::Encryption("Data too short for nonce".into()));
-        }
-        let (nonce_bytes, ciphertext) = data.split_at(12);
-        let cipher = Aes256Gcm::new_from_slice(key)
-            .map_err(|e| BackupError::Encryption(format!("AES init: {e}")))?;
-        let nonce = Nonce::from_slice(nonce_bytes);
-        cipher
-            .decrypt(nonce, ciphertext)
-            .map_err(|e| BackupError::Encryption(format!("AES decrypt: {e}")))
     }
 
     /// Acquire the backup gate. Returns `Ok(())` if no operation is in
@@ -224,6 +167,37 @@ impl BackupService {
 
     fn release_gate(&self) {
         self.in_progress.store(false, Ordering::Release);
+    }
+
+    // ── Config queries (for BackupLoop and external consumers) ───────────
+
+    /// Should the daemon loop run automatic snapshots?
+    pub fn auto_snapshot_enabled(&self) -> bool {
+        self.config.auto_snapshot
+    }
+
+    /// Should integrity verification run after each snapshot?
+    pub fn verify_after_snapshot_enabled(&self) -> bool {
+        self.config.verify_after_snapshot
+    }
+
+    /// Is a retention policy configured (should pruning run)?
+    pub fn retention_configured(&self) -> bool {
+        self.config.retention.is_some()
+    }
+
+    /// Get a clone of the mutual-exclusion gate for sharing with PodBackupOps.
+    pub fn gate(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.in_progress)
+    }
+
+    /// Create a PodBackupOps sharing this service's CAS port, encryption key, and gate.
+    pub fn pod_ops(&self) -> crate::pod_ops::PodBackupOps {
+        crate::pod_ops::PodBackupOps::new(
+            Arc::clone(&self.cas) as Arc<dyn GitCASPort>,
+            self.encryption_key,
+            self.gate(),
+        )
     }
 
     // ── Public API (9 operations) ────────────────────────────────────────
@@ -264,7 +238,7 @@ impl BackupService {
 
             // Encrypt if configured.
             let encrypted = if self.encryption_key.is_some() {
-                self.encrypt_blob(bytes)?
+                encrypt_blob(&self.encryption_key, bytes)?
             } else {
                 bytes.clone()
             };
@@ -308,8 +282,8 @@ impl BackupService {
 
         Ok(SnapshotMetadata {
             commits,
-            artifact_count,
-            trigger: SnapshotTrigger::Manual,
+            artifact_count: Some(artifact_count),
+            trigger: Some(SnapshotTrigger::Manual),
             timestamp: Utc::now(),
         })
     }
@@ -342,7 +316,7 @@ impl BackupService {
 
                 // Decrypt if encrypted.
                 let blob = if self.encryption_key.is_some() {
-                    self.decrypt_blob(&raw)?
+                    decrypt_blob(&self.encryption_key, &raw)?
                 } else {
                     raw
                 };
@@ -402,8 +376,8 @@ impl BackupService {
             for entry in entries {
                 snapshots.push(SnapshotMetadata {
                     commits: vec![(repo_id.clone(), entry.commit)],
-                    artifact_count: 0, // log doesn't give us artifact count
-                    trigger: SnapshotTrigger::Manual, // log doesn't give us trigger
+                    artifact_count: None,
+                    trigger: None,
                     timestamp: chrono::DateTime::from_timestamp(entry.timestamp_secs as i64, 0)
                         .unwrap_or_default(),
                 });
@@ -489,8 +463,8 @@ impl BackupService {
         })
     }
 
-    /// Rewrite git history: collect retained blobs, create an orphan commit
-    /// with no parent, effectively starting a new pruned history chain.
+    /// Rewrite git history: delete pruned blobs from CAS, collect retained
+    /// blobs, create an orphan commit with no parent.
     async fn rewrite_history(
         &self,
         repo_id: &RepoId,
@@ -500,24 +474,33 @@ impl BackupService {
     ) -> Result<(), BackupError> {
         let count = entries.len();
 
-        // Collect blobs from retained commits only.
+        // Collect ContentHashes from retained and pruned commits.
+        let mut retained_hashes: HashSet<hkask_ports::git_cas::ContentHash> = HashSet::new();
+        let mut pruned_hashes: HashSet<hkask_ports::git_cas::ContentHash> = HashSet::new();
+
         for (i, entry) in entries.iter().enumerate() {
             let commit_index = count - 1 - i;
-            if !policy.should_keep(commit_index, entry.timestamp_secs, now_secs) {
-                continue;
-            }
             let tree_entries = self
                 .cas
                 .list_tree(repo_id, &entry.commit.to_string(), "")
                 .await?;
-            for te in &tree_entries {
-                let blob = self.cas.get_blob(repo_id, &te.content_hash).await?;
-                self.cas.put_blob(repo_id, &blob).await?;
+            let hashes: Vec<_> = tree_entries
+                .iter()
+                .map(|te| te.content_hash.clone())
+                .collect();
+            if policy.should_keep(commit_index, entry.timestamp_secs, now_secs) {
+                retained_hashes.extend(hashes);
+            } else {
+                pruned_hashes.extend(hashes);
             }
         }
 
-        // Create an orphan commit with all retained blobs — no parent,
-        // effectively pruning old history by starting a new chain.
+        // Delete blobs that are ONLY in pruned commits (not shared with retained).
+        for hash in pruned_hashes.difference(&retained_hashes) {
+            self.cas.delete_blob(repo_id, hash).await?;
+        }
+
+        // Create an orphan commit with remaining blobs in cas/.
         let new_commit = self
             .cas
             .snapshot_orphan(repo_id, "backup: history pruned (retained snapshots)")
@@ -527,6 +510,7 @@ impl BackupService {
             target: "cns.backup",
             repo = %repo_id.dir_name(),
             new_head = %new_commit,
+            deleted = pruned_hashes.len() - retained_hashes.intersection(&pruned_hashes).count(),
             "CNS"
         );
 
@@ -646,18 +630,49 @@ impl BackupService {
     /// Run a daily backup snapshot of all tracked artifact types.
     /// Called by the backup scheduler (daemon loop).
     ///
+    /// Snapshotswhat is already in each tracked CAS repo — artifacts
+    /// are expected to be written to CAS by their owning subsystems
+    /// (registry, memory store, etc.) before the scheduler fires.
+    ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  auto_snapshot must be enabled in config
-    /// post: returns SnapshotMetadata from full snapshot; Err on snapshot failure
+    /// post: returns SnapshotMetadata from full snapshot of all tracked repos;
+    ///       Err on CAS failure
     pub async fn run_daily_snapshot(&self) -> Result<SnapshotMetadata, BackupError> {
         self.acquire_gate()?;
         let _guard = GateGuard { service: self };
         info!(target: "cns.backup", "CNS");
-        // Snapshot all tracked types. Artifact data is collected by
-        // scanning all repos for current state — the caller provides
-        // artifacts. For the scheduler, we snapshot whatever is in
-        // the CAS repos (put there by prior artifact writes).
-        self.snapshot(BackupScope::Full, &[]).await
+
+        let repos = self.tracked_repos();
+        if repos.is_empty() {
+            return Err(BackupError::Config(
+                "No artifact types are tracked. Configure backup first.".into(),
+            ));
+        }
+
+        let mut commits = Vec::new();
+        for repo_id in &repos {
+            let message = format!(
+                "backup: daily snapshot — {}",
+                Utc::now().format("%Y-%m-%d %H:%M:%S")
+            );
+            let commit_hash = self.cas.snapshot(repo_id, &message).await?;
+            commits.push((repo_id.clone(), commit_hash));
+        }
+
+        info!(
+            target: "cns.backup",
+            repo_count = repos.len(),
+            operation = "daily_snapshot",
+            "CNS"
+        );
+
+        Ok(SnapshotMetadata {
+            commits,
+            artifact_count: None,
+            trigger: Some(SnapshotTrigger::Auto),
+            timestamp: Utc::now(),
+        })
     }
 
     /// Restore artifacts at a specific scope level.
@@ -686,234 +701,6 @@ impl BackupService {
             }
         }
         self.restore(target, scope).await
-    }
-
-    // ── Pod revert / spawn_agent (operations 8–9) ────────────────────────
-
-    /// 8. Revert a pod to a prior snapshot.
-    ///
-    /// Takes a safety snapshot of the current pod state before restoring
-    /// the target commit. The safety snapshot is the bail-out point —
-    /// restore it to undo the revert.
-    ///
-    /// CNS span: `cns.agent_pod.revert` — records pod_id, safety_commit,
-    /// target_commit, reason.
-    ///
-    /// pre:  pod_id is a non-empty pod identifier; target_commit is a valid
-    ///       CommitHash in the Pods repo; pod_db_path must exist
-    /// post: returns RevertReport with safety_commit, target_commit, artifact_count;
-    ///       a safety snapshot was created BEFORE the restore;
-    ///       pod_db_path now contains state from target_commit;
-    ///       cns.agent_pod.revert span emitted
-    #[instrument(skip(self), fields(pod_id, safety_commit, target_commit))]
-    pub async fn revert(
-        &self,
-        pod_id: &str,
-        target_commit: &CommitHash,
-        pod_db_path: &Path,
-        reason: &str,
-    ) -> Result<RevertReport, BackupError> {
-        self.acquire_gate()?;
-        let _guard = GateGuard { service: self };
-        let start = Instant::now();
-
-        // 1. Safety snapshot: capture current pod state BEFORE revert
-        info!(
-            target: "cns.agent_pod",
-            pod_id = pod_id,
-            operation = "revert.safety_snapshot",
-            reason = reason,
-            "CNS"
-        );
-
-        if !pod_db_path.exists() {
-            return Err(BackupError::PodNotFound(pod_id.to_string()));
-        }
-        let current_state = std::fs::read(pod_db_path)
-            .map_err(|e| BackupError::Config(format!("Failed to read pod.db: {e}")))?;
-
-        // Serialize the safety snapshot as PodState artifact
-        let safety_artifact = crate::serialization::serialize_artifact(
-            &ArtifactType::PodState,
-            &format!("{pod_id}-safety"),
-            &serde_json::json!({"pod_id": pod_id, "reason": reason}),
-        )
-        .map_err(|e| BackupError::Serialization(format!("Safety snapshot: {e}")))?;
-
-        let safety_blob = if self.encryption_key.is_some() {
-            self.encrypt_blob(&safety_artifact)?
-        } else {
-            safety_artifact
-        };
-
-        let repo_id = ArtifactType::PodState.repo_id();
-        self.cas.put_blob(&repo_id, &safety_blob).await?;
-        // Also store the raw pod.db for full-state preservation
-        let pod_blob = if self.encryption_key.is_some() {
-            self.encrypt_blob(&current_state)?
-        } else {
-            current_state
-        };
-        self.cas.put_blob(&repo_id, &pod_blob).await?;
-        let safety_commit = self
-            .cas
-            .snapshot(
-                &repo_id,
-                &format!(
-                    "revert: safety snapshot for {pod_id} — {}",
-                    Utc::now().format("%Y-%m-%d %H:%M:%S")
-                ),
-            )
-            .await?;
-
-        tracing::Span::current().record("safety_commit", safety_commit.to_string());
-        info!(
-            target: "cns.agent_pod",
-            pod_id = pod_id,
-            operation = "revert.safety_complete",
-            safety_commit = %safety_commit,
-            "CNS"
-        );
-
-        // 2. Restore target state to pod.db
-        let target_str = target_commit.to_string();
-        let prefix = format!("{}/", ArtifactType::PodState.label());
-        let entries = self.cas.list_tree(&repo_id, &target_str, &prefix).await?;
-
-        if entries.is_empty() {
-            return Err(BackupError::NoSnapshots);
-        }
-
-        let mut restored_count = 0usize;
-        for entry in entries {
-            let raw = self.cas.get_blob(&repo_id, &entry.content_hash).await?;
-            let blob = if self.encryption_key.is_some() {
-                self.decrypt_blob(&raw)?
-            } else {
-                raw
-            };
-
-            // Try envelope first; if it fails, treat as raw pod.db blob
-            if serde_json::from_slice::<crate::serialization::ArtifactEnvelopeValue>(&blob).is_ok()
-            {
-                continue; // Skip envelope blobs, find the raw pod.db
-            } else {
-                std::fs::write(pod_db_path, &blob)
-                    .map_err(|e| BackupError::Config(format!("Failed to write pod.db: {e}")))?;
-                restored_count += 1;
-                break;
-            }
-        }
-
-        if restored_count == 0 {
-            return Err(BackupError::NoSnapshots);
-        }
-
-        let duration_ms = start.elapsed().as_millis() as u64;
-        tracing::Span::current().record("target_commit", target_str);
-        tracing::Span::current().record("pod_id", pod_id);
-        info!(
-            target: "cns.agent_pod",
-            pod_id = pod_id,
-            operation = "revert",
-            safety_commit = %safety_commit,
-            target_commit = %target_commit,
-            reason = reason,
-            duration_ms = duration_ms,
-            "CNS"
-        );
-
-        Ok(RevertReport {
-            pod_id: pod_id.to_string(),
-            safety_commit,
-            target_commit: target_commit.clone(),
-            artifact_count: restored_count,
-            timestamp: Utc::now(),
-        })
-    }
-
-    /// 9. Spawn a new agent pod from a prior snapshot.
-    ///
-    /// Restores pod state from a source commit to a new pod location.
-    /// The caller is responsible for identity assignment (new WebID/PodID).
-    ///
-    /// This is DISTINCT from kanban's `spawn_subagent` which creates
-    /// sub-agent replicants for task delegation. `spawn_agent` is a
-    /// full pod fork — new identity, new pod.db, sovereign agent.
-    ///
-    /// CNS span: `cns.agent_pod.spawn` — records source_pod_id,
-    /// new_pod_id, source_commit.
-    ///
-    /// pre:  source_commit is a valid CommitHash in the Pods repo;
-    ///       output_db_path parent directory must exist
-    /// post: returns SpawnAgentReport with restored state written to output_db_path;
-    ///       cns.agent_pod.spawn span emitted
-    #[instrument(skip(self), fields(source_pod_id, new_pod_id, source_commit))]
-    pub async fn spawn_agent(
-        &self,
-        source_pod_id: &str,
-        source_commit: &CommitHash,
-        new_pod_id: &str,
-        output_db_path: &Path,
-    ) -> Result<SpawnAgentReport, BackupError> {
-        self.acquire_gate()?;
-        let _guard = GateGuard { service: self };
-        let start = Instant::now();
-        let repo_id = ArtifactType::PodState.repo_id();
-        let target_str = source_commit.to_string();
-        let prefix = format!("{}/", ArtifactType::PodState.label());
-        let entries = self.cas.list_tree(&repo_id, &target_str, &prefix).await?;
-
-        if entries.is_empty() {
-            return Err(BackupError::NoSnapshots);
-        }
-
-        let mut restored = false;
-        for entry in entries {
-            let raw = self.cas.get_blob(&repo_id, &entry.content_hash).await?;
-            let blob = if self.encryption_key.is_some() {
-                self.decrypt_blob(&raw)?
-            } else {
-                raw
-            };
-
-            // Skip envelope blobs, find the raw pod.db
-            if serde_json::from_slice::<crate::serialization::ArtifactEnvelopeValue>(&blob).is_ok()
-            {
-                continue;
-            } else {
-                std::fs::write(output_db_path, &blob)
-                    .map_err(|e| BackupError::Config(format!("Failed to write new pod.db: {e}")))?;
-                restored = true;
-                break;
-            }
-        }
-
-        if !restored {
-            return Err(BackupError::NoSnapshots);
-        }
-
-        let duration_ms = start.elapsed().as_millis() as u64;
-        tracing::Span::current().record("source_pod_id", source_pod_id);
-        tracing::Span::current().record("new_pod_id", new_pod_id);
-        tracing::Span::current().record("source_commit", target_str);
-        info!(
-            target: "cns.agent_pod",
-            operation = "spawn",
-            source_pod_id = source_pod_id,
-            new_pod_id = new_pod_id,
-            source_commit = %source_commit,
-            duration_ms = duration_ms,
-            "CNS"
-        );
-
-        Ok(SpawnAgentReport {
-            source_pod_id: source_pod_id.to_string(),
-            new_pod_id: new_pod_id.to_string(),
-            source_commit: source_commit.clone(),
-            new_db_path: output_db_path.to_string_lossy().to_string(),
-            timestamp: Utc::now(),
-        })
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────
@@ -981,6 +768,43 @@ impl BackupService {
     }
 }
 
+/// Encrypt blob content with AES-256-GCM.
+/// Returns (nonce_bytes || ciphertext).
+pub(crate) fn encrypt_blob(key: &Option<[u8; 32]>, data: &[u8]) -> Result<Vec<u8>, BackupError> {
+    let key = key
+        .as_ref()
+        .ok_or_else(|| BackupError::Encryption("Encryption not configured".into()))?;
+    let cipher = Aes256Gcm::new_from_slice(key)
+        .map_err(|e| BackupError::Encryption(format!("AES init: {e}")))?;
+    let mut nonce_bytes = [0u8; 12];
+    rng().fill_bytes(&mut nonce_bytes);
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    let ciphertext = cipher
+        .encrypt(nonce, data)
+        .map_err(|e| BackupError::Encryption(format!("AES encrypt: {e}")))?;
+    let mut result = nonce_bytes.to_vec();
+    result.extend_from_slice(&ciphertext);
+    Ok(result)
+}
+
+/// Decrypt blob content.
+/// Expects (nonce_bytes || ciphertext).
+pub(crate) fn decrypt_blob(key: &Option<[u8; 32]>, data: &[u8]) -> Result<Vec<u8>, BackupError> {
+    let key = key
+        .as_ref()
+        .ok_or_else(|| BackupError::Encryption("Encryption not configured".into()))?;
+    if data.len() < 12 {
+        return Err(BackupError::Encryption("Data too short for nonce".into()));
+    }
+    let (nonce_bytes, ciphertext) = data.split_at(12);
+    let cipher = Aes256Gcm::new_from_slice(key)
+        .map_err(|e| BackupError::Encryption(format!("AES init: {e}")))?;
+    let nonce = Nonce::from_slice(nonce_bytes);
+    cipher
+        .decrypt(nonce, ciphertext)
+        .map_err(|e| BackupError::Encryption(format!("AES decrypt: {e}")))
+}
+
 /// RAII guard that releases the backup gate on drop.
 /// Ensures the gate is released even if the operation panics.
 struct GateGuard<'a> {
@@ -1013,7 +837,7 @@ mod tests {
 
     fn test_service() -> BackupService {
         let mock = Arc::new(MockGitCas::new());
-        BackupService::with_config(mock, test_config())
+        BackupService::new(mock, test_config())
     }
 
     #[tokio::test]
@@ -1028,7 +852,7 @@ mod tests {
             .snapshot(BackupScope::ByType(ArtifactType::Template), &artifacts)
             .await
             .unwrap();
-        assert_eq!(result.artifact_count, 1);
+        assert_eq!(result.artifact_count, Some(1));
         assert!(!result.commits.is_empty());
     }
 
@@ -1049,7 +873,7 @@ mod tests {
     #[tokio::test]
     async fn full_snapshot_no_tracked_types_errors() {
         let mock = Arc::new(MockGitCas::new());
-        let svc = BackupService::with_config(mock, BackupConfig::default());
+        let svc = BackupService::new(mock, BackupConfig::default());
         let result = svc.snapshot(BackupScope::Full, &[]).await;
         assert!(matches!(result, Err(BackupError::Config(_))));
     }
@@ -1057,7 +881,7 @@ mod tests {
     #[tokio::test]
     async fn restore_reproduces_state() {
         let mock = Arc::new(MockGitCas::new());
-        let svc = BackupService::with_config(mock.clone(), test_config());
+        let svc = BackupService::new(mock.clone(), test_config());
 
         // First, snapshot properly serialized data
         let payload = serde_json::json!({"name": "test-tpl"});
@@ -1108,7 +932,7 @@ mod tests {
             verify_after_snapshot: false,
             encryption: None,
         };
-        let svc = BackupService::with_config(mock.clone(), config);
+        let svc = BackupService::new(mock.clone(), config);
 
         // Create a snapshot
         let artifacts = vec![(

@@ -286,9 +286,22 @@ hKask maintains **two independent backup systems** with distinct purposes:
 | System | Storage | Encryption | Purpose | CLI Namespace |
 |--------|---------|-----------|---------|---------------|
 | **Sovereignty Export** (this plan) | SQLCipher SQLite file | User passphrase at export time | P1 data portability — download and migrate to another server | `kask export` |
-| **Operational Backup** (existing) | GitCAS (content-addressed git) | Server-side AES-256-GCM | Server disaster recovery — artifact versioning, retention, integrity verification | `kask backup` |
+| **Operational Backup** (existing) | Git CAS via `GixCasAdapter` (pure Rust gix) | Server-side AES-256-GCM | Server disaster recovery — artifact versioning, retention, integrity verification, agent revert/spawn | `kask backup`, `kask agent revert`, `kask agent spawn-agent` |
 
-The operational backup is implemented in `hkask-services-backup` (`BackupService`, `BackupLoop`, `RetentionPolicy`). It runs automatically via the CNS cybernetic loop system and is *not* user-exportable. The sovereignty export is the user-facing P1 artifact — a downloadable, passphrase-encrypted archive that the user controls end-to-end.
+The operational backup is implemented in `hkask-services-backup`:
+
+- **`GitCASPort`** — 8-method hexagonal port (CRUD + snapshot + inspection) for content-addressed git storage across 8 repos (`Registry`, `Memory`, `CnsAudit`, `Sovereignty`, `GoalsSpecs`, `Sessions`, `Vault`, `Pods`)
+- **`BackupService`** — 7-artifact operations (snapshot, restore, list, prune, verify, config, update_config) with mutual-exclusion gate (`AtomicBool` CAS), config injection, and encryption (AES-256-GCM + Argon2)
+- **`PodBackupOps`** — 2 pod operations (revert, spawn_agent) sharing the same CAS port and gate, with atomic pod.db writes (temp file + rename) and safety snapshots before revert
+- **`BackupLoop`** — cybernetic loop (sense → compare → compute → act) running daily snapshots with 1-hour failure dampener
+
+Key properties:
+- Pruning actually deletes blobs via `delete_blob` before orphan commits
+- `SnapshotMetadata.trigger` and `.artifact_count` are `Option` — honest about what the git log carries
+- `ArtifactType` uses `strum` for single-source label↔variant mapping
+- `TemplateCrateLoader` (formerly `GitCasAdapter`) is distinct from `GixCasAdapter` — loads template crates from disk, not CAS operations
+
+The operational backup runs automatically via the CNS cybernetic loop system and is *not* user-exportable. The sovereignty export is the user-facing P1 artifact — a downloadable, passphrase-encrypted archive that the user controls end-to-end.
 
 ---
 

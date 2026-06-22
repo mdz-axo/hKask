@@ -12,13 +12,11 @@ use tokio::sync::watch;
 
 use crate::ReplicaId;
 
+#[allow(dead_code)]
 pub struct FederationSync {
     local_replica: ReplicaId,
-    #[allow(dead_code)]
     transport: Arc<dyn FederationTransport>,
-    #[allow(dead_code)]
     sync_port: Arc<dyn FederationSyncPort>,
-    #[allow(dead_code)]
     event_sink: Arc<dyn NuEventSink>,
     interval: Duration,
 }

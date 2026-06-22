@@ -274,7 +274,7 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
                 eprintln!("Failed to initialize CAS adapter: {}", e);
                 std::process::exit(1);
             })) as Arc<dyn GitCASPort>;
-            let svc = BackupService::new(port);
+            let svc = BackupService::new(port, hkask_services::load_backup_config());
             let commit_hash: hkask_ports::git_cas::CommitHash =
                 commit.parse().unwrap_or_else(|e: String| {
                     eprintln!("Invalid commit hash '{}': {}", commit, e);
@@ -294,9 +294,10 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
                 );
                 std::process::exit(1);
             }
+            let pod_ops = svc.pod_ops();
             let report = block_on!(
                 rt,
-                svc.revert(&name, &commit_hash, &pod_db_path, &reason),
+                pod_ops.revert(&name, &commit_hash, &pod_db_path, &reason),
                 "Revert failed"
             );
             println!("Agent '{}' reverted.", name);
@@ -315,7 +316,7 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
                 eprintln!("Failed to initialize CAS adapter: {}", e);
                 std::process::exit(1);
             })) as Arc<dyn GitCASPort>;
-            let svc = BackupService::new(port);
+            let svc = BackupService::new(port, hkask_services::load_backup_config());
             let commit_hash: hkask_ports::git_cas::CommitHash =
                 commit.parse().unwrap_or_else(|e: String| {
                     eprintln!("Invalid commit hash '{}': {}", commit, e);
@@ -329,9 +330,10 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
                 std::process::exit(1);
             });
             let new_db_path = agent_dir.join("pod.db");
+            let pod_ops = svc.pod_ops();
             let report = block_on!(
                 rt,
-                svc.spawn_agent(&source, &commit_hash, &new_name, &new_db_path),
+                pod_ops.spawn_agent(&source, &commit_hash, &new_name, &new_db_path),
                 "Spawn agent failed"
             );
             println!("Agent spawned from '{}' as '{}'.", source, new_name);

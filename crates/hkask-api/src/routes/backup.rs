@@ -223,7 +223,10 @@ pub fn backup_router() -> OpenApiRouter<ApiState> {
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 fn backup_service(state: &ApiState) -> BackupService {
-    BackupService::new(state.git_cas_port.clone())
+    BackupService::new(
+        state.git_cas_port.clone(),
+        hkask_services::load_backup_config(),
+    )
 }
 
 fn parse_artifact_type(s: &str) -> Option<ArtifactType> {
@@ -290,8 +293,12 @@ fn snapshot_to_response(snap: &SnapshotMetadata) -> SnapshotResponse {
                 commit: commit.to_string(),
             })
             .collect(),
-        artifact_count: snap.artifact_count,
-        trigger: format!("{:?}", snap.trigger).to_lowercase(),
+        artifact_count: snap.artifact_count.unwrap_or(0),
+        trigger: snap
+            .trigger
+            .as_ref()
+            .map(|t| format!("{:?}", t).to_lowercase())
+            .unwrap_or_else(|| "unknown".to_string()),
         timestamp: snap.timestamp.to_rfc3339(),
     }
 }

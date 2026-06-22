@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 
 use crate::ReplicaId;
 
-pub(crate) struct Inner {
+pub struct Inner {
     queues: HashMap<(ReplicaId, ReplicaId), VecDeque<FederationMessage>>,
     partitions: std::collections::HashSet<ReplicaId>,
 }
@@ -19,7 +19,6 @@ pub struct InMemoryFederationTransport {
 }
 
 impl InMemoryFederationTransport {
-    #[allow(private_interfaces)]
     pub fn new() -> Arc<Mutex<Inner>> {
         Arc::new(Mutex::new(Inner {
             queues: HashMap::new(),
@@ -27,7 +26,6 @@ impl InMemoryFederationTransport {
         }))
     }
 
-    #[allow(private_interfaces)]
     pub fn for_replica(shared: &Arc<Mutex<Inner>>, replica: ReplicaId) -> Self {
         Self {
             inner: Arc::clone(shared),
@@ -72,12 +70,20 @@ impl FederationTransport for InMemoryFederationTransport {
     }
 
     fn simulate_partition(&self, peer: &ReplicaId) {
-        let mut inner = self.inner.blocking_lock();
-        inner.partitions.insert(peer.clone());
+        let inner = self.inner.clone();
+        let peer = peer.clone();
+        tokio::task::block_in_place(|| {
+            let mut guard = inner.blocking_lock();
+            guard.partitions.insert(peer);
+        });
     }
 
     fn heal_partition(&self, peer: &ReplicaId) {
-        let mut inner = self.inner.blocking_lock();
-        inner.partitions.remove(peer);
+        let inner = self.inner.clone();
+        let peer = peer.clone();
+        tokio::task::block_in_place(|| {
+            let mut guard = inner.blocking_lock();
+            guard.partitions.remove(&peer);
+        });
     }
 }

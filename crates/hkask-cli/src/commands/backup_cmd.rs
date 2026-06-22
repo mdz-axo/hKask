@@ -12,6 +12,7 @@ use std::str::FromStr;
 
 use crate::block_on;
 use crate::cli::BackupAction;
+use hkask_services::load_backup_config;
 
 /// Resolve the hexagonal `GitCASPort` from the environment.
 fn resolve_git_cas_port() -> Arc<dyn GitCASPort> {
@@ -72,7 +73,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
     match action {
         BackupAction::Snapshot { scope } => {
             let port = resolve_git_cas_port();
-            let svc = BackupService::new(port);
+            let svc = BackupService::new(port, load_backup_config());
             let backup_scope = parse_scope(&scope);
 
             // Manual snapshots require the caller to provide artifact data.
@@ -83,13 +84,13 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
             for (repo, commit) in &result.commits {
                 println!("  {}: {}", repo.dir_name(), commit);
             }
-            println!("  Artifacts: {}", result.artifact_count);
+            println!("  Artifacts: {}", result.artifact_count.unwrap_or(0));
             println!("  Timestamp: {}", result.timestamp);
         }
 
         BackupAction::Restore { commit, scope } => {
             let port = resolve_git_cas_port();
-            let svc = BackupService::new(port);
+            let svc = BackupService::new(port, load_backup_config());
             let restore_scope = parse_restore_scope(&scope);
 
             let commit_hash: hkask_ports::git_cas::CommitHash =
@@ -112,7 +113,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
 
         BackupAction::List { r#type, limit } => {
             let port = resolve_git_cas_port();
-            let svc = BackupService::new(port);
+            let svc = BackupService::new(port, load_backup_config());
 
             let filter = ListFilter {
                 artifact_type: r#type
@@ -139,7 +140,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
 
         BackupAction::Prune { execute } => {
             let port = resolve_git_cas_port();
-            let svc = BackupService::new(port);
+            let svc = BackupService::new(port, load_backup_config());
 
             let dry_run = !execute;
             let report = block_on!(rt, svc.prune(dry_run), "Prune failed");
@@ -164,7 +165,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
 
         BackupAction::Verify => {
             let port = resolve_git_cas_port();
-            let svc = BackupService::new(port);
+            let svc = BackupService::new(port, load_backup_config());
 
             let reports = block_on!(rt, svc.verify(), "Verify failed");
 
@@ -191,7 +192,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
         BackupAction::Config { action } => match action {
             crate::cli::ConfigAction::Show => {
                 let port = resolve_git_cas_port();
-                let svc = BackupService::new(port);
+                let svc = BackupService::new(port, load_backup_config());
                 let config = svc.config();
 
                 println!("Backup configuration:");
@@ -222,7 +223,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
                 no_auto,
             } => {
                 let port = resolve_git_cas_port();
-                let mut svc = BackupService::new(port);
+                let mut svc = BackupService::new(port, load_backup_config());
 
                 let mut config = svc.config().clone();
                 config.tracked_types = parse_artifact_types(&types);

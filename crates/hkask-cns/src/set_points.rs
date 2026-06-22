@@ -99,7 +99,7 @@ pub use crate::types::curation::CurationThresholdConfig;
 
 /// YAML-configurable set-points. Fields are Optional so partial configs work.
 /// Missing fields fall back to the `SetPoints::default()` values.
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Deserialize)]
 pub struct SetPointsConfig {
     pub gas_min_remaining: Option<f64>,
     pub variety_max_deficit: Option<f64>,

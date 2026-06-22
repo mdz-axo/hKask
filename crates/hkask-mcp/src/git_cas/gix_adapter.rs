@@ -244,6 +244,19 @@ impl GitCASPort for GixCasAdapter {
         .await
     }
 
+    async fn delete_blob(&self, repo: &RepoId, hash: &ContentHash) -> Result<(), GitCasError> {
+        let repo_dir = self.ensure_repo_dir(repo).await?;
+        let blob_path = repo_dir.join("cas").join(hash.to_string());
+        spawn_blocking_io(move || {
+            if blob_path.exists() {
+                std::fs::remove_file(&blob_path)
+                    .map_err(|e| GitCasError::Io(format!("Failed to delete blob: {e}")))?;
+            }
+            Ok(())
+        })
+        .await
+    }
+
     async fn snapshot(&self, repo: &RepoId, message: &str) -> Result<CommitHash, GitCasError> {
         let repo_dir = self.ensure_repo_dir(repo).await?;
         let msg = message.to_string();
