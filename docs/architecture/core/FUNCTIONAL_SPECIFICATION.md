@@ -13,11 +13,11 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 
 **Version:** v0.28.0
 **Created:** 2026-06-16
-**Status:** Active — anchor for the Testing Discipline. Contract enforcement uses `/// REQ:` conventions with CNS-observed behavioral contracts.
-**Last Updated:** 2026-06-18  
-**Decision:** 2026-06-20 — Behavioral contracts use `/// REQ:` annotations with CNS-observable pre/post conditions. The `#[contract]` macro has been removed; contract enforcement is through CNS span observation and property-based testing.
+**Status:** Active — anchor for the Testing Discipline. Contracts use `expect:` + `[P{N}]` annotations with CNS-observed behavioral contracts.
+**Last Updated:** 2026-06-21  
+**Decision:** 2026-06-21 — Contract system simplified. REQ tags and contract IDs removed. Contracts use `expect:` + `[P{N}]` annotations directly on functions. Enforcement is through CNS span observation and property-based testing.
 
-> This document maps the complete system to its motivating principles, enumerates functional requirements per domain, and links each requirement to the contracts that implement it. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the other principles that constrain how the goal is achieved). See [`CONTRACT_GUIDE.md`](../../../guides/CONTRACT_GUIDE.md) for the definitive contract standard — this document defines the *domain-to-contract mapping*, not the contract format itself.
+> This document maps the complete system to its motivating principles and enumerates functional requirements per domain. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the other principles that constrain how the goal is achieved). See [`CONTRACT_GUIDE.md`](../../../guides/CONTRACT_GUIDE.md) for the definitive contract standard — this document defines the *domain-to-contract mapping*, not the contract format itself.
 
 ---
 
@@ -67,7 +67,7 @@ Each domain's contracts trace upward through constraining principles to a single
 7. **P1 (User Sovereignty) + P2 (Affirmative Consent)** own the web interface, multi-user, and backup domains: OAuth sessions, PTY terminals, role assignment, invitation flow, portable sovereignty archives
 8. **P5 (Essentialism) + P3 (Generative Space)** own the deployment domain: single-binary packaging, sidecar generation, systemd integration
 
-A contract has **exactly one goal principle** and **1 to 11 constraining principles**. The goal principle determines the ID prefix (`P{N}`). Constraining principles appear as `[P{N}]` annotations in the contract body.
+A contract has **exactly one goal principle** and **1 to 11 constraining principles**. Constraining principles appear as `[P{N}]` annotations in the contract body.
 
 ---
 
@@ -203,36 +203,36 @@ erDiagram
 
 #### Production Contracts (16)
 
-| FR# | Contract ID | Function | Principle Annotations |
-|-----|------------|----------|---------------------|
-| FR-E1 | `P8-cns-energy-cost-from-raw` | `EnergyCost::from_raw(u64) -> Self` | [P8] Goal: Semantic Grounding — type-level identity preservation; [P5] Constraining: Essentialism |
-| FR-E2 | `P8-cns-energy-cost-as-raw` | `EnergyCost::as_raw() -> u64` | [P8] Goal: Semantic Grounding — symmetric type-level identity; [P5] Constraining: Essentialism |
-| FR-E3 | `P8-cns-energy-delta-from-raw` | `EnergyDelta::from_raw(f64) -> Self` | [P8] Goal: Semantic Grounding — type-level identity for f64 newtype; [P5] Constraining: Essentialism |
-| FR-E4 | `P8-cns-energy-delta-as-raw` | `EnergyDelta::as_raw() -> f64` | [P8] Goal: Semantic Grounding — symmetric type-level identity; [P5] Constraining: Essentialism |
-| FR-E5 | `P9-cns-energy-delta-descending` | `EnergyDelta::is_descending() -> bool` | [P9] Goal: Homeostatic Self-Regulation — lazy universe compliance detection; [P8] Constraining: Semantic Grounding |
-| FR-E6 | `P9-cns-energy-delta-ascending` | `EnergyDelta::is_ascending() -> bool` | [P9] Goal: Homeostatic Self-Regulation — anti-lazy detection triggers alert; [P8] Constraining: Semantic Grounding |
-| FR-E7 | `P9-cns-energy-budget-new` | `EnergyBudget::new(cap) -> Self` | [P9] Goal: Homeostatic Self-Regulation — budget creation enables regulation; [P4] Constraining: Clear Boundaries — cap enforces OCAP boundary |
-| FR-E8 | `P9-cns-energy-budget-unlimited` | `EnergyBudget::unlimited() -> Self` | [P9] Goal: Homeostatic Self-Regulation — observability without throttling; [P4] Constraining: Clear Boundaries |
-| FR-E9 | `P9-cns-energy-budget-with-replenish-rate` | `EnergyBudget::with_replenish_rate(rate) -> Self` | [P9] Goal: Homeostatic Self-Regulation — configurable replenishment knob; [P7] Constraining: Evolutionary Architecture — emerged from real usage |
-| FR-E10 | `P9-cns-energy-budget-with-alert-threshold` | `EnergyBudget::with_alert_threshold(threshold) -> Self` | [P9] Goal: Homeostatic Self-Regulation — configurable alert threshold; [P7] Constraining: Evolutionary Architecture |
-| FR-E11 | `P9-cns-energy-budget-with-hard-limit` | `EnergyBudget::with_hard_limit(hard) -> Self` | [P9] Goal: Homeostatic Self-Regulation — boundary enforcement toggle; [P4] Constraining: Clear Boundaries |
-| FR-E12 | `P9-cns-energy-budget-can-proceed` | `EnergyBudget::can_proceed(gas) -> bool` | [P9] Goal: Homeostatic Self-Regulation — check-before-execute gateway; [P4] Constraining: Clear Boundaries |
-| FR-E13 | `P9-cns-energy-budget-available` | `EnergyBudget::available() -> EnergyCost` | [P9] Goal: Homeostatic Self-Regulation — visible state for feedback loops; [P4] Constraining: Clear Boundaries |
-| FR-E14 | `P9-cns-energy-budget-reserve` | `EnergyBudget::reserve(gas) -> Result` | [P9] Goal: Homeostatic Self-Regulation — hold-settle pattern; [P4] Constraining: Clear Boundaries |
-| FR-E15 | `P9-cns-energy-budget-settle` | `EnergyBudget::settle(reserved, actual) -> Result` | [P9] Goal: Homeostatic Self-Regulation — completes hold-settle cycle; [P4] Constraining: Clear Boundaries |
-| FR-E16 | `P9-cns-energy-budget-consume` | `EnergyBudget::consume(gas) -> Result` | [P9] Goal: Homeostatic Self-Regulation — immediate deduction path; [P4] Constraining: Clear Boundaries |
-| FR-E17 | `P9-cns-energy-budget-replenish` | `EnergyBudget::replenish()` | [P9] Goal: Homeostatic Self-Regulation — regulation cycle; [P4] Constraining: Clear Boundaries |
-| FR-E18 | `P9-cns-energy-budget-replenish-by` | `EnergyBudget::replenish_by(amount)` | [P9] Goal: Homeostatic Self-Regulation — targeted curation replenishment; [P4] Constraining: Clear Boundaries |
-| FR-E19 | `P9-cns-energy-budget-replenish-by-weighted` | `EnergyBudget::replenish_by_weighted(amount, prio) -> EnergyCost` | [P9] Goal: Homeostatic Self-Regulation — priority-weighted replenishment; [P4] + [P7] Constraining |
+| FR# | Function | Principle Annotations |
+|-----|----------|---------------------|
+| FR-E1 | `EnergyCost::from_raw(u64) -> Self` | [P8] Goal: Semantic Grounding — type-level identity preservation; [P5] Constraining: Essentialism |
+| FR-E2 | `EnergyCost::as_raw() -> u64` | [P8] Goal: Semantic Grounding — symmetric type-level identity; [P5] Constraining: Essentialism |
+| FR-E3 | `EnergyDelta::from_raw(f64) -> Self` | [P8] Goal: Semantic Grounding — type-level identity for f64 newtype; [P5] Constraining: Essentialism |
+| FR-E4 | `EnergyDelta::as_raw() -> f64` | [P8] Goal: Semantic Grounding — symmetric type-level identity; [P5] Constraining: Essentialism |
+| FR-E5 | `EnergyDelta::is_descending() -> bool` | [P9] Goal: Homeostatic Self-Regulation — lazy universe compliance detection; [P8] Constraining: Semantic Grounding |
+| FR-E6 | `EnergyDelta::is_ascending() -> bool` | [P9] Goal: Homeostatic Self-Regulation — anti-lazy detection triggers alert; [P8] Constraining: Semantic Grounding |
+| FR-E7 | `EnergyBudget::new(cap) -> Self` | [P9] Goal: Homeostatic Self-Regulation — budget creation enables regulation; [P4] Constraining: Clear Boundaries — cap enforces OCAP boundary |
+| FR-E8 | `EnergyBudget::unlimited() -> Self` | [P9] Goal: Homeostatic Self-Regulation — observability without throttling; [P4] Constraining: Clear Boundaries |
+| FR-E9 | `EnergyBudget::with_replenish_rate(rate) -> Self` | [P9] Goal: Homeostatic Self-Regulation — configurable replenishment knob; [P7] Constraining: Evolutionary Architecture — emerged from real usage |
+| FR-E10 | `EnergyBudget::with_alert_threshold(threshold) -> Self` | [P9] Goal: Homeostatic Self-Regulation — configurable alert threshold; [P7] Constraining: Evolutionary Architecture |
+| FR-E11 | `EnergyBudget::with_hard_limit(hard) -> Self` | [P9] Goal: Homeostatic Self-Regulation — boundary enforcement toggle; [P4] Constraining: Clear Boundaries |
+| FR-E12 | `EnergyBudget::can_proceed(gas) -> bool` | [P9] Goal: Homeostatic Self-Regulation — check-before-execute gateway; [P4] Constraining: Clear Boundaries |
+| FR-E13 | `EnergyBudget::available() -> EnergyCost` | [P9] Goal: Homeostatic Self-Regulation — visible state for feedback loops; [P4] Constraining: Clear Boundaries |
+| FR-E14 | `EnergyBudget::reserve(gas) -> Result` | [P9] Goal: Homeostatic Self-Regulation — hold-settle pattern; [P4] Constraining: Clear Boundaries |
+| FR-E15 | `EnergyBudget::settle(reserved, actual) -> Result` | [P9] Goal: Homeostatic Self-Regulation — completes hold-settle cycle; [P4] Constraining: Clear Boundaries |
+| FR-E16 | `EnergyBudget::consume(gas) -> Result` | [P9] Goal: Homeostatic Self-Regulation — immediate deduction path; [P4] Constraining: Clear Boundaries |
+| FR-E17 | `EnergyBudget::replenish()` | [P9] Goal: Homeostatic Self-Regulation — regulation cycle; [P4] Constraining: Clear Boundaries |
+| FR-E18 | `EnergyBudget::replenish_by(amount)` | [P9] Goal: Homeostatic Self-Regulation — targeted curation replenishment; [P4] Constraining: Clear Boundaries |
+| FR-E19 | `EnergyBudget::replenish_by_weighted(amount, prio) -> EnergyCost` | [P9] Goal: Homeostatic Self-Regulation — priority-weighted replenishment; [P4] + [P7] Constraining |
 
 #### Test Contracts (4)
 
-| FR# | Contract ID | Test Name |
-|-----|------------|-----------|
-| FR-E-T1 | `P9-cns-energy-budget-invariant-test` | budget_never_exceeds_cap — property test: remaining + reserved ≤ cap |
-| FR-E-T2 | `P9-cns-energy-budget-available-test` | available_never_negative — property test: available ≥ 0 |
-| FR-E-T3 | `P9-cns-energy-budget-replenish-test` | replenish_never_exceeds_cap — property test: remaining ≤ cap after replenish |
-| FR-E-T4 | (included above) | `EnergyCost` newtype contract test |
+| FR# | Test Name |
+|-----|-----------|
+| FR-E-T1 | budget_never_exceeds_cap — property test: remaining + reserved ≤ cap |
+| FR-E-T2 | available_never_negative — property test: available ≥ 0 |
+| FR-E-T3 | replenish_never_exceeds_cap — property test: remaining ≤ cap after replenish |
+| FR-E-T4 | `EnergyCost` newtype contract test |
 
 
 ### 2.2 Algedonic Signalling (`algedonic`)

@@ -15,7 +15,10 @@ use std::time::Instant;
 use crate::ocr::pipeline::OcrExecutor;
 
 /// System prompt for OCR extraction — instructs the model to extract text faithfully.
-const OCR_SYSTEM_PROMPT: &str = "Extract all text from this document image. Output the text exactly as it appears, preserving the document structure and layout as closely as possible. If the document contains tables, preserve them in a readable format. Do not add commentary or description — only the extracted text.";
+/// Applied to all page types including Kindle book pages.
+const OCR_SYSTEM_PROMPT: &str = "\
+Extract all readable text from this page image. Output the text verbatim with these rules:\n\
+1. Output ONLY the extracted text — no commentary, no markdown, no descriptions.\n2. Preserve paragraph breaks as blank lines between paragraphs.\n3. Preserve chapter headings, section breaks, and dialogue formatting.\n4. IGNORE page numbers, running headers, footers, and reader UI elements.\n5. IGNORE any embedded images, diagrams, or illustrations.\n6. If the page is blank or contains only non-text content, output the word BLANK.\n7. Do not summarize, paraphrase, or edit. Transcribe exactly what you see.\n8. Preserve punctuation, capitalization, and special characters as they appear.";
 
 /// Vision LLM OCR executor using the hkask-inference router.
 ///

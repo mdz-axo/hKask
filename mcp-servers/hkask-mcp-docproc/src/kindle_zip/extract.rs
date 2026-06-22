@@ -135,6 +135,12 @@ impl KindleSession {
 
         let (title, author) = scrape_title_author(&self.tab)?;
         let toc = extract_toc(&self.tab)?;
+        // Fall back to TOC first entry as title if page title is just "Kindle"
+        let title = if title == "Kindle" || title.is_empty() {
+            toc.first().map(|t| t.label.clone()).unwrap_or(title)
+        } else {
+            title
+        };
         let pages = capture_pages(&self.tab, &pages_dir)?;
         let total_pages = pages.len();
 

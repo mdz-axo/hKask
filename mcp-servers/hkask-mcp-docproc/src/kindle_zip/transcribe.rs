@@ -78,7 +78,6 @@ pub async fn transcribe_pages(
     ));
 
     for result in &outcome.results {
-        // Gap 14: Filter blank pages (OCR produced "BLANK" per prompt rules)
         if result.text.trim() == "BLANK" || result.text.trim().is_empty() {
             blank_filtered += 1;
             tracing::debug!(target: "cns.pipeline.kindle-zip.transcribe.page",
@@ -86,15 +85,17 @@ pub async fn transcribe_pages(
             continue;
         }
 
+        // Clean Kindle UI chrome from OCR output
+        let cleaned = clean_kindle_text(&result.text);
+
         let page = page_map
             .get(result.page_index)
             .copied()
             .unwrap_or(result.page_index + 1);
-        let wc = result.text.split_whitespace().count();
+        let wc = cleaned.split_whitespace().count();
         total_words += wc;
         total_confidence += result.confidence;
 
-        // Gap 16: Per-page CNS span
         tracing::debug!(target: "cns.pipeline.kindle-zip.transcribe.page",
             page, word_count = wc, confidence = format!("{:.3}", result.confidence),
             backend = %result.backend.label(), "Page transcribed");
@@ -102,7 +103,7 @@ pub async fn transcribe_pages(
         chunks.push(ContentChunk {
             index: result.page_index,
             page,
-            text: result.text.clone(),
+            text: cleaned,
             screenshot: None,
             confidence: Some(result.confidence),
             provenance: Some(ProvenanceRecord {
@@ -117,6 +118,9 @@ pub async fn transcribe_pages(
 
     let transcribed = chunks.len();
     let failed = expected.saturating_sub(outcome.results.len());
+
+    // Strip repeated running headers (book title on every page)
+    strip_repeated_headers(&mut chunks);
     let mean_confidence = if transcribed > 0 {
         total_confidence / transcribed as f32
     } else {
@@ -143,6 +147,108 @@ pub async fn transcribe_pages(
         mean_confidence,
         cns_span_id: Some(cns_span_id),
     })
+}
+
+/// Clean Kindle UI chrome from transcribed text.
+/// Strips toolbar fragments, page indicators, reading speed, garbled OCR.
+pub fn clean_kindle_text(raw: &str) -> String {
+    let cleaned: String = raw
+        .lines()
+        .filter(|line| {
+            let t = line.trim();
+            if t.is_empty() {
+                return false;
+            }
+            // Kindle toolbar fragments
+            if t == "= Q Aa" || t.starts_with("= Q") || t == "Aa" || t == "Q Aa" {
+                return false;
+            }
+            // Page/location indicators
+            if t.starts_with("Learning reading speed") {
+                return false;
+            }
+            if (t.starts_with("Location ") || t.starts_with("Page "))
+                && (t.contains("of") || t.contains("%"))
+            {
+                return false;
+            }
+            if t.ends_with("%") && t.len() <= 6 {
+                return false;
+            }
+            // Garbled OCR artifacts
+            if t.contains("â") && t.len() < 10 {
+                return false;
+            }
+            if t.contains("eo") && t.len() < 10 {
+                return false;
+            }
+            true
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    // Collapse 3+ consecutive newlines
+    let mut result = String::with_capacity(cleaned.len());
+    let mut blank_count = 0u8;
+    for ch in cleaned.chars() {
+        if ch == '\n' {
+            blank_count += 1;
+            if blank_count <= 2 {
+                result.push(ch);
+            }
+        } else {
+            blank_count = 0;
+            result.push(ch);
+        }
+    }
+    result.trim().to_string()
+}
+
+/// Strip repeated headers that appear on >30% of pages (book title as running header).
+pub fn strip_repeated_headers(chunks: &mut [ContentChunk]) {
+    if chunks.len() < 3 {
+        return;
+    }
+    // Collect first lines from each page (scoped so borrow drops before mutation)
+    let headers: Vec<String> = {
+        use std::collections::HashMap;
+        let first_lines: Vec<&str> = chunks
+            .iter()
+            .map(|c| c.text.lines().next().unwrap_or(""))
+            .collect();
+        let mut counts: HashMap<&str, usize> = HashMap::new();
+        for line in &first_lines {
+            if line.len() > 10
+                && line
+                    .chars()
+                    .all(|c| c.is_uppercase() || c.is_whitespace() || c == ':')
+            {
+                *counts.entry(line).or_insert(0) += 1;
+            }
+        }
+        let threshold = (chunks.len() as f64 * 0.3) as usize;
+        counts
+            .into_iter()
+            .filter(|(_, count)| *count >= threshold.max(2))
+            .map(|(line, _)| line.to_string())
+            .collect()
+    }; // first_lines borrow released here
+
+    if headers.is_empty() {
+        return;
+    }
+
+    for chunk in chunks.iter_mut() {
+        let fl_end = chunk.text.find('\n').unwrap_or(chunk.text.len());
+        let first_line = chunk.text[..fl_end].to_string();
+        let is_header = headers.iter().any(|h| first_line.contains(h));
+        if is_header && fl_end < chunk.text.len() {
+            // Copy the remaining text out before mutating
+            let rest = chunk.text[fl_end + 1..].trim().to_string();
+            if !rest.is_empty() {
+                chunk.text = rest;
+            }
+        }
+    }
 }
 
 /// Gap 7: Assemble transcribed content into chapter-structured text.

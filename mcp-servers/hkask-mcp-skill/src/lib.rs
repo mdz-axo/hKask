@@ -8,18 +8,21 @@
 //! 4. Returns the inference result
 
 use hkask_inference::{InferenceConfig, InferenceRouter};
-use hkask_mcp::server::{CapabilityTier, ToolSpanGuard};
+use hkask_mcp::server::{CapabilityTier, McpToolError, ToolSpanGuard};
 use hkask_ports::InferencePort;
+use hkask_ports::RegistryIndex;
 use hkask_templates::Registry;
-use hkask_types::template::LLMParameters;
+use hkask_types::McpErrorKind;
 use hkask_types::WebID;
+use hkask_types::template::LLMParameters;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Name → description for available skills (loaded at startup for tool discovery).
+/// Name → description for available skills (loaded at startup).
 type SkillIndex = HashMap<String, SkillToolDef>;
 
 /// Metadata for a skill available as a tool.
@@ -58,10 +61,6 @@ impl SkillServer {
     }
 
     /// Load skills from the bootstrapped template registry.
-    ///
-    /// Reads template files from disk (paths from `RegistryEntry.source_path`)
-    /// and populates the skill index. Skills with unreadable template files
-    /// are silently skipped.
     pub fn load_skills(&mut self) {
         let registry = Registry::bootstrap();
 
@@ -85,9 +84,6 @@ impl SkillServer {
 }
 
 /// Convert a registry entry ID to a safe MCP tool identifier.
-///
-/// Registry entry IDs use `/` as path separators (e.g., `coding-guidelines/guidelines-assess`).
-/// MCP tool names use `.` as namespace separators, so `/` → `.` and `_` → `-`.
 fn registry_entry_to_tool_id(id: &str) -> String {
     id.replace('/', ".").replace('_', "-")
 }
@@ -113,6 +109,18 @@ fn render_skill_template(
 }
 
 // ── MCP Tools ─────────────────────────────────────────────────────────────────
+
+/// Request parameters for `skill_execute`.
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[allow(dead_code)]
+struct SkillExecuteRequest {
+    /// Skill identifier (e.g., "coding-guidelines.guidelines-assess")
+    #[schemars(description = "Skill identifier (e.g., coding-guidelines.guidelines-assess)")]
+    skill_id: String,
+    /// Context variables to pass to the template as a JSON object
+    #[schemars(description = "Context variables as JSON object to pass to the template")]
+    context: serde_json::Value,
+}
 
 #[tool_router(server_handler)]
 impl SkillServer {
@@ -143,29 +151,25 @@ impl SkillServer {
         span.ok_json(serde_json::json!({ "skills": skills }))
     }
 
-    #[tool(description = "Execute a registered skill template with context variables. \
-        The skill is rendered as a Jinja2 template and run through the inference engine. \
-        Use skill_list first to discover available skills, then call skill_execute \
-        with the desired skill_id and context.")]
+    #[tool(
+        description = "Execute a registered skill template with context variables. \
+        Renders the skill as a Jinja2 template and runs inference. \
+        Use skill_list first to discover available skill IDs."
+    )]
     pub async fn skill_execute(
         &self,
-        #[param]
-        #[schemars(description = "Skill identifier (e.g., 'coding-guidelines.guidelines-assess')")]
-        skill_id: String,
-        #[param]
-        #[schemars(description = "Context variables to pass to the skill template as a JSON object")]
-        context: serde_json::Value,
-    ) -> Result<String, String> {
+        Parameters(SkillExecuteRequest { skill_id, context }): Parameters<SkillExecuteRequest>,
+    ) -> String {
         let span = ToolSpanGuard::new("skill_execute", &self.webid);
 
         let def = match self.skills.get(&skill_id) {
             Some(d) => d,
             None => {
                 let available: Vec<&str> = self.skills.keys().map(|s| s.as_str()).collect();
-                return Err(span.error(format!(
-                    "Skill '{}' not found. Available: {:?}",
-                    skill_id, available
-                )));
+                return span.error(
+                    McpErrorKind::NotFound,
+                    format!("Skill '{}' not found. Available: {:?}", skill_id, available),
+                );
             }
         };
 
@@ -180,7 +184,12 @@ impl SkillServer {
         // Render the Jinja2 template
         let rendered = match render_skill_template(&def.template_content, &ctx) {
             Ok(r) => r,
-            Err(e) => return Err(span.error(e)),
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
         };
 
         // Prepend system prompt
@@ -189,20 +198,26 @@ impl SkillServer {
             rendered
         );
 
-        // Run inference with conservative parameters (skills are structured tasks)
         let params = LLMParameters {
             temperature: 0.3,
             max_tokens: 2048,
             ..Default::default()
         };
 
-        let result = self
+        let result = match self
             .inference_port
             .generate(&full_prompt, &params, None)
             .await
-            .map_err(|e| span.error(format!("Inference failed: {}", e)))?;
+        {
+            Ok(r) => r,
+            Err(e) => {
+                return span.internal_error(
+                    serde_json::json!({"error": format!("Inference failed: {}", e)}),
+                );
+            }
+        };
 
-        Ok(span.ok(result.text))
+        span.ok(result.text)
     }
 }
 
@@ -221,13 +236,13 @@ pub async fn run(
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
             Ok((|| -> anyhow::Result<SkillServer> {
-                let webid = ctx.webid.unwrap_or_else(|| WebID::anonymous());
+                let webid = ctx.webid;
                 let mut server = SkillServer::new(
                     webid,
                     replicant.clone(),
                     daemon_client.clone(),
                     inference_port.clone(),
-                    CapabilityTier::Tool,
+                    ctx.capability_tier,
                 );
                 server.load_skills();
                 tracing::info!(
@@ -238,6 +253,7 @@ pub async fn run(
                 Ok(server)
             })()?)
         },
+        vec![],
     )
     .await
 }
