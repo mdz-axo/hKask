@@ -24,6 +24,9 @@
 
 manifest:
   id: qa-comm-integration-gate
+  name: QA Comm Integration Gate
+  version: 0.30.0
+  visibility: Private
   description: >
     Verifies hkask-mcp-communication agent registry and messaging invariants
     through the existing integration tests. Ensures agent registration→

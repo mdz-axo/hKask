@@ -25,6 +25,9 @@
 
 manifest:
   id: qa-memory-privacy-boundary
+  name: QA Memory Privacy Boundary
+  version: 0.30.0
+  visibility: Private
   description: >
     Verifies hkask-mcp-memory privacy invariants: cross-WebID read rejection,
     consent-gated semantic publish, visibility scoping, salience determinism,

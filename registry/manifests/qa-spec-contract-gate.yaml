@@ -21,6 +21,9 @@
 
 manifest:
   id: qa-spec-contract-gate
+  name: QA Spec Contract Gate
+  version: 0.30.0
+  visibility: Private
   description: >
     Verifies hkask-mcp-spec invariants: MCP protocol roundtrip (goal capture
     → retrieve), fuzz tool input resilience, and replica centroid scoring.

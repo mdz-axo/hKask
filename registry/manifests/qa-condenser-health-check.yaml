@@ -27,6 +27,9 @@
 
 manifest:
   id: qa-condenser-health-check
+  name: QA Condenser Health Check
+  version: 0.30.0
+  visibility: Private
   description: >
     Verifies hkask-mcp-condenser compression engine invariants through
     the condenser_contract.rs test suite. Classifies failures for

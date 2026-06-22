@@ -22,6 +22,9 @@
 
 manifest:
   id: qa-mcp-server-smoke
+  name: QA Mcp Server Smoke
+  version: 0.30.0
+  visibility: Private
   description: >
     Generic MCP server smoke test. Verifies binary existence, server startup,
     tool list retrieval, and graceful shutdown. Parameterized via CRATE_NAME
