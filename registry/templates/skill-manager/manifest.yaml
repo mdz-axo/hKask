@@ -5,10 +5,11 @@ crate:
   name: skill-manager
   version: "0.30.0"
   description: >
-    CRUD operations on the skill corpus. Registry crate (manifest.yaml + *.j2)
+    Full lifecycle management for the skill corpus. Registry crate (manifest.yaml + *.j2)
     is the canonical source of truth; SKILL.md is a generated companion.
-    List, validate, build, install, and prune skills. Pairs with skill-discovery,
-    skill-maintenance, and skill-translator for full lifecycle management.
+    List, validate, build, install, prune, and translate skills. Subsumes skill-translator
+    (translate external skills ↔ hKask registry crates). Pairs with skill-discovery,
+    skill-maintenance, and skill-bundler for full lifecycle management.
 
 templates:
   - id: skill-manager/skill-manager-validate
@@ -28,3 +29,30 @@ templates:
       Scaffold a new registry crate from a user description. Generate manifest.yaml
       with crate metadata, template entries, and lexicon_terms. Generate companion
       SKILL.md from the registry crate. Validate and confirm before writing.
+
+  - id: skill-manager/skill-manager-analyze
+    path: skill-manager-analyze.j2
+    type: KnowAct
+    lexicon_terms: [detect, classify, analyze, discriminate, orient]
+    description: >
+      Analyze a source skill's format on six dimensions (manifest type, execution model,
+      state model, consent model, observability, domain references). Classify each step
+      as cognitive, workflow, or guardrail. Determine template_type per step.
+
+  - id: skill-manager/skill-manager-translate
+    path: skill-manager-translate.j2
+    type: KnowAct
+    lexicon_terms: [translate, adapt, extract, compose, verify]
+    description: >
+      Forward translation: convert a classified source skill into a hKask registry crate
+      (manifest.yaml + *.j2 templates). Map source elements to hKask equivalents,
+      drop concepts with no equivalent, produce validated output with translation summary.
+
+  - id: skill-manager/skill-manager-reverse
+    path: skill-manager-reverse.j2
+    type: KnowAct
+    lexicon_terms: [translate, extract, compose, generate, verify]
+    description: >
+      Reverse translation: generate a SKILL.md companion from a registry crate.
+      Read manifest.yaml for crate metadata, read .j2 templates for methodology,
+      produce a markdown companion suitable for the Zed coding agent.

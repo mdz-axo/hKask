@@ -95,6 +95,8 @@ pub enum CnsSpan {
     Condenser,
     /// Kata coaching operations — PDCA cycles, automaticity tracking (P3/P9).
     Kata,
+    /// Skill lifecycle operations — discovery, loading, activation, drift detection (P5.1/P9).
+    Skill,
     /// Specification operations (MDS).
     Spec,
     /// Chat/conversation operations.
@@ -272,6 +274,7 @@ impl CnsSpan {
             CnsSpan::Backup => "cns.backup",
             CnsSpan::Condenser => "cns.condenser",
             CnsSpan::Kata => "cns.kata",
+            CnsSpan::Skill => "cns.skill",
             CnsSpan::Spec => "cns.spec",
             CnsSpan::Chat => "cns.chat",
             CnsSpan::MemoryEncode => "cns.memory.encode",
@@ -372,6 +375,7 @@ impl std::str::FromStr for CnsSpan {
             "cns.backup" => Ok(CnsSpan::Backup),
             "cns.condenser" => Ok(CnsSpan::Condenser),
             "cns.kata" => Ok(CnsSpan::Kata),
+            "cns.skill" => Ok(CnsSpan::Skill),
             "cns.spec" => Ok(CnsSpan::Spec),
             "cns.chat" => Ok(CnsSpan::Chat),
             "cns.memory.encode" => Ok(CnsSpan::MemoryEncode),
@@ -492,6 +496,12 @@ mod cns_span_tests {
             CnsSpan::Gas,
             CnsSpan::Curation,
             CnsSpan::Sovereignty,
+            CnsSpan::Keystore,
+            CnsSpan::Adapter,
+            CnsSpan::Backup,
+            CnsSpan::Condenser,
+            CnsSpan::Kata,
+            CnsSpan::Skill,
             CnsSpan::Spec,
             CnsSpan::Chat,
             CnsSpan::MemoryEncode,
@@ -512,6 +522,7 @@ mod cns_span_tests {
             CnsSpan::ContractProposed,
             CnsSpan::ContractAccepted,
             CnsSpan::ContractRejected,
+            CnsSpan::ContractQualityViolated,
             CnsSpan::AcpReplicantMemorySize,
             CnsSpan::AcpIdeConnectionState,
             CnsSpan::RoleAssigned,

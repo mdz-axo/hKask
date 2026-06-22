@@ -42,7 +42,6 @@ use types::ExportEntry;
 #[allow(clippy::too_many_arguments)]
 pub fn export_formats(
     assembled_text: &str,
-    _metadata_path: &Path,
     formats: &[String],
     output_dir: &Path,
     asin: &str,
@@ -62,6 +61,12 @@ pub fn export_formats(
             sanitize_filename(author),
             sanitize_filename(title)
         )
+    };
+    // Fall back to ASIN if sanitization produced empty string (all special chars)
+    let label = if label.is_empty() {
+        asin.to_string()
+    } else {
+        label
     };
     let label = truncate_filename(&label, 200);
 
@@ -143,7 +148,7 @@ pub fn export_formats(
         "label": label,
         "exports": exports.iter().map(|e| serde_json::json!({
             "format": e.format,
-            "path": e.path.to_string_lossy(),
+            "path": format!("{}.{}", label, e.format),
             "size_bytes": e.size_bytes,
         })).collect::<Vec<_>>(),
     });

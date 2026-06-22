@@ -12,8 +12,10 @@ impl SchedulerService {
     /// Schedule a recurring task for an agent.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  store must be initialized; agent_name, trigger, action, next_run must be non-empty
-    /// post: task is persisted to the registry store; Err(AgentRegistryStore) on store failure
+    /// pre:  store must be initialized; agent_name, trigger, action, next_run must be non-empty;
+    ///       next_run must be a valid RFC 3339 / ISO 8601 timestamp string
+    /// post: task is persisted to the registry store; Err(AgentRegistryStore) on store failure;
+    ///       Err(ValidationError) if next_run is empty
     pub fn schedule(
         store: &AgentRegistryStore,
         agent_name: &str,
@@ -22,6 +24,12 @@ impl SchedulerService {
         params: Option<&str>,
         next_run: &str,
     ) -> Result<(), ServiceError> {
+        if next_run.is_empty() {
+            return Err(ServiceError::ValidationError {
+                source: None,
+                message: "next_run must be non-empty".into(),
+            });
+        }
         let task = ScheduledTask {
             agent_name: agent_name.to_string(),
             trigger: trigger.to_string(),
@@ -56,12 +64,19 @@ impl SchedulerService {
     /// Get all due tasks across all agents (for the curation loop).
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  store must be initialized; now must be a valid timestamp string
-    /// post: returns `Vec<ScheduledTask>` of all due tasks; empty Vec if none; Err(AgentRegistryStore) on store failure
+    /// pre:  store must be initialized; now must be non-empty and a valid timestamp string
+    /// post: returns `Vec<ScheduledTask>` of all due tasks; empty Vec if none; Err(AgentRegistryStore) on store failure;
+    ///       Err(ValidationError) if now is empty
     pub fn due_tasks(
         store: &AgentRegistryStore,
         now: &str,
     ) -> Result<Vec<ScheduledTask>, ServiceError> {
+        if now.is_empty() {
+            return Err(ServiceError::ValidationError {
+                source: None,
+                message: "now must be non-empty".into(),
+            });
+        }
         store
             .list_due_tasks(now)
             .map_err(|e| ServiceError::AgentRegistryStore {
@@ -72,14 +87,22 @@ impl SchedulerService {
     /// Update a task's next run time after it fires.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  store must be initialized; agent_name, trigger, new_next_run must be non-empty
-    /// post: task's next_run is updated in the store; Err(AgentRegistryStore) on store failure
+    /// pre:  store must be initialized; agent_name, trigger, new_next_run must be non-empty;
+    ///       new_next_run must be a valid RFC 3339 / ISO 8601 timestamp string
+    /// post: task's next_run is updated in the store; Err(AgentRegistryStore) on store failure;
+    ///       Err(ValidationError) if new_next_run is empty
     pub fn reschedule(
         store: &AgentRegistryStore,
         agent_name: &str,
         trigger: &str,
         new_next_run: &str,
     ) -> Result<(), ServiceError> {
+        if new_next_run.is_empty() {
+            return Err(ServiceError::ValidationError {
+                source: None,
+                message: "new_next_run must be non-empty".into(),
+            });
+        }
         store
             .update_next_run(agent_name, trigger, new_next_run)
             .map_err(|e| ServiceError::AgentRegistryStore {

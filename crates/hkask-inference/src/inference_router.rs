@@ -922,9 +922,10 @@ mod tests {
     use crate::config::InferenceConfig;
 
     fn config_with_fusion(fusion: Option<&str>) -> InferenceConfig {
-        let mut c = InferenceConfig::default();
-        c.fusion_model = fusion.map(|s| s.to_string());
-        c
+        InferenceConfig {
+            fusion_model: fusion.map(|s| s.to_string()),
+            ..Default::default()
+        }
     }
 
     // ── C1: effective_model routing ────────────────────────────────────

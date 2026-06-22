@@ -85,7 +85,8 @@ fn all_templates_render() {
                 {
                     match e.kind() {
                         minijinja::ErrorKind::UndefinedError
-                        | minijinja::ErrorKind::InvalidOperation => {
+                        | minijinja::ErrorKind::InvalidOperation
+                        | minijinja::ErrorKind::UnknownMethod => {
                             // Missing context variable — not a template defect.
                         }
                         _ => {

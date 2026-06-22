@@ -359,13 +359,21 @@ impl MatrixTransport {
         for room in rooms {
             let room_id = room.room_id().to_string();
             let title = room.name().unwrap_or_else(|| room_id.clone());
-            let members: Vec<UserId> = room
-                .members(matrix_sdk::RoomMemberships::JOIN)
-                .await
-                .unwrap_or_default()
-                .into_iter()
-                .map(|m| UserId::new(m.user_id().as_str()))
-                .collect();
+            let members: Vec<UserId> = match room.members(matrix_sdk::RoomMemberships::JOIN).await {
+                Ok(m) => m
+                    .into_iter()
+                    .map(|m| UserId::new(m.user_id().as_str()))
+                    .collect(),
+                Err(e) => {
+                    tracing::warn!(
+                        target: "cns.communication.matrix.members",
+                        room_id = %room_id,
+                        error = %e,
+                        "Failed to list room members — reporting empty members list"
+                    );
+                    Vec::new()
+                }
+            };
 
             threads.push(Thread {
                 room_id: RoomId::new(&room_id),

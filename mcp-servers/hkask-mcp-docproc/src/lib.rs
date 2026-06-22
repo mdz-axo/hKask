@@ -1921,22 +1921,8 @@ impl DocProcServer {
         let metadata_path = std::path::Path::new(&metadata_path_str);
 
         let text = params.assembled_text.unwrap_or_default();
-        let mut title = params.title.unwrap_or_else(|| "Unknown Title".into());
-        let mut author = params.author.unwrap_or_else(|| "Unknown Author".into());
-
-        // Probabilistic metadata recovery via LLM template when deterministic extraction fails.
-        // The `recover_metadata_via_llm` function returns (current, optional_prompt).
-        // When an inference port is wired, send the prompt to an LLM and parse {"title":...,"author":...}.
-        let ((rec_title, rec_author), _prompt_opt) =
-            kindle_zip::extract::recover_metadata_via_llm(&text, &title, &author).await;
-        if _prompt_opt.is_some() {
-            tracing::info!(
-                target: "cns.pipeline.kindle-zip.metadata_recovery",
-                "Metadata recovery prompt generated — inference wiring pending"
-            );
-        }
-        title = rec_title;
-        author = rec_author;
+        let title = params.title.unwrap_or_else(|| "Unknown Title".into());
+        let author = params.author.unwrap_or_else(|| "Unknown Author".into());
 
         // Load TOC from metadata
         let toc: Vec<kindle_zip::TocItem> = std::fs::read_to_string(metadata_path)
@@ -1947,7 +1933,6 @@ impl DocProcServer {
 
         match kindle_zip::export_formats(
             &text,
-            metadata_path,
             &params.formats,
             &output_dir,
             &asin,

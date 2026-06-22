@@ -22,6 +22,8 @@ use crate::kindle_zip::types::{
 /// Login happens once at construction. Call `extract_book` for each ASIN.
 /// The browser and tab are dropped when the session is dropped.
 pub struct KindleSession {
+    // Held for lifetime — browser must outlive tab
+    #[allow(dead_code)]
     browser: headless_chrome::Browser,
     tab: std::sync::Arc<headless_chrome::Tab>,
 }
@@ -43,6 +45,7 @@ impl KindleSession {
             std::ffi::OsStr::new("--disable-blink-features=AutomationControlled"),
             std::ffi::OsStr::new("--disable-features=IsolateOrigins,site-per-process"),
         ]);
+        builder.idle_browser_timeout(std::time::Duration::from_secs(300));
         if let Some(profile_dir) = chrome_profile {
             tracing::info!(target: "cns.pipeline.kindle-zip",
                 profile = %profile_dir.display(), "Using Chrome profile for cookie-based auth");
@@ -69,14 +72,13 @@ impl KindleSession {
         if url.contains("/landing") {
             tracing::info!(target: "cns.pipeline.kindle-zip", "On landing page — clicking sign-in");
             for selector in &["a[href*='signin']", "a[href*='ap/signin']", "a"] {
-                if let Ok(el) = tab.find_element(selector) {
-                    if let Ok(Some(href)) = el.get_attribute_value("href") {
-                        if href.contains("signin") || href.contains("ap/sign") {
-                            el.click().map_err(|e| format!("Click sign-in: {}", e))?;
-                            std::thread::sleep(std::time::Duration::from_secs(3));
-                            break;
-                        }
-                    }
+                if let Ok(el) = tab.find_element(selector)
+                    && let Ok(Some(href)) = el.get_attribute_value("href")
+                    && (href.contains("signin") || href.contains("ap/sign"))
+                {
+                    el.click().map_err(|e| format!("Click sign-in: {}", e))?;
+                    std::thread::sleep(std::time::Duration::from_secs(3));
+                    break;
                 }
             }
         }
@@ -195,7 +197,7 @@ pub async fn extract_kindle_book(
 
 /// Extract multiple books from a single browser session (no race condition).
 pub async fn extract_kindle_books(
-    asins: &[(String, String)], // (asin, title)
+    asins: &[String],
     amazon_email: &str,
     amazon_password: &str,
     output_dir: &Path,
@@ -203,7 +205,7 @@ pub async fn extract_kindle_books(
 ) -> Result<Vec<ExtractResult>, String> {
     let session = KindleSession::new(amazon_email, amazon_password, chrome_profile).await?;
     let mut results = Vec::with_capacity(asins.len());
-    for (asin, _title) in asins {
+    for asin in asins {
         match session.extract_book(asin, output_dir).await {
             Ok(r) => {
                 tracing::info!(target: "cns.pipeline.kindle-zip.batch",
@@ -242,12 +244,6 @@ fn kindle_login(tab: &headless_chrome::Tab, email: &str, password: &str) -> Resu
         .and_then(|el| el.click().map(|_| ()))
         .map_err(|e| format!("Submit password: {}", e))?;
     std::thread::sleep(std::time::Duration::from_secs(3));
-
-    let url = tab.get_url();
-    if url.contains("/ap/mfa") || url.contains("/ap/cvf") {
-        tracing::warn!(target: "cns.pipeline.kindle-zip.extract", "2FA — waiting 30s for manual entry");
-        std::thread::sleep(std::time::Duration::from_secs(30));
-    }
     Ok(())
 }
 
@@ -281,6 +277,42 @@ fn apply_reader_settings(tab: &headless_chrome::Tab) {
         let _ = el.click();
         std::thread::sleep(std::time::Duration::from_millis(500));
         tracing::info!(target: "cns.pipeline.kindle-zip.extract", "Reader settings applied: single-column, Amazon Ember");
+    }
+
+    // Switch progress display to page numbers (Kindle defaults to Location).
+    // Click the footer progress indicator to cycle: Location → Page → Time → Nothing.
+    // We need "Page X of Y" format for page count parsing.
+    if let Ok(footer) = tab.find_element("ion-footer ion-title") {
+        let current = tab
+            .evaluate(
+                "document.querySelector('ion-footer ion-title')?.textContent || ''",
+                false,
+            )
+            .ok()
+            .and_then(|v| v.value)
+            .and_then(|v| v.as_str().map(String::from))
+            .unwrap_or_default();
+
+        if current.contains("Location") || current.contains("Loc") {
+            tracing::info!(target: "cns.pipeline.kindle-zip.extract", "Switching from Location to Page numbering");
+            // Click footer up to 3 times to cycle to page mode
+            for _ in 0..3 {
+                let _ = footer.click();
+                std::thread::sleep(std::time::Duration::from_millis(300));
+                let updated = tab
+                    .evaluate(
+                        "document.querySelector('ion-footer ion-title')?.textContent || ''",
+                        false,
+                    )
+                    .ok()
+                    .and_then(|v| v.value)
+                    .and_then(|v| v.as_str().map(String::from))
+                    .unwrap_or_default();
+                if updated.contains("Page") || updated.contains("page") {
+                    break;
+                }
+            }
+        }
     }
 }
 
@@ -419,52 +451,6 @@ fn scrape_title_author(tab: &headless_chrome::Tab) -> Result<(String, String), S
     Ok((title, author))
 }
 
-/// Recover title/author via LLM when deterministic extraction returns "Unknown".
-///
-/// Returns the current values unchanged, plus an optional prompt for LLM recovery.
-/// The caller wires this prompt through the inference pipeline and parses the JSON
-/// response ({"title": "...", "author": "..."}) to update metadata.
-#[allow(dead_code)] // awaiting inference port wiring in MCP tool handler
-pub(crate) async fn recover_metadata_via_llm(
-    assembled_text: &str,
-    current_title: &str,
-    current_author: &str,
-) -> ((String, String), Option<String>) {
-    let title_needs = current_title == "Unknown Title" || current_title.is_empty();
-    let author_needs = current_author == "Unknown Author" || current_author.is_empty();
-    if !title_needs && !author_needs {
-        return (
-            (current_title.to_string(), current_author.to_string()),
-            None,
-        );
-    }
-
-    let sample = if assembled_text.len() > 8000 {
-        &assembled_text[..8000]
-    } else {
-        assembled_text
-    };
-
-    let prompt = format!(
-        "You are a metadata extraction assistant. Extract title and author from this text.\n\
-         Return ONLY JSON: {{\"title\": \"...\", \"author\": \"...\"}}\n\
-         Content:\n{sample}"
-    );
-
-    tracing::info!(
-        target: "cns.pipeline.kindle-zip.metadata_recovery",
-        title_needs_recovery = title_needs,
-        author_needs_recovery = author_needs,
-        sample_len = sample.len(),
-        "Metadata recovery prompt prepared for LLM extraction"
-    );
-
-    (
-        (current_title.to_string(), current_author.to_string()),
-        Some(prompt),
-    )
-}
-
 // ── Selector Verification (Gap 17: CNS alert on failure) ────────────────────
 
 fn verify_selectors(tab: &headless_chrome::Tab) -> Result<(), String> {
@@ -517,7 +503,8 @@ fn capture_pages(tab: &headless_chrome::Tab, pages_dir: &Path) -> Result<Vec<Pag
         .and_then(|v| v.as_str().map(String::from))
         .unwrap_or_default();
 
-    let total = parse_page_count(&footer_text).unwrap_or(50);
+    let total = parse_page_count(&footer_text)
+        .ok_or_else(|| format!("Cannot determine page count from footer: '{}'", footer_text))?;
     let padding = format!("{}", total * 2).len();
     let mut pages: Vec<PageEntry> = Vec::with_capacity(total);
     let mut blank_count = 0usize;
@@ -660,8 +647,10 @@ fn parse_page_count(footer: &str) -> Option<usize> {
     let numbers: Vec<usize> = footer
         .split(|c: char| !c.is_ascii_digit())
         .filter_map(|s| s.parse::<usize>().ok())
-        .filter(|&n| n > 1 && n < 100_000)
+        .filter(|&n| n > 0 && n < 100_000)
         .collect();
+    // Footer format: "Page X of Y" → we want Y (the last large number)
+    // Also handles "Location X of Y" as fallback
     if numbers.len() >= 2 {
         numbers.last().copied()
     } else {

@@ -16,6 +16,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use tracing;
 
 /// Parsed SKILL.md front matter.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -107,6 +108,16 @@ impl SkillLoader {
             for skill_dir in discovered {
                 match self.load_skill(&skill_dir, zone) {
                     Ok(skill) => {
+                        // P9: CNS span — skill activation
+                        tracing::info!(
+                            target: "cns.skill",
+                            operation = "skill_activated",
+                            skill_id = %skill.id,
+                            domain = %skill.domain,
+                            visibility = ?skill.visibility,
+                            zone = %zone.as_str(),
+                            "CNS"
+                        );
                         // Validate zone-vs-visibility consistency.
                         if let Some(warning) = Self::check_zone_visibility(&skill, zone) {
                             result.warnings.push(warning);
@@ -124,6 +135,15 @@ impl SkillLoader {
                 }
             }
         }
+
+        // P9: CNS span — skills loaded summary
+        tracing::info!(
+            target: "cns.skill",
+            operation = "skills_loaded",
+            loaded = result.loaded.len(),
+            warnings = result.warnings.len(),
+            "CNS"
+        );
 
         result
     }

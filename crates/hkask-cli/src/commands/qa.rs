@@ -431,9 +431,8 @@ fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
                                     .and_then(|v| v.as_array())
                                     .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
                                     .unwrap_or_else(|| vec!["pdf".into(), "epub".into(), "markdown".into()]);
-                                let meta_path = std::path::Path::new(output_dir).join(asin).join("metadata.json");
                                 let result = hkask_mcp_docproc::kindle_zip::export_formats(
-                                    text, &meta_path, &formats,
+                                    text, &formats,
                                     std::path::Path::new(output_dir), asin, title, author, &[],
                                 ).map_err(|e| format!("Export: {}", e))?;
                                 Ok(serde_json::json!({"outcome": "success", "exports": result.exports.len()}).to_string())

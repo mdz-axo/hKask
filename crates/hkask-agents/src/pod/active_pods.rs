@@ -271,8 +271,18 @@ impl ActivePods {
             AgentPodError::PersonaParseError("ActivePods not wired with MCP runtime".into())
         })?);
         // Enforce CuratorPod singleton (P5 Essentialism).
-        // Check atomically inside the write lock below, not here,
-        // to avoid a TOCTOU race window between read-check and write-set.
+        // Check BEFORE deployment to avoid SQLCipher HMAC mismatch on
+        // already-encrypted curator.db from a prior pod.
+        if pod_kind == PodKind::Curator {
+            let ci = self.curator_index.read().await;
+            if ci.is_some() {
+                return Err(AgentPodError::PersonaParseError(
+                    "CuratorPod already exists — only one CuratorPod per system".into(),
+                ));
+            }
+            drop(ci);
+        }
+
         let deployment = factory
             .deploy(
                 template_name,

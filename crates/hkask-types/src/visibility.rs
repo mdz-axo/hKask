@@ -40,7 +40,7 @@ impl Visibility {
     /// Get string representation of visibility.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns "private", "shared", or "public"
+    /// post: returns "private" or "public"
     pub fn as_str(&self) -> &'static str {
         match self {
             Visibility::Private => "private",
@@ -66,6 +66,12 @@ impl Visibility {
     // `match self { Visibility::Private => ..., ... }` at the
     // call site, or import `DataSovereigntyBoundary::is_category_shared`
     // when the predicate is category-scoped.
+}
+
+impl std::fmt::Display for Visibility {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 /// Access control grouping for triples and other stored artifacts.

@@ -169,16 +169,10 @@ fn export_markdown_has_headings() {
 fn export_formats_all_outputs() {
     let dir = tempfile::tempdir().unwrap();
     let meta = test_metadata(dir.path());
-    let meta_path = dir.path().join("metadata.json");
     let text = assembled_text();
-
-    // Write metadata so export_formats can read TOC
-    let json = serde_json::to_string_pretty(&meta).unwrap();
-    std::fs::write(&meta_path, &json).unwrap();
 
     let result = export_formats(
         &text,
-        &meta_path,
         &["pdf".into(), "epub".into(), "markdown".into()],
         dir.path(),
         "TEST000001",
@@ -230,12 +224,9 @@ fn empty_toc_export_does_not_panic() {
 fn export_txt_format() {
     let dir = tempfile::tempdir().unwrap();
     let text = "Plain text export test.\n\nSecond paragraph.";
-    let meta_path = dir.path().join("metadata.json");
-    std::fs::write(&meta_path, "{}").unwrap();
 
     let result = export_formats(
         text,
-        &meta_path,
         &["txt".into()],
         dir.path(),
         "TXT001",
@@ -376,7 +367,7 @@ async fn full_pipeline_extract_transcribe_export() {
         None,
         ocr_model.clone(),
         config,
-        thresholds.clone(),
+        thresholds,
         None,
     )
     .expect("DocProcServer");
@@ -420,7 +411,6 @@ async fn full_pipeline_extract_transcribe_export() {
     ];
     let export = hkask_mcp_docproc::kindle_zip::export_formats(
         &assembled,
-        &extract.metadata_path,
         &formats,
         output,
         asin,
@@ -440,10 +430,8 @@ async fn full_pipeline_extract_transcribe_export() {
     std::fs::create_dir_all(&dest).ok();
     let src = output.join(asin);
     if src.exists() {
-        for entry in std::fs::read_dir(&src).ok().into_iter().flatten() {
-            if let Ok(e) = entry {
-                std::fs::copy(e.path(), dest.join(e.file_name())).ok();
-            }
+        for e in std::fs::read_dir(&src).ok().into_iter().flatten().flatten() {
+            std::fs::copy(e.path(), dest.join(e.file_name())).ok();
         }
     }
     println!("=== Pipeline complete ===");
@@ -502,14 +490,13 @@ async fn knowledge_corpus_pipeline() {
     let url = tab.get_url();
     if url.contains("/landing") {
         for s in &["a[href*='signin']", "a[href*='ap/signin']", "a"] {
-            if let Ok(el) = tab.find_element(s) {
-                if let Ok(Some(href)) = el.get_attribute_value("href") {
-                    if href.contains("signin") || href.contains("ap/sign") {
-                        el.click().ok();
-                        std::thread::sleep(std::time::Duration::from_secs(3));
-                        break;
-                    }
-                }
+            if let Ok(el) = tab.find_element(s)
+                && let Ok(Some(href)) = el.get_attribute_value("href")
+                && (href.contains("signin") || href.contains("ap/sign"))
+            {
+                el.click().ok();
+                std::thread::sleep(std::time::Duration::from_secs(3));
+                break;
             }
         }
     }
@@ -561,26 +548,25 @@ async fn knowledge_corpus_pipeline() {
         while let Some(found) = html[pos as usize..].find(needle) {
             let abs = pos as usize + found;
             let after = &html[abs + needle.len()..];
-            if after.starts_with(":") {
-                let rest = after[1..].trim_start();
-                if rest.starts_with('"') {
-                    let inner = &rest[1..];
-                    if let Some(end) = inner.find('"') {
-                        let asin = &inner[..end];
-                        if asin.len() == 10
-                            && asin.chars().all(|c| c.is_ascii_alphanumeric())
-                            && seen.insert(asin.to_string())
-                        {
-                            let title = extract_title_near_asin(&html, asin);
-                            if !title.is_empty() {
-                                let tl = title.to_lowercase();
-                                if terms.iter().any(|t| tl.contains(t))
-                                    && seen_title.insert(title.clone())
-                                    && books.len() < 5
-                                {
-                                    println!("  Discovered: [{}] {}", asin, title);
-                                    books.push((asin.to_string(), title));
-                                }
+            if let Some(rest) = after.strip_prefix(":") {
+                let rest = rest.trim_start();
+                if let Some(inner) = rest.strip_prefix('"')
+                    && let Some(end) = inner.find('"')
+                {
+                    let asin = &inner[..end];
+                    if asin.len() == 10
+                        && asin.chars().all(|c| c.is_ascii_alphanumeric())
+                        && seen.insert(asin.to_string())
+                    {
+                        let title = extract_title_near_asin(&html, asin);
+                        if !title.is_empty() {
+                            let tl = title.to_lowercase();
+                            if terms.iter().any(|t| tl.contains(t))
+                                && seen_title.insert(title.clone())
+                                && books.len() < 5
+                            {
+                                println!("  Discovered: [{}] {}", asin, title);
+                                books.push((asin.to_string(), title));
                             }
                         }
                     }
@@ -608,7 +594,7 @@ async fn knowledge_corpus_pipeline() {
         None,
         ocr_model.clone(),
         config,
-        thresholds.clone(),
+        thresholds,
         None,
     )
     .expect("DocProcServer");
@@ -618,7 +604,7 @@ async fn knowledge_corpus_pipeline() {
     let tmp = tempfile::tempdir().unwrap();
     let output = tmp.path();
 
-    let asins: Vec<(String, String)> = books.into_iter().map(|(a, t)| (a, t)).collect();
+    let asins: Vec<String> = books.iter().map(|(a, _)| a.clone()).collect();
     let extracts = match hkask_mcp_docproc::kindle_zip::extract_kindle_books(
         &asins, &email, &password, output, None,
     )
@@ -645,7 +631,7 @@ async fn knowledge_corpus_pipeline() {
             .embedding_router
             .as_ref()
             .map(|er| (er, embed_model.as_str()));
-        let transcribe = match hkask_mcp_docproc::kindle_zip::transcribe_pages(
+        let _transcribe = match hkask_mcp_docproc::kindle_zip::transcribe_pages(
             &extract.pages_dir,
             &extract.metadata_path,
             output,
@@ -685,7 +671,6 @@ async fn knowledge_corpus_pipeline() {
         ];
         match hkask_mcp_docproc::kindle_zip::export_formats(
             &assembled,
-            &extract.metadata_path,
             &formats,
             output,
             asin,
@@ -707,19 +692,20 @@ async fn knowledge_corpus_pipeline() {
         // Copy ASIN pipeline directory
         let src = output.join(asin);
         if src.exists() {
-            for entry in std::fs::read_dir(&src).ok().into_iter().flatten() {
-                if let Ok(e) = entry {
-                    std::fs::copy(e.path(), dest.join(e.file_name())).ok();
-                }
+            for e in std::fs::read_dir(&src).ok().into_iter().flatten().flatten() {
+                std::fs::copy(e.path(), dest.join(e.file_name())).ok();
             }
         }
         // Copy human-readable root files (Author - Title.{pdf,epub,md})
-        for entry in std::fs::read_dir(output).ok().into_iter().flatten() {
-            if let Ok(e) = entry {
-                let name = e.file_name().to_string_lossy().to_string();
-                if name.ends_with(".pdf") || name.ends_with(".epub") || name.ends_with(".md") {
-                    std::fs::copy(e.path(), dest_base.join(&name)).ok();
-                }
+        for e in std::fs::read_dir(output)
+            .ok()
+            .into_iter()
+            .flatten()
+            .flatten()
+        {
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.ends_with(".pdf") || name.ends_with(".epub") || name.ends_with(".md") {
+                std::fs::copy(e.path(), dest_base.join(&name)).ok();
             }
         }
         // Copy index.json

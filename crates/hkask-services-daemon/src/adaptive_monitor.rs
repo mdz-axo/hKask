@@ -247,7 +247,13 @@ mod tests {
             _api_key: &str,
         ) -> Result<hkask_services_classify::ProviderState, hkask_services_classify::ProviderError>
         {
-            unimplemented!()
+            Ok(hkask_services_classify::ProviderState {
+                tier: "mock".into(),
+                monthly_limit: None,
+                limit_unit: hkask_services_classify::LimitUnit::Tokens,
+                overage_rate: None,
+                billing_period_start: chrono::Utc::now(),
+            })
         }
         async fn usage(
             &self,
