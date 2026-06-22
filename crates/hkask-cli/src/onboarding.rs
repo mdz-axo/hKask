@@ -724,7 +724,7 @@ fn list_replicants(
 }
 
 /// Read a line of input from the user
-fn read_line() -> Result<String, std::io::Error> {
+pub(crate) fn read_line() -> Result<String, std::io::Error> {
     let mut input = String::new();
     std::io::stdin().read_line(&mut input)?;
     Ok(input)

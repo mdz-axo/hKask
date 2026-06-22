@@ -45,7 +45,8 @@ async fn e2e_real_inference_streaming() {
     let config = InferenceConfig::from_env();
     let router = Arc::new(InferenceRouter::new(config));
     let agent = Arc::new(
-        HkaskAcpAgent::for_testing(router as Arc<dyn InferencePort>).with_model("llama3.1:8b"),
+        HkaskAcpAgent::for_testing(router as Arc<dyn InferencePort>)
+            .with_model(hkask_inference::model_constants::TEST_MODEL_SMALL),
     );
 
     let (test_side, server_side) = tokio::io::duplex(65536);

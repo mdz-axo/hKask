@@ -48,7 +48,9 @@ pub fn generate_cli_markdown() -> String {
     md.push_str("- `[AGENT]` — Agent to chat with (default: Curator)\n\n");
     md.push_str("Options:\n");
     md.push_str("- `-t`, `--template <TEMPLATE>` — Template ID to use\n");
-    md.push_str("- `-m`, `--model <MODEL>` — Model for inference (e.g., \"qwen3:8b\")\n");
+    md.push_str(
+        "- `-m`, `--model <MODEL>` — Model for inference (e.g., \"DI/google/gemma-4-9b-it\")\n",
+    );
     md.push_str("- `-f`, `--input <INPUT>` — Input file (non-interactive mode)\n\n");
     md.push_str("Slash commands (inside chat):\n");
     md.push_str("- `/help` — Show categorized help, `/help <cmd>` for details\n");

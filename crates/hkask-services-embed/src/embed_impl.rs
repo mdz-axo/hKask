@@ -1581,6 +1581,7 @@ pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceErr
         seed: None,
         disable_thinking: false,
         adapter: None,
+        bypass_fusion: false,
     };
 
     match router

@@ -32,6 +32,7 @@ pub mod deepinfra_backend;
 pub mod embedding_router;
 pub mod fal_backend;
 pub mod inference_router;
+pub mod model_constants;
 pub mod openrouter_backend;
 pub mod together_backend;
 

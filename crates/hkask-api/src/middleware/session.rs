@@ -72,7 +72,7 @@ pub async fn session_middleware_impl(
                 .body(Body::from(
                     "Session invalid or expired. Please sign in again.",
                 ))
-                .expect("static response builder");
+                .unwrap_or_else(|_| Response::new(Body::empty()));
         }
     };
 
@@ -88,7 +88,7 @@ pub async fn session_middleware_impl(
             .body(Body::from(
                 "Session invalid or expired. Please sign in again.",
             ))
-            .expect("static response builder");
+            .unwrap_or_else(|_| Response::new(Body::empty()));
     }
 
     // Inject AuthContext

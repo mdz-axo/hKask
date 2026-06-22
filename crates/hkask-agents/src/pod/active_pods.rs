@@ -270,15 +270,9 @@ impl ActivePods {
         let mcp = Arc::clone(self.mcp_runtime.as_ref().ok_or_else(|| {
             AgentPodError::PersonaParseError("ActivePods not wired with MCP runtime".into())
         })?);
-        // Enforce CuratorPod singleton (P5 Essentialism)
-        if pod_kind == PodKind::Curator {
-            let ci = self.curator_index.read().await;
-            if ci.is_some() {
-                return Err(AgentPodError::PersonaParseError(
-                    "CuratorPod already exists — only one CuratorPod per system".into(),
-                ));
-            }
-        }
+        // Enforce CuratorPod singleton (P5 Essentialism).
+        // Check atomically inside the write lock below, not here,
+        // to avoid a TOCTOU race window between read-check and write-set.
         let deployment = factory
             .deploy(
                 template_name,
@@ -301,6 +295,11 @@ impl ActivePods {
             && let Some(ref index) = deployment.semantic_index
         {
             let mut ci = self.curator_index.write().await;
+            if ci.is_some() {
+                return Err(AgentPodError::PersonaParseError(
+                    "CuratorPod already exists — only one CuratorPod per system".into(),
+                ));
+            }
             *ci = Some(Arc::clone(index));
         }
 

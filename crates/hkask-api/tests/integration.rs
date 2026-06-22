@@ -16,6 +16,10 @@ use hkask_api::routes::{
 };
 use std::collections::HashMap;
 
+/// Canonical model name for serialization test fixtures.
+/// Mirrors `hkask_inference::model_constants::TEST_MODEL_SMALL`.
+const TEST_MODEL: &str = "DI/google/gemma-4-9b-it";
+
 // ── Chat Types ────────────────────────────────────────────────────────────
 
 #[test]
@@ -23,13 +27,13 @@ fn chat_request_serialization_round_trip() {
     let req = ChatRequest {
         input: "Hello, Curator!".to_string(),
         template_id: Some("greeting".to_string()),
-        model: Some("qwen3:8b".to_string()),
+        model: Some(TEST_MODEL.to_string()),
     };
     let json = serde_json::to_string(&req).expect("ChatRequest should serialize");
     let parsed: ChatRequest = serde_json::from_str(&json).expect("ChatRequest should deserialize");
     assert_eq!(parsed.input, "Hello, Curator!");
     assert_eq!(parsed.template_id, Some("greeting".to_string()));
-    assert_eq!(parsed.model, Some("qwen3:8b".to_string()));
+    assert_eq!(parsed.model, Some(TEST_MODEL.to_string()));
 }
 
 #[test]
@@ -51,14 +55,14 @@ fn chat_response_serialization_round_trip() {
     let resp = ChatResponse {
         output: "Hello! How can I help?".to_string(),
         template_id: "greeting".to_string(),
-        model: "qwen3:8b".to_string(),
+        model: TEST_MODEL.to_string(),
     };
     let json = serde_json::to_string(&resp).expect("ChatResponse should serialize");
     let parsed: ChatResponse =
         serde_json::from_str(&json).expect("ChatResponse should deserialize");
     assert_eq!(parsed.output, "Hello! How can I help?");
     assert_eq!(parsed.template_id, "greeting");
-    assert_eq!(parsed.model, "qwen3:8b");
+    assert_eq!(parsed.model, TEST_MODEL);
 }
 
 // ── Pod Types ─────────────────────────────────────────────────────────────
@@ -145,7 +149,7 @@ fn list_pods_response_wraps_pod_statuses() {
 #[test]
 fn model_entry_serialization_round_trip() {
     let entry = ModelEntry {
-        name: "qwen3:8b".to_string(),
+        name: TEST_MODEL.to_string(),
         family: Some("qwen2".to_string()),
         parameter_size: Some("8B".to_string()),
         quantization_level: Some("Q4_0".to_string()),
@@ -153,7 +157,7 @@ fn model_entry_serialization_round_trip() {
     };
     let json = serde_json::to_string(&entry).expect("ModelEntry should serialize");
     let parsed: ModelEntry = serde_json::from_str(&json).expect("ModelEntry should deserialize");
-    assert_eq!(parsed.name, "qwen3:8b");
+    assert_eq!(parsed.name, TEST_MODEL);
     assert_eq!(parsed.family, Some("qwen2".to_string()));
     assert_eq!(parsed.parameter_size, Some("8B".to_string()));
 }
@@ -162,7 +166,7 @@ fn model_entry_serialization_round_trip() {
 fn model_list_response_carries_count() {
     let resp = ModelListResponse {
         models: vec![ModelEntry {
-            name: "qwen3:8b".to_string(),
+            name: TEST_MODEL.to_string(),
             family: None,
             parameter_size: None,
             quantization_level: None,

@@ -41,7 +41,7 @@ pub enum Commands {
         #[arg(short, long)]
         template: Option<String>,
 
-        /// Optional: model to use for inference (e.g., "qwen3:8b")
+        /// Optional: model to use for inference (e.g., "DI/google/gemma-4-9b-it")
         #[arg(short, long)]
         model: Option<String>,
 

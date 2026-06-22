@@ -79,6 +79,20 @@ impl InferenceRouter {
         }
     }
 
+    /// Compute the effective model name, applying the fusion override when active.
+    ///
+    /// When `config.fusion_model` is Some AND `params.bypass_fusion` is false,
+    /// the fusion model is used regardless of the explicit or default model.
+    /// Otherwise, falls back to the explicit model or config.default_model.
+    fn effective_model(&self, explicit: Option<&str>, params: &LLMParameters) -> String {
+        if !params.bypass_fusion
+            && let Some(ref fusion) = self.config.fusion_model
+        {
+            return fusion.clone();
+        }
+        explicit.unwrap_or(&self.config.default_model).to_string()
+    }
+
     /// Resolve which backend to use for a given model name.
     ///
     /// Returns `(provider, backend_model_name)` or an error if no backend
@@ -577,7 +591,8 @@ impl InferencePort for InferenceRouter {
             });
         }
 
-        let (provider, model) = match self.resolve(&self.config.default_model) {
+        let model_name = self.effective_model(None, parameters);
+        let (provider, model) = match self.resolve(&model_name) {
             Ok(r) => r,
             Err(e) => return Box::pin(async move { Err(e) }),
         };
@@ -642,9 +657,7 @@ impl InferencePort for InferenceRouter {
     ) -> Pin<
         Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
     > {
-        let model_name = model_override
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| self.config.default_model.clone());
+        let model_name = self.effective_model(model_override, parameters);
         // LoRA adapter overrides the model entirely (includes base model).
         // When adapter is set, it replaces model_override/default_model completely.
         let effective_model = parameters.adapter.as_deref().unwrap_or(&model_name);
@@ -695,9 +708,7 @@ impl InferencePort for InferenceRouter {
                 + '_,
         >,
     > {
-        let model_name = model_override
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| self.config.default_model.clone());
+        let model_name = self.effective_model(model_override, parameters);
         let (provider, model) = match self.resolve(&model_name) {
             Ok(r) => r,
             Err(e) => {

@@ -10,7 +10,7 @@ use tokio::process::Command;
 
 const BINARY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../target/debug/hkask-acp");
 const REPLICANT: &str = "e2e-test-acp";
-const MODEL: &str = "qwen3:8b";
+const MODEL: &str = hkask_inference::model_constants::TEST_MODEL_SMALL;
 
 async fn read_line_timeout<R: tokio::io::AsyncRead + Unpin>(
     reader: &mut BufReader<R>,

@@ -492,6 +492,7 @@ impl ChatService {
             seed: None,
             disable_thinking: false,
             adapter: None,
+            bypass_fusion: false,
         });
 
         let request_span = Span::new(SpanNamespace::from(CnsSpan::Chat), "request");
@@ -869,6 +870,7 @@ impl ChatService {
             seed: None,
             disable_thinking: true,
             adapter: None,
+            bypass_fusion: true,
         };
 
         let port = ctx.inference_port()?;

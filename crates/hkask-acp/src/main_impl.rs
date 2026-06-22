@@ -22,7 +22,7 @@
 
 pub mod protocol;
 
-use hkask_inference::{InferenceConfig, InferenceRouter};
+use hkask_inference::{InferenceConfig, InferenceRouter, model_constants};
 use hkask_mcp::daemon::DaemonClient;
 use hkask_mcp::startup::verify_startup_gates;
 use hkask_ports::{InferencePort, InferenceStreamChunk};
@@ -123,7 +123,8 @@ impl HkaskAcpAgent {
 
         let inference: Arc<dyn InferencePort> =
             Arc::new(InferenceRouter::new(InferenceConfig::from_env()));
-        let default_model = std::env::var("HKASK_MODEL").unwrap_or_else(|_| "qwen3:8b".to_string());
+        let default_model = std::env::var("HKASK_MODEL")
+            .unwrap_or_else(|_| model_constants::DEFAULT_FALLBACK_MODEL.to_string());
 
         Self {
             replicant,

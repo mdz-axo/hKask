@@ -55,19 +55,23 @@ async fn extract_via_browser(
 ) -> Result<ExtractResult, String> {
     use headless_chrome::{Browser, LaunchOptionsBuilder};
 
-    let using_profile = chrome_profile.is_some();
-    let mut launch_builder = LaunchOptionsBuilder::default()
-        .headless(true)
-        .window_size(Some((1280, 720)))
-        .sandbox(false);
-
+    let _using_profile = chrome_profile.is_some();
+    let mut builder = LaunchOptionsBuilder::default();
+    builder.headless(true);
+    builder.window_size(Some((1280, 720)));
+    builder.sandbox(false);
+    // Anti-detection: prevent Amazon from identifying headless Chrome
+    builder.args(vec![
+        std::ffi::OsStr::new("--disable-blink-features=AutomationControlled"),
+        std::ffi::OsStr::new("--disable-features=IsolateOrigins,site-per-process"),
+    ]);
     if let Some(profile_dir) = chrome_profile {
-        launch_builder.user_data_dir(Some(profile_dir.to_path_buf()))
         tracing::info!(target: "cns.pipeline.kindle-zip.extract",
             profile = %profile_dir.display(), "Using Chrome profile for cookie-based auth");
+        builder.user_data_dir(Some(profile_dir.to_path_buf()));
     }
 
-    let launch_opts = launch_builder
+    let launch_opts = builder
         .build()
         .map_err(|e| format!("Browser options: {}", e))?;
 

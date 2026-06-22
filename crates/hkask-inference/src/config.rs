@@ -181,6 +181,14 @@ pub struct InferenceConfig {
     /// Supports provider prefixes (OM/, FW/, DI/) or unprefixed names.
     /// Default: "deepseek-v4-pro". Override with `HKASK_DEFAULT_MODEL` env var.
     pub default_model: String,
+
+    /// OpenRouter fusion model that overrides all text generation calls.
+    /// When set, `generate()` and `generate_with_model()` route through this
+    /// fusion model instead of their explicit/default models. Media generation,
+    /// embeddings, and calls with `LLMParameters.bypass_fusion = true` are
+    /// unaffected. Override with `HKASK_FUSION_MODEL` env var.
+    /// Default: None (fusion disabled).
+    pub fusion_model: Option<String>,
 }
 
 impl Default for InferenceConfig {
@@ -200,6 +208,7 @@ impl Default for InferenceConfig {
             timeout_secs: 120,
             pool_max_idle: 5,
             default_model: "deepseek-v4-pro".to_string(),
+            fusion_model: None,
         }
     }
 }
@@ -260,6 +269,7 @@ impl InferenceConfig {
             pool_max_idle: 5,
             default_model: std::env::var("HKASK_DEFAULT_MODEL")
                 .unwrap_or_else(|_| "deepseek-v4-pro".to_string()),
+            fusion_model: std::env::var("HKASK_FUSION_MODEL").ok(),
         }
     }
 

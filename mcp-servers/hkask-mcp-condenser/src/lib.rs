@@ -366,6 +366,7 @@ impl CondenserServer {
             seed: None,
             disable_thinking: true,
             adapter: None,
+            bypass_fusion: true,
         };
 
         let result = match self

@@ -17,6 +17,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiState;
 use crate::middleware::auth::AuthContext;
+use hkask_inference::model_constants;
 use hkask_ports::InferencePort;
 use hkask_services::{ChatRequest as ServiceChatRequest, ChatService};
 use hkask_types::template::LLMParameters;
@@ -26,7 +27,7 @@ use utoipa::ToSchema;
 /// Chat request sent to the Curator or a specified agent.
 ///
 /// The `model` field allows switching the LLM at request time. When omitted,
-/// the server default (qwen3:8b) is used. Use `GET /api/models` to discover
+/// the server default (a fast classifier model) is used. Use `GET /api/models` to discover
 /// available models, and `GET /api/models/search?q=...` for fuzzy matching.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ChatRequest {
@@ -34,7 +35,7 @@ pub struct ChatRequest {
     pub input: String,
     /// Optional template ID to contextualize the prompt
     pub template_id: Option<String>,
-    /// Model override for inference (e.g., "qwen3:8b"). If unset, uses the server default.
+    /// Model override for inference (e.g., "DI/google/gemma-4-9b-it"). If unset, uses the server default.
     #[serde(default)]
     pub model: Option<String>,
 }
@@ -66,7 +67,7 @@ pub fn chat_router() -> OpenApiRouter<ApiState> {
 /// Chat with the Curator or a specified agent.
 ///
 /// Accepts an optional `model` field to switch the LLM at request time.
-/// When omitted, the server default (`qwen3:8b`) is used. The response
+/// When omitted, the server default (a fast classifier model) is used. The response
 /// echoes the `model` used, confirming which LLM generated the output.
 ///
 /// Use `GET /api/models` or `GET /api/models/search?q=...` to discover
@@ -89,7 +90,10 @@ pub(crate) async fn chat(
 ) -> Json<ChatResponse> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "chat", "CNS");
-    let model_str = req.model.clone().unwrap_or_else(|| "qwen3:8b".to_string());
+    let model_str = req
+        .model
+        .clone()
+        .unwrap_or_else(|| model_constants::CLASSIFIER_MODEL.to_string());
     let model: &str = &model_str;
     let strategy = hkask_templates::PromptStrategy::from_input(&req.input);
 
@@ -160,7 +164,10 @@ pub(crate) async fn chat_stream(
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "chat_stream", "CNS");
-    let model_str = req.model.clone().unwrap_or_else(|| "qwen3:8b".to_string());
+    let model_str = req
+        .model
+        .clone()
+        .unwrap_or_else(|| model_constants::CLASSIFIER_MODEL.to_string());
     let strategy = hkask_templates::PromptStrategy::from_input(&req.input);
 
     let prompt = match &req.template_id {
@@ -180,6 +187,7 @@ pub(crate) async fn chat_stream(
         seed: None,
         disable_thinking: false,
         adapter: None,
+        bypass_fusion: false,
     };
 
     let inference = state.agent_service.inference_port();

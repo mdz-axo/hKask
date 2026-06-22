@@ -504,6 +504,7 @@ fn default_llm_params() -> LLMParameters {
         seed: None,
         disable_thinking: false,
         adapter: None,
+        bypass_fusion: false,
     }
 }
 

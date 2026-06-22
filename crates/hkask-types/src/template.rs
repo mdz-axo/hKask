@@ -73,6 +73,14 @@ pub struct LLMParameters {
     /// Default: None (use default model without adapter).
     #[serde(default)]
     pub adapter: Option<String>,
+
+    /// Bypass the fusion model override when `HKASK_FUSION_MODEL` is active.
+    /// When true, the router falls back to the default model even when fusion
+    /// is configured. Used by the condenser (classification/summarization path)
+    /// to avoid routing through the fusion group.
+    /// Default: false (fusion override applies if configured).
+    #[serde(default)]
+    pub bypass_fusion: bool,
 }
 
 impl LLMParameters {
@@ -91,6 +99,7 @@ impl LLMParameters {
             seed: None,
             disable_thinking: false,
             adapter: None,
+            bypass_fusion: false,
         }
     }
 }

@@ -443,7 +443,7 @@ mod tests {
             "id": "chatcmpl-847",
             "object": "chat.completion",
             "created": 1781219013,
-            "model": "qwen3:4b",
+            "model": "DI/google/gemma-4-9b-it",
             "system_fingerprint": "fp_deepinfra",
             "choices": [{
                 "index": 0,
@@ -488,9 +488,10 @@ mod tests {
             seed: None,
             disable_thinking: false,
             adapter: None,
+            bypass_fusion: false,
         };
         let req = build_chat_request(
-            "qwen3:4b",
+            crate::model_constants::TEST_MODEL_SMALL,
             "Write a sentence.",
             None,
             &params,
@@ -527,8 +528,16 @@ mod tests {
             seed: None,
             disable_thinking: true,
             adapter: None,
+            bypass_fusion: false,
         };
-        let req = build_chat_request("qwen3:8b", "Summarize.", None, &params, Some(false), None);
+        let req = build_chat_request(
+            crate::model_constants::TEST_MODEL_SMALL,
+            "Summarize.",
+            None,
+            &params,
+            Some(false),
+            None,
+        );
         let json = serde_json::to_value(&req).expect("serialization must succeed");
         assert_eq!(json["enable_thinking"], serde_json::json!(false));
     }
@@ -549,8 +558,16 @@ mod tests {
             seed: None,
             disable_thinking: false,
             adapter: None,
+            bypass_fusion: false,
         };
-        let req = build_chat_request("qwen3:4b", "Hello.", None, &params, Some(false), None);
+        let req = build_chat_request(
+            crate::model_constants::TEST_MODEL_SMALL,
+            "Hello.",
+            None,
+            &params,
+            Some(false),
+            None,
+        );
         let json = serde_json::to_value(&req).expect("serialization must succeed");
         // enable_thinking should NOT appear in JSON when true (skip_serializing_if)
         assert!(json.get("enable_thinking").is_none());

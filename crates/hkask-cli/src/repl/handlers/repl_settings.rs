@@ -338,10 +338,10 @@ fn default_gen_model() -> String {
     "deepseek-v4-flash:cloud".to_string()
 }
 fn default_emb_model() -> String {
-    "DI/Qwen/Qwen3-Embedding-0.6B".to_string()
+    hkask_inference::model_constants::EMBEDDING_MODEL.to_string()
 }
 fn default_cls_model() -> String {
-    "google/gemma-4-26B-A4B-it".to_string()
+    hkask_inference::model_constants::CLASSIFIER_MODEL.to_string()
 }
 fn default_ocr() -> String {
     "maternion/LightOnOCR-2:1b".to_string()
@@ -397,6 +397,7 @@ pub(crate) fn to_llm_params(settings: &ReplSettings) -> LLMParameters {
         seed: settings.seed.map(|s| s as u64),
         disable_thinking: false,
         adapter: None,
+        bypass_fusion: false,
     }
 }
 
