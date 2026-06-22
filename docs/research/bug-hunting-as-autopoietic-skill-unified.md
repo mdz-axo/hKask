@@ -421,7 +421,7 @@ A complete autopoietic testing system needs **both membranes.** The gap in the c
 
 ### 7.1 With TDD: Contracts as Oracle Anchors
 
-TDD produces behavioral contracts (REQ tags with pre/post conditions). The oracle phase uses these as **high-confidence anchors**:
+TDD produces behavioral contracts (`expect:` with `pre:`/`post:` conditions). The oracle phase uses these as **high-confidence anchors**:
 
 - Behavior violates a contract → bug (high confidence)
 - Behavior satisfies contracts but pattern-suspicious → potential bug (medium confidence, heuristic oracle)

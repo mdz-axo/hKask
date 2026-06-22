@@ -891,7 +891,7 @@ impl ChatService {
 
         let port = ctx.inference_port()?;
         let result = port
-            .generate_with_model(&full_prompt, &params, Some(condenser_model))
+            .generate_with_model(&full_prompt, &params, Some(condenser_model), None)
             .await
             .ok()?;
 

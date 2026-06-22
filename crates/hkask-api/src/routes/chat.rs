@@ -113,6 +113,7 @@ pub(crate) async fn chat(
         semantic_storage_override: None,
         auth_context: Some(auth),
         params_override: None,
+        tools: None,
     };
 
     let result = match ChatService::chat(&state.agent_service, svc_req).await {

@@ -195,7 +195,7 @@ pub(crate) fn summarize_for_speech(
         ..Default::default()
     };
 
-    let result = rt.block_on(async { state.inference_port.generate(&prompt, &params).await });
+    let result = rt.block_on(async { state.inference_port.generate(&prompt, &params, None).await });
 
     match result {
         Ok(r) => {

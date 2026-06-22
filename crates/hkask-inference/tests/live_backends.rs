@@ -94,6 +94,7 @@ async fn deepinfra_summarization() {
             prompt,
             &condenser_params(),
             Some("DI/meta-llama/Llama-3.3-70B-Instruct-Turbo"),
+            None,
         )
         .await
         .expect("DeepInfra inference should succeed");
@@ -127,6 +128,7 @@ async fn together_summarization() {
             prompt,
             &condenser_params(),
             Some("TG/meta-llama/Llama-3.3-70B-Instruct-Turbo"),
+            None,
         )
         .await
         .expect("Together inference should succeed");

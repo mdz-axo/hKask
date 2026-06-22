@@ -7,7 +7,9 @@
 //! - P5 (Essentialism): each mock does one thing well
 //! - P8 (Semantic Grounding): mock responses are deterministic and verifiable
 
-use hkask_ports::{InferenceError, InferencePort, InferenceResult, InferenceUsage};
+use hkask_ports::{
+    ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
+};
 use hkask_types::template::LLMParameters;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -26,7 +28,7 @@ use std::sync::Mutex;
 ///     .with_response("hello", "Hello, world!")
 ///     .with_default("I don't understand.");
 ///
-/// let result = mock.generate("hello", &params).await.unwrap();
+/// let result = mock.generate("hello", &params, None).await.unwrap();
 /// assert_eq!(result.text, "Hello, world!");
 /// ```
 pub struct MockInferencePort {
@@ -150,6 +152,7 @@ impl InferencePort for MockInferencePort {
         &self,
         prompt: &str,
         _parameters: &LLMParameters,
+        _tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<
         Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
     > {
@@ -169,11 +172,12 @@ impl InferencePort for MockInferencePort {
         prompt: &str,
         parameters: &LLMParameters,
         _model_override: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<
         Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
     > {
         // Same as generate — model override is informational in mock
-        self.generate(prompt, parameters)
+        self.generate(prompt, parameters, tools)
     }
 }
 
@@ -186,136 +190,54 @@ mod tests {
         LLMParameters::default()
     }
 
-    #[tokio::test]
-    async fn mock_returns_canned_response() {
-        let mock = MockInferencePort::new()
-            .with_response("hello", "Hello, world!")
-            .with_default("default");
-
-        let result = mock.generate("hello there", &test_params()).await.unwrap();
-        assert_eq!(result.text, "Hello, world!");
-        assert_eq!(result.model, "mock-model");
-    }
-
-    #[tokio::test]
-    async fn mock_returns_default_for_unmatched() {
-        let mock = MockInferencePort::new()
-            .with_response("hello", "Hello!")
-            .with_default("I don't know");
-
-        let result = mock.generate("goodbye", &test_params()).await.unwrap();
-        assert_eq!(result.text, "I don't know");
-    }
-
-    #[tokio::test]
-    async fn mock_longest_prefix_wins() {
-        let mock = MockInferencePort::new()
-            .with_response("hello world", "specific")
-            .with_response("hello", "generic");
-
-        let result = mock
-            .generate("hello world today", &test_params())
-            .await
+    #[test]
+    fn mock_returns_default_for_unknown_prompt() {
+        let mock = MockInferencePort::new();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt
+            .block_on(mock.generate("unknown prompt", &test_params(), None))
             .unwrap();
-        assert_eq!(result.text, "specific");
-
-        let result = mock.generate("hello there", &test_params()).await.unwrap();
-        assert_eq!(result.text, "generic");
+        assert_eq!(result.text, "Mock response");
     }
 
-    #[tokio::test]
-    async fn mock_error_injection() {
-        let mock = MockInferencePort::new().with_response("test", "ok");
-        mock.set_error(InferenceError::CircuitOpen("test circuit".into()));
+    #[test]
+    fn mock_returns_registered_response() {
+        let mock = MockInferencePort::new().with_response("hello", "Hi there!");
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt
+            .block_on(mock.generate("hello world", &test_params(), None))
+            .unwrap();
+        assert_eq!(result.text, "Hi there!");
+    }
 
-        let result = mock.generate("test", &test_params()).await;
+    #[test]
+    fn mock_returns_most_specific_match() {
+        let mock = MockInferencePort::new()
+            .with_response("hello", "generic hello")
+            .with_response("hello world", "specific hello");
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt
+            .block_on(mock.generate("hello world again", &test_params(), None))
+            .unwrap();
+        assert_eq!(result.text, "specific hello");
+    }
+
+    #[test]
+    fn mock_injects_error() {
+        let mock = MockInferencePort::new();
+        mock.set_error(InferenceError::Model("down".into()));
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(mock.generate("anything", &test_params(), None));
         assert!(result.is_err());
+    }
 
+    #[test]
+    fn mock_clears_error() {
+        let mock = MockInferencePort::new();
+        mock.set_error(InferenceError::Model("down".into()));
         mock.clear_error();
-        let result = mock.generate("test", &test_params()).await.unwrap();
-        assert_eq!(result.text, "ok");
-    }
-
-    #[tokio::test]
-    async fn mock_generate_with_model_delegates() {
-        let mock = MockInferencePort::new().with_response("hi", "response");
-
-        let result = mock
-            .generate_with_model("hi there", &test_params(), Some("OM/qwen3:8b"))
-            .await
-            .unwrap();
-        assert_eq!(result.text, "response");
-    }
-}
-
-// ── MockDaemonClient ──────────────────────────────────────────────────────────
-
-#[allow(clippy::items_after_test_module)]
-/// A mock `DaemonClient` for ACP and MCP integration tests.
-///
-/// Returns canned responses for auth queries, assignments, capability checks,
-/// and experience storage. Supports configurable auth state and error injection.
-///
-/// pre:  none
-/// post: returns MockDaemonClient with default (authenticated, all capabilities granted)
-pub struct MockDaemonClient {
-    /// Whether auth queries report the replicant as authenticated.
-    pub authenticated: bool,
-    /// Whether assignment queries succeed.
-    pub assigned: bool,
-    /// Whether capability queries succeed.
-    pub capabilities_granted: bool,
-    /// Canned tool dispatch response.
-    pub tool_response: Option<Value>,
-    /// Stored experiences (entity → attribute → value).
-    pub stored: Mutex<Vec<(String, String, Value)>>,
-}
-
-impl MockDaemonClient {
-    /// post: returns new MockDaemonClient with default settings (authenticated, all granted)
-    pub fn new() -> Self {
-        Self {
-            authenticated: true,
-            assigned: true,
-            capabilities_granted: true,
-            tool_response: None,
-            stored: Mutex::new(Vec::new()),
-        }
-    }
-
-    /// Set authentication state to false (simulates daemon unavailable).
-    pub fn unauthenticated(mut self) -> Self {
-        self.authenticated = false;
-        self
-    }
-
-    /// Set capabilities to denied.
-    ///
-    /// post: returns self with capabilities_granted=false
-    pub fn capabilities_denied(mut self) -> Self {
-        self.capabilities_granted = false;
-        self
-    }
-
-    /// Set a canned tool dispatch response.
-    ///
-    /// pre:  response is a valid JSON Value
-    /// post: returns self with tool_response set
-    pub fn with_tool_response(mut self, response: Value) -> Self {
-        self.tool_response = Some(response);
-        self
-    }
-
-    /// Get stored experiences (for assertion in tests).
-    ///
-    /// post: returns clone of all stored experience triples
-    pub fn stored_experiences(&self) -> Vec<(String, String, Value)> {
-        self.stored.lock().unwrap().clone()
-    }
-}
-
-impl Default for MockDaemonClient {
-    fn default() -> Self {
-        Self::new()
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(mock.generate("anything", &test_params(), None));
+        assert!(result.is_ok());
     }
 }

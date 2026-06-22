@@ -95,7 +95,7 @@ impl KataEngine {
 
             let response = self
                 .inference
-                .generate(&prompt, &default_llm_params())
+                .generate(&prompt, &default_llm_params(), None)
                 .await
                 .map_err(|e| {
                     KataError::InferenceFailed(format!("Coaching Q{}: {}", q.number, e))

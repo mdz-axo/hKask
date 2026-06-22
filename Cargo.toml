@@ -65,6 +65,7 @@ members = [
     "mcp-servers/hkask-mcp-training",
     "mcp-servers/hkask-mcp-replica",
     "mcp-servers/hkask-mcp-kanban",
+    "mcp-servers/hkask-mcp-skill",
     # MCP server fuzz targets
     "mcp-servers/hkask-mcp-kanban/fuzz",
     "mcp-servers/hkask-mcp-communication/fuzz",

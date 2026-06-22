@@ -820,7 +820,7 @@ async fn extract_concepts(
     };
 
     let result = router
-        .generate_with_model(&prompt, &params, model_override.as_deref())
+        .generate_with_model(&prompt, &params, model_override.as_deref(), None)
         .await
         .map_err(|e| {
             let msg = format!("Concept extraction inference failed: {e}");
@@ -937,7 +937,7 @@ async fn infer_methods(
     };
 
     let result = router
-        .generate_with_model(&prompt, &params, model_override.as_deref())
+        .generate_with_model(&prompt, &params, model_override.as_deref(), None)
         .await
         .map_err(|e| {
             let msg = format!("Method inference failed: {e}");

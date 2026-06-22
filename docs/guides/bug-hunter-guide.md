@@ -87,7 +87,7 @@ CHARTER → PROBE → ORACLE → TAXONOMIZE → REPORT
 | Tour | What to do | When to use |
 |------|-----------|------------|
 | **Money Trail Tour** | Follow the data flow: where does value enter, where does it leave, what checks exist at each boundary | Financial code, energy budgets, any value-bearing subsystem |
-| **Contract Gap Tour** | List every public function. Check which have contracts (REQ tags, expect: annotations). Probe the uncontracted ones. | Any public API surface |
+| **Contract Gap Tour** | List every public function. Check which have contracts (`expect:` annotations, `[P{N}]` principle grounding). Probe the uncontracted ones. | Any public API surface |
 | **Hold-Settle Tour** | Find every reserve/allocate/hold pattern. Check that settle always verifies actual ≤ reserved. | Energy budgets, encumbrance systems, resource management |
 | **Idempotency Tour** | For every state-changing operation: can it be called twice? What happens? Is the result correct? | Storage operations, payment operations, state transitions |
 | **Fail-Safe Tour** | Find every default/fallback/unknown-handler path. Does it fail open or fail closed? Which is correct? | Circuit breakers, error handlers, state machines |

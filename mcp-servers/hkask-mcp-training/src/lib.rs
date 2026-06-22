@@ -1063,7 +1063,7 @@ impl TrainingServer {
             );
 
             match router
-                .generate_with_model(&prompt, &params, model.as_deref())
+                .generate_with_model(&prompt, &params, model.as_deref(), None)
                 .await
             {
                 Ok(response) => {
@@ -1279,7 +1279,7 @@ impl TrainingServer {
                 ..Default::default()
             };
 
-            match router.generate(&prompt, &params).await {
+            match router.generate(&prompt, &params, None).await {
                 Ok(response) => {
                     total_tokens += response.usage.total_tokens as u64;
                     let generated = response.text.trim();
@@ -1296,7 +1296,7 @@ impl TrainingServer {
                                  GENERATED ANSWER:\n{generated}\n\n\
                                  Reply with ONLY 'CORRECT' or 'INCORRECT'."
                             );
-                            match router.generate(&judge_prompt, &params).await {
+                            match router.generate(&judge_prompt, &params, None).await {
                                 Ok(judge) => judge.text.trim().to_uppercase().contains("CORRECT"),
                                 Err(_) => false,
                             }
@@ -1775,7 +1775,7 @@ impl TrainingServer {
             );
 
             match router
-                .generate_with_model(&judge_prompt, &params, model.as_deref())
+                .generate_with_model(&judge_prompt, &params, model.as_deref(), None)
                 .await
             {
                 Ok(response) => {
@@ -2357,7 +2357,7 @@ impl TrainingServer {
         );
 
         match router
-            .generate_with_model(&prompt, &params, model.as_deref())
+            .generate_with_model(&prompt, &params, model.as_deref(), None)
             .await
         {
             Ok(response) => {

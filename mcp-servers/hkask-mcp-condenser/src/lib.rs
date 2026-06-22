@@ -371,7 +371,7 @@ impl CondenserServer {
 
         let result = match self
             .inference_port
-            .generate_with_model(&full_prompt, &params, Some(effective_model))
+            .generate_with_model(&full_prompt, &params, Some(effective_model), None)
             .await
         {
             Ok(r) => r,

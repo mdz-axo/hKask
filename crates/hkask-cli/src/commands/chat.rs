@@ -115,6 +115,7 @@ pub async fn chat_with_agent(
         semantic_storage_override: semantic_storage,
         auth_context: None, // CLI uses legacy system-level token from config secrets
         params_override: None,
+        tools: None,
     };
 
     match ChatService::chat(&ctx, req).await {
@@ -163,6 +164,7 @@ pub async fn chat_with_agent_with_params(
         semantic_storage_override: semantic_storage,
         auth_context: None,
         params_override: Some(params.clone()),
+        tools: None,
     };
 
     match ChatService::chat(&ctx, req).await {
@@ -217,6 +219,7 @@ pub async fn chat_with_agent_streaming(
         semantic_storage_override: semantic_storage,
         auth_context: None,
         params_override: None,
+        tools: None,
     };
 
     // Prepare the chat turn (prompt composition, semantic recall, etc.)
@@ -357,6 +360,7 @@ pub async fn chat_with_agent_streaming_with_params(
         semantic_storage_override: semantic_storage,
         auth_context: None,
         params_override: Some(params.clone()),
+        tools: None,
     };
 
     // Prepare the chat turn (prompt composition, semantic recall, etc.)

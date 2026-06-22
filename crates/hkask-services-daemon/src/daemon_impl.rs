@@ -334,7 +334,7 @@ async fn generate_narrative(
         ..LLMParameters::default()
     };
 
-    let inference_result = match inference.generate(&prompt, &params).await {
+    let inference_result = match inference.generate(&prompt, &params, None).await {
         Ok(r) => r,
         Err(e) => {
             tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, error = %e, "Inference failed for narrative generation");

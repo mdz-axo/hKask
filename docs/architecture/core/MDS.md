@@ -92,7 +92,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **CNS spans:** `cns.adapter` — AdapterStored, AdapterRetrieved, AdapterDeleted, endpoint lifecycle transitions
 
-**Key contracts:** 80 `P{N}-adapter-*` REQ tags across 44 pub fns (181.8% coverage)
+**Key contracts:** 44 pub fns with `expect:` + `[P{N}]` annotations
 
 ### 1.5 Service Layer Subsystems
 

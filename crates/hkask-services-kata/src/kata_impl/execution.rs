@@ -19,12 +19,12 @@ impl KataEngine {
             let cls_model = HkaskSettings::load().classifier_model();
             let routed = format!("DI/{}", cls_model);
             self.inference
-                .generate_with_model(&prompt, &default_llm_params(), Some(&routed))
+                .generate_with_model(&prompt, &default_llm_params(), Some(&routed), None)
                 .await
                 .map_err(|e| KataError::InferenceFailed(format!("Step {}: {}", step.ordinal, e)))?
         } else {
             self.inference
-                .generate(&prompt, &default_llm_params())
+                .generate(&prompt, &default_llm_params(), None)
                 .await
                 .map_err(|e| KataError::InferenceFailed(format!("Step {}: {}", step.ordinal, e)))?
         };

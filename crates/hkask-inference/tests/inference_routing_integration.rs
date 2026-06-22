@@ -113,6 +113,7 @@ async fn routing_by_provider_prefix() {
             "Hello",
             &default_params(),
             Some("DI/meta-llama/Llama-3.3-70B-Instruct"),
+            None,
         )
         .await
         .expect("DI/ routing should succeed");
@@ -124,6 +125,7 @@ async fn routing_by_provider_prefix() {
             "Hello",
             &default_params(),
             Some("TG/Qwen/Qwen2.5-7B-Instruct-Turbo"),
+            None,
         )
         .await
         .expect("TG/ routing should succeed");
@@ -162,6 +164,7 @@ async fn unavailable_backend_returns_error() {
             "Hello",
             &default_params(),
             Some("DI/meta-llama/Llama-3.3-70B-Instruct"),
+            None,
         )
         .await;
     assert!(
@@ -170,7 +173,7 @@ async fn unavailable_backend_returns_error() {
     );
 
     let result = router
-        .generate_with_model("Hello", &default_params(), Some("TG/some-model"))
+        .generate_with_model("Hello", &default_params(), Some("TG/some-model"), None)
         .await;
     assert!(
         result.is_err(),
@@ -210,7 +213,7 @@ async fn default_provider_routing() {
     let router = InferenceRouter::new(config);
 
     let result = router
-        .generate("Hello", &default_params())
+        .generate("Hello", &default_params(), None)
         .await
         .expect("Default provider routing should succeed");
     assert_eq!(result.text, "Default provider response");
@@ -260,6 +263,7 @@ async fn model_override_routing() {
             "Hello",
             &default_params(),
             Some("TG/Qwen/Qwen2.5-7B-Instruct-Turbo"),
+            None,
         )
         .await
         .expect("Model override should succeed");
@@ -270,6 +274,7 @@ async fn model_override_routing() {
             "Hello",
             &default_params(),
             Some("DI/meta-llama/Llama-3.3-70B-Instruct"),
+            None,
         )
         .await
         .expect("Model override should succeed");
@@ -369,6 +374,7 @@ async fn disable_thinking_flows_to_wire_format() {
             "Summarize this.",
             &params,
             Some("DI/meta-llama/Llama-3.3-70B-Instruct"),
+            None,
         )
         .await
         .expect("Request with disable_thinking should succeed");
@@ -390,7 +396,7 @@ async fn generate_unavailable_backend_returns_error() {
     };
     let router = InferenceRouter::new(config);
 
-    let result = router.generate("Hello", &default_params()).await;
+    let result = router.generate("Hello", &default_params(), None).await;
     assert!(
         result.is_err(),
         "generate() should fail when default provider backend is unavailable"

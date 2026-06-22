@@ -49,7 +49,7 @@ When your changes create orphans:
 **Define success criteria. Loop until verified.**
 
 Transform tasks into verifiable goals:
-- "Add validation" → "Write the contract (// REQ: pre/post), then a property-based test verifying it, then make it pass"
+- "Add validation" → "Write the contract (pre:/post:), then a property-based test verifying it, then make it pass"
 - "Fix the bug" → "Strengthen the contract to exclude the bug, write a test that reproduces it, then make it pass"
 - "Refactor X" → "Ensure existing contracts still hold and tests pass before and after"
 

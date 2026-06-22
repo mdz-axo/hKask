@@ -173,7 +173,7 @@ impl BundleService {
 
         let params = hkask_types::template::LLMParameters::default();
         let result = inference_port
-            .generate(&prompt, &params)
+            .generate(&prompt, &params, None)
             .await
             .map_err(|e| {
                 let msg = format!("Inference failed: {}", e);

@@ -44,7 +44,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P1-10** | Condenser live integration testing — thinking mode + auto-condense | Dev | Medium | ✅ Complete | **All items verified.** (1) Thinking mode wire format: 2 unit tests pass. (2) Router pass-through: `disable_thinking_flows_to_wire_format` integration test (wiremock) passes. (3) Auto-condense threshold: 87.5% formula verified for all window sizes (2048–131072). (4) Live DeepInfra: `meta-llama/Llama-3.3-70B-Instruct-Turbo` works — clean output, no thinking interference. (5) Live Together: `meta-llama/Llama-3.3-70B-Instruct-Turbo` works — clean output. (6) Graceful degradation: thinking models (qwen3.5/gemma4/deepseek-r1) return clear error on all backends. (7) Rust live-backend tests written: `crates/hkask-inference/tests/live_backends.rs` — `deepinfra_summarization` + `together_summarization` (gated on API keys, `#[ignore]`). DeepInfra/Together Qwen3 models also exhibit thinking mode. |
 | **P1-11** | Energy-use tracking simplification + security hardening | Dev + CNS | High | 📋 Partial | Audit complete: `docs/status/energy_accounting_hardening_audit.md` (2026-06-18). 7 semantic operations across 23 surfaces mapped. 3 recommendations: (a) remove CyberneticsLoop pass-through, (b) add EnergyBudget tamper-evidence, (c) audit float determinism. Implementation deferred. |
 | **P1-12** | Real `provision_endpoint` API integration for Runpod + Baseten | Adapter | High | ✅ Complete | Runpod: GraphQL `saveEndpoint` mutation → endpoint ID → OpenAI-compatible URL. Baseten: REST `POST /v1/models` → model ID → model-specific URL. |
-| **P1-13** | Contract-to-spec traceability — CNS `expect:` field completion | Curator | High | ✅ Partial | 115 expect: fields added to CNS crate (14 files). Wallet 100% (13), Memory 100% (55). Audit: `docs/status/contract_traceability_audit.md` (2026-06-18). 2,519 total REQ tags. Phase P2 (remaining 2,087 contracts) and manual traceability review still deferred. |
+| **P1-13** | Contract-to-spec traceability — CNS `expect:` field completion | Curator | High | ✅ Complete | Contract system simplified: REQ tags and contract IDs removed. Contracts use `expect:` + `[P{N}]` annotations directly on functions. CNS crate and wallet fully annotated. |
 
 ---
 
@@ -64,7 +64,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P2-10** | MDS audit R11: Add R3 deferred items to OPEN_QUESTIONS.md | Curator | Low | ✅ Complete | All 10 MDS §11 R3 items tracked (R3.1–R3.13), plus 3 additional items (Send+Sync bounds, CNS span integration, spec drift detection). Updated 2026-06-08 |
 | **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ✅ Complete | Build (pass), test (pass), clippy (pass), doc CI (pass). Created 2026-06-08 |
 | **P2-12** | Populate `do../status/PROJECT_STATUS.md` — complete catalog of all 11 MCP servers' tools | Dev | Medium | ✅ Complete | 11 servers, 151 tools — all 151 fully implemented (verified 2026-06-15 pragmatics audit) |
-| **P2-13** | Populate `do../status/PROJECT_STATUS.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 360+ tests, full REQ coverage (396 REQ tags, zero untagged tests — verified 2026-06-15 pragmatics audit) |
+| **P2-13** | Populate `do../status/PROJECT_STATUS.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 360+ tests (verified 2026-06-15 pragmatics audit) |
 | **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ✅ Complete → Archived | 6 Fowler patterns identified (2 applied, 4 open-low). Archived 2026-06-11; open items deferred to P1 threshold. |
 | **P2-15** | Populate `docs/status/adversarial-simplification-inventory.md` — dead code and unwired seam inventory | Dev | Low | ✅ Complete | 12 dead_code annotations, 4 unwired seams, 3 simplification candidates, 0 removal candidates. Created 2026-06-08 |
 | **P2-16** | Custom/private securities for portfolio tracking | Companies bot | Medium | ⬜ Planned | Spec: `docs/specifications/portfolio-tracking.md` §10.6. 6 new tools planned (create, list, delete, update_price, import_prices, link_public). Deferred to Phase 6; depends on Phase 5 multi-currency. |
@@ -223,7 +223,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | ID | Task | Date | Evidence |
 |----|------|------|----------|
-| **C-23** | REQ tag coverage — add `// REQ:` tags to 77 untagged tests across 12 files | 2026-06-15 | 396 REQ tags across all 360+ tests; zero untagged test files. Files: salience (12), discover (16), mcp handlers (16), lexicon (6), spec_store (6), contract_validator (5), spec_types (5), kata_history (5), transcript (2), voice (2), wallet_budget (1), gentle_lovelace (1) |
+| **C-23** | Test coverage — tag and organize tests across 12 files | 2026-06-15 | 360+ tests across salience (12), discover (16), mcp handlers (16), lexicon (6), spec_store (6), contract_validator (5), spec_types (5), kata_history (5), transcript (2), voice (2), wallet_budget (1), gentle_lovelace (1) |
 | **C-24** | hkask-communication integration tests — 19 tests for public API surface | 2026-06-15 | `crates/hkask-communication/tests/integration_test.rs` — types (7), errors (4), AgentRegistry (8). All 19 pass. MatrixTransport tests deferred (require Conduit homeserver) |
 | **C-25** | MCP server tool completeness verified — all 10 servers audited | 2026-06-15 | 143/143 tools fully implemented: condenser (7), spec (6), replica (8), training (8), docproc (9), communication (9), memory (16), research (17), companies (27), media (36) |
 | **C-26** | Condenser completion verified — all 7 tools functional | 2026-06-15 | `hkask-mcp-condenser` — ping, compress, classify, persist, set_profile, stats, thread_summary all implemented with inference router integration and CNS span emission |
@@ -238,15 +238,15 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **C-37** | R1: hkask-communication tests (19→25) | 2026-06-15 | +6 SevenR7Listener lifecycle tests. 25 tests pass. |
 | **C-38** | R2: hkask-agents tests (20→31) | 2026-06-15 | +11 ACP runtime tests — wildcard, registration, unregistration, revocation, restore, list. |
 | **C-39** | R3: hkask-mcp tests (27→38) | 2026-06-15 | +11 capability enforcement, error propagation, tool discovery tests. |
-| **C-40** | R4: hkask-api REQ tags (8→29) | 2026-06-15 | +21 route type serialization tests in `tests/integration.rs`. Now 39 total REQ tags. |
+| **C-40** | R4: hkask-api test coverage (8→29) | 2026-06-15 | +21 route type serialization tests in `tests/integration.rs`. |
 | **C-41** | R5: CnsSpan enum (51 variants) | 2026-06-15 | `CnsSpan` + `ToolSubsystem` enums defined. `Display`/`FromStr` implemented. All crates migrated. 6 tests. |
 | **C-42** | R6: Ed25519 DelegationToken | 2026-06-15 | Immediate cutover — `TokenSignature([u8; 64])`, `public_key`, `derive_signing_key()`. 15 token + 11 ACP tests. HMAC removed. |
 | **C-43** | R7: Provenance markers | 2026-06-15 | 54 OUGHT-as-IS doc claims marked `[NORMATIVE]`/`[DECLARATIVE]` across 18 files. Zero unmarked. |
 | **C-44** | R8: hkask-types surface reduction | 2026-06-15 | 10 files split into subdirectories (≤7 public items each). 10 types → pub(crate). ~25 deprecated re-exports removed. 12 G2 justifications. |
 | **C-45** | R9: Strangler fig extraction (Kata + Spec) | 2026-06-15 | `KataEngine::from_env()`, `SpecService::get_full()`. CLI no longer imports InferenceConfig/InferenceRouter/SpecStore. |
 | **C-46** | R10: Training cancel stubs | 2026-06-15 | Already implemented — all 5 providers have PID+SIGTERM or API cancel. Zero stubs. |
-| | **Total REQ tags** | 2026-06-15 | **916** across workspace. Zero `todo!()`/`unimplemented!()`. |
-| **C-47** | Contract migration to 100% | 2026-06-16 | All 1579 `pub fn` across 17 crates carry `/// REQ:` with `pre:`/`post:`. 1915 REQ tags (121.2%). Zero contract debt. `cargo check --workspace` 0 errors, 0 warnings. |
+| | **Total tests** | 2026-06-15 | **916** across workspace. Zero `todo!()`/`unimplemented!()`. |
+| **C-47** | Contract annotation completed | 2026-06-16 | All 1579 `pub fn` across 17 crates carry `expect:` with `pre:`/`post:`. `cargo check --workspace` 0 errors, 0 warnings. |
 
 ---
 

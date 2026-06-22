@@ -344,11 +344,7 @@ cargo test -p hkask-templates yaml_schema_validation
 
 ### 6.2 Contract Completeness
 
-If a `.j2` template declares a `contract.input`/`contract.output`, the manifest should reference these types consistently. The contract-audit script checks for this:
-
-```bash
-scripts/contract-audit.sh --summary
-```
+If a `.j2` template declares a `contract.input`/`contract.output`, the manifest should reference these types consistently.
 
 ### 6.3 CNS Health
 
@@ -459,6 +455,6 @@ flowchart TD
 - [PRINCIPLES.md](../architecture/core/PRINCIPLES.md) — P1–P12 architecture principles
 - [AGENTS.md](../../AGENTS.md) — Agent operating guide and prohibitions
 - [CNS Domain Specification](../architecture/core/CNS-DOMAIN-SPECIFICATION.md) — CNS span registry and health checks
-- [Testing Discipline](../architecture/core/TESTING_DISCIPLINE.md) — Contract testing and REQ tagging
+- [Testing Discipline](../architecture/core/TESTING_DISCIPLINE.md) — Contract testing and principle anchoring
 - `crates/hkask-types/src/cns.rs` — Canonical CNS span definitions
 - `crates/hkask-templates/src/vocabulary.rs` — Canonical vocabulary terms

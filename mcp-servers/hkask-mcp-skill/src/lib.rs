@@ -1,0 +1,243 @@
+//! hKask MCP Skill — exposes registered skills as callable MCP tools.
+//!
+//! Each skill in the registry becomes available through the `skill_execute` tool.
+//! When invoked, the server:
+//! 1. Looks up the skill's template in the registry
+//! 2. Renders the Jinja2 template with the provided context variables
+//! 3. Runs inference on the rendered prompt via the centralized inference router
+//! 4. Returns the inference result
+
+use hkask_inference::{InferenceConfig, InferenceRouter};
+use hkask_mcp::server::{CapabilityTier, ToolSpanGuard};
+use hkask_ports::InferencePort;
+use hkask_templates::Registry;
+use hkask_types::template::LLMParameters;
+use hkask_types::WebID;
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
+use std::collections::HashMap;
+use std::sync::Arc;
+
+const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Name → description for available skills (loaded at startup for tool discovery).
+type SkillIndex = HashMap<String, SkillToolDef>;
+
+/// Metadata for a skill available as a tool.
+#[derive(Clone)]
+pub struct SkillToolDef {
+    pub description: String,
+    pub template_content: String,
+}
+
+/// Skill execution MCP server.
+pub struct SkillServer {
+    pub webid: WebID,
+    pub replicant: String,
+    pub daemon: Option<hkask_mcp::DaemonClient>,
+    pub inference_port: Arc<dyn InferencePort>,
+    pub skills: SkillIndex,
+    pub capability_tier: CapabilityTier,
+}
+
+impl SkillServer {
+    pub fn new(
+        webid: WebID,
+        replicant: String,
+        daemon: Option<hkask_mcp::DaemonClient>,
+        inference_port: Arc<dyn InferencePort>,
+        capability_tier: CapabilityTier,
+    ) -> Self {
+        Self {
+            webid,
+            replicant,
+            daemon,
+            inference_port,
+            skills: HashMap::new(),
+            capability_tier,
+        }
+    }
+
+    /// Load skills from the bootstrapped template registry.
+    ///
+    /// Reads template files from disk (paths from `RegistryEntry.source_path`)
+    /// and populates the skill index. Skills with unreadable template files
+    /// are silently skipped.
+    pub fn load_skills(&mut self) {
+        let registry = Registry::bootstrap();
+
+        for entry in registry.list(None) {
+            let template_content = match std::fs::read_to_string(&entry.source_path) {
+                Ok(content) => content,
+                Err(_) => continue,
+            };
+
+            let tool_id = registry_entry_to_tool_id(&entry.id);
+
+            self.skills.insert(
+                tool_id,
+                SkillToolDef {
+                    description: format!("[{}] {}", entry.template_type, entry.description),
+                    template_content,
+                },
+            );
+        }
+    }
+}
+
+/// Convert a registry entry ID to a safe MCP tool identifier.
+///
+/// Registry entry IDs use `/` as path separators (e.g., `coding-guidelines/guidelines-assess`).
+/// MCP tool names use `.` as namespace separators, so `/` → `.` and `_` → `-`.
+fn registry_entry_to_tool_id(id: &str) -> String {
+    id.replace('/', ".").replace('_', "-")
+}
+
+/// Render a Jinja2 template with the given context map.
+fn render_skill_template(
+    template: &str,
+    context: &HashMap<String, serde_json::Value>,
+) -> Result<String, String> {
+    let mut env = minijinja::Environment::new();
+    env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
+
+    for (key, value) in context {
+        let val = match value {
+            serde_json::Value::String(s) => minijinja::Value::from(s.clone()),
+            other => minijinja::Value::from(other.to_string()),
+        };
+        env.add_global(key, val);
+    }
+
+    env.render_str(template, minijinja::value::Value::UNDEFINED)
+        .map_err(|e| format!("Template render error: {}", e))
+}
+
+// ── MCP Tools ─────────────────────────────────────────────────────────────────
+
+#[tool_router(server_handler)]
+impl SkillServer {
+    #[tool(description = "Liveness and profile info")]
+    pub async fn skill_ping(&self) -> String {
+        let span = ToolSpanGuard::new("skill_ping", &self.webid);
+        span.ok_json(serde_json::json!({
+            "status": "ok",
+            "version": SERVER_VERSION,
+            "mode": if self.capability_tier.embedded { "embedded" } else { "standalone" },
+            "skills_loaded": self.skills.len(),
+        }))
+    }
+
+    #[tool(description = "List available skill IDs with their descriptions")]
+    pub async fn skill_list(&self) -> String {
+        let span = ToolSpanGuard::new("skill_list", &self.webid);
+        let skills: Vec<serde_json::Value> = self
+            .skills
+            .iter()
+            .map(|(id, def)| {
+                serde_json::json!({
+                    "id": id,
+                    "description": def.description,
+                })
+            })
+            .collect();
+        span.ok_json(serde_json::json!({ "skills": skills }))
+    }
+
+    #[tool(description = "Execute a registered skill template with context variables. \
+        The skill is rendered as a Jinja2 template and run through the inference engine. \
+        Use skill_list first to discover available skills, then call skill_execute \
+        with the desired skill_id and context.")]
+    pub async fn skill_execute(
+        &self,
+        #[param]
+        #[schemars(description = "Skill identifier (e.g., 'coding-guidelines.guidelines-assess')")]
+        skill_id: String,
+        #[param]
+        #[schemars(description = "Context variables to pass to the skill template as a JSON object")]
+        context: serde_json::Value,
+    ) -> Result<String, String> {
+        let span = ToolSpanGuard::new("skill_execute", &self.webid);
+
+        let def = match self.skills.get(&skill_id) {
+            Some(d) => d,
+            None => {
+                let available: Vec<&str> = self.skills.keys().map(|s| s.as_str()).collect();
+                return Err(span.error(format!(
+                    "Skill '{}' not found. Available: {:?}",
+                    skill_id, available
+                )));
+            }
+        };
+
+        // Build context map for template rendering
+        let mut ctx = HashMap::new();
+        if let serde_json::Value::Object(map) = &context {
+            for (k, v) in map {
+                ctx.insert(k.clone(), v.clone());
+            }
+        }
+
+        // Render the Jinja2 template
+        let rendered = match render_skill_template(&def.template_content, &ctx) {
+            Ok(r) => r,
+            Err(e) => return Err(span.error(e)),
+        };
+
+        // Prepend system prompt
+        let full_prompt = format!(
+            "You are executing a skill template. Follow its instructions precisely.\n\n{}",
+            rendered
+        );
+
+        // Run inference with conservative parameters (skills are structured tasks)
+        let params = LLMParameters {
+            temperature: 0.3,
+            max_tokens: 2048,
+            ..Default::default()
+        };
+
+        let result = self
+            .inference_port
+            .generate(&full_prompt, &params, None)
+            .await
+            .map_err(|e| span.error(format!("Inference failed: {}", e)))?;
+
+        Ok(span.ok(result.text))
+    }
+}
+
+// ── Server runner ─────────────────────────────────────────────────────────────
+
+pub async fn run(
+    replicant: String,
+    daemon_client: Option<hkask_mcp::DaemonClient>,
+) -> Result<(), hkask_mcp::McpError> {
+    let inference_config = InferenceConfig::from_env();
+    let inference_router = InferenceRouter::new(inference_config);
+    let inference_port: Arc<dyn InferencePort> = Arc::new(inference_router);
+
+    hkask_mcp::run_server(
+        "hkask-mcp-skill",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| {
+            Ok((|| -> anyhow::Result<SkillServer> {
+                let webid = ctx.webid.unwrap_or_else(|| WebID::anonymous());
+                let mut server = SkillServer::new(
+                    webid,
+                    replicant.clone(),
+                    daemon_client.clone(),
+                    inference_port.clone(),
+                    CapabilityTier::Tool,
+                );
+                server.load_skills();
+                tracing::info!(
+                    target: "hkask.mcp.skill",
+                    skill_count = server.skills.len(),
+                    "Skills loaded from registry"
+                );
+                Ok(server)
+            })()?)
+        },
+    )
+    .await
+}

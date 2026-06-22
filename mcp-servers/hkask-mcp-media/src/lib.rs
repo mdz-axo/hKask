@@ -3221,6 +3221,7 @@ impl MediaServer {
                 &prompt,
                 &params,
                 Some("DI/meta-llama/Llama-3.3-70B-Instruct"),
+                None,
             )
             .await
             .map_err(|e| {

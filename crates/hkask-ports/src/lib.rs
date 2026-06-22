@@ -19,8 +19,8 @@ pub use cns::{
 pub use embedding::EmbeddingGenerationError;
 pub use inference_port::{InferencePort, InferenceStreamChunk};
 pub use inference_types::{
-    ChatToolDefinition, InferenceError, InferenceResult, InferenceUsage, StructuredToolCall,
-    TokenProb, TokenProbability, compute_confidence,
+    ChatToolDefinition, ChatToolFunction, InferenceError, InferenceResult, InferenceUsage,
+    StructuredToolCall, TokenProb, TokenProbability, compute_confidence,
 };
 pub use registry::{
     RegistryEntry, RegistryError, RegistryIndex, Skill, SkillRegistryIndex, SkillZone,

@@ -4926,6 +4926,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-skill"
+version = "0.30.0"
+dependencies = [
+ "anyhow",
+ "dotenvy",
+ "hkask-inference",
+ "hkask-mcp",
+ "hkask-ports",
+ "hkask-templates",
+ "hkask-types",
+ "minijinja",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "hkask-mcp-spec"
 version = "0.30.0"
 dependencies = [

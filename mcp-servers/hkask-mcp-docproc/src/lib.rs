@@ -1417,7 +1417,7 @@ impl DocProcServer {
             ..Default::default()
         };
 
-        match router.generate(&prompt, &params).await {
+        match router.generate(&prompt, &params, None).await {
             Ok(response) => {
                 let cleaned = strip_json_fences(&response.text);
                 let qa_pairs: serde_json::Value = match serde_json::from_str(&cleaned) {
@@ -1484,7 +1484,7 @@ impl DocProcServer {
             ..Default::default()
         };
 
-        match router.generate(&prompt, &params).await {
+        match router.generate(&prompt, &params, None).await {
             Ok(response) => {
                 let cleaned = strip_json_fences(&response.text);
                 let triples: serde_json::Value = match serde_json::from_str(&cleaned) {
@@ -1757,7 +1757,7 @@ impl DocProcServer {
                 ..Default::default()
             };
 
-            match router.generate(&prompt, &params).await {
+            match router.generate(&prompt, &params, None).await {
                 Ok(response) => {
                     result["answer"] = json!(response.text);
                     result["answer_tokens"] = json!(response.usage.total_tokens);

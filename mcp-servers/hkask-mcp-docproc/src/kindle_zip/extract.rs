@@ -183,6 +183,90 @@ impl KindleSession {
     }
 }
 
+/// Discover books in Kindle library matching search terms.
+/// Requires an already-authenticated session. Returns (asin, title) pairs.
+pub async fn discover_kindle_books(
+    session: &KindleSession,
+    search_terms: &[&str],
+    max_results: usize,
+) -> Result<Vec<(String, String)>, String> {
+    session
+        .tab
+        .navigate_to("https://read.amazon.com/kindle-library")
+        .map_err(|e| format!("Nav to library: {}", e))?;
+    session
+        .tab
+        .wait_until_navigated()
+        .map_err(|e| format!("Wait library: {}", e))?;
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    let html = session
+        .tab
+        .get_content()
+        .map_err(|e| format!("Get content: {}", e))?;
+
+    let mut results: Vec<(String, String)> = Vec::new();
+    let mut seen_title = std::collections::HashSet::new();
+
+    // Extract ASINs from JSON payloads in page source
+    let needle = "\"asin\"";
+    let mut search_from = 0u64;
+    while let Some(pos) = html[search_from as usize..].find(needle) {
+        let abs = search_from as usize + pos;
+        let after = &html[abs + needle.len()..];
+        if after.starts_with(":") {
+            let rest = after[1..].trim_start();
+            if rest.starts_with('"') {
+                let inner = &rest[1..];
+                if let Some(end) = inner.find('"') {
+                    let asin = &inner[..end];
+                    if asin.len() == 10 && asin.chars().all(|c| c.is_ascii_alphanumeric()) {
+                        let title = extract_title_near_asin(&html, asin);
+                        if !title.is_empty() {
+                            let tl = title.to_lowercase();
+                            if search_terms.iter().any(|t| tl.contains(&t.to_lowercase()))
+                                && seen_title.insert(title.clone())
+                                && results.len() < max_results
+                            {
+                                tracing::debug!(target: "cns.pipeline.kindle-zip.discover",
+                                    asin = %asin, title = %title, "Discovered");
+                                results.push((asin.to_string(), title));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        search_from = abs as u64 + 1;
+    }
+
+    tracing::info!(target: "cns.pipeline.kindle-zip.discover",
+        found = results.len(), terms = ?search_terms);
+    Ok(results)
+}
+
+/// Extract title from HTML near an ASIN in a JSON payload.
+fn extract_title_near_asin(html: &str, asin: &str) -> String {
+    if let Some(p) = html.find(asin) {
+        let start = p.saturating_sub(500);
+        let end = std::cmp::min(p + 500, html.len());
+        let window = &html[start..end];
+        for pattern in &["\"title\":\"", "title\":\""] {
+            if let Some(tp) = window.find(pattern) {
+                let after = &window[tp + pattern.len()..];
+                if let Some(end) = after.find('"') {
+                    let t = &after[..end];
+                    let t = t.replace("\\\"", "\"").replace("\\n", " ");
+                    if t.len() > 3 {
+                        return t;
+                    }
+                }
+            }
+        }
+    }
+    String::new()
+}
+
 /// Convenience: create a session, extract one book, drop session.
 pub async fn extract_kindle_book(
     asin: &str,
@@ -436,18 +520,89 @@ fn extract_toc(tab: &headless_chrome::Tab) -> Result<Vec<TocItem>, String> {
 // ── Metadata ────────────────────────────────────────────────────────────────
 
 fn scrape_title_author(tab: &headless_chrome::Tab) -> Result<(String, String), String> {
-    let title = tab
-        .get_title()
-        .unwrap_or_else(|_| "Unknown Title".to_string());
-    let author = tab
-        .evaluate(
-            "document.querySelector('[data-author]')?.getAttribute('data-author') || 'Unknown Author'",
-            false,
-        )
+    // Try to extract title/author from Kindle reader's JavaScript book metadata.
+    // The page <title> is just "Kindle" — the real metadata is in the reader state.
+    let js = r#"
+        (function() {
+            try {
+                if (window.kr && window.kr.reader && window.kr.reader.book) {
+                    var b = window.kr.reader.book;
+                    return JSON.stringify({title: b.title || b.name, author: b.author || b.authors});
+                }
+            } catch(e) {}
+            try {
+                var m = document.querySelector('meta[name="title"]') ||
+                        document.querySelector('meta[property="og:title"]');
+                if (m) return JSON.stringify({title: m.getAttribute('content') || m.content});
+            } catch(e) {}
+            try {
+                var t = document.title;
+                // Page title is "Book Title - Kindle" or similar
+                if (t && t !== 'Kindle') {
+                    var clean = t.replace(/\s*[-–|]\s*Kindle\s*$/i, '').trim();
+                    if (clean && clean !== 'Kindle') return JSON.stringify({title: clean});
+                }
+            } catch(e) {}
+            try {
+                var container = document.querySelector('[data-title]');
+                if (container) {
+                    return JSON.stringify({
+                        title: container.getAttribute('data-title'),
+                        author: container.getAttribute('data-author')
+                    });
+                }
+            } catch(e) {}
+            try {
+                var scripts = document.querySelectorAll('script[type="application/json"]');
+                for (var i = 0; i < scripts.length; i++) {
+                    try {
+                        var data = JSON.parse(scripts[i].textContent);
+                        if (data.title || data.bookTitle || data.book) {
+                            var b = data.book || data;
+                            return JSON.stringify({
+                                title: b.title || b.bookTitle || '',
+                                author: b.author || b.authors || ''
+                            });
+                        }
+                    } catch(e) {}
+                }
+            } catch(e) {}
+            return '{}';
+        })()
+    "#;
+
+    // Evaluate JS and parse result, with fallback to page title
+    let raw = tab
+        .evaluate(js, false)
         .ok()
         .and_then(|v| v.value)
         .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_default();
+
+    #[derive(serde::Deserialize)]
+    struct Meta {
+        title: Option<String>,
+        author: Option<String>,
+    }
+
+    let meta: Meta = serde_json::from_str(&raw).unwrap_or(Meta {
+        title: None,
+        author: None,
+    });
+    let title = meta
+        .title
+        .filter(|t| !t.is_empty() && t != "Kindle")
+        .unwrap_or_else(|| {
+            tab.get_title()
+                .unwrap_or_else(|_| "Unknown Title".to_string())
+        });
+    let author = meta
+        .author
+        .filter(|a| !a.is_empty())
         .unwrap_or_else(|| "Unknown Author".to_string());
+
+    tracing::debug!(target: "cns.pipeline.kindle-zip.metadata",
+        title = %title, author = %author, js_raw = %raw, "Metadata extracted");
     Ok((title, author))
 }
 

@@ -106,7 +106,7 @@ CNS (Cybernetic Nervous System) spans are the primary observability primitive. E
 **§9.2 — Span Emission Pattern**
 
 ```rust
-// REQ: P9-CNS-NNN pre: {precondition} post: cns.{domain} span emitted
+// CNS span emission — pre: {precondition}, post: cns.{domain} span emitted
 tracing::info!(target: "cns.{domain}", operation = "{verb}", {key} = %{value}, ..., "CNS");
 ```
 

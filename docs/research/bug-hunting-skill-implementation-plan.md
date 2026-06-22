@@ -82,7 +82,7 @@ BugHuntLearn,
 BugHuntReport,
 ```
 
-**REQ: P8-BUGHUNT-001** — pre: `CnsSpan` enum exists with match arms in `as_str`, `from_str`, and test; post: six `BugHunt*` variants added with canonical namespace strings `cns.bughunt.{charter,probe,oracle,taxonomize,learn,report}`
+**CnsSpan enum extension** — pre: `CnsSpan` enum exists with match arms in `as_str`, `from_str`, and test; post: six `BugHunt*` variants added with canonical namespace strings `cns.bughunt.{charter,probe,oracle,taxonomize,learn,report}`
 
 **Verification:**
 - `cargo build --workspace` passes (all match arms updated)
@@ -254,7 +254,7 @@ templates:
       - cns.bughunt.report
 ```
 
-**REQ: P5-BUGHUNT-001** — pre: `registry/templates/bug-hunt/` directory exists; post: `manifest.yaml` created with exactly 7 templates, each with id, path, type, lexicon_terms, description, and generates_spans
+**Manifest creation** — pre: `registry/templates/bug-hunt/` directory exists; post: `manifest.yaml` created with exactly 7 templates, each with id, path, type, lexicon_terms, description, and generates_spans
 
 **Verification:**
 - `kask skill validate registry/templates/bug-hunt/manifest.yaml` (if available)
@@ -330,7 +330,7 @@ Your charter MUST:
   "strategy": { "name": "...", "heuristic_source": "Bach HTSM | Hendrickson Tour", "description": "..." },
   "expected_taxonomy_category": "requirements | structural | data | coding | interface | integration | timing | configuration",
   "oracle_criteria": {
-    "contract_anchors": ["list of REQ tags if available"],
+    "contract_anchors": ["list of contracts if available"],
     "heuristic_rules": ["consistency check 1", "boundary check 2"],
     "user_quality_requirement": "..."
   },
@@ -435,7 +435,7 @@ You are a heuristic oracle for bug hunting. Your job is to evaluate observations
 Evaluate the observation against three tiers:
 
 ### Tier 1 — Contract Violation (High Confidence)
-Does the observed behavior violate any existing contract (REQ tag)?
+Does the observed behavior violate any existing contract?
 - If YES → VERDICT: BUG, confidence: HIGH (0.90–1.00). Cite specific contract violated.
 - If NO → proceed to Tier 2.
 
@@ -698,7 +698,7 @@ For observations, flag contract gaps.
 Emit CNS: cns.bughunt.report with report_id, confirmed_bugs_count, potential_bugs_count, contract_gaps_count, replicant WebID.
 ```
 
-**REQ: P8-BUGHUNT-002** — pre: manifest.yaml exists with 7 template ids; post: all 7 .j2 files exist, each with template header identifying functional role, and each referencing at least one `cns.bughunt.*` span
+**Template generation** — pre: manifest.yaml exists with 7 template ids; post: all 7 .j2 files exist, each with template header identifying functional role, and each referencing at least one `cns.bughunt.*` span
 
 **Verification:**
 - All 7 `.j2` files exist in `registry/templates/bug-hunt/`
@@ -809,7 +809,7 @@ pub fn emit_bughunt_learn(
 }
 ```
 
-**REQ: P9-BUGHUNT-001** — pre: `CnsSpan::BugHunt*` variants exist; post: emitter functions exist in `bug_hunt_events.rs`, each emitting typed CNS spans through `NuEventSink`
+**Span emitter wiring** — pre: `CnsSpan::BugHunt*` variants exist; post: emitter functions exist in `bug_hunt_events.rs`, each emitting typed CNS spans through `NuEventSink`
 
 **Verification:**
 - `cargo build -p hkask-cns` passes
@@ -877,7 +877,7 @@ Add after the existing entries:
 
 #### Step 5.1 — CNS health deficit tracking test
 
-**REQ: P9-BUGHUNT-002** — pre: `CnsHealth` struct exists with `overall_deficit` field; post: integration test verifies that running the bug-hunt skill across simulated sessions produces monotonically decreasing `overall_deficit`
+**CNS health test** — pre: `CnsHealth` struct exists with `overall_deficit` field; post: integration test verifies that running the bug-hunt skill across simulated sessions produces monotonically decreasing `overall_deficit`
 
 ```rust
 // File: crates/hkask-cns/tests/bug_hunt_autopoiesis.rs
@@ -963,7 +963,7 @@ mod bug_hunt_autopoiesis_tests {
 
 #### Step 5.2 — Template rendering test
 
-**REQ: P8-BUGHUNT-003** — pre: all 7 .j2 templates exist; post: each template renders without error when given minimal valid context
+**Template rendering** — pre: all 7 .j2 templates exist; post: each template renders without error when given minimal valid context
 
 **Verification:**
 - Integration test renders each template with `{"heuristics": {}, "findings": [], "quality_criteria": "correctness", "charter": {}, ...}` minimal context
@@ -972,7 +972,7 @@ mod bug_hunt_autopoiesis_tests {
 
 #### Step 5.3 — CNS span exhaustiveness test
 
-**REQ: P8-BUGHUNT-004** — pre: `CnsSpan` enum includes `BugHunt*` variants; post: every `BugHunt*` variant appears in at least one template's `generates_spans` field and has an emitter function
+**CNS span exhaustiveness** — pre: `CnsSpan` enum includes `BugHunt*` variants; post: every `BugHunt*` variant appears in at least one template's `generates_spans` field and has an emitter function
 
 **Verification:**
 - `grep -r "cns.bughunt" registry/templates/bug-hunt/manifest.yaml` returns exactly 6 span references
