@@ -9,7 +9,6 @@
 //! compliance.
 
 pub mod convert;
-pub mod kindle_zip;
 pub mod ocr;
 
 // ── Imports ────────────────────────────────────────────────────────────────
