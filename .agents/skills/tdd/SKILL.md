@@ -16,11 +16,11 @@ This skill's runtime templates live in `registry/templates/tdd/`:
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `tdd-plan.j2` | KnowAct | Plan TDD cycle: extract requirements from specs, prioritize by risk |
+| `tdd-plan.j2` | KnowAct | Plan TDD cycle: identify requirements, prioritize by risk |
 | `tdd-tracer.j2` | KnowAct | Execute tracer bullet: write one contract, then one failing test, then minimal code to pass |
 | `tdd-refactor.j2` | KnowAct | Refactor while GREEN: extract duplication, deepen modules |
-| `tdd-verify.j2` | KnowAct | Verify TDD cycle completion: tests pass, clippy clean, spec traceability |
-| `tdd-gap-check.j2` | KnowAct | Functional gap analysis: compare spec requirements against tested behaviors |
+| `tdd-verify.j2` | KnowAct | Verify TDD cycle completion: tests pass, clippy clean |
+| `tdd-gap-check.j2` | KnowAct | Functional gap analysis: compare requirements against tested behaviors |
 
 The SKILL.md (this file) teaches the Zed coding agent the TDD methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
 
@@ -41,9 +41,8 @@ The SKILL.md (this file) teaches the Zed coding agent the TDD methodology. The .
 - `δ`: Tolerance bound (how far from the postcondition is acceptable)
 - `k`: Recovery window (how many steps the agent has to self-correct before violation is reported)
 
-Probabilistic contracts use the same `/// REQ:` doc-comment format with an additional `prob:` field:
+Probabilistic contracts use the standard doc-comment format with an additional `prob:` field:
 ```rust
-/// REQ: improv-plussing-001
 /// pre:  mode is Plussing, context is non-empty
 /// post: response builds on input (yes-and pattern) with prob ≥ 0.90
 /// prob: p=0.90, δ=semantic_similarity≥0.7, k=3
@@ -52,22 +51,22 @@ pub async fn plussing_respond(&self, input: &str) -> String { ... }
 
 Only apply probabilistic contracts to LLM agent behaviors or other non-deterministic functions. Deterministic functions use standard contracts without `prob:`.
 
-### Contract Architecture — Principles as Terms
+### Contract Architecture
 
-Every contract is a **smart contract between code and user expectation**, with hKask's 12 architectural principles as the governing terms (PRINCIPLES.md §1.5). A contract has four layers, each answering a distinct question:
+Every contract is documented directly on the function signature using `expect:` + `[P{N}]` annotations. A contract has four layers, each answering a distinct question:
 
 | Layer | Field | Question Answered |
 |-------|-------|-------------------|
-| **Verbal expectation** | `expect:` with `[P{N}]` tag | What did the user say they want? (in the user's voice) |
-| **Goal principle** | inline `[P{N}]` on `expect:` | Which principle justifies this as a user-visible guarantee? |
+| **Verbal expectation** | `expect:` | What did the user say they want? (in the user's voice) |
+| **Goal principle** | `[P{N}] Motivating:` | Which principle justifies this as a user-visible guarantee? |
 | **Constraining principles** | `[P{N}] Constraining:` | What can the code *not* do and stay principle-aligned? |
 | **Behavioral specification** | `pre:` / `post:` / `inv:` | What are the caller's obligations and the function's guarantees? |
 
 A complete contract:
 
 ```rust
-/// REQ: P9-cns-energy-budget-can-proceed
-/// expect: "I can check whether an agent has enough gas before executing" [P9]
+/// expect: "I can check whether an agent has enough gas before executing"
+/// [P9] Motivating: Homeostatic Self-Regulation — prevents runaway agent execution
 /// pre:  gas is a valid EnergyCost
 /// post: returns true iff budget has >= gas remaining and circuit breaker allows
 /// inv:  does not consume gas (read-only check)
@@ -76,32 +75,18 @@ A complete contract:
 pub fn can_proceed(&self, gas: EnergyCost) -> bool { ... }
 ```
 
-**Contract ID format** (FUNCTIONAL_SPECIFICATION.md §7): `P{N}-{domain-abbreviation}-{operation-verb-phrase}`. The `P{N}` prefix encodes the goal principle directly in the ID.
-
 The TDD's role is to ensure every tracer bullet produces a contract with all four layers and validates each:
-- Does `expect:` faithfully capture the spec requirement in the user's voice?
-- Does the `[P{N}]` tag on `expect:` correctly identify the goal principle?
+- Does `expect:` faithfully capture the requirement in the user's voice?
+- Does the `[P{N}] Motivating:` annotation correctly identify the goal principle?
 - Do `[P{N}] Constraining:` annotations correctly express what principles forbid?
 - Do `pre:` / `post:` / `inv:` form a machine-checkable behavioral specification?
 - Does the implementation satisfy the behavioral specification without violating constraining principles?
 
-### Spec-Anchored Testing
+### Requirement-Anchored Testing
 
-Every tracer bullet starts from a specification requirement, not from intuition. The specification is the source of truth for *what* to test. Without spec anchoring, tests validate behavior that may not matter and miss behavior that does.
+Every tracer bullet starts from a requirement, not from intuition. The requirement is the source of truth for *what* to test. Without anchoring, tests validate behavior that may not matter and miss behavior that does.
 
-**Traceability chain**: `spec/goal/capture` → `Spec` objects → `GoalSpec.criteria` → `// REQ:` comment → test → implementation.
-
-The TDD process queries the specification infrastructure before planning. Requirements come from structured `Spec` and `GoalSpec` objects — not from LLM interpretation of markdown. All five MDS §3 tools are available via the `hkask-mcp-spec` MCP server:
-
-- `spec/goal/capture` — creates a new specification with auto-inferred MDS category and criteria seeding
-- `spec/goal/decompose` — breaks a goal into ordered sub-goals with dependencies
-- `spec/graph/query` — queries specs by text match across name, goals, and category, returning graph nodes/edges/paths
-- `spec/graph/coherence` — computes collection coherence, identifies missing categories and incomplete specs
-- `spec/require/writing-quality` — gates spec readability before testing
-
-These tools are also exposed via the HTTP API (`/api/specs` routes). Curation decisions (Accept/Revise/Reject) are external to the spec server — the Curator or human makes them (MDS §2).
-
-If no specification exists for the feature, use `spec/goal/capture` to create one before planning tests. A feature without a spec cannot be spec-anchored.
+Identify the functional requirement before planning tests. If no requirement is documented for the feature, state it explicitly before proceeding. A feature without a documented requirement cannot be properly anchored.
 
 ## Anti-Pattern: Horizontal Slices
 
@@ -136,18 +121,16 @@ RIGHT (vertical):
 5. Prefer `assert!` with meaningful messages over `assert_eq!` when the message adds diagnostic value.
 6. Test error paths — verify error variants, not just happy paths.
 7. **No `todo!()` or `unimplemented!()`** — write minimal stubs that return sensible defaults or errors, not panics.
-8. **Every test carries a `// REQ:` comment** naming the contract it validates. Format: `// REQ: <contract_id> — requirement summary`. The `contract_id` uses `P{N}-{domain}-{operation}` format (FUNCTIONAL_SPECIFICATION.md §7).
 
 ## Workflow
 
-### 1. Spec-Anchored Planning
+### 1. Planning
 
 Before writing any code:
 
-**Step 1 — Extract requirements from specifications:**
-- Identify the relevant specification document(s) for the change
-- Extract functional requirements with their MDS category and spec_id (e.g., from `spec/goal/capture` output)
-- If no spec exists, create a minimal one before proceeding
+**Step 1 — Identify requirements:**
+- Identify what functional requirement(s) this change addresses
+- State the requirement in the user's voice before proceeding
 
 **Step 2 — Map requirements to testable behaviors:**
 - Each functional requirement maps to one or more observable behaviors on a public seam
@@ -160,13 +143,11 @@ Before writing any code:
 - P2+ (Ergonomics): Convenience, polish
 
 **Step 4 — List behaviors with traceability:**
-- Each behavior must reference a spec_id from the specification
+- Each behavior must reference a documented requirement
 - List behaviors to test (not implementation steps)
 - Get user approval on the plan
 
-Ask: "Which MDS categories does this change touch? What should the public interface look like? Which requirements are most critical to test?"
-
-**Spec resolution:** Before writing any test plan, query the spec infrastructure for requirements in the relevant MDS category. Use `spec/graph/query` (via the `hkask-mcp-spec` MCP server) to retrieve structured requirements. Use `spec/graph/coherence` to verify collection health. Curation decisions (Accept/Revise/Reject) are made externally by the Curator or human per MDS §2. Only plan tracer bullets for specs with `Accept` curation decisions.
+Ask: "What functional requirement does this change address? What should the public interface look like? Which requirements are most critical to test?"
 
 **You can't test everything.** Focus on requirements in the change scope, prioritized by risk.
 
@@ -175,37 +156,28 @@ Ask: "Which MDS categories does this change touch? What should the public interf
 Write ONE contract and ONE test that confirm ONE thing about the system:
 
 ```
-CONTRACT: Write the full contract on the function signature — expect:, pre/post/inv, [P{N}] Constraining
+CONTRACT: Write the full contract on the function signature — expect:, pre/post/inv, [P{N}] Motivating/Constraining
 RED:     Write property-based test verifying the behavioral specification → test fails
 GREEN:   Write minimal code to satisfy the contract without violating constraining principles → test passes
 ```
 
 Each contract must include:
-- `/// REQ: P{N}-{domain}-{operation}` — contract ID with goal principle prefix
-- `/// expect:` — the user's functional expectation in their own voice, with inline `[P{N}]` tag naming the goal principle
+- `/// expect:` — the user's functional expectation in their own voice
+- `/// [P{N}] Motivating:` — the goal principle that drives this contract (exactly one)
 - `/// pre:` and `/// post:` — the behavioral specification (Testing Discipline §1.2)
 - `/// inv:` — type invariants where applicable
 - `/// [P{N}] Constraining:` — principles that constrain how the goal is delivered (zero to many)
 
-The goal principle is encoded twice: once in the contract ID `P{N}` prefix, and once as a `[P{N}]` tag on the `expect:` line. They must match. Per PRINCIPLES.md §1.5, the goal principle answers "What does the user get?" — every other principle constrains *how* it's delivered.
-
 For non-deterministic functions (LLM agent behaviors, inference output), add `/// prob: p=X, δ=Y, k=Z` per Testing Discipline §7.6.
 
 ```rust
-/// REQ: P9-cns-energy-budget-can-proceed
-/// expect: "I can check whether an agent has enough gas before executing" [P9]
+/// expect: "I can check whether an agent has enough gas before executing"
+/// [P9] Motivating: Homeostatic Self-Regulation — prevents runaway agent execution
 /// pre:  gas is a valid EnergyCost
 /// post: returns true iff budget has >= gas remaining and circuit breaker allows
 /// inv:  does not consume gas (read-only check)
 /// [P4] Constraining: Clear Boundaries — cap enforces resource boundary
 pub fn can_proceed(&self, gas: EnergyCost) -> bool { ... }
-```
-
-Each test carries a `// REQ:` comment matching the contract's `P{N}-{domain}-{operation}` ID:
-```rust
-// REQ: P9-cns-energy-budget-can-proceed — energy budget check with resource boundary
-#[test]
-fn energy_budget_can_proceed_with_circuit_breaker() { ... }
 ```
 
 ### 3. Incremental Loop
@@ -223,8 +195,7 @@ Rules:
 - Only enough code to satisfy the current contract without violating constraining principles
 - Don't anticipate future contracts
 - Keep contracts focused on observable behavior
-- Each contract includes all 4 layers: expect: with [P{N}] tag, constraining principles, behavioral specification
-- Each contract and test carries its `P{N}-{domain}-{operation}` REQ tag
+- Each contract includes all 4 layers: expect:, goal principle, constraining principles, behavioral specification
 
 **Fuzz and system layers** follow the same tracer-bullet pattern when applicable:
 - **Fuzz tracer bullet** (Testing Discipline §2.4, T6): For `pub fn` input surfaces that accept arbitrary data from external sources. Contract: precondition = "any input", postcondition = "does not panic". Use `catch_unwind` + proptest with unlimited input generation. Fuzz tests live in `tests/` at crate root.
@@ -238,13 +209,11 @@ After all tests pass, look for refactor candidates:
 - Apply SOLID principles where natural
 - Consider what new code reveals about existing code
 - Run tests after each refactor step
-- **Preserve `// REQ:` tags and all contract layers** — refactoring changes structure, not functional alignment or principle grounding
 
-**Rule 6bis — Contract metadata must travel with the function.** When moving or renaming a function, the `expect:` field, `[P{N}]` goal-principle tag, and `[P{N}] Constraining:` annotations must travel with the contract. Loss of any of these fields is a REFACTOR violation — it severs the traceability chain.
+**Rule 6bis — Contract metadata must travel with the function.** When moving or renaming a function, the `expect:` field, `[P{N}]` goal-principle annotation, and `[P{N}] Constraining:` annotations must travel with the contract. Loss of any of these fields is a REFACTOR violation — it severs the traceability chain.
 
-**Rule 8bis — Verify extended contract metadata after each step.** Run:
+**Rule 8bis — Verify contract metadata after each step.** Run:
 ```bash
-grep -rn "/// REQ:.*expect:" crates/ --include="*.rs" | wc -l
 grep -rn "/// \[P[0-9]*\]" crates/ --include="*.rs" | wc -l
 ```
 Compare counts against pre-refactor counts. Any decrease means contract metadata was lost — revert.
@@ -255,45 +224,7 @@ Compare counts against pre-refactor counts. Any decrease means contract metadata
 
 **Never refactor while RED.** Get to GREEN first.
 
-### 5. rSolidity Rewrite
-
-rSolidity is the formally adopted contracting language for hKask (2026-06-18). After the contract is stable (GREEN + refactored), rewrite it into executable rSolidity macros per `RSOLIDITY_VOCABULARY.md` §4. The `/// REQ:` doc-comment remains the authoritative specification; rSolidity macros provide runtime enforcement.
-
-**Rewrite pattern** (strangler fig — old and new coexist):
-
-```rust
-use hkask_rsolidity::{contract, require, assert};
-
-#[contract(
-    id = "P{N}-{domain}-{operation}",
-    principle = "P{N}",
-    pre = "<precondition text from /// REQ:>",
-    post = "<postcondition text from /// REQ:>"
-)]
-pub fn function_name(...) -> ... {
-    require!(<pre-condition>, "P{N}-{domain}-{operation}", "<message>");
-    let result = /* implementation */;
-    assert!(<post-condition>, "P{N}-{domain}-{operation}", "<message>");
-    result
-}
-```
-
-**Rules:**
-- One rSolidity macro per contract clause (RSOLIDITY_VOCABULARY.md §3.1)
-- `require!` for `pre:`, `assert!` for `post:` and `inv:`, `revert!` for failure paths, `emit!` for CNS spans, `#[ocap]` for capability gates
-- `#[contract]` attribute must match the `/// REQ:` ID and principle
-- The old `/// REQ:` comment stays — it remains authoritative for `scripts/contract-audit.sh`
-- Run `cargo test -p hkask-rsolidity` to verify macros compile
-
-**Verification:**
-
-```bash
-cargo test -p hkask-rsolidity          # rSolidity macro smoke tests
-scripts/contract-audit.sh --rsolidity <crate>   # count contracts with #[contract] attribute
-kask cns health                         # verify no new algedonic alerts
-```
-
-### 6. Verify
+### 5. Verify
 
 ```bash
 cargo test -p <crate>           # Run the specific crate's tests
@@ -301,44 +232,26 @@ cargo clippy -p <crate> -- -D warnings  # Lint
 cargo check -p <crate>          # Type-check
 ```
 
-**Contract structure audit (v0.28.0):**
+**Contract metadata audit:**
 ```bash
-# Coverage audit (contract count vs pub fn count)
-bash scripts/ci/contract-audit.sh --summary
+# Count public functions with principle grounding
+grep -rn "/// \[P[0-9]*\]" crates/ --include="*.rs" | wc -l
 
-# expect: field presence
-bash scripts/ci/contract-audit.sh --expect
-
-# [P{N}] goal-principle anchoring
-bash scripts/ci/contract-audit.sh --principles
-
-# [P{N}] Constraining: annotation completeness
-bash scripts/ci/contract-audit.sh --constraining
-
-# All modes combined
-bash scripts/ci/contract-audit.sh --full
+# Check expect: field presence
+grep -rn "/// expect:" crates/ --include="*.rs" | wc -l
 ```
 
-### 7. Functional Gap Check
+### 6. Contract Quality Check
 
-After verification, compare tested behaviors against specification requirements:
+For each contract in scope, verify all layers with scoring:
 
-1. **Call `spec/graph/query`** via the `hkask-mcp-spec` MCP server to retrieve all specs in scope
-2. **For each spec**, check `is_complete()` — if false, the spec has unsatisfied criteria that may need tracer bullets
-3. **Gaps** — spec requirements with no matching `// REQ:` tag — must be addressed:
-   - Write a tracer bullet for the gap, OR
-   - Document the gap in `OPEN_QUESTIONS.md` with a deferral rationale
-4. **Call `spec/graph/coherence`** to check overall collection coherence and identify missing MDS categories
-
-This step catches the "tested but wrong" problem (tests that don't validate real requirements) and the "untested requirement" problem (spec requirements with no coverage).
-
-**Contract quality sub-check:** For each contract in scope, verify all layers with scoring:
 1. **`expect:` quality** — Scored 0-3: 0 (missing), 1 (vacuous — restates function name), 2 (functional — describes user need), 3 (anchored — names motivating principle with rationale). Contracts scoring 0-1 are gaps.
-2. **Goal principle alignment** — Does the contract's `[P{N}]` match the MDS category's default goal principle? Cross-reference with the MDS category mapping (Domain→P1, Capability→P4, Interface→P3, Composition→P7, Trust→P4+P2, Observability→P9, Persistence→P8, Lifecycle→P5, Curation→P8). Mismatches require rationale.
-3. **Constraining completeness** — Which Magna Carta principles (P1-P4) are missing from `[P{N}] Constraining:`? A Trust category contract without `[P4] Constraining` is a P0 gap.
-4. **Bidirectional verification** — Every gap is a missing or broken triple in the contract traceability graph (see `docs/architecture/contracts/contract-traceability.ttl`). Link 1 (Implementation→Contract) verified by `contract-audit.sh`. Link 2 (Contract→UserExpectation) verified by `expect:` semantic check. Link 3 (UserExpectation→GoalPrinciple) verified by principle alignment cross-reference.
 
-### 8. CNS Feedback Integration
+2. **Goal principle alignment** — Does the contract's `[P{N}] Motivating:` match the domain's default goal principle? Cross-reference with the MDS category mapping (Domain→P1, Capability→P4, Interface→P3, Composition→P7, Trust→P4+P2, Observability→P9, Persistence→P8, Lifecycle→P5, Curation→P8). Mismatches require rationale.
+
+3. **Constraining completeness** — Which Magna Carta principles (P1-P4) are missing from `[P{N}] Constraining:`? A Trust category contract without `[P4] Constraining` is a P0 gap.
+
+### 7. CNS Feedback Integration
 
 The TDD cycle is a pre-commit development activity. Post-deployment, the CNS provides runtime contract monitoring per Testing Discipline §7.3. CNS violations feed back into the TDD cycle as triggers for new tracer bullets:
 
@@ -350,20 +263,19 @@ The TDD cycle is a pre-commit development activity. Post-deployment, the CNS pro
 
 **Principle:** Every CNS contract alert is a candidate tracer bullet. The loop: CNS detects a violation → TDD writes a contract + test that excludes it → implementation fixes it → CNS monitors the new contract.
 
-**Check before closing a CNS alert:** Does the fix have a contract? Does the contract have a test? Is the test traceable to a spec requirement? If any answer is no, the fix is incomplete — the bug will recur.
+**Check before closing a CNS alert:** Does the fix have a contract? Does the contract have a test? Is the test traceable to a documented requirement? If any answer is no, the fix is incomplete — the bug will recur.
 
 ## Checklist Per Cycle
 
 ```
 [ ] Contract written before test with all 4 layers:
-    [ ] expect: — faithful to spec, in user's voice, carries [P{N}] tag matching contract ID prefix
+    [ ] expect: — faithful to requirement, in user's voice
+    [ ] [P{N}] Motivating — goal principle declared
     [ ] [P{N}] Constraining — all applicable constraints declared
     [ ] pre:/post:/inv: — complete machine-checkable behavioral specification
-[ ] Contract ID uses P{N}-{domain}-{operation} format (FUNCTIONAL_SPECIFICATION.md §7)
 [ ] Test is property-based (proptest) where applicable, verifying the behavioral specification
 [ ] Test uses public interface only (seam, not internals)
 [ ] Test would survive internal refactor
-[ ] Test carries a // REQ: tag matching the contract's P{N}-{domain}-{operation} ID
 [ ] Code is minimal to satisfy the contract without violating constraining principles
 [ ] No speculative features added
 [ ] No todo!() or unimplemented!() stubs
@@ -374,17 +286,11 @@ The TDD cycle is a pre-commit development activity. Post-deployment, the CNS pro
 ## End-of-Session Checklist
 
 ```
-[ ] Every spec requirement in scope has a contract + tracer bullet OR a documented deferral
-[ ] No // REQ: tag references a non-existent contract ID
-[ ] Each MDS category in scope has coverage (Domain, Composition, Trust, Lifecycle, Curation)
-[ ] Every contract's expect: faithfully captures the spec's verbal expectation and carries a [P{N}] tag
-[ ] Every contract's [P{N}] tag matches the contract ID prefix
+[ ] Every requirement in scope has a contract + tracer bullet OR a documented deferral
+[ ] Every contract's expect: faithfully captures the requirement and carries a [P{N}] annotation
 [ ] Every contract's [P{N}] Constraining annotations are complete (minimum applicable P1-P4 Magna Carta)
 [ ] No implementation violates constraining principles
-[ ] Contract coverage audit: bash scripts/ci/contract-audit.sh --summary — all crates ≥100%
-[ ] Expectation audit: bash scripts/ci/contract-audit.sh --expect — zero MISSING_EXPECTATION
-[ ] Principle audit: bash scripts/ci/contract-audit.sh --principles — zero MISSING_GOAL_PRINCIPLE
-[ ] Constraining audit: bash scripts/ci/contract-audit.sh --constraining — zero UNCONSTRAINED
+[ ] Contract metadata present: all pub fns with contracts have [P{N}] annotations
 [ ] Gaps are recorded in OPEN_QUESTIONS.md with deferral rationale
 [ ] Any contract expect: or goal_principle change during refactor is flagged for P2 consent
 ```

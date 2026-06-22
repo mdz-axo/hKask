@@ -5,7 +5,9 @@ use hkask_acp::HkaskAcpAgent;
 use hkask_acp::main_impl::protocol::StdioTransport;
 use hkask_ports::InferencePort;
 use hkask_ports::inference_port::InferenceStreamChunk;
-use hkask_ports::inference_types::{InferenceError, InferenceResult, InferenceUsage};
+use hkask_ports::inference_types::{
+    ChatToolDefinition, InferenceError, InferenceResult, InferenceUsage,
+};
 use hkask_types::template::LLMParameters;
 use std::future::Future;
 use std::pin::Pin;
@@ -31,6 +33,7 @@ impl InferencePort for MockInferencePort {
         &self,
         _p: &str,
         _params: &LLMParameters,
+        _tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
         Box::pin(async {
             Ok(InferenceResult {

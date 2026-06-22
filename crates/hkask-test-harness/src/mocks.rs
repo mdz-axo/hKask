@@ -11,7 +11,6 @@ use hkask_ports::{
     ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
 };
 use hkask_types::template::LLMParameters;
-use serde_json::Value;
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Mutex;

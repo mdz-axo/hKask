@@ -253,7 +253,7 @@ Loop inboxes and variety counters are in-memory. On crash, all pending messages 
 **Status:** Resolved — intentional gap  
 **Resolution Date:** 2026-06-03
 
-Memory (Episodic + Semantic, Loop 2) has no direct MCP server — queries go through `hkask-mcp-cns`, `hkask-mcp-memory`, or `hkask-mcp-registry`. This is intentional — semantic queries are lower-level than what MCP tools expose. The CNS, Memory, and Registry servers provide higher-level access patterns that compose semantic memory with other subsystems. Adding a dedicated semantic MCP server would be premature.
+Memory (Episodic + Semantic, Loop 2) has no direct MCP server — queries go through `hkask-mcp-memory`. This is intentional — semantic queries are lower-level than what MCP tools expose. The Memory server provides higher-level access patterns that compose semantic memory with other subsystems. Adding a dedicated semantic MCP server would be premature.
 
 ### P3-h: CNS Set-point Configuration ⚠️ DEFERRED
 

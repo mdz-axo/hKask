@@ -22,7 +22,7 @@ pub trait InferencePort: Send + Sync {
         &self,
         prompt: &str,
         parameters: &LLMParameters,
-        model_override: Option<&str>,
+        _model_override: Option<&str>,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
         self.generate(prompt, parameters, tools)

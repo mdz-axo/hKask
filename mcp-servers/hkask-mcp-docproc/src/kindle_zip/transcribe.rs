@@ -159,8 +159,20 @@ pub fn clean_kindle_text(raw: &str) -> String {
             if t.is_empty() {
                 return false;
             }
-            // Kindle toolbar fragments
-            if t == "= Q Aa" || t.starts_with("= Q") || t == "Aa" || t == "Q Aa" {
+            // Kindle toolbar fragments (OCR transcribes these inconsistently)
+            if t.len() <= 4
+                && (t.contains("Q") || t.contains("A") || t.contains("a"))
+                && !t.contains(' ')
+            {
+                return false;
+            }
+            if t == "= Q" || t == "= Qa" || t.starts_with("= Qa") {
+                return false;
+            }
+            if t == "uy" || t == "uy " {
+                return false;
+            }
+            if t == "Ra" || t == "ra" {
                 return false;
             }
             // Page/location indicators
@@ -175,18 +187,18 @@ pub fn clean_kindle_text(raw: &str) -> String {
             if t.ends_with("%") && t.len() <= 6 {
                 return false;
             }
-            // Garbled OCR artifacts
-            if t.contains("â") && t.len() < 10 {
-                return false;
-            }
-            if t.contains("eo") && t.len() < 10 {
-                return false;
+            // Garbled OCR artifacts (short lines with many non-alphabetic chars)
+            if t.len() < 12 {
+                let alpha_ratio =
+                    t.chars().filter(|c| c.is_alphabetic()).count() as f32 / t.len().max(1) as f32;
+                if alpha_ratio < 0.4 {
+                    return false;
+                }
             }
             true
         })
         .collect::<Vec<_>>()
         .join("\n");
-    // Collapse 3+ consecutive newlines
     let mut result = String::with_capacity(cleaned.len());
     let mut blank_count = 0u8;
     for ch in cleaned.chars() {
@@ -217,10 +229,12 @@ pub fn strip_repeated_headers(chunks: &mut [ContentChunk]) {
             .collect();
         let mut counts: HashMap<&str, usize> = HashMap::new();
         for line in &first_lines {
+            // Headers are typically ALL CAPS, often with punctuation/digits
             if line.len() > 10
                 && line
                     .chars()
-                    .all(|c| c.is_uppercase() || c.is_whitespace() || c == ':')
+                    .filter(|c| c.is_alphabetic())
+                    .all(|c| c.is_uppercase())
             {
                 *counts.entry(line).or_insert(0) += 1;
             }

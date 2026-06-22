@@ -112,7 +112,6 @@ fn render_skill_template(
 
 /// Request parameters for `skill_execute`.
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-#[allow(dead_code)]
 struct SkillExecuteRequest {
     /// Skill identifier (e.g., "coding-guidelines.guidelines-assess")
     #[schemars(description = "Skill identifier (e.g., coding-guidelines.guidelines-assess)")]
@@ -235,7 +234,7 @@ pub async fn run(
         "hkask-mcp-skill",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
-            Ok((|| -> anyhow::Result<SkillServer> {
+            Ok({
                 let webid = ctx.webid;
                 let mut server = SkillServer::new(
                     webid,
@@ -250,8 +249,8 @@ pub async fn run(
                     skill_count = server.skills.len(),
                     "Skills loaded from registry"
                 );
-                Ok(server)
-            })()?)
+                Ok::<_, anyhow::Error>(server)
+            }?)
         },
         vec![],
     )

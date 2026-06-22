@@ -135,9 +135,12 @@ impl KindleSession {
 
         let (title, author) = scrape_title_author(&self.tab)?;
         let toc = extract_toc(&self.tab)?;
-        // Fall back to TOC first entry as title if page title is just "Kindle"
+        // Use TOC first non-trivial entry as title if page title is just "Kindle"
         let title = if title == "Kindle" || title.is_empty() {
-            toc.first().map(|t| t.label.clone()).unwrap_or(title)
+            toc.iter()
+                .find(|t| t.label != "Cover" && t.label != "Title Page" && t.label.len() > 3)
+                .map(|t| t.label.clone())
+                .unwrap_or(title)
         } else {
             title
         };
@@ -220,24 +223,23 @@ pub async fn discover_kindle_books(
     while let Some(pos) = html[search_from as usize..].find(needle) {
         let abs = search_from as usize + pos;
         let after = &html[abs + needle.len()..];
-        if after.starts_with(":") {
-            let rest = after[1..].trim_start();
-            if rest.starts_with('"') {
-                let inner = &rest[1..];
-                if let Some(end) = inner.find('"') {
-                    let asin = &inner[..end];
-                    if asin.len() == 10 && asin.chars().all(|c| c.is_ascii_alphanumeric()) {
-                        let title = extract_title_near_asin(&html, asin);
-                        if !title.is_empty() {
-                            let tl = title.to_lowercase();
-                            if search_terms.iter().any(|t| tl.contains(&t.to_lowercase()))
-                                && seen_title.insert(title.clone())
-                                && results.len() < max_results
-                            {
-                                tracing::debug!(target: "cns.pipeline.kindle-zip.discover",
+        if let Some(rest) = after.strip_prefix(":") {
+            let rest = rest.trim_start();
+            if let Some(inner) = rest.strip_prefix('"')
+                && let Some(end) = inner.find('"')
+            {
+                let asin = &inner[..end];
+                if asin.len() == 10 && asin.chars().all(|c| c.is_ascii_alphanumeric()) {
+                    let title = extract_title_near_asin(&html, asin);
+                    if !title.is_empty() {
+                        let tl = title.to_lowercase();
+                        if search_terms.iter().any(|t| tl.contains(&t.to_lowercase()))
+                            && seen_title.insert(title.clone())
+                            && results.len() < max_results
+                        {
+                            tracing::debug!(target: "cns.pipeline.kindle-zip.discover",
                                     asin = %asin, title = %title, "Discovered");
-                                results.push((asin.to_string(), title));
-                            }
+                            results.push((asin.to_string(), title));
                         }
                     }
                 }
