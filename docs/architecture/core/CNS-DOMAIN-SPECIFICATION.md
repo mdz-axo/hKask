@@ -186,12 +186,9 @@ Each sub-domain is implemented in a single Rust file (or a tight cluster of file
 ## 3. Verification
 
 ```bash
-# Verify all 44 contract IDs match the codebase:
+# Verify CNS crate compiles and tests pass:
 cargo check -p hkask-cns
 cargo test -p hkask-cns
-
-# Count contracts:
-grep -rn "/// REQ: P" crates/hkask-cns/src/ --include="*.rs" | wc -l
 
 # CNS span health:
 kask cns health

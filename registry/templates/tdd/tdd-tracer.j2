@@ -12,7 +12,6 @@ lexicon_terms:
 contract:
   input:
     behavior_description: string
-    contract_id: string
     user_expectation: string
     goal_principle: object
     constraining_principles: array
@@ -20,7 +19,6 @@ contract:
     crate_scope: string
     test_style: string
   output:
-    contract_id: string
     contract_code: string
     contract_location: string
     user_expectation: string
@@ -30,7 +28,6 @@ contract:
     test_file_path: string
     implementation_code: string
     implementation_file_path: string
-    rsolidity_code: string
     test_passes: boolean
     verification_command: string
   energy_cap: 8192
@@ -54,11 +51,20 @@ You are a TDD tracer bullet agent. Write ONE contract for ONE behavior, then ONE
 
 {{ behavior_description }}
 
-## Contract ID
+## Contract Anchoring
 
-{{ contract_id }}
+Every function must carry an `expect:` + `[P{N}]` contract annotation that links it to a functional requirement. This creates bidirectional traceability: specification ↔ contract ↔ test ↔ implementation.
 
-Every test must include a `// REQ:` comment referencing this `P{N}-{domain}-{operation}` contract ID. This creates bidirectional traceability: specification ↔ contract ↔ test ↔ implementation.
+The contract format is:
+```
+/// expect: "<user's functional expectation in their own voice>"
+/// [P{N}] Motivating: <principle name> — <why this contract exists>
+/// pre:  <what must be true before calling>
+/// post: <what the function guarantees after returning>
+/// inv:  <what must always hold across operations> (optional, for types)
+/// [P{N}] Constraining: <principle name> — <what the code cannot do>
+/// prob: p=<threshold>, δ=<tolerance>, k=<recovery window> (only for non-deterministic functions per Testing Discipline §7.6)
+```
 
 {% if user_expectation %}
 ## User Expectation
@@ -94,7 +100,7 @@ Contract preconditions: implicit precondition = "any input" — no `prop_assume!
 Contract postcondition: "does not panic" — verify via `catch_unwind` + proptest with unlimited input generation.
 
 ```rust
-// REQ: P{N}-{domain}-{operation} — panic-free input surface
+// expect: "The function does not panic on any input"
 #[test]
 fn fuzz_input_surface_does_not_panic() {
     proptest!(|(input in any::<Vec<u8>>())| {
@@ -114,7 +120,7 @@ For cross-crate end-to-end workflows spanning multiple `pub fn` boundaries (Test
 Write a single integration test in `tests/` that exercises the full vertical slice. Contracts chain through the call stack — testing `f` transitively verifies `g`'s contracts.
 
 ```rust
-// REQ: P{N}-{domain}-{operation} — end-to-end workflow
+// End-to-end workflow test for the system boundary
 #[tokio::test]
 async fn system_end_to_end_workflow() {
     // Bootstrap dependencies, exercise full vertical slice, verify side effects
@@ -135,11 +141,10 @@ Default: integration test through public API.
 
 ## Rules
 
-1. **Write the CONTRACT first.** The contract is a doc-comment on the function signature with all layers per the Contract Architecture (SKILL.md) and the full v0.28.0 contract structure (`TESTING_DISCIPLINE.md` §1.2). The `#[rs::contract]` attribute goes on the line immediately above the `/// REQ:` doc-comment:
+1. **Write the CONTRACT first.** The contract is a doc-comment on the function signature with all layers per the Contract Architecture (SKILL.md) and the full contract structure (`TESTING_DISCIPLINE.md` §1.2):
    ```
-   #[rs::contract(id = "P{N}-{domain}-{operation}", principle = "P{N}")]
-   /// REQ: P{N}-{domain}-{operation}
-   /// expect: "<user's functional expectation in their own voice>" [P{N}]
+   /// expect: "<user's functional expectation in their own voice>"
+   /// [P{N}] Motivating: <principle name> — <why this contract exists>
    /// pre:  <what must be true before calling>
    /// post: <what the function guarantees after returning>
    /// inv:  <what must always hold across operations> (optional, for types)
@@ -147,28 +152,19 @@ Default: integration test through public API.
    /// prob: p=<threshold>, δ=<tolerance>, k=<recovery window> (only for non-deterministic functions per Testing Discipline §7.6)
    ```
    Each layer answers a distinct question:
-   - `#[rs::contract(id, principle)]` — compile-time contract ID and principle validation (rSolidity enforcement layer)
-   - `expect:` — What did the user say they want? (verbal, user's voice). This is the structural origin point of the traceability chain. Must carry a `[P{N}]` tag naming the goal principle.
-   - `[P{N}]` on `expect:` — Which principle justifies this contract? (exactly one, also encoded in the contract ID prefix). See selection guideline below.
+   - `expect:` — What did the user say they want? (verbal, user's voice). This is the structural origin point of the traceability chain.
+   - `[P{N}] Motivating:` — Which principle justifies this contract? (exactly one). See selection guideline below.
    - `[P{N}] Constraining:` — What can't the code do? (zero to many, from all applicable principles). At minimum, every applicable Magna Carta principle (P1-P4) must be annotated.
    - `pre:/post:/inv:` — What are the caller/function obligations? (machine-checkable)
 
    The contract IS the specification of the test. Without all layers, the test verifies *something*, but it's not clear that it's the right thing against the right constraints.
-2. **Write the rSolidity enforcement.** After the `#[rs::contract]` attribute and `/// REQ:` contract, generate the equivalent rSolidity runtime macros in the function body using the strangler-fig pattern:
-   - `rs::require!(<pre-condition>, "P{N}-{domain}-{operation}", "<message>")` for each `pre:`
-   - `rs::assert!(<post-condition>, "P{N}-{domain}-{operation}", "<message>")` for each `post:` and `inv:`
-   - `rs::revert!("P{N}-{domain}-{operation}", err)` for failure paths
-   - `rs::emit!(CnsSpan::ContractCoverage, "measured", Phase::Sense, payload)` for CNS observability
-   - The `/// REQ:` doc-comment stays in place — it remains authoritative for `scripts/contract-audit.sh`
+2. **Write the TEST.** It must fail — this is RED. The test must verify the contract: it enforces preconditions via `prop_assume!` and asserts postconditions via `prop_assert!`.
+3. **Write the MINIMAL implementation.** Only enough code to satisfy the contract — this is GREEN. No speculative features.
+4. **One behavior per tracer bullet.** Do not batch.
+5. **Test through the public interface** (the seam declared above). Do not test private methods or internal state.
+6. **Every test must reference the contract it validates.** The test function must carry a descriptive doc comment naming the contract's `expect:` statement. If a test has no contract reference, it tests implementation detail, not a functional requirement.
 
-   Output the rSolidity code as `rsolidity_code` in the response.
-3. **Write the TEST.** It must fail — this is RED. The test must verify the contract: it enforces preconditions via `prop_assume!` and asserts postconditions via `prop_assert!`.
-4. **Write the MINIMAL implementation.** Only enough code to satisfy the contract — this is GREEN. No speculative features.
-5. **One behavior per tracer bullet.** Do not batch.
-6. **Test through the public interface** (the seam declared above). Do not test private methods or internal state.
-7. **Every test carries a `// REQ:` comment** naming the contract it validates. Format: `// REQ: <contract_id> — requirement summary`. The `contract_id` uses `P{N}-{domain}-{operation}` format. If a test has no contract_id, it tests implementation detail, not a functional requirement.
-
-   **Goal-principle anchoring rule** (`PRINCIPLES.md` §1.6): The `[P{N}]` on `expect:` must name the principle whose user-visible guarantee the contract directly serves. The same `P{N}` principle value is used in `#[rs::contract(principle = "P{N}")]`. Selection logic:
+   **Goal-principle anchoring rule** (`PRINCIPLES.md` §1.6): The `[P{N}]` on `Motivating:` must name the principle whose user-visible guarantee the contract directly serves. Selection logic:
    - *"I need to check gas before executing"* → P9 (Homeostatic Self-Regulation)
    - *"I need to control my data"* → P1 (User Sovereignty)
    - *"I need to deploy with one binary"* → P5 (Essentialism)
@@ -200,8 +196,7 @@ Respond with a JSON object:
 
 ```json
 {
-  "contract_id": "P9-cns-energy-budget-can-proceed",
-  "contract_code": "/// REQ: P9-cns-energy-budget-can-proceed\n/// expect: \"I can check whether an agent has enough gas before executing\" [P9]\n/// pre:  gas is a valid EnergyCost\n/// post: returns true iff budget has >= gas remaining\n/// inv:  does not consume gas\n/// [P4] Constraining: Clear Boundaries — cap enforces resource boundary\npub fn can_proceed(&self, gas: EnergyCost) -> bool { ... }",
+  "contract_code": "/// expect: \"I can check whether an agent has enough gas before executing\"\n/// [P9] Motivating: Homeostatic Self-Regulation — prevents runaway agent execution\n/// pre:  gas is a valid EnergyCost\n/// post: returns true iff budget has >= gas remaining\n/// inv:  does not consume gas\n/// [P4] Constraining: Clear Boundaries — cap enforces resource boundary\npub fn can_proceed(&self, gas: EnergyCost) -> bool { ... }",
   "contract_location": "path/to/implementation/file.rs:LINE",
   "user_expectation": "I can check whether an agent has enough gas before executing",
   "goal_principle": {
@@ -216,11 +211,10 @@ Respond with a JSON object:
       "constraint": "Cap enforces resource boundary — no unbounded execution"
     }
   ],
-  "test_code": "// REQ: P9-cns-energy-budget-can-proceed — energy budget check\n#[test]\nfn energy_budget_can_proceed() { ... }",
+  "test_code": "// expect: \"I can check whether an agent has enough gas before executing\"\n#[test]\nfn energy_budget_can_proceed() { ... }",
   "test_file_path": "path/to/test/file.rs",
   "implementation_code": "// The minimal code to satisfy the contract",
   "implementation_file_path": "path/to/implementation/file.rs",
-  "rsolidity_code": "#[rs::contract(id = \"P{N}-{domain}-{operation}\", principle = \"P{N}\")]\npub fn function_name(...) -> ... {\n    rs::require!(<pre-condition>, \"P{N}-{domain}-{operation}\", \"<message>\");\n    let result = /* implementation */;\n    rs::assert!(<post-condition>, \"P{N}-{domain}-{operation}\", \"<message>\");\n    result\n}",
   "test_passes": false,
   "verification_command": "cargo test -p <crate> --test <name>"
 }
@@ -228,21 +222,21 @@ Respond with a JSON object:
 
 `test_passes` starts as `false` (RED). After implementation, verify with `cargo test` and set to `true` (GREEN).
 
-The contract (`contract_code`) MUST be a `///` doc-comment on the function signature with all layers: `expect:` with `[P{N}]` tag, `pre:`/`post:`, and `[P{N}] Constraining:`. It is written before any test code. The `contract_code` output maps to `ContractEntry { req_id, pre, post, flags, expect, goal_principle, constraining_principles }` from `crates/hkask-test-harness/src/test_runner.rs` and must be round-trippable through `inventory_contracts()`.
+The contract (`contract_code`) MUST be a `///` doc-comment on the function signature with all layers: `expect:` (verbal, user's voice, structural origin point), `[P{N}] Motivating:` (goal principle), `[P{N}] Constraining:` (zero to many constraint principles, minimum all applicable P1-P4 Magna Carta), and `pre:`/`post:` (behavioral specification). It is written before any test code.
 
-The `// REQ:` comment in tests MUST be the first line of the test function body or a comment immediately above the `#[test]` attribute, and MUST reference the same `P{N}-{domain}-{operation}` ID as the contract.
+The test function must carry a descriptive doc comment referencing the contract's `expect:` statement immediately above the `#[test]` attribute.
 
 ## Constraints
 
 - **Contract first, test second, implementation third.** Per Testing Discipline §6.3 and Process Rule P1. The contract is the specification of the test.
 - Exactly ONE contract, ONE test, ONE behavior. Minimal implementation.
 - The contract must include all layers: `expect:` with `[P{N}]` tag (verbal, user's voice, structural origin point), `[P{N}] Constraining:` (zero to many constraint principles, minimum all applicable P1-P4 Magna Carta), and `pre:`/`post:` (behavioral specification).
-- The `contract_id` must use `P{N}-{domain}-{operation}` format with the goal principle encoded in the `P{N}` prefix.
+- The `expect:` statement must use the `[P{N}] Motivating:` annotation for the goal principle.
 - Test must fail before implementation is added.
 - Implementation must be the minimum to satisfy the contract without violating constraining principles.
 - No speculative features, no extra error handling for impossible scenarios.
-- The `contract_code` and `test_code` both carry the same `P{N}-{domain}-{operation}` contract ID.
-- The contract must use `/// REQ:` doc-comment format.
+- The `contract_code` and `test_code` must reference the same functional requirement.
+- The contract must use `/// expect:` + `[P{N}]` annotation format.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

@@ -3,13 +3,13 @@ title: "Bug Hunting Skill — Implementation Plan"
 version: "0.1.0"
 date: 2026-06-21
 status: "Draft"
-anchored_to: "docs/research/bug-hunting-as-autopoietic-skill-unified.md"
+anchored_to: "bug-hunting-as-autopoietic-skill-unified.md"
 principles: [P1, P2, P3, P4, P5, P8, P9, P12]
 ---
 
 # Bug Hunting Skill — Implementation Plan
 
-**Anchored to:** [Autopoietic Bug Hunting: A Unified Model](docs/research/bug-hunting-as-autopoietic-skill-unified.md)  
+**Anchored to:** [Autopoietic Bug Hunting: A Unified Model](bug-hunting-as-autopoietic-skill-unified.md)
 **Governing principle:** P5 (Essentialism) — ≤7 public templates, every artifact earns existence  
 **Falsifiability criterion:** `CnsHealth.overall_deficit` must monotonically decrease across sessions
 

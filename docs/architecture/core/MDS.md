@@ -421,7 +421,7 @@ coherence_metric:
 
 ### Principles
 
-1. **Spec-anchored:** Every `#[test]` carries a `// REQ:` tag referencing an MDS requirement.
+1. **Contract-anchored:** Every test verifies a behavioral contract via `expect:` + `[P{N}]` annotations.
 2. **Public seam only:** Tests verify behavior through public interfaces, not implementation.
 3. **Tracer bullet:** One RED→GREEN cycle per behavior. No horizontal slicing.
 4. **Category coverage:** Each MDS category has at least one integration test.

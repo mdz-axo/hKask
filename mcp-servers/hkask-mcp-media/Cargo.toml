@@ -34,6 +34,14 @@ uuid.workspace = true
 nom-exif.workspace = true
 face_id = "0.4"
 
+[lib]
+name = "hkask_mcp_media"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hkask-mcp-media"
+path = "src/main.rs"
+
 [dev-dependencies]
 tempfile.workspace = true
 rusqlite.workspace = true

@@ -429,11 +429,17 @@ Validates all manifest YAML files. Run after installing new skills.
 
 ### 9.3 Contract Audit
 
+Contracts use `expect:` + `[P{N}]` annotations. Verify coverage with:
+
 ```bash
-scripts/contract-audit.sh --summary
+# Count functions with principle grounding
+grep -rn "/// \[P[0-9]*\]" crates/ --include="*.rs" | wc -l
+
+# Check expect: field presence
+grep -rn "/// expect:" crates/ --include="*.rs" | wc -l
 ```
 
-Checks template contracts are complete and consistent with manifests.
+Run the contract-generator (contract-generator/contract-generator.j2) for any gaps.
 
 ---
 

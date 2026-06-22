@@ -171,5 +171,5 @@ kask kanban task-verify <task> -e "evidence"
 - **P12:** Every action carries `owner: WebID`
 - **P1:** Assignment requires `ConsentProof`
 - **OCAP:** Spawning delegates capability tokens with attenuation
-- **CNS verification:** Task completion is CNS-observable via `/// REQ:` behavioral contracts
+- **CNS verification:** Task completion is CNS-observable via `expect:` + `[P{N}]` behavioral contracts
 - **CNS:** 5 span types for observability

@@ -341,7 +341,26 @@ async fn full_pipeline_extract_transcribe_export() {
 
     let email = std::env::var("AMAZON_EMAIL").expect("AMAZON_EMAIL not set");
     let password = std::env::var("AMAZON_PASSWORD").expect("AMAZON_PASSWORD not set");
-    let asin = "B0GHZLT1S3";
+
+    // Step 0: Discover a matching book (not a hardcoded ASIN)
+    let session = hkask_mcp_docproc::kindle_zip::KindleSession::new(&email, &password, None)
+        .await
+        .expect("Session");
+
+    let books = hkask_mcp_docproc::kindle_zip::discover_kindle_books(
+        &session,
+        &["knowledge production", "autopoietic", "autopoiesis"],
+        1,
+    )
+    .await
+    .expect("Discover");
+
+    let (asin, expected_title) = books
+        .into_iter()
+        .next()
+        .expect("No matching books found in library");
+    println!("Discovered: [{}] {}", asin, expected_title);
+
     let tmp = tempfile::tempdir().unwrap();
     let output = tmp.path();
 
@@ -352,6 +371,12 @@ async fn full_pipeline_extract_transcribe_export() {
             .await
             .expect("Extract");
     println!("  Pages: {}, Title: {}", extract.total_pages, extract.title);
+    // Verify extracted title is NOT the generic "Kindle" placeholder
+    assert_ne!(
+        extract.title, "Kindle",
+        "Title extraction failed — got 'Kindle' instead of book title"
+    );
+    println!("  Expected title: {}", expected_title);
 
     // Step 2: OCR transcription
     println!("=== Step 2: Transcribe ===");
@@ -414,7 +439,7 @@ async fn full_pipeline_extract_transcribe_export() {
         &formats,
         output,
         asin,
-        &extract.title,
+        &expected_title,
         &extract.author,
         &extract.toc,
     )

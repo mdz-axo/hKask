@@ -44,7 +44,7 @@ You are a TDD functional gap analysis agent. Compare specification requirements 
 **{{ crate_scope }}**
 {% endif %}
 
-## Specification Requirements (from spec/goal/capture)
+## Specification Requirements (from FUNCTIONAL_SPECIFICATION.md)
 
 These are the structured Spec objects from the specification system that this TDD session covers:
 
@@ -53,7 +53,7 @@ These are the structured Spec objects from the specification system that this TD
 ```
 
 {% if collection_coherence %}
-## Collection Coherence (from spec/graph/coherence)
+## Collection Coherence (from FUNCTIONAL_SPECIFICATION.md)
 
 ```json
 {{ collection_coherence | tojson }}
@@ -70,9 +70,9 @@ These are the behaviors that have tracer bullets (tests) written for them:
 
 ## Analysis Rules
 
-1. **Match by contract_id**: Each tested behavior should carry a `contract_id` linking it to a specification requirement. If a behavior has no `contract_id`, flag it as unanchored.
-2. **Gap = no tracer bullet for a requirement**: If a spec from the captured goals has no matching tested behavior (no `// REQ:` tag with its `contract_id`), it is a coverage gap.
-3. **Unanchored = no contract_id on a behavior**: If a tested behavior has no `contract_id`, it tests something not in the specification — flag it for review.
+1. **Match by functional requirement**: Each tested behavior should carry a contract annotation (`expect:` + `[P{N}]`) linking it to a functional requirement from FUNCTIONAL_SPECIFICATION.md. If a behavior has no contract annotation, flag it as unanchored.
+2. **Gap = no tracer bullet for a requirement**: If a functional requirement has no matching tested behavior (no contract annotation matching it), it is a coverage gap.
+3. **Unanchored = no contract annotation on a behavior**: If a tested behavior has no contract annotation linking it to a functional requirement, it tests something not in the specification — flag it for review.
 4. **Priority is derived from MDS category**: P0 = Trust, P1 = Domain, Composition, P2 = Lifecycle, Curation.
 5. **Incomplete specs**: If `is_complete()` returns false for a spec, its unsatisfied `Criterion` items are additional coverage gaps.
 6. **Deferrals go to OPEN_QUESTIONS.md**: Every deferred gap must have a documented rationale.
@@ -92,7 +92,7 @@ Beyond coverage, verify that each contract's layers (per Contract Architecture) 
 
 10. **Constraining principle completeness**: Are all applicable constraining principles declared? To check: for each of P1–P12, ask "would implementing this contract without this principle violate it?" If yes, the principle should appear as `[P{N}] Constraining:`. Missing constraints are coverage gaps. Triple: `Contract → hasConstrainingPrinciple → MISSING`.
 
-11. **Contract ID format**: Does the `REQ:` tag use `P{N}-{domain}-{operation}` format? Does the `P{N}` prefix match the `[P{N}]` on `expect:`? Format violations and prefix mismatches are gaps — correct the contract ID.
+11. **Contract annotation format**: Does the `[P{N}] Motivating:` annotation match the `expect:` statement's goal principle? Format violations and mismatches are gaps — correct the contract annotation.
 
 12. **Constraint violation detection**: For each `[P{N}] Constraining:` annotation, is there a test that verifies the constraint is not violated? If a constraint has no enforcement test, the constraint is declarative only — flag as a coverage gap.
 
@@ -122,7 +122,7 @@ Respond with a JSON object:
 {
   "covered_requirements": [
     {
-      "contract_id": "P9-cns-energy-budget-can-proceed",
+      "fr_reference": "Fail-closed capability checker",
       "requirement": "Fail-closed capability checker",
       "test_name": "capability_check_denies_when_no_checker",
       "seam": "CapabilityChecker trait",
@@ -134,35 +134,35 @@ Respond with a JSON object:
         "user_expectation_correct": true,
         "goal_principle_match": true,
         "constraining_principles_complete": true,
-        "contract_id_format_valid": true,
+        "contract_annotation_format_valid": true,
         "constraint_enforcement_tested": true
       }
     }
   ],
   "gaps": [
     {
-      "contract_id": "P9-cns-energy-budget-can-proceed",
+      "fr_reference": "Encrypted storage at rest",
       "requirement": "Encrypted storage at rest",
       "priority": "P0",
       "recommendation": "tracer-bullet",
       "rationale": "P0 security requirement must have test coverage",
       "unsatisfied_criteria": ["Criterion descriptions from GoalSpec"],
-      "gap_type": "missing_coverage|missing_user_expectation|wrong_goal_principle|missing_constraint|missing_goal_principle_tag|missing_constraining_annotation|contract_id_mismatch|constraint_not_enforced"
+      "gap_type": "missing_coverage|missing_user_expectation|wrong_goal_principle|missing_constraint|missing_goal_principle_tag|missing_constraining_annotation|contract_annotation_mismatch|constraint_not_enforced"
     }
   ],
   "deferrals": [
     {
-      "contract_id": "P9-cns-alert-threshold-config",
+      "fr_reference": "Algedonic alerting threshold configuration",
       "requirement": "Algedonic alerting threshold configuration",
       "priority": "P2",
       "rationale": "Deferred: alert thresholds not configurable in current sprint",
-      "open_questions_entry": "contract_id: P9-cns-alert-threshold-config — deferred pending configurable threshold implementation"
+      "open_questions_entry": "fr_reference: Algedonic alerting threshold configuration — deferred pending configurable threshold implementation"
     }
   ],
   "coverage_percentage": 85.7,
   "goal_principle_alignment": [
     {
-      "contract_id": "P9-cns-energy-budget-can-proceed",
+      "fr_reference": "P9-cns-energy-budget-can-proceed",
       "mds_category": "Trust (REQ-TRU)",
       "contract_goal_principle": "P9",
       "mds_default_goal_principle": "P4 (Clear Boundaries)",
@@ -172,7 +172,7 @@ Respond with a JSON object:
   ],
   "constraining_completeness": [
     {
-      "contract_id": "P9-cns-energy-budget-can-proceed",
+      "fr_reference": "P9-cns-energy-budget-can-proceed",
       "mds_category": "Trust (REQ-TRU)",
       "declared_constraints": ["P4"],
       "missing_magna_carta": ["P1", "P2"],
@@ -181,7 +181,7 @@ Respond with a JSON object:
   ],
   "expectation_quality": [
     {
-      "contract_id": "P9-cns-energy-budget-can-proceed",
+      "fr_reference": "P9-cns-energy-budget-can-proceed",
       "score": 3,
       "assessment": "anchored",
       "expect_text": "I can check whether an agent has enough gas before executing",
@@ -195,13 +195,13 @@ Respond with a JSON object:
 
 ## Constraints
 
-- Every contract_id in `spec_requirements` must appear in exactly one of: `covered_requirements`, `gaps`, or `deferrals`.
+- Every functional requirement in `spec_requirements` must appear in exactly one of: `covered_requirements`, `gaps`, or `deferrals`.
 - P0 gaps MUST recommend `tracer-bullet` (never `defer`).
 - P1 gaps SHOULD recommend `tracer-bullet`; deferrals require explicit rationale.
 - P2+ gaps MAY recommend `defer-to-OPEN_QUESTIONS`.
-- Unanchored behaviors (no `contract_id`) must be flagged in the analysis.
+- Unanchored behaviors (no contract annotation) must be flagged in the analysis.
 - Specs where `is_complete()` is false have unsatisfied `Criterion` items that should appear as gaps.
-- Use `spec/graph/coherence` results to check overall collection coherence and missing MDS categories.
+- Check overall collection coherence and missing MDS categories against FUNCTIONAL_SPECIFICATION.md.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

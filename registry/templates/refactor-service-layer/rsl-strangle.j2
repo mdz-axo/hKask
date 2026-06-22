@@ -92,10 +92,10 @@ Write one failing test per service operation in `hkask-services`. Each test must
 - Exercise the public interface of the service module
 - Use a `ServiceContext` (or mock) to provide dependencies
 - Verify a domain behavior, not a surface presentation
-- Carry a `// REQ:` tag referencing a specification requirement
+- Carry a contract annotation (`expect:` + `[P{N}]`) referencing a functional requirement
 
 ```rust
-// REQ: SVC-CUR-001 — List pending escalations through service seam
+// expect: "I can list pending escalations through the curator service"
 #[tokio::test]
 async fn curator_list_escalations_via_service() {
     let ctx = ServiceContext::build(ServiceConfig::in_memory()).unwrap();
@@ -209,7 +209,7 @@ Respond with a JSON object:
 - One domain per migration. No cross-domain changes.
 - Service module must be deep: small interface, much behavior behind it.
 - No surface types in service signatures (no `Json<T>`, no `println!`).
-- Every test carries a `// REQ:` tag.
+- Every test must be anchored on a contract (`expect:` + `[P{N}]` annotation).
 - Dependency direction is inviolable: no circular dependencies.
 - P6: No `todo!()` or `unimplemented!()` stubs.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).

@@ -44,5 +44,13 @@ dotenvy.workspace = true
 tempfile.workspace = true
 dirs = "6"
 
+[lib]
+name = "hkask_mcp_docproc"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hkask-mcp-docproc"
+path = "src/main.rs"
+
 [dev-dependencies]
 rand.workspace = true

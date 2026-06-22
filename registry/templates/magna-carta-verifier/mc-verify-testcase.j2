@@ -47,7 +47,7 @@ You are a Magna Carta test case renderer. Given a principle and its assertions, 
 For each assertion, render a `#[test]` function:
 
 1. **Function name**: `magna_carta_<principle>_<assertion_id>` (e.g., `magna_carta_p1_a`).
-2. **REQ tag**: `// REQ: MC-<PRINCIPLE>-<ASSERTION_ID> — <claim summary>`.
+2. **Doc comment**: `// Verify: MC-<PRINCIPLE>-<ASSERTION_ID> — <claim summary>`.
 3. **Method mapping**:
    - `structural_audit` → enumerate paths and `assert!` gates exist
    - `behavioral_probe` → construct invalid access attempt and `assert!` denial
@@ -61,7 +61,7 @@ Respond with a JSON object:
 
 ```json
 {
-  "test_code": "```rust\n// REQ: MC-P1-A — User data encrypted at rest\n#[test]\nfn magna_carta_p1_a() {\n    // Verify all data write paths in hkask-storage encrypt before persisting.\n    // Structural audit: enumerate SqliteRegistry write methods,\n    // assert each calls encrypt_at_rest() or uses SQLCipher connection.\n    todo!(\"Implement structural audit for data-at-rest encryption\");\n}\n```",
+  "test_code": "```rust\n// Verify: MC-P1-A — User data encrypted at rest\n#[test]\nfn magna_carta_p1_a() {\n    // Verify all data write paths in hkask-storage encrypt before persisting.\n    // Structural audit: enumerate SqliteRegistry write methods,\n    // assert each calls encrypt_at_rest() or uses SQLCipher connection.\n    todo!(\"Implement structural audit for data-at-rest encryption\");\n}\n```",
   "test_count": 1
 }
 ```
@@ -70,7 +70,7 @@ The `test_code` field must contain valid Rust code wrapped in a markdown code fe
 
 ## Constraints
 
-- Every test function must have a `// REQ:` tag.
+- Every test function must be descriptively named.
 - Use `todo!()` for assertion bodies that need manual implementation — never leave tests empty.
 - Test names must follow the `magna_carta_<principle>_<assertion_id>` convention.
 - All tests must target the declared crate's public API.
