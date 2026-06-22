@@ -1,0 +1,132 @@
+{
+  "expedition_id": "bughunt-2026-06-22-hkask-mcp-media",
+  "charter": {
+    "statement": "Explore hkask-mcp-media using heuristic test strategy (Bach HTSM) to discover threats to server reliability, resource management, and crash safety across 36 MCP tools.",
+    "target_area": "hkask-mcp-media — AI media generation MCP server (image, video, voice, gallery)",
+    "strategy": "Product Elements: public tool handlers, data boundaries (empty inputs, negative values, zero division), resource lifecycle (temp files, ffmpeg processes). Quality Criteria at risk: crash safety, resource leaks, input validation.",
+    "expected_category": "structural (division by zero), coding (missing input guards), integration (resource lifecycle)"
+  },
+  "probes_executed": 8,
+  "findings": [
+    {
+      "id": "BUG-001",
+      "summary": "Division by zero crash in image_create_collage when images vector is empty — panics the MCP server process for all layout modes.",
+      "location": {
+        "file": "mcp-servers/hkask-mcp-media/src/lib.rs",
+        "function": "MediaServer::image_create_collage",
+        "line_approx": "2554-2562"
+      },
+      "verdict": "BUG",
+      "confidence": 0.95,
+      "beizer_category": "structural",
+      "severity": "CRITICAL",
+      "evidence": "When images.len() == 0 and layout is 'grid' (default):\n  cols = (0_f64).sqrt().ceil() = 0\n  rows = 0_u32.div_ceil(0) → PANIC: attempt to divide by zero\nWhen layout is 'vertical': cols = 1, rows = 0\n  cell_h = (900 - spacing * (0 + 1)) / 0 → PANIC: divide by zero\nWhen layout is 'horizontal': cols = 0, rows = undefined\n  cell_w = (1200 - spacing * (0 + 1)) / 0 → PANIC: divide by zero\n\nVerified by code trace: line 2545 computes 'cols' from images.len(), line 2554 computes 'rows' via div_ceil. Neither checks for empty input. The caller (image_create_collage tool handler) at line 2390 validates gallery is persisted but never validates images.len() > 0 before composing.",
+      "pattern_signature": "Any function that divides by a value derived from a collection's .len() without checking len > 0. Search: .len() as u32 / .div_ceil(.len()) without preceding .is_empty() guard.",
+      "fix_suggestion": "Add guard at start of collage composition: if images.is_empty() { return error 'At least one image required for collage' }. Suggested insertion point: after resolving image paths (~line 2574), before grid dimension computation."
+    },
+    {
+      "id": "BUG-002",
+      "summary": "Collage output files in /tmp/hkask-media/ accumulate indefinitely — no cleanup mechanism for generated collage PNGs.",
+      "location": {
+        "file": "mcp-servers/hkask-mcp-media/src/lib.rs",
+        "function": "MediaServer::image_create_collage",
+        "line_approx": "2597-2613"
+      },
+      "verdict": "BUG",
+      "confidence": 0.90,
+      "beizer_category": "integration",
+      "severity": "HIGH",
+      "evidence": "At lines 2597-2600, each collage call creates a new file: /tmp/hkask-media/collage_{uuid}.png. The file path is returned to the caller as the output, but the file is never removed. On repeated calls, the temp directory grows without bound. Same pattern in FfmpegRunner: clip() (line 64), to_gif() (lines 111-112), add_caption() (line 164), concat() (line 363), images_to_video() (line 290), extract_keyframes() (line 406) all create temp output files with UUID names and never clean them up.",
+      "pattern_signature": "UUID-generated temp file paths with no corresponding removal. Search: uuid::Uuid::new_v4() followed by file creation without any Drop/cleanup/defer.",
+      "fix_suggestion": "Two options: (a) add a periodic cleanup task that removes files older than N hours from the temp dir, or (b) return the file content as base64 and delete the temp file after reading. Option (a) is simpler and preserves the file-based API."
+    },
+    {
+      "id": "BUG-003",
+      "summary": "FfmpegRunner temp files accumulate indefinitely — video clips, GIF outputs, palette files, keyframes never cleaned up.",
+      "location": {
+        "file": "mcp-servers/hkask-mcp-media/src/video/ffmpeg.rs",
+        "function": "FfmpegRunner",
+        "line_approx": "11-14 (struct), 51-54 (output_path)"
+      },
+      "verdict": "BUG",
+      "confidence": 0.90,
+      "beizer_category": "integration",
+      "severity": "HIGH",
+      "evidence": "FfmpegRunner creates temp_dir = /tmp/hkask-media at construction (line 27). Every tool call generates a UUID-named output file via output_path() (line 51-54). None of the 7 methods (clip, to_gif, add_caption, concat, images_to_video, extract_keyframes, capture_audio) ever delete their output files. The palette file in to_gif() (line 112) is also never deleted. Over time, this consumes unlimited disk space. No Drop implementation or cleanup method exists on FfmpegRunner.",
+      "pattern_signature": "UUID-based temp paths from a reusable struct component with no cleanup. Search for: output_path() callers without subsequent std::fs::remove_file.",
+      "fix_suggestion": "Add Drop to FfmpegRunner that removes the temp_dir entirely. For short-lived use (single command), delete the output file after the tool handler reads and returns it as base64. For persistent temp dir, add a background cleanup task with age-based eviction."
+    },
+    {
+      "id": "BUG-004",
+      "summary": "Server startup panics with .expect() if gallery database mutex is poisoned or table initialization fails — no graceful degradation.",
+      "location": {
+        "file": "mcp-servers/hkask-mcp-media/src/lib.rs",
+        "function": "run",
+        "line_approx": "3743-3748"
+      },
+      "verdict": "POTENTIAL_BUG",
+      "confidence": 0.75,
+      "beizer_category": "coding",
+      "severity": "MEDIUM",
+      "evidence": "Lines 3744-3748:\n  let conn = conn.lock().expect('Failed to lock database connection for gallery table init');\n  GalleryStore::init_tables(&conn).expect('Failed to initialize gallery tables');\n\nIf the Mutex is poisoned (e.g., previous panic while holding lock), .expect() panics and crashes the entire MCP server. Similarly, if init_tables fails (e.g., schema migration error with existing DB), the server crashes. The face_analyzer initialization at line 3752 gracefully degrades to None on failure, but the DB initialization crashes. Inconsistent error handling posture.",
+      "pattern_signature": ".expect() in startup/initialization code that should return Result or degrade gracefully. Contrast with face_analyzer which uses match + warn on failure.",
+      "fix_suggestion": "Match the pattern used by face_analyzer: match on the Result and return an error or None. The gallery store is optional — the server can function without gallery persistence. Or use .map_err() and propagate the error via hkask_mcp::McpError."
+    },
+    {
+      "id": "BUG-005",
+      "summary": "Ffmpeg clip accepts negative duration when end_sec < start_sec — no input validation guards against this.",
+      "location": {
+        "file": "mcp-servers/hkask-mcp-media/src/video/ffmpeg.rs",
+        "function": "FfmpegRunner::clip",
+        "line_approx": "58-93"
+      },
+      "verdict": "POTENTIAL_BUG",
+      "confidence": 0.70,
+      "beizer_category": "data",
+      "severity": "MEDIUM",
+      "evidence": "Line 65: let duration = end_sec - start_sec; If end_sec < start_sec, duration is negative. The ffmpeg command uses start_sec with -ss and end_sec with -to (absolute timestamps), so the negative duration variable is only used for logging (line 92). However, if end_sec < start_sec, ffmpeg's -to flag receives a value before -ss, which produces an empty output. The tool returns 'success' with an empty file rather than an error. No validation in the MCP tool handler (video_clip at line 2624) checks start_sec < end_sec.",
+      "pattern_signature": "f32/f64 comparison parameters without ordering validation. Search for: Parameters containing paired start/end or min/max fields without guard: if start >= end { return error }.",
+      "fix_suggestion": "Add validation in video_clip tool handler: if start_sec >= end_sec { return span.error('start_sec must be less than end_sec') }."
+    },
+    {
+      "id": "BUG-006",
+      "summary": "add_caption font_size accepts 0 — ffmpeg drawtext with fontsize=0 produces invisible or error output with no user-facing error.",
+      "location": {
+        "file": "mcp-servers/hkask-mcp-media/src/lib.rs",
+        "function": "MediaServer::video_add_caption",
+        "line_approx": "2771"
+      },
+      "verdict": "POTENTIAL_BUG",
+      "confidence": 0.65,
+      "beizer_category": "data",
+      "severity": "LOW",
+      "evidence": "Line 2771: let size = font_size.unwrap_or(24); font_size is Option<u32>, defaults to 24. But if explicitly set to 0, it passes through to FfmpegRunner::add_caption (line 2773) which embeds it in the drawtext filter string (ffmpeg.rs line 180). ffmpeg's drawtext filter with fontsize=0 renders text at 0px height (invisible). No error is returned — the tool reports success but the output video has no visible caption. The same pattern exists for collage spacing (line 2535): spacing defaults to 8 but 0 is accepted.",
+      "pattern_signature": "u32 parameters passed to external commands or image operations without minimum value validation. Search for: font_size, spacing, width, height parameters typed as u32 without > 0 check.",
+      "fix_suggestion": "Add validation: if font_size.unwrap_or(24) == 0 { return error 'font_size must be > 0' }. Same for collage spacing."
+    },
+    {
+      "id": "BUG-007",
+      "summary": "Vision model fallback unconditionally returns DeepInfra model even when no inference provider is configured — producing confusing errors at call time rather than tool registration time.",
+      "location": {
+        "file": "mcp-servers/hkask-mcp-media/src/lib.rs",
+        "function": "MediaServer::resolve_vision_model",
+        "line_approx": "421-447"
+      },
+      "verdict": "OBSERVATION",
+      "confidence": 0.55,
+      "beizer_category": "configuration",
+      "severity": "LOW",
+      "evidence": "resolve_vision_model() iterates available vision models (line 422-440). If none match (e.g., only Together AI configured but not DeepInfra/OpenRouter), it falls through to the default fallback at line 443: 'DI/meta-llama/Llama-3.2-11B-Vision-Instruct'. This model will fail at inference time because DeepInfra is not configured, producing a runtime error deep in the analysis pipeline rather than at the tool call boundary. Callers (gallery_analyze, describe_image, etc.) don't check whether any vision provider is available before proceeding with LLM-dependent operations.",
+      "pattern_signature": "Fallback/default values in provider resolution that don't validate provider availability. Search for: hardcoded provider prefixes ('DI/', 'OR/', 'TG/') without checking if that provider is configured.",
+      "fix_suggestion": "Return Option<(&str, &str)> or Result. If no provider is available, return None/Err so callers can return a clean 'No vision model available' error instead of failing mid-inference."
+    }
+  ],
+  "summary": {
+    "confirmed_bugs": 3,
+    "potential_bugs": 3,
+    "contract_gaps": 1,
+    "crates_examined": ["hkask-mcp-media"],
+    "files_read": 5,
+    "tests_run": 0
+  }
+}

@@ -1261,6 +1261,7 @@ cns:
             "qa-comm-integration-gate.yaml",
             "qa-mcp-server-smoke.yaml",
             "qa-mcp-dispatch-smoke.yaml",
+            "qa-media-contract-gate.yaml",
         ];
 
         for script in scripts {

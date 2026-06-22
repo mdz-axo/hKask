@@ -878,9 +878,11 @@ impl AdapterRouter {
                         });
                         Ok(())
                     }
-                    Err(_) => tokio::runtime::Runtime::new().map(|rt| {
+                    Err(_) => {
+                        let rt = tokio::runtime::Runtime::new()
+                            .map_err(|e| AdapterError::Internal(e.to_string()))?;
                         rt.block_on(record.backend.teardown(&record.handle.endpoint_url))
-                    }),
+                    }
                 };
                 let _ = teardown_result
                     .inspect_err(|e| tracing::warn!("Failed to teardown adapter endpoint: {e}"));

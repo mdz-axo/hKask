@@ -417,33 +417,29 @@ impl MediaServer {
 
     /// Resolve the best available vision model with fallback chain.
     /// Tries: DeepInfra → OpenRouter → Together AI.
-    /// Returns the model name and a label for recording.
-    async fn resolve_vision_model(&self) -> (&'static str, &'static str) {
+    /// Returns (model_name, label) or None if no vision provider is configured.
+    async fn resolve_vision_model(&self) -> Option<(&'static str, &'static str)> {
         let models = self.inference.list_vision_models().await;
 
         for model in &models {
             match model.provider {
                 hkask_inference::ProviderId::DeepInfra => {
-                    return (
+                    return Some((
                         "DI/meta-llama/Llama-3.2-11B-Vision-Instruct",
                         "llama-3.2-vision",
-                    );
+                    ));
                 }
                 hkask_inference::ProviderId::OpenRouter => {
-                    return ("OR/openai/gpt-4o", "gpt-4o-vision");
+                    return Some(("OR/openai/gpt-4o", "gpt-4o-vision"));
                 }
                 hkask_inference::ProviderId::Together => {
-                    return ("TG/Qwen/Qwen2.5-VL-72B-Instruct", "qwen-vl");
+                    return Some(("TG/Qwen/Qwen2.5-VL-72B-Instruct", "qwen-vl"));
                 }
                 _ => continue,
             }
         }
 
-        // Fallback: try DeepInfra anyway (will error if unavailable)
-        (
-            "DI/meta-llama/Llama-3.2-11B-Vision-Instruct",
-            "llama-3.2-vision",
-        )
+        None
     }
 
     /// Re-scan an existing gallery and persist new images.
@@ -512,7 +508,10 @@ impl MediaServer {
         indices: &[usize],
         pipelines: &[String],
     ) -> (u32, Vec<String>) {
-        let (vision_model, vision_label) = self.resolve_vision_model().await;
+        let (vision_model, vision_label) = match self.resolve_vision_model().await {
+            Some(v) => v,
+            None => return (0, vec!["No vision model available — configure a vision-capable provider (DeepInfra, OpenRouter, or Together AI)".to_string()]),
+        };
         let mut analyzed = 0u32;
         let mut errors = Vec::new();
 
@@ -1538,12 +1537,17 @@ impl MediaServer {
                     }
                 };
 
-                let (vision_model, _vision_label) = self.resolve_vision_model().await;
+                let vision_model = self.resolve_vision_model().await;
+                if vision_model.is_none() {
+                    match_errors
+                        .push("Face matching skipped: no vision model available".to_string());
+                }
 
                 for (tag, _path) in &all_tags {
-                    if tag.tag_type != "face" {
+                    if tag.tag_type != "face" || vision_model.is_none() {
                         continue;
                     }
+                    let (vision_model, _vision_label) = vision_model.as_ref().unwrap();
 
                     let face_image_id = &tag.image_id;
 
@@ -1683,7 +1687,17 @@ impl MediaServer {
             }
         };
 
-        let (vision_model, _vision_label) = self.resolve_vision_model().await;
+        let (vision_model, _vision_label) = match self.resolve_vision_model().await {
+            Some(v) => v,
+            None => {
+                return span.error(
+                    McpErrorKind::Unavailable,
+                    McpToolError::unavailable(
+                        "No vision-capable provider configured (set DEEPINFRA_API_KEY, OPENROUTER_API_KEY, or TOGETHER_API_KEY)"
+                    ).to_json_string(),
+                );
+            }
+        };
         let params = hkask_types::template::LLMParameters::default();
         let result = self
             .inference
@@ -1786,7 +1800,11 @@ impl MediaServer {
         let (analyzed, errors) = self.run_analysis_on_indices(&indices, &pipelines).await;
 
         // Resolve vision model label for reporting
-        let (_, vision_label) = self.resolve_vision_model().await;
+        let vision_label = self
+            .resolve_vision_model()
+            .await
+            .map(|(_, label)| label)
+            .unwrap_or("none");
 
         span.ok_json(serde_json::json!({
             "status": "complete",
@@ -1923,7 +1941,16 @@ impl MediaServer {
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
         };
 
-        let (vision_model, _vision_label) = self.resolve_vision_model().await;
+        let (vision_model, _vision_label) = match self.resolve_vision_model().await {
+            Some(v) => v,
+            None => {
+                return span.error(
+                    McpErrorKind::Unavailable,
+                    McpToolError::unavailable("No vision model available for face validation")
+                        .to_json_string(),
+                );
+            }
+        };
 
         let validation = match vision::validate_face_reference(
             &self.inference,
@@ -1982,7 +2009,18 @@ impl MediaServer {
                 Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
             };
 
-            let (vision_model, _vision_label) = self.resolve_vision_model().await;
+            let (vision_model, _vision_label) = match self.resolve_vision_model().await {
+                Some(v) => v,
+                None => {
+                    return span.error(
+                        McpErrorKind::Unavailable,
+                        McpToolError::unavailable(
+                            "No vision model available for face registration",
+                        )
+                        .to_json_string(),
+                    );
+                }
+            };
 
             let v = match vision::validate_face_reference(
                 &self.inference,
@@ -2541,6 +2579,17 @@ impl MediaServer {
             }
         }
 
+        // Reject empty images — grid dimensions divide by images.len()
+        if images.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(
+                    "At least one image is required for collage composition",
+                )
+                .to_json_string(),
+            );
+        }
+
         // Compute grid dimensions
         let cols = match layout.as_str() {
             "horizontal" => images.len() as u32,
@@ -2769,6 +2818,12 @@ impl MediaServer {
 
         let pos = position.as_deref().unwrap_or("bottom");
         let size = font_size.unwrap_or(24);
+        if size == 0 {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("font_size must be greater than 0").to_json_string(),
+            );
+        }
 
         match self.ffmpeg.add_caption(&video_url, &text, pos, size).await {
             Ok(output) => span.ok_json(serde_json::json!({
@@ -3033,7 +3088,18 @@ impl MediaServer {
             }
         };
 
-        let (vision_model, _vision_label) = self.resolve_vision_model().await;
+        let (vision_model, _vision_label) = match self.resolve_vision_model().await {
+            Some(v) => v,
+            None => {
+                return span.error(
+                    McpErrorKind::Unavailable,
+                    McpToolError::unavailable(
+                        "No vision-capable provider configured for video captioning",
+                    )
+                    .to_json_string(),
+                );
+            }
+        };
         let params = hkask_types::template::LLMParameters::default();
         let result = self
             .inference
@@ -3737,16 +3803,29 @@ pub async fn run(
         None
     };
 
-    // Create an in-memory GalleryStore for the media server
-    let db = hkask_storage::in_memory_db();
-    {
+    // Create an in-memory GalleryStore for the media server.
+    // Gracefully degrade if DB initialization fails — gallery tools
+    // will return errors but the server stays alive (matching face_analyzer pattern).
+    let gallery_store = {
+        let db = hkask_storage::in_memory_db();
         let conn = db.conn_arc();
-        let conn = conn
-            .lock()
-            .expect("Failed to lock database connection for gallery table init");
-        GalleryStore::init_tables(&conn).expect("Failed to initialize gallery tables");
-    }
-    let gallery_store = Arc::new(GalleryStore::new(db.conn_arc()));
+        match conn.lock() {
+            Ok(conn) => match GalleryStore::init_tables(&conn) {
+                Ok(()) => {
+                    tracing::info!(target: "cns.mcp.media", "Gallery store initialized");
+                    Arc::new(GalleryStore::new(db.conn_arc()))
+                }
+                Err(e) => {
+                    tracing::warn!(target: "cns.mcp.media", error = %e, "Gallery table initialization failed — gallery tools will be unavailable");
+                    Arc::new(GalleryStore::new(db.conn_arc()))
+                }
+            },
+            Err(e) => {
+                tracing::warn!(target: "cns.mcp.media", error = %e, "Gallery DB lock failed — gallery tools will be unavailable");
+                Arc::new(GalleryStore::new(db.conn_arc()))
+            }
+        }
+    };
 
     // Initialize ONNX face analyzer (downloads ~250MB models on first run)
     let face_analyzer = match FaceAnalyzer::from_hf().build().await {

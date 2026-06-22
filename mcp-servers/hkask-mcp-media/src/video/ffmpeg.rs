@@ -8,14 +8,23 @@ use std::process::Stdio;
 use tokio::process::Command;
 
 /// ffmpeg runner with availability detection.
+#[derive(Debug, Clone)]
 pub struct FfmpegRunner {
     pub available: bool,
     ffmpeg_path: String,
     temp_dir: PathBuf,
 }
 
+impl Drop for FfmpegRunner {
+    fn drop(&mut self) {
+        // Clean up accumulated temp files on server shutdown
+        let _ = std::fs::remove_dir_all(&self.temp_dir);
+    }
+}
+
 impl FfmpegRunner {
     /// Detect ffmpeg on PATH. Returns a runner with `available` set accordingly.
+    /// Cleans up leftover temp files from previous crashed sessions.
     pub fn detect() -> Self {
         let ffmpeg_path = "ffmpeg".to_string();
         let available = std::process::Command::new(&ffmpeg_path)
@@ -27,6 +36,9 @@ impl FfmpegRunner {
             .unwrap_or(false);
 
         let temp_dir = std::env::temp_dir().join("hkask-media");
+
+        // Clean up leftover temp files from previous crashed sessions
+        let _ = std::fs::remove_dir_all(&temp_dir);
 
         if available {
             tracing::info!(target: "cns.mcp.media.ffmpeg", "ffmpeg detected");

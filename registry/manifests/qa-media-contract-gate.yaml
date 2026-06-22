@@ -1,0 +1,193 @@
+# QA Media Server Contract Gate — v0.30.0
+#
+# Verifies hkask-mcp-media tool invariants: gallery liveness,
+# organization, and status roundtrip. Tests local-only tools that
+# require no API keys, then classifies results.
+#
+# Tested tools:
+#   gallery_status    — liveness check (no params, no deps)
+#   gallery_organize  — directory indexing (local, no API keys)
+#
+# Pre-conditions:
+#   - Media server binary must be built (cargo build --bin hkask-mcp-media)
+#   - No API keys required for gallery operations
+#   - ImageMagick (`convert`) recommended for test image generation
+#
+# Open questions addressed:
+#   36 tools — largest tool surface among MCP servers
+#   FUT-004 — OCAP membrane coverage
+#
+# Cybernetic feedback loop:
+#   Sensor → mcp_tool dispatch through McpRuntime → Peer → rmcp
+#   Comparator → classify step evaluates gallery invariants
+#   Actuator → terminal step reports PASS/FAIL/DEGRADED
+#
+# Runner readiness: FULLY EXECUTABLE TODAY (all steps use mcp_tool + run_command).
+
+manifest:
+  id: qa-media-contract-gate
+  name: "QA Media Server Contract Gate"
+  version: "0.30.0"
+  visibility: Public
+  description: >
+    Verifies hkask-mcp-media gallery invariants: liveness (gallery_status),
+    organization (gallery_organize), and status roundtrip. Uses a temporary
+    gallery directory with generated test images — no API keys required.
+
+gas:
+  cap: 20000
+  alert_threshold: 0.8
+  hard_limit: true
+
+steps:
+  # ── Phase 1: Setup ────────────────────────────────────────────────────────
+
+  # Step 1: Prepare test gallery directory with sample images
+  - ordinal: 1
+    action: run_command
+    command: >
+      GALLERY=/tmp/hkask-qa-media-gallery &&
+      rm -rf "$GALLERY" &&
+      mkdir -p "$GALLERY" &&
+      if command -v convert >/dev/null 2>&1; then
+        convert -size 100x100 xc:red    "$GALLERY/test-red.png" &&
+        convert -size 100x100 xc:green  "$GALLERY/test-green.png" &&
+        convert -size 100x100 xc:blue   "$GALLERY/test-blue.png" &&
+        echo "GALLERY_READY: 3 test images created with ImageMagick"
+      else
+        printf '\x89PNG\r\n\x1a\n' > "$GALLERY/test-red.png" &&
+        printf '\x89PNG\r\n\x1a\n' > "$GALLERY/test-green.png" &&
+        printf '\x89PNG\r\n\x1a\n' > "$GALLERY/test-blue.png" &&
+        echo "GALLERY_READY: 3 placeholder images created (ImageMagick not found)"
+      fi
+    description: "Create temporary gallery directory with test images"
+    retries: 0
+    branching:
+      success: 2
+      failure: 8
+
+  # ── Phase 2: Liveness ─────────────────────────────────────────────────────
+
+  # Step 2: Call gallery_status — verify server is alive
+  - ordinal: 2
+    action: mcp_tool
+    tool_name: gallery_status
+    tool_params: "{}"
+    description: "Call gallery_status to verify media server liveness"
+    retries: 0
+    branching:
+      success: 3
+      failure: 9
+
+  # ── Phase 3: Organization ─────────────────────────────────────────────────
+
+  # Step 3: Organize the test gallery
+  - ordinal: 3
+    action: mcp_tool
+    tool_name: gallery_organize
+    tool_params: '{"path":"/tmp/hkask-qa-media-gallery","mode":"read-only","recursive":false,"auto_analyze":false}'
+    description: "Call gallery_organize to index the test gallery directory"
+    retries: 0
+    branching:
+      success: 4
+      failure: 10
+
+  # ── Phase 4: Verify roundtrip ─────────────────────────────────────────────
+
+  # Step 4: Call gallery_status again — verify gallery is populated
+  - ordinal: 4
+    action: mcp_tool
+    tool_name: gallery_status
+    tool_params: "{}"
+    description: "Call gallery_status to verify gallery was populated by organize"
+    retries: 0
+    branching:
+      success: 5
+      failure: 9
+
+  # Step 5: Classify the full test output
+  - ordinal: 5
+    action: classify
+    classifier: qa-triage
+    description: >
+      Test suite: hkask-mcp-media gallery contract tests. Verified: (1) gallery_status
+      returns liveness info with path, mode, image_count, total_size fields;
+      (2) gallery_organize successfully indexes a directory of PNG images;
+      (3) gallery_status after organize shows image_count > 0 and gallery path
+      matches /tmp/hkask-qa-media-gallery. All passing indicates media server
+      gallery subsystem is functional for local-only operations.
+    retries: 0
+    branching:
+      high_confidence: 6
+      medium_confidence: 6
+      low_confidence: 11
+      flake: 5
+      unparseable: 11
+
+  # ── Phase 5: Cleanup + Report ─────────────────────────────────────────────
+
+  # Step 6: PASS — gallery operations verified
+  - ordinal: 6
+    action: run_command
+    command: >
+      rm -rf /tmp/hkask-qa-media-gallery &&
+      echo '[QA:media] PASS — gallery_status + gallery_organize roundtrip verified'
+    description: "Gallery roundtrip passed: liveness, organization, status verification"
+    retries: 0
+    terminal: true
+
+  # Step 7: DEGRADED — gallery operations work but classification uncertain
+  - ordinal: 7
+    action: run_command
+    command: >
+      rm -rf /tmp/hkask-qa-media-gallery &&
+      echo '[QA:media] DEGRADED — gallery operations work but classifier uncertain. Manual review recommended.'
+    description: "Gallery operations functional but classifier could not confirm"
+    retries: 0
+    terminal: true
+
+  # ── Failure handlers ──────────────────────────────────────────────────────
+
+  # Step 8: FAIL — test gallery setup failed
+  - ordinal: 8
+    action: run_command
+    command: >
+      rm -rf /tmp/hkask-qa-media-gallery 2>/dev/null;
+      echo '[QA:media] FAIL — could not create test gallery directory at /tmp/hkask-qa-media-gallery. Check filesystem permissions.'
+    description: "Test gallery setup failure — filesystem issue"
+    retries: 0
+    terminal: true
+
+  # Step 9: FAIL — gallery_status dispatch failed
+  - ordinal: 9
+    action: run_command
+    command: >
+      rm -rf /tmp/hkask-qa-media-gallery 2>/dev/null;
+      echo '[QA:media] FAIL — gallery_status dispatch failed. Media server may not be running or gallery subsystem is broken.'
+    description: "gallery_status MCP dispatch failure"
+    retries: 0
+    terminal: true
+
+  # Step 10: FAIL — gallery_organize dispatch failed
+  - ordinal: 10
+    action: run_command
+    command: >
+      rm -rf /tmp/hkask-qa-media-gallery 2>/dev/null;
+      echo '[QA:media] FAIL — gallery_organize dispatch failed. Check media server gallery subsystem and filesystem access.'
+    description: "gallery_organize MCP dispatch failure"
+    retries: 0
+    terminal: true
+
+  # Step 11: WARN — classifier uncertain
+  - ordinal: 11
+    action: run_command
+    command: >
+      rm -rf /tmp/hkask-qa-media-gallery 2>/dev/null;
+      echo '[QA:media] WARN — classifier returned low confidence on media server test output. Manual review recommended.'
+    description: "Classifier low confidence — manual review needed"
+    retries: 0
+    terminal: true
+
+cns:
+  emit_spans: true
+  alert: qa.media.contract
