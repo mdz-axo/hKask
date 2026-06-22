@@ -16,7 +16,7 @@ use crate::error::ApiError;
 /// typed `ApiError::Internal` rather than a panic at startup (P4.1).
 pub(crate) struct GitCasBundle {
     /// TemplateCrateLoader (legacy — template loading only).
-    pub template_adapter: Arc<hkask_mcp::TemplateCrateLoader>,
+    pub template_adapter: Arc<hkask_templates::TemplateCrateLoader>,
     /// Trait-object `GitCASPort` (hexagonal boundary) used by stores.
     pub git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort>,
     /// Concrete `GixCasAdapter` for admin operations (resolve_ref, diff)
@@ -35,9 +35,9 @@ pub(crate) struct GitCasBundle {
 /// of this function — if even that cannot be created, returning
 /// `ApiError::Internal` is the correct (non-panicking) failure mode.
 pub(crate) fn init_git_cas() -> Result<GitCasBundle, ApiError> {
-    let template_adapter = Arc::new(hkask_mcp::TemplateCrateLoader::from_path(PathBuf::from(
-        "/tmp/hkask-templates",
-    )));
+    let template_adapter = Arc::new(hkask_templates::TemplateCrateLoader::from_path(
+        PathBuf::from("/tmp/hkask-templates"),
+    ));
     let fallback_path = PathBuf::from("/tmp/hkask-templates");
     let gix_cas = Arc::new(
         hkask_mcp::GixCasAdapter::from_env()

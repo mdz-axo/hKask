@@ -4303,6 +4303,7 @@ name = "hkask-agents"
 version = "0.30.0"
 dependencies = [
  "async-trait",
+ "blake3",
  "chrono",
  "ed25519-dalek 2.2.0",
  "hex",
@@ -4313,6 +4314,7 @@ dependencies = [
  "hkask-memory",
  "hkask-ports",
  "hkask-storage",
+ "hkask-templates",
  "hkask-test-harness",
  "hkask-types",
  "reqwest",
@@ -5349,6 +5351,7 @@ dependencies = [
 name = "hkask-services-context"
 version = "0.30.0"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "blake3",
  "chrono",

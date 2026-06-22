@@ -50,6 +50,10 @@ pub struct CuratorAgent {
     /// SpecDriftAlert through the Communication Loop when drift
     /// exceeds threshold.
     spec_curator: spec_curator::DefaultSpecCurator,
+    /// Federation link manager — set via `with_federation()`. Handles
+    /// InviteToFederation, PauseFederationLink, RevokeFederationMember,
+    /// LeaveFederation, and DissolveFederation directives.
+    link_manager: Option<Arc<dyn hkask_ports::federation::FederationDispatch>>,
 }
 
 impl CuratorAgent {
@@ -76,6 +80,7 @@ impl CuratorAgent {
             metacognition,
             context,
             spec_curator: spec_curator::DefaultSpecCurator::default(),
+            link_manager: None,
         }
     }
 
@@ -104,6 +109,7 @@ impl CuratorAgent {
             metacognition,
             context,
             spec_curator: spec_curator::DefaultSpecCurator::default(),
+            link_manager: None,
         }
     }
 
@@ -152,6 +158,7 @@ impl CuratorAgent {
             metacognition,
             context,
             spec_curator,
+            link_manager: None,
         }
     }
 
@@ -196,6 +203,98 @@ impl CuratorAgent {
     /// post: Returns a reference to the inner `DefaultSpecCurator`.
     pub fn spec_curator(&self) -> &spec_curator::DefaultSpecCurator {
         &self.spec_curator
+    }
+
+    /// Attach a FederationLinkManager for federation directive dispatch.
+    pub fn with_federation(
+        mut self,
+        link_manager: Arc<dyn hkask_ports::federation::FederationDispatch>,
+    ) -> Self {
+        self.link_manager = Some(link_manager);
+        self
+    }
+
+    /// Dispatch a CuratorDirective to the federation link manager.
+    ///
+    /// Called by the CurationLoop (or CLI) when federation-related directives
+    /// need to be executed. Silently ignores directives that aren't federation-related.
+    pub async fn handle_federation_directive(
+        &self,
+        directive: &hkask_types::curator::CuratorDirective,
+    ) -> Result<(), String> {
+        use hkask_types::curator::CuratorDirective;
+        let lm = self
+            .link_manager
+            .as_ref()
+            .ok_or("no federation link manager configured")?;
+
+        match directive {
+            CuratorDirective::InviteToFederation {
+                peer_replica,
+                peer_server_domain,
+                peer_matrix_domain,
+                peer_curator_matrix_id,
+                message: _, // Dropped for now
+            } => {
+                lm.register_peer(
+                    peer_replica.clone(),
+                    peer_server_domain.clone(),
+                    peer_matrix_domain.clone(),
+                    peer_curator_matrix_id.clone(),
+                )
+                .await;
+                lm.invite(peer_replica.clone())
+                    .await
+                    .map_err(|e| format!("invite failed: {e}"))?;
+            }
+            CuratorDirective::AcceptFederationInvite { invitation_id } => {
+                // invitation_id is the replica ID of the inviter
+                lm.accept(invitation_id.clone())
+                    .await
+                    .map_err(|e| format!("accept failed: {e}"))?;
+            }
+            CuratorDirective::RejectFederationInvite {
+                invitation_id,
+                reason: _, // Dropped for now
+            } => {
+                lm.reject(invitation_id.clone())
+                    .await
+                    .map_err(|e| format!("reject failed: {e}"))?;
+            }
+            CuratorDirective::PauseFederationLink {
+                peer_replica,
+                reason,
+            } => {
+                lm.pause(peer_replica.clone(), reason.clone())
+                    .await
+                    .map_err(|e| format!("pause failed: {e}"))?;
+            }
+            CuratorDirective::ResumeFederationLink { peer_replica } => {
+                lm.resume(peer_replica.clone())
+                    .await
+                    .map_err(|e| format!("resume failed: {e}"))?;
+            }
+            CuratorDirective::RevokeFederationMember {
+                peer_replica,
+                reason,
+            } => {
+                lm.revoke(peer_replica.clone(), reason.clone())
+                    .await
+                    .map_err(|e| format!("revoke failed: {e}"))?;
+            }
+            CuratorDirective::LeaveFederation { reason } => {
+                lm.leave(reason.clone())
+                    .await
+                    .map_err(|e| format!("leave failed: {e}"))?;
+            }
+            CuratorDirective::DissolveFederation { reason } => {
+                lm.leave(format!("dissolved: {reason}"))
+                    .await
+                    .map_err(|e| format!("dissolve failed: {e}"))?;
+            }
+            _ => {} // Not a federation directive — silently ignore
+        }
+        Ok(())
     }
 }
 

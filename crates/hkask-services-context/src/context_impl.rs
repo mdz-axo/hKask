@@ -820,6 +820,7 @@ fn spawn_seam_drift_check(
 /// Loops: cybernetics, inference, episodic, semantic, curation, snapshot, backup.
 struct Loops {
     loop_system: Arc<LoopSystem>,
+    backup_loop: Arc<hkask_services_backup::BackupLoop>,
     cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
     inference_port: Option<Arc<dyn InferencePort>>,
     episodic_storage: Arc<dyn EpisodicStoragePort>,
@@ -970,11 +971,14 @@ async fn build_loops(
         Arc::clone(&git_cas_port),
         hkask_services_backup::load_backup_config(),
     ));
-    let backup_loop = hkask_services_backup::BackupLoop::new(backup_service);
-    loop_system.register_loop(Arc::new(backup_loop)).await;
+    let backup_loop = Arc::new(hkask_services_backup::BackupLoop::new(backup_service));
+    loop_system
+        .register_loop(backup_loop.clone() as Arc<dyn HkaskLoop>)
+        .await;
 
     Ok(Loops {
         loop_system,
+        backup_loop,
         cybernetics_loop,
         inference_port,
         episodic_storage,
@@ -1047,7 +1051,7 @@ async fn build_mcp_and_pods(
         )
         .with_factory_and_ports(
             Arc::new(hkask_agents::pod::PodFactory::new(
-                Arc::new(hkask_mcp::TemplateCrateLoader::from_path(
+                Arc::new(hkask_templates::TemplateCrateLoader::from_path(
                     std::path::PathBuf::from(&config.template_cache_path),
                 )),
                 Arc::new(hkask_agents::DenyAllConsent),
@@ -1071,6 +1075,11 @@ async fn build_mcp_and_pods(
         std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string()),
     );
     let pod_manager: Arc<hkask_agents::pod::ActivePods> = Arc::new(pods);
+
+    // Register pod state producer — snapshots each pod's db before daily backup.
+    l.backup_loop.add_producer(Arc::new(PodBackupProducer {
+        pod_manager: Arc::clone(&pod_manager),
+    }));
 
     // Start CuratorPod + CuratorSync (semantic aggregation loop).
     // Runs as a background task for the lifetime of the service.
@@ -1144,6 +1153,60 @@ async fn build_mcp_and_pods(
         _curator_cancel: curator_cancel_tx,
         curator_ready: curator_ready_rx,
     })
+}
+
+// ── Artifact producers (backup integration) ────────────────────────────
+
+use async_trait::async_trait;
+use hkask_services_backup::BackupError;
+use hkask_services_backup::producers::ArtifactProducer;
+use hkask_services_backup::scope::ArtifactType;
+
+/// Produces PodState artifacts by querying ActivePods for all activated pods.
+struct PodBackupProducer {
+    pod_manager: Arc<hkask_agents::pod::ActivePods>,
+}
+
+#[async_trait]
+impl ArtifactProducer for PodBackupProducer {
+    fn artifact_types(&self) -> &[ArtifactType] {
+        &[ArtifactType::PodState]
+    }
+
+    async fn produce(
+        &self,
+        cas: &dyn hkask_ports::git_cas::GitCASPort,
+    ) -> Result<usize, BackupError> {
+        let pods = self.pod_manager.pod_db_paths().await;
+        let repo_id = ArtifactType::PodState.repo_id();
+        let mut count = 0usize;
+
+        for (pod_id, db_path) in pods {
+            let pod_data = match std::fs::read(&db_path) {
+                Ok(d) => d,
+                Err(e) => {
+                    tracing::warn!(
+                        target: "cns.backup", pod_id = %pod_id, error = %e,
+                        "Failed to read pod.db — skipping"
+                    );
+                    continue;
+                }
+            };
+
+            let artifact = hkask_services_backup::serialization::serialize_artifact(
+                &ArtifactType::PodState,
+                &pod_id,
+                &serde_json::json!({"pod_id": &pod_id}),
+            )
+            .map_err(|e| BackupError::Serialization(format!("PodState {pod_id}: {e}")))?;
+
+            cas.put_blob(&repo_id, &artifact).await?;
+            cas.put_blob(&repo_id, &pod_data).await?;
+            count += 1;
+        }
+
+        Ok(count)
+    }
 }
 
 /// Matrix transport + 7R7 listener. Non-blocking: returns None if Conduit unreachable.

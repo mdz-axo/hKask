@@ -100,7 +100,7 @@ impl ActivePods {
         )));
         let a2a = Arc::new(A2ARuntime::new(b"mock"));
         let factory = Arc::new(PodFactory::new(
-            Arc::new(hkask_mcp::TemplateCrateLoader::from_path(
+            Arc::new(hkask_templates::TemplateCrateLoader::from_path(
                 data_dir.join("templates"),
             )),
             Arc::new(AllowAllConsent),
@@ -509,6 +509,18 @@ impl ActivePods {
                     created_at: d.pod.created_at,
                 })
             })
+            .collect()
+    }
+
+    /// Return (pod_name, pod_db_path) for all activated pods with existing databases.
+    /// Used by the backup system to snapshot pod state.
+    pub async fn pod_db_paths(&self) -> Vec<(String, std::path::PathBuf)> {
+        self.deployments
+            .read()
+            .await
+            .values()
+            .filter(|d| d.storage.db_path.exists())
+            .map(|d| (d.pod.persona.agent.name.clone(), d.storage.db_path.clone()))
             .collect()
     }
 

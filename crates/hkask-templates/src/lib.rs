@@ -9,6 +9,7 @@
 
 pub mod bundle;
 pub mod capability_validator;
+pub mod crate_loader;
 pub mod executor;
 pub mod manifest_loader;
 pub mod ports;
@@ -20,6 +21,7 @@ pub mod vocabulary;
 
 pub use bundle::BundleManifest;
 pub use bundle::BundleRegistryIndex;
+pub use crate_loader::TemplateCrateLoader;
 pub use executor::ManifestExecutor;
 pub use hkask_ports::InferencePort;
 pub use hkask_ports::Skill;

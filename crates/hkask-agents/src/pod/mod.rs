@@ -26,7 +26,7 @@
 //! ```rust,no_run
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use hkask_agents::pod::{AgentPod, AgentPersona, PodLifecycleState};
-//! use hkask_mcp::TemplateCrateLoader;
+//! use hkask_templates::TemplateCrateLoader;
 //! use hkask_agents::a2a::A2ARuntime;
 //! use hkask_agents::adapters::mcp_runtime::CapabilityOnlyAdapter;
 //! use hkask_types::WebID;
@@ -82,7 +82,7 @@ use tracing::info;
 use zeroize::Zeroizing;
 
 use crate::SovereigntyChecker;
-use hkask_mcp::TemplateCrateLoader;
+use hkask_templates::TemplateCrateLoader;
 
 pub use active_pods::{ActivePods, PodStatusInfo};
 pub use context::PodContext;
@@ -717,7 +717,7 @@ mod tests {
         )
         .ok();
         std::fs::write(crate_dir.join("dispatch_manifest.yaml"), "name: test\n").ok();
-        let loader = hkask_mcp::TemplateCrateLoader::from_path(template_dir);
+        let loader = hkask_templates::TemplateCrateLoader::from_path(template_dir);
         AgentPod::new(
             "test-template",
             &persona,

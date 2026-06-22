@@ -130,6 +130,14 @@ impl BackupService {
     /// post: returns BackupService with provided config and encryption key derived if passphrase available
     pub fn new(cas: Arc<dyn GitCASPort>, config: BackupConfig) -> Self {
         let encryption_key = Self::derive_key(&config);
+        // CNS: warn if encryption is configured but key derivation failed
+        if config.encryption.is_some() && encryption_key.is_none() {
+            warn!(
+                target: "cns.backup",
+                operation = "encryption.key_derive_failed",
+                "HKASK_BACKUP_PASSPHRASE missing or salt invalid — blobs will be unencrypted"
+            );
+        }
         Self {
             cas,
             config,
@@ -189,6 +197,11 @@ impl BackupService {
     /// Get a clone of the mutual-exclusion gate for sharing with PodBackupOps.
     pub fn gate(&self) -> Arc<AtomicBool> {
         Arc::clone(&self.in_progress)
+    }
+
+    /// Access the underlying CAS port (for artifact producers).
+    pub(crate) fn cas(&self) -> &Arc<dyn GitCASPort> {
+        &self.cas
     }
 
     /// Create a PodBackupOps sharing this service's CAS port, encryption key, and gate.
@@ -630,28 +643,22 @@ impl BackupService {
     /// Run a daily backup snapshot of all tracked artifact types.
     /// Called by the backup scheduler (daemon loop).
     ///
-    /// Snapshotswhat is already in each tracked CAS repo — artifacts
-    /// are expected to be written to CAS by their owning subsystems
-    /// (registry, memory store, etc.) before the scheduler fires.
+    /// Snapshots ALL repos (not just tracked types) because artifact
+    /// producers may push blobs to any repo. The tracking config controls
+    /// which types are collected, not which repos are committed.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  auto_snapshot must be enabled in config
-    /// post: returns SnapshotMetadata from full snapshot of all tracked repos;
+    /// post: returns SnapshotMetadata from full snapshot of all repos;
     ///       Err on CAS failure
     pub async fn run_daily_snapshot(&self) -> Result<SnapshotMetadata, BackupError> {
         self.acquire_gate()?;
         let _guard = GateGuard { service: self };
         info!(target: "cns.backup", "CNS");
 
-        let repos = self.tracked_repos();
-        if repos.is_empty() {
-            return Err(BackupError::Config(
-                "No artifact types are tracked. Configure backup first.".into(),
-            ));
-        }
-
+        let repos = hkask_ports::git_cas::RepoId::all();
         let mut commits = Vec::new();
-        for repo_id in &repos {
+        for repo_id in repos {
             let message = format!(
                 "backup: daily snapshot — {}",
                 Utc::now().format("%Y-%m-%d %H:%M:%S")
@@ -771,9 +778,14 @@ impl BackupService {
 /// Encrypt blob content with AES-256-GCM.
 /// Returns (nonce_bytes || ciphertext).
 pub(crate) fn encrypt_blob(key: &Option<[u8; 32]>, data: &[u8]) -> Result<Vec<u8>, BackupError> {
-    let key = key
-        .as_ref()
-        .ok_or_else(|| BackupError::Encryption("Encryption not configured".into()))?;
+    let key = key.as_ref().ok_or_else(|| {
+        warn!(
+            target: "cns.backup",
+            operation = "encryption.encrypt_failed",
+            "Encryption not configured — storing blob unencrypted"
+        );
+        BackupError::Encryption("Encryption not configured".into())
+    })?;
     let cipher = Aes256Gcm::new_from_slice(key)
         .map_err(|e| BackupError::Encryption(format!("AES init: {e}")))?;
     let mut nonce_bytes = [0u8; 12];
@@ -790,9 +802,14 @@ pub(crate) fn encrypt_blob(key: &Option<[u8; 32]>, data: &[u8]) -> Result<Vec<u8
 /// Decrypt blob content.
 /// Expects (nonce_bytes || ciphertext).
 pub(crate) fn decrypt_blob(key: &Option<[u8; 32]>, data: &[u8]) -> Result<Vec<u8>, BackupError> {
-    let key = key
-        .as_ref()
-        .ok_or_else(|| BackupError::Encryption("Encryption not configured".into()))?;
+    let key = key.as_ref().ok_or_else(|| {
+        warn!(
+            target: "cns.backup",
+            operation = "encryption.decrypt_failed",
+            "Encryption not configured — cannot decrypt blob"
+        );
+        BackupError::Encryption("Encryption not configured".into())
+    })?;
     if data.len() < 12 {
         return Err(BackupError::Encryption("Data too short for nonce".into()));
     }

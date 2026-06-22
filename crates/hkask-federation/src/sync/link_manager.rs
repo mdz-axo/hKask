@@ -176,6 +176,117 @@ impl FederationLinkManager {
     }
 }
 
+#[async_trait::async_trait]
+impl hkask_ports::federation::FederationDispatch for FederationLinkManager {
+    async fn register_peer(
+        &self,
+        replica: ReplicaId,
+        server_domain: String,
+        matrix_domain: String,
+        matrix_id: String,
+    ) {
+        let link = crate::sync::link::FederationLink::new(
+            replica,
+            server_domain,
+            matrix_domain,
+            matrix_id,
+        );
+        self.links
+            .write()
+            .await
+            .insert(link.peer_replica.clone(), link);
+    }
+
+    async fn invite(&self, peer: ReplicaId) -> Result<(), String> {
+        let mut links = self.links.write().await;
+        let link = links.get_mut(&peer).ok_or("peer not found")?;
+        let now = Utc::now();
+        link.transition_to(LinkState::Invited {
+            invited_at: now,
+            expires_at: now + chrono::Duration::hours(24),
+        })
+        .map_err(|e| e.to_string())?;
+        self.emit_cns(CnsSpan::FederationInviteSent, &peer);
+        Ok(())
+    }
+
+    async fn accept(&self, peer: ReplicaId) -> Result<(), String> {
+        let mut links = self.links.write().await;
+        let link = links.get_mut(&peer).ok_or("peer not found")?;
+        link.transition_to(LinkState::Linked {
+            established_at: Utc::now(),
+        })
+        .map_err(|e| e.to_string())?;
+        self.emit_cns(CnsSpan::FederationLinkEstablished, &peer);
+        Ok(())
+    }
+
+    async fn reject(&self, peer: ReplicaId) -> Result<(), String> {
+        let mut links = self.links.write().await;
+        let link = links.get_mut(&peer).ok_or("peer not found")?;
+        link.transition_to(LinkState::Isolated)
+            .map_err(|e| e.to_string())?;
+        self.emit_cns(CnsSpan::FederationInviteRejected, &peer);
+        Ok(())
+    }
+
+    async fn pause(&self, peer: ReplicaId, reason: String) -> Result<(), String> {
+        let mut links = self.links.write().await;
+        let link = links.get_mut(&peer).ok_or("peer not found")?;
+        link.transition_to(LinkState::Paused {
+            paused_at: Utc::now(),
+            reason,
+            initiated_by: self.local_replica.clone(),
+        })
+        .map_err(|e| e.to_string())?;
+        self.emit_cns(CnsSpan::FederationLinkPaused, &peer);
+        Ok(())
+    }
+
+    async fn resume(&self, peer: ReplicaId) -> Result<(), String> {
+        let mut links = self.links.write().await;
+        let link = links.get_mut(&peer).ok_or("peer not found")?;
+        link.transition_to(LinkState::Linked {
+            established_at: Utc::now(),
+        })
+        .map_err(|e| e.to_string())?;
+        self.emit_cns(CnsSpan::FederationLinkResumed, &peer);
+        Ok(())
+    }
+
+    async fn revoke(&self, peer: ReplicaId, reason: String) -> Result<(), String> {
+        let mut links = self.links.write().await;
+        let link = links.get_mut(&peer).ok_or("peer not found")?;
+        link.transition_to(LinkState::Revoked {
+            revoked_at: Utc::now(),
+            reason,
+            initiated_by: self.local_replica.clone(),
+            scope: crate::sync::link::RevocationScope::SingleMember,
+        })
+        .map_err(|e| e.to_string())?;
+        self.emit_cns(CnsSpan::FederationMemberRevoked, &peer);
+        Ok(())
+    }
+
+    async fn leave(&self, reason: String) -> Result<(), String> {
+        let mut links = self.links.write().await;
+        let now = Utc::now();
+        for (replica, link) in links.iter_mut() {
+            if !matches!(link.state, LinkState::Revoked { .. }) {
+                link.transition_to(LinkState::Revoked {
+                    revoked_at: now,
+                    reason: reason.clone(),
+                    initiated_by: self.local_replica.clone(),
+                    scope: crate::sync::link::RevocationScope::VoluntaryDeparture,
+                })
+                .map_err(|e| e.to_string())?;
+                self.emit_cns(CnsSpan::FederationMemberLeft, replica);
+            }
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

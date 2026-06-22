@@ -10,6 +10,7 @@ hkask-types = { path = "../hkask-types" }
 hkask-ports = { path = "../hkask-ports" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-mcp = { path = "../hkask-mcp" }
+hkask-templates = { path = "../hkask-templates" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
@@ -25,6 +26,7 @@ tracing.workspace = true
 tokio.workspace = true
 hex.workspace = true
 uuid.workspace = true
+blake3.workspace = true
 zeroize.workspace = true
 rusqlite.workspace = true
 tokio-util.workspace = true

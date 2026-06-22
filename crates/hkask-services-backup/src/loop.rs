@@ -19,6 +19,7 @@ use hkask_cns::types::loops::{
 use parking_lot::RwLock;
 use tracing::{info, warn};
 
+use crate::producers::ArtifactProducer;
 use crate::service::BackupService;
 
 /// State tracked by the BackupLoop across cycles.
@@ -42,6 +43,7 @@ struct BackupLoopState {
 pub struct BackupLoop {
     service: Arc<BackupService>,
     state: Arc<RwLock<BackupLoopState>>,
+    producers: RwLock<Vec<Arc<dyn ArtifactProducer>>>,
 }
 
 impl BackupLoop {
@@ -54,7 +56,14 @@ impl BackupLoop {
         Self {
             service,
             state: Arc::new(RwLock::new(BackupLoopState::default())),
+            producers: RwLock::new(Vec::new()),
         }
+    }
+
+    /// Register an artifact producer to be called before each daily snapshot.
+    /// Can be called after construction — thread-safe via interior mutability.
+    pub fn add_producer(&self, producer: Arc<dyn ArtifactProducer>) {
+        self.producers.write().push(producer);
     }
 
     /// Check if auto-snapshot is enabled (delegates to BackupService).
@@ -159,6 +168,43 @@ impl HkaskLoop for BackupLoop {
 
         info!(target: "cns.backup", "CNS");
 
+        // 1. Produce: push current subsystem state into CAS
+        // Clone Arc'd producers to avoid holding RwLockReadGuard across .await
+        let producers: Vec<Arc<dyn ArtifactProducer>> =
+            self.producers.read().iter().cloned().collect();
+        let mut total_produced = 0usize;
+        for producer in &producers {
+            match producer.produce(self.service.cas().as_ref()).await {
+                Ok(count) => {
+                    if count > 0 {
+                        info!(
+                            target: "cns.backup",
+                            produced = count,
+                            types = ?producer.artifact_types(),
+                            "CNS"
+                        );
+                    }
+                    total_produced += count;
+                }
+                Err(e) => {
+                    warn!(
+                        target: "cns.backup",
+                        error = %e,
+                        types = ?producer.artifact_types(),
+                        "CNS"
+                    );
+                }
+            }
+        }
+        if total_produced > 0 {
+            info!(
+                target: "cns.backup",
+                total_produced = total_produced,
+                "CNS"
+            );
+        }
+
+        // 2. Snapshot: commit all CAS repos
         match self.service.run_daily_snapshot().await {
             Ok(metadata) => {
                 info!(

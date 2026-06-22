@@ -76,7 +76,7 @@ pub struct ApiState {
     /// Spec store for MDS specifications — surface-specific
     pub spec_store: Option<Arc<hkask_storage::SqliteSpecStore>>,
     /// Legacy template-loading adapter — surface-specific
-    pub template_adapter: Arc<hkask_mcp::TemplateCrateLoader>,
+    pub template_adapter: Arc<hkask_templates::TemplateCrateLoader>,
     /// Git CAS port for all CAS operations (hexagonal boundary) — surface-specific
     pub git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort>,
     /// GixCasAdapter for admin operations (resolve_ref, diff) — surface-specific

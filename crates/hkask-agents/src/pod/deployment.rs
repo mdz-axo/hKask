@@ -32,7 +32,7 @@ use super::{AgentPod, AgentPodError};
 use crate::SovereigntyChecker;
 use crate::curator::SemanticIndex;
 use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
-use hkask_mcp::TemplateCrateLoader;
+use hkask_templates::TemplateCrateLoader;
 
 // ── PodDeployment — The pod IS the deployment unit ──────────────────────────
 

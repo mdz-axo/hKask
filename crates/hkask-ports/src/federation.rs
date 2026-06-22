@@ -79,3 +79,24 @@ pub enum FederationSyncError {
     #[error("not found")]
     NotFound,
 }
+
+/// Trait for dispatching federation lifecycle operations.
+/// Implemented by FederationLinkManager in hkask-federation.
+/// Consumed by CuratorAgent to avoid circular dependency.
+#[async_trait::async_trait]
+pub trait FederationDispatch: Send + Sync {
+    async fn register_peer(
+        &self,
+        replica: ReplicaId,
+        server_domain: String,
+        matrix_domain: String,
+        matrix_id: String,
+    );
+    async fn invite(&self, peer: ReplicaId) -> Result<(), String>;
+    async fn accept(&self, peer: ReplicaId) -> Result<(), String>;
+    async fn reject(&self, peer: ReplicaId) -> Result<(), String>;
+    async fn pause(&self, peer: ReplicaId, reason: String) -> Result<(), String>;
+    async fn resume(&self, peer: ReplicaId) -> Result<(), String>;
+    async fn revoke(&self, peer: ReplicaId, reason: String) -> Result<(), String>;
+    async fn leave(&self, reason: String) -> Result<(), String>;
+}

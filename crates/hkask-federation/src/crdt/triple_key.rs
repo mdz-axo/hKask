@@ -19,6 +19,11 @@ impl FederationTripleKey {
             eav_hash: hkask_memory::recall_dedup::eav_hash(triple),
         }
     }
+
+    /// Create a key directly from pre-computed EAV hash bytes.
+    pub fn from_hash(hash: [u8; 32]) -> Self {
+        Self { eav_hash: hash }
+    }
 }
 
 #[cfg(test)]
