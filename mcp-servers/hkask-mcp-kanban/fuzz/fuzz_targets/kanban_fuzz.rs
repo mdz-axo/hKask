@@ -12,16 +12,42 @@
 use bolero::check;
 use hkask_mcp_kanban::KanbanServer;
 use hkask_mcp_kanban::types::*;
+use hkask_services::KanbanService;
+use hkask_storage::{Store, TripleStore};
 use hkask_test_harness::TestWebId;
 use rmcp::handler::server::wrapper::Parameters;
 use serde::{Deserialize, Serialize};
 use std::panic::{self, AssertUnwindSafe};
+use std::sync::{Arc, Mutex};
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 /// Create an isolated KanbanServer with an in-memory DB and test WebID.
 fn test_server() -> KanbanServer {
-    KanbanServer::new(TestWebId::alice(), "fuzz-replicant".into(), None)
+    let conn = Arc::new(Mutex::new(
+        rusqlite::Connection::open_in_memory().expect("in-memory DB"),
+    ));
+    let store = hkask_storage::TripleStore::new(Arc::clone(&conn));
+    store
+        .lock_conn()
+        .expect("mutex not poisoned")
+        .execute_batch(
+            "CREATE TABLE IF NOT EXISTS triples (
+            id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
+            value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
+            confidence REAL NOT NULL, perspective TEXT, visibility TEXT NOT NULL,
+            owner_webid TEXT NOT NULL
+        )",
+        )
+        .expect("DDL batch must succeed");
+    let service = hkask_services::KanbanService::new(store);
+    KanbanServer::new(
+        service,
+        TestWebId::alice(),
+        "fuzz-replicant".into(),
+        None,
+        Some(conn),
+    )
 }
 
 /// Wrapper: call an async tool under catch_unwind in a Tokio runtime.

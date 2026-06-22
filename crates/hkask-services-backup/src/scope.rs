@@ -31,6 +31,16 @@ pub enum ArtifactType {
     Session,
     WalletState,
     Settings,
+    /// Agent public artifacts — styles, bots, templates published via manifest.json.
+    AgentArtifact,
+    /// Agent gallery — media assets (images, video, audio).
+    AgentGallery,
+    /// Agent library — research materials, papers, feeds.
+    AgentLibrary,
+    /// Agent documents — parsed/extracted documents.
+    AgentDocuments,
+    /// Agent adapters — trained LoRA weights.
+    AgentAdapters,
 }
 
 impl ArtifactType {
@@ -45,7 +55,12 @@ impl ArtifactType {
             ArtifactType::Template
             | ArtifactType::Style
             | ArtifactType::RegistryEntry
-            | ArtifactType::Settings => RepoId::Registry,
+            | ArtifactType::Settings
+            | ArtifactType::AgentArtifact
+            | ArtifactType::AgentGallery
+            | ArtifactType::AgentLibrary
+            | ArtifactType::AgentDocuments
+            | ArtifactType::AgentAdapters => RepoId::Registry,
             ArtifactType::Goal | ArtifactType::Spec => RepoId::GoalsSpecs,
             ArtifactType::MemoryTriple | ArtifactType::Embedding => RepoId::Memory,
             ArtifactType::CnsAudit => RepoId::CnsAudit,
@@ -74,6 +89,11 @@ impl ArtifactType {
             ArtifactType::Session => "session",
             ArtifactType::WalletState => "wallet_state",
             ArtifactType::Settings => "settings",
+            ArtifactType::AgentArtifact => "agent_artifact",
+            ArtifactType::AgentGallery => "agent_gallery",
+            ArtifactType::AgentLibrary => "agent_library",
+            ArtifactType::AgentDocuments => "agent_documents",
+            ArtifactType::AgentAdapters => "agent_adapters",
         }
     }
 }

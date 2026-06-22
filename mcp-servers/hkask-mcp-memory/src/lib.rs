@@ -629,7 +629,32 @@ pub async fn run(
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::server::ServerContext| {
             Ok((|| -> anyhow::Result<MemoryServer> {
-                let db = ctx.open_database("HKASK_MEMORY_DB")?;
+                // Use the standard per-agent memory DB path when not explicitly set.
+                // This ensures each agent's memory goes to agents/{name}/memory.db
+                // alongside their pod.db, making the agent directory self-contained.
+                let memory_db_path = ctx
+                    .credentials
+                    .get("HKASK_MEMORY_DB")
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        let default_path = hkask_types::agent_paths::agent_memory_db(&replicant);
+                        if let Some(parent) = default_path.parent() {
+                            std::fs::create_dir_all(parent).ok();
+                        }
+                        tracing::info!(
+                            target: "hkask.mcp.memory",
+                            path = %default_path.display(),
+                            replicant = %replicant,
+                            "Using default per-agent memory database"
+                        );
+                        default_path.to_string_lossy().to_string()
+                    });
+                let db = if let Some(passphrase) = ctx.credentials.get("HKASK_DB_PASSPHRASE") {
+                    hkask_storage::Database::open(&memory_db_path, passphrase)
+                        .map_err(|e| anyhow::anyhow!("{e}"))?
+                } else {
+                    hkask_storage::Database::in_memory().map_err(|e| anyhow::anyhow!("{e}"))?
+                };
                 let conn = db.conn_arc();
                 let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
                 let episodic = hkask_memory::EpisodicMemory::new(triple_store);
@@ -651,13 +676,13 @@ pub async fn run(
             })()?)
         },
         vec![
-            hkask_mcp::CredentialRequirement::required(
+            hkask_mcp::CredentialRequirement::optional(
                 "HKASK_MEMORY_DB",
-                "Path to per-agent memory database file (episodic + semantic)",
+                "Path to per-agent memory database file (defaults to agents/{replicant}/memory.db)",
             ),
-            hkask_mcp::CredentialRequirement::required(
+            hkask_mcp::CredentialRequirement::optional(
                 "HKASK_DB_PASSPHRASE",
-                "SQLCipher encryption passphrase",
+                "SQLCipher encryption passphrase (resolved via hkask keystore chain when not set)",
             ),
         ],
     )

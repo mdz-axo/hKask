@@ -1246,7 +1246,45 @@ fn build_wallet(
     ),
     ServiceError,
 > {
-    let wallet_conn = Arc::clone(&f.db.conn_arc());
+    // Per-agent wallet: each agent gets their own wallet database at
+    // agents/{name}/wallet.db, encrypted with the same passphrase as pod.db.
+    // This gives each replicant sovereign control over their rJoule balances,
+    // API keys, and encumbrances — no shared wallet state across agents.
+    let wallet_db_path = if config.in_memory {
+        None
+    } else {
+        let path = hkask_types::agent_paths::agent_wallet_db(&config.agent_name);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+        Some(path)
+    };
+
+    let wallet_conn = if let Some(ref path) = wallet_db_path {
+        let path_str = path.to_string_lossy().to_string();
+        match hkask_storage::Database::open(&path_str, &config.db_passphrase) {
+            Ok(db) => {
+                tracing::info!(
+                    target: "cns.wallet",
+                    path = %path_str,
+                    agent = %config.agent_name,
+                    "Per-agent wallet database opened"
+                );
+                db.conn_arc()
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: "cns.wallet",
+                    path = %path_str,
+                    error = %e,
+                    "Failed to open per-agent wallet DB, falling back to shared connection"
+                );
+                Arc::clone(&f.db.conn_arc())
+            }
+        }
+    } else {
+        Arc::clone(&f.db.conn_arc())
+    };
     let wallet_store = Arc::new(WalletStore::new(wallet_conn));
     let svc = WalletService::build(
         &config.wallet_config,

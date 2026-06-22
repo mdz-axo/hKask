@@ -224,6 +224,19 @@ impl DaemonHandler for ServiceDaemonHandler {
             }
         }
 
+        // Persist session transcript to agents/{replicant}/sessions/
+        // for audit and replay. Done as a fire-and-forget background write
+        // to avoid blocking the daemon handler on filesystem I/O.
+        if result.0 {
+            let replicant_name = replicant.to_string();
+            let value_clone = value.clone();
+            let entity_clone = entity.to_string();
+            let attr_clone = attribute.to_string();
+            tokio::task::spawn_blocking(move || {
+                append_session_entry(&replicant_name, &entity_clone, &attr_clone, &value_clone);
+            });
+        }
+
         result
     }
 
@@ -407,5 +420,54 @@ fn generalize_value(value: &serde_json::Value) -> serde_json::Value {
             serde_json::Value::Object(generalized)
         }
         other => other.clone(),
+    }
+}
+
+/// Append a session experience entry to the agent's sessions directory.
+///
+/// Each MCP session experience is recorded as a JSON line in a daily log
+/// file under `agents/{name}/sessions/{date}.jsonl`. One JSON object per line
+/// for easy streaming/parsing by downstream tools.
+///
+/// CNS: emits `cns.session.recorded` span for variety tracking and algedonic
+/// monitoring — if sessions stop writing, the CNS detects the silence.
+fn append_session_entry(replicant: &str, entity: &str, attribute: &str, value: &serde_json::Value) {
+    let sessions_dir = hkask_types::agent_paths::agent_sessions_dir(replicant);
+    if let Err(e) = std::fs::create_dir_all(&sessions_dir) {
+        tracing::warn!(target: "hkask.daemon.session", replicant = %replicant, error = %e, "Failed to create sessions directory");
+        return;
+    }
+
+    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let session_file = sessions_dir.join(format!("{today}.jsonl"));
+
+    let entry = serde_json::json!({
+        "timestamp": hkask_types::time::now_rfc3339(),
+        "replicant": replicant,
+        "entity": entity,
+        "attribute": attribute,
+        "value": value,
+    });
+
+    let line = serde_json::to_string(&entry).unwrap_or_else(|_| String::from("{}"));
+    let line_with_newline = format!("{line}\n");
+
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&session_file)
+    {
+        Ok(mut file) => {
+            use std::io::Write;
+            if let Err(e) = file.write_all(line_with_newline.as_bytes()) {
+                tracing::warn!(target: "hkask.daemon.session", replicant = %replicant, path = %session_file.display(), error = %e, "Failed to write session entry");
+            } else {
+                // CNS: session recorded — variety signal for algedonic monitoring
+                tracing::info!(target: "cns.session.recorded", replicant = %replicant, entity = %entity, "CNS");
+            }
+        }
+        Err(e) => {
+            tracing::warn!(target: "hkask.daemon.session", replicant = %replicant, path = %session_file.display(), error = %e, "Failed to open session file");
+        }
     }
 }

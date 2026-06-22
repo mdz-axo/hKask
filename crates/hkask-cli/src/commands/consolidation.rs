@@ -36,7 +36,8 @@ pub fn run(
     );
 
     // Resolve the agent's per-agent memory DB path and passphrase.
-    let db_path = format!("hkask-memory-{}.db", agent_name);
+    let db_path = hkask_types::agent_paths::agent_memory_db(agent_name);
+    let db_path_str = db_path.to_string_lossy().to_string();
     let db_passphrase = config.db_passphrase.clone();
 
     // Resolve perspective WebID
@@ -69,7 +70,7 @@ pub fn run(
         max_semantic_triples,
     };
 
-    match consolidation::consolidate(&perspective, &db_passphrase, &db_path, request) {
+    match consolidation::consolidate(&perspective, &db_passphrase, &db_path_str, request) {
         Ok(outcome) => {
             println!("Consolidation complete:");
             println!("  Consolidated: {}", outcome.consolidated_count);

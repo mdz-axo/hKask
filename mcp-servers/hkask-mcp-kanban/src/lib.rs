@@ -45,31 +45,24 @@ pub struct KanbanServer {
     pub replicant: String,
     /// Daemon client for dual-encoding experiences (None if daemon unavailable)
     pub daemon: Option<hkask_mcp::DaemonClient>,
+    /// Per-agent persistent database connection (None if not yet opened)
+    pub db: Option<Arc<Mutex<Connection>>>,
 }
 
 impl KanbanServer {
-    pub fn new(webid: WebID, replicant: String, daemon: Option<hkask_mcp::DaemonClient>) -> Self {
-        let conn = Arc::new(Mutex::new(
-            Connection::open_in_memory().expect("in-memory DB"),
-        ));
-        let store = TripleStore::new(conn);
-        store
-            .lock_conn()
-            .expect("mutex not poisoned")
-            .execute_batch(
-                "CREATE TABLE IF NOT EXISTS triples (
-                id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
-                value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
-                confidence REAL NOT NULL, perspective TEXT, visibility TEXT NOT NULL,
-                owner_webid TEXT NOT NULL
-            )",
-            )
-            .expect("DDL batch must succeed");
+    pub fn new(
+        service: KanbanService,
+        webid: WebID,
+        replicant: String,
+        daemon: Option<hkask_mcp::DaemonClient>,
+        db: Option<Arc<Mutex<Connection>>>,
+    ) -> Self {
         Self {
-            service: KanbanService::new(store),
+            service,
             webid,
             replicant,
             daemon,
+            db,
         }
     }
 }
@@ -453,10 +446,65 @@ pub async fn run(
         "hkask-mcp-kanban",
         env!("CARGO_PKG_VERSION"),
         |ctx: ServerContext| {
-            let server = KanbanServer::new(ctx.webid, replicant.clone(), daemon_client.clone());
-            Ok(server)
+            Ok((|| -> anyhow::Result<KanbanServer> {
+                // Use the standard per-agent kanban DB path when not explicitly set.
+                let kanban_db_path = ctx
+                    .credentials
+                    .get("HKASK_KANBAN_DB")
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        let default_path = hkask_types::agent_paths::agent_kanban_db(&replicant);
+                        if let Some(parent) = default_path.parent() {
+                            std::fs::create_dir_all(parent).ok();
+                        }
+                        tracing::info!(
+                            target: "hkask.mcp.kanban",
+                            path = %default_path.display(),
+                            replicant = %replicant,
+                            "Using default per-agent kanban database"
+                        );
+                        default_path.to_string_lossy().to_string()
+                    });
+                let db = if let Some(passphrase) = ctx.credentials.get("HKASK_DB_PASSPHRASE") {
+                    hkask_storage::Database::open(&kanban_db_path, passphrase)
+                        .map_err(|e| anyhow::anyhow!("{e}"))?
+                } else {
+                    hkask_storage::Database::in_memory().map_err(|e| anyhow::anyhow!("{e}"))?
+                };
+                let conn = db.conn_arc();
+                let store = TripleStore::new(Arc::clone(&conn));
+                store
+                    .lock_conn()
+                    .expect("mutex not poisoned")
+                    .execute_batch(
+                        "CREATE TABLE IF NOT EXISTS triples (
+                        id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
+                        value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
+                        confidence REAL NOT NULL, perspective TEXT, visibility TEXT NOT NULL,
+                        owner_webid TEXT NOT NULL
+                    )",
+                    )
+                    .expect("DDL batch must succeed");
+                let service = KanbanService::new(store);
+                Ok(KanbanServer::new(
+                    service,
+                    ctx.webid,
+                    replicant.clone(),
+                    daemon_client.clone(),
+                    Some(db.conn_arc()),
+                ))
+            })()?)
         },
-        vec![],
+        vec![
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_KANBAN_DB",
+                "Path to per-agent kanban database file (defaults to agents/{replicant}/kanban.db)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_DB_PASSPHRASE",
+                "SQLCipher encryption passphrase (resolved via hkask keystore chain when not set)",
+            ),
+        ],
     )
     .await
 }

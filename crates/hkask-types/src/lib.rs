@@ -3,6 +3,7 @@
 
 pub mod agent;
 
+pub mod agent_paths;
 pub mod cns;
 pub mod crypto;
 pub mod curation;

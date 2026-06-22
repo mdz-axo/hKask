@@ -26,8 +26,8 @@
 //!
 //! # Environment Variables
 //!
-//! - `HKASK_MEMORY_DB` — Path to per-agent memory database for QA storage
-//! - `HKASK_DB_PASSPHRASE` — Passphrase for the database
+//! - `HKASK_TRAINING_DB` — Path to per-agent training database for job/adapter/QA storage (defaults to `agents/{replicant}/training.db`)
+//! - `HKASK_DB_PASSPHRASE` — Passphrase for the database (resolved via credentials or keystore)
 //! - `HKASK_TRAINING_HOST` — Override host (together|runpod|baseten) — where compute runs
 //! - `HKASK_TRAINING_HARNESS` — Override harness (axolotl|unsloth) — what tooling runs
 //! - `HKASK_TRAINING_CACHE_DIR` — Dataset cache directory
@@ -3047,8 +3047,11 @@ pub async fn run(
     };
 
     let cache_dir = PathBuf::from(
-        std::env::var("HKASK_TRAINING_CACHE_DIR")
-            .unwrap_or_else(|_| "/tmp/hkask-training-cache".to_string()),
+        std::env::var("HKASK_TRAINING_CACHE_DIR").unwrap_or_else(|_| {
+            hkask_types::agent_paths::agent_adapters_dir(&replicant)
+                .to_string_lossy()
+                .to_string()
+        }),
     );
     let pipeline = DatasetPipeline::new(cache_dir);
 
@@ -3057,20 +3060,33 @@ pub async fn run(
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
             Ok((|| -> anyhow::Result<TrainingServer> {
-                let (semantic, adapter_store, job_store, adapter_router) = match ctx
+                let db_path = ctx
                     .credentials
-                    .get("HKASK_MEMORY_DB")
-                {
-                    Some(path) => {
-                        let passphrase =
-                            ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
+                    .get("HKASK_TRAINING_DB")
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        hkask_types::agent_paths::agent_training_db(&replicant)
+                            .to_string_lossy()
+                            .to_string()
+                    });
+
+                // Resolve passphrase: credentials → keystore resolve_credential chain
+                let passphrase = ctx
+                    .credentials
+                    .get("HKASK_DB_PASSPHRASE")
+                    .cloned()
+                    .or_else(|| hkask_mcp::resolve_credential("HKASK_DB_PASSPHRASE").ok());
+
+                let (semantic, adapter_store, job_store, adapter_router) = match passphrase {
+                    Some(passphrase) => {
+                        let db = hkask_storage::Database::open(&db_path, &passphrase)
+                            .map_err(|e| {
                                 anyhow::anyhow!(
-                                    "HKASK_MEMORY_DB set but HKASK_DB_PASSPHRASE missing"
+                                    "Failed to open training database at {}: {}",
+                                    db_path,
+                                    e
                                 )
                             })?;
-                        let db = hkask_storage::Database::open(path, passphrase).map_err(|e| {
-                            anyhow::anyhow!("Failed to open memory database: {}", e)
-                        })?;
                         let conn = db.conn_arc();
                         let job_store = Some(JobStore::new(Arc::clone(&conn)));
                         let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
@@ -3130,12 +3146,12 @@ pub async fn run(
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(
-                "HKASK_MEMORY_DB",
-                "Path to per-agent memory database for QA storage (in-memory if absent)",
+                "HKASK_TRAINING_DB",
+                "Path to per-agent training database for job/adapter/QA storage (defaults to agents/{replicant}/training.db)",
             ),
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_DB_PASSPHRASE",
-                "Passphrase for the database (required if HKASK_MEMORY_DB is set)",
+                "Passphrase for the training database (resolved via credentials or keystore; in-memory if unavailable)",
             ),
         ],
     )

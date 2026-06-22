@@ -26,6 +26,7 @@ hkask-services-core = { path = "../hkask-services-core" }
 tokio = { workspace = true, features = ["macros", "rt"] }
 proptest = "1"
 hkask-test-harness = { path = "../hkask-test-harness" }
+tempfile = "3"
 
 [features]
 default = []

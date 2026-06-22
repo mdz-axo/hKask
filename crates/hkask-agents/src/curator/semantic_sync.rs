@@ -29,24 +29,44 @@ use crate::PodRegistry;
 use crate::curator::SemanticIndex;
 use hkask_storage::Database;
 use hkask_types::{Visibility, WebID};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
 use tracing;
 
-/// Derive the SQLCipher passphrase for a pod from its .webid sidecar file.
-/// The .webid file is the bootstrapping mechanism — you can't read the database
-/// without the passphrase, and you can't derive the passphrase without the webid.
-/// Same derivation as PodFactory::create_pod_storage (HKDF-SHA256 from master key).
+/// Cross-agent artifact index — maps agent names to their published artifacts.
+/// Built by CuratorSync from manifest.json files in agent directories.
+#[derive(Debug, Clone, Default)]
+pub struct ArtifactIndex {
+    pub artifacts: HashMap<String, Vec<ArtifactEntry>>,
+}
+
+/// A single published artifact entry from an agent's manifest.
+#[derive(Debug, Clone)]
+pub struct ArtifactEntry {
+    pub artifact_type: String,
+    pub name: String,
+    pub hash: String,
+    pub published_at: String,
+}
+
+/// Derive the SQLCipher passphrase for a pod database.
+///
+/// Tries the OCAP secret derivation first (same as PodFactory), then falls
+/// back to the DB passphrase (same as MCP servers use for memory.db). This
+/// dual-path resolution handles both pod.db (OCAP-encrypted) and memory.db
+/// (DB-passphrase-encrypted) from the same webid sidecar.
 fn derive_passphrase(db_path: &Path) -> Result<String, String> {
-    let webid_path = db_path.with_extension("webid");
-    let webid_str = std::fs::read_to_string(&webid_path)
-        .map_err(|e| format!("Failed to read webid file {:?}: {e}", webid_path))?;
+    // Resolve the webid — try pod.webid first, then the file's own .webid
+    let webid_str = resolve_webid_for_db(db_path)?;
     let webid: WebID = webid_str
         .trim()
         .parse()
-        .map_err(|e| format!("Failed to parse WebID from {:?}: {e}", webid_path))?;
+        .map_err(|e| format!("Failed to parse WebID: {e}"))?;
+
+    // Try OCAP secret derivation (used by pod.db)
     let context = format!(
         "{}:{}",
         hkask_types::secret::derivation_contexts::OCAP_SECRET,
@@ -56,9 +76,39 @@ fn derive_passphrase(db_path: &Path) -> Result<String, String> {
         hkask_types::secret::derivation_contexts::MASTER_KEY_ENV,
         &context,
     );
-    let bytes =
-        hkask_keystore::resolve(&secret_ref).map_err(|e| format!("Key derivation failed: {e}"))?;
-    Ok(hex::encode(&*bytes))
+    if let Ok(bytes) = hkask_keystore::resolve(&secret_ref) {
+        return Ok(hex::encode(&*bytes));
+    }
+
+    // Fall back to DB passphrase (used by memory.db via MCP server credential chain)
+    match hkask_keystore::keychain::resolve_db_passphrase() {
+        Ok(bytes) => Ok(hex::encode(&*bytes)),
+        Err(e) => Err(format!("Key derivation failed (OCAP + DB passphrase): {e}")),
+    }
+}
+
+/// Resolve the webid string for a database file.
+///
+/// Tries the file's own .webid sidecar first, then falls back to the sibling
+/// pod.webid in the same agent directory (used by memory.db which shares the
+/// pod's webid).
+fn resolve_webid_for_db(db_path: &Path) -> Result<String, String> {
+    let own_webid = db_path.with_extension("webid");
+    if own_webid.exists() {
+        return std::fs::read_to_string(&own_webid)
+            .map_err(|e| format!("Failed to read webid file {:?}: {e}", own_webid));
+    }
+    if let Some(parent) = db_path.parent() {
+        let pod_webid = parent.join("pod.webid");
+        if pod_webid.exists() {
+            return std::fs::read_to_string(&pod_webid)
+                .map_err(|e| format!("Failed to read pod webid {:?}: {e}", pod_webid));
+        }
+    }
+    Err(format!(
+        "No .webid sidecar found for {:?} or sibling pod.webid",
+        db_path
+    ))
 }
 
 /// The Curator's sync engine.
@@ -66,7 +116,8 @@ fn derive_passphrase(db_path: &Path) -> Result<String, String> {
 /// Owns a reference to the shared SemanticIndex (the same Arc that
 /// all PodContexts read from). Each tick: scans pods, opens each
 /// source pod's database read-only, queries new public triples since
-/// cursor, inserts into index, advances cursor.
+/// cursor, inserts into index, advances cursor. Also scans agent
+/// manifest.json files for cross-agent artifact discovery.
 pub struct CuratorSync {
     /// Shared SemanticIndex — writes here, PodContext reads from here
     index: Arc<std::sync::RwLock<SemanticIndex>>,
@@ -76,6 +127,8 @@ pub struct CuratorSync {
     interval: Duration,
     /// Consecutive tick failures — escalates to CNS alert after threshold
     consecutive_failures: std::sync::atomic::AtomicU64,
+    /// Cross-agent artifact index — agent_name → published artifacts
+    artifact_index: Arc<std::sync::RwLock<ArtifactIndex>>,
 }
 
 impl CuratorSync {
@@ -88,7 +141,13 @@ impl CuratorSync {
             registry,
             interval: Duration::from_secs(1),
             consecutive_failures: AtomicU64::new(0),
+            artifact_index: Arc::new(std::sync::RwLock::new(ArtifactIndex::default())),
         }
+    }
+
+    /// Get a reference to the cross-agent artifact index.
+    pub fn artifact_index(&self) -> Arc<std::sync::RwLock<ArtifactIndex>> {
+        Arc::clone(&self.artifact_index)
     }
 
     /// Run the sync loop — polls source pods' triples tables on each tick.
@@ -130,7 +189,8 @@ impl CuratorSync {
         }
     }
 
-    /// Single sync tick — polls all source pods for new public triples.
+    /// Single sync tick — polls all source pods for new public triples
+    /// from both pod.db (episodic/semantic store) and memory.db (MCP tool store).
     async fn tick(&self) -> Result<(), String> {
         let pods = self.registry.scan_by_kind().map_err(|e| e.to_string())?;
 
@@ -140,13 +200,9 @@ impl CuratorSync {
                 continue;
             }
 
-            // Derive deterministic PodID matching PodFactory (kind:name format).
-            // Filename uses dots (replicant.alice.db), factory uses colon (replicant:alice).
-            let pod_id = if let Some(dot_pos) = stem.find('.') {
-                PodID::from_name(&format!("{}:{}", &stem[..dot_pos], &stem[dot_pos + 1..]))
-            } else {
-                PodID::from_name(stem)
-            };
+            // Derive deterministic PodID from kind + original agent name.
+            // This matches PodFactory which uses format!("{}:{}", pod_kind, persona.agent.name).
+            let pod_id = PodID::from_name(&format!("{}:{}", kind, stem));
 
             match self.sync_pod(pod_id, db_path).await {
                 Ok(count) => {
@@ -155,7 +211,7 @@ impl CuratorSync {
                             target: "hkask.curator.sync",
                             pod_id = %pod_id,
                             new_triples = count,
-                            "Synced triples from source pod"
+                            "Synced triples from pod.db"
                         );
                     }
                 }
@@ -164,8 +220,41 @@ impl CuratorSync {
                         target: "hkask.curator.sync",
                         pod_id = %pod_id,
                         error = %e,
-                        "Failed to sync pod — will retry next tick"
+                        "Failed to sync pod.db — will retry next tick"
                     );
+                }
+            }
+
+            // Phase 1: Also sync public semantic triples from memory.db.
+            // MCP tools (memory, condenser, research, etc.) write experiences
+            // to the agent's memory database, and public semantic triples
+            // there need to reach the Curator's index just like pod.db triples.
+            let memory_db = db_path.parent().map(|p| p.join("memory.db"));
+            if let Some(ref mem_path) = memory_db
+                && mem_path.exists()
+            {
+                // Use a shifted PodID namespace for memory.db triples so
+                // cursors don't collide with pod.db cursors for the same agent.
+                let mem_pod_id = PodID::from_name(&format!("memory:{}", pod_id));
+                match self.sync_pod(mem_pod_id, mem_path).await {
+                    Ok(count) => {
+                        if count > 0 {
+                            tracing::debug!(
+                                target: "hkask.curator.sync",
+                                pod_id = %pod_id,
+                                new_triples = count,
+                                "Synced triples from memory.db"
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "hkask.curator.sync",
+                            pod_id = %pod_id,
+                            error = %e,
+                            "Failed to sync memory.db — will retry next tick"
+                        );
+                    }
                 }
             }
         }
@@ -173,7 +262,77 @@ impl CuratorSync {
         // Reset failure counter on successful tick
         self.consecutive_failures
             .store(0, std::sync::atomic::Ordering::Relaxed);
+        // CNS: curator sync completed — variety signal per agent count
+        tracing::info!(target: "cns.curator.sync", pod_count = pods.len(), "CNS");
+
+        // Phase 2: Sync artifact manifests from agent directories.
+        // Reads manifest.json files to build the cross-agent artifact index.
+        self.sync_artifacts();
+
         Ok(())
+    }
+
+    /// Scan agent directories for manifest.json files and rebuild the
+    /// cross-agent artifact index. Called at the end of each sync tick.
+    fn sync_artifacts(&self) {
+        let agents_dir = std::path::Path::new(hkask_types::agent_paths::AGENTS_DIR);
+        if !agents_dir.exists() {
+            return;
+        }
+        let mut new_index: HashMap<String, Vec<ArtifactEntry>> = HashMap::new();
+
+        if let Ok(entries) = std::fs::read_dir(agents_dir) {
+            for entry in entries.flatten() {
+                let agent_dir = entry.path();
+                if !agent_dir.is_dir() {
+                    continue;
+                }
+                let manifest_path = agent_dir.join("manifest.json");
+                if !manifest_path.exists() {
+                    continue;
+                }
+                let agent_name = agent_dir
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
+
+                if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+                    if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(artifact_list) =
+                            manifest.get("artifacts").and_then(|a| a.as_array())
+                        {
+                            let entries: Vec<ArtifactEntry> = artifact_list
+                                .iter()
+                                .filter_map(|a| {
+                                    Some(ArtifactEntry {
+                                        artifact_type: a.get("type")?.as_str()?.to_string(),
+                                        name: a.get("name")?.as_str()?.to_string(),
+                                        hash: a.get("hash")?.as_str()?.to_string(),
+                                        published_at: a.get("published_at")?.as_str()?.to_string(),
+                                    })
+                                })
+                                .collect();
+                            if !entries.is_empty() {
+                                tracing::debug!(
+                                    target: "hkask.curator.artifacts",
+                                    agent = %agent_name,
+                                    count = entries.len(),
+                                    "Indexing agent artifacts"
+                                );
+                                new_index.insert(agent_name, entries);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Swap in the new index atomically
+        if let Ok(mut idx) = self.artifact_index.write() {
+            *idx = ArtifactIndex {
+                artifacts: new_index,
+            };
+        }
     }
 
     /// Open a source pod's database read-only, query new public triples

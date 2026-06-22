@@ -69,7 +69,8 @@ pub async fn run_server(
         })?;
 
     // Start API MCP servers on the AgentService's runtime
-    let server_count = start_api_servers(ctx.mcp_runtime()).await;
+    let replicant_name = ctx.config().agent_name.clone();
+    let server_count = start_api_servers(ctx.mcp_runtime(), &replicant_name).await;
     if server_count > 0 {
         tracing::info!(target: "hkask.serve", servers = server_count, "MCP servers started");
     } else {
@@ -98,13 +99,20 @@ pub async fn run_server(
 
 /// Start all API MCP servers and discover their tools.
 ///
+/// Each server receives `HKASK_REPLICANT={replicant_name}` in its
+/// environment, so per-agent databases (agents/{name}/) are used.
 /// Returns the number of servers that started successfully.
 /// Servers that fail to start are logged and skipped.
-async fn start_api_servers(runtime: &McpRuntime) -> usize {
+async fn start_api_servers(runtime: &McpRuntime, replicant_name: &str) -> usize {
     let mut started = 0;
+    let mut extra_env = std::collections::HashMap::new();
+    extra_env.insert("HKASK_REPLICANT".to_string(), replicant_name.to_string());
 
     for (server_id, command) in API_SERVERS {
-        match runtime.start_server(server_id, command).await {
+        match runtime
+            .start_server_with_env(server_id, command, extra_env.clone())
+            .await
+        {
             Ok(()) => {
                 tracing::debug!(target: "hkask.serve", server_id = %server_id, "MCP server started");
                 started += 1;

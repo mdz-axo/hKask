@@ -147,12 +147,26 @@ impl McpRuntime {
     /// discovers tools via `list_all_tools()`, stores the live connection,
     /// and registers the discovered tools in the runtime.
     ///
+    /// `extra_env` is a map of environment variables to set on the child
+    /// process (e.g., `HKASK_REPLICANT`). These override inherited env vars.
+    ///
     /// If a server with the same ID is already connected, returns `Ok(())`.
     #[allow(private_interfaces)]
     pub async fn start_server(
         &self,
         server_id: &str,
         command: &str,
+    ) -> Result<(), ServerStartError> {
+        self.start_server_with_env(server_id, command, std::collections::HashMap::new())
+            .await
+    }
+
+    /// Like `start_server`, but with extra environment variables for the child process.
+    pub async fn start_server_with_env(
+        &self,
+        server_id: &str,
+        command: &str,
+        extra_env: std::collections::HashMap<String, String>,
     ) -> Result<(), ServerStartError> {
         // Acquire write lock first to prevent TOCTOU races.
         let mut connections = self.connections.write().await;
@@ -165,7 +179,11 @@ impl McpRuntime {
             return Ok(());
         }
 
-        let transport = TokioChildProcess::new(Command::new(command))
+        let mut cmd = Command::new(command);
+        for (key, value) in &extra_env {
+            cmd.env(key, value);
+        }
+        let transport = TokioChildProcess::new(cmd)
             .map_err(|e| ServerStartError::SpawnFailed(e.to_string()))?;
 
         let running = ().into_dyn().serve(transport).await.map_err(|e| {

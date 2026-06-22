@@ -253,25 +253,22 @@ impl ServiceConfig {
 
     /// Returns the effective memory DB path when `in_memory: false`.
     ///
-    /// If `memory_db_path` is explicitly set, returns that. Otherwise derives
-    /// from `db_path` by stripping the `.db` extension and appending
-    /// `-memory.db` (e.g., `hkask.db` → `hkask-memory.db`).
+    /// Uses the standard agent directory layout: `agents/{agent_name}/memory.db`.
+    /// This puts the agent's memory database alongside its pod database in the
+    /// same directory, so all of an agent's data is self-contained in one folder.
     ///
     /// Returns `None` when `in_memory: true` (memory stores are ephemeral).
     ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
-    /// post: returns Some(path) if not in_memory; None if in_memory; derives from db_path if memory_db_path not set
+    /// post: returns Some(path) using agent dir layout if not in_memory; None if in_memory
     pub fn effective_memory_db_path(&self) -> Option<String> {
         if self.in_memory {
             return None;
         }
-        match &self.memory_db_path {
-            Some(path) => Some(path.clone()),
-            None => {
-                let base = self.db_path.trim_end_matches(".db");
-                Some(format!("{base}-memory.db"))
-            }
-        }
+        Some(
+            hkask_types::agent_paths::agent_memory_db(&self.agent_name)
+                .to_string_lossy()
+                .to_string(),
+        )
     }
 }

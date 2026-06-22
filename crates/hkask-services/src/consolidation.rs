@@ -49,9 +49,11 @@ pub fn check_rate_limit() -> Result<(), ServiceError> {
 
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  webid must be a valid WebID
-/// post: returns "hkask-memory-agent-{webid}.db" path string
+/// post: returns standard agent memory DB path (agents/{name}/memory.db)
 pub fn db_path_for_agent(webid: &WebID) -> String {
-    format!("hkask-memory-agent-{}.db", webid)
+    hkask_types::agent_paths::agent_memory_db(&webid.to_string())
+        .to_string_lossy()
+        .to_string()
 }
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  passphrase must be non-empty; server passphrase must be configured in keystore

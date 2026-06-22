@@ -178,27 +178,36 @@ pub struct ServerContext {
 }
 
 impl ServerContext {
-    /// Looks up `db_env_var` and `HKASK_DB_PASSPHRASE`. Falls back to in-memory DB.
-    /// Open a database using a credential env var for the passphrase.
+    /// Resolve the DB passphrase from the credentials map or the hkask keystore chain.
     ///
-    /// pre:  db_env_var is set and contains a valid passphrase
-    /// post: returns opened Database
+    /// Tries the pre-resolved credentials map first, then falls back to
+    /// `resolve_credential` which routes through the proper hkask keystore
+    /// chain (env var → keychain `hkask-db-passphrase`).
+    fn resolve_db_credential(&self) -> Result<String, McpError> {
+        if let Some(passphrase) = self.credentials.get("HKASK_DB_PASSPHRASE") {
+            return Ok(passphrase.clone());
+        }
+        resolve_credential("HKASK_DB_PASSPHRASE").map_err(|e| {
+            McpError::DatabasePassphrase(format!("Failed to resolve DB passphrase: {e}"))
+        })
+    }
+
+    /// Looks up `db_env_var` and resolves the passphrase. Falls back to in-memory DB.
+    ///
+    /// pre:  db_env_var is set and contains a valid path
+    /// post: returns opened Database with passphrase from credentials or keystore chain
     pub fn open_database(&self, db_env_var: &str) -> Result<hkask_storage::Database, McpError> {
         use hkask_storage::open_database;
         match self.credentials.get(db_env_var) {
             Some(path) => {
-                let passphrase = self
-                    .credentials
-                    .get("HKASK_DB_PASSPHRASE")
-                    .ok_or_else(|| McpError::DatabasePassphrase(db_env_var.to_string()))?;
-                Ok(open_database(path, passphrase).map_err(|e| anyhow::anyhow!("{e}"))?)
+                let passphrase = self.resolve_db_credential()?;
+                Ok(open_database(path, &passphrase).map_err(|e| anyhow::anyhow!("{e}"))?)
             }
             None => Ok(hkask_storage::Database::in_memory().map_err(|e| anyhow::anyhow!("{e}"))?),
         }
     }
 
     /// Like `open_database`, but passes DDL for custom tables (e.g. FTS5).
-    /// Open a database with additional DDL extensions.
     ///
     /// pre:  db_env_var is set, extensions is valid SQL DDL
     /// post: returns opened Database with extensions applied
@@ -209,12 +218,9 @@ impl ServerContext {
     ) -> Result<hkask_storage::Database, McpError> {
         match self.credentials.get(db_env_var) {
             Some(path) => {
-                let passphrase = self
-                    .credentials
-                    .get("HKASK_DB_PASSPHRASE")
-                    .ok_or_else(|| McpError::DatabasePassphrase(db_env_var.to_string()))?;
+                let passphrase = self.resolve_db_credential()?;
                 Ok(
-                    hkask_storage::Database::open_with_extensions(path, passphrase, extensions)
+                    hkask_storage::Database::open_with_extensions(path, &passphrase, extensions)
                         .map_err(|e| anyhow::anyhow!("{e}"))?,
                 )
             }
@@ -602,34 +608,63 @@ pub fn load_dotenv() -> HashMap<String, String> {
     HashMap::new()
 }
 
-/// Resolve a credential from env var or OS keychain.
+/// Resolve a credential through the hkask keystore chain.
+///
+/// Routes known credential names through the proper hkask keystore resolvers
+/// that understand master-key derivation, the `hkask-*` keychain naming convention,
+/// and fallback chains (e.g., MCP secret → A2A secret for backward compatibility).
+///
+/// For unrecognized credential names, falls back to keychain lookup by env var name
+/// and then environment variable lookup.
 ///
 /// pre:  env_var is non-empty
-/// post: returns credential value from env or keychain
+/// post: returns credential value from the appropriate resolution chain
 pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::KeystoreError> {
-    match hkask_keystore::Keychain::default().retrieve_by_key(env_var) {
-        Ok(val) => {
+    // ── Route known credentials through the proper hkask resolution chain ──
+    // These resolvers understand master-key derivation, the hkask-* keychain
+    // naming convention, and multi-hop fallback chains. The naive
+    // keychain-by-env-var-name lookup in the fallback path only works when
+    // credentials happen to be stored under their env var name (rare).
+    match env_var {
+        "HKASK_DB_PASSPHRASE" => {
+            let bytes = hkask_keystore::keychain::resolve_db_passphrase()?;
+            Ok(hex::encode(&*bytes))
+        }
+        "HKASK_OCAP_SECRET" => {
+            let bytes = hkask_keystore::keychain::get_or_create_ocap_secret()?;
+            Ok(hex::encode(&*bytes))
+        }
+        "HKASK_A2A_SECRET" => {
+            let bytes = hkask_keystore::keychain::resolve_a2a_secret()?;
+            Ok(hex::encode(&*bytes))
+        }
+        "HKASK_MCP_SECRET" => {
+            let bytes = hkask_keystore::keychain::resolve_mcp_secret()?;
+            Ok(hex::encode(&*bytes))
+        }
+        "HKASK_CAPABILITY_KEY" => {
+            let bytes = hkask_keystore::keychain::resolve_capability_key()?;
+            Ok(hex::encode(&*bytes))
+        }
+        _ => {
+            // Unrecognized credential — try keychain by env var name, then env var.
+            // This is the legacy path for credentials without a dedicated hkask resolver.
+            let val = hkask_keystore::Keychain::default()
+                .retrieve_by_key(env_var)
+                .or_else(|_| std::env::var(env_var))
+                .map_err(|_| {
+                    hkask_keystore::KeystoreError::NotFound(format!(
+                        "Credential '{}' not found in keychain or environment",
+                        env_var
+                    ))
+                })?;
             tracing::debug!(
                 credential = env_var,
-                source = "keychain",
-                "Credential resolved from OS keychain"
+                source = "keychain_or_env",
+                "Credential resolved via legacy path"
             );
-            Ok(val)
+            return Ok(val);
         }
-        Err(_) => match std::env::var(env_var) {
-            Ok(val) => {
-                tracing::debug!(
-                    credential = env_var,
-                    source = "env",
-                    "Credential resolved from environment variable"
-                );
-                Ok(val)
-            }
-            Err(_) => Err(hkask_keystore::KeystoreError::NotFound(format!(
-                "Credential '{}' not found",
-                env_var
-            ))),
-        },
     }
 }
 

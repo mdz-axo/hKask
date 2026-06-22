@@ -38,6 +38,7 @@ pub fn run(
         "Compose: model={}, dim={}, centroid={}",
         config.embedding.model, config.embedding.dim, config.embedding.centroid_entity_ref
     );
+    let centroid_ref = config.embedding.centroid_entity_ref.clone();
 
     let inference_ctx =
         InferenceContext::from_parts(None, &config.embedding.model, InferenceConfig::from_env());
@@ -60,6 +61,11 @@ pub fn run(
     };
 
     eprintln!("\n{}", result.generated_prose);
+
+    // Publish the composed style as a public artifact for Curator indexing.
+    // Other agents can discover and reuse this style through the artifact index.
+    let agent_name = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
+    let _ = hkask_types::agent_paths::publish_artifact(&agent_name, "style", &centroid_ref, "");
 
     if let Some(ref validation) = result.validation {
         eprintln!("\nValidating style centroid distance...");

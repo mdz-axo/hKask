@@ -222,8 +222,14 @@ pub(super) fn init_repl_state(
     ) = {
         let db = match &onboarding_outcome.resolved_secrets {
             Some(secrets) => {
-                let db_path = format!("hkask-memory-{}.db", onboarding_outcome.signed_in_agent);
-                match Database::open(&db_path, &secrets.db_passphrase) {
+                // Use standard agent directory: agents/{name}/memory.db
+                let db_path =
+                    hkask_types::agent_paths::agent_memory_db(&onboarding_outcome.signed_in_agent);
+                let db_path_str = db_path.to_string_lossy().to_string();
+                // Ensure the agent directory exists before creating the DB
+                let _ =
+                    std::fs::create_dir_all(db_path.parent().unwrap_or(std::path::Path::new(".")));
+                match Database::open(&db_path_str, &secrets.db_passphrase) {
                     Ok(db) => db,
                     Err(e) => {
                         eprintln!(

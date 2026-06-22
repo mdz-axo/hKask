@@ -328,19 +328,19 @@ impl PodFactory {
         ),
         PodDeployError,
     > {
-        let pod_db_dir = self.data_dir.join("pods");
-        std::fs::create_dir_all(&pod_db_dir).map_err(|e| PodDeployError::StorageInitFailed {
-            path: pod_db_dir.clone(),
+        // Standard agent directory: agents/{name}/
+        let agent_name = &persona.agent.name;
+        let agent_dir = self
+            .data_dir
+            .join(hkask_types::agent_paths::AGENTS_DIR)
+            .join(hkask_types::agent_paths::sanitize_name(agent_name));
+        std::fs::create_dir_all(&agent_dir).map_err(|e| PodDeployError::StorageInitFailed {
+            path: agent_dir.clone(),
             reason: e.to_string(),
         })?;
 
-        // Filename convention: {kind}.{identifier}.db
-        let filename = match pod_kind {
-            PodKind::Curator => "curator.db".to_string(),
-            PodKind::Team => format!("team.{}.db", persona.agent.name),
-            PodKind::Replicant => format!("replicant.{}.db", persona.agent.name),
-        };
-        let db_path = pod_db_dir.join(&filename);
+        // Pod database at agents/{name}/pod.db
+        let db_path = agent_dir.join("pod.db");
         let db_path_str = db_path.to_string_lossy().to_string();
 
         // Derive deterministic passphrase from user's master key (ADR-027)
@@ -382,6 +382,27 @@ impl PodFactory {
             PodDeployError::StorageInitFailed {
                 path: webid_path.clone(),
                 reason: format!("Failed to write webid sidecar: {e}. CuratorSync depends on this file to sync the pod."),
+            }
+        })?;
+        // Write pod kind sidecar for PodRegistry classification.
+        let kind_path = db_path.with_extension("kind");
+        let kind_str = match pod_kind {
+            PodKind::Curator => "curator",
+            PodKind::Team => "team",
+            PodKind::Replicant => "replicant",
+        };
+        std::fs::write(&kind_path, kind_str).map_err(|e| PodDeployError::StorageInitFailed {
+            path: kind_path.clone(),
+            reason: format!("Failed to write pod.kind sidecar: {e}"),
+        })?;
+        // Write pod.name sidecar with the original (unsanitized) agent name.
+        // The directory name is sanitized for filesystem safety, but PodID
+        // derivation and cross-pod references use the original name.
+        let name_path = db_path.with_extension("name");
+        std::fs::write(&name_path, &persona.agent.name).map_err(|e| {
+            PodDeployError::StorageInitFailed {
+                path: name_path.clone(),
+                reason: format!("Failed to write pod.name sidecar: {e}"),
             }
         })?;
         // Also write pod metadata into the database for backup/portability.
@@ -492,80 +513,106 @@ impl PodFactory {
 
 // ── PodRegistry — Filesystem-based pod discovery ────────────────────────────
 
-/// Lightweight pod index — scans {data_dir}/pods/*.db for deployed pods.
-/// No cache. No HashMap. Just the filesystem.
-///
+/// Lightweight pod index — scans {data_dir}/agents/*/pod.db for deployed pods.
 pub struct PodRegistry {
-    pods_dir: PathBuf,
+    agents_dir: PathBuf,
 }
 
 impl PodRegistry {
     pub fn new(data_dir: &Path) -> Self {
         Self {
-            pods_dir: data_dir.join("pods"),
+            agents_dir: data_dir.join(hkask_types::agent_paths::AGENTS_DIR),
         }
     }
 
-    /// List all deployed pod IDs by scanning the pods directory.
+    /// List all deployed pod IDs by scanning agent directories.
     pub fn list_pod_ids(&self) -> Result<Vec<PodID>, PodDeployError> {
-        if !self.pods_dir.exists() {
+        if !self.agents_dir.exists() {
             return Ok(Vec::new());
         }
         let mut ids = Vec::new();
-        for entry in std::fs::read_dir(&self.pods_dir)? {
+        for entry in std::fs::read_dir(&self.agents_dir)? {
             let entry = entry?;
-            let path = entry.path();
-            if path.extension().is_some_and(|ext| ext == "db")
-                && let Some(stem) = path.file_stem()
-                && let Ok(id) = stem.to_string_lossy().parse::<PodID>()
-            {
-                ids.push(id);
+            let agent_dir = entry.path();
+            if !agent_dir.is_dir() {
+                continue;
+            }
+            let pod_db = agent_dir.join("pod.db");
+            if !pod_db.exists() {
+                continue;
+            }
+            // Derive PodID from agent directory name (matches PodFactory naming)
+            if let Some(agent_name) = agent_dir.file_name().and_then(|n| n.to_str()) {
+                ids.push(PodID::from_name(agent_name));
             }
         }
         Ok(ids)
     }
 
     /// Check if a pod exists on disk.
+    /// Scans agent directories for matching name-based PodID.
     pub fn pod_exists(&self, pod_id: &PodID) -> bool {
-        self.pods_dir.join(format!("{pod_id}.db")).exists()
+        self.db_path(pod_id).exists()
     }
 
-    /// Get the database path for a pod.
+    /// Get the database path for a pod by PodID.
+    /// The PodID is derived from the agent name, so we reverse-lookup
+    /// by scanning agent directories.
     pub fn db_path(&self, pod_id: &PodID) -> PathBuf {
-        self.pods_dir.join(format!("{pod_id}.db"))
+        // Try to find the agent directory matching this PodID.
+        // PodID is name-derived, so we iterate to find the match.
+        if let Ok(entries) = std::fs::read_dir(&self.agents_dir) {
+            for entry in entries.flatten() {
+                let agent_dir = entry.path();
+                if !agent_dir.is_dir() {
+                    continue;
+                }
+                if let Some(agent_name) = agent_dir.file_name().and_then(|n| n.to_str()) {
+                    if PodID::from_name(agent_name) == *pod_id {
+                        return agent_dir.join("pod.db");
+                    }
+                }
+            }
+        }
+        // Fallback: construct path from PodID string representation
+        self.agents_dir.join(pod_id.to_string()).join("pod.db")
     }
 
-    /// Scan pods directory, classify by filename prefix.
-    /// Returns (PodKind, filename_stem, full_path).
+    /// Scan agent directories for pod databases, read kind from pod.kind sidecar.
+    /// Returns (PodKind, original_agent_name, db_path).
     pub fn scan_by_kind(&self) -> Result<Vec<(PodKind, String, PathBuf)>, PodDeployError> {
-        if !self.pods_dir.exists() {
+        if !self.agents_dir.exists() {
             return Ok(Vec::new());
         }
         let mut results = Vec::new();
-        for entry in std::fs::read_dir(&self.pods_dir)? {
+        for entry in std::fs::read_dir(&self.agents_dir)? {
             let entry = entry?;
-            let path = entry.path();
-            if path.extension().is_some_and(|ext| ext == "db")
-                && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
-            {
-                let kind = if stem == "curator" {
-                    PodKind::Curator
-                } else if stem.starts_with("team.") {
-                    PodKind::Team
-                } else if stem.starts_with("replicant.") {
-                    PodKind::Replicant
-                } else {
-                    PodKind::default()
-                };
-                results.push((kind, stem.to_string(), path));
+            let agent_dir = entry.path();
+            if !agent_dir.is_dir() {
+                continue;
             }
+            let pod_db = agent_dir.join("pod.db");
+            if !pod_db.exists() {
+                continue;
+            }
+            // Read pod_kind from pod.kind sidecar
+            let kind = read_pod_kind(&pod_db).unwrap_or_default();
+            // Read original agent name from pod.name sidecar.
+            // Falls back to directory name if sidecar is missing.
+            let agent_name = read_pod_name(&pod_db).unwrap_or_else(|| {
+                agent_dir
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default()
+            });
+            results.push((kind, agent_name, pod_db));
         }
         Ok(results)
     }
 
     /// Find the CuratorPod. Returns None if none found, first if multiple.
     pub fn find_curator(&self) -> Option<PathBuf> {
-        let path = self.pods_dir.join("curator.db");
+        let path = self.agents_dir.join("curator").join("pod.db");
         if path.exists() { Some(path) } else { None }
     }
 
@@ -577,6 +624,30 @@ impl PodRegistry {
             .filter(|(k, _, _)| *k == PodKind::Team)
             .map(|(_, stem, path)| (stem, path))
             .collect())
+    }
+}
+
+/// Read the pod kind from the pod.kind sidecar file.
+fn read_pod_kind(db_path: &std::path::Path) -> Option<PodKind> {
+    let kind_path = db_path.with_extension("kind");
+    let content = std::fs::read_to_string(&kind_path).ok()?;
+    match content.trim() {
+        "curator" => Some(PodKind::Curator),
+        "team" => Some(PodKind::Team),
+        "replicant" => Some(PodKind::Replicant),
+        _ => None,
+    }
+}
+
+/// Read the original (unsanitized) agent name from the pod.name sidecar.
+fn read_pod_name(db_path: &std::path::Path) -> Option<String> {
+    let name_path = db_path.with_extension("name");
+    let content = std::fs::read_to_string(&name_path).ok()?;
+    let trimmed = content.trim().to_string();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
     }
 }
 

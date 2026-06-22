@@ -71,6 +71,11 @@ pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
             //     (Conduit was down during onboarding), retry now. ──
             retry_pending_matrix(&handle).await;
 
+            // Ensure the agent's directory space exists on disk.
+            // This covers migration from old layouts where agent folders
+            // may not have been created yet.
+            let _ = hkask_types::agent_paths::ensure_agent_dirs(&agent_name);
+
             return Ok(OnboardingOutcome {
                 signed_in_agent: agent_name,
                 resolved_secrets: None,
@@ -169,6 +174,16 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         eprintln!("  \x1b[31m✗\x1b[0m Failed to register replicant: {}", e);
         e
     })?;
+
+    // Create the agent's directory space immediately — don't wait for first
+    // pod deployment. The agent folder is their digital sphere: sessions,
+    // memory, artifacts, and pod storage all live here.
+    if let Err(e) = hkask_types::agent_paths::ensure_agent_dirs(&display_name) {
+        eprintln!(
+            "  \x1b[33m⚠\x1b[0m  Could not create agent directory: {}",
+            e
+        );
+    }
 
     // Matrix registration for the new replicant (human account already exists).
     // Recovery logic lives in the service layer.
@@ -322,6 +337,9 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
         &completed.selected_model,
         completed.matrix_result.as_ref(),
     );
+
+    // Create the agent's directory space on disk.
+    let _ = hkask_types::agent_paths::ensure_agent_dirs(&completed.display_name);
 
     Ok(OnboardingOutcome {
         signed_in_agent: completed.display_name,
