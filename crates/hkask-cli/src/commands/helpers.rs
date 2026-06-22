@@ -29,11 +29,28 @@ pub fn build_service_context() -> hkask_services::AgentService {
         hkask_services::ServiceConfig::from_env(),
         "Failed to resolve service config",
     );
-    let rt = tokio::runtime::Runtime::new().expect("runtime should start");
-    or_exit(
-        rt.block_on(hkask_services::AgentService::build(config)),
-        "Failed to build service context",
-    )
+    // Use current runtime if available, otherwise create a fresh one.
+    // This avoids "Cannot start a runtime from within a runtime" panics
+    // when called from inside an existing tokio context.
+    let result: Result<hkask_services::AgentService, String> =
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) => {
+                let (tx, rx) = std::sync::mpsc::channel();
+                let cfg = config.clone();
+                handle.spawn(async move {
+                    let _ = tx.send(hkask_services::AgentService::build(cfg).await);
+                });
+                rx.recv()
+                    .map_err(|_| "Service build task panicked".to_string())
+                    .and_then(|r| r.map_err(|e| e.to_string()))
+            }
+            Err(_) => {
+                let rt = tokio::runtime::Runtime::new().expect("runtime should start");
+                rt.block_on(hkask_services::AgentService::build(config))
+                    .map_err(|e| e.to_string())
+            }
+        };
+    or_exit(result, "Failed to build service context")
 }
 
 /// Write content to a file or print to stdout.

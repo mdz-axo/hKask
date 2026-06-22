@@ -867,10 +867,23 @@ impl AdapterRouter {
         let count = to_remove.len();
         for id in to_remove {
             if let Some(record) = endpoints.remove(&id) {
-                // Best-effort teardown — create a fresh runtime to avoid Handle::current() panic
-                let _ = tokio::runtime::Runtime::new()
-                    .map(|rt| rt.block_on(record.backend.teardown(&record.handle.endpoint_url)))
-                    .inspect_err(|e| tracing::warn!("Failed to create runtime for teardown: {e}"));
+                // Best-effort teardown — use current runtime if available,
+                // otherwise create a fresh one. Using try_current() avoids
+                // the "Cannot start a runtime from within a runtime" panic
+                // when called from inside block_on.
+                let teardown_result = match tokio::runtime::Handle::try_current() {
+                    Ok(handle) => {
+                        handle.spawn(async move {
+                            let _ = record.backend.teardown(&record.handle.endpoint_url).await;
+                        });
+                        Ok(())
+                    }
+                    Err(_) => tokio::runtime::Runtime::new().map(|rt| {
+                        rt.block_on(record.backend.teardown(&record.handle.endpoint_url))
+                    }),
+                };
+                let _ = teardown_result
+                    .inspect_err(|e| tracing::warn!("Failed to teardown adapter endpoint: {e}"));
                 // Remove from persistent store
                 let _ = self.remove_endpoint_from_store(&id);
             }
