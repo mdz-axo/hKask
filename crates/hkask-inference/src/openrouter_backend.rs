@@ -12,7 +12,7 @@ use crate::chat_protocol::{
     validate_prompt,
 };
 use crate::config::InferenceConfig;
-use hkask_ports::{InferenceError, InferenceResult, InferenceStreamChunk};
+use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -81,9 +81,11 @@ impl OpenRouterBackend {
         model: &str,
         prompt: &str,
         params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Result<InferenceResult, InferenceError> {
         validate_prompt(prompt)?;
-        let request = build_chat_request(model, prompt, None, params, Some(false), Some(5));
+        let tools = tools.map(|t| t.to_vec());
+        let request = build_chat_request(model, prompt, None, params, Some(false), Some(5), tools);
 
         let response = self
             .client
@@ -174,6 +176,7 @@ impl OpenRouterBackend {
             params,
             Some(false),
             Some(5),
+            None,
         );
 
         let response = self

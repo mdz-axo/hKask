@@ -44,6 +44,10 @@ impl CapabilityChecker {
 
     /// Verify a capability token's Ed25519 signature.
     ///
+    /// This is a single policy injection point — if future verification requires
+    /// additional checks (revocation lists, rate limiting, CNS span emission),
+    /// they are added here without changing call sites.
+    ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  self is any [`CapabilityChecker`]; token is any [`DelegationToken`]
     /// post: returns the result of [`DelegationToken::verify`] — true if Ed25519 signature is valid
@@ -99,156 +103,56 @@ impl CapabilityChecker {
         self.verify(token) && token.delegated_to == *holder && token.grants_resource(resource)
     }
 
-    /// Create a capability token for a tool.
+    /// Create a capability token for the given resource, domain, and action.
+    ///
     /// Requires a signing key — panics if constructed via `new()` instead of `with_signing_key()`.
+    /// This single method replaces 6 domain-specific `grant_*` methods (DRY consolidation).
+    /// Domain convenience wrappers (`grant_tool`, `grant_registry`) delegate to this method.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self was constructed via `with_signing_key`; tool_name is any non-empty [`String`];
+    /// pre:  self was constructed via `with_signing_key`; resource_id is any non-empty [`String`];
     ///       from and to are any [`WebID`]
-    /// post: returns a [`DelegationToken`] for `DelegationResource::Tool` with `DelegationAction::Execute`;
+    /// post: returns a [`DelegationToken`] signed with the checker's Ed25519 key;
     ///       panics if no signing key is available
+    pub fn grant(
+        &self,
+        resource: DelegationResource,
+        resource_id: String,
+        action: DelegationAction,
+        from: WebID,
+        to: WebID,
+    ) -> DelegationToken {
+        let sk = self.signing_key.as_ref().expect(
+            "CapabilityChecker::grant requires a signing key. Use with_signing_key() to construct.",
+        );
+        DelegationToken::new(resource, resource_id, action, from, to, sk)
+    }
+
+    /// Convenience: grant a tool capability with Execute action.
     pub fn grant_tool(&self, tool_name: String, from: WebID, to: WebID) -> DelegationToken {
-        let sk = self.signing_key.as_ref().expect("CapabilityChecker::grant_tool requires a signing key. Use with_signing_key() to construct.");
-        DelegationToken::new(
+        self.grant(
             DelegationResource::Tool,
             tool_name,
             DelegationAction::Execute,
             from,
             to,
-            sk,
         )
     }
 
-    /// Create a capability token for a template operation
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self was constructed via `with_signing_key`; template_id is any non-empty [`String`];
-    ///       action is any [`DelegationAction`]; from and to are any [`WebID`]
-    /// post: returns a [`DelegationToken`] for `DelegationResource::Template`;
-    ///       panics if no signing key is available
-    pub fn grant_template(
-        &self,
-        template_id: String,
-        action: DelegationAction,
-        from: WebID,
-        to: WebID,
-    ) -> DelegationToken {
-        let sk = self
-            .signing_key
-            .as_ref()
-            .expect("CapabilityChecker::grant_template requires a signing key");
-        DelegationToken::new(
-            DelegationResource::Template,
-            template_id,
-            action,
-            from,
-            to,
-            sk,
-        )
-    }
-
-    /// Create a capability token for a manifest operation
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self was constructed via `with_signing_key`; manifest_id is any non-empty [`String`];
-    ///       action is any [`DelegationAction`]; from and to are any [`WebID`]
-    /// post: returns a [`DelegationToken`] for `DelegationResource::Registry` with the given manifest_id;
-    ///       panics if no signing key is available
-    pub fn grant_manifest(
-        &self,
-        manifest_id: String,
-        action: DelegationAction,
-        from: WebID,
-        to: WebID,
-    ) -> DelegationToken {
-        let sk = self
-            .signing_key
-            .as_ref()
-            .expect("CapabilityChecker::grant_manifest requires a signing key");
-        DelegationToken::new(
-            DelegationResource::Registry,
-            manifest_id,
-            action,
-            from,
-            to,
-            sk,
-        )
-    }
-
-    /// Create a capability token for registry operations
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self was constructed via `with_signing_key`; action is any [`DelegationAction`];
-    ///       from and to are any [`WebID`]
-    /// post: returns a [`DelegationToken`] for `DelegationResource::Registry` with resource_id "*";
-    ///       panics if no signing key is available
+    /// Convenience: grant a wildcard registry capability.
     pub fn grant_registry(
         &self,
         action: DelegationAction,
         from: WebID,
         to: WebID,
     ) -> DelegationToken {
-        let sk = self
-            .signing_key
-            .as_ref()
-            .expect("CapabilityChecker::grant_registry requires a signing key");
-        DelegationToken::new(
+        self.grant(
             DelegationResource::Registry,
             "*".to_string(),
             action,
             from,
             to,
-            sk,
         )
-    }
-
-    /// Create a capability token for cascade operations
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self was constructed via `with_signing_key`; cascade_id is any non-empty [`String`];
-    ///       action is any [`DelegationAction`]; from and to are any [`WebID`]
-    /// post: returns a [`DelegationToken`] for `DelegationResource::Registry` with the given cascade_id;
-    ///       panics if no signing key is available
-    pub fn grant_cascade(
-        &self,
-        cascade_id: String,
-        action: DelegationAction,
-        from: WebID,
-        to: WebID,
-    ) -> DelegationToken {
-        let sk = self
-            .signing_key
-            .as_ref()
-            .expect("CapabilityChecker::grant_cascade requires a signing key");
-        DelegationToken::new(
-            DelegationResource::Registry,
-            cascade_id,
-            action,
-            from,
-            to,
-            sk,
-        )
-    }
-
-    /// Create a capability token for spec operations
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self was constructed via `with_signing_key`; spec_id is any non-empty [`String`];
-    ///       action is any [`DelegationAction`]; from and to are any [`WebID`]
-    /// post: returns a [`DelegationToken`] for `DelegationResource::Registry` with the given spec_id;
-    ///       panics if no signing key is available
-    pub fn grant_spec(
-        &self,
-        spec_id: String,
-        action: DelegationAction,
-        from: WebID,
-        to: WebID,
-    ) -> DelegationToken {
-        let sk = self
-            .signing_key
-            .as_ref()
-            .expect("CapabilityChecker::grant_spec requires a signing key");
-        DelegationToken::new(DelegationResource::Registry, spec_id, action, from, to, sk)
     }
 
     /// Create an attenuated token for delegation

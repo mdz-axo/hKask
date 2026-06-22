@@ -81,7 +81,8 @@ impl WebID {
     /// post: returns a string of the form "XXXXXXXX..." where X are the first 8 hex characters of the inner UUID;
     ///       never reveals the full UUID
     pub fn redacted_display(&self) -> String {
-        "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+        let hex = self.0.as_hyphenated().to_string();
+        format!("{}...", &hex[..8])
     }
 }
 

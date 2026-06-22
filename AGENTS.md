@@ -6,7 +6,7 @@
 
 ## Skills (Must Load Before Work)
 
-Activate the relevant skill via `skill` tool when its conditions are met. **45 skills total** across the corpus — these are the most frequently used.
+Activate the relevant skill via `skill` tool when its conditions are met. **46 skills total** across the corpus — these are the most frequently used.
 
 ### Guardrails (activate first)
 
@@ -57,7 +57,6 @@ Activate the relevant skill via `skill` tool when its conditions are met. **45 s
 | **skill-discovery** | Find, evaluate, and install skills. Detect capability gaps and search for candidates. |
 | **skill-manager** | CRUD for the skill corpus. List, validate, build, install, and prune skills. |
 | **skill-logic-audit** | Adversarial audit of .j2 template logic against stated goals. Soundness filter, revision proposals. |
-| **skill-bundler** | Orchestrate and compose multiple skills into a cohesive bundle with conflict resolution and cascade ordering. |
 | **skill-bundler** | Orchestrate and compose multiple skills into a cohesive bundle with conflict resolution and cascade ordering. |
 | **document-update** | Systematic documentation corpus maintenance. 7-task workflow: README fact audit, docs inventory, identify merge candidates, extract & merge, archive, portal refresh. |
 | **handoff** | Session handoff protocol. Captures what was done, what remains, key decisions, and next steps. |

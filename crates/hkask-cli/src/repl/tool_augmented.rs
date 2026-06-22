@@ -28,10 +28,32 @@ pub const TOOL_CALL_FORMAT_INTRO: &str = "\n## Tool Calls\n\
          \n";
 use hkask_capability::derive_signing_key;
 use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
-use hkask_ports::{StructuredToolCall, ToolInfo, ToolPort};
+use hkask_ports::{ChatToolDefinition, ChatToolFunction, StructuredToolCall, ToolInfo, ToolPort};
 use hkask_types::WebID;
 use std::collections::BTreeMap;
 use std::sync::Arc;
+
+/// Convert MCP-discovered tools to OpenAI-compatible `ChatToolDefinition`s.
+///
+/// Each tool becomes a `{"type": "function", "function": {...}}` definition
+/// that models supporting native function calling can use to return structured
+/// `tool_calls` instead of relying on `<<tool:...>>` text directives.
+///
+/// The tool name uses `server_id/name` convention so that `map_tool_calls()`
+/// in `chat_protocol.rs` can parse it back into `StructuredToolCall`.
+pub fn tools_to_definitions(tools: &[ToolInfo]) -> Vec<ChatToolDefinition> {
+    tools
+        .iter()
+        .map(|tool| ChatToolDefinition {
+            tool_type: "function".to_string(),
+            function: ChatToolFunction {
+                name: format!("{}/{}", tool.server_id, tool.name),
+                description: tool.description.clone(),
+                parameters: tool.input_schema.clone(),
+            },
+        })
+        .collect()
+}
 
 /// Format available MCP tools into a system prompt section.
 ///

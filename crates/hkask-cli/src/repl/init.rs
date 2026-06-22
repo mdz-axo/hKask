@@ -261,6 +261,7 @@ pub(super) fn init_repl_state(
         consolidation_service,
         persona_constraints: None,
         tool_prompt_section: String::new(), // populated below
+        tool_definitions: Vec::new(),       // populated below alongside tool_prompt_section
         manifest_executor: None,            // populated below
         process_manifest: None,             // populated below
         service_context: ctx.clone(),
@@ -282,6 +283,7 @@ pub(super) fn init_repl_state(
             }
         }
         state.tool_prompt_section = tool_augmented::format_tool_prompt_section(&tools);
+        state.tool_definitions = tool_augmented::tools_to_definitions(&tools);
     }
 
     // Load rich agent definition from stored YAML for persona + process manifest

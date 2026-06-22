@@ -41,6 +41,8 @@ struct SkillManifest {
 #[derive(Debug, Default, Deserialize)]
 struct ManifestTemplateEntry {
     #[serde(default)]
+    path: String,
+    #[serde(default)]
     #[serde(rename = "type")]
     template_type: String,
 }
@@ -209,6 +211,26 @@ impl SkillLoader {
 
         let domain = self.infer_domain_from_registry(&id);
 
+        // P5.1: Verify registry manifest and template path integrity.
+        // Non-blocking — drift is recorded as a CNS span for skill-maintenance to audit.
+        let registry_manifest = self
+            .project_root
+            .join("registry")
+            .join("templates")
+            .join(&id)
+            .join("manifest.yaml");
+        let (registry_present, template_count, broken_paths) =
+            Self::validate_registry_integrity(&registry_manifest);
+        tracing::info!(
+            target: "cns.skill",
+            operation = "registry_validated",
+            skill_id = %id,
+            registry_present = registry_present,
+            template_count = template_count,
+            broken_paths = broken_paths.len(),
+            "CNS"
+        );
+
         let mut skill = Skill::new(&id, domain)
             .with_visibility(visibility)
             .with_zone(zone);
@@ -273,6 +295,34 @@ impl SkillLoader {
         } else {
             TemplateType::KnowAct
         }
+    }
+
+    /// Validate registry manifest and template path integrity per P5.1.
+    ///
+    /// Returns (registry_present, template_count, broken_paths).
+    /// Non-blocking — records drift for skill-maintenance to audit via CNS.
+    fn validate_registry_integrity(manifest_path: &Path) -> (bool, usize, Vec<String>) {
+        let content = match fs::read_to_string(manifest_path) {
+            Ok(c) => c,
+            Err(_) => return (false, 0, Vec::new()),
+        };
+
+        let manifest: SkillManifest = match serde_yaml_neo::from_str(&content) {
+            Ok(m) => m,
+            Err(_) => return (true, 0, Vec::new()),
+        };
+
+        let template_count = manifest.templates.len();
+        let parent = manifest_path.parent().unwrap_or(Path::new("."));
+        let mut broken_paths = Vec::new();
+        for entry in &manifest.templates {
+            let template_path = parent.join(&entry.path);
+            if !template_path.exists() {
+                broken_paths.push(entry.path.clone());
+            }
+        }
+
+        (true, template_count, broken_paths)
     }
 
     /// Parse YAML front matter from a SKILL.md file.

@@ -12,7 +12,9 @@ use crate::embedding_router::EmbeddingRouter;
 use crate::fal_backend::FalBackend;
 use crate::openrouter_backend::OpenRouterBackend;
 use crate::together_backend::TogetherBackend;
-use hkask_ports::{InferenceError, InferencePort, InferenceResult, InferenceStreamChunk};
+use hkask_ports::{
+    ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceStreamChunk,
+};
 use hkask_types::template::LLMParameters;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -133,6 +135,7 @@ impl InferenceRouter {
         model: &str,
         prompt: &str,
         params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Result<InferenceResult, InferenceError> {
         match provider {
             ProviderId::DeepInfra => {
@@ -141,7 +144,7 @@ impl InferenceRouter {
                     .ok_or_else(|| {
                         InferenceError::Connection("DeepInfra backend unavailable".to_string())
                     })?
-                    .generate(model, prompt, params)
+                    .generate(model, prompt, params, tools)
                     .await
             }
             ProviderId::Fal => {
@@ -150,7 +153,7 @@ impl InferenceRouter {
                     .ok_or_else(|| {
                         InferenceError::Connection("fal.ai backend unavailable".to_string())
                     })?
-                    .generate(model, prompt, params)
+                    .generate(model, prompt, params, tools)
                     .await
             }
             ProviderId::Together => {
@@ -159,7 +162,7 @@ impl InferenceRouter {
                     .ok_or_else(|| {
                         InferenceError::Connection("Together backend unavailable".to_string())
                     })?
-                    .generate(model, prompt, params)
+                    .generate(model, prompt, params, tools)
                     .await
             }
             ProviderId::OpenRouter => {
@@ -168,7 +171,7 @@ impl InferenceRouter {
                     .ok_or_else(|| {
                         InferenceError::Connection("OpenRouter backend unavailable".to_string())
                     })?
-                    .generate(model, prompt, params)
+                    .generate(model, prompt, params, tools)
                     .await
             }
             ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
@@ -631,6 +634,7 @@ impl InferencePort for InferenceRouter {
         &self,
         prompt: &str,
         parameters: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<
         Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
     > {
@@ -644,9 +648,10 @@ impl InferencePort for InferenceRouter {
             let model = model.to_string();
             let prompt = prompt.to_string();
             let parameters = parameters.clone();
+            let tools = tools.map(|t| t.to_vec());
             return Box::pin(async move {
                 validate_prompt(&prompt)?;
-                self.dispatch_generate(provider, &model, &prompt, &parameters)
+                self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
                     .await
             });
         }
@@ -659,50 +664,12 @@ impl InferencePort for InferenceRouter {
         let model = model.to_string();
         let prompt = prompt.to_string();
         let parameters = parameters.clone();
+        let tools = tools.map(|t| t.to_vec());
 
         Box::pin(async move {
             validate_prompt(&prompt)?;
-            match provider {
-                ProviderId::DeepInfra => {
-                    self.deepinfra
-                        .as_ref()
-                        .ok_or_else(|| {
-                            InferenceError::Connection("DeepInfra backend unavailable".to_string())
-                        })?
-                        .generate(&model, &prompt, &parameters)
-                        .await
-                }
-                ProviderId::Fal => {
-                    self.fal
-                        .as_ref()
-                        .ok_or_else(|| {
-                            InferenceError::Connection("fal.ai backend unavailable".to_string())
-                        })?
-                        .generate(&model, &prompt, &parameters)
-                        .await
-                }
-                ProviderId::Together => {
-                    self.together
-                        .as_ref()
-                        .ok_or_else(|| {
-                            InferenceError::Connection("Together backend unavailable".to_string())
-                        })?
-                        .generate(&model, &prompt, &parameters)
-                        .await
-                }
-                ProviderId::OpenRouter => {
-                    self.openrouter
-                        .as_ref()
-                        .ok_or_else(|| {
-                            InferenceError::Connection("OpenRouter backend unavailable".to_string())
-                        })?
-                        .generate(&model, &prompt, &parameters)
-                        .await
-                }
-                ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
-                    "Runpod/Baseten are adapter providers".to_string(),
-                )),
-            }
+            self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
+                .await
         })
     }
 
@@ -714,6 +681,7 @@ impl InferencePort for InferenceRouter {
         prompt: &str,
         parameters: &LLMParameters,
         model_override: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<
         Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
     > {
@@ -728,9 +696,10 @@ impl InferencePort for InferenceRouter {
             let model = model.to_string();
             let prompt = prompt.to_string();
             let parameters = parameters.clone();
+            let tools = tools.map(|t| t.to_vec());
             return Box::pin(async move {
                 validate_prompt(&prompt)?;
-                self.dispatch_generate(provider, &model, &prompt, &parameters)
+                self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
                     .await
             });
         }
@@ -743,10 +712,11 @@ impl InferencePort for InferenceRouter {
         let model = model.to_string();
         let prompt = prompt.to_string();
         let parameters = parameters.clone();
+        let tools = tools.map(|t| t.to_vec());
 
         Box::pin(async move {
             validate_prompt(&prompt)?;
-            self.dispatch_generate(provider, &model, &prompt, &parameters)
+            self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
                 .await
         })
     }

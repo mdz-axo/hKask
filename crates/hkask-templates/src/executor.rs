@@ -160,7 +160,7 @@ impl ManifestExecutor {
 
         let params = self.default_params.clone();
 
-        let result: InferenceResult = self.inference.generate(&prompt, &params).await?;
+        let result: InferenceResult = self.inference.generate(&prompt, &params, None).await?;
 
         let parsed: Value = parse_json_response(&result.text, step.ordinal)?;
         context.insert(format!("step_{}_result", step.ordinal), parsed);

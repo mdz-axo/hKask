@@ -130,7 +130,7 @@ Install from an external source:
 
 1. **Source is a registry crate**: Copy `registry/templates/<name>/`, then generate SKILL.md from it
 2. **Source is dual-layer (old format)**: Copy both, treat registry as authoritative, regenerate SKILL.md to eliminate drift
-3. **Source is SKILL.md only**: Use `skill-translator` to create registry crate, then install
+3. **Source is SKILL.md only**: Use `skill-manager-translate` template to create registry crate, then install
 4. **Validate** after installation (R1–R12, X1–X4)
 5. **Verify**: Skill is discoverable via registry index
 
@@ -178,7 +178,7 @@ Report skill corpus statistics:
 | "Generate SKILL.md for X" | Reverse-translate registry → SKILL.md |
 | "Find a skill for X" | Delegate to `skill-discovery` |
 | "Is this skill stale?" | Delegate to `skill-maintenance` |
-| "Translate this skill" | Delegate to `skill-translator` |
+| "Translate this skill" | Use `skill-manager-translate` template |
 | "Bundle skills" | Delegate to `skill-bundler` |
 
 ## Safety

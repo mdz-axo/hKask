@@ -25,7 +25,7 @@ use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::ConsolidationService;
-use hkask_ports::InferencePort;
+use hkask_ports::{ChatToolDefinition, InferencePort};
 use hkask_services::{AgentService, KanbanService};
 use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};
 use hkask_types::PersonaConstraints;
@@ -82,6 +82,11 @@ pub(crate) struct ReplState {
     /// servers start/stop dynamically, or when making `ToolPort` dyn-compatible
     /// becomes a justified refactor.
     pub(crate) tool_prompt_section: String,
+    /// OpenAI-compatible tool definitions for native function calling.
+    /// Built from the same MCP discovery as `tool_prompt_section`.
+    /// When non-empty, tools are included in inference requests so models
+    /// that support native function calling can return structured tool calls.
+    pub(crate) tool_definitions: Vec<ChatToolDefinition>,
     /// Manifest executor — runs the process_manifest cascade for agents that
     /// have one defined. Created at REPL init from the agent's process_manifest
     /// reference. None if the agent has no process manifest or if loading failed.

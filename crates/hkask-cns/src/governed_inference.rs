@@ -17,7 +17,7 @@
 
 use crate::cybernetics_loop::CyberneticsLoop;
 use crate::energy::EnergyCost;
-use hkask_ports::{InferenceError, InferencePort, InferenceResult};
+use hkask_ports::{ChatToolDefinition, InferenceError, InferencePort, InferenceResult};
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
@@ -96,10 +96,11 @@ impl InferencePort for GovernedInference {
         &self,
         prompt: &str,
         parameters: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
         // Delegate to generate_with_model with no model override.
         // The budget check happens in generate_with_model.
-        self.generate_with_model(prompt, parameters, None)
+        self.generate_with_model(prompt, parameters, None, tools)
     }
 
     fn generate_with_model(
@@ -107,6 +108,7 @@ impl InferencePort for GovernedInference {
         prompt: &str,
         parameters: &LLMParameters,
         model_override: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
         let estimated_cost = EnergyCost(estimate_inference_cost(parameters));
         let model_name = model_override.unwrap_or("default").to_string();
@@ -119,6 +121,8 @@ impl InferencePort for GovernedInference {
         let prompt_owned = prompt.to_string();
         let params_owned = parameters.clone();
         let model_owned = model_override.map(|s| s.to_string());
+
+        let tools_owned = tools.map(|t| t.to_vec());
 
         Box::pin(async move {
             // Step 1: Check and reserve energy budget
@@ -206,7 +210,12 @@ impl InferencePort for GovernedInference {
                 "Delegating inference call (gas reserved)"
             );
             let result = inner
-                .generate_with_model(&prompt_owned, &params_owned, model_owned.as_deref())
+                .generate_with_model(
+                    &prompt_owned,
+                    &params_owned,
+                    model_owned.as_deref(),
+                    tools_owned.as_deref(),
+                )
                 .await;
 
             // Step 3: Settle energy cost

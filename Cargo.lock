@@ -5579,22 +5579,16 @@ dependencies = [
 name = "hkask-types"
 version = "0.30.0"
 dependencies = [
- "base64 0.21.7",
- "blake3",
  "chrono",
- "ed25519-dalek 2.2.0",
  "hex",
  "hkask-capability",
  "hkask-services-core",
  "hkask-test-harness",
- "hmac 0.12.1",
  "proptest",
  "rusqlite",
  "serde",
  "serde_json",
  "serde_yaml_neo",
- "sha2 0.10.9",
- "subtle",
  "thiserror 2.0.18",
  "tokio",
  "uuid",

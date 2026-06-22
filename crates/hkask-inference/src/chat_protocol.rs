@@ -10,8 +10,8 @@
 
 use futures_util::StreamExt;
 use hkask_ports::{
-    InferenceError, InferenceResult, InferenceStreamChunk, InferenceUsage, StructuredToolCall,
-    TokenProb, TokenProbability,
+    ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk, InferenceUsage,
+    StructuredToolCall, TokenProb, TokenProbability,
 };
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
@@ -51,6 +51,19 @@ pub struct ChatRequest {
     /// Skipped from serialization when true (most models don't need it).
     #[serde(default = "default_enable_thinking", skip_serializing_if = "is_true")]
     pub enable_thinking: bool,
+    /// OpenAI-compatible tool definitions for native function calling.
+    /// When present, the model may return `tool_calls` in its response.
+    /// Skipped from serialization when None/empty to avoid confusing models
+    /// that don't support function calling.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<ChatToolDefinition>>,
+    /// Controls whether the model must call tools.
+    /// - `None` (default): model decides
+    /// - `Some("auto")`: model may call tools
+    /// - `Some("required")`: model must call a tool
+    /// - `Some("none")`: model must not call tools
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<String>,
 }
 
 /// A single message in the chat conversation.
@@ -79,6 +92,7 @@ pub fn build_chat_request(
     params: &LLMParameters,
     stream: Option<bool>,
     n_probs: Option<i32>,
+    tools: Option<Vec<ChatToolDefinition>>,
 ) -> ChatRequest {
     ChatRequest {
         model: model.to_string(),
@@ -99,6 +113,8 @@ pub fn build_chat_request(
         n_probs,
         stream,
         enable_thinking: !params.disable_thinking,
+        tools,
+        tool_choice: None,
     }
 }
 
@@ -392,7 +408,8 @@ pub fn stream_chat_completion(
 > {
     Box::pin(
         futures_util::stream::once(async move {
-            let request = build_chat_request(&model, &prompt, None, &params, Some(true), None);
+            let request =
+                build_chat_request(&model, &prompt, None, &params, Some(true), None, None);
 
             let response = match client
                 .post(format!("{}/v1/chat/completions", base_url))
@@ -497,6 +514,7 @@ mod tests {
             &params,
             Some(false),
             None,
+            None,
         );
         let json = serde_json::to_value(&req).expect("serialization must succeed");
         assert_eq!(json["stream"], serde_json::json!(false));
@@ -537,6 +555,7 @@ mod tests {
             &params,
             Some(false),
             None,
+            None,
         );
         let json = serde_json::to_value(&req).expect("serialization must succeed");
         assert_eq!(json["enable_thinking"], serde_json::json!(false));
@@ -566,6 +585,7 @@ mod tests {
             None,
             &params,
             Some(false),
+            None,
             None,
         );
         let json = serde_json::to_value(&req).expect("serialization must succeed");

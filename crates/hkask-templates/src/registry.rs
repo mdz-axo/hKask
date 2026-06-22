@@ -4,7 +4,7 @@
 //! Template types align with hKask domains:
 //! - **WordAct** — Jinja2 prompt templates ("what to say")
 //! - **KnowAct** — Jinja2 cognition templates ("how to think")
-//! - **FlowDef** — Jinja2 process templates ("what to do", including specifications)
+//! - **FlowDef** — YAML pipeline manifests ("what to do", including specifications)
 //!
 //! Rust is the loom. YAML/Jinja2 is the thread.
 

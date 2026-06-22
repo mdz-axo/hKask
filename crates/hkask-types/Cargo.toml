@@ -15,14 +15,8 @@ serde_json.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
-sha2.workspace = true
-hmac.workspace = true
 zeroize.workspace = true
 hex.workspace = true
-subtle.workspace = true
-ed25519-dalek.workspace = true
-base64 = "0.21"
-blake3 = "1"
 
 rusqlite = { workspace = true, optional = true }
 

@@ -5,7 +5,11 @@ use serde::{Deserialize, Serialize};
 /// Each variant corresponds to a domain in the architecture and a file format:
 /// - **WordAct**: Jinja2 prompt templates — "what to say" — `.j2`
 /// - **KnowAct**: Jinja2 cognition templates — "how to think" — `.j2`
-/// - **FlowDef**: Jinja2 process templates — "what to do" — `.j2`
+/// - **FlowDef**: YAML pipeline manifests — "what to do" — `.yaml`
+///
+/// FlowDef templates are declared in `manifest.yaml` with `type: FlowDef`
+/// but use `.yaml` files (not `.j2`). Only WordAct and KnowAct appear in
+/// `.j2` frontmatter `template_type`.
 ///
 /// Specifications (DDMVSS Prompt/Cognition/Process) are aliases used only in
 /// architecture documents; they never appear in `.j2` frontmatter.
@@ -46,12 +50,12 @@ impl TemplateType {
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  self is a valid TemplateType variant
-    /// post: returns the file extension: "j2" for all runtime template types
+    /// post: returns the file extension: "j2" for WordAct/KnowAct, "yaml" for FlowDef
     pub fn file_extension(&self) -> &'static str {
         match self {
             TemplateType::WordAct => "j2",
             TemplateType::KnowAct => "j2",
-            TemplateType::FlowDef => "j2",
+            TemplateType::FlowDef => "yaml",
         }
     }
 

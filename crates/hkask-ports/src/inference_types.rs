@@ -60,6 +60,29 @@ pub fn compute_confidence(probs: &[TokenProbability]) -> f64 {
     avg_prob * (1.0 - variance.sqrt())
 }
 
+/// OpenAI-compatible tool definition sent to models that support native function calling.
+///
+/// Serialized as `{"type": "function", "function": {"name": ..., "description": ..., "parameters": ...}}`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatToolDefinition {
+    /// Always `"function"` for OpenAI-compatible tool calling.
+    #[serde(rename = "type")]
+    pub tool_type: String,
+    /// The function definition.
+    pub function: ChatToolFunction,
+}
+
+/// Function definition within a tool.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatToolFunction {
+    /// Tool name (e.g., `"memory/recall"`).
+    pub name: String,
+    /// Human-readable description of what the tool does.
+    pub description: String,
+    /// JSON Schema for the tool's parameters.
+    pub parameters: serde_json::Value,
+}
+
 /// Structured tool call from a model response (OpenAI/Anthropic/Gemini native function calling).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StructuredToolCall {

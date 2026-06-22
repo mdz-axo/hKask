@@ -16,7 +16,7 @@ use hkask_agents::ports::{
     StorageRequest,
 };
 use hkask_capability::{AuthContext, DelegationAction, DelegationToken};
-use hkask_ports::{InferencePort, StructuredToolCall};
+use hkask_ports::{ChatToolDefinition, InferencePort, StructuredToolCall};
 use hkask_types::PersonaConstraints;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
@@ -307,6 +307,10 @@ pub struct ChatRequest {
     /// middleware-verified request extensions; CLI paths construct it from keystore secrets.
     pub auth_context: Option<AuthContext>,
     pub params_override: Option<LLMParameters>,
+    /// OpenAI-compatible tool definitions for native function calling.
+    /// When present, tools are included in the inference request so the model
+    /// can return structured tool calls via `finish_reason == "tool_calls"`.
+    pub tools: Option<Vec<ChatToolDefinition>>,
 }
 
 /// Prepared chat context — the result of prompt composition before inference.
@@ -518,7 +522,12 @@ impl ChatService {
 
         let result = prepared
             .inference_port
-            .generate_with_model(&prepared.prompt, &params, Some(&prepared.model))
+            .generate_with_model(
+                &prepared.prompt,
+                &params,
+                Some(&prepared.model),
+                req.tools.as_deref(),
+            )
             .await
             .map_err(|e| ServiceError::InferencePort {
                 message: e.to_string(),
@@ -1011,6 +1020,7 @@ impl ChatService {
             semantic_storage_override: Some(req.semantic_storage.clone()),
             auth_context: None,
             params_override: Some(req.llm_params.clone()),
+            tools: req.tools.clone(),
         };
         let chat_response = Self::chat(ctx, chat_req).await?;
 
@@ -1082,6 +1092,10 @@ pub struct TurnRequest {
     /// to maintain separate conversation contexts per source (P12: every action
     /// has an author).
     pub source: Option<MessageSource>,
+    /// OpenAI-compatible tool definitions for native function calling.
+    /// Built from MCP-discovered tools by the REPL at init time.
+    /// When present, the model may return structured tool calls.
+    pub tools: Option<Vec<ChatToolDefinition>>,
 }
 
 /// Which communication channel a turn's input arrived from.

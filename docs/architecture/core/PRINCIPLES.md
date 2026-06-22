@@ -93,7 +93,7 @@ CNS (Cybernetic Nervous System) spans are the primary observability primitive. E
 | Adapter (LoRA) | `cns.adapter` | 23 | ✅ store/get_by_id/delete + router | `Adapter` |
 | Backup | `cns.backup` | 20 | ✅ snapshot/restore/verify/prune | `Backup` |
 | Condenser | `cns.condenser` | 3 | ✅ compression ratio + health | `Condenser` |
-| Skill lifecycle | `cns.skill` | 4 | ✅ activate/load/discover/publish | `Skill` |
+| Skill lifecycle | `cns.skill` | 5 | ✅ activate/load/discover/publish/validate | `Skill` |
 | MCP server infra | `cns.mcp.*` | 47 | ✅ startup gates + daemon flow | *(stringly-typed)* |
 | CLI command dispatch | `cns.cli` | 2 | ✅ command_invoked/completed | *(performative)* |
 | API middleware | `cns.api` | 2 | ✅ per-request CNS span | *(performative)* |

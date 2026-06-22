@@ -351,7 +351,7 @@ impl From<rusqlite::Error> for WalletError {
 
 impl From<uuid::Error> for WalletError {
     fn from(e: uuid::Error) -> Self {
-        WalletError::Infra(InfrastructureError::Database(e.to_string()))
+        WalletError::Infra(InfrastructureError::Serialization(e.to_string()))
     }
 }
 

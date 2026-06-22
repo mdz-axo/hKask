@@ -1,4 +1,6 @@
-use crate::inference_types::{InferenceError, InferenceResult, InferenceUsage, StructuredToolCall};
+use crate::inference_types::{
+    ChatToolDefinition, InferenceError, InferenceResult, InferenceUsage, StructuredToolCall,
+};
 use futures_util::Stream;
 use hkask_types::template::LLMParameters;
 use std::future::Future;
@@ -12,6 +14,7 @@ pub trait InferencePort: Send + Sync {
         &self,
         prompt: &str,
         parameters: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>>;
 
     /// Falls back to `generate()` when `model_override` is `None`.
@@ -19,9 +22,10 @@ pub trait InferencePort: Send + Sync {
         &self,
         prompt: &str,
         parameters: &LLMParameters,
-        _model_override: Option<&str>,
+        model_override: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
-        self.generate(prompt, parameters)
+        self.generate(prompt, parameters, tools)
     }
 
     fn generate_n(
@@ -32,7 +36,9 @@ pub trait InferencePort: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Result<Vec<InferenceResult>, InferenceError>> + Send + '_>>
     {
         use futures_util::future::join_all;
-        let futures: Vec<_> = (0..n).map(|_| self.generate(prompt, parameters)).collect();
+        let futures: Vec<_> = (0..n)
+            .map(|_| self.generate(prompt, parameters, None))
+            .collect();
         Box::pin(async move {
             let results = join_all(futures).await;
             results.into_iter().collect()
@@ -45,7 +51,7 @@ pub trait InferencePort: Send + Sync {
         prompt: &str,
         parameters: &LLMParameters,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
-        let future = self.generate(prompt, parameters);
+        let future = self.generate(prompt, parameters, None);
         Box::pin(futures_util::stream::once(async move {
             Ok(InferenceStreamChunk::from(future.await?))
         }))
@@ -59,7 +65,7 @@ pub trait InferencePort: Send + Sync {
         model_override: Option<&str>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
         if model_override.is_some() {
-            let future = self.generate_with_model(prompt, parameters, model_override);
+            let future = self.generate_with_model(prompt, parameters, model_override, None);
             Box::pin(futures_util::stream::once(async move {
                 Ok(InferenceStreamChunk::from(future.await?))
             }))
@@ -77,7 +83,7 @@ pub trait InferencePort: Send + Sync {
         parameters: &LLMParameters,
         model_override: Option<&str>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
-        self.generate_with_model(prompt, parameters, model_override)
+        self.generate_with_model(prompt, parameters, model_override, None)
     }
 }
 
@@ -110,16 +116,18 @@ impl InferencePort for Arc<dyn InferencePort> {
         &self,
         p: &str,
         pa: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
-        self.as_ref().generate(p, pa)
+        self.as_ref().generate(p, pa, tools)
     }
     fn generate_with_model(
         &self,
         p: &str,
         pa: &LLMParameters,
         m: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
-        self.as_ref().generate_with_model(p, pa, m)
+        self.as_ref().generate_with_model(p, pa, m, tools)
     }
     fn generate_n(
         &self,

@@ -97,6 +97,11 @@ pub(super) fn single_agent_turn(
             ),
             improv_mode: state.improv_mode.clone(),
             source: None,
+            tools: if state.tool_definitions.is_empty() {
+                None
+            } else {
+                Some(state.tool_definitions.clone())
+            },
         };
 
         let chat_result = rt.block_on(ChatService::execute_turn(
