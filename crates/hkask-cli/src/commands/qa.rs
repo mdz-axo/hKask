@@ -462,33 +462,30 @@ fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
                     .block_on(async move {
                         // Resolve tool → server
                         let tool_info = rt.get_tool_info(&tool).await.ok_or_else(|| {
-                            format!("Tool '{}' not found in any registered MCP server. Available tools: {:?}",
-                                tool, rt.discover_tools().await)
+                            format!("Tool '{}' not found in any registered MCP server", tool)
                         })?;
 
                         // Parse params as JSON object
-                        let params_val: serde_json::Value =
-                            serde_json::from_str(&p).unwrap_or(serde_json::Value::Object(Default::default()));
+                        let params_val: serde_json::Value = serde_json::from_str(&p)
+                            .unwrap_or(serde_json::Value::Object(Default::default()));
                         let args = match params_val {
                             serde_json::Value::Object(map) => map,
                             _ => serde_json::Map::new(),
                         };
 
                         // Dispatch through MCP protocol
-                        let result = rt.call_tool(&tool_info.server_id, &tool, args)
+                        let result = rt
+                            .call_tool(&tool_info.server_id, &tool, args)
                             .await
                             .map_err(|e| format!("MCP call '{}' failed: {}", tool, e))?;
 
                         // Extract text content from CallToolResult
-                        let text = result
+                        let text: String = result
                             .content
                             .iter()
-                            .filter_map(|c| {
-                                if let rmcp::model::Content::Text { text, .. } = c {
-                                    Some(text.as_str())
-                                } else {
-                                    None
-                                }
+                            .filter_map(|c| match &**c {
+                                rmcp::model::RawContent::Text(t) => Some(t.text.as_str()),
+                                _ => None,
                             })
                             .collect::<Vec<_>>()
                             .join("\n");
@@ -498,7 +495,8 @@ fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
                             "text": text,
                             "server": tool_info.server_id,
                             "tool": tool
-                        }).to_string())
+                        })
+                        .to_string())
                     })
             })
             .join()

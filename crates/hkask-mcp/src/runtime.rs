@@ -239,8 +239,8 @@ impl McpRuntime {
     /// Call a tool on a connected server directly via the Peer.
     ///
     /// Lower-level than `RawMcpToolPort::invoke` — no governance membrane.
-    /// Used internally by `RawMcpToolPort`.
-    pub(crate) async fn call_tool(
+    /// Used internally by `RawMcpToolPort` and by external callers (QA runner).
+    pub async fn call_tool(
         &self,
         server_id: &str,
         tool: &str,

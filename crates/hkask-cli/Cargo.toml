@@ -35,6 +35,7 @@ hkask-test-harness = { path = "../hkask-test-harness" }
 hkask-services-classify = { path = "../hkask-services-classify" }
 hkask-mcp-docproc = { path = "../../mcp-servers/hkask-mcp-docproc" }
 hkask-ledger = { path = "../hkask-ledger" }
+rmcp.workspace = true
 axum.workspace = true
 clap.workspace = true
 chrono.workspace = true

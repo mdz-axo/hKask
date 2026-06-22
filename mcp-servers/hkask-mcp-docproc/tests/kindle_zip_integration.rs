@@ -367,7 +367,7 @@ async fn full_pipeline_extract_transcribe_export() {
     // Step 1: Extract pages
     println!("=== Step 1: Extract ===");
     let extract =
-        hkask_mcp_docproc::kindle_zip::extract_kindle_book(asin, &email, &password, output, None)
+        hkask_mcp_docproc::kindle_zip::extract_kindle_book(&asin, &email, &password, output, None)
             .await
             .expect("Extract");
     println!("  Pages: {}, Title: {}", extract.total_pages, extract.title);
@@ -406,7 +406,7 @@ async fn full_pipeline_extract_transcribe_export() {
         &extract.pages_dir,
         &extract.metadata_path,
         output,
-        asin,
+        &asin,
         &server,
         &thresholds,
         ocr_model.as_deref(),
@@ -420,7 +420,7 @@ async fn full_pipeline_extract_transcribe_export() {
     );
 
     // Step 3: Assemble content
-    let content_path = output.join(asin).join("content.json");
+    let content_path = output.join(&asin).join("content.json");
     let content_json = std::fs::read_to_string(&content_path).expect("content.json");
     let chunks: Vec<hkask_mcp_docproc::kindle_zip::types::ContentChunk> =
         serde_json::from_str(&content_json).expect("Parse content");
@@ -438,7 +438,7 @@ async fn full_pipeline_extract_transcribe_export() {
         &assembled,
         &formats,
         output,
-        asin,
+        &asin,
         &expected_title,
         &extract.author,
         &extract.toc,
@@ -451,9 +451,9 @@ async fn full_pipeline_extract_transcribe_export() {
     }
 
     // Copy to Knowledge folder
-    let dest = std::path::Path::new("/home/mdz-axolotl/Clones/Library/Knowledge").join(asin);
+    let dest = std::path::Path::new("/home/mdz-axolotl/Clones/Library/Knowledge").join(&asin);
     std::fs::create_dir_all(&dest).ok();
-    let src = output.join(asin);
+    let src = output.join(&asin);
     if src.exists() {
         for e in std::fs::read_dir(&src).ok().into_iter().flatten().flatten() {
             std::fs::copy(e.path(), dest.join(e.file_name())).ok();
