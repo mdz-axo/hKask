@@ -1,0 +1,20 @@
+[package]
+name = "hkask-mcp-cloud-gateway"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "mTLS + DelegationToken transport adapter for remote MCP access to hKask"
+
+[dependencies]
+hkask-types = { path = "../hkask-types" }
+hkask-capability = { path = "../hkask-capability" }
+hkask-mcp = { path = "../hkask-mcp" }
+tokio.workspace = true
+tokio-rustls = "0.26"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+rustls-pemfile = "2"
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+x509-parser = "0.17"

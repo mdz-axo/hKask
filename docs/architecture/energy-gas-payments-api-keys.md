@@ -12,7 +12,7 @@ mds_categories: [domain, trust, lifecycle, curation]
 
 **Purpose:** Defines the economic layer of hKask — how energy is measured, consumed, funded, and settled across all interaction surfaces.
 
-**Related:** [`P12-replicant-host-mandate.md`](mandates/P12-replicant-host-mandate.md), [`PRINCIPLES.md`](core/PRINCIPLES.md), [`loop-architecture.md`](loop-architecture.md)
+**Related:** [`PRINCIPLES.md`](core/PRINCIPLES.md) §P12 (Replicant Host Mandate), [`loop-architecture.md`](loop-architecture.md)
 
 ---
 
@@ -419,7 +419,7 @@ GovernedTool → CyberneticsLoop (pass-through) → EnergyBudgetManager (dispatc
 
 ## 10. References
 
-- P12-replicant-host-mandate.md §API — Bot Host — key request flow, approval criteria, metering
+- PRINCIPLES.md §P12 — Replicant Host Mandate (API key request flow, approval criteria, metering)
 - canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`CnsSpan`) — CNS spans and variety counters
 - loop-architecture.md — EnergyBudget subsumption of RateLimiting
 - AGENTS.md — `/repl` settings for gas_heuristic, gas_cap

@@ -537,4 +537,24 @@ Explicit exclusions — considered and rejected:
 | **Phase 3 — Export** | `BackupArchive` type, `kask export create`, CNS spans | Phase 1 |
 | **Phase 4 — Migration** | `kask export upload`, replicant rename/merge/delete, `MigrationReceipt`, auto-rename on collision | Phase 3 |
 | **Phase 5 — Integration** | End-to-end: deploy → OAuth sign-in → terminal → export → upload to second server → merge → verify | Phase 4 |
-| **Phase 6 — Harden** | Interruption testing, multi-user isolation, backup auto-export tuning | Phase 5 | |
+| **Phase 6 — Harden** | Interruption testing, multi-user isolation, backup auto-export tuning | Phase 5 |
+
+---
+
+## 14. Related Research and Past Plans
+
+> **Incorporated from:** `plans/hetzner-blocking-issues.md`, `plans/hetzner-k3s-implementation-plan.md`, `plans/rjoule-cost-tracking-implementation.md`, `research/cloud-deployment-research-report.md`, `research/cloud-implementation-plans.md`
+
+### 14.1 Hetzner k3s Deployment
+
+Hetzner Cloud (CX22/CX32) + k3s cluster topology (3 master + 3 worker nodes) was evaluated as the production deployment target. Cilium CNI, Longhorn storage, cert-manager TLS. Blocking issues (boot volume encryption, firewalls, S3-compatible backup, PostgreSQL HA) confirmed available. Full implementation plan archived in `docs/archive/guides-2026-06-22/`.
+
+### 14.2 Cloud Provider Comparison
+
+Multi-provider evaluation: Hetzner, Fly.io, Railway, Render, DigitalOcean, AWS, GCP, Azure. Hetzner selected for cost-to-capability ratio. Key constraint: single binary deployment with SQLCipher as primary store.
+
+### 14.3 rJoule Cost Tracking
+
+Per-provider pricing tracking, energy consumption estimation, and cumulative cost accounting design. Deferred until multi-provider inference routing is production-ready.
+
+---

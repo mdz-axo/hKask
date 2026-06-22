@@ -360,11 +360,54 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 | [`core/MDS.md`](core/MDS.md) | Minimal Domain Specification — 5 categories, 12 tools, completeness predicate |
 | [`core/FUNCTIONAL_SPECIFICATION.md`](core/FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring, user expectations |
 | [`loop-architecture.md`](loop-architecture.md) | 4-loop architecture — RateLimiting→EnergyBudget subsumption, crate↔loop mapping |
-| [`mandates/P12-replicant-host-mandate.md`](mandates/P12-replicant-host-mandate.md) | Replicant Host Mandate — every interaction has an author, no unsupervised agency |
+| [`core/PRINCIPLES.md`](core/PRINCIPLES.md) | 12 architecture principles (P1-P12) incl. P12 replicant host mandate (surface-host mapping, dual-presence) |
 | [`energy-gas-payments-api-keys.md`](energy-gas-payments-api-keys.md) | Energy, Gas, Payments & API Key System — economic layer, rJoules, wallets, key lifecycle |
 | [`core/CNS-DOMAIN-SPECIFICATION.md`](core/CNS-DOMAIN-SPECIFICATION.md) | CNS Domain Specification — 6 sub-domains, 44 contracts, P4/P9/P12 governed membranes |
 
+**Curator persona** — The Curator is the canonical system daemon. Direct, technical, concise voice with no preamble, emojis, or conversational filler. Full specification: [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md).
+
 | [`../plans/deployment-and-backup.md`](../plans/deployment-and-backup.md) | Deployment & Multi-User Plan |
+
+### Supplementary Architecture Patterns
+
+> **Incorporated from:** `specs/provider-intelligence.md`, `specs/rjoule-cost-system.md`, `self-healing.md`, `loop-architecture.md`, `energy-gas-payments-api-keys.md`
+
+#### Provider Intelligence
+
+Provider selection is intelligence-driven. Each inference provider (DeepInfra, Together AI, fal.ai, OpenRouter) carries metadata: model availability, pricing per token, latency profile, and reliability score. The inference router uses this intelligence to select the optimal provider for each request. Provider metadata is cached and refreshed periodically. See [`specs/provider-intelligence.md`](specs/provider-intelligence.md) for full specification.
+
+#### rJoule Cost System
+
+Energy consumption is tracked in rJoules — a normalized energy unit decoupled from any specific currency. Each inference operation consumes rJoules proportional to token count, model size, and provider efficiency. The cost system integrates with the triple-entry ledger (`hkask-ledger`) for immutable accounting. See [`specs/rjoule-cost-system.md`](specs/rjoule-cost-system.md) for full specification.
+
+#### Self-Healing Architecture
+
+The system detects and recovers from degraded states through CNS-observed self-healing loops:
+- **Detection:** CNS variety counters + algedonic thresholds identify anomalies
+- **Diagnosis:** Curator classifies anomaly type (stall, saturation, drift, corruption)
+- **Recovery:** Automated restart, cache invalidation, connection reset, or escalation to human
+- **Verification:** Post-recovery CNS span confirms restoration. See [`self-healing.md`](self-healing.md) for full specification.
+
+#### 4-Loop Authority Model
+
+Architecture decomposes into four authority loops with RateLimiting subsumed by EnergyBudget:
+1. **Communication Loop** — Matrix transport, backpressure, queue depth monitoring
+2. **Inference Loop** — Provider dispatch, model selection, rJoule accounting
+3. **Curation Loop** — Specification drift detection, memory consolidation, catalog maintenance
+4. **Regulation Loop** — CNS homeostatic control, algedonic escalation, variety engineering
+
+Each loop maps to specific crates and CNS spans. See [`loop-architecture.md`](loop-architecture.md) for full decomposition.
+
+#### Energy, Gas, and API Key System
+
+The economic layer governs resource consumption across all surfaces:
+- **Gas heuristic:** Estimates token cost before inference dispatch
+- **Gas cap:** Hard limit per session, enforced by OCAP-gated tool dispatch
+- **API key lifecycle:** Provision, rotation, revocation per provider and per user
+- **Payment settlement:** rJoule → fiat conversion, provider billing integration
+
+See [`energy-gas-payments-api-keys.md`](energy-gas-payments-api-keys.md) for full specification.
+
 ---
 
 ## REPL Architecture
@@ -957,7 +1000,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | Artifact | Purpose |
 |----------|---------|
 
-| [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
+|  Curator persona (archived — see | Curator persona specification |
 
 
 ---
@@ -991,36 +1034,34 @@ Detailed lookup tables and diagrams in `reference/`:
 ```
 docs/architecture/
 ├── hKask-architecture-master.md                # THIS FILE (index)
-├── loop-architecture.md                        # Framework (4-loop authority model)
-├── energy-gas-payments-api-keys.md             # Framework (gas, payments, API key system)
-├── self-healing.md                             # Framework (self-healing architecture)
-├── matrix-integration-architecture.md          # Specification (Matrix transport, Conduit sidecar)
+├── loop-architecture.md                        # 4-loop authority model
+├── energy-gas-payments-api-keys.md             # Energy, gas, payments
+├── self-healing.md                             # Self-healing patterns
+├── matrix-integration-architecture.md          # Matrix transport, Conduit
 ├── specs/
 │   ├── hkask-ledger.md                         # Specification (triple-entry ledger)
 │   ├── provider-intelligence.md                # Specification (provider intelligence)
 │   └── rjoule-cost-system.md                   # Specification (rJoule cost system)
 ├── core/
-│   ├── magna-carta.md                          # Foundation (4 inviolable principles)
-│   ├── PRINCIPLES.md                           # Framework (P1-P12, incl. P12 replicant host mandate)
-│   ├── MDS.md                                  # Framework (5 categories, 5 tools)
-│   ├── TESTING_DISCIPLINE.md                   # Specification (contract-anchored testing + QA triage)
-│   ├── CNS-DOMAIN-SPECIFICATION.md             # Specification (CNS + memory verb contracts)
-│   ├── FUNCTIONAL_SPECIFICATION.md             # Specification (AgentService)
-│   ├── SOLID_POD_ISOMORPHISM.md                # Specification (pod drift analysis + deployment types)
-│   ├── MULTI_POD_ARCHITECTURE.md               # Specification (3-tier pod structure)
+│   ├── magna-carta.md                          # Foundation (4 principles)
+│   ├── PRINCIPLES.md                           # P1-P12 incl. P12 mandate
+│   ├── MDS.md                                  # 5 categories, 12 tools
+│   ├── TESTING_DISCIPLINE.md                   # Testing + QA operations
+│   ├── CNS-DOMAIN-SPECIFICATION.md             # CNS 6 sub-domains
+│   ├── FUNCTIONAL_SPECIFICATION.md             # AgentService functional spec
+│   ├── SOLID_POD_ISOMORPHISM.md                # Pod drift analysis
+│   └── MULTI_POD_ARCHITECTURE.md               # 3-tier pod structure
 ├── ADRs/
-│   ├── _TEMPLATE.md                            # ADR template
-│   ├── ADR-031-consolidation-authorization.md  # Active
-│   └── ADR-035-replicant-server-mode.md        # Active
+    ├── _TEMPLATE.md                            # ADR template
+    ├── ADR-031-consolidation-authorization.md  # Active
+    └── ADR-035-replicant-server-mode.md        # Active
 └── reference/
     └── hKask-Curator-persona.md                # Persona spec
 ```
 
-**Total:** 20 architecture documents (8 core + 3 root + 3 specs + 2 ADRs + 1 reference + 2 framework + 1 self-healing). API docs (utoipa) in §API Documentation.
+**Total:** 20 architecture documents (8 core + 2 root + 3 specs + 2 ADRs + 1 reference + 4 framework).
 
-**Archived (2026-06-22):** `qa/QA_PLAN.md` (merged into TESTING_DISCIPLINE.md §10), `mandates/P12-replicant-host-mandate.md` (merged into PRINCIPLES.md §12.1), `core/OPEN_QUESTIONS_POD.md` (merged into `docs/OPEN_QUESTIONS.md`).
-
-**See also:** `docs/plans/TODO.md`, `docs/OPEN_QUESTIONS.md`, `docs/research/`, `docs/specifications/`, `docs/guides/`, `docs/user-guides/`.
+**Archived (2026-06-22):** QA_PLAN (merged into TESTING_DISCIPLINE), P12 mandate (merged into PRINCIPLES), OPEN_QUESTIONS_POD (merged into OPEN_QUESTIONS).
 
 ---
 

@@ -42,6 +42,7 @@ members = [
     "crates/hkask-test-harness",
     "crates/hkask-adapter",
     "crates/hkask-acp",
+    "crates/hkask-mcp-cloud-gateway",
     # Fuzz targets
     "crates/hkask-types/fuzz",
     "crates/hkask-cns/fuzz",
@@ -66,6 +67,7 @@ members = [
     "mcp-servers/hkask-mcp-replica",
     "mcp-servers/hkask-mcp-kanban",
     "mcp-servers/hkask-mcp-skill",
+    "mcp-servers/hkask-mcp-curator",
     # MCP server fuzz targets
     "mcp-servers/hkask-mcp-kanban/fuzz",
     "mcp-servers/hkask-mcp-communication/fuzz",

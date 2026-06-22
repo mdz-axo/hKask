@@ -588,7 +588,7 @@ kubectl exec -n hkask-pod-my-pod statefulset/kask -c litestream -- \
 ## 11. References
 
 - [`.env.example`](../../.env.example) — Complete environment variable template
-- [`docs/research/cloud-deployment-research-report.md`](../research/cloud-deployment-research-report.md) — Provider evaluation
+- [`docs/research/cloud-deployment-research-report.md`](../plans/deployment-and-backup.md#14-related-research-and-past-plans) — Provider evaluation
 - [Litestream Documentation](https://litestream.io/)
 - [Conduit Matrix Server](https://conduit.rs/)
 - [Hetzner Cloud Documentation](https://docs.hetzner.com/cloud/)

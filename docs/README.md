@@ -10,16 +10,30 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # hKask Documentation Portal
 
-**Purpose:** Single entry point indexing every active document in `docs/`, tagged
-by [MDS](architecture/core/MDS.md) category. 65 active documents. hKask v0.30.0.
+**Purpose:** Single entry point indexing every active document in `docs/`, tagged by [MDS](architecture/core/MDS.md) category. hKask v0.30.0.
+
+### Two-Tier Document Model
+
+Documents are classified by **verification regime**, reflecting different audiences and drift risks:
+
+| Tier | Audience | Count | Verification | Drift Risk |
+|------|----------|-------|-------------|------------|
+| **Tier 1 — Spec & Development** | Architects, developers, agents | **44** | `verify-docs.sh` enforces code-anchored claims; `check-links.sh` enforces cross-references | HIGH — stale claims cause agent hallucination |
+| **Tier 2 — User & Operator Guides** | Human operators, users, replicants | **18** | Link integrity only; content accuracy verified during onboarding/testing | LOW — guides serve human readers; drift degrades experience but not agent behavior |
+
+**Tier 1 consolidation target:** ≤40 spec/dev documents (currently 44 — 4 remaining to consolidate). Tier 2 guides are maintained separately; their count is driven by user needs, not architectural minimalism.
 
 > **Lifecycle:** Retired documents are removed via `git rm`. The gitignored
 > `docs/archive/` holds date-stamped snapshots for reference. Active document count
-> verified by `docs/ci/check-links.sh` (247 links, 0 broken).
+> verified by `docs/ci/check-links.sh` (249 links, 0 broken).
 
 ---
 
-## Start Here
+## Tier 1 — Specification & Development Documents
+
+These documents are anchored against code. Every factual claim (crate names, counts, versions) must be verifiable. Stale Tier 1 documents produce incorrect agent behavior.
+
+### Start Here
 
 | Document | What It Is |
 |----------|------------|
@@ -128,20 +142,15 @@ by [MDS](architecture/core/MDS.md) category. 65 active documents. hKask v0.30.0.
 
 ---
 
-## Guides
+### Guides
 
 | Document | Description |
 |----------|-------------|
 | [`kata-user-guide.md`](guides/kata-user-guide.md) | Toyota Kata — research, technical build, kanban integration, user how-to |
-| [`DEPLOYMENT.md`](guides/DEPLOYMENT.md) | Deployment — production server, systemd, health checks, security hardening |
-| [`OPERATIONS_RUNBOOK.md`](guides/OPERATIONS_RUNBOOK.md) | Operations — health checks, troubleshooting, backup/recovery |
-| [`lora-training-guide.md`](guides/lora-training-guide.md) | LoRA training — dataset prep to CNS-verified deployment, hardening, troubleshooting |
 | [`bug-hunter-guide.md`](guides/bug-hunter-guide.md) | Bug hunting methodology and expedition execution |
 | [`skill-designer-guide.md`](guides/skill-designer-guide.md) | Skill design — creating, packaging, registering |
 
----
-
-## User Guides
+### User Guides
 
 | Document | Description |
 |----------|-------------|
@@ -150,20 +159,25 @@ by [MDS](architecture/core/MDS.md) category. 65 active documents. hKask v0.30.0.
 | [`kanban-user-guide.md`](user-guides/kanban-user-guide.md) | Kanban task coordination — boards, tasks, WIP, kata, error recovery |
 | [`skill-user-guide.md`](user-guides/skill-user-guide.md) | Skill usage — installing, activating, composing |
 | [`lora-adapter-store-guide.md`](user-guides/lora-adapter-store-guide.md) | LoRA adapter store — lifecycle, routing, deployment |
-| [`COMPANIES-GUIDE.md`](user-guides/COMPANIES-GUIDE.md) | Company research and portfolio management |
-| [`ACP-ZED-CONFIGURATION.md`](user-guides/ACP-ZED-CONFIGURATION.md) | ACP IDE agent configuration |
-
 ---
 
-## Cross-Cutting
+## Tier 2 — User & Operator Guides
+
+These documents serve human operators and users. They are verified for link integrity but exempt from the code-anchored claim verification that governs Tier 1. Drift here degrades user experience but does not cause agent hallucination.
+
+### Operator Guides
 
 | Document | Description |
 |----------|-------------|
-| [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | Mermaid diagram verification registry |
 | [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | Underspecified aspects |
 | [`generated/cli-reference.md`](generated/cli-reference.md) | Auto-generated CLI reference |
 | [`generated/openapi.json`](generated/openapi.json) | OpenAPI 3.1.0 specification (60 endpoints, all documented) |
-| [`research/lazy-universe-research.md`](research/lazy-universe-research.md) | Least-action principle — research grounding |
+| [`lazy-universe-research.md`](research/lazy-universe-research.md) | Least-action principle — research grounding |
+| [`bug-hunting-skill-synthesis.md`](research/bug-hunting-skill-synthesis.md) | Bug hunting — design, theory, implementation |
+
+### Diagram Registry
+
+30 Mermaid diagrams across 5 categories, all verified against current code (full registry: `docs/archive/guides-2026-06-22/DIAGRAMS_INDEX.md`).
 
 ---
 
@@ -173,4 +187,4 @@ by [MDS](architecture/core/MDS.md) category. 65 active documents. hKask v0.30.0.
 bash docs/ci/check-links.sh      # link integrity — zero broken links
 ```
 
-*ℏKask — A Minimal Viable Container for Agents — v0.30.0 — 65 active documents*
+*ℏKask — A Minimal Viable Container for Agents — v0.30.0 — 60 active documents*
