@@ -567,10 +567,10 @@ impl PodRegistry {
                 if !agent_dir.is_dir() {
                     continue;
                 }
-                if let Some(agent_name) = agent_dir.file_name().and_then(|n| n.to_str()) {
-                    if PodID::from_name(agent_name) == *pod_id {
-                        return agent_dir.join("pod.db");
-                    }
+                if let Some(agent_name) = agent_dir.file_name().and_then(|n| n.to_str())
+                    && PodID::from_name(agent_name) == *pod_id
+                {
+                    return agent_dir.join("pod.db");
                 }
             }
         }
@@ -705,11 +705,12 @@ visibility:
         let ids = registry.list_pod_ids().expect("list");
         assert!(ids.is_empty());
 
-        // Create a pod directory
-        let pods_dir = temp.path().join("pods");
-        std::fs::create_dir_all(&pods_dir).expect("create pods dir");
+        // Create a pod directory under agents/ (matching PodRegistry layout)
+        let agents_dir = temp.path().join("agents");
         let pod_id = PodID::new();
-        std::fs::write(pods_dir.join(format!("{pod_id}.db")), b"").expect("write db file");
+        let pod_dir = agents_dir.join(pod_id.to_string());
+        std::fs::create_dir_all(&pod_dir).expect("create pod dir");
+        std::fs::write(pod_dir.join("pod.db"), b"").expect("write db file");
 
         let ids = registry.list_pod_ids().expect("list");
         assert_eq!(ids.len(), 1);
@@ -720,12 +721,26 @@ visibility:
     #[test]
     fn pod_registry_scan_by_kind_classifies_files() {
         let temp = tempfile::TempDir::new().expect("tempdir");
-        let pods_dir = temp.path().join("pods");
-        std::fs::create_dir_all(&pods_dir).expect("create pods dir");
 
-        std::fs::write(pods_dir.join("curator.db"), b"").unwrap();
-        std::fs::write(pods_dir.join("team.7r7.db"), b"").unwrap();
-        std::fs::write(pods_dir.join("replicant.alice.db"), b"").unwrap();
+        let agents_dir = temp.path().join("agents");
+
+
+        let curator_dir = agents_dir.join("curator");
+        std::fs::create_dir_all(&curator_dir).unwrap();
+        std::fs::write(curator_dir.join("pod.db"), b"").unwrap();
+        std::fs::write(curator_dir.join("pod.kind"), b"curator").unwrap();
+
+
+        let team_dir = agents_dir.join("team.7r7");
+        std::fs::create_dir_all(&team_dir).unwrap();
+        std::fs::write(team_dir.join("pod.db"), b"").unwrap();
+        std::fs::write(team_dir.join("pod.kind"), b"team").unwrap();
+
+
+        let repl_dir = agents_dir.join("replicant.alice");
+        std::fs::create_dir_all(&repl_dir).unwrap();
+        std::fs::write(repl_dir.join("pod.db"), b"").unwrap();
+        std::fs::write(repl_dir.join("pod.kind"), b"replicant").unwrap();
 
         let registry = PodRegistry::new(temp.path());
         let results = registry.scan_by_kind().expect("scan");
@@ -747,13 +762,13 @@ visibility:
     #[test]
     fn pod_registry_find_curator_returns_path() {
         let temp = tempfile::TempDir::new().expect("tempdir");
-        let pods_dir = temp.path().join("pods");
-        std::fs::create_dir_all(&pods_dir).expect("create pods dir");
 
         let registry = PodRegistry::new(temp.path());
         assert!(registry.find_curator().is_none());
 
-        std::fs::write(pods_dir.join("curator.db"), b"").unwrap();
+        let curator_dir = temp.path().join("agents").join("curator");
+        std::fs::create_dir_all(&curator_dir).unwrap();
+        std::fs::write(curator_dir.join("pod.db"), b"").unwrap();
         assert!(registry.find_curator().is_some());
     }
 

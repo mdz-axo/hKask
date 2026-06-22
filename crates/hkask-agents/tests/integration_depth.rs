@@ -209,7 +209,7 @@ async fn pod_meta_table_contains_metadata() {
 
     // Open the curator.db directly and check pod_meta
     use hkask_storage::Database;
-    let db_path = tmp.path().join("pods").join("curator.db");
+    let db_path = tmp.path().join("agents").join("curator").join("pod.db");
     let webid_path = db_path.with_extension("webid");
     let webid = std::fs::read_to_string(&webid_path).expect("read webid");
     let passphrase = {

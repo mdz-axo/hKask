@@ -12,8 +12,7 @@
 use bolero::check;
 use hkask_mcp_kanban::KanbanServer;
 use hkask_mcp_kanban::types::*;
-use hkask_services::KanbanService;
-use hkask_storage::{Store, TripleStore};
+use hkask_storage::Store;
 use hkask_test_harness::TestWebId;
 use rmcp::handler::server::wrapper::Parameters;
 use serde::{Deserialize, Serialize};

@@ -49,54 +49,54 @@ async fn pod_portability_across_servers() {
     // ── Export: copy the database and webid files ─────────────────────────
     let db_path = server_a
         .path()
-        .join("pods")
-        .join("replicant.portable-alice.db");
+        .join("agents")
+        .join("portable-alice").join("pod.db");
     let webid_path = server_a
         .path()
-        .join("pods")
-        .join("replicant.portable-alice.webid");
+        .join("agents")
+        .join("portable-alice").join("pod.webid");
     let salt_path = server_a
         .path()
-        .join("pods")
-        .join("replicant.portable-alice.db.salt");
+        .join("agents")
+        .join("portable-alice").join("pod.db.salt");
     let export_dir = server_a.path().join("export");
-    std::fs::create_dir_all(export_dir.join("pods")).expect("create export dir");
+    std::fs::create_dir_all(export_dir.join("agents").join("portable-alice")).expect("create export dir");
     std::fs::copy(
         &db_path,
-        export_dir.join("pods").join("replicant.portable-alice.db"),
+        export_dir.join("agents").join("portable-alice").join("pod.db"),
     )
     .expect("copy db");
     std::fs::copy(
         &webid_path,
         export_dir
-            .join("pods")
-            .join("replicant.portable-alice.webid"),
+            .join("agents")
+            .join("portable-alice").join("pod.webid"),
     )
     .expect("copy webid");
     if salt_path.exists() {
         std::fs::copy(
             &salt_path,
             export_dir
-                .join("pods")
-                .join("replicant.portable-alice.db.salt"),
+                .join("agents")
+                .join("portable-alice").join("pod.db.salt"),
         )
         .expect("copy salt");
     }
 
     // ── Server B: Import the pod ─────────────────────────────────────────
     let server_b = tempfile::TempDir::new().expect("server B tempdir");
-    let pods_dir_b = server_b.path().join("pods");
-    std::fs::create_dir_all(&pods_dir_b).expect("create pods dir B");
-    std::fs::copy(&db_path, pods_dir_b.join("replicant.portable-alice.db")).expect("copy DB to B");
+    let pods_dir_b = server_b.path().join("agents");
+    std::fs::create_dir_all(pods_dir_b.join("portable-alice")).expect("create pods dir B");
+    std::fs::copy(&db_path, pods_dir_b.join("portable-alice").join("pod.db")).expect("copy DB to B");
     std::fs::copy(
         &webid_path,
-        pods_dir_b.join("replicant.portable-alice.webid"),
+        pods_dir_b.join("portable-alice").join("pod.webid"),
     )
     .expect("copy webid to B");
     if salt_path.exists() {
         std::fs::copy(
             &salt_path,
-            pods_dir_b.join("replicant.portable-alice.db.salt"),
+            pods_dir_b.join("portable-alice").join("pod.db.salt"),
         )
         .expect("copy salt to B");
     }

@@ -663,7 +663,7 @@ pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::Keyst
                 source = "keychain_or_env",
                 "Credential resolved via legacy path"
             );
-            return Ok(val);
+            Ok(val)
         }
     }
 }

@@ -296,32 +296,30 @@ impl CuratorSync {
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
 
-                if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                    if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&content) {
-                        if let Some(artifact_list) =
-                            manifest.get("artifacts").and_then(|a| a.as_array())
-                        {
-                            let entries: Vec<ArtifactEntry> = artifact_list
-                                .iter()
-                                .filter_map(|a| {
-                                    Some(ArtifactEntry {
-                                        artifact_type: a.get("type")?.as_str()?.to_string(),
-                                        name: a.get("name")?.as_str()?.to_string(),
-                                        hash: a.get("hash")?.as_str()?.to_string(),
-                                        published_at: a.get("published_at")?.as_str()?.to_string(),
-                                    })
-                                })
-                                .collect();
-                            if !entries.is_empty() {
-                                tracing::debug!(
-                                    target: "hkask.curator.artifacts",
-                                    agent = %agent_name,
-                                    count = entries.len(),
-                                    "Indexing agent artifacts"
-                                );
-                                new_index.insert(agent_name, entries);
-                            }
-                        }
+                if let Ok(content) = std::fs::read_to_string(&manifest_path)
+                    && let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&content)
+                    && let Some(artifact_list) =
+                        manifest.get("artifacts").and_then(|a| a.as_array())
+                {
+                    let entries: Vec<ArtifactEntry> = artifact_list
+                        .iter()
+                        .filter_map(|a| {
+                            Some(ArtifactEntry {
+                                artifact_type: a.get("type")?.as_str()?.to_string(),
+                                name: a.get("name")?.as_str()?.to_string(),
+                                hash: a.get("hash")?.as_str()?.to_string(),
+                                published_at: a.get("published_at")?.as_str()?.to_string(),
+                            })
+                        })
+                        .collect();
+                    if !entries.is_empty() {
+                        tracing::debug!(
+                            target: "hkask.curator.artifacts",
+                            agent = %agent_name,
+                            count = entries.len(),
+                            "Indexing agent artifacts"
+                        );
+                        new_index.insert(agent_name, entries);
                     }
                 }
             }
