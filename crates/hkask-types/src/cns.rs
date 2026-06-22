@@ -163,6 +163,16 @@ pub enum CnsSpan {
     QaRepairExhausted,
     /// A mutant survived — test suite has a gap.
     QaMutantSurvived,
+    /// Federation CRDT merge — sync convergence event.
+    FederationCrdtMerge,
+    /// Federation link established between two CuratorPods.
+    FederationLinkEstablished,
+    /// Federation link lost — peer disconnected or revoked.
+    FederationLinkLost,
+    /// Federation link degraded — sync timeout (partition or peer death).
+    FederationLinkDegraded,
+    /// Federation member voluntarily left.
+    FederationMemberLeft,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -308,6 +318,11 @@ impl CnsSpan {
             CnsSpan::QaRepairVerified => "cns.qa.repair_verified",
             CnsSpan::QaRepairExhausted => "cns.qa.repair_exhausted",
             CnsSpan::QaMutantSurvived => "cns.qa.mutant_survived",
+            CnsSpan::FederationCrdtMerge => "cns.federation.crdt_merge",
+            CnsSpan::FederationLinkEstablished => "cns.federation.link_established",
+            CnsSpan::FederationLinkLost => "cns.federation.link_lost",
+            CnsSpan::FederationLinkDegraded => "cns.federation.link_degraded",
+            CnsSpan::FederationMemberLeft => "cns.federation.member_left",
         }
     }
 }
@@ -409,6 +424,11 @@ impl std::str::FromStr for CnsSpan {
             "cns.qa.repair_verified" => Ok(CnsSpan::QaRepairVerified),
             "cns.qa.repair_exhausted" => Ok(CnsSpan::QaRepairExhausted),
             "cns.qa.mutant_survived" => Ok(CnsSpan::QaMutantSurvived),
+            "cns.federation.crdt_merge" => Ok(CnsSpan::FederationCrdtMerge),
+            "cns.federation.link_established" => Ok(CnsSpan::FederationLinkEstablished),
+            "cns.federation.link_lost" => Ok(CnsSpan::FederationLinkLost),
+            "cns.federation.link_degraded" => Ok(CnsSpan::FederationLinkDegraded),
+            "cns.federation.member_left" => Ok(CnsSpan::FederationMemberLeft),
             _ => Err(()),
         }
     }
@@ -535,6 +555,11 @@ mod cns_span_tests {
             CnsSpan::QaRepairVerified,
             CnsSpan::QaRepairExhausted,
             CnsSpan::QaMutantSurvived,
+            CnsSpan::FederationCrdtMerge,
+            CnsSpan::FederationLinkEstablished,
+            CnsSpan::FederationLinkLost,
+            CnsSpan::FederationLinkDegraded,
+            CnsSpan::FederationMemberLeft,
         ];
         for variant in &all_variants {
             let s = variant.to_string();

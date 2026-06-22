@@ -25,11 +25,11 @@ Startup order:
   3. ReplicantPods   ← on demand, one per human+replicant pair
 
 File layout:
-  {data_dir}/pods/
-    curator.db                    ← singleton, PodKind::Curator
-    team.7r7.db                   ← 7R7 TeamPod
-    team.{team_name}.db           ← arbitrary team pods
-    replicant.{webid}.db          ← one per human+replicant
+  {data_dir}/agents/
+    curator/pod.db                ← singleton, PodKind::Curator
+    7r7/pod.db                    ← 7R7 TeamPod
+    {team_name}/pod.db            ← arbitrary team pods
+    {webid}/pod.db                ← one per human+replicant
 ```
 
 ### PodKind Enum

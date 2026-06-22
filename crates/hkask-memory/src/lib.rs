@@ -9,7 +9,7 @@ pub mod consolidation; // Episodic → Semantic bridge
 pub mod consolidation_service;
 pub mod episodic; // Loop 2a
 pub mod episodic_loop;
-pub(crate) mod recall_dedup;
+pub mod recall_dedup;
 pub mod semantic; // Loop 2b
 pub mod semantic_loop;
 

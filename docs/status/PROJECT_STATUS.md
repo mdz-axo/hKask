@@ -13,7 +13,7 @@ mds_categories: [lifecycle]
 Single source of truth for build, test, and CI health. Updated per session.
 
 **Current session:** v0.30.0 — Multi-Pod Architecture Complete: Three-tier Solid Pod isomorphism (CuratorPod/TeamPod/ReplicantPod).
-- PodManager deleted → PodDeployment + PodFactory + ActivePods + PodRegistry. Per-pod SQLCipher files at `{data_dir}/pods/{kind}.{name}.db`.
+- PodManager deleted → PodDeployment + PodFactory + ActivePods + PodRegistry. Per-pod SQLCipher files at `{data_dir}/agents/{sanitized_name}/pod.db`.
 - Per-pod CNS (`PerPodCnsRuntime`, `cns.agent_pod.{pod_id}.*` namespace). Per-pod MCP tool binding.
 - `CuratorSync` polling loop: lazy one-way semantic sync from ReplicantPods/TeamPods → CuratorPod SemanticIndex.
 - `PodContext::recall_semantic()` routes through Curator for merged-lens view.

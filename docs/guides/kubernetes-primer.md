@@ -26,7 +26,7 @@ On PaaS platforms (fly.io, Railway, Render), each pod is an isolated container w
 
 Kubernetes runs all pods inside a shared cluster. Pods are isolated by **Namespace + NetworkPolicy**, not by separate VMs. This gives us:
 
-- **Curator file access.** The Curator pod can open `{data_dir}/pods/{pod_id}.db` because all pods share the cluster's volume infrastructure.
+- **Curator file access.** The Curator pod can open `{data_dir}/agents/{sanitized_name}/pod.db` because all pods share the cluster's volume infrastructure.
 - **Per-pod isolation via NetworkPolicy.** Despite sharing the cluster, pods cannot talk to each other unless explicitly allowed.
 - **Declarative deployment.** Every pod is described as a YAML manifest. `kubectl apply` creates or updates it.
 

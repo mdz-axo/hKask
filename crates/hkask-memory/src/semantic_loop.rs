@@ -210,13 +210,13 @@ impl HkaskLoop for SemanticLoop {
 
         vec![
             Signal::new(
-                LoopId::Memory,
+                LoopId::Semantic,
                 SignalMetric::TripleCount,
                 count as f64,
                 self.storage_budget as f64,
             ),
             Signal::new(
-                LoopId::Memory,
+                LoopId::Semantic,
                 SignalMetric::LowConfidenceCount,
                 low_count as f64,
                 0.0, // set-point = 0: any low-confidence triples are a deviation
@@ -244,7 +244,7 @@ impl HkaskLoop for SemanticLoop {
                             && !old_triples.is_empty()
                         {
                             actions.push(LoopAction::new(
-                                LoopId::Memory,
+                                LoopId::Semantic,
                                 ActionType::Calibrate,
                                 serde_json::json!({
                                     "reason": "semantic_condense",
@@ -261,7 +261,7 @@ impl HkaskLoop for SemanticLoop {
 
                     let overage = (dev.signal.value - dev.signal.set_point) as usize;
                     actions.push(LoopAction::new(
-                        LoopId::Memory,
+                        LoopId::Semantic,
                         ActionType::Calibrate,
                         serde_json::json!({
                             "reason": "semantic_triple_count_exceeded",
@@ -275,7 +275,7 @@ impl HkaskLoop for SemanticLoop {
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
                     actions.push(LoopAction::new(
-                        LoopId::Memory,
+                        LoopId::Semantic,
                         ActionType::Calibrate,
                         serde_json::json!({
                             "reason": "semantic_low_confidence_review",

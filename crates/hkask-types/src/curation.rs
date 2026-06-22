@@ -313,6 +313,8 @@ pub enum OcapTokenKind {
     Curation,
     /// Spec curation authority
     SpecCurate,
+    /// Federation authority — manage federation links, invitations, sync
+    Federation,
 }
 
 impl std::fmt::Display for OcapTokenKind {
@@ -320,6 +322,7 @@ impl std::fmt::Display for OcapTokenKind {
         let s = match self {
             OcapTokenKind::Curation => "curation",
             OcapTokenKind::SpecCurate => "spec_curate",
+            OcapTokenKind::Federation => "federation",
         };
         f.write_str(s)
     }
@@ -330,6 +333,7 @@ pub fn parse_ocap_token_kind(s: &str) -> Option<OcapTokenKind> {
     match s {
         "curation" => Some(OcapTokenKind::Curation),
         "spec_curate" => Some(OcapTokenKind::SpecCurate),
+        "federation" => Some(OcapTokenKind::Federation),
         _ => None,
     }
 }

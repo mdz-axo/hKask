@@ -86,7 +86,7 @@ erDiagram
 | Solid Invariant | hKask Implementation | Status | Drift |
 |-----------------|---------------------|--------|-------|
 | 1. WebID-grounded identity | `AgentPod.webid` + `derive_ocap_secret(webid)` | ✓ | Correct. WebID is root of authority. |
-| 2. Self-contained storage | `PerPodStorage` with per-pod SQLCipher file at `{data_dir}/pods/{kind}.{name}.db`. `MemoryLoopAdapter::from_connection()` wraps pod-owned `TripleStore` + `EmbeddingStore`. | ✓ | **Resolved.** Each pod owns its database file. Passphrase derived deterministically from WebID via HKDF-SHA256 (ADR-027). |
+| 2. Self-contained storage | `PerPodStorage` with per-pod SQLCipher file at `{data_dir}/agents/{sanitized_name}/pod.db`. `MemoryLoopAdapter::from_connection()` wraps pod-owned `TripleStore` + `EmbeddingStore`. | ✓ | **Resolved.** Each pod owns its database file. Passphrase derived deterministically from WebID via HKDF-SHA256 (ADR-027). |
 | 3. Capability-based access | `DelegationToken` + `CapabilityChecker` + OCAP dual gate | ✓ | Correct. OCAP tokens gate every operation. |
 | 4. Interoperable triples | `Triple` struct with entity/attribute/value/confidence/visibility | ✓ | Correct. Triple-based storage with provenance. |
 | 5. Pod IS deployment unit | `PodDeployment` with `PodFactory` (stateless constructor), `ActivePods` (runtime registry), `PodRegistry` (filesystem scan). Three-tier: `PodKind::Curator | Team | Replicant`. | ✓ | **Resolved.** PodManager deleted. Pods are filesystem entries, not cache entries. Three-tier architecture deployed. |
@@ -186,7 +186,7 @@ erDiagram
 - **`PodDeployment`** — canonical pod type. Owns its `PerPodStorage`, `PerPodCnsRuntime`, and `PerPodToolBinding`.
 - **`PodFactory`** — stateless constructor. Does not cache, pool, or share pods.
 - **`ActivePods`** — runtime registry (lightweight `HashMap`, no shared storage).
-- **`PodRegistry`** — filesystem-based discovery (scans `{data_dir}/pods/*.db`).
+- **`PodRegistry`** — filesystem-based discovery (scans `{data_dir}/agents/{name}/pod.db`).
 
 **Three-tier pod architecture:** `PodKind::Curator` (singleton, `SemanticIndex` owner), `PodKind::Team` (shared bot workspace), `PodKind::Replicant` (per-user sovereign).
 
@@ -204,7 +204,7 @@ Full details: [`MULTI_POD_ARCHITECTURE.md`](MULTI_POD_ARCHITECTURE.md)
 
 | Resource | Mechanism |
 |----------|-----------|
-| SQLCipher database | `{data_dir}/pods/{pod_id}.db`, per-pod key derived from master key |
+| SQLCipher database | `{data_dir}/agents/{sanitized_name}/pod.db`, per-pod key derived from master key |
 | Keystore root | `derive_ocap_secret(webid)` — deterministic, portable |
 | CNS runtime | `PerPodCnsRuntime` — per-pod variety counters, span namespace `cns.agent_pod.{pod_id}.*` |
 | MCP server binding | `PerPodToolBinding` — pod-scoped OCAP-gated tool handles |
@@ -215,7 +215,7 @@ Full details: [`MULTI_POD_ARCHITECTURE.md`](MULTI_POD_ARCHITECTURE.md)
 ```rust
 pub struct PodDeployment {
     pod_id: PodId,
-    storage: PerPodStorage,      // {data_dir}/pods/{pod_id}.db
+    storage: PerPodStorage,      // {data_dir}/agents/{sanitized_name}/pod.db
     cns: PerPodCnsRuntime,        // per-pod CNS
     tools: PerPodToolBinding,     // pod-scoped MCP handles
     state: PodState,

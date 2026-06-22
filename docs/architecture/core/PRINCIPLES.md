@@ -66,7 +66,7 @@ Remove before adding. Every module must earn existence by reducing total system 
 #### P6 — Space for Replicants & Bots
 hKask exists as a generative container for bot and replicant agency under sovereignty and capability constraints.
 
-**P6.1 — Per-Pod Deployment Model (v0.29.0):** Each human+replicant pair inhabits its own pod. The pod IS the deployment unit — not a cache entry in a shared manager. A pod owns its SQLCipher file (`{data_dir}/pods/{pod_id}.db`), its CNS runtime (per-pod variety counters), and its MCP server bindings (no cross-pod dispatch). `PodDeployment` makes shared state structurally impossible. See Pattern D.1 — AgentPod as Solid Pod Isomorphism.
+**P6.1 — Per-Pod Deployment Model (v0.29.0):** Each human+replicant pair inhabits its own pod. The pod IS the deployment unit — not a cache entry in a shared manager. A pod owns its SQLCipher file (`{data_dir}/agents/{sanitized_name}/pod.db`), its CNS runtime (per-pod variety counters), and its MCP server bindings (no cross-pod dispatch). `PodDeployment` makes shared state structurally impossible. See Pattern D.1 — AgentPod as Solid Pod Isomorphism.
 
 #### P7 — Evolutionary Architecture
 Types and seams should emerge from real usage, not speculative abstraction.
@@ -125,7 +125,7 @@ Bot and replicant roles are distinct and explicit, with clear interaction contra
 #### P11 — Digital Public/Private Sphere
 Agents and users can explicitly control what is private versus shared; visibility is consent-governed.
 
-**P11.1 — SQLCipher File as Private Sphere Boundary (v0.29.0):** The pod's SQLCipher database file IS the private sphere boundary. Each pod owns its own encrypted file at `{data_dir}/pods/{pod_id}.db`. No cross-pod data access is structurally possible — a pod cannot accidentally query another pod's data because it has no connection handle to that file. Backup IS copying the SQLCipher file. This was already the backup model; the storage layer now matches.
+**P11.1 — SQLCipher File as Private Sphere Boundary (v0.29.0):** The pod's SQLCipher database file IS the private sphere boundary. Each pod owns its own encrypted file at `{data_dir}/agents/{sanitized_name}/pod.db`. No cross-pod data access is structurally possible — a pod cannot accidentally query another pod's data because it has no connection handle to that file. Backup IS copying the SQLCipher file. This was already the backup model; the storage layer now matches.
 
 #### P12 — Replicant Host Mandate
 Every action has an accountable host identity. No anonymous agency.

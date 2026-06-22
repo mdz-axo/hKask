@@ -45,7 +45,7 @@ One binary (`kask`), one server, many users. Each user gets a terminal session s
 │  └───────────────────┘  │  Curator → Agent Pods             │  │
 │                         │  Wallet (cloud-only)              │  │
 │                         │  Per-pod SQLCipher files          │  │
-│                         │  ({data_dir}/pods/{pod_id}.db)   │  │
+│                         │  ({data_dir}/agents/{sanitized_name}/pod.db)   │
 │                         └──────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────┘
          │

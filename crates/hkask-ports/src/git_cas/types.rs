@@ -142,6 +142,8 @@ pub enum RepoId {
     Sessions,
     /// Vault (encrypted master key material)
     Vault,
+    /// Agent pod state (pod.db snapshots for revert/spawn)
+    Pods,
 }
 
 impl RepoId {
@@ -160,6 +162,7 @@ impl RepoId {
             Self::GoalsSpecs => "goals-specs",
             Self::Sessions => "sessions",
             Self::Vault => "vault",
+            Self::Pods => "pods",
         }
     }
 
@@ -178,6 +181,7 @@ impl RepoId {
             RepoId::GoalsSpecs,
             RepoId::Sessions,
             RepoId::Vault,
+            RepoId::Pods,
         ]
     }
 }
