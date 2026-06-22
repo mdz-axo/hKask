@@ -1260,6 +1260,7 @@ cns:
             "qa-keystore-security-gate.yaml",
             "qa-comm-integration-gate.yaml",
             "qa-mcp-server-smoke.yaml",
+            "qa-mcp-dispatch-smoke.yaml",
         ];
 
         for script in scripts {

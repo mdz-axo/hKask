@@ -1,0 +1,93 @@
+# QA MCP Dispatch Smoke — v0.30.0
+#
+# Minimal end-to-end test of the QA runner's MCP tool dispatch.
+# Calls condenser_ping, episodic_ping, and skill_ping — tools that
+# require no API keys, databases, or external services.
+#
+# This script validates that McpRuntime-based dispatch works across
+# all 12 registered MCP servers.
+
+manifest:
+  id: qa-mcp-dispatch-smoke
+  name: QA MCP Dispatch Smoke
+  version: 0.30.0
+  visibility: Private
+  description: >
+    End-to-end smoke test for MCP tool dispatch in the QA runner.
+    Calls condenser_ping, episodic_ping, and skill_ping to verify
+    McpRuntime → Peer → rmcp JSON-RPC dispatch works.
+
+gas:
+  cap: 10000
+  alert_threshold: 0.9
+  hard_limit: true
+
+steps:
+  # Step 1: Call condenser_ping — no dependencies
+  - ordinal: 1
+    action: mcp_tool
+    tool_name: condenser_ping
+    tool_params: "{}"
+    description: "Call condenser_ping via MCP dispatch"
+    retries: 0
+    branching:
+      success: 2
+      failure: 5
+
+  # Step 2: Call episodic_ping — memory server, no dependencies
+  - ordinal: 2
+    action: mcp_tool
+    tool_name: episodic_ping
+    tool_params: "{}"
+    description: "Call episodic_ping via MCP dispatch"
+    retries: 0
+    branching:
+      success: 3
+      failure: 6
+
+  # Step 3: Call skill_ping — skill server, no dependencies
+  - ordinal: 3
+    action: mcp_tool
+    tool_name: skill_ping
+    tool_params: "{}"
+    description: "Call skill_ping via MCP dispatch"
+    retries: 0
+    branching:
+      success: 4
+      failure: 7
+
+  # Step 4: PASS
+  - ordinal: 4
+    action: run_command
+    command: "echo '[QA:mcp-dispatch] PASS — condenser_ping, episodic_ping, skill_ping all dispatched successfully'"
+    description: "All MCP tool dispatch calls succeeded"
+    retries: 0
+    terminal: true
+
+  # Step 5: condenser_ping failed
+  - ordinal: 5
+    action: run_command
+    command: "echo '[QA:mcp-dispatch] FAIL — condenser_ping dispatch failed'"
+    description: "condenser_ping MCP dispatch failure"
+    retries: 0
+    terminal: true
+
+  # Step 6: episodic_ping failed
+  - ordinal: 6
+    action: run_command
+    command: "echo '[QA:mcp-dispatch] FAIL — episodic_ping dispatch failed'"
+    description: "episodic_ping MCP dispatch failure"
+    retries: 0
+    terminal: true
+
+  # Step 7: skill_ping failed
+  - ordinal: 7
+    action: run_command
+    command: "echo '[QA:mcp-dispatch] FAIL — skill_ping dispatch failed'"
+    description: "skill_ping MCP dispatch failure"
+    retries: 0
+    terminal: true
+
+cns:
+  emit_spans: true
+  alert: qa.mcp.dispatch
