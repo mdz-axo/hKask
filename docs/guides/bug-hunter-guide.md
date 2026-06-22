@@ -287,6 +287,7 @@ This guide is designed to be used with hKask's skill ecosystem:
 | **grill-me** | Challenge every HIGH-confidence verdict. "Could this be intentional? Edge case where it's correct?" |
 | **diagnose** | For POTENTIAL_BUG findings: reproduce, hypothesize, isolate before confirming. |
 | **essentialist** | After the expedition: which probe strategies found nothing? Deprecate them. Which found bugs? Strengthen them. |
+| **pragmatic-cybernetics** | Treat the target code as a feedback system. Check loop closure, signal fidelity, and requisite variety at every data boundary. |
 | **coding-guidelines** | Fix recommendations must be surgical — touch only what must change. |
 | **deep-module** | Audit fix complexity: is the fix deeper (small interface, much behavior) or shallow (thin delegation)? |
 

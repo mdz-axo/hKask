@@ -70,25 +70,37 @@ impl OnboardingService {
         if store {
             let keychain = Keychain::default();
             keychain
-                .store_by_key("HKASK_MASTER_KEY", &secrets.master_key_hex)
+                .store_by_key(
+                    hkask_types::keychain_keys::KEY_MASTER_KEY,
+                    &secrets.master_key_hex,
+                )
                 .map_err(|e| ServiceError::Keystore {
                     source: Some(Box::new(e)),
                     message: "Failed to store HKASK_MASTER_KEY".into(),
                 })?;
             keychain
-                .store_by_key("a2a-secret", &secrets.a2a_secret)
+                .store_by_key(
+                    hkask_types::keychain_keys::KEY_A2A_SECRET,
+                    &secrets.a2a_secret,
+                )
                 .map_err(|e| ServiceError::Keystore {
                     source: Some(Box::new(e)),
                     message: "Failed to store a2a-secret".into(),
                 })?;
             keychain
-                .store_by_key("hkask-db-passphrase", &secrets.capability_key)
+                .store_by_key(
+                    hkask_types::keychain_keys::KEY_DB_PASSPHRASE,
+                    &secrets.capability_key,
+                )
                 .map_err(|e| ServiceError::Keystore {
                     source: Some(Box::new(e)),
                     message: "Failed to store hkask-db-passphrase".into(),
                 })?;
             keychain
-                .store_by_key("mcp-secret", &secrets.mcp_security_key)
+                .store_by_key(
+                    hkask_types::keychain_keys::KEY_MCP_SECRET,
+                    &secrets.mcp_security_key,
+                )
                 .map_err(|e| ServiceError::Keystore {
                     source: Some(Box::new(e)),
                     message: "Failed to store mcp-secret".into(),
@@ -314,13 +326,19 @@ impl OnboardingService {
         // Success — store secrets in keychain for future sessions
         let keychain = Keychain::default();
         keychain
-            .store_by_key("a2a-secret", &resolved_secrets.a2a_secret)
+            .store_by_key(
+                hkask_types::keychain_keys::KEY_A2A_SECRET,
+                &resolved_secrets.a2a_secret,
+            )
             .map_err(|e| ServiceError::Keystore {
                 source: Some(Box::new(e)),
                 message: "Failed to store a2a-secret".into(),
             })?;
         keychain
-            .store_by_key("hkask-db-passphrase", &resolved_secrets.db_passphrase)
+            .store_by_key(
+                hkask_types::keychain_keys::KEY_DB_PASSPHRASE,
+                &resolved_secrets.db_passphrase,
+            )
             .map_err(|e| ServiceError::Keystore {
                 source: Some(Box::new(e)),
                 message: "Failed to store hkask-db-passphrase".into(),
@@ -453,8 +471,8 @@ impl OnboardingService {
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "cleanup_failed_onboarding", "CNS");
         let keychain = Keychain::default();
-        let _ = keychain.delete_by_key("a2a-secret");
-        let _ = keychain.delete_by_key("hkask-db-passphrase");
+        let _ = keychain.delete_by_key(hkask_types::keychain_keys::KEY_A2A_SECRET);
+        let _ = keychain.delete_by_key(hkask_types::keychain_keys::KEY_DB_PASSPHRASE);
 
         let db_path = &config.db_path;
         if db_path != ":memory:" {
@@ -553,25 +571,37 @@ impl OnboardingService {
         // Store credentials in keychain
         let keychain = Keychain::default();
         keychain
-            .store_by_key("matrix-human-username", &human_id)
+            .store_by_key(
+                hkask_types::keychain_keys::KEY_MATRIX_HUMAN_USERNAME,
+                &human_id,
+            )
             .map_err(|e| ServiceError::Keystore {
                 source: Some(Box::new(e)),
                 message: "Failed to store matrix-human-username".into(),
             })?;
         keychain
-            .store_by_key("matrix-human-password", passphrase)
+            .store_by_key(
+                hkask_types::keychain_keys::KEY_MATRIX_HUMAN_PASSWORD,
+                passphrase,
+            )
             .map_err(|e| ServiceError::Keystore {
                 source: Some(Box::new(e)),
                 message: "Failed to store matrix-human-password".into(),
             })?;
         keychain
-            .store_by_key("matrix-replicant-username", &replicant_id)
+            .store_by_key(
+                hkask_types::keychain_keys::KEY_MATRIX_REPLICANT_USERNAME,
+                &replicant_id,
+            )
             .map_err(|e| ServiceError::Keystore {
                 source: Some(Box::new(e)),
                 message: "Failed to store matrix-replicant-username".into(),
             })?;
         keychain
-            .store_by_key("matrix-replicant-password", passphrase)
+            .store_by_key(
+                hkask_types::keychain_keys::KEY_MATRIX_REPLICANT_PASSWORD,
+                passphrase,
+            )
             .map_err(|e| ServiceError::Keystore {
                 source: Some(Box::new(e)),
                 message: "Failed to store matrix-replicant-password".into(),
@@ -606,8 +636,14 @@ impl OnboardingService {
         // ── Ensure Conduit is healthy ──
         if !conduit_ensure_healthy(homeserver_url).await {
             let keychain = Keychain::default();
-            let _ = keychain.store_by_key("matrix-pending-recovery", "true");
-            let _ = keychain.store_by_key("matrix-pending-homeserver", homeserver_url);
+            let _ = keychain.store_by_key(
+                hkask_types::keychain_keys::KEY_MATRIX_PENDING_RECOVERY,
+                "true",
+            );
+            let _ = keychain.store_by_key(
+                hkask_types::keychain_keys::KEY_MATRIX_PENDING_HOMESERVER,
+                homeserver_url,
+            );
             return Err(ServiceError::Matrix {
                 source: None,
                 message: format!(
@@ -624,7 +660,14 @@ impl OnboardingService {
         register_on_conduit(homeserver_url, &format!("{}-bot", localpart), &password).await?;
 
         let keychain = Keychain::default();
-        let _ = keychain.store_by_key(&format!("matrix-replicant-{}", display_name), &password);
+        let _ = keychain.store_by_key(
+            &format!(
+                "{}{}",
+                hkask_types::keychain_keys::KEY_MATRIX_REPLICANT_PREFIX,
+                display_name
+            ),
+            &password,
+        );
 
         tracing::info!(
             target: "cns.communication.matrix.onboarding",
@@ -672,7 +715,14 @@ impl OnboardingService {
             match register_on_conduit(homeserver_url, &localpart, &password).await {
                 Ok(user_id) => {
                     keychain
-                        .store_by_key(&format!("matrix-bot-{}", bot_name), &password)
+                        .store_by_key(
+                            &format!(
+                                "{}{}",
+                                hkask_types::keychain_keys::KEY_MATRIX_BOT_PREFIX,
+                                bot_name
+                            ),
+                            &password,
+                        )
                         .map_err(|e| ServiceError::Keystore {
                             source: Some(Box::new(e)),
                             message: format!("Failed to store matrix-bot-{}", bot_name),

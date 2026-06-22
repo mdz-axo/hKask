@@ -180,7 +180,10 @@ address = "0.0.0.0"
 
     // ── Store admin token in keystore ──
     let keychain = hkask_keystore::Keychain::default();
-    if let Err(e) = keychain.store_by_key("HKASK_MATRIX_ADMIN_TOKEN", &admin_token) {
+    if let Err(e) = keychain.store_by_key(
+        hkask_types::keychain_keys::KEY_MATRIX_ADMIN_TOKEN,
+        &admin_token,
+    ) {
         eprintln!("Warning: Failed to store admin token in keychain: {}", e);
         eprintln!(
             "The admin token is in {}/conduit.toml — keep it secure.",
@@ -222,13 +225,14 @@ address = "0.0.0.0"
 fn run_register_agent(agent: &str, homeserver: &str) {
     // 1. Read admin token from keystore
     let keychain = hkask_keystore::Keychain::default();
-    let admin_token = match keychain.retrieve_by_key("HKASK_MATRIX_ADMIN_TOKEN") {
-        Ok(t) => t,
-        Err(_) => {
-            eprintln!("  No admin token found. Run 'kask matrix deploy-sidecar' first.");
-            std::process::exit(1);
-        }
-    };
+    let admin_token =
+        match keychain.retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_ADMIN_TOKEN) {
+            Ok(t) => t,
+            Err(_) => {
+                eprintln!("  No admin token found. Run 'kask matrix deploy-sidecar' first.");
+                std::process::exit(1);
+            }
+        };
 
     // 2. Prompt for replicant credential (no AI — direct human input)
     println!();
@@ -286,8 +290,22 @@ fn run_register_agent(agent: &str, homeserver: &str) {
     }
 
     // 6. Store agent Matrix credentials in keystore
-    let _ = keychain.store_by_key(&format!("HKASK_MATRIX_AGENT_USERNAME_{}", agent), &mxid);
-    let _ = keychain.store_by_key(&format!("HKASK_MATRIX_AGENT_PASSWORD_{}", agent), &password);
+    let _ = keychain.store_by_key(
+        &format!(
+            "{}{}",
+            hkask_types::keychain_keys::KEY_MATRIX_AGENT_USERNAME_PREFIX,
+            agent
+        ),
+        &mxid,
+    );
+    let _ = keychain.store_by_key(
+        &format!(
+            "{}{}",
+            hkask_types::keychain_keys::KEY_MATRIX_AGENT_PASSWORD_PREFIX,
+            agent
+        ),
+        &password,
+    );
 
     // 7. Output labeled QR code placeholder
     // Full SAS QR code generation requires matrix-sdk crypto (deferred to v2).
@@ -321,7 +339,7 @@ fn run_register_user(user: &str, homeserver: &str) {
     // 1. Try to read admin token from keystore (may not exist in dev mode)
     let keychain = hkask_keystore::Keychain::default();
     let admin_token = keychain
-        .retrieve_by_key("HKASK_MATRIX_ADMIN_TOKEN")
+        .retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_ADMIN_TOKEN)
         .unwrap_or_default();
 
     // 2. Derive MXID and generate password

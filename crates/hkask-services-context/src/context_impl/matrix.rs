@@ -9,11 +9,13 @@ pub(crate) async fn build_matrix()
     let keychain = hkask_keystore::Keychain::default();
 
     let credentials = {
-        if let Ok(password) = keychain.retrieve_by_key("matrix-bot-curator") {
+        if let Ok(password) =
+            keychain.retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_BOT_CURATOR)
+        {
             Some(("@hkask-curator:localhost".to_string(), password))
         } else if let (Ok(username), Ok(password)) = (
-            keychain.retrieve_by_key("matrix-replicant-username"),
-            keychain.retrieve_by_key("matrix-replicant-password"),
+            keychain.retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_REPLICANT_USERNAME),
+            keychain.retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_REPLICANT_PASSWORD),
         ) {
             Some((username, password))
         } else if let (Ok(username), Ok(password)) = (

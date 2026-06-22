@@ -44,15 +44,21 @@ pub fn run_init() -> Result<(), Box<dyn std::error::Error>> {
     // 5. Store in keychain
     let keychain = hkask_keystore::keychain::Keychain::new("hkask");
     keychain
-        .store_by_key("hkask-master", &passphrase)
+        .store_by_key(hkask_types::keychain_keys::KEY_MASTER_KEY, &passphrase)
         .map_err(|e| format!("Failed to store master key: {e}"))?;
     println!("  ✓ Stored master passphrase in OS keychain");
 
     keychain
-        .store_by_key("hkask-oauth-github-client-id", &gh_client_id)
+        .store_by_key(
+            hkask_types::keychain_keys::KEY_OAUTH_GITHUB_CLIENT_ID,
+            &gh_client_id,
+        )
         .ok();
     keychain
-        .store_by_key("hkask-oauth-github-client-secret", &gh_client_secret)
+        .store_by_key(
+            hkask_types::keychain_keys::KEY_OAUTH_GITHUB_CLIENT_SECRET,
+            &gh_client_secret,
+        )
         .ok();
     println!("  ✓ Stored OAuth credentials in OS keychain");
 

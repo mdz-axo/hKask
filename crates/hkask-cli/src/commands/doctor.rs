@@ -3,6 +3,8 @@
 //! Checks each provider key is set and makes a lightweight API call
 //! to verify the credentials are valid. Reports tier status.
 
+use hkask_inference::{InferenceConfig, InferenceRouter};
+
 /// Run a diagnostic check on all configured providers.
 pub async fn run_doctor() {
     println!("hKask Doctor — Provider Health Check\n");
@@ -20,6 +22,28 @@ pub async fn run_doctor() {
     configured += check_env("RUNPOD_API_KEY", "RunPod", &mut total);
     configured += check_env("BASETEN_API_KEY", "Baseten", &mut total);
     println!();
+
+    // ── Fusion ──────────────────────────────────────────────
+    let config = InferenceConfig::from_env();
+    if config.fusion_model.is_some() {
+        println!("Fusion Model");
+        println!("────────────");
+        let router = InferenceRouter::new(config);
+        total += 1;
+        match router.verify_fusion_model().await {
+            Ok(true) => {
+                println!("  ✅ Fusion group verified on OpenRouter");
+                configured += 1;
+            }
+            Ok(false) => {
+                println!("  ❌ Fusion group NOT FOUND — create it at https://openrouter.ai/fusion");
+            }
+            Err(e) => {
+                println!("  ⚠️  Could not verify fusion group: {e}");
+            }
+        }
+        println!();
+    }
 
     // ── Search ─────────────────────────────────────────────
     println!("Search Providers");

@@ -177,6 +177,66 @@ impl InferenceRouter {
         }
     }
 
+    /// Dispatch a streaming generate call to the resolved backend.
+    fn dispatch_generate_stream(
+        &self,
+        provider: ProviderId,
+        model: &str,
+        prompt: &str,
+        params: &LLMParameters,
+    ) -> Pin<
+        Box<
+            dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
+                + Send
+                + '_,
+        >,
+    > {
+        let model = model.to_string();
+        let prompt = prompt.to_string();
+        let params = params.clone();
+        match provider {
+            ProviderId::DeepInfra => {
+                match self.deepinfra.as_ref().ok_or_else(|| {
+                    InferenceError::Connection("DeepInfra backend unavailable".to_string())
+                }) {
+                    Ok(b) => b.generate_stream(&model, &prompt, &params),
+                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
+                }
+            }
+            ProviderId::Fal => {
+                match self.fal.as_ref().ok_or_else(|| {
+                    InferenceError::Connection("fal.ai backend unavailable".to_string())
+                }) {
+                    Ok(b) => b.generate_stream(&model, &prompt, &params),
+                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
+                }
+            }
+            ProviderId::Together => {
+                match self.together.as_ref().ok_or_else(|| {
+                    InferenceError::Connection("Together backend unavailable".to_string())
+                }) {
+                    Ok(b) => b.generate_stream(&model, &prompt, &params),
+                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
+                }
+            }
+            ProviderId::OpenRouter => {
+                match self.openrouter.as_ref().ok_or_else(|| {
+                    InferenceError::Connection("OpenRouter backend unavailable".to_string())
+                }) {
+                    Ok(b) => b.generate_stream(&model, &prompt, &params),
+                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
+                }
+            }
+            ProviderId::Runpod | ProviderId::Baseten => {
+                Box::pin(futures_util::stream::once(async move {
+                    Err(InferenceError::Connection(
+                        "Runpod/Baseten are adapter providers".to_string(),
+                    ))
+                }))
+            }
+        }
+    }
+
     /// List all available models across all configured providers.
     ///
     /// Queries each backend concurrently and merges results with
@@ -657,11 +717,26 @@ impl InferencePort for InferenceRouter {
     ) -> Pin<
         Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
     > {
+        // LoRA adapter overrides the model entirely (bypasses fusion).
+        // Training is on a specific base model, not a committee — routing
+        // through a fusion group makes no semantic sense here.
+        if let Some(ref adapter) = parameters.adapter {
+            let (provider, model) = match self.resolve(adapter) {
+                Ok(r) => r,
+                Err(e) => return Box::pin(async move { Err(e) }),
+            };
+            let model = model.to_string();
+            let prompt = prompt.to_string();
+            let parameters = parameters.clone();
+            return Box::pin(async move {
+                validate_prompt(&prompt)?;
+                self.dispatch_generate(provider, &model, &prompt, &parameters)
+                    .await
+            });
+        }
+
         let model_name = self.effective_model(model_override, parameters);
-        // LoRA adapter overrides the model entirely (includes base model).
-        // When adapter is set, it replaces model_override/default_model completely.
-        let effective_model = parameters.adapter.as_deref().unwrap_or(&model_name);
-        let (provider, model) = match self.resolve(effective_model) {
+        let (provider, model) = match self.resolve(&model_name) {
             Ok(r) => r,
             Err(e) => return Box::pin(async move { Err(e) }),
         };
@@ -708,6 +783,21 @@ impl InferencePort for InferenceRouter {
                 + '_,
         >,
     > {
+        // LoRA adapter overrides the model entirely (bypasses fusion).
+        if let Some(ref adapter) = parameters.adapter {
+            let adapter_str = adapter.to_string();
+            let (provider, model) = match self.resolve(&adapter_str) {
+                Ok(r) => r,
+                Err(e) => {
+                    return Box::pin(futures_util::stream::once(async move { Err(e) }));
+                }
+            };
+            let model = model.to_string();
+            let prompt = prompt.to_string();
+            let parameters = parameters.clone();
+            return self.dispatch_generate_stream(provider, &model, &prompt, &parameters);
+        }
+
         let model_name = self.effective_model(model_override, parameters);
         let (provider, model) = match self.resolve(&model_name) {
             Ok(r) => r,
@@ -719,47 +809,7 @@ impl InferencePort for InferenceRouter {
         let prompt = prompt.to_string();
         let parameters = parameters.clone();
 
-        match provider {
-            ProviderId::DeepInfra => {
-                match self.deepinfra.as_ref().ok_or_else(|| {
-                    InferenceError::Connection("DeepInfra backend unavailable".to_string())
-                }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &parameters),
-                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
-                }
-            }
-            ProviderId::Fal => {
-                match self.fal.as_ref().ok_or_else(|| {
-                    InferenceError::Connection("fal.ai backend unavailable".to_string())
-                }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &parameters),
-                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
-                }
-            }
-            ProviderId::Together => {
-                match self.together.as_ref().ok_or_else(|| {
-                    InferenceError::Connection("Together backend unavailable".to_string())
-                }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &parameters),
-                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
-                }
-            }
-            ProviderId::OpenRouter => {
-                match self.openrouter.as_ref().ok_or_else(|| {
-                    InferenceError::Connection("OpenRouter backend unavailable".to_string())
-                }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &parameters),
-                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
-                }
-            }
-            ProviderId::Runpod | ProviderId::Baseten => {
-                Box::pin(futures_util::stream::once(async move {
-                    Err(InferenceError::Connection(
-                        "Runpod/Baseten are adapter providers".to_string(),
-                    ))
-                }))
-            }
-        }
+        self.dispatch_generate_stream(provider, &model, &prompt, &parameters)
     }
 
     fn generate_vision(
@@ -798,5 +848,70 @@ impl InferenceRouter {
     ) -> Result<Vec<f32>, hkask_ports::EmbeddingGenerationError> {
         let model = model_override.unwrap_or(&self.config.default_model);
         self.embedding.embed_sentence(model, text).await
+    }
+
+    /// Verify that the configured fusion model exists on OpenRouter.
+    ///
+    /// When `config.fusion_model` is `Some`, calls OpenRouter's model listing
+    /// endpoint and checks whether the fusion model ID is present. Returns
+    /// `Ok(true)` if verified, `Ok(false)` if the model is not found,
+    /// `Err(...)` if the API is unreachable.
+    ///
+    /// This is a safety check: OpenRouter's default fusion behavior sends
+    /// requests to ALL models in the group simultaneously, which can incur
+    /// high costs. Always verify your fusion group exists and is configured
+    /// correctly at https://openrouter.ai/workspace.
+    ///
+    /// expect: "Fusion model is verified before use to prevent unexpected costs"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — proactive cost-safety check
+    /// pre:  config.fusion_model may be None or Some
+    /// post: if Some → calls OpenRouter API to verify model existence
+    /// post: if None → returns Ok(true) immediately (nothing to verify)
+    pub async fn verify_fusion_model(&self) -> Result<bool, InferenceError> {
+        let fusion = match &self.config.fusion_model {
+            Some(f) => f,
+            None => return Ok(true),
+        };
+
+        // Validate provider prefix — fusion only works through OpenRouter.
+        if !fusion.starts_with("OR/") {
+            tracing::warn!(
+                target: "cns.inference",
+                fusion_model = %fusion,
+                "Fusion model must start with OR/ prefix (e.g., OR/openrouter/fusion/kask)"
+            );
+            return Err(InferenceError::Connection(
+                "Fusion model must use OR/ prefix (OpenRouter). Set HKASK_FUSION_MODEL=OR/openrouter/fusion/kask".to_string(),
+            ));
+        }
+
+        let or = match &self.openrouter {
+            Some(or) => or,
+            None => {
+                return Err(InferenceError::Connection(
+                    "OpenRouter backend not configured (set OPENROUTER_API_KEY)".to_string(),
+                ));
+            }
+        };
+        // Strip provider prefix to get the raw model ID OpenRouter expects
+        let search_id = fusion.strip_prefix("OR/").unwrap_or(fusion);
+        let models = or.list_models().await?;
+        let found = models.iter().any(|m| m.id == search_id);
+        if found {
+            tracing::info!(
+                target: "cns.inference",
+                fusion_model = %fusion,
+                "Fusion model verified — group exists on OpenRouter"
+            );
+        } else {
+            tracing::warn!(
+                target: "cns.inference",
+                fusion_model = %fusion,
+                search_id = %search_id,
+                available_count = models.len(),
+                "Fusion model NOT FOUND — create the fusion group at https://openrouter.ai/workspace"
+            );
+        }
+        Ok(found)
     }
 }

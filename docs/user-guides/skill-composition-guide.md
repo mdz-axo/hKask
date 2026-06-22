@@ -161,7 +161,31 @@ scenario-builder → grill-me → self-critique-revision → gentle-lovelace
 
 ---
 
-### Chain 6: Skill Lifecycle — Discovery → Audit → Maintain
+### Chain 6: Hunt Bugs — Perceive Semantics → Analyze Loops → Probe → Report
+
+```
+pragmatic-semantics → pragmatic-cybernetics → bug-hunt
+```
+
+| Stage | Skill | What happens |
+|-------|-------|-------------|
+| **Classify** | `pragmatic-semantics` | Classify every finding: IS vs OUGHT, declarative vs probabilistic vs subjunctive. Trace provenance. Never present speculation as fact. |
+| **Analyze loops** | `pragmatic-cybernetics` | Treat target code as a feedback system. Check polarity, delay, gain, closure, fidelity. Good Regulator check. Variety analysis. |
+| **Hunt** | `bug-hunt` | Charter → Probe → Oracle → Taxonomize → Report. Weinberg quality, Beizer taxonomy, Hendrickson exploratory tours. |
+
+**Use when:** Bug hunting expeditions, code quality audits, finding semantic errors and interaction bugs
+
+**Example session:**
+```
+> hunt bugs in hkask-wallet — quality criteria: financial invariants
+> (agent applies pragmatic-semantics to classify each finding)
+> (agent applies pragmatic-cybernetics to analyze wallet as feedback system)
+> (agent runs bug-hunt expedition with charter, probe, oracle, taxonomy, report)
+```
+
+---
+
+### Chain 7: Skill Lifecycle — Discovery → Audit → Maintain
 
 ```
 skill-discovery → skill-logic-audit → skill-maintenance
@@ -177,7 +201,7 @@ skill-discovery → skill-logic-audit → skill-maintenance
 
 ---
 
-### Chain 7: Resilience — Accept → Stabilize → Diagnose
+### Chain 8: Resilience — Accept → Stabilize → Diagnose
 
 ```
 dokkodo-mindset → diagnose → improve-codebase-architecture
@@ -200,9 +224,10 @@ dokkodo-mindset → diagnose → improve-codebase-architecture
 | Simplify a design | Chain 1: Perception → Analysis → Action |
 | Make a strategic decision | Chain 2: Forecast → Decide → Record → Verify |
 | Fix a bug properly | Chain 3: Diagnose → Extract → Fix → Harden |
+| Hunt bugs in code — semantic errors, interaction bugs | Chain 6: Hunt Bugs — Perceive Semantics → Analyze Loops → Probe → Report |
 | Understand and explain code | Chain 4: Explore → Summarize → Compress |
 | Write a strategy document | Chain 5: Plan → Critique → Revise → Evaluate |
-| Respond to an error | Chain 7: Resilience — Accept → Stabilize → Diagnose |
+| Respond to an error | Chain 8: Resilience — Accept → Stabilize → Diagnose |
 | Manage the skill corpus | Chain 6: Skill Lifecycle |
 | Improve agent capability | `kata-starter` → `kata-improvement` → `kata-coaching` |
 | Create a logo | `logo-builder` |

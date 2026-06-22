@@ -44,7 +44,7 @@ JSON report with findings, classifications, confidence scores, and pattern signa
 
 ## Composition
 
-Reasoning patterns from TDD (contract verification), diagnose (systematic investigation), grill-me (verdict challenging), adversarial-red-team (attack probes), and kata (PDCA learning) are embedded as prompt instructions in the expedition template.
+Reasoning patterns from pragmatic-semantics (IS/OUGHT classification + epistemic mode + provenance), pragmatic-cybernetics (feedback loop analysis + Good Regulator checks + variety engineering), TDD (contract verification), diagnose (systematic investigation), grill-me (verdict challenging), adversarial-red-team (attack probes), and kata (PDCA learning) are embedded as prompt instructions in the expedition template.
 
 ## Registry
 

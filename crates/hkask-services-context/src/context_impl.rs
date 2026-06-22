@@ -174,6 +174,10 @@ pub struct AgentService {
     /// Wrapped in Mutex because login/reconnect take &mut self.
     matrix_transport: Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>>,
 
+    /// Signals CuratorPod activation. Consumed by callers that need to
+    /// await curator readiness before accepting requests.
+    curator_ready: Option<tokio::sync::oneshot::Receiver<()>>,
+
     /// R7.3 public seam watcher — loaded at startup, checked periodically.
     /// Wrapped in RwLock for shared mutable access between the periodic
     /// background task (which calls `check_drift(&mut self)`) and the
@@ -501,6 +505,18 @@ impl AgentService {
         self.matrix_transport.as_ref()
     }
 
+    /// Await CuratorPod activation. Consumes the oneshot — call once.
+    /// Returns `Ok(())` when the CuratorPod is ready, or `Err` if
+    /// curator initialization failed or timed out.
+    pub async fn curator_ready(&mut self) -> Result<(), String> {
+        let rx = self
+            .curator_ready
+            .take()
+            .ok_or_else(|| "curator_ready already consumed".to_string())?;
+        rx.await
+            .map_err(|_| "CuratorPod failed to activate — check startup logs".to_string())
+    }
+
     /// Build per-agent memory infrastructure from an agent-scoped Database.
     ///
     /// Constructs storage ports (`EpisodicStoragePort`, `SemanticStoragePort`)
@@ -632,6 +648,7 @@ impl AgentService {
             user_store: foundation.user_store,
             daemon_handler: mcp_pods.daemon_handler,
             matrix_transport,
+            curator_ready: Some(mcp_pods.curator_ready),
             seam_watcher: foundation.seam_watcher,
             config,
             wallet_service: reg_wallet.wallet_service,
@@ -977,6 +994,8 @@ struct McpPods {
     /// Keeps the CuratorSync cancellation channel alive.
     #[allow(dead_code)]
     _curator_cancel: tokio::sync::watch::Sender<bool>,
+    /// Signals when the CuratorPod has been activated (or failed).
+    curator_ready: tokio::sync::oneshot::Receiver<()>,
 }
 
 async fn build_mcp_and_pods(
@@ -1054,7 +1073,9 @@ async fn build_mcp_and_pods(
 
     // Start CuratorPod + CuratorSync (semantic aggregation loop).
     // Runs as a background task for the lifetime of the service.
+    // A oneshot signals readiness so callers can await curator activation.
     let (curator_cancel_tx, curator_cancel_rx) = tokio::sync::watch::channel(false);
+    let (curator_ready_tx, curator_ready_rx) = tokio::sync::oneshot::channel();
     let curator_pm = Arc::clone(&pod_manager);
     let curator_data_dir = std::path::Path::new(&config.db_path)
         .parent()
@@ -1066,11 +1087,17 @@ async fn build_mcp_and_pods(
             .await
         {
             Ok(Some(_)) => {
-                tracing::info!(target: "hkask.startup", "CuratorPod activated and CuratorSync running")
+                tracing::info!(target: "hkask.startup", "CuratorPod activated and CuratorSync running");
+                let _ = curator_ready_tx.send(());
             }
-            Ok(None) => tracing::info!(target: "hkask.startup", "CuratorPod already active"),
+            Ok(None) => {
+                tracing::info!(target: "hkask.startup", "CuratorPod already active");
+                let _ = curator_ready_tx.send(());
+            }
             Err(e) => {
-                tracing::error!(target: "hkask.startup", error = %e, "Failed to start CuratorPod")
+                tracing::error!(target: "hkask.startup", error = %e, "Failed to start CuratorPod");
+                // Don't send on oneshot — callers awaiting curator_ready
+                // will observe the sender dropped (recv_err).
             }
         }
     });
@@ -1112,6 +1139,7 @@ async fn build_mcp_and_pods(
         daemon_handler,
         energy_estimator,
         _curator_cancel: curator_cancel_tx,
+        curator_ready: curator_ready_rx,
     })
 }
 

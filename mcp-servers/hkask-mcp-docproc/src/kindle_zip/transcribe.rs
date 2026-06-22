@@ -18,7 +18,7 @@ use crate::ocr::pipeline::run_pipeline;
 ///   uses its own hardcoded prompt. For template-driven prompts, the executor
 ///   must be extended to accept a custom `system_prompt` parameter.
 #[allow(clippy::too_many_arguments)]
-pub(crate) async fn transcribe_pages(
+pub async fn transcribe_pages(
     _pages_dir: &Path,
     metadata_path: &Path,
     output_dir: &Path,

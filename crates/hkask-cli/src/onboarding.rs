@@ -348,30 +348,49 @@ async fn select_model() -> Result<String, OnboardingError> {
     let default_model = hkask_inference::InferenceConfig::from_env().default_model;
 
     println!("  \x1b[1mAvailable models\x1b[0m (via DeepInfra):");
-    for (i, name) in ONBOARDING_MODELS.iter().enumerate() {
+    let mut idx = 1usize;
+    for name in ONBOARDING_MODELS {
         let marker = if *name == default_model {
             " (default)"
         } else {
             ""
         };
-        println!("    {}. \x1b[36m{}\x1b[0m{}", i + 1, name, marker);
+        println!("    {}. \x1b[36m{}\x1b[0m{}", idx, name, marker);
+        idx += 1;
     }
-    println!(
-        "    {}. Enter a model name manually",
-        ONBOARDING_MODELS.len() + 1
-    );
+
+    // Offer fusion if OpenRouter is configured
+    let config = hkask_inference::InferenceConfig::from_env();
+    let has_fusion = !config.openrouter_api_key.is_empty() && config.fusion_model.is_some();
+    if has_fusion {
+        let fusion_name = config
+            .fusion_model
+            .as_deref()
+            .unwrap_or("OR/openrouter/fusion/kask");
+        println!(
+            "    {}. \x1b[1;33m⚡ Fusion: \x1b[36m{}\x1b[0m\x1b[0m",
+            idx, fusion_name
+        );
+        idx += 1;
+    }
+    let manual_idx = idx;
+    println!("    {}. Enter a model name manually", manual_idx);
 
     let choice = prompt_choice(
         &format!(
             "  Select a model (1-{}, default: \x1b[36m{}\x1b[0m):",
-            ONBOARDING_MODELS.len() + 1,
-            default_model
+            manual_idx, default_model
         ),
-        1..=(ONBOARDING_MODELS.len() + 1),
+        1..=(manual_idx),
     );
 
+    let fusion_idx = ONBOARDING_MODELS.len() + 1; // right after the const list
+    let model_count = ONBOARDING_MODELS.len();
     match choice {
-        Ok(n) if n <= ONBOARDING_MODELS.len() => Ok(ONBOARDING_MODELS[n - 1].to_string()),
+        Ok(n) if n <= model_count => Ok(ONBOARDING_MODELS[n - 1].to_string()),
+        Ok(n) if has_fusion && n == fusion_idx => Ok(config
+            .fusion_model
+            .unwrap_or_else(|| "OR/openrouter/fusion/kask".to_string())),
         Ok(_) => {
             let input = prompt_line("  Model name:")?;
             if input.trim().is_empty() {
@@ -602,7 +621,10 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             })?;
 
             // Also set default provider to match
-            let _ = keychain.store_by_key("HKASK_DEFAULT_PROVIDER", &provider_str);
+            let _ = keychain.store_by_key(
+                hkask_types::keychain_keys::KEY_DEFAULT_PROVIDER,
+                &provider_str,
+            );
 
             println!("  \x1b[32m✓\x1b[0m Key stored in OS keychain.");
             println!("  Default provider set to {}.", provider_str);
@@ -628,7 +650,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
 async fn retry_pending_matrix(handle: &hkask_services::RegistryHandle) {
     let keychain = hkask_keystore::Keychain::default();
     if keychain
-        .retrieve_by_key("matrix-pending-recovery")
+        .retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_PENDING_RECOVERY)
         .unwrap_or_default()
         != "true"
     {
@@ -636,15 +658,15 @@ async fn retry_pending_matrix(handle: &hkask_services::RegistryHandle) {
     }
     // Already registered? Clear the marker.
     if keychain
-        .retrieve_by_key("matrix-replicant-username")
+        .retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_REPLICANT_USERNAME)
         .is_ok()
     {
-        let _ = keychain.delete_by_key("matrix-pending-recovery");
+        let _ = keychain.delete_by_key(hkask_types::keychain_keys::KEY_MATRIX_PENDING_RECOVERY);
         return;
     }
     // Load what we need and delegate to the service (which handles recovery).
     let homeserver_url = keychain
-        .retrieve_by_key("matrix-pending-homeserver")
+        .retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_PENDING_HOMESERVER)
         .unwrap_or_else(|_| "http://localhost:8008".to_string());
     let user_profile = match hkask_services::OnboardingService::get_user_profile(&handle.store) {
         Ok(Some(p)) => p,
@@ -655,10 +677,11 @@ async fn retry_pending_matrix(handle: &hkask_services::RegistryHandle) {
         _ => return,
     };
     let replicant_name = replicants[0].definition.name.clone();
-    let passphrase = match keychain.retrieve_by_key("hkask-master-passphrase") {
-        Ok(p) => p,
-        _ => return,
-    };
+    let passphrase =
+        match keychain.retrieve_by_key(hkask_types::keychain_keys::KEY_MASTER_PASSPHRASE) {
+            Ok(p) => p,
+            _ => return,
+        };
     let _ = hkask_services::OnboardingService::register_matrix_accounts(
         &user_profile,
         &replicant_name,

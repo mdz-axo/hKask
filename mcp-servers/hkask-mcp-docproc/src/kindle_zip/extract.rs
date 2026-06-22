@@ -86,6 +86,26 @@ async fn extract_via_browser(
         .map_err(|e| format!("Wait nav: {}", e))?;
 
     let url = tab.get_url();
+
+    // Amazon may redirect headless clients: landing → sign-in → 2FA → book
+    // Phase 1: Handle landing page (bot detection redirect)
+    if url.contains("/landing") {
+        tracing::info!(target: "cns.pipeline.kindle-zip.extract", "On landing page — clicking sign-in");
+        for selector in &["a[href*='signin']", "a[href*='ap/signin']", "a"] {
+            if let Ok(el) = tab.find_element(selector) {
+                if let Ok(Some(href)) = el.get_attribute_value("href") {
+                    if href.contains("signin") || href.contains("ap/sign") {
+                        el.click().map_err(|e| format!("Click sign-in: {}", e))?;
+                        std::thread::sleep(std::time::Duration::from_secs(3));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Phase 2: Handle sign-in
+    let url = tab.get_url();
     if url.contains("/ap/signin") {
         kindle_login(&tab, amazon_email, amazon_password)?;
         tab.navigate_to(&book_url)

@@ -106,7 +106,7 @@ pub struct ExtractResult {
 
 /// Result of the transcription step — OCR output + quality metrics.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct TranscribeResult {
+pub struct TranscribeResult {
     pub content_path: PathBuf,
     pub total_words: usize,
     pub transcribed_pages: usize,

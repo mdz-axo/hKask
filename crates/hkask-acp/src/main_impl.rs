@@ -123,6 +123,47 @@ impl HkaskAcpAgent {
 
         let inference: Arc<dyn InferencePort> =
             Arc::new(InferenceRouter::new(InferenceConfig::from_env()));
+
+        // P9: Fusion cost-safety gate (non-interactive — ACP has no stdin/stdout).
+        // If HKASK_FUSION_MODEL is set to a non-existent group, OpenRouter falls
+        // back to its default (ALL models), which is extremely expensive for IDE
+        // integrations that make frequent inference calls. Fail-closed: clear the
+        // env var and log a prominent warning.
+        {
+            let config = InferenceConfig::from_env();
+            if let Some(ref fusion) = config.fusion_model {
+                let router = InferenceRouter::new(config.clone());
+                match tokio::runtime::Handle::current().block_on(router.verify_fusion_model()) {
+                    Ok(true) => {
+                        tracing::info!(
+                            target: "cns.inference",
+                            fusion_model = %fusion,
+                            "ACP: fusion group verified"
+                        );
+                    }
+                    Ok(false) => {
+                        tracing::warn!(
+                            target: "cns.inference",
+                            fusion_model = %fusion,
+                            "ACP: fusion group NOT FOUND — disabling fusion. Create it at https://openrouter.ai/fusion"
+                        );
+                        // SAFETY: called in build() before any sessions are active.
+                        unsafe { std::env::remove_var("HKASK_FUSION_MODEL") };
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "cns.inference",
+                            fusion_model = %fusion,
+                            error = %e,
+                            "ACP: could not verify fusion group — disabling fusion to prevent cost risk"
+                        );
+                        // SAFETY: called in build() before any sessions are active.
+                        unsafe { std::env::remove_var("HKASK_FUSION_MODEL") };
+                    }
+                }
+            }
+        }
+
         let default_model = std::env::var("HKASK_MODEL")
             .unwrap_or_else(|_| model_constants::DEFAULT_FALLBACK_MODEL.to_string());
 

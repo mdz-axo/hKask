@@ -103,10 +103,18 @@ pub(super) fn init_repl_state(
             }
 
             // Onboarding provides A2A + DB secrets. MCP secret is resolved
-            // separately since ResolvedSecrets doesn't carry it.
+            // separately. Falls back to A2A secret if MCP-specific key is
+            // unavailable (matching resolve_mcp_secret's own fallback chain),
+            // rather than using a hardcoded default.
             let mcp_secret = hkask_keystore::keychain::resolve_mcp_secret()
                 .map(|s| String::from_utf8_lossy(&s).to_string())
-                .unwrap_or_else(|_| "hkask-mcp-default".to_string());
+                .or_else(|_| {
+                    tracing::warn!("MCP secret not in keychain, falling back to A2A secret");
+                    hkask_keystore::keychain::resolve_a2a_secret()
+                        .map(|s| String::from_utf8_lossy(&s).to_string())
+                })
+                .map_err(|e| format!("Failed to resolve MCP secret: {e}"))
+                .ok()?;
             hkask_services::ServiceConfig::from_secrets(
                 secrets.a2a_secret.clone(),
                 secrets.db_passphrase.clone(),
@@ -151,13 +159,19 @@ pub(super) fn init_repl_state(
     // Build shared infrastructure via AgentService::build().
     // This creates: CNS, loop system (cybernetics, episodic, semantic, curation loops),
     // governed tool membrane, MCP runtime + dispatcher, pod manager, registry, etc.
-    let ctx = match rt.block_on(hkask_services::AgentService::build(service_config.clone())) {
+    let mut ctx = match rt.block_on(hkask_services::AgentService::build(service_config.clone())) {
         Ok(ctx) => ctx,
         Err(e) => {
             eprintln!("Failed to build service context: {}", e);
             return None;
         }
     };
+
+    // Wait for CuratorPod activation before accepting input.
+    match rt.block_on(ctx.curator_ready()) {
+        Ok(()) => tracing::info!(target: "hkask.repl", "CuratorPod ready"),
+        Err(e) => tracing::warn!(target: "hkask.repl", error = %e, "CuratorPod not ready"),
+    }
 
     // Register the CLI's inference loop on the shared loop system.
     rt.block_on(ctx.loop_system().register_loop(inference_loop.clone()));

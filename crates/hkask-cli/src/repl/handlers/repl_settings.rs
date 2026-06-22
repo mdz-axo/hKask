@@ -344,7 +344,7 @@ fn default_cls_model() -> String {
     hkask_inference::model_constants::CLASSIFIER_MODEL.to_string()
 }
 fn default_ocr() -> String {
-    "maternion/LightOnOCR-2:1b".to_string()
+    hkask_inference::model_constants::OCR_MODEL.to_string()
 }
 fn default_ocr_simple_max() -> f32 {
     0.05

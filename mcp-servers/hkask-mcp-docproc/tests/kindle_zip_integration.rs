@@ -252,3 +252,162 @@ fn export_txt_format() {
     let written = std::fs::read_to_string(dir.path().join("TXT001/book.txt")).unwrap();
     assert_eq!(written, text);
 }
+
+// ── Production extraction test (requires Amazon credentials + browser) ─
+
+#[tokio::test]
+#[ignore = "requires AMAZON_EMAIL/AMAZON_PASSWORD in .env and Chrome installed"]
+async fn extract_real_book_production() {
+    let env_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.env");
+    if env_path.exists() {
+        for line in std::fs::read_to_string(&env_path)
+            .unwrap_or_default()
+            .lines()
+        {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if let Some((k, v)) = line.split_once('=') {
+                unsafe {
+                    std::env::set_var(k.trim(), v.trim().trim_matches('"'));
+                }
+            }
+        }
+    }
+
+    let email = std::env::var("AMAZON_EMAIL").expect("AMAZON_EMAIL not set");
+    let password = std::env::var("AMAZON_PASSWORD").expect("AMAZON_PASSWORD not set");
+    let asin = "B0GHZLT1S3";
+
+    let tmp = tempfile::tempdir().unwrap();
+    let output = tmp.path();
+
+    let result =
+        hkask_mcp_docproc::kindle_zip::extract_kindle_book(asin, &email, &password, output, None)
+            .await;
+
+    match result {
+        Ok(r) => {
+            println!("Extracted: {} pages, title={}", r.total_pages, r.title);
+            assert!(r.total_pages > 0);
+            assert!(!r.title.is_empty());
+            assert!(r.metadata_path.exists());
+            assert!(r.pages_dir.exists());
+
+            let png_count = std::fs::read_dir(&r.pages_dir)
+                .unwrap()
+                .filter(|e| {
+                    e.as_ref()
+                        .ok()
+                        .and_then(|e| e.path().extension().map(|ext| ext == "png"))
+                        .unwrap_or(false)
+                })
+                .count();
+            assert!(
+                png_count > 0,
+                "Should have at least 1 page PNG, got {}",
+                png_count
+            );
+            println!("  PNG files: {}", png_count);
+
+            let meta_json = std::fs::read_to_string(&r.metadata_path).unwrap();
+            let _meta: hkask_mcp_docproc::kindle_zip::types::BookMetadata =
+                serde_json::from_str(&meta_json).expect("valid metadata.json");
+        }
+        Err(e) => {
+            if e.contains("Chrome") || e.contains("landing") {
+                println!("Skipping — browser/env: {}", e);
+                return;
+            }
+            panic!("Unexpected error: {}", e);
+        }
+    }
+}
+
+// ── Full pipeline: extract → transcribe → export ──────────────────────
+
+#[tokio::test]
+#[ignore = "requires Amazon creds + inference API key + Chrome"]
+async fn full_pipeline_extract_transcribe_export() {
+    let env_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.env");
+    if env_path.exists() {
+        for line in std::fs::read_to_string(&env_path).unwrap_or_default().lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') { continue; }
+            if let Some((k, v)) = line.split_once('=') {
+                unsafe { std::env::set_var(k.trim(), v.trim().trim_matches('"')); }
+            }
+        }
+    }
+
+    let email = std::env::var("AMAZON_EMAIL").expect("AMAZON_EMAIL not set");
+    let password = std::env::var("AMAZON_PASSWORD").expect("AMAZON_PASSWORD not set");
+    let asin = "B0GHZLT1S3";
+    let tmp = tempfile::tempdir().unwrap();
+    let output = tmp.path();
+
+    // Step 1: Extract pages
+    println!("=== Step 1: Extract ===");
+    let extract = hkask_mcp_docproc::kindle_zip::extract_kindle_book(
+        asin, &email, &password, output, None,
+    ).await.expect("Extract");
+    println!("  Pages: {}, Title: {}", extract.total_pages, extract.title);
+
+    // Step 2: OCR transcription
+    println!("=== Step 2: Transcribe ===");
+    let config = hkask_inference::InferenceConfig::from_env();
+    let ocr_model = std::env::var("HKASK_OCR_MODEL").ok();
+    let thresholds = hkask_mcp_docproc::ocr::ThresholdConfig::default();
+    let embed_model = std::env::var("HKASK_EMBEDDING_MODEL")
+        .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string());
+
+    let server = hkask_mcp_docproc::DocProcServer::new(
+        hkask_types::WebID::new(), "kindle-e2e".into(),
+        None, ocr_model.clone(), config, thresholds.clone(), None,
+    ).expect("DocProcServer");
+
+    let embed_ref: Option<(&hkask_inference::EmbeddingRouter, &str)> = server
+        .embedding_router.as_ref().map(|er| (er, embed_model.as_str()));
+
+    let transcribe = hkask_mcp_docproc::kindle_zip::transcribe_pages(
+        &extract.pages_dir, &extract.metadata_path, output, asin,
+        &server, &thresholds, ocr_model.as_deref(), embed_ref,
+    ).await.expect("Transcribe");
+    println!("  Words: {}, transcribed: {} pages, confidence: {:.3}",
+        transcribe.total_words, transcribe.transcribed_pages, transcribe.mean_confidence);
+
+    // Step 3: Assemble content
+    let content_path = output.join(asin).join("content.json");
+    let content_json = std::fs::read_to_string(&content_path).expect("content.json");
+    let chunks: Vec<hkask_mcp_docproc::kindle_zip::types::ContentChunk> =
+        serde_json::from_str(&content_json).expect("Parse content");
+    let assembled = hkask_mcp_docproc::kindle_zip::assemble_chunks(&chunks, &extract.toc);
+    println!("  Assembled: {} chars", assembled.len());
+
+    // Step 4: Export formats
+    println!("=== Step 4: Export ===");
+    let formats = vec!["pdf".to_string(), "epub".to_string(), "markdown".to_string()];
+    let export = hkask_mcp_docproc::kindle_zip::export_formats(
+        &assembled, &extract.metadata_path, &formats, output,
+        asin, &extract.title, &extract.author, &extract.toc,
+    ).expect("Export");
+    for e in &export.exports {
+        println!("  {}: {} bytes", e.format, e.size_bytes);
+        assert!(e.path.exists());
+        assert!(e.size_bytes > 0);
+    }
+
+    // Copy to Knowledge folder
+    let dest = std::path::Path::new("/home/mdz-axolotl/Clones/Library/Knowledge").join(asin);
+    std::fs::create_dir_all(&dest).ok();
+    let src = output.join(asin);
+    if src.exists() {
+        for entry in std::fs::read_dir(&src).ok().into_iter().flatten() {
+            if let Ok(e) = entry {
+                std::fs::copy(e.path(), dest.join(e.file_name())).ok();
+            }
+        }
+    }
+    println!("=== Pipeline complete ===");
+}

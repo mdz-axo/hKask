@@ -60,3 +60,18 @@ pub const KEY_OAUTH_GITHUB_CLIENT_ID: &str = "hkask-oauth-github-client-id";
 
 /// Keychain key for the OAuth GitHub client secret.
 pub const KEY_OAUTH_GITHUB_CLIENT_SECRET: &str = "hkask-oauth-github-client-secret";
+
+/// Keychain key for the MCP security key.
+pub const KEY_MCP_SECRET: &str = "mcp-secret";
+
+/// Keychain key for the capability probe (internal diagnostics).
+pub const KEY_CAPABILITY_PROBE: &str = "__hkask_capability_probe__";
+
+/// Keychain key prefix for Matrix admin token.
+pub const KEY_MATRIX_ADMIN_TOKEN: &str = "HKASK_MATRIX_ADMIN_TOKEN";
+
+/// Keychain key prefix for Matrix agent username (format with agent_name).
+pub const KEY_MATRIX_AGENT_USERNAME_PREFIX: &str = "HKASK_MATRIX_AGENT_USERNAME_";
+
+/// Keychain key prefix for Matrix agent password (format with agent_name).
+pub const KEY_MATRIX_AGENT_PASSWORD_PREFIX: &str = "HKASK_MATRIX_AGENT_PASSWORD_";

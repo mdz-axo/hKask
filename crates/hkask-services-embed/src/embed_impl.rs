@@ -1581,7 +1581,7 @@ pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceErr
         seed: None,
         disable_thinking: false,
         adapter: None,
-        bypass_fusion: false,
+        bypass_fusion: true,
     };
 
     match router
@@ -1661,6 +1661,7 @@ async fn ocr_via_decimation(bytes: &[u8], model: &str) -> Result<String, String>
     let params = LLMParameters {
         temperature: 0.1,
         max_tokens: 4096,
+        bypass_fusion: true,
         ..Default::default()
     };
 

@@ -18,6 +18,10 @@ pub const CLASSIFIER_MODEL: &str = "DI/google/gemma-4-9b-it";
 /// Current: Qwen3 Embedding 0.6B — compact, high-quality embeddings.
 pub const EMBEDDING_MODEL: &str = "DI/Qwen/Qwen3-Embedding-0.6B";
 
+/// Default OCR model for scanned PDF fallback.
+/// Current: LightOnOCR-2 1B — fast, specialized document OCR model.
+pub const OCR_MODEL: &str = "maternion/LightOnOCR-2:1b";
+
 /// Fallback model when `HKASK_MODEL` env var is unset (ACP agent).
 /// Mirrors `InferenceConfig::default_model` to keep the codebase consistent.
 pub const DEFAULT_FALLBACK_MODEL: &str = "deepseek-v4-pro";

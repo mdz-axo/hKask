@@ -463,7 +463,7 @@ mod tests {
         let resp: ChatResponse =
             serde_json::from_str(raw).expect("ChatResponse must deserialize OpenAI format");
 
-        assert_eq!(resp.model, "qwen3:4b");
+        assert_eq!(resp.model, crate::model_constants::TEST_MODEL_SMALL);
         assert_eq!(resp.choices.len(), 1);
         assert_eq!(resp.choices[0].message.content, "The sun beat down.");
         assert_eq!(resp.choices[0].finish_reason, "stop");

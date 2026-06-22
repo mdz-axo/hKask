@@ -8,10 +8,13 @@ crate:
     Bug hunting: explores a target crate for threats to user-defined quality.
     Applies Weinberg's quality definition ("value to some person who matters"),
     Beizer's bug taxonomy, Bach/Bolton's heuristic test strategy model, and
-    Hendrickson's exploratory testing charters. Reasoning patterns from TDD,
-    diagnose, grill-me, and adversarial-red-team enrich the hunt through
-    prompt instructions. Produces structured bug reports with CNS span
-    attribution (P12). OCAP-gated: requires Tool:test:Execute and Tool:cns:Read.
+    Hendrickson's exploratory testing charters. Reasoning patterns from
+    pragmatic-semantics (IS/OUGHT + epistemic classification + provenance),
+    pragmatic-cybernetics (feedback loop analysis + Good Regulator checks +
+    variety engineering), TDD, diagnose, grill-me, and adversarial-red-team
+    enrich the hunt through prompt instructions. Produces structured bug
+    reports with CNS span attribution (P12). OCAP-gated: requires
+    Tool:test:Execute and Tool:cns:Read.
 
 templates:
   - id: bug-hunt/bug-hunt-expedition

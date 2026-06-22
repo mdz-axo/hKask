@@ -612,7 +612,14 @@ async fn register_pod_matrix(homeserver_url: &str, pod_name: &str) -> Result<(),
     }
 
     let keychain = hkask_keystore::Keychain::default();
-    let _ = keychain.store_by_key(&format!("matrix-pod-{}", pod_name), &password);
+    let _ = keychain.store_by_key(
+        &format!(
+            "{}{}",
+            hkask_types::keychain_keys::KEY_MATRIX_POD_PREFIX,
+            pod_name
+        ),
+        &password,
+    );
 
     tracing::info!(
         target: "cns.communication.matrix.pod_registered",

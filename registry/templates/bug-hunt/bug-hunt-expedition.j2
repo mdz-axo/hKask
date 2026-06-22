@@ -54,6 +54,12 @@ Use available tools to probe the target:
 Apply diagnose-skill pattern: reproduce before diagnosing, isolate one variable at a time.
 Apply adversarial pattern: try unexpected input orders, state transitions, boundary values.
 
+Apply pragmatic-cybernetics during probing:
+- For each public function or data path, trace its feedback loop: what signals does it send, what does it receive, is the loop closed?
+- Analyze on 5 properties: polarity (stabilizing or amplifying?), delay (how long between action and feedback?), gain (how strongly does feedback affect behavior?), closure (is the signal consumed or dropped?), fidelity (does the signal accurately represent reality?).
+- Good Regulator check (Conant-Ashby): does the module's internal model match its actual behavior? Where do the two diverge? Flag every divergence.
+- Variety check (Ashby's Law): enumerate failure modes the target can encounter. Does the error handling have requisite variety — can it detect and respond to every failure mode, or are there blind spots?
+
 Do NOT just list patterns. Actually use tools. Read real files. Run real commands.
 
 ## Phase 3 — ORACLE (Weinberg definition)
@@ -62,6 +68,12 @@ For each finding, evaluate: bug = threat to user-defined quality.
 - Tier 1: Contract violated → BUG (0.90–1.00). Cite the contract.
 - Tier 2: Pattern matched, no contract → POTENTIAL BUG (0.60–0.89). Cite the pattern.
 - Tier 3: Suspicious but unverified → OBSERVATION (<0.60). Flag as contract gap.
+
+Apply pragmatic-semantics to every finding:
+- IS vs OUGHT: Are you describing what the code DOES (descriptive IS) or what you think it SHOULD do (prescriptive OUGHT)? Never present OUGHT as IS. If the code checks a threshold, say "the code checks" — not "the code should check."
+- Epistemic mode: Is this finding declarative (verified by observation — test output, code path traced), probabilistic (pattern match against known bug class), or subjunctive (speculation about possible behavior you haven't verified)? Label each finding.
+- Provenance: Where did this fact come from? Direct measurement (you read the code and traced the path), inference (pattern match like "dead parameter"), or assessment (your opinion)? Flag LLM-assessed conclusions.
+- If you cannot verify a finding, downgrade it. A subjunctive statement presented as declarative is a false positive.
 
 Apply grill-me pattern: challenge your own verdicts. Could this be intentional? Edge case?
 

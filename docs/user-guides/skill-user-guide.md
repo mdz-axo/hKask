@@ -268,6 +268,7 @@ Don't know which skill you need? Find your problem:
 | Compress prose to bare essentials | `caveman` |
 | Get the bigger picture on unfamiliar code | `zoom-out` |
 | Debug a failure systematically | `diagnose` |
+| Hunt bugs in a crate — semantic errors, interaction bugs, contract gaps | `pragmatic-semantics` → `pragmatic-cybernetics` → `bug-hunt` |
 | Find the root cause of an incident | `diagnose` → then `improve-codebase-architecture` |
 | Refactor a messy codebase | `improve-codebase-architecture` → `refactor-service-layer` |
 | Migrate from old code to new incrementally | `strangler-fig` |
