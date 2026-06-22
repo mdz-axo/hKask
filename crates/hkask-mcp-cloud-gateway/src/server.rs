@@ -6,7 +6,7 @@
 
 use crate::auth::{self, AuthError};
 use hkask_capability::DelegationToken;
-use hkask_mcp::daemon::DaemonHandler;
+use hkask_mcp::daemon::DaemonResponse;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::server::WebPkiClientVerifier;
 use rustls::{RootCertStore, ServerConfig};
@@ -98,11 +98,12 @@ pub fn build_tls_config(config: &GatewayConfig) -> Result<ServerConfig, GatewayE
 
 pub async fn run(
     config: GatewayConfig,
-    handler: Arc<dyn DaemonHandler>,
+    daemon: hkask_mcp::DaemonClient,
 ) -> Result<(), GatewayError> {
     let tls_config = build_tls_config(&config)?;
     let acceptor = TlsAcceptor::from(Arc::new(tls_config));
     let listener = TcpListener::bind(&config.bind_addr).await?;
+    let daemon = Arc::new(daemon);
 
     tracing::info!(
         target: "hkask.gateway",
@@ -113,10 +114,10 @@ pub async fn run(
     loop {
         let (stream, peer_addr) = listener.accept().await?;
         let acceptor = acceptor.clone();
-        let handler = Arc::clone(&handler);
+        let daemon = Arc::clone(&daemon);
 
         tokio::spawn(async move {
-            if let Err(e) = handle_connection(acceptor, stream, peer_addr, handler).await {
+            if let Err(e) = handle_connection(acceptor, stream, peer_addr, daemon).await {
                 tracing::warn!(
                     target: "hkask.gateway",
                     peer = %peer_addr,
@@ -132,7 +133,7 @@ async fn handle_connection(
     acceptor: TlsAcceptor,
     stream: tokio::net::TcpStream,
     peer_addr: std::net::SocketAddr,
-    handler: Arc<dyn DaemonHandler>,
+    daemon: Arc<hkask_mcp::DaemonClient>,
 ) -> Result<(), GatewayError> {
     let tls_stream = acceptor.accept(stream).await?;
     let (_tcp, server_conn) = tls_stream.get_ref();
@@ -205,10 +206,8 @@ async fn handle_connection(
 
         request_count += 1;
 
-        // Forward to daemon handler
-        let (ok, output, error) = handler
-            .dispatch_tool(&cert_cn, &request.tool, &request.params)
-            .await;
+        // Forward to daemon via Unix socket
+        let (ok, output, error) = dispatch_to_daemon(&daemon, &request.tool, &request.params).await;
 
         let response = CloudResponse { ok, output, error };
         write_response(&mut writer, &response).await?;
@@ -223,6 +222,20 @@ async fn write_response(
     json.push('\n');
     writer.write_all(json.as_bytes()).await?;
     Ok(())
+}
+
+// ── Daemon forwarding ────────────────────────────────────────────────────
+
+async fn dispatch_to_daemon(
+    daemon: &hkask_mcp::DaemonClient,
+    tool: &str,
+    params: &Value,
+) -> (bool, Option<Value>, Option<String>) {
+    match daemon.tool_dispatch("gateway", tool, params).await {
+        Ok(DaemonResponse::ToolDispatchResponse { ok, output, error }) => (ok, output, error),
+        Ok(_) => (false, None, Some("Unexpected daemon response".into())),
+        Err(e) => (false, None, Some(format!("Daemon error: {e}"))),
+    }
 }
 
 // ── Certificate helpers ────────────────────────────────────────────────

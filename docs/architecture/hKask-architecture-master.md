@@ -140,7 +140,7 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, Ener
 - **7R7 is a dumb pipe by design.** Transport moves messages; agents decide what they mean. Authority resides in agent layer, not transport layer.
 - **R7.3 watches the public seam.** `SeamWatcher` loads the machine-readable public seam inventory (embedded JSON at compile time, file path override for development), registers per-crate coverage as CNS variety domains (`seam:{crate_name}`), runs periodic drift checks (default: 30 min), and emits algedonic alerts when coverage degrades. Coverage improvements emit positive `Notify` signals. The watcher is non-fatal — if no inventory is available, seam watching is silently disabled.
 
-**Crates:** `hkask-agents` (curator, curator_agent), `hkask-communication` (listener), `hkask-cns` (seam_watcher)
+**Crates:** `hkask-agents` (curator, curator_agent), `hkask-communication` (listener), `hkask-cns` (seam_watcher), `hkask-mcp-cloud-gateway` (cloud transport adapter), `hkask-cli` (token issuance)
 
 **If removed:** System becomes a headless automaton — runs, monitors itself, but nobody reads the monitors. CNS fires alerts into a void. P12 partially violated.
 
@@ -331,6 +331,7 @@ graph TD
 CLOUD SERVER (single binary, all crates compiled)
   Caddy (Docker) - TLS + reverse proxy
   Conduit (Docker) - Matrix homeserver
+  hkask-mcp-cloud-gateway - mTLS + DelegationToken transport for remote MCP/ACP clients
   hkask-api - OAuth, WebSocket /terminal, backup endpoints
   hkask-services-daemon - daemon orchestration
   hkask-mcp - MCP server runtime
@@ -343,6 +344,7 @@ Access (all via HTTPS/Caddy):
   Browser (xterm.js) - primary
   SSH (optional) - power users
   Matrix (Element) - chat clients
+  mTLS (port 9443) - remote IDE agents and MCP servers
 ```
 
 ### Key Properties

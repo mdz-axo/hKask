@@ -6,12 +6,33 @@
 use serde::{Deserialize, Serialize};
 
 /// Convergence configuration for PDCA loop exit conditions.
+///
+/// Supports two exit rails: absolute quality threshold AND/OR improvement from baseline.
+/// The improvement kata measures progress from the starting condition toward the target.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ConvergenceConfig {
+    /// Absolute quality threshold. If quality_at_exit <= threshold, the condition is met.
     pub threshold: f64,
+    /// Minimum proportional improvement from baseline. E.g., 0.25 means
+    /// (baseline - current) / baseline >= 0.25. Set to 0.0 to disable.
+    #[serde(default)]
+    pub improvement_ratio: f64,
+    /// How the threshold and improvement conditions combine:
+    /// - "threshold_only" (default): only check quality <= threshold. Backward compatible.
+    /// - "both": must satisfy quality <= threshold AND improvement >= improvement_ratio.
+    /// - "either": must satisfy quality <= threshold OR improvement >= improvement_ratio.
+    #[serde(default = "default_improvement_gate")]
+    pub improvement_gate: String,
+    /// Maximum PDCA iterations before forced exit.
     pub max_iterations: u32,
+    /// Minimum iterations before exit is allowed. Prevents premature convergence
+    /// before the improvement kata has had time to work. Default 0 (no minimum).
+    #[serde(default)]
+    pub min_iterations: u32,
+    /// Context field to read for quality measurement (e.g., "composite").
     pub convergence_field: String,
+    /// Action when convergence not reached after max_iterations: "abort" | "escalate".
     pub on_not_reached: String,
     /// Aggregation method for compound skills (nested PDCA loops).
     /// - "none" (default): single-field check against convergence_field.
@@ -30,7 +51,10 @@ impl Default for ConvergenceConfig {
     fn default() -> Self {
         Self {
             threshold: 0.1,
+            improvement_ratio: 0.0,
+            improvement_gate: "threshold_only".to_string(),
             max_iterations: 3,
+            min_iterations: 0,
             convergence_field: "composite".to_string(),
             on_not_reached: "abort".to_string(),
             aggregation: "none".to_string(),
@@ -41,6 +65,10 @@ impl Default for ConvergenceConfig {
 
 fn default_aggregation() -> String {
     "none".to_string()
+}
+
+fn default_improvement_gate() -> String {
+    "threshold_only".to_string()
 }
 
 /// A source for compound quality aggregation — specifies which inner skill's

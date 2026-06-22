@@ -107,7 +107,7 @@ impl EpisodicLoop {
 #[async_trait::async_trait]
 impl HkaskLoop for EpisodicLoop {
     fn id(&self) -> LoopId {
-        LoopId::Memory
+        LoopId::Episodic
     }
 
     /// Sense: read storage usage and decay rate.

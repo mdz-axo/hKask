@@ -123,6 +123,9 @@ impl ManifestExecutor {
         };
         let threshold = manifest.convergence.threshold;
         let field = manifest.convergence.convergence_field.clone();
+        let improvement_enabled = manifest.convergence.improvement_ratio > 0.0;
+        let min_iterations = manifest.convergence.min_iterations;
+        let mut baseline_quality: Option<f64> = None; // captured on first pass
         let mut iteration: u32 = 0;
         let mut recursion_depth: u8 = 0;
         let matryoshka_limit: u8 = hkask_capability::SYSTEM_MAX_RECURSION;
@@ -171,6 +174,8 @@ impl ManifestExecutor {
                             iteration,
                             threshold,
                             &field,
+                            baseline_quality,
+                            manifest.convergence.improvement_ratio,
                         );
                         break 'cascade;
                     }
@@ -191,6 +196,8 @@ impl ManifestExecutor {
                             iteration,
                             threshold,
                             &field,
+                            baseline_quality,
+                            manifest.convergence.improvement_ratio,
                         );
                         return Err(TemplateError::Manifest(format!(
                             "Cascade escalated at step {}: {}",
@@ -236,6 +243,8 @@ impl ManifestExecutor {
                                 iteration,
                                 threshold,
                                 &field,
+                                baseline_quality,
+                                manifest.convergence.improvement_ratio,
                             );
                             return Err(TemplateError::Manifest(format!(
                                 "Matryoshka depth limit ({}) exceeded at iteration {}",
@@ -267,6 +276,8 @@ impl ManifestExecutor {
                                 iteration,
                                 threshold,
                                 &field,
+                                baseline_quality,
+                                manifest.convergence.improvement_ratio,
                             );
                             break 'cascade;
                         }
@@ -276,6 +287,11 @@ impl ManifestExecutor {
                             &context,
                             &manifest.convergence.convergence_field,
                             threshold,
+                            manifest.convergence.improvement_ratio,
+                            &manifest.convergence.improvement_gate,
+                            baseline_quality,
+                            iteration,
+                            min_iterations,
                         ) {
                             self.finalize_convergence_report(
                                 &mut context,
@@ -284,6 +300,8 @@ impl ManifestExecutor {
                                 iteration,
                                 threshold,
                                 &field,
+                                baseline_quality,
+                                manifest.convergence.improvement_ratio,
                             );
                             break 'cascade;
                         }
@@ -320,6 +338,14 @@ impl ManifestExecutor {
                 step_idx += 1;
             }
 
+            // Capture baseline quality on first full pass
+            if improvement_enabled && baseline_quality.is_none() {
+                baseline_quality = context
+                    .get(&field)
+                    .and_then(|v| v.as_f64())
+                    .or_else(|| resolve_dot_path(&field, &context).and_then(|v| v.as_f64()));
+            }
+
             // Compute compound quality from nested skill reports
             if manifest.convergence.aggregation != "none"
                 && !manifest.convergence.aggregation_sources.is_empty()
@@ -341,12 +367,22 @@ impl ManifestExecutor {
                     iteration,
                     threshold,
                     &field,
+                    baseline_quality,
+                    manifest.convergence.improvement_ratio,
                 );
                 break 'cascade;
             }
 
-            if self.check_convergence(&context, &manifest.convergence.convergence_field, threshold)
-            {
+            if self.check_convergence(
+                &context,
+                &manifest.convergence.convergence_field,
+                threshold,
+                manifest.convergence.improvement_ratio,
+                &manifest.convergence.improvement_gate,
+                baseline_quality,
+                iteration,
+                min_iterations,
+            ) {
                 self.finalize_convergence_report(
                     &mut context,
                     "converged",
@@ -354,6 +390,8 @@ impl ManifestExecutor {
                     iteration,
                     threshold,
                     &field,
+                    baseline_quality,
+                    manifest.convergence.improvement_ratio,
                 );
                 break 'cascade;
             }
@@ -368,8 +406,13 @@ impl ManifestExecutor {
                     iteration,
                     threshold,
                     &field,
+                    baseline_quality,
+                    manifest.convergence.improvement_ratio,
                 );
-                break 'cascade;
+                return Err(TemplateError::Manifest(format!(
+                    "Matryoshka depth limit ({}) exceeded at iteration {}",
+                    matryoshka_limit, iteration
+                )));
             }
         }
 
@@ -381,7 +424,9 @@ impl ManifestExecutor {
     }
 
     /// Finalize the convergence report at cascade exit.
-    /// Writes a complete report with status, reason, iterations, quality at exit, threshold, and field.
+    /// Writes a complete report with status, reason, iterations, quality at exit, threshold, field,
+    /// and improvement metadata (baseline_quality, improvement_ratio, improvement_pct).
+    #[allow(clippy::too_many_arguments)]
     fn finalize_convergence_report(
         &self,
         context: &mut HashMap<String, Value>,
@@ -390,6 +435,8 @@ impl ManifestExecutor {
         iteration: u32,
         threshold: f64,
         field: &str,
+        baseline_quality: Option<f64>,
+        improvement_target: f64,
     ) {
         let quality = context
             .get(field)
@@ -405,48 +452,71 @@ impl ManifestExecutor {
                 "quality_at_exit": quality,
                 "threshold": threshold,
                 "field": field,
+                "improvement_achieved": baseline_quality.and_then(|b| quality.map(|q| if b > 0.0 { (b - q) / b } else { 0.0 })),
+                "improvement_pct": baseline_quality.and_then(|b| quality.map(|q| if b > 0.0 { ((b - q) / b) * 100.0 } else { 0.0 })),
+                "improvement_target": improvement_target,
+                "baseline_quality": baseline_quality,
             }),
         );
     }
 
     /// Check whether the convergence threshold has been met.
     /// Looks for the configured `convergence_field` in the context (defaults to "composite").
+    /// Also enforces improvement tracking: min_iterations, improvement_ratio, and improvement_gate.
+    #[allow(clippy::too_many_arguments)]
     fn check_convergence(
         &self,
         context: &HashMap<String, Value>,
         field: &str,
         threshold: f64,
+        improvement_ratio: f64,
+        improvement_gate: &str,
+        baseline_quality: Option<f64>,
+        iteration: u32,
+        min_iterations: u32,
     ) -> bool {
-        // Check the configured convergence field
-        if let Some(v) = context.get(field)
-            && let Some(score) = v.as_f64()
-            && score <= threshold
-        {
-            return true;
+        // Enforce minimum iterations before exit is allowed
+        if iteration <= min_iterations {
+            return false;
         }
-        // Also check nested dot-path like "step_2_result.composite"
-        if let Some(v) = resolve_dot_path(field, context)
-            && let Some(score) = v.as_f64()
-            && score <= threshold
-        {
-            return true;
-        }
+
+        // Compute current quality and threshold check
+        let current = context
+            .get(field)
+            .and_then(|v| v.as_f64())
+            .or_else(|| resolve_dot_path(field, context).and_then(|v| v.as_f64()));
+
         // Fallback: check legacy "composite" field for backward compatibility
-        if field != "composite"
-            && let Some(v) = context.get("composite")
-            && let Some(score) = v.as_f64()
-            && score <= threshold
-        {
-            return true;
+        let current = if current.is_none() && field != "composite" {
+            context.get("composite").and_then(|v| v.as_f64())
+        } else {
+            current
+        };
+
+        // Check convergence metadata as additional fallback
+        let current = if current.is_none() {
+            context.get("_convergence_score").and_then(|v| v.as_f64())
+        } else {
+            current
+        };
+
+        let threshold_met = current.map(|q| q <= threshold).unwrap_or(false);
+
+        // Compute improvement from baseline as proportional ratio
+        let improvement_met = if improvement_ratio > 0.0 {
+            match (baseline_quality, current) {
+                (Some(b), Some(c)) if b > 0.0 => ((b - c) / b) >= improvement_ratio,
+                _ => false,
+            }
+        } else {
+            false
+        };
+
+        match improvement_gate {
+            "both" => threshold_met && improvement_met,
+            "either" => threshold_met || improvement_met,
+            _ => threshold_met, // "threshold_only" backward compat
         }
-        // Check convergence metadata
-        if let Some(conv) = context.get("_convergence_score")
-            && let Some(score) = conv.as_f64()
-            && score <= threshold
-        {
-            return true;
-        }
-        false
     }
 
     /// Evaluate a `choice` step's condition against the context.

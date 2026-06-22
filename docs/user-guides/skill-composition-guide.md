@@ -103,7 +103,10 @@ A Skill's output IS its convergence report. When `kask run <skill>` completes, t
     "iterations_completed": 3,
     "quality_at_exit": 0.12,
     "threshold": 0.15,
-    "field": "composite"
+    "field": "composite",
+    "improvement_pct": 72.1,
+    "improvement_ratio": 0.25,
+    "baseline_quality": 0.43
   }
 }
 ```
@@ -114,10 +117,35 @@ A Skill's output IS its convergence report. When `kask run <skill>` completes, t
 | `reason` | `quality_met` \| `energy_spent` \| `obstacle_blocked` |
 | `iterations_completed` | How many PDCA cycles ran before exit |
 | `quality_at_exit` | The measured value of the convergence field at exit — the Current Condition at the final Check |
-| `threshold` | The Target Condition from the manifest |
+| `threshold` | The Target Condition from the manifest (absolute quality floor) |
 | `field` | What was measured — traceability to the manifest |
+| `improvement_pct` | Percentage improvement from baseline to exit: `(baseline - quality_at_exit) / baseline * 100` |
+| `improvement_ratio` | The proportional improvement demand from the manifest (e.g., 0.25 means 25% improvement from baseline) |
+| `baseline_quality` | The quality score measured before the first iteration |
 
 The report is the proof that the kata ran and either achieved its target or exhausted its energy allocation. A template chain that runs once and returns raw output has no convergence report — it produced output and stopped, with no evidence that quality was pursued iteratively. That's the difference between a recipe and a skill.
+
+### The Dual Gate — Threshold AND Improvement
+
+Convergence uses two independent gates both of which must be satisfied:
+
+1. **Threshold** (`threshold`) — the absolute quality floor. "The document must be at least this good." If `quality_at_exit` ≤ `threshold`, the gate passes.
+
+2. **Improvement Ratio** (`improvement_ratio`) — the proportional improvement demand. "Must have improved by at least X% from where it started." If `(baseline_quality - quality_at_exit) / baseline_quality ≥ improvement_ratio`, the gate passes.
+
+These two gates prevent complementary failure modes:
+
+- **Threshold alone** accepts stagnation: a document that starts at 0.40 with a threshold of 0.50 passes immediately with zero improvement — no iterative work was done, but the gate is satisfied.
+- **Ratio alone** accepts slightly-improved garbage: a document starting at 0.90 and improving to 0.80 (an 11% improvement) passes a 10% ratio, even though 0.80 is far below any useful quality bar.
+
+Together they demand: *the output must be at least this good AND must represent real improvement from baseline.*
+
+Proportional improvement is fair across quality ranges:
+
+- 0.80 → 0.60 is a 0.20 delta, which is **25%** improvement.
+- 0.20 → 0.15 is a 0.05 delta, which is also **25%** improvement.
+
+Both represent the same proportional demand — the ratio normalizes for starting point so that already-good documents aren't penalized by small deltas and poor documents aren't let off with trivial ones.
 
 ### The Skill-Kata Isomorphism
 
@@ -129,6 +157,7 @@ The report is the proof that the kata ran and either achieved its target or exha
 | **Current Condition** | Facts and data, not assumptions | Measurement of current state (e.g., cosine distance from exemplar) |
 | **Target Condition** | Measurable, beyond current knowledge threshold | Quality threshold (e.g., composite < 0.15, zero Prohibition findings) |
 | **PDCA Iterate** | Rapid experiments toward target | Inner loop: evaluate → narrow → improve → re-evaluate |
+| **Improvement Ratio** | Proportional progress demand | `improvement_ratio` (e.g., 0.25 means 25% improvement from baseline) |
 | **Exit** | Target reached OR obstacle blocks | `converged` (excellence) OR `maxed_out` (energy exhaustion) |
 
 Skills bring mastery. Mastery enforces excellence. To be a valid skill in the hKask definition, a template MUST:

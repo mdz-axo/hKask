@@ -36,6 +36,11 @@ tempfile.workspace = true
 proptest = "1"
 tokio = { workspace = true, features = ["macros", "rt"] }
 hkask-test-harness = { path = "../hkask-test-harness" }
+hkask-mcp-cloud-gateway = { path = "../hkask-mcp-cloud-gateway" }
+rcgen = "0.13"
+tokio-rustls = "0.26"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+rustls-pemfile = "2"
 
 [[test]]
 name = "tool_input_fuzz"

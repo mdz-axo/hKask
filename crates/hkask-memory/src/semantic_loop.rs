@@ -192,7 +192,7 @@ impl SemanticLoop {
 #[async_trait::async_trait]
 impl HkaskLoop for SemanticLoop {
     fn id(&self) -> LoopId {
-        LoopId::Memory
+        LoopId::Semantic
     }
 
     /// Sense: read semantic triple count and low-confidence count.

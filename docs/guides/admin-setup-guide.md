@@ -320,6 +320,93 @@ kubectl apply -f k8s-manifests/
 
 Custom domains (e.g., `hkask.your-domain.com`) are a v2 feature alongside crypto integration. For v1, use the cluster's IP or a single domain with path-based routing.
 
+### 5.5 Cloud Gateway and Remote IDE Access
+
+The cloud gateway (`hkask-mcp-cloud-gateway`) provides secure remote access to the hKask daemon for IDE clients and MCP servers running outside the cluster. It uses mutual TLS (mTLS) for transport identity and Ed25519-signed DelegationTokens for per-request authorization.
+
+#### Step 1: Generate Certificates
+
+```bash
+# Generate a CA key and certificate
+openssl genpkey -algorithm ED25519 -out ca.key
+openssl req -x509 -new -key ca.key -days 365 -out ca.crt \
+  -subj "/CN=hKask Cloud CA"
+
+# Generate server certificate
+openssl genpkey -algorithm ED25519 -out server.key
+openssl req -new -key server.key -out server.csr \
+  -subj "/CN=hkask-gateway"
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
+  -CAcreateserial -out server.crt -days 365
+
+# Generate client certificate for each replicant
+openssl genpkey -algorithm ED25519 -out alice.key
+openssl req -new -key alice.key -out alice.csr \
+  -subj "/CN=alice"
+openssl x509 -req -in alice.csr -CA ca.crt -CAkey ca.key \
+  -CAcreateserial -out alice.crt -days 90
+```
+
+**CN matching:** The client certificate's Common Name MUST match the replicant name used in `kask token issue`. The gateway derives the WebID from the CN via `WebID::from_persona(cn.as_bytes())` and verifies it against the token's `delegated_to` field.
+
+#### Step 2: Deploy the Gateway
+
+```bash
+# Build the gateway binary
+cargo build -p hkask-mcp-cloud-gateway --release
+
+# Deploy as a K8s service with certificate secrets
+kubectl create secret tls hkask-gateway-tls \
+  --cert=server.crt --key=server.key
+kubectl create secret generic hkask-ca \
+  --from-file=ca.crt
+
+# Apply deployment manifest
+kask pod export-k8s gateway
+kubectl apply -f k8s-manifests/
+```
+
+#### Step 3: Issue Tokens for Remote Access
+
+```bash
+# Issue a token for alice to access curator tools remotely
+kask token issue --replicant alice \
+  --capabilities curator:health \
+  --capabilities curator:cns \
+  --capabilities curator:escalations:list \
+  --capabilities curator:semantic:search \
+  --capabilities episodic:store \
+  --capabilities semantic:search \
+  --ttl 168h
+
+# Output is a JSON DelegationToken — copy this into the IDE config:
+# HKASK_DELEGATION_TOKEN='{...json...}'
+```
+
+#### Step 4: Configure IDE
+
+See [`user-guides/ACP-ZED-CONFIGURATION.md`](../user-guides/ACP-ZED-CONFIGURATION.md) for the cloud deployment section.
+
+#### Security Model
+
+```
+IDE Client ──[mTLS 1.3]──▶ Cloud Gateway
+  ├── Client cert CN = "alice"
+  └── DelegationToken per request
+                             │
+                   ┌─────────┼─────────┐
+                   │ Gate 1  │ Gate 2  │ Gate 3
+                   │ CN→WebID│ Tool    │ Ed25519
+                   │ match?  │ match?  │ verify?
+                   └─────────┼─────────┘
+                             ▼
+                      DaemonHandler
+```
+
+- **No API keys.** Identity is cryptographic (mTLS + Ed25519).
+- **No ambient authority.** Every tool call requires a scoped, expiring token.
+- **Token theft insufficient.** Stolen token requires the matching client certificate (separate theft vector).
+
 ---
 
 ## 6. Build and Deploy

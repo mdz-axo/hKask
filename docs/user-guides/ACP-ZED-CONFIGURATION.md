@@ -114,6 +114,90 @@ MCP servers provide *tools* to the IDE (web search, file operations, etc.). The 
 - Encodes every interaction as an episodic memory triple
 - Accumulates experience across sessions (same memory store as `kask chat`)
 
+## Cloud Deployment
+
+For remote deployments where the hKask daemon runs on a cloud server (not the local machine), use the cloud gateway transport instead of the local Unix socket daemon.
+
+### Prerequisites
+
+- Cloud gateway deployed and running (see [`admin-setup-guide.md`](../guides/admin-setup-guide.md) §5.5)
+- Client certificate issued for your replicant (CN must match replicant name)
+- DelegationToken issued via `kask token issue`
+
+### Configuration
+
+```json
+{
+  "agent_servers": {
+    "hKask": {
+      "type": "custom",
+      "command": "/path/to/hkask/target/release/hkask-acp",
+      "args": [],
+      "env": {
+        "HKASK_REPLICANT": "alice",
+        "HKASK_MODEL": "qwen3:8b",
+        "HKASK_CLOUD_GATEWAY": "hkask.example.com:9443",
+        "HKASK_CLIENT_CERT": "/home/alice/.hkask/alice.crt",
+        "HKASK_CLIENT_KEY": "/home/alice/.hkask/alice.key",
+        "HKASK_SERVER_CA": "/home/alice/.hkask/ca.crt",
+        "HKASK_DELEGATION_TOKEN": "{...paste token JSON from kask token issue...}"
+      }
+    }
+  }
+}
+```
+
+### Cloud Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `HKASK_CLOUD_GATEWAY` | Yes | `host:port` of the cloud gateway |
+| `HKASK_CLIENT_CERT` | Yes | Path to client TLS certificate (PEM) |
+| `HKASK_CLIENT_KEY` | Yes | Path to client private key (PEM) |
+| `HKASK_SERVER_CA` | Yes | Path to server CA certificate (PEM) |
+| `HKASK_DELEGATION_TOKEN` | Yes | JSON DelegationToken from `kask token issue` |
+
+### How Discovery Works
+
+The ACP agent checks `HKASK_CLOUD_GATEWAY` at startup. If set, it connects to the cloud gateway via mTLS instead of the local daemon socket. If any cloud env var is missing or misconfigured, it falls back to the local daemon (or degraded mode).
+
+### Token Lifecycle
+
+```bash
+# Issue a token (7 day TTL)
+kask token issue --replicant alice \
+  --capabilities curator:health \
+  --capabilities episodic:store \
+  --capabilities semantic:search \
+  --ttl 168h
+
+# List active tokens
+kask token list --replicant alice
+
+# Revoke a compromised token
+kask token revoke tok_a1b2c3...
+```
+
+### Architecture (Cloud)
+
+```
+Zed (ACP Client)
+  │ JSON-RPC 2.0 over stdio
+  ▼
+hkask-acp (subprocess)
+  │ mTLS 1.3 + DelegationToken
+  ▼
+hKask Cloud Gateway (hkask.example.com:9443)
+  │ Unix socket (local to cloud server)
+  ▼
+hKask Daemon
+  │
+  ├── Auth → CN→WebID derivation
+  ├── Capability → DelegationToken per request
+  ├── Tool dispatch → MCP servers
+  └── Memory encoding → episodic store
+```
+
 ## Troubleshooting
 
 ### Agent not appearing in Zed

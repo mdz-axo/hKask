@@ -16,7 +16,7 @@
 //! formats them for human operators.
 
 use chrono::Utc;
-use hkask_cns::types::loops::curation::{CuratorDirective, CuratorHandle};
+use hkask_types::curator::{CuratorDirective, CuratorHandle};
 use hkask_cns::types::loops::{
     CurationInput, Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };

@@ -50,7 +50,9 @@ pub use energy::{
 pub use energy_budget_management::EnergyBudgetManager;
 pub use governed_inference::GovernedInference;
 pub use governed_tool::{EnergyEstimator, GovernedTool};
-pub use types::loops::{CurationInput, CuratorHandle, ExperienceClassification, LoopAction};
+pub use types::loops::{
+    CurationInput, CuratorDirective, CuratorHandle, ExperienceClassification, LoopAction,
+};
 pub use wallet_budget::WalletBackedBudget;
 pub use wallet_energy_estimator::WalletEnergyEstimator;
 pub use wallet_gas_calibrator::{

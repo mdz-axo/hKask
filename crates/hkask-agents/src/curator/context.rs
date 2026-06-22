@@ -2,10 +2,9 @@
 
 use crate::ports::A2APort;
 use hkask_cns::CnsRuntime;
-use hkask_cns::types::loops::CuratorHandle;
-use hkask_cns::types::loops::curation::CuratorDirective;
 use hkask_storage::EscalationQueue;
 use hkask_storage::NuEventStore;
+use hkask_types::curator::{CuratorDirective, CuratorHandle};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 

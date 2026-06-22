@@ -7,6 +7,7 @@ pub mod agent_paths;
 pub mod cns;
 pub mod crypto;
 pub mod curation;
+pub mod curator;
 pub mod error;
 pub mod event;
 pub mod goal;
@@ -36,6 +37,7 @@ pub use crypto::Ed25519PublicKey;
 pub use curation::{
     BoundaryClassification, DataCategory, DataSovereigntyBoundary, UserSovereigntyState,
 };
+pub use curator::{CurationThresholdConfig, CuratorDirective, CuratorHandle};
 pub use error::{InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink};
 pub use goal::GoalState;

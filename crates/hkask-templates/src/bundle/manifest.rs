@@ -204,7 +204,9 @@ impl BundleManifest {
         if self.convergence.max_iterations > 1 {
             let has_loop = self.steps.iter().any(|s| s.action == "loop");
             if !has_loop {
-                errors.push("Iterative manifest (max_iterations > 1) must contain a loop action".into());
+                errors.push(
+                    "Iterative manifest (max_iterations > 1) must contain a loop action".into(),
+                );
             }
             if self.convergence.threshold <= 0.0 {
                 errors.push("Iterative manifest must declare convergence.threshold > 0".into());
@@ -213,7 +215,10 @@ impl BundleManifest {
         if self.gas.cap == 0 {
             errors.push("Manifest must declare gas.cap > 0 (energy budget)".into());
         }
-        let has_exit = self.steps.iter().any(|s| s.action == "abort" || s.action == "escalate");
+        let has_exit = self
+            .steps
+            .iter()
+            .any(|s| s.action == "abort" || s.action == "escalate");
         if !has_exit {
             warnings.push("Manifest has no abort or escalate action".into());
         }

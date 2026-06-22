@@ -16,5 +16,16 @@ rustls-pemfile = "2"
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
 thiserror.workspace = true
+dotenvy.workspace = true
+anyhow.workspace = true
 x509-parser = "0.17"
+
+[lib]
+name = "hkask_mcp_cloud_gateway"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hkask-cloud-gateway"
+path = "src/main.rs"

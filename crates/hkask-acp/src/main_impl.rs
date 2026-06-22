@@ -35,6 +35,8 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 
+use crate::cloud::CloudClient;
+
 const ENV_REPLICANT: &str = "HKASK_REPLICANT";
 
 /// Error type for hkask-acp library operations.
@@ -64,6 +66,8 @@ pub struct SessionState {
 pub struct HkaskAcpAgent {
     replicant: String,
     daemon: Option<DaemonClient>,
+    /// Cloud gateway client — used when HKASK_CLOUD_GATEWAY is configured.
+    cloud: Option<CloudClient>,
     /// Human-readable status message if daemon connection failed.
     daemon_error: Option<String>,
     inference: Arc<dyn InferencePort>,
@@ -90,34 +94,50 @@ impl HkaskAcpAgent {
             "acp-replicant".to_string()
         });
 
-        let daemon_client = DaemonClient::new();
-        let (daemon, daemon_error) = match verify_startup_gates(
-            &daemon_client,
-            &replicant,
-            "acp",
-            &["inference:call"],
-        )
-        .await
-        {
-            Ok(gate_result) => {
+        // Try cloud gateway first (HKASK_CLOUD_GATEWAY set)
+        let cloud = match CloudClient::from_env() {
+            Ok(Some(c)) => {
                 info!(
                     target: "hkask.acp",
                     replicant = %replicant,
-                    "P4 gates verified — {} tool(s) denied: {:?}",
-                    gate_result.denied_tools.len(),
-                    gate_result.denied_tools
+                    "Connected via cloud gateway"
                 );
-                cns_emit(CnsSpan::AcpIdeConnectionState, &replicant, "connected");
-                (Some(daemon_client), None)
+                Some(c)
             }
+            Ok(None) => None,
             Err(e) => {
-                let msg = format!(
-                    "hKask daemon unavailable: {}. Start it with: kask daemon start",
-                    e
-                );
-                warn!(target: "hkask.acp", replicant = %replicant, error = %msg);
-                cns_emit(CnsSpan::AcpIdeConnectionState, &replicant, "degraded");
-                (None, Some(msg))
+                warn!(target: "hkask.acp", replicant = %replicant, error = %e, "Cloud gateway config error — falling back to local daemon");
+                None
+            }
+        };
+
+        // Fall back to local daemon if no cloud gateway
+        let (daemon, daemon_error) = if cloud.is_some() {
+            (None, None)
+        } else {
+            let daemon_client = DaemonClient::new();
+            match verify_startup_gates(&daemon_client, &replicant, "acp", &["inference:call"]).await
+            {
+                Ok(gate_result) => {
+                    info!(
+                        target: "hkask.acp",
+                        replicant = %replicant,
+                        "P4 gates verified — {} tool(s) denied: {:?}",
+                        gate_result.denied_tools.len(),
+                        gate_result.denied_tools
+                    );
+                    cns_emit(CnsSpan::AcpIdeConnectionState, &replicant, "connected");
+                    (Some(daemon_client), None)
+                }
+                Err(e) => {
+                    let msg = format!(
+                        "hKask daemon unavailable: {}. Start it with: kask daemon start",
+                        e
+                    );
+                    warn!(target: "hkask.acp", replicant = %replicant, error = %msg);
+                    cns_emit(CnsSpan::AcpIdeConnectionState, &replicant, "degraded");
+                    (None, Some(msg))
+                }
             }
         };
 
@@ -170,6 +190,7 @@ impl HkaskAcpAgent {
         Self {
             replicant,
             daemon,
+            cloud,
             daemon_error,
             inference,
             default_model,
@@ -186,6 +207,7 @@ impl HkaskAcpAgent {
         Self {
             replicant: "test-replicant".into(),
             daemon: None,
+            cloud: None,
             daemon_error: None,
             inference,
             default_model: "test-model".into(),
@@ -268,8 +290,16 @@ impl HkaskAcpAgent {
                     .await
                     .map_err(|e| format!("Write error: {}", e))?;
 
-                // Dispatch tool call via daemon (if connected), or report stub
-                let result_text = if let Some(ref daemon) = self.daemon {
+                // Dispatch tool call via cloud gateway or daemon
+                let result_text = if let Some(ref cloud) = self.cloud {
+                    let tool_name = format!("{}:{}", tc.server, tc.tool);
+                    match cloud.dispatch_tool(&tool_name, &tc.args).await {
+                        Ok((true, Some(ref out), _)) => format!("{}", out),
+                        Ok((false, _, Some(ref err))) => format!("Error: {}", err),
+                        Err(e) => format!("Cloud error: {}", e),
+                        _ => "Unexpected response".into(),
+                    }
+                } else if let Some(ref daemon) = self.daemon {
                     let tool_name = format!("{}:{}", tc.server, tc.tool);
                     match daemon
                         .tool_dispatch(&self.replicant, &tool_name, &tc.args)

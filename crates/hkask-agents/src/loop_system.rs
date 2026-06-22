@@ -1,9 +1,10 @@
-//! Loop System — Bootstrap and lifecycle for the 4-loop model
+//! Loop System — Bootstrap and lifecycle for the 6-loop model
 //
 //! Manages loop registration, tick scheduling, and lifecycle.
 //! Inter-loop communication uses direct `tokio::mpsc` channels.
 //!
-//! **Authority DAG:** Curation → Cybernetics → {Inference, Memory}
+//! **Authority DAG:** Curation → Cybernetics → {Inference, Episodic, Semantic}
+//! Snapshot loop runs independently on its own schedule.
 
 use hkask_cns::CyberneticsLoop;
 use hkask_cns::types::loops::HkaskLoop;
@@ -43,8 +44,11 @@ impl HkaskLoop for CyberneticsLoopHandle {
 /// Default tick interval for the Inference loop (500ms).
 pub const INFERENCE_TICK_MS: u64 = 500;
 
-/// Default tick interval for the Memory sub-loops (5s).
-pub const MEMORY_TICK_SECS: u64 = 5;
+/// Default tick interval for the Episodic memory loop (5s).
+pub const EPISODIC_TICK_SECS: u64 = 5;
+
+/// Default tick interval for the Semantic memory loop (5s).
+pub const SEMANTIC_TICK_SECS: u64 = 5;
 
 /// Default tick interval for the Cybernetics loop (2s).
 pub const CYBERNETICS_TICK_SECS: u64 = 2;
@@ -52,31 +56,40 @@ pub const CYBERNETICS_TICK_SECS: u64 = 2;
 /// Default tick interval for the Curation loop (10s).
 pub const CURATION_TICK_SECS: u64 = 10;
 
+/// Default tick interval for the Snapshot loop (60s).
+pub const SNAPSHOT_TICK_SECS: u64 = 60;
+
 /// Fallback tick interval for unregistered loops (1s).
 pub const DEFAULT_FALLBACK_TICK_SECS: u64 = 1;
 
 /// expect: "The system regulates agent behavior through cybernetic feedback"
 /// \[P8\] Motivating: Semantic Grounding — LoopId names the regulatory loops
-/// pre:  `loop_id` is one of `Inference`, `Memory`, `Cybernetics`, or
-///       `Curation`.
+/// pre:  `loop_id` is one of `Inference`, `Episodic`, `Semantic`,
+///       `Curation`, `Cybernetics`, or `Snapshot`.
 /// post: Returns the default tick `Duration` for the given loop:
-///       Inference → 500ms, Memory → 5s, Cybernetics → 2s, Curation → 10s.
+///       Inference → 500ms, Episodic → 5s, Semantic → 5s, Cybernetics → 2s,
+///       Curation → 10s, Snapshot → 60s.
 pub fn default_tick_interval(loop_id: LoopId) -> Duration {
     match loop_id {
         LoopId::Inference => Duration::from_millis(INFERENCE_TICK_MS),
-        LoopId::Memory => Duration::from_secs(MEMORY_TICK_SECS),
+        LoopId::Episodic => Duration::from_secs(EPISODIC_TICK_SECS),
+        LoopId::Semantic => Duration::from_secs(SEMANTIC_TICK_SECS),
         LoopId::Cybernetics => Duration::from_secs(CYBERNETICS_TICK_SECS),
         LoopId::Curation => Duration::from_secs(CURATION_TICK_SECS),
+        LoopId::Snapshot => Duration::from_secs(SNAPSHOT_TICK_SECS),
     }
 }
 
 /// Authority DAG tick order: meta-loops first, then domain loops.
-/// Curation → Cybernetics → Inference → Memory
-pub const AUTHORITY_ORDER: [LoopId; 4] = [
+/// Curation → Cybernetics → Inference → Episodic → Semantic
+/// Snapshot runs independently.
+pub const AUTHORITY_ORDER: [LoopId; 6] = [
     LoopId::Curation,
     LoopId::Cybernetics,
     LoopId::Inference,
-    LoopId::Memory,
+    LoopId::Episodic,
+    LoopId::Semantic,
+    LoopId::Snapshot,
 ];
 
 /// Multiple loops may share a `LoopId` (e.g., Episodic + Semantic both register
@@ -112,9 +125,11 @@ impl LoopSystem {
             cancel: CancellationToken::new(),
             tick_intervals: [
                 LoopId::Inference,
-                LoopId::Memory,
+                LoopId::Episodic,
+                LoopId::Semantic,
                 LoopId::Cybernetics,
                 LoopId::Curation,
+                LoopId::Snapshot,
             ]
             .into_iter()
             .map(|id| (id, default_tick_interval(id)))

@@ -90,7 +90,7 @@ pub fn token_list(replicant: Option<&str>) -> Result<Vec<TokenEntry>, ServiceErr
             })?;
     let entries: Vec<TokenEntry> = agents
         .into_iter()
-        .filter(|a| replicant.map_or(true, |r| a.definition.name == r))
+        .filter(|a| replicant.is_none_or(|r| a.definition.name == r))
         .map(|a| TokenEntry {
             name: a.definition.name,
             token_hash: a.token_hash,
