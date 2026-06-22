@@ -724,18 +724,15 @@ visibility:
 
         let agents_dir = temp.path().join("agents");
 
-
         let curator_dir = agents_dir.join("curator");
         std::fs::create_dir_all(&curator_dir).unwrap();
         std::fs::write(curator_dir.join("pod.db"), b"").unwrap();
         std::fs::write(curator_dir.join("pod.kind"), b"curator").unwrap();
 
-
         let team_dir = agents_dir.join("team.7r7");
         std::fs::create_dir_all(&team_dir).unwrap();
         std::fs::write(team_dir.join("pod.db"), b"").unwrap();
         std::fs::write(team_dir.join("pod.kind"), b"team").unwrap();
-
 
         let repl_dir = agents_dir.join("replicant.alice");
         std::fs::create_dir_all(&repl_dir).unwrap();
