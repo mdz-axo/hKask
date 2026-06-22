@@ -332,11 +332,18 @@ async fn extract_real_book_production() {
 async fn full_pipeline_extract_transcribe_export() {
     let env_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.env");
     if env_path.exists() {
-        for line in std::fs::read_to_string(&env_path).unwrap_or_default().lines() {
+        for line in std::fs::read_to_string(&env_path)
+            .unwrap_or_default()
+            .lines()
+        {
             let line = line.trim();
-            if line.is_empty() || line.starts_with('#') { continue; }
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
             if let Some((k, v)) = line.split_once('=') {
-                unsafe { std::env::set_var(k.trim(), v.trim().trim_matches('"')); }
+                unsafe {
+                    std::env::set_var(k.trim(), v.trim().trim_matches('"'));
+                }
             }
         }
     }
@@ -349,9 +356,10 @@ async fn full_pipeline_extract_transcribe_export() {
 
     // Step 1: Extract pages
     println!("=== Step 1: Extract ===");
-    let extract = hkask_mcp_docproc::kindle_zip::extract_kindle_book(
-        asin, &email, &password, output, None,
-    ).await.expect("Extract");
+    let extract =
+        hkask_mcp_docproc::kindle_zip::extract_kindle_book(asin, &email, &password, output, None)
+            .await
+            .expect("Extract");
     println!("  Pages: {}, Title: {}", extract.total_pages, extract.title);
 
     // Step 2: OCR transcription
@@ -363,19 +371,37 @@ async fn full_pipeline_extract_transcribe_export() {
         .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string());
 
     let server = hkask_mcp_docproc::DocProcServer::new(
-        hkask_types::WebID::new(), "kindle-e2e".into(),
-        None, ocr_model.clone(), config, thresholds.clone(), None,
-    ).expect("DocProcServer");
+        hkask_types::WebID::new(),
+        "kindle-e2e".into(),
+        None,
+        ocr_model.clone(),
+        config,
+        thresholds.clone(),
+        None,
+    )
+    .expect("DocProcServer");
 
     let embed_ref: Option<(&hkask_inference::EmbeddingRouter, &str)> = server
-        .embedding_router.as_ref().map(|er| (er, embed_model.as_str()));
+        .embedding_router
+        .as_ref()
+        .map(|er| (er, embed_model.as_str()));
 
     let transcribe = hkask_mcp_docproc::kindle_zip::transcribe_pages(
-        &extract.pages_dir, &extract.metadata_path, output, asin,
-        &server, &thresholds, ocr_model.as_deref(), embed_ref,
-    ).await.expect("Transcribe");
-    println!("  Words: {}, transcribed: {} pages, confidence: {:.3}",
-        transcribe.total_words, transcribe.transcribed_pages, transcribe.mean_confidence);
+        &extract.pages_dir,
+        &extract.metadata_path,
+        output,
+        asin,
+        &server,
+        &thresholds,
+        ocr_model.as_deref(),
+        embed_ref,
+    )
+    .await
+    .expect("Transcribe");
+    println!(
+        "  Words: {}, transcribed: {} pages, confidence: {:.3}",
+        transcribe.total_words, transcribe.transcribed_pages, transcribe.mean_confidence
+    );
 
     // Step 3: Assemble content
     let content_path = output.join(asin).join("content.json");
@@ -387,11 +413,22 @@ async fn full_pipeline_extract_transcribe_export() {
 
     // Step 4: Export formats
     println!("=== Step 4: Export ===");
-    let formats = vec!["pdf".to_string(), "epub".to_string(), "markdown".to_string()];
+    let formats = vec![
+        "pdf".to_string(),
+        "epub".to_string(),
+        "markdown".to_string(),
+    ];
     let export = hkask_mcp_docproc::kindle_zip::export_formats(
-        &assembled, &extract.metadata_path, &formats, output,
-        asin, &extract.title, &extract.author, &extract.toc,
-    ).expect("Export");
+        &assembled,
+        &extract.metadata_path,
+        &formats,
+        output,
+        asin,
+        &extract.title,
+        &extract.author,
+        &extract.toc,
+    )
+    .expect("Export");
     for e in &export.exports {
         println!("  {}: {} bytes", e.format, e.size_bytes);
         assert!(e.path.exists());
@@ -410,4 +447,306 @@ async fn full_pipeline_extract_transcribe_export() {
         }
     }
     println!("=== Pipeline complete ===");
+}
+
+// ── Full pipeline for all matching knowledge books ────────────────────
+
+#[tokio::test]
+#[ignore = "requires Amazon creds + inference API key + Chrome"]
+async fn knowledge_corpus_pipeline() {
+    let env_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.env");
+    if env_path.exists() {
+        for line in std::fs::read_to_string(&env_path)
+            .unwrap_or_default()
+            .lines()
+        {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if let Some((k, v)) = line.split_once('=') {
+                unsafe {
+                    std::env::set_var(k.trim(), v.trim().trim_matches('"'));
+                }
+            }
+        }
+    }
+
+    let email = std::env::var("AMAZON_EMAIL").expect("AMAZON_EMAIL");
+    let password = std::env::var("AMAZON_PASSWORD").expect("AMAZON_PASSWORD");
+    let chrome_bin = "/snap/chromium/current/usr/lib/chromium-browser/chrome";
+
+    // ── Phase 1: Discover books via browser ────────────────────────────
+    println!("=== Phase 1: Login & Discover ===");
+    use headless_chrome::{Browser, LaunchOptionsBuilder};
+    let launch_opts = LaunchOptionsBuilder::default()
+        .headless(true)
+        .window_size(Some((1280, 900)))
+        .sandbox(false)
+        .path(Some(std::path::PathBuf::from(chrome_bin)))
+        .args(vec![
+            std::ffi::OsStr::new("--disable-blink-features=AutomationControlled"),
+            std::ffi::OsStr::new("--no-first-run"),
+        ])
+        .build()
+        .expect("LaunchOptions");
+
+    let browser = Browser::new(launch_opts).expect("Browser");
+    let tab = browser.new_tab().expect("Tab");
+    tab.navigate_to("https://read.amazon.com/kindle-library")
+        .expect("Nav");
+    tab.wait_until_navigated().expect("Wait");
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    // Auth state machine
+    let url = tab.get_url();
+    if url.contains("/landing") {
+        for s in &["a[href*='signin']", "a[href*='ap/signin']", "a"] {
+            if let Ok(el) = tab.find_element(s) {
+                if let Ok(Some(href)) = el.get_attribute_value("href") {
+                    if href.contains("signin") || href.contains("ap/sign") {
+                        el.click().ok();
+                        std::thread::sleep(std::time::Duration::from_secs(3));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    let url = tab.get_url();
+    if url.contains("/ap/signin") {
+        if let Ok(el) = tab.wait_for_element("input[type=\"email\"]") {
+            el.click().ok();
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            tab.type_str(&email).ok();
+        }
+        if let Ok(el) = tab.wait_for_element("input[type=\"submit\"]") {
+            el.click().ok();
+            std::thread::sleep(std::time::Duration::from_secs(2));
+        }
+        if let Ok(el) = tab.wait_for_element("input[type=\"password\"]") {
+            el.click().ok();
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            tab.type_str(&password).ok();
+        }
+        if let Ok(el) = tab.find_element("input[type=\"submit\"]") {
+            el.click().ok();
+            std::thread::sleep(std::time::Duration::from_secs(3));
+        }
+    }
+    let url = tab.get_url();
+    if url.contains("/ap/mfa") || url.contains("/ap/cvf") {
+        println!("  2FA — waiting 60s");
+        std::thread::sleep(std::time::Duration::from_secs(60));
+    }
+
+    tab.navigate_to("https://read.amazon.com/kindle-library")
+        .expect("Nav lib");
+    tab.wait_until_navigated().expect("Wait lib");
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    // Discover ASINs
+    let terms = [
+        "knowledge graph",
+        "knowledge production",
+        "autopoietic",
+        "autopoiesis",
+    ];
+    let mut books: Vec<(String, String)> = Vec::new();
+    if let Ok(html) = tab.get_content() {
+        let needle = "\"asin\"";
+        let mut pos = 0u64;
+        let mut seen = std::collections::HashSet::new();
+        let mut seen_title = std::collections::HashSet::new();
+        while let Some(found) = html[pos as usize..].find(needle) {
+            let abs = pos as usize + found;
+            let after = &html[abs + needle.len()..];
+            if after.starts_with(":") {
+                let rest = after[1..].trim_start();
+                if rest.starts_with('"') {
+                    let inner = &rest[1..];
+                    if let Some(end) = inner.find('"') {
+                        let asin = &inner[..end];
+                        if asin.len() == 10
+                            && asin.chars().all(|c| c.is_ascii_alphanumeric())
+                            && seen.insert(asin.to_string())
+                        {
+                            let title = extract_title_near_asin(&html, asin);
+                            if !title.is_empty() {
+                                let tl = title.to_lowercase();
+                                if terms.iter().any(|t| tl.contains(t))
+                                    && seen_title.insert(title.clone())
+                                    && books.len() < 5
+                                {
+                                    println!("  Discovered: [{}] {}", asin, title);
+                                    books.push((asin.to_string(), title));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            pos = abs as u64 + 1;
+        }
+    }
+    drop(tab);
+    drop(browser);
+
+    println!("Found {} matching books", books.len());
+
+    // ── Phase 2: Extract + Transcribe + Export each book ───────────────
+    let config = hkask_inference::InferenceConfig::from_env();
+    let ocr_model = std::env::var("HKASK_OCR_MODEL").ok();
+    let thresholds = hkask_mcp_docproc::ocr::ThresholdConfig::default();
+    let embed_model = std::env::var("HKASK_EMBEDDING_MODEL")
+        .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string());
+    let dest_base = std::path::Path::new("/home/mdz-axolotl/Clones/Library/Knowledge");
+
+    let server = hkask_mcp_docproc::DocProcServer::new(
+        hkask_types::WebID::new(),
+        "kindle-corpus".into(),
+        None,
+        ocr_model.clone(),
+        config,
+        thresholds.clone(),
+        None,
+    )
+    .expect("DocProcServer");
+
+    // Phase 2: Extract all books from ONE browser session
+    println!("=== Phase 2: Extract (single session) ===");
+    let tmp = tempfile::tempdir().unwrap();
+    let output = tmp.path();
+
+    let asins: Vec<(String, String)> = books.into_iter().map(|(a, t)| (a, t)).collect();
+    let extracts = match hkask_mcp_docproc::kindle_zip::extract_kindle_books(
+        &asins, &email, &password, output, None,
+    )
+    .await
+    {
+        Ok(results) => {
+            println!("  Extracted {}/{} books", results.len(), asins.len());
+            results
+        }
+        Err(e) => {
+            println!("  Batch extraction failed: {}", e);
+            return;
+        }
+    };
+
+    // Phase 3: Transcribe + Export each extracted book
+    for extract in &extracts {
+        let asin = &extract.asin;
+        let title = &extract.title;
+        println!("\n=== {} [{}] ===", title, asin);
+
+        // Transcribe (pages already extracted by batch)
+        let embed_ref: Option<(&hkask_inference::EmbeddingRouter, &str)> = server
+            .embedding_router
+            .as_ref()
+            .map(|er| (er, embed_model.as_str()));
+        let transcribe = match hkask_mcp_docproc::kindle_zip::transcribe_pages(
+            &extract.pages_dir,
+            &extract.metadata_path,
+            output,
+            asin,
+            &server,
+            &thresholds,
+            ocr_model.as_deref(),
+            embed_ref,
+        )
+        .await
+        {
+            Ok(r) => {
+                println!(
+                    "  Transcribe: {} words, {} pages",
+                    r.total_words, r.transcribed_pages
+                );
+                r
+            }
+            Err(e) => {
+                println!("  Transcribe FAILED: {}", e);
+                continue;
+            }
+        };
+
+        // Assemble
+        let content_path = output.join(asin).join("content.json");
+        let content_json = std::fs::read_to_string(&content_path).unwrap();
+        let chunks: Vec<hkask_mcp_docproc::kindle_zip::types::ContentChunk> =
+            serde_json::from_str(&content_json).unwrap();
+        let assembled = hkask_mcp_docproc::kindle_zip::assemble_chunks(&chunks, &extract.toc);
+
+        // Export
+        let formats = vec![
+            "pdf".to_string(),
+            "epub".to_string(),
+            "markdown".to_string(),
+        ];
+        match hkask_mcp_docproc::kindle_zip::export_formats(
+            &assembled,
+            &extract.metadata_path,
+            &formats,
+            output,
+            asin,
+            title, // Use discovered title, not extract.title (which is "Kindle")
+            &extract.author,
+            &extract.toc,
+        ) {
+            Ok(export) => {
+                for e in &export.exports {
+                    println!("  {}: {} bytes", e.format, e.size_bytes);
+                }
+            }
+            Err(e) => println!("  Export FAILED: {}", e),
+        }
+
+        // Copy to Knowledge folder — both ASIN internals + human-readable root files
+        let dest = dest_base.join(asin);
+        std::fs::create_dir_all(&dest).ok();
+        // Copy ASIN pipeline directory
+        let src = output.join(asin);
+        if src.exists() {
+            for entry in std::fs::read_dir(&src).ok().into_iter().flatten() {
+                if let Ok(e) = entry {
+                    std::fs::copy(e.path(), dest.join(e.file_name())).ok();
+                }
+            }
+        }
+        // Copy human-readable root files (Author - Title.{pdf,epub,md})
+        for entry in std::fs::read_dir(output).ok().into_iter().flatten() {
+            if let Ok(e) = entry {
+                let name = e.file_name().to_string_lossy().to_string();
+                if name.ends_with(".pdf") || name.ends_with(".epub") || name.ends_with(".md") {
+                    std::fs::copy(e.path(), dest_base.join(&name)).ok();
+                }
+            }
+        }
+        // Copy index.json
+        let index_src = output.join("index.json");
+        if index_src.exists() {
+            std::fs::copy(&index_src, dest_base.join("index.json")).ok();
+        }
+        println!("  -> {}", dest.display());
+    }
+    println!("\n=== Corpus complete ===");
+}
+
+fn extract_title_near_asin(html: &str, asin: &str) -> String {
+    if let Some(p) = html.find(asin) {
+        let window = &html[p.saturating_sub(500)..std::cmp::min(p + 500, html.len())];
+        for pattern in &["\"title\":\"", "title\":\""] {
+            if let Some(tp) = window.find(pattern) {
+                let after = &window[tp + pattern.len()..];
+                if let Some(end) = after.find('"') {
+                    let t = &after[..end];
+                    let t = t.replace("\\\"", "\"").replace("\\n", " ");
+                    if t.len() > 3 {
+                        return t;
+                    }
+                }
+            }
+        }
+    }
+    String::new()
 }

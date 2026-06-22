@@ -92,6 +92,7 @@ pub struct ProvenanceRecord {
 /// Result of the extraction step — page screenshots + metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtractResult {
+    pub asin: String,
     pub metadata_path: PathBuf,
     pub pages_dir: PathBuf,
     pub total_pages: usize,

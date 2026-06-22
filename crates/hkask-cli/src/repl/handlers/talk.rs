@@ -190,6 +190,8 @@ pub(crate) fn summarize_for_speech(
     let params = hkask_types::template::LLMParameters {
         temperature: 0.3,
         max_tokens: 120,
+        disable_thinking: true,
+        bypass_fusion: true,
         ..Default::default()
     };
 

@@ -175,6 +175,9 @@ pub(crate) async fn chat_stream(
         None => strategy.frame(&req.input).to_string(),
     };
 
+    let fusion_active = hkask_inference::InferenceConfig::from_env()
+        .fusion_model
+        .is_some();
     let params = LLMParameters {
         temperature: 0.7,
         top_p: 0.9,
@@ -187,7 +190,7 @@ pub(crate) async fn chat_stream(
         seed: None,
         disable_thinking: false,
         adapter: None,
-        bypass_fusion: false,
+        bypass_fusion: fusion_active,
     };
 
     let inference = state.agent_service.inference_port();

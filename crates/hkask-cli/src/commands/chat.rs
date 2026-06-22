@@ -232,7 +232,11 @@ pub async fn chat_with_agent_streaming(
         }
     };
 
-    // Stream inference
+    // Stream inference — chat should bypass fusion so the user's chosen
+    // model is used directly, while skills route through the fusion group.
+    let fusion_active = hkask_inference::InferenceConfig::from_env()
+        .fusion_model
+        .is_some();
     let params = LLMParameters {
         temperature: 0.7,
         top_p: 0.9,
@@ -245,7 +249,7 @@ pub async fn chat_with_agent_streaming(
         seed: None,
         disable_thinking: false,
         adapter: None,
-        bypass_fusion: false,
+        bypass_fusion: fusion_active,
     };
 
     let stream = prepared.inference_port.generate_stream_with_model(

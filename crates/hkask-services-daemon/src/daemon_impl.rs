@@ -324,10 +324,13 @@ async fn generate_narrative(
         NARRATIVE_SYSTEM_PROMPT, replicant, session_log
     );
 
-    // Call inference
+    // Call inference — daemon narrative is a background summarization task.
+    // Always bypass fusion: use the default model directly regardless of
+    // HKASK_FUSION_MODEL setting.
     let params = LLMParameters {
         temperature: 0.7,
         max_tokens: 256,
+        bypass_fusion: true,
         ..LLMParameters::default()
     };
 

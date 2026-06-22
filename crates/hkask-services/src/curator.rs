@@ -94,7 +94,14 @@ impl CuratorService {
             }),
             0,
         );
-        let _ = ctx.event_sink().persist(&event);
+        if let Err(e) = ctx.event_sink().persist(&event) {
+            tracing::warn!(
+                target: "cns.curation",
+                escalation_id = %id,
+                error = %e,
+                "CNS event persist failed for resolve — observability gap"
+            );
+        }
 
         ctx.escalation_queue()
             .resolve(id, resolved_by)
@@ -133,7 +140,14 @@ impl CuratorService {
             }),
             0,
         );
-        let _ = ctx.event_sink().persist(&event);
+        if let Err(e) = ctx.event_sink().persist(&event) {
+            tracing::warn!(
+                target: "cns.curation",
+                escalation_id = %id,
+                error = %e,
+                "CNS event persist failed for dismiss — observability gap"
+            );
+        }
 
         ctx.escalation_queue()
             .dismiss(id, dismissed_by)

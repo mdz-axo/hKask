@@ -2,6 +2,12 @@
 //!
 //! Navigates Kindle Cloud Reader: login → settings → TOC extraction →
 //! page capture with retry → position restore. Idempotent resume support.
+//!
+//! ## Architecture
+//! - `KindleSession` — holds browser + authenticated tab (login once).
+//! - `KindleSession::extract_book` — extracts one book from the session.
+//! - `extract_kindle_book` — convenience: session + single extract.
+//! - `extract_kindle_books` — batch: one session, many books, no race.
 
 use std::path::Path;
 
@@ -9,6 +15,173 @@ use crate::kindle_zip::types::{
     BookMetadata, ExtractResult, PageEntry, PageNav, TocItem, has_page_files, zeropad,
 };
 
+// ── KindleSession — authenticated browser session ───────────────────────────
+
+/// An authenticated Kindle Cloud Reader browser session.
+///
+/// Login happens once at construction. Call `extract_book` for each ASIN.
+/// The browser and tab are dropped when the session is dropped.
+pub struct KindleSession {
+    browser: headless_chrome::Browser,
+    tab: std::sync::Arc<headless_chrome::Tab>,
+}
+
+impl KindleSession {
+    /// Create a new session: launch browser, authenticate, return ready session.
+    pub async fn new(
+        email: &str,
+        password: &str,
+        chrome_profile: Option<&Path>,
+    ) -> Result<Self, String> {
+        use headless_chrome::{Browser, LaunchOptionsBuilder};
+
+        let mut builder = LaunchOptionsBuilder::default();
+        builder.headless(true);
+        builder.window_size(Some((1280, 720)));
+        builder.sandbox(false);
+        builder.args(vec![
+            std::ffi::OsStr::new("--disable-blink-features=AutomationControlled"),
+            std::ffi::OsStr::new("--disable-features=IsolateOrigins,site-per-process"),
+        ]);
+        if let Some(profile_dir) = chrome_profile {
+            tracing::info!(target: "cns.pipeline.kindle-zip",
+                profile = %profile_dir.display(), "Using Chrome profile for cookie-based auth");
+            builder.user_data_dir(Some(profile_dir.to_path_buf()));
+        }
+
+        let launch_opts = builder
+            .build()
+            .map_err(|e| format!("Browser options: {}", e))?;
+
+        let browser = Browser::new(launch_opts)
+            .map_err(|e| format!("Launch browser: {}. Chrome installed?", e))?;
+        let tab = browser.new_tab().map_err(|e| format!("Tab: {}", e))?;
+        // tab is already Arc<Tab> from new_tab()
+
+        // Navigate to library to trigger auth flow
+        tab.navigate_to("https://read.amazon.com/kindle-library")
+            .map_err(|e| format!("Nav: {}", e))?;
+        tab.wait_until_navigated()
+            .map_err(|e| format!("Wait nav: {}", e))?;
+
+        // Auth state machine: landing → sign-in → 2FA → library
+        let url = tab.get_url();
+        if url.contains("/landing") {
+            tracing::info!(target: "cns.pipeline.kindle-zip", "On landing page — clicking sign-in");
+            for selector in &["a[href*='signin']", "a[href*='ap/signin']", "a"] {
+                if let Ok(el) = tab.find_element(selector) {
+                    if let Ok(Some(href)) = el.get_attribute_value("href") {
+                        if href.contains("signin") || href.contains("ap/sign") {
+                            el.click().map_err(|e| format!("Click sign-in: {}", e))?;
+                            std::thread::sleep(std::time::Duration::from_secs(3));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        let url = tab.get_url();
+        if url.contains("/ap/signin") {
+            kindle_login(&tab, email, password)?;
+        }
+
+        let url = tab.get_url();
+        if url.contains("/ap/mfa") || url.contains("/ap/cvf") {
+            tracing::info!(target: "cns.pipeline.kindle-zip", "2FA — waiting 60s");
+            std::thread::sleep(std::time::Duration::from_secs(60));
+        }
+
+        tracing::info!(target: "cns.pipeline.kindle-zip", "Session authenticated");
+        Ok(Self { browser, tab })
+    }
+
+    /// Extract one book from this authenticated session.
+    pub async fn extract_book(
+        &self,
+        asin: &str,
+        output_dir: &Path,
+    ) -> Result<ExtractResult, String> {
+        let book_dir = output_dir.join(asin);
+        let pages_dir = book_dir.join("pages");
+        let metadata_path = book_dir.join("metadata.json");
+
+        std::fs::create_dir_all(&book_dir).map_err(|e| format!("mkdir book dir: {}", e))?;
+        std::fs::create_dir_all(&pages_dir).map_err(|e| format!("mkdir pages dir: {}", e))?;
+
+        if metadata_path.exists() && has_page_files(&pages_dir) {
+            tracing::info!(target: "cns.pipeline.kindle-zip.extract", asin = %asin, "Resuming from existing extraction");
+            return load_existing(&metadata_path, &pages_dir);
+        }
+
+        tracing::info!(target: "cns.pipeline.kindle-zip.extract", asin = %asin, "Extracting from existing session");
+
+        let book_url = format!("https://read.amazon.com/?asin={}", asin);
+        self.tab
+            .navigate_to(&book_url)
+            .map_err(|e| format!("Nav to book: {}", e))?;
+        self.tab
+            .wait_until_navigated()
+            .map_err(|e| format!("Wait book: {}", e))?;
+
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        verify_selectors(&self.tab)?;
+        apply_reader_settings(&self.tab);
+
+        let initial_page = read_current_page(&self.tab);
+        tracing::info!(target: "cns.pipeline.kindle-zip.extract", initial_page, "Position recorded");
+
+        let (title, author) = scrape_title_author(&self.tab)?;
+        let toc = extract_toc(&self.tab)?;
+        let pages = capture_pages(&self.tab, &pages_dir)?;
+        let total_pages = pages.len();
+
+        if let Some(start_page) = initial_page {
+            navigate_to_page(&self.tab, start_page);
+            tracing::info!(target: "cns.pipeline.kindle-zip.extract", start_page, "Position restored");
+        }
+
+        let title_c = title.clone();
+        let author_c = author.clone();
+
+        let full = BookMetadata {
+            asin: asin.to_string(),
+            title: title_c.clone(),
+            author: author_c.clone(),
+            authors: vec![author_c.clone()],
+            description: None,
+            cover_url: None,
+            pages,
+            toc: toc.clone(),
+            nav: PageNav {
+                start_content_page: 1,
+                end_content_page: total_pages as i64,
+                total_pages: total_pages as i64,
+                total_content_pages: total_pages as i64,
+            },
+            raw_meta: serde_json::json!({}),
+        };
+        let json = serde_json::to_string_pretty(&full).map_err(|e| format!("JSON: {}", e))?;
+        std::fs::write(&metadata_path, json).map_err(|e| format!("Write metadata: {}", e))?;
+
+        tracing::info!(target: "cns.pipeline.kindle-zip.extract",
+            asin = %asin, total_pages, title = %title_c, toc_entries = toc.len(), "Extraction complete");
+
+        Ok(ExtractResult {
+            asin: asin.to_string(),
+            metadata_path,
+            pages_dir,
+            total_pages,
+            content_pages: total_pages,
+            title: title_c,
+            author: author_c,
+            toc,
+            cns_span_id: None,
+        })
+    }
+}
+
+/// Convenience: create a session, extract one book, drop session.
 pub async fn extract_kindle_book(
     asin: &str,
     amazon_email: &str,
@@ -16,161 +189,35 @@ pub async fn extract_kindle_book(
     output_dir: &Path,
     chrome_profile: Option<&Path>,
 ) -> Result<ExtractResult, String> {
-    let book_dir = output_dir.join(asin);
-    let pages_dir = book_dir.join("pages");
-    let metadata_path = book_dir.join("metadata.json");
-
-    std::fs::create_dir_all(&book_dir).map_err(|e| format!("mkdir book dir: {}", e))?;
-    std::fs::create_dir_all(&pages_dir).map_err(|e| format!("mkdir pages dir: {}", e))?;
-
-    if metadata_path.exists() && has_page_files(&pages_dir) {
-        tracing::info!(target: "cns.pipeline.kindle-zip.extract", asin = %asin, "Resuming from existing extraction");
-        return load_existing(&metadata_path, &pages_dir);
-    }
-
-    tracing::info!(target: "cns.pipeline.kindle-zip.extract", asin = %asin, "Starting browser-based extraction");
-    let meta = extract_via_browser(
-        asin,
-        amazon_email,
-        amazon_password,
-        &book_dir,
-        &pages_dir,
-        chrome_profile,
-    )
-    .await?;
-
-    tracing::info!(target: "cns.pipeline.kindle-zip.extract",
-        asin = %asin, total_pages = meta.total_pages, content_pages = meta.content_pages,
-        title = %meta.title, toc_entries = meta.toc.len(), "Extraction complete");
-    Ok(meta)
+    let session = KindleSession::new(amazon_email, amazon_password, chrome_profile).await?;
+    session.extract_book(asin, output_dir).await
 }
 
-async fn extract_via_browser(
-    asin: &str,
+/// Extract multiple books from a single browser session (no race condition).
+pub async fn extract_kindle_books(
+    asins: &[(String, String)], // (asin, title)
     amazon_email: &str,
     amazon_password: &str,
-    book_dir: &Path,
-    pages_dir: &Path,
+    output_dir: &Path,
     chrome_profile: Option<&Path>,
-) -> Result<ExtractResult, String> {
-    use headless_chrome::{Browser, LaunchOptionsBuilder};
-
-    let _using_profile = chrome_profile.is_some();
-    let mut builder = LaunchOptionsBuilder::default();
-    builder.headless(true);
-    builder.window_size(Some((1280, 720)));
-    builder.sandbox(false);
-    // Anti-detection: prevent Amazon from identifying headless Chrome
-    builder.args(vec![
-        std::ffi::OsStr::new("--disable-blink-features=AutomationControlled"),
-        std::ffi::OsStr::new("--disable-features=IsolateOrigins,site-per-process"),
-    ]);
-    if let Some(profile_dir) = chrome_profile {
-        tracing::info!(target: "cns.pipeline.kindle-zip.extract",
-            profile = %profile_dir.display(), "Using Chrome profile for cookie-based auth");
-        builder.user_data_dir(Some(profile_dir.to_path_buf()));
-    }
-
-    let launch_opts = builder
-        .build()
-        .map_err(|e| format!("Browser options: {}", e))?;
-
-    let browser = Browser::new(launch_opts)
-        .map_err(|e| format!("Launch browser: {}. Chrome installed?", e))?;
-    let tab = browser.new_tab().map_err(|e| format!("Tab: {}", e))?;
-    let book_url = format!("https://read.amazon.com/?asin={}", asin);
-
-    tab.navigate_to(&book_url)
-        .map_err(|e| format!("Nav: {}", e))?;
-    tab.wait_until_navigated()
-        .map_err(|e| format!("Wait nav: {}", e))?;
-
-    let url = tab.get_url();
-
-    // Amazon may redirect headless clients: landing → sign-in → 2FA → book
-    // Phase 1: Handle landing page (bot detection redirect)
-    if url.contains("/landing") {
-        tracing::info!(target: "cns.pipeline.kindle-zip.extract", "On landing page — clicking sign-in");
-        for selector in &["a[href*='signin']", "a[href*='ap/signin']", "a"] {
-            if let Ok(el) = tab.find_element(selector) {
-                if let Ok(Some(href)) = el.get_attribute_value("href") {
-                    if href.contains("signin") || href.contains("ap/sign") {
-                        el.click().map_err(|e| format!("Click sign-in: {}", e))?;
-                        std::thread::sleep(std::time::Duration::from_secs(3));
-                        break;
-                    }
-                }
+) -> Result<Vec<ExtractResult>, String> {
+    let session = KindleSession::new(amazon_email, amazon_password, chrome_profile).await?;
+    let mut results = Vec::with_capacity(asins.len());
+    for (asin, _title) in asins {
+        match session.extract_book(asin, output_dir).await {
+            Ok(r) => {
+                tracing::info!(target: "cns.pipeline.kindle-zip.batch",
+                    asin = %asin, pages = r.total_pages, "Extracted");
+                results.push(r);
+            }
+            Err(e) => {
+                tracing::error!(target: "cns.pipeline.kindle-zip.batch",
+                    asin = %asin, error = %e, "Extract failed");
+                // Continue with next book despite single failure
             }
         }
     }
-
-    // Phase 2: Handle sign-in
-    let url = tab.get_url();
-    if url.contains("/ap/signin") {
-        kindle_login(&tab, amazon_email, amazon_password)?;
-        tab.navigate_to(&book_url)
-            .map_err(|e| format!("Post-login nav: {}", e))?;
-        tab.wait_until_navigated()
-            .map_err(|e| format!("Post-login wait: {}", e))?;
-    }
-
-    std::thread::sleep(std::time::Duration::from_secs(5));
-    verify_selectors(&tab)?;
-
-    // Gap 2: Apply reader settings (single-column + sans-serif) before capture
-    apply_reader_settings(&tab);
-
-    // Gap 3: Record initial position so we can restore it after extraction
-    let initial_page = read_current_page(&tab);
-    tracing::info!(target: "cns.pipeline.kindle-zip.extract", initial_page, "Position recorded");
-
-    let (title, author) = scrape_title_author(&tab)?;
-
-    // Gap 1: Extract TOC from page context (JS evaluation of Kindle reader state)
-    let toc = extract_toc(&tab)?;
-
-    let pages = capture_pages(&tab, pages_dir)?;
-    let total_pages = pages.len();
-
-    // Gap 3: Restore reading position
-    if let Some(start_page) = initial_page {
-        navigate_to_page(&tab, start_page);
-        tracing::info!(target: "cns.pipeline.kindle-zip.extract", start_page, "Position restored");
-    }
-
-    let title_c = title.clone();
-    let author_c = author.clone();
-
-    let full = BookMetadata {
-        asin: asin.to_string(),
-        title: title_c.clone(),
-        author: author_c.clone(),
-        authors: vec![author_c.clone()],
-        description: None,
-        cover_url: None,
-        pages,
-        toc: toc.clone(),
-        nav: PageNav {
-            start_content_page: 1,
-            end_content_page: total_pages as i64,
-            total_pages: total_pages as i64,
-            total_content_pages: total_pages as i64,
-        },
-        raw_meta: serde_json::json!({}),
-    };
-    let json = serde_json::to_string_pretty(&full).map_err(|e| format!("JSON: {}", e))?;
-    std::fs::write(book_dir.join("metadata.json"), json).map_err(|e| format!("Write: {}", e))?;
-
-    Ok(ExtractResult {
-        metadata_path: book_dir.join("metadata.json"),
-        pages_dir: pages_dir.to_path_buf(),
-        total_pages,
-        content_pages: total_pages,
-        title: title_c,
-        author: author_c,
-        toc,
-        cns_span_id: None,
-    })
+    Ok(results)
 }
 
 // ── Login ───────────────────────────────────────────────────────────────────
@@ -627,6 +674,7 @@ fn load_existing(metadata_path: &Path, pages_dir: &Path) -> Result<ExtractResult
     let metadata: BookMetadata =
         serde_json::from_str(&json).map_err(|e| format!("Parse: {}", e))?;
     Ok(ExtractResult {
+        asin: metadata.asin.clone(),
         metadata_path: metadata_path.to_path_buf(),
         pages_dir: pages_dir.to_path_buf(),
         total_pages: metadata.pages.len(),

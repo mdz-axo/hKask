@@ -228,7 +228,7 @@ dokkodo-mindset → diagnose → improve-codebase-architecture
 | Understand and explain code | Chain 4: Explore → Summarize → Compress |
 | Write a strategy document | Chain 5: Plan → Critique → Revise → Evaluate |
 | Respond to an error | Chain 8: Resilience — Accept → Stabilize → Diagnose |
-| Manage the skill corpus | Chain 6: Skill Lifecycle |
+| Manage the skill corpus | Chain 7: Skill Lifecycle |
 | Improve agent capability | `kata-starter` → `kata-improvement` → `kata-coaching` |
 | Create a logo | `logo-builder` |
 | Update documentation | `document-update` |

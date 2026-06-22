@@ -479,8 +479,12 @@ impl ChatService {
         // Access params_override after prepare_chat returns (prepare_chat only borrows req)
         let params_override = req.params_override;
 
-        // Resolve LLM parameters: caller override > agent-kind defaults
-        let params = params_override.unwrap_or(LLMParameters {
+        // Resolve LLM parameters: caller override > agent-kind defaults.
+        // When fusion is active (HKASK_FUSION_MODEL is set), the primary chat
+        // model bypasses fusion so the user's chosen model is used directly.
+        // Skills, which don't set bypass_fusion, will route through fusion.
+        let chat_bypass = ctx.config().inference_config.fusion_model.is_some();
+        let mut params = params_override.unwrap_or(LLMParameters {
             temperature: 0.7,
             top_p: 0.9,
             top_k: 40,
@@ -492,8 +496,11 @@ impl ChatService {
             seed: None,
             disable_thinking: false,
             adapter: None,
-            bypass_fusion: false,
+            bypass_fusion: chat_bypass,
         });
+        // Always enforce the service-layer bypass decision — a caller's
+        // params_override must not silently defeat the cost-safety guard.
+        params.bypass_fusion = chat_bypass;
 
         let request_span = Span::new(SpanNamespace::from(CnsSpan::Chat), "request");
         let request_event = NuEvent::new(

@@ -915,3 +915,71 @@ impl InferenceRouter {
         Ok(found)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::InferenceConfig;
+
+    fn config_with_fusion(fusion: Option<&str>) -> InferenceConfig {
+        let mut c = InferenceConfig::default();
+        c.fusion_model = fusion.map(|s| s.to_string());
+        c
+    }
+
+    // ── C1: effective_model routing ────────────────────────────────────
+
+    /// REQ: P9-inf-fusion-effective-model-routing
+    /// expect: "Fusion model overrides default when configured and not bypassed" [P9]
+    #[test]
+    fn effective_model_routes_to_fusion() {
+        let config = config_with_fusion(Some("OR/openrouter/fusion/kask"));
+        let router = InferenceRouter::new(config);
+        let params = LLMParameters {
+            bypass_fusion: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            router.effective_model(None, &params),
+            "OR/openrouter/fusion/kask"
+        );
+    }
+
+    /// REQ: P9-inf-fusion-effective-model-bypass
+    /// expect: "Bypass flag prevents fusion override" [P9]
+    #[test]
+    fn effective_model_bypasses_fusion() {
+        let config = config_with_fusion(Some("OR/openrouter/fusion/kask"));
+        let default = config.default_model.clone();
+        let router = InferenceRouter::new(config);
+        let params = LLMParameters {
+            bypass_fusion: true,
+            ..Default::default()
+        };
+        assert_eq!(router.effective_model(None, &params), default);
+    }
+
+    /// REQ: P9-inf-fusion-effective-model-explicit
+    /// expect: "Explicit model used when fusion is None" [P9]
+    #[test]
+    fn effective_model_uses_explicit_when_no_fusion() {
+        let config = config_with_fusion(None);
+        let router = InferenceRouter::new(config);
+        let params = LLMParameters::default();
+        assert_eq!(
+            router.effective_model(Some("DI/custom-model"), &params),
+            "DI/custom-model"
+        );
+    }
+
+    /// REQ: P9-inf-fusion-effective-model-default
+    /// expect: "Default model used when nothing overrides" [P9]
+    #[test]
+    fn effective_model_falls_back_to_default() {
+        let config = config_with_fusion(None);
+        let default = config.default_model.clone();
+        let router = InferenceRouter::new(config);
+        let params = LLMParameters::default();
+        assert_eq!(router.effective_model(None, &params), default);
+    }
+}

@@ -288,12 +288,16 @@ impl MatrixTransport {
     pub async fn create_room(
         &self,
         name: &str,
-        _topic: Option<&str>,
+        topic: Option<&str>,
     ) -> Result<RoomId, MatrixError> {
         let client = self.client.as_ref().ok_or(MatrixError::NotLoggedIn)?;
 
+        let mut request = matrix_sdk::ruma::api::client::room::create_room::v3::Request::new();
+        if let Some(t) = topic {
+            request.topic = Some(t.to_string());
+        }
         let room = client
-            .create_room(matrix_sdk::ruma::api::client::room::create_room::v3::Request::new())
+            .create_room(request)
             .await
             .map_err(|e| MatrixError::Room(format!("Failed to create room: {}", e)))?;
 

@@ -169,7 +169,14 @@ impl GoalService {
                     agent: WebID::from_persona(b"goal-service"),
                 },
             );
-            let _ = tx.send(event);
+            if let Err(e) = tx.send(event) {
+                tracing::warn!(
+                    target: "cns.curation",
+                    goal_id = %goal_id,
+                    error = %e,
+                    "Goal transition event failed to reach curation inbox — broken feedback closure"
+                );
+            }
         }
 
         // Return a response with the existing goal's text and visibility
