@@ -11,15 +11,18 @@ use hkask_mcp::GixCasAdapter;
 use hkask_ports::git_cas::{GitCASPort, RepoId, TreeEntryKind};
 use hkask_services::ArchivalService;
 
-/// Resolve the hexagonal `GitCASPort` from the environment.
-///
-/// Returns `Arc<dyn GitCASPort>` so CLI commands share the same trait boundary
-/// as API and MCP servers (MCP ≡ CLI ≡ API parity).
-fn resolve_git_cas_port() -> Arc<dyn GitCASPort> {
-    let adapter = super::helpers::or_exit(
+/// Resolve the concrete `GixCasAdapter` for admin operations
+/// (diff, resolve_ref) that are not part of the GitCASPort contract.
+fn resolve_gix_adapter() -> GixCasAdapter {
+    super::helpers::or_exit(
         GixCasAdapter::from_env(),
         "Failed to initialize CAS adapter",
-    );
+    )
+}
+
+/// Resolve the hexagonal `GitCASPort` from the environment.
+fn resolve_git_cas_port() -> Arc<dyn GitCASPort> {
+    let adapter = resolve_gix_adapter();
     Arc::new(adapter) as Arc<dyn GitCASPort>
 }
 
@@ -33,6 +36,7 @@ fn parse_repo_id(repo: &str) -> RepoId {
         "goals-specs" => RepoId::GoalsSpecs,
         "sessions" => RepoId::Sessions,
         "vault" => RepoId::Vault,
+        "pods" => RepoId::Pods,
         _ => {
             eprintln!("Unknown repo '{}', defaulting to 'registry'", repo);
             RepoId::Registry
@@ -136,9 +140,9 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
         }
 
         GitAction::CasDiff { repo, from, to } => {
-            let port = resolve_git_cas_port();
+            let adapter = resolve_gix_adapter();
             let repo_id = parse_repo_id(&repo);
-            let diffs = block_on!(rt, port.diff(&repo_id, &from, &to), "Diff failed");
+            let diffs = block_on!(rt, adapter.diff(&repo_id, &from, &to), "Diff failed");
 
             println!("Diff for '{}' ({} → {}):", repo_id.dir_name(), from, to);
             if diffs.is_empty() {

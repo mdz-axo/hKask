@@ -20,7 +20,7 @@ pub(crate) use adapter_container::AdapterContainer;
 pub use daemon::{DaemonClient, DaemonHandler, DaemonListener, DaemonRequest, DaemonResponse};
 pub use dispatch::McpDispatcher;
 pub use dispatch::RawMcpToolPort;
-pub use git_cas::{GitCasAdapter, GixCasAdapter};
+pub use git_cas::{GixCasAdapter, TemplateCrateLoader};
 pub use hkask_ports::ToolInfo;
 pub use runtime::{McpRuntime, McpServer, McpTool, ServerStartError};
 pub use server::{

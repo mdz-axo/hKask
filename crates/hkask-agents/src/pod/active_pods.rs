@@ -100,7 +100,7 @@ impl ActivePods {
         )));
         let a2a = Arc::new(A2ARuntime::new(b"mock"));
         let factory = Arc::new(PodFactory::new(
-            Arc::new(hkask_mcp::GitCasAdapter::from_path(
+            Arc::new(hkask_mcp::TemplateCrateLoader::from_path(
                 data_dir.join("templates"),
             )),
             Arc::new(AllowAllConsent),

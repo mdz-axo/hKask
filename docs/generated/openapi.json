@@ -1696,7 +1696,7 @@
           "git"
         ],
         "summary": "Archive a repository template crate",
-        "description": "Uses `GitCasAdapter::load_template_crate` for template loading (domain\noperation) and `GitCASPort::resolve_ref` for SHA resolution.",
+        "description": "Uses `TemplateCrateLoader::load_template_crate` for template loading (domain\noperation) and `GixCasAdapter::resolve_ref` for SHA resolution.",
         "operationId": "archive",
         "requestBody": {
           "content": {

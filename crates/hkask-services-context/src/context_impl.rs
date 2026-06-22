@@ -1046,7 +1046,7 @@ async fn build_mcp_and_pods(
         )
         .with_factory_and_ports(
             Arc::new(hkask_agents::pod::PodFactory::new(
-                Arc::new(hkask_mcp::GitCasAdapter::from_path(
+                Arc::new(hkask_mcp::TemplateCrateLoader::from_path(
                     std::path::PathBuf::from(&config.template_cache_path),
                 )),
                 Arc::new(hkask_agents::DenyAllConsent),

@@ -3,11 +3,16 @@
 //! All domain operations (A2A, store) come from AgentService.
 //! No direct Database::open(), A2ARuntime::new(), or AgentRegistryStore::new().
 
+use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use crate::block_on;
 use crate::cli::BotAction;
 use hex;
+use hkask_mcp::GixCasAdapter;
+use hkask_ports::git_cas::GitCASPort;
+use hkask_services::BackupService;
 use hkask_services::ServiceError;
 use hkask_storage::{AgentDefinition, RegisteredAgent};
 use hkask_types::{AgentKind, WebID, agent_paths};
@@ -259,6 +264,82 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
             for cap in &agent.definition.capabilities {
                 println!("  - {}", cap);
             }
+        }
+        crate::cli::AgentAction::Revert {
+            name,
+            commit,
+            reason,
+        } => {
+            let port = Arc::new(GixCasAdapter::from_env().unwrap_or_else(|e| {
+                eprintln!("Failed to initialize CAS adapter: {}", e);
+                std::process::exit(1);
+            })) as Arc<dyn GitCASPort>;
+            let svc = BackupService::new(port);
+            let commit_hash: hkask_ports::git_cas::CommitHash =
+                commit.parse().unwrap_or_else(|e: String| {
+                    eprintln!("Invalid commit hash '{}': {}", commit, e);
+                    std::process::exit(1);
+                });
+            let sanitized = agent_paths::sanitize_name(&name);
+            let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
+            let pod_db_path = base
+                .join("hkask")
+                .join("agents")
+                .join(&sanitized)
+                .join("pod.db");
+            if !pod_db_path.exists() {
+                eprintln!(
+                    "Pod database not found at {}. Is the pod activated?",
+                    pod_db_path.display()
+                );
+                std::process::exit(1);
+            }
+            let report = block_on!(
+                rt,
+                svc.revert(&name, &commit_hash, &pod_db_path, &reason),
+                "Revert failed"
+            );
+            println!("Agent '{}' reverted.", name);
+            println!("  Safety snapshot: {}", report.safety_commit);
+            println!("  Restored to:     {}", report.target_commit);
+            println!("  Artifacts:       {}", report.artifact_count);
+            println!("  Timestamp:       {}", report.timestamp);
+            println!("\nTo undo this revert, restore from safety snapshot.");
+        }
+        crate::cli::AgentAction::SpawnAgent {
+            source,
+            new_name,
+            commit,
+        } => {
+            let port = Arc::new(GixCasAdapter::from_env().unwrap_or_else(|e| {
+                eprintln!("Failed to initialize CAS adapter: {}", e);
+                std::process::exit(1);
+            })) as Arc<dyn GitCASPort>;
+            let svc = BackupService::new(port);
+            let commit_hash: hkask_ports::git_cas::CommitHash =
+                commit.parse().unwrap_or_else(|e: String| {
+                    eprintln!("Invalid commit hash '{}': {}", commit, e);
+                    std::process::exit(1);
+                });
+            let sanitized = agent_paths::sanitize_name(&new_name);
+            let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
+            let agent_dir = base.join("hkask").join("agents").join(&sanitized);
+            std::fs::create_dir_all(&agent_dir).unwrap_or_else(|e| {
+                eprintln!("Failed to create agent directory: {}", e);
+                std::process::exit(1);
+            });
+            let new_db_path = agent_dir.join("pod.db");
+            let report = block_on!(
+                rt,
+                svc.spawn_agent(&source, &commit_hash, &new_name, &new_db_path),
+                "Spawn agent failed"
+            );
+            println!("Agent spawned from '{}' as '{}'.", source, new_name);
+            println!("  Source commit: {}", report.source_commit);
+            println!("  New pod ID:    {}", report.new_pod_id);
+            println!("  Database:      {}", report.new_db_path);
+            println!("  Timestamp:     {}", report.timestamp);
+            println!("\nActivate with: kask pod activate {}", new_name);
         }
     }
 }

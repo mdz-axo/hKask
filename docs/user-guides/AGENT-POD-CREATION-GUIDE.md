@@ -796,7 +796,7 @@ curl -X POST http://localhost:8080/api/pods \
 
 ```rust
 use hkask_agents::pod::{ActivePods, AgentPersona, PodID};
-use hkask_agents::adapters::git_cas::GitCasAdapter;
+use hkask_agents::adapters::git_cas::TemplateCrateLoader;
 use hkask_agents::adapters::a2a_runtime::A2ARuntimeAdapter;
 use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
 use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
@@ -806,13 +806,13 @@ use std::path::PathBuf;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create adapters
-    let git_cas = GitCasAdapter::from_path(PathBuf::from("./registry/templates"));
+    let loader = TemplateCrateLoader::from_path(PathBuf::from("./registry/templates"));
     let a2a_runtime = A2ARuntimeAdapter::new();
     let cns_emitter = CnsEmitterAdapter::new(WebID::new());
     let mcp_runtime = McpRuntimeAdapter::new();
     
     // Create pod manager
-    let active_pods = ActivePods::new(git_cas, a2a_runtime, cns_emitter, mcp_runtime);
+    let active_pods = ActivePods::new(loader, a2a_runtime, cns_emitter, mcp_runtime);
     
     // Load persona from YAML
     let persona_yaml = std::fs::read_to_string("agent_persona.yaml")?;

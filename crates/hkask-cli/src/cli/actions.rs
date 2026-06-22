@@ -62,6 +62,30 @@ pub enum AgentAction {
         #[arg(long)]
         name: String,
     },
+    /// Revert an agent pod to a prior snapshot with safety backup
+    Revert {
+        /// Pod name to revert
+        #[arg()]
+        name: String,
+        /// Commit hash to revert to
+        #[arg(long)]
+        commit: String,
+        /// Reason for the revert (recorded in CNS)
+        #[arg(short, long)]
+        reason: String,
+    },
+    /// Spawn a new agent pod from a prior snapshot (fork)
+    SpawnAgent {
+        /// Source pod name whose state to clone
+        #[arg()]
+        source: String,
+        /// New pod name for the spawned agent
+        #[arg(long = "as")]
+        new_name: String,
+        /// Commit hash to spawn from
+        #[arg(long)]
+        commit: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]

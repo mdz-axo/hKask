@@ -72,6 +72,23 @@ pub struct SetPoints {
     /// When per-crate coverage drops below its previous snapshot,
     /// an algedonic alert fires. Default: 0.0 (any regression alerts).
     pub seam_coverage_min: f64,
+    // ── Federation thresholds (v0.31.0) ──
+    /// Federation sync latency warning threshold (ms). Default: 5000.
+    pub fed_sync_latency_warning_ms: u64,
+    /// Federation sync latency critical threshold (ms). Default: 30000.
+    pub fed_sync_latency_critical_ms: u64,
+    /// Federation CRDT divergence warning factor (× baseline). Default: 2.0.
+    pub fed_crdt_divergence_warning_factor: f64,
+    /// Federation link downtime warning (seconds). Default: 3600.
+    pub fed_link_downtime_warning_secs: u64,
+    /// Federation link downtime critical (seconds). Default: 86400.
+    pub fed_link_downtime_critical_secs: u64,
+    /// Maximum pause duration before CNS escalation (hours). Default: 24.
+    pub fed_max_pause_duration_hours: u64,
+    /// Invitation rate warning threshold (invites/hour). Default: 5.
+    pub fed_invitation_rate_warning_per_hour: u64,
+    /// Registry divergence warning threshold (entries/sync). Default: 10.
+    pub fed_registry_divergence_warning: u64,
 }
 
 /// Configurable thresholds for Curation decisions (spec coherence, drift).
@@ -90,6 +107,14 @@ pub struct SetPointsConfig {
     pub connector_latency_max_secs: Option<f64>,
     pub communication_backpressure_threshold: Option<QueueDepth>,
     pub seam_coverage_min: Option<f64>,
+    pub fed_sync_latency_warning_ms: Option<u64>,
+    pub fed_sync_latency_critical_ms: Option<u64>,
+    pub fed_crdt_divergence_warning_factor: Option<f64>,
+    pub fed_link_downtime_warning_secs: Option<u64>,
+    pub fed_link_downtime_critical_secs: Option<u64>,
+    pub fed_max_pause_duration_hours: Option<u64>,
+    pub fed_invitation_rate_warning_per_hour: Option<u64>,
+    pub fed_registry_divergence_warning: Option<u64>,
 }
 
 impl SetPointsConfig {
@@ -115,6 +140,14 @@ impl Default for SetPoints {
             connector_latency_max_secs: DEFAULT_CONNECTOR_LATENCY_MAX_SECS,
             communication_backpressure_threshold: DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD,
             seam_coverage_min: DEFAULT_SEAM_COVERAGE_MIN,
+            fed_sync_latency_warning_ms: 5000,
+            fed_sync_latency_critical_ms: 30000,
+            fed_crdt_divergence_warning_factor: 2.0,
+            fed_link_downtime_warning_secs: 3600,
+            fed_link_downtime_critical_secs: 86400,
+            fed_max_pause_duration_hours: 24,
+            fed_invitation_rate_warning_per_hour: 5,
+            fed_registry_divergence_warning: 10,
         }
     }
 }
@@ -140,6 +173,30 @@ impl SetPoints {
             seam_coverage_min: config
                 .seam_coverage_min
                 .unwrap_or(defaults.seam_coverage_min),
+            fed_sync_latency_warning_ms: config
+                .fed_sync_latency_warning_ms
+                .unwrap_or(defaults.fed_sync_latency_warning_ms),
+            fed_sync_latency_critical_ms: config
+                .fed_sync_latency_critical_ms
+                .unwrap_or(defaults.fed_sync_latency_critical_ms),
+            fed_crdt_divergence_warning_factor: config
+                .fed_crdt_divergence_warning_factor
+                .unwrap_or(defaults.fed_crdt_divergence_warning_factor),
+            fed_link_downtime_warning_secs: config
+                .fed_link_downtime_warning_secs
+                .unwrap_or(defaults.fed_link_downtime_warning_secs),
+            fed_link_downtime_critical_secs: config
+                .fed_link_downtime_critical_secs
+                .unwrap_or(defaults.fed_link_downtime_critical_secs),
+            fed_max_pause_duration_hours: config
+                .fed_max_pause_duration_hours
+                .unwrap_or(defaults.fed_max_pause_duration_hours),
+            fed_invitation_rate_warning_per_hour: config
+                .fed_invitation_rate_warning_per_hour
+                .unwrap_or(defaults.fed_invitation_rate_warning_per_hour),
+            fed_registry_divergence_warning: config
+                .fed_registry_divergence_warning
+                .unwrap_or(defaults.fed_registry_divergence_warning),
         }
     }
 }

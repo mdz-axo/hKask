@@ -3,6 +3,7 @@
 //! expect: "Backup scope types encode distinct domain concepts"
 
 use serde::{Deserialize, Serialize};
+use strum::{Display, EnumString, IntoStaticStr};
 
 /// Types of artifacts the backup system can track.
 ///
@@ -16,8 +17,14 @@ use serde::{Deserialize, Serialize};
 /// - `Session` → `RepoId::Sessions`
 /// - `WalletState` → `RepoId::Vault`
 /// - `Settings` → `RepoId::Registry` (stored alongside templates)
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// - `PodState` → `RepoId::Pods` (pod.db snapshots for revert/spawn_agent)
+///
+/// Label ↔ variant mapping is derived from `strum` — no duplicate `match` arms.
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumString, Display, IntoStaticStr,
+)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum ArtifactType {
     Template,
     Style,
@@ -41,6 +48,8 @@ pub enum ArtifactType {
     AgentDocuments,
     /// Agent adapters — trained LoRA weights.
     AgentAdapters,
+    /// Agent pod state — pod.db snapshot for revert/spawn_agent operations.
+    PodState,
 }
 
 impl ArtifactType {
@@ -67,40 +76,17 @@ impl ArtifactType {
             ArtifactType::SovereigntyManifest => RepoId::Sovereignty,
             ArtifactType::Session => RepoId::Sessions,
             ArtifactType::WalletState => RepoId::Vault,
+            ArtifactType::PodState => RepoId::Pods,
         }
     }
 
     /// Human-readable label for CLI/API display.
     ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// Uses `strum::IntoStaticStr` — single source of truth, no duplicate match arms.
     /// pre:  self must be a valid ArtifactType variant
-    /// post: returns &'static str label (e.g., "template", "goal", "spec")
+    /// post: returns &'static str label (e.g., "template", "pod_state")
     pub fn label(&self) -> &'static str {
-        match self {
-            ArtifactType::Template => "template",
-            ArtifactType::Style => "style",
-            ArtifactType::Goal => "goal",
-            ArtifactType::Spec => "spec",
-            ArtifactType::MemoryTriple => "memory_triple",
-            ArtifactType::Embedding => "embedding",
-            ArtifactType::RegistryEntry => "registry_entry",
-            ArtifactType::CnsAudit => "cns_audit",
-            ArtifactType::SovereigntyManifest => "sovereignty_manifest",
-            ArtifactType::Session => "session",
-            ArtifactType::WalletState => "wallet_state",
-            ArtifactType::Settings => "settings",
-            ArtifactType::AgentArtifact => "agent_artifact",
-            ArtifactType::AgentGallery => "agent_gallery",
-            ArtifactType::AgentLibrary => "agent_library",
-            ArtifactType::AgentDocuments => "agent_documents",
-            ArtifactType::AgentAdapters => "agent_adapters",
-        }
-    }
-}
-
-impl std::fmt::Display for ArtifactType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.label())
+        self.into()
     }
 }
 
@@ -128,9 +114,9 @@ impl BackupScope {
     pub fn description(&self) -> String {
         match self {
             BackupScope::Full => "full backup".to_string(),
-            BackupScope::ByType(t) => format!("backup: {}", t.label()),
+            BackupScope::ByType(t) => format!("backup: {}", t),
             BackupScope::ByIds { artifact_type, ids } => {
-                format!("backup: {} ({})", artifact_type.label(), ids.join(", "))
+                format!("backup: {} ({})", artifact_type, ids.join(", "))
             }
         }
     }
@@ -158,4 +144,69 @@ pub struct ListFilter {
     pub artifact_type: Option<ArtifactType>,
     /// Maximum number of snapshots to return.
     pub limit: Option<usize>,
+}
+
+// ── Tests ───────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn strum_roundtrip_all_variants() {
+        // Every variant roundtrips through strum Display → FromStr
+        let variants = [
+            ArtifactType::Template,
+            ArtifactType::Style,
+            ArtifactType::Goal,
+            ArtifactType::Spec,
+            ArtifactType::MemoryTriple,
+            ArtifactType::Embedding,
+            ArtifactType::RegistryEntry,
+            ArtifactType::CnsAudit,
+            ArtifactType::SovereigntyManifest,
+            ArtifactType::Session,
+            ArtifactType::WalletState,
+            ArtifactType::Settings,
+            ArtifactType::AgentArtifact,
+            ArtifactType::AgentGallery,
+            ArtifactType::AgentLibrary,
+            ArtifactType::AgentDocuments,
+            ArtifactType::AgentAdapters,
+            ArtifactType::PodState,
+        ];
+        for at in &variants {
+            let s: &'static str = at.label();
+            let parsed = ArtifactType::from_str(s)
+                .unwrap_or_else(|_| panic!("Failed to parse ArtifactType from '{}'", s));
+            assert_eq!(&parsed, at, "Roundtrip failed for {:?}", at);
+        }
+    }
+
+    #[test]
+    fn pod_state_maps_to_pods_repo() {
+        assert_eq!(
+            ArtifactType::PodState.repo_id(),
+            hkask_ports::git_cas::RepoId::Pods
+        );
+    }
+
+    #[test]
+    fn pod_state_label_is_snake_case() {
+        assert_eq!(ArtifactType::PodState.label(), "pod_state");
+    }
+
+    #[test]
+    fn parse_from_string() {
+        assert_eq!(
+            ArtifactType::from_str("pod_state").unwrap(),
+            ArtifactType::PodState
+        );
+        assert_eq!(
+            ArtifactType::from_str("memory_triple").unwrap(),
+            ArtifactType::MemoryTriple
+        );
+        assert!(ArtifactType::from_str("nonexistent").is_err());
+    }
 }

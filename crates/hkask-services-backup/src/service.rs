@@ -16,13 +16,21 @@
 //! 5. `verify` — integrity check with CNS alerting
 //! 6. `config` — get current backup configuration
 //! 7. `update_config` — update backup configuration
+//! 8. `revert` — revert a pod to a prior snapshot with safety snapshot
+//! 9. `spawn_agent` — fork a new agent pod from a prior snapshot
 
 use std::collections::HashSet;
+use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 use crate::config::{BackupConfig, EncryptionConfig, RetentionPolicy};
-use crate::metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
+use crate::metadata::{
+    PruneReport, RevertReport, SnapshotMetadata, SnapshotTrigger, SpawnAgentReport,
+};
 use crate::scope::{ArtifactType, BackupScope, ListFilter, RestoreScope};
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 use argon2::Argon2;
@@ -62,9 +70,17 @@ pub enum BackupError {
     #[error("No snapshots found")]
     NoSnapshots,
 
+    /// No pod found with the given identifier.
+    #[error("Pod not found: {0}")]
+    PodNotFound(String),
+
     /// Encryption/decryption failed.
     #[error("Encryption error: {0}")]
     Encryption(String),
+
+    /// A backup operation is already in progress — retry later.
+    #[error("Backup already in progress — another snapshot, revert, prune, or spawn is running")]
+    BackupInProgress,
 }
 
 impl From<BackupError> for hkask_services_core::ServiceError {
@@ -97,6 +113,9 @@ pub struct BackupService {
 
     /// Derived AES-256-GCM key (if encryption is configured).
     encryption_key: Option<[u8; 32]>,
+
+    /// Mutual exclusion gate — true while a mutating backup operation is running.
+    in_progress: AtomicBool,
 }
 
 impl BackupService {
@@ -118,6 +137,7 @@ impl BackupService {
             cas,
             config,
             encryption_key,
+            in_progress: AtomicBool::new(false),
         }
     }
 
@@ -132,6 +152,7 @@ impl BackupService {
             cas,
             config,
             encryption_key,
+            in_progress: AtomicBool::new(false),
         }
     }
 
@@ -186,7 +207,26 @@ impl BackupService {
             .map_err(|e| BackupError::Encryption(format!("AES decrypt: {e}")))
     }
 
-    // ── Public API (7 operations) ────────────────────────────────────────
+    /// Acquire the backup gate. Returns `Ok(())` if no operation is in
+    /// progress, or `Err(BackupInProgress)` if another operation holds it.
+    ///
+    /// The caller MUST call `release_gate()` after the operation completes.
+    fn acquire_gate(&self) -> Result<(), BackupError> {
+        if self
+            .in_progress
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
+            return Err(BackupError::BackupInProgress);
+        }
+        Ok(())
+    }
+
+    fn release_gate(&self) {
+        self.in_progress.store(false, Ordering::Release);
+    }
+
+    // ── Public API (9 operations) ────────────────────────────────────────
 
     /// 1. Snapshot artifacts to git.
     ///
@@ -205,6 +245,8 @@ impl BackupService {
         scope: BackupScope,
         artifacts: &[(ArtifactType, String, Vec<u8>)],
     ) -> Result<SnapshotMetadata, BackupError> {
+        self.acquire_gate()?;
+        let _guard = GateGuard { service: self };
         let start = Instant::now();
         // Validate: all artifact types in scope must be tracked
         self.validate_scope(&scope)?;
@@ -316,7 +358,7 @@ impl BackupService {
 
                 // Resolve artifact type from the envelope label
                 let artifact_type =
-                    artifact_type_from_label(&envelope.artifact_type).ok_or_else(|| {
+                    ArtifactType::from_str(&envelope.artifact_type).map_err(|_| {
                         BackupError::Serialization(format!(
                             "Unknown artifact type in blob: {}",
                             envelope.artifact_type
@@ -389,6 +431,13 @@ impl BackupService {
     /// pre:  retention policy must be configured; dry_run=true only reports, dry_run=false executes pruning
     /// post: returns PruneReport with evaluated count, removed commits, and retained count; empty report if no retention policy configured
     pub async fn prune(&self, dry_run: bool) -> Result<PruneReport, BackupError> {
+        // Only gate actual (non-dry-run) prunes — dry runs are read-only.
+        let _guard = if !dry_run {
+            self.acquire_gate()?;
+            Some(GateGuard { service: self })
+        } else {
+            None
+        };
         let policy = match &self.config.retention {
             Some(p) => p.clone(),
             None => {
@@ -601,6 +650,8 @@ impl BackupService {
     /// pre:  auto_snapshot must be enabled in config
     /// post: returns SnapshotMetadata from full snapshot; Err on snapshot failure
     pub async fn run_daily_snapshot(&self) -> Result<SnapshotMetadata, BackupError> {
+        self.acquire_gate()?;
+        let _guard = GateGuard { service: self };
         info!(target: "cns.backup", "CNS");
         // Snapshot all tracked types. Artifact data is collected by
         // scanning all repos for current state — the caller provides
@@ -635,6 +686,234 @@ impl BackupService {
             }
         }
         self.restore(target, scope).await
+    }
+
+    // ── Pod revert / spawn_agent (operations 8–9) ────────────────────────
+
+    /// 8. Revert a pod to a prior snapshot.
+    ///
+    /// Takes a safety snapshot of the current pod state before restoring
+    /// the target commit. The safety snapshot is the bail-out point —
+    /// restore it to undo the revert.
+    ///
+    /// CNS span: `cns.agent_pod.revert` — records pod_id, safety_commit,
+    /// target_commit, reason.
+    ///
+    /// pre:  pod_id is a non-empty pod identifier; target_commit is a valid
+    ///       CommitHash in the Pods repo; pod_db_path must exist
+    /// post: returns RevertReport with safety_commit, target_commit, artifact_count;
+    ///       a safety snapshot was created BEFORE the restore;
+    ///       pod_db_path now contains state from target_commit;
+    ///       cns.agent_pod.revert span emitted
+    #[instrument(skip(self), fields(pod_id, safety_commit, target_commit))]
+    pub async fn revert(
+        &self,
+        pod_id: &str,
+        target_commit: &CommitHash,
+        pod_db_path: &Path,
+        reason: &str,
+    ) -> Result<RevertReport, BackupError> {
+        self.acquire_gate()?;
+        let _guard = GateGuard { service: self };
+        let start = Instant::now();
+
+        // 1. Safety snapshot: capture current pod state BEFORE revert
+        info!(
+            target: "cns.agent_pod",
+            pod_id = pod_id,
+            operation = "revert.safety_snapshot",
+            reason = reason,
+            "CNS"
+        );
+
+        if !pod_db_path.exists() {
+            return Err(BackupError::PodNotFound(pod_id.to_string()));
+        }
+        let current_state = std::fs::read(pod_db_path)
+            .map_err(|e| BackupError::Config(format!("Failed to read pod.db: {e}")))?;
+
+        // Serialize the safety snapshot as PodState artifact
+        let safety_artifact = crate::serialization::serialize_artifact(
+            &ArtifactType::PodState,
+            &format!("{pod_id}-safety"),
+            &serde_json::json!({"pod_id": pod_id, "reason": reason}),
+        )
+        .map_err(|e| BackupError::Serialization(format!("Safety snapshot: {e}")))?;
+
+        let safety_blob = if self.encryption_key.is_some() {
+            self.encrypt_blob(&safety_artifact)?
+        } else {
+            safety_artifact
+        };
+
+        let repo_id = ArtifactType::PodState.repo_id();
+        self.cas.put_blob(&repo_id, &safety_blob).await?;
+        // Also store the raw pod.db for full-state preservation
+        let pod_blob = if self.encryption_key.is_some() {
+            self.encrypt_blob(&current_state)?
+        } else {
+            current_state
+        };
+        self.cas.put_blob(&repo_id, &pod_blob).await?;
+        let safety_commit = self
+            .cas
+            .snapshot(
+                &repo_id,
+                &format!(
+                    "revert: safety snapshot for {pod_id} — {}",
+                    Utc::now().format("%Y-%m-%d %H:%M:%S")
+                ),
+            )
+            .await?;
+
+        tracing::Span::current().record("safety_commit", safety_commit.to_string());
+        info!(
+            target: "cns.agent_pod",
+            pod_id = pod_id,
+            operation = "revert.safety_complete",
+            safety_commit = %safety_commit,
+            "CNS"
+        );
+
+        // 2. Restore target state to pod.db
+        let target_str = target_commit.to_string();
+        let prefix = format!("{}/", ArtifactType::PodState.label());
+        let entries = self.cas.list_tree(&repo_id, &target_str, &prefix).await?;
+
+        if entries.is_empty() {
+            return Err(BackupError::NoSnapshots);
+        }
+
+        let mut restored_count = 0usize;
+        for entry in entries {
+            let raw = self.cas.get_blob(&repo_id, &entry.content_hash).await?;
+            let blob = if self.encryption_key.is_some() {
+                self.decrypt_blob(&raw)?
+            } else {
+                raw
+            };
+
+            // Try envelope first; if it fails, treat as raw pod.db blob
+            if serde_json::from_slice::<crate::serialization::ArtifactEnvelopeValue>(&blob).is_ok()
+            {
+                continue; // Skip envelope blobs, find the raw pod.db
+            } else {
+                std::fs::write(pod_db_path, &blob)
+                    .map_err(|e| BackupError::Config(format!("Failed to write pod.db: {e}")))?;
+                restored_count += 1;
+                break;
+            }
+        }
+
+        if restored_count == 0 {
+            return Err(BackupError::NoSnapshots);
+        }
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+        tracing::Span::current().record("target_commit", target_str);
+        tracing::Span::current().record("pod_id", pod_id);
+        info!(
+            target: "cns.agent_pod",
+            pod_id = pod_id,
+            operation = "revert",
+            safety_commit = %safety_commit,
+            target_commit = %target_commit,
+            reason = reason,
+            duration_ms = duration_ms,
+            "CNS"
+        );
+
+        Ok(RevertReport {
+            pod_id: pod_id.to_string(),
+            safety_commit,
+            target_commit: target_commit.clone(),
+            artifact_count: restored_count,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// 9. Spawn a new agent pod from a prior snapshot.
+    ///
+    /// Restores pod state from a source commit to a new pod location.
+    /// The caller is responsible for identity assignment (new WebID/PodID).
+    ///
+    /// This is DISTINCT from kanban's `spawn_subagent` which creates
+    /// sub-agent replicants for task delegation. `spawn_agent` is a
+    /// full pod fork — new identity, new pod.db, sovereign agent.
+    ///
+    /// CNS span: `cns.agent_pod.spawn` — records source_pod_id,
+    /// new_pod_id, source_commit.
+    ///
+    /// pre:  source_commit is a valid CommitHash in the Pods repo;
+    ///       output_db_path parent directory must exist
+    /// post: returns SpawnAgentReport with restored state written to output_db_path;
+    ///       cns.agent_pod.spawn span emitted
+    #[instrument(skip(self), fields(source_pod_id, new_pod_id, source_commit))]
+    pub async fn spawn_agent(
+        &self,
+        source_pod_id: &str,
+        source_commit: &CommitHash,
+        new_pod_id: &str,
+        output_db_path: &Path,
+    ) -> Result<SpawnAgentReport, BackupError> {
+        self.acquire_gate()?;
+        let _guard = GateGuard { service: self };
+        let start = Instant::now();
+        let repo_id = ArtifactType::PodState.repo_id();
+        let target_str = source_commit.to_string();
+        let prefix = format!("{}/", ArtifactType::PodState.label());
+        let entries = self.cas.list_tree(&repo_id, &target_str, &prefix).await?;
+
+        if entries.is_empty() {
+            return Err(BackupError::NoSnapshots);
+        }
+
+        let mut restored = false;
+        for entry in entries {
+            let raw = self.cas.get_blob(&repo_id, &entry.content_hash).await?;
+            let blob = if self.encryption_key.is_some() {
+                self.decrypt_blob(&raw)?
+            } else {
+                raw
+            };
+
+            // Skip envelope blobs, find the raw pod.db
+            if serde_json::from_slice::<crate::serialization::ArtifactEnvelopeValue>(&blob).is_ok()
+            {
+                continue;
+            } else {
+                std::fs::write(output_db_path, &blob)
+                    .map_err(|e| BackupError::Config(format!("Failed to write new pod.db: {e}")))?;
+                restored = true;
+                break;
+            }
+        }
+
+        if !restored {
+            return Err(BackupError::NoSnapshots);
+        }
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+        tracing::Span::current().record("source_pod_id", source_pod_id);
+        tracing::Span::current().record("new_pod_id", new_pod_id);
+        tracing::Span::current().record("source_commit", target_str);
+        info!(
+            target: "cns.agent_pod",
+            operation = "spawn",
+            source_pod_id = source_pod_id,
+            new_pod_id = new_pod_id,
+            source_commit = %source_commit,
+            duration_ms = duration_ms,
+            "CNS"
+        );
+
+        Ok(SpawnAgentReport {
+            source_pod_id: source_pod_id.to_string(),
+            new_pod_id: new_pod_id.to_string(),
+            source_commit: source_commit.clone(),
+            new_db_path: output_db_path.to_string_lossy().to_string(),
+            timestamp: Utc::now(),
+        })
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────
@@ -702,22 +981,14 @@ impl BackupService {
     }
 }
 
-/// Resolve an artifact type from its label string.
-fn artifact_type_from_label(label: &str) -> Option<ArtifactType> {
-    match label {
-        "template" => Some(ArtifactType::Template),
-        "style" => Some(ArtifactType::Style),
-        "goal" => Some(ArtifactType::Goal),
-        "spec" => Some(ArtifactType::Spec),
-        "memory_triple" => Some(ArtifactType::MemoryTriple),
-        "embedding" => Some(ArtifactType::Embedding),
-        "registry_entry" => Some(ArtifactType::RegistryEntry),
-        "cns_audit" => Some(ArtifactType::CnsAudit),
-        "sovereignty_manifest" => Some(ArtifactType::SovereigntyManifest),
-        "session" => Some(ArtifactType::Session),
-        "wallet_state" => Some(ArtifactType::WalletState),
-        "settings" => Some(ArtifactType::Settings),
-        _ => None,
+/// RAII guard that releases the backup gate on drop.
+/// Ensures the gate is released even if the operation panics.
+struct GateGuard<'a> {
+    service: &'a BackupService,
+}
+impl Drop for GateGuard<'_> {
+    fn drop(&mut self) {
+        self.service.release_gate();
     }
 }
 

@@ -1,9 +1,9 @@
 //! Git CAS archival and resolution routes
 //!
 //! Routes all git operations through the `GitCASPort` hexagonal boundary.
-//! The archive route still uses `GitCasAdapter::load_template_crate` for
+//! The archive route still uses `TemplateCrateLoader::load_template_crate` for
 //! template loading (a domain operation, not a CAS operation), while
-//! SHA resolution uses `GitCASPort::resolve_ref`.
+//! SHA resolution uses `GixCasAdapter::resolve_ref`.
 
 use axum::extract::Extension;
 use axum::{Json, extract::Path, extract::State};
@@ -63,8 +63,8 @@ pub fn git_router() -> OpenApiRouter<ApiState> {
 
 /// Archive a repository template crate
 ///
-/// Uses `GitCasAdapter::load_template_crate` for template loading (domain
-/// operation) and `GitCASPort::resolve_ref` for SHA resolution.
+/// Uses `TemplateCrateLoader::load_template_crate` for template loading (domain
+/// operation) and `GixCasAdapter::resolve_ref` for SHA resolution.
 #[utoipa::path(
     post,
     path = "/api/v1/git/archive",
@@ -86,14 +86,16 @@ pub(crate) async fn archive(
     let crate_name = format!("{}/{}", req.owner, req.repo);
 
     // Template loading stays on the legacy adapter (domain operation, not CAS)
-    let git_cas = state.git_cas.clone();
-    let template_crate = git_cas.load_template_crate(&crate_name).map_err(|e| {
-        ServiceError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
-    })?;
+    let template_adapter = state.template_adapter.clone();
+    let template_crate = template_adapter
+        .load_template_crate(&crate_name)
+        .map_err(|e| {
+            ServiceError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
+        })?;
 
-    // SHA resolution uses GitCASPort (hexagonal boundary)
+    // SHA resolution uses GixCasAdapter directly (admin operation, not backup)
     let sha = state
-        .git_cas_port
+        .gix_cas
         .resolve_ref(&RepoId::Registry, "HEAD")
         .await
         .map(|commit| commit.to_string())
@@ -121,7 +123,7 @@ pub(crate) async fn archive(
     }))
 }
 
-/// Resolve a git reference to a SHA using GitCASPort
+/// Resolve a git reference to a SHA using GixCasAdapter
 #[utoipa::path(
     get,
     path = "/api/v1/git/resolve/{sha}",
@@ -141,7 +143,7 @@ pub(crate) async fn resolve_sha(
     Path(reference): Path<String>,
 ) -> Result<Json<ResolveShaResponse>, ServiceErrorResponse> {
     let commit = state
-        .git_cas_port
+        .gix_cas
         .resolve_ref(&RepoId::Registry, &reference)
         .await
         .map_err(|e| {

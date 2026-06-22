@@ -69,6 +69,11 @@ impl VersionVector {
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
+
+    /// Iterate over all (replica, counter) pairs.
+    pub fn iter(&self) -> impl Iterator<Item = (&ReplicaId, &u64)> {
+        self.entries.iter()
+    }
 }
 
 impl Default for VersionVector {

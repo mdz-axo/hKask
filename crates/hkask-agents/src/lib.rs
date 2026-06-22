@@ -6,7 +6,7 @@
 //! - **Lifecycle Management**: Populated → Registered → Activated → Deactivated
 //! - **Capability Tokens**: OCAP-based access control with attenuation
 //! - **A2A Runtime**: Agent registration, A2A messaging, capability verification
-//! - **Hexagonal Ports**: A2APort, MCPRuntimePort, CnsEmit, GitCasAdapter
+//! - **Hexagonal Ports**: A2APort, MCPRuntimePort, CnsEmit, TemplateCrateLoader
 //!
 //! # Example
 //!
@@ -52,8 +52,8 @@ pub use pod::{
     ActivePods, AgentMode, AgentPersona, PodDeployment, PodFactory, PodID, PodKind, PodRegistry,
 };
 pub use ports::{
-    A2APort, EpisodicStoragePort, GitCasAdapter, RecallRequest, RecalledEpisode, RecalledSemantic,
-    SemanticStoragePort, StorageRequest,
+    A2APort, EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic,
+    SemanticStoragePort, StorageRequest, TemplateCrateLoader,
 };
 pub use prompt_analysis::{PromptAnalysis, SentenceDecomposition, decompose_prompt};
 pub use registry_loader::AgentRegistryLoader;

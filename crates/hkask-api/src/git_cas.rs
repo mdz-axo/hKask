@@ -15,10 +15,13 @@ use crate::error::ApiError;
 /// and to surface the `expect("Failed to create GixCasAdapter")` failure as a
 /// typed `ApiError::Internal` rather than a panic at startup (P4.1).
 pub(crate) struct GitCasBundle {
-    /// Concrete `GitCasAdapter` (legacy — template loading only).
-    pub git_cas: Arc<hkask_mcp::GitCasAdapter>,
+    /// TemplateCrateLoader (legacy — template loading only).
+    pub template_adapter: Arc<hkask_mcp::TemplateCrateLoader>,
     /// Trait-object `GitCASPort` (hexagonal boundary) used by stores.
     pub git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort>,
+    /// Concrete `GixCasAdapter` for admin operations (resolve_ref, diff)
+    /// that are not part of the backup contract.
+    pub gix_cas: Arc<hkask_mcp::GixCasAdapter>,
 }
 
 /// Initialize the Git CAS adapter and the trait-object port.
@@ -32,19 +35,21 @@ pub(crate) struct GitCasBundle {
 /// of this function — if even that cannot be created, returning
 /// `ApiError::Internal` is the correct (non-panicking) failure mode.
 pub(crate) fn init_git_cas() -> Result<GitCasBundle, ApiError> {
-    let git_cas = Arc::new(hkask_mcp::GitCasAdapter::from_path(PathBuf::from(
+    let template_adapter = Arc::new(hkask_mcp::TemplateCrateLoader::from_path(PathBuf::from(
         "/tmp/hkask-templates",
     )));
     let fallback_path = PathBuf::from("/tmp/hkask-templates");
-    let git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort> = Arc::new(
+    let gix_cas = Arc::new(
         hkask_mcp::GixCasAdapter::from_env()
             .or_else(|_| hkask_mcp::GixCasAdapter::new(fallback_path))
             .map_err(|e| ApiError::Internal {
                 message: format!("Failed to create GixCasAdapter: {e}"),
             })?,
     );
+    let git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort> = gix_cas.clone();
     Ok(GitCasBundle {
-        git_cas,
+        template_adapter,
         git_cas_port,
+        gix_cas,
     })
 }

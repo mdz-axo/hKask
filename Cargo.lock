@@ -4519,6 +4519,7 @@ dependencies = [
 name = "hkask-federation"
 version = "0.30.0"
 dependencies = [
+ "async-trait",
  "blake3",
  "chrono",
  "hkask-agents",

@@ -20,7 +20,9 @@ pub use config::{
     BackupConfig, EncryptionConfig, RetentionPolicy, backup_config_path, load_backup_config,
 };
 pub use r#loop::BackupLoop;
-pub use metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
+pub use metadata::{
+    PruneReport, RevertReport, SnapshotMetadata, SnapshotTrigger, SpawnAgentReport,
+};
 pub use scope::ArtifactType;
 pub use scope::{BackupScope, ListFilter, RestoreScope};
 pub use serialization::{

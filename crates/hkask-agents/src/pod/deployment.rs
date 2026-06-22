@@ -32,7 +32,7 @@ use super::{AgentPod, AgentPodError};
 use crate::SovereigntyChecker;
 use crate::curator::SemanticIndex;
 use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
-use hkask_mcp::GitCasAdapter;
+use hkask_mcp::TemplateCrateLoader;
 
 // ── PodDeployment — The pod IS the deployment unit ──────────────────────────
 
@@ -208,19 +208,19 @@ impl PerPodCnsRuntime {
 /// Stateless — does not cache, pool, or share pods.
 ///
 pub struct PodFactory {
-    git_cas: Arc<GitCasAdapter>,
+    template_loader: Arc<TemplateCrateLoader>,
     consent: Arc<dyn crate::SovereigntyConsent>,
     data_dir: PathBuf,
 }
 
 impl PodFactory {
     pub fn new(
-        git_cas: Arc<GitCasAdapter>,
+        template_loader: Arc<TemplateCrateLoader>,
         consent: Arc<dyn crate::SovereigntyConsent>,
         data_dir: PathBuf,
     ) -> Self {
         Self {
-            git_cas,
+            template_loader,
             consent,
             data_dir,
         }
@@ -251,7 +251,7 @@ impl PodFactory {
         let mut pod = AgentPod::new(
             template_name,
             persona,
-            self.git_cas.as_ref(),
+            self.template_loader.as_ref(),
             Arc::clone(&self.consent),
         )?;
         // Deterministic PodID from pod_kind + persona name (Solid Pod principle).
@@ -681,9 +681,9 @@ visibility:
     #[test]
     fn factory_constructs_with_valid_params() {
         let data_dir = PathBuf::from("/tmp/hkask-test-factory");
-        let git_cas = Arc::new(GitCasAdapter::from_path(data_dir.clone()));
+        let template_loader = Arc::new(TemplateCrateLoader::from_path(data_dir.clone()));
         let consent = Arc::new(crate::DenyAllConsent);
-        let factory = PodFactory::new(git_cas, consent, data_dir.clone());
+        let factory = PodFactory::new(template_loader, consent, data_dir.clone());
         assert_eq!(factory.data_dir(), &data_dir);
     }
 

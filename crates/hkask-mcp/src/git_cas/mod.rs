@@ -1,13 +1,8 @@
 //! Git CAS Adapter
 //
-//! Concrete implementation for template crate loading and Git operations.
-//! Also provides `load_template_crate_or_synthesize` which bridges the
-//! filesystem crate system and the hkask-templates::Registry. When a
-//! crate directory exists on disk, it's loaded normally. When absent,
-//! a minimal TemplateCrate is synthesized from the registry's template
-//! files and agent persona data — eliminating "crate not found" errors
-//! for templates registered in the registry but lacking a dedicated
-//! crate directory.
+//! Concrete implementation for git-based CAS operations via `GixCasAdapter`.
+//! Also provides `TemplateCrateLoader` for template crate loading from disk,
+//! which bridges the filesystem crate system and the hkask-templates::Registry.
 
 pub mod gix_adapter;
 
@@ -17,16 +12,20 @@ use hkask_types::InfrastructureError;
 use hkask_types::template::{TemplateCrate, TemplateFile};
 use std::path::{Component, Path};
 
-/// Git CAS Adapter — Concrete implementation for template crate loading
-pub struct GitCasAdapter {
+/// Template Crate Loader — loads template crates from disk.
+///
+/// Reads agent_persona.yaml, dispatch_manifest.yaml, and templates/
+/// from a crate directory. Used by PodFactory for pod deployment.
+/// Not related to CAS operations — see `GixCasAdapter` for that.
+pub struct TemplateCrateLoader {
     base_path: std::path::PathBuf,
 }
 
-impl GitCasAdapter {
+impl TemplateCrateLoader {
     /// Create from base path without validation.
     ///
     /// pre:  base_path is a valid directory path
-    /// post: returns GitCasAdapter rooted at base_path
+    /// post: returns TemplateCrateLoader rooted at base_path
     pub fn from_path(base_path: std::path::PathBuf) -> Self {
         Self { base_path }
     }

@@ -2,7 +2,7 @@
 use async_trait::async_trait;
 
 use super::error::GitCasError;
-use super::types::{CommitHash, ContentHash, FileDiff, RepoId, TreeEntry, TreeEntryKind};
+use super::types::{CommitHash, ContentHash, RepoId, TreeEntry, TreeEntryKind};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -68,9 +68,6 @@ pub trait GitCASPort: Send + Sync {
         message: &str,
     ) -> Result<CommitHash, GitCasError>;
 
-    /// Resolve a symbolic ref (branch, tag) to a commit SHA.
-    async fn resolve_ref(&self, repo: &RepoId, reference: &str) -> Result<CommitHash, GitCasError>;
-
     /// List file paths at a given ref with their content hashes.
     async fn list_tree(
         &self,
@@ -78,10 +75,6 @@ pub trait GitCASPort: Send + Sync {
         reference: &str,
         prefix: &str,
     ) -> Result<Vec<TreeEntry>, GitCasError>;
-
-    /// Diff two commits.
-    async fn diff(&self, repo: &RepoId, from: &str, to: &str)
-    -> Result<Vec<FileDiff>, GitCasError>;
 
     /// Verify content integrity: re-hash all blobs, compare to stored hashes.
     async fn verify(&self, repo: &RepoId) -> Result<VerificationReport, GitCasError>;
@@ -180,18 +173,6 @@ impl GitCASPort for MockGitCas {
         Ok(commit)
     }
 
-    async fn resolve_ref(
-        &self,
-        _repo: &RepoId,
-        _reference: &str,
-    ) -> Result<CommitHash, GitCasError> {
-        let snapshots = self.snapshots.read().unwrap_or_else(|e| e.into_inner());
-        snapshots
-            .last()
-            .map(|(_, _, hash)| hash.clone())
-            .ok_or_else(|| GitCasError::NotFound("no snapshots".to_string()))
-    }
-
     async fn snapshot_orphan(
         &self,
         repo: &RepoId,
@@ -219,16 +200,6 @@ impl GitCASPort for MockGitCas {
             .collect();
         entries.sort_by(|a, b| a.path.cmp(&b.path));
         Ok(entries)
-    }
-
-    async fn diff(
-        &self,
-        _repo: &RepoId,
-        _from: &str,
-        _to: &str,
-    ) -> Result<Vec<FileDiff>, GitCasError> {
-        // Mock returns empty diff — no real git state to compare
-        Ok(vec![])
     }
 
     async fn verify(&self, repo: &RepoId) -> Result<VerificationReport, GitCasError> {

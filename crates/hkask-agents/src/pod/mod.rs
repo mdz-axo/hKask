@@ -26,7 +26,7 @@
 //! ```rust,no_run
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use hkask_agents::pod::{AgentPod, AgentPersona, PodLifecycleState};
-//! use hkask_mcp::GitCasAdapter;
+//! use hkask_mcp::TemplateCrateLoader;
 //! use hkask_agents::a2a::A2ARuntime;
 //! use hkask_agents::adapters::mcp_runtime::CapabilityOnlyAdapter;
 //! use hkask_types::WebID;
@@ -35,7 +35,7 @@
 //! use std::sync::Arc;
 //!
 //! // Create adapters
-//! let git_adapter = GitCasAdapter::from_path(std::path::PathBuf::from("/tmp/hkask-templates"));
+//! let loader = TemplateCrateLoader::from_path(std::path::PathBuf::from("/tmp/hkask-templates"));
 //! let a2a_runtime = Arc::new(A2ARuntime::default());
 //! let checker = Arc::new(CapabilityChecker::new(&[]));
 //! let mcp_runtime = CapabilityOnlyAdapter::new(checker);
@@ -82,7 +82,7 @@ use tracing::info;
 use zeroize::Zeroizing;
 
 use crate::SovereigntyChecker;
-use hkask_mcp::GitCasAdapter;
+use hkask_mcp::TemplateCrateLoader;
 
 pub use active_pods::{ActivePods, PodStatusInfo};
 pub use context::PodContext;
@@ -205,7 +205,7 @@ impl AgentPod {
     /// \[P1\] Motivating: User Sovereignty — AgentPod is the user's agent container
     /// \[P4\] Constraining: Clear Boundaries — OCAP secret + capability token on creation
     /// pre:  `crate_name` is a non-empty string; `persona` is a valid
-    ///       `AgentPersona`; `git` is a valid `GitCasAdapter`; `consent`
+    ///       `AgentPersona`; `loader` is a valid `TemplateCrateLoader`; `consent`
     ///       is a valid `Arc<dyn SovereigntyConsent>`.
     /// post: Returns `Ok(AgentPod)` in `Populated` state with a derived
     ///       OCAP secret, capability token, and sovereignty checker.
@@ -213,10 +213,10 @@ impl AgentPod {
     pub fn new(
         crate_name: &str,
         persona: &AgentPersona,
-        git: &GitCasAdapter,
+        loader: &TemplateCrateLoader,
         consent: Arc<dyn crate::SovereigntyConsent>,
     ) -> AgentPodResult<Self> {
-        let template_crate = git.load_template_crate_or_synthesize(crate_name)?;
+        let template_crate = loader.load_template_crate_or_synthesize(crate_name)?;
 
         // Derive OCAP secret per WebID via HKDF-SHA256 from master key
         // (ADR-027: deterministic, restart-safe, per-agent isolation)
@@ -717,11 +717,11 @@ mod tests {
         )
         .ok();
         std::fs::write(crate_dir.join("dispatch_manifest.yaml"), "name: test\n").ok();
-        let git = hkask_mcp::GitCasAdapter::from_path(template_dir);
+        let loader = hkask_mcp::TemplateCrateLoader::from_path(template_dir);
         AgentPod::new(
             "test-template",
             &persona,
-            &git,
+            &loader,
             Arc::new(DenyAllConsent) as Arc<dyn SovereigntyConsent>,
         )
         .expect("test pod creation")

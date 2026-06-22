@@ -75,10 +75,12 @@ pub struct ApiState {
     pub agent_service: Arc<AgentService>,
     /// Spec store for MDS specifications — surface-specific
     pub spec_store: Option<Arc<hkask_storage::SqliteSpecStore>>,
-    /// Git CAS adapter for template archival (legacy — template loading only) — surface-specific
-    pub git_cas: Arc<hkask_mcp::GitCasAdapter>,
+    /// Legacy template-loading adapter — surface-specific
+    pub template_adapter: Arc<hkask_mcp::TemplateCrateLoader>,
     /// Git CAS port for all CAS operations (hexagonal boundary) — surface-specific
     pub git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort>,
+    /// GixCasAdapter for admin operations (resolve_ref, diff) — surface-specific
+    pub gix_cas: Arc<hkask_mcp::GixCasAdapter>,
     /// Wallet service for rJoule payments and API key management — surface-specific.
     /// Built from config during `ApiState::with_defaults()` or `from_service_context()`.
     pub wallet_service: Option<Arc<WalletService>>,
@@ -130,8 +132,9 @@ impl ApiState {
     pub async fn from_service_context(ctx: AgentService) -> Result<Self, ApiError> {
         // Surface-specific: Git CAS adapters (legacy template archival)
         let GitCasBundle {
-            git_cas,
+            template_adapter,
             git_cas_port,
+            gix_cas,
         } = init_git_cas()?;
 
         // Extract wallet service before moving ctx into Arc
@@ -148,8 +151,9 @@ impl ApiState {
             agent_service: Arc::new(ctx),
             // Surface-specific fields only
             spec_store: None,
-            git_cas,
+            template_adapter,
             git_cas_port,
+            gix_cas,
             wallet_service,
             api_key_auth_service,
         })

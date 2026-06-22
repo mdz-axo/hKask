@@ -173,6 +173,34 @@ pub enum CnsSpan {
     FederationLinkDegraded,
     /// Federation member voluntarily left.
     FederationMemberLeft,
+    /// Federation invitation sent to a peer.
+    FederationInviteSent,
+    /// Federation invitation received from a peer.
+    FederationInviteReceived,
+    /// Federation invitation accepted by the target.
+    FederationInviteAccepted,
+    /// Federation invitation rejected by the target.
+    FederationInviteRejected,
+    /// Federation invitation expired without response.
+    FederationInviteExpired,
+    /// Federation link temporarily paused (security measure).
+    FederationLinkPaused,
+    /// Federation link resumed from pause.
+    FederationLinkResumed,
+    /// Federation member revoked by another member.
+    FederationMemberRevoked,
+    /// Entire federation dissolved — all links terminated.
+    FederationDissolved,
+    /// Federation registry sync — user/agent data merged.
+    FederationRegistrySync,
+    /// Federation artifact sync — public artifact replicated.
+    FederationArtifactSync,
+    /// Federation Matrix conduit route established.
+    FederationConduitRoute,
+    /// Federation Matrix conduit route lost.
+    FederationConduitRouteLost,
+    /// Federation CRDT conflict detected — requires Curator attention.
+    FederationCrdtConflict,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -323,6 +351,20 @@ impl CnsSpan {
             CnsSpan::FederationLinkLost => "cns.federation.link_lost",
             CnsSpan::FederationLinkDegraded => "cns.federation.link_degraded",
             CnsSpan::FederationMemberLeft => "cns.federation.member_left",
+            CnsSpan::FederationInviteSent => "cns.federation.invite_sent",
+            CnsSpan::FederationInviteReceived => "cns.federation.invite_received",
+            CnsSpan::FederationInviteAccepted => "cns.federation.invite_accepted",
+            CnsSpan::FederationInviteRejected => "cns.federation.invite_rejected",
+            CnsSpan::FederationInviteExpired => "cns.federation.invite_expired",
+            CnsSpan::FederationLinkPaused => "cns.federation.link_paused",
+            CnsSpan::FederationLinkResumed => "cns.federation.link_resumed",
+            CnsSpan::FederationMemberRevoked => "cns.federation.member_revoked",
+            CnsSpan::FederationDissolved => "cns.federation.dissolved",
+            CnsSpan::FederationRegistrySync => "cns.federation.registry_sync",
+            CnsSpan::FederationArtifactSync => "cns.federation.artifact_sync",
+            CnsSpan::FederationConduitRoute => "cns.federation.conduit_route",
+            CnsSpan::FederationConduitRouteLost => "cns.federation.conduit_route_lost",
+            CnsSpan::FederationCrdtConflict => "cns.federation.crdt_conflict",
         }
     }
 }
@@ -429,6 +471,20 @@ impl std::str::FromStr for CnsSpan {
             "cns.federation.link_lost" => Ok(CnsSpan::FederationLinkLost),
             "cns.federation.link_degraded" => Ok(CnsSpan::FederationLinkDegraded),
             "cns.federation.member_left" => Ok(CnsSpan::FederationMemberLeft),
+            "cns.federation.invite_sent" => Ok(CnsSpan::FederationInviteSent),
+            "cns.federation.invite_received" => Ok(CnsSpan::FederationInviteReceived),
+            "cns.federation.invite_accepted" => Ok(CnsSpan::FederationInviteAccepted),
+            "cns.federation.invite_rejected" => Ok(CnsSpan::FederationInviteRejected),
+            "cns.federation.invite_expired" => Ok(CnsSpan::FederationInviteExpired),
+            "cns.federation.link_paused" => Ok(CnsSpan::FederationLinkPaused),
+            "cns.federation.link_resumed" => Ok(CnsSpan::FederationLinkResumed),
+            "cns.federation.member_revoked" => Ok(CnsSpan::FederationMemberRevoked),
+            "cns.federation.dissolved" => Ok(CnsSpan::FederationDissolved),
+            "cns.federation.registry_sync" => Ok(CnsSpan::FederationRegistrySync),
+            "cns.federation.artifact_sync" => Ok(CnsSpan::FederationArtifactSync),
+            "cns.federation.conduit_route" => Ok(CnsSpan::FederationConduitRoute),
+            "cns.federation.conduit_route_lost" => Ok(CnsSpan::FederationConduitRouteLost),
+            "cns.federation.crdt_conflict" => Ok(CnsSpan::FederationCrdtConflict),
             _ => Err(()),
         }
     }
@@ -560,6 +616,20 @@ mod cns_span_tests {
             CnsSpan::FederationLinkLost,
             CnsSpan::FederationLinkDegraded,
             CnsSpan::FederationMemberLeft,
+            CnsSpan::FederationInviteSent,
+            CnsSpan::FederationInviteReceived,
+            CnsSpan::FederationInviteAccepted,
+            CnsSpan::FederationInviteRejected,
+            CnsSpan::FederationInviteExpired,
+            CnsSpan::FederationLinkPaused,
+            CnsSpan::FederationLinkResumed,
+            CnsSpan::FederationMemberRevoked,
+            CnsSpan::FederationDissolved,
+            CnsSpan::FederationRegistrySync,
+            CnsSpan::FederationArtifactSync,
+            CnsSpan::FederationConduitRoute,
+            CnsSpan::FederationConduitRouteLost,
+            CnsSpan::FederationCrdtConflict,
         ];
         for variant in &all_variants {
             let s = variant.to_string();

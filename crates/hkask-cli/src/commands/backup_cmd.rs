@@ -8,6 +8,7 @@ use std::sync::Arc;
 use hkask_ports::git_cas::GitCASPort;
 use hkask_services::RetentionPolicy;
 use hkask_services::{ArtifactType, BackupScope, BackupService, ListFilter, RestoreScope};
+use std::str::FromStr;
 
 use crate::block_on;
 use crate::cli::BackupAction;
@@ -21,30 +22,11 @@ fn resolve_git_cas_port() -> Arc<dyn GitCASPort> {
     Arc::new(adapter) as Arc<dyn GitCASPort>
 }
 
-/// Parse an artifact type from a CLI string.
-fn parse_artifact_type(s: &str) -> Option<ArtifactType> {
-    match s {
-        "template" => Some(ArtifactType::Template),
-        "style" => Some(ArtifactType::Style),
-        "goal" => Some(ArtifactType::Goal),
-        "spec" => Some(ArtifactType::Spec),
-        "memory" | "memory_triple" => Some(ArtifactType::MemoryTriple),
-        "embedding" => Some(ArtifactType::Embedding),
-        "registry" | "registry_entry" => Some(ArtifactType::RegistryEntry),
-        "cns" | "cns_audit" => Some(ArtifactType::CnsAudit),
-        "sovereignty" | "sovereignty_manifest" => Some(ArtifactType::SovereigntyManifest),
-        "session" => Some(ArtifactType::Session),
-        "wallet" | "wallet_state" => Some(ArtifactType::WalletState),
-        "settings" => Some(ArtifactType::Settings),
-        _ => None,
-    }
-}
-
 /// Parse a comma-separated list of artifact types.
 fn parse_artifact_types(s: &str) -> Vec<ArtifactType> {
     s.split(',')
         .map(|s| s.trim())
-        .filter_map(parse_artifact_type)
+        .filter_map(|s| ArtifactType::from_str(s).ok())
         .collect()
 }
 
@@ -53,7 +35,7 @@ fn parse_scope(s: &str) -> BackupScope {
     match s {
         "full" | "" => BackupScope::Full,
         other => {
-            if let Some(at) = parse_artifact_type(other) {
+            if let Ok(at) = ArtifactType::from_str(other) {
                 BackupScope::ByType(at)
             } else {
                 eprintln!("Unknown scope '{}', defaulting to full", other);
@@ -68,7 +50,7 @@ fn parse_restore_scope(s: &str) -> RestoreScope {
     match s {
         "full" | "" => RestoreScope::Full,
         other => {
-            if let Some(at) = parse_artifact_type(other) {
+            if let Ok(at) = ArtifactType::from_str(other) {
                 RestoreScope::ByType(at)
             } else {
                 eprintln!("Unknown scope '{}', defaulting to full", other);
@@ -133,7 +115,9 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
             let svc = BackupService::new(port);
 
             let filter = ListFilter {
-                artifact_type: r#type.as_deref().and_then(parse_artifact_type),
+                artifact_type: r#type
+                    .as_deref()
+                    .and_then(|s| ArtifactType::from_str(s).ok()),
                 limit: Some(limit),
             };
 

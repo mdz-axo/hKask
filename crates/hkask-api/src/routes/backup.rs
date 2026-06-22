@@ -16,6 +16,7 @@ use hkask_services::{
     SnapshotMetadata,
 };
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
@@ -226,21 +227,7 @@ fn backup_service(state: &ApiState) -> BackupService {
 }
 
 fn parse_artifact_type(s: &str) -> Option<ArtifactType> {
-    match s {
-        "template" => Some(ArtifactType::Template),
-        "style" => Some(ArtifactType::Style),
-        "goal" => Some(ArtifactType::Goal),
-        "spec" => Some(ArtifactType::Spec),
-        "memory" | "memory_triple" => Some(ArtifactType::MemoryTriple),
-        "embedding" => Some(ArtifactType::Embedding),
-        "registry" | "registry_entry" => Some(ArtifactType::RegistryEntry),
-        "cns" | "cns_audit" => Some(ArtifactType::CnsAudit),
-        "sovereignty" | "sovereignty_manifest" => Some(ArtifactType::SovereigntyManifest),
-        "session" => Some(ArtifactType::Session),
-        "wallet" | "wallet_state" => Some(ArtifactType::WalletState),
-        "settings" => Some(ArtifactType::Settings),
-        _ => None,
-    }
+    s.parse().ok()
 }
 
 fn api_scope_to_domain(scope: ApiBackupScope) -> Result<BackupScope, ServiceError> {

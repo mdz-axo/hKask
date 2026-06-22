@@ -1,4 +1,4 @@
-//! Backup metadata types — snapshot results, prune reports.
+//! Backup metadata types — snapshot results, prune reports, revert/spawn_agent reports.
 //! # REQ: P8 (Semantic Grounding) — every type encodes a distinct domain concept.
 //! expect: "Backup metadata types encode distinct domain concepts"
 
@@ -16,6 +16,8 @@ pub enum SnapshotTrigger {
     Auto,
     /// CNS-triggered (e.g., pre-consolidation safety snapshot).
     CnsTriggered,
+    /// Safety snapshot — taken automatically before a revert operation.
+    SafetySnapshot,
 }
 
 /// Metadata about a completed backup snapshot.
@@ -48,4 +50,41 @@ pub struct PruneReport {
     pub removed: Vec<(RepoId, CommitHash)>,
     /// Commit hashes retained.
     pub retained: usize,
+}
+
+/// Report from a pod revert operation.
+///
+/// Returned by [`super::BackupService::revert`]. Records the safety
+/// snapshot taken before the revert and the restored target commit.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RevertReport {
+    /// The pod identifier that was reverted.
+    pub pod_id: String,
+    /// Commit hash of the safety snapshot taken before the revert.
+    /// This IS the bail-out point — restore this commit to undo the revert.
+    pub safety_commit: CommitHash,
+    /// Commit hash that the pod was restored to.
+    pub target_commit: CommitHash,
+    /// Number of artifacts restored.
+    pub artifact_count: usize,
+    /// When the revert was executed.
+    pub timestamp: DateTime<Utc>,
+}
+
+/// Report from a spawn_agent operation.
+///
+/// Returned by [`super::BackupService::spawn_agent`]. Records the new
+/// pod created from a prior state snapshot.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpawnAgentReport {
+    /// The source pod identifier (whose state was cloned).
+    pub source_pod_id: String,
+    /// The new pod identifier.
+    pub new_pod_id: String,
+    /// The source commit hash that the new pod was spawned from.
+    pub source_commit: CommitHash,
+    /// Path to the new pod's database file.
+    pub new_db_path: String,
+    /// When the spawn was executed.
+    pub timestamp: DateTime<Utc>,
 }

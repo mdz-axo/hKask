@@ -11,7 +11,7 @@ pub mod registry_source;
 
 pub use crate::types::audit::{AuditEntry, AuditOutcome};
 pub use a2a::A2APort;
-pub use hkask_mcp::GitCasAdapter;
+pub use hkask_mcp::TemplateCrateLoader;
 pub use mcp_runtime::MCPRuntimePort;
 pub use memory_storage::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,

@@ -8,3 +8,10 @@ pub mod lww_map;
 pub mod or_set;
 pub mod triple_key;
 pub mod version_vector;
+
+pub use dot::Dot;
+pub use g_set::GSet;
+pub use lww_map::LWWMap;
+pub use or_set::ORSet;
+pub use triple_key::FederationTripleKey;
+pub use version_vector::VersionVector;

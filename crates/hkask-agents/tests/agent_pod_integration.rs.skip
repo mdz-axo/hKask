@@ -34,7 +34,7 @@ fn test_persona(name: &str, agent_type: &str) -> AgentPersona {
 }
 
 /// Ensure a template crate directory exists for PodManager::new_mock().
-/// The mock manager uses `/tmp/hkask-mock` as its GitCasAdapter root.
+/// The mock manager uses `/tmp/hkask-mock` as its TemplateCrateLoader root.
 fn ensure_template_dir(template_name: &str) {
     let dir = std::path::PathBuf::from("/tmp/hkask-mock").join(template_name);
     std::fs::create_dir_all(&dir).ok();

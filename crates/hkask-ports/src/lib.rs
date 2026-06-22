@@ -6,6 +6,7 @@
 
 pub mod cns;
 pub mod embedding;
+pub mod federation;
 pub mod git_cas;
 pub mod inference_port;
 pub mod inference_types;
