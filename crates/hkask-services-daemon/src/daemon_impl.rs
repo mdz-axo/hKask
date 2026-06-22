@@ -19,11 +19,13 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use hkask_agents::pod::ActivePods;
+use hkask_cns::CnsRuntime;
 use hkask_mcp::daemon::DaemonHandler;
 use hkask_ports::InferencePort;
 use hkask_storage::user_store::UserStore;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
+use tokio::sync::RwLock;
 
 /// Number of experiences before triggering internal narrative generation.
 const NARRATIVE_THRESHOLD: usize = 10;
@@ -45,6 +47,8 @@ const NARRATIVE_SYSTEM_PROMPT: &str = "You are an observant agent monitoring an 
 pub struct ServiceDaemonHandler {
     pod_manager: Arc<ActivePods>,
     user_store: Arc<std::sync::Mutex<UserStore>>,
+    /// CNS runtime for health and variety queries (None if unavailable)
+    cns_runtime: Option<Arc<RwLock<CnsRuntime>>>,
     /// Inference port for narrative generation (None if inference unavailable)
     inference_port: Option<Arc<dyn InferencePort>>,
     /// Per-replicant counter of stored experiences (triggers narrative generation)
@@ -58,14 +62,16 @@ impl ServiceDaemonHandler {
     pub fn new(
         pod_manager: Arc<ActivePods>,
         user_store: Arc<std::sync::Mutex<UserStore>>,
+        cns_runtime: Option<Arc<RwLock<CnsRuntime>>>,
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Self {
         // P9: CNS span
-        tracing::info!(target: "cns.daemon", operation = "new_handler", has_inference = inference_port.is_some(), "CNS");
+        tracing::info!(target: "cns.daemon", operation = "new_handler", has_cns = cns_runtime.is_some(), has_inference = inference_port.is_some(), "CNS");
 
         Self {
             pod_manager,
             user_store,
+            cns_runtime,
             inference_port,
             experience_counts: Mutex::new(HashMap::new()),
         }
@@ -267,6 +273,108 @@ impl DaemonHandler for ServiceDaemonHandler {
             Ok(output) => (true, Some(output), None),
             Err(e) => (false, None, Some(e.to_string())),
         }
+    }
+
+    async fn curator_health(&self, _replicant: &str) -> serde_json::Value {
+        let Some(ref cns_lock) = self.cns_runtime else {
+            return serde_json::json!({
+                "timestamp": now_rfc3339(),
+                "cns_health": "unknown",
+                "note": "CNS runtime not available"
+            });
+        };
+        let cns = cns_lock.read().await;
+        let alerts = cns.alerts().await;
+        let critical = alerts.iter().filter(|a| a.is_critical()).count();
+        let total = alerts.len();
+        // Determine overall health from alerts
+        let health = if critical > 0 {
+            "critical"
+        } else if total > 5 {
+            "degraded"
+        } else {
+            "healthy"
+        };
+        serde_json::json!({
+            "timestamp": now_rfc3339(),
+            "cns_health": health,
+            "critical_alerts": critical,
+            "total_alerts": total,
+        })
+    }
+
+    async fn cns_status(&self, _replicant: &str, domain: Option<&str>) -> serde_json::Value {
+        let Some(ref cns_lock) = self.cns_runtime else {
+            return serde_json::json!({
+                "timestamp": now_rfc3339(),
+                "note": "CNS runtime not available"
+            });
+        };
+        let cns = cns_lock.read().await;
+        let variety = cns.variety().await;
+        let domains: Vec<serde_json::Value> = variety
+            .iter()
+            .filter(|(ns, _)| domain.is_none_or(|d| ns.as_str().contains(d)))
+            .map(|(ns, count)| serde_json::json!({"domain": ns.as_str(), "variety": count}))
+            .collect();
+        serde_json::json!({
+            "timestamp": now_rfc3339(),
+            "domains": domains
+        })
+    }
+
+    async fn bot_status(&self, _replicant: &str, bot_name: Option<&str>) -> serde_json::Value {
+        let Some(ref cns_lock) = self.cns_runtime else {
+            return serde_json::json!({
+                "timestamp": now_rfc3339(),
+                "note": "CNS runtime not available — energy budget data unavailable"
+            });
+        };
+        let cns = cns_lock.read().await;
+        // Use pod_manager to enumerate pods and cns for energy status
+        let pods = match self.pod_manager.list_pods().await {
+            Ok(p) => p,
+            Err(_) => {
+                return serde_json::json!({"timestamp": now_rfc3339(), "bots": [], "error": "failed to list pods"});
+            }
+        };
+        let mut bots: Vec<serde_json::Value> = Vec::new();
+        for pod in &pods {
+            let name = pod.name.clone().unwrap_or_default();
+            if let Some(filter) = bot_name
+                && name != filter
+            {
+                continue;
+            }
+            if let Ok(webid) = pod.webid.parse::<hkask_types::WebID>() {
+                let status = cns.agent_gas_status(&webid).await;
+                let cap = status.as_ref().map_or(0, |s| s.cap.as_raw());
+                let remaining = status.as_ref().map_or(0, |s| s.remaining.as_raw());
+                let ratio = if cap > 0 {
+                    (cap - remaining) as f64 / cap as f64
+                } else {
+                    0.0
+                };
+                let health = if ratio >= 0.9 {
+                    "critical"
+                } else if ratio >= 0.5 {
+                    "degraded"
+                } else {
+                    "healthy"
+                };
+                bots.push(serde_json::json!({
+                    "name": name,
+                    "status": health,
+                    "gas_cap": cap,
+                    "gas_remaining": remaining,
+                    "usage_ratio": ratio,
+                }));
+            }
+        }
+        serde_json::json!({
+            "timestamp": now_rfc3339(),
+            "bots": bots
+        })
     }
 }
 

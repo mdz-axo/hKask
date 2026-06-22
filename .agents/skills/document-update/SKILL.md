@@ -61,9 +61,30 @@ find docs/ -name '*.md' -not -path '*/archive/*' | sed 's|^docs/||' | sort -u > 
 # All crate-like names mentioned in docs
 grep -roPh 'hkask-[a-z0-9_-]+' docs/ --include='*.md' | sort -u > /tmp/refs-crates.txt
 
-# All CLI commands mentioned in docs (look for `kask <word>` patterns)
-grep -roPh '(?<=\bkask )[a-z][a-z-]+' docs/ --include='*.md' | sort -u > /tmp/refs-commands.txt
+# All MCP server names mentioned in docs
+grep -roPh 'hkask-mcp-[a-z0-9_-]+' docs/ --include='*.md' | sort -u > /tmp/refs-mcps.txt
+
+# All skill names mentioned in docs
+grep -roPh '[a-z][a-z-]+' docs/ --include='*.md' | sort -u | grep -Fxf /tmp/exists-skills.txt - > /tmp/refs-skills.txt
 ```
+
+**Step 2b: INVERSE CHECK — find code entities with no documentation footprint.** This is the step that catches the `hkask-mcp-curator` problem. Face both directions:
+
+```bash
+# MCP servers that exist but are never mentioned in docs
+echo "=== MCP servers undocumented ==="
+comm -23 /tmp/exists-mcps.txt /tmp/refs-mcps.txt
+
+# Core crates that exist but are never mentioned in docs
+echo "=== Crates undocumented ==="
+comm -23 /tmp/exists-crates.txt /tmp/refs-crates.txt
+
+# Skills that exist but are never mentioned in docs
+echo "=== Skills undocumented ==="
+comm -23 /tmp/exists-skills.txt /tmp/refs-skills.txt
+```
+
+**Every entity in the left column is invisible to existing verification.** The document-update skill's traditional Task 0 only catches stale references (docs mention things that don't exist). This inverse check catches undocumented entities (things that exist but docs never mention). Both directions are required for the Good Regulator theorem: the documentation model must cover the system, and the system must match the documentation model.
 
 **Step 3: Diff — find references to things that don't exist.**
 

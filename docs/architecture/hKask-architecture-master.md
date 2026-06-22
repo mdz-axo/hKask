@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-19
+last_updated: 2026-06-22
 version: "0.30.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -181,7 +181,7 @@ This isomorphism was the original architectural intent, as evidenced by the depl
 | # | Solid Invariant | hKask Implementation | Status |
 |---|----------------|---------------------|--------|
 | 1 | WebID-grounded identity | `AgentPod.webid` + `derive_ocap_secret(webid)` (ADR-027) | ✓ |
-| 2 | Self-contained storage (LDP) | `PerPodStorage` with per-pod SQLCipher file at `{data_dir}/pods/{kind}.{name}.db` | ✓ |
+| 2 | Self-contained storage (LDP) | `PerPodStorage` with per-pod SQLCipher file at `{data_dir}/agents/{sanitized_name}/pod.db` | ✓ |
 | 3 | Capability-based access (WAC/ACP) | `DelegationToken` + `CapabilityChecker` + OCAP dual gate | ✓ |
 | 4 | Interoperable linked-data triples | `Triple` struct with entity/attribute/value/confidence/visibility | ✓ |
 | 5 | Pod IS the deployment unit | `PodDeployment` owns its storage, CNS, and tools directly. `PodDeployment` includes `pod_kind`, `semantic_index`, and per-pod CNS runtime. `PodManager` deleted. `PodFactory` is stateless. | ✓ |
@@ -192,9 +192,9 @@ hKask extends the Solid Pod isomorphism into three pod tiers:
 
 | Tier | `PodKind` | Filename | Owner | Semantic Behavior |
 |------|-----------|----------|-------|-------------------|
-| **CuratorPod** | `Curator` | `curator.db` | System (singleton) | `SemanticIndex` owner — aggregates Public triples from all pods |
-| **TeamPod** | `Team` | `team.{name}.db` | Shared bots | Bots share episodic storage; semantic published to Curator |
-| **ReplicantPod** | `Replicant` | `replicant.{webid}.db` | Human+replicant pair | Episodic private; semantic published to Curator |
+| **CuratorPod** | `Curator` | `agents/curator/pod.db` | System (singleton) | `SemanticIndex` owner — aggregates Public triples from all pods |
+| **TeamPod** | `Team` | `agents/team.{name}/pod.db` | Shared bots | Bots share episodic storage; semantic published to Curator |
+| **ReplicantPod** | `Replicant` | `agents/replicant.{name}/pod.db` | Human+replicant pair | Episodic private; semantic published to Curator |
 
 **Startup order:** CuratorPod → TeamPods → ReplicantPods (on demand).
 **Data flow:** `store_semantic()` writes locally → CNS event `cns.semantic.published` → `CuratorSync` polling loop opens source pod read-only → inserts Public triples into `SemanticIndex` with cursor tracking.
@@ -210,7 +210,7 @@ hKask extends the Solid Pod isomorphism into three pod tiers:
 pub struct PodDeployment {
     pub pod_id: PodID,
     pub pod: AgentPod,
-    pub storage: PerPodStorage,  // Per-pod SQLCipher file at {data_dir}/pods/{pod_id}.db
+    pub storage: PerPodStorage,  // Per-pod SQLCipher file at {data_dir}/agents/{sanitized_name}/pod.db
     pub cns: PerPodCnsRuntime,    // Per-pod variety counters at cns.agent_pod.{pod_id}.*
     pub tools: PerPodToolBinding, // Per-pod MCP server bindings
 }
@@ -218,13 +218,64 @@ pub struct PodDeployment {
 
 **PodFactory** is the canonical constructor (1 public method: `deploy`).
 **ActivePods** is the runtime registry (lightweight HashMap, no shared storage).
-**PodRegistry** is filesystem-based discovery (scans `{data_dir}/pods/*.db`).
+**PodRegistry** is filesystem-based discovery (scans `{data_dir}/agents/{name}/pod.db`).
 
 **Full analysis:** [`SOLID_POD_ISOMORPHISM.md`](core/SOLID_POD_ISOMORPHISM.md) (includes deployment types)
 
 **Crates:** `hkask-agents` (pod, deployment), `hkask-storage`, `hkask-memory`, `hkask-keystore`
 
 **If removed:** The system devolves into a shared multi-tenant service — agents are cache entries, not sovereign deployment units. P6, P11 violated (per-pod boundaries become advisory).
+
+
+#### Agent Definition YAML (v0.30.0)
+
+Every agent has a self-contained definition at `agents/{sanitized_name}/agent.yaml`.
+This file is the canonical source for the agent's identity, charter, capabilities,
+public/private directory declarations, and persona constraints.
+
+**Creation paths:**
+- **Onboarding (`register_replicant`):** Writes the full YAML during `kask chat` first run.
+  Stored as `source_yaml` in the `agent_registry` SQL table so the REPL can load
+  `persona_constraints` and `process_manifest` without re-reading from disk.
+- **CLI registration (`agent_register`):** Writes YAML from WebID, agent type, and
+  capabilities passed at the command line.
+- **`ensure_agent_dirs` fallback:** Writes a minimal stub (directory declarations only)
+  if no definition exists — prevents the full definition from being overwritten.
+
+**YAML format:**
+```yaml
+agent:
+  name: "Jacques (Zuck)"
+  type: replicant
+charter:
+  description: "A helpful AI assistant"
+capabilities:
+  - tool:inference:call
+  - tool:mcp:invoke
+  - registry:episodic_memory:read
+  - registry:episodic_memory:write
+public_dirs:
+  - artifacts
+  - library
+  - gallery
+  - documents
+  - adapters
+private_dirs:
+  - sessions
+  - portfolios
+```
+
+**Loading order (REPL init, `/agent` command):**
+1. Query `agent_registry.source_yaml` → `parse_agent_from_yaml()`
+2. Fallback: read `agents/{name}/agent.yaml` from disk
+3. If neither succeeds, agent runs without persona constraints or process manifest
+
+This two-source approach ensures backward compatibility with pre-fix agents
+(where `source_yaml` was a placeholder string) while maintaining filesystem
+as the ground-truth canonical store.
+
+**Relevant crates:** `hkask-services-onboarding` (creation), `hkask-cli` (CLI registration),
+`hkask-types::agent_paths` (path resolution), `hkask-agents::yaml_parser` (parsing).
 
 
 ### How They Compose
@@ -286,7 +337,7 @@ CLOUD SERVER (single binary, all crates compiled)
   hkask-agents - bot/replicant lifecycle
   hkask-cns - cybernetic nervous system
   hkask-wallet + hkask-memory - wallet and memory subsystems
-  Per-pod SQLCipher files ({data_dir}/pods/{kind}.{name}.db) — one database per pod, three-tier (Curator/Team/Replicant)
+  Per-pod SQLCipher files (`{data_dir}/agents/{sanitized_name}/pod.db`) — one database per agent, three-tier (Curator/Team/Replicant)
 
 Access (all via HTTPS/Caddy):
   Browser (xterm.js) - primary
@@ -298,7 +349,7 @@ Access (all via HTTPS/Caddy):
 
 - **Single binary.** All crates compiled. No Cargo features for client/server.
 - **Browser-only access.** User visits a URL, signs in, gets a terminal. No install.
-- **Per-pod storage.** Each pod owns its own SQLCipher file at `{data_dir}/pods/{pod_id}.db`. No shared TripleStore. Data isolation is structural, not row-level.
+- **Per-pod storage.** Each agent owns its own SQLCipher file at `{data_dir}/agents/{sanitized_name}/pod.db`. No shared TripleStore. Data isolation is structural, not row-level.
 - **Caddy + Conduit sidecars.** Docker containers. hKask generates config; user runs Docker.
 - **Backup as portable archive.** Encrypted SQLCipher file. Export from one server, upload to another. No server-to-server protocol.
 - **Wallet cloud-only.** Crypto operations never leave the server.
@@ -370,7 +421,7 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 
 ### Supplementary Architecture Patterns
 
-> **Incorporated from:** `specs/provider-intelligence.md`, `specs/rjoule-cost-system.md`, `self-healing.md`, `loop-architecture.md`, `energy-gas-payments-api-keys.md`
+> **See also:** `specs/provider-intelligence.md`, `specs/rjoule-cost-system.md`, `self-healing.md`, `loop-architecture.md`, `energy-gas-payments-api-keys.md` for full specifications.
 
 #### Provider Intelligence
 
@@ -1000,7 +1051,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | Artifact | Purpose |
 |----------|---------|
 
-|  Curator persona (archived — see | Curator persona specification |
+| [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
 
 
 ---
@@ -1052,9 +1103,9 @@ docs/architecture/
 │   ├── SOLID_POD_ISOMORPHISM.md                # Pod drift analysis
 │   └── MULTI_POD_ARCHITECTURE.md               # 3-tier pod structure
 ├── ADRs/
-    ├── _TEMPLATE.md                            # ADR template
-    ├── ADR-031-consolidation-authorization.md  # Active
-    └── ADR-035-replicant-server-mode.md        # Active
+│   ├── _TEMPLATE.md                            # ADR template
+│   ├── ADR-031-consolidation-authorization.md  # Active
+│   └── ADR-035-replicant-server-mode.md        # Active
 └── reference/
     └── hKask-Curator-persona.md                # Persona spec
 ```

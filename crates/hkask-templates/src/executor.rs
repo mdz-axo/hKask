@@ -8,10 +8,17 @@
 //! - **populate**: Render a template with the accumulated context map, producing
 //!   a filled prompt or data payload.
 //! - **execute**: Invoke an MCP tool with parameters bound from the context map.
+//! - **choice**: Evaluate a condition against context, branch by setting `_next_ordinal`.
+//! - **loop**: Re-enter the cascade from `loop_target` ordinal (defaults to 0),
+//!   incrementing the iteration counter. Respects matryoshka depth limit (7).
+//! - **abort**: Exit the cascade with a convergence status. Emits `cns.skill.converged`.
+//! - **escalate**: Exit the cascade with an escalation error. Emits `cns.skill.escalated`.
 //!
-//! The executor respects energy budgets (`step.gas_cap`) and timeout constraints
-//! (`step.timeout_seconds`). Convergence checks (`manifest.convergence`) gate
-//! iterative refinement loops.
+//! The executor respects energy budgets (`step.gas_cap`), timeout constraints
+//! (`step.timeout_seconds`), and iterative convergence (`manifest.convergence`).
+//! The PDCA loop executes steps in ordinal order, handling `loop` actions by
+//! re-entering from the target ordinal until convergence threshold is met,
+//! max iterations are exhausted, or `abort`/`escalate` is triggered.
 //!
 //! Template rendering supports two modes:
 //!
@@ -91,11 +98,15 @@ impl ManifestExecutor {
         }
     }
 
-    /// Execute the full manifest cascade.
+    /// Execute the full manifest cascade with iterative PDCA convergence.
     ///
-    /// Runs each step in ordinal order, threading the context map through
-    /// select and populate steps, and dispatching execute steps to MCP tools.
-    /// Returns the context map after all steps complete (or the first error).
+    /// Steps are sorted by ordinal and executed in sequence. The cascade loops
+    /// when a `loop` action is encountered, re-entering from the target ordinal
+    /// until the convergence threshold is met (via `abort`) or `max_iterations`
+    /// is exhausted. If `convergence.max_iterations == 0`, executes once
+    /// (backward-compatible with single-pass KnowAct-based manifests).
+    ///
+    /// Returns the final context map with convergence metadata under `_convergence`.
     pub async fn execute_manifest(
         &self,
         manifest: &BundleManifest,
@@ -105,45 +116,298 @@ impl ManifestExecutor {
         let mut steps = manifest.steps.clone();
         steps.sort_by_key(|s| s.ordinal);
 
-        for step in &steps {
-            info!(
-                target: "cns.spec.executor",
-                step = step.ordinal,
-                action = %step.action,
-                description = %step.description,
-                "Executing manifest step"
-            );
-            context = self.execute_step(step, context).await?;
+        let max_iterations = if manifest.convergence.max_iterations == 0 {
+            1 // backward-compatible: single-pass for one-shot manifests
+        } else {
+            manifest.convergence.max_iterations
+        };
+        let threshold = manifest.convergence.threshold;
+        let mut iteration: u32 = 0;
+        let mut recursion_depth: u8 = 0;
+        let matryoshka_limit: u8 = hkask_capability::SYSTEM_MAX_RECURSION;
+
+        context.insert(
+            "_convergence".to_string(),
+            serde_json::json!({
+                "threshold": threshold,
+                "max_iterations": max_iterations,
+                "status": "running",
+                "iterations_completed": 0,
+                "exit_reason": null,
+            }),
+        );
+
+        'cascade: loop {
+            iteration += 1;
+            let mut step_idx: usize = 0;
+
+            while step_idx < steps.len() {
+                let step = &steps[step_idx];
+
+                info!(
+                    target: "cns.skill.cascade",
+                    iteration = iteration,
+                    step = step.ordinal,
+                    action = %step.action,
+                    description = %step.description,
+                    "CNS"
+                );
+
+                match step.action.as_str() {
+                    // ── Abort: converged — exit with success ──
+                    "abort" => {
+                        info!(
+                            target: "cns.skill.converged",
+                            iteration = iteration,
+                            reason = "abort action",
+                            "CNS"
+                        );
+                        self.update_convergence(&mut context, "converged", iteration);
+                        break 'cascade;
+                    }
+
+                    // ── Escalate: blocked — exit with error ──
+                    "escalate" => {
+                        let reason = step.description.clone();
+                        info!(
+                            target: "cns.skill.escalated",
+                            iteration = iteration,
+                            reason = %reason,
+                            "CNS"
+                        );
+                        self.update_convergence(&mut context, "escalated", iteration);
+                        return Err(TemplateError::Manifest(format!(
+                            "Cascade escalated at step {}: {}",
+                            step.ordinal, reason
+                        )));
+                    }
+
+                    // ── Choice: evaluate condition, branch ──
+                    "choice" => {
+                        let target_ordinal = self.evaluate_choice(step, &context)?;
+                        if let Some(target) = target_ordinal {
+                            // Jump to target step
+                            if let Some(pos) = steps.iter().position(|s| s.ordinal == target) {
+                                step_idx = pos;
+                                info!(
+                                    target: "cns.skill.cascade",
+                                    iteration = iteration,
+                                    choice_jump = target,
+                                    "CNS"
+                                );
+                                continue; // Re-enter loop at target step
+                            }
+                        }
+                        // No jump — fall through to next step
+                    }
+
+                    // ── Loop: re-enter cascade from target ordinal ──
+                    "loop" => {
+                        recursion_depth += 1;
+                        if recursion_depth > matryoshka_limit {
+                            info!(
+                                target: "cns.skill.escalated",
+                                iteration = iteration,
+                                reason = "matryoshka depth exceeded",
+                                depth = recursion_depth,
+                                limit = matryoshka_limit,
+                                "CNS"
+                            );
+                            self.update_convergence(&mut context, "maxed_out", iteration);
+                            return Err(TemplateError::Manifest(format!(
+                                "Matryoshka depth limit ({}) exceeded at iteration {}",
+                                matryoshka_limit, iteration
+                            )));
+                        }
+
+                        let loop_target = step
+                            .input_mapping
+                            .as_ref()
+                            .and_then(|m| m.get("loop_target"))
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0) as u32;
+
+                        info!(
+                            target: "cns.skill.cascade",
+                            iteration = iteration,
+                            loop_target = loop_target,
+                            depth = recursion_depth,
+                            "CNS"
+                        );
+
+                        // Check convergence before looping
+                        if iteration >= max_iterations {
+                            self.update_convergence(&mut context, "maxed_out", iteration);
+                            break 'cascade;
+                        }
+
+                        // Check threshold convergence
+                        if self.check_convergence(&context, threshold) {
+                            self.update_convergence(&mut context, "converged", iteration);
+                            break 'cascade;
+                        }
+
+                        // Re-enter: reset step index to loop target
+                        if let Some(pos) = steps.iter().position(|s| s.ordinal == loop_target) {
+                            step_idx = pos;
+                            continue; // Re-enter cascade from target
+                        } else {
+                            step_idx = 0; // Default: restart from beginning
+                            continue;
+                        }
+                    }
+
+                    // ── Standard actions: select, populate, execute ──
+                    "select" => {
+                        context = self.execute_select(step, context).await?;
+                    }
+                    "populate" => {
+                        context = self.execute_populate(step, context).await?;
+                    }
+                    "execute" | "feedback" | "validate" | "retrieve" => {
+                        context = self.execute_tool_invoke(step, context).await?;
+                    }
+
+                    other => {
+                        return Err(TemplateError::Manifest(format!(
+                            "Unknown manifest step action: '{}'",
+                            other
+                        )));
+                    }
+                }
+
+                step_idx += 1;
+            }
+
+            // ── End of pass: check convergence if no explicit loop/abort ──
+            if iteration >= max_iterations {
+                self.update_convergence(&mut context, "maxed_out", iteration);
+                break 'cascade;
+            }
+
+            if self.check_convergence(&context, threshold) {
+                self.update_convergence(&mut context, "converged", iteration);
+                break 'cascade;
+            }
+
+            // Implicit loop: re-enter from step 0
+            recursion_depth += 1;
+            if recursion_depth > matryoshka_limit {
+                self.update_convergence(&mut context, "maxed_out", iteration);
+                break 'cascade;
+            }
         }
 
+        context.insert(
+            "_recursion_depth".to_string(),
+            Value::Number(recursion_depth.into()),
+        );
         Ok(context)
     }
 
-    /// Execute a single manifest step.
-    ///
-    /// Dispatches on `step.action`:
-    /// - "select" → render template, call inference, parse JSON
-    /// - "populate" → render template with context
-    /// - "execute" → invoke MCP tool with bound parameters
-    /// - "feedback" → emit CNS feedback via MCP tool
-    /// - "validate" → invoke MCP tool with validation rules
-    /// - "retrieve" → invoke MCP tool to retrieve data
-    pub async fn execute_step(
+    /// Update convergence metadata in context.
+    fn update_convergence(
+        &self,
+        context: &mut HashMap<String, Value>,
+        status: &str,
+        iteration: u32,
+    ) {
+        context.insert(
+            "_convergence".to_string(),
+            serde_json::json!({
+                "status": status,
+                "iterations_completed": iteration,
+            }),
+        );
+    }
+
+    /// Check whether the convergence threshold has been met.
+    /// Looks for a `composite` field in the last step result or the convergence field.
+    fn check_convergence(&self, context: &HashMap<String, Value>, threshold: f64) -> bool {
+        // Check top-level composite field
+        if let Some(v) = context.get("composite") {
+            if let Some(score) = v.as_f64() {
+                if score <= threshold {
+                    return true;
+                }
+            }
+        }
+        // Check convergence score in metadata
+        if let Some(conv) = context.get("_convergence_score") {
+            if let Some(score) = conv.as_f64() {
+                if score <= threshold {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// Evaluate a `choice` step's condition against the context.
+    /// Returns `Some(ordinal)` to jump to, or `None` to continue to next step.
+    fn evaluate_choice(
         &self,
         step: &BundleManifestStep,
-        context: HashMap<String, Value>,
-    ) -> Result<HashMap<String, Value>> {
-        match step.action.as_str() {
-            "select" => self.execute_select(step, context).await,
-            "populate" => self.execute_populate(step, context).await,
-            "execute" | "feedback" | "validate" | "retrieve" => {
-                self.execute_tool_invoke(step, context).await
+        context: &HashMap<String, Value>,
+    ) -> Result<Option<u32>> {
+        let mapping = match &step.input_mapping {
+            Some(m) => m,
+            None => return Ok(None),
+        };
+
+        // Branch on a JSON path comparison
+        if let Some(branches) = mapping.get("branches").and_then(|b| b.as_array()) {
+            for branch in branches {
+                let condition = branch
+                    .get("condition")
+                    .and_then(|c| c.as_str())
+                    .unwrap_or("");
+                let action = branch.get("action").and_then(|a| a.as_str()).unwrap_or("");
+
+                let matched = match condition {
+                    "default" | "else" => true,
+                    _ => {
+                        // Simple threshold check: "composite < 0.15"
+                        if let Some((field, op, val_str)) = parse_choice_condition(condition) {
+                            let current =
+                                context.get(field).and_then(|v| v.as_f64()).unwrap_or(1.0);
+                            let target: f64 = val_str.parse().unwrap_or(0.0);
+                            match op {
+                                "<" => current < target,
+                                "<=" => current <= target,
+                                ">" => current > target,
+                                ">=" => current >= target,
+                                "==" => (current - target).abs() < 0.001,
+                                _ => false,
+                            }
+                        } else {
+                            false
+                        }
+                    }
+                };
+
+                if matched {
+                    return match action {
+                        "continue" => Ok(None),
+                        "abort" | "escalate" => {
+                            // Handled by subsequent abort/escalate step; return None to continue
+                            Ok(None)
+                        }
+                        _ => {
+                            // Try to parse as ordinal number
+                            action.parse::<u32>().ok().map(Some).ok_or_else(|| {
+                                TemplateError::Manifest(format!(
+                                    "Choice action '{}' is not a valid ordinal",
+                                    action
+                                ))
+                            })
+                        }
+                    };
+                }
             }
-            other => Err(TemplateError::Manifest(format!(
-                "Unknown manifest step action: '{}'",
-                other
-            ))),
         }
+
+        Ok(None)
     }
 
     /// **Select** — Render a selector template, call inference, parse JSON result.
@@ -457,4 +721,20 @@ fn resolve_dot_path(path: &str, context: &HashMap<String, Value>) -> Option<Valu
         }
     }
     Some(current)
+}
+
+/// Parse a simple choice condition string like "composite < 0.15" or "findings == 0".
+/// Returns `Some((field, operator, value))` or `None` if unparseable.
+fn parse_choice_condition(condition: &str) -> Option<(&str, &str, &str)> {
+    let condition = condition.trim();
+    for op in &["<=", ">=", "==", "<", ">"] {
+        if let Some(pos) = condition.find(op) {
+            let field = condition[..pos].trim();
+            let value = condition[pos + op.len()..].trim();
+            if !field.is_empty() && !value.is_empty() {
+                return Some((field, *op, value));
+            }
+        }
+    }
+    None
 }

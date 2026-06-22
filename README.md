@@ -39,7 +39,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, A2A, Episodic and Semantic Memory and kask services |
-| 2 | **Essential Tools** | 12 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter) |
+| 2 | **Essential Tools** | 13 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter) |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, keystore, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Unified registry with template_type discriminator, 46 composable skills, 239 Jinja2 templates |
@@ -78,7 +78,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-capability` | OCAP delegation tokens |
 | `hkask-ports` | Hexagonal port traits |
 
-### Infrastructure (7 crates)
+### Infrastructure (8 crates)
 | Crate | Purpose |
 |-------|--------|
 | `hkask-inference` | Inference router (provider dispatch, model selection) |
@@ -88,6 +88,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-acp` | Agent Communication Protocol |
 | `hkask-adapter` | External provider adapters (Hugging Face, etc.) |
 | `hkask-test-harness` | Test infrastructure (TestDb, TestWebId, mocks, strategies) |
+| `hkask-mcp-cloud-gateway` | Cloud MCP gateway for remote tool dispatch |
 
 ### Services (18 crates)
 | Crate | Purpose |
@@ -118,11 +119,12 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-wallet-types` | Wallet value types and data structures |
 | `hkask-ledger` | Triple-entry accounting ledger |
 
-### MCP Servers (12 crates)
+### MCP Servers (13 crates)
 - `hkask-mcp-condenser` — Context condensation (thin wrapper around hkask-condenser)
 - `hkask-mcp-research` — Web search, extraction, and feed-based research
 - `hkask-mcp-spec` — Specification authoring, curation, and validation
 - `hkask-mcp-skill` — Skill registry and discovery MCP interface
+- `hkask-mcp-curator` — Curator daemon tools (algedonic log, escalations, memory recall, semantic search)
 - `hkask-mcp-companies` — Company financial data (FMP + EODHD dual-provider)
 - `hkask-mcp-communication` — Thin MCP wrapper over core communication crate
 - `hkask-mcp-media` — Media generation (image, video, audio, 3D via fal.ai and other providers)
@@ -145,8 +147,8 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | **Core Total (src/)** | ~130,000 |
 | **MCP Server LOC (src/)** | ~35,700 |
 | **Test Files** | 124 (with `#[cfg(test)]` modules) |
-| **Core Crates** | 40 (12 foundation + 7 infra + 18 services + 3 wallet/identity) |
-| **MCP Servers** | 12 |
+| **Core Crates** | 41 (12 foundation + 8 infra + 18 services + 3 wallet/identity) |
+| **MCP Servers** | 13 |
 | **CLI Subcommands** | 39 |
 | **API Route Groups** | 26 |
 | **Build/Clippy/Fmt/Test** | All passing |
@@ -172,7 +174,6 @@ cargo fmt --check
 - `docs/architecture/hKask-architecture-master.md` — Architecture index
 - `docs/architecture/core/PRINCIPLES.md` — Magna Carta principles (P1–P12)
 - `docs/architecture/reference/hKask-Curator-persona.md` — Curator persona specification
-- `docs/architecture/core/PRINCIPLES.md` — Magna Carta principles (P1–P12)
 - `docs/status/PROJECT_STATUS.md` — Project status (single source of truth)
 - `assets/LOGO-DESIGN-PRINCIPLES.md` — Logo design principles
 - `AGENTS.md` — Agent operating guide
@@ -199,4 +200,4 @@ cargo fmt --check
 
 *ℏKask - A Minimal Viable Container for Agents — v0.30.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*
-*CI green. 40 crates. 12 MCP servers. 46 skills.*
+*CI green. 41 crates. 13 MCP servers. 46 skills.*

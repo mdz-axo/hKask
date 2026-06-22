@@ -1109,6 +1109,7 @@ async fn build_mcp_and_pods(
     let daemon_handler = Arc::new(hkask_services_daemon::ServiceDaemonHandler::new(
         Arc::clone(&pod_manager),
         Arc::clone(&f.user_store),
+        Some(Arc::clone(&f.cns_runtime)),
         l.inference_port.clone(),
     ));
     if !config.in_memory {

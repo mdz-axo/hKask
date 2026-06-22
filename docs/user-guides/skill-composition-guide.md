@@ -1,7 +1,7 @@
 ---
 title: "hKask Skill Composition Guide — Multi-Skill Workflow Chains"
 audience: [developers, agents, curators, architects]
-last_updated: 2026-06-19
+last_updated: 2026-06-22
 version: "0.30.0"
 status: "Active"
 domain: "Composition"
@@ -26,6 +26,85 @@ Skills compose because hKask's architecture places them in layers. Higher layers
 Never compose skills that operate at the same layer without a clear handoff contract.
 Prefer vertical chains (perceptual → regulative → analytic → executive) over horizontal chains.
 ```
+
+### The Iteration Mandate
+
+**No real skill executed by a real expert is one-shot.** Writing is rewriting. Debugging is re-hypothesizing. Design is iterative deletion. A well-composed skill template is a FlowDef with an internal convergence loop, not a single-pass KnowAct prompt.
+
+```
+Skill quality = inner loop. A skill without internal iteration is a prompt, not a skill.
+```
+
+Every skill template must answer:
+
+| Question | One-Shot Failure Mode | Recursive Fix |
+|----------|----------------------|---------------|
+| Does it converge? | Produces output and stops — quality is a single roll of the dice | Loop until quality threshold met OR max iterations exhausted. Exit with status (converged / maxed-out / escalated). |
+| Does it narrow scope? | Re-processes the same input each pass — no learning | Each iteration narrows focus to the worst remaining violations, lowest-scoring dimension, most stale reference. |
+| Does it admit failure? | Hallucinates confidence — every output is "complete" | Reports convergence status: `converged` (threshold met), `maxed_out` (iterations exhausted, best result returned), `escalated` (human needed). |
+
+**Implementation pattern:** Use `FlowDef` template type with nested `choice` branching, not `KnowAct` prose that describes a loop it cannot execute. A FlowDef cascade can contain nested FlowDef/KnowAct/WordAct steps, bounded by the matryoshka limit of 7. The runtime's `ManifestExecutor` drives the cascade: render selector → LLM → parse JSON → follow chosen path. This is the machinery for real recursion.
+
+| Template Type | Can It Loop? | Use For |
+|--------------|-------------|---------|
+| **FlowDef** | ✅ `choice` → branch → `escalate` → `abort` | Convergent quality loops (essentialist G1→G2→G3, gentle-lovelace score→rewrite→re-score) |
+| **KnowAct** | ❌ Single-pass prompt | Metacognitive analysis within a FlowDef step ("evaluate this gate"), not the loop itself |
+| **WordAct** | ❌ Single-pass prompt | Persona rendering, system prompts |
+
+**Example — A recursive quality skill:**
+
+```yaml
+# FlowDef: gentle-lovelace-converge
+select: quality_check
+execute:
+  - id: score
+    type: KnowAct
+    template: replica-report  # Score the document
+  - id: check_threshold
+    type: choice
+    branches:
+      - condition: "composite < 0.15"
+        action: abort  # Quality met, exit
+      - condition: "iteration >= max_iterations"
+        action: escalate  # Maxed out, human review
+      - condition: "default"
+        action: continue  # Rewrite and re-score
+  - id: rewrite
+    type: KnowAct
+    template: rewrite-weakest-dimension  # Fix the worst-scoring dimension
+  - id: loop
+    type: FlowDef  # Recursive: re-enter the score→check→rewrite→loop cascade
+    select: quality_check
+```
+
+A skill whose template is a single KnowAct cannot converge — it can only produce output and stop. That is a prompt wearing a skill costume.
+
+### The Skill-Kata Isomorphism
+
+**Every skill is a specific application of the Improvement Kata with certain variables fixed to fit the domain.** The Improvement Kata is the general pattern: Understand Direction → Grasp Current Condition → Establish Target Condition → PDCA Iterate. A skill instantiates this pattern by fixing the variables:
+
+| Kata Variable | General Form | Skill-Specific Form |
+|--------------|-------------|-------------------|
+| **Direction** | Challenge from level above | The skill's purpose (e.g., "eliminate pass-through abstractions") |
+| **Current Condition** | Facts and data, not assumptions | Measurement of current state (e.g., cosine distance from exemplar) |
+| **Target Condition** | Measurable, beyond current knowledge threshold | Quality threshold (e.g., composite < 0.15, zero Prohibition findings) |
+| **PDCA Iterate** | Rapid experiments toward target | Inner loop: evaluate → narrow → improve → re-evaluate |
+| **Exit** | Target reached OR obstacle blocks | `converged` (excellence) OR `maxed_out` (energy exhaustion) |
+
+Skills bring mastery. Mastery enforces excellence. To be a valid skill in the hKask definition, a template MUST:
+
+```
+1. Be a FlowDef (not KnowAct, not WordAct) — only FlowDef has the choice/escalate/abort/loop machinery
+2. Declare a measurable quality target (convergence.threshold) — what "done" means
+3. Declare an energy budget (gas.cap) — the maximum resource expenditure
+4. Contain a PDCA loop (evaluate → check → improve → loop) — the iterative improvement ratchet
+5. Exit on excellence (threshold met → abort) OR energy exhaustion (max_iterations or gas exceeded → maxed_out/escalate)
+6. Report which exit condition fired (convergence.converged | maxed_out | escalated) and what was achieved
+```
+
+A template that lacks any of these six properties is not a skill — it is a prompt (KnowAct), a persona (WordAct), or a tool invocation. It may be useful. It may be composed INTO a skill as a step within the PDCA loop. But it is not itself a valid hKask skill.
+
+The two exit rails — quality threshold and energy budget — form the ratchet. The skill cannot exit until it has either achieved its quality goal or exhausted its energy allocation. Every iteration either improves quality (moving toward the threshold) or consumes budget (moving toward exhaustion). The skill converges on one or the other; it cannot run forever.
 
 ### Shared Infrastructure
 
@@ -239,6 +318,7 @@ dokkodo-mindset → diagnose → improve-codebase-architecture
 
 | Anti-pattern | Why it fails | Fix |
 |-------------|-------------|-----|
+| **Single-shot KnowAct skill** | Skill template is a KnowAct with no internal loop. Describes recursion in prose but cannot execute it — the template type lacks `choice`/`escalate`/`abort` machinery. Produces output and stops; quality is a single dice roll. | Redesign as FlowDef with nested KnowAct steps inside a convergence loop. Set explicit quality threshold and max iterations. Exit with status. |
 | Skipping perception before analysis | Pragmatic-laziness evaluates a distorted landscape | Always run `dokkodo-mindset` first for consequential decisions |
 | MCDA without superforecasting criteria | "Cost" and "risk" become uncalibrated guesses | Run `superforecasting` first on risk-related criteria |
 | Caveman before chain-of-density | Caveman drops entities for style; chain-of-density preserves them | Always densify first, compress second |

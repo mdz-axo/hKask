@@ -4764,19 +4764,12 @@ dependencies = [
 name = "hkask-mcp-curator"
 version = "0.30.0"
 dependencies = [
- "anyhow",
  "chrono",
- "dotenvy",
- "hkask-agents",
- "hkask-cns",
  "hkask-mcp",
  "hkask-memory",
- "hkask-services",
- "hkask-services-context",
  "hkask-storage",
  "hkask-types",
  "rmcp",
- "rusqlite",
  "schemars",
  "serde",
  "serde_json",
@@ -5391,6 +5384,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "hkask-agents",
+ "hkask-cns",
  "hkask-mcp",
  "hkask-ports",
  "hkask-services-classify",

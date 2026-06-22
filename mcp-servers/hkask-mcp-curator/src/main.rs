@@ -4,9 +4,8 @@
 
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp::McpError> {
-    dotenvy::dotenv().ok();
-    let replicant = std::env::var("HKASK_CURATOR_REPLICANT")
-        .unwrap_or_else(|_| "curator".to_string());
+    let replicant =
+        std::env::var("HKASK_CURATOR_REPLICANT").unwrap_or_else(|_| "curator".to_string());
 
     let daemon_ok = match try_daemon_flow(&replicant).await {
         Ok(()) => true,
@@ -30,7 +29,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
     hkask_mcp_curator::run(replicant, daemon_client).await
 }
 
-async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
+async fn try_daemon_flow(replicant: &str) -> Result<(), hkask_mcp::McpError> {
     let client = hkask_mcp::DaemonClient::new();
     let result = hkask_mcp::verify_startup_gates(&client, replicant, "curator", &[]).await?;
     tracing::info!(

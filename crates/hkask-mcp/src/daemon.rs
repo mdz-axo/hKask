@@ -69,6 +69,21 @@ pub enum DaemonRequest {
         tool: String,
         input: serde_json::Value,
     },
+    /// Query curator system health — metacognition snapshot.
+    #[serde(rename = "curator_health_query")]
+    CuratorHealthQuery { replicant: String },
+    /// Query live CNS status — variety per domain.
+    #[serde(rename = "cns_status_query")]
+    CnsStatusQuery {
+        replicant: String,
+        domain: Option<String>,
+    },
+    /// Query per-bot health — gas consumption vs budget.
+    #[serde(rename = "bot_status_query")]
+    BotStatusQuery {
+        replicant: String,
+        bot_name: Option<String>,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -102,6 +117,15 @@ pub enum DaemonResponse {
         #[serde(skip_serializing_if = "Option::is_none")]
         error: Option<String>,
     },
+    /// Curator health snapshot response.
+    #[serde(rename = "curator_health_response")]
+    CuratorHealthResponse { health: serde_json::Value },
+    /// CNS status response.
+    #[serde(rename = "cns_status_response")]
+    CnsStatusResponse { status: serde_json::Value },
+    /// Bot status response.
+    #[serde(rename = "bot_status_response")]
+    BotStatusResponse { status: serde_json::Value },
 }
 
 // ── DaemonClient (used by MCP binaries) ──
@@ -262,6 +286,15 @@ pub trait DaemonHandler: Send + Sync {
         tool: &str,
         input: &serde_json::Value,
     ) -> (bool, Option<serde_json::Value>, Option<String>);
+
+    /// Query curator system health — returns a HealthSnapshot as JSON.
+    async fn curator_health(&self, replicant: &str) -> serde_json::Value;
+
+    /// Query live CNS status — variety per domain, backpressure.
+    async fn cns_status(&self, replicant: &str, domain: Option<&str>) -> serde_json::Value;
+
+    /// Query per-bot health — gas consumption vs energy budget.
+    async fn bot_status(&self, replicant: &str, bot_name: Option<&str>) -> serde_json::Value;
 }
 
 /// Unix domain socket listener for the hKask daemon.
@@ -400,6 +433,21 @@ async fn handle_connection(stream: UnixStream, handler: &dyn DaemonHandler) -> s
             let (ok, output, error) = handler.dispatch_tool(&replicant, &tool, &input).await;
             DaemonResponse::ToolDispatchResponse { ok, output, error }
         }
+        DaemonRequest::CuratorHealthQuery { replicant } => {
+            let health = handler.curator_health(&replicant).await;
+            DaemonResponse::CuratorHealthResponse { health }
+        }
+        DaemonRequest::CnsStatusQuery { replicant, domain } => {
+            let status = handler.cns_status(&replicant, domain.as_deref()).await;
+            DaemonResponse::CnsStatusResponse { status }
+        }
+        DaemonRequest::BotStatusQuery {
+            replicant,
+            bot_name,
+        } => {
+            let status = handler.bot_status(&replicant, bot_name.as_deref()).await;
+            DaemonResponse::BotStatusResponse { status }
+        }
     };
 
     let mut json = serde_json::to_string(&response)?;
@@ -468,6 +516,18 @@ mod tests {
             _input: &serde_json::Value,
         ) -> (bool, Option<serde_json::Value>, Option<String>) {
             (true, Some(serde_json::json!({"status": "ok"})), None)
+        }
+
+        async fn curator_health(&self, _replicant: &str) -> serde_json::Value {
+            serde_json::json!({"cns_health": "healthy", "critical_alerts": 0, "total_alerts": 3})
+        }
+
+        async fn cns_status(&self, _replicant: &str, _domain: Option<&str>) -> serde_json::Value {
+            serde_json::json!({"domains": [{"domain": "cns.tool", "variety": 42}]})
+        }
+
+        async fn bot_status(&self, _replicant: &str, _bot_name: Option<&str>) -> serde_json::Value {
+            serde_json::json!({"bots": [{"name": "research-bot", "status": "healthy"}]})
         }
     }
 

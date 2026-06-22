@@ -1,15 +1,14 @@
 //! hkask-mcp-curator — Curator MCP server library.
 //!
 //! Exposes the Curator's regulatory surface as MCP tools:
-//! system health, escalation management, CNS observability,
-//! cross-pod semantic search, memory recall, spec drift detection,
+//! escalation management, cross-pod semantic search, memory recall,
 //! and algedonic event history.
 //!
 //! Operates in two modes:
 //! - **Daemon mode:** Connects to a running `kask daemon` for P4 gates and
 //!   live CNS data.
 //! - **Standalone mode:** Opens Curator SQLCipher databases directly.
-//!   All DB-backed tools work; live CNS features degrade gracefully.
+//!   All DB-backed tools work; live daemon features are not yet available.
 
 pub mod types;
 
@@ -20,6 +19,15 @@ use serde_json::json;
 use std::sync::Arc;
 
 use types::*;
+
+/// Stores opened from the Curator's SQLCipher database.
+/// (escalation_queue, nu_event_store, episodic, semantic)
+type CuratorStores = (
+    Option<Arc<hkask_storage::EscalationQueue>>,
+    Option<Arc<hkask_storage::NuEventStore>>,
+    Option<hkask_memory::EpisodicMemory>,
+    Option<Arc<hkask_memory::SemanticMemory>>,
+);
 
 const SERVER_NAME: &str = "hkask-mcp-curator";
 
@@ -45,13 +53,6 @@ impl CuratorServer {
             hkask_types::McpErrorKind::Internal,
             json!({"error": msg}).to_string(),
         )
-    }
-
-    fn daemon_required(span: ToolSpanGuard) -> String {
-        span.ok_json(json!({
-            "status": "degraded",
-            "message": "hKask daemon unavailable — live CNS and energy data not accessible. Start with: kask daemon start"
-        }))
     }
 
     fn store_required(span: ToolSpanGuard, store_name: &str) -> String {
@@ -146,50 +147,6 @@ impl CuratorServer {
             Ok(()) => span.ok_json(json!({"dismissed": true, "id": req.id})),
             Err(e) => Self::internal_error(span, &format!("Failed to dismiss escalation: {e}")),
         }
-    }
-
-    // ── System Health ──────────────────────────────────────────────────
-
-    #[tool(description = "Run metacognition cycle — requires live daemon for CNS data")]
-    pub async fn curator_health(&self, Parameters(_req): Parameters<PingRequest>) -> String {
-        let span = ToolSpanGuard::new("curator_health", &self.webid);
-        if self.daemon.is_none() {
-            return Self::daemon_required(span);
-        }
-        span.ok_json(json!({
-            "timestamp": chrono::Utc::now().to_rfc3339(),
-            "note": "curator_health requires a running kask daemon with CNS runtime. Use curator_cns_status and curator_escalations for partial health data in standalone mode."
-        }))
-    }
-
-    #[tool(description = "Live CNS status — requires live daemon for variety counters")]
-    pub async fn curator_cns_status(
-        &self,
-        Parameters(_req): Parameters<CnsStatusRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("curator_cns_status", &self.webid);
-        if self.daemon.is_none() {
-            return Self::daemon_required(span);
-        }
-        span.ok_json(json!({
-            "timestamp": chrono::Utc::now().to_rfc3339(),
-            "note": "curator_cns_status requires a running kask daemon with CNS runtime."
-        }))
-    }
-
-    #[tool(description = "Per-bot health — requires live daemon for energy budgets")]
-    pub async fn curator_bot_status(
-        &self,
-        Parameters(_req): Parameters<BotStatusRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("curator_bot_status", &self.webid);
-        if self.daemon.is_none() {
-            return Self::daemon_required(span);
-        }
-        span.ok_json(json!({
-            "timestamp": chrono::Utc::now().to_rfc3339(),
-            "note": "curator_bot_status requires a running kask daemon with gas report and energy budget data."
-        }))
     }
 
     // ── Memory & Learning ──────────────────────────────────────────────
@@ -295,23 +252,6 @@ impl CuratorServer {
         span.ok_json(result)
     }
 
-    // ── Specification Curation ─────────────────────────────────────────
-
-    #[tool(description = "Check specs for drift — requires live daemon with spec store")]
-    pub async fn curator_spec_drift(
-        &self,
-        Parameters(_req): Parameters<SpecDriftRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("curator_spec_drift", &self.webid);
-        if self.daemon.is_none() {
-            return Self::daemon_required(span);
-        }
-        span.ok_json(json!({
-            "timestamp": chrono::Utc::now().to_rfc3339(),
-            "note": "curator_spec_drift requires a running kask daemon with spec store and registered verb list."
-        }))
-    }
-
     // ── Algedonic History ──────────────────────────────────────────────
 
     #[tool(description = "Read the Curator's algedonic event log for a time window")]
@@ -385,14 +325,7 @@ pub async fn run(
     .await
 }
 
-fn open_curator_stores(
-    ctx: &hkask_mcp::server::ServerContext,
-) -> (
-    Option<Arc<hkask_storage::EscalationQueue>>,
-    Option<Arc<hkask_storage::NuEventStore>>,
-    Option<hkask_memory::EpisodicMemory>,
-    Option<Arc<hkask_memory::SemanticMemory>>,
-) {
+fn open_curator_stores(ctx: &hkask_mcp::server::ServerContext) -> CuratorStores {
     let curator_db_path = ctx
         .credentials
         .get("HKASK_CURATOR_DB")

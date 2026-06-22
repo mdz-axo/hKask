@@ -7,9 +7,10 @@ use std::str::FromStr;
 
 use crate::block_on;
 use crate::cli::BotAction;
+use hex;
 use hkask_services::ServiceError;
 use hkask_storage::{AgentDefinition, RegisteredAgent};
-use hkask_types::{AgentKind, WebID};
+use hkask_types::{AgentKind, WebID, agent_paths};
 
 #[derive(Debug)]
 pub struct AgentReceipt {
@@ -66,16 +67,37 @@ pub async fn agent_register(
     })?;
     let (_, a2a) = ctx.identity();
     let token = a2a
-        .register_agent(webid, kind, capabilities)
+        .register_agent(webid, kind, capabilities.clone())
         .await
         .map_err(|e| ServiceError::A2A {
             message: e.to_string(),
         })?;
+    // Build the self-contained agent definition YAML.
+    let source_yaml = format!(
+        "# Agent definition for {name} — registered via CLI.\n\
+         agent:\n  name: \"{name}\"\n  type: {kind}\n\n\
+         capabilities:\n{cap_lines}\n",
+        name = webid_str,
+        kind = agent_type,
+        cap_lines = capabilities
+            .iter()
+            .map(|c| format!("  - {c}"))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+
+    // Persist to agents/{name}/agent.yaml for discovery and REPL loading.
+    let yaml_path = agent_paths::agent_definition_yaml(webid_str);
+    if let Some(parent) = yaml_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(&yaml_path, &source_yaml);
+
     let def = AgentDefinition {
         name: webid_str.to_string(),
         agent_kind: kind,
         charter: None,
-        capabilities: vec![],
+        capabilities,
         rights: vec![],
         responsibilities: vec![],
     };
@@ -83,7 +105,7 @@ pub async fn agent_register(
         definition: def,
         token_hash: hex::encode(token.signature_bytes()),
         registered_at: hkask_types::time::now_rfc3339(),
-        source_yaml: "cli-register".to_string(),
+        source_yaml,
     };
     ctx.agent_registry_store()
         .insert(&reg)

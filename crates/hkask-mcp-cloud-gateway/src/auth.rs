@@ -3,8 +3,17 @@
 //! Verifies Ed25519-signed `DelegationToken`s against the hKask capability
 //! system. Every request must carry a valid, non-expired token whose
 //! `delegated_to` field matches the mTLS client certificate Common Name.
+//!
+//! # Identity Binding
+//!
+//! mTLS certificates carry human-readable Common Names (e.g., "alice").
+//! hKask WebIDs are UUIDs derived from persona bytes via v5 UUID.
+//! The gateway derives the expected WebID from the cert CN using
+//! `WebID::from_persona(cn.as_bytes())` and compares it against
+//! the token's `delegated_to` field.
 
 use hkask_capability::DelegationToken;
+use hkask_types::WebID;
 use thiserror::Error;
 
 /// Errors that can occur during token verification.
@@ -37,23 +46,17 @@ pub struct VerifiedIdentity {
 
 /// Verify a DelegationToken for a tool call.
 ///
-/// Checks:
-/// 1. Token `delegated_to` matches the mTLS certificate Common Name
-/// 2. Token `resource_id` matches the requested tool name
-/// 3. Token Ed25519 signature is valid
-/// 4. Token is not expired
-///
-/// # Arguments
-/// * `token` — The DelegationToken from the request
-/// * `cert_cn` — Common Name extracted from the mTLS client certificate
-/// * `tool` — The MCP tool name being invoked
+/// Identity binding: derives the expected WebID from the cert CN via
+/// `WebID::from_persona(cert_cn.as_bytes())` and compares it to
+/// `token.delegated_to`.
 pub fn verify_cloud_request(
     token: &DelegationToken,
     cert_cn: &str,
     tool: &str,
 ) -> Result<VerifiedIdentity, AuthError> {
-    // Gate 1: Identity binding — the mTLS cert CN must match the token's holder
-    if token.delegated_to.to_string() != cert_cn {
+    // Gate 1: Identity binding — derive WebID from CN, compare to token holder
+    let expected_webid = WebID::from_persona(cert_cn.as_bytes());
+    if token.delegated_to != expected_webid {
         return Err(AuthError::IdentityMismatch {
             token_to: token.delegated_to.to_string(),
             cert_cn: cert_cn.to_string(),
@@ -97,8 +100,8 @@ mod tests {
     use super::*;
     use hkask_capability::auth::derive_signing_key;
     use hkask_capability::{DelegationAction, DelegationResource};
-    use hkask_types::WebID;
 
+    /// Create a test token where delegated_to matches the persona-derived WebID from `cn`.
     fn test_token(cn: &str, tool: &str) -> DelegationToken {
         let sk = derive_signing_key(b"test-gateway-secret");
         let webid = WebID::from_persona(cn.as_bytes());
@@ -116,23 +119,29 @@ mod tests {
     fn verify_matching_identity_and_tool_succeeds() {
         let token = test_token("alice", "curator_health");
         let result = verify_cloud_request(&token, "alice", "curator_health");
-        assert!(result.is_ok());
-        let identity = result.unwrap();
-        assert_eq!(identity.webid, "alice");
+        assert!(result.is_ok(), "expected Ok, got {:?}", result.err());
     }
 
     #[test]
     fn verify_identity_mismatch_fails() {
         let token = test_token("alice", "curator_health");
         let result = verify_cloud_request(&token, "bob", "curator_health");
-        assert!(matches!(result, Err(AuthError::IdentityMismatch { .. })));
+        assert!(
+            matches!(result, Err(AuthError::IdentityMismatch { .. })),
+            "expected IdentityMismatch, got {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn verify_tool_mismatch_fails() {
         let token = test_token("alice", "curator_health");
         let result = verify_cloud_request(&token, "alice", "curator_escalations");
-        assert!(matches!(result, Err(AuthError::ToolMismatch { .. })));
+        assert!(
+            matches!(result, Err(AuthError::ToolMismatch { .. })),
+            "expected ToolMismatch, got {:?}",
+            result.err()
+        );
     }
 
     #[test]

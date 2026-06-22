@@ -25,7 +25,7 @@ Documents are classified by **verification regime**, reflecting different audien
 
 > **Lifecycle:** Retired documents are removed via `git rm`. The gitignored
 > `docs/archive/` holds date-stamped snapshots for reference. Active document count
-> verified by `docs/ci/check-links.sh` (249 links, 0 broken).
+> verified by `docs/ci/check-links.sh` (259 links, 0 broken).
 
 ---
 
@@ -54,11 +54,10 @@ These documents are anchored against code. Every factual claim (crate names, cou
 | Document | MDS | Description |
 |----------|-----|-------------|
 | [`hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | all | Authoritative index — patterns, kata, kanban, LoRA, daemon, ACP, deployment. Includes deep-module public surface audit. |
-
-| [`loop-architecture.md`](architecture/loop-architecture.md) | Four-loop authority model — semantic root-cause analysis |
-| [`energy-gas-payments-api-keys.md`](architecture/energy-gas-payments-api-keys.md) | Energy budget, gas, payments, and API key architecture |
-| [`self-healing.md`](architecture/self-healing.md) | Self-healing architecture patterns |
-| [`matrix-integration-architecture.md`](architecture/matrix-integration-architecture.md) | Matrix transport, Conduit sidecar, integration architecture |
+| [`loop-architecture.md`](architecture/loop-architecture.md) | domain, composition | Four-loop authority model — semantic root-cause analysis |
+| [`energy-gas-payments-api-keys.md`](architecture/energy-gas-payments-api-keys.md) | domain, lifecycle | Energy budget, gas, payments, and API key architecture |
+| [`self-healing.md`](architecture/self-healing.md) | domain, lifecycle | Self-healing architecture patterns |
+| [`matrix-integration-architecture.md`](architecture/matrix-integration-architecture.md) | domain, composition, lifecycle | Matrix transport, Conduit sidecar, integration architecture |
 
 ### Specs (`architecture/specs/`)
 
@@ -132,33 +131,39 @@ These documents are anchored against code. Every factual claim (crate names, cou
 
 ---
 
-## Status
+### Plans
+
+| Document | Description |
+|----------|-------------|
+| [`deployment-and-backup.md`](plans/deployment-and-backup.md) | Deployment & Multi-User Plan (includes past research §14) |
+| [`TODO.md`](plans/TODO.md) | Open work |
+
+### Research
+
+| Document | Description |
+|----------|-------------|
+| [`lazy-universe-research.md`](research/lazy-universe-research.md) | Least-action principle — research grounding |
+| [`bug-hunting-skill-synthesis.md`](research/bug-hunting-skill-synthesis.md) | Bug hunting — design, theory, synthesis |
+| [`bug-hunting-as-autopoietic-skill-unified.md`](research/bug-hunting-as-autopoietic-skill-unified.md) | Autopoietic bug hunting — unified theory |
+| [`bug-hunting-skill-corrected-design.md`](research/bug-hunting-skill-corrected-design.md) | Bug hunting — corrected design |
+| [`bug-hunting-skill-implementation-plan.md`](research/bug-hunting-skill-implementation-plan.md) | Bug hunting — implementation plan |
+
+### Status
 
 | Document | Description |
 |----------|-------------|
 | [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | Build, test, and CI health |
-| [`corpus_inventory.yaml`](status/corpus_inventory.yaml) | Document corpus lifecycle classification |
 | [`public-seam-priority.md`](status/public-seam-priority.md) | Public seam priority ranking |
 
----
-
-### Guides
+### Cross-Cutting
 
 | Document | Description |
 |----------|-------------|
-| [`kata-user-guide.md`](guides/kata-user-guide.md) | Toyota Kata — research, technical build, kanban integration, user how-to |
-| [`bug-hunter-guide.md`](guides/bug-hunter-guide.md) | Bug hunting methodology and expedition execution |
-| [`skill-designer-guide.md`](guides/skill-designer-guide.md) | Skill design — creating, packaging, registering |
+| [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | Underspecified aspects — open crossroads and future design decisions |
+| [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | Mermaid diagram verification registry (30 diagrams) |
+| [`generated/cli-reference.md`](generated/cli-reference.md) | Auto-generated CLI reference |
+| [`generated/openapi.json`](generated/openapi.json) | OpenAPI 3.1.0 specification |
 
-### User Guides
-
-| Document | Description |
-|----------|-------------|
-| [`REPLICANT-ONBOARDING-WALKTHROUGH.md`](user-guides/REPLICANT-ONBOARDING-WALKTHROUGH.md) | End-to-end onboarding — install through first chat |
-| [`AGENT-POD-CREATION-GUIDE.md`](user-guides/AGENT-POD-CREATION-GUIDE.md) | Creating and managing agent pods |
-| [`kanban-user-guide.md`](user-guides/kanban-user-guide.md) | Kanban task coordination — boards, tasks, WIP, kata, error recovery |
-| [`skill-user-guide.md`](user-guides/skill-user-guide.md) | Skill usage — installing, activating, composing |
-| [`lora-adapter-store-guide.md`](user-guides/lora-adapter-store-guide.md) | LoRA adapter store — lifecycle, routing, deployment |
 ---
 
 ## Tier 2 — User & Operator Guides
@@ -169,15 +174,29 @@ These documents serve human operators and users. They are verified for link inte
 
 | Document | Description |
 |----------|-------------|
-| [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | Underspecified aspects |
-| [`generated/cli-reference.md`](generated/cli-reference.md) | Auto-generated CLI reference |
-| [`generated/openapi.json`](generated/openapi.json) | OpenAPI 3.1.0 specification (60 endpoints, all documented) |
-| [`lazy-universe-research.md`](research/lazy-universe-research.md) | Least-action principle — research grounding |
-| [`bug-hunting-skill-synthesis.md`](research/bug-hunting-skill-synthesis.md) | Bug hunting — design, theory, implementation |
+| [`admin-setup-guide.md`](guides/admin-setup-guide.md) | System administrator setup |
+| [`DEPLOYMENT.md`](guides/DEPLOYMENT.md) | Deployment — production server, systemd, health checks, security hardening |
+| [`kubernetes-primer.md`](guides/kubernetes-primer.md) | Kubernetes primer for hKask deployment |
+| [`OPERATIONS_RUNBOOK.md`](guides/OPERATIONS_RUNBOOK.md) | Operations — health checks, troubleshooting, backup/recovery |
+| [`QA_GUIDE.md`](guides/QA_GUIDE.md) | QA system operations — fuzz triage, mutation analysis, autonomous scripts |
+| [`lora-training-guide.md`](guides/lora-training-guide.md) | LoRA training — dataset prep to CNS-verified deployment |
+| [`kata-user-guide.md`](guides/kata-user-guide.md) | Toyota Kata — research, technical build, kanban integration |
+| [`bug-hunter-guide.md`](guides/bug-hunter-guide.md) | Bug hunting methodology and expedition execution |
+| [`skill-designer-guide.md`](guides/skill-designer-guide.md) | Skill design — creating, packaging, registering |
 
-### Diagram Registry
+### User Guides
 
-30 Mermaid diagrams across 5 categories, all verified against current code (full registry: `docs/archive/guides-2026-06-22/DIAGRAMS_INDEX.md`).
+| Document | Description |
+|----------|-------------|
+| [`REPLICANT-ONBOARDING-WALKTHROUGH.md`](user-guides/REPLICANT-ONBOARDING-WALKTHROUGH.md) | End-to-end onboarding — install through first chat |
+| [`AGENT-POD-CREATION-GUIDE.md`](user-guides/AGENT-POD-CREATION-GUIDE.md) | Creating and managing agent pods |
+| [`kanban-user-guide.md`](user-guides/kanban-user-guide.md) | Kanban task coordination — boards, tasks, WIP |
+| [`skill-user-guide.md`](user-guides/skill-user-guide.md) | Skill usage — installing, activating, composing |
+| [`skill-composition-guide.md`](user-guides/skill-composition-guide.md) | Skill composition — bundling and cascade ordering |
+| [`lora-adapter-store-guide.md`](user-guides/lora-adapter-store-guide.md) | LoRA adapter store — lifecycle, routing, deployment |
+| [`COMPANIES-GUIDE.md`](user-guides/COMPANIES-GUIDE.md) | Company research and portfolio management |
+| [`dokkodo-user-guide.md`](user-guides/dokkodo-user-guide.md) | Dokkodo mindset — perceptual filter application |
+| [`ACP-ZED-CONFIGURATION.md`](user-guides/ACP-ZED-CONFIGURATION.md) | ACP IDE agent configuration |
 
 ---
 
@@ -185,6 +204,7 @@ These documents serve human operators and users. They are verified for link inte
 
 ```bash
 bash docs/ci/check-links.sh      # link integrity — zero broken links
+bash docs/ci/verify-docs.sh      # Tier 1 code-anchored claim verification
 ```
 
-*ℏKask — A Minimal Viable Container for Agents — v0.30.0 — 60 active documents*
+*ℏKask — A Minimal Viable Container for Agents — v0.30.0 — 44 Tier 1 + 18 Tier 2 = 62 active documents*

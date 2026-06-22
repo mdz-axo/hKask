@@ -5,6 +5,7 @@
 //! curation, governed tool, pod manager) and adds CLI-specific concerns
 //! on top (inference, per-agent memory, onboarding).
 
+use std::fs;
 use std::sync::Arc;
 
 use hkask_agents::InferenceLoop;
@@ -292,12 +293,24 @@ pub(super) fn init_repl_state(
         state.tool_definitions = tool_augmented::tools_to_definitions(&tools);
     }
 
-    // Load rich agent definition from stored YAML for persona + process manifest
+    // Load rich agent definition from stored YAML for persona + process manifest.
+    // Falls back to reading agents/{name}/agent.yaml when source_yaml is stale
+    // (e.g., from pre-fix onboarding or CLI agent registration).
     let rich_def = rt
         .block_on(crate::commands::bot_status(&state.current_agent))
         .ok()
         .and_then(|agent| {
-            hkask_agents::yaml_parser::parse_agent_from_yaml(&agent.source_yaml).ok()
+            hkask_agents::yaml_parser::parse_agent_from_yaml(&agent.source_yaml)
+                .or_else(|_| {
+                    let disk_path =
+                        hkask_types::agent_paths::agent_definition_yaml(&state.current_agent);
+                    fs::read_to_string(&disk_path)
+                        .map_err(|e| format!("Failed to read agent YAML from disk: {e}"))
+                        .and_then(|content| {
+                            hkask_agents::yaml_parser::parse_agent_from_yaml(&content)
+                        })
+                })
+                .ok()
         });
 
     state.persona_constraints = rich_def.as_ref().and_then(|d| d.persona.clone());

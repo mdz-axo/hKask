@@ -251,6 +251,18 @@ mod tests {
         ) -> (bool, Option<serde_json::Value>, Option<String>) {
             (true, None, None)
         }
+
+        async fn curator_health(&self, _replicant: &str) -> serde_json::Value {
+            serde_json::json!({"cns_health": "healthy"})
+        }
+
+        async fn cns_status(&self, _replicant: &str, _domain: Option<&str>) -> serde_json::Value {
+            serde_json::json!({"domains": []})
+        }
+
+        async fn bot_status(&self, _replicant: &str, _bot_name: Option<&str>) -> serde_json::Value {
+            serde_json::json!({"bots": []})
+        }
     }
 
     async fn setup_gate_test(

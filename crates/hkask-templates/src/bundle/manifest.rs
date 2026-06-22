@@ -199,6 +199,25 @@ impl BundleManifest {
                 warnings.push(format!("Skill '{}' has empty content_hash", skill.id));
             }
         }
+
+        // Skill validity: iterative manifests must have loop + threshold + gas + exit
+        if self.convergence.max_iterations > 1 {
+            let has_loop = self.steps.iter().any(|s| s.action == "loop");
+            if !has_loop {
+                errors.push("Iterative manifest (max_iterations > 1) must contain a loop action".into());
+            }
+            if self.convergence.threshold <= 0.0 {
+                errors.push("Iterative manifest must declare convergence.threshold > 0".into());
+            }
+        }
+        if self.gas.cap == 0 {
+            errors.push("Manifest must declare gas.cap > 0 (energy budget)".into());
+        }
+        let has_exit = self.steps.iter().any(|s| s.action == "abort" || s.action == "escalate");
+        if !has_exit {
+            warnings.push("Manifest has no abort or escalate action".into());
+        }
+
         ValidationResult { errors, warnings }
     }
     /// expect: "System types preserve semantic identity and are provenance-aware"

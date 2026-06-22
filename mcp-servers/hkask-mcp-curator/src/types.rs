@@ -19,16 +19,6 @@ pub struct EscalationDismissRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct CnsStatusRequest {
-    pub domain: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct BotStatusRequest {
-    pub bot_name: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
 pub struct SemanticSearchRequest {
     pub query: String,
     pub limit: Option<usize>,
@@ -38,11 +28,6 @@ pub struct SemanticSearchRequest {
 pub struct MemoryRecallRequest {
     pub entity: String,
     pub memory_type: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct SpecDriftRequest {
-    pub spec_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

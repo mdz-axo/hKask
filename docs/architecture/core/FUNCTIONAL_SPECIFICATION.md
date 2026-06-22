@@ -49,7 +49,7 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 20 | Type System | `types` | hkask-types | 40 | System types are semantically grounded and provenance-aware | P8 (Semantic Grounding) |
 | 21 | API Surface | `api` | hkask-api | 25 | User accesses all functionality through a REST API with sovereignty enforcement | P1 + P4 (Sovereignty + Boundaries) |
 | 22 | CLI Surface | `cli` | kask | 12 | User accesses all functionality through a single binary CLI | P3 (Generative Space) |
-| 23 | Web Interface | `web` | hkask-api + hkask-web | 19 | User signs in via OAuth and gets a browser terminal | P1 (User Sovereignty) + P4 (Clear Boundaries) |
+| 23 | Web Interface | `web` | hkask-api (hkask-web deferred) | 19 | User signs in via OAuth and gets a browser terminal | P1 + P4 ⚠️ DEFERRED — hkask-web crate not yet implemented |
 | 24 | Multi-User | `multi-user` | hkask-api + hkask-storage | 12 | Users share a server with scoped data and admin-managed membership | P1 (User Sovereignty) + P2 (Affirmative Consent) |
 | 25 | Backup & Migration | `backup` | hkask-storage + hkask-api | 14 | User exports and migrates their data as a portable encrypted archive | P1 (User Sovereignty) + P3 (Generative Space) |
 | 26 | Deployment | `deploy` | hkask-api + kask | 16 | User deploys hKask with a single binary and one command | P5 (Essentialism) + P3 (Generative Space) |
@@ -1042,7 +1042,7 @@ Representative domains:
 
 **Goal Principles:** P1 (User Sovereignty) + P4 (Clear Boundaries) — browser-based terminal access via OAuth sessions scoped to user WebID
 **Constraining Principles:** P2 (Affirmative Consent) — OAuth flow requires explicit user authorization; P12 (Subscriber Consent) — terminal sessions emit CNS observability
-**Crates:** `hkask-api`, `hkask-web` | **Reference:** `docs/plans/deployment-and-backup.md`
+**Crates:** `hkask-api` (hkask-web is deferred — not yet implemented) | **Reference:** `docs/plans/deployment-and-backup.md`
 
 The web interface is the primary deployment surface: users visit a URL, sign in with GitHub or Google, and get an xterm.js terminal connected via WebSocket to a server-spawned `kask repl` PTY. There is no client binary — the browser is the client. SSH is an optional power-user feature (`kask ssh-key add`), not the primary access method.
 
