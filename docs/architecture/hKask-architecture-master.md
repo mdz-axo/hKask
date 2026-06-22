@@ -281,7 +281,11 @@ CLOUD SERVER (single binary, all crates compiled)
   Caddy (Docker) - TLS + reverse proxy
   Conduit (Docker) - Matrix homeserver
   hkask-api - OAuth, WebSocket /terminal, backup endpoints
-  hkask-core - daemon, MCP servers, agents, CNS, wallet, memory
+  hkask-services-daemon - daemon orchestration
+  hkask-mcp - MCP server runtime
+  hkask-agents - bot/replicant lifecycle
+  hkask-cns - cybernetic nervous system
+  hkask-wallet + hkask-memory - wallet and memory subsystems
   Per-pod SQLCipher files ({data_dir}/pods/{kind}.{name}.db) — one database per pod, three-tier (Curator/Team/Replicant)
 
 Access (all via HTTPS/Caddy):
@@ -986,34 +990,37 @@ Detailed lookup tables and diagrams in `reference/`:
 
 ```
 docs/architecture/
-├── hKask-architecture-master.md           # THIS FILE (index)
-├── loop-architecture.md                   # Framework (4-loop authority model)
-├── energy-gas-payments-api-keys.md        # Framework (gas, payments, API key system)
-├── matrix-integration-architecture.md     # Specification (Matrix transport, Conduit sidecar)
-├── qa/
-│   └── QA_PLAN.md                         # Framework (fuzz, mutation, LLM triage)
+├── hKask-architecture-master.md                # THIS FILE (index)
+├── loop-architecture.md                        # Framework (4-loop authority model)
+├── energy-gas-payments-api-keys.md             # Framework (gas, payments, API key system)
+├── self-healing.md                             # Framework (self-healing architecture)
+├── matrix-integration-architecture.md          # Specification (Matrix transport, Conduit sidecar)
+├── specs/
+│   ├── hkask-ledger.md                         # Specification (triple-entry ledger)
+│   ├── provider-intelligence.md                # Specification (provider intelligence)
+│   └── rjoule-cost-system.md                   # Specification (rJoule cost system)
 ├── core/
-│   ├── magna-carta.md                     # Foundation (4 inviolable principles)
-│   ├── PRINCIPLES.md                      # Framework (P1-P12)
-│   ├── MDS.md                             # Framework (5 categories, 5 tools)
-│   ├── TESTING_DISCIPLINE.md              # Specification (contract-anchored testing)
-│   ├── CNS-DOMAIN-SPECIFICATION.md        # Specification (CNS + memory verb contracts)
-│   ├── FUNCTIONAL_SPECIFICATION.md        # Specification (AgentService)
-│   ├── SOLID_POD_ISOMORPHISM.md           # Specification (pod drift analysis + deployment types + semantic map)
-│   ├── MULTI_POD_ARCHITECTURE.md          # Specification (3-tier pod structure)
-├── mandates/
-│   └── P12-replicant-host-mandate.md      # Framework (replicant host mandate)
+│   ├── magna-carta.md                          # Foundation (4 inviolable principles)
+│   ├── PRINCIPLES.md                           # Framework (P1-P12, incl. P12 replicant host mandate)
+│   ├── MDS.md                                  # Framework (5 categories, 5 tools)
+│   ├── TESTING_DISCIPLINE.md                   # Specification (contract-anchored testing + QA triage)
+│   ├── CNS-DOMAIN-SPECIFICATION.md             # Specification (CNS + memory verb contracts)
+│   ├── FUNCTIONAL_SPECIFICATION.md             # Specification (AgentService)
+│   ├── SOLID_POD_ISOMORPHISM.md                # Specification (pod drift analysis + deployment types)
+│   ├── MULTI_POD_ARCHITECTURE.md               # Specification (3-tier pod structure)
 ├── ADRs/
-│   ├── _TEMPLATE.md                       # ADR template
-│   ├── ADR-031-consolidation-authorization.md # Active
-│   └── ADR-035-replicant-server-mode.md   # Active
+│   ├── _TEMPLATE.md                            # ADR template
+│   ├── ADR-031-consolidation-authorization.md  # Active
+│   └── ADR-035-replicant-server-mode.md        # Active
 └── reference/
-    └── hKask-Curator-persona.md           # Persona spec
+    └── hKask-Curator-persona.md                # Persona spec
 ```
 
-**Total:** 14 architecture documents (8 core + 1 mandate + 3 root + 2 ADRs + 1 reference + 1 qa). API docs (utoipa) in §API Documentation.
+**Total:** 20 architecture documents (8 core + 3 root + 3 specs + 2 ADRs + 1 reference + 2 framework + 1 self-healing). API docs (utoipa) in §API Documentation.
 
-**Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, etc.), `docs/guides/` (kata-user-guide.md, lora-training-guide.md), `docs/user-guides/` (kanban-user-guide.md, lora-adapter-store-guide.md)
+**Archived (2026-06-22):** `qa/QA_PLAN.md` (merged into TESTING_DISCIPLINE.md §10), `mandates/P12-replicant-host-mandate.md` (merged into PRINCIPLES.md §12.1), `core/OPEN_QUESTIONS_POD.md` (merged into `docs/OPEN_QUESTIONS.md`).
+
+**See also:** `docs/plans/TODO.md`, `docs/OPEN_QUESTIONS.md`, `docs/research/`, `docs/specifications/`, `docs/guides/`, `docs/user-guides/`.
 
 ---
 

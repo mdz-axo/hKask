@@ -2,7 +2,7 @@
 title: "LoRA Adapter Store Guide — Storing, Routing, and Deploying Trained Adapters"
 audience: [developers, operators, curators]
 last_updated: 2026-06-17
-version: "0.27.0"
+version: "0.30.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [composition, lifecycle, trust]

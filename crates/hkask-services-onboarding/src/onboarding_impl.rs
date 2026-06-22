@@ -10,6 +10,7 @@ use hkask_storage::{
     AgentDefinition, AgentRegistryStore, Charter, Database, RegisteredAgent, UserProfile,
     now_rfc3339,
 };
+use hkask_types::agent_paths;
 use hkask_types::{AgentKind, WebID};
 
 use hkask_services_core::ServiceConfig;
@@ -226,6 +227,31 @@ impl OnboardingService {
                 message: e.to_string(),
             })?;
 
+        // Build the self-contained agent definition YAML.
+        // Written to agents/{name}/agent.yaml for Curator discovery and
+        // stored as source_yaml so the REPL can load persona + process_manifest.
+        let source_yaml = format!(
+            "# Agent definition for {name} — created by hKask onboarding.\n\
+             agent:\n  name: \"{name}\"\n  type: replicant\n\n\
+             charter:\n  description: \"{desc}\"\n\n\
+             capabilities:\n  - tool:inference:call\n  - tool:mcp:invoke\n  - registry:episodic_memory:read\n  - registry:episodic_memory:write\n\n\
+             # Directories containing public artifacts (synced to Curator).\n\n\
+             public_dirs:\n  - artifacts\n  - library\n  - gallery\n  - documents\n  - adapters\n\n\
+             # Directories containing private data (never leaves agent folder).\n\n\
+             private_dirs:\n  - sessions\n  - portfolios\n",
+            name = display_name,
+            desc = description,
+        );
+
+        // Persist the agent YAML to the agent's directory on disk.
+        let yaml_path = agent_paths::agent_definition_yaml(&display_name);
+        if let Some(parent) = yaml_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        std::fs::write(&yaml_path, &source_yaml).map_err(|e| ServiceError::Storage {
+            message: format!("Failed to write agent YAML to {}: {e}", yaml_path.display()),
+        })?;
+
         let registered = RegisteredAgent {
             definition: AgentDefinition {
                 name: display_name,
@@ -240,7 +266,7 @@ impl OnboardingService {
             },
             token_hash: hex::encode(token.signature_bytes()),
             registered_at: now_rfc3339(),
-            source_yaml: "onboarding".to_string(),
+            source_yaml,
         };
 
         store

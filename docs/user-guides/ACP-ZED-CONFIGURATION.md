@@ -2,7 +2,7 @@
 title: "ACP Replicant — Zed Configuration"
 audience: [developers, agents]
 last_updated: 2026-06-17
-version: "0.27.0"
+version: "0.30.0"
 status: "Active"
 domain: "Deployment"
 mds_categories: [lifecycle, composition]

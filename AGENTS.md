@@ -18,6 +18,7 @@ Activate the relevant skill via `skill` tool when its conditions are met. **46 s
 
 | Skill | When to Activate |
 |-------|-----------------|
+| **bug-hunt** | Bug hunting. Run expeditions against target crates to find threats to user-defined quality. Applies Weinberg's quality definition, Beizer's bug taxonomy, Bach's Heuristic Test Strategy Model, and Hendrickson's exploratory testing charters. |
 | **tdd** | Building features or fixing bugs. Vertical tracer-bullet RED→GREEN→REFACTOR. Anchored on the Testing Discipline (Property-Based Testing + CNS observability). |
 | **diagnose** | Debugging hard bugs or performance regressions. Reproduce, anchor, hypothesise, instrument, fix, regression-test, verify. |
 | **deep-module** | Module design discipline. Apply the deletion test, enforce depth (benefit/cost ratio), interface minimalism (≤7 public functions). |

@@ -39,22 +39,22 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, A2A, Episodic and Semantic Memory and kask services |
-| 2 | **Essential Tools** | 11 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter) |
+| 2 | **Essential Tools** | 12 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter) |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, keystore, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
-| 5 | **Composition** | Unified registry with template_type discriminator, 45 composable skills, 232 Jinja2 templates |
+| 5 | **Composition** | Unified registry with template_type discriminator, 46 composable skills, 239 Jinja2 templates |
 
 ---
 
 ## Skills & Composition
 
-hKask's behavioral surface is defined by **45 skills** — composable agent instructions stored as YAML manifests with Jinja2 templates. Skills are not code. They are declarative, user-editable, and versioned in a unified registry.
+hKask's behavioral surface is defined by **46 skills** — composable agent instructions stored as YAML manifests with Jinja2 templates. Skills are not code. They are declarative, user-editable, and versioned in a unified registry.
 
 | Layer | Format | Count | Purpose |
 |-------|--------|-------|--------|
-| **Skill manifests** | `manifest.yaml` | 72 registry crates | Skill metadata, contracts, constraints |
-| **Templates** | `*.j2` (Jinja2) | 232 | Executable process steps (KnowAct, KnowCheck, etc.) |
-| **Skills** | `.agents/skills/` | 45 | Categorized: coding, reasoning, kata, meta, specialized |
+| **Skill manifests** | `manifest.yaml` | 46 registry crates | Skill metadata, contracts, constraints |
+| **Templates** | `*.j2` (Jinja2) | 239 | Executable process steps (KnowAct, KnowCheck, etc.) |
+| **Skills** | `.agents/skills/` | 46 | Categorized: coding, reasoning, kata, meta, specialized |
 
 Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa triage`, `kask qa run-script`). The skill system includes discovery, bundling, translation, lifecycle management, and adversarial logic auditing.
 
@@ -62,7 +62,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 
 ## Crate Structure
 
-### Foundation (10 crates)
+### Foundation (12 crates)
 | Crate | Purpose |
 |-------|--------|
 | `hkask-types` | ID types, nu-event, vocabulary, visibility, CNS spans |
@@ -75,6 +75,8 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-mcp` | MCP runtime, dispatch, security |
 | `hkask-cli` | CLI (39 subcommands + REPL) |
 | `hkask-api` | HTTP API, utoipa OpenAPI (26 route groups) |
+| `hkask-capability` | OCAP delegation tokens |
+| `hkask-ports` | Hexagonal port traits |
 
 ### Infrastructure (7 crates)
 | Crate | Purpose |
@@ -87,13 +89,14 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-adapter` | External provider adapters (Hugging Face, etc.) |
 | `hkask-test-harness` | Test infrastructure (TestDb, TestWebId, mocks, strategies) |
 
-### Services (17 crates)
+### Services (18 crates)
 | Crate | Purpose |
 |-------|--------|
 | `hkask-services` | Facade: all service ports via dependency inversion |
 | `hkask-services-core` | Core service traits and port definitions |
 | `hkask-services-backup` | Backup policy layer on Git CAS |
 | `hkask-services-classify` | Content classification |
+| `hkask-services-cloud` | Cloud deployment primitives |
 | `hkask-services-context` | Context window management |
 | `hkask-services-daemon` | Background daemon services |
 | `hkask-services-discover` | Content discovery and search |
@@ -108,15 +111,18 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-services-verification` | Capability verification |
 | `hkask-services-wallet` | Crypto wallet and chain port selection |
 
-### Wallet & Identity (1 crate)
+### Wallet, Identity & Ledger (3 crates)
 | Crate | Purpose |
 |-------|--------|
 | `hkask-wallet` | Multi-chain wallet (Solana, Hedera, Hinkal optional) |
+| `hkask-wallet-types` | Wallet value types and data structures |
+| `hkask-ledger` | Triple-entry accounting ledger |
 
-### MCP Servers (11 crates)
+### MCP Servers (12 crates)
 - `hkask-mcp-condenser` — Context condensation (thin wrapper around hkask-condenser)
 - `hkask-mcp-research` — Web search, extraction, and feed-based research
 - `hkask-mcp-spec` — Specification authoring, curation, and validation
+- `hkask-mcp-skill` — Skill registry and discovery MCP interface
 - `hkask-mcp-companies` — Company financial data (FMP + EODHD dual-provider)
 - `hkask-mcp-communication` — Thin MCP wrapper over core communication crate
 - `hkask-mcp-media` — Media generation (image, video, audio, 3D via fal.ai and other providers)
@@ -132,19 +138,19 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 
 | Metric | Value |
 |--------|-------|
-| **Foundation LOC** | ~80,000 |
-| **Infrastructure LOC** | ~16,000 |
-| **Services LOC** | ~21,000 |
-| **Wallet LOC** | ~6,800 |
-| **Core Total (src/)** | ~124,000 |
-| **MCP Server LOC (src/)** | ~34,500 |
-| **Test Files** | 144 (with `#[cfg(test)]` modules) |
-| **Core Crates** | 35 (10 foundation + 7 infra + 17 services + 1 wallet) |
-| **MCP Servers** | 11 |
+| **Foundation LOC** | ~76,000 |
+| **Infrastructure LOC** | ~18,000 |
+| **Services LOC** | ~25,000 |
+| **Wallet & Identity LOC** | ~11,000 |
+| **Core Total (src/)** | ~130,000 |
+| **MCP Server LOC (src/)** | ~35,700 |
+| **Test Files** | 124 (with `#[cfg(test)]` modules) |
+| **Core Crates** | 40 (12 foundation + 7 infra + 18 services + 3 wallet/identity) |
+| **MCP Servers** | 12 |
 | **CLI Subcommands** | 39 |
 | **API Route Groups** | 26 |
 | **Build/Clippy/Fmt/Test** | All passing |
-| **Skills** | 45 (72 registry crates, 232 Jinja2 templates) |
+| **Skills** | 46 (46 registry crates, 239 Jinja2 templates) |
 | **QA Pipeline** | Fuzz triage, mutation analysis, autonomous script runner |
 
 ---
@@ -165,8 +171,8 @@ cargo fmt --check
 
 - `docs/architecture/hKask-architecture-master.md` — Architecture index
 - `docs/architecture/core/PRINCIPLES.md` — Magna Carta principles (P1–P12)
-- `docs/architecture/reference/hKask-erd.md` — Entity relationship diagrams
-- `docs/architecture/interface-and-composition.md` — Registry & templating design
+- `docs/architecture/reference/hKask-Curator-persona.md` — Curator persona specification
+- `docs/architecture/core/PRINCIPLES.md` — Magna Carta principles (P1–P12)
 - `docs/status/PROJECT_STATUS.md` — Project status (single source of truth)
 - `assets/LOGO-DESIGN-PRINCIPLES.md` — Logo design principles
 - `AGENTS.md` — Agent operating guide
@@ -193,4 +199,4 @@ cargo fmt --check
 
 *ℏKask - A Minimal Viable Container for Agents — v0.30.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*
-*CI green. 39 commands. 35 crates. 11 MCP servers. 45 skills.*
+*CI green. 40 crates. 12 MCP servers. 46 skills.*

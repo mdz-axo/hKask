@@ -135,6 +135,75 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 
 </details>
 
+## Pod Architecture Resolved Questions (ζ Group — v0.30.0)
+
+> **Incorporated from:** `docs/architecture/core/OPEN_QUESTIONS_POD.md`
+
+<details>
+<summary>5 ζ-group questions — click to expand (resolved during multi-pod architecture design session)</summary>
+
+### ζ.1 — Cross-Pod A2A Protocol
+
+**Question:** What is the minimal viable cross-pod A2A protocol that preserves OCAP gating?
+
+**Status:** **Deferred** (trigger: cross-server deployment use case)
+
+**Analysis:** Current A2A (`A2ARuntime`) assumes same-process agents. Cross-pod A2A requires a network boundary. Use Matrix (Conduit homeserver) as the communication fabric. OCAP tokens carried in message metadata, verified by the receiving pod's `CapabilityChecker`.
+
+---
+
+### ζ.2 — Pod Portability Across Servers
+
+**Question:** Is exporting a SQLCipher file sufficient for "move my pod to another server"?
+
+**Status:** **Resolved** (design) — acceptance test deferred to v0.31.0.
+
+**What transfers:** SQLCipher database file, deterministic passphrase (ADR-027), `.webid` sidecar, pod persona and capabilities.
+
+**What does NOT transfer:** CNS variety counters (temporal state), Curator cursor state, MCP server API keys, active A2A sessions.
+
+**Import procedure:** `kask pod export <pod_id>` → `kask pod import <pod_id> {pod}.db {pod}.webid`.
+
+---
+
+### ζ.3 — Pod Lifecycle Across Containers
+
+**Question:** If a pod IS a Docker container, does `kask pod activate` become `docker start {pod_id}`?
+
+**Status:** **Deferred** (trigger: container deployment use case)
+
+**Mapping:** Populated→Image built, Registered→Container created, Activated→Container started, Deactivated→Container stopped. `ActivePods` becomes a thin status tracker querying Docker/Podman container state.
+
+---
+
+### ζ.4 — Curator Aggregation Model
+
+**Question:** Polling vs push for per-pod CNS aggregation?
+
+**Status:** **Resolved** — polling model implemented in `CuratorSync` (1-second interval).
+
+**Decision:** Polling handles restarts naturally via cursor-based catch-up. Push requires Curator to be alive and reachable at write time — fragile. CNS events serve as observability signals, not the sync trigger.
+
+---
+
+### ζ.5 — PodFactory Deletion Test
+
+**Question:** Does `PodFactory` earn its existence if pods are created via `docker build`?
+
+**Status:** **Resolved** — PodFactory survives essentialist G1 test.
+
+**Verdict:** PodFactory is a deep module (1 public method, stateless). Delete it and pod creation becomes impossible. With container deployment, PodFactory's `deploy()` gains `--output containerfile` mode.
+
+| ζ | Question | Status |
+|---|----------|--------|
+| ζ.1 | Cross-pod A2A protocol | Deferred |
+| ζ.2 | Pod portability | Resolved |
+| ζ.3 | Pod lifecycle across containers | Deferred |
+| ζ.4 | Curator aggregation model | Resolved |
+| ζ.5 | PodFactory deletion test | Resolved |
+
+</details>
+
 ## Open Crossroads (Future)
 
 #### F1: OCAP Secret Generation vs. HKDF Derivation ✅ RESOLVED

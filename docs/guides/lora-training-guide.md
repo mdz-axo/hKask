@@ -2,7 +2,7 @@
 title: "LoRA Training Guide — End-to-End Dataset Prep to CNS-Verified Deployment"
 audience: [developers, operators]
 last_updated: 2026-06-17
-version: "0.27.0"
+version: "0.30.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [composition, lifecycle, curation]

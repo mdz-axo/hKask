@@ -1,7 +1,7 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-06-19
+last_updated: 2026-06-22
 version: "0.30.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -11,11 +11,11 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 # hKask Documentation Portal
 
 **Purpose:** Single entry point indexing every active document in `docs/`, tagged
-by [MDS](architecture/core/MDS.md) category. 55 active documents. hKask v0.30.0.
+by [MDS](architecture/core/MDS.md) category. 65 active documents. hKask v0.30.0.
 
 > **Lifecycle:** Retired documents are removed via `git rm`. The gitignored
 > `docs/archive/` holds date-stamped snapshots for reference. Active document count
-> verified by `docs/ci/check-links.sh` (225 links, 0 broken).
+> verified by `docs/ci/check-links.sh` (247 links, 0 broken).
 
 ---
 
@@ -27,8 +27,8 @@ by [MDS](architecture/core/MDS.md) category. 55 active documents. hKask v0.30.0.
 | [`architecture/core/SOLID_POD_ISOMORPHISM.md`](architecture/core/SOLID_POD_ISOMORPHISM.md) | AgentPod↔Solid Pod isomorphism — drift analysis and resolution |
 | [`architecture/core/MULTI_POD_ARCHITECTURE.md`](architecture/core/MULTI_POD_ARCHITECTURE.md) | Three-tier pod architecture (CuratorPod, TeamPod, ReplicantPod) |
 | [`architecture/core/MDS.md`](architecture/core/MDS.md) | 5-category specification framework and MDS methodology |
-| [`architecture/core/PRINCIPLES.md`](architecture/core/PRINCIPLES.md) | Architecture principles (P1-P12) |
-| [`architecture/core/TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | Contract-anchored testing — DbC + PBT specification |
+| [`architecture/core/PRINCIPLES.md`](architecture/core/PRINCIPLES.md) | Architecture principles (P1-P12, includes P12 replicant host mandate) |
+| [`architecture/core/TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | Contract-anchored testing — DbC + PBT specification + QA triage |
 | [`plans/TODO.md`](plans/TODO.md) | Open work |
 | [`plans/deployment-and-backup.md`](plans/deployment-and-backup.md) | Deployment & Multi-User Plan |
 | [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | Underspecified aspects — open crossroads and future design decisions |
@@ -40,6 +40,19 @@ by [MDS](architecture/core/MDS.md) category. 55 active documents. hKask v0.30.0.
 | Document | MDS | Description |
 |----------|-----|-------------|
 | [`hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | all | Authoritative index — patterns, kata, kanban, LoRA, daemon, ACP, deployment. Includes deep-module public surface audit. |
+
+| [`loop-architecture.md`](architecture/loop-architecture.md) | Four-loop authority model — semantic root-cause analysis |
+| [`energy-gas-payments-api-keys.md`](architecture/energy-gas-payments-api-keys.md) | Energy budget, gas, payments, and API key architecture |
+| [`self-healing.md`](architecture/self-healing.md) | Self-healing architecture patterns |
+| [`matrix-integration-architecture.md`](architecture/matrix-integration-architecture.md) | Matrix transport, Conduit sidecar, integration architecture |
+
+### Specs (`architecture/specs/`)
+
+| Document | MDS | Description |
+|----------|-----|-------------|
+| [`hkask-ledger.md`](architecture/specs/hkask-ledger.md) | domain, trust | Triple-entry accounting ledger specification |
+| [`provider-intelligence.md`](architecture/specs/provider-intelligence.md) | domain, composition | Provider intelligence architecture |
+| [`rjoule-cost-system.md`](architecture/specs/rjoule-cost-system.md) | domain, lifecycle | rJoule cost tracking system |
 
 ### Core (`architecture/core/`)
 
@@ -54,18 +67,6 @@ by [MDS](architecture/core/MDS.md) category. 55 active documents. hKask v0.30.0.
 | [`MULTI_POD_ARCHITECTURE.md`](architecture/core/MULTI_POD_ARCHITECTURE.md) | domain, composition, lifecycle | Multi-pod tiers — CuratorPod + TeamPod + ReplicantPod |
 | [`FUNCTIONAL_SPECIFICATION.md`](architecture/core/FUNCTIONAL_SPECIFICATION.md) | domain, composition | AgentService functional specification |
 
-### QA (`architecture/qa/`)
-
-| Document | MDS | Description |
-|----------|-----|-------------|
-| [`QA_PLAN.md`](architecture/qa/QA_PLAN.md) | all | QA architecture — fuzz targets, mutation testing, LLM triage, auto-repair, feedback loops |
-
-### Mandates
-
-| Document | MDS | Description |
-|----------|-----|-------------|
-| [`P12-replicant-host-mandate.md`](architecture/mandates/P12-replicant-host-mandate.md) | domain, trust, composition | Replicant host mandate — P12 elaboration |
-
 ### ADRs (Active only)
 
 | ADR | MDS | Decision |
@@ -73,7 +74,9 @@ by [MDS](architecture/core/MDS.md) category. 55 active documents. hKask v0.30.0.
 | [ADR-031](architecture/ADRs/ADR-031-consolidation-authorization.md) | trust | Consolidation authorization via master passphrase derivation |
 | [ADR-035](architecture/ADRs/ADR-035-replicant-server-mode.md) | composition, trust, lifecycle | Replicant server mode — AgentMode, daemon transport, dual memory |
 
-**Archived (2026-06-17):** ADR-030, ADR-032–034, ADR-036–038 (7 Draft ADRs, never adopted). Recoverable via git history.
+**Archived (2026-06-17):** ADR-030, ADR-032–034, ADR-036–038 (7 Draft ADRs, never adopted).
+
+**Archived (2026-06-22):** `qa/QA_PLAN.md` (merged into TESTING_DISCIPLINE.md), `mandates/P12-replicant-host-mandate.md` (merged into PRINCIPLES.md), `core/OPEN_QUESTIONS_POD.md` (merged into OPEN_QUESTIONS.md), `handoffs/` (2 historical handoffs).
 
 ### Reference
 
@@ -133,6 +136,7 @@ by [MDS](architecture/core/MDS.md) category. 55 active documents. hKask v0.30.0.
 | [`DEPLOYMENT.md`](guides/DEPLOYMENT.md) | Deployment — production server, systemd, health checks, security hardening |
 | [`OPERATIONS_RUNBOOK.md`](guides/OPERATIONS_RUNBOOK.md) | Operations — health checks, troubleshooting, backup/recovery |
 | [`lora-training-guide.md`](guides/lora-training-guide.md) | LoRA training — dataset prep to CNS-verified deployment, hardening, troubleshooting |
+| [`bug-hunter-guide.md`](guides/bug-hunter-guide.md) | Bug hunting methodology and expedition execution |
 | [`skill-designer-guide.md`](guides/skill-designer-guide.md) | Skill design — creating, packaging, registering |
 
 ---
@@ -169,4 +173,4 @@ by [MDS](architecture/core/MDS.md) category. 55 active documents. hKask v0.30.0.
 bash docs/ci/check-links.sh      # link integrity — zero broken links
 ```
 
-*ℏKask — A Minimal Viable Container for Agents — v0.30.0 — 55 active documents*
+*ℏKask — A Minimal Viable Container for Agents — v0.30.0 — 65 active documents*

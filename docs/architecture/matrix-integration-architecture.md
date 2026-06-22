@@ -2,7 +2,7 @@
 title: "Matrix Integration Architecture for hKask"
 audience: [architects, developers]
 last_updated: 2026-06-14
-version: "0.27.0"
+version: "0.30.0"
 status: "Active"
 domain: "Communication"
 mds_categories: [composition, trust]

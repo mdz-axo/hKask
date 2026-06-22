@@ -2,7 +2,7 @@
 title: "hKask Testing Discipline"
 audience: [engineers, agents, replicants]
 last_updated: 2026-06-18
-version: "0.29.0"
+version: "0.30.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -598,7 +598,39 @@ in-context learning.
 surviving mutant's location and mutation are formatted as a passage. The classifier
 suggests a fuzz target that would catch it.
 
----
+### 10.5 Implementation Components
+
+> **Incorporated from:** `docs/architecture/qa/QA_PLAN.md`
+
+| Component | Location | Responsibility |
+|-----------|----------|----------------|
+| CNS QA spans | `crates/hkask-types/src/cns.rs` | 5 `CnsSpan` variants for QA observability |
+| Triage library | `crates/hkask-test-harness/src/triage.rs` | Bolero output parser, git helpers, auto-repair, gh CLI |
+| Feedback library | `crates/hkask-test-harness/src/feedback.rs` | Correction passages, mutant parsing, fuzz suggestions |
+| CLI subcommand | `crates/hkask-cli/src/commands/qa.rs` | `kask qa triage` — stdin reader, classifier orchestration |
+| Classifier config | `registry/classify/qa-triage.yaml` | Gemma 4 triage prompt (failure diagnosis) |
+| Feedback config | `registry/classify/qa-feedback.yaml` | Gemma 4 feedback prompt (correction + mutant suggestions) |
+
+### 10.6 Cost Profile
+
+| Operation | Model | Tokens | DeepInfra Cost | Frequency |
+|-----------|-------|--------|---------------|-----------|
+| Classify one bolero failure | Gemma 4 26B A4B | ~400 in, ~300 out | ~$0.00030 | Per failure |
+| Feedback: rejected repair | Gemma 4 26B A4B | ~200 in, ~100 out | ~$0.00010 | Per rejection |
+| Feedback: surviving mutant | Gemma 4 26B A4B | ~200 in, ~200 out | ~$0.00016 | Per mutant |
+| cargo-bolero (property) | — | — | $0 | Every push/PR |
+| cargo-mutants | — | — | $0 | Nightly |
+
+### 10.7 Anti-Patterns
+
+| Anti-pattern | Why Avoided |
+|-------------|-------------|
+| No `#[contract]` annotations | Removed — suffocated the code |
+| No pre/post/invariant DSL | Same reason as above |
+| No new model deployment | Uses existing Gemma 4 26B via `classify_batch` |
+| No new binary | `kask qa triage` is a CLI subcommand |
+| No visual QA dashboard | P3 Prohibition #1 — CNS spans + CLI only |
+| No auto-merge to main | P1 User Sovereignty — human always reviews the PR |
 
 ## 11. Updated Test Pyramid
 

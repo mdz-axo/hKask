@@ -1,6 +1,6 @@
 ---
 title: "Bug Hunting Skill — Corrected Design (Grounded in hKask Machinery)"
-version: "0.3.0"
+version: "0.30.0"
 date: 2026-06-21
 status: "Draft — Ground-Truth Revision"
 epistemic_mode: "Declarative — verified against crates/hkask-templates/src/executor.rs,

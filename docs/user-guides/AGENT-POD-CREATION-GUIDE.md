@@ -2,7 +2,7 @@
 title: "Agent Pod Creation Guide"
 audience: [developers, agent designers]
 last_updated: 2026-06-10
-version: "0.27.0"
+version: "0.30.0"
 status: "Active"
 domain: "Application"
 mds_categories: [domain]

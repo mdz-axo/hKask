@@ -2,7 +2,7 @@
 title: "The Lazy Universe as Architectural Grounding — Deep Research"
 audience: [architects, developers, agents, curator]
 last_updated: 2026-06-13
-version: "0.27.0"
+version: "0.30.0"
 status: "Active"
 domain: "Architecture"
 mds_categories: [domain, composition, curation]

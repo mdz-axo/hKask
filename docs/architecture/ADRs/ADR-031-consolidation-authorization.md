@@ -2,7 +2,7 @@
 title: "ADR-031: Consolidation Authorization via Master Passphrase Derivation"
 audience: [architects, security engineers]
 last_updated: 2026-06-05
-version: "0.27.0"
+version: "0.30.0"
 status: "Active"
 domain: "Security"
 mds_categories: [trust]

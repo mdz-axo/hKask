@@ -1,6 +1,6 @@
 ---
 title: "Bug Hunting Skill — Implementation Plan"
-version: "0.1.0"
+version: "0.30.0"
 date: 2026-06-21
 status: "Draft"
 anchored_to: "bug-hunting-as-autopoietic-skill-unified.md"
