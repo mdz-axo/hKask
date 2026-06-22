@@ -126,28 +126,36 @@ RIGHT (vertical):
 
 ### 1. Planning
 
-Before writing any code:
+Contracts are **generated, not authored**. The contract-generator runs a classifier-aware Jinja2 prompt template that reads the functional specification, architectural principles, and function source code, then produces `expect:` + `[P{N}]` annotations with quality self-scoring. Human curation (Accept/Revise/Reject) gates the output before any test is written.
 
-**Step 1 — Identify requirements:**
-- Identify what functional requirement(s) this change addresses
-- State the requirement in the user's voice before proceeding
+**Step 1 — Anchor on the functional specification:**
+- Read `docs/architecture/core/FUNCTIONAL_SPECIFICATION.md` for the domain you're working in
+- Identify the functional requirement (FR#) that the behavior addresses
+- The FR description provides the user expectation and the spec-assigned goal principle
 
-**Step 2 — Map requirements to testable behaviors:**
+**Step 2 — Run the contract-generator:**
+- Feed the function source, spec context, and principle context into `contract-generator/contract-generator.j2`
+- The generator classifies the function against the MDS domain → goal principle mapping
+- It produces a complete contract annotation block with quality self-scoring (0-3)
+- Contracts scoring 0-1 must be regenerated; 2 is acceptable; 3 is complete
+
+**Step 3 — Curate the contract:**
+- Review the generated `expect:` — does it faithfully capture what the user wants?
+- Verify the `[P{N}] Motivating:` matches the spec-assigned goal principle
+- Check `[P{N}] Constraining:` annotations for completeness (minimum P1-P4 Magna Carta)
+- Accept, revise, or reject. The contract is the ground truth for the test.
+
+**Step 4 — Map to testable behaviors:**
 - Each functional requirement maps to one or more observable behaviors on a public seam
 - If a requirement has no testable behavior, deepen the module first
 - Confirm with user what interface changes are needed
 
-**Step 3 — Prioritize by risk:**
+**Step 5 — Prioritize by risk:**
 - P0 (Security/correctness-critical): Trust & Security, fail-closed behavior
 - P1 (Correctness): Interface parity, core algorithms
 - P2+ (Ergonomics): Convenience, polish
 
-**Step 4 — List behaviors with traceability:**
-- Each behavior must reference a documented requirement
-- List behaviors to test (not implementation steps)
-- Get user approval on the plan
-
-Ask: "What functional requirement does this change address? What should the public interface look like? Which requirements are most critical to test?"
+Ask: "What functional requirement does this change address? Has the contract-generator produced an acceptable contract? Which requirements are most critical to test?"
 
 **You can't test everything.** Focus on requirements in the change scope, prioritized by risk.
 

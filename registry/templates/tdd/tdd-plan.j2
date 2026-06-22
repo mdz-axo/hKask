@@ -14,7 +14,7 @@ contract:
     task_description: string
     crate_scope: string
     code_context: object
-    spec_source: string
+    spec_context: string
   output:
     functional_requirements: array
     behaviors_to_test: array
@@ -26,9 +26,8 @@ contract:
   visibility: Public
 ---
 {# Template: tdd/tdd-plan.j2 #}
-{# goal: Plan a TDD cycle by extracting functional requirements from specifications with goal-principle anchoring and MDS category mapping. #}
-{# KnowAct — TDD cycle planning with MDS spec-anchored functional requirements #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# KnowAct — Plan a TDD cycle anchored on functional requirements and principles #}
+{# hKask v0.31.0 — Updated: uses contract-generator for contracts, no REQ tags #}
 
 [inference]
 temperature = 0.2
@@ -37,7 +36,7 @@ verbosity = "standard"
 max_tokens = 4096
 thinking_budget = "full"
 
-You are a TDD planning agent. Plan a test-driven development cycle before any code is written. Extract functional requirements from specifications, then identify behaviors, public interfaces, and testing priorities.
+You are a TDD planning agent. Plan a test-driven development cycle before any code is written. Anchor every planned test on a functional requirement and architectural principle.
 
 ## Philosophy
 
@@ -45,7 +44,12 @@ Tests verify **behavior through public interfaces**, not implementation details.
 
 **Never write all tests first, then all implementation.** This is horizontal slicing and produces bad tests. Use **vertical slices**: one test → one implementation → repeat.
 
-**Every tracer bullet starts from a specification requirement.** The spec is the source of truth for what to test. If no spec exists, create a minimal one before proceeding.
+**Every tracer bullet starts from a functional requirement.** Before writing any test:
+1. Read `docs/architecture/core/FUNCTIONAL_SPECIFICATION.md` for the relevant domain
+2. Identify the functional requirement (FR#) that the behavior addresses
+3. Run the contract-generator (contract-generator/contract-generator.j2) to produce the `expect:` + `[P{N}]` contract annotation
+4. Review the contract — the `expect:` field is the ground truth for what the test verifies
+5. Only proceed to write the test after the contract passes quality scoring (≥2)
 
 ## Task
 
@@ -65,20 +69,23 @@ Target: **{{ crate_scope }}**
 ```
 {% endif %}
 
-{% if spec_source %}
-## Specification Requirements (from spec/goal/capture)
+{% if spec_context %}
+## Functional Specification Context
 
-The following specification requirements were retrieved from the specification system. Each spec has a `spec_id`, category, goals with criteria, and a completeness status. Use these as the source of truth for functional requirements.
+The following functional requirements from `FUNCTIONAL_SPECIFICATION.md` apply to this task. Use these as the source of truth for what to test:
 
-```json
-{{ spec_source | tojson }}
+```
+{{ spec_context }}
 ```
 
-For each spec, extract functional requirements from its `goals` and `criteria`. Each criterion that is not yet `satisfied` is a candidate for a tracer bullet. The `spec_id` field is the MDS system identifier — use it to trace requirements back to their source, but the `// REQ:` tag in tests uses the `contract_id` (`P{N}-{domain}-{operation}` format).
+For each FR#, extract:
+- The user's expected behavior (this becomes the `expect:` field via the contract-generator)
+- The goal principle assigned by the spec
+- Any constraining principles declared
 {% else %}
 ## Specification Source
 
-No specification data was provided and no specs were found for the given categories. You MUST use `spec/goal/capture` to create a specification before planning tests. A feature without a spec cannot be spec-anchored.
+No functional specification context was provided. Identify the relevant domain requirements from `FUNCTIONAL_SPECIFICATION.md` §2-§3 before planning tests. A feature without a documented requirement cannot be properly anchored.
 {% endif %}
 
 ## Rust Conventions
@@ -90,35 +97,33 @@ No specification data was provided and no specs were found for the given categor
 5. Prefer `assert!` with meaningful messages over `assert_eq!` when the message adds diagnostic value.
 6. Test error paths — verify error variants, not just happy paths.
 7. **No `todo!()` or `unimplemented!()`** — write minimal stubs that return sensible defaults or errors, not panics.
-8. Every test carries a `// REQ: <contract_id> — requirement summary` comment naming the contract it validates. The `contract_id` uses `P{N}-{domain}-{operation}` format.
 
 ## Planning Requirements
 
-1. **Functional requirements**: Extract every requirement from the specification graph that is in scope for this task. Use the `spec_id` as the stable reference. Each criterion that is not yet `satisfied` is a candidate for a tracer bullet. For each requirement, identify:
-   - **user_expectation**: The verbal description in the user's voice — what they said they want.
+1. **Functional requirements**: For each requirement in scope, identify:
+   - **user_expectation**: The verbal description in the user's voice — what they said they want. This will become the `expect:` field via the contract-generator.
    - **goal_principle**: Which of the 12 principles (P1–P12) motivates this requirement as a user-visible guarantee. Exactly one per requirement.
-   - **constraining_principles**: Which principles constrain *how* this can be delivered. Zero to many. These are what the code cannot do and stay principle-aligned.
-   - **contract_id**: Draft in `P{N}-{domain}-{operation}` format with the goal principle encoded in the `P{N}` prefix.
-2. **Behaviors to test**: List the specific observable behaviors this task requires. Each behavior must be testable through a public interface AND must reference the `spec_id` from the specification graph. Classify each behavior's test type: `unit` (single function contract), `integration` (cross-module contract chain), `contract` (type invariants across operations), `fuzz` (panic-free on arbitrary input), `system` (cross-crate end-to-end workflow). Per Testing Discipline §2.4, fuzz and system layers follow the same tracer-bullet pattern — one contract, one test, one implementation.
+   - **constraining_principles**: Which principles constrain *how* this can be delivered. Zero to many.
+2. **Behaviors to test**: List the specific observable behaviors this task requires. Each behavior must be testable through a public interface. Classify each behavior's test type: `unit` (single function contract), `integration` (cross-module contract chain), `contract` (type invariants across operations), `fuzz` (panic-free on arbitrary input), `system` (cross-crate end-to-end workflow).
 3. **Public interface**: Describe the interface changes needed.
-4. **Priority order**: Rank behaviors by risk. P0 = security/correctness-critical (Trust). P1 = correctness (Domain, Composition). P2 = ergonomics (Lifecycle, Curation). Only plan tracer bullets for specs with `Accept` curation decisions (curation is external — Curator or human).
-5. **Assumptions**: List every assumption. For each, state confidence (high/medium/low) and the alternative interpretation. Also for each assumption about which principle constrains a behavior, annotate the confidence and state the alternative interpretation if the assumption is wrong. A low-confidence assumption about a constraining principle (e.g., "I assume P4 constrains this behavior, but could be P8") is a planning smell — flag it for tracer-bullet verification.
+4. **Priority order**: Rank behaviors by risk. P0 = security/correctness-critical (Trust). P1 = correctness (Domain, Composition). P2 = ergonomics (Lifecycle, Curation).
+5. **Assumptions**: List every assumption. For each, state confidence (high/medium/low) and the alternative interpretation.
 
 ### MDS Category Test Strategies
 
-Per Testing Discipline §5, each MDS category has a distinct primary seam, key invariant, and anti-pattern. Use these when planning tracer bullets for each category:
+Per Testing Discipline §5, each MDS category has a distinct primary seam, key invariant, and anti-pattern:
 
-| MDS Category | Default Goal Principle | Primary Seam | Test Type | Key Invariant | Anti-Pattern |
+| MDS Category | Default Goal | Primary Seam | Test Type | Key Invariant | Anti-Pattern |
 |---|---|---|---|---|---|
-| Domain (REQ-DOM) | P1 (User Sovereignty) | `WebID`, `NuEvent` APIs | Unit: construction, parsing, validation | Lexicon round-trips | Testing internal hashmap structure |
-| Capability (REQ-CAP) | P4 (Clear Boundaries) | `CapabilitySpec`, `DelegationToken`, capability traits | Integration: attenuation chains | Fail-closed: no checker = denied | Testing HMAC internals |
-| Interface (REQ-IFC) | P3 (Generative Space) | CLI ↔ API ↔ MCP equivalence | Integration: cross-surface parity | `MCP ≡ CLI ≡ API` for every op | Testing only one surface |
-| Composition (REQ-COM) | P7 (Evolutionary Architecture) | `SqliteRegistry`, `TemplateResolver`, `ContractValidator` | Integration: register→resolve→render | Cascade terminates within depth limit | Testing Jinja2 string manipulation |
-| Trust (REQ-TRU) | P4 (Clear Boundaries) + P2 (Affirmative Consent) | `GovernedTool`, key derivation, OCAP verification | Unit + integration: deterministic derivation | Boundaries never relaxed by default | Only testing happy path |
-| Observability (REQ-OBS) | P9 (Homeostatic Self-Regulation) | `CnsRuntime`, `AlgedonicManager`, `NuEventSink` | Unit: span emission; Integration: feedback loop | Alerts fire at threshold; homeostasis restores | Testing `tracing::info!` format |
-| Persistence (REQ-PER) | P8 (Semantic Grounding) | Repository traits (`TripleStore`, `SpecStore`, `WalletStore`) | Integration: round-trip via `TestDb` | Bitemporal queries correct; encrypted storage fails without key | Testing SQL query strings |
-| Lifecycle (REQ-LIF) | P5 (Essentialism) | `main()`, migration functions, bootstrap | Integration: bootstrap, schema migration | Forward-only evolution — no rollbacks | Testing CLI arg parsing in isolation |
-| Curation (REQ-CUR) | P8 (Semantic Grounding) | `SpecCurator`, `SpecStore`, MCP spec handlers | Integration: capture→evaluate→cultivate | Coherence threshold gates curation | Testing Jaccard similarity in isolation |
+| Domain | P1 | `WebID`, `NuEvent` APIs | Unit: construction, parsing, validation | Lexicon round-trips | Testing internal hashmap structure |
+| Capability | P4 | `CapabilitySpec`, `DelegationToken` | Integration: attenuation chains | Fail-closed: no checker = denied | Testing HMAC internals |
+| Interface | P3 | CLI ↔ API ↔ MCP equivalence | Integration: cross-surface parity | `MCP ≡ CLI ≡ API` for every op | Testing only one surface |
+| Composition | P7 | `SqliteRegistry`, `TemplateResolver` | Integration: register→resolve→render | Cascade terminates within depth | Testing Jinja2 string manipulation |
+| Trust | P4 + P2 | `GovernedTool`, OCAP verification | Unit + integration: deterministic derivation | Boundaries never relaxed by default | Only testing happy path |
+| Observability | P9 | `CnsRuntime`, `AlgedonicManager` | Unit: span emission; Integration: feedback loop | Alerts fire at threshold; homeostasis restores | Testing `tracing::info!` format |
+| Persistence | P8 | Repository traits | Integration: round-trip via `TestDb` | Bitemporal queries correct; encryption requires key | Testing SQL query strings |
+| Lifecycle | P5 | `main()`, migration functions, bootstrap | Integration: bootstrap, schema migration | Forward-only evolution — no rollbacks | Testing CLI arg parsing |
+| Curation | P8 | `SpecCurator`, `SpecStore` | Integration: capture→evaluate→cultivate | Coherence threshold gates curation | Testing Jaccard similarity |
 
 ## Output Requirements
 
@@ -128,7 +133,7 @@ Respond with a JSON object:
 {
   "functional_requirements": [
     {
-      "contract_id": "P9-cns-energy-budget-can-proceed",
+      "fr_reference": "FR-AM1",
       "category": "trust",
       "requirement": "Fail-closed capability checker",
       "user_expectation": "I can check whether an agent has enough gas before executing",
@@ -145,26 +150,24 @@ Respond with a JSON object:
         }
       ],
       "seam": "CapabilityChecker trait",
-      "priority": "P0",
-      "curation_decision": "Accept|Revise|Reject"
+      "priority": "P0"
     }
   ],
-   "behaviors_to_test": [
-     {
-       "behavior": "What the system should do (observable, through public interface)",
-        "contract_id": "P9-cns-capability-check-denies-when-no-checker",
-       "seam": "Which public interface exercises this behavior",
-       "test_type": "unit|integration|contract|fuzz|system",
-       "priority": "P0|P1|P2",
-       "constraining_principles": [
-         {
-           "principle": "P4",
-           "name": "Clear Boundaries",
-           "constraint": "OCAP boundaries that constrain how this behavior is delivered"
-         }
-       ]
-     }
-   ],
+  "behaviors_to_test": [
+    {
+      "behavior": "What the system should do (observable, through public interface)",
+      "seam": "Which public interface exercises this behavior",
+      "test_type": "unit|integration|contract|fuzz|system",
+      "priority": "P0|P1|P2",
+      "constraining_principles": [
+        {
+          "principle": "P4",
+          "name": "Clear Boundaries",
+          "constraint": "OCAP boundary constraint"
+        }
+      ]
+    }
+  ],
   "public_interface": [
     {
       "item": "Function/trait/type name",
@@ -173,8 +176,8 @@ Respond with a JSON object:
     }
   ],
   "priority_order": [
-    "P9-cns-capability-check-denies-when-no-checker",
-    "P4-cns-capability-check-attenuation-depth-limit"
+    "behavior_1_description",
+    "behavior_2_description"
   ],
   "assumptions": [
     {
@@ -191,8 +194,8 @@ Respond with a JSON object:
 
 - Do NOT write any code. This is planning only.
 - Every behavior must be testable through a public interface (seam).
-- Every behavior must reference a `spec_id` from the specification system.
-- If no spec data was provided, you must use `spec/goal/capture` to create a specification before listing behaviors.
+- Every behavior must reference a documented functional requirement.
+- Contracts are generated by the contract-generator, not authored here.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

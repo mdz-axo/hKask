@@ -621,9 +621,18 @@ async fn knowledge_corpus_pipeline() {
     };
 
     // Phase 3: Transcribe + Export each extracted book
+    // Build title lookup from discovery results
+    let title_map: std::collections::HashMap<&str, &str> = books
+        .iter()
+        .map(|(a, t)| (a.as_str(), t.as_str()))
+        .collect();
+
     for extract in &extracts {
         let asin = &extract.asin;
-        let title = &extract.title;
+        let title = title_map
+            .get(asin.as_str())
+            .copied()
+            .unwrap_or(&extract.title);
         println!("\n=== {} [{}] ===", title, asin);
 
         // Transcribe (pages already extracted by batch)

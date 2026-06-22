@@ -1,0 +1,39 @@
+# Template crate manifest for contract-generator skill
+# hKask v0.31.0
+
+crate:
+  name: contract-generator
+  version: "0.31.0"
+  description: >
+    Behavioral contract generator. Takes function source code, functional
+    specification context, and principle context as input. Produces expect: +
+    [P{N}] contract annotations with quality self-scoring. The generated
+    contract is submitted for human curation (Accept/Revise/Reject) before
+    the TDD tracer bullet writes the verifying test.
+  principle: P3 (Generative Space) — creates contract annotations within
+    user-defined boundaries
+  constraining: [P4 (Clear Boundaries — output gated by human consent)]
+
+templates:
+  - id: contract-generator/contract-generator
+    path: contract-generator.j2
+    type: KnowAct
+    lexicon_terms:
+      [
+        generate,
+        contract,
+        annotate,
+        expect,
+        classify,
+        ground,
+        specify,
+        constrain,
+      ]
+    description: >
+      Generate a behavioral contract from function source code, functional
+      specification context, and architectural principle context. Outputs
+      expect: + [P{N}] Motivating: + [P{N}] Constraining: + pre:/post:/inv:
+      with quality self-scoring (0-3). Designed as input to the TDD tracer
+      bullet workflow. Does not write files — human curates before application.
+    generates_spans:
+      - cns.skill.contract_generator

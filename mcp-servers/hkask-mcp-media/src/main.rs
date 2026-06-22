@@ -1,9 +1,7 @@
 //! hkask-mcp-media — binary entrypoint.
 //!
-//! Thin wrapper around the media server library. The server struct and
-//! tool methods live in lib.rs for testability (P5 Testing Discipline).
-
-use hkask_mcp::DaemonClient;
+//! Thin wrapper around the media generation server library. The server struct
+//! and tool methods live in lib.rs for fuzz testability (P5 Testing Discipline).
 
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp::McpError> {
@@ -13,13 +11,13 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
     let daemon_ok = match try_daemon_flow(&replicant).await {
         Ok(()) => true,
         Err(e) => {
-            tracing::warn!(target: "cns.mcp.media", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            tracing::warn!(target: "hkask.mcp.media", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
             false
         }
     };
 
     let daemon_client = if daemon_ok {
-        Some(DaemonClient::new())
+        Some(hkask_mcp::DaemonClient::new())
     } else {
         None
     };
@@ -28,9 +26,9 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
 }
 
 async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
-    let client = DaemonClient::new();
+    let client = hkask_mcp::DaemonClient::new();
     let result = hkask_mcp::verify_startup_gates(&client, replicant, "media", &[]).await?;
-    tracing::info!(target: "cns.mcp.media", replicant = %replicant,
+    tracing::info!(target: "hkask.mcp.media", replicant = %replicant,
         "P4 gates verified{}",
         if result.denied_tools.is_empty() { String::new() }
         else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }

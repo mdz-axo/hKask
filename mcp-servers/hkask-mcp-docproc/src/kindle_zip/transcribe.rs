@@ -154,8 +154,14 @@ pub async fn transcribe_pages(
 pub fn clean_kindle_text(raw: &str) -> String {
     let cleaned: String = raw
         .lines()
-        .filter(|line| {
-            let t = line.trim();
+        .map(|line| {
+            // Strip trailing Kindle toolbar fragments from the line
+            let line = line.split(" = Q").next().unwrap_or(line);
+            let line = line.trim_end_matches(|c: char| c == '%' || c == ' ' || c.is_ascii_digit());
+            line.trim()
+        })
+        .filter(|t| {
+            let t = *t;
             if t.is_empty() {
                 return false;
             }
@@ -223,20 +229,26 @@ pub fn strip_repeated_headers(chunks: &mut [ContentChunk]) {
     // Collect first lines from each page (scoped so borrow drops before mutation)
     let headers: Vec<String> = {
         use std::collections::HashMap;
-        let first_lines: Vec<&str> = chunks
+        let first_lines: Vec<String> = chunks
             .iter()
-            .map(|c| c.text.lines().next().unwrap_or(""))
+            .map(|c| {
+                // Strip Kindle toolbar/percentage suffix before header detection
+                let line = c.text.lines().next().unwrap_or("");
+                let line = line.split("= Q").next().unwrap_or(line);
+                let line = line.split('%').next().unwrap_or(line);
+                line.trim().to_string()
+            })
             .collect();
         let mut counts: HashMap<&str, usize> = HashMap::new();
         for line in &first_lines {
-            // Headers are typically ALL CAPS, often with punctuation/digits
-            if line.len() > 10
-                && line
+            let line_str = line.as_str();
+            if line_str.len() > 10
+                && line_str
                     .chars()
                     .filter(|c| c.is_alphabetic())
                     .all(|c| c.is_uppercase())
             {
-                *counts.entry(line).or_insert(0) += 1;
+                *counts.entry(line_str).or_insert(0) += 1;
             }
         }
         let threshold = (chunks.len() as f64 * 0.3) as usize;
@@ -245,7 +257,7 @@ pub fn strip_repeated_headers(chunks: &mut [ContentChunk]) {
             .filter(|(_, count)| *count >= threshold.max(2))
             .map(|(line, _)| line.to_string())
             .collect()
-    }; // first_lines borrow released here
+    }; // borrows released
 
     if headers.is_empty() {
         return;

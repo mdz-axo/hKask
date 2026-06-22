@@ -1,9 +1,7 @@
 //! hkask-mcp-training — binary entrypoint.
 //!
 //! Thin wrapper around the training server library. The server struct and
-//! tool methods live in lib.rs for testability (P5 Testing Discipline).
-
-use hkask_mcp::DaemonClient;
+//! tool methods live in lib.rs for fuzz testability (P5 Testing Discipline).
 
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp::McpError> {
@@ -19,7 +17,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
     };
 
     let daemon_client = if daemon_ok {
-        Some(DaemonClient::new())
+        Some(hkask_mcp::DaemonClient::new())
     } else {
         None
     };
@@ -28,7 +26,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
 }
 
 async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
-    let client = DaemonClient::new();
+    let client = hkask_mcp::DaemonClient::new();
     let result = hkask_mcp::verify_startup_gates(&client, replicant, "training", &[]).await?;
     tracing::info!(target: "hkask.mcp.training", replicant = %replicant,
         "P4 gates verified{}",

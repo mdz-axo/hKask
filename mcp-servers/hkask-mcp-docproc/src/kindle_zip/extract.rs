@@ -135,12 +135,12 @@ impl KindleSession {
 
         let (title, author) = scrape_title_author(&self.tab)?;
         let toc = extract_toc(&self.tab)?;
-        // Use TOC first non-trivial entry as title if page title is just "Kindle"
+        // Infer title from content headers if page metadata is just "Kindle"
         let title = if title == "Kindle" || title.is_empty() {
             toc.iter()
                 .find(|t| t.label != "Cover" && t.label != "Title Page" && t.label.len() > 3)
                 .map(|t| t.label.clone())
-                .unwrap_or(title)
+                .unwrap_or_else(|| String::from("Kindle")) // will be overridden after page capture
         } else {
             title
         };

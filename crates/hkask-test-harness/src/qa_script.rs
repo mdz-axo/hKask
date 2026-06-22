@@ -1246,4 +1246,66 @@ cns:
             "conservation invariant"
         );
     }
+
+    // REQ: P9-qa-mcp-coverage — all MCP server QA script manifests must deserialize
+    #[test]
+    fn mcp_server_qa_manifests_deserialize() {
+        let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let registry_dir = manifest_dir.join("../../registry/manifests");
+
+        let scripts = &[
+            "qa-spec-contract-gate.yaml",
+            "qa-condenser-health-check.yaml",
+            "qa-memory-privacy-boundary.yaml",
+            "qa-keystore-security-gate.yaml",
+            "qa-comm-integration-gate.yaml",
+            "qa-mcp-server-smoke.yaml",
+        ];
+
+        for script in scripts {
+            let path = registry_dir.join(script);
+            let content = std::fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("Cannot read {}: {}", path.display(), e));
+            let manifest: QaScriptManifest = serde_yaml_neo::from_str(&content)
+                .unwrap_or_else(|e| panic!("Failed to parse {}: {}", script, e));
+
+            // Structural invariants verified per P9 (homeostatic self-regulation)
+            assert!(
+                !manifest.manifest.id.is_empty(),
+                "{}: manifest.id is empty",
+                script
+            );
+            assert!(!manifest.steps.is_empty(), "{}: no steps defined", script);
+            assert!(manifest.gas.cap > 0, "{}: gas cap must be positive", script);
+
+            // Every step must have a valid action
+            for step in &manifest.steps {
+                assert!(
+                    matches!(
+                        step.action.as_str(),
+                        "run_command" | "classify" | "mcp_tool" | "loop"
+                    ),
+                    "{} step {}: unknown action '{}'",
+                    script,
+                    step.ordinal,
+                    step.action
+                );
+            }
+
+            // Branch targets must reference valid ordinals
+            let ordinals: std::collections::HashSet<u32> =
+                manifest.steps.iter().map(|s| s.ordinal).collect();
+            for step in &manifest.steps {
+                for target in step.branching.values() {
+                    assert!(
+                        ordinals.contains(target),
+                        "{} step {}: branch target {} not found",
+                        script,
+                        step.ordinal,
+                        target
+                    );
+                }
+            }
+        }
+    }
 }

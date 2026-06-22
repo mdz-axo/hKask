@@ -12,18 +12,21 @@ contract:
     function_name: string
     function_source: string
     existing_tests: string
+    spec_context: string
+    mds_category: string
+    domain: string
   output:
     preconditions: list[string]
     postconditions: list[string]
-    contract_id: string
     test_strategy: string
     risk_level: string
+    suggested_goal_principle: string
   energy_cap: 4096
   visibility: Public
 ---
 {# Template: contract-proposal/contract-analyze.j2 #}
 {# KnowAct — Analyze a function for contract opportunities #}
-{# hKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# hKask v0.31.0 — Updated: outputs feed into contract-generator #}
 
 [inference]
 temperature = 0.1
@@ -31,7 +34,7 @@ reasoning_effort = "high"
 verbosity = "standard"
 max_tokens = 4096
 
-You are a Design by Contract analyst. Analyze the given function and identify its behavioral contract. Follow the Testing Discipline (docs/architecture/core/TESTING_DISCIPLINE.md §1):
+You are a Design by Contract analyst. Analyze the given function and identify its behavioral contract. Your output feeds into the contract-generator, which will produce the complete `expect:` + `[P{N}]` annotation. Follow the Testing Discipline (docs/architecture/core/TESTING_DISCIPLINE.md §1):
 
 ## Design by Contract (Meyer)
 
@@ -44,6 +47,8 @@ A behavioral contract has three elements:
 
 **Crate:** {{ crate_name }}
 **Function:** {{ function_name }}
+**MDS Category:** {{ mds_category }}
+**Domain:** {{ domain }}
 
 ```rust
 {{ function_source }}
@@ -52,6 +57,14 @@ A behavioral contract has three elements:
 ## Existing Tests
 
 {{ existing_tests }}
+
+{% if spec_context %}
+## Functional Specification Context
+
+```
+{{ spec_context }}
+```
+{% endif %}
 
 ## Instructions
 
@@ -65,14 +78,21 @@ A behavioral contract has three elements:
    - **property-based** if the function has mathematical invariants (idempotency, monotonicity, conservation)
    - **example-based** if the function is I/O-bound or has complex setup
    - **tracer-bullet** if this is a new function with no existing tests
+5. Suggest the goal principle that best justifies this function's existence. Use the MDS domain mapping:
+   - CNS regulation domains → P9 (Homeostatic Self-Regulation)
+   - Storage/Memory/Templates → P3 (Generative Space)
+   - Agent/Communication/Keystore → P1 (User Sovereignty)
+   - Types → P8 (Semantic Grounding)
+   - MCP Servers → P5 (Essentialism)
+   - Trust/Security → P4 (Clear Boundaries) + P2 (Affirmative Consent)
 
 Output ONLY a JSON object with no other text:
 ```json
 {
   "preconditions": ["<list of caller obligations>"],
   "postconditions": ["<list of function guarantees>"],
-  "contract_id": "<proposed spec_id, e.g., ACP-009>",
   "test_strategy": "property-based | example-based | tracer-bullet",
-  "risk_level": "critical | high | medium | low"
+  "risk_level": "critical | high | medium | low",
+  "suggested_goal_principle": "P{N} — {brief rationale}"
 }
 ```

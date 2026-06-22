@@ -1,0 +1,242 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- generate
+- contract
+- annotate
+- expect
+- classify
+- ground
+- specify
+- constrain
+contract:
+  input:
+    crate_name: string
+    function_name: string
+    function_source: string
+    function_body: string
+    spec_context: string
+    principle_context: string
+    mds_category: string
+    domain: string
+  output:
+    expect_statement: string
+    goal_principle: string
+    constraining_principles: list[string]
+    preconditions: list[string]
+    postconditions: list[string]
+    invariants: list[string]
+    contract_annotation: string
+    quality_score: string
+  energy_cap: 8192
+  visibility: Public
+---
+{# Template: contract-generator/contract-generator.j2 #}
+{# KnowAct — Generate behavioral contracts from functional specifications, principles, and code analysis #}
+{# hKask v0.31.0 — Contract Generator: spec + principles + code → expect: + [P{N}] annotation #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 8192
+
+You are a behavioral contract generator for hKask. Your job is to produce a contract annotation that bridges three sources of truth:
+
+1. **Functional Specification** — what the user expects the system to do (the OUGHT)
+2. **Architectural Principles** — the 12 principles that govern what the system can and cannot do
+3. **Source Code** — the actual implementation (the IS)
+
+From these, you generate a contract that answers four questions in order:
+- What does the **user** expect? (`expect:` — in their voice)
+- Which **principle** justifies this as a user-visible guarantee? (`[P{N}] Motivating:`)
+- What **constraints** shape how it's delivered? (`[P{N}] Constraining:`)
+- What **behavior** does the code guarantee? (`pre:` / `post:` / `inv:`)
+
+## Principle-Contracted Design Chain
+
+The contract you produce must be traceable through a four-element chain:
+
+```
+PRINCIPLE (why it exists)
+    │  P1-P12 from PRINCIPLES.md §1
+    │
+    ▼
+FUNCTIONAL REQUIREMENT (what the user wants)
+    │  FR# from FUNCTIONAL_SPECIFICATION.md §2-§3
+    │
+    ▼
+CODE BEHAVIOR (what the implementation does)
+    │  pub fn signature + body
+    │
+    ▼
+CONTRACT (the verifiable guarantee)
+       expect: + [P{N}] + pre:/post:
+```
+
+## The 12 Principles (PRINCIPLES.md §1)
+
+### Magna Carta (Foundational)
+| # | Principle | Role as Goal | Role as Constraint |
+|---|-----------|-------------|-------------------|
+| P1 | User Sovereignty | User owns data, identity, delegation boundaries | Wallet ops, keystore, web sessions |
+| P2 | Affirmative Consent | Default deny; explicit, scoped, revocable consent | Backup export, API key scope |
+| P3 | Generative Space | System creates, modifies, destroys within user boundaries | CNS sync access, backup merge |
+| P4 | Clear Boundaries (OCAP) | Module boundaries enforced; no ambient authority | Energy caps, circuit thresholds, OCAP gates |
+
+### Operational
+| # | Principle | Role as Goal | Role as Constraint |
+|---|-----------|-------------|-------------------|
+| P5 | Essentialism | Remove before adding; minimum code | Runtime construction, chunking |
+| P6 | Space for Replicants | Agent identity and personality space | (rarely constraining) |
+| P7 | Evolutionary Architecture | Parameters emerge from real usage | Budget config, backend timeouts |
+
+### Regulatory
+| # | Principle | Role as Goal | Role as Constraint |
+|---|-----------|-------------|-------------------|
+| P8 | Semantic Grounding | Types carry meaning; newtypes prevent confusion | Energy cost types, ranking signals |
+| P9 | Homeostatic Self-Regulation | Feedback loops maintain stability | Memory loops, salience budgets |
+
+### Agent
+| # | Principle | Role as Goal | Role as Constraint |
+|---|-----------|-------------|-------------------|
+| P10 | Bot/Replicant Taxonomy | Distinct bot and replicant roles | (rarely constraining) |
+| P11 | Digital Public/Private Sphere | Visibility governance | Per-pod storage, private sphere boundary |
+| P12 | Replicant Host Mandate | Every action has accountable host identity | Session spans, key alerts |
+
+## MDS Domain → Default Goal Principle Mapping
+
+Use this to classify which principle should serve as the goal for a function based on its MDS domain:
+
+| MDS Domain | Default Goal | Rationale |
+|-----------|-------------|-----------|
+| Energy Budgeting | P9 | Homeostatic regulation of agent resource consumption |
+| Algedonic Signalling | P9 | Alert loop for variety deficit escalation |
+| Runtime Observability | P9 | CNS variety monitoring and health |
+| Tool Governance | P9 | OCAP-gated tool execution with energy checks |
+| Inference Governance | P9 + P4 | LLM calls across provider boundaries |
+| Circuit Breaking | P9 | Cascading failure prevention |
+| API Metering | P9 | Per-key rate limiting and gas tracking |
+| Wallet | P9 | rJoule balances and energy-based payments |
+| Storage | P3 | Durable triple storage for generative space |
+| Memory | P3 | Episodic and semantic knowledge |
+| Templates | P3 | Skill template rendering |
+| MCP Servers | P5 | Single-responsibility tool servers |
+| Service Layer | P5 + P7 | Shared business logic, thin orchestration |
+| Agent Runtime | P1 | Agent sovereignty boundaries |
+| Communication | P1 | User-owned agent communication channels |
+| Keystore | P1 | Key generation, storage, rotation |
+| Types | P8 | Semantically grounded, provenance-aware types |
+| API Surface | P1 + P4 | REST API with sovereignty enforcement |
+| CLI | P3 | Single binary generative surface |
+| Web Interface | P1 + P4 | OAuth sessions with capability boundaries |
+| Multi-User | P1 + P2 | Scoped data with admin membership |
+| Backup | P1 + P3 | Portable encrypted sovereignty archives |
+| Deployment | P5 + P3 | Single binary, one command |
+
+## Input Context
+
+### Crate and Function
+
+**Crate:** {{ crate_name }}
+**Domain:** {{ domain }}
+**MDS Category:** {{ mds_category }}
+**Function:** {{ function_name }}
+
+```rust
+{{ function_source }}
+```
+
+{% if function_body %}
+**Function body (relevant excerpt):**
+```rust
+{{ function_body }}
+```
+{% endif %}
+
+### Functional Specification Context
+
+{% if spec_context %}
+The following functional requirement(s) from `FUNCTIONAL_SPECIFICATION.md` apply to this domain. Each FR# has a stated goal principle and constraining principles:
+
+```
+{{ spec_context }}
+```
+
+Extract:
+- The user's verbal expectation from the FR description
+- The goal principle already assigned by the spec
+- Any constraining principles the spec declares
+{% else %}
+No spec context provided. The functional requirement may not yet be documented. Derive the user expectation from the function's public behavior and the domain's default goal principle from the mapping above. Flag this in the quality_rationale as "spec_context_missing".
+{% endif %}
+
+### Principle Context
+
+{% if principle_context %}
+```
+{{ principle_context }}
+```
+{% endif %}
+
+## Generation Rules
+
+### Rule 1: expect: Must Be in the User's Voice
+
+The `expect:` field is the contract's ground truth. It must read as something a user would say they want. It is NOT a restatement of the function name.
+
+- **Unacceptable (vacuous):** `expect: "creates a new energy budget"` — just restates `EnergyBudget::new`
+- **Unacceptable (implementation):** `expect: "the function takes a u64 cap and returns Self"` — describes the signature
+- **Acceptable (functional):** `expect: "The system creates an energy budget with a configurable spending cap"`
+- **Best (anchored):** `expect: "I can set a spending cap on my agent to prevent runaway resource consumption"`
+
+### Rule 2: [P{N}] Motivating: Exactly One Goal Principle
+
+Every contract has exactly one goal principle. It answers: "Which of the 12 principles makes this function exist?" Use the MDS domain mapping above as the default, but override if the function's actual behavior is better justified by a different principle.
+
+Format: `[P{N}] Motivating: {Principle Name} — {brief rationale}`
+
+### Rule 3: [P{N}] Constraining: Zero to Many Constraints
+
+Constraining principles answer: "What can the code NOT do and stay principle-aligned?" Minimum required: P4 (Clear Boundaries) for any function near a trust/security boundary. P1-P4 Magna Carta review is mandatory — state which apply even if the answer is "none applicable."
+
+Format: `[P{N}] Constraining: {Principle Name} — {specific constraint}`
+
+### Rule 4: pre: and post: Must Be Machine-Verifiable
+
+Preconditions and postconditions must be specific enough to verify in a property-based test. Vague statements are worse than missing ones — they create false confidence.
+
+- **Good pre:** `pre: path is non-empty, key_id is valid`
+- **Good post:** `post: returns Ok(within_limits) if RPM and token quotas permit, RateExceeded if RPM exceeded, TokensExceeded if daily quota exhausted`
+- **Bad:** `pre: inputs are valid` (too vague)
+
+### Rule 5: Quality Self-Scoring
+
+After generating the contract, score yourself on a 0-3 scale:
+
+- **0 — Missing:** No `expect:` field, or `[P{N}]` annotations absent
+- **1 — Vacuous:** `expect:` restates the function name, pre/post are too vague to verify
+- **2 — Functional:** `expect:` describes a user need in functional terms, pre/post are specific enough for a test
+- **3 — Anchored:** `expect:` names the motivating principle with rationale, constraining principles are complete, pre/post form a complete behavioral specification
+
+A contract scoring 0-1 is a gap that must be regenerated. A contract scoring 2 is acceptable but improvable. A contract scoring 3 is complete.
+
+## Output Format
+
+Output ONLY a JSON object with no surrounding text:
+
+```json
+{
+  "contract_annotation": "/// expect: \"...\"\n/// [P{N}] Motivating: ...\n/// pre: ...\n/// post: ...\n/// inv: ...\n/// [P{N}] Constraining: ...",
+  "expect_statement": "The user expectation in their own voice",
+  "goal_principle": "P{N}",
+  "constraining_principles": ["P{N} — specific constraint", "..."],
+  "preconditions": ["caller obligation 1", "caller obligation 2"],
+  "postconditions": ["function guarantee 1", "function guarantee 2"],
+  "invariants": ["cross-operation invariant 1"],
+  "quality_score": "0|1|2|3",
+  "quality_rationale": "Why this score"
+}
+```
+
+The `contract_annotation` field is the complete annotation block ready for insertion above the function. The individual fields are for verification and downstream consumption by the TDD tracer bullet template.

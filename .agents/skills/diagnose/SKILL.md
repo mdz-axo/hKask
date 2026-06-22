@@ -28,12 +28,11 @@ The SKILL.md (this file) teaches the Zed coding agent the diagnosis methodology.
 Before building a feedback loop, anchor the diagnosis to functional requirements:
 
 1. **Identify DDMVSS categories** — which category does the bug fall under? (Domain, Capability, Interface, Composition, Trust, Observability, Persistence, Lifecycle, Curation). A bug may span multiple categories.
-2. **Query the spec graph** — call `spec/graph/query` with the relevant categories to retrieve `Spec` objects governing the misbehaving code path.
-3. **Evaluate spec readiness** — inspect the `state` field of each retrieved spec (`Draft`, `Revise`, `Merge`). A spec in `Merge` state is ready to test against. A spec in `Revise` state may itself be wrong — note this. If writing quality is questionable, call `spec/require_writing_quality` to assess whether the spec meets the 4-perspective publication standard.
-4. **Map symptom to requirement** — for each relevant spec, identify which criterion the bug violates. Record the `spec_id` and `// REQ:` reference.
-5. **Flag spec gaps** — if no spec covers the misbehavior, call it out: **"Spec gap: no requirement governs [behavior]."** This is a finding, not a failure. Document it in `OPEN_QUESTIONS.md`.
+2. **Read the functional specification** — consult `docs/architecture/core/FUNCTIONAL_SPECIFICATION.md` for the relevant domain. Identify the functional requirement (FR#) that the misbehaving code should satisfy.
+3. **Map symptom to requirement** — for each relevant spec, identify which criterion the bug violates. Record the functional requirement reference.
+4. **Flag spec gaps** — if no spec covers the misbehavior, call it out: **"Spec gap: no requirement governs [behavior]."** This is a finding, not a failure. Document it in `OPEN_QUESTIONS.md`.
 
-**Outcome of Phase 0:** A list of `(spec_id, REQ-ID, violation description)` tuples. If empty, you have a spec gap — proceed, but note it.
+**Outcome of Phase 0:** A list of `(FR#, violation description)` tuples. If empty, you have a spec gap — proceed, but note it.
 
 ## Phase 1 — Build a Feedback Loop
 
@@ -116,8 +115,7 @@ A correct seam exercises the **real bug pattern** as it occurs at the call site.
 
 If a correct seam exists:
 1. Turn the minimised repro into a failing test.
-2. **Tag the test with a `// REQ:` comment** linking it to the spec requirement it protects. Format: `// REQ: <spec_id> — requirement summary`. The `spec_id` comes from Phase 0.
-   - If Phase 0 identified a spec gap (no existing requirement), create a new `GoalSpec` via `spec/goal/capture` before writing the regression test. The new spec becomes the anchor.
+2. **Run the contract-generator** to produce an `expect:` + `[P{N}]` contract for the fix. The functional requirement reference (FR#) comes from Phase 0. If Phase 0 identified a spec gap, document the requirement before writing the regression test.
 3. Watch it fail.
 4. Apply the fix.
 5. Watch it pass.
@@ -127,7 +125,7 @@ If a correct seam exists:
 
 - [ ] Original repro no longer reproduces
 - [ ] Regression test passes (or absence of seam is documented)
-- [ ] Regression test carries a `// REQ:` tag referencing the spec requirement it protects
+- [ ] Regression test is anchored on a contract via `expect:` + `[P{N}]`
 - [ ] All `[DIAG-...]` instrumentation removed
 - [ ] Throwaway prototypes deleted
 - [ ] The correct hypothesis stated in commit/PR message
@@ -136,10 +134,9 @@ If a correct seam exists:
 
 ### Spec Verification
 
-- [ ] **Call `spec/graph/coherence`** to confirm the fix does not introduce dangling or orphaned specs
 - [ ] **New spec gaps** discovered during diagnosis are documented in `OPEN_QUESTIONS.md` with deferral rationale
-- [ ] If the fix creates a new requirement, call `spec/goal/capture` and link the regression test with `// REQ:`
+- [ ] If the fix creates a new requirement, document it and run the contract-generator to produce the contract annotation
 
 **Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling), note it for architecture review — after the fix, not before.
 
-If the answer is "a spec requirement should have existed for this behavior," that's a spec gap — create it via `spec/goal/capture`.
+If the answer is "a spec requirement should have existed for this behavior," that's a spec gap — document it.

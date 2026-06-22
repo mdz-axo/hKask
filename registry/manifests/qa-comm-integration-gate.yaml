@@ -1,0 +1,105 @@
+# QA Communication Integration Gate — v0.30.0
+#
+# Verifies hkask-mcp-communication agent registry and messaging invariants.
+#
+# Open questions addressed:
+#   8.3  — hkask-communication now has 19 integration tests (resolved);
+#          this script provides regression protection
+#   ζ.1  — Cross-pod A2A protocol (future); current tests verify
+#          same-process agent registration/resolution
+#
+# Cybernetic feedback loop:
+#   Sensor → cargo test output for communication integration tests
+#   Comparator → classify step evaluates registry integrity
+#   Actuator → terminal step reports PASS/FAIL
+#
+# Communication invariants (from integration_test.rs):
+#   1. RoomId/UserId/Thread type construction and validation
+#   2. MatrixError/AgentRegistrationError error handling
+#   3. AgentRegistry: record → resolve → deregister cycle
+#   4. AgentRegistry: monitor + watcher lifecycle
+#   5. MatrixTransport: deferred (requires Conduit homeserver Docker sidecar)
+#
+# Runner readiness: FULLY EXECUTABLE TODAY (all steps are run_command).
+
+manifest:
+  id: qa-comm-integration-gate
+  description: >
+    Verifies hkask-mcp-communication agent registry and messaging invariants
+    through the existing integration tests. Ensures agent registration→
+    resolution→deregistration cycle integrity.
+
+gas:
+  cap: 30000
+  alert_threshold: 0.8
+  hard_limit: true
+
+steps:
+  # Step 1: Run communication integration tests
+  - ordinal: 1
+    action: run_command
+    command: "cargo test -p hkask-mcp-communication --test '*' -- --nocapture 2>&1 | tail -30"
+    description: "Run communication integration tests: agent registry, room/user IDs, error types, monitor/watcher lifecycle"
+    retries: 0
+    branching:
+      success: 2
+      failure: 5
+
+  # Step 2: Classify test output
+  - ordinal: 2
+    action: classify
+    classifier: qa-triage
+    description: "Test suite: hkask-mcp-communication integration tests. Verify agent registry integrity: RoomId/UserId/Thread type construction and validation, MatrixError/AgentRegistrationError error handling, agent record→resolve→deregister full lifecycle cycle, and monitor/watcher registration. All integration tests passing indicates communication layer is functional for same-process agent coordination."
+    retries: 0
+    branching:
+      high_confidence: 3
+      medium_confidence: 3
+      low_confidence: 7
+      flake: 2
+      unparseable: 7
+
+  # Step 3: Run communication fuzz tests
+  - ordinal: 3
+    action: run_command
+    command: "cargo test -p hkask-mcp-communication-fuzz -- --nocapture 2>&1 | tail -20"
+    description: "Run communication fuzz tests for malformed message resilience"
+    retries: 0
+    branching:
+      success: 4
+      failure: 6
+
+  # Step 4: PASS — communication layer intact
+  - ordinal: 4
+    action: run_command
+    command: "echo '[QA:communication] PASS — agent registry, messaging types, error handling, and fuzz resilience verified'"
+    description: "All communication tests pass: registry lifecycle, type validation, fuzz resilience"
+    retries: 0
+    terminal: true
+
+  # Step 5: Integration test failure
+  - ordinal: 5
+    action: run_command
+    command: "echo '[QA:communication] FAIL — integration tests failed. Agent registry, messaging types, or error handling may be broken.'"
+    description: "Communication integration test failure — agent coordination may be compromised"
+    retries: 0
+    terminal: true
+
+  # Step 6: Fuzz test failure
+  - ordinal: 6
+    action: run_command
+    command: "echo '[QA:communication] WARN — fuzz tests failed. Communication layer may not handle malformed messages correctly.'"
+    description: "Fuzz test failure — message parsing resilience may be compromised"
+    retries: 0
+    terminal: true
+
+  # Step 7: Classification low confidence
+  - ordinal: 7
+    action: run_command
+    command: "echo '[QA:communication] WARN — classifier low confidence on test output. Manual review recommended.'"
+    description: "Classifier returned low confidence — manual review needed for communication test output"
+    retries: 0
+    terminal: true
+
+cns:
+  emit_spans: true
+  alert: qa.comm.integration

@@ -27,21 +27,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
 
 async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
     let client = hkask_mcp::DaemonClient::new();
-    let result = hkask_mcp::verify_startup_gates(
-        &client,
-        replicant,
-        "condenser",
-        &[
-            "compress",
-            "classify",
-            "set_profile",
-            "stats",
-            "ping",
-            "persist",
-            "thread_summary",
-        ],
-    )
-    .await?;
+    let result = hkask_mcp::verify_startup_gates(&client, replicant, "condenser", &[]).await?;
     tracing::info!(target: "hkask.mcp.condenser", replicant = %replicant,
         "P4 gates verified{}",
         if result.denied_tools.is_empty() { String::new() }

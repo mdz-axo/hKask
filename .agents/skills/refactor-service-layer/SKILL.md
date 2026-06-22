@@ -102,7 +102,7 @@ hkask-services/
 
 ### Phase 4 — Migrate One Domain (Proof of Concept)
 
-Delegate to `strangler-fig` + `tdd`. Select the smallest, most self-contained domain — typically `curator`. Execute the CREATE → WIRE CLI → WIRE API → DELETE sequence. One RED→GREEN→REFACTOR tracer bullet per behavior. Every test carries `// REQ:`.
+Delegate to `strangler-fig` + `tdd`. Select the smallest, most self-contained domain — typically `curator`. Execute the CREATE → WIRE CLI → WIRE API → DELETE sequence. One RED→GREEN→REFACTOR tracer bullet per behavior. Each test anchored on a contract via `expect:` + `[P{N}]`.
 
 ### Phase 5 — Migrate Remaining Domains
 
@@ -139,7 +139,7 @@ cargo test --workspace
 cargo clippy --workspace -- -D warnings
 ```
 
-Verify dependency direction (P1 above). Apply `deep-module` deletion test to every module in `hkask-services`. Verify P6/P7/P8 compliance: no `todo!()`, no `unimplemented!()`, every test has `// REQ:` tags.
+Verify dependency direction (P1 above). Apply `deep-module` deletion test to every module in `hkask-services`. Verify P6/P7/P8 compliance: no `todo!()`, no `unimplemented!()`, every function carries `expect:` + `[P{N}]` contract annotations.
 
 ### Phase 8 — Document Open Questions
 
@@ -160,13 +160,13 @@ These go beyond what `strangler-fig` and `deep-module` already cover:
 1. **Surface types leaking into services** — `Json<T>`, `println!`, HTTP status codes in service signatures
 2. **Surface context leaking** — `ReplState` or `ApiState` passed into service functions
 3. **MCP servers depending on `hkask-services`** — out-of-process servers use primitives, not the service crate
-4. **Missing `// REQ:` tags** — tests without spec anchoring violate P8
+4. **Missing contract annotations** — functions without `expect:` + `[P{N}]` annotations violate P8
 5. **OCAP gate extraction** — authorization stays in domain crates, never moves to services
 
 ## Checklist Per Domain Migration
 
 ```
-[ ] RED: Service operation test written with // REQ: tag        (→ tdd)
+[ ] RED: Service operation test written                      (→ tdd)
 [ ] GREEN: Minimal implementation passes test                   (→ tdd)
 [ ] CLI wired: calls service, formats terminal output           (→ strangler-fig)
 [ ] API wired: calls service, serializes JSON                   (→ strangler-fig)
@@ -194,7 +194,7 @@ These go beyond what `strangler-fig` and `deep-module` already cover:
 [ ] cargo test --workspace passes
 [ ] cargo clippy --workspace -- -D warnings passes
 [ ] Deletion test applied to every module in hkask-services
-[ ] Every // REQ: tag references a valid spec requirement
+[ ] Every contract carries `expect:` + `[P{N}]` annotations
 [ ] docs/status/corpus_inventory.yaml updated if new test surface was added
 [ ] OPEN_QUESTIONS.md updated with F1–F8
 ```

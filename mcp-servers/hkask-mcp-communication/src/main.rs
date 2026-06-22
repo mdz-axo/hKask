@@ -1,7 +1,7 @@
 //! hkask-mcp-communication — binary entrypoint.
 //!
 //! Thin wrapper around the communication server library. The server struct and
-//! tool methods live in lib.rs for testability (P5 Testing Discipline).
+//! tool methods live in lib.rs for fuzz testability (P5 Testing Discipline).
 
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp::McpError> {
