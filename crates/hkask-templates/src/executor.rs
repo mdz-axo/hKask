@@ -122,6 +122,7 @@ impl ManifestExecutor {
             manifest.convergence.max_iterations
         };
         let threshold = manifest.convergence.threshold;
+        let field = manifest.convergence.convergence_field.clone();
         let mut iteration: u32 = 0;
         let mut recursion_depth: u8 = 0;
         let matryoshka_limit: u8 = hkask_capability::SYSTEM_MAX_RECURSION;
@@ -131,6 +132,7 @@ impl ManifestExecutor {
             serde_json::json!({
                 "threshold": threshold,
                 "max_iterations": max_iterations,
+                "field": field,
                 "status": "running",
                 "iterations_completed": 0,
                 "exit_reason": null,
@@ -162,7 +164,14 @@ impl ManifestExecutor {
                             reason = "abort action",
                             "CNS"
                         );
-                        self.update_convergence(&mut context, "converged", iteration);
+                        self.finalize_convergence_report(
+                            &mut context,
+                            "converged",
+                            "quality_met",
+                            iteration,
+                            threshold,
+                            &field,
+                        );
                         break 'cascade;
                     }
 
@@ -175,7 +184,14 @@ impl ManifestExecutor {
                             reason = %reason,
                             "CNS"
                         );
-                        self.update_convergence(&mut context, "escalated", iteration);
+                        self.finalize_convergence_report(
+                            &mut context,
+                            "escalated",
+                            "obstacle_blocked",
+                            iteration,
+                            threshold,
+                            &field,
+                        );
                         return Err(TemplateError::Manifest(format!(
                             "Cascade escalated at step {}: {}",
                             step.ordinal, reason
@@ -213,7 +229,14 @@ impl ManifestExecutor {
                                 limit = matryoshka_limit,
                                 "CNS"
                             );
-                            self.update_convergence(&mut context, "maxed_out", iteration);
+                            self.finalize_convergence_report(
+                                &mut context,
+                                "maxed_out",
+                                "energy_spent",
+                                iteration,
+                                threshold,
+                                &field,
+                            );
                             return Err(TemplateError::Manifest(format!(
                                 "Matryoshka depth limit ({}) exceeded at iteration {}",
                                 matryoshka_limit, iteration
@@ -237,13 +260,31 @@ impl ManifestExecutor {
 
                         // Check convergence before looping
                         if iteration >= max_iterations {
-                            self.update_convergence(&mut context, "maxed_out", iteration);
+                            self.finalize_convergence_report(
+                                &mut context,
+                                "maxed_out",
+                                "energy_spent",
+                                iteration,
+                                threshold,
+                                &field,
+                            );
                             break 'cascade;
                         }
 
                         // Check threshold convergence
-                        if self.check_convergence(&context, threshold) {
-                            self.update_convergence(&mut context, "converged", iteration);
+                        if self.check_convergence(
+                            &context,
+                            &manifest.convergence.convergence_field,
+                            threshold,
+                        ) {
+                            self.finalize_convergence_report(
+                                &mut context,
+                                "converged",
+                                "quality_met",
+                                iteration,
+                                threshold,
+                                &field,
+                            );
                             break 'cascade;
                         }
 
@@ -279,21 +320,55 @@ impl ManifestExecutor {
                 step_idx += 1;
             }
 
+            // Compute compound quality from nested skill reports
+            if manifest.convergence.aggregation != "none"
+                && !manifest.convergence.aggregation_sources.is_empty()
+            {
+                let compound = self.compute_compound_quality(
+                    &context,
+                    &manifest.convergence.aggregation,
+                    &manifest.convergence.aggregation_sources,
+                );
+                context.insert(field.clone(), serde_json::json!(compound));
+            }
+
             // ── End of pass: check convergence if no explicit loop/abort ──
             if iteration >= max_iterations {
-                self.update_convergence(&mut context, "maxed_out", iteration);
+                self.finalize_convergence_report(
+                    &mut context,
+                    "maxed_out",
+                    "energy_spent",
+                    iteration,
+                    threshold,
+                    &field,
+                );
                 break 'cascade;
             }
 
-            if self.check_convergence(&context, threshold) {
-                self.update_convergence(&mut context, "converged", iteration);
+            if self.check_convergence(&context, &manifest.convergence.convergence_field, threshold)
+            {
+                self.finalize_convergence_report(
+                    &mut context,
+                    "converged",
+                    "quality_met",
+                    iteration,
+                    threshold,
+                    &field,
+                );
                 break 'cascade;
             }
 
             // Implicit loop: re-enter from step 0
             recursion_depth += 1;
             if recursion_depth > matryoshka_limit {
-                self.update_convergence(&mut context, "maxed_out", iteration);
+                self.finalize_convergence_report(
+                    &mut context,
+                    "maxed_out",
+                    "energy_spent",
+                    iteration,
+                    threshold,
+                    &field,
+                );
                 break 'cascade;
             }
         }
@@ -305,40 +380,71 @@ impl ManifestExecutor {
         Ok(context)
     }
 
-    /// Update convergence metadata in context.
-    fn update_convergence(
+    /// Finalize the convergence report at cascade exit.
+    /// Writes a complete report with status, reason, iterations, quality at exit, threshold, and field.
+    fn finalize_convergence_report(
         &self,
         context: &mut HashMap<String, Value>,
         status: &str,
+        reason: &str,
         iteration: u32,
+        threshold: f64,
+        field: &str,
     ) {
+        let quality = context
+            .get(field)
+            .and_then(|v| v.as_f64())
+            .or_else(|| resolve_dot_path(field, context).and_then(|v| v.as_f64()));
+
         context.insert(
             "_convergence".to_string(),
             serde_json::json!({
                 "status": status,
+                "reason": reason,
                 "iterations_completed": iteration,
+                "quality_at_exit": quality,
+                "threshold": threshold,
+                "field": field,
             }),
         );
     }
 
     /// Check whether the convergence threshold has been met.
-    /// Looks for a `composite` field in the last step result or the convergence field.
-    fn check_convergence(&self, context: &HashMap<String, Value>, threshold: f64) -> bool {
-        // Check top-level composite field
-        if let Some(v) = context.get("composite") {
-            if let Some(score) = v.as_f64() {
-                if score <= threshold {
-                    return true;
-                }
-            }
+    /// Looks for the configured `convergence_field` in the context (defaults to "composite").
+    fn check_convergence(
+        &self,
+        context: &HashMap<String, Value>,
+        field: &str,
+        threshold: f64,
+    ) -> bool {
+        // Check the configured convergence field
+        if let Some(v) = context.get(field)
+            && let Some(score) = v.as_f64()
+            && score <= threshold
+        {
+            return true;
         }
-        // Check convergence score in metadata
-        if let Some(conv) = context.get("_convergence_score") {
-            if let Some(score) = conv.as_f64() {
-                if score <= threshold {
-                    return true;
-                }
-            }
+        // Also check nested dot-path like "step_2_result.composite"
+        if let Some(v) = resolve_dot_path(field, context)
+            && let Some(score) = v.as_f64()
+            && score <= threshold
+        {
+            return true;
+        }
+        // Fallback: check legacy "composite" field for backward compatibility
+        if field != "composite"
+            && let Some(v) = context.get("composite")
+            && let Some(score) = v.as_f64()
+            && score <= threshold
+        {
+            return true;
+        }
+        // Check convergence metadata
+        if let Some(conv) = context.get("_convergence_score")
+            && let Some(score) = conv.as_f64()
+            && score <= threshold
+        {
+            return true;
         }
         false
     }
@@ -721,6 +827,61 @@ fn resolve_dot_path(path: &str, context: &HashMap<String, Value>) -> Option<Valu
         }
     }
     Some(current)
+}
+
+impl ManifestExecutor {
+    /// Compute compound quality from nested inner skill convergence reports.
+    fn compute_compound_quality(
+        &self,
+        context: &HashMap<String, Value>,
+        method: &str,
+        sources: &[crate::bundle::config::AggregationSource],
+    ) -> f64 {
+        match method {
+            "all_converged" => {
+                let all_ok = sources.iter().all(|src| {
+                    let key = format!("step_{}_result", src.step_ordinal);
+                    context
+                        .get(&key)
+                        .and_then(|v| v.get("_convergence"))
+                        .and_then(|c| c.get("status"))
+                        .and_then(|s| s.as_str())
+                        .map(|s| s == "converged")
+                        .unwrap_or(false)
+                });
+                if all_ok { 0.0 } else { 1.0 }
+            }
+            "min" => sources
+                .iter()
+                .filter_map(|src| {
+                    let key = format!("step_{}_result", src.step_ordinal);
+                    context
+                        .get(&key)
+                        .and_then(|v| v.get("_convergence"))
+                        .and_then(|c| c.get("quality_at_exit"))
+                        .and_then(|v| v.as_f64())
+                })
+                .fold(1.0_f64, f64::min),
+            "weighted_avg" => {
+                let mut sum = 0.0_f64;
+                let mut total = 0.0_f64;
+                for src in sources {
+                    let key = format!("step_{}_result", src.step_ordinal);
+                    if let Some(v) = context
+                        .get(&key)
+                        .and_then(|v| v.get("_convergence"))
+                        .and_then(|c| c.get("quality_at_exit"))
+                        .and_then(|v| v.as_f64())
+                    {
+                        sum += v * src.weight;
+                        total += src.weight;
+                    }
+                }
+                if total > 0.0 { sum / total } else { 1.0 }
+            }
+            _ => 0.0,
+        }
+    }
 }
 
 /// Parse a simple choice condition string like "composite < 0.15" or "findings == 0".

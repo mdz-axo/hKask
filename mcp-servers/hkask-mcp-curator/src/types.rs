@@ -25,6 +25,16 @@ pub struct SemanticSearchRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+pub struct CnsStatusRequest {
+    pub domain: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct BotStatusRequest {
+    pub bot_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct MemoryRecallRequest {
     pub entity: String,
     pub memory_type: Option<String>,
@@ -33,4 +43,9 @@ pub struct MemoryRecallRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct AlgedonicLogRequest {
     pub hours: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SpecDriftRequest {
+    pub spec_id: Option<String>,
 }

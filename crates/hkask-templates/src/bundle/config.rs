@@ -1,17 +1,29 @@
 //! Bundle configuration sub-structs — mirror existing manifest YAML fields
 //!
-//! These config structs are loaded from manifest YAML. Some are already
-//! enforced at runtime (CNS spans via GovernedTool); others are future wiring targets.
+//! These config structs are loaded from manifest YAML. Wired into ManifestExecutor
+//! for PDCA convergence, gas enforcement, and error handling.
 
 use serde::{Deserialize, Serialize};
 
-/// Loaded from manifest YAML. Not yet enforced by ManifestExecutor (future wiring target).
+/// Convergence configuration for PDCA loop exit conditions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ConvergenceConfig {
     pub threshold: f64,
     pub max_iterations: u32,
+    pub convergence_field: String,
     pub on_not_reached: String,
+    /// Aggregation method for compound skills (nested PDCA loops).
+    /// - "none" (default): single-field check against convergence_field.
+    /// - "min": the worst (highest) quality score across sources.
+    /// - "weighted_avg": weighted average of source quality scores.
+    /// - "all_converged": every source step must have _convergence.status == "converged".
+    #[serde(default = "default_aggregation")]
+    pub aggregation: String,
+    /// Sources for compound aggregation. Each source specifies a step ordinal and
+    /// a dot-path field within that step's result (e.g. "_convergence.quality_at_exit").
+    #[serde(default)]
+    pub aggregation_sources: Vec<AggregationSource>,
 }
 
 impl Default for ConvergenceConfig {
@@ -19,9 +31,31 @@ impl Default for ConvergenceConfig {
         Self {
             threshold: 0.1,
             max_iterations: 3,
+            convergence_field: "composite".to_string(),
             on_not_reached: "abort".to_string(),
+            aggregation: "none".to_string(),
+            aggregation_sources: vec![],
         }
     }
+}
+
+fn default_aggregation() -> String {
+    "none".to_string()
+}
+
+/// A source for compound quality aggregation — specifies which inner skill's
+/// convergence report to read and at what weight.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AggregationSource {
+    pub step_ordinal: u32,
+    /// Dot-path within the step result, e.g. "_convergence.quality_at_exit"
+    pub field: String,
+    #[serde(default = "default_weight")]
+    pub weight: f64,
+}
+
+fn default_weight() -> f64 {
+    1.0
 }
 
 /// Gas (energy budget) configuration

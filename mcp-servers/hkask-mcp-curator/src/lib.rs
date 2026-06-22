@@ -1,17 +1,13 @@
 //! hkask-mcp-curator — Curator MCP server library.
 //!
 //! Exposes the Curator's regulatory surface as MCP tools:
-//! escalation management, cross-pod semantic search, memory recall,
+//! system health, escalation management, CNS observability,
+//! cross-pod semantic search, memory recall, spec drift detection,
 //! and algedonic event history.
-//!
-//! Operates in two modes:
-//! - **Daemon mode:** Connects to a running `kask daemon` for P4 gates and
-//!   live CNS data.
-//! - **Standalone mode:** Opens Curator SQLCipher databases directly.
-//!   All DB-backed tools work; live daemon features are not yet available.
 
 pub mod types;
 
+use hkask_mcp::daemon::DaemonResponse;
 use hkask_mcp::server::ToolSpanGuard;
 use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -20,30 +16,15 @@ use std::sync::Arc;
 
 use types::*;
 
-/// Stores opened from the Curator's SQLCipher database.
-/// (escalation_queue, nu_event_store, episodic, semantic)
-type CuratorStores = (
-    Option<Arc<hkask_storage::EscalationQueue>>,
-    Option<Arc<hkask_storage::NuEventStore>>,
-    Option<hkask_memory::EpisodicMemory>,
-    Option<Arc<hkask_memory::SemanticMemory>>,
-);
-
 const SERVER_NAME: &str = "hkask-mcp-curator";
-
-// ── CuratorServer ───────────────────────────────────────────────────────
 
 pub struct CuratorServer {
     webid: WebID,
     replicant: String,
     daemon: Option<hkask_mcp::DaemonClient>,
-    /// Escalation queue — direct SQLite access (curator.db)
     escalation_queue: Option<Arc<hkask_storage::EscalationQueue>>,
-    /// NuEvent store for algedonic history
     nu_event_store: Option<Arc<hkask_storage::NuEventStore>>,
-    /// Episodic memory for the Curator persona
     episodic: Option<hkask_memory::EpisodicMemory>,
-    /// Semantic memory for the Curator persona
     semantic: Option<Arc<hkask_memory::SemanticMemory>>,
 }
 
@@ -55,10 +36,17 @@ impl CuratorServer {
         )
     }
 
+    fn daemon_required(span: ToolSpanGuard) -> String {
+        span.ok_json(json!({
+            "status": "degraded",
+            "message": "hKask daemon unavailable. Start with: kask daemon start"
+        }))
+    }
+
     fn store_required(span: ToolSpanGuard, store_name: &str) -> String {
         span.ok_json(json!({
             "status": "degraded",
-            "message": format!("{} not available — Curator database not opened. Set HKASK_CURATOR_DB or HKASK_DB_PASSPHRASE.", store_name)
+            "message": format!("{} not available. Set HKASK_CURATOR_DB or HKASK_DB_PASSPHRASE.", store_name)
         }))
     }
 }
@@ -67,7 +55,7 @@ impl CuratorServer {
 impl CuratorServer {
     // ── Liveness ───────────────────────────────────────────────────────
 
-    #[tool(description = "Liveness check — is the Curator MCP responding?")]
+    #[tool(description = "Liveness check")]
     pub async fn curator_ping(&self, Parameters(_req): Parameters<PingRequest>) -> String {
         let span = ToolSpanGuard::new("curator_ping", &self.webid);
         span.ok_json(json!({
@@ -126,10 +114,9 @@ impl CuratorServer {
         let Some(ref queue) = self.escalation_queue else {
             return Self::store_required(span, "EscalationQueue");
         };
-        let resolved_by = &self.replicant;
-        match queue.resolve(&req.id, resolved_by) {
+        match queue.resolve(&req.id, &self.replicant) {
             Ok(()) => span.ok_json(json!({"resolved": true, "id": req.id})),
-            Err(e) => Self::internal_error(span, &format!("Failed to resolve escalation: {e}")),
+            Err(e) => Self::internal_error(span, &format!("{e}")),
         }
     }
 
@@ -142,10 +129,83 @@ impl CuratorServer {
         let Some(ref queue) = self.escalation_queue else {
             return Self::store_required(span, "EscalationQueue");
         };
-        let dismissed_by = &self.replicant;
-        match queue.dismiss(&req.id, dismissed_by) {
+        match queue.dismiss(&req.id, &self.replicant) {
             Ok(()) => span.ok_json(json!({"dismissed": true, "id": req.id})),
-            Err(e) => Self::internal_error(span, &format!("Failed to dismiss escalation: {e}")),
+            Err(e) => Self::internal_error(span, &format!("{e}")),
+        }
+    }
+
+    // ── System Health ──────────────────────────────────────────────────
+
+    #[tool(description = "Run metacognition cycle — requires live daemon for CNS data")]
+    pub async fn curator_health(&self, Parameters(_req): Parameters<PingRequest>) -> String {
+        let span = ToolSpanGuard::new("curator_health", &self.webid);
+        let Some(ref daemon) = self.daemon else {
+            return Self::daemon_required(span);
+        };
+        match daemon.curator_health_query(&self.replicant).await {
+            Ok(DaemonResponse::CuratorHealthResponse { health }) => span.ok_json(health),
+            Ok(other) => Self::internal_error(span, &format!("Bad daemon response: {:?}", other)),
+            Err(e) => Self::internal_error(span, &format!("Daemon query failed: {e}")),
+        }
+    }
+
+    #[tool(description = "Live CNS status — variety per domain")]
+    pub async fn curator_cns_status(
+        &self,
+        Parameters(req): Parameters<CnsStatusRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("curator_cns_status", &self.webid);
+        let Some(ref daemon) = self.daemon else {
+            return Self::daemon_required(span);
+        };
+        match daemon
+            .cns_status_query(&self.replicant, req.domain.as_deref())
+            .await
+        {
+            Ok(DaemonResponse::CnsStatusResponse { status }) => span.ok_json(status),
+            Ok(other) => Self::internal_error(span, &format!("Bad daemon response: {:?}", other)),
+            Err(e) => Self::internal_error(span, &format!("Daemon query failed: {e}")),
+        }
+    }
+
+    #[tool(description = "Per-bot health — gas consumption vs. energy budget")]
+    pub async fn curator_bot_status(
+        &self,
+        Parameters(req): Parameters<BotStatusRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("curator_bot_status", &self.webid);
+        let Some(ref daemon) = self.daemon else {
+            return Self::daemon_required(span);
+        };
+        match daemon
+            .bot_status_query(&self.replicant, req.bot_name.as_deref())
+            .await
+        {
+            Ok(DaemonResponse::BotStatusResponse { status }) => span.ok_json(status),
+            Ok(other) => Self::internal_error(span, &format!("Bad daemon response: {:?}", other)),
+            Err(e) => Self::internal_error(span, &format!("Daemon query failed: {e}")),
+        }
+    }
+
+    // ── Specification Curation ─────────────────────────────────────────
+
+    #[tool(description = "Check specs for drift from registered verbs")]
+    pub async fn curator_spec_drift(
+        &self,
+        Parameters(req): Parameters<SpecDriftRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("curator_spec_drift", &self.webid);
+        let Some(ref daemon) = self.daemon else {
+            return Self::daemon_required(span);
+        };
+        match daemon
+            .spec_drift_query(&self.replicant, req.spec_id.as_deref())
+            .await
+        {
+            Ok(DaemonResponse::SpecDriftResponse { drift }) => span.ok_json(drift),
+            Ok(other) => Self::internal_error(span, &format!("Bad daemon response: {:?}", other)),
+            Err(e) => Self::internal_error(span, &format!("Daemon query failed: {e}")),
         }
     }
 
@@ -168,22 +228,18 @@ impl CuratorServer {
                     .take(limit)
                     .map(|t| {
                         json!({
-                            "entity": t.entity,
-                            "attribute": t.attribute,
-                            "value": t.value,
-                            "confidence": t.confidence,
+                            "entity": t.entity, "attribute": t.attribute,
+                            "value": t.value, "confidence": t.confidence,
                         })
                     })
                     .collect();
-                span.ok_json(
-                    json!({"count": serialized.len(), "total": triples.len(), "results": serialized}),
-                )
+                span.ok_json(json!({"count": serialized.len(), "total": triples.len(), "results": serialized}))
             }
             Err(e) => Self::internal_error(span, &format!("Semantic recall failed: {e}")),
         }
     }
 
-    #[tool(description = "Recall the Curator's own episodic and semantic memory about an entity")]
+    #[tool(description = "Recall the Curator's episodic and semantic memory about an entity")]
     pub async fn curator_memory_recall(
         &self,
         Parameters(req): Parameters<MemoryRecallRequest>,
@@ -196,65 +252,55 @@ impl CuratorServer {
             if let Some(ref ep) = self.episodic {
                 match ep.query_for_deduped(&req.entity, self.webid) {
                     Ok(triples) => {
-                        let serialized: Vec<serde_json::Value> = triples
+                        let s: Vec<serde_json::Value> = triples
                             .iter()
                             .map(|t| {
                                 json!({
-                                    "entity": t.entity,
-                                    "attribute": t.attribute,
-                                    "value": t.value,
-                                    "confidence": t.confidence,
+                                    "entity": t.entity, "attribute": t.attribute,
+                                    "value": t.value, "confidence": t.confidence,
                                     "valid_from": t.temporal.valid_from.to_rfc3339(),
                                 })
                             })
                             .collect();
-                        result["episodic"] =
-                            json!({"count": serialized.len(), "triples": serialized});
+                        result["episodic"] = json!({"count": s.len(), "triples": s});
                     }
                     Err(e) => {
                         result["episodic"] = json!({"error": format!("{e}")});
                     }
                 }
             } else {
-                result["episodic"] =
-                    json!({"status": "unavailable", "note": "Episodic memory store not opened"});
+                result["episodic"] = json!({"status": "unavailable"});
             }
         }
-
         if memory_type == "semantic" || memory_type == "both" {
             if let Some(ref sem) = self.semantic {
                 match sem.query_deduped(&req.entity) {
                     Ok(triples) => {
-                        let serialized: Vec<serde_json::Value> = triples
+                        let s: Vec<serde_json::Value> = triples
                             .iter()
                             .map(|t| {
                                 json!({
-                                    "entity": t.entity,
-                                    "attribute": t.attribute,
-                                    "value": t.value,
-                                    "confidence": t.confidence,
+                                    "entity": t.entity, "attribute": t.attribute,
+                                    "value": t.value, "confidence": t.confidence,
                                 })
                             })
                             .collect();
-                        result["semantic"] =
-                            json!({"count": serialized.len(), "triples": serialized});
+                        result["semantic"] = json!({"count": s.len(), "triples": s});
                     }
                     Err(e) => {
                         result["semantic"] = json!({"error": format!("{e}")});
                     }
                 }
             } else {
-                result["semantic"] =
-                    json!({"status": "unavailable", "note": "Semantic memory store not opened"});
+                result["semantic"] = json!({"status": "unavailable"});
             }
         }
-
         span.ok_json(result)
     }
 
     // ── Algedonic History ──────────────────────────────────────────────
 
-    #[tool(description = "Read the Curator's algedonic event log for a time window")]
+    #[tool(description = "Read algedonic event log for a time window")]
     pub async fn curator_algedonic_log(
         &self,
         Parameters(req): Parameters<AlgedonicLogRequest>,
@@ -267,7 +313,7 @@ impl CuratorServer {
         let since = chrono::Utc::now() - chrono::Duration::hours(hours as i64);
         match store.query_algedonic(since, 500) {
             Ok(events) => {
-                let serialized: Vec<serde_json::Value> = events
+                let s: Vec<serde_json::Value> = events
                     .iter()
                     .map(|e| {
                         json!({
@@ -278,13 +324,9 @@ impl CuratorServer {
                         })
                     })
                     .collect();
-                span.ok_json(json!({
-                    "window_hours": hours,
-                    "count": serialized.len(),
-                    "events": serialized
-                }))
+                span.ok_json(json!({"window_hours": hours, "count": s.len(), "events": s}))
             }
-            Err(e) => Self::internal_error(span, &format!("Failed to query algedonic events: {e}")),
+            Err(e) => Self::internal_error(span, &format!("Algedonic query failed: {e}")),
         }
     }
 }
@@ -300,7 +342,6 @@ pub async fn run(
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::server::ServerContext| {
             let (escalation_queue, nu_event_store, episodic, semantic) = open_curator_stores(&ctx);
-
             Ok(CuratorServer {
                 webid: ctx.webid,
                 replicant: replicant.clone(),
@@ -314,57 +355,51 @@ pub async fn run(
         vec![
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_CURATOR_DB",
-                "Path to the Curator's SQLCipher database (defaults to ~/.config/hkask/agents/curator.db)",
+                "Path to the Curator's SQLCipher database",
             ),
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_DB_PASSPHRASE",
-                "SQLCipher encryption passphrase for the Curator database",
+                "SQLCipher encryption passphrase",
             ),
         ],
     )
     .await
 }
 
-fn open_curator_stores(ctx: &hkask_mcp::server::ServerContext) -> CuratorStores {
+#[allow(clippy::type_complexity)]
+fn open_curator_stores(
+    ctx: &hkask_mcp::server::ServerContext,
+) -> (
+    Option<Arc<hkask_storage::EscalationQueue>>,
+    Option<Arc<hkask_storage::NuEventStore>>,
+    Option<hkask_memory::EpisodicMemory>,
+    Option<Arc<hkask_memory::SemanticMemory>>,
+) {
     let curator_db_path = ctx
         .credentials
         .get("HKASK_CURATOR_DB")
         .cloned()
         .unwrap_or_else(|| {
-            let default_path = hkask_types::agent_paths::agent_pod_db("curator");
-            if let Some(parent) = default_path.parent() {
+            let p = hkask_types::agent_paths::agent_pod_db("curator");
+            if let Some(parent) = p.parent() {
                 std::fs::create_dir_all(parent).ok();
             }
-            tracing::info!(
-                target: "hkask.mcp.curator",
-                path = %default_path.display(),
-                "Using default Curator database path"
-            );
-            default_path.to_string_lossy().to_string()
+            p.to_string_lossy().to_string()
         });
 
     let db = match ctx.credentials.get("HKASK_DB_PASSPHRASE") {
-        Some(passphrase) => match hkask_storage::Database::open(&curator_db_path, passphrase) {
+        Some(pw) => match hkask_storage::Database::open(&curator_db_path, pw) {
             Ok(db) => Some(db),
             Err(e) => {
-                tracing::warn!(
-                    target: "hkask.mcp.curator",
-                    path = %curator_db_path,
-                    error = %e,
-                    "Failed to open Curator database — stores unavailable"
-                );
+                tracing::warn!(target: "hkask.mcp.curator", error = %e, "Failed to open curator DB");
                 None
             }
         },
         None => {
-            tracing::warn!(
-                target: "hkask.mcp.curator",
-                "HKASK_DB_PASSPHRASE not set — Curator stores unavailable"
-            );
+            tracing::warn!(target: "hkask.mcp.curator", "HKASK_DB_PASSPHRASE not set");
             None
         }
     };
-
     let Some(db) = db else {
         return (None, None, None, None);
     };
@@ -379,11 +414,7 @@ fn open_curator_stores(ctx: &hkask_mcp::server::ServerContext) -> CuratorStores 
     let escalation_queue = match hkask_storage::EscalationQueue::new(Arc::clone(&conn)) {
         Ok(q) => Some(Arc::new(q)),
         Err(e) => {
-            tracing::warn!(
-                target: "hkask.mcp.curator",
-                error = %e,
-                "Failed to create EscalationQueue"
-            );
+            tracing::warn!(target: "hkask.mcp.curator", error = %e, "Failed to create EscalationQueue");
             None
         }
     };

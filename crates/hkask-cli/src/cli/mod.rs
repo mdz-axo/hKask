@@ -128,6 +128,12 @@ pub enum Commands {
         action: CuratorAction,
     },
 
+    /// Token issuance and management
+    Token {
+        #[command(subcommand)]
+        action: TokenAction,
+    },
+
     /// Replicant identity management
     Replicant {
         #[command(subcommand)]

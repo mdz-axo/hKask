@@ -342,6 +342,29 @@ pub enum ConfigAction {
 
 /// Curator governance actions
 #[derive(Debug, Subcommand)]
+pub enum TokenAction {
+    /// Issue a new DelegationToken for a replicant
+    Issue {
+        #[arg(long)]
+        replicant: String,
+        #[arg(long, num_args = 1..)]
+        capabilities: Vec<String>,
+        #[arg(long, default_value = "24h")]
+        ttl: String,
+    },
+    /// List issued tokens (by replicant filter)
+    List {
+        #[arg(long)]
+        replicant: Option<String>,
+    },
+    /// Revoke a token by ID
+    Revoke {
+        #[arg()]
+        token_id: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 pub enum CuratorAction {
     Chat,
     Escalations,

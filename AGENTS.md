@@ -4,85 +4,92 @@
 
 ---
 
-## Skills (Must Load Before Work)
+## Capability Catalog
 
-Activate the relevant skill via `skill` tool when its conditions are met. **46 skills total** across the corpus — these are the most frequently used.
+Activate via `skill` tool when conditions are met. **46 total** — all currently **Templates** (one-shot). Skills (PDCA FlowDef loops with quality threshold + energy budget) are added as manifests are upgraded.
+
+| Type | Invocation | Behavior | Exit |
+|------|-----------|----------|------|
+| **Template** | `kask run <name>` | One-shot prompt execution | Returns output |
+| **Skill** | `kask run <name>` | Iterative PDCA cascade | Returns `converged \| maxed_out \| escalated` |
+
+Templates are useful. Skills practice toward excellence. A Template may be composed INTO a Skill as a step within the PDCA loop, but it is not itself a Skill unless it has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, and a `loop` action.
 
 ### Guardrails (activate first)
 
-| Skill | When to Activate |
-|-------|-----------------|
-| **coding-guidelines** | Before writing or reviewing any code. Surfaces assumptions, enforces simplicity, surgical changes, goal-driven execution. |
+| Name | Type | When to Activate |
+|------|------|-----------------|
+| **coding-guidelines** | Template | Before writing or reviewing any code. Surfaces assumptions, enforces simplicity, surgical changes, goal-driven execution. |
 
 ### Core Development
 
-| Skill | When to Activate |
-|-------|-----------------|
-| **bug-hunt** | Bug hunting. Run expeditions against target crates to find threats to user-defined quality. Applies Weinberg's quality definition, Beizer's bug taxonomy, Bach's Heuristic Test Strategy Model, and Hendrickson's exploratory testing charters. |
-| **tdd** | Building features or fixing bugs. Vertical tracer-bullet RED→GREEN→REFACTOR. Anchored on the Testing Discipline (Property-Based Testing + CNS observability). |
-| **diagnose** | Debugging hard bugs or performance regressions. Reproduce, anchor, hypothesise, instrument, fix, regression-test, verify. |
-| **deep-module** | Module design discipline. Apply the deletion test, enforce depth (benefit/cost ratio), interface minimalism (≤7 public functions). |
-| **refactor-service-layer** | Extracting duplicated business logic from CLI/API/MCP surfaces into `hkask-services`. Strangler fig pattern, deep-module discipline. |
-| **improve-codebase-architecture** | Finding deepening opportunities. Walk codebase for shallow modules, tight coupling, untested seams. |
-| **strangler-fig** | Incremental architectural migration. Introduce new alongside old, migrate one domain at a time, both paths delegate before deletion. |
-| **rust-expertise** | Idiomatic Rust design: type-driven design, ownership as architecture, fearless refactoring, zero-cost abstraction. |
+| Name | Type | When to Activate |
+|------|------|-----------------|
+| **bug-hunt** | Template | Bug hunting. Run expeditions against target crates to find threats to user-defined quality. |
+| **tdd** | Template | Building features or fixing bugs. Vertical tracer-bullet RED→GREEN→REFACTOR. |
+| **diagnose** | Template | Debugging hard bugs or performance regressions. Reproduce, anchor, hypothesise, instrument, fix, regression-test, verify. |
+| **deep-module** | Template | Module design discipline. Apply the deletion test, enforce depth, interface minimalism (≤7 public functions). |
+| **refactor-service-layer** | Template | Extracting duplicated business logic from CLI/API/MCP surfaces into `hkask-services`. |
+| **improve-codebase-architecture** | Template | Finding deepening opportunities. Walk codebase for shallow modules, tight coupling, untested seams. |
+| **strangler-fig** | Template | Incremental architectural migration. Introduce new alongside old, migrate one domain at a time. |
+| **rust-expertise** | Template | Idiomatic Rust design: type-driven design, ownership as architecture, fearless refactoring. |
 
 ### Reasoning & Analysis
 
-| Skill | When to Activate |
-|-------|-----------------|
-| **pragmatic-semantics** | Classifying statements by certainty level and constraint force. Distinguish IS from OUGHT, declarative from probabilistic. |
-| **pragmatic-cybernetics** | Cybernetic reasoning: feedback loops, variety engineering, system homeostasis. Use when diagnosing CNS alerts or feedback failures. |
-| **pragmatic-laziness** | Procedural composition. Finds the path of least action through meaning-space via a 3-phase lazy loop. |
-| **essentialist** | Recursive eliminative interrogation. 3-gate challenge loop (Exist → Surface → Contract). Use when simplifying, deleting, or auditing complexity. |
-| **constraint-forces** | Classify constraints by force type (Prohibition, Guardrail, Guideline, Evidence, Hypothesis). |
-| **review** | Self-critique output for contradictions, unsupported claims, logical gaps, and confidence calibration. |
-| **grill-me** | Socratic questioning to stress-test understanding. Probes knowledge gaps and challenges assumptions. |
-| **zoom-out** | Broader context or higher-level perspective on unfamiliar code. |
+| Name | Type | When to Activate |
+|------|------|-----------------|
+| **pragmatic-semantics** | Template | Classifying statements by certainty level and constraint force. Distinguish IS from OUGHT. |
+| **pragmatic-cybernetics** | Template | Cybernetic reasoning: feedback loops, variety engineering, system homeostasis. |
+| **pragmatic-laziness** | Template | Procedural composition. Finds the path of least action through meaning-space. |
+| **essentialist** | Template | Recursive eliminative interrogation. 3-gate challenge loop (Exist → Surface → Contract). |
+| **constraint-forces** | Template | Classify constraints by force type (Prohibition, Guardrail, Guideline, Evidence, Hypothesis). |
+| **review** | Template | Self-critique output for contradictions, unsupported claims, logical gaps. |
+| **grill-me** | Template | Socratic questioning to stress-test understanding. Probes knowledge gaps. |
+| **zoom-out** | Template | Broader context or higher-level perspective on unfamiliar code. |
 
 ### Kata & Coaching
 
-| Skill | When to Activate |
-|-------|-----------------|
-| **kata** | Toyota Kata system — composes starter, improvement, and coaching into scientific capability development. |
-| **kata-coaching** | The 5-question Coaching Kata dialogue for teaching scientific thinking. |
-| **kata-improvement** | The 4-step Improvement Kata: Understand Direction, Grasp Current Condition, Establish Target, PDCA iterate. |
-| **kata-starter** | Foundational kata practice routines: Five Questions Drill, PDCA Cycle, Observation Drill. |
-| **improv** | Agent interaction grammar — Plussing, Yes And, Yes But, Freestyling, Riffing. Use `/improv` in REPL. |
+| Name | Type | When to Activate |
+|------|------|-----------------|
+| **kata** | Template | Toyota Kata system — composes starter, improvement, and coaching. |
+| **kata-coaching** | Template | The 5-question Coaching Kata dialogue for teaching scientific thinking. |
+| **kata-improvement** | Template | The 4-step Improvement Kata: Understand Direction, Grasp Current Condition, Establish Target, PDCA iterate. |
+| **kata-starter** | Template | Foundational kata practice routines: Five Questions Drill, PDCA Cycle, Observation Drill. |
+| **improv** | Template | Agent interaction grammar — Plussing, Yes And, Yes But, Freestyling, Riffing. |
 
 ### Meta & Maintenance
 
-| Skill | When to Activate |
-|-------|-----------------|
-| **skill-maintenance** | Audit hKask's skill architecture for staleness, coverage gaps, and quality degradation. |
-| **skill-discovery** | Find, evaluate, and install skills. Detect capability gaps and search for candidates. |
-| **skill-manager** | CRUD for the skill corpus. List, validate, build, install, and prune skills. |
-| **skill-logic-audit** | Adversarial audit of .j2 template logic against stated goals. Soundness filter, revision proposals. |
-| **skill-bundler** | Orchestrate and compose multiple skills into a cohesive bundle with conflict resolution and cascade ordering. |
-| **document-update** | Systematic documentation corpus maintenance. 7-task workflow: README fact audit, docs inventory, identify merge candidates, extract & merge, archive, portal refresh. |
-| **handoff** | Session handoff protocol. Captures what was done, what remains, key decisions, and next steps. |
-| **condenser-continuation** | Resuming condenser implementation after context reset. Restores session state, prioritizes remaining tasks, verifies build health. |
+| Name | Type | When to Activate |
+|------|------|-----------------|
+| **skill-maintenance** | Template | Audit hKask's skill architecture for staleness, coverage gaps, and quality degradation. |
+| **skill-discovery** | Template | Find, evaluate, and install skills. Detect capability gaps and search for candidates. |
+| **skill-manager** | Template | CRUD for the skill corpus. List, validate, build, install, and prune skills. |
+| **skill-logic-audit** | Template | Adversarial audit of .j2 template logic against stated goals. |
+| **skill-bundler** | Template | Orchestrate and compose multiple skills into a cohesive bundle. |
+| **document-update** | Template | Documentation corpus maintenance. 7-task workflow: audit, merge, archive, portal refresh. |
+| **handoff** | Template | Session handoff protocol. Captures what was done, what remains, key decisions. |
+| **condenser-continuation** | Template | Resuming condenser implementation after context reset. |
 
 ### Specialized
 
-| Skill | When to Activate |
-|-------|-----------------|
-| **superforecasting** | Calibrated probability forecasting (Tetlock). 8-stage pipeline: triage → Fermi → outside/inside view → evidence → synthesis → calibration → record. |
-| **decision-journal** | Kahneman-style decision journal. Record decisions, define predictions, compute Brier scores, revisit outcomes. |
-| **mcda** | Multi-Criteria Decision Analysis. Weight, score, rank alternatives with sensitivity analysis. |
-| **scenario-builder** | Schwartz scenario planning. Focal question → key forces → STEEP → 2×2 axes → narratives → implications. |
-| **adversarial-red-team** | Adversarial robustness testing. Select targets, generate inputs, evaluate resistance with ATLAS/GARAK taxonomy. |
-| **goal-analysis** | Goal specification and verification. Extract goals, judge completion via semantic evaluation or command execution. |
-| **magna-carta-verifier** | Verify Magna Carta principles (P1–P4) are correctly implemented and enforced. |
-| **structured-extraction** | Extract structured data from unstructured text. Entity identification, relation extraction, schema mapping. |
-| **chain-of-density** | Iterative density-increase summarization (Gao et al. 2024). Converges when density improvement falls below threshold. |
-| **gentle-lovelace** | 4-dimensional technical documentation quality evaluator (Hopper, Lovelace, Schriver, Gentle). |
-| **caveman** | Ultra-compact compression mode. Drop filler, articles, pleasantries while preserving technical substance. |
-| **self-critique-revision** | Iterative self-critique and revision cycle: draft → critique → revise. |
-| **dokkodo-mindset** | Perceptual filter based on Musashi's 21 Dokkodo precepts. Clarifies perception by removing attachment and bias. |
-| **falstaffian-perspective** | Multi-iteration perspective generation through semantic shape transforms with inference enrichment. |
-| **logo-builder** | Pragmatic logo design using LLM-assisted generation. 3-phase pipeline: discovery → formal generation → refinement. |
-| **qa-script-builder** | Design and generate autonomous QA pipeline manifests. 5-phase pipeline: persona → discover → design → generate → validate. Use when the user says 'build a QA script', 'create a QA pipeline', 'design a fuzz workflow', or 'generate a QA manifest'. |
+| Name | Type | When to Activate |
+|------|------|-----------------|
+| **superforecasting** | Template | Calibrated probability forecasting (Tetlock). 8-stage pipeline. |
+| **decision-journal** | Template | Kahneman-style decision journal. Record decisions, schedule revisit. |
+| **mcda** | Template | Multi-Criteria Decision Analysis. Weight, score, rank alternatives. |
+| **scenario-builder** | Template | Schwartz scenario planning. Focal question → STEEP → 2×2 → narratives. |
+| **adversarial-red-team** | Template | Adversarial robustness testing. ATLAS/GARAK-aligned taxonomy. |
+| **goal-analysis** | Template | Goal specification and verification. Extract goals, judge completion. |
+| **magna-carta-verifier** | Template | Verify Magna Carta principles (P1–P4) are correctly implemented and enforced. |
+| **structured-extraction** | Template | Extract structured data from unstructured text. Entity identification, relation extraction. |
+| **chain-of-density** | Template | Iterative density-increase summarization (Gao et al. 2024). |
+| **gentle-lovelace** | Template | 4-dimensional technical documentation quality evaluator. |
+| **caveman** | Template | Ultra-compact compression mode. Drop filler, preserve technical substance. |
+| **self-critique-revision** | Template | Iterative self-critique and revision cycle: draft → critique → revise. |
+| **dokkodo-mindset** | Template | Perceptual filter based on Musashi's 21 Dokkodo precepts. |
+| **falstaffian-perspective** | Template | Multi-iteration perspective generation through semantic shape transforms. |
+| **logo-builder** | Template | Pragmatic logo design using LLM-assisted generation. 3-phase pipeline. |
+| **qa-script-builder** | Template | Design and generate autonomous QA pipeline manifests. 5-phase pipeline. |
 
 ---
 

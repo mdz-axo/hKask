@@ -1,18 +1,22 @@
 //! mTLS server setup for the cloud gateway.
 //!
 //! Configures rustls for mutual TLS 1.3, extracts client certificate
-//! Common Name for identity binding, and forwards verified requests
-//! to the local hKask daemon handler.
+//! Common Name for identity binding, reads token-bearing JSON requests,
+//! verifies DelegationTokens, and forwards to the local daemon handler.
 
-use crate::auth::AuthError;
+use crate::auth::{self, AuthError};
+use hkask_capability::DelegationToken;
 use hkask_mcp::daemon::DaemonHandler;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::server::WebPkiClientVerifier;
 use rustls::{RootCertStore, ServerConfig};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use thiserror::Error;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader as AsyncBufReader};
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 
@@ -30,31 +34,46 @@ pub enum GatewayError {
 
     #[error("Auth error: {0}")]
     Auth(#[from] AuthError),
+
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 /// Configuration for the cloud gateway server.
 pub struct GatewayConfig {
-    /// Path to the server's TLS certificate (PEM format).
     pub server_cert: PathBuf,
-    /// Path to the server's private key (PEM format).
     pub server_key: PathBuf,
-    /// Path to the CA certificate that signed client certificates (PEM format).
     pub client_ca: PathBuf,
-    /// Address to bind to (e.g., "0.0.0.0:9443").
     pub bind_addr: String,
 }
 
-/// Build a rustls `ServerConfig` with mutual TLS.
-///
-/// Loads the server certificate chain and private key, and configures
-/// a client certificate verifier using the provided CA certificate.
-/// Only clients presenting a certificate signed by `client_ca` are accepted.
+// ── Wire protocol ──────────────────────────────────────────────────────
+
+/// A request from a remote MCP client.
+#[derive(Debug, Deserialize)]
+struct CloudRequest {
+    tool: String,
+    #[serde(default)]
+    params: Value,
+    token: DelegationToken,
+}
+
+/// A response sent back to the remote MCP client.
+#[derive(Debug, Serialize)]
+struct CloudResponse {
+    ok: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    output: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+}
+
+// ── TLS setup ──────────────────────────────────────────────────────────
+
 pub fn build_tls_config(config: &GatewayConfig) -> Result<ServerConfig, GatewayError> {
-    // Load server certificate chain
     let certs = load_certificates(&config.server_cert)?;
     let key = load_private_key(&config.server_key)?;
 
-    // Build client CA store for mTLS
     let mut client_ca_store = RootCertStore::empty();
     let ca_certs = load_certificates(&config.client_ca)?;
     for cert in &ca_certs {
@@ -75,11 +94,8 @@ pub fn build_tls_config(config: &GatewayConfig) -> Result<ServerConfig, GatewayE
     Ok(tls_config)
 }
 
-/// Run the gateway server — accepts mTLS connections and forwards to the daemon handler.
-///
-/// This is the main entry point for the cloud gateway. It binds to `config.bind_addr`,
-/// accepts TLS connections, extracts the client CN from each connection,
-/// and calls `handle_request` for each incoming message.
+// ── Server ─────────────────────────────────────────────────────────────
+
 pub async fn run(
     config: GatewayConfig,
     handler: Arc<dyn DaemonHandler>,
@@ -100,59 +116,127 @@ pub async fn run(
         let handler = Arc::clone(&handler);
 
         tokio::spawn(async move {
-            match acceptor.accept(stream).await {
-                Ok(tls_stream) => {
-                    let (_tcp, server_conn) = tls_stream.get_ref();
-                    let cert_cn = server_conn
-                        .peer_certificates()
-                        .and_then(|certs| certs.first())
-                        .and_then(extract_cn)
-                        .unwrap_or_else(|| "unknown".to_string());
-
-                    tracing::info!(
-                        target: "hkask.gateway",
-                        peer = %peer_addr,
-                        cn = %cert_cn,
-                        "mTLS connection established"
-                    );
-
-                    // For now: each connection is authenticated but the request
-                    // protocol (token-bearing JSON over the TLS stream) is deferred.
-                    // The connection carries the verified identity; individual
-                    // requests carry DelegationTokens for per-tool authorization.
-                    let _ = (tls_stream, cert_cn, handler);
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        target: "hkask.gateway",
-                        peer = %peer_addr,
-                        error = %e,
-                        "TLS handshake failed"
-                    );
-                }
+            if let Err(e) = handle_connection(acceptor, stream, peer_addr, handler).await {
+                tracing::warn!(
+                    target: "hkask.gateway",
+                    peer = %peer_addr,
+                    error = %e,
+                    "Connection error"
+                );
             }
         });
     }
 }
 
-// ── Certificate loading helpers ────────────────────────────────────────
+async fn handle_connection(
+    acceptor: TlsAcceptor,
+    stream: tokio::net::TcpStream,
+    peer_addr: std::net::SocketAddr,
+    handler: Arc<dyn DaemonHandler>,
+) -> Result<(), GatewayError> {
+    let tls_stream = acceptor.accept(stream).await?;
+    let (_tcp, server_conn) = tls_stream.get_ref();
+    let cert_cn = server_conn
+        .peer_certificates()
+        .and_then(|certs| certs.first())
+        .and_then(extract_cn)
+        .unwrap_or_else(|| "unknown".to_string());
+
+    tracing::info!(
+        target: "hkask.gateway",
+        peer = %peer_addr,
+        cn = %cert_cn,
+        "mTLS connection established"
+    );
+
+    let (reader, mut writer) = tokio::io::split(tls_stream);
+    let mut buf_reader = AsyncBufReader::new(reader);
+    let mut request_count: u64 = 0;
+
+    loop {
+        let mut line = String::new();
+        match buf_reader.read_line(&mut line).await {
+            Ok(0) => {
+                // EOF — client closed connection
+                tracing::info!(
+                    target: "hkask.gateway",
+                    peer = %peer_addr,
+                    cn = %cert_cn,
+                    requests = request_count,
+                    "Connection closed by client"
+                );
+                return Ok(());
+            }
+            Ok(_) => {}
+            Err(e) => {
+                tracing::warn!(
+                    target: "hkask.gateway",
+                    peer = %peer_addr,
+                    error = %e,
+                    "Read error"
+                );
+                return Err(GatewayError::Io(e));
+            }
+        }
+
+        let request: CloudRequest = match serde_json::from_str(&line) {
+            Ok(req) => req,
+            Err(e) => {
+                let resp = CloudResponse {
+                    ok: false,
+                    output: None,
+                    error: Some(format!("Invalid JSON: {e}")),
+                };
+                write_response(&mut writer, &resp).await?;
+                continue;
+            }
+        };
+
+        // Verify token
+        if let Err(e) = auth::verify_cloud_request(&request.token, &cert_cn, &request.tool) {
+            let resp = CloudResponse {
+                ok: false,
+                output: None,
+                error: Some(format!("Auth error: {e}")),
+            };
+            write_response(&mut writer, &resp).await?;
+            continue;
+        }
+
+        request_count += 1;
+
+        // Forward to daemon handler
+        let (ok, output, error) = handler
+            .dispatch_tool(&cert_cn, &request.tool, &request.params)
+            .await;
+
+        let response = CloudResponse { ok, output, error };
+        write_response(&mut writer, &response).await?;
+    }
+}
+
+async fn write_response(
+    writer: &mut (impl tokio::io::AsyncWrite + Unpin),
+    response: &CloudResponse,
+) -> Result<(), GatewayError> {
+    let mut json = serde_json::to_string(response)?;
+    json.push('\n');
+    writer.write_all(json.as_bytes()).await?;
+    Ok(())
+}
+
+// ── Certificate helpers ────────────────────────────────────────────────
 
 fn load_certificates(path: &Path) -> Result<Vec<CertificateDer<'static>>, GatewayError> {
-    let file = std::fs::File::open(path).map_err(|e| {
-        GatewayError::Cert(format!("Cannot open cert file {}: {e}", path.display()))
-    })?;
+    let file = std::fs::File::open(path)
+        .map_err(|e| GatewayError::Cert(format!("Cannot open {}: {e}", path.display())))?;
     let mut reader = BufReader::new(file);
     let certs = rustls_pemfile::certs(&mut reader)
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| {
-            GatewayError::Cert(format!(
-                "Failed to parse certs from {}: {e}",
-                path.display()
-            ))
-        })?;
+        .map_err(|e| GatewayError::Cert(format!("Failed to parse certs: {e}")))?;
     if certs.is_empty() {
         return Err(GatewayError::Cert(format!(
-            "No certificates found in {}",
+            "No certificates in {}",
             path.display()
         )));
     }
@@ -161,22 +245,17 @@ fn load_certificates(path: &Path) -> Result<Vec<CertificateDer<'static>>, Gatewa
 
 fn load_private_key(path: &Path) -> Result<PrivateKeyDer<'static>, GatewayError> {
     let file = std::fs::File::open(path)
-        .map_err(|e| GatewayError::Cert(format!("Cannot open key file {}: {e}", path.display())))?;
+        .map_err(|e| GatewayError::Cert(format!("Cannot open {}: {e}", path.display())))?;
     let mut reader = BufReader::new(file);
-    let key = rustls_pemfile::private_key(&mut reader)
-        .map_err(|e| {
-            GatewayError::Cert(format!("Failed to parse key from {}: {e}", path.display()))
-        })?
-        .ok_or_else(|| GatewayError::Cert(format!("No private key found in {}", path.display())))?;
-    Ok(key)
+    rustls_pemfile::private_key(&mut reader)
+        .map_err(|e| GatewayError::Cert(format!("Failed to parse key: {e}")))?
+        .ok_or_else(|| GatewayError::Cert(format!("No private key in {}", path.display())))
 }
 
-/// Extract the Common Name (CN) from an X.509 certificate.
 fn extract_cn(cert: &CertificateDer) -> Option<String> {
     use x509_parser::prelude::*;
     let (_, parsed) = X509Certificate::from_der(cert.as_ref()).ok()?;
-    let subject = parsed.subject();
-    for attr in subject.iter_common_name() {
+    for attr in parsed.subject().iter_common_name() {
         if let Ok(cn) = attr.as_str() {
             return Some(cn.to_string());
         }

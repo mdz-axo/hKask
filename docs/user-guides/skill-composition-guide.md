@@ -18,7 +18,19 @@ mds_categories: [composition, curation]
 
 ## 1. Composition Principles
 
-Skills compose because hKask's architecture places them in layers. Higher layers clarify perception; lower layers act on the clarified view.
+### Template Chains vs Skills vs Compound Skills
+
+hKask has three composition levels, distinguished by PDCA loop count:
+
+| Level | What It Is | PDCA Loops | Output | Example |
+|-------|-----------|-----------|--------|---------|
+| **Template Chain** | Templates invoked in sequence — a recipe | 0 | Raw output from the last template | dokkodo → pragmatic-laziness → essentialist → coding-guidelines |
+| **Skill** | A single PDCA loop wrapping templates | 1 | Convergence report | gentle-lovelace-converge: score → check → rewrite → loop → converge |
+| **Compound Skill** | A PDCA loop that composes other Skills (each with their own loop) | 2+, nested | Compound convergence report | document-update: audit → gentle-lovelace-loop → check → rewrite-loop → loop → converge |
+
+Template chains are recipes. Skills practice toward excellence through a single improvement kata. Compound skills orchestrate multiple katas — each inner skill converges independently toward its own target, and the outer loop checks whether the compound target has been met.
+
+Nesting is bounded by the matryoshka limit of 7. A compound skill can contain skills that contain sub-skills, up to depth 7. Each nested level emits its own convergence report, and the outer loop reads those reports to decide whether to continue, abort, or escalate.
 
 ### The Golden Rule
 
@@ -78,6 +90,34 @@ execute:
 ```
 
 A skill whose template is a single KnowAct cannot converge — it can only produce output and stop. That is a prompt wearing a skill costume.
+
+### Skill Output — The Convergence Report
+
+A Skill's output IS its convergence report. When `kask run <skill>` completes, the caller receives proof that the kata ran:
+
+```json
+{
+  "_convergence": {
+    "status": "converged",
+    "reason": "quality_met",
+    "iterations_completed": 3,
+    "quality_at_exit": 0.12,
+    "threshold": 0.15,
+    "field": "composite"
+  }
+}
+```
+
+| Field | Meaning |
+|-------|--------|
+| `status` | `converged` \| `maxed_out` \| `escalated` |
+| `reason` | `quality_met` \| `energy_spent` \| `obstacle_blocked` |
+| `iterations_completed` | How many PDCA cycles ran before exit |
+| `quality_at_exit` | The measured value of the convergence field at exit — the Current Condition at the final Check |
+| `threshold` | The Target Condition from the manifest |
+| `field` | What was measured — traceability to the manifest |
+
+The report is the proof that the kata ran and either achieved its target or exhausted its energy allocation. A template chain that runs once and returns raw output has no convergence report — it produced output and stopped, with no evidence that quality was pursued iteratively. That's the difference between a recipe and a skill.
 
 ### The Skill-Kata Isomorphism
 

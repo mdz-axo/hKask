@@ -178,6 +178,8 @@ fn main() {
             commands::curator::run_curator(&rt, &mut registry, &runtime, &handle, action)
         }
 
+        Commands::Token { action } => commands::token::run_token(&rt, action),
+
         Commands::Replicant { action } => commands::user::run_replicant(action),
 
         Commands::Keystore { action } => commands::keystore::run(action),

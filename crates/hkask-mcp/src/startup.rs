@@ -263,6 +263,10 @@ mod tests {
         async fn bot_status(&self, _replicant: &str, _bot_name: Option<&str>) -> serde_json::Value {
             serde_json::json!({"bots": []})
         }
+
+        async fn spec_drift(&self, _replicant: &str, _spec_id: Option<&str>) -> serde_json::Value {
+            serde_json::json!({"status": "ok", "drift_score": 0.0})
+        }
     }
 
     async fn setup_gate_test(

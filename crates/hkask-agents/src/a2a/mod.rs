@@ -549,7 +549,7 @@ impl A2ARuntime {
     }
 
     /// Revoke a capability token by ID
-    pub(crate) async fn revoke_capability(&self, token_id: &str) {
+    pub async fn revoke_capability(&self, token_id: &str) {
         let mut state = self.state.write().await;
         state.revoked_tokens.insert(token_id.to_string());
     }

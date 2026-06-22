@@ -47,6 +47,8 @@ pub mod user;
 pub mod wallet;
 pub mod web_search;
 
+pub mod token;
+
 // Re-exports from template
 pub use template::{
     get_mcp_tool, get_template, list_mcp_servers, list_mcp_tools, list_templates,

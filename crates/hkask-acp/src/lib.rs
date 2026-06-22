@@ -2,6 +2,7 @@
 //!
 //! Re-exports the public API for integration testing and external consumers.
 
+pub mod cloud;
 pub mod main_impl;
 
 pub use main_impl::AcpError;

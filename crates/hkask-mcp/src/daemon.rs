@@ -84,6 +84,12 @@ pub enum DaemonRequest {
         replicant: String,
         bot_name: Option<String>,
     },
+    /// Query spec drift — coherence and missing/extra verbs.
+    #[serde(rename = "spec_drift_query")]
+    SpecDriftQuery {
+        replicant: String,
+        spec_id: Option<String>,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -126,6 +132,9 @@ pub enum DaemonResponse {
     /// Bot status response.
     #[serde(rename = "bot_status_response")]
     BotStatusResponse { status: serde_json::Value },
+    /// Spec drift response.
+    #[serde(rename = "spec_drift_response")]
+    SpecDriftResponse { drift: serde_json::Value },
 }
 
 // ── DaemonClient (used by MCP binaries) ──
@@ -242,6 +251,53 @@ impl DaemonClient {
         })
         .await
     }
+
+    /// Query curator system health from the daemon.
+    pub async fn curator_health_query(&self, replicant: &str) -> std::io::Result<DaemonResponse> {
+        self.send_recv(&DaemonRequest::CuratorHealthQuery {
+            replicant: replicant.to_string(),
+        })
+        .await
+    }
+
+    /// Query live CNS status from the daemon.
+    pub async fn cns_status_query(
+        &self,
+        replicant: &str,
+        domain: Option<&str>,
+    ) -> std::io::Result<DaemonResponse> {
+        self.send_recv(&DaemonRequest::CnsStatusQuery {
+            replicant: replicant.to_string(),
+            domain: domain.map(|d| d.to_string()),
+        })
+        .await
+    }
+
+    /// Query per-bot health from the daemon.
+    pub async fn bot_status_query(
+        &self,
+        replicant: &str,
+        bot_name: Option<&str>,
+    ) -> std::io::Result<DaemonResponse> {
+        self.send_recv(&DaemonRequest::BotStatusQuery {
+            replicant: replicant.to_string(),
+            bot_name: bot_name.map(|b| b.to_string()),
+        })
+        .await
+    }
+
+    /// Query spec drift from the daemon.
+    pub async fn spec_drift_query(
+        &self,
+        replicant: &str,
+        spec_id: Option<&str>,
+    ) -> std::io::Result<DaemonResponse> {
+        self.send_recv(&DaemonRequest::SpecDriftQuery {
+            replicant: replicant.to_string(),
+            spec_id: spec_id.map(|s| s.to_string()),
+        })
+        .await
+    }
 }
 
 impl Default for DaemonClient {
@@ -295,6 +351,9 @@ pub trait DaemonHandler: Send + Sync {
 
     /// Query per-bot health — gas consumption vs energy budget.
     async fn bot_status(&self, replicant: &str, bot_name: Option<&str>) -> serde_json::Value;
+
+    /// Query spec drift — coherence evaluation and missing/extra verbs.
+    async fn spec_drift(&self, replicant: &str, spec_id: Option<&str>) -> serde_json::Value;
 }
 
 /// Unix domain socket listener for the hKask daemon.
@@ -448,6 +507,10 @@ async fn handle_connection(stream: UnixStream, handler: &dyn DaemonHandler) -> s
             let status = handler.bot_status(&replicant, bot_name.as_deref()).await;
             DaemonResponse::BotStatusResponse { status }
         }
+        DaemonRequest::SpecDriftQuery { replicant, spec_id } => {
+            let drift = handler.spec_drift(&replicant, spec_id.as_deref()).await;
+            DaemonResponse::SpecDriftResponse { drift }
+        }
     };
 
     let mut json = serde_json::to_string(&response)?;
@@ -528,6 +591,10 @@ mod tests {
 
         async fn bot_status(&self, _replicant: &str, _bot_name: Option<&str>) -> serde_json::Value {
             serde_json::json!({"bots": [{"name": "research-bot", "status": "healthy"}]})
+        }
+
+        async fn spec_drift(&self, _replicant: &str, _spec_id: Option<&str>) -> serde_json::Value {
+            serde_json::json!({"status": "ok", "drift_score": 0.0})
         }
     }
 

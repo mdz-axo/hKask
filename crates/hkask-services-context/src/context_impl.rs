@@ -1110,6 +1110,7 @@ async fn build_mcp_and_pods(
         Arc::clone(&pod_manager),
         Arc::clone(&f.user_store),
         Some(Arc::clone(&f.cns_runtime)),
+        Some(Arc::new(f.spec_store.clone())),
         l.inference_port.clone(),
     ));
     if !config.in_memory {
