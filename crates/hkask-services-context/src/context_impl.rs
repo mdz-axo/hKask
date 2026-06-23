@@ -1114,18 +1114,10 @@ async fn build_mcp_and_pods(
     ));
     let mcp_runtime = Arc::new(mcp_runtime);
 
-    // Pod manager — anchor the capability checker to the system OCAP authority
-    // (derived from the master key) so locally-issued tokens verify and forged
-    // tokens are rejected. Fails the build if the OCAP key is unavailable.
-    let capability_checker = Arc::new(
-        hkask_agents::pod::system_capability_checker().map_err(|e| {
-            ServiceError::Infra(hkask_types::InfrastructureError::Io(format!(
-                "OCAP authority key unavailable: {e}"
-            )))
-        })?,
-    );
+    // Pod manager
+    let capability_checker = Arc::new(CapabilityChecker::new());
     let mcp_runtime_adapter = hkask_agents::adapters::mcp_runtime::FullMcpAdapter::new(
-        Arc::clone(&capability_checker),
+        Arc::new(CapabilityChecker::new()),
         Arc::new((*mcp_runtime).clone()),
         tokio::runtime::Handle::current(),
     );
@@ -1147,7 +1139,7 @@ async fn build_mcp_and_pods(
             )),
             Arc::new(mcp_runtime_adapter),
             Some(governed_tool.clone()),
-            Some(Arc::clone(&capability_checker)),
+            Some(Arc::new(CapabilityChecker::new())),
             None,
             Arc::clone(&l.episodic_storage) as Arc<dyn EpisodicStoragePort>,
             Arc::clone(&l.semantic_storage) as Arc<dyn SemanticStoragePort>,

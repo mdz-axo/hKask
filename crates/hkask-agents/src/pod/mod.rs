@@ -686,10 +686,23 @@ fn current_timestamp() -> Result<i64, AgentPodError> {
 /// requires the master key, so a token from any other keypair is rejected
 /// (P4 — Clear Boundaries). Deterministic + restart-safe (ADR-027).
 pub fn system_ocap_signing_key() -> AgentPodResult<ed25519_dalek::SigningKey> {
+    use std::sync::OnceLock;
+    // Derived ONCE per process and cached. Issuance and verification both call
+    // this, so they must agree on the key. The underlying secret resolution can
+    // fall back to a random secret when the master key is unavailable; deriving
+    // twice would then yield two different keys and break all OCAP verification.
+    // Caching the first derived seed guarantees a single, consistent authority.
+    static SYSTEM_OCAP_SEED: OnceLock<[u8; 32]> = OnceLock::new();
+
+    if let Some(seed) = SYSTEM_OCAP_SEED.get() {
+        return Ok(ed25519_dalek::SigningKey::from_bytes(seed));
+    }
     let secret = hkask_keystore::keychain::get_or_create_ocap_secret().map_err(|e| {
         AgentPodError::KeyDerivation(hkask_keystore::KeystoreError::KeyDerivation(e.to_string()))
     })?;
-    Ok(derive_signing_key(secret.as_slice()))
+    let derived = derive_signing_key(secret.as_slice()).to_bytes();
+    let seed = *SYSTEM_OCAP_SEED.get_or_init(|| derived);
+    Ok(ed25519_dalek::SigningKey::from_bytes(&seed))
 }
 
 /// Build a `CapabilityChecker` anchored to the system OCAP authority.

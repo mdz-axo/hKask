@@ -339,13 +339,13 @@ zoom-out → chain-of-density → caveman
 | 3 | `chain-of-density` | Extraction/Summarization | KnowAct | Iterative density-increase summarization (Gao et al.) |
 | 4 | `coding-guidelines` | Behavioral Guardrails | KnowAct | Karpathy's four coding principles |
 | 5 | `condenser-continuation` | Meta-Cognition | KnowAct | Resume work after context reset |
-| 6 | `constraint-forces` | Regulative | KnowAct | Classify constraints by enforcement level |
+| 6 | `constraint-forces` | Regulative | FlowDef | Classify constraints by enforcement level via convergent force loops |
 | 7 | `decision-journal` | Decision & Strategy | KnowAct | Kahneman decision journal with Brier scoring |
-| 8 | `deep-module` | Structural Analysis | KnowAct | Ousterhout module depth with deletion test |
-| 9 | `diagnose` | Diagnostics | KnowAct | Disciplined diagnosis loop |
+| 8 | `deep-module` | Structural Analysis | FlowDef | Ousterhout module depth with deletion test via convergent depth loops |
+| 9 | `diagnose` | Diagnostics | FlowDef | Disciplined diagnosis loop with convergent PDCA exits |
 | 10 | `document-update` | Documentation | KnowAct | 7-task doc maintenance workflow |
-| 11 | `dokkodo-mindset` | Perceptual | KnowAct | Musashi's 21 precepts as perceptual filter |
-| 12 | `essentialist` | Structural Analysis | KnowAct | 3-gate eliminative interrogation |
+| 11 | `dokkodo-mindset` | Perceptual | FlowDef | Musashi's 21 precepts as convergent perceptual filter |
+| 12 | `essentialist` | Structural Analysis | FlowDef | 3-gate eliminative interrogation as convergent elimination loop |
 | 13 | `falstaffian-perspective` | Perceptual | KnowAct | Semantic shape transforms for perspective-taking |
 | 14 | `gentle-lovelace` | Meta-Cognition | KnowAct | 4D writing quality evaluation |
 | 15 | `goal-analysis` | Meta-Cognition | KnowAct | Goal specification and completion verification |
@@ -360,9 +360,9 @@ zoom-out → chain-of-density → caveman
 | 24 | `logo-builder` | Creativity | FlowDef | Logo design with Bokhua's five gates |
 | 25 | `magna-carta-verifier` | Regulative | KnowAct | Verify Magna Carta compliance |
 | 26 | `mcda` | Decision & Strategy | KnowAct | Multi-criteria decision analysis with masking detection |
-| 27 | `pragmatic-cybernetics` | Structural Analysis | KnowAct | CNS feedback loop analysis |
-| 28 | `pragmatic-laziness` | Structural Analysis | KnowAct | 3-phase lazy loop for least-action pathfinding |
-| 29 | `pragmatic-semantics` | Structural Analysis | KnowAct | Epistemic statement classification |
+| 27 | `pragmatic-cybernetics` | Structural Analysis | FlowDef | CNS feedback loop analysis via convergent diagnostics loops |
+| 28 | `pragmatic-laziness` | Structural Analysis | FlowDef | 3-phase lazy loop for least-action pathfinding with PDCA convergence |
+| 29 | `pragmatic-semantics` | Structural Analysis | FlowDef | Epistemic statement classification via convergent semantics loops |
 | 30 | `refactor-service-layer` | Diagnostics | KnowAct | Strangler fig service extraction |
 | 31 | `review` | Meta-Cognition | KnowAct | Self-critique reasoning outputs |
 | 32 | `rust-expertise` | Behavioral Guardrails | KnowAct | Idiomatic Rust design principles |

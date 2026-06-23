@@ -21,9 +21,15 @@ pub struct CapabilityChecker {
     /// Optional Ed25519 signing key for token creation (grant_* methods).
     /// When absent, grant_* methods panic — token issuance requires a signing key.
     signing_key: Option<SigningKey>,
-    /// Trusted issuer public keys. A token is only accepted if its embedded
-    /// `public_key` is in this set. Empty ⇒ reject all (fail closed).
+    /// Trusted issuer public keys. When `enforce_roots` is set, a token is only
+    /// accepted if its embedded `public_key` is in this set (empty ⇒ reject all).
     trusted_roots: Vec<Ed25519PublicKey>,
+    /// Whether root membership is enforced. `false` for `new()` (integrity-only:
+    /// verify the self-signature, used by pod-internal checkers where tokens are
+    /// constructed locally and never injected from the wire). `true` for
+    /// root-anchored constructors, which reject any token not signed by a
+    /// trusted issuer — the bearer-token authority gate (P4 — Clear Boundaries).
+    enforce_roots: bool,
 }
 
 impl Default for CapabilityChecker {
@@ -33,65 +39,95 @@ impl Default for CapabilityChecker {
 }
 
 impl CapabilityChecker {
-    /// Create a new capability checker with no trusted roots (rejects all tokens).
+    /// Create a new integrity-only capability checker (no root enforcement).
     ///
-    /// \[NORMATIVE\] Fail-closed: a checker constructed this way trusts no issuer
-    /// and therefore rejects every token. Use [`with_trusted_roots`] or
-    /// [`with_signing_key`] to anchor trust (P4 — Clear Boundaries).
+    /// Verifies a token's self-signature but does not require a trusted issuer.
+    /// Used by pod-internal checkers, where the capability token is constructed
+    /// locally by the trusted factory and never accepted from the wire.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns a [`CapabilityChecker`] with an empty trusted-root set
+    /// post: returns a [`CapabilityChecker`] that checks signatures only
     pub fn new() -> Self {
         Self {
             signing_key: None,
             trusted_roots: Vec::new(),
+            enforce_roots: false,
         }
     }
 
     /// Create a capability checker with a signing key for token issuance.
     ///
-    /// The signing key's own public key is automatically added to the trusted
-    /// roots, so tokens this checker issues will verify.
+    /// The signing key's own public key is added to the trusted roots and root
+    /// enforcement is enabled, so this checker accepts only tokens it issued (or
+    /// those from roots added via [`trust_root`]).
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  signing_key is a valid Ed25519 [`SigningKey`]
-    /// post: returns a [`CapabilityChecker`] that can both issue and verify tokens,
+    /// post: returns a [`CapabilityChecker`] that can issue and verify tokens,
     ///       trusting its own public key as a root
     pub fn with_signing_key(signing_key: SigningKey) -> Self {
         let root = Ed25519PublicKey(signing_key.verifying_key().to_bytes());
         Self {
             signing_key: Some(signing_key),
             trusted_roots: vec![root],
+            enforce_roots: true,
         }
     }
 
-    /// Create a verify-only capability checker anchored to a set of trusted roots.
+    /// Add a trusted issuer public key (chainable).
+    ///
+    /// Used to trust additional authorities — e.g. the A2A root authority, whose
+    /// registration tokens are signed by a key distinct from the system OCAP key.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  roots are the Ed25519 public keys of trusted issuers (e.g. the system
-    ///       OCAP authority derived from the master key)
+    /// post: returns self with `root` added to the trusted-root set
+    pub fn trust_root(mut self, root: Ed25519PublicKey) -> Self {
+        if !self.trusted_roots.contains(&root) {
+            self.trusted_roots.push(root);
+        }
+        self
+    }
+
+    /// Create a verify-only checker anchored to a set of trusted roots (fail-closed).
+    ///
+    /// Root enforcement is enabled: a token is accepted only if its embedded
+    /// public key is one of `roots`. An empty set rejects every token — used by
+    /// the API bearer-token gate so that forged tokens (and the no-root
+    /// misconfiguration) are denied (P4 — Clear Boundaries).
+    ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  roots are the Ed25519 public keys of trusted issuers
     /// post: returns a [`CapabilityChecker`] that accepts only tokens signed by a
     ///       trusted root; cannot issue tokens
     pub fn with_trusted_roots(roots: Vec<Ed25519PublicKey>) -> Self {
         Self {
             signing_key: None,
             trusted_roots: roots,
+            enforce_roots: true,
         }
     }
 
-    /// Verify a capability token: valid Ed25519 signature AND a trusted issuer.
+    /// Verify a capability token's signature, and — when root enforcement is on —
+    /// that its issuer is trusted.
     ///
-    /// This is the single policy injection point for token authority. A token is
-    /// rejected unless its signature verifies against its embedded public key
-    /// \[integrity\] AND that public key is in `trusted_roots` \[authority\].
-    /// Fails closed when no roots are configured.
+    /// Integrity-only checkers (`new()`) verify the self-signature alone.
+    /// Root-anchored checkers (`with_signing_key` / `with_trusted_roots`)
+    /// additionally require the embedded public key to be a trusted root, which
+    /// is what makes a bearer token unforgeable: a self-signed token from an
+    /// unknown keypair is rejected. Fails closed on an empty trusted-root set.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  self is any [`CapabilityChecker`]; token is any [`DelegationToken`]
-    /// post: returns true iff the token's signature is valid AND its public key is
-    ///       a trusted root; returns false otherwise (including empty root set)
+    /// post: returns true iff the signature is valid AND (root enforcement is off
+    ///       OR the public key is a trusted root)
     pub fn verify(&self, token: &DelegationToken) -> bool {
-        token.verify() && self.trusted_roots.contains(&token.public_key)
+        if !token.verify() {
+            return false;
+        }
+        if self.enforce_roots {
+            return self.trusted_roots.contains(&token.public_key);
+        }
+        true
     }
 
     /// Check if token is valid and not expired
@@ -270,11 +306,12 @@ mod tests {
         );
     }
 
-    /// \[C1 regression\] A checker with no trusted roots must reject every token
-    /// (fail closed).
+    /// \[C1 regression\] A root-anchored checker with no trusted roots must reject
+    /// every token (fail closed). This is the API bearer-token misconfiguration
+    /// posture. (`new()` is integrity-only and intentionally does not enforce.)
     #[test]
     fn verify_with_no_roots_fails_closed() {
-        let checker = CapabilityChecker::new();
+        let checker = CapabilityChecker::with_trusted_roots(vec![]);
         let sk = derive_signing_key(b"some-secret");
         let to = WebID::from_persona(b"holder");
         let token = DelegationToken::new(

@@ -1,0 +1,40 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    primary_result: object
+  output:
+    convergence_metric: number
+    rationale: string
+energy_cap: 2048
+visibility: Public
+---
+{# Template: pragmatic-semantics/semantics-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for epistemic classification cycles. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 900
+thinking_budget = "standard"
+
+Given the latest semantics classification/provenance output, return JSON:
+- convergence_metric in [0,1], where 0 means classification is stable for action.
+- rationale.
+
+Input:
+```json
+{{ primary_result | tojson }}
+```
+
+Return JSON only:
+```json
+{"convergence_metric": 0.0, "rationale": "..."}
+```

@@ -105,13 +105,16 @@ impl ActivePods {
         }
 
         let adapter = Arc::new(MemoryLoopForwarder::in_memory_unchecked());
-        // Anchor the checker to the system OCAP authority so locally-issued
-        // tokens verify and forged tokens are rejected (matches production).
+        let a2a = Arc::new(A2ARuntime::new(b"mock"));
+        // Anchor the checker to the system OCAP authority AND the A2A root, so
+        // both pod-creation tokens and A2A registration tokens verify, while
+        // forged tokens are rejected (matches production).
         let checker = Arc::new(
-            system_capability_checker().expect("system capability checker (test master key set)"),
+            system_capability_checker()
+                .expect("system capability checker (test master key set)")
+                .trust_root(a2a.root_public_key()),
         );
         let mcp = Arc::new(CapabilityOnlyAdapter::new(Arc::clone(&checker)));
-        let a2a = Arc::new(A2ARuntime::new(b"mock"));
         let factory = Arc::new(PodFactory::new(
             Arc::new(hkask_templates::TemplateCrateLoader::from_path(
                 data_dir.join("templates"),
