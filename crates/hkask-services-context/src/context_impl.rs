@@ -988,7 +988,7 @@ async fn build_loops(
         let local_replica = system_webid.to_string();
         let transport: Arc<dyn hkask_ports::federation::FederationTransport> =
             Arc::new(InMemoryFederationTransport::for_replica(
-                &InMemoryFederationTransport::new(),
+                &InMemoryFederationTransport::new_shared(),
                 local_replica.clone(),
             ));
         let link_manager = Arc::new(FederationLinkManager::new(

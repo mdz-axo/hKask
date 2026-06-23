@@ -100,8 +100,8 @@ impl<T: Hash + Eq + Clone> ORSet<T> {
             let surviving: Vec<Dot> = other_dots
                 .iter()
                 .filter(|dot| {
-                    my_removed.map_or(true, |removed_dots| {
-                        !removed_dots
+                    !my_removed.is_some_and(|removed_dots| {
+                        removed_dots
                             .iter()
                             .any(|rd| rd.replica == dot.replica && rd.counter >= dot.counter)
                     })

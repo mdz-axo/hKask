@@ -340,7 +340,7 @@ mod tests {
                 RJoule::new(2000),
                 None,
                 PrivacyMode::Shielded,
-                Some(ChainId::Solana),
+                Some(ChainId::Hedera),
                 vec!["embed-corpus".to_string()],
                 "list test key 2".to_string(),
                 None,

@@ -108,9 +108,6 @@ pub mod derivation_contexts {
     /// Master key environment variable name.
     pub const MASTER_KEY_ENV: &str = "HKASK_MASTER_KEY";
 
-    /// Solana treasury keypair derivation context.
-    pub const TREASURY_SOLANA: &str = "hkask:treasury-solana";
-
     /// Hedera treasury keypair derivation context.
     pub const TREASURY_HEDERA: &str = "hkask:treasury-hedera";
 

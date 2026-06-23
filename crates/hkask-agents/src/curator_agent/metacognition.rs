@@ -5,7 +5,6 @@ use crate::a2a::A2AMessage;
 use crate::curator::context::CuratorContext;
 use crate::curator_agent::bot_health::BotHealthEvaluator;
 use crate::curator_agent::bot_metrics::BotHealthStatus;
-use hkask_types::curator::CuratorDirective;
 use hkask_cns::types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
@@ -13,6 +12,7 @@ use hkask_storage::{EscalationBatch, EscalationEntry};
 use hkask_types::BotID;
 use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
+use hkask_types::curator::CuratorDirective;
 use hkask_types::event::SpanNamespace;
 use std::collections::HashMap;
 use std::sync::Arc;

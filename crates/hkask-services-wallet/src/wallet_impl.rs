@@ -103,7 +103,7 @@ impl WalletService {
 
     /// Build a fully-wired WalletService from config, store, and CNS infrastructure.
     ///
-    /// Encapsulates chain port assembly (Solana, Hedera, Hinkal), price feed
+    /// Encapsulates chain port assembly (Hedera, Hinkal), price feed
     /// resolution, WalletManager construction, and ApiKeyIssuer creation.
     /// This is the single entry point for production wallet construction —
     /// `context.rs` calls this and handles only orchestration (replicant binding,
@@ -126,33 +126,6 @@ impl WalletService {
         // ── Build chain ports from environment ────────────────────────────
         #[allow(unused_mut)]
         let mut chains: HashMap<ChainId, Arc<dyn hkask_wallet::ChainPort>> = HashMap::new();
-
-        // Solana — self-custody via raw JSON-RPC
-        #[cfg(feature = "solana")]
-        if let Ok(rpc_url) = std::env::var("SOLANA_RPC_URL")
-            && let Ok(treasury_pubkey) = std::env::var("SOLANA_TREASURY_PUBKEY")
-        {
-            match hkask_wallet::solana::SolanaPort::new(&rpc_url, &treasury_pubkey, None) {
-                Ok(port) => {
-                    let port = port.with_event_sink(Arc::clone(&event_sink));
-                    tracing::info!(
-                        target: "cns.wallet.chain",
-                        chain = "solana",
-                        rpc_url = %rpc_url,
-                        "SolanaPort initialized"
-                    );
-                    chains.insert(ChainId::Solana, Arc::new(port));
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        target: "cns.wallet.chain",
-                        chain = "solana",
-                        error = %e,
-                        "Failed to initialize SolanaPort"
-                    );
-                }
-            }
-        }
 
         // Hedera — self-custody via mirror node + gRPC
         #[cfg(feature = "hedera")]
@@ -896,7 +869,7 @@ mod tests {
         #[async_trait::async_trait]
         impl ChainPort for FailingActorChain {
             fn chain_id(&self) -> ChainId {
-                ChainId::Solana
+                ChainId::Hedera
             }
 
             fn derive_deposit_address(&self, _index: u64) -> Result<String, WalletError> {
@@ -929,7 +902,7 @@ mod tests {
                     Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error"),
                     Phase::Sense,
                     serde_json::json!({
-                        "chain": "solana",
+                        "chain": "hedera",
                         "operation": "submit_signed_tx",
                         "error": "forced adapter failure"
                     }),
@@ -937,7 +910,7 @@ mod tests {
                 );
                 let _ = self.sink.persist(&event);
                 Err(WalletError::ChainError {
-                    chain: ChainId::Solana,
+                    chain: ChainId::Hedera,
                     message: "forced adapter failure".into(),
                 })
             }
@@ -1068,7 +1041,7 @@ mod tests {
         let svc = make_service();
         let actor = WebID::from_persona(b"wallet-service-test");
         let fee = svc
-            .estimate_withdrawal_fee(&actor, ChainId::Solana)
+            .estimate_withdrawal_fee(&actor, ChainId::Hedera)
             .await
             .expect("fee estimate");
         assert!(fee.rjoules > 0);
@@ -1083,7 +1056,7 @@ mod tests {
 
         let mut chains: HashMap<ChainId, Arc<dyn ChainPort>> = HashMap::new();
         chains.insert(
-            ChainId::Solana,
+            ChainId::Hedera,
             Arc::new(FailingActorChain {
                 sink: Arc::clone(&sink) as Arc<dyn NuEventSink>,
             }),
@@ -1102,7 +1075,7 @@ mod tests {
                 wallet,
                 RJoule::ZERO,
                 "some_destination",
-                ChainId::Solana,
+                ChainId::Hedera,
                 PrivacyMode::Transparent,
             )
             .await
@@ -1125,7 +1098,7 @@ mod tests {
 
         let actor = WebID::from_persona(b"svc-fee-actor");
         let err = svc
-            .estimate_withdrawal_fee(&actor, ChainId::Solana)
+            .estimate_withdrawal_fee(&actor, ChainId::Hedera)
             .await
             .expect_err("forced price feed failure should bubble up");
         assert!(matches!(err, ServiceError::Wallet { .. }));
@@ -1210,7 +1183,7 @@ mod tests {
             RJoule::new(2000),
             None,
             PrivacyMode::Shielded,
-            Some(ChainId::Solana),
+            Some(ChainId::Hedera),
             vec!["embed-corpus".to_string()],
             "list test 2".to_string(),
             None,

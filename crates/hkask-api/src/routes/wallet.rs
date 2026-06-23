@@ -64,7 +64,7 @@ pub struct WalletBalanceResponse {
 /// `native_units` and `usdc_equivalent` are approximate conversions.
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct WithdrawalFeeEstimateResponse {
-    /// Target blockchain: "hinkal", "solana", or "hedera"
+    /// Target blockchain: "hinkal" or "hedera"
     pub chain: String,
     /// Fee in rJoules
     pub rjoules: u64,
@@ -81,7 +81,7 @@ pub struct WithdrawalFeeEstimateResponse {
 pub struct DepositAddressResponse {
     /// On-chain deposit address
     pub address: String,
-    /// Blockchain: "hinkal", "solana", or "hedera"
+    /// Blockchain: "hinkal" or "hedera"
     pub chain: String,
     /// Privacy mode: "shielded" or "transparent"
     pub privacy: String,
@@ -146,7 +146,7 @@ pub struct CreateKeyRequest {
     pub expiry_days: Option<u32>,
     /// Privacy: true = shielded, false = transparent (default: true)
     pub private: Option<bool>,
-    /// Preferred chain: "hinkal", "solana", or "hedera" (default: "hinkal")
+    /// Preferred chain: "hinkal" or "hedera" (default: "hinkal")
     pub chain: Option<String>,
     /// Wallet ID (UUID). Defaults to system wallet if omitted.
     pub wallet_id: Option<String>,
@@ -218,7 +218,7 @@ pub struct WithdrawRequest {
     pub amount_rj: u64,
     /// Destination on-chain address
     pub to_address: String,
-    /// Target chain: "hinkal", "solana", or "hedera" (default: "hinkal")
+    /// Target chain: "hinkal" or "hedera" (default: "hinkal")
     pub chain: Option<String>,
     /// Privacy: true = shielded, false = transparent (default: true)
     pub private: Option<bool>,
@@ -256,9 +256,8 @@ fn get_wallet(state: &ApiState) -> Result<&hkask_services::WalletService, Status
 fn parse_chain(s: Option<&str>) -> Result<ChainId, &'static str> {
     match s {
         None | Some("hinkal") => Ok(ChainId::Hinkal),
-        Some("solana") => Ok(ChainId::Solana),
         Some("hedera") => Ok(ChainId::Hedera),
-        _ => Err("Invalid chain (expected 'hinkal', 'solana', or 'hedera')"),
+        _ => Err("Invalid chain (expected 'hinkal' or 'hedera')"),
     }
 }
 

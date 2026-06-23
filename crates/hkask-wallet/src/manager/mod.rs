@@ -397,9 +397,9 @@ mod tests {
         let store = Arc::new(WalletStore::new(db.conn_arc()));
         let mut chains: HashMap<ChainId, Arc<dyn ChainPort>> = HashMap::new();
         chains.insert(
-            ChainId::Solana,
+            ChainId::Hedera,
             Arc::new(MockChainPort {
-                chain: ChainId::Solana,
+                chain: ChainId::Hedera,
             }) as Arc<dyn ChainPort>,
         );
         WalletManager::build(
@@ -460,7 +460,7 @@ mod tests {
         let mgr = make_manager();
         let actor = WebID::from_persona(b"wallet-test");
         let fee = mgr
-            .estimate_withdrawal_fee(&actor, ChainId::Solana)
+            .estimate_withdrawal_fee(&actor, ChainId::Hedera)
             .await
             .expect("fee estimate");
         assert!(fee.rjoules > 0);
@@ -508,11 +508,11 @@ mod tests {
         mgr.store.ensure_wallet(wallet).unwrap();
 
         let dep_ref = mgr
-            .generate_deposit_reference(wallet, ChainId::Solana, Duration::hours(24))
+            .generate_deposit_reference(wallet, ChainId::Hedera, Duration::hours(24))
             .unwrap();
         assert_eq!(dep_ref.reference.len(), 32); // 16 bytes → 32 hex chars
         assert_eq!(dep_ref.wallet_id, wallet);
-        assert_eq!(dep_ref.chain, ChainId::Solana);
+        assert_eq!(dep_ref.chain, ChainId::Hedera);
     }
 
     // ── Property-based tests ───────────────────────────────────────────────
@@ -677,7 +677,7 @@ mod tests {
         store
             .store_deposit_address(
                 wallet_id,
-                ChainId::Solana,
+                ChainId::Hedera,
                 "mock_deposit_addr_1",
                 0,
                 PrivacyMode::Transparent,
@@ -695,9 +695,9 @@ mod tests {
 
         let mut chains: HashMap<ChainId, Arc<dyn ChainPort>> = HashMap::new();
         chains.insert(
-            ChainId::Solana,
+            ChainId::Hedera,
             Arc::new(DepositMockPort {
-                chain: ChainId::Solana,
+                chain: ChainId::Hedera,
                 deposit: Some(deposit_event.clone()),
             }) as Arc<dyn ChainPort>,
         );
@@ -725,9 +725,9 @@ mod tests {
         let balance_before = balance.rjoules;
         let mut chains2: HashMap<ChainId, Arc<dyn ChainPort>> = HashMap::new();
         chains2.insert(
-            ChainId::Solana,
+            ChainId::Hedera,
             Arc::new(DepositMockPort {
-                chain: ChainId::Solana,
+                chain: ChainId::Hedera,
                 deposit: Some(deposit_event),
             }) as Arc<dyn ChainPort>,
         );
@@ -766,8 +766,8 @@ mod tests {
         store
             .store_deposit_address(
                 wallet_id,
-                ChainId::Solana,
-                "solana_deposit_addr",
+                ChainId::Hedera,
+                "hedera_deposit_addr",
                 0,
                 PrivacyMode::Transparent,
             )
@@ -782,10 +782,10 @@ mod tests {
             )
             .unwrap();
 
-        let solana_deposit = DepositEvent {
-            tx_hash: TxHash("sol_tx_001".into()),
+        let hedera_deposit = DepositEvent {
+            tx_hash: TxHash("hed_tx_001".into()),
             from_address: "sender_a".into(),
-            to_address: "solana_deposit_addr".into(),
+            to_address: "hedera_deposit_addr".into(),
             amount_usdc_micro: 1_000_000, // 1 USDC
             confirmations: 32,
             block_time: Utc::now(),
@@ -801,10 +801,10 @@ mod tests {
 
         let mut chains: HashMap<ChainId, Arc<dyn ChainPort>> = HashMap::new();
         chains.insert(
-            ChainId::Solana,
+            ChainId::Hedera,
             Arc::new(DepositMockPort {
-                chain: ChainId::Solana,
-                deposit: Some(solana_deposit),
+                chain: ChainId::Hedera,
+                deposit: Some(hedera_deposit),
             }) as Arc<dyn ChainPort>,
         );
         chains.insert(
@@ -1035,7 +1035,7 @@ mod tests {
                 wallet_id,
                 RJoule::new(2_000),
                 "recipient_addr_123",
-                ChainId::Solana,
+                ChainId::Hedera,
                 PrivacyMode::Transparent,
             )
             .await
@@ -1086,7 +1086,7 @@ mod tests {
                 wallet_id,
                 RJoule::new(10_000), // more than balance
                 "recipient_addr",
-                ChainId::Solana,
+                ChainId::Hedera,
                 PrivacyMode::Transparent,
             )
             .await;
@@ -1127,7 +1127,7 @@ mod tests {
 
         let before = mgr.get_balance(wallet_id).unwrap();
 
-        // make_manager only registers Solana — Hedera should fail
+        // make_manager only registers Hedera — Hinkal should fail
         let actor = WebID::from_persona(b"wallet-test");
         let result = mgr
             .withdraw(

@@ -281,7 +281,7 @@ mod tests {
     }
 
     fn make_manager() -> FederationLinkManager {
-        let transport = InMemoryFederationTransport::new();
+        let transport = InMemoryFederationTransport::new_shared();
         let t = InMemoryFederationTransport::for_replica(&transport, "alpha".into());
         FederationLinkManager::new("alpha".into(), Arc::new(t), Arc::new(NoopSink))
     }

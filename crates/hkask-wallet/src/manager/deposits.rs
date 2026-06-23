@@ -87,7 +87,7 @@ impl WalletManager {
             "detected",
             Phase::Sense,
             serde_json::json!({
-                "chain": "solana",
+                "chain": "hedera",
                 "amount_usdc_micro": event.amount_usdc_micro,
                 "tx_hash": event.tx_hash.0,
                 "privacy": "transparent",
@@ -104,7 +104,7 @@ impl WalletManager {
             id: 0,
             wallet_id,
             tx_type: TransactionType::Deposit {
-                chain: event.tx_hash.0.parse().unwrap_or(ChainId::Solana),
+                chain: event.tx_hash.0.parse().unwrap_or(ChainId::Hinkal),
                 privacy: PrivacyMode::Transparent,
                 tx_hash: event.tx_hash.0.clone(),
                 amount_usdc_micro: event.amount_usdc_micro,
@@ -134,7 +134,7 @@ impl WalletManager {
                 "amount_rj": rj_amount.as_u64(),
                 "amount_usdc_micro": event.amount_usdc_micro,
                 "tx_hash": event.tx_hash.0,
-                "chain": "solana",
+                "chain": "hedera",
                 "balance_after_rj": balance.rjoules,
             }),
         );

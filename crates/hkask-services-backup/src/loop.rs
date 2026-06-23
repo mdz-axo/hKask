@@ -76,10 +76,10 @@ impl BackupLoop {
     fn is_snapshot_due(&self) -> bool {
         let state = self.state.read();
         // Dampener: don't retry for 1 hour after a failure
-        if let Some(fail) = state.last_failure {
-            if fail.elapsed().as_secs() < 3600 {
-                return false;
-            }
+        if let Some(fail) = state.last_failure
+            && fail.elapsed().as_secs() < 3600
+        {
+            return false;
         }
         match state.last_snapshot {
             Some(instant) => instant.elapsed().as_secs() >= 86400,

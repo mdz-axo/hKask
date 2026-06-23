@@ -456,14 +456,12 @@ fn handle_withdraw(
             println!("  Privacy:  {privacy}");
             println!("  Tx Hash:  {}", tx_hash.0);
             println!();
-            println!("  (Set SOLANA_RPC_URL + SOLANA_TREASURY_PUBKEY or");
-            println!("   HEDERA_TREASURY_ACCOUNT to enable chain execution.)");
+            println!("  (Set HEDERA_TREASURY_ACCOUNT to enable chain execution.)");
         }
         Err(e) => {
             eprintln!("Withdrawal failed: {e}");
             eprintln!();
-            eprintln!("  (Ensure SOLANA_RPC_URL + SOLANA_TREASURY_PUBKEY or");
-            eprintln!("   HEDERA_TREASURY_ACCOUNT are set for chain execution.)");
+            eprintln!("  (Ensure HEDERA_TREASURY_ACCOUNT is set for chain execution.)");
         }
     }
 }
@@ -636,11 +634,10 @@ fn resolve_wallet(wallet_arg: Option<String>) -> Result<WalletId, String> {
 
 fn parse_chain(s: Option<&str>) -> Result<ChainId, String> {
     match s {
-        Some("solana") => Ok(ChainId::Solana),
         Some("hedera") => Ok(ChainId::Hedera),
         Some("hinkal") | None => Ok(ChainId::Hinkal),
         Some(other) => Err(format!(
-            "Invalid chain '{}'. Expected one of: hinkal, solana, hedera",
+            "Invalid chain '{}'. Expected one of: hinkal, hedera",
             other
         )),
     }

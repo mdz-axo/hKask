@@ -60,9 +60,8 @@ impl StaticPriceFeed {
     /// Hardcoded USD rate per native token.
     fn hardcoded_rate(chain: ChainId) -> f64 {
         match chain {
-            ChainId::Solana => 150.0, // ~$150/SOL
-            ChainId::Hedera => 0.08,  // ~$0.08/HBAR
-            ChainId::Hinkal => 150.0, // Uses SOL as settlement layer
+            ChainId::Hedera => 0.08, // ~$0.08/HBAR
+            ChainId::Hinkal => 0.08, // Hinkal settles on Hedera
         }
     }
 }
@@ -93,9 +92,8 @@ const EODHD_BASE_URL: &str = "https://eodhd.com/api";
 /// Requires `HKASK_EODHD_API_KEY` environment variable or keystore entry.
 ///
 /// # Symbol mapping
-/// - Solana → `SOL-USD.CC`
 /// - Hedera → `HBAR-USD.CC`
-/// - Hinkal → `SOL-USD.CC` (settlement layer)
+/// - Hinkal → `HBAR-USD.CC` (Hinkal settles on Hedera)
 pub struct EodhdPriceFeed {
     client: reqwest::Client,
     api_key: String,
@@ -127,9 +125,8 @@ impl EodhdPriceFeed {
 
     fn eodhd_symbol(chain: ChainId) -> &'static str {
         match chain {
-            ChainId::Solana => "SOL-USD.CC",
             ChainId::Hedera => "HBAR-USD.CC",
-            ChainId::Hinkal => "SOL-USD.CC", // Hinkal settles on Solana
+            ChainId::Hinkal => "HBAR-USD.CC", // Hinkal settles on Hedera
         }
     }
 }
@@ -191,9 +188,8 @@ const COINGECKO_BASE_URL: &str = "https://api.coingecko.com/api/v3";
 /// on the free tier. Suitable as a fallback source.
 ///
 /// # Symbol mapping
-/// - Solana → `solana`
 /// - Hedera → `hedera-hashgraph`
-/// - Hinkal → `solana` (settlement layer)
+/// - Hinkal → `hedera-hashgraph` (Hinkal settles on Hedera)
 pub struct CoinGeckoPriceFeed {
     client: reqwest::Client,
 }
@@ -212,9 +208,8 @@ impl CoinGeckoPriceFeed {
 
     fn coingecko_id(chain: ChainId) -> &'static str {
         match chain {
-            ChainId::Solana => "solana",
             ChainId::Hedera => "hedera-hashgraph",
-            ChainId::Hinkal => "solana", // Hinkal settles on Solana
+            ChainId::Hinkal => "hedera-hashgraph", // Hinkal settles on Hedera
         }
     }
 }
@@ -506,18 +501,16 @@ pub struct WithdrawalFee {
 /// via the price feed, then converts to rJoules using the rj_per_usdc rate.
 ///
 /// # Fee model
-/// - Solana: ~0.000005 SOL per SPL token transfer (~$0.00075)
 /// - Hedera: ~$0.001 USD fixed per HTS transfer
-/// - Hinkal: ~0.000005 SOL (settlement layer) + relayer fee
+/// - Hinkal: same as Hedera (Hinkal settles on Hedera)
 pub fn estimate_withdrawal_fee(
     chain: ChainId,
     rate: &ExchangeRate,
     rj_per_usdc: u64,
 ) -> WithdrawalFee {
     let native_fee = match chain {
-        ChainId::Solana => 0.000005, // ~0.000005 SOL for SPL transfer
-        ChainId::Hedera => 0.0125,   // ~$0.001 / $0.08 = 0.0125 HBAR
-        ChainId::Hinkal => 0.000010, // ~2× Solana fee (shielded + relayer)
+        ChainId::Hedera => 0.0125, // ~$0.001 / $0.08 = 0.0125 HBAR
+        ChainId::Hinkal => 0.0125, // Same as Hedera (Hinkal settles on Hedera)
     };
 
     let usd_fee = native_fee * rate.usd_per_token;
@@ -544,8 +537,8 @@ mod tests {
     /// expect: "Wallet price static rate test works correctly under test conditions"
     #[test]
     fn static_price_feed_returns_expected_rates() {
-        assert!((StaticPriceFeed::hardcoded_rate(ChainId::Solana) - 150.0).abs() < f64::EPSILON);
         assert!((StaticPriceFeed::hardcoded_rate(ChainId::Hedera) - 0.08).abs() < f64::EPSILON);
+        assert!((StaticPriceFeed::hardcoded_rate(ChainId::Hinkal) - 0.08).abs() < f64::EPSILON);
     }
 
     /// expect: "Wallet price fee nonzero test works correctly under test conditions"
@@ -555,7 +548,7 @@ mod tests {
             usd_per_token: 150.0,
             updated_at: chrono::Utc::now(),
         };
-        let fee = estimate_withdrawal_fee(ChainId::Solana, &rate, 1000);
+        let fee = estimate_withdrawal_fee(ChainId::Hedera, &rate, 1000);
         assert!(fee.rjoules > 0);
         assert!(fee.usdc_micro > 0);
     }
@@ -567,20 +560,23 @@ mod tests {
             usd_per_token: 0.000001, // extremely low rate
             updated_at: chrono::Utc::now(),
         };
-        let fee = estimate_withdrawal_fee(ChainId::Solana, &rate, 1000);
+        let fee = estimate_withdrawal_fee(ChainId::Hedera, &rate, 1000);
         assert_eq!(fee.rjoules, 1);
     }
 
     /// expect: "Wallet price chain diff test works correctly under test conditions"
+    /// Note: With Solana removed and Hinkal settling on Hedera, both chains
+    /// now use the same CoinGecko ID ("hedera-hashgraph"), so fees are identical.
     #[test]
-    fn different_chains_produce_different_fees() {
+    fn different_chains_produce_same_fees() {
         let rate = ExchangeRate {
             usd_per_token: 150.0,
             updated_at: chrono::Utc::now(),
         };
-        let sol_fee = estimate_withdrawal_fee(ChainId::Solana, &rate, 1000);
         let hed_fee = estimate_withdrawal_fee(ChainId::Hedera, &rate, 1000);
-        assert!(hed_fee.rjoules > sol_fee.rjoules);
+        let hink_fee = estimate_withdrawal_fee(ChainId::Hinkal, &rate, 1000);
+        assert_eq!(hed_fee.rjoules, hink_fee.rjoules);
+        assert!(hed_fee.rjoules > 0);
     }
 
     // ── EodhdPriceFeed tests ──────────────────────────────────────────────
@@ -590,11 +586,11 @@ mod tests {
     async fn eodhd_feed_parses_close_field() {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
-            .and(path("/real-time/SOL-USD.CC"))
+            .and(path("/real-time/HBAR-USD.CC"))
             .and(query_param("api_token", "test-key"))
             .and(query_param("fmt", "json"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "code": "SOL-USD.CC",
+                "code": "HBAR-USD.CC",
                 "timestamp": 1718400000,
                 "close": 142.73
             })))
@@ -622,10 +618,10 @@ mod tests {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/simple/price"))
-            .and(query_param("ids", "solana"))
+            .and(query_param("ids", "hedera-hashgraph"))
             .and(query_param("vs_currencies", "usd"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "solana": { "usd": 142.73 }
+                "hedera-hashgraph": { "usd": 0.08 }
             })))
             .mount(&server)
             .await;
@@ -672,7 +668,7 @@ mod tests {
         });
         let composite = CompositePriceFeed::new(vec![primary, fallback], 30);
 
-        let rate = composite.get_rate(ChainId::Solana).await.unwrap();
+        let rate = composite.get_rate(ChainId::Hedera).await.unwrap();
         assert!((rate.usd_per_token - 150.0).abs() < f64::EPSILON);
     }
 
@@ -703,14 +699,14 @@ mod tests {
         let composite = CompositePriceFeed::new(vec![source], 3600); // 1h TTL
 
         // First call — from source
-        let rate1 = composite.get_rate(ChainId::Solana).await.unwrap();
+        let rate1 = composite.get_rate(ChainId::Hedera).await.unwrap();
         assert!((rate1.usd_per_token - 150.0).abs() < f64::EPSILON);
 
         // Replace source with one that would return different rate
         // but cache should still return the first value
         // (We can't replace sources in CompositePriceFeed after construction,
         // so we test that a second call within TTL returns same value)
-        let rate2 = composite.get_rate(ChainId::Solana).await.unwrap();
+        let rate2 = composite.get_rate(ChainId::Hedera).await.unwrap();
         assert!((rate2.usd_per_token - 150.0).abs() < f64::EPSILON);
     }
 
@@ -723,7 +719,7 @@ mod tests {
             should_fail: false,
         });
         let composite = CompositePriceFeed::new(vec![working], 0); // TTL=0 so immediate expiry
-        let _ = composite.get_rate(ChainId::Solana).await.unwrap();
+        let _ = composite.get_rate(ChainId::Hedera).await.unwrap();
 
         // Now replace with failing source (simulated by new composite with failing source)
         let failing = Box::new(MockRateFeed {
@@ -732,7 +728,7 @@ mod tests {
         });
         let composite2 = CompositePriceFeed::new(vec![failing], 0);
         // No cache → should fail
-        let err = composite2.get_rate(ChainId::Solana).await.unwrap_err();
+        let err = composite2.get_rate(ChainId::Hedera).await.unwrap_err();
         assert!(err.to_string().contains("exhausted"));
     }
 
@@ -740,7 +736,7 @@ mod tests {
     #[tokio::test]
     async fn composite_errors_on_empty_sources() {
         let composite = CompositePriceFeed::new(vec![], 30);
-        let err = composite.get_rate(ChainId::Solana).await.unwrap_err();
+        let err = composite.get_rate(ChainId::Hedera).await.unwrap_err();
         assert!(err.to_string().contains("exhausted"));
     }
 
@@ -752,7 +748,7 @@ mod tests {
         let feed = resolve_price_feed(&PriceFeedConfig::Static).unwrap();
         // Verify it's a StaticPriceFeed by checking it doesn't panic on get_rate
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let rate = rt.block_on(feed.get_rate(ChainId::Solana)).unwrap();
+        let rate = rt.block_on(feed.get_rate(ChainId::Hedera)).unwrap();
         assert!((rate.usd_per_token - 150.0).abs() < f64::EPSILON);
     }
 

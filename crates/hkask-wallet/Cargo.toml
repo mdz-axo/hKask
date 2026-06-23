@@ -26,12 +26,8 @@ sha2.workspace = true
 tracing.workspace = true
 
 # Chain SDKs — feature-gated to keep default build lightweight
-# Solana: solana-sdk (types) + reqwest (rustls) for raw JSON-RPC
-# solana-client is NOT used — it depends on openssl via solana-tls-utils
-solana-sdk = { version = "2", optional = true }
-spl-token = { version = "6", optional = true }
-spl-associated-token-account = { version = "6", optional = true }
-bincode = { version = "1", optional = true }
+# Hedera: hiero-sdk-proto + tonic + prost for mirror node REST + gRPC
+# solana-sdk, spl-token, and spl-associated-token-account have been removed.
 # HTTP client — required for live price feeds (EODHD, CoinGecko) and chain RPC
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 hiero-sdk-proto = { version = "0.22", optional = true }
@@ -40,7 +36,6 @@ prost = { version = "0.13", optional = true }
 
 [features]
 default = []
-solana = ["dep:solana-sdk", "dep:spl-token", "dep:spl-associated-token-account", "dep:bincode"]
 hedera = ["dep:hiero-sdk-proto", "dep:tonic", "dep:prost"]
 hinkal = []
 

@@ -97,7 +97,6 @@ pub fn sign_message(message: &[u8]) -> Result<Vec<u8>, WalletError> {
 /// Map ChainId to its HKDF derivation context string.
 fn chain_to_context(chain: &ChainId) -> &'static str {
     match chain {
-        ChainId::Solana => derivation_contexts::TREASURY_SOLANA,
         ChainId::Hedera => derivation_contexts::TREASURY_HEDERA,
         ChainId::Hinkal => derivation_contexts::TREASURY_HINKAL,
     }
@@ -164,7 +163,7 @@ mod tests {
     fn sign_withdrawal_produces_signature() {
         set_test_master_key();
         let tx_bytes = b"test withdrawal transaction";
-        let sig = sign_withdrawal(ChainId::Solana, tx_bytes).unwrap();
+        let sig = sign_withdrawal(ChainId::Hinkal, tx_bytes).unwrap();
         assert_eq!(sig.len(), 64); // Ed25519 signature is 64 bytes
     }
 
@@ -173,9 +172,9 @@ mod tests {
     fn sign_withdrawal_differs_per_chain() {
         set_test_master_key();
         let tx_bytes = b"test transaction";
-        let sol_sig = sign_withdrawal(ChainId::Solana, tx_bytes).unwrap();
+        let hkl_sig = sign_withdrawal(ChainId::Hinkal, tx_bytes).unwrap();
         let hed_sig = sign_withdrawal(ChainId::Hedera, tx_bytes).unwrap();
-        assert_ne!(sol_sig, hed_sig);
+        assert_ne!(hkl_sig, hed_sig);
     }
 
     /// expect: "Wallet sign capability hex test works correctly under test conditions"
@@ -205,8 +204,8 @@ mod tests {
     fn sign_withdrawal_all_chains() {
         set_test_master_key();
         let tx_bytes = b"test transaction";
-        // All three ChainId variants should produce valid 64-byte signatures
-        for chain in [ChainId::Solana, ChainId::Hedera, ChainId::Hinkal] {
+        // All ChainId variants should produce valid 64-byte signatures
+        for chain in [ChainId::Hedera, ChainId::Hinkal] {
             let sig = sign_withdrawal(chain, tx_bytes).unwrap();
             assert_eq!(
                 sig.len(),
@@ -222,7 +221,7 @@ mod tests {
     fn sign_withdrawal_empty_tx_bytes() {
         set_test_master_key();
         // Ed25519 signs any byte sequence, including empty — should not panic
-        let sig = sign_withdrawal(ChainId::Solana, b"").unwrap();
+        let sig = sign_withdrawal(ChainId::Hinkal, b"").unwrap();
         assert_eq!(
             sig.len(),
             64,

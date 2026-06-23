@@ -19,7 +19,6 @@ use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ChainId {
-    Solana,
     Hedera,
     Hinkal,
 }
@@ -27,7 +26,6 @@ pub enum ChainId {
 impl fmt::Display for ChainId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ChainId::Solana => write!(f, "solana"),
             ChainId::Hedera => write!(f, "hedera"),
             ChainId::Hinkal => write!(f, "hinkal"),
         }
@@ -38,7 +36,6 @@ impl FromStr for ChainId {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "solana" => Ok(ChainId::Solana),
             "hedera" => Ok(ChainId::Hedera),
             "hinkal" => Ok(ChainId::Hinkal),
             other => Err(format!("unknown chain: {other}")),
@@ -200,7 +197,7 @@ impl Default for WalletConfig {
             rj_per_usdc: 1000,
             gas_per_rjoule: 1000,
             min_deposit_usdc_micro: 1_000_000,
-            enabled_chains: vec![ChainId::Hinkal, ChainId::Solana, ChainId::Hedera],
+            enabled_chains: vec![ChainId::Hedera, ChainId::Hinkal],
             privacy_enabled: true,
             hinkal_relayer_url: None,
             price_feed: PriceFeedConfig::default(),

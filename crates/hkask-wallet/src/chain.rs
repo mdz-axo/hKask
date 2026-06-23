@@ -5,7 +5,6 @@
 //! is a standalone struct with its own RPC connection and state.
 //!
 //! # Implementations
-//! - `SolanaPort` — SPL USDC on Solana (feature-gated: "solana")
 //! - `HederaPort` — HTS USDC on Hedera (feature-gated: "hedera")
 
 use crate::types::{ChainId, TxHash, WalletError};

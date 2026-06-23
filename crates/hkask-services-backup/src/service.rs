@@ -1023,7 +1023,7 @@ mod tests {
         let restored = std::fs::read(&pod_path).unwrap();
         assert_eq!(restored, initial_state);
         assert_eq!(report.pod_id, "test-pod");
-        assert!(report.safety_commit.to_string().len() > 0);
+        assert!(!report.safety_commit.to_string().is_empty());
     }
 
     #[tokio::test]

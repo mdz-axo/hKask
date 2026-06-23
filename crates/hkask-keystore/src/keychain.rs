@@ -421,7 +421,7 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
 ///
 /// The caller is responsible for mapping chain to derivation context.
 /// Context strings are defined in `hkask_types::secret::derivation_contexts`:
-/// - `TREASURY_SOLANA`, `TREASURY_HEDERA`, `TREASURY_HINKAL`
+/// - `TREASURY_HEDERA`, `TREASURY_HINKAL`
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
 /// pre:  context is a valid derivation context string
@@ -498,18 +498,18 @@ mod tests {
     #[test]
     fn treasury_keys_differ_per_context() {
         set_test_master_key();
-        let solana_key = resolve_treasury_key(derivation_contexts::TREASURY_SOLANA).unwrap();
         let hedera_key = resolve_treasury_key(derivation_contexts::TREASURY_HEDERA).unwrap();
-        assert_ne!(&*solana_key, &*hedera_key);
-        assert_eq!(solana_key.len(), 32);
+        let hinkal_key = resolve_treasury_key(derivation_contexts::TREASURY_HINKAL).unwrap();
+        assert_ne!(&*hedera_key, &*hinkal_key);
         assert_eq!(hedera_key.len(), 32);
+        assert_eq!(hinkal_key.len(), 32);
     }
 
     #[test]
     fn treasury_key_is_deterministic() {
         set_test_master_key();
-        let key1 = resolve_treasury_key(derivation_contexts::TREASURY_SOLANA).unwrap();
-        let key2 = resolve_treasury_key(derivation_contexts::TREASURY_SOLANA).unwrap();
+        let key1 = resolve_treasury_key(derivation_contexts::TREASURY_HEDERA).unwrap();
+        let key2 = resolve_treasury_key(derivation_contexts::TREASURY_HEDERA).unwrap();
         assert_eq!(&*key1, &*key2);
     }
 

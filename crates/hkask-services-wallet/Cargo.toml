@@ -6,7 +6,6 @@ license.workspace = true
 description = "hKask wallet service — gas budgeting, price feeds, CNS integration"
 
 [features]
-solana = []
 hedera = []
 hinkal = []
 

@@ -19,7 +19,7 @@ pub struct InMemoryFederationTransport {
 }
 
 impl InMemoryFederationTransport {
-    pub fn new() -> Arc<Mutex<Inner>> {
+    pub fn new_shared() -> Arc<Mutex<Inner>> {
         Arc::new(Mutex::new(Inner {
             queues: HashMap::new(),
             partitions: std::collections::HashSet::new(),
@@ -57,10 +57,10 @@ impl FederationTransport for InMemoryFederationTransport {
         for _ in 0..10 {
             let mut inner = self.inner.lock().await;
             for ((from, to), queue) in inner.queues.iter_mut() {
-                if *to == self.local_replica {
-                    if let Some(msg) = queue.pop_front() {
-                        return Ok((from.clone(), msg));
-                    }
+                if *to == self.local_replica
+                    && let Some(msg) = queue.pop_front()
+                {
+                    return Ok((from.clone(), msg));
                 }
             }
             drop(inner);

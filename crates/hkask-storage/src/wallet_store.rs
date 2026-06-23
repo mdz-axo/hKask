@@ -960,7 +960,7 @@ fn tx_type_to_columns(tx_type: &TransactionType) -> TxTypeColumns {
 fn row_to_wallet_transaction(r: WalletTransactionRow) -> Result<WalletTransaction, WalletError> {
     let tx_type = match r.tx_type.as_str() {
         "deposit" => TransactionType::Deposit {
-            chain: ChainId::from_str(r.chain.as_deref().unwrap_or("solana"))
+            chain: ChainId::from_str(r.chain.as_deref().unwrap_or("hedera"))
                 .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
             privacy: PrivacyMode::from_str(r.tx_subtype.as_deref().unwrap_or("transparent"))
                 .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
@@ -968,7 +968,7 @@ fn row_to_wallet_transaction(r: WalletTransactionRow) -> Result<WalletTransactio
             amount_usdc_micro: 0, // reconstructed from amount_rj / config
         },
         "withdrawal" => TransactionType::Withdrawal {
-            chain: ChainId::from_str(r.chain.as_deref().unwrap_or("solana"))
+            chain: ChainId::from_str(r.chain.as_deref().unwrap_or("hedera"))
                 .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
             privacy: PrivacyMode::from_str(r.tx_subtype.as_deref().unwrap_or("transparent"))
                 .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
@@ -989,7 +989,7 @@ fn row_to_wallet_transaction(r: WalletTransactionRow) -> Result<WalletTransactio
             rj: RJoule::new(r.amount_rj.unsigned_abs()),
         },
         "shield" => TransactionType::Shield {
-            chain: ChainId::from_str(r.chain.as_deref().unwrap_or("solana"))
+            chain: ChainId::from_str(r.chain.as_deref().unwrap_or("hedera"))
                 .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
             tx_hash: r.on_chain_tx_hash.unwrap_or_default(),
             amount_usdc_micro: 0,
@@ -1112,7 +1112,7 @@ mod tests {
             id: 0, // auto-increment, ignored on insert
             wallet_id: wallet,
             tx_type: TransactionType::Deposit {
-                chain: ChainId::Solana,
+                chain: ChainId::Hedera,
                 privacy: PrivacyMode::Transparent,
                 tx_hash: "test_tx".into(),
                 amount_usdc_micro: 1_000_000,
@@ -1134,7 +1134,7 @@ mod tests {
         let dep_ref = DepositReference {
             reference: "test_ref_001".into(),
             wallet_id: wallet,
-            chain: ChainId::Solana,
+            chain: ChainId::Hedera,
             nonce: [0u8; 16],
             expires_at: chrono::Utc::now() + chrono::Duration::hours(24),
         };
@@ -1154,7 +1154,7 @@ mod tests {
         let dep_ref = DepositReference {
             reference: "expired_ref".into(),
             wallet_id: wallet,
-            chain: ChainId::Solana,
+            chain: ChainId::Hedera,
             nonce: [0u8; 16],
             expires_at: chrono::Utc::now() - chrono::Duration::hours(1), // already expired
         };
@@ -1296,7 +1296,7 @@ mod tests {
         let expired = DepositReference {
             reference: "old_ref".into(),
             wallet_id: wallet,
-            chain: ChainId::Solana,
+            chain: ChainId::Hedera,
             nonce: [0u8; 16],
             expires_at: chrono::Utc::now() - chrono::Duration::hours(1),
         };
@@ -1305,7 +1305,7 @@ mod tests {
         let valid = DepositReference {
             reference: "new_ref".into(),
             wallet_id: wallet,
-            chain: ChainId::Solana,
+            chain: ChainId::Hedera,
             nonce: [1u8; 16],
             expires_at: chrono::Utc::now() + chrono::Duration::hours(24),
         };
@@ -1355,7 +1355,7 @@ mod tests {
                         id: 0,
                         wallet_id: wallet,
                         tx_type: TransactionType::Deposit {
-                            chain: ChainId::Solana,
+                            chain: ChainId::Hedera,
                             privacy: PrivacyMode::Transparent,
                             tx_hash: format!("test_tx_{}", expected_sum),
                             amount_usdc_micro: *amount * 1000,
@@ -1375,7 +1375,7 @@ mod tests {
                             id: 0,
                             wallet_id: wallet,
                             tx_type: TransactionType::Withdrawal {
-                                chain: ChainId::Solana,
+                                chain: ChainId::Hedera,
                                 privacy: PrivacyMode::Transparent,
                                 tx_hash: format!("test_tx_{}", expected_sum),
                                 amount_usdc_micro: *amount * 1000,
@@ -1533,7 +1533,7 @@ mod tests {
         let dep_ref = DepositReference {
             reference: "idem_ref_001".into(),
             wallet_id: wallet,
-            chain: ChainId::Solana,
+            chain: ChainId::Hedera,
             nonce: [0u8; 16],
             expires_at: chrono::Utc::now() + chrono::Duration::hours(24),
         };

@@ -74,6 +74,5 @@ path = "tests/cli_to_storage_integration.rs"
 
 [features]
 # Pass-through to hkask-wallet for chain port selection
-solana = ["hkask-wallet/solana"]
 hedera = ["hkask-wallet/hedera"]
 hinkal = ["hkask-wallet/hinkal"]

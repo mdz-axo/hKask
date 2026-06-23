@@ -4,7 +4,7 @@
 
 use chrono::{DateTime, Utc};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct FederationHealthModel {
     latency_window: Vec<u64>,
     expected_merge_frequency: f64,
@@ -14,12 +14,7 @@ pub struct FederationHealthModel {
 
 impl FederationHealthModel {
     pub fn new() -> Self {
-        Self {
-            latency_window: Vec::new(),
-            expected_merge_frequency: 0.0,
-            expected_member_count: 0,
-            last_updated: Utc::now(),
-        }
+        Self::default()
     }
 
     pub fn observe_latency(&mut self, latency_ms: u64) {

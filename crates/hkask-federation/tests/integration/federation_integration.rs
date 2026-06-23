@@ -14,7 +14,7 @@ use hkask_ports::federation::{
 /// after a sync cycle. This is the fundamental "convergence" property.
 #[tokio::test(flavor = "multi_thread")]
 async fn two_replicas_converge_on_same_fact() {
-    let shared = InMemoryFederationTransport::new();
+    let shared = InMemoryFederationTransport::new_shared();
     let transport_a = Arc::new(InMemoryFederationTransport::for_replica(
         &shared,
         "alpha".into(),
@@ -66,7 +66,7 @@ async fn divergent_facts_both_retained() {
 /// Verify that partitioning prevents message delivery.
 #[tokio::test(flavor = "multi_thread")]
 async fn partition_prevents_message_delivery() {
-    let shared = InMemoryFederationTransport::new();
+    let shared = InMemoryFederationTransport::new_shared();
     let transport_a = InMemoryFederationTransport::for_replica(&shared, "alpha".into());
     let transport_b = InMemoryFederationTransport::for_replica(&shared, "beta".into());
 

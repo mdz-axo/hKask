@@ -812,7 +812,7 @@ pub enum WalletAction {
     },
     /// Show or derive a deposit address for receiving USDC
     DepositAddress {
-        /// Blockchain network (hinkal, solana, or hedera). Defaults to hinkal.
+        /// Blockchain network (hinkal or hedera). Defaults to hinkal.
         #[arg(short, long)]
         chain: Option<String>,
         /// Use shielded/privacy mode (default behavior).
@@ -827,7 +827,7 @@ pub enum WalletAction {
     },
     /// Generate a one-time deposit reference for shielded deposits
     DepositReference {
-        /// Blockchain network (hinkal, solana, or hedera)
+        /// Blockchain network (hinkal or hedera)
         #[arg(short, long)]
         chain: String,
         /// Wallet ID (UUID). Defaults to system wallet if omitted.
@@ -850,7 +850,7 @@ pub enum WalletAction {
     },
     /// Estimate current network withdrawal fee for a chain
     Fee {
-        /// Blockchain network (hinkal, solana, or hedera). Defaults to hinkal.
+        /// Blockchain network (hinkal or hedera). Defaults to hinkal.
         #[arg(short, long)]
         chain: Option<String>,
     },
@@ -858,10 +858,10 @@ pub enum WalletAction {
     Withdraw {
         /// Amount in rJoules to withdraw
         amount_rj: u64,
-        /// Destination address (Solana base58 or Hedera 0.0.XXXXX)
+        /// Destination address (Hedera 0.0.XXXXX)
         #[arg(short, long)]
         to: String,
-        /// Blockchain network (hinkal, solana, or hedera). Defaults to hinkal.
+        /// Blockchain network (hinkal or hedera). Defaults to hinkal.
         #[arg(short, long)]
         chain: Option<String>,
         /// Use shielded/privacy mode (default behavior).

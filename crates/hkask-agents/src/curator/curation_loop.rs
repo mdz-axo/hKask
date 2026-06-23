@@ -16,12 +16,12 @@
 //! formats them for human operators.
 
 use chrono::Utc;
-use hkask_types::curator::{CuratorDirective, CuratorHandle};
 use hkask_cns::types::loops::{
     CurationInput, Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 use hkask_memory::ConsolidationBridge;
 use hkask_ports::ConsolidationRequest;
+use hkask_types::curator::{CuratorDirective, CuratorHandle};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{RwLock, mpsc};

@@ -235,8 +235,7 @@ impl HederaPort {
     ///
     /// Hedera account IDs are in the format `shard.realm.num`.
     /// For deposit addresses, we use the treasury account directly —
-    /// Hedera doesn't have PDAs like Solana. Multiple indices can be
-    /// supported by creating sub-accounts or using memo fields.
+    /// multiple indices can be supported by creating sub-accounts or using memo fields.
     fn derive_account_id(&self, _index: u64) -> String {
         // For now, all deposits go to the treasury account directly.
         // Multi-account derivation (using HKDF from treasury key) is a
@@ -436,7 +435,7 @@ impl ChainPort for HederaPort {
                             && transfer.amount > 0
                             && transfer.token_id.as_deref() == Some(&self.usdc_token)
                         {
-                            // USDC has 6 decimals on Hedera (same as Solana)
+                            // USDC has 6 decimals on Hedera.
                             // Mirror node returns amounts in token base units for HTS tokens.
                             // For USDC with 6 decimals, amount is in micro-USDC.
                             let amount_usdc_micro = transfer.amount as u64;

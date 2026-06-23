@@ -15,7 +15,7 @@
 //! # Self-custody `[OUGHT-DECL]` (P1 — User Sovereignty)
 //! hKask derives treasury keys from the user's master key via HKDF. No third
 //! party holds the keys. No custodial service. The user controls their funds
-//! at all times. Chain ports (`solana.rs`, `hedera.rs`) interact directly with
+//! at all times. Chain ports (`hedera.rs`) interact directly with
 //! blockchain RPC endpoints — no intermediary API.
 //!
 //! # Security `[OUGHT-DECL]`
@@ -32,7 +32,7 @@
 //! - `manager.rs` — `WalletManager` + deposit reference logic
 //! - `issuer.rs` — `ApiKeyIssuer` + `ApiKeyMaterial`
 //! - `price_feed.rs` — `PriceFeed` trait + fee estimation
-//! - `solana.rs` — `SolanaPort` (feature-gated: "solana")
+//! - `solana.rs` — `SolanaPort` (feature-gated: "solana") — REMOVED (Hedera-only)
 //! - `hedera.rs` — `HederaPort` (feature-gated: "hedera")
 //! - `hinkal.rs` — `HinkalPort` (feature-gated: "hinkal")
 
@@ -44,8 +44,7 @@ pub mod privacy;
 pub mod signing;
 pub mod types;
 
-#[cfg(feature = "solana")]
-pub mod solana;
+// pub mod solana;  // REMOVED — focusing on Hedera
 
 #[cfg(feature = "hedera")]
 pub mod hedera;

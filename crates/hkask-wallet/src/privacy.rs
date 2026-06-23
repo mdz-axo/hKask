@@ -23,7 +23,7 @@ pub struct ShieldedTransfer {
     pub to_shielded: String,
     /// Amount in micro-USDC (1 = 0.000001 USDC)
     pub amount_usdc_micro: u64,
-    /// Settlement chain (e.g., Solana for Hinkal)
+    /// Settlement chain (e.g., Hedera for Hinkal)
     pub chain: ChainId,
     /// Deposit reference memo (if provided)
     pub memo: Option<String>,
