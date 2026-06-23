@@ -562,9 +562,6 @@ impl Workspace {
             WindowKind::CnsMonitor,
             WindowKind::Pods,
             WindowKind::Wallet,
-            WindowKind::Memory,
-            WindowKind::Kanban,
-            WindowKind::Companies,
             WindowKind::Registry,
             WindowKind::Backup,
             WindowKind::Curator,
@@ -586,9 +583,6 @@ impl Workspace {
             WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(new_id, bridge)),
             WindowKind::Pods => Box::new(PodsWindow::new(new_id, bridge)),
             WindowKind::Wallet => Box::new(WalletWindow::new(new_id, bridge)),
-            WindowKind::Memory,
-            WindowKind::Kanban,
-            WindowKind::Companies,
             WindowKind::Registry => Box::new(RegistryWindow::new(new_id, bridge)),
             WindowKind::Backup => {
                 Box::new(crate::windows::backup::BackupWindow::new(new_id, bridge))
