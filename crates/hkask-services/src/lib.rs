@@ -39,7 +39,7 @@ pub use hkask_services_embed::{
     ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
     EmbeddingConfig, Entity, EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,
 };
-pub use hkask_services_inference_svc::{InferenceContext, InferenceService, ModelInfo};
+pub use hkask_services_core::{InferenceContext, InferenceService, ModelInfo};
 pub use hkask_services_kanban::{KanbanError, KanbanService, UnjamFix, UnjamItem};
 pub use hkask_services_kata::{
     ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,

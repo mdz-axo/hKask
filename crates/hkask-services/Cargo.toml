@@ -20,7 +20,6 @@ hkask-services-verification = { path = "../hkask-services-verification" }
 hkask-services-skill = { path = "../hkask-services-skill" }
 hkask-services-lifecycle = { path = "../hkask-services-lifecycle" }
 hkask-services-sovereignty = { path = "../hkask-services-sovereignty" }
-hkask-services-inference-svc = { path = "../hkask-services-inference-svc" }
 hkask-services-daemon = { path = "../hkask-services-daemon" }
 hkask-services-context = { path = "../hkask-services-context" }
 hkask-types = { path = "../hkask-types" }
@@ -39,7 +38,6 @@ hkask-mcp = { path = "../hkask-mcp" }
 hkask-communication = { path = "../hkask-communication" }
 hkask-improv = { path = "../hkask-improv" }
 hkask-condenser = { path = "../hkask-condenser" }
-hkask-test-harness = { path = "../hkask-test-harness" }
 rusqlite.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

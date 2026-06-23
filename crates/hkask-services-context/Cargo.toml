@@ -9,7 +9,6 @@ description = "hKask context service — AgentService, PerAgentMemory, loop cons
 hkask-services-core = { path = "../hkask-services-core" }
 hkask-services-backup = { path = "../hkask-services-backup" }
 hkask-services-daemon = { path = "../hkask-services-daemon" }
-hkask-services-inference-svc = { path = "../hkask-services-inference-svc" }
 hkask-services-sovereignty = { path = "../hkask-services-sovereignty" }
 hkask-services-wallet = { path = "../hkask-services-wallet" }
 hkask-agents = { path = "../hkask-agents" }
@@ -35,7 +34,6 @@ hkask-communication = { path = "../hkask-communication" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-keystore = { path = "../hkask-keystore" }
 reqwest.workspace = true
-hkask-test-harness = { path = "../hkask-test-harness" }
 rusqlite.workspace = true
 rand.workspace = true
 parking_lot.workspace = true

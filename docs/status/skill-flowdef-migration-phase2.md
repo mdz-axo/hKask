@@ -294,3 +294,37 @@ To remove the final non-FlowDef catalog outlier, skill translation was normalize
   - `translate-skill.j2`
   - `translation-convergence-check.j2`
 - Updated `docs/user-guides/skill-user-guide.md` summary table entry for `skill-translator` to `FlowDef`.
+
+## Phase 7 Consistency Closure (implemented)
+
+### Objective
+
+Resolve remaining skill-model drift discovered during consistency/smell checks and close the primary outlier (`improv`) under the FlowDef+PDCA definition.
+
+### Changes
+
+- Replaced legacy `registry/manifests/improv.yaml` with standardized FlowDef+PDCA structure:
+  - added `functional_role: flowdef`
+  - added explicit `convergence` rails and `convergence_field`
+  - replaced legacy dynamic template dispatch wiring with stable `step_n_result` wiring
+  - added explicit `loop` action
+  - aligned `ocap` capabilities with actual rendered templates
+- Added new convergence template:
+  - `registry/templates/improv/improv-convergence-check.j2`
+- Updated improv template crate manifest registration:
+  - `registry/templates/improv/manifest.yaml`
+
+### Consistency/Smell Check Outcomes
+
+- Skill summary table in `docs/user-guides/skill-user-guide.md` remains consistent:
+  - all listed skills are `FlowDef` except `kata` (`Bundle`) by design.
+- `improv` now includes both:
+  - `functional_role: flowdef`
+  - explicit `action: loop`
+- Dynamic improv template-ref smell removed:
+  - no remaining `template_ref: improv/improv-{{ ... }}` in manifests.
+
+### Validation
+
+- `cargo check -p hkask-templates` ✅
+- `cargo test -p hkask-templates --test yaml_schema_validation` ✅

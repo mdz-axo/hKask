@@ -3,6 +3,7 @@
 use axum::extract::Extension;
 use axum::{Json, extract::Query, extract::State};
 use hkask_services::ServiceError;
+use hkask_types::curation::DataSovereigntyBoundary;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -15,8 +16,8 @@ fn consent_name(value: bool) -> &'static str {
     if value { "required" } else { "open" }
 }
 
-fn parse_data_category(s: &str) -> hkask_services_sovereignty::DataCategory {
-    hkask_services_sovereignty::DataCategory::parse(s)
+fn parse_data_category(s: &str) -> hkask_types::DataCategory {
+    hkask_types::DataCategory::parse(s)
 }
 
 /// expect: "API endpoints enforce OCAP boundaries"
@@ -111,7 +112,7 @@ pub(crate) async fn sovereignty_status(
     tracing::info!(target: "cns.api", operation = "sovereignty_status", "CNS");
     let cm = &state.agent_service.sovereignty();
     let webid_str = auth.webid.to_string();
-    let boundary = hkask_services_sovereignty::DataSovereigntyBoundary::hkask_default();
+    let boundary = DataSovereigntyBoundary::hkask_default();
     let granted = cm.get_granted_categories(&webid_str)?;
 
     Ok(Json(SovereigntyStatusResponse {
@@ -222,7 +223,7 @@ pub(crate) async fn sovereignty_check_access(
     let cat = parse_data_category(cat_str);
     let cat_name = cat.as_str();
     let webid_str = auth.webid.to_string();
-    let boundary = hkask_services_sovereignty::DataSovereigntyBoundary::hkask_default();
+    let boundary = DataSovereigntyBoundary::hkask_default();
     let cm = &state.agent_service.sovereignty();
 
     let class = boundary.classify(&cat);

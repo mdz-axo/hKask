@@ -21,7 +21,7 @@ use hkask_types::PersonaConstraints;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
-use hkask_types::{Confidence, WebID};
+use hkask_types::{Confidence, DataCategory, WebID};
 
 use crate::ServiceError;
 use crate::{InferenceContext, InferenceService};
@@ -435,7 +435,14 @@ impl ChatService {
             .semantic_storage_override
             .clone()
             .unwrap_or_else(|| ctx.memory().1.clone());
-        let semantic_context = Self::recall_semantic(&semantic_port, &req.input, &capability_token);
+        // \[NORMATIVE\] Sovereignty gate (H3/P2): only recall semantic memory when
+        // the owner has granted consent for the category. No consent ⇒ no recall.
+        let semantic_context =
+            if Self::has_memory_consent(ctx, &agent_webid, &DataCategory::SemanticMemory) {
+                Self::recall_semantic(&semantic_port, &req.input, &capability_token)
+            } else {
+                None
+            };
 
         // Compose full prompt with semantic context
         let full_prompt = match semantic_context {
@@ -569,14 +576,24 @@ impl ChatService {
         );
         let _ = ctx.event_sink().persist(&memory_event);
 
-        Self::store_episodic(
-            &prepared.episodic_port,
-            &req.input,
-            &result.text,
-            prepared.agent_webid,
-            &prepared.capability_token,
-            &prepared.agent_name,
-        );
+        // \[NORMATIVE\] Sovereignty gate (H3/P2): only persist the exchange to
+        // episodic (sovereign) memory when the owner has granted consent.
+        if Self::has_memory_consent(ctx, &prepared.agent_webid, &DataCategory::EpisodicMemory) {
+            Self::store_episodic(
+                &prepared.episodic_port,
+                &req.input,
+                &result.text,
+                prepared.agent_webid,
+                &prepared.capability_token,
+                &prepared.agent_name,
+            );
+        } else {
+            tracing::debug!(
+                target: "hkask.chat.memory",
+                agent = %prepared.agent_name,
+                "Episodic store skipped — no episodic-memory consent (P2)"
+            );
+        }
 
         Ok(ChatResponse {
             text: result.text,
@@ -588,6 +605,19 @@ impl ChatService {
             finish_reason: result.finish_reason,
             tool_calls: result.tool_calls,
         })
+    }
+
+    /// Sovereignty gate for chat-path memory access (H3).
+    ///
+    /// The chat orchestration path operates with raw storage ports rather than a
+    /// `PodContext`, so it must apply the same consent gate that
+    /// `PodContext::require_sovereignty` enforces — otherwise sovereign episodic/
+    /// semantic memory would be read/written without affirmative consent (P2).
+    /// Fails closed: no consent ⇒ no sovereign memory access.
+    ///
+    /// \[NORMATIVE\] P1 User Sovereignty / P2 Affirmative Consent.
+    fn has_memory_consent(ctx: &AgentService, owner: &WebID, category: &DataCategory) -> bool {
+        ctx.sovereignty().has_consent(&owner.to_string(), category)
     }
 
     /// Recall semantic memory triples relevant to the input.
@@ -852,6 +882,11 @@ impl ChatService {
         token: &DelegationToken,
         base_input: &str,
     ) -> Option<String> {
+        // \[NORMATIVE\] Sovereignty gate (H3/P2): condensing reads episodic
+        // (sovereign) history — only proceed when the owner has granted consent.
+        if !Self::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory) {
+            return None;
+        }
         let episodes = Self::recall_raw_episodes(
             &req.episodic_storage,
             &req.agent_webid,
@@ -951,17 +986,24 @@ impl ChatService {
             };
 
         // 2. Append recent conversation history from episodic memory.
-        let token = req.capability_checker.grant_registry(
-            DelegationAction::Read,
-            req.system_webid,
-            req.agent_webid,
-        );
-        let history_suffix = Self::recall_recent_turns(
-            &req.episodic_storage,
-            &req.agent_webid,
-            &token,
-            req.context_turns,
-        );
+        // \[NORMATIVE\] Sovereignty gate (H3/P2): only recall episodic (sovereign)
+        // history when the owner has granted consent. No consent ⇒ no history.
+        let history_suffix =
+            if Self::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory) {
+                let token = req.capability_checker.grant_registry(
+                    DelegationAction::Read,
+                    req.system_webid,
+                    req.agent_webid,
+                );
+                Self::recall_recent_turns(
+                    &req.episodic_storage,
+                    &req.agent_webid,
+                    &token,
+                    req.context_turns,
+                )
+            } else {
+                None
+            };
         let mut input_with_context = match history_suffix {
             Some(s) => format!("{}\n\n{}", base_input, s),
             None => base_input.clone(),
