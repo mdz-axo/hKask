@@ -37,7 +37,6 @@ fn err(span: ToolSpanGuard, msg: &str) -> String {
 
 // ── Server ──────────────────────────────────────────────────────────────────
 
-#[allow(dead_code)] // fields read by future CNS/daemon integration
 pub struct KanbanServer {
     pub service: KanbanService,
     pub webid: WebID,
@@ -404,6 +403,16 @@ impl KanbanServer {
                 "crate": proposals[0].crate_name,
             }),
         )
+    }
+}
+
+impl hkask_mcp::server::ToolContext for KanbanServer {
+    fn webid(&self) -> &hkask_types::WebID {
+        &self.webid
+    }
+
+    fn record_tool_outcome(&self, tool: &str, outcome: &str) {
+        hkask_mcp::record_via_daemon(&self.daemon, &self.replicant, tool, outcome);
     }
 }
 

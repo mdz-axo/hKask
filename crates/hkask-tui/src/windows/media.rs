@@ -1,4 +1,7 @@
-//! Media window — browse and manage gallery of media files (images, audio, video).
+//! Media window — image, audio, and video gallery browsing.
+//!
+//! Tab-cycled sections: Gallery, Collections, Recent. Live data from
+//! MediaDataBridge / hkask-mcp-media GalleryStore.
 
 use std::sync::Arc;
 
@@ -9,6 +12,7 @@ use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
+use crate::bridges::MediaDataBridge;
 use crate::repl_bridge::ReplBridge;
 use crate::window::{Window, WindowId, WindowKind};
 
@@ -41,6 +45,7 @@ pub struct MediaWindow {
     section: MediaSection,
     #[allow(dead_code)]
     bridge: Arc<dyn ReplBridge>,
+    media: Option<Arc<dyn MediaDataBridge>>,
 }
 
 impl MediaWindow {
@@ -49,7 +54,13 @@ impl MediaWindow {
             id,
             section: MediaSection::Gallery,
             bridge,
+            media: None,
         }
+    }
+
+    pub fn with_media_bridge(mut self, m: Arc<dyn MediaDataBridge>) -> Self {
+        self.media = Some(m);
+        self
     }
 }
 
@@ -72,32 +83,104 @@ impl Window for MediaWindow {
             )),
             Line::from(""),
         ];
-        match self.section {
-            MediaSection::Gallery => {
-                lines.push(Line::from("  Gallery directory: ~/.config/hkask/gallery/"));
-                lines.push(Line::from(
-                    "  Supported formats: PNG, JPEG, GIF, WebP, WAV, MP3, MP4",
-                ));
-                lines.push(Line::from(
-                    "  Use /listen to capture audio, /talk for TTS output.",
-                ));
+
+        if let Some(ref m) = self.media {
+            let gs = m.gallery_status();
+            match self.section {
+                MediaSection::Gallery => {
+                    if !gs.active {
+                        lines.push(Line::from("  No gallery active."));
+                        lines.push(Line::from("  Use gallery_organize to set up a gallery."));
+                    } else {
+                        lines.push(Line::from(format!(
+                            "  Gallery: {}",
+                            gs.gallery_id.as_deref().unwrap_or("-")
+                        )));
+                        lines.push(Line::from(format!("  Images: {}", gs.image_count)));
+                        if let Some(ref root) = gs.root_path {
+                            lines.push(Line::from(format!("  Root:   {}", root)));
+                        }
+                        lines.push(Line::from(""));
+                        lines.push(Line::from(
+                            "  Tools: gallery_search, gallery_find_similar, gallery_timeline",
+                        ));
+                    }
+                }
+                MediaSection::Collections => {
+                    let images = m.recent_images(12);
+                    lines.push(Line::from(format!(
+                        "  {} image(s) in gallery",
+                        images.len()
+                    )));
+                    lines.push(Line::from(""));
+                    for img in &images {
+                        let tags = if img.tags.is_empty() {
+                            String::new()
+                        } else {
+                            format!("  [{}]", img.tags.join(", "))
+                        };
+                        lines.push(Line::from(format!(
+                            "  [{}] {}  {}×{} {}",
+                            img.index, img.path, img.width, img.height, tags
+                        )));
+                    }
+                }
+                MediaSection::Recent => {
+                    let images = m.recent_images(8);
+                    lines.push(Line::from(format!(
+                        "  {} most recent image(s)",
+                        images.len()
+                    )));
+                    lines.push(Line::from(""));
+                    // Collect owned image data before pushing
+                    let image_data: Vec<(String, u32, u32, String)> = images
+                        .iter()
+                        .map(|img| {
+                            (
+                                img.path.to_string(),
+                                img.width,
+                                img.height,
+                                img.format.clone(),
+                            )
+                        })
+                        .collect();
+                    for (path, width, height, format) in &image_data {
+                        lines.push(Line::from(vec![
+                            Span::raw("  📷 "),
+                            Span::styled(path.clone(), Style::default().fg(Color::Cyan)),
+                            Span::styled(
+                                format!("  {}×{}  {}", width, height, format),
+                                Style::default().fg(Color::DarkGray),
+                            ),
+                        ]));
+                    }
+                }
             }
-            MediaSection::Collections => {
-                lines.push(Line::from("  Collections group related media files."));
-                lines.push(Line::from("  Create collections via the media MCP server."));
-                lines.push(Line::from(
-                    "  Use `kask mcp start media` to enable media tools.",
-                ));
-            }
-            MediaSection::Recent => {
-                lines.push(Line::from("  Recently generated images appear here."));
-                lines.push(Line::from("  Recent audio recordings and transcripts."));
-                lines.push(Line::from("  Recent TTS outputs from /talk sessions."));
+        } else {
+            match self.section {
+                MediaSection::Gallery => {
+                    lines.push(Line::from(
+                        "  Gallery organizes images for browsing and search.",
+                    ));
+                    lines.push(Line::from("  Use gallery_organize to set up a gallery."));
+                    lines.push(Line::from(
+                        "  Auto-analyzes faces, objects, colors, composition.",
+                    ));
+                }
+                MediaSection::Collections => {
+                    lines.push(Line::from("  Browse images by tag, face, or timeline."));
+                    lines.push(Line::from("  Use gallery_search to find tagged images."));
+                    lines.push(Line::from("  Use gallery_timeline for EXIF-date browsing."));
+                }
+                MediaSection::Recent => {
+                    lines.push(Line::from("  Most recently added images."));
+                    lines.push(Line::from("  Use gallery_refresh to rescan."));
+                }
             }
         }
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
-            "  Full media management via media MCP server and /listen /talk commands.",
+            "  Media MCP server: generate_image, describe_image, video_*, audio_*. 28 tools total.",
             Style::default().fg(Color::DarkGray),
         )));
         f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);

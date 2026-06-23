@@ -15,8 +15,8 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 use uuid::Uuid;
 
 use crate::bridges::{
-    BackupDataBridge, ConfigDataBridge, KanbanDataBridge, MemoryDataBridge, RegistryDataBridge,
-    WalletDataBridge,
+    BackupDataBridge, ConfigDataBridge, KanbanDataBridge, MatrixDataBridge, MediaDataBridge,
+    MemoryDataBridge, RegistryDataBridge, TrainingDataBridge, WalletDataBridge,
 };
 use crate::keybindings::{CHAT_BINDINGS, GLOBAL_BINDINGS};
 use crate::repl_bridge::ReplBridge;
@@ -277,6 +277,9 @@ pub struct Workspace {
     registry_bridge: Option<Arc<dyn RegistryDataBridge>>,
     memory_bridge: Option<Arc<dyn MemoryDataBridge>>,
     kanban_bridge: Option<Arc<dyn KanbanDataBridge>>,
+    matrix_bridge: Option<Arc<dyn MatrixDataBridge>>,
+    media_bridge: Option<Arc<dyn MediaDataBridge>>,
+    training_bridge: Option<Arc<dyn TrainingDataBridge>>,
     status_bar: StatusBar,
     sidebar_open: bool,
     help_visible: bool,
@@ -338,6 +341,9 @@ impl Workspace {
             registry_bridge: None,
             memory_bridge: None,
             kanban_bridge: None,
+            matrix_bridge: None,
+            media_bridge: None,
+            training_bridge: None,
             status_bar,
             sidebar_open: false,
             help_visible: false,
@@ -373,6 +379,21 @@ impl Workspace {
 
     pub fn with_kanban_bridge(&mut self, kanban: Arc<dyn KanbanDataBridge>) -> &mut Self {
         self.kanban_bridge = Some(kanban);
+        self
+    }
+
+    pub fn with_matrix_bridge(&mut self, matrix: Arc<dyn MatrixDataBridge>) -> &mut Self {
+        self.matrix_bridge = Some(matrix);
+        self
+    }
+
+    pub fn with_media_bridge(&mut self, media: Arc<dyn MediaDataBridge>) -> &mut Self {
+        self.media_bridge = Some(media);
+        self
+    }
+
+    pub fn with_training_bridge(&mut self, training: Arc<dyn TrainingDataBridge>) -> &mut Self {
+        self.training_bridge = Some(training);
         self
     }
 
@@ -647,6 +668,9 @@ impl Workspace {
         let rb = self.registry_bridge.clone();
         let mb = self.memory_bridge.clone();
         let kb = self.kanban_bridge.clone();
+        let mxb = self.matrix_bridge.clone();
+        let mdb = self.media_bridge.clone();
+        let tb = self.training_bridge.clone();
         let new_win: Box<dyn Window> = match kind {
             WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(new_id, bridge)),
             WindowKind::Pods => Box::new(PodsWindow::new(new_id, bridge)),
@@ -681,8 +705,20 @@ impl Workspace {
             }
             WindowKind::Terminal => Box::new(TerminalWindow::new(new_id, bridge)),
             WindowKind::Editor => Box::new(EditorWindow::new(new_id, bridge)),
-            WindowKind::Training => Box::new(TrainingWindow::new(new_id, bridge)),
-            WindowKind::Media => Box::new(MediaWindow::new(new_id, bridge)),
+            WindowKind::Training => {
+                let mut w = TrainingWindow::new(new_id, bridge);
+                if let Some(b) = tb {
+                    w = w.with_training_bridge(b);
+                }
+                Box::new(w)
+            }
+            WindowKind::Media => {
+                let mut w = MediaWindow::new(new_id, bridge);
+                if let Some(b) = mdb {
+                    w = w.with_media_bridge(b);
+                }
+                Box::new(w)
+            }
             WindowKind::Skills => {
                 let mut w = SkillsWindow::new(new_id, bridge);
                 if let Some(b) = rb {
@@ -690,7 +726,13 @@ impl Workspace {
                 }
                 Box::new(w)
             }
-            WindowKind::Matrix => Box::new(MatrixWindow::new(new_id, bridge)),
+            WindowKind::Matrix => {
+                let mut w = MatrixWindow::new(new_id, bridge);
+                if let Some(b) = mxb {
+                    w = w.with_matrix_bridge(b);
+                }
+                Box::new(w)
+            }
             WindowKind::Memory => {
                 let mut w = MemoryWindow::new(new_id, bridge);
                 if let Some(b) = mb {

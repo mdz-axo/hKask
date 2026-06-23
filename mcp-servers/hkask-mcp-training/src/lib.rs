@@ -244,6 +244,16 @@ impl TrainingServer {
     }
 }
 
+impl hkask_mcp::server::ToolContext for TrainingServer {
+    fn webid(&self) -> &WebID {
+        &self.webid
+    }
+
+    fn record_tool_outcome(&self, tool: &str, outcome: &str) {
+        hkask_mcp::record_via_daemon(&self.daemon, &self.replicant, tool, outcome);
+    }
+}
+
 // ── Tools ────────────────────────────────────────────────────────────────
 
 #[tool_router(server_handler)]

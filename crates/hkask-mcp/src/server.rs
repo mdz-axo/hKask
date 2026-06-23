@@ -20,6 +20,7 @@
 //! ```
 
 use hkask_types::McpErrorKind;
+use hkask_types::time::now_rfc3339;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -368,6 +369,103 @@ impl Drop for ToolSpanGuard {
                 Some(&self.caller),
             );
         }
+    }
+}
+
+// ── Framework-level tool execution ──────────────────────────────────────
+
+/// Trait for MCP server types that want framework-level tool execution.
+///
+/// Implement this on your server struct to enable `execute_tool()`, which
+/// handles CNS span emission, error serialization, and semantic memory
+/// recording automatically.
+///
+/// Override `record_tool_outcome` to wire daemon-based experience recording.
+/// The default implementation emits a CNS warning so the Curator knows memory
+/// recording is not configured.
+pub trait ToolContext {
+    /// The WebID of the caller serving this tool (for CNS span attribution).
+    fn webid(&self) -> &hkask_types::WebID;
+
+    /// Record a tool outcome to semantic memory via the daemon.
+    /// Override this to wire daemon-based experience recording per Pattern D.
+    /// Default: emits a CNS warning — memory not configured for this server.
+    fn record_tool_outcome(&self, tool: &str, outcome: &str) {
+        tracing::warn!(target: "cns.memory", tool = %tool, outcome = %outcome,
+            "Tool outcome not persisted — ToolContext::record_tool_outcome not overridden");
+    }
+}
+
+/// Execute a tool with automatic CNS span emission, error serialization,
+/// and optional semantic memory recording via [`ToolContext`].
+///
+/// The tool's business logic goes in the `fut` async block, which returns
+/// `Result<Value, McpToolError>`. The framework handles everything else.
+///
+/// # Example
+/// ```ignore
+/// #[tool(description = "...")]
+/// async fn my_tool(&self, params: Parameters<MyRequest>) -> String {
+///     execute_tool(self, "my_tool", async {
+///         // validation...
+///         // business logic...
+///         Ok(serde_json::json!({"result": "success"}))
+///     }).await
+/// }
+/// ```
+pub async fn execute_tool<C: ToolContext>(
+    ctx: &C,
+    tool_name: &str,
+    fut: impl std::future::Future<Output = Result<Value, McpToolError>>,
+) -> String {
+    let span = ToolSpanGuard::new(tool_name, ctx.webid());
+    let result = fut.await;
+    match &result {
+        Ok(_) => ctx.record_tool_outcome(tool_name, "success"),
+        Err(_) => ctx.record_tool_outcome(tool_name, "error"),
+    }
+    span.finish(result)
+}
+
+/// Record a tool outcome to the daemon for semantic memory encoding.
+///
+/// Standard fire-and-forget pattern used by all MCP servers that have
+/// daemon access. Call this from your `ToolContext::record_tool_outcome`
+/// implementation.
+pub fn record_via_daemon(
+    daemon: &Option<crate::daemon::DaemonClient>,
+    replicant: &str,
+    tool: &str,
+    outcome: &str,
+) {
+    if let Some(daemon) = daemon.as_ref() {
+        let value = serde_json::json!({
+            "tool": tool,
+            "outcome": outcome,
+            "timestamp": now_rfc3339(),
+        });
+        let daemon = daemon.clone();
+        let replicant = replicant.to_string();
+        let tool_name = tool.to_string();
+        let outcome = outcome.to_string();
+        tokio::spawn(async move {
+            match daemon
+                .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                .await
+            {
+                Ok(crate::daemon::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                    tracing::debug!(target: "cns.memory", tool = %tool_name, "Experience stored via daemon");
+                }
+                Ok(other) => {
+                    tracing::warn!(target: "cns.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                }
+                Err(e) => {
+                    tracing::warn!(target: "cns.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                }
+            }
+        });
+    } else {
+        tracing::warn!(target: "cns.memory", tool = %tool, outcome = %outcome, "Experience not persisted — daemon unavailable");
     }
 }
 

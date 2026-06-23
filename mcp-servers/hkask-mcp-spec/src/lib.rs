@@ -397,6 +397,16 @@ impl SpecServer {
     }
 }
 
+impl hkask_mcp::server::ToolContext for SpecServer {
+    fn webid(&self) -> &WebID {
+        &self.webid
+    }
+
+    fn record_tool_outcome(&self, tool: &str, outcome: &str) {
+        hkask_mcp::record_via_daemon(&self.daemon, &self.replicant, tool, outcome);
+    }
+}
+
 /// Serialize response and convert to ok_json.
 /// Returns an internal error span entry if serialization fails (e.g. NaN/Inf in an f64 field).
 fn respond<T: serde::Serialize>(span: ToolSpanGuard, resp: &T) -> String {

@@ -220,6 +220,16 @@ impl SkillServer {
     }
 }
 
+impl hkask_mcp::server::ToolContext for SkillServer {
+    fn webid(&self) -> &hkask_types::WebID {
+        &self.webid
+    }
+
+    fn record_tool_outcome(&self, tool: &str, outcome: &str) {
+        hkask_mcp::record_via_daemon(&self.daemon, &self.replicant, tool, outcome);
+    }
+}
+
 // ── Server runner ─────────────────────────────────────────────────────────────
 
 pub async fn run(

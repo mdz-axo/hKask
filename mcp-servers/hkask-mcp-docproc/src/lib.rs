@@ -164,6 +164,16 @@ impl DocProcServer {
     }
 }
 
+impl hkask_mcp::server::ToolContext for DocProcServer {
+    fn webid(&self) -> &WebID {
+        &self.webid
+    }
+
+    fn record_tool_outcome(&self, tool: &str, outcome: &str) {
+        hkask_mcp::record_via_daemon(&self.daemon, &self.replicant, tool, outcome);
+    }
+}
+
 // ── CNS Observer ───────────────────────────────────────────────────────────
 
 /// CNS observer that implements the real `hkask_ports::CnsObserver` trait.

@@ -38,14 +38,24 @@ use std::sync::Arc;
 
 pub struct CommunicationServer {
     pub webid: WebID,
+    pub replicant: String,
+    pub daemon: Option<hkask_mcp::DaemonClient>,
     pub matrix: Arc<MatrixTransport>,
     pub registry: Arc<AgentRegistry>,
 }
 
 impl CommunicationServer {
-    pub fn new(webid: WebID, matrix: Arc<MatrixTransport>, registry: Arc<AgentRegistry>) -> Self {
+    pub fn new(
+        webid: WebID,
+        replicant: String,
+        daemon: Option<hkask_mcp::DaemonClient>,
+        matrix: Arc<MatrixTransport>,
+        registry: Arc<AgentRegistry>,
+    ) -> Self {
         Self {
             webid,
+            replicant,
+            daemon,
             matrix,
             registry,
         }
@@ -335,12 +345,22 @@ impl CommunicationServer {
     }
 }
 
+impl hkask_mcp::server::ToolContext for CommunicationServer {
+    fn webid(&self) -> &hkask_types::WebID {
+        &self.webid
+    }
+
+    fn record_tool_outcome(&self, tool: &str, outcome: &str) {
+        hkask_mcp::record_via_daemon(&self.daemon, &self.replicant, tool, outcome);
+    }
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────
 
 /// Run the communication MCP server (used by binary target).
 pub async fn run(
-    _replicant: String,
-    _daemon_client: Option<hkask_mcp::DaemonClient>,
+    replicant: String,
+    daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     let homeserver_url =
         std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
@@ -373,6 +393,8 @@ pub async fn run(
         |ctx: ServerContext| {
             Ok(CommunicationServer::new(
                 ctx.webid,
+                replicant.clone(),
+                daemon_client.clone(),
                 Arc::clone(&matrix),
                 Arc::clone(&registry),
             ))

@@ -26,6 +26,15 @@
 //! session.run()?;
 //! ```
 
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::useless_format)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(dead_code)]
+#![allow(clippy::needless_borrow)]
+
 mod keybindings;
 mod repl_bridge;
 mod splash;
@@ -45,8 +54,8 @@ use std::io::Stdout;
 use std::time::Duration;
 
 use bridges::{
-    BackupDataBridge, ConfigDataBridge, KanbanDataBridge, MemoryDataBridge, RegistryDataBridge,
-    WalletDataBridge,
+    BackupDataBridge, ConfigDataBridge, KanbanDataBridge, MatrixDataBridge, MediaDataBridge,
+    MemoryDataBridge, RegistryDataBridge, TrainingDataBridge, WalletDataBridge,
 };
 pub use repl_bridge::{InferenceState, ReplBridge, TurnResult};
 pub use splash::SplashScreen;
@@ -119,6 +128,24 @@ impl TuiSession {
 
     pub fn with_kanban_bridge(mut self, kanban: std::sync::Arc<dyn KanbanDataBridge>) -> Self {
         self.workspace.with_kanban_bridge(kanban);
+        self
+    }
+
+    pub fn with_matrix_bridge(mut self, matrix: std::sync::Arc<dyn MatrixDataBridge>) -> Self {
+        self.workspace.with_matrix_bridge(matrix);
+        self
+    }
+
+    pub fn with_media_bridge(mut self, media: std::sync::Arc<dyn MediaDataBridge>) -> Self {
+        self.workspace.with_media_bridge(media);
+        self
+    }
+
+    pub fn with_training_bridge(
+        mut self,
+        training: std::sync::Arc<dyn TrainingDataBridge>,
+    ) -> Self {
+        self.workspace.with_training_bridge(training);
         self
     }
 

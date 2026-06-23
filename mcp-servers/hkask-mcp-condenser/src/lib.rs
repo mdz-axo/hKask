@@ -118,6 +118,16 @@ impl CondenserServer {
     }
 }
 
+impl hkask_mcp::server::ToolContext for CondenserServer {
+    fn webid(&self) -> &WebID {
+        &self.webid
+    }
+
+    fn record_tool_outcome(&self, tool: &str, outcome: &str) {
+        hkask_mcp::record_via_daemon(&self.daemon, &self.replicant, tool, outcome);
+    }
+}
+
 #[tool_router(server_handler)]
 impl CondenserServer {
     #[tool(description = "Liveness and profile info")]

@@ -430,12 +430,17 @@ impl ChatService {
             agent_webid,
         );
 
-        // Recall relevant knowledge from semantic memory
+        // Recall relevant knowledge from semantic memory (third-person facts)
         let semantic_port: Arc<dyn SemanticStoragePort> = req
             .semantic_storage_override
             .clone()
             .unwrap_or_else(|| ctx.memory().1.clone());
-        // \[NORMATIVE\] Sovereignty gate (H3/P2): only recall semantic memory when
+        let episodic_port: Arc<dyn EpisodicStoragePort> = req
+            .episodic_storage_override
+            .clone()
+            .unwrap_or_else(|| ctx.memory().0.clone());
+
+        // \[NORMATIVE\] Sovereignty gate (H3/P2): only recall memory when
         // the owner has granted consent for the category. No consent ⇒ no recall.
         let semantic_context =
             if Self::has_memory_consent(ctx, &agent_webid, &DataCategory::SemanticMemory) {
@@ -443,23 +448,33 @@ impl ChatService {
             } else {
                 None
             };
+        let episodic_context =
+            if Self::has_memory_consent(ctx, &agent_webid, &DataCategory::EpisodicMemory) {
+                Self::recall_episodic(&episodic_port, &req.input, &agent_webid, &capability_token)
+            } else {
+                None
+            };
 
-        // Compose full prompt with semantic context
-        let full_prompt = match semantic_context {
+        // Merge semantic (third-person) and episodic (first-person) memory.
+        // Both are recall_* results that mirror each other in structure —
+        // concatenated into a single "Relevant Memory" section sorted by salience.
+        let memory_context = match (semantic_context, episodic_context) {
+            (Some(s), Some(e)) => Some(format!("{}\n\n{}", s, e)),
+            (Some(s), None) => Some(s),
+            (None, Some(e)) => Some(e),
+            (None, None) => None,
+        };
+
+        // Compose full prompt with merged memory context
+        let full_prompt = match memory_context {
             Some(ref ctx_text) => {
                 format!(
-                    "{}\n\n## Relevant Knowledge\n{}\n\nUser: {}",
+                    "{}\n\n## Relevant Memory\n{}\n\nUser: {}",
                     system_prompt, ctx_text, req.input
                 )
             }
             None => format!("{}\n\nUser: {}", system_prompt, req.input),
         };
-
-        // Resolve episodic storage port
-        let episodic_port: Arc<dyn EpisodicStoragePort> = req
-            .episodic_storage_override
-            .clone()
-            .unwrap_or_else(|| ctx.memory().0.clone());
 
         Ok(PreparedChat {
             prompt: full_prompt,
@@ -648,6 +663,68 @@ impl ChatService {
             None
         } else {
             Some(context.join("\n"))
+        }
+    }
+
+    /// Recall episodic memories relevant to the input, sorted by salience.
+    ///
+    /// Mirrors `recall_semantic`: both return `Option<String>` of concatenated
+    /// memory values, both take top N results, both are called together in
+    /// `prepare_chat` and merged before injection into context.
+    ///
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// pre:  episodic_port must be initialized; input must be non-empty; agent_webid must be valid; token must be valid
+    /// post: returns Some(String) of formatted episodes sorted by relevance to input; None if no episodes or recall fails
+    pub fn recall_episodic(
+        episodic_port: &Arc<dyn EpisodicStoragePort>,
+        input: &str,
+        agent_webid: &WebID,
+        token: &DelegationToken,
+    ) -> Option<String> {
+        let request = RecallRequest::episodic("chatted", *agent_webid, token.clone());
+        let episodes: Vec<RecalledEpisode> = match episodic_port.recall_episodic(&request) {
+            Ok(v) if !v.is_empty() => v,
+            _ => return None,
+        };
+
+        // Build scored entries: (salience_score, formatted_text)
+        let input_lower = input.to_lowercase();
+        let keywords: Vec<&str> = input_lower
+            .split_whitespace()
+            .filter(|w| w.len() > 2)
+            .collect();
+
+        let mut scored: Vec<(usize, String)> = episodes
+            .iter()
+            .filter_map(|e| {
+                let v = e.value.as_object()?;
+                let ui = v.get("user_input")?.as_str()?;
+                let ar = v.get("agent_response")?.as_str()?;
+                let combined = format!("{} {}", ui.to_lowercase(), ar.to_lowercase());
+                let score = keywords.iter().filter(|kw| combined.contains(*kw)).count();
+                Some((
+                    score,
+                    format!(
+                        "User: {}
+Agent: {}",
+                        ui, ar
+                    ),
+                ))
+            })
+            .collect();
+
+        // Sort descending by salience score, take top 10
+        scored.sort_by(|a, b| b.0.cmp(&a.0));
+        let top: Vec<String> = scored.into_iter().take(10).map(|(_, text)| text).collect();
+
+        if top.is_empty() {
+            None
+        } else {
+            Some(top.join(
+                "
+
+",
+            ))
         }
     }
 
