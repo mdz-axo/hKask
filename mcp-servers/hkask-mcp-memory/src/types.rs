@@ -22,6 +22,35 @@ pub struct RecallRequest {
     pub entity: String,
 }
 
+/// Episodic recall with optional context for salience scoring.
+/// Mirrors `ChatService::recall_episodic` — takes user input as context
+/// and scores recalled episodes by keyword overlap.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RecallContextRequest {
+    /// Entity to recall episodes for (e.g. "chatted" for chat history).
+    pub entity: String,
+    /// Text to score salience against. Episodes are ranked by keyword overlap
+    /// with this context string.
+    pub context: Option<String>,
+    /// Maximum number of episodes to return (default: 10).
+    pub limit: Option<usize>,
+}
+
+/// Paired memory recall — returns both semantic (third-person facts) and
+/// episodic (first-person experiences) for an entity in a single call.
+/// Episodic results are ranked by salience when context is provided.
+/// Mirrors the dual-recall pattern in ChatService::prepare_chat.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PairedRecallRequest {
+    /// Entity to recall memory for (e.g. "chatted", "skill:X", "project:Y").
+    pub entity: String,
+    /// Optional context for episodic salience scoring.
+    /// Episodes are ranked by keyword overlap with this string.
+    pub context: Option<String>,
+    /// Maximum results per recall type (default: 10 each).
+    pub limit: Option<usize>,
+}
+
 // ── Episodic-specific request types ─────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]

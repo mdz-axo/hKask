@@ -416,14 +416,11 @@ async fn generate_narrative(
         }
     };
 
-    // Query recent episodic memories for this session
-    let episodes = match ctx.recall_episodic("mcp_session") {
-        Ok(eps) => eps,
-        Err(e) => {
-            tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, error = %e, "Failed to recall episodic memories");
-            return;
-        }
-    };
+    // Paired memory recall — both episodic (first-person) and semantic (third-person)
+    // memories for the mcp_session entity, mirroring the dual-recall circuit.
+    let memory = ctx.recall_memory("mcp_session");
+    let episodes = memory.episodic;
+    let _semantic = memory.semantic; // available for enriched narrative context
 
     if episodes.is_empty() {
         return;

@@ -447,7 +447,7 @@ pub fn record_via_daemon(
         let daemon = daemon.clone();
         let replicant = replicant.to_string();
         let tool_name = tool.to_string();
-        let outcome = outcome.to_string();
+        let _outcome = outcome.to_string();
         tokio::spawn(async move {
             match daemon
                 .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))

@@ -65,6 +65,9 @@ pub use hkask_services_wallet::WalletService;
 
 pub mod bundle;
 pub mod chat;
+pub mod memory;
+pub use memory::MemoryService;
+
 pub mod cns;
 pub mod compose;
 pub mod contacts;

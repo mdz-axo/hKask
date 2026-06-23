@@ -30,6 +30,16 @@ use crate::ports::{
     SemanticStoragePort, StorageRequest,
 };
 
+/// Result of a paired memory recall — semantic (third-person) and
+/// episodic (first-person) memories for a single query.
+///
+/// Mirrors the dual-recall circuit in ChatService::prepare_chat where
+/// both recall types are called together and merged into context.
+pub struct MemoryContext {
+    pub semantic: Vec<RecalledSemantic>,
+    pub episodic: Vec<RecalledEpisode>,
+}
+
 /// PodContext — Runtime context for an active pod
 ///
 /// Provides access to all ports (inference, memory, MCP, CNS) for a specific pod.
@@ -224,6 +234,35 @@ impl PodContext {
         self.episodic_storage
             .recall_episodic(&request)
             .map_err(AgentPodError::from)
+    }
+
+    /// Paired memory recall — returns both semantic (third-person) and
+    /// episodic (first-person) results in a single call. Mirrors the dual-recall
+    /// circuit in ChatService::prepare_chat.
+    ///
+    /// Each recall type is independently gated by its own sovereignty consent check.
+    /// Either can fail (returning an empty vec) without failing the whole call —
+    /// the caller always gets whatever was successfully recalled.
+    ///
+    /// \[P5\] Motivating: Essentialism — single entry point for paired memory access.
+    /// pre:  query must be a valid entity string or chatted-keyword
+    /// post: returns MemoryContext with semantic and episodic vecs; empty vecs for consent-denied or failed recalls
+    pub fn recall_memory(&self, query: &str) -> MemoryContext {
+        let semantic = self
+            .recall_semantic(query)
+            .unwrap_or_else(|e| {
+                tracing::debug!(target: "pod.memory", query, error = %e, "Semantic recall failed");
+                vec![]
+            });
+
+        let episodic = self
+            .recall_episodic(query)
+            .unwrap_or_else(|e| {
+                tracing::debug!(target: "pod.memory", query, error = %e, "Episodic recall failed");
+                vec![]
+            });
+
+        MemoryContext { semantic, episodic }
     }
 
     /// Check episodic storage usage for this agent's perspective.

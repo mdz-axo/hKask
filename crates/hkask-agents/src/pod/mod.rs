@@ -83,7 +83,7 @@ use crate::SovereigntyChecker;
 use hkask_templates::TemplateCrateLoader;
 
 pub use active_pods::{ActivePods, PodStatusInfo};
-pub use context::PodContext;
+pub use context::{MemoryContext, PodContext};
 pub use deployment::{
     PerPodCnsRuntime, PerPodStorage, PerPodToolBinding, PodDeployError, PodDeployment, PodFactory,
     PodRegistry,

@@ -1,7 +1,8 @@
 # hKask TUI Specification
 
 **Version:** 0.30.0  
-**Status:** Scaffolded (18 windows defined, core interaction surfaces implemented)  
+**Status:** Implemented (19 windows, 10 with live domain bridges, PTY terminal)
+**last_updated:** 2026-06-23  
 **Framework:** ratatui 0.28 + crossterm 0.28  
 **Crate:** `crates/hkask-tui/`
 
@@ -43,9 +44,21 @@ pub trait Window {
 
 The `ReplBridge` trait decouples the TUI crate from `hkask-cli`. The CLI provides `TuiReplBridge` which wraps `ReplState` behind `Arc<Mutex<>>` and provides:
 - Async inference with spinner + streaming
-- Live CNS alerts, context pressure, gas tracking
-- MCP server enumeration, pod counts
+- Live CNS alerts, context pressure, gas tracking, MCP server enumeration, pod counts
 - Curator daemon routing (P12.1)
+
+**Domain-specific bridges** (9 total, in `crates/hkask-tui/src/bridges/`) provide live service data to scaffolded windows via separate traits:
+- `ConfigDataBridge` → `ReplSettings` (temperature, top_p, tool_loop, gas)
+- `RegistryDataBridge` → `SqliteRegistry` (templates, skills, bundles)
+- `WalletDataBridge` → `WalletService` (rJoule balance, transactions)
+- `MemoryDataBridge` → `EpisodicStoragePort` / `SemanticStoragePort` (usage, consolidation)
+- `KanbanDataBridge` → `KanbanService` (boards, tasks by status)
+- `BackupDataBridge` → `BackupService` (snapshot metadata, config, verify)
+- `MatrixDataBridge` → `MatrixTransport` (connection health, rooms, messages)
+- `MediaDataBridge` → MCP `media/gallery_status` (gallery, recent images)
+- `TrainingDataBridge` → MCP `training/training_list_adapters` (adapters, deployments)
+
+Each bridge accepts `Option<Arc<dyn Trait>>` — windows gracefully degrade to placeholder text when the bridge is `None`. The CLI implements all 9 on `TuiReplBridge` in `crates/hkask-cli/src/repl/tui_bridges.rs`, wired at `run_tui()` via `TuiSession.with_*_bridge()`. Backup, Media, and Training use `rt_handle.block_on()` for async service calls.
 
 ### 1.4 Keybindings
 
@@ -54,7 +67,7 @@ The `ReplBridge` trait decouples the TUI crate from `hkask-cli`. The CLI provide
 | `Ctrl+Q` | Quit |
 | `Ctrl+T` | New tab |
 | `Ctrl+W` | Close tab |
-| `Ctrl+N` | Cycle new window kind (18 kinds) |
+| `Ctrl+N` | Cycle new window kind (19 kinds) |
 | `Ctrl+B` | Toggle sidebar |
 | `Ctrl+H/J/K/L` | Navigate focus |
 | `Ctrl+Shift+H` | Split horizontal |
@@ -70,17 +83,18 @@ The `ReplBridge` trait decouples the TUI crate from `hkask-cli`. The CLI provide
 
 ---
 
-## §2. Window Catalog (18 Windows)
+## §2. Window Catalog (19 Windows)
 
 ### 2.0 Launch Behavior
 
 Default layout on `kask chat --tui`:
 ```
-┌─ Chat ────────────────┐┌─ Curator ──────────────┐
-│ REPL ▸ _               ││ CRTR ▸ _                │
-└────────────────────────┘└────────────────────────┘
+┌─ hKask ───────┐┌─ Chat ────────────────┐┌─ Curator ──────────────┐
+│                ││ REPL ▸ _               ││ CRTR ▸ _                │
+│  [Logo PTY]    │└────────────────────────┘└────────────────────────┘
+└────────────────┘
 ```
-65/35 horizontal split. New windows via `Ctrl+N` cycle, `Ctrl+H/J/K/L` navigate.
+Logo (top 25%) + Chat (bottom 75%) on left, Curator (35%) on right. New windows via `Ctrl+N` cycle.
 
 ---
 
@@ -216,39 +230,32 @@ Persistent (cannot be closed). Opened via `Ctrl+B`.
 ### 2.10 Terminal
 **File:** `windows/terminal.rs`  
 **Kind:** `WindowKind::Terminal`  
-**Status:** Scaffolded (command execution, not full PTY)
+**Status:** PTY-backed interactive shell
 
-Embedded shell command execution. Features:
-- `$` prompt with green styling
-- Command execution via `std::process::Command`
-- Captures stdout and stderr
-- Exit code display
-- Scrollable output history
-
-**Note:** Not a full PTY terminal emulator. For interactive programs, use the system terminal.
+Uses `portable-pty` to spawn bash/fish/powershell. Features:
+- `$` prompt, keystrokes forwarded to child (Enter, arrows, Ctrl+C/D/L, Tab)
+- Background reader thread, output capped at 10,000 lines
+- PageUp/PageDown scrollback, supports interactive programs
 
 ---
 
 ### 2.11 Editor
 **File:** `windows/editor.rs`  
 **Kind:** `WindowKind::Editor`  
-**Status:** Scaffolded
+**Status:** Live — file open/save
 
-Basic text editor for configs, agent YAML, scripts. Features:
-- Line-numbered display
-- Cursor navigation (arrows, Home/End, PgUp/PgDn)
-- Character insert/delete
-- Line break on Enter
-- Backspace joins lines
-- Ctrl+S marks as saved (placeholder)
-- Modified flag tracking
+Line-based editor with filesystem integration. Features:
+- `Ctrl+S` saves to current filename, `Ctrl+O` reloads
+- `with_file(path)` builder, status bar (line/col, modified, filename)
+- Line-numbered display, cursor highlighting, character insert/delete
+- Line break on Enter, Backspace joins lines
 
 ---
 
 ### 2.12 Training
 **File:** `windows/training.rs`  
 **Kind:** `WindowKind::Training`  
-**Status:** Scaffolded
+**Status:** Live — TrainingDataBridge wired
 
 Training session monitor. Displays:
 - Active and completed training sessions
@@ -261,79 +268,73 @@ Training session monitor. Displays:
 ### 2.13 Media
 **File:** `windows/media.rs`  
 **Kind:** `WindowKind::Media`  
-**Status:** Scaffolded
+**Status:** Live — MediaDataBridge (MCP-backed)
 
 Media gallery browser. Tab-cycled sections:
-- **Gallery:** supported formats, directory path
-- **Collections:** group related media files
-- **Recent:** recently generated images, audio, transcripts
+- **Gallery:** active gallery status (image count, root path)
+- **Collections:** recent images with tags and dimensions
+- **Recent:** most recently added images
 
-Integrates with media MCP server and `/listen`/`/talk` commands.
+MCP-backed via `media/gallery_status` and `media/gallery_search` tools.
 
 ---
 
 ### 2.14 Skills
 **File:** `windows/skills.rs`  
 **Kind:** `WindowKind::Skills`  
-**Status:** Scaffolded
+**Status:** Live — RegistryDataBridge wired
 
 Skill corpus browser. Tab-cycled sections:
-- **Installed:** skills from `.agents/skills/` and `registry/` (46 templates)
-- **Available:** registry listing with named entries
-- **Active:** currently active skill bundles
-
-Integrates with `/skill list`, `/skill status`, `/bundle compose/apply`.
+- **Installed:** skills from registry with domain and description
+- **Available:** templates available for installation
+- **Active:** currently active skill bundles with version
 
 ---
 
 ### 2.15 Matrix
 **File:** `windows/matrix.rs`  
 **Kind:** `WindowKind::Matrix`  
-**Status:** Scaffolded
+**Status:** Live — MatrixDataBridge wired (connection health)
 
 Federated messaging via Matrix protocol. Tab-cycled sections:
-- **Rooms:** joined Matrix rooms
-- **Messages:** room message history (E2E encrypted)
-- **Contacts:** directory search, agent invitations
+- **Rooms:** joined rooms with member counts, escalated ⚠ flag
+- **Messages:** recent messages from first room with truncation
+- **Contacts:** connection info, homeserver, room membership
 
-Integrates with `hkask-communication` and `hkask-mcp-communication`.
+Connection status via `MatrixTransport::healthy()` (sync). Room/message listing pending async bridge.
 
 ---
 
 ### 2.16 Memory
 **File:** `windows/memory.rs`  
 **Kind:** `WindowKind::Memory`  
-**Status:** Scaffolded
+**Status:** Live — MemoryDataBridge wired
 
 Agent memory browser. Tab-cycled sections:
-- **Episodic:** private, agent-scoped experiences (per-pod SQLCipher)
-- **Semantic:** shared, public knowledge (CuratorPod SemanticIndex)
-- **Triples:** RDF subject-predicate-object with confidence/visibility/owner
-- **Consolidation:** episodic→semantic triggers and confidence floor
-
-Memory model: ν-events → episodic (private) → semantic (public) → SemanticIndex
+- **Episodic:** usage/budget bar + recent triples (entity·attribute=value)
+- **Semantic:** triple count, low-confidence filtering
+- **Triples:** RDF schema summary (confidence, visibility, owner WebID)
+- **Consolidation:** candidate count, semantic totals, budget display
 
 ---
 
 ### 2.17 Kanban
 **File:** `windows/kanban.rs`  
 **Kind:** `WindowKind::Kanban`  
-**Status:** Scaffolded
+**Status:** Live — KanbanDataBridge wired
 
 Task coordination board. Tab-cycled sections:
-- **Board:** overview of all columns
-- **Backlog:** unassigned tasks
-- **In Progress:** tasks with agent pod assignments
-- **Done:** completed tasks with verification
-
-Integrates with `hkask-services-kanban` and Kata coaching loop.
+- **Board:** board name, status counts (backlog/ready/in_progress/review/done), columns
+- **Backlog:** unassigned tasks with priority coloring (critical→red, medium→yellow)
+- **In Progress:** tasks with agent pod assignments (cyan)
+- **Done:** completed tasks with ✓ (green)
 
 ---
 
 ### 2.18 Companies
 **File:** `windows/companies.rs`  
 **Kind:** `WindowKind::Companies`  
-**Status:** Scaffolded
+**Status:** Scaffolded (deferred — needs hkask-mcp-companies / Firecrawl)
 
 Organization and entity data. Tab-cycled sections:
 - **Search:** company lookup by name/domain/industry
@@ -341,7 +342,19 @@ Organization and entity data. Tab-cycled sections:
 - **People:** key personnel and contacts
 - **Relations:** subsidiaries, competitors, partners
 
-Powered by `hkask-mcp-companies` + Firecrawl integration.
+---
+
+### 2.19 Logo
+**File:** `windows/logo.rs`  
+**Kind:** `WindowKind::Logo`  
+**Status:** Persistent — always present (top-left anchor)
+
+Kask amphora logo rendered at reduced scale (40×30 chars) using half-block
+Unicode characters (`▀ ▄ █`). Features:
+- Rasterized from `assets/kask-logo.svg` (viewBox 400×600) at scale 0.1
+- Shared rendering pipeline with splash screen (`splash.rs` → `LogoCanvas`)
+- Persistent (unclosable), excluded from `Ctrl+N` cycling
+- Bordered with "hKask" title, always present in default layout
 
 ---
 
@@ -372,15 +385,26 @@ MCP-focused windows (Companies, Kanban, Training, Media, Matrix, Research, etc.)
 
 | Layer | Status |
 |-------|--------|
-| Window trait + WindowKind enum (18 variants) | ✅ Complete |
+| Window trait + WindowKind enum (19 variants) | ✅ Complete |
 | SplitNode tree (Leaf/Horizontal/Vertical) | ✅ Complete |
 | Workspace (focus, split, resize, tabs, sidebar, help, close) | ✅ Complete |
 | ReplBridge trait (15 methods) | ✅ Complete |
+| 9 domain-specific bridge traits (config, registry, wallet, memory, kanban, backup, matrix, media, training) | ✅ Complete |
+| CLI bridge implementations (tui_bridges.rs, live on TuiReplBridge) | ✅ Complete |
 | TuiReplBridge (async inference, live CNS/MCP/pods) | ✅ Complete |
 | Status bar (model, gas, CNS, context %, hints) | ✅ Live |
 | Chat window (full inference, streaming, spinner, export) | ✅ Complete |
 | Curator window (P12.1 dual-presence, CNS alerts) | ✅ Live |
 | CNS Monitor, Pods, Sidebar (live bridge data) | ✅ Live |
+| Wallet, Config, Backup (live domain bridges) | ✅ Live |
+| Registry, Skills (live SqliteRegistry data) | ✅ Live |
+| Memory, Kanban (live memory/kanban service data) | ✅ Live |
+| Matrix, Media, Training (MCP-backed bridges) | ✅ Live |
+| Terminal (portable-pty interactive shell) | ✅ Live |
+| Editor (file open/save, Ctrl+S/Ctrl+O) | ✅ Live |
+| Logo (persistent top-left, SVG-rasterized) | ✅ Complete |
+| Companies (deferred — needs hkask-mcp-companies) | ⏸ Scaffolded |
+| Integration tests (43 total: 8 unit + 35 smoke/rendering) | ✅ Complete |
 | Wallet, Registry, Backup, Configuration | ✅ Scaffolded |
 | Terminal, Editor | ✅ Scaffolded |
 | Training, Media, Skills, Matrix, Memory, Kanban, Companies | ✅ Scaffolded |

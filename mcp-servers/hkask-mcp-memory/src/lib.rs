@@ -4,15 +4,17 @@
 //! Discipline, P4 Clear Boundaries). The binary entrypoint in main.rs delegates
 //! to `run()`.
 //!
-//! 16 tools:
+//! 18 tools:
 //! - `episodic_ping` — Liveness and storage info for episodic memory
 //! - `episodic_store` — Store an episodic triple (private, perspective-bound)
 //! - `episodic_recall` — Recall triples by entity (filtered by caller's WebID)
+//! - `episodic_recall_context` — Recall episodes ranked by salience to context (mirrors ChatService::recall_episodic)
 //! - `episodic_budget` — Storage usage and budget info
 //! - `episodic_consolidate_status` — Check consolidation candidates and budget status
 //! - `semantic_ping` — Liveness and storage info for semantic memory
 //! - `semantic_store` — Store a shared semantic triple (no perspective)
 //! - `semantic_recall` — Recall triples by entity (public, any agent can read)
+//! - `memory_recall` — Paired semantic + episodic recall, mirrored dual-recall circuit
 //! - `semantic_embed` — Store an embedding vector for similarity search
 //! - `semantic_search` — KNN similarity search over embeddings
 //! - `semantic_centroid` — Compute mean embedding vector for a prefix-filtered set
@@ -36,6 +38,7 @@ use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
 use types::*;
+use types::RecallContextRequest;
 
 // ── Server ──────────────────────────────────────────────────────────
 
@@ -205,6 +208,94 @@ impl MemoryServer {
         }
     }
 
+    #[tool(description = "Recall episodic memories ranked by salience to context. \
+        Returns formatted episodes (User:/Agent: pairs for chat history) sorted by keyword relevance. \
+        Mirrors ChatService::recall_episodic — use this when you need relevant past interactions, \
+        not just entity-matched triples.")]
+    pub async fn episodic_recall_context(
+        &self,
+        Parameters(RecallContextRequest { entity, context, limit }): Parameters<RecallContextRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("episodic_recall_context", &self.webid);
+        validate_field!(span, "entity", &entity, 256);
+        let limit = limit.unwrap_or(10);
+
+        let triples = match self.episodic.query_for_deduped(&entity, self.webid) {
+            Ok(t) if !t.is_empty() => t,
+            Ok(_) => {
+                return span.ok_json(json!({"count": 0, "episodes": []}));
+            }
+            Err(e) => {
+                return span.internal_error(
+                    json!({"error": format!("Failed to recall episodic triples: {}", e)}),
+                );
+            }
+        };
+
+        if let Some(ref ctx) = context {
+            // Salience-scored: build keywords from context, score each episode
+            let ctx_lower = ctx.to_lowercase();
+            let keywords: Vec<&str> = ctx_lower
+                .split_whitespace()
+                .filter(|w| w.len() > 2)
+                .collect();
+
+            let mut scored: Vec<(usize, serde_json::Value)> = triples
+                .iter()
+                .filter_map(|t| {
+                    let v = t.value.as_object()?;
+                    let ui = v.get("user_input")?.as_str()?;
+                    let ar = v.get("agent_response")?.as_str()?;
+                    let combined = format!("{} {}", ui.to_lowercase(), ar.to_lowercase());
+                    let score = keywords.iter().filter(|kw| combined.contains(*kw)).count();
+                    Some((score, json!({
+                        "user_input": ui,
+                        "agent_response": ar,
+                        "salience": score,
+                        "confidence": t.confidence,
+                        "valid_from": t.temporal.valid_from.to_rfc3339(),
+                    })))
+                })
+                .collect();
+
+            scored.sort_by(|a, b| b.0.cmp(&a.0));
+            let episodes: Vec<serde_json::Value> = scored
+                .into_iter()
+                .take(limit)
+                .map(|(_, v)| v)
+                .collect();
+
+            span.ok_json(json!({
+                "count": episodes.len(),
+                "context": ctx,
+                "episodes": episodes,
+            }))
+        } else {
+            // No context: return most recent episodes, sorted by recency (reverse order)
+            let episodes: Vec<serde_json::Value> = triples
+                .iter()
+                .rev()
+                .take(limit)
+                .filter_map(|t| {
+                    let v = t.value.as_object()?;
+                    let ui = v.get("user_input")?.as_str()?;
+                    let ar = v.get("agent_response")?.as_str()?;
+                    Some(json!({
+                        "user_input": ui,
+                        "agent_response": ar,
+                        "confidence": t.confidence,
+                        "valid_from": t.temporal.valid_from.to_rfc3339(),
+                    }))
+                })
+                .collect();
+
+            span.ok_json(json!({
+                "count": episodes.len(),
+                "episodes": episodes,
+            }))
+        }
+    }
+
     #[tool(description = "Storage usage and budget for episodic memory")]
     pub async fn episodic_budget(&self, Parameters(_budget): Parameters<BudgetRequest>) -> String {
         let span = ToolSpanGuard::new("episodic_budget", &self.webid);
@@ -311,6 +402,113 @@ impl MemoryServer {
             }
             Err(e) => self.internal_error(span, "recall semantic triples", e),
         }
+    }
+
+    #[tool(description = "Paired memory recall — returns both semantic (third-person) and \
+        episodic (first-person) memories for an entity in a single call. Episodic results \
+        are ranked by salience when context is provided. Use this as the primary memory \
+        recall tool — it mirrors the dual-recall circuit in ChatService::prepare_chat.")]
+    pub async fn memory_recall(
+        &self,
+        Parameters(PairedRecallRequest { entity, context, limit }): Parameters<PairedRecallRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("memory_recall", &self.webid);
+        validate_field!(span, "entity", &entity, 256);
+        let limit = limit.unwrap_or(10);
+
+        // ── Semantic recall (third-person facts, no personal filter) ──
+        let semantic = match self.semantic.query_deduped(&entity) {
+            Ok(triples) => {
+                triples
+                    .iter()
+                    .take(limit)
+                    .map(|t| {
+                        json!({
+                            "entity": t.entity,
+                            "attribute": t.attribute,
+                            "value": t.value,
+                            "confidence": t.confidence,
+                            "valid_from": t.temporal.valid_from.to_rfc3339(),
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            }
+            Err(e) => {
+                return self.internal_error(span, "recall semantic memory", e);
+            }
+        };
+
+        // ── Episodic recall (first-person, filtered by caller's WebID) ──
+        let episodic_triples = match self.episodic.query_for_deduped(&entity, self.webid) {
+            Ok(t) if !t.is_empty() => t,
+            Ok(_) => {
+                return span.ok_json(json!({
+                    "entity": entity,
+                    "semantic": { "count": semantic.len(), "triples": semantic },
+                    "episodic": { "count": 0, "episodes": [] },
+                }));
+            }
+            Err(e) => {
+                return self.internal_error(span, "recall episodic memory", e);
+            }
+        };
+
+        let episodic = if let Some(ref ctx) = context {
+            // Salience-scored episodic recall (mirrors ChatService::recall_episodic)
+            let ctx_lower = ctx.to_lowercase();
+            let keywords: Vec<&str> = ctx_lower
+                .split_whitespace()
+                .filter(|w| w.len() > 2)
+                .collect();
+
+            let mut scored: Vec<(usize, serde_json::Value)> = episodic_triples
+                .iter()
+                .filter_map(|t| {
+                    let v = t.value.as_object()?;
+                    let ui = v.get("user_input")?.as_str()?;
+                    let ar = v.get("agent_response")?.as_str()?;
+                    let combined = format!("{} {}", ui.to_lowercase(), ar.to_lowercase());
+                    let score = keywords.iter().filter(|kw| combined.contains(*kw)).count();
+                    Some((score, json!({
+                        "user_input": ui,
+                        "agent_response": ar,
+                        "salience": score,
+                        "confidence": t.confidence,
+                        "valid_from": t.temporal.valid_from.to_rfc3339(),
+                    })))
+                })
+                .collect();
+            scored.sort_by(|a, b| b.0.cmp(&a.0));
+            scored
+                .into_iter()
+                .take(limit)
+                .map(|(_, v)| v)
+                .collect::<Vec<_>>()
+        } else {
+            // No context: most recent by recency
+            episodic_triples
+                .iter()
+                .rev()
+                .take(limit)
+                .filter_map(|t| {
+                    let v = t.value.as_object()?;
+                    let ui = v.get("user_input")?.as_str()?;
+                    let ar = v.get("agent_response")?.as_str()?;
+                    Some(json!({
+                        "user_input": ui,
+                        "agent_response": ar,
+                        "confidence": t.confidence,
+                        "valid_from": t.temporal.valid_from.to_rfc3339(),
+                    }))
+                })
+                .collect::<Vec<_>>()
+        };
+
+        span.ok_json(json!({
+            "entity": entity,
+            "semantic": { "count": semantic.len(), "triples": semantic },
+            "episodic": { "count": episodic.len(), "episodes": episodic },
+        }))
     }
 
     #[tool(description = "Store an embedding vector for similarity search")]

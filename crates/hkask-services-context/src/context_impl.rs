@@ -117,6 +117,9 @@ pub struct AgentService {
     /// Loop system for 6-loop regulation.
     loop_system: Arc<LoopSystem>,
 
+    /// Backup loop for scheduled snapshot management (TUI, status queries).
+    backup_loop: Arc<hkask_services_backup::BackupLoop>,
+
     /// Inference port for model invocation.
     inference_port: Option<Arc<dyn InferencePort>>,
 
@@ -322,6 +325,11 @@ impl AgentService {
     /// post: returns `&Arc<LoopSystem>`
     pub fn loop_system(&self) -> &Arc<LoopSystem> {
         &self.loop_system
+    }
+
+    /// Access the backup loop for snapshot state queries (TUI, CLI status).
+    pub fn backup_loop(&self) -> &Arc<hkask_services_backup::BackupLoop> {
+        &self.backup_loop
     }
     /// CNS event sink for the audit trail.
     ///
@@ -647,6 +655,7 @@ impl AgentService {
             cns_runtime: foundation.cns_runtime,
             cybernetics_loop: loops.cybernetics_loop,
             loop_system: loops.loop_system,
+            backup_loop: loops.backup_loop.clone(),
             inference_port: loops.inference_port,
             episodic_storage: loops.episodic_storage,
             semantic_storage: loops.semantic_storage,

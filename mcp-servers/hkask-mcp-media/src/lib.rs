@@ -19,11 +19,11 @@ use gallery::GalleryState;
 use gallery::vision::{self};
 use hkask_agents::VoiceDesign;
 use hkask_inference::InferenceRouter;
+use hkask_mcp::DaemonClient;
 use hkask_mcp::server::{McpToolError, execute_tool, validate_tool_url};
-use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_ports::InferencePort;
 use hkask_storage::{GalleryMode, GalleryStore, GalleryStoreError, Store};
-use hkask_types::time::now_rfc3339;
+
 use hkask_types::{TimedWord, TranscriptBundle, TranscriptSegment, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::collections::HashMap;
@@ -909,12 +909,8 @@ impl MediaServer {
 
             // Set up in-memory GalleryState
             let mut state = GalleryState::new(PathBuf::from(&path), gallery_mode.clone());
-            state
-                .validate()
-                .map_err(|e| McpToolError::invalid_argument(e))?;
-            state
-                .ensure_meta_dir()
-                .map_err(|e| McpToolError::internal(e))?;
+            state.validate().map_err(McpToolError::invalid_argument)?;
+            state.ensure_meta_dir().map_err(McpToolError::internal)?;
             state.gallery_id = Some(record.id.clone());
 
             // Scan for images
@@ -1013,7 +1009,7 @@ impl MediaServer {
         execute_tool(self, "gallery_search", async {
             let ga = self
                 .access_gallery()
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             let all_tags = self
                 .gallery_store
@@ -1117,7 +1113,7 @@ impl MediaServer {
             } else if let Some(idx) = image_index {
                 let image_id = self
                     .resolve_image_id(idx)
-                    .map_err(|e| McpToolError::invalid_argument(e))?;
+                    .map_err(McpToolError::invalid_argument)?;
                 let tags = self
                     .gallery_store
                     .get_tags(&image_id)
@@ -1148,7 +1144,7 @@ impl MediaServer {
             // Collect captions for all images in the gallery
             let ga = self
                 .access_gallery()
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             let all_tags = self
                 .gallery_store
@@ -1244,7 +1240,7 @@ impl MediaServer {
         execute_tool(self, "gallery_refresh", async {
             let (gid, _old_count, added, total, persisted) = self
                 .rescan_existing_gallery(recursive)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             let mut pipeline_names = vec!["objects", "colors", "composition", "scene"];
             if include_faces {
@@ -1534,7 +1530,7 @@ impl MediaServer {
         execute_tool(self, "gallery_analyze", async {
             let ga = self
                 .access_gallery()
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             let indices: Vec<usize> = match mode.as_str() {
                 "selection" => image_indices.unwrap_or_default(),
@@ -1621,7 +1617,7 @@ impl MediaServer {
 
             let ga = self
                 .access_gallery()
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             let all_tags = self
                 .gallery_store
@@ -1673,7 +1669,7 @@ impl MediaServer {
         execute_tool(self, "face_validate", async {
             let image_url = self
                 .resolve_image_url(image_index)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             let (vision_model, _vision_label) = self.require_vision().await?;
 
@@ -1706,14 +1702,14 @@ impl MediaServer {
         execute_tool(self, "face_register", async {
             let image_id = self
                 .resolve_image_id(image_index)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             let (status, notes, validation) = if force {
                 ("valid", String::new(), None)
             } else {
                 let image_url = self
                     .resolve_image_url(image_index)
-                    .map_err(|e| McpToolError::invalid_argument(e))?;
+                    .map_err(McpToolError::invalid_argument)?;
 
                 let (vision_model, _vision_label) = self.require_vision().await?;
 
@@ -1837,7 +1833,7 @@ impl MediaServer {
         execute_tool(self, "extract_object", async {
             let image_url = self
                 .resolve_image_url(image_index)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             self.inference
                 .segment_object(&image_url, &object_description)
@@ -1862,7 +1858,7 @@ impl MediaServer {
         execute_tool(self, "gallery_timeline", async {
             let ga = self
                 .access_gallery()
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             let mut dated_images: Vec<(String, String)> = Vec::new();
             for idx in 0..ga.image_count as usize {
@@ -1939,7 +1935,7 @@ impl MediaServer {
         execute_tool(self, "image_remove_background", async {
             let image_url = self
                 .resolve_image_url(image_index)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             self.inference
                 .remove_background(&image_url)
@@ -1963,7 +1959,7 @@ impl MediaServer {
         execute_tool(self, "image_apply_style", async {
             let image_url = self
                 .resolve_image_url(image_index)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             self.inference
                 .image_to_image(&image_url, &style_prompt, strength)
@@ -2005,7 +2001,7 @@ impl MediaServer {
 
             let ga = self
                 .access_gallery()
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             let mut paths = Vec::new();
 
@@ -2041,10 +2037,10 @@ impl MediaServer {
             } else if let Some(ref_idx) = similar_to_index {
                 let ref_path = self
                     .resolve_image_path(ref_idx)
-                    .map_err(|e| McpToolError::invalid_argument(e))?;
+                    .map_err(McpToolError::invalid_argument)?;
                 let ref_image_id = self
                     .resolve_image_id(ref_idx)
-                    .map_err(|e| McpToolError::invalid_argument(e))?;
+                    .map_err(McpToolError::invalid_argument)?;
                 let ref_tags = self.gallery_store.get_tags(&ref_image_id).map_err(|e| {
                     McpToolError::internal(format!("Failed to get reference tags: {}", e))
                 })?;
@@ -2097,7 +2093,7 @@ impl MediaServer {
                 for idx in indices.iter().take(limit) {
                     paths.push(
                         self.resolve_image_path(*idx)
-                            .map_err(|e| McpToolError::invalid_argument(e))?,
+                            .map_err(McpToolError::invalid_argument)?,
                     );
                 }
             }
@@ -2221,7 +2217,7 @@ impl MediaServer {
                 .ffmpeg
                 .clip(&video_url, start_sec, end_sec)
                 .await
-                .map_err(|e| McpToolError::internal(e))?;
+                .map_err(McpToolError::internal)?;
 
             Ok(serde_json::json!({
                 "status": "clipped",
@@ -2260,7 +2256,7 @@ impl MediaServer {
                 .ffmpeg
                 .to_gif(&video_url, start, dur, w, f)
                 .await
-                .map_err(|e| McpToolError::internal(e))?;
+                .map_err(McpToolError::internal)?;
 
             Ok(serde_json::json!({
                 "status": "converted",
@@ -2290,7 +2286,7 @@ impl MediaServer {
         execute_tool(self, "image_to_video", async {
             let image_url = self
                 .resolve_image_url(image_index)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             self.inference
                 .image_to_video(&image_url, prompt.as_deref(), duration)
@@ -2327,7 +2323,7 @@ impl MediaServer {
                 .ffmpeg
                 .add_caption(&video_url, &text, pos, size)
                 .await
-                .map_err(|e| McpToolError::internal(e))?;
+                .map_err(McpToolError::internal)?;
 
             Ok(serde_json::json!({
                 "status": "captioned",
@@ -2428,7 +2424,7 @@ impl MediaServer {
             for idx in &image_indices {
                 paths.push(
                     self.resolve_image_path(*idx)
-                        .map_err(|e| McpToolError::invalid_argument(e))?,
+                        .map_err(McpToolError::invalid_argument)?,
                 );
             }
 
@@ -2439,7 +2435,7 @@ impl MediaServer {
                 .ffmpeg
                 .images_to_video(&paths, fps, fmt)
                 .await
-                .map_err(|e| McpToolError::internal(e))?;
+                .map_err(McpToolError::internal)?;
 
             Ok(serde_json::json!({
                 "status": "created",
@@ -2470,7 +2466,7 @@ impl MediaServer {
                 .ffmpeg
                 .concat(&video_urls)
                 .await
-                .map_err(|e| McpToolError::internal(e))?;
+                .map_err(McpToolError::internal)?;
 
             Ok(serde_json::json!({
                 "status": "concatenated",
@@ -2571,7 +2567,7 @@ impl MediaServer {
         execute_tool(self, "video_meme", async {
             let image_path = self
                 .resolve_image_path(image_index)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             let mut img = image::open(&image_path)
                 .map_err(|e| McpToolError::internal(format!("Failed to open image: {}", e)))?;
@@ -2833,7 +2829,7 @@ impl MediaServer {
                 .ffmpeg
                 .capture_audio(duration_secs, output_path.as_deref())
                 .await
-                .map_err(|e| McpToolError::internal(e))?;
+                .map_err(McpToolError::internal)?;
 
             Ok(serde_json::json!({
                 "status": "captured",

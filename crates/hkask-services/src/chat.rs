@@ -728,6 +728,34 @@ Agent: {}",
         }
     }
 
+    /// Paired memory recall — returns both semantic (third-person) and
+    /// episodic (first-person) memories merged into a single context string.
+    ///
+    /// This is the standalone entry point for the dual-recall circuit.
+    /// Mirrors the merge pattern in `prepare_chat` but without prompt composition —
+    /// callers get just the memory context for injection wherever needed.
+    ///
+    /// \[P5\] Motivating: Essentialism — single entry point for paired memory access.
+    /// pre:  both ports must be initialized; input must be non-empty; agent_webid valid; token valid
+    /// post: returns Some(String) with merged semantic+episodic context; None if both recalled empty; each recall independently gated
+    pub fn recall_memory(
+        semantic_port: &Arc<dyn SemanticStoragePort>,
+        episodic_port: &Arc<dyn EpisodicStoragePort>,
+        input: &str,
+        agent_webid: &WebID,
+        token: &DelegationToken,
+    ) -> Option<String> {
+        let semantic = Self::recall_semantic(semantic_port, input, token);
+        let episodic = Self::recall_episodic(episodic_port, input, agent_webid, token);
+
+        match (semantic, episodic) {
+            (Some(s), Some(e)) => Some(format!("{}\n\n{}", s, e)),
+            (Some(s), None) => Some(s),
+            (None, Some(e)) => Some(e),
+            (None, None) => None,
+        }
+    }
+
     /// Store the chat exchange as an episodic triple.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
@@ -1062,9 +1090,9 @@ Agent: {}",
                 req.input.clone()
             };
 
-        // 2. Append recent conversation history from episodic memory.
-        // \[NORMATIVE\] Sovereignty gate (H3/P2): only recall episodic (sovereign)
-        // history when the owner has granted consent. No consent ⇒ no history.
+        // 2. Append recent conversation history from episodic memory,
+        // paired with relevant semantic facts about discussed topics.
+        // \[NORMATIVE\] Sovereignty gate (H3/P2): each memory category gated independently.
         let history_token = req.capability_checker.grant_registry(
             DelegationAction::Read,
             req.system_webid,
@@ -1081,9 +1109,22 @@ Agent: {}",
             } else {
                 None
             };
-        let mut input_with_context = match history_suffix {
-            Some(s) => format!("{}\n\n{}", base_input, s),
-            None => base_input.clone(),
+        let semantic_suffix =
+            if Self::has_memory_consent(ctx, &req.agent_webid, &DataCategory::SemanticMemory) {
+                let semantic_context = Self::recall_semantic(
+                    &req.semantic_storage,
+                    &base_input,
+                    &history_token,
+                );
+                semantic_context.map(|s| format!("## Relevant Facts\n{}", s))
+            } else {
+                None
+            };
+        let mut input_with_context = match (history_suffix, semantic_suffix) {
+            (Some(h), Some(s)) => format!("{}\n\n{}\n\n{}", base_input, s, h),
+            (Some(h), None) => format!("{}\n\n{}", base_input, h),
+            (None, Some(s)) => format!("{}\n\n{}", base_input, s),
+            (None, None) => base_input.clone(),
         };
 
         // 2b. Auto-condense: if enabled and context exceeds 87.5% of window,

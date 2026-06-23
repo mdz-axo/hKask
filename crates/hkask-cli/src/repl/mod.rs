@@ -16,6 +16,7 @@ pub(crate) mod handlers;
 mod helper;
 mod init;
 mod tool_augmented;
+mod tui_bridges;
 mod turn;
 
 use hkask_agents::InferenceLoop;
@@ -277,8 +278,19 @@ pub fn run_tui(
         context_used: std::sync::atomic::AtomicU32::new(0),
     });
 
-    match hkask_tui::TuiSession::new(service_context, bridge) {
-        Ok(mut session) => {
+    match hkask_tui::TuiSession::new(service_context, bridge.clone()) {
+        Ok(session) => {
+            let session = session
+                .with_config_bridge(bridge.clone())
+                .with_registry_bridge(bridge.clone())
+                .with_wallet_bridge(bridge.clone())
+                .with_memory_bridge(bridge.clone())
+                .with_kanban_bridge(bridge.clone())
+                .with_matrix_bridge(bridge.clone())
+                .with_backup_bridge(bridge.clone())
+                .with_media_bridge(bridge.clone())
+                .with_training_bridge(bridge.clone());
+            let mut session = session;
             if let Err(e) = session.run() {
                 eprintln!("TUI error: {}", e);
             }
