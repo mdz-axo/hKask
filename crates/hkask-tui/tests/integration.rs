@@ -9,9 +9,9 @@ use hkask_tui::{
     ReplBridge, TurnResult, Window, WindowId, WindowKind,
     windows::{
         BackupWindow, ChatWindow, CnsMonitorWindow, CompaniesWindow, ConfigurationWindow,
-        CuratorWindow, EditorWindow, KanbanWindow, MatrixWindow, MediaWindow, MemoryWindow,
-        PodsWindow, RegistryWindow, SidebarWindow, SkillsWindow, TerminalWindow, TrainingWindow,
-        WalletWindow,
+        CuratorWindow, EditorWindow, KanbanWindow, LogoWindow, MatrixWindow, MediaWindow,
+        MemoryWindow, PodsWindow, RegistryWindow, SidebarWindow, SkillsWindow, TerminalWindow,
+        TrainingWindow, WalletWindow,
     },
 };
 
@@ -154,12 +154,13 @@ fn all_window_kinds() -> Vec<WindowKind> {
         WindowKind::Training,
         WindowKind::Media,
         WindowKind::Skills,
+        WindowKind::Logo,
     ]
 }
 
 #[test]
-fn all_18_kinds_exist() {
-    assert_eq!(all_window_kinds().len(), 18);
+fn all_19_kinds_exist() {
+    assert_eq!(all_window_kinds().len(), 19);
 }
 
 #[test]
@@ -203,9 +204,9 @@ fn allows_multiple_only_for_chat_and_matrix() {
 }
 
 #[test]
-fn only_sidebar_is_persistent() {
+fn only_sidebar_and_logo_are_persistent() {
     for kind in all_window_kinds() {
-        if kind == WindowKind::Sidebar {
+        if kind == WindowKind::Sidebar || kind == WindowKind::Logo {
             assert!(kind.is_persistent());
         } else {
             assert!(!kind.is_persistent(), "{:?} should not be persistent", kind);
@@ -221,7 +222,7 @@ fn all_titles_are_distinct() {
         .collect();
     titles.sort_unstable();
     titles.dedup();
-    assert_eq!(titles.len(), 18, "duplicate titles: {:?}", titles);
+    assert_eq!(titles.len(), 19, "duplicate titles: {:?}", titles);
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -367,10 +368,11 @@ fn all_windows_render_at_multiple_sizes() {
         Box::new(EditorWindow::new(window_id(), b.clone())),
         Box::new(TrainingWindow::new(window_id(), b.clone())),
         Box::new(MediaWindow::new(window_id(), b.clone())),
-        Box::new(SkillsWindow::new(window_id(), b)),
+        Box::new(SkillsWindow::new(window_id(), b.clone())),
+        Box::new(LogoWindow::new(window_id())),
     ];
 
-    assert_eq!(windows.len(), 18);
+    assert_eq!(windows.len(), 19);
 
     for (w, h) in sizes {
         for window in &windows {
@@ -451,8 +453,8 @@ fn memory_shows_live_data_with_bridge() {
 #[test]
 fn memory_empty_shows_placeholder() {
     use hkask_tui::bridges::memory::MockMemoryBridge;
-    let w = MemoryWindow::new(window_id(), bridge())
-        .with_memory_bridge(MockMemoryBridge::new().arc());
+    let w =
+        MemoryWindow::new(window_id(), bridge()).with_memory_bridge(MockMemoryBridge::new().arc());
     render_smoke(&w, 80, 24);
 }
 
@@ -467,8 +469,8 @@ fn kanban_shows_live_data_with_bridge() {
 #[test]
 fn kanban_empty_shows_placeholder() {
     use hkask_tui::bridges::kanban::MockKanbanBridge;
-    let w = KanbanWindow::new(window_id(), bridge())
-        .with_kanban_bridge(MockKanbanBridge::new().arc());
+    let w =
+        KanbanWindow::new(window_id(), bridge()).with_kanban_bridge(MockKanbanBridge::new().arc());
     render_smoke(&w, 80, 24);
 }
 

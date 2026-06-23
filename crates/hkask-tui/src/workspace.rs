@@ -31,6 +31,7 @@ use crate::windows::configuration::ConfigurationWindow;
 use crate::windows::curator::CuratorWindow;
 use crate::windows::editor::EditorWindow;
 use crate::windows::kanban::KanbanWindow;
+use crate::windows::logo::LogoWindow;
 use crate::windows::matrix::MatrixWindow;
 use crate::windows::media::MediaWindow;
 use crate::windows::memory::MemoryWindow;
@@ -299,11 +300,22 @@ impl Workspace {
             bridge.clone(),
         );
 
-        // Default layout: Chat (left, 65%) + Curator (right, 35%)
+        // Logo window — persistent top-left anchor
+        let logo_id = WindowId(Uuid::new_v4());
+        let logo = LogoWindow::new(logo_id);
+
+        // Default layout: Logo + Chat (left 65%) | Curator (right 35%)
+        //   Left pane: vertical split — Logo (25%) + Chat (75%)
+        //   Right pane: Curator (100%)
+        let left = Box::new(SplitNode::Vertical {
+            top: Box::new(SplitNode::Leaf(Box::new(logo))),
+            bottom: Box::new(SplitNode::Leaf(Box::new(chat))),
+            ratio: 0.25,
+        });
         let curator_id = WindowId(Uuid::new_v4());
         let curator = CuratorWindow::new(curator_id, bridge.clone());
         let root = SplitNode::Horizontal {
-            left: Box::new(SplitNode::Leaf(Box::new(chat))),
+            left,
             right: Box::new(SplitNode::Leaf(Box::new(curator))),
             ratio: 0.65,
         };
@@ -697,6 +709,7 @@ impl Workspace {
             WindowKind::Sidebar => {
                 Box::new(SidebarWindow::new(new_id, Some(service_context), bridge))
             }
+            WindowKind::Logo => Box::new(LogoWindow::new(new_id)),
             WindowKind::Chat => Box::new(ChatWindow::new(
                 new_id,
                 self.bridge.agent_name(),

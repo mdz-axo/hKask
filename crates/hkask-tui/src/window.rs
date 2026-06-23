@@ -52,6 +52,8 @@ pub enum WindowKind {
     Media,
     /// Skills manager — browse and manage skill corpus
     Skills,
+    /// Logo — persistent Kask amphora logo window
+    Logo,
 }
 
 impl WindowKind {
@@ -76,6 +78,7 @@ impl WindowKind {
             WindowKind::Training => "Training",
             WindowKind::Media => "Media",
             WindowKind::Skills => "Skills",
+            WindowKind::Logo => "hKask",
         }
     }
 
@@ -100,6 +103,7 @@ impl WindowKind {
             WindowKind::Training => "Training monitor — LoRA adapters, sessions, and artifacts",
             WindowKind::Media => "Media gallery — browse images, audio, and video collections",
             WindowKind::Skills => "Skills manager — browse, install, and activate skills",
+            WindowKind::Logo => "Kask amphora logo — workspace identity marker",
         }
     }
 
@@ -109,13 +113,14 @@ impl WindowKind {
             WindowKind::Chat => true,
             WindowKind::Matrix => true,
             WindowKind::Sidebar => false,
+            WindowKind::Logo => false,
             _ => false,
         }
     }
 
     /// Whether this window is persistent (cannot be closed by user).
     pub fn is_persistent(&self) -> bool {
-        matches!(self, WindowKind::Sidebar)
+        matches!(self, WindowKind::Sidebar | WindowKind::Logo)
     }
 }
 
