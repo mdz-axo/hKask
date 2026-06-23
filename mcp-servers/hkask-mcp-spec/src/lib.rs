@@ -1282,16 +1282,6 @@ pub async fn run(
                 std::sync::Arc::new(NuEventStore::new(Arc::clone(&conn)));
             let triple_store = std::sync::Arc::new(TripleStore::new(Arc::clone(&conn)));
 
-            let secret_hex =
-                ctx.credentials
-                    .get("HKASK_OCAP_SECRET")
-                    .ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "HKASK_OCAP_SECRET is required for spec capability verification"
-                        )
-                    })?;
-            let secret = hex::decode(secret_hex)
-                .map_err(|e| anyhow::anyhow!("HKASK_OCAP_SECRET must be hex-encoded: {e}"))?;
             let checker = CapabilityChecker::new();
             Ok(SpecServer::new(store, ctx.webid, checker, replicant.clone(), daemon_client.clone(), event_sink, triple_store))
             })()?)

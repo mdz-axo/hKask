@@ -37,7 +37,6 @@ use hkask_services_core::ServiceError;
 /// Service for wallet operations — balance, deposits, withdrawals, API keys.
 ///
 /// Wraps `WalletManager` and `ApiKeyIssuer` behind a clean interface.
-/// Optionally integrates with CNS for wallet-backed energy budget registration.
 /// Optionally enforces P2 affirmative consent for withdrawal signing (MUST-4).
 /// Constructed during startup — never created directly by surfaces.
 #[derive(Clone)]
@@ -47,7 +46,6 @@ pub struct WalletService {
     /// Optional CNS loop for registering wallet-backed budgets.
     cybernetics: Option<Arc<RwLock<CyberneticsLoop>>>,
     /// Optional consent manager for P2 affirmative consent (MUST-4).
-    /// When `None`, withdrawal proceeds without consent check (backward compatible).
     consent_manager: Option<Arc<ConsentManager>>,
 }
 
@@ -80,8 +78,7 @@ impl WalletService {
     /// Attach a ConsentManager for P2 affirmative consent enforcement (MUST-4).
     ///
     /// When configured, withdrawal operations require explicit user consent
-    /// via `DataCategory::Custom("wallet_withdrawal")`. Without a consent manager,
-    /// withdrawals proceed unchecked (backward compatible for standalone mode).
+    /// via `DataCategory::Custom("wallet_withdrawal")`.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  cm must be a valid `Arc<ConsentManager>`
@@ -392,7 +389,7 @@ impl WalletService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  webid identifies the user requesting the withdrawal
     /// post: if consent_manager is Some and consent denied → Err(ConsentDenied)
-    /// post: if consent_manager is None → proceeds without consent check (backward compat)
+    /// post: if consent_manager is None → proceeds without consent check
     pub async fn withdraw(
         &self,
         webid: &WebID,

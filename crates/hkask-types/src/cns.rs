@@ -68,8 +68,8 @@ pub struct CnsHealth {
 /// Replaces stringly-typed `&str` constants. Invalid span values
 /// are unrepresentable — the type system enforces validity at compile time (P8 — Semantic Grounding).
 ///
-/// `Display` produces the canonical namespace string (e.g., `"cns.tool"`),
-/// preserving backward compatibility with existing tracing targets and ν-event serialization.
+/// Display produces the canonical namespace string (e.g., `"cns.tool"`),
+/// matching ν-event serialization and tracing targets.
 /// `FromStr` is fallible — only canonical namespaces parse successfully.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CnsSpan {
@@ -280,9 +280,8 @@ impl CnsSpan {
     /// pre:  self is a valid CnsSpan variant
     /// post: returns the canonical namespace string (e.g. "cns.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
     ///
-    /// This output must match the existing `CANONICAL_NAMESPACES` strings
-    /// byte-for-byte to preserve backward compatibility with ν-event serialization
-    /// and tracing targets (P8 — Semantic Grounding).
+    /// This output must match ν-event serialization strings byte-for-byte
+    /// (P8 — Semantic Grounding).
     pub fn as_str(&self) -> &'static str {
         match self {
             CnsSpan::Tool { subsystem } => match subsystem {

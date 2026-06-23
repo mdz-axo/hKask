@@ -931,7 +931,7 @@ mod tests {
     }
 
     #[test]
-    fn backward_compat_missing_optional_fields() {
+    fn missing_optional_fields() {
         // StoreExperience without confidence (optional field)
         let json = r#"{"type":"store_experience","replicant":"alice","entity":"s","attribute":"a","value":{}}"#;
         let req: DaemonRequest =

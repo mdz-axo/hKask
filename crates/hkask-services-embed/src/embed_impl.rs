@@ -960,7 +960,7 @@ impl EmbedService {
         }
 
         if config.dimension_centroids.is_empty() {
-            // ── Legacy single-centroid path ──────────────────────────
+            // ── Single-centroid path ──────────────────────────
             tracing::info!("Computing style centroid (single)");
             let rule_prefix = format!("style:{}:rule:", &config.author);
             let centroid_result = semantic
@@ -1563,7 +1563,7 @@ pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceErr
         return Ok(text);
     }
 
-    // Fallback: send raw PDF bytes as base64 (legacy path)
+    // Fallback: send raw PDF bytes as base64
     let b64_data = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
 
     let inf_cfg = InferenceConfig::from_env();

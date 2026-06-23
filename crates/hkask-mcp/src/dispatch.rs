@@ -189,13 +189,11 @@ impl McpDispatcher {
     ///
     /// All tool invocations route through the membrane, which handles
     /// OCAP verification, energy budgets, and CNS observability.
-    /// The membrane IS the security property.
     ///
-    /// pre:  runtime is initialized, secret is non-empty
+    /// pre:  runtime is initialized
     /// post: returns McpDispatcher with GovernedTool membrane
     pub fn with_governed_tool(
         runtime: McpRuntime,
-        secret: &[u8],
         governed_tool: Arc<GovernedTool<RawMcpToolPort>>,
     ) -> Self {
         Self {

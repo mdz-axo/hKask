@@ -213,7 +213,10 @@ pub fn run(action: KeystoreAction) {
 fn run_rotate(keychain: &hkask_keystore::Keychain, new_passphrase: Option<&str>) {
     use hkask_keystore::version_file;
 
-    let old_version = version_file::read_key_version();
+    let old_version = version_file::read_key_version().unwrap_or_else(|e| {
+        eprintln!("Failed to read key version: {e}. Run 'kask init' first.");
+        std::process::exit(1);
+    });
     let new_version = old_version + 1;
 
     // Get the passphrase — either the new one provided, or prompt for current

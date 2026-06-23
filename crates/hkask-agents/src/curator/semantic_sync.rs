@@ -408,7 +408,7 @@ fn open_source_db(db_path: &Path) -> Result<Database, String> {
 }
 
 impl CuratorSync {
-    /// Open a pod's SQLCipher database (kept for backward compatibility).
+    /// Open a pod's SQLCipher database.
     #[allow(dead_code)]
     fn open_read_only(&self, db_path: &Path) -> Result<Database, String> {
         open_source_db(db_path)

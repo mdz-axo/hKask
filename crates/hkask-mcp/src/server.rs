@@ -608,11 +608,7 @@ pub fn load_dotenv() -> HashMap<String, String> {
     HashMap::new()
 }
 
-/// Resolve a credential through the hkask keystore chain.
-///
-/// Routes known credential names through the proper hkask keystore resolvers
-/// that understand master-key derivation, the `hkask-*` keychain naming convention,
-/// and fallback chains (e.g., MCP secret → A2A secret for backward compatibility).
+/// Routes known credential names through the proper hkask keystore resolvers.
 ///
 /// For unrecognized credential names, falls back to keychain lookup by env var name
 /// and then environment variable lookup.
@@ -620,11 +616,6 @@ pub fn load_dotenv() -> HashMap<String, String> {
 /// pre:  env_var is non-empty
 /// post: returns credential value from the appropriate resolution chain
 pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::KeystoreError> {
-    // ── Route known credentials through the proper hkask resolution chain ──
-    // These resolvers understand master-key derivation, the hkask-* keychain
-    // naming convention, and multi-hop fallback chains. The naive
-    // keychain-by-env-var-name lookup in the fallback path only works when
-    // credentials happen to be stored under their env var name (rare).
     match env_var {
         "HKASK_DB_PASSPHRASE" => {
             let bytes = hkask_keystore::keychain::resolve_db_passphrase()?;
@@ -647,8 +638,7 @@ pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::Keyst
             Ok(hex::encode(&*bytes))
         }
         _ => {
-            // Unrecognized credential — try keychain by env var name, then env var.
-            // This is the legacy path for credentials without a dedicated hkask resolver.
+            // Unrecognized credential — try keychain, then env var.
             let val = hkask_keystore::Keychain::default()
                 .retrieve_by_key(env_var)
                 .or_else(|_| std::env::var(env_var))
@@ -660,8 +650,7 @@ pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::Keyst
                 })?;
             tracing::debug!(
                 credential = env_var,
-                source = "keychain_or_env",
-                "Credential resolved via legacy path"
+                "Credential resolved via keychain or environment"
             );
             Ok(val)
         }

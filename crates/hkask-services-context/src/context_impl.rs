@@ -1110,7 +1110,6 @@ async fn build_mcp_and_pods(
     );
     let mcp_dispatcher = Arc::new(McpDispatcher::with_governed_tool(
         mcp_runtime.clone(),
-        &config.mcp_secret,
         governed_tool.clone(),
     ));
     let mcp_runtime = Arc::new(mcp_runtime);

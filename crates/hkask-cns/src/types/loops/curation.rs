@@ -1,8 +1,6 @@
 //! Loop 5: Curation — metacognitive observer (thin re-export module).
 //!
-//! `CuratorHandle` and `CuratorDirective` are now canonically defined in
-//! `hkask-types::curator`. This module provides backward-compatible re-exports.
-//! New code should import directly from `hkask_types::curator::*`.
+//! Re-exports `CuratorHandle` and `CuratorDirective` from `hkask-types::curator`.
 //!
 //! Essential subloops:
 //! - 5.1 Escalation Routing (ROUTE) — signal → classify → deliver to consumer

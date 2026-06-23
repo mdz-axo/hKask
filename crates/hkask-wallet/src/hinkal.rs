@@ -1007,9 +1007,9 @@ impl PrivacyPort for HinkalPort {
             };
         }
 
-        // Fallback: legacy format with appended 64-byte Ed25519 signature.
+        // Fallback: appended 64-byte Ed25519 signature format.
         if signed_tx_bytes.len() <= 64 {
-            let msg = "invalid payload: too short for legacy signature format".to_string();
+            let msg = "invalid payload: too short for signature format".to_string();
             self.emit_cns_chain_error_for_actor(actor, "submit_signed_tx", &msg);
             return Err(Self::chain_error(msg));
         }

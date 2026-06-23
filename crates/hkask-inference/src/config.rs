@@ -16,7 +16,7 @@
 //!
 //! Provider API keys resolve through a 2-tier chain:
 //! 1. OS keychain (encrypted at rest) — preferred for cloud deployments
-//! 2. Environment variable (backward compat, SSH session convenience)
+//! 2. Environment variable (SSH sessions, CI/CD)
 //!
 //! Use `kask keystore load --path providers.env --shred` to load keys into the
 //! keychain and securely delete the plaintext file.
@@ -217,8 +217,6 @@ impl InferenceConfig {
     /// Resolve from environment variables and OS keychain.
     ///
     /// API keys resolve keychain-first, then fall back to environment variables.
-    /// Also accepts `DEEPINFRA_API_KEY` and `FAL_API_KEY`
-    /// as legacy environment variable names.
     ///
     /// expect: "The system resolves inference configuration from the environment"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — inference configuration resolved from environment
@@ -228,7 +226,7 @@ impl InferenceConfig {
         let deepinfra_base_url = std::env::var("DI_BASE_URL")
             .unwrap_or_else(|_| "https://api.deepinfra.com".to_string());
 
-        let deepinfra_api_key = resolve_api_key("DI_API_KEY", &["DEEPINFRA_API_KEY"]);
+        let deepinfra_api_key = resolve_api_key("DI_API_KEY");
 
         let fal_base_url =
             std::env::var("FA_BASE_URL").unwrap_or_else(|_| "https://api.fal.ai".to_string());
@@ -239,17 +237,17 @@ impl InferenceConfig {
         let fal_queue_base_url = std::env::var("FA_QUEUE_BASE_URL")
             .unwrap_or_else(|_| "https://queue.fal.run".to_string());
 
-        let fal_api_key = resolve_api_key("FA_API_KEY", &["FAL_API_KEY"]);
+        let fal_api_key = resolve_api_key("FA_API_KEY");
 
         let together_base_url =
             std::env::var("TG_BASE_URL").unwrap_or_else(|_| "https://api.together.xyz".to_string());
 
-        let together_api_key = resolve_api_key("TOGETHER_API_KEY", &[]);
+        let together_api_key = resolve_api_key("TOGETHER_API_KEY");
 
         let openrouter_base_url = std::env::var("OR_BASE_URL")
             .unwrap_or_else(|_| "https://openrouter.ai/api".to_string());
 
-        let openrouter_api_key = resolve_api_key("OPENROUTER_API_KEY", &["OR_API_KEY"]);
+        let openrouter_api_key = resolve_api_key("OPENROUTER_API_KEY");
 
         let default_provider = resolve_default_provider();
 
@@ -292,34 +290,19 @@ impl InferenceConfig {
 /// Resolve a provider API key through the 2-tier chain: keychain → env var.
 ///
 /// Tier 1: OS keychain (encrypted at rest, preferred for cloud deployments).
-/// Tier 2: Environment variable (primary name, then fallback names).
+/// Resolve an API key via OS keychain, then environment variable.
 /// Returns empty string if no key is found — the backend will be unavailable.
-fn resolve_api_key(primary_env: &str, fallback_envs: &[&str]) -> String {
+fn resolve_api_key(env_name: &str) -> String {
     // Tier 1: OS keychain
-    if let Ok(zeroizing) = hkask_keystore::resolve(&SecretRef::Keychain(primary_env.to_string())) {
+    if let Ok(zeroizing) = hkask_keystore::resolve(&SecretRef::Keychain(env_name.to_string())) {
         let key = String::from_utf8_lossy(&zeroizing).into_owned();
         if !key.is_empty() {
             return key;
         }
     }
 
-    // Tier 2: Environment variable (primary name)
-    if let Ok(key) = std::env::var(primary_env)
-        && !key.is_empty()
-    {
-        return key;
-    }
-
-    // Tier 2 (fallback): Legacy environment variable names
-    for fallback in fallback_envs {
-        if let Ok(key) = std::env::var(fallback)
-            && !key.is_empty()
-        {
-            return key;
-        }
-    }
-
-    String::new()
+    // Tier 2: Environment variable
+    std::env::var(env_name).unwrap_or_default()
 }
 
 /// Resolve the default provider from env var or keychain.
@@ -327,7 +310,7 @@ fn resolve_api_key(primary_env: &str, fallback_envs: &[&str]) -> String {
 /// Reads `HKASK_DEFAULT_PROVIDER` from OS keychain first, then environment
 /// variable. Accepted values: DI, FA, TG. Defaults to DeepInfra.
 fn resolve_default_provider() -> ProviderId {
-    let raw = resolve_api_key("HKASK_DEFAULT_PROVIDER", &[]);
+    let raw = resolve_api_key("HKASK_DEFAULT_PROVIDER");
     parse_provider_code(&raw)
 }
 
@@ -468,25 +451,11 @@ mod tests {
         // SAFETY: Setting/removing test environment variables in test code is safe in a single-threaded test context (Rust runs tests serially by default).
         unsafe { std::env::set_var("HKASK_TEST_KEY_010", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX") };
         assert_eq!(
-            resolve_api_key("HKASK_TEST_KEY_010", &[]),
+            resolve_api_key("HKASK_TEST_KEY_010"),
             "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX"
         );
         // SAFETY: Test cleanup — see above.
         unsafe { std::env::remove_var("HKASK_TEST_KEY_010") };
-    }
-
-    /// expect: "Inference API key fallback works correctly under test conditions"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — validates API key fallback
-    #[test]
-    fn resolve_api_key_fallback_env() {
-        // SAFETY: Setting/removing test environment variables in test code is safe in a single-threaded test context (Rust runs tests serially by default).
-        unsafe { std::env::set_var("HKASK_TEST_LEGACY_011", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX") };
-        assert_eq!(
-            resolve_api_key("HKASK_TEST_KEY_011", &["HKASK_TEST_LEGACY_011"]),
-            "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX"
-        );
-        // SAFETY: Test cleanup — see above.
-        unsafe { std::env::remove_var("HKASK_TEST_LEGACY_011") };
     }
 
     /// expect: "Inference API key missing handling works correctly under test conditions"
@@ -496,31 +465,7 @@ mod tests {
         // SAFETY: Test cleanup — removing environment variables is safe in single-threaded test context.
         unsafe {
             std::env::remove_var("HKASK_TEST_KEY_012");
-            std::env::remove_var("HKASK_TEST_LEGACY_012");
         }
-        assert_eq!(
-            resolve_api_key("HKASK_TEST_KEY_012", &["HKASK_TEST_LEGACY_012"]),
-            ""
-        );
-    }
-
-    /// expect: "Inference API key priority works correctly under test conditions"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — validates keychain/env priority
-    #[test]
-    fn resolve_api_key_primary_wins_over_fallback() {
-        // SAFETY: Setting/removing test environment variables in test code is safe in a single-threaded test context (Rust runs tests serially by default).
-        unsafe {
-            std::env::set_var("HKASK_TEST_KEY_013", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX");
-            std::env::set_var("HKASK_TEST_LEGACY_013", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX");
-        }
-        assert_eq!(
-            resolve_api_key("HKASK_TEST_KEY_013", &["HKASK_TEST_LEGACY_013"]),
-            "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX"
-        );
-        // SAFETY: Test cleanup — see above.
-        unsafe {
-            std::env::remove_var("HKASK_TEST_KEY_013");
-            std::env::remove_var("HKASK_TEST_LEGACY_013");
-        }
+        assert_eq!(resolve_api_key("HKASK_TEST_KEY_012"), "");
     }
 }

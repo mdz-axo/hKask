@@ -15,7 +15,7 @@ use crate::error::ApiError;
 /// and to surface the `expect("Failed to create GixCasAdapter")` failure as a
 /// typed `ApiError::Internal` rather than a panic at startup (P4.1).
 pub(crate) struct GitCasBundle {
-    /// TemplateCrateLoader (legacy — template loading only).
+    /// TemplateCrateLoader — disk-based template loading.
     pub template_adapter: Arc<hkask_templates::TemplateCrateLoader>,
     /// Trait-object `GitCASPort` (hexagonal boundary) used by stores.
     pub git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort>,

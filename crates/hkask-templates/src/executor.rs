@@ -104,7 +104,7 @@ impl ManifestExecutor {
     /// when a `loop` action is encountered, re-entering from the target ordinal
     /// until the convergence threshold is met (via `abort`) or `max_iterations`
     /// is exhausted. If `convergence.max_iterations == 0`, executes once
-    /// (backward-compatible with single-pass KnowAct-based manifests).
+    /// (single-pass for one-shot manifests).
     ///
     /// Returns the final context map with convergence metadata under `_convergence`.
     pub async fn execute_manifest(
@@ -117,7 +117,7 @@ impl ManifestExecutor {
         steps.sort_by_key(|s| s.ordinal);
 
         let max_iterations = if manifest.convergence.max_iterations == 0 {
-            1 // backward-compatible: single-pass for one-shot manifests
+            1 // single-pass for one-shot manifests
         } else {
             manifest.convergence.max_iterations
         };
@@ -486,7 +486,7 @@ impl ManifestExecutor {
             .and_then(|v| v.as_f64())
             .or_else(|| resolve_dot_path(field, context).and_then(|v| v.as_f64()));
 
-        // Fallback: check legacy "composite" field for backward compatibility
+        // Fallback: also check the composite score when a specific field is configured
         let current = if current.is_none() && field != "composite" {
             context.get("composite").and_then(|v| v.as_f64())
         } else {
@@ -515,7 +515,7 @@ impl ManifestExecutor {
         match improvement_gate {
             "both" => threshold_met && improvement_met,
             "either" => threshold_met || improvement_met,
-            _ => threshold_met, // "threshold_only" backward compat
+            _ => threshold_met, // "threshold_only"
         }
     }
 
@@ -782,8 +782,6 @@ fn render_minijinja(template: &str, context: &HashMap<String, Value>) -> Result<
 }
 
 /// Render an inline template using simple `{{key}}` substitution.
-///
-/// For backward compatibility with non-minijinja templates.
 fn render_inline_template(template: &str, context: &HashMap<String, Value>) -> String {
     let mut result = template.to_string();
     for (key, value) in context {

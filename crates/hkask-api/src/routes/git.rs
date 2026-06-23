@@ -85,7 +85,7 @@ pub(crate) async fn archive(
     // Construct crate name from owner/repo
     let crate_name = format!("{}/{}", req.owner, req.repo);
 
-    // Template loading stays on the legacy adapter (domain operation, not CAS)
+    // Template loading uses the disk-based adapter (not CAS)
     let template_adapter = state.template_adapter.clone();
     let template_crate = template_adapter
         .load_template_crate(&crate_name)

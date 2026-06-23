@@ -208,12 +208,10 @@ pub fn resolve_a2a_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 
 /// Resolve the MCP dispatch and tool invocation signing key.
 ///
-/// Chain: master key derivation → env var → OS keychain → A2A fallback.
-/// Falls back to the A2A secret if MCP-specific key is unavailable.
+/// Chain: master key derivation → env var → OS keychain.
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
 /// post: returns Zeroizing<`Vec<u8>`> from first successful resolution step
-/// post: falls back to A2A secret if MCP key unavailable
 pub fn resolve_mcp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
         (
@@ -223,7 +221,6 @@ pub fn resolve_mcp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
         "HKASK_MCP_SECRET",
         "mcp-secret",
     )
-    .or_else(|_| resolve_a2a_secret())
 }
 
 /// Resolve the MCP security gateway HMAC key (used for API auth).
@@ -268,32 +265,29 @@ pub fn resolve_capability_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// Chain: env var → OS keychain.
 /// Note: no master-key derivation for the DB passphrase — it must be
 /// explicitly set via env var or keychain to avoid accidentally encrypting
-/// the database with a derived key that the user didn't consent to.
 /// Resolve the database encryption passphrase.
 ///
-/// Chain: env var → OS keychain.
+/// Chain: env var (`HKASK_DB_PASSPHRASE`).
 /// Note: no master-key derivation for the DB passphrase — it must be
-/// explicitly set via env var or keychain to avoid accidentally encrypting
+/// explicitly set via env var to avoid accidentally encrypting
 /// the database with a derived key that the user didn't consent to.
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// post: returns Zeroizing<`Vec<u8>`> from env var or keychain
+/// post: returns Zeroizing<`Vec<u8>`> from env var
 pub fn resolve_db_passphrase() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve(&SecretRef::env("HKASK_DB_PASSPHRASE"))
-        .or_else(|_| resolve(&SecretRef::keychain("hkask-db-passphrase")))
 }
 
 /// Get or create OCAP secret
 ///
 /// Resolution chain:
-/// 1. Deterministic derivation from master key (preferred — survives restarts)
-/// 2. OS keychain (backward compat)
-/// 3. Random generation (last resort — tokens will not survive restart)
+/// 1. Deterministic derivation from master key
+/// 2. Random generation (last resort — tokens will not survive restart)
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// post: returns Zeroizing<`Vec<u8>`> from derivation, keychain, or random generation
+/// post: returns Zeroizing<`Vec<u8>`> from derivation or random generation
 pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
-    // Prefer deterministic derivation from master key
+    // Deterministic derivation from master key
     let derived = resolve(&SecretRef::derived(
         derivation_contexts::MASTER_KEY_ENV,
         derivation_contexts::OCAP_SECRET,
@@ -305,17 +299,13 @@ pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> 
             Ok(key)
         }
         Err(_) => {
-            // Fallback to keychain for backward compat
-            resolve(&SecretRef::Keychain("hkask-ocap-secret".to_string())).or_else(|_| {
-                // Last resort: generate random (with warning)
-                warn!(
-                    "OCAP secret not available via derivation or keychain; \
-                     generating random secret. Tokens will not survive restart."
-                );
-                info!(target: "cns.keystore", operation = "ocap_secret", source = "random", "CNS");
-                let secret: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
-                Ok(Zeroizing::new(secret))
-            })
+            warn!(
+                "OCAP secret not available via derivation; \
+                 generating random secret. Tokens will not survive restart."
+            );
+            info!(target: "cns.keystore", operation = "ocap_secret", source = "random", "CNS");
+            let secret: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
+            Ok(Zeroizing::new(secret))
         }
     }
 }

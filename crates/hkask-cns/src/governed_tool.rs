@@ -3,7 +3,7 @@
 //! Wraps a `ToolPort` and implements `ToolPort` itself. Before delegating
 //! to the inner tool, it checks:
 //! 1. Authority (OCAP) — two-path DelegationToken verification:
-//!    - Path 1 (legacy): exact-match on tool name (ad-hoc invocation tokens)
+//!    - Path 1 (exact): exact-match on tool name (ad-hoc invocation tokens)
 //!    - Path 2 (domain): capability-domain matching via `capabilities_match()`
 //!      (agent capability tokens use domain shorthand like "cns" not "cns_health")
 //! 2. Budget (Cybernetics) — reserve gas
@@ -144,11 +144,11 @@ impl<P: ToolPort> GovernedTool<P> {
         self
     }
 
-    /// Verify OCAP authority via legacy exact-match (Path 1).
+    /// Verify OCAP authority via exact-match (ad-hoc invocation tokens).
     ///
-    /// Ad-hoc invocation tokens are minted with the exact tool name as `resource_id`
-    /// (e.g., token for `cns_health`). This path preserves backward compatibility.
-    fn verify_capability_legacy(token: &DelegationToken, tool_name: &str) -> bool {
+    /// Ad-hoc tokens are minted with the exact tool name as `resource_id`
+    /// (e.g., token for `cns_health`).
+    fn verify_capability_exact(token: &DelegationToken, tool_name: &str) -> bool {
         token.is_valid_for(
             DelegationResource::Tool,
             tool_name,
@@ -156,7 +156,7 @@ impl<P: ToolPort> GovernedTool<P> {
         )
     }
 
-    /// Verify OCAP authority via domain-based capability matching (Path 2).
+    /// Verify OCAP authority via domain-based capability matching.
     ///
     /// Agent capability tokens use domain shorthand (e.g., `cns` not `cns_health`).
     /// The tool's `required_capability` declares its domain (e.g., `tool:cns:execute`).
@@ -168,13 +168,8 @@ impl<P: ToolPort> GovernedTool<P> {
 
     /// Async fallback: look up tool metadata and try domain-based matching.
     ///
-    /// Called only when the legacy exact-match path fails. Returns `true` if the
-    /// tool has a `required_capability` and the token covers it.
-    ///
-    /// Performance note: this calls get_tool_info() on every legacy-check failure.
-    /// For agent-driven invocations (domain-scoped tokens), this is every call.
-    /// If profiling shows this is a bottleneck, cache ToolInfo in GovernedTool
-    /// or pass &ToolInfo through the invoke() call chain.
+    /// Called when exact-match fails. Returns `true` if the tool has a
+    /// `required_capability` and the token covers it.
     async fn verify_capability_domain_fallback(
         &self,
         token: &DelegationToken,
@@ -214,9 +209,8 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         }
 
         // Step 1: Verify OCAP authority
-        // Path 1: Legacy exact-match — ad-hoc invocation tokens minted with tool name
-        // Path 2: Domain-based — agent capability tokens use domain shorthand
-        let authorized = Self::verify_capability_legacy(token, tool)
+        // Exact-match (ad-hoc tokens) or domain-based (agent tokens)
+        let authorized = Self::verify_capability_exact(token, tool)
             || self.verify_capability_domain_fallback(token, tool).await;
         if !authorized {
             warn!(
@@ -501,10 +495,10 @@ mod tests {
     // OCAP Path 1: a DelegationToken minted for a specific tool name
     // must grant access when the tool name matches exactly.
     #[test]
-    fn legacy_exact_match_grants_correct_tool() {
+    fn exact_match_grants_correct_tool() {
         let token = make_token("cns_health");
 
-        assert!(GovernedTool::<NoOpToolPort>::verify_capability_legacy(
+        assert!(GovernedTool::<NoOpToolPort>::verify_capability_exact(
             &token,
             "cns_health"
         ));
@@ -513,10 +507,10 @@ mod tests {
     //
     // OCAP Path 1: a token for one tool must not grant access to another.
     #[test]
-    fn legacy_exact_match_denies_wrong_tool() {
+    fn exact_match_denies_wrong_tool() {
         let token = make_token("cns_health");
 
-        assert!(!GovernedTool::<NoOpToolPort>::verify_capability_legacy(
+        assert!(!GovernedTool::<NoOpToolPort>::verify_capability_exact(
             &token,
             "prompt_invoke"
         ));

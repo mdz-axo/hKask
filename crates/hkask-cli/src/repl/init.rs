@@ -103,17 +103,9 @@ pub(super) fn init_repl_state(
                 std::env::set_var("HKASK_MASTER_KEY", &secrets.master_key_hex);
             }
 
-            // Onboarding provides A2A + DB secrets. MCP secret is resolved
-            // separately. Falls back to A2A secret if MCP-specific key is
-            // unavailable (matching resolve_mcp_secret's own fallback chain),
-            // rather than using a hardcoded default.
+            // Onboarding provides A2A + DB secrets. MCP secret is resolved separately.
             let mcp_secret = hkask_keystore::keychain::resolve_mcp_secret()
                 .map(|s| String::from_utf8_lossy(&s).to_string())
-                .or_else(|_| {
-                    tracing::warn!("MCP secret not in keychain, falling back to A2A secret");
-                    hkask_keystore::keychain::resolve_a2a_secret()
-                        .map(|s| String::from_utf8_lossy(&s).to_string())
-                })
                 .map_err(|e| format!("Failed to resolve MCP secret: {e}"))
                 .ok()?;
             hkask_services::ServiceConfig::from_secrets(
@@ -322,15 +314,14 @@ pub(super) fn init_repl_state(
         let manifest = hkask_templates::resolve_manifest(manifest_ref, registry);
 
         if let Some(bundle) = manifest {
-            let a2a_secret: &[u8] = state
+            let a2a_secret = state
                 .resolved_secrets
                 .as_ref()
-                .map(|s| s.a2a_secret.as_bytes())
-                .unwrap_or(&[]);
+                .map(|s| s.a2a_secret.as_bytes().to_vec())
+                .unwrap_or_default();
 
             let mcp_dispatcher = hkask_mcp::McpDispatcher::with_governed_tool(
                 (*mcp_runtime).clone(),
-                a2a_secret,
                 state.governed_tool.clone(),
             );
 
@@ -338,7 +329,7 @@ pub(super) fn init_repl_state(
                 state.inference_port.clone(),
                 Arc::new(mcp_dispatcher) as Arc<dyn McpPort>,
                 LLMParameters::default(),
-                a2a_secret.to_vec(),
+                a2a_secret,
             );
 
             tracing::info!(

@@ -44,9 +44,8 @@ const HKDF_SALT: &[u8; 13] = b"hkask-hkdf-v1";
 /// Output length for HKDF expansion (256 bits = 32 bytes = AES-256 / HMAC-SHA256 key size).
 const SUB_KEY_LEN: usize = 32;
 
-/// Default key version for backward compatibility.
-/// All existing secrets were derived with version 1.
-pub const DEFAULT_KEY_VERSION: u32 = 1;
+/// Current key version.
+pub const CURRENT_KEY_VERSION: u32 = 1;
 
 /// All internal secrets derived from the master key.
 ///
@@ -78,7 +77,7 @@ impl std::fmt::Debug for InternalSecrets {
     }
 }
 
-/// Derive all internal secrets from a master passphrase (version 1 — backward compat).
+/// Derive all internal secrets from a master passphrase.
 ///
 /// Uses Argon2id (slow, memory-hard) once to stretch the passphrase into a
 /// 32-byte master key, then HKDF-SHA256 (fast, deterministic) to derive each
@@ -94,7 +93,7 @@ impl std::fmt::Debug for InternalSecrets {
 ///
 /// Cannot panic — Argon2id and HKDF are infallible with valid parameters.
 pub fn derive_all_internal_secrets(master_passphrase: &str) -> InternalSecrets {
-    derive_all_internal_secrets_with_version(master_passphrase, DEFAULT_KEY_VERSION)
+    derive_all_internal_secrets_with_version(master_passphrase, CURRENT_KEY_VERSION)
 }
 
 /// Derive all internal secrets with a specific key version.

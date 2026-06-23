@@ -437,15 +437,14 @@ impl Phase {
         }
     }
 
-    /// Parse a phase string into a Phase variant, with backward-compatible
-    /// mappings from the old names (observe→Sense, regulate→Compute, outcome→Act).
+    /// Parse a phase string into a Phase variant.
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
-            "sense" | "Sense" | "observe" | "Observe" => Phase::Sense,
-            "compute" | "Compute" | "regulate" | "Regulate" => Phase::Compute,
+            "sense" | "Sense" => Phase::Sense,
+            "compute" | "Compute" => Phase::Compute,
             "compare" | "Compare" => Phase::Compare,
-            "act" | "Act" | "outcome" | "Outcome" => Phase::Act,
+            "act" | "Act" => Phase::Act,
             _ => Phase::Sense,
         }
     }
@@ -570,16 +569,11 @@ mod tests {
     }
 
     #[test]
-    fn phase_from_str_backward_compatible() {
-        // New names
+    fn phase_from_str() {
         assert_eq!(Phase::from_str("sense"), Phase::Sense);
         assert_eq!(Phase::from_str("compute"), Phase::Compute);
         assert_eq!(Phase::from_str("compare"), Phase::Compare);
         assert_eq!(Phase::from_str("act"), Phase::Act);
-        // Backward-compatible old names
-        assert_eq!(Phase::from_str("observe"), Phase::Sense);
-        assert_eq!(Phase::from_str("regulate"), Phase::Compute);
-        assert_eq!(Phase::from_str("outcome"), Phase::Act);
         // Unknown falls back to Sense
         assert_eq!(Phase::from_str("unknown"), Phase::Sense);
     }

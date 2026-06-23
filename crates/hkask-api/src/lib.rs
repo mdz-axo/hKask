@@ -75,7 +75,7 @@ pub struct ApiState {
     pub agent_service: Arc<AgentService>,
     /// Spec store for MDS specifications — surface-specific
     pub spec_store: Option<Arc<hkask_storage::SqliteSpecStore>>,
-    /// Legacy template-loading adapter — surface-specific
+    /// Template-loading adapter — surface-specific
     pub template_adapter: Arc<hkask_templates::TemplateCrateLoader>,
     /// Git CAS port for all CAS operations (hexagonal boundary) — surface-specific
     pub git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort>,
@@ -130,7 +130,7 @@ impl ApiState {
     /// post: git_cas initialized from ctx or defaults
     /// post: api_key_auth_service initialized if wallet_store + wallet_service available
     pub async fn from_service_context(ctx: AgentService) -> Result<Self, ApiError> {
-        // Surface-specific: Git CAS adapters (legacy template archival)
+        // Surface-specific: Git CAS adapters
         let GitCasBundle {
             template_adapter,
             git_cas_port,

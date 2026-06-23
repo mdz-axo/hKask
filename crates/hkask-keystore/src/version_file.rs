@@ -10,8 +10,7 @@
 
 use std::path::PathBuf;
 
-/// Default key version if no version file exists (backward compat).
-pub const DEFAULT_KEY_VERSION: u32 = 1;
+pub const CURRENT_KEY_VERSION: u32 = 1;
 
 /// Get the path to the key version file.
 ///
@@ -26,25 +25,16 @@ pub fn version_file_path() -> PathBuf {
 
 /// Read the current key version from disk.
 ///
-/// Returns `DEFAULT_KEY_VERSION` (1) if the file doesn't exist
-/// (backward compatibility with pre-versioning installs).
+/// Returns an error if the version file does not exist (run `kask init` first).
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// post: returns u32 version from file, or DEFAULT_KEY_VERSION if missing
-pub fn read_key_version() -> u32 {
+/// post: returns u32 version from file, or io::Error if missing
+pub fn read_key_version() -> std::io::Result<u32> {
     let path = version_file_path();
-    match std::fs::read_to_string(&path) {
-        Ok(contents) => {
-            let version = contents.trim().parse().unwrap_or(DEFAULT_KEY_VERSION);
-            // P9: CNS span
-            tracing::info!(target: "cns.keystore", operation = "read_key_version", version = version, "CNS");
-            version
-        }
-        Err(_) => {
-            tracing::info!(target: "cns.keystore", operation = "read_key_version", version = DEFAULT_KEY_VERSION, "CNS");
-            DEFAULT_KEY_VERSION
-        }
-    }
+    let contents = std::fs::read_to_string(&path)?;
+    let version = contents.trim().parse().unwrap_or(CURRENT_KEY_VERSION);
+    tracing::info!(target: "cns.keystore", operation = "read_key_version", version = version, "CNS");
+    Ok(version)
 }
 
 /// Write a new key version to disk.
@@ -73,7 +63,7 @@ pub fn write_key_version(version: u32) -> std::io::Result<()> {
 /// post: version incremented by 1 and written to disk
 /// post: returns new version number
 pub fn increment_key_version() -> std::io::Result<u32> {
-    let current = read_key_version();
+    let current = read_key_version()?;
     let new = current + 1;
     tracing::info!(target: "cns.keystore", operation = "increment_key_version", old = current, new = new, "CNS");
     write_key_version(new)?;
@@ -86,15 +76,15 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn default_version_is_one() {
-        assert_eq!(DEFAULT_KEY_VERSION, 1);
+    fn current_version_is_one() {
+        assert_eq!(CURRENT_KEY_VERSION, 1);
     }
 
     #[test]
-    fn read_returns_default_when_no_file() {
-        // In test environment, config dir may not exist — should return default
-        let version = read_key_version();
-        assert!(version >= 1);
+    fn read_version_errors_when_no_file() {
+        // In test environment, config dir may not exist — should error
+        let result = read_key_version();
+        assert!(result.is_err());
     }
 
     #[test]

@@ -19,7 +19,7 @@ pub struct ConvergenceConfig {
     #[serde(default)]
     pub improvement_ratio: f64,
     /// How the threshold and improvement conditions combine:
-    /// - "threshold_only" (default): only check quality <= threshold. Backward compatible.
+    /// - "threshold_only" (default): only check quality <= threshold.
     /// - "both": must satisfy quality <= threshold AND improvement >= improvement_ratio.
     /// - "either": must satisfy quality <= threshold OR improvement >= improvement_ratio.
     #[serde(default = "default_improvement_gate")]

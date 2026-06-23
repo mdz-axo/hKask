@@ -85,7 +85,7 @@ impl ActivePods {
         Self::new_test_harness_inner(data_dir)
     }
 
-    /// Inner test harness — shared with new_mock for backward compatibility.
+    /// Inner test harness.
     fn new_test_harness_inner(data_dir: &std::path::Path) -> Self {
         use crate::AllowAllConsent;
         use crate::a2a::A2ARuntime;

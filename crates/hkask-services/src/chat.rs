@@ -1088,7 +1088,7 @@ pub struct TurnRequest {
     /// None means no improv posture (default agent behavior).
     pub improv_mode: Option<hkask_improv::ImprovMode>,
     /// Source of this turn — which communication channel the message arrived from.
-    /// None means unknown/CLI (backward compatible). When set, enables the agent
+    /// None means unknown/CLI. When set, enables the agent
     /// to maintain separate conversation contexts per source (P12: every action
     /// has an author).
     pub source: Option<MessageSource>,
