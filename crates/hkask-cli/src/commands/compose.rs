@@ -6,7 +6,7 @@
 //!
 //! Cognition: registry/styles/*/...-synthesizer.yaml and registry/styles/*/...-mashup.yaml
 
-use hkask_services::{CognitionConfig, ComposeRequest, ComposeService, InferenceContext, ServiceConfig};
+use hkask_services::{CognitionConfig, ComposeRequest, ComposeService, InferenceConfig, InferenceContext};
 
 use std::path::PathBuf;
 
@@ -40,7 +40,7 @@ pub fn run(
     let centroid_ref = config.embedding.centroid_entity_ref.clone();
 
     let inference_ctx =
-        InferenceContext::from_parts(None, &config.embedding.model, ServiceConfig::from_env().unwrap_or_default().inference_config);
+        InferenceContext::from_parts(None, &config.embedding.model, InferenceConfig::from_env());
 
     let request = ComposeRequest {
         prompt,

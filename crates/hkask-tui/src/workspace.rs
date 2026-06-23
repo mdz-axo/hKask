@@ -14,6 +14,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use uuid::Uuid;
 
+use crate::bridges::{BackupDataBridge, ConfigDataBridge, WalletDataBridge};
 use crate::keybindings::{CHAT_BINDINGS, GLOBAL_BINDINGS};
 use crate::repl_bridge::ReplBridge;
 use crate::status_bar::StatusBar;
@@ -266,11 +267,13 @@ pub struct Workspace {
     focused_window: Option<WindowId>,
     service_context: Arc<hkask_services::AgentService>,
     bridge: Arc<dyn ReplBridge>,
+    wallet_bridge: Option<Arc<dyn WalletDataBridge>>,
+    config_bridge: Option<Arc<dyn ConfigDataBridge>>,
+    backup_bridge: Option<Arc<dyn BackupDataBridge>>,
     status_bar: StatusBar,
     sidebar_open: bool,
     help_visible: bool,
     _palette_prev_focus: Option<WindowId>,
-    /// Current window kind index for Ctrl+N cycling
     window_kind_idx: usize,
 }
 
@@ -311,12 +314,30 @@ impl Workspace {
             focused_window: Some(chat_id),
             service_context,
             bridge,
+            wallet_bridge: None,
+            config_bridge: None,
+            backup_bridge: None,
             status_bar,
             sidebar_open: false,
             help_visible: false,
             _palette_prev_focus: None,
             window_kind_idx: 0,
         }
+    }
+
+    pub fn with_wallet_bridge(&mut self, wallet: Arc<dyn WalletDataBridge>) -> &mut Self {
+        self.wallet_bridge = Some(wallet);
+        self
+    }
+
+    pub fn with_config_bridge(&mut self, config: Arc<dyn ConfigDataBridge>) -> &mut Self {
+        self.config_bridge = Some(config);
+        self
+    }
+
+    pub fn with_backup_bridge(&mut self, backup: Arc<dyn BackupDataBridge>) -> &mut Self {
+        self.backup_bridge = Some(backup);
+        self
     }
 
     pub fn is_empty(&self) -> bool {
@@ -584,14 +605,35 @@ impl Workspace {
         let new_id = WindowId(uuid::Uuid::new_v4());
         let bridge = self.bridge.clone();
         let service_context = self.service_context.clone();
+        let wb = self.wallet_bridge.clone();
+        let cb = self.config_bridge.clone();
+        let bb = self.backup_bridge.clone();
         let new_win: Box<dyn Window> = match kind {
             WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(new_id, bridge)),
             WindowKind::Pods => Box::new(PodsWindow::new(new_id, bridge)),
-            WindowKind::Wallet => Box::new(WalletWindow::new(new_id, bridge)),
+            WindowKind::Wallet => {
+                let mut w = WalletWindow::new(new_id, bridge);
+                if let Some(b) = wb {
+                    w = w.with_wallet_bridge(b);
+                }
+                Box::new(w)
+            }
             WindowKind::Registry => Box::new(RegistryWindow::new(new_id, bridge)),
-            WindowKind::Backup => Box::new(BackupWindow::new(new_id, bridge)),
+            WindowKind::Backup => {
+                let mut w = BackupWindow::new(new_id, bridge);
+                if let Some(b) = bb {
+                    w = w.with_backup_bridge(b);
+                }
+                Box::new(w)
+            }
             WindowKind::Curator => Box::new(CuratorWindow::new(new_id, bridge)),
-            WindowKind::Configuration => Box::new(ConfigurationWindow::new(new_id, bridge)),
+            WindowKind::Configuration => {
+                let mut w = ConfigurationWindow::new(new_id, bridge);
+                if let Some(b) = cb {
+                    w = w.with_config_bridge(b);
+                }
+                Box::new(w)
+            }
             WindowKind::Terminal => Box::new(TerminalWindow::new(new_id, bridge)),
             WindowKind::Editor => Box::new(EditorWindow::new(new_id, bridge)),
             WindowKind::Training => Box::new(TrainingWindow::new(new_id, bridge)),

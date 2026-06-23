@@ -33,6 +33,7 @@ mod tab;
 mod window;
 mod workspace;
 
+pub mod bridges;
 pub mod widgets;
 pub mod windows;
 
@@ -45,6 +46,7 @@ use std::time::Duration;
 pub use repl_bridge::{InferenceState, ReplBridge, TurnResult};
 pub use window::{Window, WindowId, WindowKind};
 pub use workspace::{SplitDirection, Workspace};
+use bridges::{BackupDataBridge, ConfigDataBridge, WalletDataBridge};
 
 /// Top-level TUI session — owns the terminal, workspace, and event loop.
 ///
@@ -80,6 +82,21 @@ impl TuiSession {
             should_quit: false,
             tick_rate: Duration::from_millis(16),
         })
+    }
+
+    pub fn with_wallet_bridge(mut self, wallet: std::sync::Arc<dyn WalletDataBridge>) -> Self {
+        self.workspace.with_wallet_bridge(wallet);
+        self
+    }
+
+    pub fn with_config_bridge(mut self, config: std::sync::Arc<dyn ConfigDataBridge>) -> Self {
+        self.workspace.with_config_bridge(config);
+        self
+    }
+
+    pub fn with_backup_bridge(mut self, backup: std::sync::Arc<dyn BackupDataBridge>) -> Self {
+        self.workspace.with_backup_bridge(backup);
+        self
     }
 
     /// Run the main event loop. Blocks until the user quits.

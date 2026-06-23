@@ -2182,6 +2182,12 @@ impl MediaServer {
         let faces = match self.gallery_store.list_faces(status.as_deref()) {
             Ok(f) => f,
             Err(e) => {
+                self.record_experience(
+                    "face_list",
+                    "face_list",
+                    "error",
+                    serde_json::json!({"status": status}),
+                );
                 return span.error(
                     McpErrorKind::Internal,
                     McpToolError::internal(format!("Failed to list faces: {}", e)).to_json_string(),
@@ -2189,6 +2195,12 @@ impl MediaServer {
             }
         };
 
+        self.record_experience(
+            "face_list",
+            "face_list",
+            "success",
+            serde_json::json!({"status": status}),
+        );
         span.ok_json(serde_json::json!({
             "count": faces.len(),
             "faces": faces,
@@ -3097,7 +3109,14 @@ impl MediaServer {
     ) -> String {
         let span = ToolSpanGuard::new("video_caption", &self.webid);
 
+        let style_str = style.as_deref().unwrap_or("descriptive");
         if !self.ffmpeg.available {
+            self.record_experience(
+                "video_caption",
+                &video_url,
+                "error",
+                serde_json::json!({"style": style_str}),
+            );
             return span.error(
                 McpErrorKind::Unavailable,
                 McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
@@ -3108,6 +3127,12 @@ impl MediaServer {
         let frames = match self.ffmpeg.extract_keyframes(&video_url, 2.0, 10).await {
             Ok(f) => f,
             Err(e) => {
+                self.record_experience(
+                    "video_caption",
+                    &video_url,
+                    "error",
+                    serde_json::json!({"style": style_str}),
+                );
                 return span.error(
                     McpErrorKind::Internal,
                     McpToolError::internal(format!("Keyframe extraction failed: {}", e))
@@ -3117,6 +3142,12 @@ impl MediaServer {
         };
 
         if frames.is_empty() {
+            self.record_experience(
+                "video_caption",
+                &video_url,
+                "error",
+                serde_json::json!({"style": style_str}),
+            );
             return span.error(
                 McpErrorKind::Internal,
                 McpToolError::internal("No keyframes extracted from video.").to_json_string(),
@@ -3831,6 +3862,12 @@ impl MediaServer {
             .image_to_image(&image_url, &prompt, strength)
             .await
             .map_err(|e| McpToolError::unavailable(format!("Image transform failed: {}", e)));
+        self.record_experience(
+            "transform_image",
+            &prompt,
+            if result.is_ok() { "success" } else { "error" },
+            serde_json::json!({"strength": strength}),
+        );
         span.finish(result)
     }
 
@@ -3848,6 +3885,12 @@ impl MediaServer {
             .upscale(&image_url, scale)
             .await
             .map_err(|e| McpToolError::unavailable(format!("Upscale failed: {}", e)));
+        self.record_experience(
+            "upscale_image",
+            &image_url,
+            if result.is_ok() { "success" } else { "error" },
+            serde_json::json!({"scale": scale}),
+        );
         span.finish(result)
     }
 
@@ -3864,6 +3907,12 @@ impl MediaServer {
             .generate_video(&prompt, duration)
             .await
             .map_err(|e| McpToolError::unavailable(format!("Video generation failed: {}", e)));
+        self.record_experience(
+            "generate_video",
+            &prompt,
+            if result.is_ok() { "success" } else { "error" },
+            serde_json::json!({"duration": duration}),
+        );
         span.finish(result)
     }
 }
