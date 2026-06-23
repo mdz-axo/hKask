@@ -44,6 +44,9 @@ pub trait ReplBridge: Send + Sync {
     /// `Thinking` while inference is in progress, or `Done(result)` when complete.
     fn poll_inference(&self) -> InferenceState;
 
+    /// Get current streaming text (partial response during inference).
+    fn streaming_text(&self) -> String;
+
     /// Blocking send (used for quick commands, not for normal chat).
     fn send_message_blocking(&self, input: &str) -> TurnResult;
 
@@ -73,4 +76,7 @@ pub trait ReplBridge: Send + Sync {
 
     /// Get CNS domain health summary.
     fn cns_domains(&self) -> Vec<(String, bool)>;
+
+    /// Send a message to the Curator daemon and get a response.
+    fn send_curator_message(&self, input: &str) -> String;
 }

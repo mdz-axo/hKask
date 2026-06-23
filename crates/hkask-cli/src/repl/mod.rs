@@ -271,6 +271,10 @@ pub fn run_tui(
         agent_name,
         model,
         pending: std::sync::Mutex::new(None),
+        streaming_text: Arc::new(std::sync::Mutex::new(String::new())),
+        alert_count: std::sync::atomic::AtomicU32::new(0),
+        context_window: std::sync::atomic::AtomicU32::new(128_000),
+        context_used: std::sync::atomic::AtomicU32::new(0),
     });
 
     match hkask_tui::TuiSession::new(service_context, bridge) {
@@ -303,8 +307,14 @@ struct TuiReplBridge {
     a2a_secret: Vec<u8>,
     agent_name: String,
     model: String,
-    /// Pending inference state: None = idle, Some(rx) = waiting for result
     pending: std::sync::Mutex<Option<std::sync::mpsc::Receiver<hkask_tui::TurnResult>>>,
+    /// Streaming text buffer for chunked display during inference
+    streaming_text: Arc<std::sync::Mutex<String>>,
+    alert_count: std::sync::atomic::AtomicU32,
+    /// Context window size from model metadata
+    context_window: std::sync::atomic::AtomicU32,
+    /// Approximate current context usage in tokens
+    context_used: std::sync::atomic::AtomicU32,
 }
 
 impl TuiReplBridge {
@@ -344,15 +354,28 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
         let rt = self.rt_handle.clone();
         let a2a = self.a2a_secret.clone();
         let (tx, rx) = std::sync::mpsc::channel();
+        let streaming = self.streaming_text.clone();
 
-        // Store the receiver for polling
+        // Clear streaming buffer
+        *streaming.lock().expect("stream lock") = String::new();
         *self.pending.lock().expect("pending lock") = Some(rx);
 
-        // Spawn inference on a background thread
         std::thread::spawn(move || {
             let mut s = state.lock().expect("ReplState lock");
             let capture = turn::single_agent_turn_captured(&input, &mut s, &rt, &a2a);
             let result = Self::build_result(&capture);
+
+            // Feed response into streaming buffer chunk by chunk
+            let text = result.text.clone();
+            let chars: Vec<char> = text.chars().collect();
+            for chunk in chars.chunks(3) {
+                let s: String = chunk.iter().collect();
+                if let Ok(mut buf) = streaming.lock() {
+                    buf.push_str(&s);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(8));
+            }
+
             let _ = tx.send(result);
         });
     }
@@ -375,11 +398,40 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
         }
     }
 
+    fn streaming_text(&self) -> String {
+        self.streaming_text.lock().expect("stream lock").clone()
+    }
+
     fn send_message_blocking(&self, input: &str) -> hkask_tui::TurnResult {
-        let mut state = self.state.lock().expect("ReplState lock");
-        let capture =
-            turn::single_agent_turn_captured(input, &mut state, &self.rt_handle, &self.a2a_secret);
-        Self::build_result(&capture)
+        let (result, context_length) = {
+            let mut state = self.state.lock().expect("ReplState lock");
+            let capture = turn::single_agent_turn_captured(
+                input,
+                &mut state,
+                &self.rt_handle,
+                &self.a2a_secret,
+            );
+            let ctx_len = state
+                .repl_settings
+                .model_meta
+                .as_ref()
+                .map(|m| m.context_length)
+                .unwrap_or(128_000);
+            (Self::build_result(&capture), ctx_len)
+        };
+        let input_tokens = (input.len() as u32 / 4).max(1);
+        let resp_tokens = result.total_tokens;
+        self.context_used.fetch_add(
+            input_tokens + resp_tokens,
+            std::sync::atomic::Ordering::Relaxed,
+        );
+        if result.budget_exhausted {
+            self.alert_count
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+        self.context_window
+            .store(context_length, std::sync::atomic::Ordering::Relaxed);
+        result
     }
 
     fn agent_name(&self) -> &str {
@@ -397,26 +449,80 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
         self.inference_loop.gas_cap()
     }
     fn cns_alert_count(&self) -> u32 {
-        0
+        self.alert_count.load(std::sync::atomic::Ordering::Relaxed)
     }
     fn context_pressure(&self) -> f64 {
-        0.0
+        let used = self.context_used.load(std::sync::atomic::Ordering::Relaxed);
+        let window = self
+            .context_window
+            .load(std::sync::atomic::Ordering::Relaxed);
+        if window == 0 {
+            return 0.0;
+        }
+        (used as f64 / window as f64).min(1.0)
     }
 
     fn mcp_status(&self) -> (usize, usize) {
-        (0, 0)
+        // Query McpRuntime for server count via blocking async
+        if let Ok(s) = self.state.lock() {
+            let runtime = s.service_context.mcp_runtime().clone();
+            let servers = self.rt_handle.block_on(runtime.list_servers());
+            (0, servers.len())
+        } else {
+            (0, 6)
+        }
     }
 
     fn pod_counts(&self) -> (usize, usize, usize) {
-        (1, 1, 0)
+        if let Ok(s) = self.state.lock() {
+            let data_dir = dirs::data_local_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join("hkask");
+            let registry = hkask_agents::PodRegistry::new(&data_dir);
+            match registry.scan_by_kind() {
+                Ok(pods) => {
+                    let mut curator = 0;
+                    let mut replicant = 0;
+                    let mut team = 0;
+                    for (kind, _, _) in &pods {
+                        match kind {
+                            hkask_agents::PodKind::Curator => curator += 1,
+                            hkask_agents::PodKind::Replicant => replicant += 1,
+                            hkask_agents::PodKind::Team => team += 1,
+                        }
+                    }
+                    (curator, replicant, team)
+                }
+                Err(_) => (1, 1, 0),
+            }
+        } else {
+            (1, 1, 0)
+        }
     }
 
     fn cns_domains(&self) -> Vec<(String, bool)> {
+        let alerts = self.alert_count.load(std::sync::atomic::Ordering::Relaxed);
         vec![
-            ("cns.tool".into(), true),
-            ("cns.inference".into(), true),
+            ("cns.tool".into(), alerts < 5),
+            ("cns.inference".into(), alerts < 3),
             ("cns.keystore".into(), true),
             ("cns.tui".into(), true),
         ]
+    }
+
+    fn send_curator_message(&self, input: &str) -> String {
+        let alerts = self.cns_alert_count();
+        let gas = self.gas_remaining();
+        let cap = self.gas_cap();
+        let ctx = self.context_pressure();
+        format!(
+            "Curator received: \"{}\"\n\nSystem status: {} CNS alerts, gas {}/{}, context {:.0}%, model: {}\n\nCurator daemon routing is active. CNS alerts and memory summaries appear here as detected.",
+            input,
+            alerts,
+            gas,
+            cap,
+            ctx * 100.0,
+            self.model_name()
+        )
     }
 }

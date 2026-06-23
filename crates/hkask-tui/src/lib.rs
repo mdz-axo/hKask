@@ -41,7 +41,6 @@ use ratatui::Terminal;
 use ratatui::prelude::CrosstermBackend;
 use std::io::Stdout;
 use std::time::Duration;
-use uuid::Uuid;
 
 pub use repl_bridge::{InferenceState, ReplBridge, TurnResult};
 pub use window::{Window, WindowId, WindowKind};
@@ -197,6 +196,16 @@ impl TuiSession {
             // Toggle sidebar
             (KeyModifiers::CONTROL, Char('b')) => {
                 self.workspace.toggle_sidebar();
+                true
+            }
+            // Help overlay
+            (KeyModifiers::NONE, Char('?')) => {
+                self.workspace.toggle_help();
+                true
+            }
+            // New window (cycle through kinds)
+            (KeyModifiers::CONTROL, Char('n')) => {
+                self.workspace.open_next_window_kind();
                 true
             }
             _ => false,

@@ -24,18 +24,30 @@ pub enum WindowKind {
     Backup,
     /// Registry browser — templates, skills, styles, bundles
     Registry,
-    /// Matrix protocol rooms and messages
-    Matrix,
     /// Pod status — CuratorPod, TeamPods, ReplicantPods
     Pods,
     /// Kanban board view
     Kanban,
     /// Energy/gas usage analytics
     Energy,
+    /// Matrix chat — federated messaging rooms
+    Matrix,
     /// Settings editor (ReplSettings)
-    Settings,
+    Configuration,
     /// Composite sidebar — CNS summary + MCP status + context gauge + pod list
     Sidebar,
+    /// Curator daemon window — P12.1 dual-presence
+    Curator,
+    /// Embedded terminal — run shell commands
+    Terminal,
+    /// Text editor — edit configs, agent YAML, etc.
+    Editor,
+    /// Training monitor — LoRA adapters, sessions, artifacts
+    Training,
+    /// Media gallery — images, audio, video collections
+    Media,
+    /// Skills manager — browse and manage skill corpus
+    Skills,
 }
 
 impl WindowKind {
@@ -50,8 +62,14 @@ impl WindowKind {
             WindowKind::Pods => "Pods",
             WindowKind::Kanban => "Kanban",
             WindowKind::Energy => "Energy",
-            WindowKind::Settings => "Settings",
+            WindowKind::Configuration => "Configuration",
             WindowKind::Sidebar => "Sidebar",
+            WindowKind::Curator => "Curator",
+            WindowKind::Terminal => "Terminal",
+            WindowKind::Editor => "Editor",
+            WindowKind::Training => "Training",
+            WindowKind::Media => "Media",
+            WindowKind::Skills => "Skills",
         }
     }
 
@@ -66,8 +84,14 @@ impl WindowKind {
             WindowKind::Pods => "Pod deployment status and agent inventory",
             WindowKind::Kanban => "Kanban board for task coordination",
             WindowKind::Energy => "Gas usage, energy budget, and cost analytics",
-            WindowKind::Settings => "Edit REPL inference settings",
+            WindowKind::Configuration => "Edit REPL inference and system settings",
             WindowKind::Sidebar => "Composite sidebar with CNS, MCP, and pod status",
+            WindowKind::Curator => "Curator daemon — CNS alerts, memory, and direct chat",
+            WindowKind::Terminal => "Embedded shell — run commands from within the TUI",
+            WindowKind::Editor => "Text editor — edit configs, agent YAML, and scripts",
+            WindowKind::Training => "Training monitor — LoRA adapters, sessions, and artifacts",
+            WindowKind::Media => "Media gallery — browse images, audio, and video collections",
+            WindowKind::Skills => "Skills manager — browse, install, and activate skills",
         }
     }
 

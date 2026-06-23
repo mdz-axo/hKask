@@ -5261,6 +5261,7 @@ name = "hkask-tui"
 version = "0.30.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "crossterm",
  "hkask-agents",
  "hkask-cns",

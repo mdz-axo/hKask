@@ -20,7 +20,19 @@ use crate::status_bar::StatusBar;
 use crate::tab::Tab;
 use crate::window::{Window, WindowId, WindowKind};
 use crate::windows::chat::ChatWindow;
+use crate::windows::cns_monitor::CnsMonitorWindow;
+use crate::windows::configuration::ConfigurationWindow;
+use crate::windows::curator::CuratorWindow;
+use crate::windows::editor::EditorWindow;
+use crate::windows::energy::EnergyWindow;
+use crate::windows::matrix::MatrixWindow;
+use crate::windows::media::MediaWindow;
+use crate::windows::pods::PodsWindow;
+use crate::windows::registry::RegistryWindow;
 use crate::windows::sidebar::SidebarWindow;
+use crate::windows::skills::SkillsWindow;
+use crate::windows::terminal::TerminalWindow;
+use crate::windows::training::TrainingWindow;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SplitDirection {
@@ -254,6 +266,8 @@ pub struct Workspace {
     sidebar_open: bool,
     help_visible: bool,
     _palette_prev_focus: Option<WindowId>,
+    /// Current window kind index for Ctrl+N cycling
+    window_kind_idx: usize,
 }
 
 impl Workspace {
@@ -271,7 +285,15 @@ impl Workspace {
             service_context.clone(),
             bridge.clone(),
         );
-        let root = SplitNode::Leaf(Box::new(chat));
+
+        // Default layout: Chat (left, 65%) + Curator (right, 35%)
+        let curator_id = WindowId(Uuid::new_v4());
+        let curator = CuratorWindow::new(curator_id, bridge.clone());
+        let root = SplitNode::Horizontal {
+            left: Box::new(SplitNode::Leaf(Box::new(chat))),
+            right: Box::new(SplitNode::Leaf(Box::new(curator))),
+            ratio: 0.65,
+        };
         let tab = Tab::new("Chat".to_string(), root);
 
         let mut status_bar = StatusBar::new();
@@ -289,6 +311,7 @@ impl Workspace {
             sidebar_open: false,
             help_visible: false,
             _palette_prev_focus: None,
+            window_kind_idx: 0,
         }
     }
 
@@ -527,6 +550,57 @@ impl Workspace {
             if let Some(&first_id) = self.root().window_ids().first() {
                 self.focus_window(first_id);
             }
+        }
+    }
+
+    /// Cycle through available window kinds and open one as a vertical split.
+    pub fn open_next_window_kind(&mut self) {
+        const KINDS: &[WindowKind] = &[
+            WindowKind::CnsMonitor,
+            WindowKind::Pods,
+            WindowKind::Energy,
+            WindowKind::Registry,
+            WindowKind::Backup,
+            WindowKind::Curator,
+            WindowKind::Configuration,
+            WindowKind::Terminal,
+            WindowKind::Editor,
+            WindowKind::Training,
+            WindowKind::Media,
+            WindowKind::Skills,
+            WindowKind::Matrix,
+            WindowKind::Chat,
+        ];
+        let kind = KINDS[self.window_kind_idx % KINDS.len()];
+        self.window_kind_idx = self.window_kind_idx.wrapping_add(1);
+
+        let new_id = WindowId(uuid::Uuid::new_v4());
+        let bridge = self.bridge.clone();
+        let new_win: Box<dyn Window> = match kind {
+            WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(new_id, bridge)),
+            WindowKind::Pods => Box::new(PodsWindow::new(new_id, bridge)),
+            WindowKind::Energy => Box::new(EnergyWindow::new(new_id, bridge)),
+            WindowKind::Registry => Box::new(RegistryWindow::new(new_id, bridge)),
+            WindowKind::Backup => {
+                Box::new(crate::windows::backup::BackupWindow::new(new_id, bridge))
+            }
+            _ => Box::new(ChatWindow::new(
+                new_id,
+                self.bridge.agent_name(),
+                self.bridge.model_name(),
+                self.service_context.clone(),
+                bridge,
+            )),
+        };
+
+        let focused = self.focused_window;
+        if self.root_mut().replace_leaf_with_split(
+            focused.unwrap_or(WindowId(uuid::Uuid::nil())),
+            new_win,
+            SplitDirection::Vertical,
+            0.6,
+        ) {
+            self.focused_window = Some(new_id);
         }
     }
 

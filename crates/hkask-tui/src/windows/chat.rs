@@ -135,6 +135,8 @@ pub struct ChatWindow {
     inference_state: InferenceState,
     /// Spinner frame counter for "Thinking..." animation
     spinner_frame: u8,
+    /// Partial streaming text shown during inference
+    streaming_partial: String,
 }
 
 impl ChatWindow {
@@ -169,15 +171,51 @@ impl ChatWindow {
             bridge,
             inference_state: InferenceState::Idle,
             spinner_frame: 0,
+            streaming_partial: String::new(),
         }
     }
 
     /// Add a message to the history and auto-scroll to bottom.
     fn add_message(&mut self, sender: MessageSender, content: String) {
         self.messages.push(ChatMessage { sender, content });
-        // Auto-scroll to newest message
         if self.messages.len() > 1 {
-            self.scroll_offset = 0; // Reset to bottom
+            self.scroll_offset = 0;
+        }
+    }
+
+    /// Export chat history to a markdown file.
+    fn export_to_markdown(&mut self) {
+        let ts = chrono::Local::now().format("%Y%m%d-%H%M%S");
+        let filename = format!("kask-chat-{}.md", ts);
+        let mut md = String::new();
+        md.push_str(&format!("# hKask Chat Export — {}\n\n", ts));
+        md.push_str(&format!(
+            "**Agent:** {} | **Model:** {}\n\n---\n\n",
+            self.agent_name, self.model
+        ));
+        for msg in &self.messages {
+            match &msg.sender {
+                MessageSender::User => md.push_str(&format!("**You:** {}\n\n", msg.content)),
+                MessageSender::Agent(name) => {
+                    md.push_str(&format!("**{}:** {}\n\n", name, msg.content))
+                }
+                MessageSender::Curator => md.push_str(&format!("**Curator:** {}\n\n", msg.content)),
+                MessageSender::CnsAlert => md.push_str(&format!("> ⚠ *{}*\n\n", msg.content)),
+                MessageSender::Tool(name) => {
+                    md.push_str(&format!("```\n[{}]\n{}\n```\n\n", name, msg.content))
+                }
+            }
+        }
+        match std::fs::write(&filename, &md) {
+            Ok(_) => {
+                self.add_message(
+                    MessageSender::CnsAlert,
+                    format!("Chat exported to {}", filename),
+                );
+            }
+            Err(e) => {
+                self.add_message(MessageSender::CnsAlert, format!("Export failed: {}", e));
+            }
         }
     }
 
@@ -193,7 +231,7 @@ impl ChatWindow {
             "help" => {
                 self.add_message(
                     MessageSender::CnsAlert,
-                    "Commands: /help /quit /clear /model /status /repl /mcp /agent /tui".into(),
+                    "Commands: /help /quit /clear /model /status /repl /mcp /agent /tui /export /curator".into(),
                 );
             }
             "quit" | "exit" => {
@@ -208,15 +246,47 @@ impl ChatWindow {
                 self.scroll_offset = 0;
             }
             "model" => {
-                self.add_message(
-                    MessageSender::CnsAlert,
-                    format!("Current model: {}", self.model),
-                );
+                let sub = parts.get(1).copied().unwrap_or("");
+                if sub.is_empty() {
+                    self.add_message(
+                        MessageSender::CnsAlert,
+                        format!(
+                            "Current model: {} (context: {} tokens)",
+                            self.bridge.model_name(),
+                            (1.0 / (self.bridge.context_pressure() + 0.001)) as u32
+                        ),
+                    );
+                } else {
+                    self.add_message(
+                        MessageSender::CnsAlert,
+                        format!("Model switch to '{}' requested. Use `kask chat --model {}` to change models.", sub, sub),
+                    );
+                }
             }
             "status" => {
+                let gas = self.bridge.gas_remaining();
+                let cap = self.bridge.gas_cap();
+                let alerts = self.bridge.cns_alert_count();
+                let ctx = self.bridge.context_pressure();
+                let (mcp_loaded, mcp_total) = self.bridge.mcp_status();
                 self.add_message(
                     MessageSender::CnsAlert,
-                    "Status: TUI active. Use /repl for inference settings.".into(),
+                    format!(
+                        "Agent: {} | Model: {} | Gas: {}/{} ({:.0}%) | CNS alerts: {} | Context: {:.0}% | MCP: {}/{}",
+                        self.agent_name, self.bridge.model_name(),
+                        gas, cap, if cap > 0 { (gas as f64 / cap as f64) * 100.0 } else { 100.0 },
+                        alerts, ctx * 100.0, mcp_loaded, mcp_total,
+                    ),
+                );
+            }
+            "mcp" => {
+                let (loaded, total) = self.bridge.mcp_status();
+                self.add_message(
+                    MessageSender::CnsAlert,
+                    format!(
+                        "MCP Servers: {}/{} loaded. Use `kask mcp` CLI for full management.",
+                        loaded, total
+                    ),
                 );
             }
             "repl" => {
@@ -248,10 +318,8 @@ impl ChatWindow {
                         );
                     }
                     "help" => {
-                        self.add_message(
-                            MessageSender::CnsAlert,
-                            "TUI keybindings: ^Q quit, ^T tab, ^W close, ^B sidebar, ^P palette, ^H/J/K/L navigate, ^=/- resize".into(),
-                        );
+                        self.add_message(MessageSender::CnsAlert,
+                            "TUI keybindings: ^Q quit, ^T tab, ^W close, ^B sidebar, ^P palette, ^H/J/K/L navigate, ^=/- resize".into());
                     }
                     _ => {
                         self.add_message(
@@ -260,6 +328,9 @@ impl ChatWindow {
                         );
                     }
                 }
+            }
+            "export" => {
+                self.export_to_markdown();
             }
             _ => {
                 self.add_message(
@@ -461,6 +532,7 @@ impl Window for ChatWindow {
             }
             InferenceState::Thinking => {
                 self.spinner_frame = self.spinner_frame.wrapping_add(1);
+                self.streaming_partial = self.bridge.streaming_text();
                 self.inference_state = InferenceState::Thinking;
             }
             other => {
@@ -531,6 +603,22 @@ impl ChatWindow {
                 "Type a message to begin. /help for commands.",
                 Style::default().fg(Color::DarkGray),
             )));
+        }
+
+        // Show streaming text during inference
+        if matches!(self.inference_state, InferenceState::Thinking)
+            && !self.streaming_partial.is_empty()
+        {
+            let prefix = Span::styled(
+                format!("{} ▸ ", self.agent_name),
+                Style::default().fg(Color::Cyan).bold(),
+            );
+            for line in self.streaming_partial.lines() {
+                lines.push(Line::from(vec![
+                    prefix.clone(),
+                    Span::styled(line.to_string(), Style::default().fg(Color::Gray)),
+                ]));
+            }
         }
 
         let messages = Paragraph::new(lines).wrap(Wrap { trim: false });
