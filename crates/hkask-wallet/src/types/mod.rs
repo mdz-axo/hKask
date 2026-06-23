@@ -15,5 +15,6 @@ pub use keys::*;
 
 // Re-exports from hkask_wallet_types (canonical source for these types)
 pub use hkask_wallet_types::{
-    PriceFeedConfig, RJoule, TransactionType, WalletBalance, WalletConfig, WalletTransaction,
+    ChainId, DepositAddress, DepositReference, PriceFeedConfig, PrivacyMode, RJoule,
+    TransactionType, TxHash, WalletBalance, WalletConfig, WalletError, WalletTransaction,
 };

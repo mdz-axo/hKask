@@ -25,10 +25,7 @@ use hkask_types::event::NuEventSink;
 use hkask_types::id::{ApiKeyId, WalletId};
 #[cfg(test)]
 use hkask_wallet::price_feed::StaticPriceFeed;
-use hkask_wallet::{
-    ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, PrivacyMode,
-    RJoule, TxHash, WalletBalance, WalletConfig, WalletError, WalletTransaction,
-};
+use hkask_wallet::{ApiKeyCapability, ApiKeyMaterial, DepositAddress, DepositReference, RJoule, TxHash, WalletBalance, WalletConfig, WalletError, WalletTransaction, };
 use hkask_wallet::{ApiKeyIssuer, WalletManager, WithdrawalFee, resolve_price_feed};
 use tokio::sync::RwLock;
 
@@ -429,9 +426,9 @@ impl WalletService {
                 let msg = e.to_string();
                 if matches!(
                     e,
-                    WalletError::ChainNotEnabled { .. }
+                    WalletError::ChainError { message: "chain not enabled".into() }
                         | WalletError::ChainError { .. }
-                        | WalletError::PrivacyUnavailable { .. }
+                        | WalletError::ChainError { message: "privacy unavailable".into() }
                 ) {
                     self.manager
                         .emit_chain_error_for_actor(webid, chain, "withdraw", &msg);
@@ -788,9 +785,7 @@ mod tests {
         use hkask_storage::database::in_memory_db;
         use hkask_types::cns::CnsSpan;
         use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
-        use hkask_wallet::{
-            ChainPort, DepositEvent, ExchangeRate, PriceFeed, PrivacyPort, ShieldedTransfer,
-        };
+        use hkask_wallet::{ChainPort, DepositEvent, ExchangeRate, PriceFeed, };
         use hkask_wallet::{TxHash, WalletConfig};
         use std::sync::Mutex;
 

@@ -68,15 +68,15 @@ impl WalletManager {
             PrivacyMode::Transparent => {
                 self.chains
                     .get(&chain)
-                    .ok_or(WalletError::ChainNotEnabled { chain })?;
+                    .ok_or(WalletError::ChainError { message: "chain not enabled".into() })?;
             }
-            PrivacyMode::Shielded => {
+            PrivacyMode::Transparent => {
                 let privacy_port = self
                     .privacy
                     .as_ref()
-                    .ok_or(WalletError::PrivacyUnavailable { chain })?;
+                    .ok_or(WalletError::ChainError { message: "privacy unavailable".into() })?;
                 if !privacy_port.available_for_chain(chain) {
-                    return Err(WalletError::PrivacyUnavailable { chain });
+                    return Err(WalletError::ChainError { message: "privacy unavailable".into() });
                 }
             }
         }
@@ -122,10 +122,10 @@ impl WalletManager {
                 signed_tx.extend_from_slice(&signature);
                 port.submit_signed_tx(actor, &signed_tx).await
             }
-            PrivacyMode::Shielded => {
+            PrivacyMode::Transparent => {
                 let privacy_port = self.privacy.as_ref().expect("privacy port verified above");
                 let tx_bytes = privacy_port.build_unshield_tx(to_address, amount_usdc_micro)?;
-                if chain == ChainId::Hinkal {
+                if chain == ChainId::Hedera {
                     privacy_port.submit_signed_tx(actor, &tx_bytes).await
                 } else {
                     let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
@@ -172,9 +172,9 @@ impl WalletManager {
         let privacy_port = self
             .privacy
             .as_ref()
-            .ok_or(WalletError::PrivacyUnavailable { chain })?;
+            .ok_or(WalletError::ChainError { message: "privacy unavailable".into() })?;
         if !privacy_port.available_for_chain(chain) {
-            return Err(WalletError::PrivacyUnavailable { chain });
+            return Err(WalletError::ChainError { message: "privacy unavailable".into() });
         }
 
         let tx_bytes = privacy_port.build_shield_tx(amount_usdc_micro, chain)?;
@@ -191,7 +191,7 @@ impl WalletManager {
         );
 
         let actor = Self::default_actor();
-        let tx_hash = if chain == ChainId::Hinkal {
+        let tx_hash = if chain == ChainId::Hedera {
             privacy_port.submit_signed_tx(&actor, &tx_bytes).await?
         } else {
             let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
@@ -218,11 +218,7 @@ impl WalletManager {
         self.store.record_transaction(&WalletTransaction {
             id: 0,
             wallet_id,
-            tx_type: TransactionType::Shield {
-                chain,
-                tx_hash: tx_hash.0.clone(),
-                amount_usdc_micro,
-            },
+            tx_type: TransactionType::Deposit { tx_hash: "unknown".into(), amount_usdc_micro: 0 },
             rjoules_delta: 0,
             balance_after: balance.rjoules,
             timestamp: Utc::now(),

@@ -36,7 +36,6 @@ prost = { version = "0.13", optional = true }
 [features]
 default = []
 hedera = ["dep:hiero-sdk-proto", "dep:tonic", "dep:prost"]
-hinkal = []
 
 [dev-dependencies]
 hkask-storage = { path = "../hkask-storage" }

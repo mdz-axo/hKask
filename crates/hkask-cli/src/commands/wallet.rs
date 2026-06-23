@@ -9,7 +9,7 @@ use hkask_storage::WalletStore;
 use hkask_storage::database::in_memory_db;
 use hkask_types::id::WalletId;
 use hkask_wallet::{ApiKeyIssuer, StaticPriceFeed, WalletManager};
-use hkask_wallet::{ChainId, PrivacyMode, RJoule, WalletConfig};
+use hkask_wallet::{RJoule, WalletConfig};
 use std::str::FromStr;
 use std::sync::Arc;
 

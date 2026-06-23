@@ -1,22 +1,10 @@
 #![allow(unused_imports)]
-//! hKask Wallet — rJoule payments, self-custody multi-chain deposits, API key issuance.
-//!
-//! # Specialized sub-wallet `[OUGHT-DECL]`
-//! The hKask wallet is a specialized sub-wallet — one of several crypto wallets
-//! the user holds. It only does what hKask needs:
-//! - Receive deposits (USDC → rJoules)
-//! - Track rJoule balances
-//! - Issue API key capability tokens
-//! - Process withdrawals (rJoules → USDC)
-//!
-//! The user's primary wallet (Phantom, HashPack, MetaMask) handles key storage,
-//! multi-chain asset management, and DeFi interactions.
+//! hKask Wallet — rJoule payments, Hedera self-custody deposits, API key issuance.
 //!
 //! # Self-custody `[OUGHT-DECL]` (P1 — User Sovereignty)
 //! hKask derives treasury keys from the user's master key via HKDF. No third
-//! party holds the keys. No custodial service. The user controls their funds
-//! at all times. Chain ports (`hedera.rs`) interact directly with
-//! blockchain RPC endpoints — no intermediary API.
+//! party holds the keys. The user controls their funds at all times.
+//! Chain port (`hedera.rs`) interacts directly with blockchain endpoints.
 //!
 //! # Security `[OUGHT-DECL]`
 //! - `signing.rs` — isolated security boundary for all key operations
@@ -27,27 +15,21 @@
 //!
 //! # Crate Map
 //! - `chain.rs` — `ChainPort` trait + `DepositEvent`
-//! - `privacy.rs` — `PrivacyPort` trait + `ShieldedTransfer`
 //! - `signing.rs` — Isolated signing module (security boundary)
 //! - `manager.rs` — `WalletManager` + deposit reference logic
 //! - `issuer.rs` — `ApiKeyIssuer` + `ApiKeyMaterial`
 //! - `price_feed.rs` — `PriceFeed` trait + fee estimation
 //! - `hedera.rs` — `HederaPort` (feature-gated: "hedera")
-//! - `hinkal.rs` — `HinkalPort` (feature-gated: "hinkal")
 
 pub mod chain;
 pub mod issuer;
 pub mod manager;
 pub mod price_feed;
-pub mod privacy;
 pub mod signing;
 pub mod types;
 
 #[cfg(feature = "hedera")]
 pub mod hedera;
-
-#[cfg(feature = "hinkal")]
-pub mod hinkal;
 
 pub use chain::{ChainPort, DepositEvent};
 pub use issuer::ApiKeyIssuer;
@@ -56,10 +38,8 @@ pub use price_feed::{
     CoinGeckoPriceFeed, CompositePriceFeed, EodhdPriceFeed, ExchangeRate, PriceFeed,
     StaticPriceFeed, WithdrawalFee, estimate_withdrawal_fee, resolve_price_feed,
 };
-pub use privacy::{PrivacyPort, ShieldedTransfer};
 pub use signing::{sign_capability, sign_withdrawal};
 
-// Re-export wallet types from types/ (canonical location after migration from hkask-types).
 pub use types::{
     ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Encumbrance,
     EncumbranceStatus, PriceFeedConfig, PrivacyMode, RJoule, RateLimitConfig, TransactionType,

@@ -9,11 +9,7 @@
 use crate::Store;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{ApiKeyId, Ed25519PublicKey, InfrastructureError, WalletId};
-use hkask_wallet_types::{
-    ApiKeyCapability, ChainId, DepositAddress, DepositReference, Encumbrance, EncumbranceStatus,
-    PrivacyMode, RJoule, RateLimitConfig, TransactionType, WalletBalance, WalletError,
-    WalletTransaction,
-};
+use hkask_wallet_types::{ApiKeyCapability, ChainId, DepositAddress, DepositReference, Encumbrance, EncumbranceStatus, PrivacyMode, RJoule, RateLimitConfig, TransactionType, TxHash, WalletBalance, WalletConfig, WalletError, WalletTransaction};
 use rusqlite::OptionalExtension;
 use std::str::FromStr;
 define_store!(WalletStore);
@@ -39,6 +35,8 @@ struct WalletTransactionRow {
 }
 struct ApiKeyRow {
     key_id: String,
+    privacy_mode: String,
+    preferred_chain: Option<String>,
     wallet_id: String,
     public_key: Vec<u8>,
     spending_limit_rj: i64,
@@ -46,8 +44,6 @@ struct ApiKeyRow {
     scope: String,
     purpose: String,
     rate_limit_json: Option<String>,
-    privacy_mode: String,
-    preferred_chain: Option<String>,
     expires_at: Option<String>,
     issued_at: String,
 }
@@ -247,7 +243,7 @@ impl WalletStore {
         let (tx_type_str, tx_subtype, chain, tx_hash, key_id, tool_name, gas_units) =
             tx_type_to_columns(&tx.tx_type);
         conn.execute(
-            "INSERT INTO wallet_transactions (wallet_id, tx_type, tx_subtype, chain, on_chain_tx_hash, amount_rj, balance_after_rj, key_id, tool_name, gas_units) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            "INSERT INTO wallet_transactions (wallet_id, tx_type, tx_subtype, chain, on_chain_tx_hash, amount_rj, balance_after_rj, key_id, tool_name, gas_units) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             rusqlite::params![
                 tx.wallet_id.to_string(),
                 tx_type_str,
@@ -530,20 +526,18 @@ impl WalletStore {
     pub fn store_deposit_address(
         &self,
         wallet_id: WalletId,
-        chain: ChainId,
         address: &str,
         index: u64,
-        privacy: PrivacyMode,
     ) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         conn.execute(
             "INSERT OR IGNORE INTO deposit_addresses (wallet_id, chain, address, derivation_index, privacy_mode) VALUES (?1, ?2, ?3, ?4, ?5)",
             rusqlite::params![
                 wallet_id.to_string(),
-                chain.to_string(),
+                "hedera",
                 address,
                 index as i64,
-                privacy.to_string(),
+                "transparent",
             ],
         )?;
         Ok(())
@@ -574,13 +568,7 @@ impl WalletStore {
                 })
             },
             |r: DepositAddressRow| -> Result<DepositAddress, WalletError> {
-                Ok(DepositAddress {
-                    address: r.address,
-                    chain: ChainId::from_str(&r.chain)
-                        .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
-                    privacy_mode: PrivacyMode::from_str(&r.privacy_mode)
-                        .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
-                })
+                Ok(DepositAddress { address: r.address, chain: ChainId::Hedera, privacy_mode: PrivacyMode::Transparent })
             }
         );
         Ok(rows)
@@ -898,29 +886,19 @@ type TxTypeColumns = (
 );
 fn tx_type_to_columns(tx_type: &TransactionType) -> TxTypeColumns {
     match tx_type {
-        TransactionType::Deposit {
-            chain,
-            privacy,
-            tx_hash,
-            ..
-        } => (
+        TransactionType::Deposit { tx_hash, .. } => (
             "deposit",
-            Some(privacy.to_string()),
-            Some(chain.to_string()),
+            Some("transparent".to_string()),
+            Some("hedera".to_string()),
             Some(tx_hash.clone()),
             None,
             None,
             None,
         ),
-        TransactionType::Withdrawal {
-            chain,
-            privacy,
-            tx_hash,
-            ..
-        } => (
+        TransactionType::Withdrawal { tx_hash, .. } => (
             "withdrawal",
-            Some(privacy.to_string()),
-            Some(chain.to_string()),
+            Some("transparent".to_string()),
+            Some("hedera".to_string()),
             Some(tx_hash.clone()),
             None,
             None,
@@ -965,7 +943,7 @@ fn row_to_wallet_transaction(r: WalletTransactionRow) -> Result<WalletTransactio
             privacy: PrivacyMode::from_str(r.tx_subtype.as_deref().unwrap_or("transparent"))
                 .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
             tx_hash: r.on_chain_tx_hash.unwrap_or_default(),
-            amount_usdc_micro: 0, // reconstructed from amount_rj / config
+            amount_usdc_micro: 0,
         },
         "withdrawal" => TransactionType::Withdrawal {
             chain: ChainId::from_str(r.chain.as_deref().unwrap_or("hedera"))
@@ -1039,13 +1017,8 @@ fn row_to_api_key_capability(r: ApiKeyRow) -> Result<ApiKeyCapability, WalletErr
         issued_at: chrono::DateTime::parse_from_rfc3339(&r.issued_at)
             .map(|dt| dt.with_timezone(&chrono::Utc))
             .unwrap_or_else(|_| chrono::Utc::now()),
-        privacy_mode: PrivacyMode::from_str(&r.privacy_mode)
-            .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
-        preferred_chain: r
-            .preferred_chain
-            .map(|c| ChainId::from_str(&c))
-            .transpose()
-            .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
+        privacy_mode: PrivacyMode::Transparent,
+        preferred_chain: None,
     })
 }
 // ── Tests ──────────────────────────────────────────────────────────────────────
@@ -1112,8 +1085,6 @@ mod tests {
             id: 0, // auto-increment, ignored on insert
             wallet_id: wallet,
             tx_type: TransactionType::Deposit {
-                chain: ChainId::Hedera,
-                privacy: PrivacyMode::Transparent,
                 tx_hash: "test_tx".into(),
                 amount_usdc_micro: 1_000_000,
             },
@@ -1134,7 +1105,6 @@ mod tests {
         let dep_ref = DepositReference {
             reference: "test_ref_001".into(),
             wallet_id: wallet,
-            chain: ChainId::Hedera,
             nonce: [0u8; 16],
             expires_at: chrono::Utc::now() + chrono::Duration::hours(24),
         };
@@ -1154,7 +1124,6 @@ mod tests {
         let dep_ref = DepositReference {
             reference: "expired_ref".into(),
             wallet_id: wallet,
-            chain: ChainId::Hedera,
             nonce: [0u8; 16],
             expires_at: chrono::Utc::now() - chrono::Duration::hours(1), // already expired
         };
@@ -1179,8 +1148,6 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
-            privacy_mode: PrivacyMode::Transparent,
-            preferred_chain: None,
         };
         store.store_api_key(&cap).unwrap();
         let retrieved = store.get_api_key_by_public_key(pubkey.as_bytes()).unwrap();
@@ -1203,8 +1170,6 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
-            privacy_mode: PrivacyMode::Transparent,
-            preferred_chain: None,
         };
         let key_id = cap.key_id;
         store.store_api_key(&cap).unwrap();
@@ -1233,8 +1198,6 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
-            privacy_mode: PrivacyMode::Transparent,
-            preferred_chain: None,
         };
         store.store_api_key(&cap).unwrap();
         store
@@ -1266,8 +1229,6 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
-            privacy_mode: PrivacyMode::Transparent,
-            preferred_chain: None,
         };
         store.store_api_key(&cap).unwrap();
         store
@@ -1296,7 +1257,6 @@ mod tests {
         let expired = DepositReference {
             reference: "old_ref".into(),
             wallet_id: wallet,
-            chain: ChainId::Hedera,
             nonce: [0u8; 16],
             expires_at: chrono::Utc::now() - chrono::Duration::hours(1),
         };
@@ -1305,7 +1265,6 @@ mod tests {
         let valid = DepositReference {
             reference: "new_ref".into(),
             wallet_id: wallet,
-            chain: ChainId::Hedera,
             nonce: [1u8; 16],
             expires_at: chrono::Utc::now() + chrono::Duration::hours(24),
         };
@@ -1355,8 +1314,6 @@ mod tests {
                         id: 0,
                         wallet_id: wallet,
                         tx_type: TransactionType::Deposit {
-                            chain: ChainId::Hedera,
-                            privacy: PrivacyMode::Transparent,
                             tx_hash: format!("test_tx_{}", expected_sum),
                             amount_usdc_micro: *amount * 1000,
                         },
@@ -1375,8 +1332,6 @@ mod tests {
                             id: 0,
                             wallet_id: wallet,
                             tx_type: TransactionType::Withdrawal {
-                                chain: ChainId::Hedera,
-                                privacy: PrivacyMode::Transparent,
                                 tx_hash: format!("test_tx_{}", expected_sum),
                                 amount_usdc_micro: *amount * 1000,
                             },
@@ -1458,8 +1413,6 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
-            privacy_mode: PrivacyMode::Transparent,
-            preferred_chain: None,
         };
         store.store_api_key(&cap).unwrap();
         store
@@ -1533,7 +1486,6 @@ mod tests {
         let dep_ref = DepositReference {
             reference: "idem_ref_001".into(),
             wallet_id: wallet,
-            chain: ChainId::Hedera,
             nonce: [0u8; 16],
             expires_at: chrono::Utc::now() + chrono::Duration::hours(24),
         };

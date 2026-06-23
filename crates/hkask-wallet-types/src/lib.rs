@@ -1,8 +1,8 @@
-//! Wallet types — split from hkask-types to slim the foundation crate.
+//! Wallet types — Hedera-only wallet value types.
 //!
 //! These types are needed by hkask-storage (WalletStore) which sits below
 //! hkask-wallet in the dependency chain. The hkask-wallet crate re-exports
-//! them so downstream code can use `hkask_wallet::ChainId` etc.
+//! them so downstream code can use `hkask_wallet::RJoule` etc.
 //!
 //! # Epistemic frame (pragmatic-semantics)
 //! - rJoule is an internal accounting unit `[OUGHT-DECL]` — not an on-chain token
@@ -15,20 +15,16 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
-// ── ChainId — supported blockchain networks ────────────────────────────────────
+// ── ChainId ────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ChainId {
     Hedera,
-    Hinkal,
 }
 
 impl fmt::Display for ChainId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ChainId::Hedera => write!(f, "hedera"),
-            ChainId::Hinkal => write!(f, "hinkal"),
-        }
+        write!(f, "hedera")
     }
 }
 
@@ -37,7 +33,6 @@ impl FromStr for ChainId {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "hedera" => Ok(ChainId::Hedera),
-            "hinkal" => Ok(ChainId::Hinkal),
             other => Err(format!("unknown chain: {other}")),
         }
     }
@@ -48,15 +43,11 @@ impl FromStr for ChainId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PrivacyMode {
     Transparent,
-    Shielded,
 }
 
 impl fmt::Display for PrivacyMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PrivacyMode::Transparent => write!(f, "transparent"),
-            PrivacyMode::Shielded => write!(f, "shielded"),
-        }
+        write!(f, "transparent")
     }
 }
 
@@ -65,7 +56,6 @@ impl FromStr for PrivacyMode {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "transparent" => Ok(PrivacyMode::Transparent),
-            "shielded" => Ok(PrivacyMode::Shielded),
             other => Err(format!("unknown privacy mode: {other}")),
         }
     }
@@ -112,8 +102,8 @@ impl fmt::Display for DepositReference {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "dep_{} (wallet: {}, chain: {}, expires: {})",
-            self.reference, self.wallet_id, self.chain, self.expires_at
+            "dep_{} (wallet: {}, expires: {})",
+            self.reference, self.wallet_id, self.expires_at
         )
     }
 }
@@ -185,8 +175,6 @@ pub struct WalletConfig {
     pub gas_per_rjoule: u64,
     pub min_deposit_usdc_micro: u64,
     pub enabled_chains: Vec<ChainId>,
-    pub privacy_enabled: bool,
-    pub hinkal_relayer_url: Option<String>,
     #[serde(default)]
     pub price_feed: PriceFeedConfig,
 }
@@ -197,9 +185,7 @@ impl Default for WalletConfig {
             rj_per_usdc: 1000,
             gas_per_rjoule: 1000,
             min_deposit_usdc_micro: 1_000_000,
-            enabled_chains: vec![ChainId::Hedera, ChainId::Hinkal],
-            privacy_enabled: true,
-            hinkal_relayer_url: None,
+            enabled_chains: vec![ChainId::Hedera],
             price_feed: PriceFeedConfig::default(),
         }
     }
@@ -243,11 +229,6 @@ pub enum TransactionType {
         tx_hash: String,
         amount_usdc_micro: u64,
     },
-    Shield {
-        chain: ChainId,
-        tx_hash: String,
-        amount_usdc_micro: u64,
-    },
     Spend {
         key_id: ApiKeyId,
         tool: String,
@@ -258,6 +239,11 @@ pub enum TransactionType {
         key_id: ApiKeyId,
         reason: String,
         rj: RJoule,
+    },
+    Shield {
+        chain: ChainId,
+        tx_hash: String,
+        amount_usdc_micro: u64,
     },
 }
 
@@ -299,20 +285,11 @@ pub enum WalletError {
     #[error("API key {key_id} has been revoked")]
     KeyRevoked { key_id: ApiKeyId },
 
-    #[error("chain {chain} is not enabled for this wallet")]
-    ChainNotEnabled { chain: ChainId },
-
-    #[error("privacy layer unavailable for chain {chain}")]
-    PrivacyUnavailable { chain: ChainId },
-
     #[error("deposit reference {reference} not found or expired")]
     DepositReferenceInvalid { reference: String },
 
     #[error("chain error ({chain}): {message}")]
     ChainError { chain: ChainId, message: String },
-
-    #[error("privacy layer error: {message}")]
-    PrivacyError { message: String },
 
     #[error("API key {key_id} already has an active encumbrance")]
     EncumbranceAlreadyExists { key_id: ApiKeyId },

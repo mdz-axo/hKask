@@ -7,7 +7,6 @@ description = "hKask wallet service — gas budgeting, price feeds, CNS integrat
 
 [features]
 hedera = []
-hinkal = []
 
 [dependencies]
 hkask-services-core = { path = "../hkask-services-core" }

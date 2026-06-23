@@ -18,7 +18,7 @@
 //!
 //! It does NOT sign deposit transactions (user's primary wallet signs those).
 
-use crate::types::{ApiKeyCapability, ChainId, WalletError};
+use crate::types::{PrivacyMode, WalletError, ChainId, ApiKeyCapability};
 use ed25519_dalek::Signer;
 use hkask_keystore::keychain::resolve_treasury_key;
 use hkask_types::secret::derivation_contexts;
@@ -91,14 +91,14 @@ pub fn sign_withdrawal(chain: ChainId, tx_bytes: &[u8]) -> Result<Vec<u8>, Walle
 /// post: returns Ok(signature) — 64-byte Ed25519 signature
 /// post: treasury key loaded, used, and zeroized within this call
 pub fn sign_message(message: &[u8]) -> Result<Vec<u8>, WalletError> {
-    sign_bytes(derivation_contexts::TREASURY_HINKAL, message)
+    sign_bytes(derivation_contexts::TREASURY_HEDERA, message)
 }
 
 /// Map ChainId to its HKDF derivation context string.
 fn chain_to_context(chain: &ChainId) -> &'static str {
     match chain {
         ChainId::Hedera => derivation_contexts::TREASURY_HEDERA,
-        ChainId::Hinkal => derivation_contexts::TREASURY_HINKAL,
+        ChainId::Hedera => derivation_contexts::TREASURY_HEDERA,
     }
 }
 
@@ -144,7 +144,7 @@ pub fn sign_capability(capability: &ApiKeyCapability) -> Result<String, WalletEr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PrivacyMode, RJoule};
+    use crate::types::{PrivacyMode, RJoule, ChainId};
     use hkask_types::crypto::Ed25519PublicKey;
     use hkask_types::id::{ApiKeyId, WalletId};
 
@@ -163,7 +163,7 @@ mod tests {
     fn sign_withdrawal_produces_signature() {
         set_test_master_key();
         let tx_bytes = b"test withdrawal transaction";
-        let sig = sign_withdrawal(ChainId::Hinkal, tx_bytes).unwrap();
+        let sig = sign_withdrawal(ChainId::Hedera, tx_bytes).unwrap();
         assert_eq!(sig.len(), 64); // Ed25519 signature is 64 bytes
     }
 
@@ -172,7 +172,7 @@ mod tests {
     fn sign_withdrawal_differs_per_chain() {
         set_test_master_key();
         let tx_bytes = b"test transaction";
-        let hkl_sig = sign_withdrawal(ChainId::Hinkal, tx_bytes).unwrap();
+        let hkl_sig = sign_withdrawal(ChainId::Hedera, tx_bytes).unwrap();
         let hed_sig = sign_withdrawal(ChainId::Hedera, tx_bytes).unwrap();
         assert_ne!(hkl_sig, hed_sig);
     }
@@ -192,8 +192,6 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
-            privacy_mode: PrivacyMode::Transparent,
-            preferred_chain: None,
         };
         let sig = sign_capability(&cap).unwrap();
         assert_eq!(sig.len(), 128); // 64 bytes → 128 hex chars
@@ -205,7 +203,7 @@ mod tests {
         set_test_master_key();
         let tx_bytes = b"test transaction";
         // All ChainId variants should produce valid 64-byte signatures
-        for chain in [ChainId::Hedera, ChainId::Hinkal] {
+        for chain in [ChainId::Hedera, ChainId::Hedera] {
             let sig = sign_withdrawal(chain, tx_bytes).unwrap();
             assert_eq!(
                 sig.len(),
@@ -221,7 +219,7 @@ mod tests {
     fn sign_withdrawal_empty_tx_bytes() {
         set_test_master_key();
         // Ed25519 signs any byte sequence, including empty — should not panic
-        let sig = sign_withdrawal(ChainId::Hinkal, b"").unwrap();
+        let sig = sign_withdrawal(ChainId::Hedera, b"").unwrap();
         assert_eq!(
             sig.len(),
             64,
@@ -253,8 +251,6 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
-            privacy_mode: PrivacyMode::Transparent,
-            preferred_chain: None,
         };
         let sig1 = sign_capability(&cap).unwrap();
         // Tamper with spending limit — signature must change

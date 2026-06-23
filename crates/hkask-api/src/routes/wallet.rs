@@ -21,7 +21,7 @@ use crate::ApiState;
 use crate::middleware::api_key_auth::WalletContext;
 use hkask_types::WebID;
 use hkask_types::id::WalletId;
-use hkask_wallet::{ChainId, PrivacyMode, RJoule};
+use hkask_wallet::{RJoule};
 
 /// Create wallet router.
 ///

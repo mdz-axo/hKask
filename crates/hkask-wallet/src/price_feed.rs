@@ -16,7 +16,7 @@
 //! is a standalone struct. The `WalletManager` uses it for fee estimation
 //! during withdrawals.
 
-use crate::types::{ChainId, PriceFeedConfig, WalletError};
+use crate::types::{PriceFeedConfig, WalletError, PrivacyMode, ChainId};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -61,7 +61,7 @@ impl StaticPriceFeed {
     fn hardcoded_rate(chain: ChainId) -> f64 {
         match chain {
             ChainId::Hedera => 0.08, // ~$0.08/HBAR
-            ChainId::Hinkal => 0.08, // Hinkal settles on Hedera
+            ChainId::Hedera => 0.08, // Hinkal settles on Hedera
         }
     }
 }
@@ -126,7 +126,7 @@ impl EodhdPriceFeed {
     fn eodhd_symbol(chain: ChainId) -> &'static str {
         match chain {
             ChainId::Hedera => "HBAR-USD.CC",
-            ChainId::Hinkal => "HBAR-USD.CC", // Hinkal settles on Hedera
+            ChainId::Hedera => "HBAR-USD.CC", // Hinkal settles on Hedera
         }
     }
 }
@@ -209,7 +209,7 @@ impl CoinGeckoPriceFeed {
     fn coingecko_id(chain: ChainId) -> &'static str {
         match chain {
             ChainId::Hedera => "hedera-hashgraph",
-            ChainId::Hinkal => "hedera-hashgraph", // Hinkal settles on Hedera
+            ChainId::Hedera => "hedera-hashgraph", // Hinkal settles on Hedera
         }
     }
 }
@@ -510,7 +510,7 @@ pub fn estimate_withdrawal_fee(
 ) -> WithdrawalFee {
     let native_fee = match chain {
         ChainId::Hedera => 0.0125, // ~$0.001 / $0.08 = 0.0125 HBAR
-        ChainId::Hinkal => 0.0125, // Same as Hedera (Hinkal settles on Hedera)
+        ChainId::Hedera => 0.0125, // Same as Hedera (Hinkal settles on Hedera)
     };
 
     let usd_fee = native_fee * rate.usd_per_token;
@@ -538,7 +538,7 @@ mod tests {
     #[test]
     fn static_price_feed_returns_expected_rates() {
         assert!((StaticPriceFeed::hardcoded_rate(ChainId::Hedera) - 0.08).abs() < f64::EPSILON);
-        assert!((StaticPriceFeed::hardcoded_rate(ChainId::Hinkal) - 0.08).abs() < f64::EPSILON);
+        assert!((StaticPriceFeed::hardcoded_rate(ChainId::Hedera) - 0.08).abs() < f64::EPSILON);
     }
 
     /// expect: "Wallet price fee nonzero test works correctly under test conditions"
@@ -572,7 +572,7 @@ mod tests {
             updated_at: chrono::Utc::now(),
         };
         let hed_fee = estimate_withdrawal_fee(ChainId::Hedera, &rate, 1000);
-        let hink_fee = estimate_withdrawal_fee(ChainId::Hinkal, &rate, 1000);
+        let hink_fee = estimate_withdrawal_fee(ChainId::Hedera, &rate, 1000);
         assert_eq!(hed_fee.rjoules, hink_fee.rjoules);
         assert!(hed_fee.rjoules > 0);
     }

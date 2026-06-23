@@ -17,7 +17,7 @@ use hkask_types::crypto::Ed25519PublicKey;
 use hkask_types::id::{ApiKeyId, WalletId};
 use hkask_wallet::WalletManager;
 use hkask_wallet::price_feed::StaticPriceFeed;
-use hkask_wallet::{ApiKeyCapability, PrivacyMode, RJoule, WalletConfig};
+use hkask_wallet::{ApiKeyCapability, RJoule, WalletConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -82,8 +82,6 @@ fn make_wallet_budget_with_key(
         rate_limit: None,
         expiry: None,
         issued_at: chrono::Utc::now(),
-        privacy_mode: PrivacyMode::Transparent,
-        preferred_chain: None,
     };
     store.store_api_key(&capability).expect("store key");
     store

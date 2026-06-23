@@ -103,10 +103,7 @@ impl WalletManager {
         self.store.record_transaction(&WalletTransaction {
             id: 0,
             wallet_id,
-            tx_type: TransactionType::Deposit {
-                chain: event.tx_hash.0.parse().unwrap_or(ChainId::Hinkal),
-                privacy: PrivacyMode::Transparent,
-                tx_hash: event.tx_hash.0.clone(),
+            tx_type: TransactionType::Deposit { tx_hash: event.tx_hash.0.clone(),
                 amount_usdc_micro: event.amount_usdc_micro,
             },
             rjoules_delta: rj_amount.as_u64() as i64,
@@ -144,7 +141,7 @@ impl WalletManager {
 
     async fn process_shielded_deposit(
         &self,
-        transfer: ShieldedTransfer,
+        transfer: TxHash,
     ) -> Result<(), WalletError> {
         if self
             .store
@@ -194,10 +191,7 @@ impl WalletManager {
         self.store.record_transaction(&WalletTransaction {
             id: 0,
             wallet_id,
-            tx_type: TransactionType::Deposit {
-                chain: transfer.chain,
-                privacy: PrivacyMode::Shielded,
-                tx_hash: transfer.commitment,
+            tx_type: TransactionType::Deposit { tx_hash: transfer.commitment,
                 amount_usdc_micro: transfer.amount_usdc_micro,
             },
             rjoules_delta: rj_amount.as_u64() as i64,

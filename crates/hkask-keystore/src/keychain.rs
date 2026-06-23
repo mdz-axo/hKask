@@ -394,7 +394,7 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
 ///
 /// The caller is responsible for mapping chain to derivation context.
 /// Context strings are defined in `hkask_types::secret::derivation_contexts`:
-/// - `TREASURY_HEDERA`, `TREASURY_HINKAL`
+/// - `TREASURY_HEDERA`, `WALLET_SEED`
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
 /// pre:  context is a valid derivation context string
@@ -472,10 +472,10 @@ mod tests {
     fn treasury_keys_differ_per_context() {
         set_test_master_key();
         let hedera_key = resolve_treasury_key(derivation_contexts::TREASURY_HEDERA).unwrap();
-        let hinkal_key = resolve_treasury_key(derivation_contexts::TREASURY_HINKAL).unwrap();
-        assert_ne!(&*hedera_key, &*hinkal_key);
+        let wallet_seed = resolve_wallet_seed().unwrap();
+        assert_ne!(&*hedera_key, &*wallet_seed);
         assert_eq!(hedera_key.len(), 32);
-        assert_eq!(hinkal_key.len(), 32);
+        assert_eq!(wallet_seed.len(), 32);
     }
 
     #[test]

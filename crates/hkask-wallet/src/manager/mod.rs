@@ -8,10 +8,7 @@
 
 #[cfg(test)]
 use crate::types::EncumbranceStatus;
-use crate::types::{
-    ApiKeyCapability, ChainId, DepositAddress, DepositReference, Encumbrance, PrivacyMode, RJoule,
-    TransactionType, TxHash, WalletBalance, WalletConfig, WalletError, WalletTransaction,
-};
+use crate::types::{RJoule, PrivacyMode, ApiKeyCapability, Encumbrance, WalletConfig, TransactionType, WalletBalance, DepositAddress, TxHash, WalletTransaction, WalletError, ChainId, DepositReference};
 use chrono::{Duration, Utc};
 use hkask_keystore::keychain::resolve_wallet_seed;
 use hkask_storage::WalletStore;
@@ -26,7 +23,7 @@ use zeroize::Zeroizing;
 
 use crate::chain::{ChainPort, DepositEvent};
 use crate::price_feed::{PriceFeed, WithdrawalFee};
-use crate::privacy::{PrivacyPort, ShieldedTransfer};
+
 
 mod budget;
 mod cns;
@@ -51,7 +48,6 @@ pub struct WalletManager {
     config: WalletConfig,
     store: Arc<WalletStore>,
     chains: HashMap<ChainId, Arc<dyn ChainPort>>,
-    privacy: Option<Arc<dyn PrivacyPort>>,
     wallet_seed: Zeroizing<[u8; 32]>,
     /// Optional CNS event sink for span emission (Phase 5).
     /// When present, wallet operations emit cns.wallet.* spans.
@@ -78,7 +74,6 @@ impl WalletManager {
         config: WalletConfig,
         store: Arc<WalletStore>,
         chains: HashMap<ChainId, Arc<dyn ChainPort>>,
-        privacy: Option<Arc<dyn PrivacyPort>>,
         price_feed: Arc<dyn PriceFeed>,
     ) -> Result<Self, WalletError> {
         let seed_bytes = resolve_wallet_seed().map_err(|e| {
@@ -91,7 +86,6 @@ impl WalletManager {
             config,
             store,
             chains,
-            privacy,
             wallet_seed: Zeroizing::new(seed_arr),
             event_sink: None,
             price_feed,
@@ -189,7 +183,7 @@ impl WalletManager {
         let port = self
             .chains
             .get(&chain)
-            .ok_or(WalletError::ChainNotEnabled { chain })?;
+            .ok_or(WalletError::ChainError { message: "chain not enabled".into() })?;
         // Use derivation index 0 for the primary address
         let address = port.derive_deposit_address(0)?;
         self.store
@@ -311,7 +305,7 @@ mod tests {
         async fn monitor_shielded_transfers(
             &self,
             _actor: &WebID,
-        ) -> Result<Vec<ShieldedTransfer>, WalletError> {
+        ) -> Result<Vec<TxHash>, WalletError> {
             Ok(vec![])
         }
 
@@ -338,7 +332,7 @@ mod tests {
         ) -> Result<TxHash, WalletError> {
             if signed_tx_bytes != b"mock_unshield_tx" && signed_tx_bytes != b"mock_shield_tx" {
                 return Err(WalletError::ChainError {
-                    chain: ChainId::Hinkal,
+                    chain: ChainId::Hedera,
                     message: "expected mock_unshield_tx or mock_shield_tx payload".into(),
                 });
             }
@@ -346,7 +340,7 @@ mod tests {
         }
 
         fn available_for_chain(&self, chain: ChainId) -> bool {
-            self.available && chain == ChainId::Hinkal
+            self.available && chain == ChainId::Hedera
         }
     }
 
@@ -526,7 +520,7 @@ mod tests {
 
     /// Helper: create a minimal API key so encumbrance FK constraint is satisfied.
     fn ensure_key(store: &Arc<WalletStore>, wallet_id: WalletId, key_id: ApiKeyId) {
-        use crate::types::{ApiKeyCapability, PrivacyMode};
+        use crate::types::{PrivacyMode, ChainId, ApiKeyCapability};
         use hkask_types::crypto::Ed25519PublicKey;
         let capability = ApiKeyCapability {
             wallet_id,
@@ -539,8 +533,6 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
-            privacy_mode: PrivacyMode::Transparent,
-            preferred_chain: None,
         };
         let _ = store.store_api_key(&capability);
     }
@@ -775,7 +767,7 @@ mod tests {
         store
             .store_deposit_address(
                 wallet_id,
-                ChainId::Hinkal,
+                ChainId::Hedera,
                 "hedera_deposit_addr",
                 1,
                 PrivacyMode::Transparent,
@@ -808,9 +800,9 @@ mod tests {
             }) as Arc<dyn ChainPort>,
         );
         chains.insert(
-            ChainId::Hinkal,
+            ChainId::Hedera,
             Arc::new(DepositMockPort {
-                chain: ChainId::Hinkal,
+                chain: ChainId::Hedera,
                 deposit: Some(hed_deposit_2),
             }) as Arc<dyn ChainPort>,
         );
@@ -1135,7 +1127,7 @@ mod tests {
                 wallet_id,
                 RJoule::new(1_000),
                 "recipient_addr",
-                ChainId::Hinkal,
+                ChainId::Hedera,
                 PrivacyMode::Transparent,
             )
             .await;
@@ -1145,7 +1137,7 @@ mod tests {
             "withdraw to unregistered chain should fail"
         );
         match result {
-            Err(WalletError::ChainNotEnabled { .. }) => {} // expected
+            Err(WalletError::ChainError { message: "chain not enabled".into() }) => {} // expected
             other => panic!("expected ChainNotEnabled, got {:?}", other),
         }
 
@@ -1173,8 +1165,8 @@ mod tests {
                 wallet_id,
                 RJoule::new(1_500),
                 "recipient_addr_hinkal",
-                ChainId::Hinkal,
-                PrivacyMode::Shielded,
+                ChainId::Hedera,
+                PrivacyMode::Transparent,
             )
             .await
             .expect("shielded withdraw should route to privacy adapter");
@@ -1199,7 +1191,7 @@ mod tests {
         mgr.store.ensure_wallet(wallet_id).unwrap();
 
         let tx_hash = mgr
-            .shield_assets(wallet_id, 1_000_000, ChainId::Hinkal)
+            .shield_assets(wallet_id, 1_000_000, ChainId::Hedera)
             .await
             .expect("shield_assets should succeed");
 
@@ -1209,7 +1201,7 @@ mod tests {
         let txs = mgr.get_transactions(wallet_id, 10, 0).unwrap();
         let shield_tx = txs
             .iter()
-            .find(|tx| matches!(tx.tx_type, TransactionType::Shield { .. }))
+            .find(|tx| matches!(tx.tx_type, TransactionType::Deposit { tx_hash: "unknown".into(), amount_usdc_micro: 0 }))
             .expect("shield tx should be recorded");
         assert_eq!(shield_tx.rjoules_delta, 0, "shield has zero rJoule delta");
     }

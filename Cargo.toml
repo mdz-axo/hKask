@@ -185,7 +185,7 @@ dotenvy = "0.15"
 matrix-sdk = { version = "0.16", default-features = false, features = ["native-tls"] }
 
 [workspace.lints.rust]
-unexpected_cfgs = { level = "allow", check-cfg = ['cfg(feature, values("hedera", "hinkal"))'] }
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(feature, values("hedera"))'] }
 
 # Fuzz profile for cargo-bolero libfuzzer (requires nightly)
 [profile.fuzz]
