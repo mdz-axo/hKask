@@ -16,7 +16,7 @@
 //! is a standalone struct. The `WalletManager` uses it for fee estimation
 //! during withdrawals.
 
-use crate::types::{PriceFeedConfig, WalletError, PrivacyMode, ChainId};
+use crate::types::{ChainId, PriceFeedConfig, PrivacyMode, WalletError};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -60,8 +60,7 @@ impl StaticPriceFeed {
     /// Hardcoded USD rate per native token.
     fn hardcoded_rate(chain: ChainId) -> f64 {
         match chain {
-            ChainId::Hedera => 0.08, // ~$0.08/HBAR
-            ChainId::Hedera => 0.08, // Hinkal settles on Hedera
+            ChainId::Hedera => 0.08, // ~$0.08/HBAR (Hinkal settles on Hedera)
         }
     }
 }
@@ -125,7 +124,6 @@ impl EodhdPriceFeed {
 
     fn eodhd_symbol(chain: ChainId) -> &'static str {
         match chain {
-            ChainId::Hedera => "HBAR-USD.CC",
             ChainId::Hedera => "HBAR-USD.CC", // Hinkal settles on Hedera
         }
     }
@@ -208,7 +206,6 @@ impl CoinGeckoPriceFeed {
 
     fn coingecko_id(chain: ChainId) -> &'static str {
         match chain {
-            ChainId::Hedera => "hedera-hashgraph",
             ChainId::Hedera => "hedera-hashgraph", // Hinkal settles on Hedera
         }
     }
@@ -509,8 +506,7 @@ pub fn estimate_withdrawal_fee(
     rj_per_usdc: u64,
 ) -> WithdrawalFee {
     let native_fee = match chain {
-        ChainId::Hedera => 0.0125, // ~$0.001 / $0.08 = 0.0125 HBAR
-        ChainId::Hedera => 0.0125, // Same as Hedera (Hinkal settles on Hedera)
+        ChainId::Hedera => 0.0125, // ~$0.001 / $0.08 = 0.0125 HBAR (Hinkal settles on Hedera)
     };
 
     let usd_fee = native_fee * rate.usd_per_token;

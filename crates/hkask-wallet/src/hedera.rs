@@ -19,7 +19,7 @@
 //! - HTTP/gRPC clients use rustls (no openssl)
 //! - Account IDs derived deterministically from treasury public key
 
-use crate::types::{PrivacyMode, WalletError, ChainId, TxHash};
+use crate::types::{ChainId, PrivacyMode, TxHash, WalletError};
 use async_trait::async_trait;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;

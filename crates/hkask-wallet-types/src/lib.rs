@@ -17,8 +17,9 @@ use std::str::FromStr;
 
 // ── ChainId ────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum ChainId {
+    #[default]
     Hedera,
 }
 
@@ -40,8 +41,9 @@ impl FromStr for ChainId {
 
 // ── PrivacyMode ────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum PrivacyMode {
+    #[default]
     Transparent,
 }
 
@@ -352,6 +354,7 @@ pub struct ApiKeyCapability {
     pub expiry: Option<DateTime<Utc>>,
     pub issued_at: DateTime<Utc>,
     pub privacy_mode: PrivacyMode,
+    #[serde(default)]
     pub preferred_chain: Option<ChainId>,
 }
 

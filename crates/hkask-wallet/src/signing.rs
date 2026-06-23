@@ -98,7 +98,6 @@ pub fn sign_message(message: &[u8]) -> Result<Vec<u8>, WalletError> {
 fn chain_to_context(chain: &ChainId) -> &'static str {
     match chain {
         ChainId::Hedera => derivation_contexts::TREASURY_HEDERA,
-        ChainId::Hedera => derivation_contexts::TREASURY_HEDERA,
     }
 }
 

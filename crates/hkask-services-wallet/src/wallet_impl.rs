@@ -894,8 +894,7 @@ mod tests {
             }),
         );
 
-        let svc =
-            build_service_with_harness(Arc::clone(&sink), chains, Arc::new(StaticPriceFeed));
+        let svc = build_service_with_harness(Arc::clone(&sink), chains, Arc::new(StaticPriceFeed));
 
         let wallet = WalletId::new();
         svc.ensure_wallet(wallet).expect("ensure wallet");

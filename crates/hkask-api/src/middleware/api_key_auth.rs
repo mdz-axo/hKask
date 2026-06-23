@@ -338,7 +338,6 @@ mod tests {
                 WalletConfig::default(),
                 Arc::clone(&store),
                 Default::default(),
-                None,
                 Arc::new(StaticPriceFeed::new()),
             )
             .unwrap(),
@@ -423,7 +422,6 @@ mod tests {
                 WalletConfig::default(),
                 Arc::clone(&store),
                 Default::default(),
-                None,
                 Arc::new(StaticPriceFeed::new()),
             )
             .unwrap(),
@@ -494,7 +492,6 @@ mod tests {
                 WalletConfig::default(),
                 Arc::clone(&store),
                 Default::default(),
-                None,
                 Arc::new(StaticPriceFeed::new()),
             )
             .unwrap(),
@@ -564,7 +561,6 @@ mod tests {
                 WalletConfig::default(),
                 Arc::clone(&store),
                 Default::default(),
-                None,
                 Arc::new(StaticPriceFeed::new()),
             )
             .unwrap(),
@@ -629,7 +625,6 @@ mod tests {
                 WalletConfig::default(),
                 Arc::clone(&store),
                 Default::default(),
-                None,
                 Arc::new(StaticPriceFeed::new()),
             )
             .unwrap(),
@@ -727,7 +722,6 @@ mod tests {
                 WalletConfig::default(),
                 Arc::clone(&store),
                 Default::default(),
-                None,
                 Arc::new(StaticPriceFeed::new()),
             )
             .unwrap(),

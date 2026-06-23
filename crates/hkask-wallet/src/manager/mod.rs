@@ -244,6 +244,7 @@ impl WalletManager {
         let reference = hex::encode(&ref_bytes[..16]); // 32-char hex string
 
         let dep_ref = DepositReference {
+            chain: ChainId::Hedera,
             reference,
             wallet_id,
             chain,
@@ -346,7 +347,6 @@ mod tests {
             WalletConfig::default(),
             store,
             chains,
-            None,
             Arc::new(StaticPriceFeed::new()),
         )
         .unwrap()
@@ -621,7 +621,6 @@ mod tests {
             WalletConfig::default(),
             Arc::clone(&store),
             chains,
-            None,
             Arc::new(StaticPriceFeed::new()),
         )
         .unwrap();
@@ -650,7 +649,6 @@ mod tests {
             WalletConfig::default(),
             Arc::clone(&store),
             chains2,
-            None,
             Arc::new(StaticPriceFeed::new()),
         )
         .unwrap();
@@ -734,7 +732,6 @@ mod tests {
             WalletConfig::default(),
             Arc::clone(&store),
             chains,
-            None,
             Arc::new(StaticPriceFeed::new()),
         )
         .unwrap();

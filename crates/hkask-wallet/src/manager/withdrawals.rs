@@ -124,6 +124,8 @@ impl WalletManager {
             id: 0,
             wallet_id,
             tx_type: TransactionType::Withdrawal {
+                chain: ChainId::Hedera,
+                privacy: PrivacyMode::Transparent,
                 chain,
                 privacy,
                 tx_hash: tx_hash.0.clone(),

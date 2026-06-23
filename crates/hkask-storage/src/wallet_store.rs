@@ -9,7 +9,11 @@
 use crate::Store;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{ApiKeyId, Ed25519PublicKey, InfrastructureError, WalletId};
-use hkask_wallet_types::{ApiKeyCapability, ChainId, DepositAddress, DepositReference, Encumbrance, EncumbranceStatus, PrivacyMode, RJoule, RateLimitConfig, TransactionType, TxHash, WalletBalance, WalletConfig, WalletError, WalletTransaction};
+use hkask_wallet_types::{
+    ApiKeyCapability, ChainId, DepositAddress, DepositReference, Encumbrance, EncumbranceStatus,
+    PrivacyMode, RJoule, RateLimitConfig, TransactionType, TxHash, WalletBalance, WalletConfig,
+    WalletError, WalletTransaction,
+};
 use rusqlite::OptionalExtension;
 use std::str::FromStr;
 define_store!(WalletStore);
@@ -33,6 +37,7 @@ struct WalletTransactionRow {
     gas_units: Option<i64>,
     created_at: String,
 }
+#[allow(dead_code)] // fields populated by rusqlite query mapping
 struct ApiKeyRow {
     key_id: String,
     privacy_mode: String,
@@ -47,6 +52,7 @@ struct ApiKeyRow {
     expires_at: Option<String>,
     issued_at: String,
 }
+#[allow(dead_code)] // fields populated by rusqlite query mapping
 struct DepositAddressRow {
     chain: String,
     address: String,
@@ -568,7 +574,11 @@ impl WalletStore {
                 })
             },
             |r: DepositAddressRow| -> Result<DepositAddress, WalletError> {
-                Ok(DepositAddress { address: r.address, chain: ChainId::Hedera, privacy_mode: PrivacyMode::Transparent })
+                Ok(DepositAddress {
+                    address: r.address,
+                    chain: ChainId::Hedera,
+                    privacy_mode: PrivacyMode::Transparent,
+                })
             }
         );
         Ok(rows)

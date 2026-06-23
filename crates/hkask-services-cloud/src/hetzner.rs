@@ -42,6 +42,7 @@ struct ApiEnvelope<T> {
     _type: Option<String>,
     #[serde(default)]
     servers: Option<Vec<T>>,
+    #[allow(dead_code)]
     #[serde(default)]
     volumes: Option<Vec<T>>,
     #[serde(default)]

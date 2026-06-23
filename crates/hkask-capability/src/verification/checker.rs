@@ -19,6 +19,12 @@ pub struct CapabilityChecker {
     signing_key: Option<SigningKey>,
 }
 
+impl Default for CapabilityChecker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CapabilityChecker {
     /// Create a new capability checker without a signing key (verify-only).
     ///

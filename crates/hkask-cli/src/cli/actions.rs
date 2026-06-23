@@ -827,7 +827,8 @@ pub enum WalletAction {
     },
     /// Generate a one-time deposit reference for shielded deposits
     DepositReference {
-        /// Blockchain network (hinkal or hedera)
+        chain: ChainId::Hedera,
+            /// Blockchain network (hinkal or hedera)
         #[arg(short, long)]
         chain: String,
         /// Wallet ID (UUID). Defaults to system wallet if omitted.

@@ -135,6 +135,7 @@ fn parse_diagnosis_from_category(category: &str) -> DiagnosisFields {
 }
 
 #[derive(Debug, Clone, Default)]
+#[allow(dead_code)] // parsed from JSON; some fields not consumed in all paths
 struct DiagnosisFields {
     confidence: f64,
     is_flake: bool,

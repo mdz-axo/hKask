@@ -367,12 +367,13 @@ impl PodFactory {
         // Create memory adapter from the pod's own database — this is what
         // PodContext uses for episodic/semantic I/O. All data goes into
         // the pod's own SQLCipher file.
-        let memory =
-            crate::adapters::memory_loop_adapter::MemoryLoopForwarder::from_connection(db.conn_arc())
-                .map_err(|e| PodDeployError::StorageInitFailed {
-                    path: db_path.clone(),
-                    reason: e.to_string(),
-                })?;
+        let memory = crate::adapters::memory_loop_adapter::MemoryLoopForwarder::from_connection(
+            db.conn_arc(),
+        )
+        .map_err(|e| PodDeployError::StorageInitFailed {
+            path: db_path.clone(),
+            reason: e.to_string(),
+        })?;
 
         // Write webid sidecar for CuratorSync passphrase bootstrapping.
         // The .webid file is read BEFORE the database is opened (chicken-and-egg

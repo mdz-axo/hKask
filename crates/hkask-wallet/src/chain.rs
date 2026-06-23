@@ -7,7 +7,7 @@
 //! # Implementations
 //! - `HederaPort` — HTS USDC on Hedera (feature-gated: "hedera")
 
-use crate::types::{PrivacyMode, WalletError, ChainId, TxHash};
+use crate::types::{ChainId, PrivacyMode, TxHash, WalletError};
 use chrono::{DateTime, Utc};
 use hkask_types::WebID;
 

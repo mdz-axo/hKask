@@ -267,7 +267,6 @@ mod tests {
                 WalletConfig::default(),
                 store,
                 Default::default(),
-                None,
                 Arc::new(StaticPriceFeed),
             )
             .unwrap(),

@@ -16,6 +16,7 @@ use hkask_ports::{
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 
+#[allow(dead_code)] // referenced as serde default via string
 fn default_enable_thinking() -> bool {
     true
 }

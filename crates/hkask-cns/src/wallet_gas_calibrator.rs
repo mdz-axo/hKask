@@ -274,7 +274,6 @@ mod tests {
             hkask_wallet::WalletConfig::default(),
             store,
             HashMap::new(),
-            None,
             Arc::new(hkask_wallet::price_feed::StaticPriceFeed::new()),
         )
         .unwrap();

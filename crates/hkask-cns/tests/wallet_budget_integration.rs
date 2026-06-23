@@ -43,7 +43,6 @@ fn make_wallet_manager_with_store(
             config,
             store,
             HashMap::new(),
-            None,
             Arc::new(StaticPriceFeed),
         )
         .expect("build wallet manager"),
