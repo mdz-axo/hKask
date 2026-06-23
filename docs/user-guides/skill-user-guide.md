@@ -340,7 +340,7 @@ zoom-out → chain-of-density → caveman
 | 4 | `coding-guidelines` | Behavioral Guardrails | FlowDef | Karpathy's four principles via convergent assess→apply→verify loops |
 | 5 | `condenser-continuation` | Meta-Cognition | FlowDef | Resume work after context reset via convergent continuation loops |
 | 6 | `constraint-forces` | Regulative | FlowDef | Classify constraints by enforcement level via convergent force loops |
-| 7 | `decision-journal` | Decision & Strategy | KnowAct | Kahneman decision journal with Brier scoring |
+| 7 | `decision-journal` | Decision & Strategy | FlowDef | Kahneman decision journal with convergent calibration loops |
 | 8 | `deep-module` | Structural Analysis | FlowDef | Ousterhout module depth with deletion test via convergent depth loops |
 | 9 | `diagnose` | Diagnostics | FlowDef | Disciplined diagnosis loop with convergent PDCA exits |
 | 10 | `document-update` | Documentation | FlowDef | 7-task doc maintenance workflow with convergent PDCA exits |
@@ -367,7 +367,7 @@ zoom-out → chain-of-density → caveman
 | 31 | `review` | Meta-Cognition | FlowDef | Self-critique reasoning outputs via convergent review loops |
 | 32 | `rust-expertise` | Behavioral Guardrails | FlowDef | Idiomatic Rust design principles via convergent audit/refactor loops |
 | 33 | `scenario-builder` | Decision & Strategy | FlowDef | Schwartz method scenario planning via convergent scenario loops |
-| 34 | `self-critique-revision` | Meta-Cognition | KnowAct | Iterative draft → critique → revise |
+| 34 | `self-critique-revision` | Meta-Cognition | FlowDef | Iterative draft → critique → revise via convergent loops |
 | 35 | `skill-bundler` | Skill Management | FlowDef | Orchestrate skills into bundles via convergent compose→validate loops |
 | 36 | `skill-discovery` | Skill Management | FlowDef | Find and install skills via convergent gap→evaluate loops |
 | 37 | `skill-logic-audit` | Skill Management | FlowDef | Audit template logic via bounded critique→proposal loops |
@@ -375,9 +375,9 @@ zoom-out → chain-of-density → caveman
 | 39 | `skill-manager` | Skill Management | FlowDef | Registry-first skill lifecycle management via convergent validation loops |
 | 40 | `skill-translator` | Skill Management | KnowAct | Convert skills between formats |
 | 41 | `strangler-fig` | Diagnostics | FlowDef | Incremental architectural migration with convergent step verification |
-| 42 | `structured-extraction` | Extraction/Summarization | KnowAct | Schema-driven entity and relation extraction |
-| 43 | `superforecasting` | Decision & Strategy | WordAct | Tetlock 8-stage calibrated forecasting |
-| 44 | `tdd` | Behavioral Guardrails | KnowAct | Red-green-refactor with contract grounding |
+| 42 | `structured-extraction` | Extraction/Summarization | FlowDef | Schema-driven extraction via convergent entity/relation/map loops |
+| 43 | `superforecasting` | Decision & Strategy | FlowDef | Tetlock 8-stage calibrated forecasting via convergent pipeline loops |
+| 44 | `tdd` | Behavioral Guardrails | FlowDef | Contract-anchored red-green-refactor via convergent TDD loops |
 | 45 | `zoom-out` | Extraction/Summarization | FlowDef | Broader context on unfamiliar code via convergent context loops |
 
 ---

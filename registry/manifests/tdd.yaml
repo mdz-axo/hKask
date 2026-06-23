@@ -1,33 +1,29 @@
 # TDD Process Manifest
-# ℏKask v0.28.0 — 4-layer contract-anchored test-driven development
-# Template type: Process (FlowDef) — plan → trace → refactor → verify → gap-check
-# Related: .agents/skills/tdd/SKILL.md, docs/architecture/core/TESTING_DISCIPLINE.md, docs/architecture/core/FUNCTIONAL_SPECIFICATION.md
+# ℏKask v0.30.0 — Contract-anchored TDD as convergent PDCA
 
 manifest:
   id: tdd
-  name: TDD (Contract-Anchored)
+  name: TDD
   description: >
-    Test-driven development with 4-layer smart contract anchoring (user_expectation,
-    [P{N}] Goal principle, [P{N}] Constraining principles, behavioral specification).
-    Pipeline:
-    (1) Spec-Anchored Planning — extract functional requirements with user expectations
-        and principle mappings from specifications, map each contract to a testable
-        behavior, prioritize by risk,
-    (2) Tracer Bullet — write one full 4-layer contract, then one property-based test
-        verifying it, then minimal implementation respecting constraining principles,
-    (3) Refactor — while GREEN, extract duplication, deepen modules, strengthen contracts,
-        preserve all 4 contract layers,
-    (4) Verify — all tests pass, clippy clean, contract quality checks (user_expectation,
-        goal principle, constraining principles, contract ID format),
-    (5) Gap Check — compare spec requirements against tested behaviors, identify gaps
-        including contract quality gaps, produce deferral recommendations.
-  functional_role: knowact
-  version: 0.28.0
+    Convergent contract-anchored TDD process. Plans from requirements,
+    executes a tracer bullet, proposes refactors, verifies quality,
+    checks requirement coverage, computes convergence, and iterates.
+  functional_role: flowdef
+  version: 0.30.0
   editor: curator-or-human-admin
   visibility: Public
 
+convergence:
+  threshold: 0.15
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 3
+  min_iterations: 1
+  convergence_field: step_6_result.convergence_metric
+  on_not_reached: escalate
+
 gas:
-  cap: 28672
+  cap: 26000
   cost_per_token: 0.25
   alert_threshold: 0.8
   hard_limit: true
@@ -35,549 +31,140 @@ gas:
 inputs:
   - name: task_description
     type: string
-    description: "The feature or bug to implement using TDD"
     required: true
   - name: crate_scope
     type: string
-    description: "Target crate (e.g., hkask-storage, hkask-agents)"
     required: true
-  - name: spec_categories
-    type: array
-    description: >
-      DDMVSS categories in scope for this task. Each category triggers a
-      spec/graph/query call to retrieve structured requirements.
-      Valid values: domain, capability, interface, composition, trust,
-      observability, persistence, lifecycle, curation.
-    required: false
-  - name: domain_anchor
-    type: string
-    description: >
-      Domain anchor for spec resolution. Valid values: inference, hkask.
-      Defaults to hkask if not specified.
-    required: false
   - name: code_context
     type: object
-    description: "Relevant code snippets, file paths, and existing implementation"
     required: false
-  - name: diff_preview
+  - name: spec_context
     type: string
-    description: "Proposed diff or implementation to verify"
     required: false
 
-# The six TDD principles as enforceable checks
-principles:
-  - id: spec-anchored
-    name: "Spec-Anchored Testing"
-    description: >
-      Every tracer bullet starts from a specification requirement, not from intuition.
-      Each test carries a // REQ: P{N}-{domain}-{operation} tag referencing its source
-      contract. If no spec exists, create a minimal one before planning.
-    cns_span: "cns.prompt.tdd.spec-anchored"
-    severity: critical
-
-  - id: contract-quality
-    name: "4-Layer Contract Quality"
-    description: >
-      Every contract has four layers: user_expectation (verbal, user's voice),
-      [P{N}] Goal (exactly one justifying principle), [P{N}] Constraining (zero to
-      many constraint principles), and pre:/post:/inv: (machine-checkable behavioral
-      specification). Contract ID uses P{N}-{domain}-{operation} format with the
-      goal principle encoded in the prefix.
-    cns_span: "cns.prompt.tdd.contract-quality"
-    severity: critical
-
-  - id: vertical-slicing
-    name: "Vertical Slicing"
-    description: >
-      One contract → one test → one implementation → repeat. Never write all tests
-      first, then all code. This is horizontal slicing and produces bad tests.
-    cns_span: "cns.prompt.tdd.vertical-slicing"
-    severity: critical
-
-  - id: behavioral-testing
-    name: "Behavioral Testing"
-    description: >
-      Tests verify behavior through public interfaces, not implementation details.
-      A good test reads like a specification and survives refactors.
-    cns_span: "cns.prompt.tdd.behavioral-testing"
-    severity: critical
-
-  - id: minimal-implementation
-    name: "Minimal Implementation"
-    description: >
-      Write only enough code to satisfy the current contract without violating
-      constraining principles. No speculative features. No todo!() or
-      unimplemented!() stubs.
-    cns_span: "cns.prompt.tdd.minimal-implementation"
-    severity: high
-
-  - id: gap-closure
-    name: "Gap Closure"
-    description: >
-      After verification, compare spec requirements against tested behaviors.
-      Every P0 gap must have a tracer bullet. P2+ gaps may be deferred to
-      OPEN_QUESTIONS.md with documented rationale. Includes contract quality
-      gaps (missing user_expectation, wrong goal principle, missing constraints).
-    cns_span: "cns.prompt.tdd.gap-closure"
-    severity: high
-
-# Process Steps
 steps:
-  - ordinal: 0
-    action: execute
-    description: >
-      Spec resolution: query the specification graph for DDMVSS categories in scope.
-      Retrieve structured Spec objects with GoalSpec trees and Criterion lists.
-      Determine which specs are ready for testing (Merge curation decision)
-      and which need revision. If no specs exist for the categories, flag that
-      spec/goal/capture must be called first. The MCP server should populate
-      `suggested_contract_id` in P{N}-{domain}-{operation} format and
-      `suggested_goal_principle` (P1–P12) based on the spec category:
-      domain→P8, capability→P4, interface→P7, composition→P5, trust→P9,
-      observability→P9, persistence→P7, lifecycle→P7, curation→P2.
-    renderer: null
-    template_ref: null
-    mcp: hkask-mcp-spec
-    gas_cap: 2000
-    timeout_seconds: 15
-    input_mapping:
-      categories: "{{ spec_categories | default([]) }}"
-      domain_anchor: "{{ domain_anchor | default('hkask') }}"
-    mcp_calls:
-      - tool: spec/graph/query
-        input:
-          category: "{{ item }}"
-          domain_anchor: "{{ domain_anchor | default('hkask') }}"
-          capability_token: "{{ capability_token | default('') }}"
-        for_each: spec_categories
-      - tool: spec/graph/validate
-        input:
-          coherence_threshold: 0.7
-          capability_token: "{{ capability_token | default('') }}"
-    output_schema:
-      type: object
-      properties:
-        specs_in_scope:
-          type: array
-          items:
-            type: object
-            properties:
-              spec_id: { type: string }
-              name: { type: string }
-              category: { type: string }
-              suggested_contract_id: { type: string }
-              suggested_goal_principle: { type: string }
-              complete: { type: boolean }
-              goals:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    text: { type: string }
-                    criteria:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          description: { type: string }
-                          satisfied: { type: boolean }
-                    depth: { type: integer }
-              coherence_score: { type: number }
-        collection_coherence:
-          type: object
-          properties:
-            valid: { type: boolean }
-            coherence_score: { type: number }
-            categories_missing: { type: array }
-            spec_count: { type: integer }
-        categories_without_specs:
-          type: array
-          items: { type: string }
-
   - ordinal: 1
-    action: populate
-    description: >
-      Spec-anchored planning: extract functional requirements from specifications,
-      map each to a testable behavior on a public seam, prioritize by risk
-      (P0 security → P1 correctness → P2+ ergonomics), and get user approval.
+    action: select
+    description: Plan contract-anchored TDD behaviors and seams.
     renderer: minijinja
     template_ref: tdd/tdd-plan
-    gas_cap: 6144
+    gas_cap: 6000
     timeout_seconds: 90
     input_mapping:
       task_description: "{{ task_description }}"
       crate_scope: "{{ crate_scope }}"
       code_context: "{{ code_context | default({}) }}"
-      spec_source: "{{ ordinal_0.specs_in_scope | default([]) | tojson }}"
-    output_schema:
-      type: object
-      properties:
-        functional_requirements:
-          type: array
-          items:
-            type: object
-            properties:
-              contract_id: { type: string }
-              category: { type: string }
-              requirement: { type: string }
-              user_expectation: { type: string }
-              goal_principle:
-                type: object
-                properties:
-                  principle: { type: string }
-                  name: { type: string }
-                  rationale: { type: string }
-              constraining_principles:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    principle: { type: string }
-                    name: { type: string }
-                    constraint: { type: string }
-              seam: { type: string }
-              priority: { type: string }
-              curation_decision: { type: string }
-        behaviors_to_test:
-          type: array
-          items:
-            type: object
-            properties:
-              behavior: { type: string }
-              contract_id: { type: string }
-              user_expectation: { type: string }
-              goal_principle:
-                type: object
-                properties:
-                  principle: { type: string }
-                  name: { type: string }
-                  rationale: { type: string }
-              constraining_principles:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    principle: { type: string }
-                    name: { type: string }
-                    constraint: { type: string }
-              seam: { type: string }
-              test_type: { type: string }
-              priority: { type: string }
-        public_interface:
-          type: array
-          items:
-            type: object
-            properties:
-              item: { type: string }
-              change: { type: string }
-              description: { type: string }
-        priority_order:
-          type: array
-          items: { type: string }
-        assumptions:
-          type: array
-          items:
-            type: object
-            properties:
-              assumption: { type: string }
-              confidence: { type: string }
-              alternative: { type: string }
-        plan_approved: { type: boolean }
+      spec_context: "{{ spec_context | default('') }}"
 
   - ordinal: 2
-    action: populate
-    description: >
-      Execute a tracer bullet: write one full 4-layer contract (user_expectation,
-      [P{N}] Goal, [P{N}] Constraining, pre:/post:), then one property-based test
-      verifying it, then the minimal implementation respecting constraining principles.
+    action: select
+    description: Execute one tracer bullet (contract → test → minimal implementation).
     renderer: minijinja
     template_ref: tdd/tdd-tracer
-    gas_cap: 8192
+    gas_cap: 8000
     timeout_seconds: 120
     input_mapping:
-      behavior_description: "{{ item.behavior }}"
-      contract_id: "{{ item.contract_id }}"
-      user_expectation: "{{ item.user_expectation }}"
-      goal_principle: "{{ item.goal_principle | default({}) | tojson }}"
-      constraining_principles: "{{ item.constraining_principles | default([]) | tojson }}"
-      seam: "{{ item.seam }}"
+      behavior_description: "{{ step_1_result.behaviors_to_test[0].behavior | default(task_description) }}"
+      user_expectation: "{{ step_1_result.functional_requirements[0].user_expectation | default(task_description) }}"
+      goal_principle: "{{ step_1_result.functional_requirements[0].goal_principle | default({}) }}"
+      constraining_principles: "{{ step_1_result.behaviors_to_test[0].constraining_principles | default([]) }}"
+      seam: "{{ step_1_result.behaviors_to_test[0].seam | default('public API') }}"
       crate_scope: "{{ crate_scope }}"
-      test_style: ""
-    output_schema:
-      type: object
-      properties:
-        contract_id: { type: string }
-        contract_code: { type: string }
-        contract_location: { type: string }
-        user_expectation: { type: string }
-        goal_principle:
-          type: object
-          properties:
-            principle: { type: string }
-            name: { type: string }
-            rationale: { type: string }
-        constraining_principles:
-          type: array
-          items:
-            type: object
-            properties:
-              principle: { type: string }
-              name: { type: string }
-              constraint: { type: string }
-        test_code: { type: string }
-        test_file_path: { type: string }
-        implementation_code: { type: string }
-        implementation_file_path: { type: string }
-        test_passes: { type: boolean }
-        verification_command: { type: string }
-    # This step loops over behaviors_to_test from ordinal 1
+      test_style: "{{ step_1_result.behaviors_to_test[0].test_type | default('integration') }}"
 
   - ordinal: 3
-    action: populate
-    description: >
-      Refactor while GREEN: extract duplication, deepen modules, strengthen contracts
-      (weaken preconditions, strengthen postconditions, add invariants). Preserve all
-      4 contract layers during refactoring. One refactor step at a time, verified by tests.
+    action: select
+    description: Propose safe GREEN-phase refactors.
     renderer: minijinja
     template_ref: tdd/tdd-refactor
-    gas_cap: 6144
+    gas_cap: 5000
     timeout_seconds: 90
     input_mapping:
       crate_scope: "{{ crate_scope }}"
-      passing_tests: "{{ ordinal_2_output }}"
-      refactor_candidates: []
-    output_schema:
-      type: object
-      properties:
-        refactor_steps:
-          type: array
-          items:
-            type: object
-            properties:
-              step: { type: string }
-              files: { type: array }
-              lines_estimate: { type: integer }
-              verification: { type: string }
-              req_tags_preserved: { type: array }
-        each_step_passes: { type: boolean }
-        contract_changes:
-          type: array
-          items:
-            type: object
-            properties:
-              location: { type: string }
-              function: { type: string }
-              change: { type: string }
-              old_contract: { type: string }
-              new_contract: { type: string }
-              rationale: { type: string }
-        simplification_notes:
-          type: array
-          items: { type: string }
+      passing_tests: "{{ [step_2_result] }}"
+      refactor_candidates: "{{ step_1_result.public_interface | default([]) }}"
 
   - ordinal: 4
-    action: populate
-    description: >
-      Verify TDD cycle completion: all tests pass, clippy clean, no todo!/unimplemented!
-      stubs, spec traceability, 4-layer contract quality (user_expectation, goal principle,
-      constraining principles, contract ID format), functional coverage gaps identified.
+    action: select
+    description: Verify TDD completion quality and contract discipline.
     renderer: minijinja
     template_ref: tdd/tdd-verify
-    gas_cap: 4096
+    gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
       crate_scope: "{{ crate_scope }}"
-      behaviors_tested: "{{ ordinal_2_output }}"
-      test_commands: ["cargo test -p {{ crate_scope }}"]
-      clippy_commands: ["cargo clippy -p {{ crate_scope }} -- -D warnings"]
-    output_schema:
-      type: object
-      properties:
-        all_tests_pass: { type: boolean }
-        clippy_clean: { type: boolean }
-        no_todo_stubs: { type: boolean }
-        behavior_coverage:
-          type: array
-          items:
-            type: object
-            properties:
-              behavior: { type: string }
-              covered: { type: boolean }
-              seam: { type: string }
-              contract_id: { type: string }
-        functional_gaps:
-          type: array
-          items:
-            type: object
-            properties:
-              contract_id: { type: string }
-              requirement: { type: string }
-              priority: { type: string }
-              recommendation: { type: string }
-        violations:
-          type: array
-          items:
-            type: object
-            properties:
-              type: { type: string }
-              severity: { type: string }
-              description: { type: string }
-              location: { type: string }
-              correction: { type: string }
-        passed: { type: boolean }
+      behaviors_tested: "{{ [step_2_result] }}"
+      test_commands: "{{ ['cargo test -p ' ~ crate_scope] }}"
+      clippy_commands: "{{ ['cargo clippy -p ' ~ crate_scope ~ ' -- -D warnings'] }}"
 
   - ordinal: 5
-    action: populate
-    description: >
-      Functional gap analysis: compare specification requirements against tested
-      behaviors. Identify uncovered requirements (gaps), contract quality gaps
-      (missing user_expectation, wrong goal principle, missing constraints, contract
-      ID format violations), and produce deferral recommendations for
-      OPEN_QUESTIONS.md. P0 gaps MUST have tracer bullets.
+    action: select
+    description: Analyze requirement coverage gaps and deferrals.
     renderer: minijinja
     template_ref: tdd/tdd-gap-check
-    gas_cap: 4096
+    gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
-      spec_requirements: "{{ ordinal_0.specs_in_scope | default([]) }}"
-      tested_behaviors: "{{ ordinal_4.behavior_coverage }}"
-      collection_coherence: "{{ ordinal_0.collection_coherence | default({}) }}"
+      spec_requirements: "{{ step_1_result.functional_requirements | default([]) }}"
+      tested_behaviors: "{{ step_4_result.behavior_coverage | default([]) }}"
       crate_scope: "{{ crate_scope }}"
-    output_schema:
-      type: object
-      properties:
-        covered_requirements:
-          type: array
-          items:
-            type: object
-            properties:
-              contract_id: { type: string }
-              requirement: { type: string }
-              test_name: { type: string }
-              seam: { type: string }
-              priority: { type: string }
-              is_complete: { type: boolean }
-              is_probabilistic: { type: boolean }
-              has_prob_contract: { type: boolean, nullable: true }
-              contract_quality:
-                type: object
-                properties:
-                  user_expectation_correct: { type: boolean }
-                  goal_principle_match: { type: boolean }
-                  constraining_principles_complete: { type: boolean }
-                  contract_id_format_valid: { type: boolean }
-                  constraint_enforcement_tested: { type: boolean }
-        gaps:
-          type: array
-          items:
-            type: object
-            properties:
-              contract_id: { type: string }
-              requirement: { type: string }
-              priority: { type: string }
-              recommendation: { type: string }
-              rationale: { type: string }
-              unsatisfied_criteria: { type: array }
-              gap_type: { type: string }
-        deferrals:
-          type: array
-          items:
-            type: object
-            properties:
-              contract_id: { type: string }
-              requirement: { type: string }
-              priority: { type: string }
-              rationale: { type: string }
-              open_questions_entry: { type: string }
-        coverage_percentage: { type: number }
+      collection_coherence: "{{ {} }}"
 
   - ordinal: 6
-    action: feedback
-    description: >
-      Emit CNS feedback for TDD cycle monitoring. Track spec-anchored coverage
-      rates, contract quality scores, gap closure rates, and tracer-bullet discipline.
-    renderer: null
-    template_ref: null
-    mcp: hkask-mcp-memory # CNS feedback now via memory server
-    gas_cap: 500
-    timeout_seconds: 5
-    feedback:
-      variety_delta: integer
-      spec_coverage_percentage: float
-      contract_quality_score: float
-      gaps_count: integer
-      deferrals_count: integer
-      violations_count: integer
-    output_schema:
-      type: object
-      properties:
-        variety_counter: { type: integer }
-        cns_event_id: { type: string }
+    action: select
+    description: Compute normalized convergence metric for TDD cycle.
+    renderer: minijinja
+    template_ref: tdd/tdd-convergence-check
+    gas_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      verify_result: "{{ step_4_result }}"
+      gap_result: "{{ step_5_result }}"
 
-# Violation severity classification
-violation_severity:
-  critical: "Must fix before proceeding — missing [P{N}] Goal (contract ungrounded), test probes private methods without TEST-DEBT, or spec requirement has no tracer bullet"
-  high: "Should fix — missing user_expectation, contract ID prefix mismatch, missing // REQ: tag, P0 gap without tracer bullet"
-  medium: "Worth fixing — missing [P{N}] Constraining, contract ID format issues, P2 gap deferred without rationale"
-  low: "Nit — style preference, not a principle violation"
+  - ordinal: 7
+    action: loop
+    description: Re-enter TDD cycle if convergence is not met.
+    input_mapping:
+      loop_target: 1
 
-# Error Handling
 error_handling:
   on_gas_exceeded: abort
   on_timeout: retry
-  max_retries: 2
+  max_retries: 1
   retry_backoff_seconds: 1
   on_validation_failure: abort
 
-# OCAP Configuration
 ocap:
   required_capabilities:
     - resource: template
       action: render
       template_id: tdd/tdd-plan
-      gas_budget: 6144
+      gas_budget: 6000
     - resource: template
       action: render
       template_id: tdd/tdd-tracer
-      gas_budget: 8192
+      gas_budget: 8000
     - resource: template
       action: render
       template_id: tdd/tdd-refactor
-      gas_budget: 6144
+      gas_budget: 5000
     - resource: template
       action: render
       template_id: tdd/tdd-verify
-      gas_budget: 4096
+      gas_budget: 4000
     - resource: template
       action: render
       template_id: tdd/tdd-gap-check
-      gas_budget: 4096
+      gas_budget: 4000
+    - resource: template
+      action: render
+      template_id: tdd/tdd-convergence-check
+      gas_budget: 2000
     - resource: manifest
       action: execute
       template_id: tdd
-      gas_budget: 500
-    - resource: cns
-      action: emit
-      template_id: tdd
-      gas_budget: 500
+      gas_budget: 1000
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
   template_scoped: true
-
-# CNS Monitoring
-cns:
-  emit_spans: true
-  span_namespace: cns.prompt.tdd
-  variety_monitoring: true
-  algedonic_threshold: 100
-  escalation_target: Curator
-
-# Audit Trail
-audit:
-  enabled: true
-  log_level: info
-  include_input: true
-  include_output: true
-  include_gas_cost: true
-  include_cns_events: true

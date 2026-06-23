@@ -80,6 +80,14 @@ templates:
       expiration date for later tracking, Brier scoring, and post-mortem
       analysis.
 
+  - id: superforecasting/superforecasting-convergence-check
+    path: superforecasting-convergence-check.j2
+    type: KnowAct
+    lexicon_terms: [evaluate, converge, classify, verify, calibrate]
+    description: >
+      Compute normalized convergence metric for superforecasting PDCA cycles.
+      Returns convergence_metric plus rationale and blockers.
+
 # FlowDef orchestrator — chains all 8 stages with convergence criteria.
 # CNS spans (cns.prompt.{select,render,outcome}) are emitted automatically
 # by the flow engine for WordAct populate steps; no explicit cns_spans needed.

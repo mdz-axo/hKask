@@ -197,3 +197,44 @@ Updated template crate manifests to register new convergence-check templates:
 
 - `docs/user-guides/skill-user-guide.md`
   - Summary table type updates: `coding-guidelines`, `grill-me`, `mcda`, `scenario-builder`, `gentle-lovelace` moved to `FlowDef`.
+
+## Phase 5 Conversions (implemented)
+
+The following skills were recomposed to standardized FlowDef+PDCA with explicit convergence rails:
+
+1. `tdd`
+2. `decision-journal`
+3. `self-critique-revision`
+4. `structured-extraction`
+5. `superforecasting`
+
+### New/Updated Process Manifests
+
+- `registry/manifests/tdd.yaml`
+- `registry/manifests/decision-journal.yaml`
+- `registry/manifests/self-critique-revision.yaml`
+- `registry/manifests/structured-extraction.yaml`
+- `registry/manifests/superforecasting.yaml`
+
+### New Convergence Templates
+
+- `registry/templates/tdd/tdd-convergence-check.j2`
+- `registry/templates/decision-journal/decision-journal-convergence-check.j2`
+- `registry/templates/self-critique-revision/self-critique-convergence-check.j2`
+- `registry/templates/structured-extraction/structured-extraction-convergence-check.j2`
+- `registry/templates/superforecasting/superforecasting-convergence-check.j2`
+
+### Registry Template Manifest Updates
+
+Updated template crate manifests to register new convergence-check templates:
+
+- `registry/templates/tdd/manifest.yaml`
+- `registry/templates/decision-journal/manifest.yaml`
+- `registry/templates/self-critique-revision/manifest.yaml`
+- `registry/templates/structured-extraction/manifest.yaml`
+- `registry/templates/superforecasting/manifest.yaml`
+
+### Docs Updated (Phase 5)
+
+- `docs/user-guides/skill-user-guide.md`
+  - Summary table type updates: `decision-journal`, `self-critique-revision`, `structured-extraction`, `superforecasting`, and `tdd` moved to `FlowDef`.

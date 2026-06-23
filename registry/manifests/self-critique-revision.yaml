@@ -1,25 +1,29 @@
-# Self-Critique & Revision Loop Process Manifest
-# ℏKask v0.21.0 — Iterative refinement with convergence detection
-# Template type: Process (FlowDef) — multi-step critique-revise cycle
+# Self-Critique & Revision Process Manifest
+# ℏKask v0.30.0 — Iterative revision as convergent PDCA
 
 manifest:
   id: self-critique-revision
-  name: Self-Critique & Revision Loop
+  name: Self-Critique Revision
   description: >
-    Process manifest for iterative refinement through self-critique and
-    revision with convergence detection. Generates initial output, critiques
-    it for weaknesses, revises to address critiques, evaluates quality with
-    convergence detection, and emits CNS feedback. Terminates when quality
-    improvement falls below threshold (convergence) or maximum iterations
-    are reached.
-  functional_role: knowact
-  version: 0.21.0
+    Convergent self-critique process. Generates a draft, critiques it against
+    explicit criteria, revises it, computes convergence, and iterates until
+    quality improvement stabilizes.
+  functional_role: flowdef
+  version: 0.30.0
   editor: curator-or-human-admin
   visibility: Public
 
-# Energy Budget Configuration
+convergence:
+  threshold: 0.15
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 3
+  min_iterations: 1
+  convergence_field: step_4_result.convergence_metric
+  on_not_reached: escalate
+
 gas:
-  cap: 20000
+  cap: 18000
   cost_per_token: 0.25
   alert_threshold: 0.8
   hard_limit: true
@@ -27,29 +31,15 @@ gas:
 inputs:
   - name: task_prompt
     type: string
-    description: "The task or prompt to generate output for"
     required: true
   - name: quality_criteria
     type: array
-    description: "Criteria to critique against (e.g. accuracy, completeness, clarity)"
-    required: false
-  - name: max_iterations
-    type: integer
-    description: "Maximum revision iterations (default: 3)"
-    required: false
-  - name: convergence_threshold
-    type: number
-    description: "Minimum quality improvement to continue (default: 0.1)"
     required: false
 
-# Process Steps
 steps:
   - ordinal: 1
-    action: populate
-    description: >
-      Generate initial output from the task prompt. Produce a first draft
-      addressing the task. This serves as the starting point for the
-      critique-revise cycle.
+    action: select
+    description: Generate an initial draft output.
     renderer: minijinja
     template_ref: self-critique-revision/generate
     gas_cap: 5000
@@ -57,190 +47,59 @@ steps:
     input_mapping:
       task_prompt: "{{ task_prompt }}"
       quality_criteria: "{{ quality_criteria | default(['accuracy', 'completeness', 'clarity']) }}"
-    output_schema:
-      type: object
-      properties:
-        output:
-          type: string
-        initial_quality_score:
-          type: number
-        draft_number:
-          type: integer
 
   - ordinal: 2
-    action: populate
-    description: >
-      Critique the generated output. Identify weaknesses, gaps, errors,
-      and areas for improvement against the quality criteria. Produce
-      structured critique with specific, actionable feedback.
+    action: select
+    description: Critique the current draft against quality criteria.
     renderer: minijinja
     template_ref: self-critique-revision/critique
-    gas_cap: 4000
+    gas_cap: 4500
     timeout_seconds: 60
     input_mapping:
       task_prompt: "{{ task_prompt }}"
-      current_output: "{{ ordinal_1.output }}"
+      current_output: "{{ step_1_result.output | default('') }}"
       quality_criteria: "{{ quality_criteria | default(['accuracy', 'completeness', 'clarity']) }}"
-      draft_number: "{{ ordinal_1.draft_number }}"
-    output_schema:
-      type: object
-      properties:
-        critique:
-          type: array
-          items:
-            type: object
-            properties:
-              criterion: { type: string }
-              issue: { type: string }
-              severity: { type: string }
-              suggestion: { type: string }
-        overall_quality_score:
-          type: number
-        critical_issues:
-          type: integer
-        improvement_areas:
-          type: array
-          items:
-            type: string
+      draft_number: "{{ step_1_result.draft_number | default(1) }}"
 
   - ordinal: 3
-    action: populate
-    description: >
-      Revise the output based on the critique. Address each identified
-      weakness, incorporate suggestions, and produce an improved draft.
-      The revision should directly respond to specific critique points.
+    action: select
+    description: Revise draft based on structured critique.
     renderer: minijinja
     template_ref: self-critique-revision/revise
-    gas_cap: 5000
+    gas_cap: 5500
     timeout_seconds: 90
     input_mapping:
       task_prompt: "{{ task_prompt }}"
-      current_output: "{{ ordinal_1.output }}"
-      critique: "{{ ordinal_2.critique }}"
+      current_output: "{{ step_1_result.output | default('') }}"
+      critique: "{{ step_2_result.critique | default([]) }}"
       quality_criteria: "{{ quality_criteria | default(['accuracy', 'completeness', 'clarity']) }}"
-      previous_quality_score: "{{ ordinal_2.overall_quality_score }}"
-      draft_number: "{{ ordinal_1.draft_number | default(1) + 1 }}"
-    output_schema:
-      type: object
-      properties:
-        revised_output:
-          type: string
-        critique_addressed:
-          type: array
-          items:
-            type: object
-            properties:
-              critique_point: { type: string }
-              how_addressed: { type: string }
-        revised_quality_score:
-          type: number
-        quality_improvement:
-          type: number
-        draft_number:
-          type: integer
+      previous_quality_score: "{{ step_2_result.overall_quality_score | default(step_1_result.initial_quality_score | default(0.0)) }}"
+      draft_number: "{{ step_1_result.draft_number | default(1) + 1 }}"
 
   - ordinal: 4
-    action: validate
-    description: >
-      Evaluate quality and detect convergence. Compare quality improvement
-      between iterations against the convergence threshold. If improvement
-      is below threshold, the process has converged and the current output
-      is acceptable. Validate that quality criteria are met.
-    renderer: null
-    template_ref: null
-    mcp: hkask-mcp-memory  # was hkask-mcp-storage
-    gas_cap: 1000
-    timeout_seconds: 10
-    validation_rules:
-      - quality_improvement_above_threshold
-      - all_criteria_addressed
-      - convergence_detection
-      - max_iterations_not_exceeded
-    output_schema:
-      type: object
-      properties:
-        validated:
-          type: boolean
-        converged:
-          type: boolean
-        quality_score:
-          type: number
-        quality_improvement:
-          type: number
-        iterations_completed:
-          type: integer
-        final_output:
-          type: string
-        error_reason:
-          type: string
+    action: select
+    description: Compute normalized convergence metric for critique/revision cycle.
+    renderer: minijinja
+    template_ref: self-critique-revision/self-critique-convergence-check
+    gas_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      critique_result: "{{ step_2_result }}"
+      revision_result: "{{ step_3_result }}"
 
   - ordinal: 5
-    action: execute
-    description: >
-      Conditional iteration: if quality has not converged after the first
-      critique-revise cycle, invoke the iteration child manifest for
-      additional rounds. The child manifest (self-critique-revision-iteration)
-      performs one critique-revise cycle per invocation, feeding the revised
-      output back as input. It has max_iterations: 3.
-    renderer: null
-    template_ref: null
-    mcp: null  # internal SqliteRegistry was hkask-mcp-templates
-    tool: self_critique_revision_iteration
-    gas_cap: 12000
-    timeout_seconds: 180
-    condition: "{{ ordinal_4.quality_improvement > (convergence_threshold | default(0.1)) and ordinal_4.converged == false }}"
+    action: loop
+    description: Re-enter critique/revision cycle if convergence is not met.
     input_mapping:
-      task_prompt: "{{ task_prompt }}"
-      current_output: "{{ ordinal_3.revised_output }}"
-      quality_criteria: "{{ quality_criteria | default(['accuracy', 'completeness', 'clarity']) }}"
-      previous_quality_score: "{{ ordinal_3.revised_quality_score }}"
-      iteration: 2
-      convergence_threshold: "{{ convergence_threshold | default(0.1) }}"
-    output_schema:
-      type: object
-      properties:
-        converged:
-          type: boolean
-        final_quality_score:
-          type: number
-        total_iterations:
-          type: integer
-        final_output:
-          type: string
+      loop_target: 2
 
-  - ordinal: 6
-    action: feedback
-    description: >
-      Emit CNS feedback for variety monitoring and revision quality tracking.
-      Report iteration count, quality progression, and convergence status.
-    renderer: null
-    template_ref: null
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
-    gas_cap: 500
-    timeout_seconds: 5
-    feedback:
-      variety_delta: integer
-      iterations_completed: integer
-      quality_improvement: number
-      converged: boolean
-    output_schema:
-      type: object
-      properties:
-        variety_counter:
-          type: integer
-        cns_event_id:
-          type: string
-
-# Error Handling
 error_handling:
   on_gas_exceeded: abort
   on_timeout: retry
-  max_retries: 2
-  retry_backoff_seconds: 2
+  max_retries: 1
+  retry_backoff_seconds: 1
   on_validation_failure: abort
-  on_convergence_not_reached: invoke_child_manifest
 
-# OCAP Configuration
 ocap:
   required_capabilities:
     - resource: template
@@ -250,46 +109,20 @@ ocap:
     - resource: template
       action: render
       template_id: self-critique-revision/critique
-      gas_budget: 4000
+      gas_budget: 4500
     - resource: template
       action: render
       template_id: self-critique-revision/revise
-      gas_budget: 5000
-    - resource: manifest
-      action: execute
-      template_id: self-critique-revision-iteration
-      gas_budget: 12000
+      gas_budget: 5500
+    - resource: template
+      action: render
+      template_id: self-critique-revision/self-critique-convergence-check
+      gas_budget: 2000
     - resource: manifest
       action: execute
       template_id: self-critique-revision
-      gas_budget: 500
-    - resource: cns
-      action: emit
-      template_id: self-critique-revision
-      gas_budget: 500
+      gas_budget: 1000
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
   template_scoped: true
-
-# CNS Monitoring
-cns:
-  emit_spans: true
-  span_namespace: cns.prompt.self-critique-revision
-  variety_monitoring: true
-  algedonic_threshold: 100
-  escalation_target: Curator
-  variety_counters:
-    - iterations_completed
-    - quality_improvement
-    - critical_issues_per_iteration
-    - child_manifest_invocations
-
-# Audit Trail
-audit:
-  enabled: true
-  log_level: info
-  include_input: true
-  include_output: true
-  include_gas_cost: true
-  include_cns_events: true

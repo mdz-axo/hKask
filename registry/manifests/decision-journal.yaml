@@ -1,24 +1,29 @@
 # Decision Journal Process Manifest
-# ℏKask v0.21.0 — Recording and revisiting decisions with calibration
-# Template type: Process (FlowDef) — multi-step decision documentation pipeline
+# ℏKask v0.30.0 — Decision journaling as convergent PDCA
 
 manifest:
   id: decision-journal
   name: Decision Journal
   description: >
-    Process manifest for recording and revisiting decisions with calibration.
-    Records the decision and its context, defines expected outcomes and
-    time horizons, schedules a revisit date, and emits CNS feedback for
-    tracking decision quality over time. Implements the decision journal
-    practice from Kahneman's noise reduction methodology.
-  functional_role: knowact
-  version: 0.21.0
+    Convergent decision-journaling process. Records a decision, defines
+    measurable expected outcomes, revisits actual outcomes, computes Brier
+    calibration metrics, and iterates until calibration quality is sufficient.
+  functional_role: flowdef
+  version: 0.30.0
   editor: curator-or-human-admin
   visibility: Public
 
-# Energy Budget Configuration
+convergence:
+  threshold: 0.15
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 3
+  min_iterations: 1
+  convergence_field: step_5_result.convergence_metric
+  on_not_reached: escalate
+
 gas:
-  cap: 10000
+  cap: 18000
   cost_per_token: 0.25
   alert_threshold: 0.8
   hard_limit: true
@@ -26,207 +31,119 @@ gas:
 inputs:
   - name: decision
     type: string
-    description: "The decision that was made"
     required: true
   - name: context
     type: string
-    description: "The context and reasoning behind the decision"
     required: true
   - name: alternatives_considered
     type: array
-    description: "Alternatives that were considered but not chosen"
     required: false
-  - name: revisit_horizon
-    type: string
-    description: "When to revisit this decision (e.g. '30d', '90d', '1y')"
+  - name: disconfirming_evidence
+    type: array
+    required: false
+  - name: actual_outcomes
+    type: array
     required: false
 
-# Process Steps
 steps:
   - ordinal: 1
-    action: populate
-    description: >
-      Record the decision with full context. Document the decision itself,
-      the reasoning process, emotional state, key assumptions, and
-      alternatives considered. Structure the decision for future review.
+    action: select
+    description: Record the decision with full context and assumptions.
     renderer: minijinja
     template_ref: decision-journal/record-decision
-    gas_cap: 3000
-    timeout_seconds: 45
-    input_mapping:
-      decision: "{{ decision }}"
-      context: "{{ context }}"
-      alternatives_considered: "{{ alternatives_considered | default([]) }}"
-    output_schema:
-      type: object
-      properties:
-        decision_record:
-          type: object
-          properties:
-            decision_statement: { type: string }
-            reasoning: { type: string }
-            assumptions:
-              type: array
-              items:
-                type: string
-            alternatives:
-              type: array
-              items:
-                type: object
-                properties:
-                  alternative:
-                    type: string
-                  reason_rejected:
-                    type: string
-            emotional_state: { type: string }
-            confidence_level: { type: string }
-            decision_type: { type: string }
-        recorded_at:
-          type: string
-
-  - ordinal: 2
-    action: populate
-    description: >
-      Define expected outcomes for the decision. Specify measurable
-      predictions about what will happen as a result of this decision,
-      with confidence levels and time horizons. These predictions become
-      the calibration targets for future revisit.
-    renderer: minijinja
-    template_ref: decision-journal/define-expected-outcomes
-    gas_cap: 4000
+    gas_cap: 4500
     timeout_seconds: 60
     input_mapping:
       decision: "{{ decision }}"
       context: "{{ context }}"
-      decision_record: "{{ ordinal_1.decision_record }}"
-    output_schema:
-      type: object
-      properties:
-        expected_outcomes:
-          type: array
-          items:
-            type: object
-            properties:
-              outcome: { type: string }
-              probability: { type: number }
-              confidence: { type: string }
-              time_horizon: { type: string }
-              measurable_indicator: { type: string }
-        best_case:
-          type: string
-        worst_case:
-          type: string
-        most_likely:
-          type: string
-        confidence_distribution:
-          type: object
+      alternatives_considered: "{{ alternatives_considered | default([]) }}"
+      disconfirming_evidence: "{{ disconfirming_evidence | default([]) }}"
+
+  - ordinal: 2
+    action: select
+    description: Define measurable expected outcomes with calibrated probabilities.
+    renderer: minijinja
+    template_ref: decision-journal/define-expected-outcomes
+    gas_cap: 4500
+    timeout_seconds: 60
+    input_mapping:
+      decision: "{{ decision }}"
+      context: "{{ context }}"
+      decision_record: "{{ step_1_result.decision_record | default({}) }}"
 
   - ordinal: 3
-    action: execute
-    description: >
-      Schedule revisit date and store the decision record for future
-      calibration. Create a revisit reminder tied to the expected outcomes
-      and their time horizons. Register the decision in memory for
-      future lookup.
-    renderer: null
-    template_ref: null
-    mcp: hkask-mcp-memory
-    gas_cap: 1000
-    timeout_seconds: 10
-    cns_spans:
-      - cns.prompt.select
-      - cns.prompt.render
-      - cns.prompt.outcome
-    output_schema:
-      type: object
-      properties:
-        revisit_scheduled:
-          type: boolean
-        revisit_date:
-          type: string
-        decision_id:
-          type: string
-        memory_stored:
-          type: boolean
+    action: select
+    description: Revisit and evaluate outcomes against predictions.
+    renderer: minijinja
+    template_ref: decision-journal/revisit-evaluate
+    gas_cap: 4500
+    timeout_seconds: 60
+    input_mapping:
+      decision_record: "{{ step_1_result.decision_record | default({}) }}"
+      expected_outcomes: "{{ step_2_result.expected_outcomes | default([]) }}"
+      actual_outcomes: "{{ actual_outcomes | default([]) }}"
 
   - ordinal: 4
-    action: feedback
-    description: >
-      Emit CNS feedback for variety monitoring and decision quality tracking.
-      Report decision type, confidence distribution, and outcome count for
-      CNS algedonic monitoring.
-    renderer: null
-    template_ref: null
-    mcp: hkask-mcp-memory # CNS feedback now via memory server
-    gas_cap: 500
-    timeout_seconds: 5
-    feedback:
-      variety_delta: integer
-      decision_type: string
-      expected_outcome_count: integer
-      confidence_level: string
-    output_schema:
-      type: object
-      properties:
-        variety_counter:
-          type: integer
-        cns_event_id:
-          type: string
+    action: select
+    description: Compute Brier scores and calibration diagnostics.
+    renderer: minijinja
+    template_ref: decision-journal/compute-brier
+    gas_cap: 2500
+    timeout_seconds: 45
+    input_mapping:
+      outcome_comparisons: "{{ step_3_result.outcome_comparisons | default([]) }}"
 
-# Error Handling
+  - ordinal: 5
+    action: select
+    description: Compute normalized convergence metric for decision-journal cycle.
+    renderer: minijinja
+    template_ref: decision-journal/decision-journal-convergence-check
+    gas_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      revisit_result: "{{ step_3_result }}"
+      brier_result: "{{ step_4_result }}"
+
+  - ordinal: 6
+    action: loop
+    description: Re-enter calibration cycle if convergence is not met.
+    input_mapping:
+      loop_target: 2
+
 error_handling:
   on_gas_exceeded: abort
   on_timeout: retry
-  max_retries: 2
+  max_retries: 1
   retry_backoff_seconds: 1
   on_validation_failure: abort
-  on_capability_denied: escalate
 
-# OCAP Configuration
 ocap:
   required_capabilities:
     - resource: template
       action: render
       template_id: decision-journal/record-decision
-      gas_budget: 3000
+      gas_budget: 4500
     - resource: template
       action: render
       template_id: decision-journal/define-expected-outcomes
-      gas_budget: 4000
+      gas_budget: 4500
+    - resource: template
+      action: render
+      template_id: decision-journal/revisit-evaluate
+      gas_budget: 4500
+    - resource: template
+      action: render
+      template_id: decision-journal/compute-brier
+      gas_budget: 2500
+    - resource: template
+      action: render
+      template_id: decision-journal/decision-journal-convergence-check
+      gas_budget: 2000
     - resource: manifest
       action: execute
       template_id: decision-journal
-      gas_budget: 500
-    - resource: memory
-      action: store
-      template_id: decision-journal
       gas_budget: 1000
-    - resource: cns
-      action: emit
-      template_id: decision-journal
-      gas_budget: 500
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
   template_scoped: true
-
-# CNS Monitoring
-cns:
-  emit_spans: true
-  span_namespace: cns.prompt.decision-journal
-  variety_monitoring: true
-  algedonic_threshold: 100
-  escalation_target: Curator
-  variety_counters:
-    - decision_types_recorded
-    - expected_outcomes_per_decision
-    - confidence_distribution
-
-# Audit Trail
-audit:
-  enabled: true
-  log_level: info
-  include_input: true
-  include_output: true
-  include_gas_cost: true
-  include_cns_events: true

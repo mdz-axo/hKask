@@ -1,0 +1,49 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    triage_result: object
+    calibration_result: object
+    record_result: object
+  output:
+    convergence_metric: number
+    rationale: string
+    blockers: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: superforecasting/superforecasting-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for superforecasting cycles. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 1000
+thinking_budget = "standard"
+
+Compute convergence where 0 means the forecast is sufficiently calibrated, confidence is justified, and record quality is adequate for later scoring.
+
+Input:
+```json
+{
+  "triage_result": {{ triage_result | tojson }},
+  "calibration_result": {{ calibration_result | tojson }},
+  "record_result": {{ record_result | tojson }}
+}
+```
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "rationale": "short explanation",
+  "blockers": []
+}
+```

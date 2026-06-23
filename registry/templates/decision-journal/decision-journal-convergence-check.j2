@@ -1,0 +1,47 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    revisit_result: object
+    brier_result: object
+  output:
+    convergence_metric: number
+    rationale: string
+    blockers: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: decision-journal/decision-journal-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for decision-journal cycles. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 1000
+thinking_budget = "standard"
+
+Compute convergence where 0 means calibration quality is acceptable (low error, clear process evaluation, and actionable learning signal).
+
+Input:
+```json
+{
+  "revisit_result": {{ revisit_result | tojson }},
+  "brier_result": {{ brier_result | tojson }}
+}
+```
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "rationale": "short explanation",
+  "blockers": []
+}
+```
