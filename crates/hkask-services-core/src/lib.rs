@@ -14,6 +14,7 @@ pub mod config;
 pub mod error;
 pub mod goal;
 pub mod identity;
+pub mod self_heal;
 pub mod settings;
 
 pub use config::{DEFAULT_DB_PATH, ServiceConfig};
