@@ -98,16 +98,18 @@ pub(super) fn init_repl_state(
         Some(secrets) => {
             // Set HKASK_MASTER_KEY so CuratorPod OCAP derivation works without
             // a separate keychain lookup (which fails with mock backends).
+            // Also set HKASK_DB_PASSPHRASE and HKASK_MCP_SECRET so downstream
+            // callers (e.g. bot_status → build_service_context → from_env) can
+            // resolve these without going through the OS keychain.
             // SAFETY: REPL init runs single-threaded before tokio runtime starts.
             unsafe {
                 std::env::set_var("HKASK_MASTER_KEY", &secrets.master_key_hex);
+                std::env::set_var("HKASK_DB_PASSPHRASE", &secrets.db_passphrase);
+                std::env::set_var("HKASK_MCP_SECRET", &secrets.mcp_secret);
             }
 
             // Onboarding provides A2A + DB secrets. MCP secret is resolved separately.
-            let mcp_secret = hkask_keystore::keychain::resolve_mcp_secret()
-                .map(|s| String::from_utf8_lossy(&s).to_string())
-                .map_err(|e| format!("Failed to resolve MCP secret: {e}"))
-                .ok()?;
+            let mcp_secret = secrets.mcp_secret.clone();
             hkask_services::ServiceConfig::from_secrets(
                 secrets.a2a_secret.clone(),
                 secrets.db_passphrase.clone(),

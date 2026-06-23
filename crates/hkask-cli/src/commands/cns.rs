@@ -189,6 +189,6 @@ fn build_cns_runtime(rt: &tokio::runtime::Runtime) -> Arc<RwLock<CnsRuntime>> {
 /// Fallback: lightweight CnsRuntime backed by a standalone runtime.
 fn standalone_cns_runtime() -> Arc<RwLock<CnsRuntime>> {
     Arc::new(RwLock::new(CnsRuntime::with_threshold(
-        hkask_cns::DEFAULT_THRESHOLD,
+        hkask_cns::DEFAULT_VARIETY_MAX_DEFICIT as u64,
     )))
 }

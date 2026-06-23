@@ -1,7 +1,7 @@
 //! AgentRegistryLoader — Load agent YAML definitions, register with A2A, persist to storage
 
 use crate::a2a::{A2AError, A2ARuntime};
-use crate::ports::RegistrySourcePort;
+use crate::adapters::registry_source::FilesystemRegistrySource;
 use crate::types::agent::definition::{AgentDefinition, Charter};
 use crate::types::agent::profile::{Responsibility, Right};
 use hkask_storage::{
@@ -40,7 +40,7 @@ pub struct AgentRegistryLoader {
     registry_path: PathBuf,
     a2a_runtime: Arc<A2ARuntime>,
     store: AgentRegistryStore,
-    source: Arc<dyn RegistrySourcePort>,
+    source: Arc<FilesystemRegistrySource>,
 }
 
 impl AgentRegistryLoader {
@@ -49,13 +49,13 @@ impl AgentRegistryLoader {
     /// pre:  `registry_path` is a valid `PathBuf`; `a2a_runtime` is a
     ///       valid `Arc<A2ARuntime>`; `store` is a valid
     ///       `AgentRegistryStore`; `source` is a valid
-    ///       `Arc<dyn RegistrySourcePort>`.
+    ///       `Arc<FilesystemRegistrySource>`.
     /// post: Returns an `AgentRegistryLoader` with all fields set.
     pub fn new(
         registry_path: PathBuf,
         a2a_runtime: Arc<A2ARuntime>,
         store: AgentRegistryStore,
-        source: Arc<dyn RegistrySourcePort>,
+        source: Arc<FilesystemRegistrySource>,
     ) -> Self {
         Self {
             registry_path,

@@ -28,7 +28,7 @@ pub(crate) mod table_energy_estimator; // Per-server energy cost table
 pub mod wallet_budget; // Loop 6 — wallet-backed energy budgets (Phase 5)
 pub(crate) mod wallet_energy_estimator; // Loop 6 — wallet-aware energy estimation (Phase 5)
 pub mod wallet_gas_calibrator; // Loop 6 — runtime wallet gas→rJoule calibration
-pub use algedonic::{DEFAULT_THRESHOLD, RuntimeAlert};
+pub use algedonic::RuntimeAlert;
 pub use api_metering::{
     ApiMeter, ApiMeteringAlert, ApiRequestSpan, EndpointWeight, RateLimitStatus, endpoint_weight,
 };

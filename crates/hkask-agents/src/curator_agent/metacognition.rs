@@ -17,7 +17,6 @@ use hkask_types::event::SpanNamespace;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 
@@ -40,19 +39,6 @@ pub(crate) const DEFAULT_ESCALATION_CRITICAL_ALERTS: usize = 3;
 
 /// Default bot failure count threshold for escalation.
 pub(crate) const DEFAULT_ESCALATION_BOT_FAILURES: usize = 2;
-
-/// Metacognition cycle errors.
-#[derive(Debug, Error)]
-pub enum MetacognitionError {
-    #[error(transparent)]
-    Core(#[from] crate::error::CoreError),
-}
-
-impl From<crate::a2a::A2AError> for MetacognitionError {
-    fn from(e: crate::a2a::A2AError) -> Self {
-        MetacognitionError::Core(crate::error::CoreError::A2A(e))
-    }
-}
 
 /// Escalation trigger thresholds.
 #[derive(Debug, Clone)]
@@ -305,14 +291,14 @@ impl MetacognitionLoop {
     /// pre:  The loop has been registered and ticked at least once.
     /// post: On success, returns `Ok(HealthSnapshot)` — the latest
     ///       snapshot from the watch channel. If no snapshot has been
-    ///       produced yet, returns `Err(MetacognitionError::Core(...))`.
-    pub async fn run_cycle(&self) -> Result<HealthSnapshot, MetacognitionError> {
+    ///       produced yet, returns `Err(CoreError::NoSnapshot)`.
+    pub async fn run_cycle(&self) -> Result<HealthSnapshot, crate::error::CoreError> {
         info!(target: MC_TARGET, "Starting metacognition cycle");
         self.tick().await;
         self.last_snapshot_tx
             .borrow()
             .clone()
-            .ok_or(crate::error::CoreError::NoSnapshot.into())
+            .ok_or(crate::error::CoreError::NoSnapshot)
     }
     /// Generate a system state summary for posting to standing session.
     ///
@@ -366,7 +352,11 @@ impl MetacognitionLoop {
     ///       to the bot and returns `Ok(())`. If A2A is not configured,
     ///       logs a warning and returns `Ok(())` (graceful degradation).
     ///       Returns `Err` on A2A send failure.
-    pub async fn direct_bot(&self, bot_name: &str, reason: &str) -> Result<(), MetacognitionError> {
+    pub async fn direct_bot(
+        &self,
+        bot_name: &str,
+        reason: &str,
+    ) -> Result<(), crate::error::CoreError> {
         let a2a = match self.context.a2a() {
             Some(a2a) => a2a,
             None => {

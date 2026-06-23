@@ -7,8 +7,9 @@ use super::AgentPodError;
 use super::context::PodContext;
 use super::deployment::{PodDeployment, PodFactory, PodRegistry};
 use super::types::{AgentKind, AgentPersona, PodID, PodKind, PodLifecycleState};
+use crate::a2a::A2ARuntime;
 use crate::curator::SemanticIndex;
-use crate::ports::{A2APort, EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
+use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
 use hkask_capability::CapabilityChecker;
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
@@ -21,7 +22,7 @@ use tokio::sync::RwLock;
 pub struct ActivePods {
     deployments: RwLock<HashMap<PodID, PodDeployment>>,
     factory: Option<Arc<PodFactory>>,
-    a2a_runtime: Option<Arc<dyn A2APort + Send + Sync>>,
+    a2a_runtime: Option<Arc<A2ARuntime>>,
     mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
     governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
     capability_checker: Option<Arc<CapabilityChecker>>,
@@ -160,7 +161,7 @@ impl ActivePods {
     }
 
     /// Wire the A2A runtime for pod registration.
-    pub fn with_a2a_runtime(mut self, a2a: Arc<dyn A2APort + Send + Sync>) -> Self {
+    pub fn with_a2a_runtime(mut self, a2a: Arc<A2ARuntime>) -> Self {
         self.a2a_runtime = Some(a2a);
         self
     }

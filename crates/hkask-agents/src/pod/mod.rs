@@ -80,6 +80,7 @@ use tracing::info;
 use zeroize::Zeroizing;
 
 use crate::SovereigntyChecker;
+use crate::a2a::A2ARuntime;
 use hkask_templates::TemplateCrateLoader;
 
 pub use active_pods::{ActivePods, PodStatusInfo};
@@ -279,11 +280,11 @@ impl AgentPod {
     /// expect: "My agents operate within my sovereignty boundaries"
     /// \[P1\] Motivating: User Sovereignty — register pod with A2A under its WebID
     /// pre:  `self.state` must be `Populated` (or `Registered` for
-    ///       idempotent re-registration); `acp` is a valid `A2APort`.
+    ///       idempotent re-registration); `a2a` is a valid `A2ARuntime`.
     /// post: On success, `self.state` is `Registered` and
     ///       `self.capability_token` is updated with the A2A-issued token.
     ///       On failure, state is unchanged.
-    pub async fn register(&mut self, a2a: &dyn crate::ports::A2APort) -> AgentPodResult<()> {
+    pub async fn register(&mut self, a2a: &A2ARuntime) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Registered) {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,

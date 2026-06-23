@@ -1,6 +1,6 @@
 //! CurationContext — Runtime composition of Curator capability handles
 
-use crate::ports::A2APort;
+use crate::a2a::A2ARuntime;
 use hkask_cns::CnsRuntime;
 use hkask_storage::EscalationQueue;
 use hkask_storage::NuEventStore;
@@ -22,7 +22,7 @@ pub struct CuratorContext {
     nu_event_store: Option<Arc<NuEventStore>>,
     /// A2A port for A2A messaging (e.g. directing bots).
     /// Optional so existing construction sites don't break.
-    a2a_port: Option<Arc<dyn A2APort>>,
+    a2a_port: Option<Arc<A2ARuntime>>,
 }
 
 impl CuratorContext {
@@ -78,10 +78,10 @@ impl CuratorContext {
     ///
     /// expect: "The system regulates agent behavior through cybernetic feedback"
     /// \[P4\] Motivating: Clear Boundaries — A2A port lets Curator direct bots
-    /// pre:  `a2a_port` is a valid `Arc<dyn A2APort>`.
-    /// post: Returns `self` with `a2a_port` set to `Some(a2a_port)`.
-    pub fn with_a2a(mut self, a2a_port: Arc<dyn A2APort>) -> Self {
-        self.a2a_port = Some(a2a_port);
+    /// pre:  `a2a_runtime` is a valid `Arc<A2ARuntime>`.
+    /// post: Returns `self` with `a2a_port` set to `Some(a2a_runtime)`.
+    pub fn with_a2a(mut self, a2a_runtime: Arc<A2ARuntime>) -> Self {
+        self.a2a_port = Some(a2a_runtime);
         self
     }
 
@@ -116,7 +116,7 @@ impl CuratorContext {
     /// Access the A2A port for A2A messaging.
     ///
     /// Returns None if no A2A port is configured (graceful degradation).
-    pub(crate) fn a2a(&self) -> Option<&Arc<dyn A2APort>> {
+    pub(crate) fn a2a(&self) -> Option<&Arc<A2ARuntime>> {
         self.a2a_port.as_ref()
     }
 

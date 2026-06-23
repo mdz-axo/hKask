@@ -248,19 +248,15 @@ impl PodContext {
     /// pre:  query must be a valid entity string or chatted-keyword
     /// post: returns MemoryContext with semantic and episodic vecs; empty vecs for consent-denied or failed recalls
     pub fn recall_memory(&self, query: &str) -> MemoryContext {
-        let semantic = self
-            .recall_semantic(query)
-            .unwrap_or_else(|e| {
-                tracing::debug!(target: "pod.memory", query, error = %e, "Semantic recall failed");
-                vec![]
-            });
+        let semantic = self.recall_semantic(query).unwrap_or_else(|e| {
+            tracing::debug!(target: "pod.memory", query, error = %e, "Semantic recall failed");
+            vec![]
+        });
 
-        let episodic = self
-            .recall_episodic(query)
-            .unwrap_or_else(|e| {
-                tracing::debug!(target: "pod.memory", query, error = %e, "Episodic recall failed");
-                vec![]
-            });
+        let episodic = self.recall_episodic(query).unwrap_or_else(|e| {
+            tracing::debug!(target: "pod.memory", query, error = %e, "Episodic recall failed");
+            vec![]
+        });
 
         MemoryContext { semantic, episodic }
     }

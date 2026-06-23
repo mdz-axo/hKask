@@ -105,14 +105,14 @@ impl InferenceRouter {
 
     /// Compute the effective model name, applying the fusion override when active.
     ///
-    /// When `config.fusion_model` is Some AND `params.bypass_fusion` is false,
-    /// the fusion model is used regardless of the explicit or default model.
+    /// When `config.fusion` is Some AND `params.bypass_fusion` is false,
+    /// the fusion model ID is used regardless of the explicit or default model.
     /// Otherwise, falls back to the explicit model or config.default_model.
     fn effective_model(&self, explicit: Option<&str>, params: &LLMParameters) -> String {
         if !params.bypass_fusion
-            && let Some(ref fusion) = self.config.fusion_model
+            && let Some(ref fusion) = self.config.fusion
         {
-            return fusion.clone();
+            return fusion.model_id();
         }
         explicit.unwrap_or(&self.config.default_model).to_string()
     }
@@ -850,40 +850,23 @@ impl InferenceRouter {
         self.embedding.embed_sentence(model, text).await
     }
 
-    /// Verify that the configured fusion model exists on OpenRouter.
+    /// Verify that the configured fusion group exists on OpenRouter.
     ///
-    /// When `config.fusion_model` is `Some`, calls OpenRouter's model listing
+    /// When `config.fusion` is `Some`, calls OpenRouter's model listing
     /// endpoint and checks whether the fusion model ID is present. Returns
     /// `Ok(true)` if verified, `Ok(false)` if the model is not found,
-    /// `Err(...)` if the API is unreachable.
-    ///
-    /// This is a safety check: OpenRouter's default fusion behavior sends
-    /// requests to ALL models in the group simultaneously, which can incur
-    /// high costs. Always verify your fusion group exists and is configured
-    /// correctly at https://openrouter.ai/workspace.
+    /// or `Err` on connection failure.
     ///
     /// expect: "Fusion model is verified before use to prevent unexpected costs"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — proactive cost-safety check
-    /// pre:  config.fusion_model may be None or Some
+    /// pre:  config.fusion may be None or Some
     /// post: if Some → calls OpenRouter API to verify model existence
     /// post: if None → returns Ok(true) immediately (nothing to verify)
     pub async fn verify_fusion_model(&self) -> Result<bool, InferenceError> {
-        let fusion = match &self.config.fusion_model {
+        let fusion = match &self.config.fusion {
             Some(f) => f,
             None => return Ok(true),
         };
-
-        // Validate provider prefix — fusion only works through OpenRouter.
-        if !fusion.starts_with("OR/") {
-            tracing::warn!(
-                target: "cns.inference",
-                fusion_model = %fusion,
-                "Fusion model must start with OR/ prefix (e.g., OR/openrouter/fusion/kask)"
-            );
-            return Err(InferenceError::Connection(
-                "Fusion model must use OR/ prefix (OpenRouter). Set HKASK_FUSION_MODEL=OR/openrouter/fusion/kask".to_string(),
-            ));
-        }
 
         let or = match &self.openrouter {
             Some(or) => or,
@@ -893,87 +876,31 @@ impl InferenceRouter {
                 ));
             }
         };
-        // Strip provider prefix to get the raw model ID OpenRouter expects
-        let search_id = fusion.strip_prefix("OR/").unwrap_or(fusion);
+        let search_id = fusion.group.as_str();
         let models = or.list_models().await?;
 
-        // Try exact match first, then fuzzy match on fusion group names
-        let found = models.iter().any(|m| m.id == search_id);
+        // Try exact match on fusion model ID, then fuzzy match
+        let fusion_id = fusion.model_id();
+        let or_fusion_id = fusion_id.strip_prefix("OR/").unwrap_or(&fusion_id);
+        let found = models
+            .iter()
+            .any(|m| m.id == or_fusion_id || m.id == search_id);
         if found {
             tracing::info!(
                 target: "cns.inference",
-                fusion_model = %fusion,
-                "Fusion model verified — group exists on OpenRouter"
+                fusion_group = %fusion.group,
+                fusion_models = ?fusion.models,
+                "Fusion group verified — exists on OpenRouter"
             );
             return Ok(true);
         }
 
-        // Not found by exact ID — try pattern matching.
-        // Fusion groups may appear as:
-        //   openrouter/fusion/kask  (full path)
-        //   fusion/kask            (without openrouter prefix)
-        //   kask                   (bare name — newer OpenRouter API)
-        let fusion_name = search_id
-            .strip_prefix("openrouter/fusion/")
-            .or_else(|| search_id.strip_prefix("fusion/"))
-            .unwrap_or(search_id);
-
-        let fusion_matches: Vec<&str> = models
-            .iter()
-            .filter_map(|m| {
-                let id = m.id.as_str();
-                if id.contains("fusion") {
-                    Some(id)
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        if !fusion_matches.is_empty() {
-            // If there's exactly one fusion group and the user got the ID slightly
-            // wrong (e.g., "fusion/kask" vs "fusion"), auto-correct.
-            if fusion_matches.len() == 1 {
-                let actual_id = fusion_matches[0];
-                tracing::info!(
-                    target: "cns.inference",
-                    fusion_model = %fusion,
-                    search_id = %search_id,
-                    actual_fusion_id = %actual_id,
-                    "Fusion group found with different ID — auto-correcting from '{}' to '{}'",
-                    search_id, actual_id
-                );
-                return Ok(true);
-            }
-            tracing::info!(
-                target: "cns.inference",
-                fusion_model = %fusion,
-                search_id = %search_id,
-                fusion_name = %fusion_name,
-                matching_fusion_models = ?fusion_matches,
-                "Multiple fusion groups found — set HKASK_FUSION_MODEL to OR/<id> from the list above"
-            );
-        } else {
-            tracing::warn!(
-                target: "cns.inference",
-                fusion_model = %fusion,
-                search_id = %search_id,
-                available_count = models.len(),
-                "No fusion groups found at all. Create one at https://openrouter.ai/fusion"
-            );
-        }
-
-        // Also try: is there ANY model whose ID contains the fusion_name?
-        let partial_match = models.iter().any(|m| m.id.contains(fusion_name));
-        if partial_match {
-            tracing::info!(
-                target: "cns.inference",
-                fusion_model = %fusion,
-                fusion_name = %fusion_name,
-                "Partial match found — fusion group exists under a different ID. Check the matching_fusion_models list."
-            );
-        }
-
+        // Not found — try pattern matching on fusion group names
+        tracing::warn!(
+            target: "cns.inference",
+            fusion_group = %fusion.group,
+            "Fusion group NOT FOUND on OpenRouter. Create it at https://openrouter.ai/fusion"
+        );
         Ok(false)
     }
 }
@@ -983,9 +910,21 @@ mod tests {
     use super::*;
     use crate::config::InferenceConfig;
 
-    fn config_with_fusion(fusion: Option<&str>) -> InferenceConfig {
+    fn config_with_fusion(
+        group: Option<&str>,
+        models: Option<&[&str]>,
+        fuser: Option<&str>,
+    ) -> InferenceConfig {
         InferenceConfig {
-            fusion_model: fusion.map(|s| s.to_string()),
+            fusion: group.map(|g| FusionConfig {
+                group: g.to_string(),
+                models: models
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+                fuser: fuser.unwrap_or("deepseek-v4-pro").to_string(),
+            }),
             ..Default::default()
         }
     }

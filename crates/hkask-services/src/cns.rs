@@ -88,7 +88,7 @@ impl CnsService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_cns::DEFAULT_THRESHOLD;
+    use hkask_cns::DEFAULT_VARIETY_MAX_DEFICIT;
 
     //
     // A freshly constructed CnsRuntime should report healthy status
@@ -96,7 +96,9 @@ mod tests {
     // any deviation indicates a problem in CNS initialization.
     #[tokio::test]
     async fn health_returns_defaults_for_empty_runtime() {
-        let runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(DEFAULT_THRESHOLD)));
+        let runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(
+            DEFAULT_VARIETY_MAX_DEFICIT as u64,
+        )));
         let svc = CnsService::new(runtime);
 
         let health = svc.health().await;
@@ -108,7 +110,9 @@ mod tests {
 
     #[tokio::test]
     async fn alerts_returns_empty_for_fresh_runtime() {
-        let runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(DEFAULT_THRESHOLD)));
+        let runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(
+            DEFAULT_VARIETY_MAX_DEFICIT as u64,
+        )));
         let svc = CnsService::new(runtime);
 
         let alerts = svc.alerts().await;
@@ -117,7 +121,9 @@ mod tests {
 
     #[tokio::test]
     async fn variety_returns_empty_for_fresh_runtime() {
-        let runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(DEFAULT_THRESHOLD)));
+        let runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(
+            DEFAULT_VARIETY_MAX_DEFICIT as u64,
+        )));
         let svc = CnsService::new(runtime);
 
         let variety = svc.variety().await;

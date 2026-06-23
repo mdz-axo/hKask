@@ -15,9 +15,10 @@
 //! - Effector: emit_critical_depletion() — broadcasts DepletionSignal to observers
 
 use crate::algedonic::{
-    AlgedonicManager, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check,
+    AlgedonicManager, DEFAULT_EXPECTED_VARIETY, RuntimeAlert, cns_health_check,
 };
 use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost};
+use crate::set_points::DEFAULT_VARIETY_MAX_DEFICIT;
 
 use hkask_ports::{BackpressureSignal, CnsObserver, DepletionSignal};
 use hkask_types::WebID;
@@ -736,7 +737,7 @@ impl CnsRuntime {
 
 impl Default for CnsRuntime {
     fn default() -> Self {
-        Self::with_threshold(DEFAULT_THRESHOLD)
+        Self::with_threshold(DEFAULT_VARIETY_MAX_DEFICIT as u64)
     }
 }
 

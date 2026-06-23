@@ -617,46 +617,6 @@ impl Default for A2ARuntime {
     }
 }
 
-#[async_trait::async_trait]
-impl crate::ports::A2APort for A2ARuntime {
-    async fn register_agent(
-        &self,
-        webid: WebID,
-        agent_type: AgentKind,
-        capabilities: Vec<String>,
-    ) -> Result<DelegationToken, A2AError> {
-        A2ARuntime::register_agent(self, webid, agent_type, capabilities).await
-    }
-    async fn unregister_agent(&self, webid: &WebID) -> Result<(), A2AError> {
-        A2ARuntime::unregister_agent(self, webid).await
-    }
-    async fn send_message(&self, msg: A2AMessage) -> Result<String, A2AError> {
-        A2ARuntime::send_message(self, msg).await
-    }
-    async fn list_capabilities(&self, webid: &WebID) -> Result<Vec<String>, A2AError> {
-        self.state
-            .read()
-            .await
-            .agents
-            .get(webid)
-            .map(|agent| agent.capabilities.clone())
-            .ok_or(A2AError::AgentNotFound(*webid))
-    }
-    async fn is_registered(&self, webid: &WebID) -> bool {
-        A2ARuntime::is_registered(self, webid).await
-    }
-    async fn revoke_capability(&self, token_id: &str, _holder: &WebID) -> Result<(), A2AError> {
-        A2ARuntime::revoke_capability(self, token_id).await;
-        Ok(())
-    }
-    async fn get_capabilities(&self, webid: &WebID) -> Vec<DelegationToken> {
-        A2ARuntime::get_capabilities(self, webid).await
-    }
-    async fn list_agents(&self) -> Vec<A2AAgent> {
-        A2ARuntime::list_agents(self).await
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

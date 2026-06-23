@@ -1,7 +1,7 @@
 ---
 title: "Project Status"
 audience: [architects, developers, agents]
-last_updated: 2026-06-20
+last_updated: 2026-06-23
 version: "0.30.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -12,16 +12,22 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** v0.30.0 — Multi-Pod Architecture Complete: Three-tier Solid Pod isomorphism (CuratorPod/TeamPod/ReplicantPod).
-- PodManager deleted → PodDeployment + PodFactory + ActivePods + PodRegistry. Per-pod SQLCipher files at `{data_dir}/agents/{sanitized_name}/pod.db`.
-- Per-pod CNS (`PerPodCnsRuntime`, `cns.agent_pod.{pod_id}.*` namespace). Per-pod MCP tool binding.
-- `CuratorSync` polling loop: lazy one-way semantic sync from ReplicantPods/TeamPods → CuratorPod SemanticIndex.
-- `PodContext::recall_semantic()` routes through Curator for merged-lens view.
-- `CnsSpan::SemanticPublished` emitted on every `store_semantic()`.
-- `PodKind` enum (Curator/Team/Replicant) with filename convention, `PodRegistry::scan_by_kind()`.
-- `PodStatusInfo` exposes `pod_kind` for API/CLI consumers.
-- Specification docs updated: SOLID_POD_ISOMORPHISM.md, MULTI_POD_ARCHITECTURE.md, hKask-architecture-master.md.
-- Build: clean (0 errors). Tests: 45/45 pass in `hkask-agents`. (2026-06-19)
+**Current session:** v0.30.0 — TUI Windows Complete: 19 windows (10 live bridges, 2 functional, 6 bridge, 1 deferred). Multi-Pod Architecture Complete: (2026-06-23)
+
+**This session (2026-06-23):**
+- TUI ratatui interface: 19 window types all instantiable via `Ctrl+N`, workspace splits, sidebar, help overlay.
+- 9 domain-specific bridge traits (`bridges/`) with mock + live implementations on `TuiReplBridge`.
+- 10 windows with live service data: Chat, CNS Monitor, Curator, Pods, Sidebar, Logo, Wallet, Config, Backup, Registry, Skills, Memory, Kanban, Matrix, Media, Training.
+- Terminal upgraded to PTY-backed interactive shell (`portable-pty`, bash/fish).
+- Editor with file open/save (`Ctrl+S`/`Ctrl+O`).
+- Logo window: persistent top-left anchor rasterized from SVG at half-block Unicode characters.
+- CLI bridge implementations (`crates/hkask-cli/src/repl/tui_bridges.rs`) — 9 traits, live via `McpRuntime::call_tool()` for media/training, `BackupService` for backup.
+- BackupService exposed: `BackupLoop::service()` getter + `AgentService::backup_loop` field.
+- Integration tests: 43 total (8 unit + 35 rendering smoke tests).
+- Companies window deferred (needs `hkask-mcp-companies` / Firecrawl).
+- Build: clean (0 errors, 0 warnings). Tests: 43/43 pass.
+
+**Previous (2026-06-19):** v0.30.0 — Multi-Pod Architecture Complete: Three-tier Solid Pod isomorphism (CuratorPod/TeamPod/ReplicantPod).
 
 ---
 

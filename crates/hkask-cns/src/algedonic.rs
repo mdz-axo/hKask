@@ -18,9 +18,6 @@ fn default_datetime() -> DateTime<Utc> {
     Utc::now()
 }
 
-/// Default algedonic alert threshold (variety deficit)
-pub const DEFAULT_THRESHOLD: u64 = 100;
-
 /// Default expected variety per domain
 pub(crate) const DEFAULT_EXPECTED_VARIETY: u64 = 10;
 

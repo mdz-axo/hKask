@@ -13,7 +13,9 @@
 use std::sync::Arc;
 
 use hkask_ports::{InferencePort, InferenceUsage};
-use hkask_services::{AgentService, ChatRequest, ChatService, PreparedChat, ResolvedSecrets};
+use hkask_services::{
+    AgentService, ChatRequest, ChatService, MemoryService, PreparedChat, ResolvedSecrets,
+};
 use hkask_types::template::LLMParameters;
 
 /// Build AgentService from secrets or environment.
@@ -228,7 +230,7 @@ async fn finish_stream(
     }
     println!();
 
-    ChatService::store_episodic(
+    MemoryService::store_episodic(
         &prepared.episodic_port,
         input,
         &full_text,

@@ -17,7 +17,7 @@ use hkask_capability::{
     DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
     derive_signing_key,
 };
-use hkask_cns::DEFAULT_THRESHOLD;
+use hkask_cns::DEFAULT_VARIETY_MAX_DEFICIT;
 use hkask_cns::cybernetics_loop::CyberneticsLoop;
 use hkask_cns::governed_tool::{EnergyEstimator, GovernedTool};
 use hkask_cns::runtime::CnsRuntime;
@@ -77,7 +77,9 @@ impl EnergyEstimator for FixedCostEstimator {
 #[tokio::test]
 async fn governed_tool_full_membrane_ocap_domain_path() {
     // 1. Build real CNS runtime
-    let cns = Arc::new(RwLock::new(CnsRuntime::with_threshold(DEFAULT_THRESHOLD)));
+    let cns = Arc::new(RwLock::new(CnsRuntime::with_threshold(
+        DEFAULT_VARIETY_MAX_DEFICIT as u64,
+    )));
 
     // 2. Build real NuEventStore with in-memory DB
     let db = in_memory_db();

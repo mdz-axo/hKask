@@ -5,6 +5,7 @@
 //! implements these traits to wire live service data into the TUI.
 
 pub mod backup;
+pub mod companies;
 pub mod config;
 pub mod kanban;
 pub mod matrix;
@@ -15,6 +16,7 @@ pub mod training;
 pub mod wallet;
 
 pub use backup::BackupDataBridge;
+pub use companies::CompaniesDataBridge;
 pub use config::ConfigDataBridge;
 pub use kanban::KanbanDataBridge;
 pub use matrix::MatrixDataBridge;

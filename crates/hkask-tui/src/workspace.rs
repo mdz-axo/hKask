@@ -15,8 +15,8 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 use uuid::Uuid;
 
 use crate::bridges::{
-    BackupDataBridge, ConfigDataBridge, KanbanDataBridge, MatrixDataBridge, MediaDataBridge,
-    MemoryDataBridge, RegistryDataBridge, TrainingDataBridge, WalletDataBridge,
+    BackupDataBridge, CompaniesDataBridge, ConfigDataBridge, KanbanDataBridge, MatrixDataBridge,
+    MediaDataBridge, MemoryDataBridge, RegistryDataBridge, TrainingDataBridge, WalletDataBridge,
 };
 use crate::keybindings::{CHAT_BINDINGS, GLOBAL_BINDINGS};
 use crate::repl_bridge::ReplBridge;
@@ -280,6 +280,7 @@ pub struct Workspace {
     matrix_bridge: Option<Arc<dyn MatrixDataBridge>>,
     media_bridge: Option<Arc<dyn MediaDataBridge>>,
     training_bridge: Option<Arc<dyn TrainingDataBridge>>,
+    companies_bridge: Option<Arc<dyn CompaniesDataBridge>>,
     status_bar: StatusBar,
     sidebar_open: bool,
     help_visible: bool,
@@ -344,6 +345,7 @@ impl Workspace {
             matrix_bridge: None,
             media_bridge: None,
             training_bridge: None,
+            companies_bridge: None,
             status_bar,
             sidebar_open: false,
             help_visible: false,

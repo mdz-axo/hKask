@@ -3,8 +3,11 @@
 //! Implements the 9 domain-specific bridge traits from `hkask-tui` so that
 //! TUI windows receive live service data rather than mock fallbacks.
 
+use hkask_templates::BundleRegistryIndex;
+use hkask_tui::ReplBridge;
 use hkask_tui::bridges::{
     backup::BackupConfigSummary,
+    backup::{BackupDataBridge, SnapshotInfo},
     config::{ConfigDataBridge, ConfigSnapshot},
     kanban::{KanbanBoardSummary, KanbanDataBridge, KanbanStatusCounts, KanbanTaskSummary},
     matrix::{MatrixConnectionStatus, MatrixDataBridge, MatrixMessageSummary, MatrixRoomSummary},
@@ -13,10 +16,7 @@ use hkask_tui::bridges::{
     registry::{BundleSummary, RegistryDataBridge, SkillSummary, TemplateSummary},
     training::{AdapterSummary, DeploymentSummary, TrainingDataBridge},
     wallet::{WalletDataBridge, WalletTxSummary},
-    backup::{BackupDataBridge, SnapshotInfo},
 };
-use hkask_tui::ReplBridge;
-use hkask_templates::BundleRegistryIndex;
 
 use crate::repl::TuiReplBridge;
 
@@ -277,13 +277,10 @@ impl KanbanDataBridge for TuiReplBridge {
         if let Some(ref ks) = state.kanban_service {
             let board_list = ks.board_list(&state.agent_webid).unwrap_or_default();
             if let Some(board) = board_list.first() {
-                let count_status =
-                    |s: hkask_services_kanban::TaskStatus| -> usize {
-                        let filter = hkask_services_kanban::TaskFilter::by_status(s);
-                        ks.task_list(board.id, filter)
-                            .map(|t| t.len())
-                            .unwrap_or(0)
-                    };
+                let count_status = |s: hkask_services_kanban::TaskStatus| -> usize {
+                    let filter = hkask_services_kanban::TaskFilter::by_status(s);
+                    ks.task_list(board.id, filter).map(|t| t.len()).unwrap_or(0)
+                };
                 KanbanStatusCounts {
                     backlog: count_status(hkask_services_kanban::TaskStatus::Backlog),
                     ready: count_status(hkask_services_kanban::TaskStatus::Ready),
@@ -377,7 +374,10 @@ impl BackupDataBridge for TuiReplBridge {
         let state = self.state.lock().expect("lock");
         let backups = state.service_context.backup_loop().service();
         self.rt_handle.block_on(async {
-            let filter = hkask_services_backup::ListFilter { artifact_type: None, limit: Some(1) };
+            let filter = hkask_services_backup::ListFilter {
+                artifact_type: None,
+                limit: Some(1),
+            };
             match backups.list(filter).await {
                 Ok(entries) => entries.first().map(|s| SnapshotInfo {
                     timestamp: s.timestamp.to_rfc3339(),
@@ -434,9 +434,18 @@ impl BackupDataBridge for TuiReplBridge {
                     let total_blobs: usize = reports.iter().map(|r| r.total_blobs).sum();
                     let corrupt: usize = reports.iter().map(|r| r.corrupt_hashes.len()).sum();
                     if corrupt > 0 {
-                        format!("{} repos, {} blobs — {} corrupt", reports.len(), total_blobs, corrupt)
+                        format!(
+                            "{} repos, {} blobs — {} corrupt",
+                            reports.len(),
+                            total_blobs,
+                            corrupt
+                        )
                     } else {
-                        format!("{} repos, {} blobs — all verified", reports.len(), total_blobs)
+                        format!(
+                            "{} repos, {} blobs — all verified",
+                            reports.len(),
+                            total_blobs
+                        )
                     }
                 }
                 Err(e) => format!("Verify error: {}", e),
@@ -507,10 +516,7 @@ impl MediaDataBridge for TuiReplBridge {
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
             args.insert("query".into(), serde_json::Value::String(String::new()));
-            args.insert(
-                "limit".into(),
-                serde_json::Value::from(limit as u64),
-            );
+            args.insert("limit".into(), serde_json::Value::from(limit as u64));
             match runtime.call_tool("media", "gallery_search", args).await {
                 Ok(ref result) => {
                     let content = parse_mcp_json(result);
@@ -575,10 +581,7 @@ impl TrainingDataBridge for TuiReplBridge {
                                     Some(AdapterSummary {
                                         name: a["name"].as_str()?.to_string(),
                                         base_model: a["base_model"].as_str()?.to_string(),
-                                        version: a["version"]
-                                            .as_str()
-                                            .unwrap_or("v1")
-                                            .to_string(),
+                                        version: a["version"].as_str().unwrap_or("v1").to_string(),
                                         size_bytes: a["size_bytes"].as_u64().unwrap_or(0),
                                         expertise: a["expertise"]
                                             .as_str()

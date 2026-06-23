@@ -81,11 +81,7 @@ impl MemoryService {
             })
             .collect();
         scored.sort_by(|a, b| b.0.cmp(&a.0));
-        let top: Vec<String> = scored
-            .into_iter()
-            .take(10)
-            .map(|(_, text)| text)
-            .collect();
+        let top: Vec<String> = scored.into_iter().take(10).map(|(_, text)| text).collect();
         if top.is_empty() {
             None
         } else {

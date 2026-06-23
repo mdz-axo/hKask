@@ -301,6 +301,6 @@ impl CuratorAgent {
 // Re-export persona types for convenience
 pub use metacognition::{
     EscalationAlert, EscalationPolicy, EscalationSeverity, EscalationTrigger, HealthSnapshot,
-    MetacognitionConfig, MetacognitionError, MetacognitionLoop,
+    MetacognitionConfig, MetacognitionLoop,
 };
 pub use spec_curator::DefaultSpecCurator;

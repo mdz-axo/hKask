@@ -101,7 +101,10 @@ fn spawn_shell(
         .expect("failed to open PTY");
 
     let cmd = shell_command();
-    let _child = pair.slave.spawn_command(cmd).expect("failed to spawn shell");
+    let _child = pair
+        .slave
+        .spawn_command(cmd)
+        .expect("failed to spawn shell");
     drop(pair.slave);
 
     let mut reader = pair.master.try_clone_reader().expect("clone reader");
@@ -199,10 +202,7 @@ impl Window for TerminalWindow {
                     Style::default().fg(Color::Black).bg(Color::Green),
                 ));
                 if cp + 1 < self.input.len() {
-                    spans.push(Span::styled(
-                        self.input[cp + 1..].to_string(),
-                        input_style,
-                    ));
+                    spans.push(Span::styled(self.input[cp + 1..].to_string(), input_style));
                 }
             } else {
                 spans.push(Span::styled(
@@ -233,9 +233,18 @@ impl Window for TerminalWindow {
             KeyCode::Char(c) => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     match c {
-                        'c' => { self.send_input("\x03"); return true; }
-                        'd' => { self.send_input("\x04"); return true; }
-                        'l' => { self.send_input("\x0c"); return true; }
+                        'c' => {
+                            self.send_input("\x03");
+                            return true;
+                        }
+                        'd' => {
+                            self.send_input("\x04");
+                            return true;
+                        }
+                        'l' => {
+                            self.send_input("\x0c");
+                            return true;
+                        }
                         _ => return false,
                     }
                 }
@@ -266,8 +275,14 @@ impl Window for TerminalWindow {
                 }
                 true
             }
-            KeyCode::Up => { self.send_input("\x1b[A"); true }
-            KeyCode::Down => { self.send_input("\x1b[B"); true }
+            KeyCode::Up => {
+                self.send_input("\x1b[A");
+                true
+            }
+            KeyCode::Down => {
+                self.send_input("\x1b[B");
+                true
+            }
             KeyCode::Home => {
                 self.cursor_pos = 0;
                 self.send_input("\x1b[H");

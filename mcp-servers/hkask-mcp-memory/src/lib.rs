@@ -37,8 +37,8 @@ use rmcp::{tool, tool_router};
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
-use types::*;
 use types::RecallContextRequest;
+use types::*;
 
 // ── Server ──────────────────────────────────────────────────────────
 
@@ -208,13 +208,19 @@ impl MemoryServer {
         }
     }
 
-    #[tool(description = "Recall episodic memories ranked by salience to context. \
+    #[tool(
+        description = "Recall episodic memories ranked by salience to context. \
         Returns formatted episodes (User:/Agent: pairs for chat history) sorted by keyword relevance. \
         Mirrors ChatService::recall_episodic — use this when you need relevant past interactions, \
-        not just entity-matched triples.")]
+        not just entity-matched triples."
+    )]
     pub async fn episodic_recall_context(
         &self,
-        Parameters(RecallContextRequest { entity, context, limit }): Parameters<RecallContextRequest>,
+        Parameters(RecallContextRequest {
+            entity,
+            context,
+            limit,
+        }): Parameters<RecallContextRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("episodic_recall_context", &self.webid);
         validate_field!(span, "entity", &entity, 256);
@@ -248,22 +254,22 @@ impl MemoryServer {
                     let ar = v.get("agent_response")?.as_str()?;
                     let combined = format!("{} {}", ui.to_lowercase(), ar.to_lowercase());
                     let score = keywords.iter().filter(|kw| combined.contains(*kw)).count();
-                    Some((score, json!({
-                        "user_input": ui,
-                        "agent_response": ar,
-                        "salience": score,
-                        "confidence": t.confidence,
-                        "valid_from": t.temporal.valid_from.to_rfc3339(),
-                    })))
+                    Some((
+                        score,
+                        json!({
+                            "user_input": ui,
+                            "agent_response": ar,
+                            "salience": score,
+                            "confidence": t.confidence,
+                            "valid_from": t.temporal.valid_from.to_rfc3339(),
+                        }),
+                    ))
                 })
                 .collect();
 
             scored.sort_by(|a, b| b.0.cmp(&a.0));
-            let episodes: Vec<serde_json::Value> = scored
-                .into_iter()
-                .take(limit)
-                .map(|(_, v)| v)
-                .collect();
+            let episodes: Vec<serde_json::Value> =
+                scored.into_iter().take(limit).map(|(_, v)| v).collect();
 
             span.ok_json(json!({
                 "count": episodes.len(),
@@ -404,13 +410,19 @@ impl MemoryServer {
         }
     }
 
-    #[tool(description = "Paired memory recall — returns both semantic (third-person) and \
+    #[tool(
+        description = "Paired memory recall — returns both semantic (third-person) and \
         episodic (first-person) memories for an entity in a single call. Episodic results \
         are ranked by salience when context is provided. Use this as the primary memory \
-        recall tool — it mirrors the dual-recall circuit in ChatService::prepare_chat.")]
+        recall tool — it mirrors the dual-recall circuit in ChatService::prepare_chat."
+    )]
     pub async fn memory_recall(
         &self,
-        Parameters(PairedRecallRequest { entity, context, limit }): Parameters<PairedRecallRequest>,
+        Parameters(PairedRecallRequest {
+            entity,
+            context,
+            limit,
+        }): Parameters<PairedRecallRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("memory_recall", &self.webid);
         validate_field!(span, "entity", &entity, 256);
@@ -418,21 +430,19 @@ impl MemoryServer {
 
         // ── Semantic recall (third-person facts, no personal filter) ──
         let semantic = match self.semantic.query_deduped(&entity) {
-            Ok(triples) => {
-                triples
-                    .iter()
-                    .take(limit)
-                    .map(|t| {
-                        json!({
-                            "entity": t.entity,
-                            "attribute": t.attribute,
-                            "value": t.value,
-                            "confidence": t.confidence,
-                            "valid_from": t.temporal.valid_from.to_rfc3339(),
-                        })
+            Ok(triples) => triples
+                .iter()
+                .take(limit)
+                .map(|t| {
+                    json!({
+                        "entity": t.entity,
+                        "attribute": t.attribute,
+                        "value": t.value,
+                        "confidence": t.confidence,
+                        "valid_from": t.temporal.valid_from.to_rfc3339(),
                     })
-                    .collect::<Vec<_>>()
-            }
+                })
+                .collect::<Vec<_>>(),
             Err(e) => {
                 return self.internal_error(span, "recall semantic memory", e);
             }
@@ -469,13 +479,16 @@ impl MemoryServer {
                     let ar = v.get("agent_response")?.as_str()?;
                     let combined = format!("{} {}", ui.to_lowercase(), ar.to_lowercase());
                     let score = keywords.iter().filter(|kw| combined.contains(*kw)).count();
-                    Some((score, json!({
-                        "user_input": ui,
-                        "agent_response": ar,
-                        "salience": score,
-                        "confidence": t.confidence,
-                        "valid_from": t.temporal.valid_from.to_rfc3339(),
-                    })))
+                    Some((
+                        score,
+                        json!({
+                            "user_input": ui,
+                            "agent_response": ar,
+                            "salience": score,
+                            "confidence": t.confidence,
+                            "valid_from": t.temporal.valid_from.to_rfc3339(),
+                        }),
+                    ))
                 })
                 .collect();
             scored.sort_by(|a, b| b.0.cmp(&a.0));

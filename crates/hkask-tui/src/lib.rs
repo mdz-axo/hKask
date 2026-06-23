@@ -54,8 +54,8 @@ use std::io::Stdout;
 use std::time::Duration;
 
 use bridges::{
-    BackupDataBridge, ConfigDataBridge, KanbanDataBridge, MatrixDataBridge, MediaDataBridge,
-    MemoryDataBridge, RegistryDataBridge, TrainingDataBridge, WalletDataBridge,
+    BackupDataBridge, CompaniesDataBridge, ConfigDataBridge, KanbanDataBridge, MatrixDataBridge,
+    MediaDataBridge, MemoryDataBridge, RegistryDataBridge, TrainingDataBridge, WalletDataBridge,
 };
 pub use repl_bridge::{InferenceState, ReplBridge, TurnResult};
 pub use splash::SplashScreen;

@@ -24,7 +24,7 @@ use hkask_types::template::LLMParameters;
 use hkask_types::{Confidence, DataCategory, WebID};
 
 use crate::ServiceError;
-use crate::{InferenceContext, InferenceService};
+use crate::{InferenceContext, InferenceService, MemoryService};
 use hkask_services_context::AgentService;
 
 /// System prompt for the auto-condense summarization request.
@@ -443,14 +443,14 @@ impl ChatService {
         // \[NORMATIVE\] Sovereignty gate (H3/P2): only recall memory when
         // the owner has granted consent for the category. No consent ⇒ no recall.
         let semantic_context =
-            if Self::has_memory_consent(ctx, &agent_webid, &DataCategory::SemanticMemory) {
-                Self::recall_semantic(&semantic_port, &req.input, &capability_token)
+            if MemoryService::has_memory_consent(ctx, &agent_webid, &DataCategory::SemanticMemory) {
+                MemoryService::recall_semantic(&semantic_port, &req.input, &capability_token)
             } else {
                 None
             };
         let episodic_context =
-            if Self::has_memory_consent(ctx, &agent_webid, &DataCategory::EpisodicMemory) {
-                Self::recall_episodic(&episodic_port, &req.input, &agent_webid, &capability_token)
+            if MemoryService::has_memory_consent(ctx, &agent_webid, &DataCategory::EpisodicMemory) {
+                MemoryService::recall_episodic(&episodic_port, &req.input, &agent_webid, &capability_token)
             } else {
                 None
             };
@@ -593,8 +593,8 @@ impl ChatService {
 
         // \[NORMATIVE\] Sovereignty gate (H3/P2): only persist the exchange to
         // episodic (sovereign) memory when the owner has granted consent.
-        if Self::has_memory_consent(ctx, &prepared.agent_webid, &DataCategory::EpisodicMemory) {
-            Self::store_episodic(
+        if MemoryService::has_memory_consent(ctx, &prepared.agent_webid, &DataCategory::EpisodicMemory) {
+            MemoryService::store_episodic(
                 &prepared.episodic_port,
                 &req.input,
                 &result.text,
@@ -745,8 +745,8 @@ Agent: {}",
         agent_webid: &WebID,
         token: &DelegationToken,
     ) -> Option<String> {
-        let semantic = Self::recall_semantic(semantic_port, input, token);
-        let episodic = Self::recall_episodic(episodic_port, input, agent_webid, token);
+        let semantic = MemoryService::recall_semantic(semantic_port, input, token);
+        let episodic = MemoryService::recall_episodic(episodic_port, input, agent_webid, token);
 
         match (semantic, episodic) {
             (Some(s), Some(e)) => Some(format!("{}\n\n{}", s, e)),
@@ -989,10 +989,10 @@ Agent: {}",
     ) -> Option<String> {
         // \[NORMATIVE\] Sovereignty gate (H3/P2): condensing reads episodic
         // (sovereign) history — only proceed when the owner has granted consent.
-        if !Self::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory) {
+        if !MemoryService::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory) {
             return None;
         }
-        let episodes = Self::recall_raw_episodes(
+        let episodes = MemoryService::recall_raw_episodes(
             &req.episodic_storage,
             &req.agent_webid,
             token,
@@ -1099,8 +1099,8 @@ Agent: {}",
             req.agent_webid,
         );
         let history_suffix =
-            if Self::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory) {
-                Self::recall_recent_turns(
+            if MemoryService::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory) {
+                MemoryService::recall_recent_turns(
                     &req.episodic_storage,
                     &req.agent_webid,
                     &history_token,
@@ -1110,8 +1110,8 @@ Agent: {}",
                 None
             };
         let semantic_suffix =
-            if Self::has_memory_consent(ctx, &req.agent_webid, &DataCategory::SemanticMemory) {
-                let semantic_context = Self::recall_semantic(
+            if MemoryService::has_memory_consent(ctx, &req.agent_webid, &DataCategory::SemanticMemory) {
+                let semantic_context = MemoryService::recall_semantic(
                     &req.semantic_storage,
                     &base_input,
                     &history_token,

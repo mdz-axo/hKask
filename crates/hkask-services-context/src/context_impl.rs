@@ -959,7 +959,6 @@ async fn build_loops(
     // Curation loop
     let cns_for_curator: Arc<CnsRuntime> = Arc::new(f.cns_runtime.read().await.clone());
     let a2a_runtime = Arc::new(hkask_agents::A2ARuntime::new(&config.a2a_secret));
-    let a2a_port: Arc<dyn hkask_agents::ports::A2APort> = a2a_runtime.clone();
     let curator_context = Arc::new(
         CuratorContext::new(
             CuratorHandle::system(),
@@ -967,7 +966,7 @@ async fn build_loops(
             Some(curator_directive_tx.clone()),
             Arc::clone(&f.escalation_queue),
         )
-        .with_a2a(a2a_port),
+        .with_a2a(a2a_runtime.clone()),
     );
     let consolidation_bridge = Arc::new(ConsolidationBridge::new(
         Arc::clone(&episodic_memory),
@@ -1142,9 +1141,7 @@ async fn build_mcp_and_pods(
         tokio::runtime::Handle::current(),
     );
     let mut pods = hkask_agents::pod::ActivePods::new()
-        .with_a2a_runtime(
-            l.a2a_runtime.clone() as Arc<dyn hkask_agents::ports::A2APort + Send + Sync>
-        )
+        .with_a2a_runtime(l.a2a_runtime.clone())
         .with_factory_and_ports(
             Arc::new(hkask_agents::pod::PodFactory::new(
                 Arc::new(hkask_templates::TemplateCrateLoader::from_path(

@@ -216,7 +216,7 @@ fn start_kata(
     // Build engine with shared registry (has bootstrapped templates)
     // Inference construction is encapsulated in KataEngine::from_env()
     let cns_rt = Arc::new(RwLock::new(CnsRuntime::with_threshold(
-        hkask_cns::DEFAULT_THRESHOLD,
+        hkask_cns::DEFAULT_VARIETY_MAX_DEFICIT as u64,
     )));
 
     let mut engine = KataEngine::from_env(registry.clone())

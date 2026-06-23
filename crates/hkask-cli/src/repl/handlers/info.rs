@@ -1,7 +1,7 @@
 //! REPL info handlers — /history, /pods, /templates, /tools
 
 use hkask_ports::ToolPort;
-use hkask_services::ChatService;
+use hkask_services::MemoryService;
 
 pub(crate) fn handle_history(state: &super::super::ReplState) {
     let token = state.service_context.capability_checker().grant_registry(
@@ -9,7 +9,7 @@ pub(crate) fn handle_history(state: &super::super::ReplState) {
         *state.service_context.identity().0,
         state.agent_webid,
     );
-    match ChatService::recall_recent_turns(
+    match MemoryService::recall_recent_turns(
         &state.episodic_storage,
         &state.agent_webid,
         &token,

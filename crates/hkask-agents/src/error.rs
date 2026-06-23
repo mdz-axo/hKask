@@ -152,10 +152,3 @@ impl From<hkask_storage::EmbeddingError> for MemoryError {
         }
     }
 }
-
-/// Registry source errors
-#[derive(Debug, Error)]
-pub enum RegistryError {
-    #[error("IO error: {0}")]
-    Io(String),
-}

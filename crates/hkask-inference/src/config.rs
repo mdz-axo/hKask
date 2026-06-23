@@ -119,76 +119,73 @@ impl ProviderId {
     }
 }
 
+/// Configuration for a single OpenRouter fusion group.
+///
+/// When set, all text generation calls route through the fusion group by default.
+/// Individual calls can bypass with `LLMParameters.bypass_fusion = true`.
+///
+/// # Environment Variables
+///
+/// - `HKASK_FUSION_GROUP` — fusion group name on OpenRouter (e.g., "kask")
+/// - `HKASK_FUSION_MODELS` — comma-separated model IDs for the fusion (e.g., "Kimi2.7,Qwen3.7 Max")
+/// - `HKASK_FUSION_FUSER` — the fuser/evaluator model (e.g., "Deepseek-v4-Pro")
+///
+/// The actual OpenRouter fusion group must be configured on the OpenRouter dashboard.
+/// These config values are used for display, verification, and constructing the model ID
+/// that hKask sends in chat completion requests (`OR/openrouter/fusion/{group}`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FusionConfig {
+    /// Display name / OpenRouter fusion group name.
+    pub group: String,
+    /// Comma-separated model IDs in the fusion group.
+    pub models: Vec<String>,
+    /// The fuser/evaluator model that orchestrates the fusion.
+    pub fuser: String,
+}
+
+impl FusionConfig {
+    /// Build the full model ID used in OpenRouter API calls.
+    /// Returns e.g. "OR/openrouter/fusion/kask".
+    pub fn model_id(&self) -> String {
+        format!("OR/openrouter/fusion/{}", self.group)
+    }
+
+    /// Human-readable description of the fusion setup.
+    pub fn description(&self) -> String {
+        format!("{} models fused by {}", self.models.len(), self.fuser)
+    }
+}
+
 /// Configuration for the inference router.
 ///
-/// Holds connection settings for DeepInfra (cloud),
-/// fal.ai (cloud), and Together AI (cloud).
+/// Holds connection settings for DeepInfra, fal.ai, Together AI, and OpenRouter.
 /// The router uses this config to construct backends and decide
 /// the default provider for unprefixed model names.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InferenceConfig {
     /// Default provider for model names without a prefix.
-    /// Default: DeepInfra (cloud-first). Override with `HKASK_DEFAULT_PROVIDER` env var
-    /// or store in OS keychain under key `HKASK_DEFAULT_PROVIDER`.
-    /// Accepted values: DI, FA, TG.
+    /// Default: DeepInfra (cloud-first).
     pub default_provider: ProviderId,
 
-    /// Base URL for the DeepInfra inference API (OpenAI-compatible endpoint).
     pub deepinfra_base_url: String,
-
-    /// API key for DeepInfra authentication.
-    /// Required for DI provider. If empty, DI is unavailable.
     pub deepinfra_api_key: String,
-
-    /// Base URL for the fal.ai inference API (OpenAI-compatible endpoint).
     pub fal_base_url: String,
-
-    /// Base URL for fal.ai media/sync endpoints (native inference API).
     pub fal_media_base_url: String,
-
-    /// Base URL for fal.ai queue/async endpoints (native inference API).
     pub fal_queue_base_url: String,
-
-    /// API key for fal.ai authentication.
-    /// Required for FA provider. If empty, FA is unavailable.
     pub fal_api_key: String,
-
-    /// Base URL for the Together AI inference API (OpenAI-compatible endpoint).
     pub together_base_url: String,
-
-    /// API key for Together AI authentication.
-    /// Required for TG provider. If empty, TG is unavailable.
     pub together_api_key: String,
-
-    /// Base URL for the OpenRouter inference API (OpenAI-compatible endpoint).
-    /// Defaults to `https://openrouter.ai/api` — the `/v1` suffix is appended
-    /// by the backend following the shared URL construction pattern.
     pub openrouter_base_url: String,
-
-    /// API key for OpenRouter authentication.
-    /// Required for OR provider. If empty, OR is unavailable.
     pub openrouter_api_key: String,
-
-    /// Request timeout in seconds for inference calls.
-    /// Default: 120 (accommodates model cold-start).
     pub timeout_secs: u64,
-
-    /// Max idle connections per host for the HTTP client pool.
-    /// Default: 5.
     pub pool_max_idle: usize,
-
-    /// Default model name used when no model is specified at inference time.
-    /// Supports provider prefixes (OM/, FW/, DI/) or unprefixed names.
-    /// Default: "deepseek-v4-pro". Override with `HKASK_DEFAULT_MODEL` env var.
     pub default_model: String,
 
-    /// OpenRouter fusion model that overrides all text generation calls.
-    /// When set, `generate()` and `generate_with_model()` route through this
-    /// fusion model instead of their explicit/default models. Media generation,
-    /// embeddings, and calls with `LLMParameters.bypass_fusion = true` are
-    /// unaffected. Override with `HKASK_FUSION_MODEL` env var.
+    /// Structured OpenRouter fusion group configuration.
+    /// When set, all text generation calls route through fusion by default.
+    /// Calls with `LLMParameters.bypass_fusion = true` bypass the override.
     /// Default: None (fusion disabled).
-    pub fusion_model: Option<String>,
+    pub fusion: Option<FusionConfig>,
 }
 
 impl Default for InferenceConfig {
@@ -208,7 +205,7 @@ impl Default for InferenceConfig {
             timeout_secs: 120,
             pool_max_idle: 5,
             default_model: "deepseek-v4-pro".to_string(),
-            fusion_model: None,
+            fusion: None,
         }
     }
 }
@@ -251,6 +248,9 @@ impl InferenceConfig {
 
         let default_provider = resolve_default_provider();
 
+        // Fusion: parse structured env vars. Falls back to legacy HKASK_FUSION_MODEL.
+        let fusion = parse_fusion_config();
+
         Self {
             default_provider,
             deepinfra_base_url,
@@ -267,7 +267,7 @@ impl InferenceConfig {
             pool_max_idle: 5,
             default_model: std::env::var("HKASK_DEFAULT_MODEL")
                 .unwrap_or_else(|_| "deepseek-v4-pro".to_string()),
-            fusion_model: std::env::var("HKASK_FUSION_MODEL").ok(),
+            fusion,
         }
     }
 
@@ -327,6 +327,49 @@ fn parse_provider_code(raw: &str) -> ProviderId {
         "OR" => ProviderId::OpenRouter,
         _ => ProviderId::DeepInfra,
     }
+}
+
+/// Parse fusion configuration from environment variables.
+///
+/// Priority: structured env vars (HKASK_FUSION_GROUP + HKASK_FUSION_MODELS) →
+///           legacy HKASK_FUSION_MODEL string.
+///
+/// Returns `None` if no fusion is configured.
+fn parse_fusion_config() -> Option<FusionConfig> {
+    // Structured config: HKASK_FUSION_GROUP + HKASK_FUSION_MODELS
+    if let Ok(group) = std::env::var("HKASK_FUSION_GROUP") {
+        let models: Vec<String> = std::env::var("HKASK_FUSION_MODELS")
+            .unwrap_or_default()
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        let fuser =
+            std::env::var("HKASK_FUSION_FUSER").unwrap_or_else(|_| "deepseek-v4-pro".to_string());
+        if !group.is_empty() && !models.is_empty() {
+            return Some(FusionConfig {
+                group,
+                models,
+                fuser,
+            });
+        }
+    }
+
+    // Legacy: HKASK_FUSION_MODEL="OR/openrouter/fusion/kask"
+    if let Ok(legacy) = std::env::var("HKASK_FUSION_MODEL") {
+        let group = legacy
+            .strip_prefix("OR/openrouter/fusion/")
+            .or_else(|| legacy.strip_prefix("openrouter/fusion/"))
+            .unwrap_or(&legacy)
+            .to_string();
+        return Some(FusionConfig {
+            group: group.clone(),
+            models: vec![group],
+            fuser: "deepseek-v4-pro".to_string(),
+        });
+    }
+
+    None
 }
 
 #[cfg(test)]
