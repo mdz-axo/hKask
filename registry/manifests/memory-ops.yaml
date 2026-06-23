@@ -26,9 +26,11 @@ steps:
 
   - ordinal: 2
     action: populate
-    template_ref: memory/templates/${operation}.j2
+    template_ref: memory/templates/{{operation}}.j2
     renderer: minijinja
     bindings:
+      operation:
+        $ref: step_1_result.operation
       memory_type:
         $ref: step_1_result.memory_type
       entity:
@@ -45,8 +47,10 @@ steps:
   - ordinal: 3
     action: execute
     target: memory_operation
-    mcp: hkask-mcp-memory
-    tool: "${operation}"
+    mcp: hkask-mcp-memory/{{operation}}
+    input_mapping:
+      memory_type:
+        $ref: step_1_result.memory_type
     output_schema:
       type: object
       properties:

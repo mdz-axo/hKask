@@ -53,7 +53,7 @@ fn main() {
     let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
     let handle = rt.handle().clone();
 
-    // Verify fusion model if HKASK_FUSION_MODEL is set (P9: proactive cost-safety)
+    // Verify fusion model if configured (P9: proactive cost-safety)
     check_fusion_startup(&rt);
 
     let mut registry = commands::helpers::or_exit(

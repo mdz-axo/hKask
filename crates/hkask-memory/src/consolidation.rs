@@ -99,7 +99,7 @@ impl ConsolidationBridge {
             let days_since = (now - triple.recalled_at).num_seconds() as f64 / 86400.0;
             let episodic_c = triple
                 .confidence
-                .decay_memory_life(self.episodic.memory_life_days(), days_since);
+                .memory_decay(days_since, self.episodic.memory_life_days());
             // 1. Check for existing semantic triple with same EAV
             if let Some(existing) = self.semantic.find_existing_by_eav(triple) {
                 // 1a. BAYESIAN COMBINE: existing semantic fact + current episodic evidence

@@ -144,43 +144,19 @@ impl HkaskAcpAgent {
         let inference: Arc<dyn InferencePort> =
             Arc::new(InferenceRouter::new(InferenceConfig::from_env()));
 
-        // P9: Fusion cost-safety gate (non-interactive — ACP has no stdin/stdout).
-        // If HKASK_FUSION_MODEL is set to a non-existent group, OpenRouter falls
-        // back to its default (ALL models), which is extremely expensive for IDE
-        // integrations that make frequent inference calls. Fail-closed: clear the
-        // env var and log a prominent warning.
+        // P9: Fusion cost-safety — log the configuration on startup.
+        // With the plugin-based approach (explicit panel + judge models),
+        // there is no risk of OpenRouter defaulting to ALL models.
+        // Fusion is transparently active when OpenRouter is configured.
         {
             let config = InferenceConfig::from_env();
             if let Some(ref fusion) = config.fusion {
-                let router = InferenceRouter::new(config.clone());
-                match tokio::runtime::Handle::current().block_on(router.verify_fusion_model()) {
-                    Ok(true) => {
-                        tracing::info!(
-                            target: "cns.inference",
-                            fusion_group = %fusion.judge,
-                            "ACP: fusion group verified"
-                        );
-                    }
-                    Ok(false) => {
-                        tracing::warn!(
-                            target: "cns.inference",
-                            fusion_group = %fusion.judge,
-                            "ACP: fusion group NOT FOUND — disabling fusion. Create it at https://openrouter.ai/fusion"
-                        );
-                        // SAFETY: called in build() before any sessions are active.
-                        unsafe { std::env::remove_var("HKASK_FUSION_GROUP") };
-                    }
-                    Err(e) => {
-                        tracing::warn!(
-                            target: "cns.inference",
-                            fusion_group = %fusion.judge,
-                            error = %e,
-                            "ACP: could not verify fusion group — disabling fusion to prevent cost risk"
-                        );
-                        // SAFETY: called in build() before any sessions are active.
-                        unsafe { std::env::remove_var("HKASK_FUSION_GROUP") };
-                    }
-                }
+                tracing::info!(
+                    target: "cns.inference",
+                    fusion_judge = %fusion.judge,
+                    fusion_panel = ?fusion.panel,
+                    "ACP: fusion configured"
+                );
             }
         }
 

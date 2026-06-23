@@ -22,7 +22,11 @@ pub enum SignalMetric {
     CommunicationQueueDepth,
     /// Episodic storage usage fraction (Episodic Loop 2a)
     StorageUsage,
-    /// Confidence decay rate (Episodic Loop 2a)
+    /// Episodic memory life S in days (Episodic Loop 2a).
+    /// Wozniak-Gorzelanczyk (1995) forgetting curve: R(t) = exp(-t/S).
+    /// Default 180 days. Configurable via HKASK_MEMORY_LIFE_DAYS.
+    MemoryLife,
+    /// Confidence decay rate (deprecated — replaced by MemoryLife)
     DecayRate,
     /// Semantic triple count (Semantic Loop 2b)
     TripleCount,
@@ -92,6 +96,7 @@ impl SignalMetric {
             SignalMetric::ConnectorLatency => "connector_latency",
             SignalMetric::CommunicationQueueDepth => "communication_queue_depth",
             SignalMetric::StorageUsage => "storage_usage",
+            SignalMetric::MemoryLife => "memory_life",
             SignalMetric::DecayRate => "decay_rate",
             SignalMetric::TripleCount => "triple_count",
             SignalMetric::LowConfidenceCount => "low_confidence_count",

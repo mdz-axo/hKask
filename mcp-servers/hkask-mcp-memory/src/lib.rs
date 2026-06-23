@@ -410,6 +410,89 @@ impl MemoryServer {
         }
     }
 
+    // ── FlowDef dispatch tools — route by memory_type ───────────────────
+
+    #[tool(
+        description = "Store a memory triple — routes to episodic_store or semantic_store based on memory_type"
+    )]
+    pub async fn remember(
+        &self,
+        Parameters(MemoryDispatchRequest {
+            entity,
+            attribute,
+            value,
+            confidence,
+            memory_type,
+        }): Parameters<MemoryDispatchRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("remember", &self.webid);
+        match memory_type.as_str() {
+            "semantic" => {
+                validate_field!(span, "entity", &entity, 256);
+                validate_field!(span, "attribute", &attribute, 256);
+                let triple = Triple::new(&entity, &attribute, value, self.webid)
+                    .with_visibility(Visibility::Public)
+                    .with_confidence(confidence.unwrap_or(1.0));
+                match self.semantic.store(triple) {
+                    Ok(()) => span.ok_json(json!({"stored": true, "entity": entity, "attribute": attribute, "memory_type": "semantic"})),
+                    Err(e) => self.internal_error(span, "store semantic triple", e),
+                }
+            }
+            _ => {
+                // Default: episodic
+                validate_field!(span, "entity", &entity, 256);
+                validate_field!(span, "attribute", &attribute, 256);
+                let triple = Triple::new(&entity, &attribute, value, self.webid)
+                    .with_perspective(self.webid)
+                    .with_confidence(confidence.unwrap_or(1.0))
+                    .with_visibility(Visibility::Private);
+                match self.episodic.store(triple) {
+                    Ok(()) => span.ok_json(json!({"stored": true, "entity": entity, "attribute": attribute, "memory_type": "episodic"})),
+                    Err(e) => self.internal_error(span, "store episodic triple", e),
+                }
+            }
+        }
+    }
+
+    #[tool(description = "Recall memory triples by entity — routes based on memory_type")]
+    pub async fn recall(
+        &self,
+        Parameters(RecallDispatchRequest {
+            entity,
+            memory_type,
+        }): Parameters<RecallDispatchRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("recall", &self.webid);
+        match memory_type.as_str() {
+            "semantic" => {
+                validate_field!(span, "entity", &entity, 256);
+                match self.semantic.query_deduped(&entity) {
+                    Ok(triples) => {
+                        let serialized: Vec<serde_json::Value> = triples.iter().map(|t| json!({
+                            "entity": t.entity, "attribute": t.attribute, "value": t.value,
+                            "confidence": t.confidence, "valid_from": t.temporal.valid_from.to_rfc3339(),
+                        })).collect();
+                        span.ok_json(json!({"count": serialized.len(), "triples": serialized, "memory_type": "semantic"}))
+                    }
+                    Err(e) => self.internal_error(span, "recall semantic triples", e),
+                }
+            }
+            _ => {
+                validate_field!(span, "entity", &entity, 256);
+                match self.episodic.query_for_deduped(&entity, self.webid) {
+                    Ok(triples) => {
+                        let serialized: Vec<serde_json::Value> = triples.iter().map(|t| json!({
+                            "entity": t.entity, "attribute": t.attribute, "value": t.value,
+                            "confidence": t.confidence, "valid_from": t.temporal.valid_from.to_rfc3339(),
+                        })).collect();
+                        span.ok_json(json!({"count": serialized.len(), "triples": serialized, "memory_type": "episodic"}))
+                    }
+                    Err(e) => self.internal_error(span, "recall episodic triples", e),
+                }
+            }
+        }
+    }
+
     #[tool(
         description = "Paired memory recall — returns both semantic (third-person) and \
         episodic (first-person) memories for an entity in a single call. Episodic results \

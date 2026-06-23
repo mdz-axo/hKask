@@ -115,6 +115,9 @@ impl EncryptionService {
 ///
 /// These parameters follow OWASP recommendations for high-security applications.
 pub fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, EncryptionError> {
+    if passphrase.is_empty() {
+        return Err(EncryptionError::InvalidPassphrase);
+    }
     let start = Instant::now();
     let mut key = Zeroizing::new([0u8; 32]);
     let params = Params::new(

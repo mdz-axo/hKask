@@ -170,9 +170,7 @@ impl EpisodicMemory {
                 // Wozniak-Gorzelanczyk (1995) forgetting curve: R(t) = exp(-t/S)
                 let days_since = (now - t.recalled_at).num_seconds() as f64 / 86400.0;
                 let original_confidence = t.confidence;
-                t.confidence = t
-                    .confidence
-                    .decay_memory_life(self.memory_life_days, days_since);
+                t.confidence = t.confidence.memory_decay(days_since, self.memory_life_days);
                 tracing::debug!(
                     target: "cns.memory.decay",
                     entity = %t.entity,
@@ -240,16 +238,16 @@ impl EpisodicMemory {
         triples.sort_by(|a, b| {
             let a_effective = a
                 .confidence
-                .decay_memory_life(
-                    self.memory_life_days,
+                .memory_decay(
                     (now - a.recalled_at).num_seconds() as f64 / 86400.0,
+                    self.memory_life_days,
                 )
                 .value();
             let b_effective = b
                 .confidence
-                .decay_memory_life(
-                    self.memory_life_days,
+                .memory_decay(
                     (now - b.recalled_at).num_seconds() as f64 / 86400.0,
+                    self.memory_life_days,
                 )
                 .value();
             a_effective
@@ -316,9 +314,7 @@ impl EpisodicMemory {
     ///
     /// Memory life is the time constant of the forgetting curve R(t) = exp(-t/S).
     /// Default: 180 days (6 months × 30). Configurable via ServiceConfig.memory_life_days.
-    ///
-    /// **Membrane-sealed:** Only callable from within this crate.
-    pub(crate) fn memory_life_days(&self) -> f64 {
+    pub fn memory_life_days(&self) -> f64 {
         self.memory_life_days
     }
 }

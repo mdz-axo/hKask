@@ -515,9 +515,10 @@ impl CnsRuntime {
         }
         let alert = self.check_variety(domain).await;
 
-        // Notify subscribers interested in this domain's span namespace
-        if let Ok(cns_span) = domain.parse::<CnsSpan>() {
-            let span_ns = SpanNamespace::from(cns_span);
+        // Notify subscribers interested in this domain's span namespace.
+        // Uses SpanNamespace::parse directly (not CnsSpan::from_str) so that
+        // regulatory domains (cns.algedonic, cns.cybernetics, etc.) are included.
+        if let Some(span_ns) = hkask_types::event::SpanNamespace::parse(domain) {
             let event = hkask_types::event::NuEvent::new(
                 WebID::default(),
                 hkask_types::event::Span::new(span_ns.clone(), "variety_incremented"),

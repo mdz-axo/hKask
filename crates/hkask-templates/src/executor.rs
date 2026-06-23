@@ -663,12 +663,15 @@ impl ManifestExecutor {
         step: &BundleManifestStep,
         mut context: HashMap<String, Value>,
     ) -> Result<HashMap<String, Value>> {
-        let mcp_ref = step.mcp.as_deref().ok_or_else(|| {
+        let mcp_ref_raw = step.mcp.as_deref().ok_or_else(|| {
             TemplateError::Manifest(format!(
                 "Execute step {} has no mcp reference",
                 step.ordinal
             ))
         })?;
+
+        // Resolve ${variable} references in the MCP reference against context
+        let mcp_ref = render_inline_template(mcp_ref_raw, &context);
 
         let input: Value = step
             .input_mapping
@@ -699,7 +702,7 @@ impl ManifestExecutor {
 
         let result = self
             .mcp
-            .invoke(mcp_ref, input, &token)
+            .invoke(&mcp_ref, input, &token)
             .await
             .map_err(|e| TemplateError::Mcp(Box::new(e)))?;
 
@@ -727,15 +730,17 @@ impl ManifestExecutor {
 
         match renderer {
             "minijinja" => {
-                // template_ref is a file path relative to template_base_path
-                let template_ref = step.template_ref.as_deref().ok_or_else(|| {
+                // template_ref is a file path relative to template_base_path.
+                // Resolve {{key}} references from context before loading.
+                let template_ref_raw = step.template_ref.as_deref().ok_or_else(|| {
                     TemplateError::Manifest(format!(
                         "Step {} has renderer='minijinja' but no template_ref",
                         step.ordinal
                     ))
                 })?;
+                let template_ref = render_inline_template(template_ref_raw, context);
 
-                let template_path = self.template_base_path.join(template_ref);
+                let template_path = self.template_base_path.join(&template_ref);
                 let template_content = match std::fs::read_to_string(&template_path) {
                     Ok(c) => c,
                     Err(e) => {

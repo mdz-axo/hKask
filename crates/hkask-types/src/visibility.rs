@@ -287,7 +287,7 @@ impl Confidence {
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  memory_life_days > 0, days_since_recall >= 0
     /// post: returns decayed Confidence following the human forgetting curve
-    pub fn decay_memory_life(&self, memory_life_days: f64, days_since_recall: f64) -> Self {
+    pub fn memory_decay(&self, days_since_recall: f64, memory_life_days: f64) -> Self {
         Self((self.0 * (-days_since_recall / memory_life_days).exp()).clamp(0.0, 1.0))
     }
 }

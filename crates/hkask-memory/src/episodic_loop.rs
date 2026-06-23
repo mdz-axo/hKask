@@ -114,8 +114,8 @@ impl HkaskLoop for EpisodicLoop {
     ///
     /// Produces signals for:
     /// - `storage_usage` — current triple count vs storage budget
-    /// - `decay_rate` — memory life S in days (Wozniak-Gorzelanczyk, 1995)
-    ///   Default: 180 days (6 months × 30). Configurable by admin.
+    /// - `memory_life` — memory life S in days (Wozniak-Gorzelanczyk, 1995)
+    ///   Default: 180 days (6 months × 30). Configurable via HKASK_MEMORY_LIFE_DAYS.
     async fn sense(&self) -> Vec<Signal> {
         let usage = self.memory.storage_usage(&self.perspective).unwrap_or(0);
         let life_days = self.memory.memory_life_days();
@@ -129,9 +129,9 @@ impl HkaskLoop for EpisodicLoop {
             ),
             Signal::new(
                 LoopId::Episodic,
-                SignalMetric::DecayRate,
-                life_days, // memory life S in days
-                life_days, // set-point = current (no deviation expected)
+                SignalMetric::MemoryLife,
+                life_days,
+                life_days,
             ),
         ]
     }

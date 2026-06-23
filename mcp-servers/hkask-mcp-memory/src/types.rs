@@ -59,6 +59,27 @@ pub struct BudgetRequest {}
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ConsolidateStatusRequest {}
 
+// ── Dispatch request types ──────────────────────────────────────────
+
+/// FlowDef dispatch request — carries memory_type for tool routing.
+/// The selector outputs "episodic" or "semantic"; the dispatch tool
+/// routes to episodic_store / semantic_store accordingly.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct MemoryDispatchRequest {
+    pub entity: String,
+    pub attribute: String,
+    pub value: Value,
+    pub confidence: Option<f64>,
+    pub memory_type: String,
+}
+
+/// FlowDef dispatch request for recall — carries memory_type for routing.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RecallDispatchRequest {
+    pub entity: String,
+    pub memory_type: String,
+}
+
 // ── Semantic-specific request types ─────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]

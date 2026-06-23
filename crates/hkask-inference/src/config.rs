@@ -126,9 +126,8 @@ impl ProviderId {
 ///
 /// # Environment Variables
 ///
-/// - `HKASK_FUSION_GROUP` — fusion group name on OpenRouter (e.g., "kask")
-/// - `HKASK_FUSION_MODELS` — comma-separated model IDs for the fusion (e.g., "Kimi2.7,Qwen3.7 Max")
-/// - `HKASK_FUSION_FUSER` — the fuser/evaluator model (e.g., "Deepseek-v4-Pro")
+/// - `HKASK_FUSION_JUDGE` — judge/fuser model for fusion (e.g., "deepseek-v4-pro")
+/// - `HKASK_FUSION_PANEL` — comma-separated panel models (e.g., "Kimi2.7,Qwen3.7 Max")
 use crate::chat_protocol::FusionPlugin;
 
 /// Configuration for OpenRouter Fusion multi-model deliberation.
@@ -354,8 +353,9 @@ fn parse_provider_code(raw: &str) -> ProviderId {
 
 /// Parse fusion configuration from environment variables.
 ///
-/// Priority: structured env vars (HKASK_FUSION_GROUP + HKASK_FUSION_MODELS) →
-///           legacy HKASK_FUSION_MODEL string.
+/// Priority: structured env vars (HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL) →
+///           legacy env vars (HKASK_FUSION_FUSER + HKASK_FUSION_MODELS) →
+///           legacy HKASK_FUSION_MODEL string → kask defaults.
 ///
 /// Returns `None` if no fusion is configured.
 fn parse_fusion_config() -> Option<FusionConfig> {

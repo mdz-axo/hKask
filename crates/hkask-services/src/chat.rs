@@ -517,9 +517,8 @@ impl ChatService {
         let params_override = req.params_override;
 
         // Resolve LLM parameters: caller override > agent-kind defaults.
-        // When fusion is active (HKASK_FUSION_MODEL is set), the primary chat
-        // model bypasses fusion so the user's chosen model is used directly.
-        // Skills, which don't set bypass_fusion, will route through fusion.
+        // When fusion is active, the primary chat model bypasses fusion so
+        // the user's chosen model is used directly. Skills route through fusion.
         let chat_bypass = ctx.config().inference_config.fusion.is_some();
         let mut params = params_override.unwrap_or(LLMParameters {
             temperature: 0.7,

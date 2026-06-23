@@ -51,7 +51,6 @@ pub const CURRENT_KEY_VERSION: u32 = 1;
 ///
 /// Each field is a hex-encoded 256-bit key, deterministically derived
 /// from the master passphrase via HKDF-SHA256.
-#[derive()]
 pub struct InternalSecrets {
     /// Master key (hex-encoded 256-bit key) — the root from which all sub-keys derive.
     /// Stored in keychain as HKASK_MASTER_KEY for pod OCAP derivation and restart survival.
