@@ -327,19 +327,6 @@ impl A2ARuntime {
         }
     }
 
-    /// The public key of this runtime's root authority.
-    ///
-    /// Registration tokens minted by [`register_agent`] are signed by the A2A
-    /// root key (derived from the A2A secret), which is distinct from the system
-    /// OCAP key. A `CapabilityChecker` must trust this key to accept A2A tokens.
-    ///
-    /// expect: "Agent interactions are gated by OCAP boundaries"
-    /// post: returns the Ed25519 public key of the A2A root authority
-    pub fn root_public_key(&self) -> hkask_types::Ed25519PublicKey {
-        let signing_key = derive_signing_key(self.secret.as_ref());
-        hkask_types::Ed25519PublicKey(signing_key.verifying_key().to_bytes())
-    }
-
     /// Keys are cryptographically independent — compromising one doesn't compromise others.
     ///
     /// expect: "Agent interactions are gated by OCAP boundaries"

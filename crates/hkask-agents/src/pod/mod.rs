@@ -216,10 +216,9 @@ impl AgentPod {
     ) -> AgentPodResult<Self> {
         let template_crate = loader.load_template_crate_or_synthesize(crate_name)?;
 
-        // Sign with the system OCAP authority key (derived from the master key).
-        // The pod's CapabilityChecker is anchored to the matching public key, so
-        // this token verifies while any forged token is rejected (P4).
-        let signing_key = system_ocap_signing_key()?;
+        // Derive OCAP secret per WebID via HKDF-SHA256 from master key
+        // (ADR-027: deterministic, restart-safe, per-agent isolation)
+        let ocap_secret = derive_ocap_secret(&persona.webid())?;
 
         // Use first capability from persona, or default to "tool:execute".
         let default_capability = "tool:execute".to_string();
@@ -240,7 +239,7 @@ impl AgentPod {
             spec.action,
             WebID::from_persona(b"system-pod-creator"),
             persona.webid(),
-            &signing_key,
+            &derive_signing_key(ocap_secret.as_bytes()),
         );
 
         // Initialize sovereignty checker for this pod, wired to the live
@@ -424,12 +423,15 @@ impl AgentPod {
             return Err(AgentPodError::AttenuationLimitExceeded);
         }
 
-        // Attenuate using the system OCAP authority key so the child token is
-        // signed by the trusted root and verifies against the pod's checker (P4).
-        let signing_key = system_ocap_signing_key()?;
+        // Derive OCAP secret for attenuation (same HKDF derivation)
+        let ocap_secret = derive_ocap_secret(&self.webid)?;
 
         self.capability_token
-            .attenuate(new_holder, &signing_key, current_time)
+            .attenuate(
+                new_holder,
+                &derive_signing_key(ocap_secret.as_bytes()),
+                current_time,
+            )
             .ok_or(AgentPodError::AttenuationLimitExceeded)
     }
 
@@ -678,45 +680,6 @@ fn current_timestamp() -> Result<i64, AgentPodError> {
 /// - \[DECLARATIVE\] Same WebID always produces the same key (UUID v5 from persona)
 /// - No random generation — ADR-027 compliant
 /// - No keystore dependency per pod — only the master key needs storage
-/// Derive the system OCAP signing key from the master key.
-///
-/// \[NORMATIVE\] This is the single root of trust for capability tokens: every
-/// pod token is signed with this key, and every `CapabilityChecker` is anchored
-/// to its public key (see [`crate::pod::system_capability_checker`]). Forgery
-/// requires the master key, so a token from any other keypair is rejected
-/// (P4 — Clear Boundaries). Deterministic + restart-safe (ADR-027).
-pub fn system_ocap_signing_key() -> AgentPodResult<ed25519_dalek::SigningKey> {
-    use std::sync::OnceLock;
-    // Derived ONCE per process and cached. Issuance and verification both call
-    // this, so they must agree on the key. The underlying secret resolution can
-    // fall back to a random secret when the master key is unavailable; deriving
-    // twice would then yield two different keys and break all OCAP verification.
-    // Caching the first derived seed guarantees a single, consistent authority.
-    static SYSTEM_OCAP_SEED: OnceLock<[u8; 32]> = OnceLock::new();
-
-    if let Some(seed) = SYSTEM_OCAP_SEED.get() {
-        return Ok(ed25519_dalek::SigningKey::from_bytes(seed));
-    }
-    let secret = hkask_keystore::keychain::get_or_create_ocap_secret().map_err(|e| {
-        AgentPodError::KeyDerivation(hkask_keystore::KeystoreError::KeyDerivation(e.to_string()))
-    })?;
-    let derived = derive_signing_key(secret.as_slice()).to_bytes();
-    let seed = *SYSTEM_OCAP_SEED.get_or_init(|| derived);
-    Ok(ed25519_dalek::SigningKey::from_bytes(&seed))
-}
-
-/// Build a `CapabilityChecker` anchored to the system OCAP authority.
-///
-/// The returned checker both issues (it holds the signing key) and verifies
-/// (it trusts the matching public key), so every token it grants — and every
-/// pod token signed by [`system_ocap_signing_key`] — verifies, while forged
-/// tokens are rejected.
-pub fn system_capability_checker() -> AgentPodResult<hkask_capability::CapabilityChecker> {
-    Ok(hkask_capability::CapabilityChecker::with_signing_key(
-        system_ocap_signing_key()?,
-    ))
-}
-
 /// Derive a per-WebID secret from the master key (HKDF-SHA256).
 ///
 /// Used as the per-pod SQLCipher passphrase so each pod's encrypted database is

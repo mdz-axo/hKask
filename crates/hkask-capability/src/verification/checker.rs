@@ -74,20 +74,6 @@ impl CapabilityChecker {
         }
     }
 
-    /// Add a trusted issuer public key (chainable).
-    ///
-    /// Used to trust additional authorities — e.g. the A2A root authority, whose
-    /// registration tokens are signed by a key distinct from the system OCAP key.
-    ///
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns self with `root` added to the trusted-root set
-    pub fn trust_root(mut self, root: Ed25519PublicKey) -> Self {
-        if !self.trusted_roots.contains(&root) {
-            self.trusted_roots.push(root);
-        }
-        self
-    }
-
     /// Create a verify-only checker anchored to a set of trusted roots (fail-closed).
     ///
     /// Root enforcement is enabled: a token is accepted only if its embedded
@@ -114,7 +100,8 @@ impl CapabilityChecker {
     /// Root-anchored checkers (`with_signing_key` / `with_trusted_roots`)
     /// additionally require the embedded public key to be a trusted root, which
     /// is what makes a bearer token unforgeable: a self-signed token from an
-    /// unknown keypair is rejected. Fails closed on an empty trusted-root set.
+    /// unknown keypair is rejected. A root-anchored checker with an empty
+    /// trusted-root set rejects everything (fail closed).
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  self is any [`CapabilityChecker`]; token is any [`DelegationToken`]
