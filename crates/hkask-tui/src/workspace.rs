@@ -21,21 +21,21 @@ use crate::tab::Tab;
 use crate::window::{Window, WindowId, WindowKind};
 use crate::windows::chat::ChatWindow;
 use crate::windows::cns_monitor::CnsMonitorWindow;
+use crate::windows::companies::CompaniesWindow;
 use crate::windows::configuration::ConfigurationWindow;
 use crate::windows::curator::CuratorWindow;
 use crate::windows::editor::EditorWindow;
-use crate::windows::companies::CompaniesWindow;
 use crate::windows::kanban::KanbanWindow;
-use crate::windows::memory::MemoryWindow;
-use crate::windows::wallet::WalletWindow;
 use crate::windows::matrix::MatrixWindow;
 use crate::windows::media::MediaWindow;
+use crate::windows::memory::MemoryWindow;
 use crate::windows::pods::PodsWindow;
 use crate::windows::registry::RegistryWindow;
 use crate::windows::sidebar::SidebarWindow;
 use crate::windows::skills::SkillsWindow;
 use crate::windows::terminal::TerminalWindow;
 use crate::windows::training::TrainingWindow;
+use crate::windows::wallet::WalletWindow;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SplitDirection {
