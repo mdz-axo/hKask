@@ -10,7 +10,7 @@ use std::sync::Arc;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use uuid::Uuid;
 
@@ -20,7 +20,6 @@ use crate::status_bar::StatusBar;
 use crate::tab::Tab;
 use crate::window::{Window, WindowId, WindowKind};
 use crate::windows::chat::ChatWindow;
-use crate::windows::logo::LogoWindow;
 use crate::windows::sidebar::SidebarWindow;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -539,7 +538,9 @@ impl Workspace {
         let mut lines: Vec<ratatui::text::Line> = Vec::new();
         lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(
             "── Keybindings (? to close) ──",
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         )));
         lines.push(ratatui::text::Line::from(""));
         lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(

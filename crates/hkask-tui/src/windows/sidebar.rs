@@ -14,7 +14,7 @@ use std::sync::Arc;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
@@ -79,7 +79,9 @@ impl SidebarWindow {
         let mut lines = vec![
             Line::from(Span::styled(
                 "── CNS Health ──",
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
         ];
@@ -111,7 +113,9 @@ impl SidebarWindow {
         vec![
             Line::from(Span::styled(
                 "── MCP Servers ──",
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
             Line::from(format!("  Loaded: {}", loaded)),
@@ -124,7 +128,9 @@ impl SidebarWindow {
         vec![
             Line::from(Span::styled(
                 "── Pods ──",
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
             Line::from(format!(
@@ -140,7 +146,9 @@ impl SidebarWindow {
         vec![
             Line::from(Span::styled(
                 "── Context Window ──",
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
             Line::from("  Context pressure: 12%"),
@@ -162,7 +170,9 @@ impl SidebarWindow {
         vec![
             Line::from(Span::styled(
                 "── Keybindings ──",
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
             Line::from("  Global:"),

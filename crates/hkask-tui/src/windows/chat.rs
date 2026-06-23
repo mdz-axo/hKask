@@ -24,7 +24,7 @@ use std::sync::Arc;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
@@ -480,16 +480,24 @@ impl ChatWindow {
 
         for msg in visible {
             let prefix = match &msg.sender {
-                MessageSender::User => {
-                    Span::styled("You ▸ ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-                }
+                MessageSender::User => Span::styled(
+                    "You ▸ ",
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 MessageSender::Agent(name) => Span::styled(
                     format!("{} ▸ ", name),
-                    Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
                 ),
-                MessageSender::Curator => {
-                    Span::styled("Curator ▸ ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD))
-                }
+                MessageSender::Curator => Span::styled(
+                    "Curator ▸ ",
+                    Style::default()
+                        .fg(Color::Magenta)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 MessageSender::CnsAlert => Span::styled(
                     "── CNS: ",
                     Style::default()
@@ -565,7 +573,9 @@ impl ChatWindow {
         } else {
             final_spans.push(Span::styled(
                 self.mode.prompt_prefix(),
-                Style::default().fg(self.mode.prompt_color()).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(self.mode.prompt_color())
+                    .add_modifier(Modifier::BOLD),
             ));
         }
 
@@ -602,5 +612,77 @@ impl ChatWindow {
 
         let prompt_widget = Paragraph::new(Line::from(final_spans));
         f.render_widget(prompt_widget, inner);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mode_chat_to_command_on_slash() {
+        let (mode, consumed) = TuiMode::Chat.transition("/help");
+        assert_eq!(mode, TuiMode::Command);
+        assert!(!consumed);
+    }
+
+    #[test]
+    fn mode_chat_to_curator() {
+        let (mode, consumed) = TuiMode::Chat.transition("/curator");
+        assert_eq!(mode, TuiMode::Curator);
+        assert!(consumed);
+    }
+
+    #[test]
+    fn mode_chat_stays_on_plain_text() {
+        let (mode, _) = TuiMode::Chat.transition("hello world");
+        assert_eq!(mode, TuiMode::Chat);
+    }
+
+    #[test]
+    fn mode_command_returns_to_chat() {
+        let (mode, consumed) = TuiMode::Command.transition("anything");
+        assert_eq!(mode, TuiMode::Chat);
+        assert!(consumed);
+    }
+
+    #[test]
+    fn mode_curator_to_chat_on_repl() {
+        let (mode, consumed) = TuiMode::Curator.transition("/repl");
+        assert_eq!(mode, TuiMode::Chat);
+        assert!(consumed);
+    }
+
+    #[test]
+    fn mode_curator_stays_on_plain_text() {
+        let (mode, _) = TuiMode::Curator.transition("message to curator");
+        assert_eq!(mode, TuiMode::Curator);
+    }
+
+    #[test]
+    fn prompt_prefixes_are_distinct() {
+        assert_ne!(
+            TuiMode::Chat.prompt_prefix(),
+            TuiMode::Command.prompt_prefix()
+        );
+        assert_ne!(
+            TuiMode::Chat.prompt_prefix(),
+            TuiMode::Curator.prompt_prefix()
+        );
+        assert_ne!(
+            TuiMode::Command.prompt_prefix(),
+            TuiMode::Curator.prompt_prefix()
+        );
+    }
+
+    #[test]
+    fn prompt_colors_are_visible() {
+        // All mode colors should be different
+        let chat_color = TuiMode::Chat.prompt_color();
+        let cmd_color = TuiMode::Command.prompt_color();
+        let curator_color = TuiMode::Curator.prompt_color();
+        assert_ne!(chat_color, cmd_color);
+        assert_ne!(chat_color, curator_color);
+        assert_ne!(cmd_color, curator_color);
     }
 }
