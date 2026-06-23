@@ -148,7 +148,7 @@ parking_lot = "0.12"
 rand = "0.9"
 base64 = "0.22"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
-imageproc = "0.25"
+imageproc = { version = "0.25", default-features = false, features = ["rayon"] }
 ab_glyph = "0.2"
 nom-exif = "3"
 walkdir = "2"

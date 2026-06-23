@@ -15,7 +15,8 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use hkask_capability::{DelegationToken, SYSTEM_MAX_ATTENUATION};
+use hkask_capability::{CapabilityChecker, DelegationToken, SYSTEM_MAX_ATTENUATION};
+use hkask_types::Ed25519PublicKey;
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 
@@ -35,17 +36,53 @@ const PUBLIC_PATHS: &[&str] = &[
 pub struct AuthService {
     /// Revoked capability token IDs (sync RwLock for use in sync verify_token)
     revoked_tokens: Arc<RwLock<HashSet<String>>>,
+    /// Trusted issuer public keys. A bearer `DelegationToken` is only accepted if
+    /// its embedded public key is one of these (the system OCAP authority derived
+    /// from the master key). Empty ⇒ reject all bearer tokens (fail closed).
+    trusted_roots: Arc<Vec<Ed25519PublicKey>>,
 }
 
 impl AuthService {
     /// Create an `AuthService` from a ServiceConfig.
     ///
+    /// Resolves the system OCAP authority public key from the keystore (derived
+    /// from the master key) and trusts it as the sole bearer-token issuer. If the
+    /// master key is unavailable, the trusted-root set is empty and **all** bearer
+    /// `DelegationToken`s are rejected — sovereignty fails closed (P2 / P4).
+    ///
     /// expect: "API endpoints enforce OCAP boundaries"
-    /// pre:  _config is a valid ServiceConfig (currently unused, reserved for future)
-    /// post: returns AuthService with empty revocation set
+    /// pre:  _config is a valid ServiceConfig
+    /// post: returns AuthService with empty revocation set and the system OCAP
+    ///       public key as its sole trusted root (or none if unavailable)
     pub fn from_config(_config: &hkask_services::ServiceConfig) -> Self {
+        let trusted_roots = match hkask_keystore::keychain::get_or_create_ocap_secret() {
+            Ok(secret) => {
+                let sk = hkask_capability::derive_signing_key(secret.as_slice());
+                vec![Ed25519PublicKey(sk.verifying_key().to_bytes())]
+            }
+            Err(e) => {
+                tracing::error!(
+                    target: "cns.api",
+                    error = %e,
+                    "OCAP authority key unavailable — bearer DelegationToken auth fails closed (all rejected)"
+                );
+                Vec::new()
+            }
+        };
         Self {
             revoked_tokens: Arc::new(RwLock::new(HashSet::new())),
+            trusted_roots: Arc::new(trusted_roots),
+        }
+    }
+
+    /// Construct an `AuthService` with an explicit trusted-root set (test/wiring).
+    ///
+    /// expect: "API endpoints enforce OCAP boundaries"
+    /// post: returns AuthService trusting exactly `trusted_roots`
+    pub fn with_trusted_roots(trusted_roots: Vec<Ed25519PublicKey>) -> Self {
+        Self {
+            revoked_tokens: Arc::new(RwLock::new(HashSet::new())),
+            trusted_roots: Arc::new(trusted_roots),
         }
     }
 
@@ -82,8 +119,13 @@ impl AuthService {
     /// post: returns TokenVerification::Revoked if token_id is in revocation set
     /// post: returns TokenVerification::Valid iff all checks pass
     pub fn verify_token(&self, token: &DelegationToken) -> TokenVerification {
-        // 1. Verify Ed25519 cryptographic signature
-        if !token.verify_cryptographic() {
+        // 1. Verify Ed25519 signature AND that the issuer is a trusted root.
+        //    A self-signed token whose key is not a trusted root is a forgery:
+        //    anyone can mint one with a fresh keypair. Anchoring trust in the
+        //    system OCAP authority closes that bypass (C1). Fails closed when no
+        //    root is configured (empty trusted_roots ⇒ reject all).
+        let checker = CapabilityChecker::with_trusted_roots((*self.trusted_roots).clone());
+        if !checker.verify(token) {
             return TokenVerification::Invalid;
         }
 
@@ -108,6 +150,59 @@ impl AuthService {
         }
 
         TokenVerification::Valid
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_capability::{DelegationAction, DelegationResource, derive_signing_key};
+    use hkask_types::WebID;
+
+    fn token_signed_by(secret: &[u8]) -> DelegationToken {
+        let sk = derive_signing_key(secret);
+        let who = WebID::from_persona(b"holder");
+        DelegationToken::new(
+            DelegationResource::Tool,
+            "tool".into(),
+            DelegationAction::Execute,
+            who,
+            who,
+            &sk,
+        )
+    }
+
+    /// \[C1 regression\] The bearer path must reject a token minted with an
+    /// attacker-controlled keypair, even though its self-signature is valid.
+    #[test]
+    fn verify_token_rejects_forged_issuer() {
+        let system_sk = derive_signing_key(b"system-ocap-root");
+        let svc = AuthService::with_trusted_roots(vec![Ed25519PublicKey(
+            system_sk.verifying_key().to_bytes(),
+        )]);
+        let forged = token_signed_by(b"attacker-secret");
+        assert!(forged.verify_cryptographic(), "self-signature is valid");
+        assert_eq!(svc.verify_token(&forged), TokenVerification::Invalid);
+    }
+
+    /// A token signed by the trusted system authority is accepted.
+    #[test]
+    fn verify_token_accepts_trusted_issuer() {
+        let system_sk = derive_signing_key(b"system-ocap-root");
+        let svc = AuthService::with_trusted_roots(vec![Ed25519PublicKey(
+            system_sk.verifying_key().to_bytes(),
+        )]);
+        let legit = token_signed_by(b"system-ocap-root");
+        assert_eq!(svc.verify_token(&legit), TokenVerification::Valid);
+    }
+
+    /// \[C1 regression\] With no trusted root configured, all bearer tokens are
+    /// rejected (fail closed).
+    #[test]
+    fn verify_token_fails_closed_without_root() {
+        let svc = AuthService::with_trusted_roots(vec![]);
+        let any = token_signed_by(b"whatever");
+        assert_eq!(svc.verify_token(&any), TokenVerification::Invalid);
     }
 }
 

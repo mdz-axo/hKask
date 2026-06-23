@@ -51,7 +51,7 @@
 //! let mut pod = AgentPod::new(
 //!     "test-bot",
 //!     &persona,
-//!     &git_adapter,
+//!     &loader,
 //!     Arc::new(DenyAllConsent) as Arc<dyn SovereigntyConsent>,
 //! )?;
 //! pod.register(a2a_runtime.as_ref()).await?;

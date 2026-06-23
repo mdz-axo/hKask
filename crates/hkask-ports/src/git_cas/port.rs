@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::RwLock;
 
+/// A stored snapshot entry: (repo, message, commit_hash, timestamp_secs, content_hashes).
+type SnapshotEntry = (RepoId, String, CommitHash, u64, Vec<ContentHash>);
+
 // ── Verification / Log Types ─────────────────────────────────────────────────
 
 /// Verification report — integrity check results.
@@ -111,7 +114,7 @@ fn now_secs() -> u64 {
 /// real git repository is unnecessary.
 pub struct MockGitCas {
     blobs: RwLock<HashMap<ContentHash, Vec<u8>>>,
-    snapshots: RwLock<Vec<(RepoId, String, CommitHash, u64, Vec<ContentHash>)>>,
+    snapshots: RwLock<Vec<SnapshotEntry>>,
 }
 
 impl MockGitCas {

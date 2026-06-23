@@ -41,10 +41,6 @@ pub struct WalletContext {
     pub spent_rj: RJoule,
 }
 
-// SAFETY: all fields are Copy + Send + Sync (UUIDs and u64s)
-unsafe impl Send for WalletContext {}
-unsafe impl Sync for WalletContext {}
-
 /// Middleware state for API key authentication.
 #[derive(Clone)]
 pub struct ApiKeyAuthService {

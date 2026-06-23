@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style, Stylize};
@@ -51,17 +51,17 @@ impl Window for ConfigurationWindow {
             Line::from(""),
             Line::from("  Inference:"),
             Line::from(format!("    Model:        {}", self.bridge.model_name())),
-            Line::from(format!("    Temperature:  0.7")),
-            Line::from(format!("    Top-P:        0.9")),
-            Line::from(format!("    Max Tokens:   512")),
+            Line::from("    Temperature:  0.7".to_string()),
+            Line::from("    Top-P:        0.9".to_string()),
+            Line::from("    Max Tokens:   512".to_string()),
             Line::from(""),
             Line::from("  Tool Loop:"),
-            Line::from(format!("    Tool Limit:   21")),
-            Line::from(format!("    Context Turns: 3")),
-            Line::from(format!("    Auto-Condense: on (87.5%)")),
+            Line::from("    Tool Limit:   21".to_string()),
+            Line::from("    Context Turns: 3".to_string()),
+            Line::from("    Auto-Condense: on (87.5%)".to_string()),
             Line::from(""),
             Line::from("  Energy:"),
-            Line::from(format!("    Gas Heuristic: 500")),
+            Line::from("    Gas Heuristic: 500".to_string()),
             Line::from(format!("    Gas Cap:       {} (current: {})", cap, gas)),
             Line::from(format!("    Context Used:  {:.0}%", ctx * 100.0)),
             Line::from(""),

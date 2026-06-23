@@ -39,7 +39,7 @@ impl Window for PodsWindow {
 
     fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
         let (curator, replicant, team) = self.bridge.pod_counts();
-        let mut lines = vec![
+        let lines = vec![
             Line::from(Span::styled(
                 "── Pod Deployment Status ──",
                 Style::default().fg(Color::Cyan).bold(),

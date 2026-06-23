@@ -32,10 +32,6 @@ struct CuratorEntry {
 enum CuratorEntryKind {
     /// CNS algedonic alert
     CnsAlert,
-    /// Memory consolidation summary
-    MemorySummary,
-    /// Pattern detection (variety deficit, spec drift, etc.)
-    Pattern,
     /// Direct reply to user's message
     Reply,
     /// User's message to the Curator
@@ -213,8 +209,6 @@ impl CuratorWindow {
         for entry in self.entries.iter().rev().skip(self.scroll_offset as usize) {
             let (prefix, color) = match entry.kind {
                 CuratorEntryKind::CnsAlert => ("⚠ CNS: ", Color::Rgb(183, 145, 99)),
-                CuratorEntryKind::MemorySummary => ("🧠 Memory: ", Color::Green),
-                CuratorEntryKind::Pattern => ("🔍 Pattern: ", Color::Yellow),
                 CuratorEntryKind::Reply => ("Curator ▸ ", Color::Magenta),
                 CuratorEntryKind::UserMessage => ("You ▸ ", Color::Cyan),
             };

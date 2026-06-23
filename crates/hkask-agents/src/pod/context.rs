@@ -51,8 +51,9 @@ pub struct PodContext {
     /// pod-initiated calls are subject to Cybernetics governance.
     governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
     /// Cryptographic capability checker for OCAP verification.
-    /// When set, `require_capability()` verifies HMAC signatures.
-    /// When absent, falls back to structural `is_valid_for()` check (insecure).
+    /// When set, `require_capability()` verifies the token's Ed25519 signature
+    /// against the configured trusted root(s). When absent, `require_capability()`
+    /// \[NORMATIVE\] denies by default — OCAP must fail closed. (P4 — Clear Boundaries).
     capability_checker: Option<Arc<CapabilityChecker>>,
     /// Sovereignty checker for this pod — wired to a live `SovereigntyConsent`
     /// port so grants via the API or CLI are observed. `None` means the
@@ -262,6 +263,7 @@ impl PodContext {
             "episodic_memory",
             DelegationAction::Write,
         )?;
+        self.require_sovereignty(&DataCategory::EpisodicMemory, &self.webid)?;
 
         let request = StorageRequest::episodic(
             entity,
