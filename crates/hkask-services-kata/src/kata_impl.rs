@@ -619,8 +619,8 @@ mod tests {
             }
         }
         assert_eq!(
-            checked, 23,
-            "All 23 kata templates must contain learner_bot"
+            checked, 26,
+            "All 26 kata templates must contain learner_bot"
         );
     }
 }

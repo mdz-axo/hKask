@@ -31,7 +31,6 @@ hkask-services-classify = { path = "../hkask-services-classify" }
 hkask-services-core = { path = "../hkask-services-core" }
 hkask-services-cloud = { path = "../hkask-services-cloud" }
 hkask-services-kanban = { path = "../hkask-services-kanban" }
-hkask-mcp-docproc = { path = "../../mcp-servers/hkask-mcp-docproc" }
 hkask-ledger = { path = "../hkask-ledger" }
 rmcp.workspace = true
 axum.workspace = true

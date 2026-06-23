@@ -679,7 +679,7 @@ fn current_timestamp() -> Result<i64, AgentPodError> {
 /// - \[DECLARATIVE\] Same WebID always produces the same key (UUID v5 from persona)
 /// - No random generation — ADR-027 compliant
 /// - No keystore dependency per pod — only the master key needs storage
-/// Derive the system OCAP signing key from the master key.
+///   Derive the system OCAP signing key from the master key.
 ///
 /// \[NORMATIVE\] One of the two roots of trust for pod capability tokens (the
 /// other is the A2A root). A pod's pre-registration token is signed with this

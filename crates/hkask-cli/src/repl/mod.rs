@@ -474,7 +474,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
     }
 
     fn pod_counts(&self) -> (usize, usize, usize) {
-        if let Ok(s) = self.state.lock() {
+        if let Ok(_s) = self.state.lock() {
             let data_dir = dirs::data_local_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                 .join("hkask");

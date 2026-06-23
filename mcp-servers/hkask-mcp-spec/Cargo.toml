@@ -10,6 +10,7 @@ hkask-types = { path = "../../crates/hkask-types" }
 hkask-capability = { path = "../../crates/hkask-capability" }
 hkask-storage = { path = "../../crates/hkask-storage" }
 hkask-services = { path = "../../crates/hkask-services" }
+hkask-services-core = { path = "../../crates/hkask-services-core" }
 hkask-inference = { path = "../../crates/hkask-inference" }
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-cns = { path = "../../crates/hkask-cns" }

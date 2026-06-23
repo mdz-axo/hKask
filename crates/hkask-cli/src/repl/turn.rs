@@ -18,6 +18,48 @@ use super::handlers::speak_response;
 use super::handlers::to_llm_params;
 use super::tool_augmented;
 
+fn build_turn_request(
+    state: &ReplState,
+    current_input: &str,
+    iteration: usize,
+    tool_results: Option<String>,
+) -> TurnRequest {
+    let settings = &state.repl_settings;
+    TurnRequest {
+        input: current_input.to_string(),
+        agent_name: state.current_agent.clone(),
+        model: state.current_model.clone(),
+        inference_port: state.inference_port.clone(),
+        episodic_storage: state.episodic_storage.clone(),
+        semantic_storage: state.semantic_storage.clone(),
+        agent_webid: state.agent_webid,
+        persona_constraints: state.persona_constraints.clone(),
+        tool_section: state.tool_prompt_section.clone(),
+        llm_params: to_llm_params(settings),
+        context_turns: settings.context_turns,
+        capability_checker: state.service_context.capability_checker().clone(),
+        system_webid: *state.service_context.identity().0,
+        iteration,
+        tool_results,
+        auto_condense: settings.auto_condense,
+        context_window: settings.model_meta.as_ref().map(|m| m.context_length),
+        condenser_model: Some(
+            state
+                .current_model
+                .strip_prefix("OM/")
+                .unwrap_or(&state.current_model)
+                .to_string(),
+        ),
+        improv_mode: state.improv_mode.clone(),
+        source: None,
+        tools: if state.tool_definitions.is_empty() {
+            None
+        } else {
+            Some(state.tool_definitions.clone())
+        },
+    }
+}
+
 /// Handle a single-agent inference turn.
 ///
 /// Returns `false` if the turn should be skipped (energy budget exhausted).
@@ -70,39 +112,12 @@ pub(super) fn single_agent_turn(
         };
 
         // Build TurnRequest for this iteration.
-        let turn_req = TurnRequest {
-            input: current_input.clone(),
-            agent_name: state.current_agent.clone(),
-            model: state.current_model.clone(),
-            inference_port: state.inference_port.clone(),
-            episodic_storage: state.episodic_storage.clone(),
-            semantic_storage: state.semantic_storage.clone(),
-            agent_webid: state.agent_webid,
-            persona_constraints: state.persona_constraints.clone(),
-            tool_section: state.tool_prompt_section.clone(),
-            llm_params: to_llm_params(&settings),
-            context_turns: settings.context_turns,
-            capability_checker: state.service_context.capability_checker().clone(),
-            system_webid: *state.service_context.identity().0,
+        let turn_req = build_turn_request(
+            state,
+            &current_input,
             iteration,
-            tool_results: tool_results.take(),
-            auto_condense: settings.auto_condense,
-            context_window: settings.model_meta.as_ref().map(|m| m.context_length),
-            condenser_model: Some(
-                state
-                    .current_model
-                    .strip_prefix("OM/")
-                    .unwrap_or(&state.current_model)
-                    .to_string(),
-            ),
-            improv_mode: state.improv_mode.clone(),
-            source: None,
-            tools: if state.tool_definitions.is_empty() {
-                None
-            } else {
-                Some(state.tool_definitions.clone())
-            },
-        };
+            tool_results.take(),
+        );
 
         let chat_result = rt.block_on(ChatService::execute_turn(
             &state.service_context,
@@ -223,7 +238,6 @@ pub(crate) struct TurnCapture {
     pub total_tokens: u32,
     pub iterations: usize,
     pub budget_exhausted: bool,
-    pub gas_remaining: u64,
 }
 
 /// Handle a single-agent inference turn, capturing all output.
@@ -273,43 +287,15 @@ pub(crate) fn single_agent_turn_captured(
                 total_tokens: 0,
                 iterations: 0,
                 budget_exhausted: true,
-                gas_remaining: state.inference_loop.gas_remaining(),
             };
         };
 
-        let turn_req = TurnRequest {
-            input: current_input.clone(),
-            agent_name: state.current_agent.clone(),
-            model: state.current_model.clone(),
-            inference_port: state.inference_port.clone(),
-            episodic_storage: state.episodic_storage.clone(),
-            semantic_storage: state.semantic_storage.clone(),
-            agent_webid: state.agent_webid,
-            persona_constraints: state.persona_constraints.clone(),
-            tool_section: state.tool_prompt_section.clone(),
-            llm_params: to_llm_params(&settings),
-            context_turns: settings.context_turns,
-            capability_checker: state.service_context.capability_checker().clone(),
-            system_webid: *state.service_context.identity().0,
+        let turn_req = build_turn_request(
+            state,
+            &current_input,
             iteration,
-            tool_results: tool_results.take(),
-            auto_condense: settings.auto_condense,
-            context_window: settings.model_meta.as_ref().map(|m| m.context_length),
-            condenser_model: Some(
-                state
-                    .current_model
-                    .strip_prefix("OM/")
-                    .unwrap_or(&state.current_model)
-                    .to_string(),
-            ),
-            improv_mode: state.improv_mode.clone(),
-            source: None,
-            tools: if state.tool_definitions.is_empty() {
-                None
-            } else {
-                Some(state.tool_definitions.clone())
-            },
-        };
+            tool_results.take(),
+        );
 
         let chat_result = rt.block_on(ChatService::execute_turn(
             &state.service_context,
@@ -388,7 +374,6 @@ pub(crate) fn single_agent_turn_captured(
         total_tokens: usage.total_tokens,
         iterations: iteration,
         budget_exhausted: false,
-        gas_remaining: state.inference_loop.gas_remaining(),
     }
 }
 

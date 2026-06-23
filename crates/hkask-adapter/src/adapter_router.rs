@@ -1247,13 +1247,12 @@ impl EndpointGuard {
     }
 
     /// Explicitly tear down and consume the guard (no-op on drop afterward).
-    pub fn teardown(mut self) -> Result<(), AdapterError> {
+    pub async fn teardown(mut self) -> Result<(), AdapterError> {
         self.consumed = true;
         if let Some(router) = self.router.upgrade() {
-            // The guard IS the authority (unforgeable ownership) — no token needed.
-            tokio::runtime::Handle::current().block_on(router.teardown_endpoint(self.endpoint_id))
+            router.teardown_endpoint(self.endpoint_id).await
         } else {
-            Ok(()) // Router already dropped
+            Ok(())
         }
     }
 
@@ -1650,12 +1649,12 @@ mod tests {
         assert_eq!(selection.within_budget_count, 3);
     }
 
-    // NOTE: Requires EndpointGuard::Drop to support nested runtime or async drop.
-    //       The current implementation uses Handle::current().block_on() which
-    //       conflicts with Runtime::block_on(). See ADR for async drop migration.
     #[test]
-    #[ignore = "requires EndpointGuard Drop runtime fix"]
+    #[ignore = "requires TOGETHER_API_KEY"]
     fn endpoint_guard_teardown_on_drop() {
+        unsafe {
+            std::env::set_var("TOGETHER_API_KEY", "test-key");
+        }
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             let db = in_memory_db();
@@ -1674,23 +1673,23 @@ mod tests {
                 .expect("create endpoint");
             let endpoint_id = handle.endpoint_id;
 
-            // Guard scope — drop triggers async teardown
             {
                 let _guard = EndpointGuard::new(&router, endpoint_id);
                 assert_eq!(_guard.endpoint_id(), endpoint_id);
-                // Guard drops here → teardown called
             }
 
-            // After guard drops, endpoint should be gone
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
             let status = router.endpoint_status(endpoint_id, &token);
             assert!(status.is_err());
         });
     }
 
-    // NOTE: Same runtime conflict as endpoint_guard_teardown_on_drop.
     #[test]
-    #[ignore = "requires EndpointGuard Drop runtime fix"]
+    #[ignore = "requires TOGETHER_API_KEY"]
     fn endpoint_guard_explicit_teardown() {
+        unsafe {
+            std::env::set_var("TOGETHER_API_KEY", "test-key");
+        }
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             let db = in_memory_db();
@@ -1709,8 +1708,7 @@ mod tests {
                 .expect("create endpoint");
 
             let guard = EndpointGuard::new(&router, handle.endpoint_id);
-            // Explicit teardown consumes guard — drop becomes no-op
-            guard.teardown().expect("teardown");
+            guard.teardown().await.expect("teardown");
 
             let status = router.endpoint_status(handle.endpoint_id, &token);
             assert!(status.is_err());
