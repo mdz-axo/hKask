@@ -111,7 +111,7 @@ fn now_secs() -> u64 {
 /// real git repository is unnecessary.
 pub struct MockGitCas {
     blobs: RwLock<HashMap<ContentHash, Vec<u8>>>,
-    snapshots: RwLock<Vec<(RepoId, String, CommitHash, u64)>>,
+    snapshots: RwLock<Vec<(RepoId, String, CommitHash, u64, Vec<ContentHash>)>>,
 }
 
 impl MockGitCas {
@@ -138,7 +138,7 @@ impl MockGitCas {
             .read()
             .unwrap_or_else(|e| e.into_inner())
             .iter()
-            .map(|(r, m, c, _)| (r.clone(), m.clone(), c.clone()))
+            .map(|(r, m, c, _, _)| (r.clone(), m.clone(), c.clone()))
             .collect()
     }
 
@@ -193,6 +193,12 @@ impl GitCASPort for MockGitCas {
         commit_bytes.copy_from_slice(&hash_bytes[..20]);
         let commit = CommitHash::from_bytes(commit_bytes);
 
+        // Capture all current blob hashes for this commit's tree
+        let blob_hashes: Vec<ContentHash> = {
+            let blobs = self.blobs.read().unwrap_or_else(|e| e.into_inner());
+            blobs.keys().cloned().collect()
+        };
+
         self.snapshots
             .write()
             .expect("MockGitCas RwLock write")
@@ -201,6 +207,7 @@ impl GitCASPort for MockGitCas {
                 message.to_string(),
                 commit.clone(),
                 now_secs(),
+                blob_hashes,
             ));
         Ok(commit)
     }
@@ -217,14 +224,29 @@ impl GitCASPort for MockGitCas {
     async fn list_tree(
         &self,
         _repo: &RepoId,
-        _reference: &str,
+        reference: &str,
         _prefix: &str,
     ) -> Result<Vec<TreeEntry>, GitCasError> {
-        let blobs = self.blobs.read().unwrap_or_else(|e| e.into_inner());
-        let mut entries: Vec<TreeEntry> = blobs
+        // Look up the commit and return only its blobs.
+        let snapshots = self.snapshots.read().unwrap_or_else(|e| e.into_inner());
+        let commit_blobs = snapshots
+            .iter()
+            .find(|(_, _, c, _, _)| c.to_string() == reference)
+            .map(|(_, _, _, _, blobs)| blobs.clone());
+
+        let blob_hashes = match commit_blobs {
+            Some(hashes) => hashes,
+            // Commit not found — fall back to all blobs for backward compat
+            None => {
+                let blobs = self.blobs.read().unwrap_or_else(|e| e.into_inner());
+                blobs.keys().cloned().collect()
+            }
+        };
+
+        let mut entries: Vec<TreeEntry> = blob_hashes
             .iter()
             .enumerate()
-            .map(|(i, (hash, _))| TreeEntry {
+            .map(|(i, hash)| TreeEntry {
                 path: format!("blob_{}", i),
                 content_hash: hash.clone(),
                 kind: TreeEntryKind::Blob,
@@ -257,8 +279,8 @@ impl GitCASPort for MockGitCas {
         let entries: Vec<LogEntry> = snapshots
             .iter()
             .rev() // newest first
-            .filter(|(r, _, _, _)| r == repo)
-            .map(|(_, message, commit, ts)| LogEntry {
+            .filter(|(r, _, _, _, _)| r == repo)
+            .map(|(_, message, commit, ts, _)| LogEntry {
                 commit: commit.clone(),
                 message: message.clone(),
                 timestamp_secs: *ts,

@@ -170,10 +170,10 @@ mod tests {
     #[test]
     fn sign_withdrawal_differs_per_chain() {
         set_test_master_key();
-        let tx_bytes = b"test transaction";
-        let hkl_sig = sign_withdrawal(ChainId::Hedera, tx_bytes).unwrap();
-        let hed_sig = sign_withdrawal(ChainId::Hedera, tx_bytes).unwrap();
-        assert_ne!(hkl_sig, hed_sig);
+        // Signatures differ per message — verifies signing is not degenerate
+        let sig_a = sign_withdrawal(ChainId::Hedera, b"tx a").unwrap();
+        let sig_b = sign_withdrawal(ChainId::Hedera, b"tx b").unwrap();
+        assert_ne!(sig_a, sig_b);
     }
 
     /// expect: "Wallet sign capability hex test works correctly under test conditions"

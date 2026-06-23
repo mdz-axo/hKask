@@ -249,7 +249,7 @@ impl WalletStore {
         let (tx_type_str, tx_subtype, chain, tx_hash, key_id, tool_name, gas_units) =
             tx_type_to_columns(&tx.tx_type);
         conn.execute(
-            "INSERT INTO wallet_transactions (wallet_id, tx_type, tx_subtype, chain, on_chain_tx_hash, amount_rj, balance_after_rj, key_id, tool_name, gas_units) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            "INSERT INTO wallet_transactions (wallet_id, tx_type, tx_subtype, chain, on_chain_tx_hash, amount_rj, balance_after_rj, key_id, tool_name, gas_units) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             rusqlite::params![
                 tx.wallet_id.to_string(),
                 tx_type_str,
