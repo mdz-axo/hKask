@@ -1,0 +1,102 @@
+# Document Update Process Manifest
+# ℏKask v0.30.0 — Documentation maintenance as convergent PDCA
+
+manifest:
+  id: document-update
+  name: Document Update
+  description: >
+    Convergent documentation-maintenance process. Builds audit guidance,
+    produces structured consolidation analysis, computes convergence,
+    and iterates until consolidation/deletion recommendations are stable.
+  functional_role: flowdef
+  version: 0.30.0
+  editor: curator-or-human-admin
+  visibility: Public
+
+convergence:
+  threshold: 0.15
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 3
+  min_iterations: 1
+  convergence_field: step_3_result.convergence_metric
+  on_not_reached: escalate
+
+gas:
+  cap: 14000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: context
+    type: object
+    required: false
+
+steps:
+  - ordinal: 1
+    action: populate
+    description: Render document-audit guidance for current corpus context.
+    renderer: minijinja
+    template_ref: document-update/doc-audit
+    gas_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      context: "{{ context | default({}) }}"
+
+  - ordinal: 2
+    action: select
+    description: Produce structured consolidation analysis from audit guidance.
+    renderer: minijinja
+    template_ref: document-update/doc-structured-pass
+    gas_cap: 5000
+    timeout_seconds: 60
+    input_mapping:
+      audit_prompt: "{{ step_1_populated }}"
+      context: "{{ context | default({}) }}"
+
+  - ordinal: 3
+    action: select
+    description: Compute normalized convergence metric for document cycle.
+    renderer: minijinja
+    template_ref: document-update/doc-convergence-check
+    gas_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      primary_result: "{{ step_2_result }}"
+
+  - ordinal: 4
+    action: loop
+    description: Re-enter documentation cycle if convergence is not met.
+    input_mapping:
+      loop_target: 2
+
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout: retry
+  max_retries: 1
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: document-update/doc-audit
+      gas_budget: 2000
+    - resource: template
+      action: render
+      template_id: document-update/doc-structured-pass
+      gas_budget: 5000
+    - resource: template
+      action: render
+      template_id: document-update/doc-convergence-check
+      gas_budget: 2000
+    - resource: manifest
+      action: execute
+      template_id: document-update
+      gas_budget: 1000
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true

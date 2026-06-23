@@ -1,0 +1,48 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    exploration_result: object
+    candidate_result: object
+  output:
+    convergence_metric: number
+    rationale: string
+    blockers: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: improve-codebase-architecture/arch-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for architecture deepening cycles. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 1000
+thinking_budget = "standard"
+
+Given exploration and candidate outputs, compute convergence:
+- 0 means findings are coherent, actionable, and no high-severity ambiguity remains.
+
+Input:
+```json
+{
+  "exploration_result": {{ exploration_result | tojson }},
+  "candidate_result": {{ candidate_result | tojson }}
+}
+```
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "rationale": "short explanation",
+  "blockers": []
+}
+```

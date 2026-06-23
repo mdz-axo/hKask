@@ -1,0 +1,59 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- critique
+- evaluate
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    critique_prompt: string
+    goal_query: string
+    derived_facts: array
+  output:
+    unresolved_issues: array
+    severity_summary: object
+    confidence_assessment: string
+    next_actions: array
+energy_cap: 4096
+visibility: Public
+---
+{# Template: review/review-structured-eval.j2 #}
+{# goal: Convert review context into structured critique outputs consumable by FlowDef PDCA loops. #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 1200
+thinking_budget = "standard"
+
+You are a structured critique normalizer.
+
+Given the review prompt and facts, produce JSON with:
+- unresolved_issues: each item has issue, severity (high|medium|low), evidence_gap.
+- severity_summary: counts by severity and has_blockers boolean.
+- confidence_assessment: calibrated short statement.
+- next_actions: concrete remediation actions.
+
+Goal query:
+{{ goal_query }}
+
+Derived facts:
+```json
+{{ derived_facts | tojson }}
+```
+
+Review prompt context:
+{{ critique_prompt }}
+
+Return JSON only:
+```json
+{
+  "unresolved_issues": [],
+  "severity_summary": {"high": 0, "medium": 0, "low": 0, "has_blockers": false},
+  "confidence_assessment": "...",
+  "next_actions": []
+}
+```

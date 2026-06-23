@@ -1,0 +1,113 @@
+# Improve Codebase Architecture Process Manifest
+# ℏKask v0.30.0 — Deepening analysis as convergent PDCA
+
+manifest:
+  id: improve-codebase-architecture
+  name: Improve Codebase Architecture
+  description: >
+    Convergent architecture-improvement process. Explores architectural friction,
+    ranks deepening candidates, computes convergence, and iterates until
+    recommendation quality and stability are sufficient for action.
+  functional_role: flowdef
+  version: 0.30.0
+  editor: curator-or-human-admin
+  visibility: Public
+
+convergence:
+  threshold: 0.15
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 3
+  min_iterations: 1
+  convergence_field: step_3_result.convergence_metric
+  on_not_reached: escalate
+
+gas:
+  cap: 18000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: focus_area
+    type: string
+    required: true
+  - name: code_context
+    type: object
+    required: false
+  - name: known_adrs
+    type: array
+    required: false
+
+steps:
+  - ordinal: 1
+    action: select
+    description: Explore architecture friction and shallow-module patterns.
+    renderer: minijinja
+    template_ref: improve-codebase-architecture/arch-explore
+    gas_cap: 7000
+    timeout_seconds: 60
+    input_mapping:
+      focus_area: "{{ focus_area }}"
+      code_context: "{{ code_context | default({}) }}"
+      known_adrs: "{{ known_adrs | default([]) }}"
+
+  - ordinal: 2
+    action: select
+    description: Rank deepening candidates from exploration findings.
+    renderer: minijinja
+    template_ref: improve-codebase-architecture/arch-candidates
+    gas_cap: 6000
+    timeout_seconds: 60
+    input_mapping:
+      friction_points: "{{ step_1_result.friction_points | default([]) }}"
+      shallow_modules: "{{ step_1_result.shallow_modules | default([]) }}"
+      focus_area: "{{ focus_area }}"
+      known_adrs: "{{ known_adrs | default([]) }}"
+
+  - ordinal: 3
+    action: select
+    description: Compute normalized convergence metric for architecture cycle.
+    renderer: minijinja
+    template_ref: improve-codebase-architecture/arch-convergence-check
+    gas_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      exploration_result: "{{ step_1_result }}"
+      candidate_result: "{{ step_2_result }}"
+
+  - ordinal: 4
+    action: loop
+    description: Re-enter architecture cycle if convergence is not met.
+    input_mapping:
+      loop_target: 1
+
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout: retry
+  max_retries: 1
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: improve-codebase-architecture/arch-explore
+      gas_budget: 7000
+    - resource: template
+      action: render
+      template_id: improve-codebase-architecture/arch-candidates
+      gas_budget: 6000
+    - resource: template
+      action: render
+      template_id: improve-codebase-architecture/arch-convergence-check
+      gas_budget: 2000
+    - resource: manifest
+      action: execute
+      template_id: improve-codebase-architecture
+      gas_budget: 1000
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true

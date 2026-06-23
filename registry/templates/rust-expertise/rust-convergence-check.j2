@@ -1,0 +1,59 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    philosophy_result: object
+    audit_result: object
+    refactor_result: object
+  output:
+    convergence_metric: number
+    rationale: string
+    blockers: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: rust-expertise/rust-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for Rust expertise cycles. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 1200
+thinking_budget = "standard"
+
+Compute convergence for a Rust expertise PDCA cycle.
+
+Inputs:
+- philosophy_result
+```json
+{{ philosophy_result | tojson }}
+```
+- audit_result
+```json
+{{ audit_result | tojson }}
+```
+- refactor_result
+```json
+{{ refactor_result | tojson }}
+```
+
+Scoring guidance:
+- Start at 1.0
+- subtract for strong philosophical alignment, low high-severity violations, and actionable refactor plan
+- clamp to [0,1]
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "rationale": "short explanation",
+  "blockers": []
+}
+```

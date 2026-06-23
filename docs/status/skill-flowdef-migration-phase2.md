@@ -69,3 +69,49 @@ Each corresponding `registry/templates/<skill>/manifest.yaml` was extended with 
 
 These conversions establish FlowDef process skeletons and convergence rails for Batch 1.
 Further tuning can improve domain-specific convergence metrics once runtime traces are observed.
+
+## Batch 2 Conversions (implemented)
+
+The following skills now have FlowDef manifests and convergence-check templates:
+
+1. `review`
+2. `rust-expertise`
+3. `strangler-fig`
+4. `improve-codebase-architecture`
+5. `refactor-service-layer`
+6. `goal-analysis`
+7. `document-update`
+8. `zoom-out`
+
+### New Process Manifests
+
+- `registry/manifests/review.yaml`
+- `registry/manifests/rust-expertise.yaml`
+- `registry/manifests/strangler-fig.yaml`
+- `registry/manifests/improve-codebase-architecture.yaml`
+- `registry/manifests/refactor-service-layer.yaml`
+- `registry/manifests/goal-analysis.yaml`
+- `registry/manifests/document-update.yaml`
+- `registry/manifests/zoom-out.yaml`
+
+### New/Updated Templates
+
+- `registry/templates/review/review-structured-eval.j2`
+- `registry/templates/review/review-convergence-check.j2`
+- `registry/templates/rust-expertise/rust-convergence-check.j2`
+- `registry/templates/strangler-fig/strangler-convergence-check.j2`
+- `registry/templates/improve-codebase-architecture/arch-convergence-check.j2`
+- `registry/templates/refactor-service-layer/rsl-convergence-check.j2`
+- `registry/templates/goal-analysis/goal-convergence-check.j2`
+- `registry/templates/document-update/doc-structured-pass.j2`
+- `registry/templates/document-update/doc-convergence-check.j2`
+- `registry/templates/zoom-out/zoom-out-convergence-check.j2`
+
+### Registry Template Manifest Updates
+
+Updated `registry/templates/<skill>/manifest.yaml` for all Batch 2 skills to register convergence-check templates and new structured wrapper templates where required.
+
+### Docs Updated
+
+- `docs/user-guides/skill-user-guide.md`
+  - Summary table type updates for Batch 2 skills: `KnowAct` → `FlowDef`.

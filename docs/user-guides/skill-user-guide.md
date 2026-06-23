@@ -343,16 +343,16 @@ zoom-out → chain-of-density → caveman
 | 7 | `decision-journal` | Decision & Strategy | KnowAct | Kahneman decision journal with Brier scoring |
 | 8 | `deep-module` | Structural Analysis | FlowDef | Ousterhout module depth with deletion test via convergent depth loops |
 | 9 | `diagnose` | Diagnostics | FlowDef | Disciplined diagnosis loop with convergent PDCA exits |
-| 10 | `document-update` | Documentation | KnowAct | 7-task doc maintenance workflow |
+| 10 | `document-update` | Documentation | FlowDef | 7-task doc maintenance workflow with convergent PDCA exits |
 | 11 | `dokkodo-mindset` | Perceptual | FlowDef | Musashi's 21 precepts as convergent perceptual filter |
 | 12 | `essentialist` | Structural Analysis | FlowDef | 3-gate eliminative interrogation as convergent elimination loop |
 | 13 | `falstaffian-perspective` | Perceptual | KnowAct | Semantic shape transforms for perspective-taking |
 | 14 | `gentle-lovelace` | Meta-Cognition | KnowAct | 4D writing quality evaluation |
-| 15 | `goal-analysis` | Meta-Cognition | KnowAct | Goal specification and completion verification |
+| 15 | `goal-analysis` | Meta-Cognition | FlowDef | Goal lifecycle analysis with convergent completion loops |
 | 16 | `grill-me` | Structural Analysis | KnowAct | Socratic interrogation |
 | 17 | `handoff` | Meta-Cognition | KnowAct | Session handoff documentation |
 | 18 | `improv` | Creativity | FlowDef | Agent interaction grammar |
-| 19 | `improve-codebase-architecture` | Diagnostics | KnowAct | Find deepening opportunities |
+| 19 | `improve-codebase-architecture` | Diagnostics | FlowDef | Find deepening opportunities via convergent architecture loops |
 | 20 | `kata` | Kata System | Bundle | Full Toyota Kata orchestration |
 | 21 | `kata-coaching` | Kata System | KnowAct | 5-question coaching dialogue |
 | 22 | `kata-improvement` | Kata System | KnowAct | 4-step PDCA scientific pattern |
@@ -363,9 +363,9 @@ zoom-out → chain-of-density → caveman
 | 27 | `pragmatic-cybernetics` | Structural Analysis | FlowDef | CNS feedback loop analysis via convergent diagnostics loops |
 | 28 | `pragmatic-laziness` | Structural Analysis | FlowDef | 3-phase lazy loop for least-action pathfinding with PDCA convergence |
 | 29 | `pragmatic-semantics` | Structural Analysis | FlowDef | Epistemic statement classification via convergent semantics loops |
-| 30 | `refactor-service-layer` | Diagnostics | KnowAct | Strangler fig service extraction |
-| 31 | `review` | Meta-Cognition | KnowAct | Self-critique reasoning outputs |
-| 32 | `rust-expertise` | Behavioral Guardrails | KnowAct | Idiomatic Rust design principles |
+| 30 | `refactor-service-layer` | Diagnostics | FlowDef | Strangler fig service extraction via convergent verify loops |
+| 31 | `review` | Meta-Cognition | FlowDef | Self-critique reasoning outputs via convergent review loops |
+| 32 | `rust-expertise` | Behavioral Guardrails | FlowDef | Idiomatic Rust design principles via convergent audit/refactor loops |
 | 33 | `scenario-builder` | Decision & Strategy | KnowAct | Schwartz method scenario planning |
 | 34 | `self-critique-revision` | Meta-Cognition | KnowAct | Iterative draft → critique → revise |
 | 35 | `skill-bundler` | Skill Management | FlowDef | Orchestrate skills into bundles via convergent compose→validate loops |
@@ -374,11 +374,11 @@ zoom-out → chain-of-density → caveman
 | 38 | `skill-maintenance` | Skill Management | FlowDef | Audit skills for staleness/coverage via convergent maintenance loops |
 | 39 | `skill-manager` | Skill Management | FlowDef | Registry-first skill lifecycle management via convergent validation loops |
 | 40 | `skill-translator` | Skill Management | KnowAct | Convert skills between formats |
-| 41 | `strangler-fig` | Diagnostics | KnowAct | Incremental architectural migration |
+| 41 | `strangler-fig` | Diagnostics | FlowDef | Incremental architectural migration with convergent step verification |
 | 42 | `structured-extraction` | Extraction/Summarization | KnowAct | Schema-driven entity and relation extraction |
 | 43 | `superforecasting` | Decision & Strategy | WordAct | Tetlock 8-stage calibrated forecasting |
 | 44 | `tdd` | Behavioral Guardrails | KnowAct | Red-green-refactor with contract grounding |
-| 45 | `zoom-out` | Extraction/Summarization | KnowAct | Broader context on unfamiliar code |
+| 45 | `zoom-out` | Extraction/Summarization | FlowDef | Broader context on unfamiliar code via convergent context loops |
 
 ---
 

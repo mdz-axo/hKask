@@ -1,0 +1,141 @@
+# Rust Expertise Process Manifest
+# ℏKask v0.30.0 — Idiomatic Rust assessment as convergent PDCA
+
+manifest:
+  id: rust-expertise
+  name: Rust Expertise
+  description: >
+    Convergent Rust-design process. Assesses philosophical alignment,
+    audits idiomatic violations, synthesizes refactor planning, computes
+    convergence, and iterates until high-severity design risks are reduced.
+  functional_role: flowdef
+  version: 0.30.0
+  editor: curator-or-human-admin
+  visibility: Public
+
+convergence:
+  threshold: 0.15
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 3
+  min_iterations: 1
+  convergence_field: step_4_result.convergence_metric
+  on_not_reached: escalate
+
+gas:
+  cap: 20000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: design_problem
+    type: string
+    required: true
+  - name: code_context
+    type: object
+    required: false
+  - name: constraints
+    type: array
+    required: false
+  - name: code_snippets
+    type: array
+    required: false
+  - name: audit_dimensions
+    type: array
+    required: false
+  - name: severity_threshold
+    type: string
+    required: false
+  - name: refactoring_constraints
+    type: array
+    required: false
+
+steps:
+  - ordinal: 1
+    action: select
+    description: Assess design against Rust philosophical foundations.
+    renderer: minijinja
+    template_ref: rust-expertise/rust-philosophy-assess
+    gas_cap: 6000
+    timeout_seconds: 60
+    input_mapping:
+      design_problem: "{{ design_problem }}"
+      code_context: "{{ code_context | default({}) }}"
+      constraints: "{{ constraints | default([]) }}"
+
+  - ordinal: 2
+    action: select
+    description: Audit code snippets for idiomatic Rust violations.
+    renderer: minijinja
+    template_ref: rust-expertise/rust-idiom-audit
+    gas_cap: 5000
+    timeout_seconds: 60
+    input_mapping:
+      code_snippets: "{{ code_snippets | default([]) }}"
+      audit_dimensions: "{{ audit_dimensions | default([]) }}"
+      severity_threshold: "{{ severity_threshold | default('medium') }}"
+
+  - ordinal: 3
+    action: select
+    description: Synthesize refactor plan from audit violations.
+    renderer: minijinja
+    template_ref: rust-expertise/rust-refactor-plan
+    gas_cap: 5000
+    timeout_seconds: 60
+    input_mapping:
+      violations: "{{ step_2_result.violations | default([]) }}"
+      codebase_context: "{{ design_problem }}"
+      refactoring_constraints: "{{ refactoring_constraints | default([]) }}"
+
+  - ordinal: 4
+    action: select
+    description: Compute normalized convergence metric for Rust-expertise cycle.
+    renderer: minijinja
+    template_ref: rust-expertise/rust-convergence-check
+    gas_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      philosophy_result: "{{ step_1_result }}"
+      audit_result: "{{ step_2_result }}"
+      refactor_result: "{{ step_3_result }}"
+
+  - ordinal: 5
+    action: loop
+    description: Re-enter Rust-expertise cycle if convergence is not met.
+    input_mapping:
+      loop_target: 1
+
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout: retry
+  max_retries: 1
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: rust-expertise/rust-philosophy-assess
+      gas_budget: 6000
+    - resource: template
+      action: render
+      template_id: rust-expertise/rust-idiom-audit
+      gas_budget: 5000
+    - resource: template
+      action: render
+      template_id: rust-expertise/rust-refactor-plan
+      gas_budget: 5000
+    - resource: template
+      action: render
+      template_id: rust-expertise/rust-convergence-check
+      gas_budget: 2000
+    - resource: manifest
+      action: execute
+      template_id: rust-expertise
+      gas_budget: 1000
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
