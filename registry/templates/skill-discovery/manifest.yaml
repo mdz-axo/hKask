@@ -28,3 +28,12 @@ templates:
       Evaluate a candidate registry crate against format, quality, and safety criteria.
       Check manifest structure, .j2 frontmatter validity, Magna Carta
       compliance, and CNS span validity. Produce scored recommendation.
+
+  - id: skill-discovery/skill-discovery-convergence-check
+    path: skill-discovery-convergence-check.j2
+    type: KnowAct
+    lexicon_terms: [evaluate, converge, classify, prioritize, verify]
+    description: >
+      Compute a normalized convergence metric for discovery iterations.
+      Synthesizes gap detection + candidate evaluation into `convergence_metric`
+      in [0,1], where 0 means the capability gap is sufficiently resolved.

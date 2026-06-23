@@ -91,13 +91,26 @@ impl ActivePods {
         use crate::a2a::A2ARuntime;
         use crate::adapters::mcp_runtime::CapabilityOnlyAdapter;
         use crate::adapters::memory_loop_adapter::MemoryLoopForwarder;
-        use crate::pod::PodFactory;
-        use hkask_capability::CapabilityChecker;
+        use crate::pod::{PodFactory, system_capability_checker};
+
+        // Ensure a deterministic master key so that token issuance and the
+        // capability checker derive the SAME system OCAP key (otherwise the
+        // checker would reject locally-issued tokens).
+        // SAFETY: test-only setup; single-threaded harness construction.
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            );
+        }
 
         let adapter = Arc::new(MemoryLoopForwarder::in_memory_unchecked());
-        let mcp = Arc::new(CapabilityOnlyAdapter::new(Arc::new(
-            CapabilityChecker::new(),
-        )));
+        // Anchor the checker to the system OCAP authority so locally-issued
+        // tokens verify and forged tokens are rejected (matches production).
+        let checker = Arc::new(
+            system_capability_checker().expect("system capability checker (test master key set)"),
+        );
+        let mcp = Arc::new(CapabilityOnlyAdapter::new(Arc::clone(&checker)));
         let a2a = Arc::new(A2ARuntime::new(b"mock"));
         let factory = Arc::new(PodFactory::new(
             Arc::new(hkask_templates::TemplateCrateLoader::from_path(
@@ -110,7 +123,7 @@ impl ActivePods {
             factory,
             mcp.clone(),
             None,
-            None,
+            Some(checker),
             None,
             adapter.clone() as Arc<dyn EpisodicStoragePort>,
             adapter as Arc<dyn SemanticStoragePort>,

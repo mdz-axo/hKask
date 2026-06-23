@@ -56,3 +56,12 @@ templates:
       Reverse translation: generate a SKILL.md companion from a registry crate.
       Read manifest.yaml for crate metadata, read .j2 templates for methodology,
       produce a markdown companion suitable for the Zed coding agent.
+
+  - id: skill-manager/skill-manager-convergence-check
+    path: skill-manager-convergence-check.j2
+    type: KnowAct
+    lexicon_terms: [evaluate, classify, converge, verify, calibrate]
+    description: >
+      Compute a normalized convergence metric for the skill-manager PDCA loop.
+      Takes latest validation/build outputs and returns `convergence_metric`
+      in [0,1], where 0 means no critical blockers remain.

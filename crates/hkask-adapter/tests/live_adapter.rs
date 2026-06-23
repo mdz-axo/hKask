@@ -201,7 +201,7 @@ async fn live_together_adapter_e2e() {
 
     // 7. Teardown
     router
-        .teardown_endpoint(handle.endpoint_id, &token)
+        .teardown_endpoint(handle.endpoint_id)
         .await
         .expect("teardown");
     assert!(

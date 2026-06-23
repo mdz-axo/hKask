@@ -28,3 +28,12 @@ templates:
       Analyze coverage gaps across the registry corpus. Map common task patterns
       to existing registry crates, identify uncovered patterns, check template_type
       distribution. Produce recommendations for skill creation or discovery.
+
+  - id: skill-maintenance/skill-maintenance-convergence-check
+    path: skill-maintenance-convergence-check.j2
+    type: KnowAct
+    lexicon_terms: [evaluate, converge, classify, score, verify]
+    description: >
+      Compute a normalized convergence metric for maintenance iterations.
+      Synthesizes audit + coverage outputs into `convergence_metric` in [0,1],
+      where 0 means critical staleness signals are resolved.

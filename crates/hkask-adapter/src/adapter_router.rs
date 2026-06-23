@@ -17,8 +17,6 @@ use crate::adapter_store::TrainedLoRAAdapter;
 use crate::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
 use crate::provider_cost::{CostModel, ProviderCapability, ProviderInfo};
 use hkask_capability::DelegationToken;
-use hkask_capability::auth::derive_signing_key;
-use hkask_capability::{DelegationAction, DelegationResource};
 use hkask_inference::ProviderId;
 use hkask_ports::InferenceResult;
 use hkask_ports::InferenceUsage;
@@ -1167,11 +1165,7 @@ impl AdapterPort for AdapterRouter {
             .await
     }
 
-    async fn teardown_endpoint(
-        &self,
-        endpoint_id: Uuid,
-        _token: &DelegationToken,
-    ) -> Result<(), AdapterError> {
+    async fn teardown_endpoint(&self, endpoint_id: Uuid) -> Result<(), AdapterError> {
         let record = self.resolve_endpoint(endpoint_id)?;
 
         // Transition to Draining
@@ -1256,18 +1250,9 @@ impl EndpointGuard {
     pub fn teardown(mut self) -> Result<(), AdapterError> {
         self.consumed = true;
         if let Some(router) = self.router.upgrade() {
-            // Use a dummy token — the guard is the authority, not a capability token.
-            // In production, this should use a session-bound token.
-            let token = DelegationToken::new(
-                DelegationResource::Tool,
-                "adapter:teardown".into(),
-                DelegationAction::Execute,
-                WebID::from_persona(b"endpoint-guard"),
-                WebID::from_persona(b"endpoint-guard"),
-                &derive_signing_key(b"endpoint-guard-secret"),
-            );
+            // The guard IS the authority (unforgeable ownership) — no token needed.
             tokio::runtime::Handle::current()
-                .block_on(router.teardown_endpoint(self.endpoint_id, &token))
+                .block_on(router.teardown_endpoint(self.endpoint_id))
         } else {
             Ok(()) // Router already dropped
         }
@@ -1288,15 +1273,7 @@ impl Drop for EndpointGuard {
             // Fire-and-forget: drop cannot be async, so spawn a task.
             // The router and its Arc hold resources until the task completes.
             tokio::task::spawn(async move {
-                let token = DelegationToken::new(
-                    DelegationResource::Tool,
-                    "adapter:teardown".into(),
-                    DelegationAction::Execute,
-                    WebID::from_persona(b"endpoint-guard"),
-                    WebID::from_persona(b"endpoint-guard"),
-                    &derive_signing_key(b"endpoint-guard-secret"),
-                );
-                if let Err(e) = router.teardown_endpoint(endpoint_id, &token).await {
+                if let Err(e) = router.teardown_endpoint(endpoint_id).await {
                     tracing::warn!(
                         target: "cns.adapter",
                         endpoint_id = %endpoint_id,
@@ -1318,6 +1295,7 @@ mod tests {
     use hkask_capability::DelegationAction;
     use hkask_capability::DelegationResource;
     use hkask_capability::auth::derive_signing_key;
+
     use hkask_storage::in_memory_db;
     use std::future::Future;
 
@@ -1479,7 +1457,7 @@ mod tests {
         let handle = block_on(router.create_endpoint(adapter.id, ProviderId::Together, &token))
             .expect("create endpoint");
 
-        block_on(router.teardown_endpoint(handle.endpoint_id, &token)).expect("teardown");
+        block_on(router.teardown_endpoint(handle.endpoint_id)).expect("teardown");
 
         // Status should fail after teardown (endpoint removed)
         let status = router.endpoint_status(handle.endpoint_id, &token);
@@ -1777,7 +1755,7 @@ mod tests {
         assert_eq!(status.provider, ProviderId::Together);
 
         // 5. Teardown
-        block_on(router.teardown_endpoint(handle.endpoint_id, &token)).expect("teardown");
+        block_on(router.teardown_endpoint(handle.endpoint_id)).expect("teardown");
         assert!(router.endpoint_status(handle.endpoint_id, &token).is_err());
 
         // 6. Verify adapter still exists after teardown (only endpoint removed)

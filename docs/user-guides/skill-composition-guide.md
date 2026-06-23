@@ -339,6 +339,10 @@ pragmatic-semantics → pragmatic-cybernetics → bug-hunt
 skill-discovery → skill-logic-audit → skill-maintenance
 ```
 
+All three stages are implemented as convergent FlowDef processes (PDCA loops)
+that compose KnowAct/WordAct templates and exit with convergence status
+(`converged | maxed_out | escalated`) rather than one-shot outputs.
+
 | Stage | Skill | What happens |
 |-------|-------|-------------|
 | **Discover** | `skill-discovery` | Find skills matching a capability gap |

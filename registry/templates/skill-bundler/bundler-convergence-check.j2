@@ -1,0 +1,59 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- validate
+- classify
+- calibrate
+contract:
+  input:
+    compose_result: object
+    validate_result: object
+  output:
+    convergence_metric: number
+    rationale: string
+    blocking_violations: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: skill-bundler/bundler-convergence-check.j2 #}
+{# goal: Compute a normalized convergence metric in [0,1] for bundle composition PDCA cycles, where 0 means no blocking bundle violations remain. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 1200
+thinking_budget = "standard"
+
+You are a convergence evaluator for skill-bundler.
+
+## Inputs
+
+Compose result:
+```json
+{{ compose_result | tojson }}
+```
+Validate result:
+```json
+{{ validate_result | tojson }}
+```
+
+Compute `convergence_metric` in [0,1]:
+- 0.00 = converged (no blocking validation violations)
+- 1.00 = not converged (blocking violations present)
+
+Scoring guidance:
+1. Let `n` = number of validation violations (errors, not warnings).
+2. Use metric = min(1.0, n / 5.0).
+3. If valid=true and only warnings remain, metric <= 0.1.
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "rationale": "short explanation",
+  "blocking_violations": ["..."]
+}
+```

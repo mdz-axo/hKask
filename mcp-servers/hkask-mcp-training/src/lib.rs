@@ -2849,15 +2849,7 @@ impl TrainingServer {
         if let Some(ref router) = self.adapter_router
             && let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id)
         {
-            let token = hkask_capability::DelegationToken::new(
-                hkask_capability::DelegationResource::Tool,
-                "adapter:teardown".into(),
-                hkask_capability::DelegationAction::Execute,
-                self.webid,
-                self.webid,
-                &hkask_capability::auth::derive_signing_key(b"training-mcp-teardown"),
-            );
-            match AdapterPort::teardown_endpoint(router.as_ref(), endpoint_id, &token).await {
+            match AdapterPort::teardown_endpoint(router.as_ref(), endpoint_id).await {
                 Ok(()) => {
                     let result = json!({"deployment_id": req.deployment_id, "status": "torn_down", "route": "hkask-adapter"});
                     self.record_experience(

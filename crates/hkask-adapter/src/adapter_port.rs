@@ -70,11 +70,10 @@ pub trait AdapterPort: Send + Sync {
     ) -> Result<InferenceResult, AdapterError>;
 
     /// Initiate teardown (transition to Draining → Terminated).
-    async fn teardown_endpoint(
-        &self,
-        endpoint_id: Uuid,
-        token: &DelegationToken,
-    ) -> Result<(), AdapterError>;
+    /// Tear down an endpoint. Authority is the possession of the
+    /// `EndpointGuard` itself (unforgeable Rust ownership), so no capability
+    /// token is required — the guard IS the capability.
+    async fn teardown_endpoint(&self, endpoint_id: Uuid) -> Result<(), AdapterError>;
 }
 
 // ── Supporting types ─────────────────────────────────────────────────────────

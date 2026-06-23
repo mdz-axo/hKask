@@ -368,11 +368,11 @@ zoom-out → chain-of-density → caveman
 | 32 | `rust-expertise` | Behavioral Guardrails | KnowAct | Idiomatic Rust design principles |
 | 33 | `scenario-builder` | Decision & Strategy | KnowAct | Schwartz method scenario planning |
 | 34 | `self-critique-revision` | Meta-Cognition | KnowAct | Iterative draft → critique → revise |
-| 35 | `skill-bundler` | Skill Management | KnowAct | Orchestrate skills into bundles |
-| 36 | `skill-discovery` | Skill Management | KnowAct | Find and install skills |
-| 37 | `skill-logic-audit` | Skill Management | KnowAct | Audit template logic |
-| 38 | `skill-maintenance` | Skill Management | KnowAct | Audit skills for staleness and quality |
-| 39 | `skill-manager` | Skill Management | KnowAct | CRUD for the skill corpus |
+| 35 | `skill-bundler` | Skill Management | FlowDef | Orchestrate skills into bundles via convergent compose→validate loops |
+| 36 | `skill-discovery` | Skill Management | FlowDef | Find and install skills via convergent gap→evaluate loops |
+| 37 | `skill-logic-audit` | Skill Management | FlowDef | Audit template logic via bounded critique→proposal loops |
+| 38 | `skill-maintenance` | Skill Management | FlowDef | Audit skills for staleness/coverage via convergent maintenance loops |
+| 39 | `skill-manager` | Skill Management | FlowDef | Registry-first skill lifecycle management via convergent validation loops |
 | 40 | `skill-translator` | Skill Management | KnowAct | Convert skills between formats |
 | 41 | `strangler-fig` | Diagnostics | KnowAct | Incremental architectural migration |
 | 42 | `structured-extraction` | Extraction/Summarization | KnowAct | Schema-driven entity and relation extraction |

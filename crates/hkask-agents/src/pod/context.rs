@@ -108,26 +108,30 @@ impl PodContext {
         resource_id: &str,
         action: DelegationAction,
     ) -> Result<(), AgentPodError> {
-        if let Some(ref checker) = self.capability_checker {
-            // Full cryptographic verification: HMAC signature + expiry + holder + resource/action
-            if !checker.check(
-                &self.capability_token,
-                &self.webid,
-                resource,
-                resource_id,
-                action,
-            ) {
+        let checker = match self.capability_checker {
+            Some(ref c) => c,
+            None => {
+                // \[NORMATIVE\] No checker configured — OCAP must fail closed.
+                // A missing checker means we cannot establish authority, so we
+                // deny rather than silently accepting (P4 — Clear Boundaries).
+                tracing::error!(
+                    target: "hkask.ocap",
+                    webid = ?self.webid,
+                    resource = ?resource,
+                    "No capability checker configured — denying (fail closed)"
+                );
                 return Err(AgentPodError::CapabilityDenied { resource, action });
             }
-        } else {
-            // No checker configured — permissive mode (test/dev).
-            // In production, a capability checker is always wired.
-            tracing::debug!(
-                target: "hkask.ocap",
-                webid = ?self.webid,
-                resource = ?resource,
-                "No capability checker configured — permissive mode (accepting)"
-            );
+        };
+        // Full verification: Ed25519 signature + trusted root + holder + resource/action.
+        if !checker.check(
+            &self.capability_token,
+            &self.webid,
+            resource,
+            resource_id,
+            action,
+        ) {
+            return Err(AgentPodError::CapabilityDenied { resource, action });
         }
         Ok(())
     }
