@@ -22,10 +22,7 @@ fn parse_data_category(s: &str) -> DataCategory {
     DataCategory::parse(s)
 }
 
-fn build_consent() -> (
-    hkask_services::AgentService,
-    Arc<ConsentManager>,
-) {
+fn build_consent() -> (hkask_services::AgentService, Arc<ConsentManager>) {
     let config = hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
         eprintln!("Config env: {e}");
         std::process::exit(1);

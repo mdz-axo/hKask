@@ -22,7 +22,9 @@ impl MemoryService {
     /// [NORMATIVE] P1 User Sovereignty / P2 Affirmative Consent.
     /// Fails closed: no consent => no sovereign memory access.
     pub fn has_memory_consent(ctx: &AgentService, owner: &WebID, category: &DataCategory) -> bool {
-        ctx.sovereignty().has_consent(&owner.to_string(), category)
+        ctx.sovereignty()
+            .has_consent(&owner.to_string(), category)
+            .unwrap_or(false)
     }
 
     /// Recall semantic memory triples relevant to the input.

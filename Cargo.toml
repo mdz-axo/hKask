@@ -3,7 +3,6 @@ resolver = "2"
 members = [
     # Core crates (13 — ≤35k lines total)
     "crates/hkask-services-core",
-
     "crates/hkask-services-backup",
     "crates/hkask-services-kata",
     "crates/hkask-services-kanban",
@@ -14,8 +13,6 @@ members = [
     "crates/hkask-services-onboarding",
     "crates/hkask-services-verification",
     "crates/hkask-services-skill",
-
-
     "crates/hkask-services-daemon",
     "crates/hkask-services-context",
     "crates/hkask-condenser",

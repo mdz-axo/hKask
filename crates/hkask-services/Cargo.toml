@@ -7,7 +7,6 @@ description = "Shared service layer for hKask surfaces (CLI, API)"
 
 [dependencies]
 hkask-services-core = { path = "../hkask-services-core" }
-
 hkask-services-backup = { path = "../hkask-services-backup" }
 hkask-services-kata = { path = "../hkask-services-kata" }
 hkask-services-kanban = { path = "../hkask-services-kanban" }
@@ -18,8 +17,6 @@ hkask-services-wallet = { path = "../hkask-services-wallet" }
 hkask-services-onboarding = { path = "../hkask-services-onboarding" }
 hkask-services-verification = { path = "../hkask-services-verification" }
 hkask-services-skill = { path = "../hkask-services-skill" }
-
-
 hkask-services-daemon = { path = "../hkask-services-daemon" }
 hkask-services-context = { path = "../hkask-services-context" }
 hkask-types = { path = "../hkask-types" }
@@ -59,6 +56,7 @@ aes-gcm = "0.10"
 argon2 = "0.5"
 rand = "0.9"
 parking_lot = "0.12"
+async-trait.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

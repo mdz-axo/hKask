@@ -3,17 +3,11 @@ name = "hkask-services-sovereignty"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "hKask sovereignty service — consent revocation, data boundary enforcement"
+description = "Sovereignty service for hKask — consent verification and boundary enforcement"
 
 [dependencies]
-hkask-services-core = { path = "../hkask-services-core" }
-hkask-agents = { path = "../hkask-agents" }
 hkask-types = { path = "../hkask-types" }
+hkask-services-core = { path = "../hkask-services-core" }
 serde.workspace = true
-serde_json.workspace = true
-tracing.workspace = true
-tokio.workspace = true
 thiserror.workspace = true
-
-[dev-dependencies]
-hkask-storage = { path = "../hkask-storage" }
+tracing.workspace = true

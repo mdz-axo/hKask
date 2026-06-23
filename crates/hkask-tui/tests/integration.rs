@@ -499,8 +499,7 @@ fn skills_shows_live_data_with_bridge() {
 fn render_snapshot(window: &dyn Window, width: u16, height: u16) -> Vec<String> {
     let backend = ratatui::backend::TestBackend::new(width, height);
     let mut term = ratatui::Terminal::new(backend).expect("test terminal");
-    term
-        .draw(|f| window.render(f, f.area(), true))
+    term.draw(|f| window.render(f, f.area(), true))
         .expect("render");
     let buf = term.backend().buffer().clone();
     let mut lines: Vec<String> = Vec::new();
@@ -523,13 +522,7 @@ fn render_snapshot(window: &dyn Window, width: u16, height: u16) -> Vec<String> 
 #[test]
 fn chat_snapshot_contains_prompt() {
     let b = bridge();
-    let w = ChatWindow::new(
-        window_id(),
-        b.agent_name(),
-        b.model_name(),
-        None,
-        b,
-    );
+    let w = ChatWindow::new(window_id(), b.agent_name(), b.model_name(), None, b);
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
     assert!(text.contains("REPL"), "Chat should show REPL prompt");
@@ -548,7 +541,10 @@ fn wallet_snapshot_shows_gas() {
     let w = WalletWindow::new(window_id(), bridge());
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
-    assert!(text.contains("Gas Budget") || text.contains("gas"), "Wallet should show gas info");
+    assert!(
+        text.contains("Gas Budget") || text.contains("gas"),
+        "Wallet should show gas info"
+    );
 }
 
 #[test]
@@ -556,7 +552,10 @@ fn backup_snapshot_shows_commands() {
     let w = BackupWindow::new(window_id(), bridge());
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
-    assert!(text.contains("snapshot") || text.contains("Backup"), "Backup should show commands");
+    assert!(
+        text.contains("snapshot") || text.contains("Backup"),
+        "Backup should show commands"
+    );
 }
 
 #[test]
@@ -564,7 +563,10 @@ fn registry_snapshot_shows_sections() {
     let w = RegistryWindow::new(window_id(), bridge());
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
-    assert!(text.contains("Templates") || text.contains("Registry"), "Registry should show sections");
+    assert!(
+        text.contains("Templates") || text.contains("Registry"),
+        "Registry should show sections"
+    );
 }
 
 #[test]
@@ -572,7 +574,10 @@ fn memory_snapshot_shows_tabs() {
     let w = MemoryWindow::new(window_id(), bridge());
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
-    assert!(text.contains("Episodic") || text.contains("Memory"), "Memory should show tabs");
+    assert!(
+        text.contains("Episodic") || text.contains("Memory"),
+        "Memory should show tabs"
+    );
 }
 
 #[test]
@@ -580,7 +585,10 @@ fn kanban_snapshot_shows_board() {
     let w = KanbanWindow::new(window_id(), bridge());
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
-    assert!(text.contains("Board") || text.contains("Kanban"), "Kanban should show board");
+    assert!(
+        text.contains("Board") || text.contains("Kanban"),
+        "Kanban should show board"
+    );
 }
 
 #[test]
@@ -596,7 +604,10 @@ fn terminal_snapshot_shows_prompt() {
     let w = TerminalWindow::new(window_id(), bridge());
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
-    assert!(text.contains("$") || text.contains("Terminal"), "Terminal should show prompt");
+    assert!(
+        text.contains("$") || text.contains("Terminal"),
+        "Terminal should show prompt"
+    );
 }
 
 #[test]

@@ -108,7 +108,10 @@ impl Window for CompaniesWindow {
                             lines.push(Line::from(vec![
                                 Span::raw("  • "),
                                 Span::styled(name, Style::default().fg(Color::Cyan)),
-                                Span::styled(format!("  ({})", domain), Style::default().fg(Color::DarkGray)),
+                                Span::styled(
+                                    format!("  ({})", domain),
+                                    Style::default().fg(Color::DarkGray),
+                                ),
                             ]));
                             lines.push(Line::from(format!("    {}", info)));
                         }
@@ -162,7 +165,9 @@ impl Window for CompaniesWindow {
                 }
                 CompanySection::Relations => {
                     lines.push(Line::from("  Entity relationships from company graph."));
-                    lines.push(Line::from("  Subsidiaries, parents, competitors, partners."));
+                    lines.push(Line::from(
+                        "  Subsidiaries, parents, competitors, partners.",
+                    ));
                 }
             }
         } else {

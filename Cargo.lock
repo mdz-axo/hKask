@@ -3872,7 +3872,6 @@ dependencies = [
  "hkask-ports",
  "hkask-services",
  "hkask-services-backup",
- "hkask-services-cloud",
  "hkask-services-core",
  "hkask-storage",
  "hkask-templates",
@@ -4756,6 +4755,7 @@ version = "0.30.0"
 dependencies = [
  "aes-gcm",
  "argon2",
+ "async-trait",
  "base64 0.22.1",
  "chrono",
  "dirs",
@@ -4852,17 +4852,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-services-cloud"
-version = "0.30.0"
-dependencies = [
- "hkask-types",
- "reqwest",
- "serde",
- "serde_json",
- "tracing",
-]
-
-[[package]]
 name = "hkask-services-context"
 version = "0.30.0"
 dependencies = [
@@ -4886,7 +4875,6 @@ dependencies = [
  "hkask-services-backup",
  "hkask-services-core",
  "hkask-services-daemon",
- "hkask-services-sovereignty",
  "hkask-services-wallet",
  "hkask-storage",
  "hkask-templates",
@@ -5080,21 +5068,6 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
-]
-
-[[package]]
-name = "hkask-services-sovereignty"
-version = "0.30.0"
-dependencies = [
- "hkask-agents",
- "hkask-services-core",
- "hkask-storage",
- "hkask-types",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
 ]
 
 [[package]]
