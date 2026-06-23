@@ -28,8 +28,12 @@ pub enum WindowKind {
     Pods,
     /// Kanban board view
     Kanban,
-    /// Energy/gas usage analytics
-    Energy,
+    /// Wallet — gas, rJoule balance, transactions
+    Wallet,
+    /// Memory — episodic/semantic memory browser
+    Memory,
+    /// Companies — organization data and entities
+    Companies,
     /// Matrix chat — federated messaging rooms
     Matrix,
     /// Settings editor (ReplSettings)
@@ -61,7 +65,9 @@ impl WindowKind {
             WindowKind::Matrix => "Matrix",
             WindowKind::Pods => "Pods",
             WindowKind::Kanban => "Kanban",
-            WindowKind::Energy => "Energy",
+            WindowKind::Wallet => "Wallet",
+            WindowKind::Memory => "Memory",
+            WindowKind::Companies => "Companies",
             WindowKind::Configuration => "Configuration",
             WindowKind::Sidebar => "Sidebar",
             WindowKind::Curator => "Curator",
@@ -83,7 +89,9 @@ impl WindowKind {
             WindowKind::Matrix => "Matrix protocol rooms and federated messages",
             WindowKind::Pods => "Pod deployment status and agent inventory",
             WindowKind::Kanban => "Kanban board for task coordination",
-            WindowKind::Energy => "Gas usage, energy budget, and cost analytics",
+            WindowKind::Wallet => "Gas budget, rJoule balance, and transactions",
+            WindowKind::Memory => "Browse and edit episodic and semantic memories",
+            WindowKind::Companies => "Company profiles, people, and relationships",
             WindowKind::Configuration => "Edit REPL inference and system settings",
             WindowKind::Sidebar => "Composite sidebar with CNS, MCP, and pod status",
             WindowKind::Curator => "Curator daemon — CNS alerts, memory, and direct chat",

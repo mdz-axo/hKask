@@ -24,7 +24,10 @@ use crate::windows::cns_monitor::CnsMonitorWindow;
 use crate::windows::configuration::ConfigurationWindow;
 use crate::windows::curator::CuratorWindow;
 use crate::windows::editor::EditorWindow;
-use crate::windows::energy::EnergyWindow;
+use crate::windows::companies::CompaniesWindow;
+use crate::windows::kanban::KanbanWindow;
+use crate::windows::memory::MemoryWindow;
+use crate::windows::wallet::WalletWindow;
 use crate::windows::matrix::MatrixWindow;
 use crate::windows::media::MediaWindow;
 use crate::windows::pods::PodsWindow;
@@ -558,7 +561,10 @@ impl Workspace {
         const KINDS: &[WindowKind] = &[
             WindowKind::CnsMonitor,
             WindowKind::Pods,
-            WindowKind::Energy,
+            WindowKind::Wallet,
+            WindowKind::Memory,
+            WindowKind::Kanban,
+            WindowKind::Companies,
             WindowKind::Registry,
             WindowKind::Backup,
             WindowKind::Curator,
@@ -579,7 +585,10 @@ impl Workspace {
         let new_win: Box<dyn Window> = match kind {
             WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(new_id, bridge)),
             WindowKind::Pods => Box::new(PodsWindow::new(new_id, bridge)),
-            WindowKind::Energy => Box::new(EnergyWindow::new(new_id, bridge)),
+            WindowKind::Wallet => Box::new(WalletWindow::new(new_id, bridge)),
+            WindowKind::Memory,
+            WindowKind::Kanban,
+            WindowKind::Companies,
             WindowKind::Registry => Box::new(RegistryWindow::new(new_id, bridge)),
             WindowKind::Backup => {
                 Box::new(crate::windows::backup::BackupWindow::new(new_id, bridge))
