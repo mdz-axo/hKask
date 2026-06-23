@@ -14,7 +14,10 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use uuid::Uuid;
 
-use crate::bridges::{BackupDataBridge, ConfigDataBridge, WalletDataBridge};
+use crate::bridges::{
+    BackupDataBridge, ConfigDataBridge, KanbanDataBridge, MemoryDataBridge, RegistryDataBridge,
+    WalletDataBridge,
+};
 use crate::keybindings::{CHAT_BINDINGS, GLOBAL_BINDINGS};
 use crate::repl_bridge::ReplBridge;
 use crate::status_bar::StatusBar;
@@ -270,6 +273,9 @@ pub struct Workspace {
     wallet_bridge: Option<Arc<dyn WalletDataBridge>>,
     config_bridge: Option<Arc<dyn ConfigDataBridge>>,
     backup_bridge: Option<Arc<dyn BackupDataBridge>>,
+    registry_bridge: Option<Arc<dyn RegistryDataBridge>>,
+    memory_bridge: Option<Arc<dyn MemoryDataBridge>>,
+    kanban_bridge: Option<Arc<dyn KanbanDataBridge>>,
     status_bar: StatusBar,
     sidebar_open: bool,
     help_visible: bool,
@@ -317,6 +323,9 @@ impl Workspace {
             wallet_bridge: None,
             config_bridge: None,
             backup_bridge: None,
+            registry_bridge: None,
+            memory_bridge: None,
+            kanban_bridge: None,
             status_bar,
             sidebar_open: false,
             help_visible: false,
@@ -337,6 +346,21 @@ impl Workspace {
 
     pub fn with_backup_bridge(&mut self, backup: Arc<dyn BackupDataBridge>) -> &mut Self {
         self.backup_bridge = Some(backup);
+        self
+    }
+
+    pub fn with_registry_bridge(&mut self, registry: Arc<dyn RegistryDataBridge>) -> &mut Self {
+        self.registry_bridge = Some(registry);
+        self
+    }
+
+    pub fn with_memory_bridge(&mut self, memory: Arc<dyn MemoryDataBridge>) -> &mut Self {
+        self.memory_bridge = Some(memory);
+        self
+    }
+
+    pub fn with_kanban_bridge(&mut self, kanban: Arc<dyn KanbanDataBridge>) -> &mut Self {
+        self.kanban_bridge = Some(kanban);
         self
     }
 
@@ -608,6 +632,9 @@ impl Workspace {
         let wb = self.wallet_bridge.clone();
         let cb = self.config_bridge.clone();
         let bb = self.backup_bridge.clone();
+        let rb = self.registry_bridge.clone();
+        let mb = self.memory_bridge.clone();
+        let kb = self.kanban_bridge.clone();
         let new_win: Box<dyn Window> = match kind {
             WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(new_id, bridge)),
             WindowKind::Pods => Box::new(PodsWindow::new(new_id, bridge)),
@@ -618,7 +645,13 @@ impl Workspace {
                 }
                 Box::new(w)
             }
-            WindowKind::Registry => Box::new(RegistryWindow::new(new_id, bridge)),
+            WindowKind::Registry => {
+                let mut w = RegistryWindow::new(new_id, bridge);
+                if let Some(b) = rb {
+                    w = w.with_registry_bridge(b);
+                }
+                Box::new(w)
+            }
             WindowKind::Backup => {
                 let mut w = BackupWindow::new(new_id, bridge);
                 if let Some(b) = bb {
@@ -638,11 +671,29 @@ impl Workspace {
             WindowKind::Editor => Box::new(EditorWindow::new(new_id, bridge)),
             WindowKind::Training => Box::new(TrainingWindow::new(new_id, bridge)),
             WindowKind::Media => Box::new(MediaWindow::new(new_id, bridge)),
-            WindowKind::Skills => Box::new(SkillsWindow::new(new_id, bridge)),
+            WindowKind::Skills => {
+                let mut w = SkillsWindow::new(new_id, bridge);
+                if let Some(b) = rb {
+                    w = w.with_registry_bridge(b);
+                }
+                Box::new(w)
+            }
             WindowKind::Matrix => Box::new(MatrixWindow::new(new_id, bridge)),
-            WindowKind::Memory => Box::new(MemoryWindow::new(new_id, bridge)),
+            WindowKind::Memory => {
+                let mut w = MemoryWindow::new(new_id, bridge);
+                if let Some(b) = mb {
+                    w = w.with_memory_bridge(b);
+                }
+                Box::new(w)
+            }
             WindowKind::Companies => Box::new(CompaniesWindow::new(new_id, bridge)),
-            WindowKind::Kanban => Box::new(KanbanWindow::new(new_id, bridge)),
+            WindowKind::Kanban => {
+                let mut w = KanbanWindow::new(new_id, bridge);
+                if let Some(b) = kb {
+                    w = w.with_kanban_bridge(b);
+                }
+                Box::new(w)
+            }
             WindowKind::Sidebar => {
                 Box::new(SidebarWindow::new(new_id, Some(service_context), bridge))
             }

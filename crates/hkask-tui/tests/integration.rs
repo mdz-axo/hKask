@@ -435,3 +435,55 @@ fn editor_text_operations() {
     assert!(w.handle_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE)));
     render_smoke(&w, 80, 24);
 }
+
+// ────────────────────────────────────────────────────────────────
+// Domain bridge tests — memory, kanban, registry with mock data
+// ────────────────────────────────────────────────────────────────
+
+#[test]
+fn memory_shows_live_data_with_bridge() {
+    use hkask_tui::bridges::memory::MockMemoryBridge;
+    let w = MemoryWindow::new(window_id(), bridge())
+        .with_memory_bridge(MockMemoryBridge::with_data().arc());
+    render_smoke(&w, 80, 24);
+}
+
+#[test]
+fn memory_empty_shows_placeholder() {
+    use hkask_tui::bridges::memory::MockMemoryBridge;
+    let w = MemoryWindow::new(window_id(), bridge())
+        .with_memory_bridge(MockMemoryBridge::new().arc());
+    render_smoke(&w, 80, 24);
+}
+
+#[test]
+fn kanban_shows_live_data_with_bridge() {
+    use hkask_tui::bridges::kanban::MockKanbanBridge;
+    let w = KanbanWindow::new(window_id(), bridge())
+        .with_kanban_bridge(MockKanbanBridge::with_sample_data().arc());
+    render_smoke(&w, 80, 24);
+}
+
+#[test]
+fn kanban_empty_shows_placeholder() {
+    use hkask_tui::bridges::kanban::MockKanbanBridge;
+    let w = KanbanWindow::new(window_id(), bridge())
+        .with_kanban_bridge(MockKanbanBridge::new().arc());
+    render_smoke(&w, 80, 24);
+}
+
+#[test]
+fn registry_shows_live_data_with_bridge() {
+    use hkask_tui::bridges::registry::MockRegistryBridge;
+    let w = RegistryWindow::new(window_id(), bridge())
+        .with_registry_bridge(MockRegistryBridge::new().arc());
+    render_smoke(&w, 80, 24);
+}
+
+#[test]
+fn skills_shows_live_data_with_bridge() {
+    use hkask_tui::bridges::registry::MockRegistryBridge;
+    let w = SkillsWindow::new(window_id(), bridge())
+        .with_registry_bridge(MockRegistryBridge::new().arc());
+    render_smoke(&w, 80, 24);
+}

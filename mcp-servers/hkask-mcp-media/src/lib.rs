@@ -34,6 +34,13 @@ use video::FfmpegRunner;
 use ab_glyph::Font;
 use face_id::analyzer::FaceAnalyzer;
 
+/// Lock-free snapshot of gallery state — safe to hold across .await points.
+struct GalleryAccess {
+    gallery_id: String,
+    image_count: u64,
+    root_path: PathBuf,
+}
+
 pub struct MediaServer {
     pub webid: WebID,
     /// Replicant identity serving this MCP server (for narrative memory)
@@ -154,44 +161,6 @@ impl MediaServer {
         })
     }
 
-    /// Record a tool call as a narrative experience in the agent's memory.
-    fn record_experience(
-        &self,
-        tool: &str,
-        input_summary: &str,
-        outcome: &str,
-        detail: serde_json::Value,
-    ) {
-        if let Some(ref daemon) = self.daemon {
-            let value = serde_json::json!({
-                "tool": tool,
-                "input": input_summary,
-                "outcome": outcome,
-                "detail": detail,
-                "timestamp": now_rfc3339(),
-            });
-            let daemon_clone = daemon.clone();
-            let replicant = self.replicant.clone();
-            let tool_name = tool.to_string();
-            tokio::spawn(async move {
-                match daemon_clone
-                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
-                    .await
-                {
-                    Ok(DaemonResponse::StoreResponse { stored: true, .. }) => {
-                        tracing::debug!(target: "cns.mcp.media.memory", tool = %tool_name, "Experience stored via daemon");
-                    }
-                    Ok(other) => {
-                        tracing::warn!(target: "cns.mcp.media.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
-                    }
-                    Err(e) => {
-                        tracing::warn!(target: "cns.mcp.media.memory", tool = %tool_name, error = %e, "Failed to store experience")
-                    }
-                }
-            });
-        }
-    }
-
     /// Create a ToolSpanGuard that automatically records tool experiences.
     ///
     /// Replaces `ToolSpanGuard::new()` + `self.record_experience()`. The callback
@@ -241,6 +210,47 @@ impl MediaServer {
         ToolSpanGuard::new(tool_name, &self.webid).with_experience(cb)
     }
 
+    /// Lock the gallery and extract essential state. Drops the lock before
+    /// returning, so the result is safe to hold across .await points.
+    fn access_gallery(&self) -> Result<GalleryAccess, String> {
+        let guard = self
+            .gallery_state
+            .lock()
+            .map_err(|e| format!("Gallery state lock error: {}", e))?;
+        let state = guard
+            .as_ref()
+            .ok_or_else(|| "No gallery organized. Use gallery_organize first.".to_string())?;
+        let access = GalleryAccess {
+            gallery_id: state
+                .gallery_id
+                .clone()
+                .ok_or_else(|| "Gallery not persisted — run gallery_organize first.".to_string())?,
+            image_count: state.image_count,
+            root_path: state.path.clone(),
+        };
+        Ok(access)
+    }
+
+    /// Return the ffmpeg runner or an error if ffmpeg is not installed.
+    fn require_ffmpeg(&self) -> Result<&FfmpegRunner, McpToolError> {
+        if self.ffmpeg.available {
+            Ok(&self.ffmpeg)
+        } else {
+            Err(McpToolError::unavailable(
+                "ffmpeg not found on system PATH — video tools unavailable.",
+            ))
+        }
+    }
+
+    /// Return the best available vision model or an error if none is configured.
+    async fn require_vision(&self) -> Result<(&'static str, &'static str), McpToolError> {
+        self.resolve_vision_model().await.ok_or_else(|| {
+            McpToolError::unavailable(
+                "No vision-capable provider configured (set DEEPINFRA_API_KEY, OPENROUTER_API_KEY, or TOGETHER_API_KEY)",
+            )
+        })
+    }
+
     /// Render a Jinja2 prompt template with the given variables.
     fn render_prompt(&self, name: &str, vars: &HashMap<&str, &str>) -> Result<String, String> {
         templates::render(&self.template_env, name, vars)
@@ -248,21 +258,11 @@ impl MediaServer {
 
     /// Resolve an image index to a base64 data URL for vision LLM calls.
     fn resolve_image_url(&self, image_index: usize) -> Result<String, String> {
-        let guard = self
-            .gallery_state
-            .lock()
-            .map_err(|e| format!("Gallery state lock error: {}", e))?;
-        let state = guard
-            .as_ref()
-            .ok_or("No gallery initialized.".to_string())?;
-        let gallery_id = state
-            .gallery_id
-            .as_ref()
-            .ok_or("Gallery not persisted — run gallery_set_root first.".to_string())?;
+        let ga = self.access_gallery()?;
 
         let img = self
             .gallery_store
-            .get_image(gallery_id, Some(image_index), None)
+            .get_image(&ga.gallery_id, Some(image_index), None)
             .map_err(|e| format!("Image not found at index {}: {}", image_index, e))?;
 
         let data = std::fs::read(&img.absolute_path)
@@ -282,21 +282,11 @@ impl MediaServer {
 
     /// Resolve an image index to a filesystem path.
     fn resolve_image_path(&self, image_index: usize) -> Result<PathBuf, String> {
-        let guard = self
-            .gallery_state
-            .lock()
-            .map_err(|e| format!("Gallery state lock error: {}", e))?;
-        let state = guard
-            .as_ref()
-            .ok_or("No gallery initialized.".to_string())?;
-        let gallery_id = state
-            .gallery_id
-            .as_ref()
-            .ok_or("Gallery not persisted — run gallery_set_root first.".to_string())?;
+        let ga = self.access_gallery()?;
 
         let img = self
             .gallery_store
-            .get_image(gallery_id, Some(image_index), None)
+            .get_image(&ga.gallery_id, Some(image_index), None)
             .map_err(|e| format!("Image not found at index {}: {}", image_index, e))?;
 
         Ok(PathBuf::from(&img.absolute_path))
@@ -304,21 +294,11 @@ impl MediaServer {
 
     /// Resolve an image index to its SQLite image ID for tag persistence.
     fn resolve_image_id(&self, image_index: usize) -> Result<String, String> {
-        let guard = self
-            .gallery_state
-            .lock()
-            .map_err(|e| format!("Gallery state lock error: {}", e))?;
-        let state = guard
-            .as_ref()
-            .ok_or("No gallery initialized.".to_string())?;
-        let gallery_id = state
-            .gallery_id
-            .as_ref()
-            .ok_or("Gallery not persisted — run gallery_set_root first.".to_string())?;
+        let ga = self.access_gallery()?;
 
         let img = self
             .gallery_store
-            .get_image(gallery_id, Some(image_index), None)
+            .get_image(&ga.gallery_id, Some(image_index), None)
             .map_err(|e| format!("Image not found at index {}: {}", image_index, e))?;
 
         Ok(img.id)
@@ -329,21 +309,7 @@ impl MediaServer {
     /// Used by face matching where we have image IDs from tags/registry,
     /// not gallery indices.
     fn resolve_image_url_by_id(&self, image_id: &str) -> Result<String, String> {
-        // Extract gallery_id and drop the guard before any I/O
-        let gallery_id = {
-            let guard = self
-                .gallery_state
-                .lock()
-                .map_err(|e| format!("Gallery state lock error: {}", e))?;
-            let state = guard
-                .as_ref()
-                .ok_or("No gallery initialized.".to_string())?;
-            state
-                .gallery_id
-                .as_ref()
-                .ok_or("Gallery not persisted — run gallery_set_root first.".to_string())?
-                .clone()
-        }; // guard dropped here
+        let ga = self.access_gallery()?;
 
         // Look up the image's absolute path by its SQLite ID
         let conn = self
@@ -353,7 +319,7 @@ impl MediaServer {
         let absolute_path: String = conn
             .query_row(
                 "SELECT absolute_path FROM gallery_images WHERE id = ?1 AND gallery_id = ?2",
-                [image_id, gallery_id.as_str()],
+                [image_id, ga.gallery_id.as_str()],
                 |row| row.get(0),
             )
             .map_err(|e| format!("Image not found by ID {}: {}", image_id, e))?;
@@ -403,20 +369,7 @@ impl MediaServer {
     /// Returns a base64 data URL of the cropped face region, or the original
     /// image URL if cropping fails (graceful degradation).
     fn crop_face_region(&self, image_id: &str, bbox: &serde_json::Value) -> Result<String, String> {
-        // Resolve the image path
-        let guard = self
-            .gallery_state
-            .lock()
-            .map_err(|e| format!("Gallery state lock error: {}", e))?;
-        let state = guard
-            .as_ref()
-            .ok_or("No gallery initialized.".to_string())?;
-        let gallery_id = state
-            .gallery_id
-            .as_ref()
-            .ok_or("Gallery not persisted.".to_string())?
-            .clone();
-        drop(guard);
+        let ga = self.access_gallery()?;
 
         let conn = self
             .gallery_store
@@ -425,7 +378,7 @@ impl MediaServer {
         let absolute_path: String = conn
             .query_row(
                 "SELECT absolute_path FROM gallery_images WHERE id = ?1 AND gallery_id = ?2",
-                [image_id, gallery_id.as_str()],
+                [image_id, ga.gallery_id.as_str()],
                 |row| row.get(0),
             )
             .map_err(|e| format!("Image not found: {}", e))?;
@@ -498,55 +451,50 @@ impl MediaServer {
         &self,
         recursive: bool,
     ) -> Result<(String, u64, u32, u32, u32), String> {
-        let guard = self
+        let ga = self.access_gallery()?;
+        let mut state_clone = {
+            let guard = self
+                .gallery_state
+                .lock()
+                .map_err(|e| format!("Gallery state lock error: {}", e))?;
+            guard
+                .as_ref()
+                .ok_or("No gallery organized. Use gallery_organize first.".to_string())?
+                .clone()
+        };
+        let old_count = ga.image_count;
+        let scan_result = state_clone.scan(recursive, None);
+        let mut persisted = 0u32;
+        for entry in &scan_result.entries {
+            let abs_path = state_clone.path.join(&entry.relative_path);
+            if self
+                .gallery_store
+                .add_image(
+                    &ga.gallery_id,
+                    &entry.relative_path,
+                    &abs_path.to_string_lossy(),
+                    &entry.checksum,
+                    entry.width,
+                    entry.height,
+                    &entry.format,
+                    entry.size_bytes,
+                )
+                .is_ok()
+            {
+                persisted += 1;
+            }
+        }
+        *self
             .gallery_state
             .lock()
-            .map_err(|e| format!("Gallery state lock error: {}", e))?;
-        match &*guard {
-            Some(state) => match &state.gallery_id {
-                Some(gid) => {
-                    let gid = gid.clone();
-                    let mut state_clone = state.clone();
-                    let old_count = state_clone.image_count;
-                    drop(guard);
-                    let scan_result = state_clone.scan(recursive, None);
-                    let mut persisted = 0u32;
-                    for entry in &scan_result.entries {
-                        let abs_path = state_clone.path.join(&entry.relative_path);
-                        if self
-                            .gallery_store
-                            .add_image(
-                                &gid,
-                                &entry.relative_path,
-                                &abs_path.to_string_lossy(),
-                                &entry.checksum,
-                                entry.width,
-                                entry.height,
-                                &entry.format,
-                                entry.size_bytes,
-                            )
-                            .is_ok()
-                        {
-                            persisted += 1;
-                        }
-                    }
-                    *self
-                        .gallery_state
-                        .lock()
-                        .map_err(|e| format!("Gallery state lock error: {}", e))? =
-                        Some(state_clone);
-                    Ok((
-                        gid,
-                        old_count,
-                        scan_result.added,
-                        scan_result.total,
-                        persisted,
-                    ))
-                }
-                None => Err("Gallery not persisted — run gallery_organize first.".to_string()),
-            },
-            None => Err("No gallery organized. Use gallery_organize first.".to_string()),
-        }
+            .map_err(|e| format!("Gallery state lock error: {}", e))? = Some(state_clone);
+        Ok((
+            ga.gallery_id,
+            old_count,
+            scan_result.added,
+            scan_result.total,
+            persisted,
+        ))
     }
 
     /// Run the analysis pipeline on a subset of gallery images.
@@ -923,7 +871,11 @@ impl MediaServer {
             auto_analyze,
         }): Parameters<GalleryOrganizeRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("gallery_organize", &self.webid);
+        let span = self.span_with_memory(
+            "gallery_organize",
+            format!("path={}", path),
+            serde_json::json!({"path": path, "mode": mode, "auto_analyze": auto_analyze}),
+        );
 
         let gallery_mode = match mode.as_str() {
             "read-only" => GalleryMode::ReadOnly,
@@ -1068,57 +1020,29 @@ impl MediaServer {
             if !analyze_errors.is_empty() {
                 r["analyze_errors"] = serde_json::json!(analyze_errors);
             }
-            self.record_experience(
-                "gallery_organize",
-                &format!("path={}", path),
-                "success",
-                serde_json::json!({"path": path, "mode": mode, "auto_analyze": auto_analyze}),
-            );
             span.ok_json(r)
         } else {
-            self.record_experience(
-                "gallery_organize",
-                &format!("path={}", path),
-                "success",
-                serde_json::json!({"path": path, "mode": mode, "auto_analyze": auto_analyze}),
-            );
             span.ok_json(result)
         }
     }
 
     #[tool(description = "Get gallery status: path, mode, image count, and total size.")]
     async fn gallery_status(&self) -> String {
-        let span = ToolSpanGuard::new("gallery_status", &self.webid);
-        let guard = match self.gallery_state.lock() {
-            Ok(g) => g,
-            Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
-                );
-            }
-        };
-        match &*guard {
-            Some(state) => {
-                self.record_experience(
-                    "gallery_status",
-                    "get gallery status",
-                    "success",
-                    serde_json::json!({}),
-                );
-                span.ok_json(state.summary())
-            }
-            None => {
-                self.record_experience(
-                    "gallery_status",
-                    "get gallery status",
-                    "success",
-                    serde_json::json!({}),
-                );
-                span.ok_json(serde_json::json!({
-                    "status": "no_gallery",
-                    "message": "No gallery organized. Use gallery_organize to point at a photo folder."
-                }))
-            }
+        let span = self.span_with_memory(
+            "gallery_status",
+            "get gallery status".to_string(),
+            serde_json::json!({}),
+        );
+        match self.access_gallery() {
+            Ok(ga) => span.ok_json(serde_json::json!({
+                "gallery_id": ga.gallery_id,
+                "image_count": ga.image_count,
+                "root_path": ga.root_path.display().to_string(),
+            })),
+            Err(e) => span.ok_json(serde_json::json!({
+                "status": "no_gallery",
+                "message": e,
+            })),
         }
     }
 
@@ -1134,40 +1058,23 @@ impl MediaServer {
             min_similarity,
         }): Parameters<GallerySearchRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("gallery_search", &self.webid);
+        let span = self.span_with_memory(
+            "gallery_search",
+            format!("gallery search: {}", query),
+            serde_json::json!({"query": query, "limit": limit}),
+        );
 
-        let guard = match self.gallery_state.lock() {
-            Ok(g) => g,
+        let ga = match self.access_gallery() {
+            Ok(ga) => ga,
             Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
-                );
-            }
-        };
-        let state = match &*guard {
-            Some(s) => s,
-            None => {
                 return span.error(
                     McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(
-                        "No gallery organized. Use gallery_organize first.",
-                    )
-                    .to_json_string(),
+                    McpToolError::invalid_argument(e).to_json_string(),
                 );
             }
         };
 
-        let gallery_id = match &state.gallery_id {
-            Some(id) => id.clone(),
-            None => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument("Gallery not persisted.").to_json_string(),
-                );
-            }
-        };
-
-        let all_tags = match self.gallery_store.get_all_tags(&gallery_id) {
+        let all_tags = match self.gallery_store.get_all_tags(&ga.gallery_id) {
             Ok(tags) => tags,
             Err(e) => {
                 return span.error(
@@ -1228,12 +1135,6 @@ impl MediaServer {
             })
             .collect();
 
-        self.record_experience(
-            &query,
-            &format!("gallery search: {}", query),
-            "success",
-            serde_json::json!({"limit": limit, "results": results.len()}),
-        );
         span.ok_json(serde_json::json!({
             "query": query,
             "results": results,
@@ -1253,9 +1154,17 @@ impl MediaServer {
             min_similarity,
         }): Parameters<GalleryFindSimilarRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("gallery_find_similar", &self.webid);
-
         // Validate mutually exclusive inputs
+        let query_label = text
+            .clone()
+            .unwrap_or_else(|| format!("image_index={}", image_index.unwrap_or(0)));
+
+        let span = self.span_with_memory(
+            "gallery_find_similar",
+            query_label.clone(),
+            serde_json::json!({"limit": limit}),
+        );
+
         if text.is_none() && image_index.is_none() {
             return span.error(
                 McpErrorKind::InvalidArgument,
@@ -1285,7 +1194,12 @@ impl MediaServer {
             // Get the image's caption and embed it
             let image_id = match self.resolve_image_id(idx) {
                 Ok(id) => id,
-                Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument(e).to_json_string(),
+                    );
+                }
             };
             let tags = match self.gallery_store.get_tags(&image_id) {
                 Ok(t) => t,
@@ -1327,35 +1241,17 @@ impl MediaServer {
         };
 
         // Collect captions for all images in the gallery
-        let gallery_id = {
-            let guard =
-                match self.gallery_state.lock() {
-                    Ok(g) => g,
-                    Err(e) => return span.internal_error(
-                        serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
-                    ),
-                };
-            let state = match &*guard {
-                Some(s) => s,
-                None => {
-                    return span.error(
-                        McpErrorKind::InvalidArgument,
-                        McpToolError::invalid_argument("No gallery organized.").to_json_string(),
-                    );
-                }
-            };
-            match &state.gallery_id {
-                Some(id) => id.clone(),
-                None => {
-                    return span.error(
-                        McpErrorKind::InvalidArgument,
-                        McpToolError::invalid_argument("Gallery not persisted.").to_json_string(),
-                    );
-                }
+        let ga = match self.access_gallery() {
+            Ok(ga) => ga,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
             }
         };
 
-        let all_tags = match self.gallery_store.get_all_tags(&gallery_id) {
+        let all_tags = match self.gallery_store.get_all_tags(&ga.gallery_id) {
             Ok(t) => t,
             Err(e) => {
                 return span.error(
@@ -1435,15 +1331,6 @@ impl MediaServer {
             .map(|(path, score)| serde_json::json!({"image": path, "similarity": score}))
             .collect();
 
-        let query_label = text
-            .clone()
-            .unwrap_or_else(|| format!("image_index={}", image_index.unwrap_or(0)));
-        self.record_experience(
-            &query_label,
-            &format!("find similar to: {}", query_label),
-            "success",
-            serde_json::json!({"limit": limit, "results": results.len()}),
-        );
         span.ok_json(serde_json::json!({
             "query": query_label,
             "results": results,
@@ -1461,7 +1348,11 @@ impl MediaServer {
             max_images,
         }): Parameters<GalleryRefreshRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("gallery_refresh", &self.webid);
+        let span = self.span_with_memory(
+            "gallery_refresh",
+            "refresh gallery metadata".to_string(),
+            serde_json::json!({"recursive": recursive, "include_faces": include_faces}),
+        );
 
         // Step 1: Re-scan the gallery
         let (gid, _old_count, added, total, persisted) =
@@ -1492,64 +1383,32 @@ impl MediaServer {
         let mut registry_count = 0usize;
         let mut match_errors: Vec<String> = Vec::new();
         if include_faces {
-            // Extract gallery_id and drop the guard before any await
-            let gallery_id = {
-                let guard = match self.gallery_state.lock() {
-                    Ok(g) => g,
-                    Err(e) => return span.internal_error(
-                        serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
-                    ),
-                };
-                match &*guard {
-                    Some(s) => match &s.gallery_id {
-                        Some(id) => id.clone(),
-                        None => {
-                            return span.ok_json(serde_json::json!({
-                                "status": "refreshed",
-                                "gallery_id": gid,
-                                "scan": {
-                                    "images_added": added,
-                                    "total_images": total,
-                                    "persisted": persisted,
-                                },
-                                "analysis": {
-                                    "images_analyzed": analyzed,
-                                    "pipelines": pipelines,
-                                },
-                                "face_matching": {
-                                    "error": "Gallery not persisted — cannot match faces"
-                                },
-                                "errors": {
-                                    "analysis": analyze_errors,
-                                    "matching": serde_json::json!([]),
-                                },
-                            }));
-                        }
-                    },
-                    None => {
-                        return span.ok_json(serde_json::json!({
-                            "status": "refreshed",
-                            "gallery_id": gid,
-                            "scan": {
-                                "images_added": added,
-                                "total_images": total,
-                                "persisted": persisted,
-                            },
-                            "analysis": {
-                                "images_analyzed": analyzed,
-                                "pipelines": pipelines,
-                            },
-                            "face_matching": {
-                                "error": "No gallery organized — cannot match faces"
-                            },
-                            "errors": {
-                                "analysis": analyze_errors,
-                                "matching": serde_json::json!([]),
-                            },
-                        }));
-                    }
+            // Access gallery state snapshot (lock dropped before .await)
+            let ga = match self.access_gallery() {
+                Ok(ga) => ga,
+                Err(e) => {
+                    return span.ok_json(serde_json::json!({
+                        "status": "refreshed",
+                        "gallery_id": gid,
+                        "scan": {
+                            "images_added": added,
+                            "total_images": total,
+                            "persisted": persisted,
+                        },
+                        "analysis": {
+                            "images_analyzed": analyzed,
+                            "pipelines": pipelines,
+                        },
+                        "face_matching": {
+                            "error": format!("{} — cannot match faces", e)
+                        },
+                        "errors": {
+                            "analysis": analyze_errors,
+                            "matching": serde_json::json!([]),
+                        },
+                    }));
                 }
-            }; // guard dropped here
+            };
 
             // Get valid registry entries
             let registry = match self.gallery_store.list_faces(Some("valid")) {
@@ -1618,7 +1477,7 @@ impl MediaServer {
             // Fall back to vision LLM matching if ONNX unavailable or found no matches
             if !onnx_used && !registry.is_empty() {
                 // Get all face tags (from vision LLM detection in Step 3)
-                let all_tags = match self.gallery_store.get_all_tags(&gallery_id) {
+                let all_tags = match self.gallery_store.get_all_tags(&ga.gallery_id) {
                     Ok(t) => t,
                     Err(e) => {
                         match_errors.push(format!("Failed to query tags: {}", e));
@@ -1725,12 +1584,6 @@ impl MediaServer {
             }
         }
 
-        self.record_experience(
-            "gallery_refresh",
-            "refresh gallery metadata",
-            "success",
-            serde_json::json!({"analyzed": analyzed, "recursive": recursive, "include_faces": include_faces}),
-        );
         span.ok_json(serde_json::json!({
             "status": "refreshed",
             "gallery_id": gid,
@@ -1786,16 +1639,9 @@ impl MediaServer {
             }
         };
 
-        let (vision_model, _vision_label) = match self.resolve_vision_model().await {
-            Some(v) => v,
-            None => {
-                return span.error(
-                    McpErrorKind::Unavailable,
-                    McpToolError::unavailable(
-                        "No vision-capable provider configured (set DEEPINFRA_API_KEY, OPENROUTER_API_KEY, or TOGETHER_API_KEY)"
-                    ).to_json_string(),
-                );
-            }
+        let (vision_model, _vision_label) = match self.require_vision().await {
+            Ok(v) => v,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
         };
         let params = hkask_types::template::LLMParameters::default();
         let result = self
@@ -1826,49 +1672,31 @@ impl MediaServer {
             max_images,
         }): Parameters<GalleryAnalyzeRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("gallery_analyze", &self.webid);
+        let span = self.span_with_memory(
+            "gallery_analyze",
+            format!("analyze gallery: {}", mode),
+            serde_json::json!({"mode": mode, "max_images": max_images}),
+        );
 
         // Extract gallery state in a block so the MutexGuard is dropped before any await
-        let (image_count, _gallery_id) = {
-            let guard =
-                match self.gallery_state.lock() {
-                    Ok(g) => g,
-                    Err(e) => return span.internal_error(
-                        serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
-                    ),
-                };
-            let state = match &*guard {
-                Some(s) => s,
-                None => {
-                    return span.error(
-                        McpErrorKind::InvalidArgument,
-                        McpToolError::invalid_argument(
-                            "No gallery organized. Use gallery_organize first.",
-                        )
-                        .to_json_string(),
-                    );
-                }
-            };
-            let gid = match &state.gallery_id {
-                Some(id) => id.clone(),
-                None => {
-                    return span.error(
-                        McpErrorKind::InvalidArgument,
-                        McpToolError::invalid_argument("Gallery not persisted.").to_json_string(),
-                    );
-                }
-            };
-            (state.image_count, gid)
+        let ga = match self.access_gallery() {
+            Ok(ga) => ga,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
         };
 
         // Determine which images to process
         let indices: Vec<usize> = match mode.as_str() {
             "selection" => image_indices.unwrap_or_default(),
-            "all" => (0..image_count as usize).collect(),
+            "all" => (0..ga.image_count as usize).collect(),
             // "new" mode: only process images without existing tags
             _ => {
                 let mut untagged = Vec::new();
-                for i in 0..image_count as usize {
+                for i in 0..ga.image_count as usize {
                     if let Ok(image_id) = self.resolve_image_id(i) {
                         match self.gallery_store.get_tags(&image_id) {
                             Ok(tags) if tags.is_empty() => untagged.push(i),
@@ -1905,12 +1733,6 @@ impl MediaServer {
             .map(|(_, label)| label)
             .unwrap_or("none");
 
-        self.record_experience(
-            &mode,
-            &format!("analyze gallery: {}", mode),
-            "success",
-            serde_json::json!({"analyzed": analyzed, "pipelines": pipelines}),
-        );
         span.ok_json(serde_json::json!({
             "status": "complete",
             "images_analyzed": analyzed,
@@ -1932,7 +1754,11 @@ impl MediaServer {
             face_id,
         }): Parameters<GalleryNameFaceRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("gallery_name_face", &self.webid);
+        let span = self.span_with_memory(
+            "gallery_name_face",
+            format!("face_group={}", face_group),
+            serde_json::json!({"face_group": face_group}),
+        );
 
         // Resolve the name: registry lookup takes priority over free-text
         let resolved_name = if let Some(ref fid) = face_id {
@@ -1964,36 +1790,18 @@ impl MediaServer {
             }
         };
 
-        let guard = match self.gallery_state.lock() {
-            Ok(g) => g,
+        let ga = match self.access_gallery() {
+            Ok(ga) => ga,
             Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
-                );
-            }
-        };
-        let state = match &*guard {
-            Some(s) => s,
-            None => {
                 return span.error(
                     McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument("No gallery organized.").to_json_string(),
+                    McpToolError::invalid_argument(e).to_json_string(),
                 );
             }
         };
-        let gallery_id = match &state.gallery_id {
-            Some(id) => id.clone(),
-            None => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument("Gallery not persisted.").to_json_string(),
-                );
-            }
-        };
-        drop(guard);
 
         // Find all face tags and update those matching the group
-        let all_tags = match self.gallery_store.get_all_tags(&gallery_id) {
+        let all_tags = match self.gallery_store.get_all_tags(&ga.gallery_id) {
             Ok(t) => t,
             Err(e) => {
                 return span.error(
@@ -2022,12 +1830,6 @@ impl MediaServer {
             }
         }
 
-        self.record_experience(
-            "gallery_name_face",
-            &format!("face_group={}", face_group),
-            "success",
-            serde_json::json!({"name": resolved_name, "renamed": renamed}),
-        );
         span.ok_json(serde_json::json!({
             "status": "named",
             "face_group": face_group,
@@ -2045,22 +1847,25 @@ impl MediaServer {
         &self,
         Parameters(FaceValidateRequest { image_index }): Parameters<FaceValidateRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("face_validate", &self.webid);
+        let span = self.span_with_memory(
+            "face_validate",
+            format!("image_index={}", image_index),
+            serde_json::json!({"image_index": image_index}),
+        );
 
         let image_url = match self.resolve_image_url(image_index) {
             Ok(url) => url,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
-        };
-
-        let (vision_model, _vision_label) = match self.resolve_vision_model().await {
-            Some(v) => v,
-            None => {
+            Err(e) => {
                 return span.error(
-                    McpErrorKind::Unavailable,
-                    McpToolError::unavailable("No vision model available for face validation")
-                        .to_json_string(),
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
                 );
             }
+        };
+
+        let (vision_model, _vision_label) = match self.require_vision().await {
+            Ok(v) => v,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
         };
 
         let validation = match vision::validate_face_reference(
@@ -2081,13 +1886,6 @@ impl MediaServer {
             }
         };
 
-        self.record_experience(
-            "face_validate",
-            &format!("image_index={}", image_index),
-            if validation.valid { "pass" } else { "fail" },
-            serde_json::json!(validation),
-        );
-
         span.ok_json(serde_json::json!(validation))
     }
 
@@ -2103,12 +1901,21 @@ impl MediaServer {
             force,
         }): Parameters<FaceRegisterRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("face_register", &self.webid);
+        let span = self.span_with_memory(
+            "face_register",
+            format!("image_index={}", image_index),
+            serde_json::json!({"image_index": image_index, "first_name": first_name, "last_name": last_name}),
+        );
 
         // Resolve the image ID
         let image_id = match self.resolve_image_id(image_index) {
             Ok(id) => id,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
         };
 
         let (status, notes, validation) = if force {
@@ -2117,20 +1924,17 @@ impl MediaServer {
             // Resolve the image URL for validation
             let image_url = match self.resolve_image_url(image_index) {
                 Ok(url) => url,
-                Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
-            };
-
-            let (vision_model, _vision_label) = match self.resolve_vision_model().await {
-                Some(v) => v,
-                None => {
+                Err(e) => {
                     return span.error(
-                        McpErrorKind::Unavailable,
-                        McpToolError::unavailable(
-                            "No vision model available for face registration",
-                        )
-                        .to_json_string(),
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument(e).to_json_string(),
                     );
                 }
+            };
+
+            let (vision_model, _vision_label) = match self.require_vision().await {
+                Ok(v) => v,
+                Err(e) => return span.error(e.kind, e.to_json_string()),
             };
 
             let v = match vision::validate_face_reference(
@@ -2201,18 +2005,6 @@ impl MediaServer {
             }
         };
 
-        self.record_experience(
-            "face_register",
-            &format!("image_index={}", image_index),
-            status,
-            serde_json::json!({
-                "face_id": record.id,
-                "first_name": first_name,
-                "last_name": last_name,
-                "status": status,
-            }),
-        );
-
         span.ok_json(serde_json::json!({
             "face_id": record.id,
             "first_name": record.first_name,
@@ -2230,17 +2022,15 @@ impl MediaServer {
         &self,
         Parameters(FaceListRequest { status }): Parameters<FaceListRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("face_list", &self.webid);
+        let span = self.span_with_memory(
+            "face_list",
+            "face_list".to_string(),
+            serde_json::json!({"status": status}),
+        );
 
         let faces = match self.gallery_store.list_faces(status.as_deref()) {
             Ok(f) => f,
             Err(e) => {
-                self.record_experience(
-                    "face_list",
-                    "face_list",
-                    "error",
-                    serde_json::json!({"status": status}),
-                );
                 return span.error(
                     McpErrorKind::Internal,
                     McpToolError::internal(format!("Failed to list faces: {}", e)).to_json_string(),
@@ -2248,12 +2038,6 @@ impl MediaServer {
             }
         };
 
-        self.record_experience(
-            "face_list",
-            "face_list",
-            "success",
-            serde_json::json!({"status": status}),
-        );
         span.ok_json(serde_json::json!({
             "count": faces.len(),
             "faces": faces,
@@ -2267,21 +2051,17 @@ impl MediaServer {
         &self,
         Parameters(FaceRemoveRequest { face_id }): Parameters<FaceRemoveRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("face_remove", &self.webid);
+        let span = self.span_with_memory(
+            "face_remove",
+            format!("face_id={}", face_id),
+            serde_json::json!({}),
+        );
 
         match self.gallery_store.remove_face(&face_id) {
-            Ok(()) => {
-                self.record_experience(
-                    "face_remove",
-                    &format!("face_id={}", face_id),
-                    "success",
-                    serde_json::json!({}),
-                );
-                span.ok_json(serde_json::json!({
-                    "status": "removed",
-                    "face_id": face_id,
-                }))
-            }
+            Ok(()) => span.ok_json(serde_json::json!({
+                "status": "removed",
+                "face_id": face_id,
+            })),
             Err(e) => span.error(
                 McpErrorKind::InvalidArgument,
                 McpToolError::invalid_argument(format!("Face not found: {}", e)).to_json_string(),
@@ -2299,10 +2079,19 @@ impl MediaServer {
             object_description,
         }): Parameters<ExtractObjectRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("extract_object", &self.webid);
+        let span = self.span_with_memory(
+            "extract_object",
+            format!("image_index={}", image_index),
+            serde_json::json!({"object": object_description}),
+        );
         let image_url = match self.resolve_image_url(image_index) {
             Ok(url) => url,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
         };
 
         // Use Florence-2 segmentation via fal.ai
@@ -2311,13 +2100,6 @@ impl MediaServer {
             .segment_object(&image_url, &object_description)
             .await
             .map_err(|e| McpToolError::unavailable(format!("Object extraction failed: {}", e)));
-
-        self.record_experience(
-            "extract_object",
-            &format!("image_index={}", image_index),
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"object": object_description}),
-        );
 
         span.finish(result)
     }
@@ -2340,39 +2122,23 @@ impl MediaServer {
             serde_json::json!({"period": period.clone(), "count": count, "per_period": per_period}),
         );
 
-        let guard = match self.gallery_state.lock() {
-            Ok(g) => g,
+        let ga = match self.access_gallery() {
+            Ok(ga) => ga,
             Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
-                );
-            }
-        };
-        let state = match &*guard {
-            Some(s) => s.clone(),
-            None => {
                 return span.error(
                     McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument("No gallery organized.").to_json_string(),
-                );
-            }
-        };
-        drop(guard);
-
-        let gallery_id = match &state.gallery_id {
-            Some(id) => id.clone(),
-            None => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument("Gallery not persisted.").to_json_string(),
+                    McpToolError::invalid_argument(e).to_json_string(),
                 );
             }
         };
 
         // Collect images with their dates
         let mut dated_images: Vec<(String, String)> = Vec::new(); // (period_key, relative_path)
-        for idx in 0..state.image_count as usize {
-            let img = match self.gallery_store.get_image(&gallery_id, Some(idx), None) {
+        for idx in 0..ga.image_count as usize {
+            let img = match self
+                .gallery_store
+                .get_image(&ga.gallery_id, Some(idx), None)
+            {
                 Ok(i) => i,
                 Err(_) => continue,
             };
@@ -2448,7 +2214,12 @@ impl MediaServer {
         );
         let image_url = match self.resolve_image_url(image_index) {
             Ok(url) => url,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
         };
 
         // Route through centralized inference router
@@ -2458,12 +2229,6 @@ impl MediaServer {
             .await
             .map_err(|e| McpToolError::unavailable(format!("Background removal failed: {}", e)));
 
-        self.record_experience(
-            "image_remove_background",
-            &format!("image_index={}", image_index),
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({}),
-        );
         span.finish(result)
     }
 
@@ -2485,7 +2250,12 @@ impl MediaServer {
         );
         let image_url = match self.resolve_image_url(image_index) {
             Ok(url) => url,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
         };
 
         let result = self
@@ -2541,44 +2311,22 @@ impl MediaServer {
         }
 
         // Get gallery state
-        let guard = match self.gallery_state.lock() {
-            Ok(g) => g,
+        let ga = match self.access_gallery() {
+            Ok(ga) => ga,
             Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
-                );
-            }
-        };
-        let state = match &*guard {
-            Some(s) => s,
-            None => {
                 return span.error(
                     McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument("No gallery initialized.").to_json_string(),
+                    McpToolError::invalid_argument(e).to_json_string(),
                 );
             }
         };
-        let gallery_id = match &state.gallery_id {
-            Some(id) => id.clone(),
-            None => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(
-                        "Gallery not persisted — run gallery_set_root first.",
-                    )
-                    .to_json_string(),
-                );
-            }
-        };
-        let gallery_root = state.path.clone();
-        drop(guard); // release lock before long operations
 
         // Resolve image paths based on mode
         let mut paths = Vec::new();
 
         if let Some(ref terms) = search_terms {
             // ── Search mode: find images matching search terms via tag similarity ──
-            let all_tags = match self.gallery_store.get_all_tags(&gallery_id) {
+            let all_tags = match self.gallery_store.get_all_tags(&ga.gallery_id) {
                 Ok(tags) => tags,
                 Err(e) => {
                     return span.error(
@@ -2606,17 +2354,27 @@ impl MediaServer {
             ranked.truncate(max_items);
 
             for (rel_path, _score) in &ranked {
-                paths.push(gallery_root.join(rel_path));
+                paths.push(ga.root_path.join(rel_path));
             }
         } else if let Some(ref_idx) = similar_to_index {
             // ── Similar mode: find images with tags similar to the reference image ──
             let ref_path = match self.resolve_image_path(ref_idx) {
                 Ok(p) => p,
-                Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument(e).to_json_string(),
+                    );
+                }
             };
             let ref_image_id = match self.resolve_image_id(ref_idx) {
                 Ok(id) => id,
-                Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument(e).to_json_string(),
+                    );
+                }
             };
             let ref_tags = match self.gallery_store.get_tags(&ref_image_id) {
                 Ok(tags) => tags,
@@ -2629,7 +2387,7 @@ impl MediaServer {
                 }
             };
 
-            let all_tags = match self.gallery_store.get_all_tags(&gallery_id) {
+            let all_tags = match self.gallery_store.get_all_tags(&ga.gallery_id) {
                 Ok(tags) => tags,
                 Err(e) => {
                     return span.error(
@@ -2642,7 +2400,7 @@ impl MediaServer {
 
             let mut image_scores: HashMap<String, f64> = HashMap::new();
             for (tag, relative_path) in &all_tags {
-                let abs_path = gallery_root.join(relative_path);
+                let abs_path = ga.root_path.join(relative_path);
                 if abs_path == ref_path {
                     continue; // skip the reference image itself
                 }
@@ -2663,7 +2421,7 @@ impl MediaServer {
             // Reference image first, then similar images
             paths.push(ref_path);
             for (rel_path, _score) in &ranked {
-                paths.push(gallery_root.join(rel_path));
+                paths.push(ga.root_path.join(rel_path));
             }
         } else if let Some(ref indices) = image_indices {
             // ── Explicit mode: use provided indices ──
@@ -2685,7 +2443,12 @@ impl MediaServer {
             for idx in indices.iter().take(limit) {
                 match self.resolve_image_path(*idx) {
                     Ok(p) => paths.push(p),
-                    Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+                    Err(e) => {
+                        return span.error(
+                            McpErrorKind::InvalidArgument,
+                            McpToolError::invalid_argument(e).to_json_string(),
+                        );
+                    }
                 }
             }
         }
@@ -2828,15 +2591,10 @@ impl MediaServer {
             );
         }
 
-        if !self.ffmpeg.available {
-            return span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(
-                    "ffmpeg not found on system PATH — video tools unavailable.",
-                )
-                .to_json_string(),
-            );
-        }
+        let _ffmpeg = match self.require_ffmpeg() {
+            Ok(f) => f,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
+        };
 
         match self.ffmpeg.clip(&video_url, start_sec, end_sec).await {
             Ok(output) => span.ok_json(serde_json::json!({
@@ -2874,12 +2632,10 @@ impl MediaServer {
             return span.error(e.kind, e.to_json_string());
         }
 
-        if !self.ffmpeg.available {
-            return span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
-            );
-        }
+        let _ffmpeg = match self.require_ffmpeg() {
+            Ok(f) => f,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
+        };
 
         let start = start_sec.unwrap_or(0.0);
         let dur = duration_sec.unwrap_or(5.0);
@@ -2922,7 +2678,12 @@ impl MediaServer {
         );
         let image_url = match self.resolve_image_url(image_index) {
             Ok(url) => url,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
         };
 
         let result = self
@@ -2930,12 +2691,6 @@ impl MediaServer {
             .image_to_video(&image_url, prompt.as_deref(), duration)
             .await
             .map_err(|e| McpToolError::unavailable(format!("Image-to-video failed: {}", e)));
-        self.record_experience(
-            "image_to_video",
-            &format!("image_index={}", image_index),
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"model": model, "duration": duration}),
-        );
         span.finish(result)
     }
 
@@ -2958,12 +2713,10 @@ impl MediaServer {
             return span.error(e.kind, e.to_json_string());
         }
 
-        if !self.ffmpeg.available {
-            return span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
-            );
-        }
+        let _ffmpeg = match self.require_ffmpeg() {
+            Ok(f) => f,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
+        };
 
         let pos = position.as_deref().unwrap_or("bottom");
         let size = font_size.unwrap_or(24);
@@ -3017,12 +2770,10 @@ impl MediaServer {
             );
         }
 
-        if !self.ffmpeg.available {
-            return span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
-            );
-        }
+        let _ffmpeg = match self.require_ffmpeg() {
+            Ok(f) => f,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
+        };
 
         // Step 1: clip
         let clipped = match self.ffmpeg.clip(&video_url, start_sec, end_sec).await {
@@ -3112,19 +2863,22 @@ impl MediaServer {
             );
         }
 
-        if !self.ffmpeg.available {
-            return span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
-            );
-        }
+        let _ffmpeg = match self.require_ffmpeg() {
+            Ok(f) => f,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
+        };
 
         // Resolve all image paths
         let mut paths = Vec::new();
         for idx in &image_indices {
             match self.resolve_image_path(*idx) {
                 Ok(p) => paths.push(p),
-                Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument(e).to_json_string(),
+                    );
+                }
             }
         }
 
@@ -3165,12 +2919,10 @@ impl MediaServer {
             );
         }
 
-        if !self.ffmpeg.available {
-            return span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
-            );
-        }
+        let _ffmpeg = match self.require_ffmpeg() {
+            Ok(f) => f,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
+        };
 
         match self.ffmpeg.concat(&video_urls).await {
             Ok(output) => span.ok_json(serde_json::json!({
@@ -3199,12 +2951,10 @@ impl MediaServer {
         );
 
         let style_str = style.as_deref().unwrap_or("descriptive");
-        if !self.ffmpeg.available {
-            return span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
-            );
-        }
+        let _ffmpeg = match self.require_ffmpeg() {
+            Ok(f) => f,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
+        };
 
         // Extract keyframes (1 frame per 2 seconds, max 10 frames)
         let frames = match self.ffmpeg.extract_keyframes(&video_url, 2.0, 10).await {
@@ -3253,17 +3003,9 @@ impl MediaServer {
             }
         };
 
-        let (vision_model, _vision_label) = match self.resolve_vision_model().await {
-            Some(v) => v,
-            None => {
-                return span.error(
-                    McpErrorKind::Unavailable,
-                    McpToolError::unavailable(
-                        "No vision-capable provider configured for video captioning",
-                    )
-                    .to_json_string(),
-                );
-            }
+        let (vision_model, _vision_label) = match self.require_vision().await {
+            Ok(v) => v,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
         };
         let params = hkask_types::template::LLMParameters::default();
         let result = self
@@ -3313,7 +3055,12 @@ impl MediaServer {
         // Resolve image to a file path (we need it for imageproc pixel manipulation)
         let image_path = match self.resolve_image_path(image_index) {
             Ok(p) => p,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
         };
 
         // Load the image
@@ -3413,12 +3160,6 @@ impl MediaServer {
             .await
             .map_err(|e| McpToolError::unavailable(format!("Image-to-video failed: {}", e)));
 
-        self.record_experience(
-            "video_meme",
-            &format!("image_index={}", image_index),
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"motion": motion_prompt, "duration": duration}),
-        );
         span.finish(result)
     }
 
@@ -3664,13 +3405,10 @@ impl MediaServer {
             );
         }
 
-        if !self.ffmpeg.available {
-            return span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable("ffmpeg not found — audio capture unavailable.")
-                    .to_json_string(),
-            );
-        }
+        let _ffmpeg = match self.require_ffmpeg() {
+            Ok(f) => f,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
+        };
 
         match self
             .ffmpeg
@@ -3718,13 +3456,10 @@ impl MediaServer {
             );
         }
 
-        if !self.ffmpeg.available {
-            return span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable("ffmpeg not found — audio capture unavailable.")
-                    .to_json_string(),
-            );
-        }
+        let _ffmpeg = match self.require_ffmpeg() {
+            Ok(f) => f,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
+        };
 
         // Step 1: capture audio
         let audio_path = match self.ffmpeg.capture_audio(duration_secs, None).await {

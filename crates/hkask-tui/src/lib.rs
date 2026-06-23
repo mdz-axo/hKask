@@ -28,6 +28,7 @@
 
 mod keybindings;
 mod repl_bridge;
+mod splash;
 mod status_bar;
 mod tab;
 mod window;
@@ -43,8 +44,12 @@ use ratatui::prelude::CrosstermBackend;
 use std::io::Stdout;
 use std::time::Duration;
 
-use bridges::{BackupDataBridge, ConfigDataBridge, WalletDataBridge};
+use bridges::{
+    BackupDataBridge, ConfigDataBridge, KanbanDataBridge, MemoryDataBridge, RegistryDataBridge,
+    WalletDataBridge,
+};
 pub use repl_bridge::{InferenceState, ReplBridge, TurnResult};
+pub use splash::SplashScreen;
 pub use window::{Window, WindowId, WindowKind};
 pub use workspace::{SplitDirection, Workspace};
 
@@ -99,8 +104,29 @@ impl TuiSession {
         self
     }
 
+    pub fn with_registry_bridge(
+        mut self,
+        registry: std::sync::Arc<dyn RegistryDataBridge>,
+    ) -> Self {
+        self.workspace.with_registry_bridge(registry);
+        self
+    }
+
+    pub fn with_memory_bridge(mut self, memory: std::sync::Arc<dyn MemoryDataBridge>) -> Self {
+        self.workspace.with_memory_bridge(memory);
+        self
+    }
+
+    pub fn with_kanban_bridge(mut self, kanban: std::sync::Arc<dyn KanbanDataBridge>) -> Self {
+        self.workspace.with_kanban_bridge(kanban);
+        self
+    }
+
     /// Run the main event loop. Blocks until the user quits.
     pub fn run(&mut self) -> anyhow::Result<()> {
+        // Show splash screen first
+        self.show_splash()?;
+
         while !self.should_quit {
             // Render current frame
             self.terminal.draw(|f| self.workspace.render(f))?;
@@ -120,6 +146,29 @@ impl TuiSession {
 
             // Tick workspace for background updates (CNS polling, etc.)
             self.workspace.tick();
+        }
+
+        Ok(())
+    }
+
+    /// Display the Kask logo splash screen before entering the main workspace.
+    fn show_splash(&mut self) -> anyhow::Result<()> {
+        let mut splash = SplashScreen::new();
+
+        loop {
+            self.terminal.draw(|f| splash.render(f))?;
+
+            // Check for early dismissal via key press
+            if splash.check_early_dismiss() {
+                break;
+            }
+
+            // Auto-dismiss after duration
+            if splash.should_dismiss() {
+                break;
+            }
+
+            std::thread::sleep(Duration::from_millis(16));
         }
 
         Ok(())

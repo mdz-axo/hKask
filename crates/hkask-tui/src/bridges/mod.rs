@@ -6,8 +6,14 @@
 
 pub mod backup;
 pub mod config;
+pub mod kanban;
+pub mod memory;
+pub mod registry;
 pub mod wallet;
 
 pub use backup::BackupDataBridge;
 pub use config::ConfigDataBridge;
+pub use kanban::KanbanDataBridge;
+pub use memory::MemoryDataBridge;
+pub use registry::RegistryDataBridge;
 pub use wallet::{WalletDataBridge, WalletTxSummary};

@@ -1,4 +1,7 @@
 //! Skills window — browse and manage the skill corpus.
+//!
+//! Live data from RegistryDataBridge (SqliteRegistry). Tab-cycled
+//! sections: Installed, Available, Active.
 
 use std::sync::Arc;
 
@@ -9,6 +12,7 @@ use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
+use crate::bridges::RegistryDataBridge;
 use crate::repl_bridge::ReplBridge;
 use crate::window::{Window, WindowId, WindowKind};
 
@@ -41,6 +45,7 @@ pub struct SkillsWindow {
     section: SkillSection,
     #[allow(dead_code)]
     bridge: Arc<dyn ReplBridge>,
+    registry: Option<Arc<dyn RegistryDataBridge>>,
 }
 
 impl SkillsWindow {
@@ -49,7 +54,13 @@ impl SkillsWindow {
             id,
             section: SkillSection::Installed,
             bridge,
+            registry: None,
         }
+    }
+
+    pub fn with_registry_bridge(mut self, reg: Arc<dyn RegistryDataBridge>) -> Self {
+        self.registry = Some(reg);
+        self
     }
 }
 
@@ -72,36 +83,109 @@ impl Window for SkillsWindow {
             )),
             Line::from(""),
         ];
-        match self.section {
-            SkillSection::Installed => {
-                lines.push(Line::from(
-                    "  Installed skills from .agents/skills/ and registry/",
-                ));
-                lines.push(Line::from("  46 total templates available."));
-                lines.push(Line::from("  Use /skill list to see installed skills."));
-                lines.push(Line::from(
-                    "  Use /skill status <name> for detailed status.",
-                ));
-            }
-            SkillSection::Available => {
-                lines.push(Line::from("  Skills available in the registry:"));
 
-                lines.push(Line::from("    • coding-guidelines"));
-                lines.push(Line::from("    • tdd"));
-                lines.push(Line::from("    • diagnose"));
-                lines.push(Line::from("    • deep-module"));
-                lines.push(Line::from("    • essentialist"));
-                lines.push(Line::from("    • pragmatic-semantics"));
-                lines.push(Line::from("    • pragmatic-cybernetics"));
-                lines.push(Line::from("    • ... and more"));
+        if let Some(ref reg) = self.registry {
+            match self.section {
+                SkillSection::Installed => {
+                    let skills = reg.list_skills();
+                    lines.push(Line::from(format!("  {} skill(s) installed", skills.len())));
+                    lines.push(Line::from(""));
+                    if skills.is_empty() {
+                        lines.push(Line::from("  No skills installed."));
+                    } else {
+                        for s in &skills {
+                            let name = s.name.to_string();
+                            let domain = s.domain.to_string();
+                            let desc: String = s
+                                .description
+                                .as_deref()
+                                .map(|d| format!(" — {}", d))
+                                .unwrap_or_default();
+                            lines.push(Line::from(vec![
+                                Span::raw("  • "),
+                                Span::styled(name, Style::default().fg(Color::Magenta)),
+                                Span::raw(format!("  [{}]", domain)),
+                                Span::styled(desc, Style::default().fg(Color::DarkGray)),
+                            ]));
+                        }
+                    }
+                }
+                SkillSection::Available => {
+                    let templates = reg.list_templates();
+                    lines.push(Line::from(format!(
+                        "  {} template(s) available",
+                        templates.len()
+                    )));
+                    lines.push(Line::from(""));
+                    if templates.is_empty() {
+                        lines.push(Line::from("  No templates available."));
+                    } else {
+                        for t in templates.iter().take(30) {
+                            let name = t.name.to_string();
+                            let desc: String = t
+                                .description
+                                .as_deref()
+                                .map(|d| format!(" — {}", d))
+                                .unwrap_or_default();
+                            lines.push(Line::from(vec![
+                                Span::raw("  • "),
+                                Span::styled(name, Style::default().fg(Color::Cyan)),
+                                Span::styled(desc, Style::default().fg(Color::DarkGray)),
+                            ]));
+                        }
+                        if templates.len() > 30 {
+                            lines.push(Line::from(format!(
+                                "  ... and {} more",
+                                templates.len() - 30
+                            )));
+                        }
+                    }
+                }
+                SkillSection::Active => {
+                    let bundles = reg.list_bundles();
+                    lines.push(Line::from(format!(
+                        "  {} bundle(s) available",
+                        bundles.len()
+                    )));
+                    lines.push(Line::from(""));
+                    if bundles.is_empty() {
+                        lines.push(Line::from("  No active bundles."));
+                    } else {
+                        for b in &bundles {
+                            let name = b.name.to_string();
+                            let version = b.version.to_string();
+                            let desc: String = b
+                                .description
+                                .as_deref()
+                                .map(|d| format!(" — {}", d))
+                                .unwrap_or_default();
+                            lines.push(Line::from(vec![
+                                Span::raw("  • "),
+                                Span::styled(name, Style::default().fg(Color::Green)),
+                                Span::raw(format!("  v{}", version)),
+                                Span::styled(desc, Style::default().fg(Color::DarkGray)),
+                            ]));
+                            lines.push(Line::from(format!("     {} skill(s)", b.skill_count)));
+                        }
+                    }
+                }
             }
-            SkillSection::Active => {
-                lines.push(Line::from("  Currently active skills (via /bundle apply):"));
-                lines.push(Line::from("    • None active"));
-                lines.push(Line::from(
-                    "  Use /bundle compose to create a skill bundle.",
-                ));
-                lines.push(Line::from("  Use /bundle apply <id> to activate."));
+        } else {
+            match self.section {
+                SkillSection::Installed => {
+                    lines.push(Line::from("  Installed skills from .agents/skills/"));
+                    lines.push(Line::from("  Use /skill list to see installed skills."));
+                }
+                SkillSection::Available => {
+                    lines.push(Line::from("  Skills available in the registry:"));
+                    lines.push(Line::from("    • coding-guidelines"));
+                    lines.push(Line::from("    • tdd"));
+                    lines.push(Line::from("    • diagnose"));
+                }
+                SkillSection::Active => {
+                    lines.push(Line::from("  Currently active skills:"));
+                    lines.push(Line::from("    • None active"));
+                }
             }
         }
         lines.push(Line::from(""));
