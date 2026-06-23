@@ -1,0 +1,43 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    test_result: object
+  output:
+    convergence_metric: number
+    rationale: string
+    blockers: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: adversarial-red-team/adversarial-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for adversarial-red-team cycles. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 900
+thinking_budget = "standard"
+
+Compute convergence where 0 means critical adversarial failure modes are reduced and residual risk is acceptable.
+
+Input:
+```json
+{{ test_result | tojson }}
+```
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "rationale": "short explanation",
+  "blockers": []
+}
+```

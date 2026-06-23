@@ -1,164 +1,137 @@
-# Starter Kata Manifest
-# ℏKask v0.21.0 — Deliberate practice routines for scientific thinking
+# Starter Kata Process Manifest
+# ℏKask v0.30.0 — Habit drills as convergent PDCA
 
 manifest:
   id: kata-starter
-  name: Starter Kata
-  version: "0.1.0"
+  name: Kata Starter
   description: >
-    Simple practice routines to internalize scientific thinking patterns.
-    Used by Curator for daily capability practice with 7R7 bots.
-    Goal: Make scientific thinking habitual, not the Kata themselves.
-    Starter Kata for building foundational capability habits.
-    3 practice routines for bots with low success rates or basic gaps.
-  editor: Curator
+    Convergent starter-kata process. Selects an appropriate foundational drill,
+    runs practice routines, computes convergence on habit signal quality, and
+    iterates until starter automaticity reaches threshold.
+  functional_role: flowdef
+  version: 0.30.0
+  editor: curator-or-human-admin
   visibility: Public
 
+convergence:
+  threshold: 0.15
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 3
+  min_iterations: 1
+  convergence_field: step_5_result.convergence_metric
+  on_not_reached: escalate
+
 gas:
-  cap: 8000
+  cap: 16000
   cost_per_token: 0.25
-  alert_threshold: 0.7
+  alert_threshold: 0.8
   hard_limit: true
 
-practices:
-  - name: daily_cns_report
-    description: "Practice routine: Submit accurate CNS status reports"
-    frequency: "hourly"
-    duration_minutes: 5
-    cns_spans:
-      - "cns.prompt.kata.starter.report"
-    steps:
-      - "Collect current variety counters"
-      - "Check for algedonic alerts"
-      - "Submit status report to standing session"
-    success_criteria:
-      - "Report submitted within 1 minute of schedule"
-      - "All span categories covered"
-      - "No sovereignty violations"
-
-  - name: span_emission_practice
-    description: "Practice routine: Emit correct CNS spans for each operation"
-    frequency: "per_operation"
-    duration_minutes: 1
-    cns_spans:
-      - "cns.prompt.kata.starter.emit"
-    steps:
-      - "Identify the span category for the current operation"
-      - "Emit Observe phase span before operation"
-      - "Emit Outcome phase span after operation"
-      - "Verify no sovereignty boundary violations"
-    success_criteria:
-      - "Correct span category used"
-      - "Both Observe and Outcome phases emitted"
-      - "Confidence score > 0.8"
-
-  - name: energy_awareness
-    description: "Practice routine: Track and report energy consumption"
-    frequency: "hourly"
-    duration_minutes: 3
-    cns_spans:
-      - "cns.prompt.kata.starter.energy"
-    steps:
-      - "Check current energy budget"
-      - "Calculate energy utilization ratio"
-      - "Report energy status to standing session"
-      - "Flag if utilization > 80%"
-    success_criteria:
-      - "Energy report accuracy > 95%"
-      - "Budget overruns flagged correctly"
-      - "No unreported energy consumption"
-
-starter_outcomes:
-  - name: habits_formed
-    condition: "success_rate >= 0.9 for 3 consecutive cycles"
-    action: "Graduate to coaching kata"
-  - name: improving
-    condition: "success_rate improving over 3 cycles"
-    action: "Continue starter kata"
-  - name: not_progressing
-    condition: "success_rate not improving after 5 cycles"
-    action: "Escalate to Curator for intervention"
+inputs:
+  - name: learner_profile
+    type: object
+    required: false
+  - name: practice_goal
+    type: string
+    required: false
 
 steps:
   - ordinal: 1
     action: select
-    description: >
-      Select which Starter Kata practice routine to run.
-      Based on current capability development needs.
+    description: Select starter drill based on learner profile.
     renderer: minijinja
     template_ref: kata-starter/starter-selector
-    gas_cap: 1500
-    timeout_seconds: 15
-    output_schema:
-      type: object
-      properties:
-        kata_type:
-          type: string
-          enum: [five_questions, pdca_cycle, observation_drill]
-        rationale:
-          type: string
-        confidence:
-          type: number
+    gas_cap: 2500
+    timeout_seconds: 30
+    input_mapping:
+      learner_profile: "{{ learner_profile | default({}) }}"
+      practice_goal: "{{ practice_goal | default('foundational scientific thinking') }}"
 
   - ordinal: 2
-    action: populate
-    description: >
-      Execute the selected Starter Kata practice routine.
-      Render the practice template with current context.
+    action: select
+    description: Run five-questions starter drill.
     renderer: minijinja
-    template_ref: kata-starter/starter-${kata_type}
-    gas_cap: 4000
-    timeout_seconds: 30
-    output_schema:
-      type: object
-      properties:
-        practice_outcome:
-          type: string
-        learner_reflection:
-          type: string
-        habit_signal:
-          type: string
+    template_ref: kata-starter/starter-five-questions
+    gas_cap: 3000
+    timeout_seconds: 45
+    input_mapping:
+      learner_profile: "{{ learner_profile | default({}) }}"
+      selector_result: "{{ step_1_result }}"
 
   - ordinal: 3
-    action: execute
-    description: >
-      Record practice to episodic memory and emit CNS span.
-      Track practice frequency and habit formation progress.
-    renderer: null
-    template_ref: null
-    target: record_practice
-    mcp: hkask-mcp-memory
-    tool: memory_remember
-    gas_cap: 2500
-    timeout_seconds: 15
-    output_schema:
-      type: object
-      properties:
-        memory_id:
-          type: string
-        cns_event_id:
-          type: string
-        practice_streak:
-          type: number
+    action: select
+    description: Run PDCA-cycle starter drill.
+    renderer: minijinja
+    template_ref: kata-starter/starter-pdca-cycle
+    gas_cap: 3000
+    timeout_seconds: 45
+    input_mapping:
+      learner_profile: "{{ learner_profile | default({}) }}"
+      selector_result: "{{ step_1_result }}"
+
+  - ordinal: 4
+    action: select
+    description: Run observation-drill starter exercise.
+    renderer: minijinja
+    template_ref: kata-starter/starter-observation-drill
+    gas_cap: 3000
+    timeout_seconds: 45
+    input_mapping:
+      learner_profile: "{{ learner_profile | default({}) }}"
+      selector_result: "{{ step_1_result }}"
+
+  - ordinal: 5
+    action: select
+    description: Compute normalized convergence metric for starter cycle.
+    renderer: minijinja
+    template_ref: kata-starter/kata-starter-convergence-check
+    gas_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      selector_result: "{{ step_1_result }}"
+      drill_results: "{{ [step_2_result, step_3_result, step_4_result] }}"
+
+  - ordinal: 6
+    action: loop
+    description: Re-enter starter practice cycle if convergence is not met.
+    input_mapping:
+      loop_target: 1
 
 error_handling:
-  on_gas_exceeded: abort_and_escalate
+  on_gas_exceeded: abort
   on_timeout: retry
-  max_retries: 2
+  max_retries: 1
   retry_backoff_seconds: 1
+  on_validation_failure: abort
 
-cns:
-  emit_spans: true
-  span_namespace: cns.prompt.kata.starter
-  variety_monitoring: true
-  algedonic_threshold: 100
-  escalation_target: hKask-Administrator
-
-audit:
-  enabled: true
-  log_level: info
-  include_input: true
-  include_output: true
-  include_gas_cost: true
-  include_cns_events: true
-  include_practice_progress: true
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: kata-starter/starter-selector
+      gas_budget: 2500
+    - resource: template
+      action: render
+      template_id: kata-starter/starter-five-questions
+      gas_budget: 3000
+    - resource: template
+      action: render
+      template_id: kata-starter/starter-pdca-cycle
+      gas_budget: 3000
+    - resource: template
+      action: render
+      template_id: kata-starter/starter-observation-drill
+      gas_budget: 3000
+    - resource: template
+      action: render
+      template_id: kata-starter/kata-starter-convergence-check
+      gas_budget: 2000
+    - resource: manifest
+      action: execute
+      template_id: kata-starter
+      gas_budget: 1000
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true

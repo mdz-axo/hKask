@@ -238,3 +238,59 @@ Updated template crate manifests to register new convergence-check templates:
 
 - `docs/user-guides/skill-user-guide.md`
   - Summary table type updates: `decision-journal`, `self-critique-revision`, `structured-extraction`, `superforecasting`, and `tdd` moved to `FlowDef`.
+
+## Phase 6 Conversions (implemented)
+
+The following skills were recomposed to standardized FlowDef+PDCA with explicit convergence rails:
+
+1. `adversarial-red-team`
+2. `chain-of-density`
+3. `falstaffian-perspective`
+4. `kata-coaching`
+5. `kata-improvement`
+6. `kata-starter`
+
+### New/Updated Process Manifests
+
+- `registry/manifests/adversarial-red-team.yaml`
+- `registry/manifests/chain-of-density.yaml`
+- `registry/manifests/falstaffian-perspective.yaml`
+- `registry/manifests/kata-coaching.yaml`
+- `registry/manifests/kata-improvement.yaml`
+- `registry/manifests/kata-starter.yaml`
+
+### New Convergence Templates
+
+- `registry/templates/adversarial-red-team/adversarial-convergence-check.j2`
+- `registry/templates/chain-of-density/cod-convergence-check.j2`
+- `registry/templates/falstaffian-perspective/falstaffian-convergence-check.j2`
+- `registry/templates/kata-coaching/kata-coaching-convergence-check.j2`
+- `registry/templates/kata-improvement/kata-improvement-convergence-check.j2`
+- `registry/templates/kata-starter/kata-starter-convergence-check.j2`
+
+### Registry Template Manifest Updates
+
+Updated template crate manifests to register new convergence-check templates:
+
+- `registry/templates/adversarial-red-team/manifest.yaml`
+- `registry/templates/chain-of-density/manifest.yaml`
+- `registry/templates/falstaffian-perspective/manifest.yaml`
+- `registry/templates/kata-coaching/manifest.yaml`
+- `registry/templates/kata-improvement/manifest.yaml`
+- `registry/templates/kata-starter/manifest.yaml`
+
+### Docs Updated (Phase 6)
+
+- `docs/user-guides/skill-user-guide.md`
+  - Summary table type updates: `adversarial-red-team`, `chain-of-density`, `falstaffian-perspective`, `kata-coaching`, `kata-improvement`, and `kata-starter` moved to `FlowDef`.
+
+### Phase 6 Addendum — skill-translator normalization
+
+To remove the final non-FlowDef catalog outlier, skill translation was normalized to the same convergent process model:
+
+- Rewrote `registry/manifests/skill-translation.yaml` as standardized FlowDef+PDCA with convergence rails and explicit loop.
+- Added new template crate `registry/templates/skill-translator/` with:
+  - `manifest.yaml`
+  - `translate-skill.j2`
+  - `translation-convergence-check.j2`
+- Updated `docs/user-guides/skill-user-guide.md` summary table entry for `skill-translator` to `FlowDef`.

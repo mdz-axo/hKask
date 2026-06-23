@@ -1,0 +1,47 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    selector_result: object
+    drill_results: array
+  output:
+    convergence_metric: number
+    rationale: string
+    blockers: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: kata-starter/kata-starter-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for kata-starter cycles. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 900
+thinking_budget = "standard"
+
+Compute convergence where 0 means starter drill outcomes indicate stable foundational habit signals and low ambiguity.
+
+Input:
+```json
+{
+  "selector_result": {{ selector_result | tojson }},
+  "drill_results": {{ drill_results | tojson }}
+}
+```
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "rationale": "short explanation",
+  "blockers": []
+}
+```

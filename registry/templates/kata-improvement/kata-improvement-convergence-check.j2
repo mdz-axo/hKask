@@ -1,0 +1,49 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    step2_result: object
+    step3_result: object
+    step4_result: object
+  output:
+    convergence_metric: number
+    rationale: string
+    blockers: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: kata-improvement/kata-improvement-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for kata-improvement cycles. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 900
+thinking_budget = "standard"
+
+Compute convergence where 0 means current condition and target condition are coherent and the next experiment is specific and testable.
+
+Input:
+```json
+{
+  "step2_result": {{ step2_result | tojson }},
+  "step3_result": {{ step3_result | tojson }},
+  "step4_result": {{ step4_result | tojson }}
+}
+```
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "rationale": "short explanation",
+  "blockers": []
+}
+```

@@ -334,9 +334,9 @@ zoom-out → chain-of-density → caveman
 
 | # | Skill | Category | Type | What it does |
 |---|-------|----------|------|-------------|
-| 1 | `adversarial-red-team` | Security | KnowAct | Red-team agent outputs with ATLAS/GARAK taxonomy |
+| 1 | `adversarial-red-team` | Security | FlowDef | Red-team robustness via convergent adversarial probe loops |
 | 2 | `caveman` | Extraction/Summarization | FlowDef | Ultra-compact prose compression via convergent compression loops |
-| 3 | `chain-of-density` | Extraction/Summarization | KnowAct | Iterative density-increase summarization (Gao et al.) |
+| 3 | `chain-of-density` | Extraction/Summarization | FlowDef | Iterative density-increase summarization via convergent passes |
 | 4 | `coding-guidelines` | Behavioral Guardrails | FlowDef | Karpathy's four principles via convergent assess→apply→verify loops |
 | 5 | `condenser-continuation` | Meta-Cognition | FlowDef | Resume work after context reset via convergent continuation loops |
 | 6 | `constraint-forces` | Regulative | FlowDef | Classify constraints by enforcement level via convergent force loops |
@@ -346,7 +346,7 @@ zoom-out → chain-of-density → caveman
 | 10 | `document-update` | Documentation | FlowDef | 7-task doc maintenance workflow with convergent PDCA exits |
 | 11 | `dokkodo-mindset` | Perceptual | FlowDef | Musashi's 21 precepts as convergent perceptual filter |
 | 12 | `essentialist` | Structural Analysis | FlowDef | 3-gate eliminative interrogation as convergent elimination loop |
-| 13 | `falstaffian-perspective` | Perceptual | KnowAct | Semantic shape transforms for perspective-taking |
+| 13 | `falstaffian-perspective` | Perceptual | FlowDef | Perspective-taking via convergent Falstaffian rotation loops |
 | 14 | `gentle-lovelace` | Meta-Cognition | FlowDef | 4D writing-quality evaluation via convergent diagnostic loops |
 | 15 | `goal-analysis` | Meta-Cognition | FlowDef | Goal lifecycle analysis with convergent completion loops |
 | 16 | `grill-me` | Structural Analysis | FlowDef | Socratic interrogation via convergent challenge/assessment loops |
@@ -354,9 +354,9 @@ zoom-out → chain-of-density → caveman
 | 18 | `improv` | Creativity | FlowDef | Agent interaction grammar |
 | 19 | `improve-codebase-architecture` | Diagnostics | FlowDef | Find deepening opportunities via convergent architecture loops |
 | 20 | `kata` | Kata System | Bundle | Full Toyota Kata orchestration |
-| 21 | `kata-coaching` | Kata System | KnowAct | 5-question coaching dialogue |
-| 22 | `kata-improvement` | Kata System | KnowAct | 4-step PDCA scientific pattern |
-| 23 | `kata-starter` | Kata System | KnowAct | Foundational scientific thinking habits |
+| 21 | `kata-coaching` | Kata System | FlowDef | 5-question coaching dialogue via convergent coaching loops |
+| 22 | `kata-improvement` | Kata System | FlowDef | 4-step improvement kata via convergent experiment loops |
+| 23 | `kata-starter` | Kata System | FlowDef | Foundational scientific thinking drills via convergent starter loops |
 | 24 | `logo-builder` | Creativity | FlowDef | Logo design with Bokhua's five gates |
 | 25 | `magna-carta-verifier` | Regulative | FlowDef | Verify Magna Carta compliance via convergent verification loops |
 | 26 | `mcda` | Decision & Strategy | FlowDef | Multi-criteria decision analysis via convergent robustness loops |
@@ -373,7 +373,7 @@ zoom-out → chain-of-density → caveman
 | 37 | `skill-logic-audit` | Skill Management | FlowDef | Audit template logic via bounded critique→proposal loops |
 | 38 | `skill-maintenance` | Skill Management | FlowDef | Audit skills for staleness/coverage via convergent maintenance loops |
 | 39 | `skill-manager` | Skill Management | FlowDef | Registry-first skill lifecycle management via convergent validation loops |
-| 40 | `skill-translator` | Skill Management | KnowAct | Convert skills between formats |
+| 40 | `skill-translator` | Skill Management | FlowDef | Convert skills between formats via convergent translation loops |
 | 41 | `strangler-fig` | Diagnostics | FlowDef | Incremental architectural migration with convergent step verification |
 | 42 | `structured-extraction` | Extraction/Summarization | FlowDef | Schema-driven extraction via convergent entity/relation/map loops |
 | 43 | `superforecasting` | Decision & Strategy | FlowDef | Tetlock 8-stage calibrated forecasting via convergent pipeline loops |

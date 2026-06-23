@@ -504,27 +504,41 @@ impl MemoryServer {
         &self,
         Parameters(BackupRequest {
             target_path,
-            passphrase: _passphrase,
+            passphrase,
         }): Parameters<BackupRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("memory_backup", &self.webid);
         let target = target_path.unwrap_or_else(|| "hkask-memory-backup.sqlite".to_string());
-        // passphrase is reserved for future encrypted backup support.
-        // Currently all backups are unencrypted plain SQLite.
+
+        // \[NORMATIVE\] Refuse to write sovereign memory to an unencrypted file —
+        // a plaintext backup defeats the SQLCipher at-rest encryption boundary
+        // (P1 — User Sovereignty). A passphrase is mandatory.
+        let Some(passphrase) = passphrase.filter(|p| !p.is_empty()) else {
+            return self.internal_error(
+                span,
+                "backup",
+                "a non-empty passphrase is required: refusing to write an unencrypted backup of sovereign memory",
+            );
+        };
 
         let Some(ref db_conn) = self.db else {
             return self.internal_error(span, "backup", "in-memory database");
         };
 
-        // Open the destination as a plain unencrypted SQLite file
+        // Open the destination and key it as a SQLCipher-encrypted database
+        // BEFORE copying pages, so the backup is written encrypted.
         let mut dst_conn = match rusqlite::Connection::open(&target) {
             Ok(conn) => conn,
             Err(e) => {
                 return self.internal_error(span, "open backup destination", e);
             }
         };
+        if let Err(e) = dst_conn.pragma_update(None, "key", passphrase.as_str()) {
+            return self.internal_error(span, "encrypt backup destination", e);
+        }
 
-        // Copy source → destination using SQLite's backup API
+        // Copy source → destination using SQLite's backup API (re-encrypts pages
+        // under the destination key)
         let result = {
             let src_conn = match db_conn.lock() {
                 Ok(guard) => guard,
@@ -553,11 +567,10 @@ impl MemoryServer {
         &self,
         Parameters(RestoreRequest {
             source_path,
-            passphrase: _passphrase,
+            passphrase,
         }): Parameters<RestoreRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("memory_restore", &self.webid);
-        // passphrase is reserved for future encrypted restore support.
 
         let Some(ref db_conn) = self.db else {
             return self.internal_error(span, "restore", "in-memory database");
@@ -566,6 +579,13 @@ impl MemoryServer {
         // Validate source file exists and is a SQLite database before destroying current data
         let src_conn = match rusqlite::Connection::open(&source_path) {
             Ok(conn) => {
+                // Backups are written encrypted (see `memory_backup`); key the
+                // source before reading so an encrypted backup can be restored.
+                if let Some(p) = passphrase.as_deref().filter(|p| !p.is_empty()) {
+                    if let Err(e) = conn.pragma_update(None, "key", p) {
+                        return self.internal_error(span, "decrypt backup source", e);
+                    }
+                }
                 // Quick validation: try reading sqlite_master
                 if let Err(e) = conn.query_row(
                     "SELECT count(*) FROM sqlite_master WHERE type='table'",
@@ -616,6 +636,61 @@ impl MemoryServer {
             })),
             Err(e) => self.internal_error(span, "restore", e),
         }
+    }
+}
+
+#[cfg(test)]
+mod backup_encryption_tests {
+    //! Verifies the at-rest encryption guarantee that `memory_backup` relies on:
+    //! SQLCipher must be linked into this binary so that keying the destination
+    //! connection actually encrypts the file. If SQLCipher were absent,
+    //! `PRAGMA key` would be a silent no-op and backups would be plaintext.
+
+    use std::time::Duration;
+
+    #[test]
+    fn keyed_backup_destination_is_unreadable_without_the_key() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let backup_path = dir.path().join("backup.sqlite");
+
+        // Source: a keyed (encrypted) in-memory-style DB with one row.
+        let src = rusqlite::Connection::open(dir.path().join("src.sqlite")).expect("open src");
+        src.pragma_update(None, "key", "src-pass").expect("key src");
+        src.execute_batch("CREATE TABLE t(x TEXT); INSERT INTO t VALUES ('secret');")
+            .expect("seed src");
+
+        // Destination keyed with a DIFFERENT passphrase, then page-copied — exactly
+        // what `memory_backup` does.
+        let mut dst = rusqlite::Connection::open(&backup_path).expect("open dst");
+        dst.pragma_update(None, "key", "backup-pass")
+            .expect("key dst");
+        {
+            let backup = rusqlite::backup::Backup::new(&src, &mut dst).expect("backup new");
+            backup
+                .run_to_completion(100, Duration::from_millis(250), None)
+                .expect("backup run");
+        }
+        drop(dst);
+
+        // Opening the backup WITHOUT the key must fail (proves it is encrypted).
+        let no_key = rusqlite::Connection::open(&backup_path).expect("reopen");
+        let unreadable = no_key
+            .query_row("SELECT x FROM t", [], |r| r.get::<_, String>(0))
+            .is_err();
+        assert!(
+            unreadable,
+            "backup opened without key must be unreadable — SQLCipher not active? backup is PLAINTEXT"
+        );
+
+        // Opening WITH the correct key must succeed and round-trip the data.
+        let keyed = rusqlite::Connection::open(&backup_path).expect("reopen keyed");
+        keyed
+            .pragma_update(None, "key", "backup-pass")
+            .expect("key reopen");
+        let value: String = keyed
+            .query_row("SELECT x FROM t", [], |r| r.get(0))
+            .expect("read with key");
+        assert_eq!(value, "secret");
     }
 }
 
