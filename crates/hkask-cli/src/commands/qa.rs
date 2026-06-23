@@ -10,6 +10,7 @@ use crate::cli::QaAction;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_services_classify::{self, ClassifierConfig};
 use hkask_test_harness::qa_script::{ClassifyResult, QaScriptRunner};
+use hkask_test_harness::self_heal::{HealInferenceFn, SelfHealer};
 use hkask_test_harness::triage::{self, BoleroFailure, QaDiagnosis, TriageReport};
 use std::collections::HashMap;
 use std::fs::File;
@@ -192,6 +193,38 @@ fn find_registry_dir() -> PathBuf {
     home.join(".config").join("hkask").join("registry")
 }
 
+/// Build a SelfHealer wired to the classifier model via `generate_raw`.
+fn build_healer(registry_dir: &Path) -> SelfHealer {
+    for name in &["qa-triage", "triage", "classify"] {
+        if let Ok(def) = hkask_services_classify::load_classifier_config(name, registry_dir) {
+            let cfg = ClassifierConfig::from_def(&def);
+            if !cfg.api_key.is_empty() {
+                println!("[QA] Self-healer wired to '{}' ({})", name, cfg.model);
+                let inference: HealInferenceFn = Box::new(move |prompt: &str| {
+                    let cfg = cfg.clone();
+                    let prompt = prompt.to_string();
+                    std::thread::spawn(move || {
+                        tokio::runtime::Builder::new_current_thread()
+                            .enable_all()
+                            .build()
+                            .map_err(|e| format!("{e}"))?
+                            .block_on(async {
+                                hkask_services_classify::generate_raw(&prompt, &cfg)
+                                    .await
+                                    .map_err(|e| format!("{e}"))
+                            })
+                    })
+                    .join()
+                    .map_err(|_| "thread panic".to_string())?
+                });
+                return SelfHealer::new().with_inference(inference);
+            }
+        }
+    }
+    println!("[QA] Self-healer: no API key — retry-only mode");
+    SelfHealer::new()
+}
+
 fn parse_diagnosis(raw: &str) -> Result<QaDiagnosis, serde_json::Error> {
     // Strip markdown code fences if present
     let json = raw
@@ -334,6 +367,7 @@ fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     println!("[QA] Loading script: {}", script_path.display());
 
     let registry_dir = find_registry_dir();
+    let registry_dir_for_healer = registry_dir.clone();
 
     // Build classify closure. Runs on a dedicated OS thread to avoid
     // Tokio's nested-block_on restriction (the CLI main runs inside a
@@ -375,6 +409,9 @@ fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         .join()
         .map_err(|_| "Classify thread panicked".to_string())?
     };
+
+    // Build a SelfHealer wired to the same inference provider as the classifier.
+    let healer = build_healer(&registry_dir_for_healer);
 
     let runner = {
         let content = std::fs::read_to_string(&script_path)
@@ -536,7 +573,8 @@ fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
 
         let ledger_path = cost_ledger_path();
         let runner = QaScriptRunner::new(manifest, Box::new(classify))
-            .with_tool_invoke(Box::new(tool_invoke));
+            .with_tool_invoke(Box::new(tool_invoke))
+            .with_healer(healer);
         if let Some(p) = ledger_path {
             runner.with_ledger_path(p)
         } else {

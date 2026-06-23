@@ -3,7 +3,7 @@
 //! Tests commutativity, associativity, and idempotence of CRDT merge operations.
 //! Uses proptest for randomized state-space exploration.
 
-use hkask_federation::crdt::{GSet, LWWMap, ORSet, VersionVector};
+use hkask_federation::crdt::{GSet, ORSet, VersionVector};
 use proptest::prelude::*;
 use std::collections::HashSet;
 
@@ -43,8 +43,8 @@ proptest! {
 
 fn vv_from_pairs(pairs: &[(String, u64)]) -> VersionVector {
     let mut vv = VersionVector::new();
-    for (r, c) in pairs {
-        let current = vv.get(r);
+    for (r, _c) in pairs {
+        let _current = vv.get(r);
         vv.increment(r.clone());
     }
     vv
@@ -102,8 +102,8 @@ proptest! {
         let mut b = ORSet::new("beta".into());
         for item in &a_items { a.add(item.clone()); }
         for item in &b_items { b.add(item.clone()); }
-        let a_copy = copy_orset(&a);
-        let b_copy = copy_orset(&b);
+        let _a_copy = copy_orset(&a);
+        let _b_copy = copy_orset(&b);
         let mut a1 = copy_orset(&a);
         let mut b1 = copy_orset(&b);
         a1.merge(&b);

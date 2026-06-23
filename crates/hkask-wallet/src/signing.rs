@@ -203,16 +203,13 @@ mod tests {
     fn sign_withdrawal_all_chains() {
         set_test_master_key();
         let tx_bytes = b"test transaction";
-        // All ChainId variants should produce valid 64-byte signatures
-        for chain in [ChainId::Hedera] {
-            let sig = sign_withdrawal(chain, tx_bytes).unwrap();
-            assert_eq!(
-                sig.len(),
-                64,
-                "chain {:?} produced wrong signature length",
-                chain
-            );
-        }
+        // Ed25519 signatures are 64 bytes
+        let sig = sign_withdrawal(ChainId::Hedera, tx_bytes).unwrap();
+        assert_eq!(
+            sig.len(),
+            64,
+            "chain Hedera produced wrong signature length"
+        );
     }
 
     /// expect: "Wallet sign withdrawal empty test works correctly under test conditions"

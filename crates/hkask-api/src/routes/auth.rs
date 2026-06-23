@@ -271,6 +271,7 @@ pub async fn callback(
 
 /// GitHub token exchange response.
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // populated by serde deserialization
 struct GitHubTokenResponse {
     access_token: String,
     #[serde(default)]

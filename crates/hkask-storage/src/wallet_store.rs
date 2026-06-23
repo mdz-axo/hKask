@@ -1095,6 +1095,8 @@ mod tests {
             id: 0, // auto-increment, ignored on insert
             wallet_id: wallet,
             tx_type: TransactionType::Deposit {
+                chain: ChainId::default(),
+                privacy: PrivacyMode::default(),
                 tx_hash: "test_tx".into(),
                 amount_usdc_micro: 1_000_000,
             },
@@ -1113,6 +1115,7 @@ mod tests {
         let wallet = WalletId::new();
         store.ensure_wallet(wallet).unwrap();
         let dep_ref = DepositReference {
+            chain: ChainId::default(),
             reference: "test_ref_001".into(),
             wallet_id: wallet,
             nonce: [0u8; 16],
@@ -1132,6 +1135,7 @@ mod tests {
         let wallet = WalletId::new();
         store.ensure_wallet(wallet).unwrap();
         let dep_ref = DepositReference {
+            chain: ChainId::default(),
             reference: "expired_ref".into(),
             wallet_id: wallet,
             nonce: [0u8; 16],
@@ -1158,6 +1162,8 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::default(),
+            preferred_chain: None,
         };
         store.store_api_key(&cap).unwrap();
         let retrieved = store.get_api_key_by_public_key(pubkey.as_bytes()).unwrap();
@@ -1180,6 +1186,8 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::default(),
+            preferred_chain: None,
         };
         let key_id = cap.key_id;
         store.store_api_key(&cap).unwrap();
@@ -1208,6 +1216,8 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::default(),
+            preferred_chain: None,
         };
         store.store_api_key(&cap).unwrap();
         store
@@ -1239,6 +1249,8 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::default(),
+            preferred_chain: None,
         };
         store.store_api_key(&cap).unwrap();
         store
@@ -1265,6 +1277,7 @@ mod tests {
         store.ensure_wallet(wallet).unwrap();
         // Store an expired reference
         let expired = DepositReference {
+            chain: ChainId::default(),
             reference: "old_ref".into(),
             wallet_id: wallet,
             nonce: [0u8; 16],
@@ -1273,6 +1286,7 @@ mod tests {
         store.store_deposit_reference(&expired).unwrap();
         // Store a valid reference
         let valid = DepositReference {
+            chain: ChainId::default(),
             reference: "new_ref".into(),
             wallet_id: wallet,
             nonce: [1u8; 16],
@@ -1324,6 +1338,8 @@ mod tests {
                         id: 0,
                         wallet_id: wallet,
                         tx_type: TransactionType::Deposit {
+                            chain: ChainId::default(),
+                            privacy: PrivacyMode::default(),
                             tx_hash: format!("test_tx_{}", expected_sum),
                             amount_usdc_micro: *amount * 1000,
                         },
@@ -1342,6 +1358,8 @@ mod tests {
                             id: 0,
                             wallet_id: wallet,
                             tx_type: TransactionType::Withdrawal {
+                                chain: ChainId::default(),
+                                privacy: PrivacyMode::default(),
                                 tx_hash: format!("test_tx_{}", expected_sum),
                                 amount_usdc_micro: *amount * 1000,
                             },
@@ -1423,6 +1441,8 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::default(),
+            preferred_chain: None,
         };
         store.store_api_key(&cap).unwrap();
         store
@@ -1494,6 +1514,7 @@ mod tests {
         let wallet = WalletId::new();
         store.ensure_wallet(wallet).unwrap();
         let dep_ref = DepositReference {
+            chain: ChainId::default(),
             reference: "idem_ref_001".into(),
             wallet_id: wallet,
             nonce: [0u8; 16],

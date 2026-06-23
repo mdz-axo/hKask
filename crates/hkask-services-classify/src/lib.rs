@@ -6,7 +6,7 @@ mod classify_impl;
 mod provider_intel;
 
 pub use classify_impl::{
-    ClassifierConfig, TripleExtraction, classify_batch, extract_triples_batch,
+    ClassifierConfig, TripleExtraction, classify_batch, extract_triples_batch, generate_raw,
     load_classifier_config,
 };
 pub use provider_intel::{

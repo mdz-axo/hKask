@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;
 
+use crate::self_heal::HealContext;
 use hkask_ledger::{Ledger, LedgerTransaction, Posting};
 
 // ── Manifest types ──────────────────────────────────────────────────────────────
@@ -450,8 +451,8 @@ pub struct QaScriptRunner {
     classify: Box<ClassifyFn>,
     /// Caller-provided tool invocation function (for "mcp_tool" actions)
     tool_invoke: Option<Box<ToolFn>>,
-    // Self-healer for automatic error recovery (wire-up deferred)
-    #[allow(dead_code)]
+    /// Self-healer for automatic error recovery (Stage 1: config/env; Stage 2: LLM-assisted).
+    /// Every fallible step passes through the healer before the QA script degrades or escalates.
     healer: crate::self_heal::SelfHealer,
     /// Optional path to cost ledger database
     ledger_path: Option<PathBuf>,
@@ -479,6 +480,12 @@ impl QaScriptRunner {
     /// to the ledger on run completion n.
     pub fn with_ledger_path(mut self, path: PathBuf) -> Self {
         self.ledger_path = Some(path);
+        self
+    }
+
+    /// Attach a custom SelfHealer (e.g., with inference for Stage 2 healing).
+    pub fn with_healer(mut self, healer: crate::self_heal::SelfHealer) -> Self {
+        self.healer = healer;
         self
     }
 
@@ -772,12 +779,27 @@ impl QaScriptRunner {
         let passage = step.description.clone();
         let passages = vec![passage];
 
-        let result = (self.classify)(classifier_name, &passages).map_err(|e| {
-            QaScriptError::ClassifyFailed {
-                ordinal: step.ordinal,
-                reason: e,
-            }
-        })?;
+        // Wrap the classify call in self-healing for automatic error recovery.
+        // Stage 1 handles config/env issues (missing API keys, .env reload);
+        // Stage 2 (if inference is wired) provides LLM-assisted healing.
+        let healer_context = HealContext {
+            operation: format!("classify.{}", step.ordinal),
+            error_message: String::new(),
+            can_retry: true,
+            ..Default::default()
+        };
+
+        let result = self.healer.healable(
+            || {
+                (self.classify)(classifier_name, &passages).map_err(|e| {
+                    QaScriptError::ClassifyFailed {
+                        ordinal: step.ordinal,
+                        reason: e,
+                    }
+                })
+            },
+            healer_context,
+        )?;
 
         // Track gas: one software function call
         cost.gas_used += gas_per_fn;
@@ -832,40 +854,49 @@ impl QaScriptRunner {
             })?;
 
         use std::process::Command;
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg(cmd)
-            .output()
-            .map_err(|e| QaScriptError::CommandFailed {
-                ordinal: step.ordinal,
-                command: cmd.into(),
-                stderr: e.to_string(),
-            })?;
 
-        if output.status.success() {
-            Ok(StepResult {
-                ordinal: step.ordinal,
-                action: "run_command".into(),
-                outcome: "success".into(),
-                qa_outcome: QaOutcome::Passed,
-                classify_category: None,
-                retries: 0,
-                duration_ms: 0,
-                cost: StepCost::default(),
-            })
-        } else {
-            let _stderr = String::from_utf8_lossy(&output.stderr).to_string();
-            Ok(StepResult {
-                ordinal: step.ordinal,
-                action: "run_command".into(),
-                outcome: "failure".into(),
-                qa_outcome: QaOutcome::Failed,
-                classify_category: None,
-                retries: 0,
-                duration_ms: 0,
-                cost: StepCost::default(),
-            })
-        }
+        // Wrap command execution in self-healing for automatic error recovery.
+        let healer_context = HealContext {
+            operation: format!("command.{}", step.ordinal),
+            error_message: String::new(),
+            can_retry: true,
+            ..Default::default()
+        };
+
+        self.healer.healable(
+            || {
+                let output = Command::new("sh")
+                    .arg("-c")
+                    .arg(cmd)
+                    .output()
+                    .map_err(|e| QaScriptError::CommandFailed {
+                        ordinal: step.ordinal,
+                        command: cmd.into(),
+                        stderr: e.to_string(),
+                    })?;
+
+                if output.status.success() {
+                    Ok(StepResult {
+                        ordinal: step.ordinal,
+                        action: "run_command".into(),
+                        outcome: "success".into(),
+                        qa_outcome: QaOutcome::Passed,
+                        classify_category: None,
+                        retries: 0,
+                        duration_ms: 0,
+                        cost: StepCost::default(),
+                    })
+                } else {
+                    let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
+                    Err(QaScriptError::CommandFailed {
+                        ordinal: step.ordinal,
+                        command: cmd.into(),
+                        stderr: stderr_str,
+                    })
+                }
+            },
+            healer_context,
+        )
     }
 
     fn execute_tool(&self, step: &QaScriptStep) -> Result<StepResult, QaScriptError> {

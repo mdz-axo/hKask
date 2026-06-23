@@ -633,7 +633,6 @@ fn resolve_wallet(wallet_arg: Option<String>) -> Result<WalletId, String> {
 
 fn parse_chain(s: Option<&str>) -> Result<ChainId, String> {
     match s {
-        Some("hedera") => Ok(ChainId::Hedera),
         Some("hedera") | None => Ok(ChainId::Hedera),
         Some(other) => Err(format!(
             "Invalid chain '{}'. Expected one of: hedera",
@@ -642,10 +641,6 @@ fn parse_chain(s: Option<&str>) -> Result<ChainId, String> {
     }
 }
 
-fn resolve_privacy_mode(_private: bool, transparent: bool) -> PrivacyMode {
-    if transparent {
-        PrivacyMode::Transparent
-    } else {
-        PrivacyMode::Transparent
-    }
+fn resolve_privacy_mode(_private: bool, _transparent: bool) -> PrivacyMode {
+    PrivacyMode::default()
 }

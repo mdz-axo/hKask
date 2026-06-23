@@ -247,7 +247,6 @@ impl WalletManager {
             chain: ChainId::Hedera,
             reference,
             wallet_id,
-            chain,
             nonce,
             expires_at: expiry,
         };
@@ -456,6 +455,8 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::default(),
+            preferred_chain: None,
         };
         let _ = store.store_api_key(&capability);
     }
@@ -590,13 +591,7 @@ mod tests {
 
         // Store a deposit address so resolution works
         store
-            .store_deposit_address(
-                wallet_id,
-                ChainId::Hedera,
-                "mock_deposit_addr_1",
-                0,
-                PrivacyMode::Transparent,
-            )
+            .store_deposit_address(wallet_id, "mock_deposit_addr_1", 0)
             .unwrap();
 
         let deposit_event = DepositEvent {
@@ -677,22 +672,10 @@ mod tests {
 
         // Register deposit addresses for both chains
         store
-            .store_deposit_address(
-                wallet_id,
-                ChainId::Hedera,
-                "hedera_deposit_addr",
-                0,
-                PrivacyMode::Transparent,
-            )
+            .store_deposit_address(wallet_id, "hedera_deposit_addr", 0)
             .unwrap();
         store
-            .store_deposit_address(
-                wallet_id,
-                ChainId::Hedera,
-                "hedera_deposit_addr",
-                1,
-                PrivacyMode::Transparent,
-            )
+            .store_deposit_address(wallet_id, "hedera_deposit_addr", 1)
             .unwrap();
 
         let hed_deposit_1 = DepositEvent {

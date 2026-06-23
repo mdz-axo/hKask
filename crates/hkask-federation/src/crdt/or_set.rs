@@ -237,8 +237,8 @@ mod tests {
         a.add("y".into());
         a.remove(&"x".into());
         let elems: HashSet<String> = a.elements();
-        assert!(elems.contains(&"y".to_string()));
-        assert!(!elems.contains(&"x".to_string()));
+        assert!(elems.contains("y"));
+        assert!(!elems.contains("x"));
     }
 
     #[test]

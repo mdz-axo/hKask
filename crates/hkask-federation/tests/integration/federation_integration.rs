@@ -1,14 +1,10 @@
 //! Federation integration tests — two-replica convergence scenarios.
 
 use std::sync::Arc;
-use std::time::Duration;
 
-use hkask_federation::ReplicaId;
 use hkask_federation::crdt::ORSet;
 use hkask_federation::sync::transport::InMemoryFederationTransport;
-use hkask_ports::federation::{
-    FederatedTriple, FederationDelta, FederationMessage, FederationTransport,
-};
+use hkask_ports::federation::{FederationMessage, FederationTransport};
 
 /// Verify that a triple added on replica A becomes visible on replica B
 /// after a sync cycle. This is the fundamental "convergence" property.
@@ -68,7 +64,7 @@ async fn divergent_facts_both_retained() {
 async fn partition_prevents_message_delivery() {
     let shared = InMemoryFederationTransport::new_shared();
     let transport_a = InMemoryFederationTransport::for_replica(&shared, "alpha".into());
-    let transport_b = InMemoryFederationTransport::for_replica(&shared, "beta".into());
+    let _transport_b = InMemoryFederationTransport::for_replica(&shared, "beta".into());
 
     // Partition beta
     transport_a.simulate_partition(&"beta".into());

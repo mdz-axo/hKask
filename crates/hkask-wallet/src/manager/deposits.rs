@@ -93,8 +93,6 @@ impl WalletManager {
             tx_type: TransactionType::Deposit {
                 chain: ChainId::Hedera,
                 privacy: PrivacyMode::Transparent,
-                chain: ChainId::Hedera,
-                privacy: PrivacyMode::Transparent,
                 tx_hash: event.tx_hash.0.clone(),
                 amount_usdc_micro: event.amount_usdc_micro,
             },

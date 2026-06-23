@@ -261,12 +261,8 @@ fn parse_chain(s: Option<&str>) -> Result<ChainId, &'static str> {
     }
 }
 
-fn resolve_privacy_mode(private: Option<bool>) -> PrivacyMode {
-    if private.unwrap_or(true) {
-        PrivacyMode::Transparent
-    } else {
-        PrivacyMode::Transparent
-    }
+fn resolve_privacy_mode(_private: Option<bool>) -> PrivacyMode {
+    PrivacyMode::default()
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]

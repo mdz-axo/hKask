@@ -401,7 +401,7 @@ impl WalletService {
 
     // ── Shield ───────────────────────────────────────────────────────────────
 
-    /// Shield transparently-held USDC into the Hinkal privacy pool.
+    // Shield transparently-held USDC into the Hinkal privacy pool.
     // ── API Keys ─────────────────────────────────────────────────────────────
 
     /// Create a new API key with the specified limits, scope, and purpose.
@@ -837,7 +837,6 @@ mod tests {
         build_service_with_harness(
             Arc::new(CaptureSink::default()),
             Default::default(),
-            None,
             Arc::new(StaticPriceFeed),
         )
     }
@@ -923,7 +922,6 @@ mod tests {
         let svc = build_service_with_harness(
             Arc::clone(&sink),
             Default::default(),
-            None,
             Arc::new(FailingPriceFeed),
         );
 
@@ -937,38 +935,12 @@ mod tests {
         assert_event_actor(&sink, "estimate_withdrawal_fee", &actor);
     }
 
-    #[tokio::test]
-    async fn shielded_withdraw_error_span_preserves_request_actor() {
-        set_test_master_key();
-        let sink = Arc::new(CaptureSink::default());
-        let svc = build_service_with_harness(
-            Arc::clone(&sink),
-            Default::default(),
-            Some(Arc::new(FailingActorPrivacy {
-                sink: Arc::clone(&sink) as Arc<dyn NuEventSink>,
-            }) as Arc<dyn hkask_wallet::PrivacyPort>),
-            Arc::new(StaticPriceFeed),
-        );
-
-        let wallet = WalletId::new();
-        svc.ensure_wallet(wallet).expect("ensure wallet");
-
-        let actor = WebID::from_persona(b"svc-shielded-actor");
-        let err = svc
-            .withdraw(
-                &actor,
-                wallet,
-                RJoule::ZERO,
-                "some_destination",
-                ChainId::Hinkal,
-                PrivacyMode::Shielded,
-            )
-            .await
-            .expect_err("forced privacy adapter failure should bubble up");
-        assert!(matches!(err, ServiceError::Wallet { .. }));
-
-        assert_event_actor(&sink, "privacy_submit_signed_tx", &actor);
-    }
+    // DISABLED: shielded withdraw privacy layer removed (simplified to single-chain, transparent only).
+    // Original test used FailingActorPrivacy, PrivacyPort, and ChainId::Hinkal which no longer exist.
+    // #[tokio::test]
+    // async fn shielded_withdraw_error_span_preserves_request_actor() {
+    //     ...
+    // }
 
     #[test]
     fn create_key_produces_valid_material() {
@@ -1013,7 +985,7 @@ mod tests {
             wallet,
             RJoule::new(2000),
             None,
-            PrivacyMode::Shielded,
+            PrivacyMode::Transparent,
             Some(ChainId::Hedera),
             vec!["embed-corpus".to_string()],
             "list test 2".to_string(),

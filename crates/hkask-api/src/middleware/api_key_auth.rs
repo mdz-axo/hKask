@@ -319,7 +319,7 @@ mod tests {
     use hkask_storage::WalletStore;
     use hkask_storage::database::in_memory_db;
     use hkask_types::crypto::Ed25519PublicKey;
-    use hkask_wallet::{ApiKeyCapability, WalletConfig};
+    use hkask_wallet::{ApiKeyCapability, PrivacyMode, WalletConfig};
     use hkask_wallet::{ApiKeyIssuer, StaticPriceFeed, WalletManager};
 
     fn make_auth_service_with_key(spent_rj: u64, limit_rj: u64) -> (ApiKeyAuthService, String) {

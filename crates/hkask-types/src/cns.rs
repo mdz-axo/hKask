@@ -201,6 +201,8 @@ pub enum CnsSpan {
     FederationConduitRouteLost,
     /// Federation CRDT conflict detected — requires Curator attention.
     FederationCrdtConflict,
+    /// Self-healing operation span. Canonical string: `"cns.heal"`.
+    SelfHeal,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -364,6 +366,7 @@ impl CnsSpan {
             CnsSpan::FederationConduitRoute => "cns.federation.conduit_route",
             CnsSpan::FederationConduitRouteLost => "cns.federation.conduit_route_lost",
             CnsSpan::FederationCrdtConflict => "cns.federation.crdt_conflict",
+            CnsSpan::SelfHeal => "cns.heal",
         }
     }
 }
@@ -484,6 +487,7 @@ impl std::str::FromStr for CnsSpan {
             "cns.federation.conduit_route" => Ok(CnsSpan::FederationConduitRoute),
             "cns.federation.conduit_route_lost" => Ok(CnsSpan::FederationConduitRouteLost),
             "cns.federation.crdt_conflict" => Ok(CnsSpan::FederationCrdtConflict),
+            "cns.heal" => Ok(CnsSpan::SelfHeal),
             _ => Err(()),
         }
     }
@@ -528,6 +532,7 @@ mod cns_span_tests {
             "cns.sovereignty",
             "cns.wallet.balance",
             "cns.contract.violated",
+            "cns.heal",
         ];
         for s in variants {
             let span: CnsSpan = s.parse().expect("should parse");
@@ -629,6 +634,7 @@ mod cns_span_tests {
             CnsSpan::FederationConduitRoute,
             CnsSpan::FederationConduitRouteLost,
             CnsSpan::FederationCrdtConflict,
+            CnsSpan::SelfHeal,
         ];
         for variant in &all_variants {
             let s = variant.to_string();

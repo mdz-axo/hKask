@@ -394,6 +394,69 @@ async fn classify_one(
     })
 }
 
+/// Generate raw text from the LLM — used by the self-healing engine
+/// to send healing prompts and receive JSON instruction responses.
+///
+/// Unlike `classify_one`, this does not apply a system prompt or parse
+/// the response as a category. It returns the raw LLM output text.
+#[allow(dead_code)] // public API, called by external consumers
+pub async fn generate_raw(prompt: &str, config: &ClassifierConfig) -> Result<String, ServiceError> {
+    let client = Client::builder()
+        .timeout(config.timeout)
+        .build()
+        .map_err(|e| ServiceError::Embed {
+            source: None,
+            message: format!("Healer client: {}", e),
+        })?;
+
+    let body = serde_json::json!({
+        "model": config.model,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.1,
+        "max_tokens": 2048
+    });
+
+    let resp = client
+        .post(&config.base_url)
+        .header("Authorization", format!("Bearer {}", config.api_key))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| ServiceError::Embed {
+            source: None,
+            message: format!("Healer HTTP: {}", e),
+        })?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(ServiceError::Embed {
+            source: None,
+            message: format!(
+                "Healer API error ({}): {}",
+                status.as_u16(),
+                &text[..text.len().min(200)]
+            ),
+        });
+    }
+
+    let chat: ChatResponse = resp.json().await.map_err(|e| ServiceError::Embed {
+        source: None,
+        message: format!("Healer JSON parse: {}", e),
+    })?;
+
+    let content = chat
+        .choices
+        .first()
+        .map(|c| c.message.content.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    Ok(content)
+}
+
 /// Classify a batch of passages concurrently.
 ///
 /// Returns results in the same order as the input texts.

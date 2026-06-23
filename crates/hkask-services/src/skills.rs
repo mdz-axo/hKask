@@ -473,6 +473,7 @@ struct J2FileInfo {
 }
 
 #[derive(Debug, Default)]
+#[allow(dead_code)] // populated by serde deserialization; some fields consumed in specific code paths
 struct J2FrontMatter {
     template_type: Option<TemplateType>,
     template_type_raw: Option<String>,
