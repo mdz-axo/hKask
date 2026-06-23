@@ -40,26 +40,10 @@ pub fn run(
     }
 
     // Build service context and start the research MCP server
-    let config = crate::commands::helpers::or_exit(
-        hkask_services::ServiceConfig::from_env(),
-        "Failed to resolve config",
-    );
-    let ctx = crate::commands::helpers::or_exit(
-        rt.block_on(hkask_services::AgentService::build(config)),
-        "Failed to build AgentService",
-    );
-    match rt.block_on(
-        ctx.mcp_runtime()
-            .start_server("research", "hkask-mcp-research"),
-    ) {
-        Ok(()) => {
-            tracing::info!(target: "hkask.cli", "MCP research server started")
-        }
-        Err(e) => {
-            eprintln!("Failed to start MCP research server: {e}");
-            eprintln!("Make sure hkask-mcp-research binary is built and on PATH.");
-            std::process::exit(1);
-        }
+    let ctx = crate::commands::helpers::build_service_context();
+    if !crate::commands::helpers::start_mcp_server(rt, &ctx, "research", "hkask-mcp-research") {
+        eprintln!("Failed to start MCP research server. Make sure hkask-mcp-research is built and on PATH.");
+        std::process::exit(1);
     }
 
     let mcp = ctx.mcp_dispatcher().clone() as std::sync::Arc<dyn McpPort>;

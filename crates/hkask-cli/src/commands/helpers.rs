@@ -100,3 +100,22 @@ pub fn resolve_user_webid() -> hkask_types::WebID {
     }
     hkask_types::WebID::from_persona(b"cli-user")
 }
+
+/// Start a single MCP server and trace the result. Returns true on success.
+pub fn start_mcp_server(
+    rt: &tokio::runtime::Runtime,
+    ctx: &hkask_services::AgentService,
+    server_id: &str,
+    command: &str,
+) -> bool {
+    match rt.block_on(ctx.mcp_runtime().start_server(server_id, command)) {
+        Ok(()) => {
+            tracing::info!(target: "hkask.cli", server_id = %server_id, "MCP server started");
+            true
+        }
+        Err(e) => {
+            tracing::warn!(target: "hkask.cli", server_id = %server_id, error = %e, "Failed to start MCP server");
+            false
+        }
+    }
+}

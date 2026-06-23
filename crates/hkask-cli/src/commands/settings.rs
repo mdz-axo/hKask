@@ -25,11 +25,12 @@ pub fn run(action: SettingsAction) {
         }
         SettingsAction::Set { name, value } => {
             let mut settings: ReplSettings = load_settings();
-            if apply_setting(&mut settings, &name, &value) {
-                match save_settings(&settings) {
+            match settings.apply(&name, &value) {
+                Ok(()) => match save_settings(&settings) {
                     Ok(()) => println!("Saved."),
                     Err(e) => eprintln!("Error saving settings: {}", e),
-                }
+                },
+                Err(e) => eprintln!("Error: {}", e),
             }
         }
         SettingsAction::Reset => {
@@ -119,198 +120,6 @@ fn show_one(settings: &ReplSettings, key: &str) {
     }
 }
 
-/// Apply a key=value pair to settings. Returns true if the setting was recognized.
-fn apply_setting(settings: &mut ReplSettings, name: &str, value: &str) -> bool {
-    match name {
-        "tool_loop_limit" | "loops" => {
-            if let Ok(n) = value.parse::<usize>() {
-                if n > 0 {
-                    settings.tool_loop_limit = n;
-                } else {
-                    eprintln!("Error: tool_loop_limit must be > 0");
-                    return false;
-                }
-            } else {
-                eprintln!("Error: expected positive integer");
-                return false;
-            }
-        }
-        "context_turns" | "context" => {
-            if let Ok(n) = value.parse::<usize>() {
-                settings.context_turns = n;
-            } else {
-                eprintln!("Error: expected non-negative integer");
-                return false;
-            }
-        }
-        "temperature" | "temp" => {
-            if let Ok(v) = value.parse::<f32>() {
-                if (0.0..=2.0).contains(&v) {
-                    settings.temperature = v;
-                } else {
-                    eprintln!("Error: temperature must be 0.0–2.0");
-                    return false;
-                }
-            } else {
-                eprintln!("Error: expected float");
-                return false;
-            }
-        }
-        "top_p" => {
-            if let Ok(v) = value.parse::<f32>() {
-                if (0.0..=1.0).contains(&v) {
-                    settings.top_p = v;
-                } else {
-                    eprintln!("Error: top_p must be 0.0–1.0");
-                    return false;
-                }
-            } else {
-                eprintln!("Error: expected float");
-                return false;
-            }
-        }
-        "top_k" => {
-            if let Ok(v) = value.parse::<u32>() {
-                if v >= 1 {
-                    settings.top_k = v;
-                } else {
-                    eprintln!("Error: top_k must be >= 1");
-                    return false;
-                }
-            } else {
-                eprintln!("Error: expected positive integer");
-                return false;
-            }
-        }
-        "min_p" => {
-            if let Ok(v) = value.parse::<f32>() {
-                if (0.0..=1.0).contains(&v) {
-                    settings.min_p = v;
-                } else {
-                    eprintln!("Error: min_p must be 0.0–1.0");
-                    return false;
-                }
-            } else {
-                eprintln!("Error: expected float");
-                return false;
-            }
-        }
-        "typical_p" => {
-            if let Ok(v) = value.parse::<f32>() {
-                if (0.0..=1.0).contains(&v) {
-                    settings.typical_p = v;
-                } else {
-                    eprintln!("Error: typical_p must be 0.0–1.0");
-                    return false;
-                }
-            } else {
-                eprintln!("Error: expected float");
-                return false;
-            }
-        }
-        "max_tokens" => {
-            if let Ok(v) = value.parse::<u32>() {
-                if v > 0 {
-                    settings.max_tokens = v;
-                } else {
-                    eprintln!("Error: max_tokens must be > 0");
-                    return false;
-                }
-            } else {
-                eprintln!("Error: expected positive integer");
-                return false;
-            }
-        }
-        "seed" => {
-            if value == "off" || value == "random" {
-                settings.seed = None;
-            } else if let Ok(v) = value.parse::<u32>() {
-                settings.seed = Some(v);
-            } else {
-                eprintln!("Error: expected u32 or 'off'");
-                return false;
-            }
-        }
-        "gas_heuristic" => {
-            if let Ok(v) = value.parse::<u64>() {
-                if v > 0 {
-                    settings.gas_heuristic = v;
-                } else {
-                    eprintln!("Error: gas_heuristic must be > 0");
-                    return false;
-                }
-            } else {
-                eprintln!("Error: expected positive integer");
-                return false;
-            }
-        }
-        "gas_cap" => {
-            if let Ok(v) = value.parse::<u64>() {
-                if v > 0 {
-                    settings.gas_cap = v;
-                } else {
-                    eprintln!("Error: gas_cap must be > 0");
-                    return false;
-                }
-            } else {
-                eprintln!("Error: expected positive integer");
-                return false;
-            }
-        }
-        "auto_condense" => match value {
-            "on" | "true" => settings.auto_condense = true,
-            "off" | "false" => settings.auto_condense = false,
-            _ => {
-                eprintln!("Error: expected 'on' or 'off'");
-                return false;
-            }
-        },
-        "generation_model" | "gen_model" => settings.generation_model = value.to_string(),
-        "embedding_model" | "emb_model" => settings.embedding_model = value.to_string(),
-        "classifier_model" | "cls_model" => settings.classifier_model = value.to_string(),
-        "ocr_model" => settings.ocr_model = value.to_string(),
-        "ocr_simple_max" => match value.parse::<f32>() {
-            Ok(v) if (0.0..=1.0).contains(&v) => settings.ocr_simple_max = v,
-            Ok(_) => {
-                eprintln!("Error: ocr_simple_max must be 0.0–1.0");
-                return false;
-            }
-            _ => {
-                eprintln!("Error: expected float");
-                return false;
-            }
-        },
-        "ocr_moderate_max" => match value.parse::<f32>() {
-            Ok(v) if (0.0..=1.0).contains(&v) => settings.ocr_moderate_max = v,
-            Ok(_) => {
-                eprintln!("Error: ocr_moderate_max must be 0.0–1.0");
-                return false;
-            }
-            _ => {
-                eprintln!("Error: expected float");
-                return false;
-            }
-        },
-        "ocr_sample_rate" => match value.parse::<f32>() {
-            Ok(v) if (0.0..=1.0).contains(&v) => settings.ocr_sample_rate = v,
-            Ok(_) => {
-                eprintln!("Error: ocr_sample_rate must be 0.0–1.0");
-                return false;
-            }
-            _ => {
-                eprintln!("Error: expected float");
-                return false;
-            }
-        },
-        _ => {
-            eprintln!("Unknown setting: {}", name);
-            return false;
-        }
-    }
-    println!("{} = {}", name, value);
-    true
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -322,63 +131,63 @@ mod tests {
     #[test]
     fn apply_setting_rejects_zero_loop_limit() {
         let mut s = default_settings();
-        assert!(!apply_setting(&mut s, "loops", "0"));
+        assert!(s.apply("loops", "0").is_err());
         assert_eq!(s.tool_loop_limit, 21);
     }
 
     #[test]
     fn apply_setting_rejects_negative_loop_limit() {
         let mut s = default_settings();
-        assert!(!apply_setting(&mut s, "loops", "-1"));
+        assert!(s.apply("loops", "-1").is_err());
         assert_eq!(s.tool_loop_limit, 21);
     }
 
     #[test]
     fn apply_setting_rejects_temperature_oor() {
         let mut s = default_settings();
-        assert!(!apply_setting(&mut s, "temp", "3.0"));
+        assert!(s.apply("temp", "3.0").is_err());
         assert!((s.temperature - 0.7).abs() < f32::EPSILON);
     }
 
     #[test]
     fn apply_setting_rejects_top_p_oor() {
         let mut s = default_settings();
-        assert!(!apply_setting(&mut s, "top_p", "1.5"));
+        assert!(s.apply("top_p", "1.5").is_err());
         assert!((s.top_p - 0.9).abs() < f32::EPSILON);
     }
 
     #[test]
     fn apply_setting_rejects_top_k_zero() {
         let mut s = default_settings();
-        assert!(!apply_setting(&mut s, "top_k", "0"));
+        assert!(s.apply("top_k", "0").is_err());
         assert_eq!(s.top_k, 40);
     }
 
     #[test]
     fn apply_setting_rejects_garbage_value() {
         let mut s = default_settings();
-        assert!(!apply_setting(&mut s, "temp", "not-a-number"));
+        assert!(s.apply("temp", "not-a-number").is_err());
         assert!((s.temperature - 0.7).abs() < f32::EPSILON);
     }
 
     #[test]
     fn apply_setting_accepts_valid_temperature() {
         let mut s = default_settings();
-        assert!(apply_setting(&mut s, "temp", "0.3"));
+        assert!(s.apply("temp", "0.3").is_ok());
         assert!((s.temperature - 0.3).abs() < f32::EPSILON);
     }
 
     #[test]
     fn apply_setting_accepts_valid_loop_limit() {
         let mut s = default_settings();
-        assert!(apply_setting(&mut s, "loops", "100"));
+        assert!(s.apply("loops", "100").is_ok());
         assert_eq!(s.tool_loop_limit, 100);
     }
 
     #[test]
     fn apply_setting_accepts_auto_condense_off() {
         let mut s = default_settings();
-        assert!(apply_setting(&mut s, "auto_condense", "off"));
+        assert!(s.apply("auto_condense", "off").is_ok());
         assert!(!s.auto_condense);
     }
 
@@ -386,14 +195,14 @@ mod tests {
     fn apply_setting_accepts_auto_condense_on() {
         let mut s = default_settings();
         s.auto_condense = false;
-        assert!(apply_setting(&mut s, "auto_condense", "true"));
+        assert!(s.apply("auto_condense", "true").is_ok());
         assert!(s.auto_condense);
     }
 
     #[test]
     fn apply_setting_accepts_seed_value() {
         let mut s = default_settings();
-        assert!(apply_setting(&mut s, "seed", "42"));
+        assert!(s.apply("seed", "42").is_ok());
         assert_eq!(s.seed, Some(42));
     }
 
@@ -401,7 +210,13 @@ mod tests {
     fn apply_setting_accepts_seed_off() {
         let mut s = default_settings();
         s.seed = Some(99);
-        assert!(apply_setting(&mut s, "seed", "off"));
+        assert!(s.apply("seed", "off").is_ok());
         assert_eq!(s.seed, None);
+    }
+
+    #[test]
+    fn apply_rejects_unknown_setting() {
+        let mut s = default_settings();
+        assert!(s.apply("nonexistent", "value").is_err());
     }
 }

@@ -382,71 +382,7 @@ pub async fn chat_with_agent_streaming_with_params(
         }
     };
 
-    // Stream inference using caller-provided params
-    let stream = prepared.inference_port.generate_stream_with_model(
-        &prepared.prompt,
-        params,
-        Some(&prepared.model),
-    );
-
-    let mut full_text = String::new();
-    let mut final_usage: Option<InferenceUsage> = None;
-    let mut final_finish_reason = String::from("stop");
-    let mut final_tool_calls: Vec<hkask_ports::StructuredToolCall> = vec![];
-
-    use futures_util::StreamExt;
-    let mut stream = Box::pin(stream);
-    while let Some(chunk_result) = stream.next().await {
-        match chunk_result {
-            Ok(chunk) => {
-                if !chunk.text_delta.is_empty() {
-                    print!("{}", chunk.text_delta);
-                    use std::io::Write;
-                    let _ = std::io::stdout().flush();
-                }
-                full_text.push_str(&chunk.text_delta);
-                if let Some(usage) = chunk.usage {
-                    final_usage = Some(usage);
-                }
-                if let Some(reason) = chunk.finish_reason {
-                    final_finish_reason = reason;
-                }
-                if !chunk.tool_calls.is_empty() {
-                    final_tool_calls = chunk.tool_calls;
-                }
-            }
-            Err(e) => {
-                return ChatResponse {
-                    text: format!("Stream error: {}", e),
-                    usage: None,
-                    finish_reason: "error".to_string(),
-                    tool_calls: vec![],
-                };
-            }
-        }
-    }
-    println!(); // Newline after streaming output
-
-    // Store the exchange as episodic triple
-    ChatService::store_episodic(
-        &prepared.episodic_port,
-        input,
-        &full_text,
-        prepared.agent_webid,
-        &prepared.capability_token,
-        &prepared.agent_name,
-    );
-
-    ChatResponse {
-        text: full_text,
-        usage: final_usage.map(|u| TokenUsage {
-            prompt_tokens: u.prompt_tokens,
-            completion_tokens: u.completion_tokens,
-            total_tokens: u.total_tokens,
-        }),
-        finish_reason: final_finish_reason,
-        tool_calls: final_tool_calls,
-    }
+    finish_stream(&prepared, params, input).await
 }
 
 /// CLI entry-point: `kask chat [agent] [-m model]`

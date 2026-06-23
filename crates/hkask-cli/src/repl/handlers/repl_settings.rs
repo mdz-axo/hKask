@@ -62,149 +62,6 @@ pub(crate) fn handle_repl_show(state: &ReplState) {
 /// Parse a /repl subcommand and apply the setting.
 pub(crate) fn handle_repl_set(arg1: &str, arg2: &str, state: &mut ReplState) {
     match arg1 {
-        "loops" => match arg2.parse::<usize>() {
-            Ok(n) if n > 0 => {
-                state.repl_settings.tool_loop_limit = n;
-                println!("  tool_loop_limit set to {}", n);
-            }
-            Ok(0) => println!("  \x1b[31mError:\x1b[0m tool_loop_limit must be > 0"),
-            _ => println!("  \x1b[31mError:\x1b[0m expected positive integer"),
-        },
-        "context" => match arg2.parse::<usize>() {
-            Ok(n) => {
-                state.repl_settings.context_turns = n;
-                if n == 0 {
-                    println!("  context_turns set to 0 (history disabled)");
-                } else {
-                    println!("  context_turns set to {}", n);
-                }
-            }
-            _ => println!("  \x1b[31mError:\x1b[0m expected non-negative integer"),
-        },
-        "temp" => match arg2.parse::<f32>() {
-            Ok(v) if (0.0..=2.0).contains(&v) => {
-                state.repl_settings.temperature = v;
-                println!("  temperature set to {}", v);
-            }
-            Ok(_) => println!("  \x1b[31mError:\x1b[0m temperature must be 0.0–2.0"),
-            _ => println!("  \x1b[31mError:\x1b[0m expected float"),
-        },
-        "top_p" => match arg2.parse::<f32>() {
-            Ok(v) if (0.0..=1.0).contains(&v) => {
-                state.repl_settings.top_p = v;
-                println!("  top_p set to {}", v);
-            }
-            Ok(_) => println!("  \x1b[31mError:\x1b[0m top_p must be 0.0–1.0"),
-            _ => println!("  \x1b[31mError:\x1b[0m expected float"),
-        },
-        "top_k" => match arg2.parse::<u32>() {
-            Ok(v) if v >= 1 => {
-                state.repl_settings.top_k = v;
-                println!("  top_k set to {}", v);
-            }
-            Ok(0) => println!("  \x1b[31mError:\x1b[0m top_k must be >= 1"),
-            _ => println!("  \x1b[31mError:\x1b[0m expected positive integer"),
-        },
-        "min_p" => match arg2.parse::<f32>() {
-            Ok(v) if (0.0..=1.0).contains(&v) => {
-                state.repl_settings.min_p = v;
-                if v == 0.0 {
-                    println!("  min_p set to 0.0 (disabled)");
-                } else {
-                    println!("  min_p set to {}", v);
-                }
-            }
-            Ok(_) => println!("  \x1b[31mError:\x1b[0m min_p must be 0.0–1.0"),
-            _ => println!("  \x1b[31mError:\x1b[0m expected float"),
-        },
-        "typical_p" => match arg2.parse::<f32>() {
-            Ok(v) if (0.0..=1.0).contains(&v) => {
-                state.repl_settings.typical_p = v;
-                if v == 0.0 {
-                    println!("  typical_p set to 0.0 (disabled)");
-                } else {
-                    println!("  typical_p set to {}", v);
-                }
-            }
-            Ok(_) => println!("  \x1b[31mError:\x1b[0m typical_p must be 0.0–1.0"),
-            _ => println!("  \x1b[31mError:\x1b[0m expected float"),
-        },
-        "max_tokens" => match arg2.parse::<u32>() {
-            Ok(v) if v > 0 => {
-                state.repl_settings.max_tokens = v;
-                println!("  max_tokens set to {}", v);
-            }
-            Ok(0) => println!("  \x1b[31mError:\x1b[0m max_tokens must be > 0"),
-            _ => println!("  \x1b[31mError:\x1b[0m expected positive integer"),
-        },
-        "seed" => match arg2 {
-            "off" | "random" => {
-                state.repl_settings.seed = None;
-                println!("  seed set to random");
-            }
-            _ => match arg2.parse::<u32>() {
-                Ok(v) => {
-                    state.repl_settings.seed = Some(v);
-                    println!("  seed set to {}", v);
-                }
-                _ => println!("  \x1b[31mError:\x1b[0m expected u32 or 'off'"),
-            },
-        },
-        "gas_heuristic" => match arg2.parse::<u64>() {
-            Ok(v) if v > 0 => {
-                state.repl_settings.gas_heuristic = v;
-                println!("  gas_heuristic set to {}", v);
-            }
-            Ok(0) => println!("  \x1b[31mError:\x1b[0m gas_heuristic must be > 0"),
-            _ => println!("  \x1b[31mError:\x1b[0m expected positive integer"),
-        },
-        "gas_cap" => match arg2.parse::<u64>() {
-            Ok(v) if v > 0 => {
-                state.repl_settings.gas_cap = v;
-                println!("  gas_cap set to {}", v);
-            }
-            Ok(0) => println!("  \x1b[31mError:\x1b[0m gas_cap must be > 0"),
-            _ => println!("  \x1b[31mError:\x1b[0m expected positive integer"),
-        },
-        "auto_condense" => match arg2 {
-            "on" | "true" => {
-                state.repl_settings.auto_condense = true;
-                println!("  auto_condense: on (context will be condensed at 87.5% of window)");
-            }
-            "off" | "false" => {
-                state.repl_settings.auto_condense = false;
-                println!("  auto_condense: off (manual condensation only)");
-            }
-            _ => println!("  \x1b[31mError:\x1b[0m expected 'on' or 'off'"),
-        },
-        "ocr_model" => {
-            state.repl_settings.ocr_model = arg2.to_string();
-            println!("  ocr_model set to {}", arg2);
-        }
-        "ocr_simple_max" => match arg2.parse::<f32>() {
-            Ok(v) if (0.0..=1.0).contains(&v) => {
-                state.repl_settings.ocr_simple_max = v;
-                println!("  ocr_simple_max set to {}", v);
-            }
-            Ok(_) => println!("  \x1b[31mError:\x1b[0m ocr_simple_max must be 0.0–1.0"),
-            _ => println!("  \x1b[31mError:\x1b[0m expected float"),
-        },
-        "ocr_moderate_max" => match arg2.parse::<f32>() {
-            Ok(v) if (0.0..=1.0).contains(&v) => {
-                state.repl_settings.ocr_moderate_max = v;
-                println!("  ocr_moderate_max set to {}", v);
-            }
-            Ok(_) => println!("  \x1b[31mError:\x1b[0m ocr_moderate_max must be 0.0–1.0"),
-            _ => println!("  \x1b[31mError:\x1b[0m expected float"),
-        },
-        "ocr_sample_rate" => match arg2.parse::<f32>() {
-            Ok(v) if (0.0..=1.0).contains(&v) => {
-                state.repl_settings.ocr_sample_rate = v;
-                println!("  ocr_sample_rate set to {}", v);
-            }
-            Ok(_) => println!("  \x1b[31mError:\x1b[0m ocr_sample_rate must be 0.0–1.0"),
-            _ => println!("  \x1b[31mError:\x1b[0m expected float"),
-        },
         "reset" => {
             state.repl_settings = ReplSettings::default();
             println!("  \x1b[32mAll REPL settings reset to defaults\x1b[0m");
@@ -213,41 +70,17 @@ pub(crate) fn handle_repl_set(arg1: &str, arg2: &str, state: &mut ReplState) {
         "" | "status" => {
             handle_repl_show(state);
         }
-        _ => {
-            println!("  Unknown setting: \x1b[31mrepl_{}\x1b[0m", arg1);
-            println!("  Type \x1b[36m/repl\x1b[0m to see all settings.");
-        }
+        _ => match state.repl_settings.apply(arg1, arg2) {
+            Ok(()) => println!("  {} set to {}", arg1, arg2),
+            Err(e) => println!("  \x1b[31mError:\x1b[0m {}", e),
+        },
     }
-    // Persist to ~/.config/hkask/settings.json so CLI and API surfaces
-    // see the same settings. Only saves when a recognized setting was changed.
-    if arg1 == "reset" || is_valid_setting(arg1) {
+    if arg1 == "reset" || ReplSettings::is_valid_setting(arg1) {
         let path = settings_path();
         if let Ok(json) = serde_json::to_string_pretty(&state.repl_settings) {
             let _ = std::fs::write(&path, json);
         }
     }
-}
-
-fn is_valid_setting(arg1: &str) -> bool {
-    matches!(
-        arg1,
-        "loops"
-            | "context"
-            | "temp"
-            | "top_p"
-            | "top_k"
-            | "min_p"
-            | "typical_p"
-            | "max_tokens"
-            | "seed"
-            | "gas_heuristic"
-            | "gas_cap"
-            | "auto_condense"
-            | "ocr_model"
-            | "ocr_simple_max"
-            | "ocr_moderate_max"
-            | "ocr_sample_rate"
-    )
 }
 
 /// Path to the persisted settings file. Delegates to the shared
@@ -379,6 +212,126 @@ impl Default for ReplSettings {
             ocr_moderate_max: default_ocr_moderate_max(),
             ocr_sample_rate: default_ocr_sample_rate(),
         }
+    }
+}
+
+impl ReplSettings {
+    /// Apply a key=value pair. Returns `Ok(())` on success or `Err(msg)` on validation failure.
+    /// Centralizes all validation logic — both CLI and REPL surfaces use this method.
+    pub fn apply(&mut self, name: &str, value: &str) -> Result<(), String> {
+        match name {
+            "tool_loop_limit" | "loops" => match value.parse::<usize>() {
+                Ok(n) if n > 0 => self.tool_loop_limit = n,
+                Ok(_) => return Err("tool_loop_limit must be > 0".into()),
+                _ => return Err("expected positive integer".into()),
+            },
+            "context_turns" | "context" => match value.parse::<usize>() {
+                Ok(n) => self.context_turns = n,
+                _ => return Err("expected non-negative integer".into()),
+            },
+            "temperature" | "temp" => match value.parse::<f32>() {
+                Ok(v) if (0.0..=2.0).contains(&v) => self.temperature = v,
+                Ok(_) => return Err("temperature must be 0.0–2.0".into()),
+                _ => return Err("expected float".into()),
+            },
+            "top_p" => match value.parse::<f32>() {
+                Ok(v) if (0.0..=1.0).contains(&v) => self.top_p = v,
+                Ok(_) => return Err("top_p must be 0.0–1.0".into()),
+                _ => return Err("expected float".into()),
+            },
+            "top_k" => match value.parse::<u32>() {
+                Ok(v) if v >= 1 => self.top_k = v,
+                Ok(_) => return Err("top_k must be >= 1".into()),
+                _ => return Err("expected positive integer".into()),
+            },
+            "min_p" => match value.parse::<f32>() {
+                Ok(v) if (0.0..=1.0).contains(&v) => self.min_p = v,
+                Ok(_) => return Err("min_p must be 0.0–1.0".into()),
+                _ => return Err("expected float".into()),
+            },
+            "typical_p" => match value.parse::<f32>() {
+                Ok(v) if (0.0..=1.0).contains(&v) => self.typical_p = v,
+                Ok(_) => return Err("typical_p must be 0.0–1.0".into()),
+                _ => return Err("expected float".into()),
+            },
+            "max_tokens" => match value.parse::<u32>() {
+                Ok(v) if v > 0 => self.max_tokens = v,
+                Ok(_) => return Err("max_tokens must be > 0".into()),
+                _ => return Err("expected positive integer".into()),
+            },
+            "seed" => match value {
+                "off" | "random" => self.seed = None,
+                _ => match value.parse::<u32>() {
+                    Ok(v) => self.seed = Some(v),
+                    _ => return Err("expected u32 or 'off'".into()),
+                },
+            },
+            "gas_heuristic" => match value.parse::<u64>() {
+                Ok(v) if v > 0 => self.gas_heuristic = v,
+                Ok(_) => return Err("gas_heuristic must be > 0".into()),
+                _ => return Err("expected positive integer".into()),
+            },
+            "gas_cap" => match value.parse::<u64>() {
+                Ok(v) if v > 0 => self.gas_cap = v,
+                Ok(_) => return Err("gas_cap must be > 0".into()),
+                _ => return Err("expected positive integer".into()),
+            },
+            "auto_condense" => match value {
+                "on" | "true" => self.auto_condense = true,
+                "off" | "false" => self.auto_condense = false,
+                _ => return Err("expected 'on' or 'off'".into()),
+            },
+            "generation_model" | "gen_model" => self.generation_model = value.to_string(),
+            "embedding_model" | "emb_model" => self.embedding_model = value.to_string(),
+            "classifier_model" | "cls_model" => self.classifier_model = value.to_string(),
+            "ocr_model" => self.ocr_model = value.to_string(),
+            "ocr_simple_max" => match value.parse::<f32>() {
+                Ok(v) if (0.0..=1.0).contains(&v) => self.ocr_simple_max = v,
+                Ok(_) => return Err("ocr_simple_max must be 0.0–1.0".into()),
+                _ => return Err("expected float".into()),
+            },
+            "ocr_moderate_max" => match value.parse::<f32>() {
+                Ok(v) if (0.0..=1.0).contains(&v) => self.ocr_moderate_max = v,
+                Ok(_) => return Err("ocr_moderate_max must be 0.0–1.0".into()),
+                _ => return Err("expected float".into()),
+            },
+            "ocr_sample_rate" => match value.parse::<f32>() {
+                Ok(v) if (0.0..=1.0).contains(&v) => self.ocr_sample_rate = v,
+                Ok(_) => return Err("ocr_sample_rate must be 0.0–1.0".into()),
+                _ => return Err("expected float".into()),
+            },
+            _ => return Err(format!("unknown setting: {}", name)),
+        }
+        Ok(())
+    }
+
+    /// Check whether a name refers to a recognized mutable setting.
+    pub fn is_valid_setting(name: &str) -> bool {
+        matches!(
+            name,
+            "loops"
+                | "context"
+                | "temp"
+                | "top_p"
+                | "top_k"
+                | "min_p"
+                | "typical_p"
+                | "max_tokens"
+                | "seed"
+                | "gas_heuristic"
+                | "gas_cap"
+                | "auto_condense"
+                | "ocr_model"
+                | "ocr_simple_max"
+                | "ocr_moderate_max"
+                | "ocr_sample_rate"
+                | "tool_loop_limit"
+                | "context_turns"
+                | "temperature"
+                | "generation_model" | "gen_model"
+                | "embedding_model" | "emb_model"
+                | "classifier_model" | "cls_model"
+        )
     }
 }
 

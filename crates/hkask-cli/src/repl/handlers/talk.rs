@@ -77,7 +77,7 @@ pub(crate) fn handle_talk(
                                 }
                                 println!(
                                     "    Preset: \x1b[36m{}\x1b[0m",
-                                    crate::voice_preset_from_design(vd)
+                                    voice_preset_from_design(vd)
                                 );
                             }
                             Err(_) => println!("    (unparseable)"),
@@ -133,7 +133,7 @@ pub(crate) fn handle_talk(
                 Ok(value) => {
                     // voice_design returns the VoiceDesign JSON directly or wrapped
                     let vd_json = serde_json::to_string(&value).unwrap_or_default();
-                    let preset = crate::voice_preset_from_design(&vd_json);
+                    let preset = voice_preset_from_design(&vd_json);
                     state.voice_design = Some(vd_json);
                     println!("  \x1b[32m✓\x1b[0m Voice set to \x1b[36m{}\x1b[0m", preset);
                     if let Some(name) = value.get("name").and_then(|n| n.as_str()) {
@@ -150,7 +150,7 @@ pub(crate) fn handle_talk(
         "" => {
             let status = if state.talk_enabled { "on" } else { "off" };
             let voice_info = match &state.voice_design {
-                Some(vd) => crate::voice_preset_from_design(vd),
+                Some(vd) => voice_preset_from_design(vd),
                 None => "Rachel (default)".to_string(),
             };
             println!("  \x1b[1mTalk mode:\x1b[0m {}", status);
@@ -375,5 +375,25 @@ mod tests {
             &crate::repl::ReplState,
             &tokio::runtime::Handle,
         ) -> Option<String> = super::summarize_for_speech;
+    }
+}
+
+/// Extract the ElevenLabs voice preset name from a VoiceDesign JSON string.
+/// Falls back to "Rachel" if parsing fails.
+fn voice_preset_from_design(vd_json: &str) -> String {
+    match serde_json::from_str::<serde_json::Value>(vd_json) {
+        Ok(design) => {
+            if let Some(name) = design.get("elevenlabs_voice").and_then(|v| v.as_str()) {
+                return name.to_string();
+            }
+            if let Some(name) = design.get("preset").and_then(|v| v.as_str()) {
+                return name.to_string();
+            }
+            if let Some(name) = design.get("name").and_then(|v| v.as_str()) {
+                return name.to_string();
+            }
+            "custom".to_string()
+        }
+        Err(_) => "Rachel".to_string(),
     }
 }

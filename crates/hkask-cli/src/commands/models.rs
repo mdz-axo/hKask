@@ -8,14 +8,7 @@
 /// pre:  rt is a valid tokio Runtime; inference backend must be reachable
 /// post: lists available models grouped by family with name, size, and quantization info
 pub fn run(rt: &tokio::runtime::Runtime) {
-    let config = super::helpers::or_exit(
-        hkask_services::ServiceConfig::from_env(),
-        "Failed to resolve config",
-    );
-    let ctx = super::helpers::or_exit(
-        rt.block_on(hkask_services::AgentService::build(config)),
-        "Failed to build AgentService",
-    );
+    let ctx = super::helpers::build_service_context();
 
     let inf_ctx = hkask_services::InferenceContext::from(&ctx);
     match rt.block_on(hkask_services::InferenceService::list_models(&inf_ctx)) {

@@ -21,18 +21,9 @@ pub fn run(
     // Resolve agent name — defaults to "curator" for the Curator agent
     let agent_name = agent.unwrap_or("curator");
 
-    // Build AgentService to get config with DB passphrase
     let config = super::helpers::or_exit(
         hkask_services::ServiceConfig::from_env(),
         "Failed to resolve config",
-    );
-    let rt = tokio::runtime::Runtime::new().unwrap_or_else(|e| {
-        eprintln!("Runtime error: {e}");
-        std::process::exit(1)
-    });
-    let _ctx = super::helpers::or_exit(
-        rt.block_on(hkask_services::AgentService::build(config.clone())),
-        "Failed to build AgentService",
     );
 
     // Resolve the agent's per-agent memory DB path and passphrase.
