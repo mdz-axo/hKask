@@ -20,7 +20,7 @@ pub mod settings;
 
 pub use config::{DEFAULT_DB_PATH, ServiceConfig};
 pub use error::ServiceError;
-pub use goal::{Goal, GoalArtifact, GoalCriterion, GoalState, IllegalGoalTransition};
+pub use goal::{Goal, GoalArtifact, GoalCriterion, GoalState};
 pub use identity::{
     HumanUser, Invite, InviteStatus, OAuthProvider, RegistrationError, RegistrationRequest,
     ReplicantIdentity, Role, UserSession,

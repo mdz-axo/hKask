@@ -1,7 +1,7 @@
 ---
 title: "hKask Skill User Guide — Discovering and Using Agent Skills"
 audience: [developers, operators, curators]
-last_updated: 2026-06-19
+last_updated: 2026-06-23
 version: "0.30.0"
 status: "Active"
 domain: "Technology"
@@ -10,7 +10,7 @@ mds_categories: [composition]
 
 # hKask Skill User Guide
 
-**Purpose:** How to discover, load, and use skills in hKask. Covers the `kask skill` CLI, skill list, activation triggers, the dual-layer runtime model, and a catalog of all 45 available skills organized by functional category.
+**Purpose:** How to discover, load, and use skills in hKask. Covers the `kask skill` CLI, skill list, activation triggers, the FlowDef+PDCA skill model, and a catalog of all 45 available skills organized by functional category.
 
 **Companion doc:** [`skill-designer-guide.md`](../../docs/guides/skill-designer-guide.md) — for creating and maintaining skills.
 
@@ -18,14 +18,15 @@ mds_categories: [composition]
 
 ## 1. What Are Skills?
 
-Skills are composable agent capabilities. They teach the Zed coding agent domain knowledge and provide runtime-executable templates for the hKask engine. Skills live in two layers:
+Skills are composable agent capabilities. In the current hKask model, a **skill is a FlowDef process manifest** that composes WordAct/KnowAct templates inside an explicit PDCA loop.
 
-| Layer | You interact with it via... | Example |
+| Layer | You interact with it via... | Purpose |
 |-------|---------------------------|---------|
-| **Zed agent layer** (SKILL.md) | The `skill` tool in Zed — "Use coding-guidelines" | Teaches the agent Karpathy's four coding principles |
-| **Registry template layer** (`.j2` + `manifest.yaml`) | The `kask` CLI and runtime engine | Renders a KnowAct template to assess code quality |
+| **FlowDef process layer** (`registry/manifests/<skill>.yaml`) | `kask run <skill>` / runtime engine | Declares convergence rails, gas rails, and explicit `loop` behavior |
+| **Template crate layer** (`registry/templates/<skill>/`) | Runtime dispatch via `template_ref` ids | Provides WordAct/KnowAct steps composed by the FlowDef |
+| **Zed companion layer** (`.agents/skills/<name>/SKILL.md`) | The `skill` tool in Zed | Teaches procedural guidance to the coding agent |
 
-A skill may have one or both layers. You don't need to know which — the system handles routing.
+For user-facing skills, the FlowDef process is authoritative. `SKILL.md` is the companion instruction layer; bundle orchestration (for example `kata`) remains a separate construct.
 
 ### 1.1 Skill Architecture Layers
 
@@ -390,9 +391,11 @@ When a skill has registry templates, each `.j2` file is typed:
 |------|-------------|---------|
 | **WordAct** | Produces text or structured output | `superforecasting/stage_7_record.j2` — creates forecast record |
 | **KnowAct** | Reasons, classifies, evaluates, decides | `dokkodo-mindset/dokkodo-perceive.j2` — applies perceptual filter |
-| **FlowDef** | Orchestrates WordAct/KnowAct in a pipeline | `essentialist/essentialist-flow.j2` — iterates G1→G2→G3 gates |
+| **FlowDef** | Orchestrates WordAct/KnowAct in a convergent PDCA process | `registry/manifests/essentialist.yaml` — iterates gates via convergence + `loop` |
 
 You rarely need to know the template type — the runtime dispatches correctly. But when debugging: WordAct = "what to say", KnowAct = "how to think", FlowDef = "what to do".
+
+Note: `.j2` templates use `template_type: WordAct|KnowAct`. FlowDef orchestration is declared in skill process manifests under `registry/manifests/`.
 
 ---
 
@@ -452,6 +455,38 @@ Run the contract-generator (contract-generator/contract-generator.j2) for any ga
 | "Permission denied" | Visibility mismatch (P11) | Check `visibility` in SKILL.md frontmatter |
 | Bundle doesn't compose | Constituent skill score < threshold | Calibrate constituent skills first |
 | Two skills with same name | Duplicate installation | Use `kask skill list` to identify and prune |
+
+### 10.1 Migration Assumptions Currently Encoded in Skill Rails
+
+The following assumptions were used during the recent FlowDef migration work and are now reflected in several skill manifests. These are **implementation assumptions**, not immutable design law.
+
+| Assumption | Applied default |
+|-----------|-----------------|
+| Convergence metric semantics | `0.0 = converged`, `1.0 = far from converged` |
+| Convergence gate | `improvement_gate: threshold_only` |
+| Improvement ratio | `improvement_ratio: 0.10` in most migrated skills |
+| Iteration budget | `max_iterations: 3` default; `4` used for deeper audit flows (for example `skill-logic-audit`) |
+| Threshold band | Generally `0.10–0.15` based on skill criticality and migration consistency |
+| Gas budgeting | Set from step-level budgets plus modest loop/overhead margin (not empirically calibrated) |
+| Wiring discipline | Prefer `step_n_result` / `step_n_populated`; avoid legacy `ordinal_` references |
+| Dispatch discipline | Avoid dynamic `template_ref` in skill manifests; prefer stable template ids |
+
+Concrete rails currently visible in core meta-skill manifests:
+
+| Skill | Threshold | Improvement ratio | Gas cap |
+|------|----------:|------------------:|--------:|
+| `skill-manager` | `0.15` | `0.10` | `18000` |
+| `skill-maintenance` | `0.15` | `0.10` | `16000` |
+| `skill-discovery` | `0.15` | `0.10` | `16000` |
+| `skill-bundler` | `0.10` | `0.10` | `16000` |
+| `skill-translator` (`skill-translation` manifest) | `0.15` | `0.10` | `14000` |
+| `skill-logic-audit` | `0.10` | `0.10` | `12000` |
+| `improv` | `0.12` | `0.10` | `12000` |
+
+Known model exceptions/tensions that still require explicit policy decisions:
+
+- `kata` is currently represented as `Bundle` in this guide, not a single FlowDef skill manifest.
+- `logo-builder` is documented as FlowDef capability via media orchestration templates, without a dedicated `registry/manifests/logo-builder.yaml` skill manifest.
 
 ---
 

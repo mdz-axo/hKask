@@ -18,8 +18,8 @@ use std::sync::Arc;
 
 use hkask_agents::consent::ConsentManager;
 use hkask_cns::CyberneticsLoop;
-use hkask_types::DataCategory;
 use hkask_storage::WalletStore;
+use hkask_types::DataCategory;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::id::{ApiKeyId, WalletId};

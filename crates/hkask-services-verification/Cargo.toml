@@ -8,7 +8,6 @@ description = "hKask verification service — Magna Carta principle assertion ch
 [dependencies]
 hkask-services-core = { path = "../hkask-services-core" }
 hkask-types = { path = "../hkask-types" }
-hkask-services-sovereignty = { path = "../hkask-services-sovereignty" }
 serde.workspace = true
 tracing.workspace = true
 serde_json.workspace = true

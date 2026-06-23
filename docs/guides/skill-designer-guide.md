@@ -1,7 +1,7 @@
 ---
 title: "hKask Skill Designer Guide — Creating and Maintaining Agent Skills"
 audience: [developers, architects, agents]
-last_updated: 2026-06-19
+last_updated: 2026-06-23
 version: "0.30.0"
 status: "Active"
 domain: "Technology"
@@ -10,42 +10,38 @@ mds_categories: [composition, lifecycle, curation]
 
 # hKask Skill Designer Guide
 
-**Purpose:** Definitive reference for designing, building, and maintaining skills in the hKask dual-layer architecture. Covers when to create each layer, structural rules, template_type discipline, visibility (P11), CNS span grounding, registration, and testing.
+**Purpose:** Definitive reference for designing, building, and maintaining skills in the hKask FlowDef-first architecture. Covers skill process manifests, template crate composition, template_type discipline, visibility (P11), CNS span grounding, registration, and testing.
 
 **Companion docs:** [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) (P1-P12).
 
 ---
 
-## 1. The Dual-Layer Model
+## 1. The Skill Model (FlowDef-First)
 
-Every hKask skill exists in up to two layers:
+In the current hKask definition, a production skill is a **FlowDef process** that composes WordAct/KnowAct templates inside a PDCA loop.
+
+Every skill is represented across up to three artifacts:
 
 | Layer | Location | Format | Purpose |
 |-------|----------|--------|---------|
-| **Zed agent layer** | `.agents/skills/<name>/SKILL.md` | Markdown with YAML frontmatter | Teaches the Zed coding agent a domain and methodology |
-| **Registry template layer** | `registry/templates/<name>/` | `manifest.yaml` + `.j2` files | Runtime-executable templates (WordAct, KnowAct, FlowDef) |
+| **Skill process layer (authoritative)** | `registry/manifests/<skill>.yaml` | FlowDef manifest | Declares convergence rails, gas rails, step wiring, and explicit `loop` behavior |
+| **Template crate layer** | `registry/templates/<skill>/` | `manifest.yaml` + `.j2` files | Declares and implements template steps referenced by `template_ref` |
+| **Zed companion layer** | `.agents/skills/<name>/SKILL.md` | Markdown with YAML frontmatter | Teaches the Zed coding agent usage methodology and activation heuristics |
 
-**A skill does not need both layers.** The model supports four types:
+### 1.1 Required Skill Invariants
 
-### 1.1 Skill Type Classification
+A skill process manifest must include:
 
-| Type | Description | Has SKILL.md? | Has manifest.yaml? | Example |
-|------|-------------|---------------|-------------------|---------|
-| **Type 1** | WordAct/KnowAct — pure cognitive act | Yes | No | `caveman` (single compression act) |
-| **Type 2** | Orchestrator — composes other skills | Yes | No | `pragmatic-laziness` (orchestrates 5 sub-skills) |
-| **Type 3** | Standalone flow/process | Sometimes | Yes | `superforecasting` (multi-step FlowDef, no Zed companion) |
-| **Type 4** | Meta process — both layers | Yes | Yes | `coding-guidelines`, `kata-coaching`, `essentialist` |
+1. `manifest.functional_role: flowdef`
+2. top-level `convergence` block including `convergence_field`
+3. top-level `gas` block
+4. at least one explicit `action: loop` step
+5. stable `step_n_result` wiring between steps
+6. template references that resolve to registered template ids
 
-**The deletion test (P5):** If a skill is Type 1 and works as SKILL.md alone, do NOT add a manifest. Premature bundling creates maintenance debt — every manifest must be registered, schema-validated, and tested.
+### 1.2 Bundle Exception
 
-### 1.2 When Each Layer Is Needed
-
-| If... | Then create... |
-|-------|----------------|
-| A Zed agent needs procedural domain knowledge | `SKILL.md` |
-| The runtime must execute a template (WordAct/KnowAct/FlowDef) | `manifest.yaml` + `.j2` |
-| A template composes other templates by id | `.j2` FlowDef in registry layer |
-| A skill is referenced by a bundle | Both layers (Type 4), score ≥ 0.8 |
+`Bundle` remains a composition construct (for example `kata`) and is not a replacement for FlowDef skill processes. Bundles orchestrate multiple skills; each constituent skill still follows the FlowDef+PDCA model.
 
 ---
 
@@ -147,14 +143,14 @@ When creating or updating a skill, add its entries to:
 ### 3.1 Directory Structure
 
 ```
+registry/manifests/<skill-name>.yaml     # FlowDef skill process manifest (authoritative)
 registry/templates/<skill-name>/
-├── manifest.yaml          # Crate metadata + template registry
-├── step-one.j2            # WordAct or KnowAct template
-├── step-two.j2            # WordAct or KnowAct template
-└── flow.j2                # FlowDef (if multi-step orchestration)
+├── manifest.yaml                         # Template crate metadata + template registry
+├── step-one.j2                           # WordAct or KnowAct template
+└── step-two.j2                           # WordAct or KnowAct template
 ```
 
-### 3.2 manifest.yaml Structure
+### 3.2 Template Crate `manifest.yaml` Structure
 
 ```yaml
 # Template crate manifest for <skill-name>
@@ -227,7 +223,7 @@ This is the most common skill design error. The rules are:
 |--------------------|---------------------|
 | Produces text or structured output for an agent action | `WordAct` |
 | Reasons, classifies, evaluates, or decides | `KnowAct` |
-| Orchestrates other templates (only in `manifest.yaml`) | `FlowDef` |
+| Orchestrates other templates | Declare orchestration in `registry/manifests/<skill>.yaml` (FlowDef), not as a `.j2` `template_type` |
 
 ### 3.5 Visibility (P11 — Digital Public/Private Sphere)
 
@@ -364,7 +360,7 @@ A **bundle** is a curated composition of already-active primary skills. It is NO
 | Condition | Action |
 |-----------|--------|
 | Multiple skills compose a coherent workflow | Create a bundle manifest in `registry/manifests/` |
-| A single skill needs orchestration of its own templates | Use a FlowDef in the skill's `.j2` — do NOT create a bundle |
+| A single skill needs orchestration of its own templates | Implement orchestration in the skill FlowDef manifest (`registry/manifests/<skill>.yaml`) — do NOT create a bundle |
 | Every constituent skill scores ≥ 0.8 | Bundle can be created |
 | Some constituents are uncalibrated (< 0.8) | Calibrate first, then bundle |
 
@@ -383,11 +379,11 @@ Example: `registry/manifests/kata-pattern.yaml` bundles `kata-starter`, `kata-im
 | 1 | `template_type: FlowDef` in a `.j2` file | Malformed template — FlowDefs go in manifests only | Change to `WordAct` or `KnowAct`, or move to manifest |
 | 2 | DDMVSS aliases (`Cognition`, `Prompt`, `Process`) in frontmatter | Invalid type — not recognized by the runtime | Use canonical `KnowAct`, `WordAct`, `FlowDef` |
 | 3 | `visibility: Shared` in manifests or `.j2` contracts | Deprecated synonym — P11 requires canonical values | Replace with `Public` (or `Private` if explicitly private) |
-| 4 | Creating a manifest for a Type 1/2 skill | Premature bundling (F5 bug pattern) | Delete the manifest; the SKILL.md alone is sufficient |
-| 5 | Orphan manifest (manifest.yaml exists but no SKILL.md and no .j2 files) | "Orphan" — unreachable at runtime, maintenance burden | Either add the missing layer or delete the manifest |
-| 6 | Forgetting to register in bootstrap-registry.yaml | Template directory exists but runtime can't find it | Add entries to `bootstrap-registry.yaml` and verify with diff |
-| 7 | Hallucinated CNS spans or CLI commands | CNS health check fails; agents get wrong diagnostics | Use only canonical spans from `cns.rs`; use `kask cns health` not `kask /status` |
-| 8 | `type: FlowDef` in `manifest.yaml` misinterpreted as prohibited | Confusion with `.j2` `template_type` rule | `manifest.yaml` `type: FlowDef` is correct; only `.j2` `template_type: FlowDef` is prohibited |
+| 4 | Missing skill FlowDef manifest for a user-facing skill | Runtime cannot execute convergent skill lifecycle | Add `registry/manifests/<skill>.yaml` with convergence + gas + loop rails |
+| 5 | Dynamic `template_ref` in a skill process (`{{ ... }}`) | Fragile/non-deterministic dispatch and lint failures | Use stable template ids and route through explicit step wiring |
+| 6 | Legacy `ordinal_` wiring in modern manifests | Downstream mapping drift and parse errors | Use `step_n_result`/`step_n_populated` consistently |
+| 7 | Forgetting to register templates in crate `manifest.yaml` | Process references template id that cannot resolve | Add missing `templates[].id` entries and re-run schema/render tests |
+| 8 | Hallucinated CNS spans or CLI commands | CNS health check fails; agents get wrong diagnostics | Use only canonical spans from `cns.rs`; use `kask cns health` not `kask /status` |
 
 ---
 
@@ -395,18 +391,18 @@ Example: `registry/manifests/kata-pattern.yaml` bundles `kata-starter`, `kata-im
 
 ### New Skill: From Zero to Production
 
-1. **Classify the skill type** (§1.1) — Type 1/2/3/4?
-2. **Write SKILL.md** (§2) — if Type 1, 2, or 4. Include `activation:` field and `## Composition` section.
-3. **Create registry directory** (§3.1) — if Type 3 or 4
-4. **Write manifest.yaml** (§3.2) — correct crate name, version, template types
-5. **Write .j2 templates** (§3.3) — correct `template_type` (WordAct/KnowAct), no DDMVSS aliases
-6. **Set visibility** (§3.5) — `Public` or `Private` (not `Shared`)
-7. **Ground CNS spans** (§5) — manifest `cns_span` field, canonical names
-8. **Register in bootstrap-registry.yaml** (§4) — add entries for each template
-9. **Run schema validation** (§6.1) — `cargo test -p hkask-templates yaml_schema_validation`
-10. **Run CNS health** (§6.3) — `kask cns health`
-11. **Update skill catalog** — add entry to `docs/user-guides/skill-user-guide.md` §6 (summary table) and §4.14 (Which Skill for What?)
-12. **Update composition guide** — add composition chains to `docs/user-guides/skill-composition-guide.md` if this skill introduces new patterns
+1. **Define the skill process** — create `registry/manifests/<skill>.yaml` as FlowDef (`functional_role: flowdef`)
+2. **Add convergence rails** — `threshold`, `improvement_ratio`, `convergence_field`, iteration bounds
+3. **Add gas rails** — `gas.cap` and related limits
+4. **Compose steps explicitly** — stable `template_ref` ids and `step_n_result` wiring
+5. **Add explicit loop step** — `action: loop` with deterministic `loop_target`
+6. **Create/update template crate** — `registry/templates/<skill>/manifest.yaml` + `.j2` templates (WordAct/KnowAct)
+7. **Set visibility** (§3.5) — `Public` or `Private` (not `Shared`)
+8. **Ground CNS spans** (§5) — canonical names from `cns.rs`
+9. **Register in bootstrap-registry.yaml** (§4) — add entries for each template where required
+10. **Run validation** — `cargo test -p hkask-templates`
+11. **Run CNS health** — `kask cns health`
+12. **Update docs** — `skill-user-guide.md` summary/usage tables and composition guide if needed
 13. **Commit** with message: `feat(skills): add <skill-name> — <one-line purpose>`
 
 ### Existing Skill: Maintenance

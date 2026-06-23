@@ -16,7 +16,6 @@ members = [
     "crates/hkask-services-skill",
     "crates/hkask-services-lifecycle",
     "crates/hkask-services-sovereignty",
-    "crates/hkask-services-inference-svc",
     "crates/hkask-services-daemon",
     "crates/hkask-services-context",
     "crates/hkask-condenser",

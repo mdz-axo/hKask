@@ -3,6 +3,8 @@
 //! Goals are a minimal coordination substrate for multi-agent collaboration.
 //! Multiple loops interact with goals: Curation evaluates them, Cybernetics
 //! allocates energy, Communication coordinates agents around them.
+
+#![allow(private_interfaces)]
 //!
 //! Goals are scoped by `&WebID`.
 
@@ -18,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 /// Error returned when a goal state transition violates the state machine.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IllegalGoalTransition {
+pub(crate) struct IllegalGoalTransition {
     pub from: GoalState,
     pub to: GoalState,
 }

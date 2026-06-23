@@ -3,9 +3,7 @@
 //! Delegates to `AgentService::goal_repo()` and wraps `GoalRepositoryError`
 //! as `ServiceError::GoalRepo`.
 
-pub use hkask_services_core::{
-    Goal, GoalArtifact, GoalCriterion, GoalState, IllegalGoalTransition,
-};
+pub use hkask_services_core::{Goal, GoalArtifact, GoalCriterion, GoalState};
 
 use hkask_types::id::{GoalID, WebID};
 use hkask_types::visibility::Visibility;

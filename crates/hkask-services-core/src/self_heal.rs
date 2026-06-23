@@ -3,6 +3,8 @@
 //!
 //! Every fallible operation in hKask can pass through a `SelfHealer`. The healer
 //! maps error patterns to recovery strategies, executes healing actions, and
+
+#![allow(private_interfaces)]
 //! returns Healed (retry), Degraded (fallback), or Unhealable (escalate to Curator).
 //!
 //! **Stage 1 (always available):** Deterministic env/config healing — `RunCommand`,
@@ -66,7 +68,7 @@ pub struct HealContext {
 }
 
 #[derive(Debug, Clone)]
-pub struct HealStrategy {
+pub(crate) struct HealStrategy {
     pub name: String,
     pub error_pattern: String,
     pub description: String,
@@ -116,7 +118,7 @@ pub enum EnvValueSource {
 pub type HealInferenceFn = Box<dyn Fn(&str) -> Result<String, String> + Send + Sync>;
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct MiniDebugLog {
+pub(crate) struct MiniDebugLog {
     pub attempt_count: u32,
     pub cns_spans: Vec<String>,
     pub modifications: Vec<String>,
@@ -125,7 +127,7 @@ pub struct MiniDebugLog {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DebugLogAction {
+pub(crate) struct DebugLogAction {
     pub name: String,
     pub output: String,
     pub success: bool,

@@ -1251,8 +1251,7 @@ impl EndpointGuard {
         self.consumed = true;
         if let Some(router) = self.router.upgrade() {
             // The guard IS the authority (unforgeable ownership) — no token needed.
-            tokio::runtime::Handle::current()
-                .block_on(router.teardown_endpoint(self.endpoint_id))
+            tokio::runtime::Handle::current().block_on(router.teardown_endpoint(self.endpoint_id))
         } else {
             Ok(()) // Router already dropped
         }

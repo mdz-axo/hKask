@@ -9,7 +9,7 @@
 pub mod types;
 
 use hkask_mcp::server::{ServerContext, ToolSpanGuard};
-use hkask_services::KanbanService;
+use hkask_services_kanban::KanbanService;
 use hkask_services_kanban::{ConsentProof, TaskFilter, TaskSpec, VerificationCriterion};
 use hkask_storage::Store;
 use hkask_storage::TripleStore;

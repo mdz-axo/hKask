@@ -988,17 +988,17 @@ impl ChatService {
         // 2. Append recent conversation history from episodic memory.
         // \[NORMATIVE\] Sovereignty gate (H3/P2): only recall episodic (sovereign)
         // history when the owner has granted consent. No consent ⇒ no history.
+        let history_token = req.capability_checker.grant_registry(
+            DelegationAction::Read,
+            req.system_webid,
+            req.agent_webid,
+        );
         let history_suffix =
             if Self::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory) {
-                let token = req.capability_checker.grant_registry(
-                    DelegationAction::Read,
-                    req.system_webid,
-                    req.agent_webid,
-                );
                 Self::recall_recent_turns(
                     &req.episodic_storage,
                     &req.agent_webid,
-                    &token,
+                    &history_token,
                     req.context_turns,
                 )
             } else {
@@ -1016,7 +1016,8 @@ impl ChatService {
         {
             let threshold = (window as f64 * 0.875) as usize;
             if hkask_condenser::inference::approx_token_count(&input_with_context) > threshold
-                && let Some(condensed) = Self::condense_history(ctx, req, &token, &base_input).await
+                && let Some(condensed) =
+                    Self::condense_history(ctx, req, &history_token, &base_input).await
             {
                 input_with_context = condensed;
             }

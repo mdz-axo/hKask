@@ -1,7 +1,7 @@
 ---
 title: "hKask Skill Composition Guide — Multi-Skill Workflow Chains"
 audience: [developers, agents, curators, architects]
-last_updated: 2026-06-22
+last_updated: 2026-06-23
 version: "0.30.0"
 status: "Active"
 domain: "Composition"
@@ -177,7 +177,20 @@ The two exit rails — quality threshold and energy budget — form the ratchet.
 
 ### Shared Infrastructure
 
-`constraint-forces` runs across **all** layers and all compositions. Prohibitions and Guardrails are never relaxed, regardless of which skills are in the chain.
+`constraint-forces` runs across **all** layers and all compositions. Prohibitions and Guardrails are never relaxed.
+
+### Applied Migration Assumptions (Current State)
+
+This guide currently reflects the following migration assumptions used to normalize skills into FlowDef+PDCA behavior:
+
+1. Skill convergence is measured as a normalized distance metric where lower is better (`0` = converged).
+2. Most migrated skills use `improvement_ratio: 0.10` and `improvement_gate: threshold_only`.
+3. Most migrated skills use `max_iterations: 3` (deeper audit flows may use 4).
+4. Thresholds were set in a consistency band (`0.10–0.15`) by nearby skill class, not yet globally calibrated by workload telemetry.
+5. Gas caps were assigned from per-step gas budgets with loop/overhead margin; they are policy defaults, not finalized cost/perf calibration.
+6. Composition wiring was normalized to stable `step_n_result` references and static `template_ref` ids.
+
+Practical effect: current chains are structurally PDCA-convergent, but threshold and gas policy are still subject to explicit calibration decisions.
 
 ---
 
@@ -333,23 +346,26 @@ pragmatic-semantics → pragmatic-cybernetics → bug-hunt
 
 ---
 
-### Chain 7: Skill Lifecycle — Discovery → Audit → Maintain
+### Chain 7: Skill Lifecycle — Discover → Audit → Maintain → Manage → Translate → Bundle
 
 ```
-skill-discovery → skill-logic-audit → skill-maintenance
+skill-discovery → skill-logic-audit → skill-maintenance → skill-manager → skill-translator → skill-bundler
 ```
 
-All three stages are implemented as convergent FlowDef processes (PDCA loops)
-that compose KnowAct/WordAct templates and exit with convergence status
+All stages are implemented as convergent FlowDef processes (PDCA loops)
+that compose KnowAct/WordAct templates and exit with convergence rails
 (`converged | maxed_out | escalated`) rather than one-shot outputs.
 
 | Stage | Skill | What happens |
 |-------|-------|-------------|
-| **Discover** | `skill-discovery` | Find skills matching a capability gap |
-| **Audit** | `skill-logic-audit` | Check template logic against stated goals |
-| **Maintain** | `skill-maintenance` | Score skill health, detect staleness, drift, and broken references |
+| **Discover** | `skill-discovery` | Find capability gaps and evaluate candidate skills |
+| **Audit** | `skill-logic-audit` | Check template/manifest logic against explicit goals |
+| **Maintain** | `skill-maintenance` | Detect staleness, drift, and coverage gaps across corpus |
+| **Manage** | `skill-manager` | Validate and operate lifecycle actions over registry crates |
+| **Translate** | `skill-translator` | Normalize external skill definitions into hKask-compatible form |
+| **Bundle** | `skill-bundler` | Compose validated skills into coherent bundle workflows |
 
-**Use when:** Managing the skill corpus
+**Use when:** Managing and evolving the skill corpus end-to-end
 
 ---
 

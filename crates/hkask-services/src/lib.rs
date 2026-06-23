@@ -31,6 +31,7 @@ pub use hkask_services_core::error::ServiceError;
 pub use hkask_services_core::settings::{
     HkaskSettings, load_settings, save_settings, settings_path,
 };
+pub use hkask_services_core::{InferenceContext, InferenceService, ModelInfo};
 pub use hkask_services_discover::{
     DiscoverRequest, DiscoverResult, DiscoveredWork, DiscoveryService, default_corpus_config,
     download_and_cache, generate_corpus_yaml, slugify,
@@ -39,7 +40,6 @@ pub use hkask_services_embed::{
     ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
     EmbeddingConfig, Entity, EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,
 };
-pub use hkask_services_core::{InferenceContext, InferenceService, ModelInfo};
 pub use hkask_services_kanban::{KanbanError, KanbanService, UnjamFix, UnjamItem};
 pub use hkask_services_kata::{
     ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
