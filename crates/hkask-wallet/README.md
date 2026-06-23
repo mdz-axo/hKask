@@ -1,6 +1,6 @@
 # hkask-wallet
 
-Multi-chain crypto wallet for hKask. Manages wallet lifecycle, key derivation, and chain port selection across Solana, Hedera, and optional Hinkal.
+Multi-chain crypto wallet for hKask. Manages wallet lifecycle, key derivation, and chain port selection across Hedera and optional Hinkal.
 
 ## Core Components
 
@@ -12,7 +12,6 @@ Multi-chain crypto wallet for hKask. Manages wallet lifecycle, key derivation, a
 
 | Chain | Status | Adapter |
 |-------|--------|---------|
-| Solana | ✅ Core | `solana-sdk` |
 | Hedera | ✅ Core | `hedera-sdk` |
 | Hinkal | ⚠️ Optional | Feature-gated |
 

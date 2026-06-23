@@ -377,10 +377,9 @@ pub enum ServiceError {
 
 // ── From impls ──────────────────────────────────────────────────────
 //
-// Domain crate error conversions (hkask-agents, hkask-cns, hkask-memory,
-// hkask-storage, hkask-templates, hkask-mcp) have been removed to decouple
-// hkask-services-core from domain crates. Callers use explicit
-// ServiceError::Variant { message: e.to_string() } or .map_err().
+// Domain crate error conversions use explicit ServiceError::Variant
+// construction rather than blanket From impls, keeping hkask-services-core
+// decoupled from domain crates.
 
 impl From<InferenceError> for ServiceError {
     fn from(e: InferenceError) -> Self {

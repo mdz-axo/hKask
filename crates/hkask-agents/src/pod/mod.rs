@@ -37,7 +37,7 @@
 //! // Create adapters
 //! let loader = TemplateCrateLoader::from_path(std::path::PathBuf::from("/tmp/hkask-templates"));
 //! let a2a_runtime = Arc::new(A2ARuntime::default());
-//! let checker = Arc::new(CapabilityChecker::new(&[]));
+//! let checker = Arc::new(CapabilityChecker::new());
 //! let mcp_runtime = CapabilityOnlyAdapter::new(checker);
 //!
 //! // Create a simple persona YAML

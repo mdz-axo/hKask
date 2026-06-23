@@ -616,7 +616,7 @@ kask keystore export --to .env.migrate
 
 The crypto system will add:
 
-- **Wallet provider keys**: Solana, Hedera, Hinkal (already in `cfg(feature)` gating)
+- **Wallet provider keys**: Hedera, Hinkal (already in `cfg(feature)` gating)
 - **Delegation token generation**: `kask delegation create --for pod-{id} --capabilities inference,search`
 - **OCAP capability enrollment**: defining which pods can use which providers
 - **Transaction signing**: wallet-backed CNS gas accounting

@@ -44,8 +44,7 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
 
     table.insert("hkask-mcp-replica", 30);
 
-    // Inference is handled separately by InferenceEnergyEstimator.
-    // Inference is no longer an MCP server — it's a direct internal call.
+    // Inference is routed through InferenceEnergyEstimator directly.
     table.insert("inference", 0); // Overridden by InferenceEnergyEstimator
 
     table

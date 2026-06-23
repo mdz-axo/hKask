@@ -27,8 +27,7 @@ pub enum McpError {
 /// Shared core error variants used across multiple agent domains.
 ///
 /// Consolidates `Infra(#[from] InfrastructureError)`, `NoSnapshot`,
-/// and `A2A` delegation that were previously duplicated across
-/// `MemoryError`, `EscalationError`, `MetacognitionError`, and `A2AError`.
+/// and `A2A` delegation.
 #[derive(Debug, Error)]
 pub enum CoreError {
     /// Infrastructure failure (DB, IO, serialization, etc.)

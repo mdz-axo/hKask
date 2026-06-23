@@ -3,8 +3,6 @@
 //! Delegates to `AgentService::escalation_queue()` and wraps
 //! `EscalationError` as `ServiceError::Escalation`. Handles
 //! escalation CRUD (list, resolve, dismiss) and metacognition.
-//! Both CLI and API surfaces were previously calling
-//! `escalation_queue()` directly with duplicated error mapping.
 
 use std::sync::Arc;
 

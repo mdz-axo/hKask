@@ -155,11 +155,10 @@ impl Default for Keychain {
 //
 // These functions encapsulate the standard 3-tier resolution chain
 // (derived → env → keychain) for each well-known secret. Every call site
-// that previously hand-rolled its own chain should use these instead.
+// uses these canonical implementations.
 //
 // Benefits:
-//   - Eliminates copy-paste drift (10+ independent copies collapsed to 1 implementation)
-//   - Fixes the ACP env var inconsistency (HKASK_A2A_SECRET vs HKASK_A2A_SECRET_KEY)
+//   - Single implementation eliminates copy-paste drift
 //   - Single place to audit secret resolution behavior
 
 /// Resolve a secret through the standard 3-tier chain:
@@ -192,13 +191,7 @@ pub fn resolve_secret_chain(
 /// Resolve the A2A (Agent-to-Agent Protocol) HMAC signing secret.
 ///
 /// Chain: master key derivation → env var → OS keychain.
-/// Tries both `HKASK_A2A_SECRET` (canonical) and `HKASK_A2A_SECRET_KEY` (legacy)
-/// environment variables for backward compatibility.
-/// Resolve the A2A secret for agent capability protocol signing.
-///
-/// Chain: master key derivation → env var → OS keychain.
-/// Tries both `HKASK_A2A_SECRET` (canonical) and `HKASK_A2A_SECRET_KEY` (legacy)
-/// environment variables for backward compatibility.
+/// Uses the `HKASK_A2A_SECRET` environment variable.
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
 /// post: returns Zeroizing<`Vec<u8>`> from first successful resolution step
@@ -211,19 +204,12 @@ pub fn resolve_a2a_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
         "HKASK_A2A_SECRET",
         "a2a-secret",
     )
-    .or_else(|_| resolve(&SecretRef::env("HKASK_A2A_SECRET_KEY")))
 }
 
 /// Resolve the MCP dispatch and tool invocation signing key.
 ///
 /// Chain: master key derivation → env var → OS keychain → A2A fallback.
-/// Falls back to the A2A secret if MCP-specific key is unavailable,
-/// since they share the same authority chain.
-/// Resolve the MCP dispatch and tool invocation signing key.
-///
-/// Chain: master key derivation → env var → OS keychain → A2A fallback.
-/// Falls back to the A2A secret if MCP-specific key is unavailable,
-/// since they share the same authority chain.
+/// Falls back to the A2A secret if MCP-specific key is unavailable.
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
 /// post: returns Zeroizing<`Vec<u8>`> from first successful resolution step
@@ -240,9 +226,6 @@ pub fn resolve_mcp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     .or_else(|_| resolve_a2a_secret())
 }
 
-/// Resolve the MCP security gateway HMAC key (used for API auth).
-///
-/// Chain: master key derivation → env var → OS keychain.
 /// Resolve the MCP security gateway HMAC key (used for API auth).
 ///
 /// Chain: master key derivation → env var → OS keychain.

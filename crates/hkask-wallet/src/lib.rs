@@ -32,7 +32,6 @@
 //! - `manager.rs` — `WalletManager` + deposit reference logic
 //! - `issuer.rs` — `ApiKeyIssuer` + `ApiKeyMaterial`
 //! - `price_feed.rs` — `PriceFeed` trait + fee estimation
-//! - `solana.rs` — `SolanaPort` (feature-gated: "solana") — REMOVED (Hedera-only)
 //! - `hedera.rs` — `HederaPort` (feature-gated: "hedera")
 //! - `hinkal.rs` — `HinkalPort` (feature-gated: "hinkal")
 
@@ -43,8 +42,6 @@ pub mod price_feed;
 pub mod privacy;
 pub mod signing;
 pub mod types;
-
-// pub mod solana;  // REMOVED — focusing on Hedera
 
 #[cfg(feature = "hedera")]
 pub mod hedera;

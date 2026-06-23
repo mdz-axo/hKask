@@ -21,13 +21,10 @@ pub struct CapabilityChecker {
 
 impl CapabilityChecker {
     /// Create a new capability checker without a signing key (verify-only).
-    /// The `secret` parameter is retained for backward compatibility but unused.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  _secret is any byte slice (retained for backward compatibility, unused)
-    /// post: returns a [`CapabilityChecker`] with no signing key; can verify tokens
-    ///       but cannot issue new ones (grant_* methods will panic)
-    pub fn new(_secret: &[u8]) -> Self {
+    /// post: returns a [`CapabilityChecker`] that can verify tokens but cannot issue new ones
+    pub fn new() -> Self {
         Self { signing_key: None }
     }
 

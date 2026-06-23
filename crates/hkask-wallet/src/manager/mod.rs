@@ -775,14 +775,14 @@ mod tests {
         store
             .store_deposit_address(
                 wallet_id,
-                ChainId::Hedera,
+                ChainId::Hinkal,
                 "hedera_deposit_addr",
                 1,
                 PrivacyMode::Transparent,
             )
             .unwrap();
 
-        let hedera_deposit = DepositEvent {
+        let hed_deposit_1 = DepositEvent {
             tx_hash: TxHash("hed_tx_001".into()),
             from_address: "sender_a".into(),
             to_address: "hedera_deposit_addr".into(),
@@ -790,8 +790,8 @@ mod tests {
             confirmations: 32,
             block_time: Utc::now(),
         };
-        let hedera_deposit = DepositEvent {
-            tx_hash: TxHash("hed_tx_001".into()),
+        let hed_deposit_2 = DepositEvent {
+            tx_hash: TxHash("hed_tx_002".into()),
             from_address: "sender_b".into(),
             to_address: "hedera_deposit_addr".into(),
             amount_usdc_micro: 2_000_000, // 2 USDC
@@ -804,14 +804,14 @@ mod tests {
             ChainId::Hedera,
             Arc::new(DepositMockPort {
                 chain: ChainId::Hedera,
-                deposit: Some(hedera_deposit),
+                deposit: Some(hed_deposit_1),
             }) as Arc<dyn ChainPort>,
         );
         chains.insert(
-            ChainId::Hedera,
+            ChainId::Hinkal,
             Arc::new(DepositMockPort {
-                chain: ChainId::Hedera,
-                deposit: Some(hedera_deposit),
+                chain: ChainId::Hinkal,
+                deposit: Some(hed_deposit_2),
             }) as Arc<dyn ChainPort>,
         );
 
@@ -1135,7 +1135,7 @@ mod tests {
                 wallet_id,
                 RJoule::new(1_000),
                 "recipient_addr",
-                ChainId::Hedera,
+                ChainId::Hinkal,
                 PrivacyMode::Transparent,
             )
             .await;

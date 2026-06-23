@@ -112,7 +112,7 @@ When `key_allocation_remaining ≤ 0`, requests return `402 Payment Required`. T
 
 Wallets are created automatically during `AgentService::build()` startup via `WalletService::build()`. Each registered replicant without a wallet gets one created with a deterministic `WalletId` derived from the replicant name via UUID v5 (`WalletId::from_name()`). Existing wallet bindings are preserved (idempotent).
 
-`WalletService::build()` encapsulates all chain port assembly (Solana, Hedera, Hinkal), price feed resolution, and CNS wiring — keeping `context.rs` focused on orchestration.
+`WalletService::build()` encapsulates all chain port assembly (Hedera, Hinkal), price feed resolution, and CNS wiring — keeping `context.rs` focused on orchestration.
 
 ### 4.2 Multi-Wallet Model
 
@@ -120,11 +120,10 @@ Each replicant has its own wallet for deposit/withdrawal isolation. The `Replica
 
 ### 4.3 Multi-Chain Architecture
 
-hKask supports three settlement chains, each with full deposit monitoring, withdrawal building, signed submission, and CNS error span emission:
+hKask supports two settlement chains (plus Hinkal privacy layer), each with full deposit monitoring, withdrawal building, signed submission, and CNS error span emission:
 
 | Chain | Protocol | Deposit Monitoring | Withdrawal | CNS Spans |
 |-------|----------|-------------------|------------|-----------|
-| **Solana** | SPL USDC via raw JSON-RPC (rustls) | `getSignaturesForAddress` → `getTransaction` → parse `preTokenBalances`/`postTokenBalances` → delta detection with sender extraction | ATA creation + `spl_token::transfer` → `sendTransaction` | All RPC errors via `rpc_call` choke point |
 | **Hedera** | HTS USDC via mirror node REST + gRPC (rustls) | `GET /api/v1/accounts/{id}/transactions` → parse `MirrorTransactionsResponse` → filter CRYPTOTRANSFER → match USDC token with sender extraction | Protobuf `CryptoTransferTransactionBody` → `CryptoServiceClient::crypto_transfer` | Mirror node HTTP, gRPC connect/submit/pre-check |
 | **Hinkal** | Shielded pool via REST API (privacy layer) | `GET /balance` with session auth → delta detection → `ShieldedTransfer` emission | `POST /withdraw` with session auth + protocol message signing | All HTTP/parse/rejection paths |
 
@@ -175,7 +174,7 @@ On submission failure, debited rJoules are refunded via compensating credit. Shi
 
 rJoules enter the system through:
 
-- **On-chain deposit:** USDC transferred to a derived deposit address on Solana or Hedera → detected by chain port monitor → converted to rJoules at `rj_per_usdc` rate
+- **On-chain deposit:** USDC transferred to a derived deposit address on Hedera → detected by chain port monitor → converted to rJoules at `rj_per_usdc` rate
 - **Shielded deposit:** Privacy-preserving transfer via Hinkal shielded pool with one-time deposit reference → `consume_deposit_reference()` → credited
 - **Shield orchestration:** Transparently-detected USDC can be moved into the Hinkal shielded pool via `shield_assets()` for privacy
 - **Initial allocation (future):** Each new replicant receives a genesis allocation at registration
@@ -371,13 +370,12 @@ The rJoule maps to an on-chain token (anticipated: ERC-20 or similar). The token
 | API key issuance (6-gate) | ✅ Implemented | `POST /api/keys/request` with gates 1,4,5,6 active; `POST /api/keys/{id}/fund`; `DELETE /api/keys/{id}`; `ApiKeyCapability` extended with `scope`/`purpose`/`rate_limit` |
 | API key metering (CNS spans) | ✅ Implemented | `hkask-cns::api_metering` — `ApiMeter` (in-memory rate limiter), `ApiRequestSpan`, `ApiMeteringAlert` (5 alert types), `endpoint_weight` table |
 | 7R7 bot key management | ✅ Implemented | `DelegationResource::Key` variant in capability system; `key:issue`, `key:revoke`, `key:fund` parseable |
-| Solana deposit/withdrawal | ✅ Implemented | `SolanaPort` — SPL USDC via raw JSON-RPC (rustls). Deposit monitoring with sender extraction, ATA creation + `spl_token::transfer` withdrawal, CNS spans on all RPC errors. Devnet integration test (`#[ignore]` — needs funded treasury). |
 | Hedera deposit/withdrawal | ✅ Implemented | `HederaPort` — HTS USDC via mirror node REST + gRPC (rustls). Deposit monitoring with sender extraction, protobuf `CryptoTransferTransactionBody` withdrawal, CNS spans on all HTTP/gRPC errors. Testnet integration test (`#[ignore]`). Configurable via `HEDERA_CONSENSUS_NODE_URL`. |
-| Hinkal privacy layer | ✅ Implemented | `HinkalPort` — session management (24h TTL), shielded deposit monitoring (`GET /balance`), shielded withdrawal (`POST /withdraw`), shield orchestration (`POST /deposit`), circuit breaker with cooldown. CNS spans on all HTTP/parse/rejection paths. |
+| Hinkal privacy layer | ✅ Implemented | `HinkalPort` — session management (24h TTL), shielded deposit monitoring (`GET /balance`), shielded withdrawal (`POST /withdraw`), shield orchestration (`POST /deposit`), circuit breaker with cooldown. CNS spans on all HTTP/parse/rejection paths. Settles on Hedera. |
 | Price feed system | ✅ Implemented | Multi-source: `EodhdPriceFeed` (primary), `CoinGeckoPriceFeed` (fallback), `StaticPriceFeed` (dev/test). `CompositePriceFeed` with caching and stale fallback. User-configurable via `PriceFeedConfig` in `WalletConfig`. `resolve_price_feed()` factory. |
 | WalletService extraction | ✅ Implemented | `WalletService::build()` encapsulates chain port assembly, price feed resolution, and CNS wiring. `context.rs` wallet block reduced from ~280 lines to ~10 lines. |
 | Shield orchestration | ✅ Implemented | `WalletManager::shield_assets()` — build → sign → submit → record `TransactionType::Shield` (zero rJoule delta). |
-| CNS chain error spans | ✅ Implemented | All three chain ports emit `cns.wallet.chain_error` on RPC/gRPC/HTTP failures. `SolanaPort` via `rpc_call` choke point, `HederaPort` on mirror node + gRPC errors, `HinkalPort` on all API call failures. |
+| CNS chain error spans | ✅ Implemented | Both chain ports emit `cns.wallet.chain_error` on RPC/gRPC/HTTP failures. `HederaPort` on mirror node + gRPC errors, `HinkalPort` on all API call failures. |
 | On-chain settlement | ⏸️ Deferred | Fails essentialist G1 (deletion test): system works without it for single-node deployments. Spec preserved for future multi-node/token economics phase. |
 | CNS abuse history query (gate 2) | ⏸️ Deferred | Stubbed in `approve_key_request`; awaits CNS alert query API exposure via service layer. |
 | Registry scope validation (gate 3) | ⏸️ Deferred | Stubbed in `approve_key_request`; awaits MCP tool registry endpoint enumeration. |

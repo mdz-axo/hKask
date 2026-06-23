@@ -2,16 +2,13 @@
 //!
 //! Routes tool calls through MCP runtime. Governance (capability
 //! verification, energy budget, observability) is delegated to `GovernedTool`
-//! which subsumes the former inline checks (McpGovernor authorization,
-//! CnsRuntime throttle, ToolSpanGuard).
+//! which handles authorization, throttling, and span guarding.
 //!
 //! This split enforces the authority DAG: Cybernetics governs
-//! Communication. The dispatcher is the dumb transport pipe; the
+//! Communication. The dispatcher is the transport pipe; the
 //! governed tool membrane is the security property.
 //!
-//! All invocations require a GovernedTool membrane. The legacy inline
-//! path (McpGovernor.authorize) has been removed — call sites must wire
-//! through GovernedTool.
+//! All invocations require a GovernedTool membrane.
 
 use crate::runtime::McpRuntime;
 use hkask_capability::{CapabilityChecker, DelegationToken};
@@ -203,7 +200,7 @@ impl McpDispatcher {
     ) -> Self {
         Self {
             runtime,
-            capability_checker: Arc::new(CapabilityChecker::new(secret)),
+            capability_checker: Arc::new(CapabilityChecker::new()),
             governed_tool: Some(governed_tool),
         }
     }

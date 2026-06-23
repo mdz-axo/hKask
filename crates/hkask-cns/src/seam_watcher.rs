@@ -61,9 +61,8 @@ pub struct SeamDrift {
 
 /// Workspace-wide seam coverage summary.
 ///
-/// Consolidates what were previously three separate accessor methods
-/// (`inventory()`, `overall_coverage()`, `crate_coverage()`) into one
-/// struct to keep the public API surface ≤7 items (deep module discipline).
+/// Consolidates `inventory()`, `overall_coverage()`, and `crate_coverage()`
+/// into one struct to keep the public API surface ≤7 items (deep module discipline).
 #[derive(Debug, Clone)]
 pub struct SeamSummary {
     /// Total public items across all crates
@@ -468,8 +467,7 @@ impl SeamWatcher {
 
     /// Workspace-wide coverage summary.
     ///
-    /// Consolidates what were previously three separate accessor methods
-    /// into one struct return to keep the public API ≤7 items.
+    /// Consolidates inventory, coverage, and crate counts into one struct.
     pub fn summary(&self) -> SeamSummary {
         SeamSummary {
             total_items: self.inventory.totals.total_items,

@@ -4,10 +4,7 @@
 //! When variety deficit exceeds threshold, alerts are escalated to the Curator/human.
 //!
 //! Per architecture v0.22.0: Variety deficit >50 → Warning escalation to Curator;
-//! deficit >100 → Critical escalation to human. Binary threshold only — the
-//! allosteric MWC sigmoid was deleted (essentialist review: added zero
-//! runtime-observable behavior; CurationConfidenceGate always created with
-//! empty ports; binary threshold is the backward-compatible limit case).
+//! deficit >100 → Critical escalation to human. Binary threshold.
 
 use crate::runtime::VarietyTracker;
 use chrono::{DateTime, Utc};

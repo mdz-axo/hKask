@@ -3,9 +3,9 @@
 #[macro_use]
 mod store_macros;
 pub mod lock_helpers;
+pub use hkask_types::time::now_rfc3339;
 pub use lock_helpers::{lock_mutex, read_rwlock, write_rwlock};
 pub use store_macros::Store;
-pub use store_macros::now_rfc3339;
 pub mod agent_registry;
 pub mod archive;
 pub mod consent_store;

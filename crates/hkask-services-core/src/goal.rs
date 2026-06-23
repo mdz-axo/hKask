@@ -4,13 +4,7 @@
 //! Multiple loops interact with goals: Curation evaluates them, Cybernetics
 //! allocates energy, Communication coordinates agents around them.
 //!
-//! **F-SYN-019 — do not reintroduce `GoalCapabilityToken`.**
-//! The type was *entirely removed* in v0.23.0 (OPEN_QUESTIONS F6):
-//! HMAC signing + epoch-based revocation + attenuation for goals
-//! was over-engineered ceremony with no functional payoff. Goals
-//! are scoped by `&WebID` only. If you find yourself reaching for
-//! a goal-scoped capability token, you are reinventing ceremony
-//! that has been deliberately removed.
+//! Goals are scoped by `&WebID`.
 
 use std::fmt;
 

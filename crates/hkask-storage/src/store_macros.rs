@@ -6,16 +6,6 @@
 //! `impl_from_rusqlite!` generates the canonical `From<rusqlite::Error>` impl.
 use hkask_types::InfrastructureError;
 use std::sync::{Arc, Mutex, MutexGuard};
-// P4.3: `now_rfc3339` lives in `hkask-types` (the foundation crate) so
-// that non-storage crates (CLI, agents) can also use it without
-// pulling in the entire storage dependency tree. Re-export it from this
-// module for backward compatibility with `hkask_storage::now_rfc3339`.
-// The actual implementation is in `hkask_types::time`.
-//
-// (Kept as a re-export inside the macro module so the path
-// `crate::store_macros::now_rfc3339` still resolves for any caller that
-// reaches for the canonical implementation directly.)
-pub use hkask_types::time::now_rfc3339;
 /// Shared trait for all SQLite-backed stores.
 ///
 /// Provides the standard `conn_arc()` and `lock_conn()` methods over

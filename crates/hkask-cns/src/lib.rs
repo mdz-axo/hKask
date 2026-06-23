@@ -48,18 +48,9 @@ pub use energy::{
     EnergyError,
 };
 pub use energy_budget_management::EnergyBudgetManager;
+pub use gas_report::{AgentGasReport, AgentGasSummary, GasReport, GasTotals, ToolGasBreakdown};
 pub use governed_inference::GovernedInference;
 pub use governed_tool::{EnergyEstimator, GovernedTool};
-pub use types::loops::{
-    CurationInput, CuratorDirective, CuratorHandle, ExperienceClassification, LoopAction,
-};
-pub use wallet_budget::WalletBackedBudget;
-pub use wallet_energy_estimator::WalletEnergyEstimator;
-pub use wallet_gas_calibrator::{
-    DEFAULT_WALLET_CALIBRATION_INTERVAL, DEFAULT_WALLET_INITIAL_LOOKBACK, WalletGasCalibrator,
-};
-// allosteric types deleted — MWC sigmoid added zero runtime-observable behavior.
-pub use gas_report::{AgentGasReport, AgentGasSummary, GasReport, GasTotals, ToolGasBreakdown};
 pub use hkask_types::cns::QueueDepth;
 pub use runtime::CnsRuntime;
 pub use runtime::NoopEventSink;
@@ -71,3 +62,11 @@ pub use set_points::{
 };
 pub use snapshot_loop::{SnapshotLoop, SnapshotLoopConfig};
 pub use types::curation::CurationThresholdConfig;
+pub use types::loops::{
+    CurationInput, CuratorDirective, CuratorHandle, ExperienceClassification, LoopAction,
+};
+pub use wallet_budget::WalletBackedBudget;
+pub use wallet_energy_estimator::WalletEnergyEstimator;
+pub use wallet_gas_calibrator::{
+    DEFAULT_WALLET_CALIBRATION_INTERVAL, DEFAULT_WALLET_INITIAL_LOOKBACK, WalletGasCalibrator,
+};

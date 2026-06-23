@@ -1,9 +1,7 @@
 //! PodService — agent pod lifecycle management for CLI and API surfaces.
 //!
 //! Delegates to `AgentService::pod_manager()` and wraps `AgentPodError`
-//! as `ServiceError::Pod`. Both CLI and API surfaces were previously
-//! calling `pod_manager()` directly with duplicated error mapping and
-//! pod ID parsing logic.
+//! as `ServiceError::Pod`.
 
 use hkask_agents::pod::{AgentPersona, PodID, PodStatusInfo};
 

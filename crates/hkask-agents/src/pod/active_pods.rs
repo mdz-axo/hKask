@@ -90,13 +90,13 @@ impl ActivePods {
         use crate::AllowAllConsent;
         use crate::a2a::A2ARuntime;
         use crate::adapters::mcp_runtime::CapabilityOnlyAdapter;
-        use crate::adapters::memory_loop_adapter::MemoryLoopAdapter;
+        use crate::adapters::memory_loop_adapter::MemoryLoopForwarder;
         use crate::pod::PodFactory;
         use hkask_capability::CapabilityChecker;
 
-        let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
+        let adapter = Arc::new(MemoryLoopForwarder::in_memory_unchecked());
         let mcp = Arc::new(CapabilityOnlyAdapter::new(Arc::new(
-            CapabilityChecker::new(b"mock"),
+            CapabilityChecker::new(),
         )));
         let a2a = Arc::new(A2ARuntime::new(b"mock"));
         let factory = Arc::new(PodFactory::new(

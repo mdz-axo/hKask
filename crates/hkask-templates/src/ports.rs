@@ -1,10 +1,7 @@
 //! Port traits for registry and template execution
-//
+//!
 //! Defines the hexagonal architecture ports for template dispatch system.
 //! Per architecture v0.21.0: Rust is the loom, YAML/Jinja2 is the thread.
-//
-//! `RegistryEntry`, `RegistryIndex`, and `RegistryError` are canonical in
-//! `hkask_types::ports` and re-exported here for backward compatibility.
 
 use hkask_capability::DelegationToken;
 use serde_json::Value;

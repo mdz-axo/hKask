@@ -271,7 +271,7 @@ impl PodFactory {
         };
         let sovereignty_checker = pod.sovereignty_checker.clone();
 
-        let adapter: Arc<crate::adapters::memory_loop_adapter::MemoryLoopAdapter> =
+        let adapter: Arc<crate::adapters::memory_loop_adapter::MemoryLoopForwarder> =
             Arc::new(memory_adapter);
         let episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();
         let semantic: Arc<dyn SemanticStoragePort> = adapter;
@@ -314,7 +314,7 @@ impl PodFactory {
     }
 
     /// Create the per-pod SQLCipher database file, stores, and memory adapter.
-    /// Returns both the storage struct and a MemoryLoopAdapter that wraps
+    /// Returns both the storage struct and a MemoryLoopForwarder that wraps
     /// the pod's own TripleStore + EmbeddingStore for episodic/semantic I/O.
     fn create_pod_storage(
         &self,
@@ -324,7 +324,7 @@ impl PodFactory {
     ) -> Result<
         (
             PerPodStorage,
-            crate::adapters::memory_loop_adapter::MemoryLoopAdapter,
+            crate::adapters::memory_loop_adapter::MemoryLoopForwarder,
         ),
         PodDeployError,
     > {
@@ -368,7 +368,7 @@ impl PodFactory {
         // PodContext uses for episodic/semantic I/O. All data goes into
         // the pod's own SQLCipher file.
         let memory =
-            crate::adapters::memory_loop_adapter::MemoryLoopAdapter::from_connection(db.conn_arc())
+            crate::adapters::memory_loop_adapter::MemoryLoopForwarder::from_connection(db.conn_arc())
                 .map_err(|e| PodDeployError::StorageInitFailed {
                     path: db_path.clone(),
                     reason: e.to_string(),

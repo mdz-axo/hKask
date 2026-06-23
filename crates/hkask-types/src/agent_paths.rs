@@ -39,7 +39,7 @@
 //!
 //! | Resource     | DB or Dir      | Wired To                               | Status |
 //! |-------------|---------------|----------------------------------------|--------|
-//! | pod.db      | SQLCipher DB   | PodFactory, PodContext, MemoryLoopAdapter | ✅ done |
+//! | pod.db      | SQLCipher DB   | PodFactory, PodContext, MemoryLoopForwarder | ✅ done |
 //! | memory.db   | SQLCipher DB   | hkask-mcp-memory, REPL init, consolidation | ✅ done |
 //! | style.db    | SQLCipher DB   | hkask-services-embed (corpus embeddings) | 🔧 path exists, not wired |
 //! | kanban.db   | SQLCipher DB   | hkask-mcp-kanban, hkask-services-kanban | 🔧 path exists, not wired |

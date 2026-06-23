@@ -1,8 +1,6 @@
 //! Curator types — CuratorHandle (capability handle) and CuratorDirective (Curation → Cybernetics).
 //!
-//! These types were previously misplaced in `hkask-cns/src/types/loops/curation.rs`
-//! (the Cybernetics crate owning Curation types — Authority DAG violation).
-//! Now consolidated in hkask-types as the single source of truth for curator types.
+//! Lives in hkask-types as the single source of truth for curator types.
 //!
 //! Per the Authority DAG: Curation (Loop 5) → Cybernetics (Loop 6).
 //! The Curator's types must live in a crate that both Curator (hkask-agents)

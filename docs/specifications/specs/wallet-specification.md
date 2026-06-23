@@ -36,7 +36,7 @@ Every statement is classified per pragmatic-semantics:
 
 The hKask wallet is a **specialized sub-wallet** — one of several crypto wallets the user holds. It only does what hKask needs:
 
-- Receive deposits (USDC → rJoules) on Solana and Hedera
+- Receive deposits (USDC → rJoules) on Hedera
 - Track rJoule balances in SQLite (SQLCipher-encrypted)
 - Issue Ed25519-signed API key capability tokens
 - Process withdrawals (rJoules → USDC) back to user's primary wallet
@@ -58,7 +58,7 @@ The hKask wallet is a **specialized sub-wallet** — one of several crypto walle
 
 ```
 hkask-wallet/
-├── Cargo.toml              — Feature gates: solana, hedera, hinkal
+├── Cargo.toml              — Feature gates: hedera, hinkal
 ├── src/
 │   ├── lib.rs              — Crate docs, module declarations, re-exports
 │   ├── chain.rs            — ChainPort trait (7 public items) + DepositEvent
@@ -66,7 +66,6 @@ hkask-wallet/
 │   ├── signing.rs          — Isolated security boundary (2 public functions)
 │   ├── manager.rs          — WalletManager (12 methods, justified) + deposit reference logic
 │   ├── issuer.rs           — ApiKeyIssuer (6 public items) + ApiKeyMaterial re-export
-│   ├── solana.rs           — SolanaPort (feature-gated: "solana")
 │   ├── hedera.rs           — HederaPort (feature-gated: "hedera")
 │   └── hinkal.rs           — HinkalPort (feature-gated: "hinkal")
 ```
@@ -81,7 +80,6 @@ graph TD
         SIGN["signing.rs<br/>Security boundary"]
         MGR["manager.rs<br/>WalletManager"]
         ISS["issuer.rs<br/>ApiKeyIssuer"]
-        SOL["solana.rs<br/>(feature: solana)"]
         HED["hedera.rs<br/>(feature: hedera)"]
         HINK["hinkal.rs<br/>(feature: hinkal)"]
     end
@@ -131,7 +129,7 @@ graph TD
 | Type | Kind | Security Constraints |
 |------|------|---------------------|
 | `RJoule(u64)` | Newtype | Copy, Clone — value unit, not secret |
-| `ChainId` | Enum (Solana, Hedera) | Copy, Clone |
+| `ChainId` | Enum (Hedera, Hinkal) | Copy, Clone |
 | `PrivacyMode` | Enum (Transparent, Shielded) | Copy, Clone |
 | `Ed25519PublicKey([u8; 32])` | Newtype | Copy, Clone — public key |
 | `DepositAddress` | Struct | Clone — no secrets |
@@ -210,8 +208,8 @@ sequenceDiagram
     participant Keystore as hkask-keystore
     participant Memory
 
-    Caller->>Signing: sign_withdrawal(Solana, tx_bytes)
-    Signing->>Keystore: resolve_treasury_key(Solana)
+    Caller->>Signing: sign_withdrawal(Hedera, tx_bytes)
+    Signing->>Keystore: resolve_treasury_key(Hedera)
     Keystore-->>Signing: Zeroizing<Vec<u8>> (32 bytes)
     Note over Signing,Memory: Key material exists in memory
     Signing->>Signing: LoadedKey::from_zeroizing → Zeroizing<[u8; 32]>
@@ -241,7 +239,7 @@ sequenceDiagram
 |---|-----------|--------|
 | MUST-1 | Seed never in plain memory beyond Zeroizing scope | ✅ `Zeroizing<Vec<u8>>` on all derived key material |
 | MUST-2 | Seed never in logs, error messages, or Debug output | ✅ `LoadedKey` Debug shows `[REDACTED]` |
-| MUST-3 | Seed derivation always uses domain-separated HKDF contexts | ✅ `TREASURY_SOLANA`, `TREASURY_HEDERA`, `WALLET_SEED` |
+| MUST-3 | Seed derivation always uses domain-separated HKDF contexts | ✅ `TREASURY_HEDERA`, `TREASURY_HINKAL`, `WALLET_SEED` |
 | MUST-4 | Signing requires user consent (P2 Affirmative Consent) | 🔶 Deferred to Phase 6 (ConsentManager gate) |
 | MUST-5 | Private keys never serialized to disk unencrypted | ✅ API key private keys returned once, never stored |
 | MUST-6 | All cryptographic comparisons use constant-time equality | 🔶 Deferred (subtle crate available, not yet wired) |
@@ -278,7 +276,6 @@ sequenceDiagram
 | `hkask-types` | Domain types (workspace) | None — internal |
 | `hkask-keystore` | Key derivation (workspace) | None — internal |
 | `hkask-storage` | Persistence (workspace) | None — internal |
-| `solana-sdk` | Solana tx construction (feature-gated) | Medium — large dep tree |
 | `reqwest` | HTTP for Hedera mirror node / Hinkal relay (feature-gated) | Medium — TLS dep (rustls) |
 | `ed25519-dalek` | Key construction from seed bytes | Low — already in keystore |
 | `zeroize` | Memory protection | Low — already in keystore |
@@ -325,7 +322,7 @@ sequenceDiagram
 
     Note over User,Wallet: SHIELDED DEPOSIT FLOW
 
-    User->>Wallet: kask wallet deposit-reference --chain solana --shielded
+    User->>Wallet: kask wallet deposit-reference --chain hedera --shielded
     Wallet-->>User: dep_ref: "dep_a7f3c..." (valid 24h)
 
     User->>PrimaryWallet: Shield USDC + set memo = "dep_a7f3c..."
@@ -488,7 +485,7 @@ graph TD
 
 | Phase | Scope | Dependencies |
 |-------|-------|-------------|
-| 4 (chain ports) | `solana.rs`, `hedera.rs`, `hinkal.rs` — feature-gated implementations | solana-sdk, reqwest |
+| 4 (chain ports) | `hedera.rs`, `hinkal.rs` — feature-gated implementations | reqwest |
 
 ### 8.3 Test Inventory
 
@@ -514,11 +511,11 @@ graph TD
 | Q2: Hinkal Access Token — mint or accept? | **Accept pre-minted** ✅ | zkSNARK proof generation belongs in Hinkal SDK. hKask is headless and minimal. |
 | Q3: hKask wallet scope | **Specialized sub-wallet** ✅ | User's primary wallet handles key storage, multi-chain, DeFi. hKask wallet only does deposits, rJoule tracking, API keys, withdrawals. |
 | Q4: Deposit detection strategy | **Polling at 30s intervals** | Low-frequency polling avoids persistent RPC connections. Multiple fallback endpoints. |
-| Q5: Multi-chain address format | **Chain-specific native formats** | Solana: base58. Hedera: `0.0.XXXXX` account ID. |
+| Q5: Multi-chain address format | **Chain-specific native formats** | Hedera: `0.0.XXXXX` account ID. |
 | Q6: Gas pre-funding (bootstrapping) | **Deferred** | Initial treasury funded by hKask operator. Users deposit USDC → rJoules credited. |
 | Q7: Key revocation — on-chain vs off-chain | **Off-chain (database flag)** | `revoked_at` timestamp in `api_keys` table. Unspent rJoules returned to wallet. |
 | Q8: Recovery from seed (P1 sovereignty) | **Deterministic derivation** | All keys derived from master passphrase via HKDF. Same passphrase → same keys. |
-| Q9: Hinkal Hedera support | **Deferred** | Hinkal not announced for Hedera. `available_for_chain(Hedera)` returns false. |
+| Q9: Hinkal support | **Hedera-only** | Hinkal settles on Hedera. Only `ChainId::Hedera` and `ChainId::Hinkal` are supported. |
 
 ---
 

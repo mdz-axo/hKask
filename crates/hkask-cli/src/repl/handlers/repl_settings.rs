@@ -1,8 +1,7 @@
 //! REPL settings handler — /repl command for user-configurable inference parameters.
 //!
 //! Magna Carta P3 (Generative Space): all parameters are user-exposed,
-//! no privileged engineer access. The /repl command surfaces every
-//! inference parameter that was previously hardcoded.
+//! no privileged engineer access.
 
 use super::super::ReplState;
 use hkask_types::template::LLMParameters;

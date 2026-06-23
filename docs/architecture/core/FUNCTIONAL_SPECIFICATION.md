@@ -543,7 +543,7 @@ These domains are documented here for completeness. The canonical contract forma
 **Goal Principle:** P9 (Homeostatic Self-Regulation) — rJoule balance, encumbrance, and fee estimation form the wallet's energy regulation loop
 **Constraining Principles:** P1 (User Sovereignty), P2 (Affirmative Consent), P4 (Clear Boundaries), P8 (Semantic Grounding)
 **Crate:** `hkask-wallet`
-**Sources:** `src/manager.rs`, `src/issuer.rs`, `src/signing.rs`, `src/hinkal.rs`, `src/price_feed.rs`, `src/hedera.rs`, `src/solana.rs`, `tests/hinkal_adapter.rs`
+**Sources:** `src/manager.rs`, `src/issuer.rs`, `src/signing.rs`, `src/hinkal.rs`, `src/price_feed.rs`, `src/hedera.rs`, `tests/hinkal_adapter.rs`
 
 #### Production Contracts (27)
 
@@ -612,13 +612,13 @@ These domains are documented here for completeness. The canonical contract forma
 | FR-W-T29 | static_price_feed_returns_expected_rates |
 | FR-W-T30 | fee_estimation_produces_non_zero_fee |
 | FR-W-T31 | fee_estimation_floors_at_one_rj |
-| FR-W-T32 | different_chains_produce_different_fees |
+| FR-W-T32 | different_chains_produce_same_fees |
 | FR-W-T33 | eodhd_feed_parses_close_field |
 | FR-W-T34 | coingecko_feed_parses_usd_field |
 | FR-W-T35 | composite_returns_from_primary_source_on_success |
 | FR-W-T36 | composite_falls_back_when_primary_fails |
 
-> **Note:** Chain-adapter integration tests for Hedera, Solana, and Hinkal are realigned to `P9-wallet-hedera-*`, `P9-wallet-solana-*`, and `P9-wallet-hinkal-*` test IDs. They are omitted above for brevity.
+> **Note:** Chain-adapter integration tests for Hedera and Hinkal use `P9-wallet-hedera-*` and `P9-wallet-hinkal-*` test IDs.
 
 ### 3.2 Storage (`hkask-storage`)
 

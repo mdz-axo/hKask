@@ -1,13 +1,6 @@
 # cargo-audit configuration for hKask
 #
-# Solana dependencies have been removed. The advisories previously suppressed
-# for solana-sdk and solana-signature are no longer relevant.
-#
-# Warnings (non-fatal, exit 0):
-#   - atty: stale lockfile entry, not in active dependency tree
-#   - lru (IterMut unsound): transitive via ratatui; hKask does not use IterMut
-#   - bincode 1.3.3, derivative, paste, proc-macro-error2, libsecp256k1:
-#     unmaintained proc-macro/build deps; functionally stable, monitor for replacements
+# Run: cargo audit
 
 [advisories]
 ignore = []

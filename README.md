@@ -115,7 +115,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 ### Wallet, Identity & Ledger (3 crates)
 | Crate | Purpose |
 |-------|--------|
-| `hkask-wallet` | Multi-chain wallet (Solana, Hedera, Hinkal optional) |
+| `hkask-wallet` | Multi-chain wallet (Hedera, Hinkal optional) |
 | `hkask-wallet-types` | Wallet value types and data structures |
 | `hkask-ledger` | Triple-entry accounting ledger |
 

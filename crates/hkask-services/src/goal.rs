@@ -1,11 +1,8 @@
 //! GoalService — goal CRUD operations for CLI and API surfaces.
 //!
 //! Delegates to `AgentService::goal_repo()` and wraps `GoalRepositoryError`
-//! as `ServiceError::GoalRepo`. Both CLI and API surfaces were previously
-//! calling `goal_repo()` directly with duplicated visibility parsing and
-//! response mapping logic.
+//! as `ServiceError::GoalRepo`.
 
-// Re-export domain types from hkask-services-core for backward compatibility
 pub use hkask_services_core::{
     Goal, GoalArtifact, GoalCriterion, GoalState, IllegalGoalTransition,
 };

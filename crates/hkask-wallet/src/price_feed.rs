@@ -565,8 +565,6 @@ mod tests {
     }
 
     /// expect: "Wallet price chain diff test works correctly under test conditions"
-    /// Note: With Solana removed and Hinkal settling on Hedera, both chains
-    /// now use the same CoinGecko ID ("hedera-hashgraph"), so fees are identical.
     #[test]
     fn different_chains_produce_same_fees() {
         let rate = ExchangeRate {
@@ -749,7 +747,7 @@ mod tests {
         // Verify it's a StaticPriceFeed by checking it doesn't panic on get_rate
         let rt = tokio::runtime::Runtime::new().unwrap();
         let rate = rt.block_on(feed.get_rate(ChainId::Hedera)).unwrap();
-        assert!((rate.usd_per_token - 150.0).abs() < f64::EPSILON);
+        assert!((rate.usd_per_token - 0.08).abs() < f64::EPSILON);
     }
 
     /// expect: "Wallet price resolve coingecko test works correctly under test conditions"

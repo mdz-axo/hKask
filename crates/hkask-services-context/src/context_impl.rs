@@ -578,7 +578,7 @@ impl AgentService {
         let consolidation_service =
             hkask_memory::ConsolidationService::new(bridge, semantic_memory, token);
 
-        // Storage ports via MemoryLoopAdapter — uses the same connection
+        // Storage ports via MemoryLoopForwarder — uses the same connection
         let mut adapter_epi = EpisodicMemory::new(TripleStore::new(Arc::clone(&conn)));
         let mut adapter_sem = SemanticMemory::new(
             TripleStore::new(Arc::clone(&conn)),
@@ -588,7 +588,7 @@ impl AgentService {
             adapter_epi = adapter_epi.with_cns(Arc::clone(sink));
             adapter_sem = adapter_sem.with_cns(Arc::clone(sink));
         }
-        let adapter = Arc::new(hkask_agents::adapters::MemoryLoopAdapter::new(
+        let adapter = Arc::new(hkask_agents::adapters::MemoryLoopForwarder::new(
             adapter_epi,
             adapter_sem,
         ));
@@ -934,7 +934,7 @@ async fn build_loops(
 
     // Memory adapter — with CNS observability on its own store instances
     let memory_adapter = Arc::new(
-        hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter::new(
+        hkask_agents::adapters::memory_loop_adapter::MemoryLoopForwarder::new(
             EpisodicMemory::new(TripleStore::new(Arc::clone(&mem_conn)))
                 .with_cns(Arc::clone(&f.cns_event_sink)),
             SemanticMemory::new(
@@ -1116,9 +1116,9 @@ async fn build_mcp_and_pods(
     let mcp_runtime = Arc::new(mcp_runtime);
 
     // Pod manager
-    let capability_checker = Arc::new(CapabilityChecker::new(&config.mcp_secret));
+    let capability_checker = Arc::new(CapabilityChecker::new());
     let mcp_runtime_adapter = hkask_agents::adapters::mcp_runtime::FullMcpAdapter::new(
-        Arc::new(CapabilityChecker::new(&config.a2a_secret)),
+        Arc::new(CapabilityChecker::new()),
         Arc::new((*mcp_runtime).clone()),
         tokio::runtime::Handle::current(),
     );
@@ -1140,7 +1140,7 @@ async fn build_mcp_and_pods(
             )),
             Arc::new(mcp_runtime_adapter),
             Some(governed_tool.clone()),
-            Some(Arc::new(CapabilityChecker::new(&config.a2a_secret))),
+            Some(Arc::new(CapabilityChecker::new())),
             None,
             Arc::clone(&l.episodic_storage) as Arc<dyn EpisodicStoragePort>,
             Arc::clone(&l.semantic_storage) as Arc<dyn SemanticStoragePort>,

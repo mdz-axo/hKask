@@ -49,10 +49,7 @@ impl CompositeEnergyEstimator {
 
     /// The inference routing key used for energy estimation.
     ///
-    /// Inference is no longer an MCP server — it's a direct internal
-    /// call through `InferencePort`, not MCP dispatch. This key remains
-    /// for energy estimation routing when a `GovernedTool` wraps an
-    /// inference-like tool port.
+    /// Routes through `InferencePort` directly, not MCP dispatch.
     pub const INFERENCE_SERVER: &'static str = "inference";
 }
 

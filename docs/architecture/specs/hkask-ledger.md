@@ -14,7 +14,7 @@ A single core crate (`crates/hkask-ledger`) providing immutable double-entry acc
 | Domain | What It Tracks | Account Namespace |
 |--------|---------------|-------------------|
 | **Cost ledger** | System costs (gas, API, training, subscriptions) | `cost:*` |
-| **Crypto ledger** | Wallet transactions (Hedera, Solana, rJ token) | `wallet:*` |
+| **Crypto ledger** | Wallet transactions (Hedera, rJ token) | `wallet:*` |
 | **Securities ledger** | Portfolio transactions (buy, sell, dividends) | `portfolio:*` |
 
 Same crate, same SQLite schema, same transaction semantics. Different account namespaces, different balance queries. The existing `PortfolioManager` in `hkask-mcp-companies` is ported to use this.
@@ -206,7 +206,6 @@ cost:subscription/fmp       — FMP monthly subscription (amortized)
 cost:brokerage/fees         — Brokerage fees (portfolio)
 cost:qa/run                 — Temporary sink for QA run costs
 wallet:hedera/main          — Hedera main wallet
-wallet:solana/main          — Solana main wallet
 external:hedera             — External Hedera chain (counterparty)
 external:income             — External income source (dividends, deposits)
 portfolio:cash/main         — Cash balance

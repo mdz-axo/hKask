@@ -1,7 +1,6 @@
 //! hKask Service Layer — shared startup infrastructure and domain operations.
 //!
-//! Foundation types (`ServiceError`, `ServiceConfig`, `HkaskSettings`) live in
-//! `hkask-services-core` and are re-exported here for backward compatibility.
+//! Foundation types live in `hkask-services-core`.
 //!
 //! # Module visibility
 //!

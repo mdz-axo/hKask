@@ -8,5 +8,5 @@ pub mod registry_source;
 pub use hkask_templates::TemplateCrateLoader;
 pub use mcp_runtime::CapabilityOnlyAdapter;
 pub use mcp_runtime::FullMcpAdapter;
-pub use memory_loop_adapter::MemoryLoopAdapter;
+pub use memory_loop_adapter::MemoryLoopForwarder;
 pub use registry_source::FilesystemRegistrySource;
