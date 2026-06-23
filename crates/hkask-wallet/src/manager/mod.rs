@@ -8,7 +8,10 @@
 
 #[cfg(test)]
 use crate::types::EncumbranceStatus;
-use crate::types::{RJoule, PrivacyMode, ApiKeyCapability, Encumbrance, WalletConfig, TransactionType, WalletBalance, DepositAddress, TxHash, WalletTransaction, WalletError, ChainId, DepositReference};
+use crate::types::{
+    ApiKeyCapability, ChainId, DepositAddress, DepositReference, Encumbrance, PrivacyMode, RJoule,
+    TransactionType, TxHash, WalletBalance, WalletConfig, WalletError, WalletTransaction,
+};
 use chrono::{Duration, Utc};
 use hkask_keystore::keychain::resolve_wallet_seed;
 use hkask_storage::WalletStore;
@@ -23,7 +26,6 @@ use zeroize::Zeroizing;
 
 use crate::chain::{ChainPort, DepositEvent};
 use crate::price_feed::{PriceFeed, WithdrawalFee};
-
 
 mod budget;
 mod cns;
@@ -180,14 +182,13 @@ impl WalletManager {
         chain: ChainId,
         privacy: PrivacyMode,
     ) -> Result<DepositAddress, WalletError> {
-        let port = self
-            .chains
-            .get(&chain)
-            .ok_or(WalletError::ChainError { message: "chain not enabled".into() })?;
+        let port = self.chains.get(&chain).ok_or(WalletError::ChainError {
+            chain: ChainId::Hedera,
+            message: "chain not enabled".into(),
+        })?;
         // Use derivation index 0 for the primary address
         let address = port.derive_deposit_address(0)?;
-        self.store
-            .store_deposit_address(wallet_id, chain, &address, 0, privacy)?;
+        self.store.store_deposit_address(wallet_id, &address, 0)?;
 
         // CNS span: deposit address derived
         self.emit_span(
@@ -288,62 +289,7 @@ mod tests {
         chain: ChainId,
     }
 
-    struct MockPrivacyPort {
-        available: bool,
-    }
-
     #[async_trait::async_trait]
-    impl PrivacyPort for MockPrivacyPort {
-        fn our_shielded_address(&self) -> Result<String, WalletError> {
-            Ok("mock_shielded_addr".into())
-        }
-
-        fn shielded_deposit_address(&self, _wallet_id: WalletId) -> Result<String, WalletError> {
-            Ok("mock_shielded_addr".into())
-        }
-
-        async fn monitor_shielded_transfers(
-            &self,
-            _actor: &WebID,
-        ) -> Result<Vec<TxHash>, WalletError> {
-            Ok(vec![])
-        }
-
-        fn build_shield_tx(
-            &self,
-            _amount_usdc_micro: u64,
-            _chain: ChainId,
-        ) -> Result<Vec<u8>, WalletError> {
-            Ok(b"mock_shield_tx".to_vec())
-        }
-
-        fn build_unshield_tx(
-            &self,
-            _to_public: &str,
-            _amount_usdc_micro: u64,
-        ) -> Result<Vec<u8>, WalletError> {
-            Ok(b"mock_unshield_tx".to_vec())
-        }
-
-        async fn submit_signed_tx(
-            &self,
-            _actor: &WebID,
-            signed_tx_bytes: &[u8],
-        ) -> Result<TxHash, WalletError> {
-            if signed_tx_bytes != b"mock_unshield_tx" && signed_tx_bytes != b"mock_shield_tx" {
-                return Err(WalletError::ChainError {
-                    chain: ChainId::Hedera,
-                    message: "expected mock_unshield_tx or mock_shield_tx payload".into(),
-                });
-            }
-            Ok(TxHash("mock_privacy_hash".into()))
-        }
-
-        fn available_for_chain(&self, chain: ChainId) -> bool {
-            self.available && chain == ChainId::Hedera
-        }
-    }
-
     #[async_trait::async_trait]
     impl ChainPort for MockChainPort {
         fn chain_id(&self) -> ChainId {
@@ -401,29 +347,6 @@ mod tests {
             store,
             chains,
             None,
-            Arc::new(StaticPriceFeed::new()),
-        )
-        .unwrap()
-    }
-
-    fn make_manager_with_hinkal_privacy() -> WalletManager {
-        // SAFETY: test-only env var set in single-threaded test context;
-        // SAFETY: no other threads read HKASK_MASTER_KEY concurrently.
-        unsafe {
-            std::env::set_var(
-                "HKASK_MASTER_KEY",
-                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
-            );
-        }
-        let db = in_memory_db();
-        let store = Arc::new(WalletStore::new(db.conn_arc()));
-        let chains: HashMap<ChainId, Arc<dyn ChainPort>> = HashMap::new();
-        let privacy = Some(Arc::new(MockPrivacyPort { available: true }) as Arc<dyn PrivacyPort>);
-        WalletManager::build(
-            WalletConfig::default(),
-            store,
-            chains,
-            privacy,
             Arc::new(StaticPriceFeed::new()),
         )
         .unwrap()
@@ -520,7 +443,7 @@ mod tests {
 
     /// Helper: create a minimal API key so encumbrance FK constraint is satisfied.
     fn ensure_key(store: &Arc<WalletStore>, wallet_id: WalletId, key_id: ApiKeyId) {
-        use crate::types::{PrivacyMode, ChainId, ApiKeyCapability};
+        use crate::types::{ApiKeyCapability, ChainId, PrivacyMode};
         use hkask_types::crypto::Ed25519PublicKey;
         let capability = ApiKeyCapability {
             wallet_id,
@@ -1137,7 +1060,7 @@ mod tests {
             "withdraw to unregistered chain should fail"
         );
         match result {
-            Err(WalletError::ChainError { message: "chain not enabled".into() }) => {} // expected
+            Err(WalletError::ChainError { .. }) => {} // expected
             other => panic!("expected ChainNotEnabled, got {:?}", other),
         }
 
@@ -1146,63 +1069,5 @@ mod tests {
             after.rjoules, before.rjoules,
             "failed withdrawal must not change wallet balance"
         );
-    }
-
-    /// expect: "Wallet mgr shielded withdraw privacy test works correctly under test conditions"
-    #[tokio::test]
-    async fn withdraw_shielded_hinkal_uses_privacy_path() {
-        let mgr = make_manager_with_hinkal_privacy();
-        let wallet_id = WalletId::from_name("shielded_hinkal_test");
-        mgr.store.ensure_wallet(wallet_id).unwrap();
-        mgr.store
-            .credit_rjoules(wallet_id, RJoule::new(10_000))
-            .unwrap();
-
-        let actor = WebID::from_persona(b"wallet-test");
-        let tx_hash = mgr
-            .withdraw(
-                &actor,
-                wallet_id,
-                RJoule::new(1_500),
-                "recipient_addr_hinkal",
-                ChainId::Hedera,
-                PrivacyMode::Transparent,
-            )
-            .await
-            .expect("shielded withdraw should route to privacy adapter");
-
-        assert_eq!(tx_hash.0, "mock_privacy_hash");
-
-        let txs = mgr.get_transactions(wallet_id, 10, 0).unwrap();
-        let withdrawal_tx = txs
-            .iter()
-            .find(|tx| matches!(tx.tx_type, TransactionType::Withdrawal { .. }))
-            .expect("withdrawal tx should be recorded");
-        assert_eq!(withdrawal_tx.rjoules_delta, -1500);
-    }
-
-    /// expect: "Wallet mgr shielded deposit test works correctly under test conditions"
-    #[tokio::test]
-    async fn shield_assets_uses_privacy_path() {
-        let mgr = make_manager_with_hinkal_privacy();
-
-        // Use deterministic wallet ID (WalletId::default() is random each call)
-        let wallet_id = WalletId::from_name("shield_test");
-        mgr.store.ensure_wallet(wallet_id).unwrap();
-
-        let tx_hash = mgr
-            .shield_assets(wallet_id, 1_000_000, ChainId::Hedera)
-            .await
-            .expect("shield_assets should succeed");
-
-        assert_eq!(tx_hash.0, "mock_privacy_hash");
-
-        // Shield transaction should be recorded with zero rJoule delta
-        let txs = mgr.get_transactions(wallet_id, 10, 0).unwrap();
-        let shield_tx = txs
-            .iter()
-            .find(|tx| matches!(tx.tx_type, TransactionType::Deposit { tx_hash: "unknown".into(), amount_usdc_micro: 0 }))
-            .expect("shield tx should be recorded");
-        assert_eq!(shield_tx.rjoules_delta, 0, "shield has zero rJoule delta");
     }
 }

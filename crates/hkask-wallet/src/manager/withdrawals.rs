@@ -62,24 +62,12 @@ impl WalletManager {
     fn verify_withdrawal_chain(
         &self,
         chain: ChainId,
-        privacy: PrivacyMode,
+        _privacy: PrivacyMode,
     ) -> Result<(), WalletError> {
-        match privacy {
-            PrivacyMode::Transparent => {
-                self.chains
-                    .get(&chain)
-                    .ok_or(WalletError::ChainError { message: "chain not enabled".into() })?;
-            }
-            PrivacyMode::Transparent => {
-                let privacy_port = self
-                    .privacy
-                    .as_ref()
-                    .ok_or(WalletError::ChainError { message: "privacy unavailable".into() })?;
-                if !privacy_port.available_for_chain(chain) {
-                    return Err(WalletError::ChainError { message: "privacy unavailable".into() });
-                }
-            }
-        }
+        self.chains.get(&chain).ok_or(WalletError::ChainError {
+            chain: ChainId::Hedera,
+            message: "chain not enabled".into(),
+        })?;
         Ok(())
     }
 
@@ -101,40 +89,24 @@ impl WalletManager {
         to_address: &str,
         amount_usdc_micro: u64,
         chain: ChainId,
-        privacy: PrivacyMode,
+        _privacy: PrivacyMode,
     ) -> Result<TxHash, WalletError> {
-        match privacy {
-            PrivacyMode::Transparent => {
-                let port = self.chains.get(&chain).expect("chain port verified above");
-                let tx_bytes = port.build_withdrawal_tx(to_address, amount_usdc_micro)?;
-                self.emit_span_with_actor(actor, CnsSpan::WalletWithdrawal, "built", Phase::Act,
-                    serde_json::json!({"actor": actor.to_string(), "chain": chain.to_string(),
-                        "to_address": to_address, "amount_usdc_micro": amount_usdc_micro, "privacy": "transparent"}));
-                let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
-                self.emit_span_with_actor(
-                    actor,
-                    CnsSpan::WalletWithdrawal,
-                    "signed",
-                    Phase::Act,
-                    serde_json::json!({"actor": actor.to_string(), "chain": chain.to_string()}),
-                );
-                let mut signed_tx = tx_bytes;
-                signed_tx.extend_from_slice(&signature);
-                port.submit_signed_tx(actor, &signed_tx).await
-            }
-            PrivacyMode::Transparent => {
-                let privacy_port = self.privacy.as_ref().expect("privacy port verified above");
-                let tx_bytes = privacy_port.build_unshield_tx(to_address, amount_usdc_micro)?;
-                if chain == ChainId::Hedera {
-                    privacy_port.submit_signed_tx(actor, &tx_bytes).await
-                } else {
-                    let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
-                    let mut signed_tx = tx_bytes;
-                    signed_tx.extend_from_slice(&signature);
-                    privacy_port.submit_signed_tx(actor, &signed_tx).await
-                }
-            }
-        }
+        let port = self.chains.get(&chain).expect("chain port verified above");
+        let tx_bytes = port.build_withdrawal_tx(to_address, amount_usdc_micro)?;
+        self.emit_span_with_actor(actor, CnsSpan::WalletWithdrawal, "built", Phase::Act,
+            serde_json::json!({"actor": actor.to_string(), "chain": chain.to_string(),
+                "to_address": to_address, "amount_usdc_micro": amount_usdc_micro, "privacy": "transparent"}));
+        let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
+        self.emit_span_with_actor(
+            actor,
+            CnsSpan::WalletWithdrawal,
+            "signed",
+            Phase::Act,
+            serde_json::json!({"actor": actor.to_string(), "chain": chain.to_string()}),
+        );
+        let mut signed_tx = tx_bytes;
+        signed_tx.extend_from_slice(&signature);
+        port.submit_signed_tx(actor, &signed_tx).await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -161,69 +133,5 @@ impl WalletManager {
             balance_after,
             timestamp: Utc::now(),
         })
-    }
-
-    pub async fn shield_assets(
-        &self,
-        wallet_id: WalletId,
-        amount_usdc_micro: u64,
-        chain: ChainId,
-    ) -> Result<TxHash, WalletError> {
-        let privacy_port = self
-            .privacy
-            .as_ref()
-            .ok_or(WalletError::ChainError { message: "privacy unavailable".into() })?;
-        if !privacy_port.available_for_chain(chain) {
-            return Err(WalletError::ChainError { message: "privacy unavailable".into() });
-        }
-
-        let tx_bytes = privacy_port.build_shield_tx(amount_usdc_micro, chain)?;
-
-        self.emit_span(
-            CnsSpan::WalletWithdrawal,
-            "shield_built",
-            Phase::Act,
-            serde_json::json!({
-                "chain": chain.to_string(),
-                "amount_usdc_micro": amount_usdc_micro,
-                "operation": "shield",
-            }),
-        );
-
-        let actor = Self::default_actor();
-        let tx_hash = if chain == ChainId::Hedera {
-            privacy_port.submit_signed_tx(&actor, &tx_bytes).await?
-        } else {
-            let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
-            let mut signed_tx = tx_bytes;
-            signed_tx.extend_from_slice(&signature);
-            privacy_port.submit_signed_tx(&actor, &signed_tx).await?
-        };
-
-        self.emit_span(
-            CnsSpan::WalletWithdrawal,
-            "shield_submitted",
-            Phase::Act,
-            serde_json::json!({
-                "chain": chain.to_string(),
-                "tx_hash": tx_hash.0,
-                "operation": "shield",
-            }),
-        );
-
-        let balance = self
-            .store
-            .get_balance(wallet_id)?
-            .expect("balance exists for active wallet");
-        self.store.record_transaction(&WalletTransaction {
-            id: 0,
-            wallet_id,
-            tx_type: TransactionType::Deposit { tx_hash: "unknown".into(), amount_usdc_micro: 0 },
-            rjoules_delta: 0,
-            balance_after: balance.rjoules,
-            timestamp: Utc::now(),
-        })?;
-
-        Ok(tx_hash)
     }
 }

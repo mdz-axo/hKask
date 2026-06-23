@@ -139,7 +139,6 @@ struct DiagnosisFields {
     confidence: f64,
     is_flake: bool,
     root_cause: Option<String>,
-    #[allow(dead_code)]
     proposed_fix: Option<String>,
 }
 
@@ -276,7 +275,6 @@ pub struct StepResult {
     /// QA-level outcome: what this step actually found.
     pub qa_outcome: QaOutcome,
     /// If action was "classify", the raw category string from the LLM
-    #[allow(dead_code)]
     pub classify_category: Option<String>,
     /// Number of retries consumed
     pub retries: u32,

@@ -63,7 +63,6 @@
 mod active_pods;
 mod context;
 mod deployment;
-mod nu_event;
 mod types;
 
 use crate::VoiceDesign;

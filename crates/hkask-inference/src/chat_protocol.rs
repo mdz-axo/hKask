@@ -16,12 +16,10 @@ use hkask_ports::{
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 
-#[allow(dead_code)]
 fn default_enable_thinking() -> bool {
     true
 }
 
-#[allow(dead_code)]
 fn is_true(b: &bool) -> bool {
     *b
 }

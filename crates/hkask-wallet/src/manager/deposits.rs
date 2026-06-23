@@ -45,19 +45,6 @@ impl WalletManager {
                 }
             }
         }
-        if let Some(ref privacy_port) = self.privacy {
-            let actor = Self::default_actor();
-            match privacy_port.monitor_shielded_transfers(&actor).await {
-                Ok(transfers) => {
-                    for transfer in transfers {
-                        let _ = self.process_shielded_deposit(transfer).await;
-                    }
-                }
-                Err(e) => {
-                    tracing::warn!(target: "hkask.wallet", error = %e, "Privacy monitor error");
-                }
-            }
-        }
     }
 
     async fn process_deposit(&self, event: DepositEvent) -> Result<(), WalletError> {
@@ -103,7 +90,10 @@ impl WalletManager {
         self.store.record_transaction(&WalletTransaction {
             id: 0,
             wallet_id,
-            tx_type: TransactionType::Deposit { tx_hash: event.tx_hash.0.clone(),
+            tx_type: TransactionType::Deposit {
+                chain: ChainId::Hedera,
+                privacy: PrivacyMode::Transparent,
+                tx_hash: event.tx_hash.0.clone(),
                 amount_usdc_micro: event.amount_usdc_micro,
             },
             rjoules_delta: rj_amount.as_u64() as i64,
@@ -132,94 +122,6 @@ impl WalletManager {
                 "amount_usdc_micro": event.amount_usdc_micro,
                 "tx_hash": event.tx_hash.0,
                 "chain": "hedera",
-                "balance_after_rj": balance.rjoules,
-            }),
-        );
-
-        Ok(())
-    }
-
-    async fn process_shielded_deposit(
-        &self,
-        transfer: TxHash,
-    ) -> Result<(), WalletError> {
-        if self
-            .store
-            .transaction_exists_by_hash(&transfer.commitment)?
-        {
-            tracing::debug!(
-                target: "hkask.wallet",
-                commitment = %transfer.commitment,
-                "Shielded deposit already processed — skipping"
-            );
-            return Ok(());
-        }
-
-        let memo = match transfer.memo {
-            Some(ref m) => m.clone(),
-            None => {
-                tracing::warn!(target: "hkask.wallet", "Shielded transfer without deposit reference memo — cannot attribute");
-                return Ok(());
-            }
-        };
-        let wallet_id = match self.store.consume_deposit_reference(&memo)? {
-            Some(id) => id,
-            None => {
-                tracing::warn!(target: "hkask.wallet", reference = %memo, "Deposit reference not found or already spent");
-                return Ok(());
-            }
-        };
-
-        self.emit_span(
-            CnsSpan::WalletDepositShielded,
-            "detected",
-            Phase::Sense,
-            serde_json::json!({
-                "amount_usdc_micro": transfer.amount_usdc_micro,
-                "commitment": transfer.commitment,
-                "privacy": "shielded",
-            }),
-        );
-
-        let rj_amount = self.usdc_to_rjoules(transfer.amount_usdc_micro);
-        self.store.credit_rjoules(wallet_id, rj_amount)?;
-        let balance = self
-            .store
-            .get_balance(wallet_id)?
-            .expect("balance exists for active wallet");
-        let commitment = transfer.commitment.clone();
-        self.store.record_transaction(&WalletTransaction {
-            id: 0,
-            wallet_id,
-            tx_type: TransactionType::Deposit { tx_hash: transfer.commitment,
-                amount_usdc_micro: transfer.amount_usdc_micro,
-            },
-            rjoules_delta: rj_amount.as_u64() as i64,
-            balance_after: balance.rjoules,
-            timestamp: Utc::now(),
-        })?;
-
-        self.emit_span(
-            CnsSpan::WalletBalance,
-            "credited",
-            Phase::Act,
-            serde_json::json!({
-                "wallet_id": wallet_id.to_string(),
-                "rjoules_credited": rj_amount.as_u64(),
-                "balance_after": balance.rjoules,
-            }),
-        );
-
-        self.emit_span(
-            CnsSpan::WalletDeposit,
-            "deposit_credited",
-            Phase::Act,
-            serde_json::json!({
-                "wallet_id": wallet_id.to_string(),
-                "amount_rj": rj_amount.as_u64(),
-                "amount_usdc_micro": transfer.amount_usdc_micro,
-                "commitment": commitment,
-                "privacy": "shielded",
                 "balance_after_rj": balance.rjoules,
             }),
         );

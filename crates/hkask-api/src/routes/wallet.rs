@@ -21,7 +21,7 @@ use crate::ApiState;
 use crate::middleware::api_key_auth::WalletContext;
 use hkask_types::WebID;
 use hkask_types::id::WalletId;
-use hkask_wallet::{RJoule};
+use hkask_wallet::{ChainId, PrivacyMode, RJoule};
 
 /// Create wallet router.
 ///
@@ -255,15 +255,15 @@ fn get_wallet(state: &ApiState) -> Result<&hkask_services::WalletService, Status
 
 fn parse_chain(s: Option<&str>) -> Result<ChainId, &'static str> {
     match s {
-        None | Some("hinkal") => Ok(ChainId::Hinkal),
+        None => Ok(ChainId::Hedera),
         Some("hedera") => Ok(ChainId::Hedera),
-        _ => Err("Invalid chain (expected 'hinkal' or 'hedera')"),
+        _ => Err("Invalid chain (expected 'hedera')"),
     }
 }
 
 fn resolve_privacy_mode(private: Option<bool>) -> PrivacyMode {
     if private.unwrap_or(true) {
-        PrivacyMode::Shielded
+        PrivacyMode::Transparent
     } else {
         PrivacyMode::Transparent
     }
@@ -578,7 +578,7 @@ async fn create_key(
             Ok(chain) => Some(chain),
             Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
         },
-        None => Some(ChainId::Hinkal),
+        None => Some(ChainId::Hedera),
     };
 
     // Ensure wallet exists
@@ -856,20 +856,20 @@ mod tests {
     }
 
     #[test]
-    fn parse_chain_defaults_to_hinkal() {
+    fn parse_chain_defaults_to_hedera() {
         let result = parse_chain(None).unwrap();
-        assert_eq!(result, ChainId::Hinkal);
+        assert_eq!(result, ChainId::Hedera);
     }
 
     #[test]
-    fn parse_chain_accepts_hinkal() {
-        let result = parse_chain(Some("hinkal")).unwrap();
-        assert_eq!(result, ChainId::Hinkal);
+    fn parse_chain_accepts_hedera() {
+        let result = parse_chain(Some("hedera")).unwrap();
+        assert_eq!(result, ChainId::Hedera);
     }
 
     #[test]
-    fn resolve_privacy_mode_defaults_to_shielded() {
-        assert_eq!(resolve_privacy_mode(None), PrivacyMode::Shielded);
+    fn resolve_privacy_mode_defaults_to_transparent() {
+        assert_eq!(resolve_privacy_mode(None), PrivacyMode::Transparent);
     }
 
     #[test]

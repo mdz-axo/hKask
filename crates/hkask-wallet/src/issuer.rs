@@ -337,7 +337,7 @@ mod tests {
                 wallet,
                 RJoule::new(2000),
                 None,
-                PrivacyMode::Shielded,
+                PrivacyMode::Transparent,
                 Some(ChainId::Hedera),
                 vec!["embed-corpus".to_string()],
                 "list test key 2".to_string(),

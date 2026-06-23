@@ -25,7 +25,10 @@ use hkask_types::event::NuEventSink;
 use hkask_types::id::{ApiKeyId, WalletId};
 #[cfg(test)]
 use hkask_wallet::price_feed::StaticPriceFeed;
-use hkask_wallet::{ApiKeyCapability, ApiKeyMaterial, DepositAddress, DepositReference, RJoule, TxHash, WalletBalance, WalletConfig, WalletError, WalletTransaction, };
+use hkask_wallet::{
+    ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, PrivacyMode,
+    RJoule, TxHash, WalletBalance, WalletConfig, WalletError, WalletTransaction,
+};
 use hkask_wallet::{ApiKeyIssuer, WalletManager, WithdrawalFee, resolve_price_feed};
 use tokio::sync::RwLock;
 
@@ -156,64 +159,7 @@ impl WalletService {
             }
         }
 
-        // Optional Hinkal privacy adapter
-        #[allow(unused_mut)]
-        let mut privacy: Option<Arc<dyn hkask_wallet::PrivacyPort>> = None;
-
-        #[cfg(feature = "hinkal")]
-        if config.privacy_enabled {
-            let relayer_url = config
-                .hinkal_relayer_url
-                .clone()
-                .or_else(|| std::env::var("HINKAL_RELAYER_URL").ok());
-            let treasury_account = std::env::var("HINKAL_TREASURY_ACCOUNT").ok();
-
-            match (relayer_url, treasury_account) {
-                (Some(relayer_url), Some(treasury_account)) => {
-                    // Construct a single HinkalPort shared between chain and privacy roles.
-                    // This avoids double session creation and duplicate HTTP clients.
-                    match hkask_wallet::hinkal::HinkalPort::new(&relayer_url, &treasury_account) {
-                        Ok(hinkal) => {
-                            let hinkal = Arc::new(hinkal.with_event_sink(Arc::clone(&event_sink)));
-                            tracing::info!(
-                                target: "cns.wallet.chain",
-                                chain = "hinkal",
-                                relayer_url = %relayer_url,
-                                "HinkalPort initialized (shared chain + privacy adapter)"
-                            );
-                            chains.insert(
-                                ChainId::Hinkal,
-                                Arc::clone(&hinkal) as Arc<dyn hkask_wallet::ChainPort>,
-                            );
-                            privacy = Some(hinkal as Arc<dyn hkask_wallet::PrivacyPort>);
-                        }
-                        Err(e) => {
-                            tracing::warn!(
-                                target: "cns.wallet.chain",
-                                chain = "hinkal",
-                                error = %e,
-                                "Failed to initialize HinkalPort"
-                            );
-                        }
-                    }
-                }
-                _ => {
-                    tracing::warn!(
-                        target: "cns.wallet.chain",
-                        "Privacy enabled but Hinkal env incomplete"
-                    );
-                }
-            }
-        }
-
-        if chains.is_empty() {
-            tracing::info!(
-                target: "cns.wallet.chain",
-                "No chain ports configured — wallet running in read-only mode"
-            );
-        }
-
-        // ── Resolve price feed from user config ──────────────────────────
+        // ── Resolve price feed ──────────────────────────────────────────
         let price_feed =
             resolve_price_feed(&config.price_feed).map_err(|e| ServiceError::Wallet {
                 source: Some(Box::new(e)),
@@ -222,18 +168,12 @@ impl WalletService {
 
         // ── Build WalletManager ──────────────────────────────────────────
         let manager = Arc::new(
-            WalletManager::build(
-                config.clone(),
-                Arc::clone(&store),
-                chains,
-                privacy,
-                price_feed,
-            )
-            .map_err(|e| ServiceError::Wallet {
-                source: Some(Box::new(e)),
-                message: "Failed to build WalletManager".into(),
-            })?
-            .with_event_sink(Arc::clone(&event_sink)),
+            WalletManager::build(config.clone(), Arc::clone(&store), chains, price_feed)
+                .map_err(|e| ServiceError::Wallet {
+                    source: Some(Box::new(e)),
+                    message: "Failed to build WalletManager".into(),
+                })?
+                .with_event_sink(Arc::clone(&event_sink)),
         );
 
         // ── Build ApiKeyIssuer ───────────────────────────────────────────
@@ -424,12 +364,7 @@ impl WalletService {
             .await
             .map_err(|e| {
                 let msg = e.to_string();
-                if matches!(
-                    e,
-                    WalletError::ChainError { message: "chain not enabled".into() }
-                        | WalletError::ChainError { .. }
-                        | WalletError::ChainError { message: "privacy unavailable".into() }
-                ) {
+                if matches!(e, WalletError::ChainError { .. }) {
                     self.manager
                         .emit_chain_error_for_actor(webid, chain, "withdraw", &msg);
                 }
@@ -467,31 +402,6 @@ impl WalletService {
     // ── Shield ───────────────────────────────────────────────────────────────
 
     /// Shield transparently-held USDC into the Hinkal privacy pool.
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  wallet_id must be valid; amount_usdc_micro must be > 0; chain must support shielding
-    /// post: returns TxHash of shield transaction; Err(Wallet) on failure
-    pub async fn shield_assets(
-        &self,
-        wallet_id: WalletId,
-        amount_usdc_micro: u64,
-        chain: ChainId,
-    ) -> Result<TxHash, ServiceError> {
-        // P9: CNS span
-        tracing::info!(target: "cns.wallet_svc", operation = "shield_assets", wallet_id = %wallet_id, amount_usdc_micro = amount_usdc_micro, chain = ?chain, "CNS");
-        self.manager
-            .shield_assets(wallet_id, amount_usdc_micro, chain)
-            .await
-            .map_err(|e| {
-                let msg = e.to_string();
-                self.manager.emit_chain_error(chain, "shield_assets", &msg);
-                ServiceError::Wallet {
-                    source: Some(Box::new(e)),
-                    message: msg,
-                }
-            })
-    }
-
     // ── API Keys ─────────────────────────────────────────────────────────────
 
     /// Create a new API key with the specified limits, scope, and purpose.
@@ -785,7 +695,7 @@ mod tests {
         use hkask_storage::database::in_memory_db;
         use hkask_types::cns::CnsSpan;
         use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
-        use hkask_wallet::{ChainPort, DepositEvent, ExchangeRate, PriceFeed, };
+        use hkask_wallet::{ChainPort, DepositEvent, ExchangeRate, PriceFeed};
         use hkask_wallet::{TxHash, WalletConfig};
         use std::sync::Mutex;
 
@@ -818,7 +728,6 @@ mod tests {
         pub(super) fn build_service_with_harness(
             sink: Arc<CaptureSink>,
             chains: HashMap<ChainId, Arc<dyn ChainPort>>,
-            privacy: Option<Arc<dyn PrivacyPort>>,
             price_feed: Arc<dyn PriceFeed>,
         ) -> WalletService {
             let db = in_memory_db();
@@ -829,7 +738,6 @@ mod tests {
                     WalletConfig::default(),
                     Arc::clone(&store),
                     chains,
-                    privacy,
                     price_feed,
                 )
                 .expect("build manager")
@@ -849,10 +757,6 @@ mod tests {
         }
 
         pub(super) struct FailingActorChain {
-            pub(super) sink: Arc<dyn NuEventSink>,
-        }
-
-        pub(super) struct FailingActorPrivacy {
             pub(super) sink: Arc<dyn NuEventSink>,
         }
 
@@ -913,70 +817,6 @@ mod tests {
                 _tx_hash: &TxHash,
             ) -> Result<u64, WalletError> {
                 Ok(0)
-            }
-        }
-
-        #[async_trait::async_trait]
-        impl PrivacyPort for FailingActorPrivacy {
-            fn our_shielded_address(&self) -> Result<String, WalletError> {
-                Ok("shielded_mock".into())
-            }
-
-            fn shielded_deposit_address(
-                &self,
-                _wallet_id: WalletId,
-            ) -> Result<String, WalletError> {
-                Ok("shielded_mock".into())
-            }
-
-            async fn monitor_shielded_transfers(
-                &self,
-                _actor: &WebID,
-            ) -> Result<Vec<ShieldedTransfer>, WalletError> {
-                Ok(vec![])
-            }
-
-            fn build_shield_tx(
-                &self,
-                _amount_usdc_micro: u64,
-                _chain: ChainId,
-            ) -> Result<Vec<u8>, WalletError> {
-                Ok(b"mock-shield".to_vec())
-            }
-
-            fn build_unshield_tx(
-                &self,
-                _to_public: &str,
-                _amount_usdc_micro: u64,
-            ) -> Result<Vec<u8>, WalletError> {
-                Ok(b"mock-unshield".to_vec())
-            }
-
-            async fn submit_signed_tx(
-                &self,
-                actor: &WebID,
-                _signed_tx_bytes: &[u8],
-            ) -> Result<TxHash, WalletError> {
-                let event = NuEvent::new(
-                    *actor,
-                    Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error"),
-                    Phase::Sense,
-                    serde_json::json!({
-                        "chain": "hinkal",
-                        "operation": "privacy_submit_signed_tx",
-                        "error": "forced privacy adapter failure"
-                    }),
-                    0,
-                );
-                let _ = self.sink.persist(&event);
-                Err(WalletError::ChainError {
-                    chain: ChainId::Hinkal,
-                    message: "forced privacy adapter failure".into(),
-                })
-            }
-
-            fn available_for_chain(&self, chain: ChainId) -> bool {
-                chain == ChainId::Hinkal
             }
         }
 
@@ -1055,7 +895,7 @@ mod tests {
         );
 
         let svc =
-            build_service_with_harness(Arc::clone(&sink), chains, None, Arc::new(StaticPriceFeed));
+            build_service_with_harness(Arc::clone(&sink), chains, Arc::new(StaticPriceFeed));
 
         let wallet = WalletId::new();
         svc.ensure_wallet(wallet).expect("ensure wallet");

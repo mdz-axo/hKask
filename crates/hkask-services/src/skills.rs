@@ -473,7 +473,6 @@ struct J2FileInfo {
 }
 
 #[derive(Debug, Default)]
-#[allow(dead_code)]
 struct J2FrontMatter {
     template_type: Option<TemplateType>,
     template_type_raw: Option<String>,

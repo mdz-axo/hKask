@@ -8,7 +8,7 @@ use hkask_services::WalletService;
 use hkask_storage::WalletStore;
 use hkask_storage::database::in_memory_db;
 use hkask_types::id::WalletId;
-use hkask_wallet::{ApiKeyIssuer, StaticPriceFeed, WalletManager};
+use hkask_wallet::{ApiKeyIssuer, ChainId, PrivacyMode, StaticPriceFeed, WalletManager};
 use hkask_wallet::{RJoule, WalletConfig};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -63,7 +63,6 @@ fn build_wallet_service() -> WalletService {
             config,
             Arc::clone(&store),
             Default::default(),
-            None,
             Arc::new(StaticPriceFeed::new()),
         )
         .expect("Failed to build WalletManager"),
@@ -134,7 +133,7 @@ fn handle_deposit_address(
             println!("  Chain:    {chain}");
             println!("  Privacy:  {privacy}");
             println!("  Address:  {}", addr.address);
-            if privacy == PrivacyMode::Shielded {
+            if privacy == PrivacyMode::Transparent {
                 println!();
                 println!("  For shielded deposits, generate a one-time reference:");
                 println!("    kask wallet deposit-reference --chain {chain}");
@@ -296,7 +295,7 @@ fn handle_key_create(
                 return;
             }
         },
-        None => Some(ChainId::Hinkal),
+        None => Some(ChainId::Hedera),
     };
 
     // Ensure wallet exists
@@ -635,9 +634,9 @@ fn resolve_wallet(wallet_arg: Option<String>) -> Result<WalletId, String> {
 fn parse_chain(s: Option<&str>) -> Result<ChainId, String> {
     match s {
         Some("hedera") => Ok(ChainId::Hedera),
-        Some("hinkal") | None => Ok(ChainId::Hinkal),
+        Some("hedera") | None => Ok(ChainId::Hedera),
         Some(other) => Err(format!(
-            "Invalid chain '{}'. Expected one of: hinkal, hedera",
+            "Invalid chain '{}'. Expected one of: hedera",
             other
         )),
     }
@@ -647,6 +646,6 @@ fn resolve_privacy_mode(_private: bool, transparent: bool) -> PrivacyMode {
     if transparent {
         PrivacyMode::Transparent
     } else {
-        PrivacyMode::Shielded
+        PrivacyMode::Transparent
     }
 }

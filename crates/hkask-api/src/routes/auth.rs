@@ -274,10 +274,8 @@ pub async fn callback(
 struct GitHubTokenResponse {
     access_token: String,
     #[serde(default)]
-    #[allow(dead_code)]
     token_type: String,
     #[serde(default)]
-    #[allow(dead_code)]
     scope: String,
 }
 

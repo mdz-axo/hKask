@@ -343,7 +343,6 @@ impl ProviderIntelligence for TogetherProvider {
 
     async fn usage(&self, api_key: &str) -> Result<UsageStatus, ProviderError> {
         #[derive(Deserialize)]
-        #[allow(dead_code)]
         struct UsageEntry {
             #[serde(default)]
             input_tokens: u64,

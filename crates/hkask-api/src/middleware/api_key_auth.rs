@@ -364,6 +364,8 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
         };
         store.store_api_key(&capability).unwrap();
 
@@ -449,6 +451,8 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
         };
         store.store_api_key(&capability).unwrap();
 
@@ -518,6 +522,8 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
         };
         store.store_api_key(&capability).unwrap();
         // Encumber rJoules so the key has spendable balance
@@ -585,6 +591,8 @@ mod tests {
             rate_limit: None,
             expiry: Some(chrono::Utc::now() - chrono::Duration::days(1)), // yesterday
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
         };
         store.store_api_key(&capability).unwrap();
 
@@ -648,6 +656,8 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
         };
         store.store_api_key(&capability).unwrap();
         store.revoke_api_key(key_id).unwrap();
@@ -745,6 +755,8 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
         };
         store.store_api_key(&capability).unwrap();
         store

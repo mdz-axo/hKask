@@ -11,7 +11,6 @@ macro_rules! enum_str_ops {
                     $($ty::$variant => $pascal),+
                 }
             }
-            #[allow(dead_code)]
             pub fn parse_str(s: &str) -> Option<Self> {
                 match s {
                     $($pascal | $snake => Some($ty::$variant)),+,

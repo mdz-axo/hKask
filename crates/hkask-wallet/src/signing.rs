@@ -18,7 +18,7 @@
 //!
 //! It does NOT sign deposit transactions (user's primary wallet signs those).
 
-use crate::types::{PrivacyMode, WalletError, ChainId, ApiKeyCapability};
+use crate::types::{ApiKeyCapability, ChainId, PrivacyMode, WalletError};
 use ed25519_dalek::Signer;
 use hkask_keystore::keychain::resolve_treasury_key;
 use hkask_types::secret::derivation_contexts;
@@ -144,7 +144,7 @@ pub fn sign_capability(capability: &ApiKeyCapability) -> Result<String, WalletEr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PrivacyMode, RJoule, ChainId};
+    use crate::types::{ChainId, PrivacyMode, RJoule};
     use hkask_types::crypto::Ed25519PublicKey;
     use hkask_types::id::{ApiKeyId, WalletId};
 
@@ -192,6 +192,8 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
         };
         let sig = sign_capability(&cap).unwrap();
         assert_eq!(sig.len(), 128); // 64 bytes → 128 hex chars
@@ -203,7 +205,7 @@ mod tests {
         set_test_master_key();
         let tx_bytes = b"test transaction";
         // All ChainId variants should produce valid 64-byte signatures
-        for chain in [ChainId::Hedera, ChainId::Hedera] {
+        for chain in [ChainId::Hedera] {
             let sig = sign_withdrawal(chain, tx_bytes).unwrap();
             assert_eq!(
                 sig.len(),
@@ -251,6 +253,8 @@ mod tests {
             rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
         };
         let sig1 = sign_capability(&cap).unwrap();
         // Tamper with spending limit — signature must change
