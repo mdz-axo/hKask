@@ -139,6 +139,7 @@ fn main() {
             input,
             agent,
             model,
+            tui,
         } => commands::chat::run_chat(
             &rt,
             &mut registry,
@@ -148,6 +149,7 @@ fn main() {
             input,
             agent,
             model,
+            tui,
         ),
 
         Commands::Template { action } => commands::template::run_template(&mut registry, action),

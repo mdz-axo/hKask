@@ -457,6 +457,7 @@ pub fn run_chat(
     input: Option<std::path::PathBuf>,
     agent: String,
     model: Option<String>,
+    tui: bool,
 ) {
     if let Some(input_path) = input {
         let onboarding_outcome = match rt.block_on(crate::onboarding::run_onboarding()) {
@@ -497,6 +498,15 @@ pub fn run_chat(
                 usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
             );
         }
+    } else if tui {
+        crate::repl::run_tui(
+            registry,
+            runtime,
+            template.as_deref(),
+            &agent,
+            model.as_deref(),
+            handle.clone(),
+        );
     } else {
         crate::repl::run(
             registry,

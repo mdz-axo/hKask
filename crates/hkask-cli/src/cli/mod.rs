@@ -48,6 +48,10 @@ pub enum Commands {
         /// Optional: input file (non-interactive mode)
         #[arg(short = 'f', long)]
         input: Option<PathBuf>,
+
+        /// Launch the TUI workspace instead of the line-based REPL
+        #[arg(long)]
+        tui: bool,
     },
 
     /// Template management

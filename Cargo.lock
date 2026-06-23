@@ -3927,6 +3927,7 @@ dependencies = [
  "hkask-storage",
  "hkask-templates",
  "hkask-test-harness",
+ "hkask-tui",
  "hkask-types",
  "hkask-wallet",
  "hkask-wallet-types",
@@ -5251,6 +5252,21 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "hkask-tui"
+version = "0.30.0"
+dependencies = [
+ "anyhow",
+ "crossterm",
+ "hkask-agents",
+ "hkask-cns",
+ "hkask-services",
+ "hkask-types",
+ "ratatui",
  "tracing",
  "uuid",
 ]

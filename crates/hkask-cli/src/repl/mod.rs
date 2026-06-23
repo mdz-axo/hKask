@@ -236,3 +236,51 @@ fn history_path() -> std::path::PathBuf {
     path.push("kask_history.txt");
     path
 }
+
+/// Launch the TUI workspace instead of the line-based REPL.
+///
+/// Initializes the same ReplState as `run()` but constructs a
+/// `hkask_tui::TuiSession` for a multi-window ratatui interface.
+/// Falls back to the rustyline REPL if TUI initialization fails.
+pub fn run_tui(
+    _registry: &mut SqliteRegistry,
+    _runtime: &McpRuntime,
+    template_id: Option<&str>,
+    _agent_name: &str,
+    initial_model: Option<&str>,
+    rt_handle: tokio::runtime::Handle,
+) {
+    let Some(state) = init::init_repl_state(_registry, _runtime, initial_model, &rt_handle) else {
+        return;
+    };
+
+    let agent_name = state.current_agent.clone();
+    let model = state.current_model.clone();
+    let service_context = state.service_context.clone();
+
+    // Drop ReplState — the TUI owns its own state via the service context.
+    // The inference port, governed tool, and CNS runtime are all inside
+    // AgentService, which is Arc-shared.
+    drop(state);
+
+    match hkask_tui::TuiSession::new(service_context, agent_name, model) {
+        Ok(mut session) => {
+            if let Err(e) = session.run() {
+                eprintln!("TUI error: {}", e);
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to initialize TUI: {}", e);
+            eprintln!("Falling back to line-based REPL.");
+            // Fall back to the standard REPL
+            run(
+                _registry,
+                _runtime,
+                template_id,
+                _agent_name,
+                initial_model,
+                rt_handle,
+            );
+        }
+    }
+}
