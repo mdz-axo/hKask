@@ -1,255 +1,99 @@
-# Gentle Lovelace Replica Manifest
-# hKask v0.27.0 — Writing Quality Replica Comparison Pipeline
-#
-# Four-dimensional writing quality evaluation persona grounded in the work of
-# four women who founded, algorithmized, measured, and modernized technical
-# documentation: Grace Hopper (accessibility), Ada Lovelace (precision),
-# Karen Schriver (findability), Anne Gentle (agent-correctness).
-#
-# This is an evaluation persona, not a prose generator. It scores documents
-# against four dimension-specific centroids and produces a weighted composite.
-# The diagnostic power is in per-dimension distances — "this doc is 0.3 from
-# Hopper but 0.7 from Lovelace" — not just the composite score.
-#
-# Integration: feeds into document-update Skill Task 3 (Writing Quality Gate)
-# as a 5th dimension alongside clarity, precision, structure, completeness.
-#
-# Pipeline: retrieve exemplars → classify document type → per-dimension
-# comparison → weighted composite → CNS feedback
+# Gentle Lovelace Process Manifest
+# ℏKask v0.30.0 — Writing-quality evaluation as convergent PDCA
 
 manifest:
   id: gentle-lovelace
   name: Gentle Lovelace
-  functional_role: knowact
   description: >
-    Four-dimensional writing quality evaluation persona. Scores technical
-    documents on accessibility (Hopper), precision (Lovelace), findability
-    (Schriver), and agent-correctness (Gentle). Uses per-dimension centroids
-    from an embedded exemplar corpus for cosine-distance comparison. Produces
-    structured diagnostic scores usable by document-update Task 3.
-  version: 0.27.0
-  editor: curator
+    Convergent writing-quality evaluation process. Produces dimension diagnostics,
+    computes convergence of quality assessment, and iterates until confidence in
+    weakest-dimension recommendations is stable.
+  functional_role: flowdef
+  version: 0.30.0
+  editor: curator-or-human-admin
   visibility: Public
 
-# Energy Budget Configuration
+convergence:
+  threshold: 0.15
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 3
+  min_iterations: 1
+  convergence_field: step_2_result.convergence_metric
+  on_not_reached: escalate
+
 gas:
-  cap: 8192
+  cap: 12000
   cost_per_token: 0.25
   alert_threshold: 0.8
   hard_limit: true
 
-# Inputs
 inputs:
   - name: document_content
     type: string
-    description: "The document text to evaluate for writing quality"
+    required: true
+  - name: dimension_scores
+    type: object
     required: true
   - name: document_type
     type: string
-    description: "Document type per MDS_SCAFFOLD.md §2: specification, adr, guide, reference, plan, status"
     required: false
-  - name: db_path
-    type: string
-    description: "Path to hKask semantic database (for exemplar retrieval and centroid comparison)"
-    required: true
-  - name: compare_mode
-    type: string
-    description: "Comparison mode: 'per-dimension' (returns 4 scores) or 'composite' (single weighted score)"
-    default: "per-dimension"
+  - name: exemplar_context
+    type: array
+    required: false
 
-# Process Steps
 steps:
-  # Step 0: Retrieve exemplar passages for context
-  - ordinal: 0
-    action: retrieve
-    description: >
-      Retrieve exemplar passages from the Gentle Lovelace embedding corpus.
-      1. Embed the document content via EmbeddingPort (Qwen/Qwen3-Embedding-0.6B)
-      2. KNN search against style:gentle-lovelace prefix via semantic_search
-      3. Select k_min..k_max passages within distance_threshold
-      Also retrieves the 4 per-dimension centroids and composite for comparison.
-    renderer: null
-    template_ref: null
-    mcp: hkask-mcp-memory
-    gas_cap: 500
-    timeout_seconds: 10
-    output_schema:
-      type: object
-      properties:
-        exemplar_passages:
-          type: array
-          description: "Retrieved Gentle Lovelace passages for few-shot context"
-        centroids:
-          type: object
-          description: "Entity refs for the 5 centroids (4 dimension + 1 composite)"
-          properties:
-            gentle_centroid_ref:
-              type: string
-              description: "Entity ref for the Gentle dimension centroid"
-            schriver_centroid_ref:
-              type: string
-              description: "Entity ref for the Schriver dimension centroid"
-            hopper_centroid_ref:
-              type: string
-              description: "Entity ref for the Hopper dimension centroid"
-            lovelace_centroid_ref:
-              type: string
-              description: "Entity ref for the Lovelace dimension centroid"
-            composite_centroid_ref:
-              type: string
-              description: "Entity ref for the composite weighted centroid"
-
-  # Step 1: Per-dimension replica comparison
   - ordinal: 1
-    action: execute
-    description: >
-      Compare the document against each of the four dimension-specific centroids
-      using replica_compare. Each dimension produces a cosine distance score and
-      qualitative assessment. The composite comparison uses the weighted centroid
-      for an overall score.
-
-      Weighting: Gentle 50% (agent-correctness), Schriver 30% (findability),
-      Hopper 10% (accessibility), Lovelace 10% (precision).
-    renderer: null
-    template_ref: null
-    mcp: hkask-mcp-replica
-    tool: replica_compare
-    arguments:
-      db_path: "${input.db_path}"
-      persona: "gentle-lovelace"
-      document_content: "${input.document_content}"
-      compare_mode: "${input.compare_mode}"
-    gas_cap: 4096
-    timeout_seconds: 30
-    output_schema:
-      type: object
-      properties:
-        gentle_score:
-          type: object
-          properties:
-            cosine_distance: { type: float }
-            qualitative: { type: string }
-        schriver_score:
-          type: object
-          properties:
-            cosine_distance: { type: float }
-            qualitative: { type: string }
-        hopper_score:
-          type: object
-          properties:
-            cosine_distance: { type: float }
-            qualitative: { type: string }
-        lovelace_score:
-          type: object
-          properties:
-            cosine_distance: { type: float }
-            qualitative: { type: string }
-        composite_score:
-          type: object
-          properties:
-            cosine_distance: { type: float }
-            qualitative: { type: string }
-
-  # Step 2: Aggregate and interpret results
-  - ordinal: 2
-    action: populate
-    description: >
-      Aggregate per-dimension scores into a structured writing quality report.
-      Renders the replica-report template with dimension scores, exemplar context,
-      and document-type-aware recommendations. Produces actionable feedback for
-      document authors.
+    action: select
+    description: Generate structured writing-quality diagnostics.
     renderer: minijinja
     template_ref: gentle-lovelace/replica-report
-    gas_cap: 2048
+    gas_cap: 5000
+    timeout_seconds: 60
+    input_mapping:
+      document_content: "{{ document_content }}"
+      dimension_scores: "{{ dimension_scores }}"
+      document_type: "{{ document_type | default('unspecified') }}"
+      exemplar_context: "{{ exemplar_context | default([]) }}"
+
+  - ordinal: 2
+    action: select
+    description: Compute normalized convergence metric for quality-evaluation cycle.
+    renderer: minijinja
+    template_ref: gentle-lovelace/gentle-convergence-check
+    gas_cap: 2000
     timeout_seconds: 30
-    output_schema:
-      type: object
-      properties:
-        summary: { type: string }
-        dimension_scores:
-          type: object
-          properties:
-            accessibility: { type: float }
-            precision: { type: float }
-            findability: { type: float }
-            agent_correctness: { type: float }
-        overall_score: { type: float }
-        recommendations: { type: array }
+    input_mapping:
+      primary_result: "{{ step_1_result }}"
 
-  # Step 3: CNS feedback
   - ordinal: 3
-    action: feedback
-    description: >
-      Emit CNS span for variety tracking.
-      Record per-dimension distances, composite score, and document metadata.
-    renderer: null
-    template_ref: null
-    mcp: hkask-mcp-memory
-    gas_cap: 500
-    timeout_seconds: 5
-    feedback:
-      variety_delta: integer
-      gentle_distance: float
-      schriver_distance: float
-      hopper_distance: float
-      lovelace_distance: float
-      composite_distance: float
-      document_type: string
-    output_schema:
-      cns_event_id: string
-      outcome_recorded: boolean
+    action: loop
+    description: Re-enter quality-evaluation cycle if convergence is not met.
+    input_mapping:
+      loop_target: 1
 
-# Error Handling
 error_handling:
   on_gas_exceeded: abort
   on_timeout: retry
-  max_retries: 2
+  max_retries: 1
   retry_backoff_seconds: 1
-  on_comparison_failure: abort
+  on_validation_failure: abort
 
-# OCAP Configuration
 ocap:
   required_capabilities:
     - resource: template
       action: render
       template_id: gentle-lovelace/replica-report
-      gas_budget: 2048
+      gas_budget: 5000
+    - resource: template
+      action: render
+      template_id: gentle-lovelace/gentle-convergence-check
+      gas_budget: 2000
     - resource: manifest
       action: execute
       template_id: gentle-lovelace
-      gas_budget: 500
-    - resource: embedding
-      action: search
-      template_id: gentle-lovelace
-      gas_budget: 500
-      description: "KNN search for exemplar passage retrieval and centroid access"
-    - resource: replica
-      action: compare
-      template_id: gentle-lovelace
-      gas_budget: 4096
-      description: "Per-dimension and composite replica comparison"
-    - resource: cns
-      action: emit
-      template_id: gentle-lovelace
-      gas_budget: 500
+      gas_budget: 1000
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
   template_scoped: true
-
-# CNS Monitoring
-cns:
-  emit_spans: true
-  span_namespace: cns.replica.gentle-lovelace
-  variety_monitoring: true
-  algedonic_threshold: 100
-  escalation_target: Curator
-
-# Audit Trail
-audit:
-  enabled: true
-  log_level: info
-  include_input: true
-  include_output: true
-  include_gas_cost: true
-  include_cns_events: true

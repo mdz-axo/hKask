@@ -1,0 +1,43 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    primary_result: object
+  output:
+    convergence_metric: number
+    rationale: string
+    blockers: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: bug-hunt/bug-hunt-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for bug-hunt cycles. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 1000
+thinking_budget = "standard"
+
+Given bug-hunt findings, compute convergence where 0 means no unresolved critical/high-confidence bug blockers remain in this cycle.
+
+Input:
+```json
+{{ primary_result | tojson }}
+```
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "rationale": "short explanation",
+  "blockers": []
+}
+```

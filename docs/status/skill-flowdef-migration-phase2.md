@@ -115,3 +115,85 @@ Updated `registry/templates/<skill>/manifest.yaml` for all Batch 2 skills to reg
 
 - `docs/user-guides/skill-user-guide.md`
   - Summary table type updates for Batch 2 skills: `KnowAct` → `FlowDef`.
+
+## Phase 3 Conversions (implemented)
+
+The following skills were migrated or recomposed to explicit FlowDef+PDCA:
+
+1. `bug-hunt` (new dedicated skill manifest)
+2. `condenser-continuation` (new dedicated skill manifest)
+3. `caveman` (new dedicated skill manifest)
+4. `magna-carta-verifier` (new dedicated skill manifest)
+5. `handoff` (recomposed manifest with explicit convergence rails)
+
+### New/Updated Process Manifests
+
+- `registry/manifests/bug-hunt.yaml`
+- `registry/manifests/condenser-continuation.yaml`
+- `registry/manifests/caveman.yaml`
+- `registry/manifests/magna-carta-verifier.yaml`
+- `registry/manifests/handoff.yaml` (recomposed)
+
+### New Convergence Templates
+
+- `registry/templates/bug-hunt/bug-hunt-convergence-check.j2`
+- `registry/templates/condenser-continuation/condenser-convergence-check.j2`
+- `registry/templates/caveman/caveman-convergence-check.j2`
+- `registry/templates/magna-carta-verifier/mc-convergence-check.j2`
+- `registry/templates/handoff/handoff-convergence-check.j2`
+
+### Registry Template Manifest Updates
+
+Updated template crate manifests to register new convergence-check templates:
+
+- `registry/templates/bug-hunt/manifest.yaml`
+- `registry/templates/condenser-continuation/manifest.yaml`
+- `registry/templates/caveman/manifest.yaml`
+- `registry/templates/magna-carta-verifier/manifest.yaml`
+- `registry/templates/handoff/manifest.yaml`
+
+### Docs Updated (Phase 3)
+
+- `docs/user-guides/skill-user-guide.md`
+  - Summary table type updates: `caveman`, `condenser-continuation`, `handoff`, `magna-carta-verifier` moved to `FlowDef`.
+
+## Phase 4 Conversions (implemented)
+
+The following legacy one-shot manifests were recomposed to explicit FlowDef+PDCA:
+
+1. `coding-guidelines`
+2. `grill-me`
+3. `mcda`
+4. `scenario-planning` (backs `scenario-builder` skill)
+5. `gentle-lovelace`
+
+### New/Updated Process Manifests
+
+- `registry/manifests/coding-guidelines.yaml`
+- `registry/manifests/grill-me.yaml`
+- `registry/manifests/mcda.yaml`
+- `registry/manifests/scenario-planning.yaml`
+- `registry/manifests/gentle-lovelace.yaml`
+
+### New Convergence Templates
+
+- `registry/templates/coding-guidelines/guidelines-convergence-check.j2`
+- `registry/templates/grill-me/grill-me-convergence-check.j2`
+- `registry/templates/mcda/mcda-convergence-check.j2`
+- `registry/templates/scenario-builder/scenario-convergence-check.j2`
+- `registry/templates/gentle-lovelace/gentle-convergence-check.j2`
+
+### Registry Template Manifest Updates
+
+Updated template crate manifests to register new convergence-check templates:
+
+- `registry/templates/coding-guidelines/manifest.yaml`
+- `registry/templates/grill-me/manifest.yaml`
+- `registry/templates/mcda/manifest.yaml`
+- `registry/templates/scenario-builder/manifest.yaml`
+- `registry/templates/gentle-lovelace/manifest.yaml`
+
+### Docs Updated (Phase 4)
+
+- `docs/user-guides/skill-user-guide.md`
+  - Summary table type updates: `coding-guidelines`, `grill-me`, `mcda`, `scenario-builder`, `gentle-lovelace` moved to `FlowDef`.

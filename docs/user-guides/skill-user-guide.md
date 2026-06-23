@@ -335,10 +335,10 @@ zoom-out → chain-of-density → caveman
 | # | Skill | Category | Type | What it does |
 |---|-------|----------|------|-------------|
 | 1 | `adversarial-red-team` | Security | KnowAct | Red-team agent outputs with ATLAS/GARAK taxonomy |
-| 2 | `caveman` | Extraction/Summarization | WordAct | Ultra-compact prose compression |
+| 2 | `caveman` | Extraction/Summarization | FlowDef | Ultra-compact prose compression via convergent compression loops |
 | 3 | `chain-of-density` | Extraction/Summarization | KnowAct | Iterative density-increase summarization (Gao et al.) |
-| 4 | `coding-guidelines` | Behavioral Guardrails | KnowAct | Karpathy's four coding principles |
-| 5 | `condenser-continuation` | Meta-Cognition | KnowAct | Resume work after context reset |
+| 4 | `coding-guidelines` | Behavioral Guardrails | FlowDef | Karpathy's four principles via convergent assess→apply→verify loops |
+| 5 | `condenser-continuation` | Meta-Cognition | FlowDef | Resume work after context reset via convergent continuation loops |
 | 6 | `constraint-forces` | Regulative | FlowDef | Classify constraints by enforcement level via convergent force loops |
 | 7 | `decision-journal` | Decision & Strategy | KnowAct | Kahneman decision journal with Brier scoring |
 | 8 | `deep-module` | Structural Analysis | FlowDef | Ousterhout module depth with deletion test via convergent depth loops |
@@ -347,10 +347,10 @@ zoom-out → chain-of-density → caveman
 | 11 | `dokkodo-mindset` | Perceptual | FlowDef | Musashi's 21 precepts as convergent perceptual filter |
 | 12 | `essentialist` | Structural Analysis | FlowDef | 3-gate eliminative interrogation as convergent elimination loop |
 | 13 | `falstaffian-perspective` | Perceptual | KnowAct | Semantic shape transforms for perspective-taking |
-| 14 | `gentle-lovelace` | Meta-Cognition | KnowAct | 4D writing quality evaluation |
+| 14 | `gentle-lovelace` | Meta-Cognition | FlowDef | 4D writing-quality evaluation via convergent diagnostic loops |
 | 15 | `goal-analysis` | Meta-Cognition | FlowDef | Goal lifecycle analysis with convergent completion loops |
-| 16 | `grill-me` | Structural Analysis | KnowAct | Socratic interrogation |
-| 17 | `handoff` | Meta-Cognition | KnowAct | Session handoff documentation |
+| 16 | `grill-me` | Structural Analysis | FlowDef | Socratic interrogation via convergent challenge/assessment loops |
+| 17 | `handoff` | Meta-Cognition | FlowDef | Session handoff documentation via convergent transfer loops |
 | 18 | `improv` | Creativity | FlowDef | Agent interaction grammar |
 | 19 | `improve-codebase-architecture` | Diagnostics | FlowDef | Find deepening opportunities via convergent architecture loops |
 | 20 | `kata` | Kata System | Bundle | Full Toyota Kata orchestration |
@@ -358,15 +358,15 @@ zoom-out → chain-of-density → caveman
 | 22 | `kata-improvement` | Kata System | KnowAct | 4-step PDCA scientific pattern |
 | 23 | `kata-starter` | Kata System | KnowAct | Foundational scientific thinking habits |
 | 24 | `logo-builder` | Creativity | FlowDef | Logo design with Bokhua's five gates |
-| 25 | `magna-carta-verifier` | Regulative | KnowAct | Verify Magna Carta compliance |
-| 26 | `mcda` | Decision & Strategy | KnowAct | Multi-criteria decision analysis with masking detection |
+| 25 | `magna-carta-verifier` | Regulative | FlowDef | Verify Magna Carta compliance via convergent verification loops |
+| 26 | `mcda` | Decision & Strategy | FlowDef | Multi-criteria decision analysis via convergent robustness loops |
 | 27 | `pragmatic-cybernetics` | Structural Analysis | FlowDef | CNS feedback loop analysis via convergent diagnostics loops |
 | 28 | `pragmatic-laziness` | Structural Analysis | FlowDef | 3-phase lazy loop for least-action pathfinding with PDCA convergence |
 | 29 | `pragmatic-semantics` | Structural Analysis | FlowDef | Epistemic statement classification via convergent semantics loops |
 | 30 | `refactor-service-layer` | Diagnostics | FlowDef | Strangler fig service extraction via convergent verify loops |
 | 31 | `review` | Meta-Cognition | FlowDef | Self-critique reasoning outputs via convergent review loops |
 | 32 | `rust-expertise` | Behavioral Guardrails | FlowDef | Idiomatic Rust design principles via convergent audit/refactor loops |
-| 33 | `scenario-builder` | Decision & Strategy | KnowAct | Schwartz method scenario planning |
+| 33 | `scenario-builder` | Decision & Strategy | FlowDef | Schwartz method scenario planning via convergent scenario loops |
 | 34 | `self-critique-revision` | Meta-Cognition | KnowAct | Iterative draft → critique → revise |
 | 35 | `skill-bundler` | Skill Management | FlowDef | Orchestrate skills into bundles via convergent compose→validate loops |
 | 36 | `skill-discovery` | Skill Management | FlowDef | Find and install skills via convergent gap→evaluate loops |

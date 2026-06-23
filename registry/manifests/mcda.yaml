@@ -1,21 +1,29 @@
 # MCDA Process Manifest
-# ℏKask v0.21.0 — A Minimal Viable Container for Agents
-# Multi-Criteria Decision Analysis — structured decision support pipeline
+# ℏKask v0.30.0 — Multi-criteria analysis as convergent PDCA
 
 manifest:
   id: mcda
   name: MCDA
   description: >
-    Multi-Criteria Decision Analysis pipeline. Identifies decision criteria,
-    weights and scores alternatives, ranks choices with compensation masking
-    detection, and performs sensitivity analysis for robustness assessment.
-  functional_role: knowact
-  version: 0.21.0
+    Convergent MCDA process. Identifies criteria, weights and scores alternatives,
+    ranks options, runs sensitivity analysis, computes convergence, and iterates
+    until decision robustness is stable.
+  functional_role: flowdef
+  version: 0.30.0
   editor: curator-or-human-admin
   visibility: Public
 
+convergence:
+  threshold: 0.15
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 3
+  min_iterations: 1
+  convergence_field: step_5_result.convergence_metric
+  on_not_reached: escalate
+
 gas:
-  cap: 20000
+  cap: 22000
   cost_per_token: 0.25
   alert_threshold: 0.8
   hard_limit: true
@@ -23,28 +31,21 @@ gas:
 inputs:
   - name: decision_question
     type: string
-    description: "The decision question to analyze"
     required: true
   - name: alternatives
     type: array
-    description: "List of alternative choices to evaluate"
     required: true
   - name: criteria_hints
     type: array
-    description: "Optional hints for criteria identification"
     required: false
   - name: weighting_method
     type: string
-    description: "Weighting method to use (default: direct)"
     required: false
-    default: "direct"
 
 steps:
   - ordinal: 1
-    action: populate
-    description: >
-      Identify and classify decision criteria. Enumerate benefit and cost
-      criteria, check independence, and produce structured criteria list.
+    action: select
+    description: Identify and classify decision criteria.
     renderer: minijinja
     template_ref: mcda/identify-criteria
     gas_cap: 4000
@@ -53,28 +54,10 @@ steps:
       decision_question: "{{ decision_question }}"
       alternatives: "{{ alternatives }}"
       criteria_hints: "{{ criteria_hints | default([]) }}"
-    output_schema:
-      type: object
-      properties:
-        criteria:
-          type: array
-          items:
-            type: object
-            properties:
-              name: { type: string }
-              type: { type: string }
-              description: { type: string }
-              measurement_type: { type: string }
-        criteria_independence_check:
-          type: object
-        criteria_count:
-          type: integer
 
   - ordinal: 2
-    action: populate
-    description: >
-      Assign weights to criteria and score each alternative on each criterion.
-      Normalize scores and compute composite scores using weighted sum model.
+    action: select
+    description: Assign weights and score alternatives.
     renderer: minijinja
     template_ref: mcda/weight-and-score
     gas_cap: 5000
@@ -82,130 +65,59 @@ steps:
     input_mapping:
       decision_question: "{{ decision_question }}"
       alternatives: "{{ alternatives }}"
-      criteria: "{{ ordinal_1.criteria }}"
+      criteria: "{{ step_1_result.criteria | default([]) }}"
       weighting_method: "{{ weighting_method | default('direct') }}"
-    output_schema:
-      type: object
-      properties:
-        weights:
-          type: array
-          items:
-            type: object
-            properties:
-              criterion: { type: string }
-              weight: { type: number }
-              rank: { type: integer }
-        normalized_scores:
-          type: array
-          items:
-            type: object
-            properties:
-              alternative: { type: string }
-              criterion: { type: string }
-              raw_score: { type: number }
-              normalized_score: { type: number }
-        composite_scores:
-          type: array
-          items:
-            type: object
-            properties:
-              alternative: { type: string }
-              composite_score: { type: number }
-              rank: { type: integer }
 
   - ordinal: 3
-    action: populate
-    description: >
-      Rank alternatives by composite score. Identify top choice and check
-      for compensation masking where poor criterion performance is hidden
-      by good scores on other criteria.
+    action: select
+    description: Rank alternatives and detect compensation masking.
     renderer: minijinja
     template_ref: mcda/rank-alternatives
-    gas_cap: 3000
+    gas_cap: 4000
     timeout_seconds: 45
     input_mapping:
       decision_question: "{{ decision_question }}"
-      composite_scores: "{{ ordinal_2.composite_scores }}"
-      normalized_scores: "{{ ordinal_2.normalized_scores }}"
-      criteria: "{{ ordinal_1.criteria }}"
-    output_schema:
-      type: object
-      properties:
-        ranking:
-          type: array
-          items:
-            type: object
-            properties:
-              rank: { type: integer }
-              alternative: { type: string }
-              composite_score: { type: number }
-              strength: { type: string }
-              weakness: { type: string }
-        top_choice:
-          type: object
-        compensation_warning:
-          type: object
-        recommendation:
-          type: string
+      composite_scores: "{{ step_2_result.composite_scores | default([]) }}"
+      normalized_scores: "{{ step_2_result.normalized_scores | default([]) }}"
+      criteria: "{{ step_1_result.criteria | default([]) }}"
 
   - ordinal: 4
-    action: populate
-    description: >
-      Perform sensitivity analysis. Perturb each weight by ±10% and check
-      for rank reversals. Classify decision robustness.
+    action: select
+    description: Perform sensitivity analysis and robustness checks.
     renderer: minijinja
     template_ref: mcda/sensitivity-analysis
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
       decision_question: "{{ decision_question }}"
-      ranking: "{{ ordinal_3.ranking }}"
-      weights: "{{ ordinal_2.weights }}"
-      normalized_scores: "{{ ordinal_2.normalized_scores }}"
-    output_schema:
-      type: object
-      properties:
-        perturbation_results:
-          type: array
-        rank_reversals:
-          type: array
-        decision_robustness:
-          type: string
-        critical_weights:
-          type: array
-        recommendation:
-          type: string
+      ranking: "{{ step_3_result.ranking | default([]) }}"
+      weights: "{{ step_2_result.weights | default([]) }}"
+      normalized_scores: "{{ step_2_result.normalized_scores | default([]) }}"
 
   - ordinal: 5
-    action: feedback
-    description: >
-      Emit CNS feedback for variety monitoring and decision audit trail.
-    renderer: null
-    template_ref: null
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
-    gas_cap: 500
-    timeout_seconds: 5
-    feedback:
-      criteria_count: integer
-      alternatives_count: integer
-      rank_reversals_detected: integer
-      decision_robustness: string
-    output_schema:
-      type: object
-      properties:
-        variety_counter: { type: integer }
-        cns_event_id: { type: string }
+    action: select
+    description: Compute normalized convergence metric for MCDA cycle.
+    renderer: minijinja
+    template_ref: mcda/mcda-convergence-check
+    gas_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      ranking_result: "{{ step_3_result }}"
+      sensitivity_result: "{{ step_4_result }}"
 
-# Error Handling
+  - ordinal: 6
+    action: loop
+    description: Re-enter MCDA cycle if convergence is not met.
+    input_mapping:
+      loop_target: 1
+
 error_handling:
   on_gas_exceeded: abort
   on_timeout: retry
-  max_retries: 2
-  retry_backoff_seconds: 2
+  max_retries: 1
+  retry_backoff_seconds: 1
   on_validation_failure: abort
-  on_capability_denied: escalate
 
-# OCAP Configuration
 ocap:
   required_capabilities:
     - resource: template
@@ -219,42 +131,20 @@ ocap:
     - resource: template
       action: render
       template_id: mcda/rank-alternatives
-      gas_budget: 3000
+      gas_budget: 4000
     - resource: template
       action: render
       template_id: mcda/sensitivity-analysis
       gas_budget: 4000
+    - resource: template
+      action: render
+      template_id: mcda/mcda-convergence-check
+      gas_budget: 2000
     - resource: manifest
       action: execute
       template_id: mcda
-      gas_budget: 500
-    - resource: cns
-      action: emit
-      template_id: mcda
-      gas_budget: 500
+      gas_budget: 1000
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
   template_scoped: true
-
-# CNS Monitoring
-cns:
-  emit_spans: true
-  span_namespace: cns.prompt.mcda
-  variety_monitoring: true
-  algedonic_threshold: 100
-  escalation_target: Curator
-  variety_counters:
-    - criteria_count
-    - alternatives_count
-    - rank_reversals_detected
-    - decision_robustness
-
-# Audit Trail
-audit:
-  enabled: true
-  log_level: info
-  include_input: true
-  include_output: true
-  include_gas_cost: true
-  include_cns_events: true

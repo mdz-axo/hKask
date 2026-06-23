@@ -1,0 +1,51 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    restore_result: object
+    prioritize_result: object
+    verify_result: object
+    compose_result: object
+  output:
+    convergence_metric: number
+    rationale: string
+    blockers: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: condenser-continuation/condenser-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for condenser continuation cycles. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 1200
+thinking_budget = "standard"
+
+Compute continuation convergence where 0 means continuation packet is coherent, actionable, and free of critical blockers.
+
+Input:
+```json
+{
+  "restore_result": {{ restore_result | tojson }},
+  "prioritize_result": {{ prioritize_result | tojson }},
+  "verify_result": {{ verify_result | tojson }},
+  "compose_result": {{ compose_result | tojson }}
+}
+```
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "rationale": "short explanation",
+  "blockers": []
+}
+```

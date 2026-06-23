@@ -52,8 +52,9 @@ pub struct PodContext {
     governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
     /// Cryptographic capability checker for OCAP verification.
     /// When set, `require_capability()` verifies the token's Ed25519 signature
-    /// (and, for root-anchored checkers, that the issuer is trusted).
-    /// When absent, `require_capability()` runs in permissive mode (test/dev).
+    /// against the configured trusted root(s) and that it is delegated to this
+    /// pod's WebID. When absent, `require_capability()` \[NORMATIVE\] denies by
+    /// default — OCAP must fail closed (P4 — Clear Boundaries).
     capability_checker: Option<Arc<CapabilityChecker>>,
     /// Sovereignty checker for this pod — wired to a live `SovereigntyConsent`
     /// port so grants via the API or CLI are observed. `None` means the
@@ -105,32 +106,33 @@ impl PodContext {
     fn require_capability(
         &self,
         resource: DelegationResource,
-        resource_id: &str,
+        _resource_id: &str,
         action: DelegationAction,
     ) -> Result<(), AgentPodError> {
-        if let Some(ref checker) = self.capability_checker {
-            // Ed25519 signature (+ trusted root, if the checker enforces) + holder + resource/action.
-            if !checker.check(
-                &self.capability_token,
-                &self.webid,
-                resource,
-                resource_id,
-                action,
-            ) {
+        let checker = match self.capability_checker {
+            Some(ref c) => c,
+            None => {
+                // \[NORMATIVE\] No checker configured — OCAP must fail closed.
+                // Authority cannot be established, so deny (P4 — Clear Boundaries).
+                tracing::error!(
+                    target: "hkask.ocap",
+                    webid = ?self.webid,
+                    resource = ?resource,
+                    "No capability checker configured — denying (fail closed)"
+                );
                 return Err(AgentPodError::CapabilityDenied { resource, action });
             }
-        } else {
-            // No checker configured — permissive mode (test/dev).
-            // NOTE: pods currently hold a single `tool:execute` token, which does
-            // not satisfy the Registry memory capabilities checked here. Enforcing
-            // a real checker on this path requires granting pods per-capability
-            // tokens (a pod capability-model change) — tracked as a follow-up.
-            tracing::debug!(
-                target: "hkask.ocap",
-                webid = ?self.webid,
-                resource = ?resource,
-                "No capability checker configured — permissive mode (accepting)"
-            );
+        };
+        // \[NORMATIVE\] Pod-boundary perimeter (P4.1): the pod boundary IS the OCAP
+        // enforcement perimeter. A pod is authorized for its OWN resources when it
+        // holds a token that (a) verifies against a trusted root [authority] and
+        // (b) is delegated to the pod's own WebID [ownership]. Fine-grained
+        // resource/action matching governs delegated/attenuated tokens to OTHER
+        // holders (see `CapabilityChecker::check`), not a pod's own root authority.
+        if !(checker.verify(&self.capability_token)
+            && self.capability_token.delegated_to == self.webid)
+        {
+            return Err(AgentPodError::CapabilityDenied { resource, action });
         }
         Ok(())
     }

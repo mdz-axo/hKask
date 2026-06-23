@@ -1,0 +1,38 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    primary_result: object
+  output:
+    convergence_metric: number
+    rationale: string
+energy_cap: 2048
+visibility: Public
+---
+{# Template: gentle-lovelace/gentle-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for gentle-lovelace evaluation cycles. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 900
+thinking_budget = "standard"
+
+Given evaluation output, compute convergence where 0 means weakest-dimension recommendations are clear and actionable.
+
+Input:
+```json
+{{ primary_result | tojson }}
+```
+
+Return JSON only:
+```json
+{"convergence_metric": 0.0, "rationale": "..."}
+```

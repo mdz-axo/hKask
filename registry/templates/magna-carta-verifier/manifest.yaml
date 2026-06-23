@@ -39,3 +39,10 @@ templates:
       Render Rust test case code blocks from assertion definitions. Each
       assertion produces a compilable test skeleton targeting the declared
       crate, module, and method with the appropriate verification method.
+
+  - id: magna-carta-verifier/mc-convergence-check
+    path: mc-convergence-check.j2
+    type: KnowAct
+    lexicon_terms: [evaluate, converge, classify, verify, calibrate]
+    description: >
+      Compute normalized convergence metric for Magna Carta verification PDCA cycles.

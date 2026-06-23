@@ -74,6 +74,22 @@ impl CapabilityChecker {
         }
     }
 
+    /// Add a trusted issuer public key (chainable). Enables root enforcement.
+    ///
+    /// Used to trust additional authorities — e.g. the A2A root authority, whose
+    /// registration tokens are signed by a key distinct from the system OCAP key.
+    ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// post: returns self with `root` added to the trusted-root set and root
+    ///       enforcement enabled
+    pub fn trust_root(mut self, root: Ed25519PublicKey) -> Self {
+        if !self.trusted_roots.contains(&root) {
+            self.trusted_roots.push(root);
+        }
+        self.enforce_roots = true;
+        self
+    }
+
     /// Create a verify-only checker anchored to a set of trusted roots (fail-closed).
     ///
     /// Root enforcement is enabled: a token is accepted only if its embedded

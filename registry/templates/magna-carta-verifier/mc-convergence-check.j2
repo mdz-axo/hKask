@@ -1,0 +1,49 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    procedure_result: object
+    report_result: object
+    testcase_result: object
+  output:
+    convergence_metric: number
+    rationale: string
+    blockers: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: magna-carta-verifier/mc-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for Magna Carta verification cycles. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 1200
+thinking_budget = "standard"
+
+Compute convergence where 0 means compliance analysis is stable and no critical principle blockers remain unresolved.
+
+Input:
+```json
+{
+  "procedure_result": {{ procedure_result | tojson }},
+  "report_result": {{ report_result | tojson }},
+  "testcase_result": {{ testcase_result | tojson }}
+}
+```
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "rationale": "short explanation",
+  "blockers": []
+}
+```
