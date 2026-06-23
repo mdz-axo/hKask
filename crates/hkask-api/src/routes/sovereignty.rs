@@ -113,7 +113,11 @@ pub(crate) async fn sovereignty_status(
     let cm = &state.agent_service.sovereignty();
     let webid_str = auth.webid.to_string();
     let boundary = DataSovereigntyBoundary::hkask_default();
-    let granted = cm.get_granted_categories(&webid_str)?;
+    let granted = cm
+        .get_granted_categories(&webid_str)
+        .map_err(|e| ServiceError::Consent {
+            message: e.to_string(),
+        })?;
 
     Ok(Json(SovereigntyStatusResponse {
         explicit_consent: !granted.is_empty(),
@@ -159,8 +163,15 @@ pub(crate) async fn sovereignty_grant_consent(
     let cat_str = req.category;
     let cat = parse_data_category(&cat_str);
     let cm = &state.agent_service.sovereignty();
-    cm.grant_consent(&webid_str, &cat)?;
-    let granted = cm.get_granted_categories(&webid_str)?;
+    cm.grant_consent(&webid_str, &cat)
+        .map_err(|e| ServiceError::Consent {
+            message: e.to_string(),
+        })?;
+    let granted = cm
+        .get_granted_categories(&webid_str)
+        .map_err(|e| ServiceError::Consent {
+            message: e.to_string(),
+        })?;
     Ok(Json(SovereigntyConsentResponse {
         consent: true,
         message: format!("Explicit consent granted for '{cat_str}'. Data sharing enabled."),
@@ -186,7 +197,10 @@ pub(crate) async fn sovereignty_revoke_consent(
     tracing::info!(target: "cns.api", operation = "sovereignty_revoke", "CNS");
     let webid_str = auth.webid.to_string();
     let cm = &state.agent_service.sovereignty();
-    cm.revoke_consent(&webid_str)?;
+    cm.revoke_consent(&webid_str)
+        .map_err(|e| ServiceError::Consent {
+            message: e.to_string(),
+        })?;
     Ok(Json(SovereigntyConsentResponse {
         consent: false,
         message: "Explicit consent revoked. Only public data is accessible.".into(),
@@ -232,7 +246,7 @@ pub(crate) async fn sovereignty_check_access(
     let has_consent = if classification == "PUBLIC" {
         true
     } else {
-        cm.has_consent(&webid_str, &cat)
+        cm.has_consent(&webid_str, &cat).unwrap_or(false)
     };
 
     if !has_consent && classification != "PUBLIC" {

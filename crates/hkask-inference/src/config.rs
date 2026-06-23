@@ -129,30 +129,39 @@ impl ProviderId {
 /// - `HKASK_FUSION_GROUP` — fusion group name on OpenRouter (e.g., "kask")
 /// - `HKASK_FUSION_MODELS` — comma-separated model IDs for the fusion (e.g., "Kimi2.7,Qwen3.7 Max")
 /// - `HKASK_FUSION_FUSER` — the fuser/evaluator model (e.g., "Deepseek-v4-Pro")
+use crate::chat_protocol::FusionPlugin;
+
+/// Configuration for OpenRouter Fusion multi-model deliberation.
 ///
-/// The actual OpenRouter fusion group must be configured on the OpenRouter dashboard.
-/// These config values are used for display, verification, and constructing the model ID
-/// that hKask sends in chat completion requests (`OR/openrouter/fusion/{group}`).
+/// Fusion sends a prompt to a panel of models in parallel, then has a judge
+/// model synthesize their responses into a structured analysis. The plugin
+/// payload is injected into the request body as a `plugins` array.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FusionConfig {
-    /// Display name / OpenRouter fusion group name.
-    pub group: String,
-    /// Comma-separated model IDs in the fusion group.
-    pub models: Vec<String>,
-    /// The fuser/evaluator model that orchestrates the fusion.
-    pub fuser: String,
+    /// The judge/fuser model that orchestrates and synthesizes the fusion.
+    pub judge: String,
+    /// The panel of analysis models that answer in parallel.
+    pub panel: Vec<String>,
 }
 
 impl FusionConfig {
-    /// Build the full model ID used in OpenRouter API calls.
-    /// Returns e.g. "OR/openrouter/fusion/kask".
+    /// Build the OpenRouter Fusion plugin payload for the `plugins` request field.
+    pub fn plugin_payload(&self) -> Vec<FusionPlugin> {
+        vec![FusionPlugin {
+            id: "fusion".to_string(),
+            analysis_models: self.panel.clone(),
+            model: Some(self.judge.clone()),
+        }]
+    }
+
+    /// The model ID to use when fusion is active.
     pub fn model_id(&self) -> String {
-        format!("OR/openrouter/fusion/{}", self.group)
+        "openrouter/fusion".to_string()
     }
 
     /// Human-readable description of the fusion setup.
     pub fn description(&self) -> String {
-        format!("{} models fused by {}", self.models.len(), self.fuser)
+        format!("{} panel models judged by {}", self.panel.len(), self.judge)
     }
 }
 
@@ -336,36 +345,44 @@ fn parse_provider_code(raw: &str) -> ProviderId {
 ///
 /// Returns `None` if no fusion is configured.
 fn parse_fusion_config() -> Option<FusionConfig> {
-    // Structured config: HKASK_FUSION_GROUP + HKASK_FUSION_MODELS
-    if let Ok(group) = std::env::var("HKASK_FUSION_GROUP") {
-        let models: Vec<String> = std::env::var("HKASK_FUSION_MODELS")
+    // Structured config: HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL
+    if let Ok(judge) = std::env::var("HKASK_FUSION_JUDGE") {
+        let panel: Vec<String> = std::env::var("HKASK_FUSION_PANEL")
             .unwrap_or_default()
             .split(',')
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        let fuser =
-            std::env::var("HKASK_FUSION_FUSER").unwrap_or_else(|_| "deepseek-v4-pro".to_string());
-        if !group.is_empty() && !models.is_empty() {
-            return Some(FusionConfig {
-                group,
-                models,
-                fuser,
-            });
+        if !judge.is_empty() && !panel.is_empty() {
+            return Some(FusionConfig { judge, panel });
+        }
+    }
+
+    // Legacy env vars: HKASK_FUSION_GROUP + HKASK_FUSION_MODELS + HKASK_FUSION_FUSER
+    if let Ok(judge) =
+        std::env::var("HKASK_FUSION_FUSER").or_else(|_| std::env::var("HKASK_FUSION_GROUP"))
+    {
+        let panel: Vec<String> = std::env::var("HKASK_FUSION_MODELS")
+            .unwrap_or_default()
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        if !judge.is_empty() && !panel.is_empty() {
+            return Some(FusionConfig { judge, panel });
         }
     }
 
     // Legacy: HKASK_FUSION_MODEL="OR/openrouter/fusion/kask"
     if let Ok(legacy) = std::env::var("HKASK_FUSION_MODEL") {
-        let group = legacy
+        let name = legacy
             .strip_prefix("OR/openrouter/fusion/")
             .or_else(|| legacy.strip_prefix("openrouter/fusion/"))
             .unwrap_or(&legacy)
             .to_string();
         return Some(FusionConfig {
-            group: group.clone(),
-            models: vec![group],
-            fuser: "deepseek-v4-pro".to_string(),
+            judge: "deepseek-v4-pro".to_string(),
+            panel: vec![name],
         });
     }
 

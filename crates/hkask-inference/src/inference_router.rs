@@ -876,7 +876,7 @@ impl InferenceRouter {
                 ));
             }
         };
-        let search_id = fusion.group.as_str();
+        let search_id = &fusion.judge;
         let models = or.list_models().await?;
 
         // Try exact match on fusion model ID, then fuzzy match
@@ -888,8 +888,8 @@ impl InferenceRouter {
         if found {
             tracing::info!(
                 target: "cns.inference",
-                fusion_group = %fusion.group,
-                fusion_models = ?fusion.models,
+                fusion_judge = %fusion.judge,
+                fusion_panel = ?fusion.panel,
                 "Fusion group verified — exists on OpenRouter"
             );
             return Ok(true);
@@ -898,7 +898,7 @@ impl InferenceRouter {
         // Not found — try pattern matching on fusion group names
         tracing::warn!(
             target: "cns.inference",
-            fusion_group = %fusion.group,
+            fusion_judge = %fusion.judge,
             "Fusion group NOT FOUND on OpenRouter. Create it at https://openrouter.ai/fusion"
         );
         Ok(false)
@@ -908,22 +908,13 @@ impl InferenceRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::InferenceConfig;
+    use crate::config::{FusionConfig, InferenceConfig};
 
-    fn config_with_fusion(
-        group: Option<&str>,
-        models: Option<&[&str]>,
-        fuser: Option<&str>,
-    ) -> InferenceConfig {
+    fn config_with_fusion(judge: Option<&str>, panel: Option<&[&str]>) -> InferenceConfig {
         InferenceConfig {
-            fusion: group.map(|g| FusionConfig {
-                group: g.to_string(),
-                models: models
-                    .unwrap_or(&[])
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect(),
-                fuser: fuser.unwrap_or("deepseek-v4-pro").to_string(),
+            fusion: judge.map(|j| FusionConfig {
+                judge: j.to_string(),
+                panel: panel.unwrap_or(&[]).iter().map(|s| s.to_string()).collect(),
             }),
             ..Default::default()
         }
@@ -935,7 +926,7 @@ mod tests {
     /// expect: "Fusion model overrides default when configured and not bypassed" [P9]
     #[test]
     fn effective_model_routes_to_fusion() {
-        let config = config_with_fusion(Some("kask"), Some(&["Kimi2.7", "Qwen3.7 Max"]), None);
+        let config = config_with_fusion(Some("kask"), Some(&["Kimi2.7", "Qwen3.7 Max"]));
         let router = InferenceRouter::new(config);
         let params = LLMParameters {
             bypass_fusion: false,
@@ -947,11 +938,11 @@ mod tests {
         );
     }
 
-    /// REQ: P9-inf-fusion-effective-model-bypass
+    /// REQ: P9-inf-fusion-bypass
     /// expect: "Bypass flag prevents fusion override" [P9]
     #[test]
     fn effective_model_bypasses_fusion() {
-        let config = config_with_fusion(Some("kask"), Some(&["Kimi2.7"]), None);
+        let config = config_with_fusion(Some("kask"), Some(&["Kimi2.7"]));
         let default = config.default_model.clone();
         let router = InferenceRouter::new(config);
         let params = LLMParameters {
@@ -965,7 +956,7 @@ mod tests {
     /// expect: "Explicit model used when fusion is None" [P9]
     #[test]
     fn effective_model_uses_explicit_when_no_fusion() {
-        let config = config_with_fusion(None, None, None);
+        let config = config_with_fusion(None, None);
         let router = InferenceRouter::new(config);
         let params = LLMParameters::default();
         assert_eq!(
@@ -974,11 +965,11 @@ mod tests {
         );
     }
 
-    /// REQ: P9-inf-fusion-effective-model-default
+    /// REQ: P9-inf-fusion-default-fallback
     /// expect: "Default model used when nothing overrides" [P9]
     #[test]
     fn effective_model_falls_back_to_default() {
-        let config = config_with_fusion(None, None, None);
+        let config = config_with_fusion(None, None);
         let default = config.default_model.clone();
         let router = InferenceRouter::new(config);
         let params = LLMParameters::default();

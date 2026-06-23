@@ -17,6 +17,7 @@ use hkask_types::NuEventSink;
 use hkask_types::Visibility;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+use hkask_types::visibility::Confidence;
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -160,6 +161,74 @@ impl SemanticMemory {
             );
             let _ = sink.persist(&event);
         }
+        Ok(())
+    }
+
+    /// Find an existing semantic triple with the same EAV as the given triple.
+    ///
+    /// Used by the consolidation bridge to detect when an episodic triple
+    /// being promoted matches a fact already in semantic memory, enabling
+    /// Bayesian evidence combination rather than duplicate insertion.
+    ///
+    /// Matching is by canonical EAV hash (via `recall_dedup::eav_hash`),
+    /// so the same fact stored with different timestamps or metadata is
+    /// recognized as a match.
+    ///
+    /// expect: "I can recall deduplicated semantic triples with embedding similarity"
+    /// \[P3\] Motivating: Generative Space — finds existing semantic triple for evidence pooling
+    /// \[P8\] Constraining: Semantic Grounding — EAV hash ensures factual identity, not metadata identity
+    /// pre:  triple has valid entity and attribute
+    /// post: returns Some(existing_triple) if semantic memory has a matching EAV
+    /// post: returns None if no match found or on query error (graceful degradation)
+    pub(crate) fn find_existing_by_eav(&self, triple: &Triple) -> Option<Triple> {
+        let candidate_hash = crate::recall_dedup::eav_hash(triple);
+        let existing = self
+            .triple_store
+            .query_by_entity_attribute(&triple.entity, &triple.attribute)
+            .ok()?
+            .into_iter()
+            .filter(|t| t.access.visibility == Visibility::Public && t.access.perspective.is_none())
+            .find(|t| crate::recall_dedup::eav_hash(t) == candidate_hash);
+
+        if existing.is_some() {
+            tracing::debug!(
+                target: "cns.consolidation",
+                entity = %triple.entity,
+                attribute = %triple.attribute,
+                "Found existing semantic triple for EAV — will combine confidences"
+            );
+        }
+
+        existing
+    }
+
+    /// Update an existing semantic triple's confidence via the bitemporal update path.
+    ///
+    /// Closes the current version (sets valid_to) and inserts a new version
+    /// with the updated confidence. The value is preserved unchanged — only
+    /// the confidence changes, reflecting the additional evidence.
+    ///
+    /// expect: "I can recall deduplicated semantic triples with embedding similarity"
+    /// \[P3\] Motivating: Generative Space — updates confidence with new evidence
+    /// \[P8\] Constraining: Semantic Grounding — bitemporal update preserves audit trail
+    /// pre:  existing_id refers to a valid semantic triple
+    /// pre:  new_confidence is in [0, 1]
+    /// post: triple with existing_id is closed (valid_to set)
+    /// post: new triple inserted with updated confidence
+    pub(crate) fn update_confidence(
+        &self,
+        existing_id: &hkask_storage::TripleID,
+        current_value: serde_json::Value,
+        new_confidence: Confidence,
+    ) -> Result<(), SemanticMemoryError> {
+        self.triple_store
+            .update(existing_id, current_value, new_confidence)?;
+        tracing::debug!(
+            target: "cns.consolidation",
+            triple_id = %existing_id.as_uuid(),
+            new_confidence = %new_confidence,
+            "Semantic triple confidence updated via Bayesian combination"
+        );
         Ok(())
     }
 

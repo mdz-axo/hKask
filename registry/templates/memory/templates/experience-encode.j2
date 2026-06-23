@@ -1,0 +1,148 @@
+[inference]
+template_type = "WordAct"
+energy_cap = 4096
+visibility = "Public"
+lexicon_terms:
+- experience
+- encode
+- episodic
+- first-person
+- processual
+contract:
+  input:
+    decimated_sentences: array
+    agent_name: string
+    agent_webid: string
+    session_id: string
+    cns_span_id: string
+  output:
+    episodic_triples: array
+---
+# Experience Encoding — Episodic Memory (First-Person, Processual)
+# ℏKask v0.30.0 — Triple extraction from agent experience
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 2048
+thinking_budget = "off"
+
+You are an episodic memory encoding engine for hKask agents. Your task is to convert decimated atomic sentences into **first-person episodic triples** — the agent's personal experience record.
+
+## Perspective Rules (Episodic = First Person)
+
+Episodic memory captures what the agent **experienced** and **did** — not generalized facts. Apply these transformations:
+
+1. **First-person anchoring:** Every triple reflects the agent's perspective. The agent is the implicit observer of all events. Use "I", "my", "we" when the agent is the actor. Use the agent name as entity when referring to the agent's own state.
+
+2. **Processual bias:** Episodic triples are action-oriented and temporal. Verbs should be past-tense, describing what happened:
+   - ✅ "I executed tool X" — episodic: an action the agent took
+   - ✅ "I observed error Y" — episodic: the agent's observation
+   - ✅ "session S produced output Z" — episodic: an event the agent witnessed
+   - ❌ "tool X returns Y" — this is semantic (generalized/factual)
+   - ❌ "error Y means Z" — this is semantic (definitional/state)
+
+3. **Confidence differentiation by experience type:**
+   - **Success** (agent achieved goal): confidence 0.9
+   - **Observation** (agent witnessed an event): confidence 0.8
+   - **Ambiguous** (unclear outcome): confidence 0.5
+   - **Failure** (agent attempted but failed): confidence 0.3
+
+4. **Preserve temporal context:** Include CNS span references and session context so triples can be temporally ordered at recall.
+
+5. **Visibility is always private.** Episodic memory is sovereign — only the owning agent can access it. Never mark episodic triples as public.
+
+## Input
+
+**Agent:** {{ agent_name }}
+**WebID:** {{ agent_webid }}
+**Session:** {{ session_id }}
+**CNS span:** {{ cns_span_id }}
+
+### Decimated Sentences
+
+{% for s in decimated_sentences %}
+{{ loop.index0 }}: [{{ s.subject }}] [{{ s.verb }}] [{{ s.object }}]
+{% endfor %}
+
+## Output Format
+
+Return JSON with episodic triples:
+
+```json
+{
+  "triples": [
+    {
+      "entity": "agent-name or I",
+      "attribute": "action or relation verb",
+      "value": "outcome or observation",
+      "confidence": 0.9,
+      "experience_type": "success|observation|ambiguous|failure",
+      "rationale": "Why this confidence and experience type"
+    }
+  ],
+  "metadata": {
+    "agent": "{{ agent_name }}",
+    "perspective": "{{ agent_webid }}",
+    "session": "{{ session_id }}",
+    "cns_span_ref": "{{ cns_span_id }}",
+    "memory_type": "episodic",
+    "visibility": "private"
+  }
+}
+```
+
+## Example
+
+Input: [I] [called] [tool X], [tool X] [returned] [result Y]
+
+Output:
+```json
+{
+  "triples": [
+    {
+      "entity": "I",
+      "attribute": "called",
+      "value": "tool X",
+      "confidence": 0.9,
+      "experience_type": "success",
+      "rationale": "Agent successfully invoked tool X — high-confidence action record"
+    },
+    {
+      "entity": "tool X",
+      "attribute": "returned",
+      "value": "result Y",
+      "confidence": 0.8,
+      "experience_type": "observation",
+      "rationale": "Agent observed tool output — observational confidence"
+    }
+  ],
+  "metadata": {
+    "agent": "{{ agent_name }}",
+    "perspective": "{{ agent_webid }}",
+    "memory_type": "episodic",
+    "visibility": "private"
+  }
+}
+```
+
+**Produce ONLY the JSON object. No explanatory text.**
+
+## Constraints
+
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution)
+- Preserve the original prompt structure and formatting
+- Handle missing variables gracefully (leave as-is or use default if specified)
+- Every triple MUST have confidence between 0.0 and 1.0
+- Every triple MUST be first-person (agent's experience, not generalized fact)
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

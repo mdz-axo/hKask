@@ -69,7 +69,16 @@ impl DeepInfraBackend {
     ) -> Result<InferenceResult, InferenceError> {
         validate_prompt(prompt)?;
         let tools = tools.map(|t| t.to_vec());
-        let request = build_chat_request(model, prompt, None, params, Some(false), Some(5), tools);
+        let request = build_chat_request(
+            model,
+            prompt,
+            None,
+            params,
+            Some(false),
+            Some(5),
+            tools,
+            None,
+        );
 
         let response = self
             .client

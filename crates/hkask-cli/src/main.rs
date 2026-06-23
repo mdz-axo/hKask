@@ -7,7 +7,7 @@ use clap::Parser;
 use hkask_cli::cli::Commands;
 use hkask_cli::commands;
 use hkask_mcp::runtime::McpRuntime;
-use hkask_services::{InferenceConfig, InferenceRouter};
+use hkask_services::{FusionConfig, InferenceConfig, InferenceRouter};
 use hkask_templates::SqliteRegistry;
 use std::time::Instant;
 
@@ -60,7 +60,7 @@ fn prompt_proceed_or_wait(fusion: &FusionConfig, connection_error: bool) {
     use std::io::{self, Write};
 
     let default = hkask_services::model_constants::DEFAULT_FALLBACK_MODEL;
-    let group_name = &fusion.group;
+    let group_name = &fusion.judge;
     let wait_msg = if connection_error {
         format!(
             "Wait while I fix the OpenRouter connection and set up the '{}' fusion group",

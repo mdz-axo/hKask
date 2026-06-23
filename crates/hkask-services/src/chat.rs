@@ -641,17 +641,6 @@ impl ChatService {
     ///
     /// The chat orchestration path operates with raw storage ports rather than a
     /// `PodContext`, so it must apply the same consent gate that
-    /// `PodContext::require_sovereignty` enforces — otherwise sovereign episodic/
-    /// semantic memory would be read/written without affirmative consent (P2).
-    /// Fails closed: no consent ⇒ no sovereign memory access.
-    ///
-    /// \[NORMATIVE\] P1 User Sovereignty / P2 Affirmative Consent.
-    fn has_memory_consent(ctx: &AgentService, owner: &WebID, category: &DataCategory) -> bool {
-        ctx.sovereignty()
-            .has_consent(&owner.to_string(), category)
-            .unwrap_or(false)
-    }
-
     /// Recall semantic memory triples relevant to the input.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.

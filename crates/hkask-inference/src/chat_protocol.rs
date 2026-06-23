@@ -63,6 +63,11 @@ pub struct ChatRequest {
     /// - `Some("none")`: model must not call tools
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<String>,
+    /// OpenRouter Fusion plugin configuration.
+    /// When present, injects the fusion plugin into the request body
+    /// so the model can invoke multi-model deliberation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plugins: Option<Vec<FusionPlugin>>,
 }
 
 /// A single message in the chat conversation.
@@ -73,6 +78,24 @@ pub struct ChatMessage {
     /// Base64-encoded images for multimodal/vision requests.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub images: Option<Vec<String>>,
+}
+
+/// OpenRouter Fusion plugin configuration.
+///
+/// Injected into the `plugins` array of a chat completion request
+/// to enable multi-model deliberation via OpenRouter's Fusion pipeline.
+/// See: https://openrouter.ai/docs/guides/features/plugins/fusion
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FusionPlugin {
+    /// Must be "fusion" for the fusion plugin.
+    pub id: String,
+    /// Models that form the analysis panel (1-8 models).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub analysis_models: Vec<String>,
+    /// The judge model that synthesizes panel responses.
+    /// When absent, the first analysis model is used as the judge.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
 }
 
 /// Build an OpenAI-compatible chat completion request from hKask parameters.
@@ -92,6 +115,7 @@ pub fn build_chat_request(
     stream: Option<bool>,
     n_probs: Option<i32>,
     tools: Option<Vec<ChatToolDefinition>>,
+    plugins: Option<Vec<FusionPlugin>>,
 ) -> ChatRequest {
     ChatRequest {
         model: model.to_string(),
@@ -114,6 +138,7 @@ pub fn build_chat_request(
         enable_thinking: !params.disable_thinking,
         tools,
         tool_choice: None,
+        plugins,
     }
 }
 
