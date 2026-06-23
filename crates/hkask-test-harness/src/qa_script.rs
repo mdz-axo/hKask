@@ -18,6 +18,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 use crate::self_heal::HealContext;
+use crate::self_heal::SelfHealer;
 use hkask_ledger::{Ledger, LedgerTransaction, Posting};
 
 // ── Manifest types ──────────────────────────────────────────────────────────────
@@ -453,7 +454,7 @@ pub struct QaScriptRunner {
     tool_invoke: Option<Box<ToolFn>>,
     /// Self-healer for automatic error recovery (Stage 1: config/env; Stage 2: LLM-assisted).
     /// Every fallible step passes through the healer before the QA script degrades or escalates.
-    healer: crate::self_heal::SelfHealer,
+    healer: SelfHealer,
     /// Optional path to cost ledger database
     ledger_path: Option<PathBuf>,
 }
@@ -465,7 +466,7 @@ impl QaScriptRunner {
             manifest,
             classify,
             tool_invoke: None,
-            healer: crate::self_heal::SelfHealer::new(),
+            healer: SelfHealer::new(),
             ledger_path: None,
         }
     }
@@ -484,7 +485,7 @@ impl QaScriptRunner {
     }
 
     /// Attach a custom SelfHealer (e.g., with inference for Stage 2 healing).
-    pub fn with_healer(mut self, healer: crate::self_heal::SelfHealer) -> Self {
+    pub fn with_healer(mut self, healer: SelfHealer) -> Self {
         self.healer = healer;
         self
     }
@@ -914,35 +915,45 @@ impl QaScriptRunner {
 
         let params = step.tool_params.as_deref().unwrap_or("{}");
 
-        match tool_fn(tool_name, params) {
-            Ok(result) => {
-                // Parse result as step outcome
-                let parsed: serde_json::Value = serde_json::from_str(&result).unwrap_or_default();
-                let outcome = parsed
-                    .get("outcome")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("success");
-                Ok(StepResult {
+        let healer_context = HealContext {
+            operation: format!("mcp_tool.{}", step.ordinal),
+            error_message: String::new(),
+            can_retry: true,
+            ..Default::default()
+        };
+
+        self.healer.healable(
+            || match tool_fn(tool_name, params) {
+                Ok(result) => {
+                    let parsed: serde_json::Value =
+                        serde_json::from_str(&result).unwrap_or_default();
+                    let outcome = parsed
+                        .get("outcome")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("success");
+                    Ok(StepResult {
+                        ordinal: step.ordinal,
+                        action: "mcp_tool".into(),
+                        outcome: outcome.into(),
+                        qa_outcome: if outcome == "success" {
+                            QaOutcome::Passed
+                        } else {
+                            QaOutcome::Failed
+                        },
+                        classify_category: None,
+                        retries: 0,
+                        duration_ms: 0,
+                        cost: StepCost::default(),
+                    })
+                }
+                Err(e) => Err(QaScriptError::ToolFailed {
                     ordinal: step.ordinal,
-                    action: "mcp_tool".into(),
-                    outcome: outcome.into(),
-                    qa_outcome: if outcome == "success" {
-                        QaOutcome::Passed
-                    } else {
-                        QaOutcome::Failed
-                    },
-                    classify_category: None,
-                    retries: 0,
-                    duration_ms: 0,
-                    cost: StepCost::default(),
-                })
-            }
-            Err(e) => Err(QaScriptError::ToolFailed {
-                ordinal: step.ordinal,
-                tool: tool_name.into(),
-                reason: e,
-            }),
-        }
+                    tool: tool_name.into(),
+                    reason: e,
+                }),
+            },
+            healer_context,
+        )
     }
 
     fn execute_loop(

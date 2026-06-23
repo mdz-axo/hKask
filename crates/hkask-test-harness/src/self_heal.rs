@@ -1,8 +1,6 @@
-//! Self-healing engine — re-exported from `hkask-self-heal`.
+//! Self-healing engine — re-exported from `hkask-services-core`.
 //!
-//! Self-healing is an error-handling concern, not a test harness function.
-//! The canonical implementation lives in `crates/hkask-self-heal/src/lib.rs`.
-//! This module exists for backward compatibility; new code should depend on
-//! `hkask-self-heal` directly.
+//! Self-healing is part of the error-handling foundation layer.
+//! The canonical implementation lives in `crates/hkask-services-core/src/self_heal.rs`.
 
-pub use hkask_self_heal::*;
+pub use hkask_services_core::self_heal::*;

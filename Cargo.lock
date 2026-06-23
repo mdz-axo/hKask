@@ -4729,19 +4729,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-self-heal"
-version = "0.30.0"
-dependencies = [
- "dirs",
- "dotenvy",
- "hkask-types",
- "minijinja",
- "serde",
- "serde_json",
- "tracing",
-]
-
-[[package]]
 name = "hkask-services"
 version = "0.30.0"
 dependencies = [
@@ -4907,11 +4894,13 @@ version = "0.30.0"
 dependencies = [
  "chrono",
  "dirs",
+ "dotenvy",
  "hkask-inference",
  "hkask-keystore",
  "hkask-ports",
  "hkask-types",
  "hkask-wallet-types",
+ "minijinja",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -5249,7 +5238,6 @@ dependencies = [
  "hkask-cns",
  "hkask-ledger",
  "hkask-ports",
- "hkask-self-heal",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",

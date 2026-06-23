@@ -137,12 +137,19 @@ Every healing attempt emits CNS spans:
 | Span Target | When | Content |
 |-------------|------|---------|
 | `cns.heal.attempt` | Healing starts | operation, error message |
-| `cns.heal.strategy` | Strategy selected | strategy name, operation |
+| `cns.heal.strategy` | Strategy selected | strategy name, source (llm_classify\|string_match) |
 | `cns.heal.dotenv` | .env loaded | file path |
+| `cns.heal.set_env` | Env var set | variable key |
+| `cns.heal.file_created` | File created | file path |
 | `cns.heal.code_change_proposed` | Code change needed | file, description, diff suggestion |
+| `cns.heal.llm_assisted` | LLM template rendered and inference called | template path, operation |
+| `cns.heal.retry_loop` | Each retry iteration | attempt number, delay |
 | `cns.heal.unmatched` | No strategy found | operation, error — needs human attention |
+| `cns.heal.escalated` | Exhausted, escalating to Curator | MiniDebugLog JSON payload |
 
-The Curator receives unmatched and code-change alerts via the Curation Loop inbox:
+The `CnsSpan::SelfHeal` typed variant (canonical: `"cns.heal"`) is emitted on every attempt span.
+
+The Curator receives unmatched and escalation alerts via the Curation Loop inbox:
 ```
 QA classify step → RuntimeAlert → alerts_tx channel → CurationInput::Alert
     → Curation Loop inbox → CuratorAgent → human review
@@ -150,19 +157,31 @@ QA classify step → RuntimeAlert → alerts_tx channel → CurationInput::Alert
 
 ## Integration Points
 
-| System | Where to Wire | Notes |
-|--------|---------------|-------|
-| **QA Runner** | `QaScriptRunner::run()` — after each step fails | Wrap `execute_classify`, `execute_command` in `healer.healable()` |
-| **MCP Servers** | `ToolSpanGuard::error()` — before returning error to client | Heal config/env issues before reporting failure |
-| **Inference Router** | `InferenceRouter::generate()` — on connection/rate-limit errors | Retry with backoff, try alternate providers |
-| **Template Renderer** | `ManifestExecutor::render_step_template()` — on missing template | Create default template from registry |
-| **CNS Runtime** | `CnsObserver::on_depletion()` — on variety deficit | Self-tune thresholds, escalate if unable |
+| System | Where to Wire | Status |
+|--------|---------------|--------|
+| **QA Runner** | `QaScriptRunner` execute_classify/command/tool wrapped in `healer.healable()` | ✅ |
+| **CLI Construction** | `build_healer()` wires `classify::generate_raw` via `HealInferenceFn` | ✅ |
+| **Inference Router** | `InferenceRouter` heal callback on `generate()`/`generate_with_model()` errors | ✅ |
+| **MCP Servers** | `ToolSpanGuard::error()` heal callback before returning to client | ✅ |
+| **Template Renderer** | `ManifestExecutor::render_step_template()` heal callback on `NotFound` | ✅ |
+| **CNS Runtime** | `CnsRuntime::emit_critical_depletion()` heal callback on variety deficit | ✅ |
+
+All integration points use `(error_string, operation_name)` callbacks — no direct dependency on `SelfHealer`. Wire at construction:
+```rust
+Arc::new(move |err, op| {
+    healer.attempt(err, &HealContext {
+        operation: op.into(),
+        error_message: err.into(),
+        ..Default::default()
+    });
+})
+```
 
 ## File Location
 
-- **Engine:** `crates/hkask-test-harness/src/self_heal.rs`
-- **Tests:** `#[cfg(test)] mod tests` in same file
-- **Registry:** strategies are code-defined (default) with future YAML-configurable extension path
+- **Engine:** `crates/hkask-services-core/src/self_heal.rs` — error-handling foundation layer
+- **Templates:** `registry/templates/heal/*.j2` — 7 KnowAct templates
+- **Tests:** `#[cfg(test)] mod tests` in `self_heal.rs`
 
 ## Design Constraints
 

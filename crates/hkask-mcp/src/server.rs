@@ -238,6 +238,8 @@ pub struct ToolSpanGuard {
     start: Instant,
     caller: hkask_types::WebID,
     emitted: bool,
+    /// Optional heal callback: (error_string, operation_name).
+    heal_error_cb: Option<Box<dyn Fn(&str, &str) + Send + Sync>>,
 }
 
 impl ToolSpanGuard {
@@ -251,7 +253,14 @@ impl ToolSpanGuard {
             start: Instant::now(),
             caller: *caller,
             emitted: false,
+            heal_error_cb: None,
         }
+    }
+
+    /// Attach a self-healing callback for automatic error recovery.
+    pub fn with_heal_cb(mut self, cb: Box<dyn Fn(&str, &str) + Send + Sync>) -> Self {
+        self.heal_error_cb = Some(cb);
+        self
     }
 
     /// Mark span as successful and return output.
@@ -279,6 +288,9 @@ impl ToolSpanGuard {
             Some(&kind),
             Some(&self.caller),
         );
+        if let Some(ref cb) = self.heal_error_cb {
+            cb(&output, &self.tool_name);
+        }
         output
     }
 

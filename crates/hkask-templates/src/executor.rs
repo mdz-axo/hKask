@@ -73,6 +73,8 @@ pub struct ManifestExecutor {
     /// When `step.renderer == "minijinja"`, `step.template_ref` is resolved
     /// relative to this path. Defaults to `registry/templates/`.
     template_base_path: PathBuf,
+    /// Optional heal callback: (error_string, operation_name).
+    heal_error_cb: Option<Arc<dyn Fn(&str, &str) + Send + Sync>>,
 }
 
 impl ManifestExecutor {
@@ -95,7 +97,14 @@ impl ManifestExecutor {
             default_params,
             a2a_secret,
             template_base_path: PathBuf::from(DEFAULT_TEMPLATE_BASE_PATH),
+            heal_error_cb: None,
         }
+    }
+
+    /// Attach a self-healing callback for automatic error recovery.
+    pub fn with_heal_cb(mut self, cb: Arc<dyn Fn(&str, &str) + Send + Sync>) -> Self {
+        self.heal_error_cb = Some(cb);
+        self
     }
 
     /// Execute the full manifest cascade with iterative PDCA convergence.
@@ -708,14 +717,21 @@ impl ManifestExecutor {
                 })?;
 
                 let template_path = self.template_base_path.join(template_ref);
-                let template_content = std::fs::read_to_string(&template_path).map_err(|e| {
-                    TemplateError::NotFound(format!(
-                        "Step {}: template file not found at {}: {}",
-                        step.ordinal,
-                        template_path.display(),
-                        e
-                    ))
-                })?;
+                let template_content = match std::fs::read_to_string(&template_path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        let err_msg = format!(
+                            "Step {}: template file not found at {}: {}",
+                            step.ordinal,
+                            template_path.display(),
+                            e
+                        );
+                        if let Some(ref cb) = self.heal_error_cb {
+                            cb(&err_msg, &template_path.display().to_string());
+                        }
+                        return Err(TemplateError::NotFound(err_msg));
+                    }
+                };
 
                 info!(
                     target: "cns.spec.executor",

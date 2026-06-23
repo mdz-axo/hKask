@@ -32,6 +32,9 @@ pub struct InferenceRouter {
     together: Option<TogetherBackend>,
     openrouter: Option<OpenRouterBackend>,
     embedding: EmbeddingRouter,
+    /// Optional error healing callback. Takes (error_string, operation_name).
+    /// Wire this to a SelfHealer instance at construction.
+    heal_error_cb: Option<Box<dyn Fn(&str, &str) + Send + Sync>>,
 }
 
 impl InferenceRouter {
@@ -78,7 +81,23 @@ impl InferenceRouter {
             together,
             openrouter,
             embedding,
+            heal_error_cb: None,
         }
+    }
+
+    /// Attach a self-healing callback for automatic error recovery.
+    /// The callback receives (error_string, operation_name) and should
+    /// delegate to a SelfHealer instance.
+    pub fn with_heal_cb(mut self, cb: Box<dyn Fn(&str, &str) + Send + Sync>) -> Self {
+        self.heal_error_cb = Some(cb);
+        self
+    }
+
+    fn heal_error(&self, error: InferenceError, operation: &str) -> InferenceError {
+        if let Some(ref cb) = self.heal_error_cb {
+            cb(&error.to_string(), operation);
+        }
+        error
     }
 
     /// Compute the effective model name, applying the fusion override when active.
@@ -643,7 +662,7 @@ impl InferencePort for InferenceRouter {
         if let Some(ref adapter) = parameters.adapter {
             let (provider, model) = match self.resolve(adapter) {
                 Ok(r) => r,
-                Err(e) => return Box::pin(async move { Err(e) }),
+                Err(e) => return Box::pin(async move { Err(self.heal_error(e, "generate")) }),
             };
             let model = model.to_string();
             let prompt = prompt.to_string();
@@ -653,13 +672,14 @@ impl InferencePort for InferenceRouter {
                 validate_prompt(&prompt)?;
                 self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
                     .await
+                    .map_err(|e| self.heal_error(e, "generate"))
             });
         }
 
         let model_name = self.effective_model(None, parameters);
         let (provider, model) = match self.resolve(&model_name) {
             Ok(r) => r,
-            Err(e) => return Box::pin(async move { Err(e) }),
+            Err(e) => return Box::pin(async move { Err(self.heal_error(e, "generate")) }),
         };
         let model = model.to_string();
         let prompt = prompt.to_string();
@@ -670,6 +690,7 @@ impl InferencePort for InferenceRouter {
             validate_prompt(&prompt)?;
             self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
                 .await
+                .map_err(|e| self.heal_error(e, "generate"))
         })
     }
 
@@ -691,7 +712,9 @@ impl InferencePort for InferenceRouter {
         if let Some(ref adapter) = parameters.adapter {
             let (provider, model) = match self.resolve(adapter) {
                 Ok(r) => r,
-                Err(e) => return Box::pin(async move { Err(e) }),
+                Err(e) => {
+                    return Box::pin(async move { Err(self.heal_error(e, "generate_with_model")) });
+                }
             };
             let model = model.to_string();
             let prompt = prompt.to_string();
@@ -701,13 +724,16 @@ impl InferencePort for InferenceRouter {
                 validate_prompt(&prompt)?;
                 self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
                     .await
+                    .map_err(|e| self.heal_error(e, "generate_with_model"))
             });
         }
 
         let model_name = self.effective_model(model_override, parameters);
         let (provider, model) = match self.resolve(&model_name) {
             Ok(r) => r,
-            Err(e) => return Box::pin(async move { Err(e) }),
+            Err(e) => {
+                return Box::pin(async move { Err(self.heal_error(e, "generate_with_model")) });
+            }
         };
         let model = model.to_string();
         let prompt = prompt.to_string();
@@ -718,6 +744,7 @@ impl InferencePort for InferenceRouter {
             validate_prompt(&prompt)?;
             self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
                 .await
+                .map_err(|e| self.heal_error(e, "generate_with_model"))
         })
     }
 

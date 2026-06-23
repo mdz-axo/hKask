@@ -9,8 +9,8 @@
 use crate::cli::QaAction;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_services_classify::{self, ClassifierConfig};
+use hkask_services_core::self_heal::{HealInferenceFn, SelfHealer};
 use hkask_test_harness::qa_script::{ClassifyResult, QaScriptRunner};
-use hkask_test_harness::self_heal::{HealInferenceFn, SelfHealer};
 use hkask_test_harness::triage::{self, BoleroFailure, QaDiagnosis, TriageReport};
 use std::collections::HashMap;
 use std::fs::File;
@@ -193,7 +193,8 @@ fn find_registry_dir() -> PathBuf {
     home.join(".config").join("hkask").join("registry")
 }
 
-/// Build a SelfHealer wired to the classifier model via `generate_raw`.
+/// Build a SelfHealer wired to the classifier model for LLM-assisted healing.
+/// Falls back to Stage 1 only if no classifier config with API key is found.
 fn build_healer(registry_dir: &Path) -> SelfHealer {
     for name in &["qa-triage", "triage", "classify"] {
         if let Ok(def) = hkask_services_classify::load_classifier_config(name, registry_dir) {
@@ -208,20 +209,16 @@ fn build_healer(registry_dir: &Path) -> SelfHealer {
                             .enable_all()
                             .build()
                             .map_err(|e| format!("{e}"))?
-                            .block_on(async {
-                                hkask_services_classify::generate_raw(&prompt, &cfg)
-                                    .await
-                                    .map_err(|e| format!("{e}"))
-                            })
+                            .block_on(hkask_services_classify::generate_raw(&prompt, &cfg))
                     })
                     .join()
-                    .map_err(|_| "thread panic".to_string())?
+                    .map_err(|_| "Healer thread panicked".to_string())?
                 });
                 return SelfHealer::new().with_inference(inference);
             }
         }
     }
-    println!("[QA] Self-healer: no API key — retry-only mode");
+    println!("[QA] Self-healer: no API key — Stage 1 only");
     SelfHealer::new()
 }
 

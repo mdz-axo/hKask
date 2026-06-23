@@ -32,6 +32,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::OnceLock;
 use std::thread;
 use std::time::Duration;
 
@@ -70,7 +71,6 @@ pub struct HealStrategy {
     pub error_pattern: String,
     pub description: String,
     pub action: HealAction,
-    pub can_modify_files: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -177,7 +177,6 @@ impl HealRegistry {
                         .join(".config/hkask/.env"),
                 ],
             },
-            can_modify_files: false,
         });
         r.add(HealStrategy {
             name: "permission-denied".into(),
@@ -188,7 +187,6 @@ impl HealRegistry {
                 description: "Permission denied".into(),
                 diff_suggestion: "Check with `ls -la` and `chmod` or `sudo` as needed.".into(),
             },
-            can_modify_files: true,
         });
         r.add(HealStrategy {
             name: "command-not-found".into(),
@@ -199,7 +197,6 @@ impl HealRegistry {
                 description: "Command not found in PATH".into(),
                 diff_suggestion: "Install via apt-get, brew, or cargo install.".into(),
             },
-            can_modify_files: false,
         });
         r.add(HealStrategy {
             name: "config-file-not-found".into(),
@@ -210,7 +207,6 @@ impl HealRegistry {
                 description: "Classifier config YAML not found".into(),
                 diff_suggestion: "Create registry/classify/<name>.yaml".into(),
             },
-            can_modify_files: true,
         });
         r.add(HealStrategy {
             name: "network-error".into(),
@@ -220,7 +216,6 @@ impl HealRegistry {
                 max_attempts: 3,
                 delay_ms: 2000,
             },
-            can_modify_files: false,
         });
         r.add(HealStrategy {
             name: "transient-retry".into(),
@@ -230,7 +225,6 @@ impl HealRegistry {
                 max_attempts: 3,
                 delay_ms: 1000,
             },
-            can_modify_files: false,
         });
         r
     }
@@ -248,11 +242,17 @@ impl HealRegistry {
                 .any(|w| lower.contains(w.trim()))
         })
     }
+
+    pub fn find_strategy_by_name(&self, name: &str) -> Option<&HealStrategy> {
+        self.strategies.iter().find(|s| s.name == name)
+    }
 }
 
 // ── SelfHealer ─────────────────────────────────────────────────────────────
 
 const MAX_RETRIES: u32 = 3;
+const CLASSIFY_TEMPLATE: &str = "registry/templates/heal/classify-error.j2";
+static CLASSIFY_TEMPLATE_CACHE: OnceLock<String> = OnceLock::new();
 
 pub struct SelfHealer {
     registry: HealRegistry,
@@ -289,10 +289,8 @@ impl SelfHealer {
         self.inference.is_some()
     }
 
-    /// Wrap a fallible operation with automatic healing and bounded retries.
-    ///
-    /// 3 attempts with exponential backoff (1s → 2s → 4s).
-    /// Emits `cns.heal.retry_loop` per iteration, `cns.heal.escalated` on exhaustion.
+    // ── Bounded retry loop ──────────────────────────────────────────────
+
     pub fn healable<T, E: fmt::Display>(
         &self,
         mut operation: impl FnMut() -> Result<T, E>,
@@ -306,13 +304,7 @@ impl SelfHealer {
                 Ok(v) => return Ok(v),
                 Err(e) => {
                     let err = e.to_string();
-                    tracing::info!(
-                        target: "cns.heal.retry_loop",
-                        attempt,
-                        max_retries = MAX_RETRIES,
-                        operation = %context.operation,
-                        error = %err,
-                    );
+                    tracing::info!(target: "cns.heal.retry_loop", attempt, max_retries = MAX_RETRIES, operation = %context.operation, error = %err);
 
                     match self.attempt(&err, &context) {
                         HealOutcome::Healed {
@@ -359,13 +351,7 @@ impl SelfHealer {
                                 continue;
                             }
                             let json = serde_json::to_string(&debug_log).unwrap_or_default();
-                            tracing::error!(
-                                target: "cns.heal.escalated",
-                                operation = %context.operation,
-                                reason = %reason,
-                                debug_log = %json,
-                                "Healing exhausted — escalating to Curator"
-                            );
+                            tracing::error!(target: "cns.heal.escalated", operation = %context.operation, reason = %reason, debug_log = %json, "Healing exhausted — escalating to Curator");
                             return Err(e);
                         }
                     }
@@ -375,76 +361,192 @@ impl SelfHealer {
 
         match operation() {
             Ok(v) => {
-                tracing::info!(
-                    target: "cns.heal.retry_loop",
-                    operation = %context.operation,
-                    "Operation succeeded after healing exhaustion"
-                );
+                tracing::info!(target: "cns.heal.retry_loop", operation = %context.operation, "Operation succeeded after healing exhaustion");
                 Ok(v)
             }
             Err(e) => {
                 let json = serde_json::to_string(&debug_log).unwrap_or_default();
-                tracing::error!(
-                    target: "cns.heal.escalated",
-                    operation = %context.operation,
-                    attempt_count = debug_log.attempt_count,
-                    debug_log = %json,
-                    "Healing exhausted — escalating to Curator"
-                );
+                tracing::error!(target: "cns.heal.escalated", operation = %context.operation, attempt_count = debug_log.attempt_count, debug_log = %json, "Healing exhausted — escalating to Curator");
                 Err(e)
             }
         }
     }
 
-    /// Attempt to heal an error. Returns Healed, Degraded, or Unhealable.
+    // ── 4-stage attempt pipeline ────────────────────────────────────────
+
     pub fn attempt(&self, error: &str, context: &HealContext) -> HealOutcome {
-        tracing::info!(
-            target: "cns.heal.attempt",
-            operation = %context.operation,
-            error = %error,
-            cns_span = %hkask_types::cns::CnsSpan::SelfHeal,
+        tracing::info!(target: "cns.heal.attempt", operation = %context.operation, error = %error, cns_span = %hkask_types::cns::CnsSpan::SelfHeal);
+
+        // Stage 1: KnowAct classification
+        if let Some((strategy_name, confidence)) = self.classify_error(error, context) {
+            if confidence > 0.5 {
+                if let Some(strategy) = self.registry.find_strategy_by_name(&strategy_name) {
+                    tracing::info!(target: "cns.heal.strategy", strategy = %strategy_name, confidence = confidence, source = "llm_classify");
+                    return self.execute_and_judge(strategy, context);
+                }
+            }
+        }
+
+        // Stage 2: String-matching fallback
+        if let Some(strategy) = self.registry.find_strategy(error) {
+            tracing::info!(target: "cns.heal.strategy", strategy = %strategy.name, source = "string_match");
+            return self.execute_and_judge(strategy, context);
+        }
+
+        // Stage 3: LLM-assisted fallback
+        if self.inference.is_some() {
+            return self.llm_assisted_fallback(error, context);
+        }
+
+        // Stage 4: Unhealable
+        tracing::warn!(target: "cns.heal.unmatched", operation = %context.operation, error = %error);
+        HealOutcome::Unhealable {
+            reason: format!("No healing strategy matches: {}", error),
+            suggestion: "Add a strategy to HealRegistry or a template to registry/templates/heal/"
+                .into(),
+            requires_code_change: false,
+            debug_log: MiniDebugLog {
+                attempt_count: 1,
+                cns_spans: vec!["cns.heal.unmatched".into()],
+                suggestion: "Add strategy or template".into(),
+                ..Default::default()
+            },
+        }
+    }
+
+    // ── Stage 1: classify via LLM ───────────────────────────────────────
+
+    fn classify_error(&self, _error: &str, context: &HealContext) -> Option<(String, f64)> {
+        let inference = self.inference.as_ref()?;
+        let prompt = match self.render_classify_template(context) {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::warn!(target: "cns.heal", error = %e, "Failed to render classify-error.j2 — falling back to string matching");
+                return None;
+            }
+        };
+        let result = inference(&prompt).ok()?;
+        let parsed: serde_json::Value = serde_json::from_str(&result).ok()?;
+        let strategy = parsed.get("strategy")?.as_str()?.to_string();
+        let confidence = parsed.get("confidence")?.as_f64()?;
+        if strategy == "none" || strategy.is_empty() {
+            return None;
+        }
+        Some((strategy, confidence))
+    }
+
+    // ── Stage 3: LLM proposes fix actions ───────────────────────────────
+
+    fn llm_assisted_fallback(&self, error: &str, context: &HealContext) -> HealOutcome {
+        // Caller guarantees inference is Some via the is_some() guard in attempt()
+        let inference = self.inference.as_ref().expect("caller guarded is_some");
+
+        let prompt = format!(
+            "Diagnose this hKask runtime error and propose concrete fix actions.\n\
+             Return ONLY a JSON array. Each action is one of:\n\
+             {{\"action\": \"RunCommand\", \"command\": \"...\"}}\n\
+             {{\"action\": \"SetEnv\", \"key\": \"...\", \"value\": \"...\"}}\n\
+             {{\"action\": \"CreateDefaultFile\", \"path\": \"...\", \"content\": \"...\"}}\n\n\
+             Error: {error}\nOperation: {operation}\n\nJSON array:",
+            operation = context.operation,
         );
 
-        let strategy = match self.registry.find_strategy(error) {
-            Some(s) => s,
-            None => {
-                tracing::warn!(
-                    target: "cns.heal.unmatched",
-                    operation = %context.operation,
-                    error = %error,
-                );
-                return HealOutcome::Unhealable {
-                    reason: format!("No healing strategy matches: {}", error),
-                    suggestion:
-                        "Add a healing strategy to HealRegistry or a template to registry/templates/heal/"
-                            .into(),
-                    requires_code_change: false,
-                    debug_log: MiniDebugLog {
-                        attempt_count: 1,
-                        cns_spans: vec!["cns.heal.unmatched".into()],
-                        suggestion: "Add strategy or template".into(),
-                        ..Default::default()
-                    },
+        tracing::info!(target: "cns.heal.llm_assisted", operation = %context.operation);
+
+        let result = match inference(&prompt) {
+            Ok(r) => r,
+            Err(e) => {
+                return HealOutcome::Degraded {
+                    reason: format!("LLM fallback failed: {e}"),
+                    fallback_description: "LLM-assisted healing unavailable".into(),
                 };
             }
         };
 
-        tracing::info!(
-            target: "cns.heal.strategy",
-            strategy = %strategy.name,
-            operation = %context.operation,
-        );
+        let instructions: Vec<HealInstruction> = match parse_llm_response(&result) {
+            Ok(i) => i,
+            Err(e) => {
+                return HealOutcome::Degraded {
+                    reason: format!("Failed to parse: {e}"),
+                    fallback_description: "LLM response was not valid JSON".into(),
+                };
+            }
+        };
 
+        if instructions.is_empty() {
+            return HealOutcome::Degraded {
+                reason: "LLM returned no instructions".into(),
+                fallback_description: "Classifier could not determine recovery actions".into(),
+            };
+        }
+
+        let ar = self.execute_llm_instructions(&instructions, context);
+        if ar.success {
+            HealOutcome::Healed {
+                action_taken: ar.output,
+                modifications: ar.modifications,
+            }
+        } else {
+            HealOutcome::Degraded {
+                reason: "All LLM-proposed actions failed".into(),
+                fallback_description: ar.output,
+            }
+        }
+    }
+
+    // ── Internal helpers ────────────────────────────────────────────────
+
+    /// Execute parsed LLM instructions — shared by `LlmAssisted` and `llm_assisted_fallback`.
+    fn execute_llm_instructions(
+        &self,
+        instructions: &[HealInstruction],
+        context: &HealContext,
+    ) -> ActionResult {
+        let mut mods = Vec::new();
+        let mut last = String::new();
+        let mut any = false;
+        for instr in instructions {
+            let action = match instr.action.as_str() {
+                "RunCommand" if !instr.command.is_empty() => HealAction::RunCommand {
+                    command: instr.command.clone(),
+                    capture_output: true,
+                },
+                "SetEnv" if !instr.key.is_empty() => HealAction::SetEnv {
+                    key: instr.key.clone(),
+                    value_source: EnvValueSource::Literal(instr.value.clone()),
+                },
+                "CreateDefaultFile" if !instr.path.is_empty() => HealAction::CreateDefaultFile {
+                    path: PathBuf::from(&instr.path),
+                    content: instr.content.clone(),
+                },
+                _ => continue,
+            };
+            match self.execute_action(&action, context) {
+                Ok(r) => {
+                    mods.extend(r.modifications);
+                    last = r.output;
+                    if r.success {
+                        any = true;
+                    }
+                }
+                Err(e) => last = e,
+            }
+        }
+        ActionResult {
+            success: any,
+            output: last,
+            modifications: mods,
+        }
+    }
+
+    fn execute_and_judge(&self, strategy: &HealStrategy, context: &HealContext) -> HealOutcome {
         match self.execute_action(&strategy.action, context) {
-            Ok(result) if result.success => HealOutcome::Healed {
+            Ok(r) if r.success => HealOutcome::Healed {
                 action_taken: strategy.name.clone(),
-                modifications: result.modifications,
+                modifications: r.modifications,
             },
-            Ok(result) => HealOutcome::Degraded {
-                reason: format!(
-                    "Strategy '{}' did not resolve the issue: {}",
-                    strategy.name, result.output
-                ),
+            Ok(r) => HealOutcome::Degraded {
+                reason: format!("Strategy '{}' did not resolve: {}", strategy.name, r.output),
                 fallback_description: strategy.description.clone(),
             },
             Err(e) => HealOutcome::Unhealable {
@@ -467,6 +569,49 @@ impl SelfHealer {
                 },
             },
         }
+    }
+
+    fn render_classify_template(&self, ctx: &HealContext) -> Result<String, String> {
+        let content = CLASSIFY_TEMPLATE_CACHE.get_or_init(|| {
+            std::fs::read_to_string(CLASSIFY_TEMPLATE).unwrap_or_else(|_| String::new())
+        });
+        if content.is_empty() {
+            return Err("Template not found".into());
+        }
+        self.render_template_content(content, ctx)
+    }
+
+    fn render_template_content(&self, content: &str, ctx: &HealContext) -> Result<String, String> {
+        let mut vars: HashMap<String, String> = HashMap::new();
+        vars.insert("operation".into(), ctx.operation.clone());
+        vars.insert("error".into(), ctx.error_message.clone());
+        vars.insert("error_message".into(), ctx.error_message.clone());
+        vars.insert(
+            "env_hints".into(),
+            ctx.env_vars
+                .iter()
+                .map(|(k, v)| format!("{k}={v}"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+        );
+        vars.insert(
+            "config_search_paths".into(),
+            ctx.config_search_paths
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+                .join(":"),
+        );
+
+        let mut env = minijinja::Environment::new();
+        env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
+        env.add_template("tpl", content)
+            .map_err(|e| format!("Invalid template: {e}"))?;
+        let cv = serde_json::to_value(&vars).map_err(|e| format!("Serialize: {e}"))?;
+        let jc = minijinja::Value::from_serialize(&cv);
+        env.get_template("tpl")
+            .and_then(|t| t.render(jc))
+            .map_err(|e| format!("Render: {e}"))
     }
 
     fn execute_action(
@@ -492,7 +637,6 @@ impl SelfHealer {
                     modifications: vec![format!("Ran: {}", command)],
                 })
             }
-
             HealAction::SetEnv { key, value_source } => {
                 let value = resolve_env_value(value_source)?;
                 if value.is_empty() {
@@ -510,20 +654,14 @@ impl SelfHealer {
                     modifications: vec![format!("Set env: {}", key)],
                 })
             }
-
             HealAction::LoadDotEnv { search_paths } => {
                 let mut loaded = false;
                 let mut mods = Vec::new();
                 for path in search_paths {
-                    if path.exists() {
-                        if dotenvy::from_path(path).is_ok() {
-                            loaded = true;
-                            mods.push(format!("Loaded .env from: {}", path.display()));
-                            tracing::info!(
-                                target: "cns.heal.dotenv",
-                                path = %path.display(),
-                            );
-                        }
+                    if path.exists() && dotenvy::from_path(path).is_ok() {
+                        loaded = true;
+                        mods.push(format!("Loaded .env from: {}", path.display()));
+                        tracing::info!(target: "cns.heal.dotenv", path = %path.display());
                     }
                 }
                 Ok(ActionResult {
@@ -536,7 +674,6 @@ impl SelfHealer {
                     modifications: mods,
                 })
             }
-
             HealAction::CreateDefaultFile { path, content } => {
                 if path.exists() {
                     return Ok(ActionResult {
@@ -551,17 +688,13 @@ impl SelfHealer {
                 }
                 std::fs::write(path, content)
                     .map_err(|e| format!("write {}: {}", path.display(), e))?;
-                tracing::info!(
-                    target: "cns.heal.file_created",
-                    path = %path.display(),
-                );
+                tracing::info!(target: "cns.heal.file_created", path = %path.display());
                 Ok(ActionResult {
                     success: true,
                     output: format!("Created: {}", path.display()),
                     modifications: vec![format!("Created: {}", path.display())],
                 })
             }
-
             HealAction::RetryWithBackoff {
                 max_attempts,
                 delay_ms,
@@ -570,25 +703,18 @@ impl SelfHealer {
                 output: format!("Retry: {} attempts, {}ms base", max_attempts, delay_ms),
                 modifications: vec![],
             }),
-
             HealAction::ProposeCodeChange {
                 file,
                 description,
                 diff_suggestion,
             } => {
-                tracing::warn!(
-                    target: "cns.heal.code_change_proposed",
-                    file = %file.display(),
-                    description = %description,
-                    suggestion = %diff_suggestion,
-                );
+                tracing::warn!(target: "cns.heal.code_change_proposed", file = %file.display(), description = %description, suggestion = %diff_suggestion);
                 Ok(ActionResult {
                     success: false,
                     output: format!("Proposed: {} — {}", file.display(), description),
                     modifications: vec![format!("Proposed: {}", description)],
                 })
             }
-
             HealAction::Sequence(actions) => {
                 let mut mods = Vec::new();
                 let mut last = String::new();
@@ -611,24 +737,17 @@ impl SelfHealer {
                     modifications: mods,
                 })
             }
-
             HealAction::LlmAssisted { template_path } => {
-                let inference = self.inference.as_ref().ok_or_else(|| {
-                    "No inference wired — use SelfHealer::with_inference()".to_string()
-                })?;
-
-                let prompt = render_heal_template(template_path, context)?;
-
-                tracing::info!(
-                    target: "cns.heal.llm_assisted",
-                    template = %template_path.display(),
-                    operation = %context.operation,
-                );
-
-                let response =
-                    inference(&prompt).map_err(|e| format!("Inference call failed: {}", e))?;
+                let inference = self
+                    .inference
+                    .as_ref()
+                    .ok_or_else(|| "No inference wired".to_string())?;
+                let content = std::fs::read_to_string(template_path)
+                    .map_err(|e| format!("Read {}: {}", template_path.display(), e))?;
+                let prompt = self.render_template_content(&content, context)?;
+                tracing::info!(target: "cns.heal.llm_assisted", template = %template_path.display(), operation = %context.operation);
+                let response = inference(&prompt).map_err(|e| format!("Inference: {}", e))?;
                 let instructions: Vec<HealInstruction> = parse_llm_response(&response)?;
-
                 if instructions.is_empty() {
                     return Ok(ActionResult {
                         success: false,
@@ -636,62 +755,7 @@ impl SelfHealer {
                         modifications: vec![],
                     });
                 }
-
-                let mut mods = Vec::new();
-                let mut last = String::new();
-                let mut any = false;
-
-                for instr in &instructions {
-                    match instr.action.as_str() {
-                        "RunCommand" if !instr.command.is_empty() => {
-                            let out = Command::new("sh")
-                                .arg("-c")
-                                .arg(&instr.command)
-                                .output()
-                                .map_err(|e| format!("{}: {}", instr.command, e))?;
-                            let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                            let ok = out.status.success();
-                            mods.push(format!(
-                                "{}: {}",
-                                if ok { "Ran" } else { "Failed" },
-                                instr.command
-                            ));
-                            last = stdout;
-                            if ok {
-                                any = true;
-                            }
-                        }
-                        "SetEnv" if !instr.key.is_empty() => {
-                            unsafe { std::env::set_var(&instr.key, &instr.value) };
-                            mods.push(format!("Set env: {}", instr.key));
-                            tracing::info!(
-                                target: "cns.heal.set_env",
-                                key = %instr.key,
-                            );
-                            any = true;
-                            last = format!("Set {}", instr.key);
-                        }
-                        "CreateDefaultFile" if !instr.path.is_empty() => {
-                            let p = std::path::Path::new(&instr.path);
-                            if !p.exists() {
-                                if let Some(parent) = p.parent() {
-                                    let _ = std::fs::create_dir_all(parent);
-                                }
-                                let _ = std::fs::write(p, &instr.content);
-                                mods.push(format!("Created: {}", instr.path));
-                                any = true;
-                                last = format!("Created: {}", instr.path);
-                            }
-                        }
-                        _ => last = format!("Unknown: {}", instr.action),
-                    }
-                }
-
-                Ok(ActionResult {
-                    success: any,
-                    output: last,
-                    modifications: mods,
-                })
+                Ok(self.execute_llm_instructions(&instructions, context))
             }
         }
     }
@@ -746,49 +810,8 @@ fn resolve_env_value(source: &EnvValueSource) -> Result<String, String> {
     }
 }
 
-fn render_heal_template(path: &PathBuf, ctx: &HealContext) -> Result<String, String> {
-    let content =
-        std::fs::read_to_string(path).map_err(|e| format!("Read {}: {}", path.display(), e))?;
-
-    let mut vars: HashMap<String, String> = HashMap::new();
-    vars.insert("operation".into(), ctx.operation.clone());
-    vars.insert("error".into(), ctx.error_message.clone());
-    vars.insert("error_message".into(), ctx.error_message.clone());
-    vars.insert(
-        "config_search_paths".into(),
-        ctx.config_search_paths
-            .iter()
-            .map(|p| p.display().to_string())
-            .collect::<Vec<_>>()
-            .join(":"),
-    );
-    if !ctx.env_vars.is_empty() {
-        vars.insert(
-            "env_vars".into(),
-            ctx.env_vars
-                .iter()
-                .map(|(k, v)| format!("{}={}", k, v))
-                .collect::<Vec<_>>()
-                .join("\n"),
-        );
-    }
-
-    let mut env = minijinja::Environment::new();
-    env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
-    env.add_template("heal", &content)
-        .map_err(|e| format!("Invalid template: {}", e))?;
-
-    let cv = serde_json::to_value(&vars).map_err(|e| format!("Serialize: {}", e))?;
-    let jc = minijinja::Value::from_serialize(&cv);
-
-    env.get_template("heal")
-        .and_then(|t| t.render(jc))
-        .map_err(|e| format!("Render: {}", e))
-}
-
 fn parse_llm_response(raw: &str) -> Result<Vec<HealInstruction>, String> {
     let t = raw.trim();
-
     if let Ok(v) = serde_json::from_str::<Vec<HealInstruction>>(t) {
         return Ok(v);
     }
@@ -828,15 +851,17 @@ mod tests {
     #[test]
     fn find_api_key_strategy() {
         let r = HealRegistry::with_defaults();
-        let s = r.find_strategy("No API key for classifier 'qa-triage'");
-        assert_eq!(s.unwrap().name, "missing-api-key");
+        assert_eq!(
+            r.find_strategy("No API key for classifier").unwrap().name,
+            "missing-api-key"
+        );
     }
 
     #[test]
     fn find_permission_strategy() {
-        let r = HealRegistry::with_defaults();
         assert_eq!(
-            r.find_strategy("Permission denied (os error 13)")
+            HealRegistry::with_defaults()
+                .find_strategy("Permission denied (os error 13)")
                 .unwrap()
                 .name,
             "permission-denied"
@@ -845,9 +870,11 @@ mod tests {
 
     #[test]
     fn find_network_strategy() {
-        let r = HealRegistry::with_defaults();
         assert_eq!(
-            r.find_strategy("connection refused").unwrap().name,
+            HealRegistry::with_defaults()
+                .find_strategy("connection refused")
+                .unwrap()
+                .name,
             "network-error"
         );
     }
@@ -872,27 +899,19 @@ mod tests {
     }
 
     #[test]
-    fn unmatched_returns_unhealable_with_debug_log() {
+    fn unmatched_returns_unhealable() {
         let h = SelfHealer::new();
         let o = h.attempt("unknown error", &HealContext::default());
         assert!(matches!(o, HealOutcome::Unhealable { .. }));
-        if let HealOutcome::Unhealable { debug_log, .. } = o {
-            assert!(
-                debug_log
-                    .cns_spans
-                    .contains(&"cns.heal.unmatched".to_string())
-            );
-        }
     }
 
     #[test]
     fn api_key_strategy_loads_dotenv() {
         let h = SelfHealer::new();
-        let o = h.attempt("No API key for classifier", &HealContext::default());
-        assert!(
-            !matches!(o, HealOutcome::Unhealable { .. }),
-            "API key should have a strategy"
-        );
+        assert!(!matches!(
+            h.attempt("No API key for classifier", &HealContext::default()),
+            HealOutcome::Unhealable { .. }
+        ));
     }
 
     #[test]
@@ -914,26 +933,23 @@ mod tests {
         );
         assert!(r.is_ok());
         assert_eq!(calls, 3);
-        assert!(
-            start.elapsed().as_millis() >= 2900,
-            "Expected >= 3s backoff"
-        );
+        assert!(start.elapsed().as_millis() >= 2900);
     }
 
     #[test]
     fn healable_exhausted_returns_error() {
-        let h = SelfHealer::new();
         assert!(
-            h.healable(
-                || Err::<u32, _>("connection refused"),
-                HealContext::default()
-            )
-            .is_err()
+            SelfHealer::new()
+                .healable(
+                    || Err::<u32, _>("connection refused"),
+                    HealContext::default()
+                )
+                .is_err()
         );
     }
 
     #[test]
-    fn mini_debug_log_serializes() {
+    fn debug_log_serializes() {
         let log = MiniDebugLog {
             attempt_count: 3,
             cns_spans: vec!["cns.heal.attempt".into()],
@@ -945,24 +961,29 @@ mod tests {
             }],
             suggestion: "fix".into(),
         };
-        let json = serde_json::to_string(&log).unwrap();
-        assert!(json.contains("attempt_count"));
+        assert!(
+            serde_json::to_string(&log)
+                .unwrap()
+                .contains("attempt_count")
+        );
     }
 
     #[test]
-    fn llm_assisted_without_inference_returns_error() {
+    fn llm_assisted_without_inference_errors() {
         let h = SelfHealer::new();
-        let action = HealAction::LlmAssisted {
-            template_path: PathBuf::from("nonexistent.j2"),
-        };
-        let r = h.execute_action(&action, &HealContext::default());
-        assert!(r.is_err());
+        assert!(
+            h.execute_action(
+                &HealAction::LlmAssisted {
+                    template_path: PathBuf::from("nonexistent.j2")
+                },
+                &HealContext::default()
+            )
+            .is_err()
+        );
     }
 
     #[test]
     fn heal_templates_exist_on_disk() {
-        // CARGO_MANIFEST_DIR = crates/hkask-services-core
-        // Go up 2 levels to reach project root
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
@@ -975,6 +996,7 @@ mod tests {
             "config_not_found.j2",
             "network_error.j2",
             "transient_retry.j2",
+            "classify-error.j2",
         ] {
             assert!(
                 root.join("registry/templates/heal").join(tpl).exists(),

@@ -270,6 +270,8 @@ impl CnsState {
 pub struct CnsRuntime {
     state: Arc<RwLock<CnsState>>,
     subscribers: Arc<RwLock<Vec<Arc<dyn CnsObserver>>>>,
+    /// Optional heal callback: (error_string, operation_name).
+    heal_error_cb: Option<Arc<dyn Fn(&str, &str) + Send + Sync>>,
 }
 
 impl CnsRuntime {
@@ -284,7 +286,14 @@ impl CnsRuntime {
         Self {
             state: Arc::new(RwLock::new(CnsState::new(threshold))),
             subscribers: Arc::new(RwLock::new(Vec::new())),
+            heal_error_cb: None,
         }
+    }
+
+    /// Attach a self-healing callback for automatic error recovery on depletion.
+    pub fn with_heal_cb(mut self, cb: Arc<dyn Fn(&str, &str) + Send + Sync>) -> Self {
+        self.heal_error_cb = Some(cb);
+        self
     }
 
     // ── Health & Alerts ──
@@ -750,6 +759,16 @@ async fn emit_critical_depletion(runtime: &CnsRuntime, alert: &crate::algedonic:
             1.0
         },
     };
+
+    // Attempt self-healing before broadcasting to observers
+    if let Some(ref cb) = runtime.heal_error_cb {
+        let msg = format!(
+            "CNS variety depletion: deficit={} threshold={} usage_ratio={:.2}",
+            alert.deficit, alert.threshold, signal.usage_ratio
+        );
+        cb(&msg, "cns.depletion");
+    }
+
     let subscribers = runtime.subscribers.read().await;
     for observer in subscribers.iter() {
         observer.on_depletion(&signal).await;

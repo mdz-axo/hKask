@@ -134,7 +134,9 @@ impl ApiKeyIssuer {
             issued_at,
             privacy_mode,
             preferred_chain,
-        };
+            privacy_mode: PrivacyMode::default(),
+    preferred_chain: None,
+};
 
         // Sign the capability with the wallet's Ed25519 key
         let _signature = signing::sign_capability(&capability)?;
