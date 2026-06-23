@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use hkask_ports::federation::{
     FederatedTriple, FederationSyncError, FederationSyncPort, ReplicaId,
 };
-use hkask_storage::{Triple, TripleStore};
+use hkask_storage::TripleStore;
 use hkask_types::Visibility;
 use hkask_types::id::PodID;
 
@@ -42,9 +42,6 @@ impl FederationSyncPort for SemanticIndexSyncPort {
             .index
             .lock()
             .map_err(|e| FederationSyncError::Storage(e.to_string()))?;
-        // Use TripleStore's query_by_entity with a wildcard-like approach.
-        // For cursor-based incremental sync, we query all active public triples
-        // and filter by rowid in the adapter layer.
         let all = index.store.clone().query_by_entity("%").unwrap_or_default();
 
         let results: Vec<FederatedTriple> = all
@@ -60,31 +57,6 @@ impl FederationSyncPort for SemanticIndexSyncPort {
             })
             .collect();
         Ok(results)
-    }
-
-    fn insert_federated(
-        &self,
-        triple: &FederatedTriple,
-        source: &ReplicaId,
-    ) -> Result<(), FederationSyncError> {
-        let mut index = self
-            .index
-            .lock()
-            .map_err(|e| FederationSyncError::Storage(e.to_string()))?;
-        let pod_id = Self::replica_to_pod(source);
-        let owner = hkask_types::WebID::from_uuid(pod_id.as_uuid());
-        let t = Triple::new(
-            &triple.entity,
-            &triple.attribute,
-            triple.value.clone(),
-            owner,
-        )
-        .with_confidence(triple.confidence)
-        .with_visibility(Visibility::Public);
-        index
-            .insert(&t, pod_id)
-            .map_err(|e| FederationSyncError::Storage(e.to_string()))?;
-        Ok(())
     }
 
     fn cursor_for(&self, source: &ReplicaId) -> u64 {

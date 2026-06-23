@@ -14,9 +14,7 @@ use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 
 use crate::ReplicaId;
-use crate::sync::invitation_policy::{
-    InvitationDecision, InvitationPolicy, ManualInvitationPolicy,
-};
+use crate::sync::invitation_policy::{InvitationPolicy, ManualInvitationPolicy};
 use crate::sync::link::{FederationLink, LinkError, LinkState};
 
 /// Manages federation link lifecycle.
@@ -48,18 +46,6 @@ impl FederationLinkManager {
     pub fn with_policy(mut self, policy: Box<dyn InvitationPolicy>) -> Self {
         self.invitation_policy = policy;
         self
-    }
-
-    /// Process an incoming federation invitation — consult policy for decision.
-    /// Called by FederationSync when an InvitationRequest is received.
-    pub fn process_incoming_invitation(
-        &self,
-        from_replica: &ReplicaId,
-        server_domain: &str,
-        message: Option<&str>,
-    ) -> InvitationDecision {
-        self.invitation_policy
-            .evaluate(from_replica, server_domain, message)
     }
 
     /// Register a peer that may later be invited or linked.

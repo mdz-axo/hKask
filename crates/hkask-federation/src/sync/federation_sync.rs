@@ -1,9 +1,9 @@
 //! FederationSync — background CRDT sync loop for cross-server convergence.
 //!
 //! Uses RwLock-wrapped ORSet for interior mutability in async context.
-//! Emits CNS spans for merge events and degradation detection.
+//! Queries FederationLinkManager for linked peers each tick.
+//! Emits CNS spans for merge events.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -17,27 +17,21 @@ use tokio::sync::{RwLock, watch};
 
 use crate::ReplicaId;
 use crate::crdt::{FederationTripleKey, ORSet};
+use crate::sync::FederationLinkManager;
 use crate::sync::health_model::FederationHealthModel;
 use crate::sync::payload_store::TriplePayloadStore;
 
-const MAX_SYNC_FAILURES: u64 = 3;
-
 pub struct FederationSync {
-    #[allow(dead_code)]
     local_replica: ReplicaId,
     semantic_set: RwLock<ORSet<FederationTripleKey>>,
     payload_store: RwLock<TriplePayloadStore>,
     transport: Arc<dyn FederationTransport>,
     sync_port: Arc<dyn FederationSyncPort>,
-    peers: RwLock<HashMap<ReplicaId, PeerState>>,
+    /// Link manager — queried for linked peers each tick.
+    link_manager: Arc<FederationLinkManager>,
     interval: Duration,
     event_sink: Arc<dyn NuEventSink>,
-    /// Federation health model — tracks sync latency, merge frequency, member count.
     health: RwLock<FederationHealthModel>,
-}
-
-struct PeerState {
-    consecutive_failures: u64,
 }
 
 impl FederationSync {
@@ -45,6 +39,7 @@ impl FederationSync {
         local_replica: ReplicaId,
         transport: Arc<dyn FederationTransport>,
         sync_port: Arc<dyn FederationSyncPort>,
+        link_manager: Arc<FederationLinkManager>,
         event_sink: Arc<dyn NuEventSink>,
     ) -> Self {
         Self {
@@ -53,25 +48,11 @@ impl FederationSync {
             local_replica,
             transport,
             sync_port,
-            peers: RwLock::new(HashMap::new()),
+            link_manager,
             interval: Duration::from_secs(5),
             event_sink,
             health: RwLock::new(FederationHealthModel::new()),
         }
-    }
-
-    pub fn with_interval(mut self, interval: Duration) -> Self {
-        self.interval = interval;
-        self
-    }
-
-    pub async fn add_peer(&self, peer: ReplicaId) {
-        self.peers.write().await.insert(
-            peer,
-            PeerState {
-                consecutive_failures: 0,
-            },
-        );
     }
 
     pub async fn run(&self, mut cancel: watch::Receiver<bool>) {
@@ -122,10 +103,10 @@ impl FederationSync {
                 .advance_cursor(&self.local_replica, cursor + local_added);
         }
 
-        // 2. Sync with each peer
-        let peers: Vec<ReplicaId> = self.peers.read().await.keys().cloned().collect();
+        // 2. Sync with linked peers from the link manager
+        let peers = self.link_manager.linked_peers().await;
         for peer in &peers {
-            let vv: HashMap<String, u64> = self
+            let vv: std::collections::HashMap<String, u64> = self
                 .semantic_set
                 .read()
                 .await
@@ -148,23 +129,18 @@ impl FederationSync {
                             CnsSpan::FederationCrdtMerge,
                             json!({"from": peer, "triples_added": deltas.triples_added, "latency_ms": latency}),
                         );
-                        // Feed health model
                         {
                             let mut health = self.health.write().await;
                             health.observe_latency(latency);
                             health.observe_merge(deltas.triples_added);
                             health.observe_member_count(peers.len());
                         }
-                        // Reset failure counter
-                        if let Some(state) = self.peers.write().await.get_mut(peer) {
-                            state.consecutive_failures = 0;
-                        }
                     }
                     Ok((from, FederationMessage::InvitationRequest { .. })) => {
                         tracing::info!(
                             target: "cns.federation.sync",
                             from_replica = %from,
-                            "Received federation invitation — awaiting Curator review"
+                            "Received federation invitation"
                         );
                     }
                     Ok((from, FederationMessage::InvitationResponse { accepted, .. })) => {
@@ -172,13 +148,17 @@ impl FederationSync {
                             target: "cns.federation.sync",
                             from_replica = %from,
                             accepted = accepted,
-                            "Received federation invitation response"
+                            "Received invitation response"
                         );
                     }
                     Ok(_) => {}
-                    Err(_) => self.handle_sync_failure(peer).await,
+                    Err(e) => {
+                        tracing::warn!(target: "cns.federation.sync", peer = %peer, error = %e, "sync recv failed");
+                    }
                 },
-                Err(_) => self.handle_sync_failure(peer).await,
+                Err(e) => {
+                    tracing::warn!(target: "cns.federation.sync", peer = %peer, error = %e, "sync send failed");
+                }
             }
         }
 
@@ -198,19 +178,6 @@ impl FederationSync {
                 t.value.clone(),
                 hkask_types::WebID::from_persona(b"fed"),
             ));
-        }
-    }
-
-    async fn handle_sync_failure(&self, peer: &ReplicaId) {
-        let mut peers = self.peers.write().await;
-        if let Some(state) = peers.get_mut(peer) {
-            state.consecutive_failures += 1;
-            if state.consecutive_failures >= MAX_SYNC_FAILURES {
-                self.emit_cns(
-                    CnsSpan::FederationLinkDegraded,
-                    json!({"peer": peer, "failed_attempts": state.consecutive_failures}),
-                );
-            }
         }
     }
 

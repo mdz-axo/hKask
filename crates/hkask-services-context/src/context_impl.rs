@@ -987,12 +987,13 @@ async fn build_loops(
                 &InMemoryFederationTransport::new(),
                 local_replica.clone(),
             ));
-        let link_manager: Arc<dyn FederationDispatch> = Arc::new(FederationLinkManager::new(
+        let link_manager = Arc::new(FederationLinkManager::new(
             local_replica.clone(),
             Arc::clone(&transport),
             Arc::clone(&f.cns_event_sink),
         ));
-        // Build FederationSync with SemanticIndexSyncPort and health model
+        let dispatch: Arc<dyn FederationDispatch> = link_manager.clone();
+        // Build FederationSync with SemanticIndexSyncPort
         let triple_store = TripleStore::new(Arc::clone(&mem_conn));
         let semantic_index = Arc::new(std::sync::Mutex::new(SemanticIndex::new(triple_store)));
         let sync_port: Arc<dyn FederationSyncPort> =
@@ -1001,15 +1002,16 @@ async fn build_loops(
             local_replica.clone(),
             Arc::clone(&transport),
             sync_port,
+            link_manager,
             Arc::clone(&f.cns_event_sink),
         ));
         // Spawn background sync loop
         let (fed_cancel_tx, fed_cancel_rx) = tokio::sync::watch::channel(false);
         let fed_sync_clone: Arc<FederationSync> = Arc::clone(&fed_sync);
         tokio::spawn(async move { fed_sync_clone.run(fed_cancel_rx).await });
-        drop(fed_cancel_tx); // Not used for now — cancel on drop would require storage
+        drop(fed_cancel_tx);
         tracing::info!(target: "cns.federation.sync", replica = %local_replica, "Federation sync loop started");
-        Some(link_manager)
+        Some(dispatch)
     } else {
         None
     };

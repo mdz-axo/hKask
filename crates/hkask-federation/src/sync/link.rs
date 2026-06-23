@@ -43,7 +43,6 @@ pub enum LinkState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RevocationScope {
     SingleMember,
-    FederationDissolved,
     VoluntaryDeparture,
 }
 
@@ -131,8 +130,6 @@ pub enum LinkError {
     InvalidTransition { from: String, to: String },
     #[error("peer not found: {0}")]
     PeerNotFound(ReplicaId),
-    #[error("link error: {0}")]
-    Other(String),
 }
 
 #[cfg(test)]

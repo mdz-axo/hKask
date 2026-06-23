@@ -45,8 +45,6 @@ pub enum FederationMessage {
 pub struct FederationDelta {
     pub triples: Vec<FederatedTriple>,
     pub triples_added: u64,
-    pub triples_removed: u64,
-    pub latency_ms: u64,
 }
 
 #[async_trait::async_trait]
@@ -63,8 +61,6 @@ pub trait FederationTransport: Send + Sync {
 
 #[derive(Debug, thiserror::Error)]
 pub enum FederationTransportError {
-    #[error("peer not found: {0}")]
-    PeerNotFound(ReplicaId),
     #[error("peer partitioned: {0}")]
     PeerPartitioned(ReplicaId),
     #[error("transport error: {0}")]
@@ -77,11 +73,6 @@ pub trait FederationSyncPort: Send + Sync {
         cursor: u64,
         limit: usize,
     ) -> Result<Vec<FederatedTriple>, FederationSyncError>;
-    fn insert_federated(
-        &self,
-        triple: &FederatedTriple,
-        source: &ReplicaId,
-    ) -> Result<(), FederationSyncError>;
     fn cursor_for(&self, source: &ReplicaId) -> u64;
     fn advance_cursor(&self, source: &ReplicaId, cursor: u64);
 }
@@ -90,8 +81,6 @@ pub trait FederationSyncPort: Send + Sync {
 pub enum FederationSyncError {
     #[error("storage error: {0}")]
     Storage(String),
-    #[error("not found")]
-    NotFound,
 }
 
 /// Trait for dispatching federation lifecycle operations.
