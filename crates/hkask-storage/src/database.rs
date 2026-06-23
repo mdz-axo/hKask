@@ -210,6 +210,11 @@ impl Database {
         let schema = include_str!("sql/schema.sql");
         let dim = embedding_dim();
         conn.execute_batch(&schema.replace("$DIM", &dim.to_string()))?;
+        // Migration: add recalled_at column for existing databases
+        conn.execute_batch(
+            "ALTER TABLE triples ADD COLUMN recalled_at TEXT NOT NULL DEFAULT (datetime('now'));",
+        )
+        .ok(); // Ignore error if column already exists
         Ok(())
     }
     /// Get database connection for shared access

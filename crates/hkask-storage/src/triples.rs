@@ -26,6 +26,9 @@ pub struct Triple {
     pub temporal: TemporalBounds,
     pub confidence: Confidence,
     pub access: AccessControl,
+    /// Last time this triple was recalled. Starts at creation time.
+    /// Updated on each recall — resets the decay clock.
+    pub recalled_at: DateTime<Utc>,
 }
 impl Triple {
     /// Create a new Triple with required fields.
@@ -36,6 +39,7 @@ impl Triple {
     /// pre:  entity and attribute are non-empty, owner_webid is valid
     /// post: returns Triple with defaults for temporal, confidence, access
     pub fn new(entity: &str, attribute: &str, value: Value, owner_webid: WebID) -> Self {
+        let now = Utc::now();
         Self {
             id: TripleID::new(),
             entity: entity.to_string(),
@@ -44,6 +48,7 @@ impl Triple {
             temporal: TemporalBounds::now(),
             confidence: Confidence::full(),
             access: AccessControl::new(owner_webid),
+            recalled_at: now,
         }
     }
     /// Set confidence on a Triple.
@@ -91,7 +96,7 @@ impl Triple {
     }
 }
 define_store!(TripleStore);
-const TRIPLE_COLUMNS: &str = "id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid";
+const TRIPLE_COLUMNS: &str = "id, entity, attribute, value, valid_from, valid_to, recalled_at, confidence, perspective, visibility, owner_webid";
 impl TripleStore {
     /// Insert a triple into the store.
     ///
@@ -275,8 +280,6 @@ impl TripleStore {
         let mut stmt = conn.prepare(&format!(
             "SELECT {TRIPLE_COLUMNS} FROM triples WHERE id = ?1 AND valid_to IS NULL"
         ))?;
-        // Use strict collection: a corrupt row on a primary-key lookup is an error,
-        // not graceful degradation.
         let triples = collect_rows_strict!(
             stmt,
             rusqlite::params![id],
@@ -284,6 +287,24 @@ impl TripleStore {
             Self::row_to_triple
         );
         Ok(triples.into_iter().next())
+    }
+
+    /// Refresh a triple's valid_from timestamp to now — resets the decay clock.
+    ///
+    /// Called on recall so that actively-used memories don't decay.
+    /// Unused memories continue their natural decay toward the 9-month half-life.
+    ///
+    /// expect: "The system provides durable storage for triple data"
+    /// pre:  id is a valid, non-expired triple ID
+    /// post: triple's valid_from updated to current time
+    pub fn refresh_timestamp(&self, id: &TripleID) -> Result<(), TripleError> {
+        let conn = self.lock_conn()?;
+        let now = now_rfc3339();
+        conn.execute(
+            "UPDATE triples SET valid_from = ?1 WHERE id = ?2 AND valid_to IS NULL",
+            rusqlite::params![now, id],
+        )?;
+        Ok(())
     }
     /// Semantic triples with lowest confidence, ordered ASC. Used by consolidation.
     /// Query lowest-confidence semantic triples.

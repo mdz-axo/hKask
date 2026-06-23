@@ -77,6 +77,14 @@ impl EpisodicMemory {
         self
     }
 
+    /// Override the decay half-life (in seconds). Computes λ = ln(2) / half_life.
+    ///
+    /// Default is 6 months. Set via ServiceConfig.decay_half_life_months.
+    pub fn with_decay_half_life_secs(mut self, half_life_secs: f64) -> Self {
+        self.decay_rate = std::f64::consts::LN_2 / half_life_secs;
+        self
+    }
+
     /// Access the CNS event sink for loop-level NuEvent emission.
     pub(crate) fn event_sink(&self) -> Option<&Arc<dyn NuEventSink>> {
         self.event_sink.as_ref()
@@ -172,7 +180,15 @@ impl EpisodicMemory {
         // Sort by recency (most recent first) — temporal attention (2a.2)
         filtered.sort_by(|a, b| b.temporal.valid_from.cmp(&a.temporal.valid_from));
 
-        Ok(recall_dedup::dedup_triples(filtered))
+        let deduped = recall_dedup::dedup_triples(filtered);
+
+        // Refresh timestamps on recalled triples — resets the decay clock.
+        // Memory that gets used stays fresh; memory that doesn't decays.
+        for t in &deduped {
+            let _ = self.triple_store.refresh_timestamp(&t.id);
+        }
+
+        Ok(deduped)
     }
 
     // Query — all episodic memories

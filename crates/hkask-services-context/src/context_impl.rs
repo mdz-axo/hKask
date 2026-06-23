@@ -913,8 +913,12 @@ async fn build_loops(
             .conn_arc()
     };
     let triple_store = TripleStore::new(Arc::clone(&mem_conn));
-    let episodic_memory =
-        Arc::new(EpisodicMemory::new(triple_store).with_cns(Arc::clone(&f.cns_event_sink)));
+    let half_life_secs = config.decay_half_life_months * 30.0 * 24.0 * 3600.0;
+    let episodic_memory = Arc::new(
+        EpisodicMemory::new(triple_store)
+            .with_decay_half_life_secs(half_life_secs)
+            .with_cns(Arc::clone(&f.cns_event_sink)),
+    );
     let storage_budget = episodic_memory.storage_budget();
     let episodic_loop =
         EpisodicLoop::new(Arc::clone(&episodic_memory), system_webid, storage_budget);

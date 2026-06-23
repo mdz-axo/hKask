@@ -3,12 +3,11 @@
 //! Constants for episodic and semantic memory subloops.
 //! Confidence decay is handled by `Confidence::decay()` (hkask-types).
 
-/// Default half-life for episodic confidence decay (3 months in seconds).
+/// Default half-life for episodic confidence decay (6 months in seconds).
 ///
 /// After this duration, a triple's recall-time confidence has decayed to
-/// half its stored value. Set to 3 months so that recently-learned knowledge
-/// remains strong while stale knowledge gradually fades over months.
-pub const DEFAULT_DECAY_HALF_LIFE_SECS: f64 = 90.0 * 24.0 * 3600.0; // 3 months
+/// half its stored value. Overridable via ServiceConfig.decay_half_life_months.
+pub const DEFAULT_DECAY_HALF_LIFE_SECS: f64 = 6.0 * 30.0 * 24.0 * 3600.0; // 6 months
 
 /// Default decay rate derived from half-life: λ = ln(2) / half_life.
 ///

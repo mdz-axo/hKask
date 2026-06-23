@@ -109,6 +109,13 @@ pub struct ServiceConfig {
 
     /// Wallet configuration for rJoule payments and multi-chain deposits.
     pub wallet_config: WalletConfig,
+
+    /// Episodic memory decay half-life in months.
+    ///
+    /// After this many months without recall, a triple's confidence decays
+    /// to 50%. Recalling a memory resets its decay clock. Default: 6.
+    /// Override via HKASK_DECAY_HALF_LIFE_MONTHS env var.
+    pub decay_half_life_months: f64,
 }
 
 impl ServiceConfig {
@@ -158,6 +165,11 @@ impl ServiceConfig {
             })?
             .to_vec();
 
+        let decay_half_life_months = std::env::var("HKASK_DECAY_HALF_LIFE_MONTHS")
+            .ok()
+            .and_then(|v| v.parse::<f64>().ok())
+            .unwrap_or(6.0);
+
         Ok(Self {
             db_path,
             db_passphrase,
@@ -175,6 +187,7 @@ impl ServiceConfig {
             memory_passphrase: None,
             registry_yaml_path,
             wallet_config: WalletConfig::default(),
+            decay_half_life_months,
         })
     }
 
@@ -201,6 +214,10 @@ impl ServiceConfig {
         let registry_yaml_path = std::path::PathBuf::from(
             std::env::var("HKASK_REGISTRY_PATH").unwrap_or_else(|_| "registry/bots".to_string()),
         );
+        let decay_half_life_months = std::env::var("HKASK_DECAY_HALF_LIFE_MONTHS")
+            .ok()
+            .and_then(|v| v.parse::<f64>().ok())
+            .unwrap_or(6.0);
 
         Self {
             db_path,
@@ -219,6 +236,7 @@ impl ServiceConfig {
             memory_passphrase: None,
             registry_yaml_path,
             wallet_config: WalletConfig::default(),
+            decay_half_life_months,
         }
     }
 
@@ -248,6 +266,7 @@ impl ServiceConfig {
             memory_passphrase: None,
             registry_yaml_path: std::path::PathBuf::from("registry/bots"),
             wallet_config: WalletConfig::default(),
+            decay_half_life_months: 6.0,
         }
     }
 
