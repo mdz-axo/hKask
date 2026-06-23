@@ -306,6 +306,15 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
             println!("  Artifacts:       {}", report.artifact_count);
             println!("  Timestamp:       {}", report.timestamp);
             println!("\nTo undo this revert, restore from safety snapshot.");
+            println!(
+                "\n⚠️  Pod '{}' is still running with pre-revert state.",
+                name
+            );
+            println!("   Restart the pod to apply the restored database:");
+            println!(
+                "   kask pod deactivate {} && kask pod activate {}",
+                name, name
+            );
         }
         crate::cli::AgentAction::SpawnAgent {
             source,

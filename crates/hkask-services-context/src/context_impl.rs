@@ -29,6 +29,8 @@ use tokio::sync::RwLock;
 use hkask_agents::CuratorContext;
 use hkask_agents::LoopSystem;
 use hkask_agents::consent::ConsentManager;
+use hkask_agents::curator::SemanticIndex;
+use hkask_agents::curator::sync_port::SemanticIndexSyncPort;
 use hkask_agents::curator_agent::CuratorAgent;
 use hkask_agents::loop_system::CyberneticsLoopHandle;
 use hkask_agents::pod::ActivePods;
@@ -41,6 +43,9 @@ use hkask_cns::{
     CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, GovernedTool,
     SeamWatcher, SnapshotLoop, load_set_points,
 };
+use hkask_federation::sync::FederationLinkManager;
+use hkask_federation::sync::FederationSync;
+use hkask_federation::sync::transport::InMemoryFederationTransport;
 use hkask_mcp::McpDispatcher;
 use hkask_mcp::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
@@ -48,6 +53,7 @@ use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
 use hkask_ports::InferencePort;
+use hkask_ports::federation::{FederationDispatch, FederationSyncPort};
 use hkask_ports::git_cas::GitCASPort;
 use hkask_storage::EscalationQueue;
 use hkask_storage::goals::SqliteGoalRepository;
@@ -197,6 +203,9 @@ pub struct AgentService {
 
     /// Wallet gas calibrator — runtime calibration of gas→rJoule conversion rate.
     wallet_gas_calibrator: Option<Arc<hkask_cns::WalletGasCalibrator>>,
+
+    /// Federation link manager — set when federation is enabled.
+    federation_link_manager: Option<Arc<dyn FederationDispatch>>,
 }
 
 /// Per-agent memory infrastructure — storage ports and ConsolidationService
@@ -491,6 +500,15 @@ impl AgentService {
         &self.daemon_handler
     }
 
+    /// Access the federation dispatch port, if federation is enabled.
+    ///
+    /// Returns None if federation is not configured or disabled.
+    ///
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence
+    pub fn federation_dispatch(&self) -> Option<&Arc<dyn FederationDispatch>> {
+        self.federation_link_manager.as_ref()
+    }
+
     /// Access the shared Matrix transport, if connected.
     ///
     /// Returns `None` if Matrix is not configured or Conduit is unreachable.
@@ -654,6 +672,7 @@ impl AgentService {
             wallet_service: reg_wallet.wallet_service,
             wallet_store: reg_wallet.wallet_store,
             wallet_gas_calibrator: reg_wallet.wallet_gas_calibrator,
+            federation_link_manager: loops.federation_link_manager,
         })
     }
 }
@@ -827,6 +846,8 @@ struct Loops {
     semantic_storage: Arc<dyn SemanticStoragePort>,
     tool_consumption_tx: tokio::sync::mpsc::UnboundedSender<ToolConsumptionEvent>,
     a2a_runtime: Arc<hkask_agents::A2ARuntime>,
+    /// Federation link manager — set when federation is enabled.
+    federation_link_manager: Option<Arc<dyn FederationDispatch>>,
 }
 
 async fn build_loops(
@@ -953,6 +974,55 @@ async fn build_loops(
     let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
     loop_system.register_loop(curation_loop).await;
 
+    // ── Federation (opt-in via HKASK_FEDERATION_ENABLED=1) ─────────────
+    let federation_link_manager: Option<Arc<dyn FederationDispatch>> = if std::env::var(
+        "HKASK_FEDERATION_ENABLED",
+    )
+    .as_deref()
+        == Ok("1")
+    {
+        let local_replica = system_webid.to_string();
+        let transport: Arc<dyn hkask_ports::federation::FederationTransport> =
+            Arc::new(InMemoryFederationTransport::for_replica(
+                &InMemoryFederationTransport::new(),
+                local_replica.clone(),
+            ));
+        let link_manager: Arc<dyn FederationDispatch> = Arc::new(FederationLinkManager::new(
+            local_replica.clone(),
+            Arc::clone(&transport),
+            Arc::clone(&f.cns_event_sink),
+        ));
+        // Build FederationSync with SemanticIndexSyncPort and health model
+        let triple_store = TripleStore::new(Arc::clone(&mem_conn));
+        let semantic_index = Arc::new(std::sync::Mutex::new(SemanticIndex::new(triple_store)));
+        let sync_port: Arc<dyn FederationSyncPort> =
+            Arc::new(SemanticIndexSyncPort::new(Arc::clone(&semantic_index)));
+        let fed_sync = Arc::new(FederationSync::new(
+            local_replica.clone(),
+            Arc::clone(&transport),
+            sync_port,
+            Arc::clone(&f.cns_event_sink),
+        ));
+        // Spawn background sync loop
+        let (fed_cancel_tx, fed_cancel_rx) = tokio::sync::watch::channel(false);
+        let fed_sync_clone: Arc<FederationSync> = Arc::clone(&fed_sync);
+        tokio::spawn(async move { fed_sync_clone.run(fed_cancel_rx).await });
+        drop(fed_cancel_tx); // Not used for now — cancel on drop would require storage
+        tracing::info!(target: "cns.federation.sync", replica = %local_replica, "Federation sync loop started");
+        Some(link_manager)
+    } else {
+        None
+    };
+
+    // ── Federation end ─────────────────────────────────────────────────
+
+    // Wire federation dispatcher into CuratorAgent if present.
+    // The CLI path uses federation_dispatch() directly; this enables
+    // the internal directive dispatch path (CurationLoop → CuratorAgent).
+    if let Some(ref lm) = federation_link_manager {
+        let _ = curator_agent.with_federation(Arc::clone(lm));
+    }
+
     // Snapshot + Backup loops
     let git_cas_port: Arc<dyn GitCASPort> = match hkask_mcp::GixCasAdapter::from_env() {
         Ok(adapter) => Arc::new(adapter),
@@ -985,6 +1055,7 @@ async fn build_loops(
         semantic_storage,
         tool_consumption_tx,
         a2a_runtime,
+        federation_link_manager,
     })
 }
 
@@ -1080,6 +1151,7 @@ async fn build_mcp_and_pods(
     l.backup_loop.add_producer(Arc::new(PodBackupProducer {
         pod_manager: Arc::clone(&pod_manager),
     }));
+    l.backup_loop.add_producer(Arc::new(ConfigProducer));
 
     // Start CuratorPod + CuratorSync (semantic aggregation loop).
     // Runs as a background task for the lifetime of the service.
@@ -1206,6 +1278,37 @@ impl ArtifactProducer for PodBackupProducer {
         }
 
         Ok(count)
+    }
+}
+
+/// Produces backup configuration as a Settings artifact — self-backup.
+struct ConfigProducer;
+
+#[async_trait]
+impl ArtifactProducer for ConfigProducer {
+    fn artifact_types(&self) -> &[ArtifactType] {
+        &[ArtifactType::Settings]
+    }
+
+    async fn produce(
+        &self,
+        cas: &dyn hkask_ports::git_cas::GitCASPort,
+    ) -> Result<usize, BackupError> {
+        let config_path = hkask_services_backup::config::backup_config_path();
+        if !config_path.exists() {
+            return Ok(0);
+        }
+        let data = std::fs::read_to_string(&config_path)
+            .map_err(|e| BackupError::Config(format!("Failed to read backup config: {e}")))?;
+        let artifact = hkask_services_backup::serialization::serialize_artifact(
+            &ArtifactType::Settings,
+            "backup-config",
+            &serde_json::json!({"path": config_path.to_string_lossy(), "content": data}),
+        )
+        .map_err(|e| BackupError::Serialization(format!("Config: {e}")))?;
+        cas.put_blob(&ArtifactType::Settings.repo_id(), &artifact)
+            .await?;
+        Ok(1)
     }
 }
 

@@ -18,6 +18,7 @@ pub mod discover;
 pub mod docs;
 pub mod doctor;
 pub mod embed_corpus;
+pub mod federation;
 pub mod git_cmd;
 pub mod goal;
 pub mod helpers;
@@ -72,6 +73,7 @@ pub use chat::{
 
 // Re-exports from curator
 pub use curator::{curator_dismiss, curator_escalations, curator_metacognition, curator_resolve};
+pub use federation::run_federation;
 
 // Re-exports from bundle
 pub use bundle::run_bundle;

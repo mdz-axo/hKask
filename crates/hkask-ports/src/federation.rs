@@ -25,6 +25,20 @@ pub enum FederationMessage {
         deltas: FederationDelta,
         version_vector: HashMap<ReplicaId, u64>,
     },
+    /// Sent by inviter to invitee to request federation linking.
+    InvitationRequest {
+        from_replica: ReplicaId,
+        server_domain: String,
+        matrix_domain: String,
+        curator_matrix_id: String,
+        message: Option<String>,
+    },
+    /// Sent by invitee in response to an InvitationRequest.
+    InvitationResponse {
+        accepted: bool,
+        from_replica: ReplicaId,
+        reason: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -99,4 +113,8 @@ pub trait FederationDispatch: Send + Sync {
     async fn resume(&self, peer: ReplicaId) -> Result<(), String>;
     async fn revoke(&self, peer: ReplicaId, reason: String) -> Result<(), String>;
     async fn leave(&self, reason: String) -> Result<(), String>;
+    /// List all currently linked peers.
+    async fn linked_peers(&self) -> Vec<ReplicaId>;
+    /// Get the current link state name for a peer (e.g., "linked", "paused").
+    async fn link_state(&self, peer: &ReplicaId) -> Option<String>;
 }

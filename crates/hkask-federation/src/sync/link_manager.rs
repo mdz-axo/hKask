@@ -9,11 +9,14 @@ use std::sync::Arc;
 use chrono::Utc;
 use tokio::sync::RwLock;
 
-use hkask_ports::federation::FederationTransport;
+use hkask_ports::federation::{FederationMessage, FederationTransport};
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 
 use crate::ReplicaId;
+use crate::sync::invitation_policy::{
+    InvitationDecision, InvitationPolicy, ManualInvitationPolicy,
+};
 use crate::sync::link::{FederationLink, LinkError, LinkState};
 
 /// Manages federation link lifecycle.
@@ -22,6 +25,8 @@ pub struct FederationLinkManager {
     transport: Arc<dyn FederationTransport>,
     local_replica: ReplicaId,
     event_sink: Arc<dyn NuEventSink>,
+    /// Policy for evaluating incoming federation invitations (P2 consent).
+    invitation_policy: Box<dyn InvitationPolicy>,
 }
 
 impl FederationLinkManager {
@@ -35,7 +40,26 @@ impl FederationLinkManager {
             transport,
             local_replica,
             event_sink,
+            invitation_policy: Box::new(ManualInvitationPolicy),
         }
+    }
+
+    /// Override the invitation policy (default: ManualInvitationPolicy).
+    pub fn with_policy(mut self, policy: Box<dyn InvitationPolicy>) -> Self {
+        self.invitation_policy = policy;
+        self
+    }
+
+    /// Process an incoming federation invitation — consult policy for decision.
+    /// Called by FederationSync when an InvitationRequest is received.
+    pub fn process_incoming_invitation(
+        &self,
+        from_replica: &ReplicaId,
+        server_domain: &str,
+        message: Option<&str>,
+    ) -> InvitationDecision {
+        self.invitation_policy
+            .evaluate(from_replica, server_domain, message)
     }
 
     /// Register a peer that may later be invited or linked.
@@ -46,7 +70,7 @@ impl FederationLinkManager {
             .insert(link.peer_replica.clone(), link);
     }
 
-    /// Transition a peer's link to Invited state.
+    /// Transition a peer's link to Invited state and send invitation message.
     pub async fn invite(&self, peer: ReplicaId) -> Result<(), LinkError> {
         let mut links = self.links.write().await;
         let link = links
@@ -57,11 +81,20 @@ impl FederationLinkManager {
             invited_at: now,
             expires_at: now + chrono::Duration::hours(24),
         })?;
+        // Send invitation over transport to the peer
+        let msg = FederationMessage::InvitationRequest {
+            from_replica: self.local_replica.clone(),
+            server_domain: link.peer_server_domain.clone(),
+            matrix_domain: link.peer_matrix_domain.clone(),
+            curator_matrix_id: link.peer_curator_matrix_id.clone(),
+            message: None,
+        };
+        let _ = self.transport.send(&peer, msg).await;
         self.emit_cns(CnsSpan::FederationInviteSent, &peer);
         Ok(())
     }
 
-    /// Accept an invitation from a peer, transitioning to Linked.
+    /// Accept an invitation from a peer, transitioning to Linked, and notify.
     pub async fn accept(&self, peer: ReplicaId) -> Result<(), LinkError> {
         let mut links = self.links.write().await;
         let link = links
@@ -70,17 +103,31 @@ impl FederationLinkManager {
         link.transition_to(LinkState::Linked {
             established_at: Utc::now(),
         })?;
+        // Notify peer of acceptance
+        let msg = FederationMessage::InvitationResponse {
+            accepted: true,
+            from_replica: self.local_replica.clone(),
+            reason: None,
+        };
+        let _ = self.transport.send(&peer, msg).await;
         self.emit_cns(CnsSpan::FederationLinkEstablished, &peer);
         Ok(())
     }
 
-    /// Reject an invitation, returning to Isolated.
+    /// Reject an invitation, returning to Isolated, and notify.
     pub async fn reject(&self, peer: ReplicaId) -> Result<(), LinkError> {
         let mut links = self.links.write().await;
         let link = links
             .get_mut(&peer)
             .ok_or(LinkError::PeerNotFound(peer.clone()))?;
         link.transition_to(LinkState::Isolated)?;
+        // Notify peer of rejection
+        let msg = FederationMessage::InvitationResponse {
+            accepted: false,
+            from_replica: self.local_replica.clone(),
+            reason: Some("rejected by admin".into()),
+        };
+        let _ = self.transport.send(&peer, msg).await;
         self.emit_cns(CnsSpan::FederationInviteRejected, &peer);
         Ok(())
     }
@@ -198,92 +245,39 @@ impl hkask_ports::federation::FederationDispatch for FederationLinkManager {
     }
 
     async fn invite(&self, peer: ReplicaId) -> Result<(), String> {
-        let mut links = self.links.write().await;
-        let link = links.get_mut(&peer).ok_or("peer not found")?;
-        let now = Utc::now();
-        link.transition_to(LinkState::Invited {
-            invited_at: now,
-            expires_at: now + chrono::Duration::hours(24),
-        })
-        .map_err(|e| e.to_string())?;
-        self.emit_cns(CnsSpan::FederationInviteSent, &peer);
-        Ok(())
+        self.invite(peer).await.map_err(|e| e.to_string())
     }
 
     async fn accept(&self, peer: ReplicaId) -> Result<(), String> {
-        let mut links = self.links.write().await;
-        let link = links.get_mut(&peer).ok_or("peer not found")?;
-        link.transition_to(LinkState::Linked {
-            established_at: Utc::now(),
-        })
-        .map_err(|e| e.to_string())?;
-        self.emit_cns(CnsSpan::FederationLinkEstablished, &peer);
-        Ok(())
+        self.accept(peer).await.map_err(|e| e.to_string())
     }
 
     async fn reject(&self, peer: ReplicaId) -> Result<(), String> {
-        let mut links = self.links.write().await;
-        let link = links.get_mut(&peer).ok_or("peer not found")?;
-        link.transition_to(LinkState::Isolated)
-            .map_err(|e| e.to_string())?;
-        self.emit_cns(CnsSpan::FederationInviteRejected, &peer);
-        Ok(())
+        self.reject(peer).await.map_err(|e| e.to_string())
     }
 
     async fn pause(&self, peer: ReplicaId, reason: String) -> Result<(), String> {
-        let mut links = self.links.write().await;
-        let link = links.get_mut(&peer).ok_or("peer not found")?;
-        link.transition_to(LinkState::Paused {
-            paused_at: Utc::now(),
-            reason,
-            initiated_by: self.local_replica.clone(),
-        })
-        .map_err(|e| e.to_string())?;
-        self.emit_cns(CnsSpan::FederationLinkPaused, &peer);
-        Ok(())
+        self.pause(peer, reason).await.map_err(|e| e.to_string())
     }
 
     async fn resume(&self, peer: ReplicaId) -> Result<(), String> {
-        let mut links = self.links.write().await;
-        let link = links.get_mut(&peer).ok_or("peer not found")?;
-        link.transition_to(LinkState::Linked {
-            established_at: Utc::now(),
-        })
-        .map_err(|e| e.to_string())?;
-        self.emit_cns(CnsSpan::FederationLinkResumed, &peer);
-        Ok(())
+        self.resume(peer).await.map_err(|e| e.to_string())
     }
 
     async fn revoke(&self, peer: ReplicaId, reason: String) -> Result<(), String> {
-        let mut links = self.links.write().await;
-        let link = links.get_mut(&peer).ok_or("peer not found")?;
-        link.transition_to(LinkState::Revoked {
-            revoked_at: Utc::now(),
-            reason,
-            initiated_by: self.local_replica.clone(),
-            scope: crate::sync::link::RevocationScope::SingleMember,
-        })
-        .map_err(|e| e.to_string())?;
-        self.emit_cns(CnsSpan::FederationMemberRevoked, &peer);
-        Ok(())
+        self.revoke(peer, reason).await.map_err(|e| e.to_string())
     }
 
     async fn leave(&self, reason: String) -> Result<(), String> {
-        let mut links = self.links.write().await;
-        let now = Utc::now();
-        for (replica, link) in links.iter_mut() {
-            if !matches!(link.state, LinkState::Revoked { .. }) {
-                link.transition_to(LinkState::Revoked {
-                    revoked_at: now,
-                    reason: reason.clone(),
-                    initiated_by: self.local_replica.clone(),
-                    scope: crate::sync::link::RevocationScope::VoluntaryDeparture,
-                })
-                .map_err(|e| e.to_string())?;
-                self.emit_cns(CnsSpan::FederationMemberLeft, replica);
-            }
-        }
-        Ok(())
+        self.leave(reason).await.map_err(|e| e.to_string())
+    }
+
+    async fn linked_peers(&self) -> Vec<ReplicaId> {
+        self.linked_peers().await
+    }
+
+    async fn link_state(&self, peer: &ReplicaId) -> Option<String> {
+        self.link_state(peer).await.map(|s| s.name().to_string())
     }
 }
 

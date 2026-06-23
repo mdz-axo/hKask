@@ -409,6 +409,74 @@ pub enum CuratorAction {
     },
 }
 
+/// Federation lifecycle — cross-server curator sync, invite, pause, revoke.
+#[derive(Debug, Subcommand)]
+pub enum FederationAction {
+    /// Invite a remote server to join the federation
+    Invite {
+        /// Replica ID for the remote server (e.g., "curator.hkask.example.com")
+        #[arg(long)]
+        peer_replica: String,
+        /// Domain of the remote hKask server
+        #[arg(long)]
+        peer_server_domain: String,
+        /// Matrix homeserver domain for the remote Conduit
+        #[arg(long)]
+        peer_matrix_domain: String,
+        /// Matrix user ID for the remote curator
+        #[arg(long)]
+        peer_curator_matrix_id: String,
+        /// Optional invitation message
+        #[arg(long)]
+        message: Option<String>,
+    },
+    /// Accept a pending federation invitation
+    Accept {
+        /// Replica ID of the inviter
+        #[arg()]
+        invitation_id: String,
+    },
+    /// Reject a pending federation invitation
+    Reject {
+        /// Replica ID of the inviter
+        #[arg()]
+        invitation_id: String,
+        #[arg(long)]
+        reason: Option<String>,
+    },
+    /// Pause sync with a peer (security measure)
+    Pause {
+        #[arg()]
+        peer_replica: String,
+        #[arg(long)]
+        reason: String,
+    },
+    /// Resume sync with a paused peer
+    Resume {
+        #[arg()]
+        peer_replica: String,
+    },
+    /// Permanently revoke a member
+    Revoke {
+        #[arg()]
+        peer_replica: String,
+        #[arg(long)]
+        reason: String,
+    },
+    /// Voluntarily leave the federation
+    Leave {
+        #[arg(long)]
+        reason: String,
+    },
+    /// Dissolve the federation (revoke all links)
+    Dissolve {
+        #[arg(long)]
+        reason: String,
+    },
+    /// Show federation link status
+    Status,
+}
+
 /// Replicant identity actions
 #[derive(Debug, Subcommand)]
 pub enum ReplicantAction {

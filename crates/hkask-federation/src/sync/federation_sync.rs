@@ -17,11 +17,13 @@ use tokio::sync::{RwLock, watch};
 
 use crate::ReplicaId;
 use crate::crdt::{FederationTripleKey, ORSet};
+use crate::sync::health_model::FederationHealthModel;
 use crate::sync::payload_store::TriplePayloadStore;
 
 const MAX_SYNC_FAILURES: u64 = 3;
 
 pub struct FederationSync {
+    #[allow(dead_code)]
     local_replica: ReplicaId,
     semantic_set: RwLock<ORSet<FederationTripleKey>>,
     payload_store: RwLock<TriplePayloadStore>,
@@ -30,6 +32,8 @@ pub struct FederationSync {
     peers: RwLock<HashMap<ReplicaId, PeerState>>,
     interval: Duration,
     event_sink: Arc<dyn NuEventSink>,
+    /// Federation health model — tracks sync latency, merge frequency, member count.
+    health: RwLock<FederationHealthModel>,
 }
 
 struct PeerState {
@@ -52,6 +56,7 @@ impl FederationSync {
             peers: RwLock::new(HashMap::new()),
             interval: Duration::from_secs(5),
             event_sink,
+            health: RwLock::new(FederationHealthModel::new()),
         }
     }
 
@@ -143,10 +148,32 @@ impl FederationSync {
                             CnsSpan::FederationCrdtMerge,
                             json!({"from": peer, "triples_added": deltas.triples_added, "latency_ms": latency}),
                         );
+                        // Feed health model
+                        {
+                            let mut health = self.health.write().await;
+                            health.observe_latency(latency);
+                            health.observe_merge(deltas.triples_added);
+                            health.observe_member_count(peers.len());
+                        }
                         // Reset failure counter
                         if let Some(state) = self.peers.write().await.get_mut(peer) {
                             state.consecutive_failures = 0;
                         }
+                    }
+                    Ok((from, FederationMessage::InvitationRequest { .. })) => {
+                        tracing::info!(
+                            target: "cns.federation.sync",
+                            from_replica = %from,
+                            "Received federation invitation — awaiting Curator review"
+                        );
+                    }
+                    Ok((from, FederationMessage::InvitationResponse { accepted, .. })) => {
+                        tracing::info!(
+                            target: "cns.federation.sync",
+                            from_replica = %from,
+                            accepted = accepted,
+                            "Received federation invitation response"
+                        );
                     }
                     Ok(_) => {}
                     Err(_) => self.handle_sync_failure(peer).await,

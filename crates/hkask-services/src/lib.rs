@@ -68,6 +68,7 @@ pub mod cns;
 pub mod compose;
 pub mod contacts;
 pub mod curator;
+pub mod federation;
 
 pub mod experience;
 pub mod goal;
@@ -94,6 +95,7 @@ pub use compose::{
 };
 pub use contacts::ContactService;
 pub use curator::{CuratorService, EscalationResponse};
+pub use federation::FederationService;
 
 pub use experience::CliExperienceRecorder;
 pub use goal::{CreateGoalRequest, GoalResponse, GoalService};

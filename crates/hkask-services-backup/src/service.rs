@@ -987,4 +987,106 @@ mod tests {
         svc.update_config(new_config.clone()).unwrap();
         assert_eq!(svc.config().tracked_types, new_config.tracked_types);
     }
+
+    // ── Pod operation tests ───────────────────────────────────────────
+
+    #[tokio::test]
+    async fn revert_snapshots_and_restores_pod_state() {
+        let mock = Arc::new(MockGitCas::new());
+        let config = BackupConfig {
+            tracked_types: vec![ArtifactType::PodState],
+            ..BackupConfig::default()
+        };
+        let svc = BackupService::new(mock.clone(), config);
+        let pod_ops = svc.pod_ops();
+
+        // Create a temp pod.db with known state
+        let dir = tempfile::tempdir().unwrap();
+        let pod_path = dir.path().join("pod.db");
+        let initial_state = b"pod-state-v1";
+        std::fs::write(&pod_path, initial_state).unwrap();
+
+        // Snapshot initial state
+        let snap = pod_ops.snapshot_pod("test-pod", &pod_path).await.unwrap();
+        let commit = &snap.commits[0].1;
+
+        // Mutate pod state
+        std::fs::write(&pod_path, b"pod-state-v2-mutated").unwrap();
+
+        // Revert to initial state
+        let report = pod_ops
+            .revert("test-pod", commit, &pod_path, "test revert")
+            .await
+            .unwrap();
+
+        // Verify: pod.db contains initial state, safety snapshot exists
+        let restored = std::fs::read(&pod_path).unwrap();
+        assert_eq!(restored, initial_state);
+        assert_eq!(report.pod_id, "test-pod");
+        assert!(report.safety_commit.to_string().len() > 0);
+    }
+
+    #[tokio::test]
+    async fn spawn_agent_restores_to_new_path() {
+        let mock = Arc::new(MockGitCas::new());
+        let config = BackupConfig {
+            tracked_types: vec![ArtifactType::PodState],
+            ..BackupConfig::default()
+        };
+        let svc = BackupService::new(mock.clone(), config);
+        let pod_ops = svc.pod_ops();
+
+        // Create source pod state
+        let dir = tempfile::tempdir().unwrap();
+        let source_path = dir.path().join("source.db");
+        let source_state = b"pod-state-for-spawn";
+        std::fs::write(&source_path, source_state).unwrap();
+
+        // Snapshot
+        let snap = pod_ops
+            .snapshot_pod("source-pod", &source_path)
+            .await
+            .unwrap();
+        let commit = &snap.commits[0].1;
+
+        // Spawn to new path
+        let new_path = dir.path().join("spawned.db");
+        let report = pod_ops
+            .spawn_agent("source-pod", commit, "spawned-pod", &new_path)
+            .await
+            .unwrap();
+
+        let spawned_state = std::fs::read(&new_path).unwrap();
+        assert_eq!(spawned_state, source_state);
+        assert_eq!(report.source_pod_id, "source-pod");
+        assert_eq!(report.new_pod_id, "spawned-pod");
+    }
+}
+
+#[cfg(test)]
+mod pod_ops_tests {
+    use super::*;
+    use crate::BackupConfig;
+    use hkask_ports::git_cas::MockGitCas;
+
+    fn pod_test_service() -> BackupService {
+        let mock = Arc::new(MockGitCas::new());
+        let config = BackupConfig {
+            tracked_types: vec![ArtifactType::PodState],
+            ..BackupConfig::default()
+        };
+        BackupService::new(mock, config)
+    }
+
+    #[tokio::test]
+    async fn pod_snapshot_produces_commit() {
+        let svc = pod_test_service();
+        let dir = tempfile::tempdir().unwrap();
+        let pod_path = dir.path().join("pod.db");
+        std::fs::write(&pod_path, b"state").unwrap();
+
+        let snap = svc.pod_ops().snapshot_pod("p1", &pod_path).await.unwrap();
+        assert_eq!(snap.artifact_count, Some(1));
+        assert!(!snap.commits.is_empty());
+    }
 }

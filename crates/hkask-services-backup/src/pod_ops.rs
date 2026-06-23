@@ -136,6 +136,16 @@ impl PodBackupOps {
     /// Takes a safety snapshot of the current pod state before restoring
     /// the target commit. The safety snapshot is the bail-out point.
     ///
+    /// **Restart protocol:** After revert writes the restored pod.db, the
+    /// caller MUST:
+    /// 1. Signal the pod to shut down gracefully
+    /// 2. Wait for the pod to exit (the pod has the old state in memory)
+    /// 3. Restart the pod (it will read the restored pod.db)
+    ///
+    /// The revert only replaces the database file — it does NOT restart
+    /// the running pod process. The pod will continue running with its
+    /// pre-revert in-memory state until restarted.
+    ///
     /// CNS span: `cns.agent_pod.revert`
     #[instrument(skip(self), fields(pod_id, safety_commit, target_commit))]
     pub async fn revert(

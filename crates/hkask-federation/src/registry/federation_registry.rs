@@ -6,7 +6,6 @@
 
 use std::collections::HashMap;
 
-use crate::ReplicaId;
 use crate::crdt::{GSet, LWWMap};
 
 /// Simplified user profile for federation exchange.
@@ -37,19 +36,16 @@ pub struct FederationRegistry {
     remote_users: LWWMap<String, FederatedUserProfile>,
     /// CRDT: remote agents replicated from peers (G-Set — additive).
     remote_agents: GSet<FederatedAgentEntry>,
-    /// This server's replica ID for determining locality.
-    local_replica: ReplicaId,
 }
 
 impl FederationRegistry {
-    /// Create a new registry for a local replica.
-    pub fn new(local_replica: ReplicaId) -> Self {
+    /// Create a new registry.
+    pub fn new() -> Self {
         Self {
             local_users: HashMap::new(),
             local_agents: Vec::new(),
             remote_users: LWWMap::new(),
             remote_agents: GSet::new(),
-            local_replica,
         }
     }
 
@@ -147,7 +143,7 @@ mod tests {
 
     #[test]
     fn resolve_local_user_first() {
-        let mut reg = FederationRegistry::new("alpha".into());
+        let mut reg = FederationRegistry::new();
         reg.register_local_user(make_profile("user1", "a.example.com"));
 
         assert!(reg.resolve_user("user1").is_some());
@@ -156,7 +152,7 @@ mod tests {
 
     #[test]
     fn resolve_remote_user_fallback() {
-        let mut reg = FederationRegistry::new("alpha".into());
+        let mut reg = FederationRegistry::new();
         let mut remote: LWWMap<String, FederatedUserProfile> = LWWMap::new();
         remote.insert(
             "user2".into(),
@@ -172,7 +168,7 @@ mod tests {
 
     #[test]
     fn resolve_remote_agent() {
-        let mut reg = FederationRegistry::new("alpha".into());
+        let mut reg = FederationRegistry::new();
         let mut remote: GSet<FederatedAgentEntry> = GSet::new();
         remote.insert(make_agent("bot1", "b.example.com"));
         reg.merge_remote_agents(&remote);

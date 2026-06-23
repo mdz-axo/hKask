@@ -368,6 +368,11 @@ pub enum ServiceError {
         tool: String,
         message: String,
     },
+
+    // ── Federation ────────────────────────────────────────────────────
+    /// Federation lifecycle operation failed.
+    #[error("Federation error: {message}")]
+    Federation { message: String },
 }
 
 // ── From impls ──────────────────────────────────────────────────────
@@ -507,7 +512,8 @@ impl ServiceError {
             | ServiceError::Spec { .. }
             | ServiceError::EpisodicMemory { .. }
             | ServiceError::SemanticMemory { .. }
-            | ServiceError::Pod { .. } => false,
+            | ServiceError::Pod { .. }
+            | ServiceError::Federation { .. } => false,
         }
     }
 }
@@ -604,6 +610,9 @@ impl ServiceError {
 
             // ── MCP tool errors ─────────────────────────────────────
             ServiceError::McpTool { .. } => "error.mcp.tool",
+
+            // ── Federation ───────────────────────────────────────────
+            ServiceError::Federation { .. } => "error.federation",
         }
     }
 }
@@ -831,6 +840,13 @@ impl ServiceError {
                 "cns.tool",
                 "error",
                 serde_json::json!({ "kind": kind.to_string(), "server": server, "tool": tool, "message": message }),
+            ),
+
+            // ── Federation ───────────────────────────────────────────
+            ServiceError::Federation { message } => (
+                "cns.federation.sync",
+                "error",
+                serde_json::json!({ "message": message }),
             ),
 
             // ── Remaining transparent wrappers ──────────────────────

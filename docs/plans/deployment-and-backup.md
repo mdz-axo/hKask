@@ -303,6 +303,49 @@ Key properties:
 
 The operational backup runs automatically via the CNS cybernetic loop system and is *not* user-exportable. The sovereignty export is the user-facing P1 artifact — a downloadable, passphrase-encrypted archive that the user controls end-to-end.
 
+### 4.7 System Boundary — What Each System Backs Up
+
+The two systems serve different purposes and do NOT overlap:
+
+| What | Backed Up By |
+|------|-------------|
+| Pod identity and state (pod.db) | Operational Backup (PodState → RepoId::Pods) |
+| User triples (semantic memory) | Sovereignty Export (SQLCipher archive) |
+| Templates, styles, skills | Operational Backup (Registry repo) |
+| Specifications and goals | Operational Backup (GoalsSpecs repo) |
+| CNS audit trail | Operational Backup (CnsAudit repo) |
+| Wallet state | Operational Backup (Vault repo) |
+| Backup configuration (backup.json) | Operational Backup (self-backup via ConfigProducer) |
+
+**Pod revert does NOT revert user triples.** The pod.db contains agent identity, persona, and internal state. User data (triples) lives in the semantic store and is backed up via sovereignty export. Reverting a pod restores the agent's configuration and state; reverting user data requires restoring a sovereignty export archive.
+
+### 4.8 Disaster Recovery Procedure
+
+To reconstruct a running system from CAS repos after total server loss:
+
+```bash
+# 1. Restore the backup configuration
+kask backup restore --commit <latest-settings-commit> --scope settings
+# This restores backup.json → determines what was tracked
+
+# 2. Restore templates and agent definitions
+kask backup restore --commit <latest-registry-commit> --scope template
+
+# 3. Restore pod states
+kask backup list --type pod_state
+# Choose the latest commit for each pod
+kask agent revert <pod-name> --commit <commit> --reason "disaster recovery"
+# Then restart each pod
+
+# 4. Restore specifications
+kask backup restore --commit <latest-spec-commit> --scope spec
+
+# 5. Verify integrity
+kask backup verify
+```
+
+The ordered sequence matters: templates first (so pods can deploy), then pods (so agents are active), then specs (operational metadata). CNS audit and wallet state can be restored last or on-demand.
+
 ---
 
 ## 5. Server Migration

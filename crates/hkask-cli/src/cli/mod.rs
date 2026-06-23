@@ -128,6 +128,12 @@ pub enum Commands {
         action: CuratorAction,
     },
 
+    /// Federation lifecycle — cross-server curator sync
+    Federation {
+        #[command(subcommand)]
+        action: FederationAction,
+    },
+
     /// Token issuance and management
     Token {
         #[command(subcommand)]
