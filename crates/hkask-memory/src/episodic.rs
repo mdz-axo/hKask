@@ -137,8 +137,9 @@ impl EpisodicMemory {
     /// Query by entity for specific perspective with deduplication,
     /// confidence decay, and temporal attention applied (2a.3 + 2a.2).
     ///
-    /// Decays confidence based on time since `valid_from` using
+    /// Decays confidence based on time since last recall (`recalled_at`) using
     /// `Confidence::decay()`, then deduplicates by EAV hash.
+    /// `valid_from` is the creation timestamp — never modified.
     ///
     /// Emits `cns.memory.decay` span for each triple that undergoes decay.
     ///
@@ -159,8 +160,8 @@ impl EpisodicMemory {
             .into_iter()
             .filter(|t| t.access.perspective == Some(perspective))
             .map(|mut t| {
-                // Apply confidence decay (2a.3): e^(-λt)
-                let time_since = (now - t.temporal.valid_from).num_seconds() as f64;
+                // Apply confidence decay using time since last recall
+                let time_since = (now - t.recalled_at).num_seconds() as f64;
                 let original_confidence = t.confidence;
                 t.confidence = t.confidence.decay(self.decay_rate, time_since);
                 tracing::debug!(
@@ -169,7 +170,7 @@ impl EpisodicMemory {
                     attribute = %t.attribute,
                     original_confidence = %original_confidence,
                     decayed_confidence = %t.confidence,
-                    time_since_secs = time_since,
+                    time_since_recall_secs = time_since,
                     decay_rate = self.decay_rate,
                     "Episodic confidence decayed"
                 );
@@ -182,10 +183,10 @@ impl EpisodicMemory {
 
         let deduped = recall_dedup::dedup_triples(filtered);
 
-        // Refresh timestamps on recalled triples — resets the decay clock.
+        // Touch recalled_at on each deduped triple — resets the decay clock.
         // Memory that gets used stays fresh; memory that doesn't decays.
         for t in &deduped {
-            let _ = self.triple_store.refresh_timestamp(&t.id);
+            let _ = self.triple_store.touch_recall(&t.id);
         }
 
         Ok(deduped)
@@ -229,17 +230,11 @@ impl EpisodicMemory {
         triples.sort_by(|a, b| {
             let a_effective = a
                 .confidence
-                .decay(
-                    self.decay_rate,
-                    (now - a.temporal.valid_from).num_seconds() as f64,
-                )
+                .decay(self.decay_rate, (now - a.recalled_at).num_seconds() as f64)
                 .value();
             let b_effective = b
                 .confidence
-                .decay(
-                    self.decay_rate,
-                    (now - b.temporal.valid_from).num_seconds() as f64,
-                )
+                .decay(self.decay_rate, (now - b.recalled_at).num_seconds() as f64)
                 .value();
             a_effective
                 .partial_cmp(&b_effective)

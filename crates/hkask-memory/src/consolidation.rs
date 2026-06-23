@@ -97,6 +97,7 @@ impl ConsolidationBridge {
                 temporal: triple.temporal.clone(),
                 confidence: triple.confidence,
                 access: triple.access.to_semantic(),
+                recalled_at: chrono::Utc::now(),
             };
 
             // 2. Store in semantic memory

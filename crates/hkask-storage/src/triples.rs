@@ -107,7 +107,7 @@ impl TripleStore {
     pub fn insert(&self, triple: &Triple) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
         conn.execute(
-            &format!("INSERT INTO triples ({TRIPLE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"),
+            &format!("INSERT INTO triples ({TRIPLE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)"),
             rusqlite::params![
                 triple.id,
                 triple.entity,
@@ -115,6 +115,7 @@ impl TripleStore {
                 serde_json::to_string(&triple.value)?,
                 triple.temporal.valid_from.to_rfc3339(),
                 triple.temporal.valid_to.map(|t| t.to_rfc3339()),
+                triple.recalled_at.to_rfc3339(),
                 triple.confidence,
                 triple.access.perspective,
                 triple.access.visibility,
@@ -243,13 +244,14 @@ impl TripleStore {
             };
             let new_id = TripleID::new();
             conn.execute(
-                &format!("INSERT INTO triples ({TRIPLE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9)"),
+                &format!("INSERT INTO triples ({TRIPLE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9, ?10)"),
                 rusqlite::params![
                     new_id,
                     row.0,
                     row.1,
                     serde_json::to_string(&new_value)?,
                     now,
+                    now, // recalled_at = now for new version
                     new_confidence,
                     access.perspective,
                     access.visibility,
@@ -289,19 +291,20 @@ impl TripleStore {
         Ok(triples.into_iter().next())
     }
 
-    /// Refresh a triple's valid_from timestamp to now — resets the decay clock.
+    /// Touch a triple's recalled_at timestamp to now — resets the decay clock.
     ///
     /// Called on recall so that actively-used memories don't decay.
-    /// Unused memories continue their natural decay toward the 9-month half-life.
+    /// Unused memories continue their natural decay toward the half-life.
+    /// `valid_from` is never modified — it remains the creation timestamp.
     ///
     /// expect: "The system provides durable storage for triple data"
     /// pre:  id is a valid, non-expired triple ID
-    /// post: triple's valid_from updated to current time
-    pub fn refresh_timestamp(&self, id: &TripleID) -> Result<(), TripleError> {
+    /// post: triple's recalled_at updated to current time
+    pub fn touch_recall(&self, id: &TripleID) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
         conn.execute(
-            "UPDATE triples SET valid_from = ?1 WHERE id = ?2 AND valid_to IS NULL",
+            "UPDATE triples SET recalled_at = ?1 WHERE id = ?2 AND valid_to IS NULL",
             rusqlite::params![now, id],
         )?;
         Ok(())
@@ -509,10 +512,11 @@ impl TripleStore {
             value: row.get(3)?,
             valid_from: row.get(4)?,
             valid_to: row.get(5)?,
-            confidence: row.get(6)?,
-            perspective: row.get(7)?,
-            visibility: row.get(8)?,
-            owner_webid: row.get(9)?,
+            recalled_at: row.get(6)?,
+            confidence: row.get(7)?,
+            perspective: row.get(8)?,
+            visibility: row.get(9)?,
+            owner_webid: row.get(10)?,
         })
     }
     /// TripleRow → Triple: parse timestamps + JSON value (orphan rule).
@@ -530,6 +534,9 @@ impl TripleStore {
             .valid_to
             .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
             .map(|dt| dt.with_timezone(&Utc));
+        let recalled_at = DateTime::parse_from_rfc3339(&row.recalled_at)
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or(valid_from); // fallback to valid_from if corrupt
         Ok(Triple {
             id: row.id,
             entity: row.entity,
@@ -542,6 +549,7 @@ impl TripleStore {
                 visibility: row.visibility,
                 owner_webid: row.owner_webid,
             },
+            recalled_at,
         })
     }
 }
@@ -572,6 +580,7 @@ struct TripleRow {
     value: String,
     valid_from: String,
     valid_to: Option<String>,
+    recalled_at: String,
     confidence: Confidence,
     perspective: Option<WebID>,
     visibility: Visibility,
@@ -594,6 +603,7 @@ mod tests {
                 "CREATE TABLE triples (
                     id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
                     value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
+                    recalled_at TEXT NOT NULL DEFAULT (datetime('now')),
                     confidence REAL NOT NULL, perspective TEXT, visibility TEXT NOT NULL,
                     owner_webid TEXT NOT NULL
                 )",

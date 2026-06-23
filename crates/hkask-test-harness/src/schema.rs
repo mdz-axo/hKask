@@ -14,12 +14,13 @@ attribute TEXT NOT NULL, \
 value TEXT NOT NULL, \
 valid_from TEXT NOT NULL, \
 valid_to TEXT, \
+recalled_at TEXT NOT NULL DEFAULT (datetime('now')), \
 transaction_at TEXT DEFAULT (datetime('now')), \
 confidence REAL NOT NULL DEFAULT 1.0, \
 perspective TEXT, \
 visibility TEXT NOT NULL DEFAULT 'private', \
 owner_webid TEXT NOT NULL\
-);\n\
+	);\n\
 CREATE TABLE IF NOT EXISTS embeddings (\
 id TEXT PRIMARY KEY, \
 entity_ref TEXT NOT NULL, \
