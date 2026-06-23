@@ -498,7 +498,11 @@ pub fn run_chat(
                 usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
             );
         }
-    } else if tui {
+    } else if tui
+        || std::env::var("HKASK_TUI")
+            .map(|v| v == "1")
+            .unwrap_or(false)
+    {
         crate::repl::run_tui(
             registry,
             runtime,

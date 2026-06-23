@@ -36,6 +36,8 @@ pub enum WindowKind {
     Settings,
     /// Composite sidebar — CNS summary + MCP status + context gauge + pod list
     Sidebar,
+    /// Kask logo display — ASCII art of the amphora with Curator's eye
+    Logo,
 }
 
 impl WindowKind {
@@ -52,6 +54,7 @@ impl WindowKind {
             WindowKind::Energy => "Energy",
             WindowKind::Settings => "Settings",
             WindowKind::Sidebar => "Sidebar",
+            WindowKind::Logo => "Logo",
         }
     }
 
@@ -68,6 +71,7 @@ impl WindowKind {
             WindowKind::Energy => "Gas usage, energy budget, and cost analytics",
             WindowKind::Settings => "Edit REPL inference settings",
             WindowKind::Sidebar => "Composite sidebar with CNS, MCP, and pod status",
+            WindowKind::Logo => "The kask logo — amphora with Curator's eye",
         }
     }
 
@@ -76,6 +80,7 @@ impl WindowKind {
         match self {
             WindowKind::Chat => true,
             WindowKind::Matrix => true,
+            WindowKind::Logo => true,
             WindowKind::Sidebar => false,
             _ => false,
         }

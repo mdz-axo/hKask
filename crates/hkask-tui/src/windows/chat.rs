@@ -28,7 +28,7 @@ use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
-use crate::repl_bridge::{ReplBridge, TurnResult};
+use crate::repl_bridge::{InferenceState, ReplBridge};
 use crate::window::{Window, WindowId, WindowKind};
 
 /// The interaction mode for the chat window.
@@ -131,6 +131,10 @@ pub struct ChatWindow {
     service_context: Arc<hkask_services::AgentService>,
     /// Bridge to the inference engine
     bridge: Arc<dyn ReplBridge>,
+    /// Current inference state for async polling
+    inference_state: InferenceState,
+    /// Spinner frame counter for "Thinking..." animation
+    spinner_frame: u8,
 }
 
 impl ChatWindow {
@@ -163,6 +167,8 @@ impl ChatWindow {
             scroll_offset: 0,
             service_context,
             bridge,
+            inference_state: InferenceState::Idle,
+            spinner_frame: 0,
         }
     }
 
@@ -302,41 +308,10 @@ impl ChatWindow {
             return;
         }
 
-        // Normal chat message
+        // Normal chat message — use async inference
         self.add_message(MessageSender::User, input.clone());
-
-        // Use the bridge for real inference instead of echo
-        let result = self.bridge.send_message(&input);
-
-        if result.budget_exhausted {
-            self.add_message(
-                MessageSender::CnsAlert,
-                "Gas budget exhausted — turn blocked by cybernetic regulator. Use /status for details.".into(),
-            );
-            return;
-        }
-
-        let sender = match self.mode {
-            TuiMode::Curator => MessageSender::Curator,
-            _ => MessageSender::Agent(self.agent_name.clone()),
-        };
-
-        self.add_message(sender, result.text.clone());
-
-        // Show token usage
-        if result.iterations > 1 {
-            self.add_message(
-                MessageSender::Tool("usage".into()),
-                format!(
-                    "{} tokens ({} prompt + {} completion) across {} iterations — gas cost: {}",
-                    result.total_tokens,
-                    result.prompt_tokens,
-                    result.completion_tokens,
-                    result.iterations,
-                    result.gas_cost,
-                ),
-            );
-        }
+        self.bridge.start_inference(input);
+        self.inference_state = InferenceState::Thinking;
     }
 }
 
@@ -456,7 +431,42 @@ impl Window for ChatWindow {
     }
 
     fn tick(&mut self) {
-        // Background updates — CNS polling, etc. (Tier 2)
+        // Poll async inference and display results
+        let state = self.bridge.poll_inference();
+        match state {
+            InferenceState::Done(result) => {
+                if result.budget_exhausted {
+                    self.add_message(
+                        MessageSender::CnsAlert,
+                        "Gas budget exhausted — turn blocked by cybernetic regulator.".into(),
+                    );
+                } else {
+                    let sender = match self.mode {
+                        TuiMode::Curator => MessageSender::Curator,
+                        _ => MessageSender::Agent(self.agent_name.clone()),
+                    };
+                    self.add_message(sender, result.text.clone());
+                    if result.iterations > 1 {
+                        self.add_message(
+                            MessageSender::Tool("usage".into()),
+                            format!(
+                                "{} tokens ({} prompt + {} completion) across {} iterations — gas: {}",
+                                result.total_tokens, result.prompt_tokens,
+                                result.completion_tokens, result.iterations, result.gas_cost,
+                            ),
+                        );
+                    }
+                }
+                self.inference_state = InferenceState::Idle;
+            }
+            InferenceState::Thinking => {
+                self.spinner_frame = self.spinner_frame.wrapping_add(1);
+                self.inference_state = InferenceState::Thinking;
+            }
+            other => {
+                self.inference_state = other;
+            }
+        }
     }
 }
 
@@ -471,20 +481,20 @@ impl ChatWindow {
         for msg in visible {
             let prefix = match &msg.sender {
                 MessageSender::User => {
-                    Span::styled("You ▸ ", Style::default().fg(Color::Green).bold())
+                    Span::styled("You ▸ ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
                 }
                 MessageSender::Agent(name) => Span::styled(
                     format!("{} ▸ ", name),
-                    Style::default().fg(Color::Cyan).bold(),
+                    Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
                 ),
                 MessageSender::Curator => {
-                    Span::styled("Curator ▸ ", Style::default().fg(Color::Magenta).bold())
+                    Span::styled("Curator ▸ ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD))
                 }
                 MessageSender::CnsAlert => Span::styled(
                     "── CNS: ",
                     Style::default()
                         .fg(Color::Rgb(183, 145, 99)) // Richmond Gold
-                        .bold(),
+                        .add_modifier(Modifier::BOLD),
                 ),
                 MessageSender::Tool(name) => Span::styled(
                     format!("[tool:{}] ", name),
@@ -534,12 +544,6 @@ impl ChatWindow {
         let inner = block.inner(area);
         f.render_widget(block, area);
 
-        // Mode prefix
-        let prefix = Span::styled(
-            self.mode.prompt_prefix(),
-            Style::default().fg(self.mode.prompt_color()).bold(),
-        );
-
         // Input text with cursor
         let input_style = if is_focused {
             Style::default().fg(Color::White)
@@ -547,36 +551,23 @@ impl ChatWindow {
             Style::default().fg(Color::Gray)
         };
 
-        let input_text = if is_focused && self.cursor_pos <= self.input.len() {
-            // Show cursor
-            let before = &self.input[..self.cursor_pos];
-            let at = if self.cursor_pos < self.input.len() {
-                self.input[self.cursor_pos..].chars().next().unwrap_or(' ')
-            } else {
-                ' '
-            };
-            let after = if self.cursor_pos < self.input.len() {
-                &self.input[self.cursor_pos + 1..]
-            } else {
-                ""
-            };
-            Line::from(vec![
-                Span::styled(before.to_string(), input_style),
-                Span::styled(
-                    at.to_string(),
-                    Style::default().fg(Color::Black).bg(Color::Cyan),
-                ),
-                Span::styled(after.to_string(), input_style),
-            ])
-        } else {
-            Line::from(Span::styled(self.input.clone(), input_style))
-        };
-
         // Rebuild the line properly
-        let mut final_spans = vec![Span::styled(
-            self.mode.prompt_prefix(),
-            Style::default().fg(self.mode.prompt_color()).bold(),
-        )];
+        let mut final_spans = Vec::new();
+
+        // Show thinking spinner during inference
+        if matches!(self.inference_state, InferenceState::Thinking) {
+            let spinners = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+            let s = spinners[self.spinner_frame as usize % spinners.len()];
+            final_spans.push(Span::styled(
+                format!(" {} Thinking... ", s),
+                Style::default().fg(Color::Yellow),
+            ));
+        } else {
+            final_spans.push(Span::styled(
+                self.mode.prompt_prefix(),
+                Style::default().fg(self.mode.prompt_color()).add_modifier(Modifier::BOLD),
+            ));
+        }
 
         if is_focused && !self.input.is_empty() {
             let before = &self.input[..self.cursor_pos.min(self.input.len())];

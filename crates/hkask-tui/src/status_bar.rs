@@ -4,41 +4,27 @@
 //! CNS health, and context window pressure. This is a cybernetic
 //! display surface (P9): it closes the "is the system healthy?"
 //! feedback loop.
-//!
-//! # RDF Triple
-//! ```text
-//! ⟨StatusBar⟩ displays ⟨ModelMeta, EnergyBudget, CnsHealth, ContextPressure⟩ .
-//! ```
 
 use std::collections::HashMap;
 
 use ratatui::style::Color;
 use ratatui::text::{Line, Span};
 
-use crate::window::{Window, WindowId};
+use crate::window::WindowId;
 
-/// Global status bar — computed state displayed every frame.
 pub struct StatusBar {
-    /// Current model name
     pub model: String,
-    /// Gas remaining / gas cap
     pub gas_remaining: u64,
     pub gas_cap: u64,
-    /// CNS health summary
     pub cns_status: CnsStatus,
-    /// Context window pressure (0.0–1.0)
     pub context_pressure: f64,
-    /// Show keybinding hints
     pub show_hints: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CnsStatus {
-    /// All CNS domains healthy
     Healthy,
-    /// Warning threshold crossed in ≥1 domain
     Warning(u32),
-    /// Critical threshold crossed in ≥1 domain
     Critical(u32),
 }
 
@@ -54,38 +40,17 @@ impl StatusBar {
         }
     }
 
-    /// Update from the active windows.
-    pub fn tick(&mut self) {
-        // Status bar state will be populated from CNS and inference loop
-        // in a future iteration. For now, these are placeholders.
-    }
-
-    /// Render the status bar with a lightweight title map (avoids Box<dyn Window>).
-    pub fn render_with_titles(
-        &self,
-        focused: WindowId,
-        titles: &HashMap<WindowId, String>,
-    ) -> Line<'static> {
-        self.build_line(focused, |id| titles.get(&id).map(|s| s.as_str()))
-    }
-
-    /// Render the status bar (original API for backward compat).
-    pub fn render(
-        &self,
-        focused: WindowId,
-        windows: &HashMap<WindowId, Box<dyn Window>>,
-    ) -> Line<'static> {
-        self.build_line(focused, |id| windows.get(&id).map(|w| w.title()))
+    pub fn render(&self, focused: WindowId, titles: &HashMap<WindowId, String>) -> Line<'static> {
+        self.build_line(focused, &|id| titles.get(&id).cloned())
     }
 
     fn build_line(
         &self,
         focused: WindowId,
-        title_lookup: impl Fn(WindowId) -> Option<&str>,
+        title_lookup: &dyn Fn(WindowId) -> Option<String>,
     ) -> Line<'static> {
         let mut spans: Vec<Span> = Vec::new();
 
-        // Model indicator
         if !self.model.is_empty() {
             spans.push(Span::styled(
                 format!(" Model: {} ", self.model),
@@ -94,7 +59,6 @@ impl StatusBar {
             spans.push(Span::raw("│"));
         }
 
-        // Energy gauge
         let gas_pct = if self.gas_cap > 0 {
             (self.gas_remaining as f64 / self.gas_cap as f64) * 100.0
         } else {
@@ -125,7 +89,6 @@ impl StatusBar {
         ));
         spans.push(Span::raw("│"));
 
-        // CNS health indicator
         match self.cns_status {
             CnsStatus::Healthy => {
                 spans.push(Span::styled(
@@ -148,7 +111,6 @@ impl StatusBar {
         }
         spans.push(Span::raw("│"));
 
-        // Context pressure
         let ctx_pct = self.context_pressure * 100.0;
         let ctx_style = if ctx_pct > 87.5 {
             Color::Red
@@ -162,7 +124,6 @@ impl StatusBar {
             ratatui::style::Style::default().fg(ctx_style),
         ));
 
-        // Focused window title (right-aligned via padding)
         if let Some(title) = title_lookup(focused) {
             spans.push(Span::raw("  "));
             spans.push(Span::styled(
@@ -171,10 +132,9 @@ impl StatusBar {
             ));
         }
 
-        // Keybinding hints
         if self.show_hints {
             spans.push(Span::styled(
-                "  ^Q quit  ^T tab  ^W close  ^B sidebar  ^P palette",
+                "  ^Q quit  ^T tab  ^B sidebar  ^P palette",
                 ratatui::style::Style::default().fg(Color::DarkGray),
             ));
         }

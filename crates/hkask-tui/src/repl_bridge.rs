@@ -14,28 +14,38 @@
 /// Result of a single inference turn.
 #[derive(Debug, Clone)]
 pub struct TurnResult {
-    /// The agent's response text
     pub text: String,
-    /// Token usage for this turn
-    pub prompt_tokens: u64,
-    pub completion_tokens: u64,
-    pub total_tokens: u64,
-    /// Gas cost of this turn
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub total_tokens: u32,
     pub gas_cost: u64,
-    /// Number of tool-call iterations
     pub iterations: usize,
-    /// Whether energy budget was exhausted
     pub budget_exhausted: bool,
 }
 
+/// State of the inference engine, polled by the TUI each frame.
+#[derive(Debug, Clone)]
+pub enum InferenceState {
+    /// No inference in progress
+    Idle,
+    /// Inference is running (the TUI should show a spinner)
+    Thinking,
+    /// Inference completed successfully
+    Done(TurnResult),
+}
+
 /// Bridge between the TUI chat window and the inference engine.
-///
-/// This is a trait so the TUI crate can remain independent of `hkask-cli`.
-/// The CLI crate provides the concrete implementation that wraps ReplState.
 pub trait ReplBridge: Send + Sync {
-    /// Send a user message and get the agent's response.
-    /// This may block during inference (same as the rustyline REPL).
-    fn send_message(&self, input: &str) -> TurnResult;
+    /// Start inference on a background task. Returns immediately.
+    /// Call `poll_inference()` each frame to check for completion.
+    fn start_inference(&self, input: String);
+
+    /// Poll the inference state. Returns `Idle` if no inference is running,
+    /// `Thinking` while inference is in progress, or `Done(result)` when complete.
+    fn poll_inference(&self) -> InferenceState;
+
+    /// Blocking send (used for quick commands, not for normal chat).
+    fn send_message_blocking(&self, input: &str) -> TurnResult;
 
     /// Get the current agent name.
     fn agent_name(&self) -> &str;
@@ -54,4 +64,13 @@ pub trait ReplBridge: Send + Sync {
 
     /// Get context window pressure (0.0–1.0).
     fn context_pressure(&self) -> f64;
+
+    /// Get MCP server count (loaded / total).
+    fn mcp_status(&self) -> (usize, usize);
+
+    /// Get pod counts (curator, replicant, team).
+    fn pod_counts(&self) -> (usize, usize, usize);
+
+    /// Get CNS domain health summary.
+    fn cns_domains(&self) -> Vec<(String, bool)>;
 }

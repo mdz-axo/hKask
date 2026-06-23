@@ -255,16 +255,23 @@ pub fn run_tui(
     let service_context = state.service_context.clone();
     let inference_loop = state.inference_loop.clone();
 
-    // Build the TUI bridge holding inference state
+    // Resolve A2A secret for capability tokens
+    let a2a_secret = state
+        .resolved_secrets
+        .as_ref()
+        .map(|s| s.a2a_secret.as_bytes().to_vec())
+        .unwrap_or_default();
+
+    // Keep ReplState alive inside the bridge for full inference
     let bridge = Arc::new(TuiReplBridge {
-        agent_name: agent_name.clone(),
-        model: model.clone(),
+        state: Arc::new(std::sync::Mutex::new(state)),
         inference_loop: inference_loop.clone(),
         rt_handle: rt_handle.clone(),
+        a2a_secret,
+        agent_name,
+        model,
+        pending: std::sync::Mutex::new(None),
     });
-
-    // Drop ReplState — the TUI owns its state via the bridge and service context
-    drop(state);
 
     match hkask_tui::TuiSession::new(service_context, bridge) {
         Ok(mut session) => {
@@ -275,6 +282,7 @@ pub fn run_tui(
         Err(e) => {
             eprintln!("Failed to initialize TUI: {}", e);
             eprintln!("Falling back to line-based REPL.");
+            // Can't recover ReplState from inside the Arc<Mutex>, so just run fresh
             run(
                 _registry,
                 _runtime,
@@ -287,23 +295,21 @@ pub fn run_tui(
     }
 }
 
-/// Bridge implementation connecting the TUI to hKask's inference engine.
+/// Bridge implementation connecting the TUI to hKask's full inference engine.
 struct TuiReplBridge {
-    agent_name: String,
-    model: String,
+    state: Arc<std::sync::Mutex<ReplState>>,
     inference_loop: Arc<InferenceLoop>,
     rt_handle: tokio::runtime::Handle,
+    a2a_secret: Vec<u8>,
+    agent_name: String,
+    model: String,
+    /// Pending inference state: None = idle, Some(rx) = waiting for result
+    pending: std::sync::Mutex<Option<std::sync::mpsc::Receiver<hkask_tui::TurnResult>>>,
 }
 
-impl hkask_tui::ReplBridge for TuiReplBridge {
-    fn send_message(&self, input: &str) -> hkask_tui::TurnResult {
-        // For now: echo mode. Full ChatService::execute_turn integration
-        // requires async plumbing and the full ReplState (memory, tools, etc.).
-        let _ = self.rt_handle;
-        let gas = self.inference_loop.gas_remaining();
-        let cap = self.inference_loop.gas_cap();
-
-        if cap > 0 && gas == 0 {
+impl TuiReplBridge {
+    fn build_result(capture: &turn::TurnCapture) -> hkask_tui::TurnResult {
+        if capture.budget_exhausted {
             return hkask_tui::TurnResult {
                 text: String::new(),
                 prompt_tokens: 0,
@@ -314,30 +320,76 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
                 budget_exhausted: true,
             };
         }
-
-        // Echo the input back. Real inference is Tier 3.
-        let response = format!(
-            "[{} on {}] I received your message. Full inference integration is pending — this is the TUI bridge echo.\n\nYour input was: \"{}\"\n\nUse the existing `kask chat` (without --tui) for full inference until Tier 3 is complete.",
-            self.agent_name, self.model, input
-        );
-
+        let mut text = capture.response_text.clone();
+        if !capture.tool_output.is_empty() {
+            text.push_str("\n\n── Tool Results ──\n");
+            text.push_str(&capture.tool_output);
+        }
         hkask_tui::TurnResult {
-            text: response,
-            prompt_tokens: input.len() as u64 / 4,
-            completion_tokens: 50,
-            total_tokens: input.len() as u64 / 4 + 50,
-            gas_cost: 1,
-            iterations: 1,
+            text,
+            prompt_tokens: capture.prompt_tokens,
+            completion_tokens: capture.completion_tokens,
+            total_tokens: capture.total_tokens,
+            gas_cost: 1u64
+                .max(capture.prompt_tokens as u64 / 100 + capture.completion_tokens as u64 / 25),
+            iterations: capture.iterations,
             budget_exhausted: false,
         }
+    }
+}
+
+impl hkask_tui::ReplBridge for TuiReplBridge {
+    fn start_inference(&self, input: String) {
+        let state = self.state.clone();
+        let rt = self.rt_handle.clone();
+        let a2a = self.a2a_secret.clone();
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        // Store the receiver for polling
+        *self.pending.lock().expect("pending lock") = Some(rx);
+
+        // Spawn inference on a background thread
+        std::thread::spawn(move || {
+            let mut s = state.lock().expect("ReplState lock");
+            let capture = turn::single_agent_turn_captured(&input, &mut s, &rt, &a2a);
+            let result = Self::build_result(&capture);
+            let _ = tx.send(result);
+        });
+    }
+
+    fn poll_inference(&self) -> hkask_tui::InferenceState {
+        let mut pending = self.pending.lock().expect("pending lock");
+        match pending.as_ref() {
+            None => hkask_tui::InferenceState::Idle,
+            Some(rx) => match rx.try_recv() {
+                Ok(result) => {
+                    *pending = None;
+                    hkask_tui::InferenceState::Done(result)
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => hkask_tui::InferenceState::Thinking,
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    *pending = None;
+                    hkask_tui::InferenceState::Idle
+                }
+            },
+        }
+    }
+
+    fn send_message_blocking(&self, input: &str) -> hkask_tui::TurnResult {
+        let mut state = self.state.lock().expect("ReplState lock");
+        let capture =
+            turn::single_agent_turn_captured(input, &mut state, &self.rt_handle, &self.a2a_secret);
+        Self::build_result(&capture)
     }
 
     fn agent_name(&self) -> &str {
         &self.agent_name
     }
+
     fn model_name(&self) -> &str {
         &self.model
     }
+
     fn gas_remaining(&self) -> u64 {
         self.inference_loop.gas_remaining()
     }
@@ -349,5 +401,22 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
     }
     fn context_pressure(&self) -> f64 {
         0.0
+    }
+
+    fn mcp_status(&self) -> (usize, usize) {
+        (0, 0)
+    }
+
+    fn pod_counts(&self) -> (usize, usize, usize) {
+        (1, 1, 0)
+    }
+
+    fn cns_domains(&self) -> Vec<(String, bool)> {
+        vec![
+            ("cns.tool".into(), true),
+            ("cns.inference".into(), true),
+            ("cns.keystore".into(), true),
+            ("cns.tui".into(), true),
+        ]
     }
 }

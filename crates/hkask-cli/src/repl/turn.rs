@@ -213,6 +213,185 @@ pub(super) fn single_agent_turn(
     true
 }
 
+/// Captured result of a single-agent inference turn.
+/// Returns structured output instead of printing to stdout.
+pub(crate) struct TurnCapture {
+    pub response_text: String,
+    pub tool_output: String,
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub total_tokens: u32,
+    pub iterations: usize,
+    pub budget_exhausted: bool,
+    pub gas_remaining: u64,
+}
+
+/// Handle a single-agent inference turn, capturing all output.
+///
+/// Same logic as single_agent_turn but returns structured data
+/// instead of printing to stdout. Used by the TUI bridge.
+pub(crate) fn single_agent_turn_captured(
+    input: &str,
+    state: &mut ReplState,
+    rt: &tokio::runtime::Handle,
+    a2a_secret: &[u8],
+) -> TurnCapture {
+    let settings = state.repl_settings.clone();
+    let max_loops = settings.tool_loop_limit;
+
+    let mut current_input: String = input.to_string();
+    let mut tool_results: Option<String> = None;
+    let mut iteration: usize = 0;
+    let mut total_usage: Option<hkask_services::TokenUsage> = None;
+    let mut captured_text = String::new();
+    let mut tool_text = String::new();
+
+    loop {
+        iteration += 1;
+        if iteration > max_loops {
+            use std::fmt::Write;
+            let _ = writeln!(
+                captured_text,
+                "  \u{26a0} Tool-use loop max iterations ({}) reached \u{2014} yielding current response",
+                max_loops
+            );
+            break;
+        }
+
+        let Some(gas_guard) = energy::EnergyGuard::try_reserve(
+            state.service_context.cybernetics_loop(),
+            &state.inference_loop,
+            &state.agent_webid,
+            rt,
+            settings.gas_heuristic,
+        ) else {
+            return TurnCapture {
+                response_text: String::new(),
+                tool_output: String::new(),
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+                iterations: 0,
+                budget_exhausted: true,
+                gas_remaining: state.inference_loop.gas_remaining(),
+            };
+        };
+
+        let turn_req = TurnRequest {
+            input: current_input.clone(),
+            agent_name: state.current_agent.clone(),
+            model: state.current_model.clone(),
+            inference_port: state.inference_port.clone(),
+            episodic_storage: state.episodic_storage.clone(),
+            semantic_storage: state.semantic_storage.clone(),
+            agent_webid: state.agent_webid,
+            persona_constraints: state.persona_constraints.clone(),
+            tool_section: state.tool_prompt_section.clone(),
+            llm_params: to_llm_params(&settings),
+            context_turns: settings.context_turns,
+            capability_checker: state.service_context.capability_checker().clone(),
+            system_webid: *state.service_context.identity().0,
+            iteration,
+            tool_results: tool_results.take(),
+            auto_condense: settings.auto_condense,
+            context_window: settings.model_meta.as_ref().map(|m| m.context_length),
+            condenser_model: Some(
+                state
+                    .current_model
+                    .strip_prefix("OM/")
+                    .unwrap_or(&state.current_model)
+                    .to_string(),
+            ),
+            improv_mode: state.improv_mode.clone(),
+            source: None,
+            tools: if state.tool_definitions.is_empty() {
+                None
+            } else {
+                Some(state.tool_definitions.clone())
+            },
+        };
+
+        let chat_result = rt.block_on(ChatService::execute_turn(
+            &state.service_context,
+            &turn_req,
+            state.manifest_executor.as_ref(),
+            state.process_manifest.as_ref(),
+        ));
+        let chat_response = match chat_result {
+            Ok(r) => r,
+            Err(e) => {
+                use std::fmt::Write;
+                let _ = writeln!(captured_text, "  Inference error: {}", e);
+                break;
+            }
+        };
+
+        let usage = chat_response.usage;
+        if let Some(ref mut total) = total_usage {
+            total.prompt_tokens += usage.prompt_tokens;
+            total.completion_tokens += usage.completion_tokens;
+            total.total_tokens += usage.total_tokens;
+        } else {
+            total_usage = Some(usage);
+        }
+
+        let actual_cost = total_usage
+            .as_ref()
+            .map(|u| u.gas_cost())
+            .unwrap_or(gas_guard.heuristic());
+        gas_guard.settle(actual_cost);
+
+        let response = chat_response.text;
+        let structured_calls = chat_response.structured_tool_calls;
+
+        let processed = rt.block_on(tool_augmented::process_response(
+            &response,
+            &state.current_agent,
+            &state.governed_tool,
+            &state.agent_webid,
+            a2a_secret,
+            if structured_calls.is_empty() {
+                None
+            } else {
+                Some(&structured_calls)
+            },
+        ));
+
+        if !processed.had_tool_calls {
+            use std::fmt::Write;
+            let _ = writeln!(captured_text, "{}", processed.text);
+            if state.talk_enabled {
+                speak_response(&processed.text, state, rt);
+            }
+            break;
+        }
+
+        use std::fmt::Write;
+        let _ = writeln!(tool_text, "{}", processed.tool_results_formatted);
+        current_input = response;
+        tool_results = Some(processed.tool_results_formatted);
+    }
+
+    cns_display::update_cns_and_display(state, rt);
+
+    let usage = total_usage.unwrap_or(hkask_services::TokenUsage {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0,
+    });
+
+    TurnCapture {
+        response_text: captured_text.trim().to_string(),
+        tool_output: tool_text,
+        prompt_tokens: usage.prompt_tokens,
+        completion_tokens: usage.completion_tokens,
+        total_tokens: usage.total_tokens,
+        iterations: iteration,
+        budget_exhausted: false,
+        gas_remaining: state.inference_loop.gas_remaining(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     // skips when estimated tokens are below that threshold.

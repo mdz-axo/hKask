@@ -43,7 +43,7 @@ use std::io::Stdout;
 use std::time::Duration;
 use uuid::Uuid;
 
-pub use repl_bridge::{ReplBridge, TurnResult};
+pub use repl_bridge::{InferenceState, ReplBridge, TurnResult};
 pub use window::{Window, WindowId, WindowKind};
 pub use workspace::{SplitDirection, Workspace};
 
@@ -85,6 +85,9 @@ impl TuiSession {
 
     /// Run the main event loop. Blocks until the user quits.
     pub fn run(&mut self) -> anyhow::Result<()> {
+        // Splash screen: render the kask logo for ~1.5 seconds
+        self.run_splash()?;
+
         while !self.should_quit {
             // Render current frame
             self.terminal.draw(|f| self.workspace.render(f))?;
@@ -104,6 +107,32 @@ impl TuiSession {
 
             // Tick workspace for background updates (CNS polling, etc.)
             self.workspace.tick();
+        }
+
+        Ok(())
+    }
+
+    /// Render the kask logo as a brief splash screen.
+    /// Exits early if any key is pressed.
+    fn run_splash(&mut self) -> anyhow::Result<()> {
+        use crate::windows::logo::LogoWindow;
+
+        let logo = LogoWindow::new(WindowId(Uuid::new_v4()));
+        let splash_duration = Duration::from_millis(1500);
+        let start = std::time::Instant::now();
+
+        while start.elapsed() < splash_duration {
+            self.terminal.draw(|f| {
+                let area = f.area();
+                logo.render(f, area, false);
+            })?;
+
+            // Check for keypress to skip splash
+            if event::poll(Duration::from_millis(50))? {
+                if let Event::Key(_) = event::read()? {
+                    break; // Any key skips the splash
+                }
+            }
         }
 
         Ok(())
@@ -137,7 +166,7 @@ impl TuiSession {
             }
             // Close focused window
             (KeyModifiers::CONTROL, Char('w')) => {
-                self.workspace.close_focused_window();
+                self.workspace.close_tab();
                 if self.workspace.is_empty() {
                     self.should_quit = true;
                 }
@@ -199,13 +228,13 @@ impl TuiSession {
                 self.workspace.toggle_sidebar();
                 true
             }
+            // Open logo window
+            (KeyModifiers::CONTROL, Char('g')) => {
+                self.workspace.open_logo();
+                true
+            }
             _ => false,
         }
-    }
-
-    /// Create a WindowId from a UUID v4.
-    pub(crate) fn new_window_id() -> WindowId {
-        WindowId(Uuid::new_v4())
     }
 }
 

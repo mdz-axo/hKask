@@ -16,8 +16,9 @@ use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::{Paragraph, Wrap};
 
+use crate::repl_bridge::ReplBridge;
 use crate::window::{Window, WindowId, WindowKind};
 
 /// Sections of the sidebar.
@@ -57,83 +58,81 @@ pub struct SidebarWindow {
     active_section: SidebarSection,
     #[allow(dead_code)]
     service_context: Arc<hkask_services::AgentService>,
+    bridge: Arc<dyn ReplBridge>,
 }
 
 impl SidebarWindow {
-    pub fn new(id: WindowId, service_context: Arc<hkask_services::AgentService>) -> Self {
+    pub fn new(
+        id: WindowId,
+        service_context: Arc<hkask_services::AgentService>,
+        bridge: Arc<dyn ReplBridge>,
+    ) -> Self {
         Self {
             id,
             active_section: SidebarSection::CnsHealth,
             service_context,
+            bridge,
         }
     }
 
     fn render_cns_section(&self) -> Vec<Line<'static>> {
-        vec![
+        let mut lines = vec![
             Line::from(Span::styled(
                 "── CNS Health ──",
-                Style::default().fg(Color::Cyan).bold(),
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from("  Status: ✓ Healthy"),
-            Line::from("  Variety counters: nominal"),
-            Line::from("  Active alerts: 0"),
-            Line::from(""),
-            Line::from(Span::styled(
-                "  CNS domains:",
-                Style::default().fg(Color::DarkGray),
-            )),
-            Line::from("  • cns.tool.*       ✓"),
-            Line::from("  • cns.inference    ✓"),
-            Line::from("  • cns.keystore     ✓"),
-            Line::from("  • cns.condenser    ✓"),
-            Line::from("  • cns.mcp.*        ✓"),
-            Line::from("  • cns.tui.*        ✓"),
-        ]
+        ];
+        let alerts = self.bridge.cns_alert_count();
+        if alerts > 0 {
+            lines.push(Line::from(format!("  Active alerts: {}", alerts)));
+        } else {
+            lines.push(Line::from("  Status: ✓ Healthy"));
+        }
+        lines.push(Line::from(format!(
+            "  Gas: {}/{}",
+            self.bridge.gas_remaining(),
+            self.bridge.gas_cap()
+        )));
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "  CNS domains:",
+            Style::default().fg(Color::DarkGray),
+        )));
+        for (domain, healthy) in self.bridge.cns_domains() {
+            let mark = if healthy { "✓" } else { "✗" };
+            lines.push(Line::from(format!("  • {}  {}", domain, mark)));
+        }
+        lines
     }
 
     fn render_mcp_section(&self) -> Vec<Line<'static>> {
+        let (loaded, _total) = self.bridge.mcp_status();
         vec![
             Line::from(Span::styled(
                 "── MCP Servers ──",
-                Style::default().fg(Color::Cyan).bold(),
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from("  No MCP servers loaded."),
+            Line::from(format!("  Loaded: {}", loaded)),
             Line::from("  Use /mcp start all to load."),
-            Line::from(""),
-            Line::from(Span::styled(
-                "  Available servers:",
-                Style::default().fg(Color::DarkGray),
-            )),
-            Line::from("  • condenser"),
-            Line::from("  • research"),
-            Line::from("  • media"),
-            Line::from("  • memory"),
-            Line::from("  • kanban"),
-            Line::from("  • curator"),
         ]
     }
 
     fn render_pods_section(&self) -> Vec<Line<'static>> {
+        let (curator, replicant, team) = self.bridge.pod_counts();
         vec![
             Line::from(Span::styled(
                 "── Pods ──",
-                Style::default().fg(Color::Cyan).bold(),
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from("  CuratorPod:      active"),
-            Line::from("  ReplicantPods:   1 active"),
-            Line::from("  TeamPods:        0"),
-            Line::from(""),
-            Line::from(Span::styled(
-                "  Pod deployment model:",
-                Style::default().fg(Color::DarkGray),
+            Line::from(format!(
+                "  CuratorPod:    {}",
+                if curator > 0 { "active" } else { "inactive" }
             )),
-            Line::from("  • Per-pod SQLCipher DB"),
-            Line::from("  • Per-pod CNS runtime"),
-            Line::from("  • Per-pod MCP bindings"),
-            Line::from("  • No cross-pod dispatch"),
+            Line::from(format!("  ReplicantPods: {}", replicant)),
+            Line::from(format!("  TeamPods:      {}", team)),
         ]
     }
 
@@ -141,7 +140,7 @@ impl SidebarWindow {
         vec![
             Line::from(Span::styled(
                 "── Context Window ──",
-                Style::default().fg(Color::Cyan).bold(),
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
             Line::from("  Context pressure: 12%"),
@@ -163,7 +162,7 @@ impl SidebarWindow {
         vec![
             Line::from(Span::styled(
                 "── Keybindings ──",
-                Style::default().fg(Color::Cyan).bold(),
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
             Line::from("  Global:"),
