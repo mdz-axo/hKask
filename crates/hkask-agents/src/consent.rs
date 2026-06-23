@@ -256,6 +256,14 @@ impl ConsentManager {
             cache.push(new_record);
         }
 
+        tracing::info!(
+            target: "cns.sovereignty",
+            operation = "consent_granted",
+            webid = %webid,
+            category = ?category,
+            "CNS"
+        );
+
         debug!(
             "Granted consent for WebID: {} category: {}",
             webid,
@@ -278,6 +286,12 @@ impl ConsentManager {
         if let Some(record) = cache.iter_mut().find(|r| r.webid == webid) {
             record.revoke();
             self.persist(record)?;
+            tracing::info!(
+                target: "cns.sovereignty",
+                operation = "consent_revoked",
+                webid = %webid,
+                "CNS"
+            );
             debug!("Revoked consent for WebID: {}", webid);
             Ok(())
         } else {
@@ -308,6 +322,14 @@ impl ConsentManager {
             .unwrap_or(false);
 
         if !granted {
+            tracing::info!(
+                target: "cns.sovereignty",
+                operation = "consent_checked",
+                webid = %webid,
+                category = ?category,
+                result = "denied",
+                "CNS"
+            );
             self.emit_consent_denied(webid, category);
         }
 

@@ -399,6 +399,11 @@ impl Workspace {
         self
     }
 
+    pub fn with_companies_bridge(&mut self, companies: Arc<dyn CompaniesDataBridge>) -> &mut Self {
+        self.companies_bridge = Some(companies);
+        self
+    }
+
     pub fn is_empty(&self) -> bool {
         self.tabs.is_empty() || self.tabs[self.active_tab].root.window_ids().is_empty()
     }
@@ -673,6 +678,7 @@ impl Workspace {
         let mxb = self.matrix_bridge.clone();
         let mdb = self.media_bridge.clone();
         let tb = self.training_bridge.clone();
+        let cpb = self.companies_bridge.clone();
         let new_win: Box<dyn Window> = match kind {
             WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(new_id, bridge)),
             WindowKind::Pods => Box::new(PodsWindow::new(new_id, bridge)),
@@ -742,7 +748,13 @@ impl Workspace {
                 }
                 Box::new(w)
             }
-            WindowKind::Companies => Box::new(CompaniesWindow::new(new_id, bridge)),
+            WindowKind::Companies => {
+                let mut w = CompaniesWindow::new(new_id, bridge);
+                if let Some(b) = cpb {
+                    w = w.with_companies_bridge(b);
+                }
+                Box::new(w)
+            }
             WindowKind::Kanban => {
                 let mut w = KanbanWindow::new(new_id, bridge);
                 if let Some(b) = kb {

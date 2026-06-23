@@ -179,7 +179,7 @@ pub(crate) async fn chat_stream(
         .agent_service
         .config()
         .inference_config
-        .fusion_model
+        .fusion
         .is_some();
     let params = LLMParameters {
         temperature: 0.7,

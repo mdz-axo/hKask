@@ -6,8 +6,8 @@
 use hkask_templates::BundleRegistryIndex;
 use hkask_tui::ReplBridge;
 use hkask_tui::bridges::{
-    backup::BackupConfigSummary,
-    backup::{BackupDataBridge, SnapshotInfo},
+    backup::{BackupConfigSummary, BackupDataBridge, SnapshotInfo},
+    companies::{CompaniesDataBridge, CompanySummary, PersonSummary},
     config::{ConfigDataBridge, ConfigSnapshot},
     kanban::{KanbanBoardSummary, KanbanDataBridge, KanbanStatusCounts, KanbanTaskSummary},
     matrix::{MatrixConnectionStatus, MatrixDataBridge, MatrixMessageSummary, MatrixRoomSummary},
@@ -143,8 +143,31 @@ impl WalletDataBridge for TuiReplBridge {
         (rjoules, usdc_micro, gas_equiv)
     }
 
-    fn wallet_transactions(&self, _limit: usize) -> Vec<WalletTxSummary> {
-        Vec::new()
+    fn wallet_transactions(&self, limit: usize) -> Vec<WalletTxSummary> {
+        let total = self.gas_cap();
+        let remaining = self.gas_remaining();
+        let consumed = total.saturating_sub(remaining);
+        let mut txs = Vec::new();
+        if total > 0 {
+            txs.push(WalletTxSummary {
+                timestamp: chrono::Utc::now().to_rfc3339(),
+                rjoules_delta: total as i64,
+                tx_type: "Session Budget".into(),
+                balance_after: total,
+                detail: Some("gas cap".into()),
+            });
+        }
+        if consumed > 0 {
+            txs.push(WalletTxSummary {
+                timestamp: chrono::Utc::now().to_rfc3339(),
+                rjoules_delta: -(consumed as i64),
+                tx_type: "Consumed".into(),
+                balance_after: remaining,
+                detail: Some("inference + tool calls".into()),
+            });
+        }
+        txs.truncate(limit.max(1));
+        txs
     }
 
     fn gas_per_rjoule(&self) -> u64 {
@@ -152,7 +175,7 @@ impl WalletDataBridge for TuiReplBridge {
     }
 
     fn transaction_count(&self) -> u64 {
-        0
+        if self.gas_cap() > 0 { 2 } else { 0 }
     }
 }
 
@@ -337,7 +360,7 @@ impl KanbanDataBridge for TuiReplBridge {
     }
 }
 
-// ── MatrixDataBridge (stub — tokio Mutex requires async) ──────────
+// ── MatrixDataBridge ─────────────────────────────────────────────────
 
 impl MatrixDataBridge for TuiReplBridge {
     fn connection_status(&self) -> MatrixConnectionStatus {
@@ -355,15 +378,53 @@ impl MatrixDataBridge for TuiReplBridge {
     }
 
     fn list_rooms(&self) -> Vec<MatrixRoomSummary> {
-        Vec::new()
+        let state = self.state.lock().expect("lock");
+        let transport = state.service_context.matrix_transport().cloned();
+        transport
+            .and_then(|mt| {
+                self.rt_handle.block_on(async {
+                    let t = mt.lock().await;
+                    t.list_rooms().await.ok().map(|rooms| {
+                        rooms
+                            .into_iter()
+                            .map(|thread| MatrixRoomSummary {
+                                id: thread.room_id.0.clone(),
+                                title: thread.title,
+                                member_count: thread.participants.len(),
+                                escalated: thread.escalated,
+                                last_active: String::new(),
+                            })
+                            .collect()
+                    })
+                })
+            })
+            .unwrap_or_default()
     }
 
-    fn recent_messages(&self, _room_id: &str, _limit: usize) -> Vec<MatrixMessageSummary> {
-        Vec::new()
+    fn recent_messages(&self, room_id: &str, limit: usize) -> Vec<MatrixMessageSummary> {
+        let state = self.state.lock().expect("lock");
+        let transport = state.service_context.matrix_transport().cloned();
+        transport
+            .and_then(|mt| {
+                self.rt_handle.block_on(async {
+                    let t = mt.lock().await;
+                    let rid = hkask_communication::matrix::RoomId::new(room_id);
+                    t.get_messages(&rid, limit).await.ok().map(|msgs| {
+                        msgs.into_iter()
+                            .map(|m| MatrixMessageSummary {
+                                sender: m.sender.0.clone(),
+                                body: m.body,
+                                timestamp: m.timestamp.to_string(),
+                            })
+                            .collect()
+                    })
+                })
+            })
+            .unwrap_or_default()
     }
 
     fn room_count(&self) -> usize {
-        0
+        self.list_rooms().len()
     }
 }
 
@@ -646,5 +707,21 @@ impl TrainingDataBridge for TuiReplBridge {
 
     fn adapter_count(&self) -> usize {
         self.adapter_list().len()
+    }
+}
+
+// ── CompaniesDataBridge (stub — deferred Firecrawl integration) ─────
+
+impl CompaniesDataBridge for TuiReplBridge {
+    fn search(&self, _query: &str) -> Vec<CompanySummary> {
+        Vec::new()
+    }
+
+    fn last_searched(&self) -> Option<String> {
+        None
+    }
+
+    fn people(&self) -> Vec<PersonSummary> {
+        Vec::new()
     }
 }

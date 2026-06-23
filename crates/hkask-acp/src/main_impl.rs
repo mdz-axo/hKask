@@ -151,34 +151,34 @@ impl HkaskAcpAgent {
         // env var and log a prominent warning.
         {
             let config = InferenceConfig::from_env();
-            if let Some(ref fusion) = config.fusion_model {
+            if let Some(ref fusion) = config.fusion {
                 let router = InferenceRouter::new(config.clone());
                 match tokio::runtime::Handle::current().block_on(router.verify_fusion_model()) {
                     Ok(true) => {
                         tracing::info!(
                             target: "cns.inference",
-                            fusion_model = %fusion,
+                            fusion_group = %fusion.group,
                             "ACP: fusion group verified"
                         );
                     }
                     Ok(false) => {
                         tracing::warn!(
                             target: "cns.inference",
-                            fusion_model = %fusion,
+                            fusion_group = %fusion.group,
                             "ACP: fusion group NOT FOUND — disabling fusion. Create it at https://openrouter.ai/fusion"
                         );
                         // SAFETY: called in build() before any sessions are active.
-                        unsafe { std::env::remove_var("HKASK_FUSION_MODEL") };
+                        unsafe { std::env::remove_var("HKASK_FUSION_GROUP") };
                     }
                     Err(e) => {
                         tracing::warn!(
                             target: "cns.inference",
-                            fusion_model = %fusion,
+                            fusion_group = %fusion.group,
                             error = %e,
                             "ACP: could not verify fusion group — disabling fusion to prevent cost risk"
                         );
                         // SAFETY: called in build() before any sessions are active.
-                        unsafe { std::env::remove_var("HKASK_FUSION_MODEL") };
+                        unsafe { std::env::remove_var("HKASK_FUSION_GROUP") };
                     }
                 }
             }

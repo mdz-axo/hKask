@@ -4,6 +4,7 @@
 //! forwarding keystrokes to the child process and displaying output.
 //! Supports interactive programs and Ctrl+C/D/L.
 
+use std::cell::Cell;
 use std::io::Read;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -31,6 +32,10 @@ pub struct TerminalWindow {
     scroll_offset: u16,
     master: Option<Box<dyn MasterPty>>,
     pty_writer: Option<Box<dyn std::io::Write + Send>>,
+    pending_cols: Cell<u16>,
+    pending_rows: Cell<u16>,
+    last_cols: Cell<u16>,
+    last_rows: Cell<u16>,
 }
 
 impl TerminalWindow {
@@ -50,6 +55,10 @@ impl TerminalWindow {
             scroll_offset: 0,
             master: Some(master),
             pty_writer: Some(writer),
+            pending_cols: Cell::new(80),
+            pending_rows: Cell::new(24),
+            last_cols: Cell::new(80),
+            last_rows: Cell::new(24),
         }
     }
 
@@ -147,6 +156,8 @@ impl Window for TerminalWindow {
     }
 
     fn render(&self, f: &mut Frame, area: Rect, is_focused: bool) {
+        self.pending_cols.set(area.width);
+        self.pending_rows.set(area.height.saturating_sub(3)); // minus input bar
         let vert = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([
@@ -318,5 +329,13 @@ impl Window for TerminalWindow {
 
     fn tick(&mut self) {
         while let Ok(_line) = self.output_rx.try_recv() {}
+
+        let cols = self.pending_cols.get();
+        let rows = self.pending_rows.get();
+        if cols != self.last_cols.get() || rows != self.last_rows.get() {
+            self.resize_pty(cols, rows);
+            self.last_cols.set(cols);
+            self.last_rows.set(rows);
+        }
     }
 }

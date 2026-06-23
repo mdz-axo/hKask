@@ -289,7 +289,8 @@ pub fn run_tui(
                 .with_matrix_bridge(bridge.clone())
                 .with_backup_bridge(bridge.clone())
                 .with_media_bridge(bridge.clone())
-                .with_training_bridge(bridge.clone());
+                .with_training_bridge(bridge.clone())
+                .with_companies_bridge(bridge.clone());
             let mut session = session;
             if let Err(e) = session.run() {
                 eprintln!("TUI error: {}", e);

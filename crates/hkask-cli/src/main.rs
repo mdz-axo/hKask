@@ -20,14 +20,15 @@ use std::time::Instant;
 /// behavior (sending to ALL models, which can be very expensive).
 fn check_fusion_startup(rt: &tokio::runtime::Runtime) {
     let config = InferenceConfig::from_env();
-    let fusion = match &config.fusion_model {
+    let fusion = match &config.fusion {
         Some(f) => f.clone(),
         None => return,
     };
 
     eprintln!(
-        "\n  \x1b[1;33m⚡ Fusion mode active\x1b[0m — model: \x1b[36m{}\x1b[0m",
-        fusion
+        "\n  \x1b[1;33m⚡ Fusion mode active\x1b[0m — group: \x1b[36m{}\x1b[0m\n     {}",
+        fusion.group,
+        fusion.description()
     );
 
     let router = InferenceRouter::new(config);
@@ -55,14 +56,18 @@ fn check_fusion_startup(rt: &tokio::runtime::Runtime) {
 /// Ask the user whether to proceed with the default model or wait for fusion setup.
 ///
 /// `connection_error`: if true, OpenRouter was unreachable (not just missing group).
-fn prompt_proceed_or_wait(fusion: &str, connection_error: bool) {
+fn prompt_proceed_or_wait(fusion: &FusionConfig, connection_error: bool) {
     use std::io::{self, Write};
 
     let default = hkask_services::model_constants::DEFAULT_FALLBACK_MODEL;
+    let group_name = &fusion.group;
     let wait_msg = if connection_error {
-        "Wait while I fix the OpenRouter connection and set up the 'kask' fusion group"
+        format!(
+            "Wait while I fix the OpenRouter connection and set up the '{}' fusion group",
+            group_name
+        )
     } else {
-        "Wait while I set up the 'kask' fusion group"
+        format!("Wait while I set up the '{}' fusion group", group_name)
     };
     eprintln!();
     eprintln!(
@@ -77,8 +82,7 @@ fn prompt_proceed_or_wait(fusion: &str, connection_error: bool) {
     let mut input = String::new();
     if io::stdin().read_line(&mut input).is_err() {
         eprintln!("\n  Could not read input — proceeding with default model.\n");
-        // SAFETY: called in main() before any threads or async tasks are spawned.
-        unsafe { std::env::remove_var("HKASK_FUSION_MODEL") };
+        unsafe { std::env::remove_var("HKASK_FUSION_GROUP") };
         return;
     }
 
@@ -86,8 +90,12 @@ fn prompt_proceed_or_wait(fusion: &str, connection_error: bool) {
         "2" => {
             eprintln!();
             eprintln!("  Create your fusion group at \x1b[34mhttps://openrouter.ai/fusion\x1b[0m");
-            eprintln!("  Name it \x1b[1m'kask'\x1b[0m, then re-run your command with:\n");
-            eprintln!("    \x1b[1mexport HKASK_FUSION_MODEL={}\x1b[0m\n", fusion);
+            eprintln!("  Name it \x1b[1m'{group_name}'\x1b[0m, then configure:\n");
+            eprintln!("    \x1b[1mexport HKASK_FUSION_GROUP={group_name}\x1b[0m");
+            eprintln!(
+                "    \x1b[1mexport HKASK_FUSION_MODELS=Kimi2.7,Qwen3.7 Max,GLM5.2,Minimax3\x1b[0m"
+            );
+            eprintln!("    \x1b[1mexport HKASK_FUSION_FUSER=Deepseek-v4-Pro\x1b[0m\n");
             eprintln!("  Run \x1b[1mkask doctor\x1b[0m to verify everything is wired correctly.\n");
             std::process::exit(0);
         }
@@ -96,8 +104,7 @@ fn prompt_proceed_or_wait(fusion: &str, connection_error: bool) {
                 "\n  Proceeding with default model (\x1b[36m{}\x1b[0m).\n",
                 default
             );
-            // SAFETY: called in main() before any threads or async tasks are spawned.
-            unsafe { std::env::remove_var("HKASK_FUSION_MODEL") };
+            unsafe { std::env::remove_var("HKASK_FUSION_GROUP") };
         }
     }
 }

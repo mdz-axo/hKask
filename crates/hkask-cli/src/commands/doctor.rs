@@ -25,7 +25,7 @@ pub async fn run_doctor() {
 
     // ── Fusion ──────────────────────────────────────────────
     let config = InferenceConfig::from_env();
-    if config.fusion_model.is_some() {
+    if config.fusion.is_some() {
         println!("Fusion Model");
         println!("────────────");
         let router = InferenceRouter::new(config);

@@ -70,7 +70,7 @@ use hkask_types::id::WalletId;
 
 use hkask_services_core::ServiceConfig;
 use hkask_services_core::ServiceError;
-use hkask_services_sovereignty::SovereigntyService;
+
 use hkask_services_wallet::WalletService;
 
 mod matrix;
@@ -433,8 +433,8 @@ impl AgentService {
     /// post: returns SovereigntyService wrapping the consent manager
     /// # REQ: P1 (User Sovereignty), P2 (Affirmative Consent)
     /// # expect: "My service operations flow through sovereignty-verifying boundaries"
-    pub fn sovereignty(&self) -> SovereigntyService {
-        SovereigntyService::new(self.consent_manager.clone())
+    pub fn sovereignty(&self) -> Arc<ConsentManager> {
+        self.consent_manager.clone()
     }
 
     // === Category 4: Internal implementation (crate-visible only) ===

@@ -47,7 +47,7 @@ pub use hkask_services_kata::{
     ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
     KataResult, KataState, KataStep, PracticeEntry, StepExperience,
 };
-pub use hkask_services_lifecycle::{
+pub use crate::lifecycle::{
     LifecycleError, ServerHealth, ServerLifecycle, ServerLifecycleConfig, run_lifecycle,
 };
 pub use hkask_services_onboarding::{
@@ -55,7 +55,7 @@ pub use hkask_services_onboarding::{
     ResolvedSecrets, SignInOutcome, conduit_ensure_healthy, conduit_health_check,
 };
 pub use hkask_services_skill::resolve_replicant_name;
-pub use hkask_services_sovereignty::SovereigntyService;
+pub use hkask_agents::consent::ConsentManager;
 pub use hkask_services_verification::{
     Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
 };
@@ -63,6 +63,8 @@ pub use hkask_services_wallet::WalletService;
 
 // ── Remaining inline modules ───────────────────────────────────────────
 
+pub mod cloud;
+pub mod lifecycle;
 pub mod bundle;
 pub mod chat;
 pub mod memory;

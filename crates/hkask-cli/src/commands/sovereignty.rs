@@ -1,5 +1,8 @@
 //! Sovereignty command handlers — call consent manager directly.
 
+use std::sync::Arc;
+
+use hkask_agents::consent::ConsentManager;
 use hkask_types::DataCategory;
 use hkask_types::curation::DataSovereigntyBoundary;
 
@@ -21,7 +24,7 @@ fn parse_data_category(s: &str) -> DataCategory {
 
 fn build_consent() -> (
     hkask_services::AgentService,
-    hkask_services::SovereigntyService,
+    Arc<ConsentManager>,
 ) {
     let config = hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
         eprintln!("Config env: {e}");
@@ -69,8 +72,8 @@ fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {
             ];
             for (label, cat) in &categories {
                 match cm.has_consent(&webid.to_string(), cat) {
-                    true => println!("  • {label}: GRANTED"),
-                    false => println!("  • {label}: DENIED"),
+                    Ok(true) => println!("  • {label}: GRANTED"),
+                    _ => println!("  • {label}: DENIED"),
                 }
             }
             println!();
@@ -172,7 +175,7 @@ fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {
             let has_consent = if classification == "PUBLIC" {
                 true
             } else {
-                cm.has_consent(&webid.to_string(), &cat)
+                cm.has_consent(&webid.to_string(), &cat).unwrap_or(false)
             };
 
             println!("Data Access Check");

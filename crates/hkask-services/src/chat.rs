@@ -171,7 +171,7 @@ mod tests {
         let mock: Arc<MockSemanticPort> = Arc::new(MockSemanticPort { triples: vec![] });
         let port: Arc<dyn SemanticStoragePort> = mock;
         let w = WebID::new();
-        let result = ChatService::recall_semantic(&port, "q", &test_token(w, w));
+        let result = MemoryService::recall_semantic(&port, "q", &test_token(w, w));
         assert!(result.is_none());
     }
 
@@ -191,7 +191,7 @@ mod tests {
         });
         let port: Arc<dyn SemanticStoragePort> = mock;
         let w = WebID::new();
-        let result = ChatService::recall_semantic(&port, "q", &test_token(w, w));
+        let result = MemoryService::recall_semantic(&port, "q", &test_token(w, w));
         assert_eq!(result, Some("A\nB".into()));
     }
 
@@ -220,7 +220,7 @@ mod tests {
         });
         let port: Arc<dyn SemanticStoragePort> = mock;
         let w = WebID::new();
-        let result = ChatService::recall_semantic(&port, "q", &test_token(w, w));
+        let result = MemoryService::recall_semantic(&port, "q", &test_token(w, w));
         assert_eq!(result, Some("Text".into()));
     }
 
@@ -231,7 +231,7 @@ mod tests {
         });
         let port: Arc<dyn EpisodicStoragePort> = mock.clone();
         let w = WebID::from_persona(b"a");
-        ChatService::store_episodic(&port, "Hello", "Hi!", w, &test_token(w, w), "Agent");
+        MemoryService::store_episodic(&port, "Hello", "Hi!", w, &test_token(w, w), "Agent");
         let req = mock.last_request.lock().unwrap();
         let r = req.as_ref().unwrap();
         assert_eq!(r.entity, "chatted");
@@ -247,7 +247,7 @@ mod tests {
         });
         let port: Arc<dyn EpisodicStoragePort> = mock.clone();
         let w = WebID::from_persona(b"a");
-        ChatService::store_episodic(&port, "in", "out", w, &test_token(w, w), "Agent");
+        MemoryService::store_episodic(&port, "in", "out", w, &test_token(w, w), "Agent");
         let req = mock.last_request.lock().unwrap();
         assert!((req.as_ref().unwrap().confidence.value() - 0.7).abs() < 0.001);
     }
@@ -259,7 +259,7 @@ mod tests {
         });
         let port: Arc<dyn EpisodicStoragePort> = mock;
         let w = WebID::from_persona(b"t");
-        ChatService::store_episodic(&port, "", "", w, &test_token(w, w), "");
+        MemoryService::store_episodic(&port, "", "", w, &test_token(w, w), "");
     }
 }
 
@@ -442,18 +442,29 @@ impl ChatService {
 
         // \[NORMATIVE\] Sovereignty gate (H3/P2): only recall memory when
         // the owner has granted consent for the category. No consent ⇒ no recall.
-        let semantic_context =
-            if MemoryService::has_memory_consent(ctx, &agent_webid, &DataCategory::SemanticMemory) {
-                MemoryService::recall_semantic(&semantic_port, &req.input, &capability_token)
-            } else {
-                None
-            };
-        let episodic_context =
-            if MemoryService::has_memory_consent(ctx, &agent_webid, &DataCategory::EpisodicMemory) {
-                MemoryService::recall_episodic(&episodic_port, &req.input, &agent_webid, &capability_token)
-            } else {
-                None
-            };
+        let semantic_context = if MemoryService::has_memory_consent(
+            ctx,
+            &agent_webid,
+            &DataCategory::SemanticMemory,
+        ) {
+            MemoryService::recall_semantic(&semantic_port, &req.input, &capability_token)
+        } else {
+            None
+        };
+        let episodic_context = if MemoryService::has_memory_consent(
+            ctx,
+            &agent_webid,
+            &DataCategory::EpisodicMemory,
+        ) {
+            MemoryService::recall_episodic(
+                &episodic_port,
+                &req.input,
+                &agent_webid,
+                &capability_token,
+            )
+        } else {
+            None
+        };
 
         // Merge semantic (third-person) and episodic (first-person) memory.
         // Both are recall_* results that mirror each other in structure —
@@ -509,7 +520,7 @@ impl ChatService {
         // When fusion is active (HKASK_FUSION_MODEL is set), the primary chat
         // model bypasses fusion so the user's chosen model is used directly.
         // Skills, which don't set bypass_fusion, will route through fusion.
-        let chat_bypass = ctx.config().inference_config.fusion_model.is_some();
+        let chat_bypass = ctx.config().inference_config.fusion.is_some();
         let mut params = params_override.unwrap_or(LLMParameters {
             temperature: 0.7,
             top_p: 0.9,
@@ -593,7 +604,11 @@ impl ChatService {
 
         // \[NORMATIVE\] Sovereignty gate (H3/P2): only persist the exchange to
         // episodic (sovereign) memory when the owner has granted consent.
-        if MemoryService::has_memory_consent(ctx, &prepared.agent_webid, &DataCategory::EpisodicMemory) {
+        if MemoryService::has_memory_consent(
+            ctx,
+            &prepared.agent_webid,
+            &DataCategory::EpisodicMemory,
+        ) {
             MemoryService::store_episodic(
                 &prepared.episodic_port,
                 &req.input,
@@ -632,7 +647,7 @@ impl ChatService {
     ///
     /// \[NORMATIVE\] P1 User Sovereignty / P2 Affirmative Consent.
     fn has_memory_consent(ctx: &AgentService, owner: &WebID, category: &DataCategory) -> bool {
-        ctx.sovereignty().has_consent(&owner.to_string(), category)
+        ctx.sovereignty().has_consent(&owner.to_string(), category).unwrap_or(false)
     }
 
     /// Recall semantic memory triples relevant to the input.
@@ -989,7 +1004,8 @@ Agent: {}",
     ) -> Option<String> {
         // \[NORMATIVE\] Sovereignty gate (H3/P2): condensing reads episodic
         // (sovereign) history — only proceed when the owner has granted consent.
-        if !MemoryService::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory) {
+        if !MemoryService::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory)
+        {
             return None;
         }
         let episodes = MemoryService::recall_raw_episodes(
@@ -1098,28 +1114,31 @@ Agent: {}",
             req.system_webid,
             req.agent_webid,
         );
-        let history_suffix =
-            if MemoryService::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory) {
-                MemoryService::recall_recent_turns(
-                    &req.episodic_storage,
-                    &req.agent_webid,
-                    &history_token,
-                    req.context_turns,
-                )
-            } else {
-                None
-            };
-        let semantic_suffix =
-            if MemoryService::has_memory_consent(ctx, &req.agent_webid, &DataCategory::SemanticMemory) {
-                let semantic_context = MemoryService::recall_semantic(
-                    &req.semantic_storage,
-                    &base_input,
-                    &history_token,
-                );
-                semantic_context.map(|s| format!("## Relevant Facts\n{}", s))
-            } else {
-                None
-            };
+        let history_suffix = if MemoryService::has_memory_consent(
+            ctx,
+            &req.agent_webid,
+            &DataCategory::EpisodicMemory,
+        ) {
+            MemoryService::recall_recent_turns(
+                &req.episodic_storage,
+                &req.agent_webid,
+                &history_token,
+                req.context_turns,
+            )
+        } else {
+            None
+        };
+        let semantic_suffix = if MemoryService::has_memory_consent(
+            ctx,
+            &req.agent_webid,
+            &DataCategory::SemanticMemory,
+        ) {
+            let semantic_context =
+                MemoryService::recall_semantic(&req.semantic_storage, &base_input, &history_token);
+            semantic_context.map(|s| format!("## Relevant Facts\n{}", s))
+        } else {
+            None
+        };
         let mut input_with_context = match (history_suffix, semantic_suffix) {
             (Some(h), Some(s)) => format!("{}\n\n{}\n\n{}", base_input, s, h),
             (Some(h), None) => format!("{}\n\n{}", base_input, h),

@@ -7,7 +7,7 @@ description = "Shared service layer for hKask surfaces (CLI, API)"
 
 [dependencies]
 hkask-services-core = { path = "../hkask-services-core" }
-hkask-services-cloud = { path = "../hkask-services-cloud" }
+
 hkask-services-backup = { path = "../hkask-services-backup" }
 hkask-services-kata = { path = "../hkask-services-kata" }
 hkask-services-kanban = { path = "../hkask-services-kanban" }
@@ -18,8 +18,8 @@ hkask-services-wallet = { path = "../hkask-services-wallet" }
 hkask-services-onboarding = { path = "../hkask-services-onboarding" }
 hkask-services-verification = { path = "../hkask-services-verification" }
 hkask-services-skill = { path = "../hkask-services-skill" }
-hkask-services-lifecycle = { path = "../hkask-services-lifecycle" }
-hkask-services-sovereignty = { path = "../hkask-services-sovereignty" }
+
+
 hkask-services-daemon = { path = "../hkask-services-daemon" }
 hkask-services-context = { path = "../hkask-services-context" }
 hkask-types = { path = "../hkask-types" }

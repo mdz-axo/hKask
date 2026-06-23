@@ -149,6 +149,14 @@ impl TuiSession {
         self
     }
 
+    pub fn with_companies_bridge(
+        mut self,
+        companies: std::sync::Arc<dyn CompaniesDataBridge>,
+    ) -> Self {
+        self.workspace.with_companies_bridge(companies);
+        self
+    }
+
     /// Run the main event loop. Blocks until the user quits.
     pub fn run(&mut self) -> anyhow::Result<()> {
         // Show splash screen first

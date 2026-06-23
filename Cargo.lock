@@ -3942,7 +3942,6 @@ dependencies = [
  "hkask-services",
  "hkask-services-backup",
  "hkask-services-classify",
- "hkask-services-cloud",
  "hkask-services-core",
  "hkask-services-kanban",
  "hkask-storage",
@@ -4774,7 +4773,6 @@ dependencies = [
  "hkask-ports",
  "hkask-services-backup",
  "hkask-services-classify",
- "hkask-services-cloud",
  "hkask-services-context",
  "hkask-services-core",
  "hkask-services-daemon",
@@ -4782,10 +4780,8 @@ dependencies = [
  "hkask-services-embed",
  "hkask-services-kanban",
  "hkask-services-kata",
- "hkask-services-lifecycle",
  "hkask-services-onboarding",
  "hkask-services-skill",
- "hkask-services-sovereignty",
  "hkask-services-verification",
  "hkask-services-wallet",
  "hkask-storage",
@@ -5042,23 +5038,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "hkask-services-lifecycle"
-version = "0.30.0"
-dependencies = [
- "async-trait",
- "chrono",
- "hex",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml_neo",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
 ]
 
 [[package]]
