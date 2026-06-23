@@ -209,7 +209,11 @@ fn build_healer(registry_dir: &Path) -> SelfHealer {
                             .enable_all()
                             .build()
                             .map_err(|e| format!("{e}"))?
-                            .block_on(hkask_services_classify::generate_raw(&prompt, &cfg))
+                            .block_on(async {
+                                hkask_services_classify::generate_raw(&prompt, &cfg)
+                                    .await
+                                    .map_err(|e| format!("{e}"))
+                            })
                     })
                     .join()
                     .map_err(|_| "Healer thread panicked".to_string())?

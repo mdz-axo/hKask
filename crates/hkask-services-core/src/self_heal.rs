@@ -378,13 +378,12 @@ impl SelfHealer {
         tracing::info!(target: "cns.heal.attempt", operation = %context.operation, error = %error, cns_span = %hkask_types::cns::CnsSpan::SelfHeal);
 
         // Stage 1: KnowAct classification
-        if let Some((strategy_name, confidence)) = self.classify_error(error, context) {
-            if confidence > 0.5 {
-                if let Some(strategy) = self.registry.find_strategy_by_name(&strategy_name) {
-                    tracing::info!(target: "cns.heal.strategy", strategy = %strategy_name, confidence = confidence, source = "llm_classify");
-                    return self.execute_and_judge(strategy, context);
-                }
-            }
+        if let Some((strategy_name, confidence)) = self.classify_error(error, context)
+            && confidence > 0.5
+            && let Some(strategy) = self.registry.find_strategy_by_name(&strategy_name)
+        {
+            tracing::info!(target: "cns.heal.strategy", strategy = %strategy_name, confidence = confidence, source = "llm_classify");
+            return self.execute_and_judge(strategy, context);
         }
 
         // Stage 2: String-matching fallback
@@ -799,10 +798,10 @@ fn resolve_env_value(source: &EnvValueSource) -> Result<String, String> {
         }
         EnvValueSource::FirstOf(sources) => {
             for s in sources {
-                if let Ok(v) = resolve_env_value(s) {
-                    if !v.is_empty() {
-                        return Ok(v);
-                    }
+                if let Ok(v) = resolve_env_value(s)
+                    && !v.is_empty()
+                {
+                    return Ok(v);
                 }
             }
             Ok(String::new())
@@ -815,22 +814,22 @@ fn parse_llm_response(raw: &str) -> Result<Vec<HealInstruction>, String> {
     if let Ok(v) = serde_json::from_str::<Vec<HealInstruction>>(t) {
         return Ok(v);
     }
-    if let Ok(obj) = serde_json::from_str::<serde_json::Value>(t) {
-        if let Some(arr) = obj.get("actions").and_then(|v| v.as_array()) {
-            return arr
-                .iter()
-                .map(|v| serde_json::from_value(v.clone()))
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| format!("{}", e));
-        }
+    if let Ok(obj) = serde_json::from_str::<serde_json::Value>(t)
+        && let Some(arr) = obj.get("actions").and_then(|v| v.as_array())
+    {
+        return arr
+            .iter()
+            .map(|v| serde_json::from_value(v.clone()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("{}", e));
     }
     for fence in &["```json", "```"] {
         if let Some(start) = t.find(fence) {
             let after = &t[start + fence.len()..];
-            if let Some(end) = after.find("```") {
-                if let Ok(v) = serde_json::from_str::<Vec<HealInstruction>>(&after[..end]) {
-                    return Ok(v);
-                }
+            if let Some(end) = after.find("```")
+                && let Ok(v) = serde_json::from_str::<Vec<HealInstruction>>(&after[..end])
+            {
+                return Ok(v);
             }
         }
     }

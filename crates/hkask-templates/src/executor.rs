@@ -46,6 +46,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::info;
 
+/// Error healing callback: (error_string, operation_name).
+type HealCallback = Arc<dyn Fn(&str, &str) + Send + Sync>;
+
 /// Default base path for template files relative to the project root.
 const DEFAULT_TEMPLATE_BASE_PATH: &str = "registry/templates";
 
@@ -74,7 +77,7 @@ pub struct ManifestExecutor {
     /// relative to this path. Defaults to `registry/templates/`.
     template_base_path: PathBuf,
     /// Optional heal callback: (error_string, operation_name).
-    heal_error_cb: Option<Arc<dyn Fn(&str, &str) + Send + Sync>>,
+    heal_error_cb: Option<HealCallback>,
 }
 
 impl ManifestExecutor {
@@ -102,7 +105,7 @@ impl ManifestExecutor {
     }
 
     /// Attach a self-healing callback for automatic error recovery.
-    pub fn with_heal_cb(mut self, cb: Arc<dyn Fn(&str, &str) + Send + Sync>) -> Self {
+    pub fn with_heal_cb(mut self, cb: HealCallback) -> Self {
         self.heal_error_cb = Some(cb);
         self
     }

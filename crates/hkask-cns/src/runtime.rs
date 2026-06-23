@@ -30,6 +30,9 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tracing;
 
+/// Error healing callback: (error_string, operation_name).
+type HealCallback = Arc<dyn Fn(&str, &str) + Send + Sync>;
+
 // ── Variety counter infrastructure ────────────────────────────────────────
 // Relocated from variety.rs (TASK 2 deletion test — VarietyMonitor only used
 // by CnsRuntime, so depth increases when co-located).
@@ -271,7 +274,7 @@ pub struct CnsRuntime {
     state: Arc<RwLock<CnsState>>,
     subscribers: Arc<RwLock<Vec<Arc<dyn CnsObserver>>>>,
     /// Optional heal callback: (error_string, operation_name).
-    heal_error_cb: Option<Arc<dyn Fn(&str, &str) + Send + Sync>>,
+    heal_error_cb: Option<HealCallback>,
 }
 
 impl CnsRuntime {
@@ -291,7 +294,7 @@ impl CnsRuntime {
     }
 
     /// Attach a self-healing callback for automatic error recovery on depletion.
-    pub fn with_heal_cb(mut self, cb: Arc<dyn Fn(&str, &str) + Send + Sync>) -> Self {
+    pub fn with_heal_cb(mut self, cb: HealCallback) -> Self {
         self.heal_error_cb = Some(cb);
         self
     }

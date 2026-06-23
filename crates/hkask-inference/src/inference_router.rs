@@ -20,6 +20,9 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tracing::warn;
 
+/// Error healing callback: (error_string, operation_name).
+type HealCallback = Box<dyn Fn(&str, &str) + Send + Sync>;
+
 /// Multi-provider inference router implementing `InferencePort`.
 ///
 /// Parses the `XX/` prefix from model names and dispatches to the
@@ -34,7 +37,7 @@ pub struct InferenceRouter {
     embedding: EmbeddingRouter,
     /// Optional error healing callback. Takes (error_string, operation_name).
     /// Wire this to a SelfHealer instance at construction.
-    heal_error_cb: Option<Box<dyn Fn(&str, &str) + Send + Sync>>,
+    heal_error_cb: Option<HealCallback>,
 }
 
 impl InferenceRouter {
@@ -88,7 +91,7 @@ impl InferenceRouter {
     /// Attach a self-healing callback for automatic error recovery.
     /// The callback receives (error_string, operation_name) and should
     /// delegate to a SelfHealer instance.
-    pub fn with_heal_cb(mut self, cb: Box<dyn Fn(&str, &str) + Send + Sync>) -> Self {
+    pub fn with_heal_cb(mut self, cb: HealCallback) -> Self {
         self.heal_error_cb = Some(cb);
         self
     }

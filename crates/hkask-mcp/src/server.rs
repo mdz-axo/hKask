@@ -232,6 +232,9 @@ impl ServerContext {
     }
 }
 
+/// Error healing callback: (error_string, operation_name).
+type HealCallback = Box<dyn Fn(&str, &str) + Send + Sync>;
+
 /// RAII guard — emits CNS tool span on drop. Use `span.ok(output)` or `span.error(kind, output)`.
 pub struct ToolSpanGuard {
     tool_name: String,
@@ -239,7 +242,7 @@ pub struct ToolSpanGuard {
     caller: hkask_types::WebID,
     emitted: bool,
     /// Optional heal callback: (error_string, operation_name).
-    heal_error_cb: Option<Box<dyn Fn(&str, &str) + Send + Sync>>,
+    heal_error_cb: Option<HealCallback>,
 }
 
 impl ToolSpanGuard {
@@ -258,7 +261,7 @@ impl ToolSpanGuard {
     }
 
     /// Attach a self-healing callback for automatic error recovery.
-    pub fn with_heal_cb(mut self, cb: Box<dyn Fn(&str, &str) + Send + Sync>) -> Self {
+    pub fn with_heal_cb(mut self, cb: HealCallback) -> Self {
         self.heal_error_cb = Some(cb);
         self
     }
