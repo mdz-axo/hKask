@@ -12,11 +12,11 @@
 use std::sync::Arc;
 
 use crossterm::event::KeyEvent;
+use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
-use ratatui::Frame;
 
 use crate::window::{Window, WindowId, WindowKind};
 

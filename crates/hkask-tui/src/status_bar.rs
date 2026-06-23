@@ -60,11 +60,28 @@ impl StatusBar {
         // in a future iteration. For now, these are placeholders.
     }
 
-    /// Render the status bar as styled Spans.
+    /// Render the status bar with a lightweight title map (avoids Box<dyn Window>).
+    pub fn render_with_titles(
+        &self,
+        focused: WindowId,
+        titles: &HashMap<WindowId, String>,
+    ) -> Line<'static> {
+        self.build_line(focused, |id| titles.get(&id).map(|s| s.as_str()))
+    }
+
+    /// Render the status bar (original API for backward compat).
     pub fn render(
         &self,
         focused: WindowId,
         windows: &HashMap<WindowId, Box<dyn Window>>,
+    ) -> Line<'static> {
+        self.build_line(focused, |id| windows.get(&id).map(|w| w.title()))
+    }
+
+    fn build_line(
+        &self,
+        focused: WindowId,
+        title_lookup: impl Fn(WindowId) -> Option<&str>,
     ) -> Line<'static> {
         let mut spans: Vec<Span> = Vec::new();
 
@@ -146,10 +163,10 @@ impl StatusBar {
         ));
 
         // Focused window title (right-aligned via padding)
-        if let Some(win) = windows.get(&focused) {
+        if let Some(title) = title_lookup(focused) {
             spans.push(Span::raw("  "));
             spans.push(Span::styled(
-                format!("[{}]", win.title()),
+                format!("[{}]", title),
                 ratatui::style::Style::default().fg(Color::White),
             ));
         }

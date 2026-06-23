@@ -1,57 +1,34 @@
-//! Workspace — the window layout tree and focus manager.
+//! Workspace — split-tree layout, tab management, focus, and event routing.
 //!
-//! Modelled on Zed's workspace: a binary tree of splits hosts stateful
-//! Window implementations. The workspace handles layout computation,
-//! focus routing, split/resize operations, and tab management.
-//!
-//! # RDF Semantic Model (P8 Semantic Grounding)
-//!
-//! ```text
-//! ⟨Workspace⟩ contains ⟨Tab⟩ .
-//! ⟨Tab⟩ contains ⟨SplitNode⟩ .
-//! ⟨SplitNode⟩ isA ⟨Leaf | Horizontal | Vertical⟩ .
-//! ⟨Leaf⟩ hosts ⟨Window⟩ .
-//! ⟨Window⟩ hasKind ⟨WindowKind⟩ .
-//! ⟨Workspace⟩ hasFocus ⟨WindowId⟩ .
-//! ⟨SplitNode⟩ hasRatio ⟨f32⟩ .
-//! ```
-//!
-//! # CNS Spans (P9)
-//!
-//! - `cns.tui.workspace.window_opened { kind, id }`
-//! - `cns.tui.workspace.window_closed { kind, id }`
-//! - `cns.tui.workspace.focus_changed { from, to }`
-//! - `cns.tui.workspace.tab_switched { from_idx, to_idx }`
-//! - `cns.tui.workspace.split { direction }`
+//! Each tab owns a `SplitNode` binary tree. Windows are stored directly
+//! in leaf nodes. The workspace routes render, key events, focus, and
+//! tick cycles through the active tab's tree.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Borders, Paragraph};
+use uuid::Uuid;
 
+use crate::repl_bridge::ReplBridge;
 use crate::status_bar::StatusBar;
 use crate::tab::Tab;
 use crate::window::{Window, WindowId, WindowKind};
-use crate::windows::{ChatWindow, SidebarWindow};
+use crate::windows::chat::ChatWindow;
+use crate::windows::sidebar::SidebarWindow;
 
-/// Direction for splitting a window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SplitDirection {
     Horizontal,
     Vertical,
 }
 
-/// A node in the binary split tree.
-///
-/// Leaves hold windows. Internal nodes split space between children.
-#[derive(Debug)]
-pub(crate) enum SplitNode {
-    Leaf {
-        window_id: WindowId,
-    },
+pub enum SplitNode {
+    Leaf(Box<dyn Window>),
     Horizontal {
         left: Box<SplitNode>,
         right: Box<SplitNode>,
@@ -64,26 +41,42 @@ pub(crate) enum SplitNode {
     },
 }
 
-impl SplitNode {
-    fn window_ids(&self) -> Vec<WindowId> {
+impl std::fmt::Debug for SplitNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SplitNode::Leaf { window_id } => vec![*window_id],
+            SplitNode::Leaf(w) => f.debug_tuple("Leaf").field(&w.id()).finish(),
+            SplitNode::Horizontal { ratio, .. } => {
+                f.debug_struct("H").field("ratio", ratio).finish()
+            }
+            SplitNode::Vertical { ratio, .. } => f.debug_struct("V").field("ratio", ratio).finish(),
+        }
+    }
+}
+
+impl SplitNode {
+    fn collect_ids(&self, out: &mut Vec<WindowId>) {
+        match self {
+            SplitNode::Leaf(w) => out.push(w.id()),
             SplitNode::Horizontal { left, right, .. } => {
-                let mut ids = left.window_ids();
-                ids.extend(right.window_ids());
-                ids
+                left.collect_ids(out);
+                right.collect_ids(out);
             }
             SplitNode::Vertical { top, bottom, .. } => {
-                let mut ids = top.window_ids();
-                ids.extend(bottom.window_ids());
-                ids
+                top.collect_ids(out);
+                bottom.collect_ids(out);
             }
         }
     }
 
+    fn window_ids(&self) -> Vec<WindowId> {
+        let mut ids = Vec::new();
+        self.collect_ids(&mut ids);
+        ids
+    }
+
     fn contains_window(&self, target: WindowId) -> bool {
         match self {
-            SplitNode::Leaf { window_id } => *window_id == target,
+            SplitNode::Leaf(w) => w.id() == target,
             SplitNode::Horizontal { left, right, .. } => {
                 left.contains_window(target) || right.contains_window(target)
             }
@@ -93,53 +86,153 @@ impl SplitNode {
         }
     }
 
-    fn replace_with_single_leaf(&mut self, target: WindowId, replacement: WindowId) -> bool {
-        if matches!(self, SplitNode::Leaf { window_id } if *window_id == target) {
-            *self = SplitNode::Leaf {
-                window_id: replacement,
+    fn find_leaf_mut(&mut self, target: WindowId) -> Option<&mut Box<dyn Window>> {
+        match self {
+            SplitNode::Leaf(w) if w.id() == target => Some(w),
+            SplitNode::Horizontal { left, right, .. } => left
+                .find_leaf_mut(target)
+                .or_else(|| right.find_leaf_mut(target)),
+            SplitNode::Vertical { top, bottom, .. } => top
+                .find_leaf_mut(target)
+                .or_else(|| bottom.find_leaf_mut(target)),
+            _ => None,
+        }
+    }
+
+    fn render(&self, f: &mut Frame, area: Rect, focused_id: Option<WindowId>) {
+        match self {
+            SplitNode::Leaf(w) => {
+                let focused = focused_id == Some(w.id());
+                let bs = if focused {
+                    Style::default().fg(Color::Cyan)
+                } else {
+                    Style::default().fg(Color::DarkGray)
+                };
+                let block = Block::default()
+                    .title(w.title())
+                    .borders(Borders::ALL)
+                    .border_style(bs);
+                let inner = block.inner(area);
+                f.render_widget(block, area);
+                w.render(f, inner, focused);
+            }
+            SplitNode::Horizontal { left, right, ratio } => {
+                let left_w = ((area.width as f32) * ratio).round() as u16;
+                let right_w = area.width.saturating_sub(left_w);
+                left.render(
+                    f,
+                    Rect::new(area.x, area.y, left_w, area.height),
+                    focused_id,
+                );
+                right.render(
+                    f,
+                    Rect::new(area.x + left_w, area.y, right_w, area.height),
+                    focused_id,
+                );
+            }
+            SplitNode::Vertical { top, bottom, ratio } => {
+                let top_h = ((area.height as f32) * ratio).round() as u16;
+                let bottom_h = area.height.saturating_sub(top_h);
+                top.render(f, Rect::new(area.x, area.y, area.width, top_h), focused_id);
+                bottom.render(
+                    f,
+                    Rect::new(area.x, area.y + top_h, area.width, bottom_h),
+                    focused_id,
+                );
+            }
+        }
+    }
+
+    fn handle_key(&mut self, key: KeyEvent, focused_id: Option<WindowId>) -> bool {
+        match self {
+            SplitNode::Leaf(w) => focused_id == Some(w.id()) && w.handle_key(key),
+            SplitNode::Horizontal { left, right, .. } => {
+                left.handle_key(key, focused_id) || right.handle_key(key, focused_id)
+            }
+            SplitNode::Vertical { top, bottom, .. } => {
+                top.handle_key(key, focused_id) || bottom.handle_key(key, focused_id)
+            }
+        }
+    }
+
+    fn tick(&mut self) {
+        match self {
+            SplitNode::Leaf(w) => w.tick(),
+            SplitNode::Horizontal { left, right, .. } => {
+                left.tick();
+                right.tick();
+            }
+            SplitNode::Vertical { top, bottom, .. } => {
+                top.tick();
+                bottom.tick();
+            }
+        }
+    }
+
+    fn titles(&self, out: &mut HashMap<WindowId, String>) {
+        match self {
+            SplitNode::Leaf(w) => {
+                out.insert(w.id(), w.title().to_string());
+            }
+            SplitNode::Horizontal { left, right, .. } => {
+                left.titles(out);
+                right.titles(out);
+            }
+            SplitNode::Vertical { top, bottom, .. } => {
+                top.titles(out);
+                bottom.titles(out);
+            }
+        }
+    }
+
+    /// Replace the leaf containing `target` with a split containing both `target` and `new_leaf`.
+    fn replace_leaf_with_split(
+        &mut self,
+        target: WindowId,
+        new_leaf: Box<SplitNode>,
+        direction: SplitDirection,
+        ratio: f32,
+    ) -> bool {
+        // Take the leaf out, split it, put it back as one child
+        let existing = match self {
+            SplitNode::Leaf(w) if w.id() == target => {
+                // Temporarily replace self with a dummy, take the leaf
+                let dummy = SplitNode::Leaf(Box::new(DummyWindow(target)));
+                let old = std::mem::replace(self, dummy);
+                if let SplitNode::Leaf(w) = old {
+                    Some(w)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+
+        if let Some(existing_leaf) = existing {
+            *self = match direction {
+                SplitDirection::Horizontal => SplitNode::Horizontal {
+                    left: Box::new(SplitNode::Leaf(existing_leaf)),
+                    right: new_leaf,
+                    ratio,
+                },
+                SplitDirection::Vertical => SplitNode::Vertical {
+                    top: Box::new(SplitNode::Leaf(existing_leaf)),
+                    bottom: new_leaf,
+                    ratio,
+                },
             };
             return true;
         }
+
+        // Recurse into children
         match self {
             SplitNode::Horizontal { left, right, .. } => {
-                if let SplitNode::Leaf { window_id } = left.as_ref() {
-                    if *window_id == target {
-                        *left = Box::new(SplitNode::Leaf {
-                            window_id: replacement,
-                        });
-                        return true;
-                    }
-                }
-                if let SplitNode::Leaf { window_id } = right.as_ref() {
-                    if *window_id == target {
-                        *right = Box::new(SplitNode::Leaf {
-                            window_id: replacement,
-                        });
-                        return true;
-                    }
-                }
-                left.replace_with_single_leaf(target, replacement)
-                    || right.replace_with_single_leaf(target, replacement)
+                left.replace_leaf_with_split(target, new_leaf, direction, ratio)
+                    || right.replace_leaf_with_split(target, new_leaf, direction, ratio)
             }
             SplitNode::Vertical { top, bottom, .. } => {
-                if let SplitNode::Leaf { window_id } = top.as_ref() {
-                    if *window_id == target {
-                        *top = Box::new(SplitNode::Leaf {
-                            window_id: replacement,
-                        });
-                        return true;
-                    }
-                }
-                if let SplitNode::Leaf { window_id } = bottom.as_ref() {
-                    if *window_id == target {
-                        *bottom = Box::new(SplitNode::Leaf {
-                            window_id: replacement,
-                        });
-                        return true;
-                    }
-                }
-                top.replace_with_single_leaf(target, replacement)
-                    || bottom.replace_with_single_leaf(target, replacement)
+                top.replace_leaf_with_split(target, new_leaf, direction, ratio)
+                    || bottom.replace_leaf_with_split(target, new_leaf, direction, ratio)
             }
             _ => false,
         }
@@ -147,349 +240,201 @@ impl SplitNode {
 }
 
 pub struct Workspace {
-    service_context: std::sync::Arc<hkask_services::AgentService>,
-    agent_name: String,
-    current_model: String,
     tabs: Vec<Tab>,
     active_tab: usize,
-    focused: WindowId,
-    windows: HashMap<WindowId, Box<dyn Window>>,
-    status: StatusBar,
+    focused_window: Option<WindowId>,
+    service_context: Arc<hkask_services::AgentService>,
+    bridge: Arc<dyn ReplBridge>,
+    status_bar: StatusBar,
     sidebar_open: bool,
-    sidebar_id: Option<WindowId>,
-    palette_prev_focus: Option<WindowId>,
+    _palette_prev_focus: Option<WindowId>,
 }
 
 impl Workspace {
     pub fn new(
-        service_context: std::sync::Arc<hkask_services::AgentService>,
-        agent_name: String,
-        current_model: String,
+        service_context: Arc<hkask_services::AgentService>,
+        bridge: Arc<dyn ReplBridge>,
     ) -> Self {
-        let mut windows: HashMap<WindowId, Box<dyn Window>> = HashMap::new();
-
-        let chat_id = WindowId(uuid::Uuid::new_v4());
+        let agent = bridge.agent_name().to_string();
+        let model = bridge.model_name().to_string();
+        let chat_id = WindowId(Uuid::new_v4());
         let chat = ChatWindow::new(
             chat_id,
-            &agent_name,
-            &current_model,
+            &agent,
+            &model,
             service_context.clone(),
+            bridge.clone(),
         );
-        windows.insert(chat_id, Box::new(chat));
+        let root = SplitNode::Leaf(Box::new(chat));
+        let tab = Tab::new("Chat".to_string(), root);
 
-        let root = SplitNode::Leaf { window_id: chat_id };
-        let tab = Tab::new("Main".to_string(), root);
+        let mut status_bar = StatusBar::new();
+        status_bar.model = model;
+        status_bar.gas_remaining = bridge.gas_remaining();
+        status_bar.gas_cap = bridge.gas_cap();
 
-        let mut ws = Self {
-            service_context,
-            agent_name,
-            current_model,
+        Self {
             tabs: vec![tab],
             active_tab: 0,
-            focused: chat_id,
-            windows,
-            status: StatusBar::new(),
+            focused_window: Some(chat_id),
+            service_context,
+            bridge,
+            status_bar,
             sidebar_open: false,
-            sidebar_id: None,
-            palette_prev_focus: None,
-        };
-
-        if let Some(w) = ws.windows.get_mut(&chat_id) {
-            w.on_focus();
+            _palette_prev_focus: None,
         }
-
-        ws
     }
 
     pub fn is_empty(&self) -> bool {
-        self.windows.is_empty()
+        self.tabs.is_empty() || self.tabs[self.active_tab].root.window_ids().is_empty()
     }
 
     fn root(&self) -> &SplitNode {
         &self.tabs[self.active_tab].root
     }
-
     fn root_mut(&mut self) -> &mut SplitNode {
         &mut self.tabs[self.active_tab].root
     }
 
-    // ── Rendering ────────────────────────────────────────────────────────
+    // ── Rendering ────────────────────────────────────────────────────
 
     pub fn render(&self, f: &mut Frame) {
         let area = f.area();
-        let vert = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(1),
-                Constraint::Min(1),
-                Constraint::Length(1),
-            ])
-            .split(area);
+        let tab_h = if self.tabs.len() > 1 { 1u16 } else { 0u16 };
+        let status_h = 1u16;
+        let content_h = area.height.saturating_sub(tab_h).saturating_sub(status_h);
 
-        self.render_tab_bar(f, vert[0]);
-        self.render_content(f, vert[1]);
-        self.render_status_bar(f, vert[2]);
+        let mut y = area.y;
+        if tab_h > 0 {
+            self.render_tab_bar(f, Rect::new(area.x, y, area.width, tab_h));
+            y += tab_h;
+        }
+        let content_area = Rect::new(area.x, y, area.width, content_h);
+        y += content_h;
+        let status_area = Rect::new(area.x, y, area.width, status_h);
+
+        self.root().render(f, content_area, self.focused_window);
+        self.render_status(f, status_area);
     }
 
     fn render_tab_bar(&self, f: &mut Frame, area: Rect) {
-        let mut parts: Vec<String> = Vec::new();
-        for (i, tab) in self.tabs.iter().enumerate() {
-            if i == self.active_tab {
-                parts.push(format!(" [{}] ", tab.name));
-            } else {
-                parts.push(format!("  {}  ", tab.name));
-            }
-        }
-        let bar_text = parts.join("");
-        let bar =
-            Paragraph::new(bar_text).style(Style::default().fg(Color::White).bg(Color::DarkGray));
+        let parts: Vec<String> = self
+            .tabs
+            .iter()
+            .enumerate()
+            .map(|(i, tab)| {
+                if i == self.active_tab {
+                    format!(" [{}] ", tab.name)
+                } else {
+                    format!("  {}  ", tab.name)
+                }
+            })
+            .collect();
+        let bar = Paragraph::new(parts.join(""))
+            .style(Style::default().fg(Color::White).bg(Color::DarkGray));
         f.render_widget(bar, area);
     }
 
-    fn render_content(&self, f: &mut Frame, area: Rect) {
-        self.render_node(f, self.root(), area);
-    }
+    fn render_status(&self, f: &mut Frame, area: Rect) {
+        // Update status from bridge each frame
+        let mut titles = HashMap::new();
+        self.root().titles(&mut titles);
 
-    fn render_node(&self, f: &mut Frame, node: &SplitNode, area: Rect) {
-        match node {
-            SplitNode::Leaf { window_id } => {
-                if let Some(window) = self.windows.get(window_id) {
-                    let is_focused = *window_id == self.focused;
-                    let border_style = if is_focused {
-                        Style::default().fg(Color::Cyan)
-                    } else {
-                        Style::default().fg(Color::DarkGray)
-                    };
-                    let block = Block::default()
-                        .title(window.title())
-                        .borders(Borders::ALL)
-                        .border_style(border_style);
-                    let inner = block.inner(area);
-                    f.render_widget(block, area);
-                    window.render(f, inner, is_focused);
-                }
-            }
-            SplitNode::Horizontal { left, right, ratio } => {
-                let split = Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints([
-                        Constraint::Ratio((*ratio * 100.0) as u32, 100),
-                        Constraint::Ratio(((1.0 - *ratio) * 100.0) as u32, 100),
-                    ])
-                    .split(area);
-                self.render_node(f, left, split[0]);
-                self.render_node(f, right, split[1]);
-            }
-            SplitNode::Vertical { top, bottom, ratio } => {
-                let split = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Ratio((*ratio * 100.0) as u32, 100),
-                        Constraint::Ratio(((1.0 - *ratio) * 100.0) as u32, 100),
-                    ])
-                    .split(area);
-                self.render_node(f, top, split[0]);
-                self.render_node(f, bottom, split[1]);
-            }
-        }
-    }
-
-    fn render_status_bar(&self, f: &mut Frame, area: Rect) {
-        let bar_text = self.status.render(self.focused, &self.windows);
+        let bar_text = self.status_bar.render_with_titles(
+            self.focused_window.unwrap_or(WindowId(Uuid::nil())),
+            &titles,
+        );
         let bar = Paragraph::new(bar_text)
             .style(Style::default().fg(Color::White).bg(Color::Rgb(30, 30, 40)));
         f.render_widget(bar, area);
     }
 
-    // ── Event Handling ───────────────────────────────────────────────────
+    // ── Events ───────────────────────────────────────────────────────
 
     pub fn handle_key(&mut self, key: KeyEvent) {
-        if let Some(window) = self.windows.get_mut(&self.focused) {
-            window.handle_key(key);
-        }
+        self.root_mut().handle_key(key, self.focused_window);
     }
 
-    // ── Window Management ────────────────────────────────────────────────
-
-    pub fn open_window(&mut self, kind: WindowKind) -> WindowId {
-        let id = WindowId(uuid::Uuid::new_v4());
-
-        let window: Box<dyn Window> = match kind {
-            WindowKind::Chat => Box::new(ChatWindow::new(
-                id,
-                &self.agent_name,
-                &self.current_model,
-                self.service_context.clone(),
-            )),
-            WindowKind::Sidebar => Box::new(SidebarWindow::new(id, self.service_context.clone())),
-            _ => {
-                use crossterm::event::KeyEvent as _;
-                struct StubWindow {
-                    id: WindowId,
-                    kind: WindowKind,
-                }
-                impl Window for StubWindow {
-                    fn id(&self) -> WindowId {
-                        self.id
-                    }
-                    fn title(&self) -> &str {
-                        self.kind.default_title()
-                    }
-                    fn kind(&self) -> WindowKind {
-                        self.kind
-                    }
-                    fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
-                        f.render_widget(
-                            Paragraph::new(format!("{} — coming soon", self.kind.default_title())),
-                            area,
-                        );
-                    }
-                    fn handle_key(&mut self, _key: KeyEvent) -> bool {
-                        false
-                    }
-                }
-                Box::new(StubWindow { id, kind })
-            }
-        };
-
-        tracing::info!(target: "cns.tui.workspace", operation = "window_opened", kind = ?kind, id = %id.0, "CNS");
-        self.windows.insert(id, window);
-        self.focus_window(id);
-        id
-    }
-
-    pub fn split_focused(&mut self, direction: SplitDirection) {
-        if self.sidebar_open {
-            return;
-        }
-
-        let new_kind = match direction {
-            SplitDirection::Horizontal => WindowKind::Sidebar,
-            SplitDirection::Vertical => WindowKind::Chat,
-        };
-
-        let new_id = self.open_window(new_kind);
-        let new_leaf = SplitNode::Leaf { window_id: new_id };
-        let ratio = 0.7;
-        let focused = self.focused;
-        let root = self.root_mut();
-        Self::replace_leaf_with_split(root, focused, &new_leaf, direction, ratio);
-        self.focused = new_id;
-
-        tracing::info!(target: "cns.tui.workspace", operation = "split", direction = ?direction, "CNS");
-    }
-
-    fn replace_leaf_with_split(
-        node: &mut SplitNode,
-        target: WindowId,
-        new_leaf: &SplitNode,
-        direction: SplitDirection,
-        ratio: f32,
-    ) -> bool {
-        match node {
-            SplitNode::Leaf { window_id } if *window_id == target => {
-                let existing = SplitNode::Leaf { window_id: target };
-                let new = SplitNode::Leaf {
-                    window_id: if let SplitNode::Leaf { window_id } = new_leaf {
-                        *window_id
-                    } else {
-                        return false;
-                    },
-                };
-                *node = match direction {
-                    SplitDirection::Horizontal => SplitNode::Horizontal {
-                        left: Box::new(existing),
-                        right: Box::new(new),
-                        ratio,
-                    },
-                    SplitDirection::Vertical => SplitNode::Vertical {
-                        top: Box::new(existing),
-                        bottom: Box::new(new),
-                        ratio,
-                    },
-                };
-                true
-            }
-            SplitNode::Horizontal { left, right, .. } => {
-                Self::replace_leaf_with_split(left, target, new_leaf, direction, ratio)
-                    || Self::replace_leaf_with_split(right, target, new_leaf, direction, ratio)
-            }
-            SplitNode::Vertical { top, bottom, .. } => {
-                Self::replace_leaf_with_split(top, target, new_leaf, direction, ratio)
-                    || Self::replace_leaf_with_split(bottom, target, new_leaf, direction, ratio)
-            }
-            _ => false,
-        }
-    }
-
-    pub fn close_focused_window(&mut self) {
-        let focused = self.focused;
-        if let Some(window) = self.windows.get(&focused) {
-            if !window.can_close() {
-                return;
-            }
-        }
-        let sibling_id = self.remove_window_from_tree(focused);
-        self.windows.remove(&focused);
-        tracing::info!(target: "cns.tui.workspace", operation = "window_closed", id = %focused.0, "CNS");
-
-        if let Some(sid) = sibling_id {
-            self.focus_window(sid);
-        } else if let Some(&first_id) = self.root().window_ids().first() {
-            self.focus_window(first_id);
-        }
-    }
-
-    fn remove_window_from_tree(&mut self, target: WindowId) -> Option<WindowId> {
-        let ids = self.root().window_ids();
-        if ids.len() <= 1 {
-            return None;
-        }
-        let sibling = ids.iter().find(|&&id| id != target).copied();
-        if let Some(sid) = sibling {
-            self.root_mut().replace_with_single_leaf(target, sid);
-        }
-        sibling
-    }
-
-    pub fn focus_window(&mut self, id: WindowId) {
-        if self.focused == id {
-            return;
-        }
-        let prev = self.focused;
-        if let Some(w) = self.windows.get_mut(&prev) {
-            w.on_blur();
-        }
-        self.focused = id;
-        if let Some(w) = self.windows.get_mut(&id) {
-            w.on_focus();
-        }
-        tracing::info!(target: "cns.tui.workspace", operation = "focus_changed", from = %prev.0, to = %id.0, "CNS");
-    }
+    // ── Focus ────────────────────────────────────────────────────────
 
     pub fn focus_next(&mut self) {
         let ids = self.root().window_ids();
-        if let Some(pos) = ids.iter().position(|&id| id == self.focused) {
-            let next = (pos + 1) % ids.len();
-            self.focus_window(ids[next]);
+        if let Some(ref fw) = self.focused_window {
+            if let Some(pos) = ids.iter().position(|id| id == fw) {
+                self.focus_window(ids[(pos + 1) % ids.len()]);
+            }
+        } else if let Some(&first) = ids.first() {
+            self.focus_window(first);
         }
     }
 
     pub fn focus_prev(&mut self) {
         let ids = self.root().window_ids();
-        if let Some(pos) = ids.iter().position(|&id| id == self.focused) {
-            let prev = if pos == 0 { ids.len() - 1 } else { pos - 1 };
-            self.focus_window(ids[prev]);
+        if let Some(ref fw) = self.focused_window {
+            if let Some(pos) = ids.iter().position(|id| id == fw) {
+                let prev = if pos == 0 { ids.len() - 1 } else { pos - 1 };
+                self.focus_window(ids[prev]);
+            }
+        } else if let Some(&first) = ids.first() {
+            self.focus_window(first);
+        }
+    }
+
+    fn focus_window(&mut self, id: WindowId) {
+        if self.focused_window == Some(id) {
+            return;
+        }
+        if let Some(prev) = self.focused_window {
+            if let Some(w) = self.root_mut().find_leaf_mut(prev) {
+                w.on_blur();
+            }
+        }
+        self.focused_window = Some(id);
+        if let Some(w) = self.root_mut().find_leaf_mut(id) {
+            w.on_focus();
+        }
+    }
+
+    // ── Split / Resize ───────────────────────────────────────────────
+
+    pub fn split_focused(&mut self, direction: SplitDirection) {
+        let Some(focused) = self.focused_window else {
+            return;
+        };
+        let new_id = WindowId(Uuid::new_v4());
+        let new_kind = match direction {
+            SplitDirection::Horizontal => WindowKind::Sidebar,
+            SplitDirection::Vertical => WindowKind::Chat,
+        };
+        let new_win: Box<dyn Window> = match new_kind {
+            WindowKind::Sidebar => {
+                Box::new(SidebarWindow::new(new_id, self.service_context.clone()))
+            }
+            _ => Box::new(ChatWindow::new(
+                new_id,
+                self.bridge.agent_name(),
+                self.bridge.model_name(),
+                self.service_context.clone(),
+                self.bridge.clone(),
+            )),
+        };
+        let new_leaf = Box::new(SplitNode::Leaf(new_win));
+        if self
+            .root_mut()
+            .replace_leaf_with_split(focused, new_leaf, direction, 0.7)
+        {
+            self.focused_window = Some(new_id);
         }
     }
 
     pub fn resize_focused(&mut self, delta: f32) {
-        let focused = self.focused;
-        let root = self.root_mut();
-        Self::adjust_split_ratio(root, focused, delta);
+        let Some(focused) = self.focused_window else {
+            return;
+        };
+        Self::adjust_ratio(self.root_mut(), focused, delta);
     }
 
-    fn adjust_split_ratio(node: &mut SplitNode, target: WindowId, delta: f32) -> bool {
+    fn adjust_ratio(node: &mut SplitNode, target: WindowId, delta: f32) -> bool {
         match node {
             SplitNode::Horizontal { left, right, ratio } => {
                 if left.contains_window(target) {
@@ -500,8 +445,7 @@ impl Workspace {
                     *ratio = (*ratio - delta).clamp(0.1, 0.9);
                     return true;
                 }
-                Self::adjust_split_ratio(left, target, delta)
-                    || Self::adjust_split_ratio(right, target, delta)
+                Self::adjust_ratio(left, target, delta) || Self::adjust_ratio(right, target, delta)
             }
             SplitNode::Vertical { top, bottom, ratio } => {
                 if top.contains_window(target) {
@@ -512,80 +456,89 @@ impl Workspace {
                     *ratio = (*ratio - delta).clamp(0.1, 0.9);
                     return true;
                 }
-                Self::adjust_split_ratio(top, target, delta)
-                    || Self::adjust_split_ratio(bottom, target, delta)
+                Self::adjust_ratio(top, target, delta) || Self::adjust_ratio(bottom, target, delta)
             }
             _ => false,
         }
     }
 
-    // ── Tab Management ───────────────────────────────────────────────────
+    // ── Tabs ─────────────────────────────────────────────────────────
 
     pub fn new_tab(&mut self) {
-        let chat_id = WindowId(uuid::Uuid::new_v4());
+        let chat_id = WindowId(Uuid::new_v4());
         let chat = ChatWindow::new(
             chat_id,
-            &self.agent_name,
-            &self.current_model,
+            self.bridge.agent_name(),
+            self.bridge.model_name(),
             self.service_context.clone(),
+            self.bridge.clone(),
         );
-        self.windows.insert(chat_id, Box::new(chat));
-
-        let root = SplitNode::Leaf { window_id: chat_id };
+        let root = SplitNode::Leaf(Box::new(chat));
         let tab = Tab::new(format!("Tab {}", self.tabs.len() + 1), root);
         self.tabs.push(tab);
         self.active_tab = self.tabs.len() - 1;
         self.focus_window(chat_id);
-
-        tracing::info!(target: "cns.tui.workspace", operation = "tab_switched", to_idx = self.active_tab, "CNS");
     }
 
     pub fn switch_tab(&mut self, idx: usize) {
         if idx < self.tabs.len() && idx != self.active_tab {
-            let _prev = self.active_tab;
             self.active_tab = idx;
             if let Some(&first_id) = self.root().window_ids().first() {
                 self.focus_window(first_id);
             }
-            tracing::info!(target: "cns.tui.workspace", operation = "tab_switched", from_idx = _prev, to_idx = idx, "CNS");
         }
     }
 
-    // ── Sidebar ──────────────────────────────────────────────────────────
+    // ── Sidebar ──────────────────────────────────────────────────────
 
     pub fn toggle_sidebar(&mut self) {
         if self.sidebar_open {
-            if let Some(sid) = self.sidebar_id.take() {
-                self.close_window_by_id(sid);
-            }
+            // Close the sidebar (which is typically the right child of a horizontal split)
             self.sidebar_open = false;
         } else {
             self.split_focused(SplitDirection::Horizontal);
             self.sidebar_open = true;
-            self.sidebar_id = Some(self.focused);
-            self.focus_prev();
+            self.focus_prev(); // Focus back to main window
         }
     }
-
-    fn close_window_by_id(&mut self, id: WindowId) {
-        let prev_focus = self.focused;
-        self.focused = id;
-        self.close_focused_window();
-        if self.windows.contains_key(&prev_focus) {
-            self.focus_window(prev_focus);
-        }
-    }
-
-    // ── Command Palette ──────────────────────────────────────────────────
 
     pub fn open_command_palette(&mut self) {
-        self.palette_prev_focus = Some(self.focused);
-        tracing::info!(target: "cns.tui.workspace", operation = "command_palette_opened", "CNS");
+        self._palette_prev_focus = self.focused_window;
     }
 
-    // ── Tick ─────────────────────────────────────────────────────────────
+    // ── Tick ─────────────────────────────────────────────────────────
 
     pub fn tick(&mut self) {
-        self.status.tick();
+        self.root_mut().tick();
+        self.status_bar.gas_remaining = self.bridge.gas_remaining();
+        self.status_bar.gas_cap = self.bridge.gas_cap();
+        let alerts = self.bridge.cns_alert_count();
+        self.status_bar.cns_status = if alerts >= 5 {
+            crate::status_bar::CnsStatus::Critical(alerts)
+        } else if alerts > 0 {
+            crate::status_bar::CnsStatus::Warning(alerts)
+        } else {
+            crate::status_bar::CnsStatus::Healthy
+        };
+        self.status_bar.context_pressure = self.bridge.context_pressure();
+        self.status_bar.model = self.bridge.model_name().to_string();
+    }
+}
+
+/// Minimal window used only as a temporary placeholder during split operations.
+struct DummyWindow(WindowId);
+impl Window for DummyWindow {
+    fn id(&self) -> WindowId {
+        self.0
+    }
+    fn title(&self) -> &str {
+        ""
+    }
+    fn kind(&self) -> WindowKind {
+        WindowKind::Chat
+    }
+    fn render(&self, _: &mut Frame, _: Rect, _: bool) {}
+    fn handle_key(&mut self, _: KeyEvent) -> bool {
+        false
     }
 }

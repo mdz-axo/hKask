@@ -5,8 +5,8 @@
 //! layout, focus, and event routing.
 
 use crossterm::event::KeyEvent;
-use ratatui::layout::Rect;
 use ratatui::Frame;
+use ratatui::layout::Rect;
 use uuid::Uuid;
 
 /// Unique identifier for a window instance.

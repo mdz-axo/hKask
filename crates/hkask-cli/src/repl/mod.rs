@@ -238,10 +238,6 @@ fn history_path() -> std::path::PathBuf {
 }
 
 /// Launch the TUI workspace instead of the line-based REPL.
-///
-/// Initializes the same ReplState as `run()` but constructs a
-/// `hkask_tui::TuiSession` for a multi-window ratatui interface.
-/// Falls back to the rustyline REPL if TUI initialization fails.
 pub fn run_tui(
     _registry: &mut SqliteRegistry,
     _runtime: &McpRuntime,
@@ -257,13 +253,20 @@ pub fn run_tui(
     let agent_name = state.current_agent.clone();
     let model = state.current_model.clone();
     let service_context = state.service_context.clone();
+    let inference_loop = state.inference_loop.clone();
 
-    // Drop ReplState — the TUI owns its own state via the service context.
-    // The inference port, governed tool, and CNS runtime are all inside
-    // AgentService, which is Arc-shared.
+    // Build the TUI bridge holding inference state
+    let bridge = Arc::new(TuiReplBridge {
+        agent_name: agent_name.clone(),
+        model: model.clone(),
+        inference_loop: inference_loop.clone(),
+        rt_handle: rt_handle.clone(),
+    });
+
+    // Drop ReplState — the TUI owns its state via the bridge and service context
     drop(state);
 
-    match hkask_tui::TuiSession::new(service_context, agent_name, model) {
+    match hkask_tui::TuiSession::new(service_context, bridge) {
         Ok(mut session) => {
             if let Err(e) = session.run() {
                 eprintln!("TUI error: {}", e);
@@ -272,7 +275,6 @@ pub fn run_tui(
         Err(e) => {
             eprintln!("Failed to initialize TUI: {}", e);
             eprintln!("Falling back to line-based REPL.");
-            // Fall back to the standard REPL
             run(
                 _registry,
                 _runtime,
@@ -282,5 +284,70 @@ pub fn run_tui(
                 rt_handle,
             );
         }
+    }
+}
+
+/// Bridge implementation connecting the TUI to hKask's inference engine.
+struct TuiReplBridge {
+    agent_name: String,
+    model: String,
+    inference_loop: Arc<InferenceLoop>,
+    rt_handle: tokio::runtime::Handle,
+}
+
+impl hkask_tui::ReplBridge for TuiReplBridge {
+    fn send_message(&self, input: &str) -> hkask_tui::TurnResult {
+        // For now: echo mode. Full ChatService::execute_turn integration
+        // requires async plumbing and the full ReplState (memory, tools, etc.).
+        let _ = self.rt_handle;
+        let gas = self.inference_loop.gas_remaining();
+        let cap = self.inference_loop.gas_cap();
+
+        if cap > 0 && gas == 0 {
+            return hkask_tui::TurnResult {
+                text: String::new(),
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+                gas_cost: 0,
+                iterations: 0,
+                budget_exhausted: true,
+            };
+        }
+
+        // Echo the input back. Real inference is Tier 3.
+        let response = format!(
+            "[{} on {}] I received your message. Full inference integration is pending — this is the TUI bridge echo.\n\nYour input was: \"{}\"\n\nUse the existing `kask chat` (without --tui) for full inference until Tier 3 is complete.",
+            self.agent_name, self.model, input
+        );
+
+        hkask_tui::TurnResult {
+            text: response,
+            prompt_tokens: input.len() as u64 / 4,
+            completion_tokens: 50,
+            total_tokens: input.len() as u64 / 4 + 50,
+            gas_cost: 1,
+            iterations: 1,
+            budget_exhausted: false,
+        }
+    }
+
+    fn agent_name(&self) -> &str {
+        &self.agent_name
+    }
+    fn model_name(&self) -> &str {
+        &self.model
+    }
+    fn gas_remaining(&self) -> u64 {
+        self.inference_loop.gas_remaining()
+    }
+    fn gas_cap(&self) -> u64 {
+        self.inference_loop.gas_cap()
+    }
+    fn cns_alert_count(&self) -> u32 {
+        0
+    }
+    fn context_pressure(&self) -> f64 {
+        0.0
     }
 }

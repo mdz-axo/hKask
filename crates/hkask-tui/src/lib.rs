@@ -27,6 +27,7 @@
 //! ```
 
 mod keybindings;
+mod repl_bridge;
 mod status_bar;
 mod tab;
 mod window;
@@ -36,12 +37,13 @@ pub mod widgets;
 pub mod windows;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ratatui::prelude::CrosstermBackend;
 use ratatui::Terminal;
+use ratatui::prelude::CrosstermBackend;
 use std::io::Stdout;
 use std::time::Duration;
 use uuid::Uuid;
 
+pub use repl_bridge::{ReplBridge, TurnResult};
 pub use window::{Window, WindowId, WindowKind};
 pub use workspace::{SplitDirection, Workspace};
 
@@ -66,20 +68,18 @@ impl TuiSession {
     /// builds the workspace with a default layout (chat window).
     pub fn new(
         service_context: std::sync::Arc<hkask_services::AgentService>,
-        agent_name: String,
-        current_model: String,
+        bridge: std::sync::Arc<dyn ReplBridge>,
     ) -> anyhow::Result<Self> {
         let mut terminal = ratatui::init();
-        // Clear any residual terminal state before entering alternate screen
         terminal.clear()?;
 
-        let workspace = Workspace::new(service_context, agent_name, current_model);
+        let workspace = Workspace::new(service_context, bridge);
 
         Ok(Self {
             terminal,
             workspace,
             should_quit: false,
-            tick_rate: Duration::from_millis(16), // ~60 FPS
+            tick_rate: Duration::from_millis(16),
         })
     }
 
@@ -144,12 +144,16 @@ impl TuiSession {
                 true
             }
             // Split horizontal (open sidebar or split)
-            (modifiers, Char('h')) if modifiers.contains(KeyModifiers::CONTROL.union(KeyModifiers::SHIFT)) => {
+            (modifiers, Char('h'))
+                if modifiers.contains(KeyModifiers::CONTROL.union(KeyModifiers::SHIFT)) =>
+            {
                 self.workspace.split_focused(SplitDirection::Horizontal);
                 true
             }
             // Split vertical
-            (modifiers, Char('j')) if modifiers.contains(KeyModifiers::CONTROL.union(KeyModifiers::SHIFT)) => {
+            (modifiers, Char('j'))
+                if modifiers.contains(KeyModifiers::CONTROL.union(KeyModifiers::SHIFT)) =>
+            {
                 self.workspace.split_focused(SplitDirection::Vertical);
                 true
             }

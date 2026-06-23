@@ -28,6 +28,7 @@ use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
+use crate::repl_bridge::{ReplBridge, TurnResult};
 use crate::window::{Window, WindowId, WindowKind};
 
 /// The interaction mode for the chat window.
@@ -128,6 +129,8 @@ pub struct ChatWindow {
     /// Shared service context (for future inference integration)
     #[allow(dead_code)]
     service_context: Arc<hkask_services::AgentService>,
+    /// Bridge to the inference engine
+    bridge: Arc<dyn ReplBridge>,
 }
 
 impl ChatWindow {
@@ -136,6 +139,7 @@ impl ChatWindow {
         agent_name: &str,
         model: &str,
         service_context: Arc<hkask_services::AgentService>,
+        bridge: Arc<dyn ReplBridge>,
     ) -> Self {
         let mut messages = Vec::new();
         messages.push(ChatMessage {
@@ -158,6 +162,7 @@ impl ChatWindow {
             cursor_pos: 0,
             scroll_offset: 0,
             service_context,
+            bridge,
         }
     }
 
@@ -300,21 +305,38 @@ impl ChatWindow {
         // Normal chat message
         self.add_message(MessageSender::User, input.clone());
 
-        // Echo response for now (inference integration is Tier 2)
-        let response = match self.mode {
-            TuiMode::Curator => format!("[Curator] Message received in Curator mode: {}", input),
-            _ => format!(
-                "[{}] Echo: {} (inference integration pending)",
-                self.agent_name, input
-            ),
-        };
+        // Use the bridge for real inference instead of echo
+        let result = self.bridge.send_message(&input);
+
+        if result.budget_exhausted {
+            self.add_message(
+                MessageSender::CnsAlert,
+                "Gas budget exhausted — turn blocked by cybernetic regulator. Use /status for details.".into(),
+            );
+            return;
+        }
 
         let sender = match self.mode {
             TuiMode::Curator => MessageSender::Curator,
             _ => MessageSender::Agent(self.agent_name.clone()),
         };
 
-        self.add_message(sender, response);
+        self.add_message(sender, result.text.clone());
+
+        // Show token usage
+        if result.iterations > 1 {
+            self.add_message(
+                MessageSender::Tool("usage".into()),
+                format!(
+                    "{} tokens ({} prompt + {} completion) across {} iterations — gas cost: {}",
+                    result.total_tokens,
+                    result.prompt_tokens,
+                    result.completion_tokens,
+                    result.iterations,
+                    result.gas_cost,
+                ),
+            );
+        }
     }
 }
 
