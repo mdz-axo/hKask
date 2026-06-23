@@ -8,7 +8,8 @@
 //! lowest per-token pricing among GPU cloud providers.
 
 use crate::chat_protocol::{
-    build_chat_request, chat_response_to_result, stream_chat_completion, validate_prompt,
+    FusionPlugin, build_chat_request, chat_response_to_result, stream_chat_completion,
+    validate_prompt,
 };
 use crate::config::InferenceConfig;
 use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
@@ -77,7 +78,7 @@ impl DeepInfraBackend {
             Some(false),
             Some(5),
             tools,
-            None,
+            None::<Vec<FusionPlugin>>,
         );
 
         let response = self
@@ -144,7 +145,8 @@ impl DeepInfraBackend {
             params,
             Some(false),
             Some(5),
-            None,
+            None::<Vec<ChatToolDefinition>>,
+            None::<Vec<FusionPlugin>>,
         );
 
         let response = self
@@ -154,7 +156,9 @@ impl DeepInfraBackend {
             .json(&request)
             .send()
             .await
-            .map_err(|e| InferenceError::Connection(e.to_string()))?;
+            .map_err(|e| {
+                InferenceError::Connection(format!("DeepInfra vision request failed: {}", e))
+            })?;
 
         let status = response.status();
         if !status.is_success() {

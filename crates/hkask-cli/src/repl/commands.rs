@@ -93,6 +93,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         about: "Switch model, fuzzy search, or show current",
     },
     SlashCommand {
+        primary: "fusion",
+        aliases: &[],
+        args: "[off|on|status]",
+        about: "Show or toggle fusion mode (multi-model deliberation)",
+    },
+    SlashCommand {
         primary: "escalations",
         aliases: &["esc"],
         args: "",
@@ -278,6 +284,7 @@ pub(super) fn handle_slash_command(
         "ask" => handlers::handle_ask(arg1, arg2, rt, state),
         "invoke" | "inv" => handlers::handle_invoke(arg1, arg2, state, rt),
         "model" | "m" => handlers::handle_model(arg1, rt, state),
+        "fusion" => handlers::handle_fusion(arg1, state),
         "consolidate" | "cons" => {
             let cons_arg = if arg2.is_empty() {
                 arg1.to_string()

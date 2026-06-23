@@ -268,17 +268,27 @@ impl Confidence {
         self.0
     }
 
-    /// Apply exponential decay: `confidence * exp(-rate * time)`.
+    /// Apply Wozniak-Gorzelanczyk forgetting curve: `confidence * exp(-t / S)`.
     ///
-    /// Used by Episodic Loop for Bayesian confidence decay.
-    /// The result is clamped to [0.0, 1.0].
-    /// Apply exponential decay: value * e^(-rate * time).
+    /// Based on the two-component model of long-term memory (Wozniak & Gorzelanczyk,
+    /// 1995, Acta Neurobiologiae Experimentalis, 55, 301-305), equation (3):
+    ///
+    /// ```text
+    /// R(t) = exp(-t / S)
+    /// ```
+    ///
+    /// Where:
+    /// - `t` is days since most recent recall
+    /// - `S` is memory life in days (configurable, default 180 = 6×30 days)
+    ///
+    /// At `t = S`: `R = exp(-1) ≈ 0.368`. At the halflife `H = S·ln(2)`:
+    /// `R(H) = exp(-ln(2)) = 0.5`.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  rate >= 0, time >= 0
-    /// post: returns decayed Confidence
-    pub fn decay(&self, rate: f64, time: f64) -> Self {
-        Self((self.0 * (-rate * time).exp()).clamp(0.0, 1.0))
+    /// pre:  memory_life_days > 0, days_since_recall >= 0
+    /// post: returns decayed Confidence following the human forgetting curve
+    pub fn decay_memory_life(&self, memory_life_days: f64, days_since_recall: f64) -> Self {
+        Self((self.0 * (-days_since_recall / memory_life_days).exp()).clamp(0.0, 1.0))
     }
 }
 

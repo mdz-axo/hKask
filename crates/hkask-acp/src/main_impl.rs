@@ -157,14 +157,14 @@ impl HkaskAcpAgent {
                     Ok(true) => {
                         tracing::info!(
                             target: "cns.inference",
-                            fusion_group = %fusion.group,
+                            fusion_group = %fusion.judge,
                             "ACP: fusion group verified"
                         );
                     }
                     Ok(false) => {
                         tracing::warn!(
                             target: "cns.inference",
-                            fusion_group = %fusion.group,
+                            fusion_group = %fusion.judge,
                             "ACP: fusion group NOT FOUND — disabling fusion. Create it at https://openrouter.ai/fusion"
                         );
                         // SAFETY: called in build() before any sessions are active.
@@ -173,7 +173,7 @@ impl HkaskAcpAgent {
                     Err(e) => {
                         tracing::warn!(
                             target: "cns.inference",
-                            fusion_group = %fusion.group,
+                            fusion_group = %fusion.judge,
                             error = %e,
                             "ACP: could not verify fusion group — disabling fusion to prevent cost risk"
                         );

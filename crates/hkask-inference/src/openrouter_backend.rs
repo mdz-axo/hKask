@@ -8,8 +8,8 @@
 //! multiple providers through a single endpoint.
 
 use crate::chat_protocol::{
-    ChatResponse, build_chat_request, chat_response_to_result, stream_chat_completion,
-    validate_prompt,
+    ChatResponse, FusionPlugin, build_chat_request, chat_response_to_result,
+    stream_chat_completion, validate_prompt,
 };
 use crate::config::InferenceConfig;
 use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
@@ -82,10 +82,20 @@ impl OpenRouterBackend {
         prompt: &str,
         params: &LLMParameters,
         tools: Option<&[ChatToolDefinition]>,
+        plugins: Option<Vec<FusionPlugin>>,
     ) -> Result<InferenceResult, InferenceError> {
         validate_prompt(prompt)?;
         let tools = tools.map(|t| t.to_vec());
-        let request = build_chat_request(model, prompt, None, params, Some(false), Some(5), tools, None);
+        let request = build_chat_request(
+            model,
+            prompt,
+            None,
+            params,
+            Some(false),
+            Some(5),
+            tools,
+            plugins,
+        );
 
         let response = self
             .client
@@ -176,7 +186,8 @@ impl OpenRouterBackend {
             params,
             Some(false),
             Some(5),
-            None,
+            None::<Vec<ChatToolDefinition>>,
+            None::<Vec<FusionPlugin>>,
         );
 
         let response = self

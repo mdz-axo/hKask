@@ -7,108 +7,42 @@ use clap::Parser;
 use hkask_cli::cli::Commands;
 use hkask_cli::commands;
 use hkask_mcp::runtime::McpRuntime;
-use hkask_services::{FusionConfig, InferenceConfig, InferenceRouter};
+use hkask_services::{InferenceConfig, InferenceRouter};
 use hkask_templates::SqliteRegistry;
 use std::time::Instant;
 
 /// Check fusion model configuration at startup.
 ///
-/// When `HKASK_FUSION_MODEL` is set, verifies the fusion group exists on
-/// OpenRouter. If the group is not found (or OpenRouter is unreachable), asks
-/// the user whether to proceed with the default model or wait for the fusion
-/// group to be set up. This prevents accidentally hitting OpenRouter's default
-/// behavior (sending to ALL models, which can be very expensive).
-fn check_fusion_startup(rt: &tokio::runtime::Runtime) {
+/// When an OpenRouter API key is configured, fusion is enabled by default
+/// using the kask model set (Kimi2.7, Qwen3.7 Max, GLM5.2, Minimax3 panel,
+/// deepseek-v4-pro judge). Set HKASK_FUSION_JUDGE/HKASK_FUSION_PANEL to
+/// customize, or set HKASK_FUSION_OFF=1 to disable.
+fn check_fusion_startup(_rt: &tokio::runtime::Runtime) {
     let config = InferenceConfig::from_env();
     let fusion = match &config.fusion {
-        Some(f) => f.clone(),
+        Some(f) => f,
         None => return,
     };
 
+    let has_explicit_config = std::env::var("HKASK_FUSION_JUDGE").is_ok()
+        || std::env::var("HKASK_FUSION_FUSER").is_ok()
+        || std::env::var("HKASK_FUSION_GROUP").is_ok()
+        || std::env::var("HKASK_FUSION_MODEL").is_ok();
+
     eprintln!(
-        "\n  \x1b[1;33m⚡ Fusion mode active\x1b[0m — group: \x1b[36m{}\x1b[0m\n     {}",
-        fusion.group,
+        "\n  \x1b[1;33m⚡ Fusion mode active\x1b[0m — model: \x1b[36mopenrouter/fusion\x1b[0m\n     {}",
         fusion.description()
     );
 
-    let router = InferenceRouter::new(config);
-    match rt.block_on(router.verify_fusion_model()) {
-        Ok(true) => {
-            // Fusion verified — proceed silently. The user deliberately configured
-            // this and the group exists. No need for a notice.
-        }
-        Ok(false) => {
-            eprintln!(
-                "  \x1b[1;31m✗\x1b[0m Fusion group \x1b[1mNOT FOUND\x1b[0m on OpenRouter.\n  Create a fusion group named \x1b[1m'kask'\x1b[0m at \x1b[34mhttps://openrouter.ai/fusion\x1b[0m\n"
-            );
-            eprintln!(
-                "  OpenRouter's default sends to \x1b[1;31mALL models\x1b[0m — this can be \x1b[1;31mvery expensive\x1b[0m."
-            );
-            prompt_proceed_or_wait(&fusion, false);
-        }
-        Err(e) => {
-            eprintln!("  \x1b[33m⚠\x1b[0m Could not verify fusion group: {}", e);
-            prompt_proceed_or_wait(&fusion, true);
-        }
+    if !has_explicit_config {
+        eprintln!(
+            "     \x1b[2mUsing kask defaults. Configure: HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL\x1b[0m"
+        );
+        eprintln!("     \x1b[2mDisable: HKASK_FUSION_OFF=1  |  In REPL: /fusion off\x1b[0m");
     }
 }
 
-/// Ask the user whether to proceed with the default model or wait for fusion setup.
-///
-/// `connection_error`: if true, OpenRouter was unreachable (not just missing group).
-fn prompt_proceed_or_wait(fusion: &FusionConfig, connection_error: bool) {
-    use std::io::{self, Write};
-
-    let default = hkask_services::model_constants::DEFAULT_FALLBACK_MODEL;
-    let group_name = &fusion.judge;
-    let wait_msg = if connection_error {
-        format!(
-            "Wait while I fix the OpenRouter connection and set up the '{}' fusion group",
-            group_name
-        )
-    } else {
-        format!("Wait while I set up the '{}' fusion group", group_name)
-    };
-    eprintln!();
-    eprintln!(
-        "  [\x1b[1;36m1\x1b[0m] Proceed with default model (\x1b[36m{}\x1b[0m)",
-        default
-    );
-    eprintln!("  [\x1b[1;36m2\x1b[0m] {wait_msg}");
-    eprintln!();
-    eprint!("  Choose [1/2]: ");
-    let _ = io::stdout().flush();
-
-    let mut input = String::new();
-    if io::stdin().read_line(&mut input).is_err() {
-        eprintln!("\n  Could not read input — proceeding with default model.\n");
-        unsafe { std::env::remove_var("HKASK_FUSION_GROUP") };
-        return;
-    }
-
-    match input.trim() {
-        "2" => {
-            eprintln!();
-            eprintln!("  Create your fusion group at \x1b[34mhttps://openrouter.ai/fusion\x1b[0m");
-            eprintln!("  Name it \x1b[1m'{group_name}'\x1b[0m, then configure:\n");
-            eprintln!("    \x1b[1mexport HKASK_FUSION_GROUP={group_name}\x1b[0m");
-            eprintln!(
-                "    \x1b[1mexport HKASK_FUSION_MODELS=Kimi2.7,Qwen3.7 Max,GLM5.2,Minimax3\x1b[0m"
-            );
-            eprintln!("    \x1b[1mexport HKASK_FUSION_FUSER=Deepseek-v4-Pro\x1b[0m\n");
-            eprintln!("  Run \x1b[1mkask doctor\x1b[0m to verify everything is wired correctly.\n");
-            std::process::exit(0);
-        }
-        _ => {
-            eprintln!(
-                "\n  Proceeding with default model (\x1b[36m{}\x1b[0m).\n",
-                default
-            );
-            unsafe { std::env::remove_var("HKASK_FUSION_GROUP") };
-        }
-    }
-}
-
+/// ── Main ─────────────────────────────────────────────────────────────────
 fn main() {
     // Load .env from current directory (silently skip if absent)
     dotenvy::dotenv().ok();

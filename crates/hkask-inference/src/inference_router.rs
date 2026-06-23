@@ -5,7 +5,7 @@
 //! use the configured default provider.
 
 use crate::RouterModelEntry;
-use crate::chat_protocol::validate_prompt;
+use crate::chat_protocol::{FusionPlugin, validate_prompt};
 use crate::config::{InferenceConfig, ProviderId};
 use crate::deepinfra_backend::DeepInfraBackend;
 use crate::embedding_router::EmbeddingRouter;
@@ -159,6 +159,14 @@ impl InferenceRouter {
         params: &LLMParameters,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Result<InferenceResult, InferenceError> {
+        // Compute fusion plugins when routing to OpenRouter with fusion active
+        let fusion_plugins: Option<Vec<FusionPlugin>> =
+            if provider == ProviderId::OpenRouter && !params.bypass_fusion {
+                self.config.fusion.as_ref().map(|f| f.plugin_payload())
+            } else {
+                None
+            };
+
         match provider {
             ProviderId::DeepInfra => {
                 self.deepinfra
@@ -193,7 +201,7 @@ impl InferenceRouter {
                     .ok_or_else(|| {
                         InferenceError::Connection("OpenRouter backend unavailable".to_string())
                     })?
-                    .generate(model, prompt, params, tools)
+                    .generate(model, prompt, params, tools, fusion_plugins)
                     .await
             }
             ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
@@ -884,7 +892,7 @@ impl InferenceRouter {
         let or_fusion_id = fusion_id.strip_prefix("OR/").unwrap_or(&fusion_id);
         let found = models
             .iter()
-            .any(|m| m.id == or_fusion_id || m.id == search_id);
+            .any(|m| m.id == or_fusion_id || m.id == *search_id);
         if found {
             tracing::info!(
                 target: "cns.inference",
@@ -932,10 +940,7 @@ mod tests {
             bypass_fusion: false,
             ..Default::default()
         };
-        assert_eq!(
-            router.effective_model(None, &params),
-            "OR/openrouter/fusion/kask"
-        );
+        assert_eq!(router.effective_model(None, &params), "openrouter/fusion");
     }
 
     /// REQ: P9-inf-fusion-bypass

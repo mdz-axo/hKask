@@ -110,12 +110,13 @@ pub struct ServiceConfig {
     /// Wallet configuration for rJoule payments and multi-chain deposits.
     pub wallet_config: WalletConfig,
 
-    /// Episodic memory decay half-life in months.
+    /// Episodic memory life in days — configurable, default 180 (6 months × 30).
     ///
-    /// After this many months without recall, a triple's confidence decays
-    /// to 50%. Recalling a memory resets its decay clock. Default: 6.
-    /// Override via HKASK_DECAY_HALF_LIFE_MONTHS env var.
-    pub decay_half_life_months: f64,
+    /// Sets S in Wozniak & Gorzelanczyk (1995) forgetting curve: R(t) = exp(-t/S).
+    /// After S days without recall, confidence decays to exp(-1) ≈ 36.8%.
+    /// Recalling a memory resets its decay clock (t goes back to 0).
+    /// Override via HKASK_MEMORY_LIFE_DAYS env var.
+    pub memory_life_days: f64,
 }
 
 impl ServiceConfig {
@@ -165,10 +166,10 @@ impl ServiceConfig {
             })?
             .to_vec();
 
-        let decay_half_life_months = std::env::var("HKASK_DECAY_HALF_LIFE_MONTHS")
+        let memory_life_days = std::env::var("HKASK_MEMORY_LIFE_DAYS")
             .ok()
             .and_then(|v| v.parse::<f64>().ok())
-            .unwrap_or(6.0);
+            .unwrap_or(180.0);
 
         Ok(Self {
             db_path,
@@ -187,7 +188,7 @@ impl ServiceConfig {
             memory_passphrase: None,
             registry_yaml_path,
             wallet_config: WalletConfig::default(),
-            decay_half_life_months,
+            memory_life_days,
         })
     }
 
@@ -214,10 +215,10 @@ impl ServiceConfig {
         let registry_yaml_path = std::path::PathBuf::from(
             std::env::var("HKASK_REGISTRY_PATH").unwrap_or_else(|_| "registry/bots".to_string()),
         );
-        let decay_half_life_months = std::env::var("HKASK_DECAY_HALF_LIFE_MONTHS")
+        let memory_life_days = std::env::var("HKASK_MEMORY_LIFE_DAYS")
             .ok()
             .and_then(|v| v.parse::<f64>().ok())
-            .unwrap_or(6.0);
+            .unwrap_or(180.0);
 
         Self {
             db_path,
@@ -236,7 +237,7 @@ impl ServiceConfig {
             memory_passphrase: None,
             registry_yaml_path,
             wallet_config: WalletConfig::default(),
-            decay_half_life_months,
+            memory_life_days,
         }
     }
 
@@ -266,7 +267,7 @@ impl ServiceConfig {
             memory_passphrase: None,
             registry_yaml_path: std::path::PathBuf::from("registry/bots"),
             wallet_config: WalletConfig::default(),
-            decay_half_life_months: 6.0,
+            memory_life_days: 180.0,
         }
     }
 

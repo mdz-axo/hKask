@@ -1,26 +1,26 @@
 //! Bayesian confidence operations — decay and evidence pooling.
 //!
-//! Exponential confidence decay is handled by `Confidence::decay()`
-//! (hkask-types). This module adds log-odds Bayesian pooling for
-//! combining independent confidence estimates — the mathematically
-//! correct method for merging two sources of evidence about the same
-//! proposition.
+//! Memory decay follows Wozniak & Gorzelanczyk (1995) two-component model
+//! of long-term memory, equation (3): R(t) = exp(-t/S).
+//!
+//! Where S is memory life in days (configurable, default 180 = 6×30 days)
+//! and t is days since most recent recall. At t = S, R = exp(-1) ≈ 0.368.
+//!
+//! Bayesian evidence pooling (log-odds) combines independent confidence
+//! estimates for the same proposition.
 
 use hkask_types::Confidence;
 
-// ── Decay constants ───────────────────────────────────────────────────────
+// ── Memory life constants ───────────────────────────────────────────────────
 
-/// Default half-life for episodic confidence decay (6 months in seconds).
+/// Default memory life in days: 6 months × 30 days = 180 days.
 ///
-/// After this duration, a triple's recall-time confidence has decayed to
-/// half its stored value. Overridable via ServiceConfig.decay_half_life_months.
-pub const DEFAULT_DECAY_HALF_LIFE_SECS: f64 = 6.0 * 30.0 * 24.0 * 3600.0; // 6 months
-
-/// Default decay rate derived from half-life: λ = ln(2) / half_life.
+/// After 180 days without recall, confidence decays to exp(-1) ≈ 36.8%.
+/// Configurable via ServiceConfig.memory_life_days (admin setting).
 ///
-/// With the default 6-month half-life this is ≈ 4.456 × 10⁻⁸,
-/// giving confidence half-life of ~180 days.
-pub const DEFAULT_DECAY_RATE: f64 = std::f64::consts::LN_2 / DEFAULT_DECAY_HALF_LIFE_SECS;
+/// Based on Wozniak & Gorzelanczyk (1995): R(t) = exp(-t/S) where S is
+/// memory life in days.
+pub const DEFAULT_MEMORY_LIFE_DAYS: f64 = 6.0 * 30.0; // 180 days
 
 // ── Bayesian evidence pooling (log-odds) ───────────────────────────────────
 
@@ -39,11 +39,6 @@ const LOG_ODDS_EPSILON: f64 = 1e-6;
 /// c   = 1 / (1 + exp(−L))       // convert back to probability
 /// ```
 ///
-/// This is the standard Bayesian method for pooling independent probability
-/// judgments (log-odds pooling). Two independent confirmations produce
-/// stronger belief than either alone — this is the mathematical expression
-/// of "two witnesses are more credible than one."
-///
 /// # Properties
 ///
 /// - **Consensus-strengthening:** c₁ = 0.8, c₂ = 0.8 → combined ≈ 0.941
@@ -54,8 +49,7 @@ const LOG_ODDS_EPSILON: f64 = 1e-6;
 /// # Edge cases
 ///
 /// Values of 0 and 1 are clamped to [ε, 1−ε] where ε = 10⁻⁶ to avoid
-/// ln(0) and division-by-zero. This is a computational safeguard, not a
-/// mathematical limitation — the limit as c → 0⁺ or c → 1⁻ is well-defined.
+/// ln(0) and division-by-zero.
 ///
 /// expect: "The system combines independent confidence estimates using Bayesian evidence pooling"
 /// \[P3\] Motivating: Generative Space — fuses episodic and semantic evidence
@@ -65,7 +59,6 @@ const LOG_ODDS_EPSILON: f64 = 1e-6;
 /// post: returns Confidence in [0, 1]
 /// post: combined ≥ max(c₁, c₂) when both > 0.5 (consensus strengthens)
 /// post: combined = 0.5 when c₁ = 0.5 and c₂ = 0.5 (neutral evidence)
-/// post: combined → 0.5 as c₁ → 0.5 (any value combined with 0.5 stays near 0.5)
 pub fn combine_confidences(c1: Confidence, c2: Confidence) -> Confidence {
     let v1 = c1.value().clamp(LOG_ODDS_EPSILON, 1.0 - LOG_ODDS_EPSILON);
     let v2 = c2.value().clamp(LOG_ODDS_EPSILON, 1.0 - LOG_ODDS_EPSILON);
@@ -90,21 +83,17 @@ mod tests {
     #[test]
     fn consensus_strengthening() {
         let c = combine_confidences(Confidence::new(0.8), Confidence::new(0.8));
-        // 0.8 + 0.8 in log-odds: ln(4) + ln(4) = 2·ln(4) = ln(16)
-        // σ(ln(16)) = 16/17 ≈ 0.941
         assert!(c.value() > 0.93 && c.value() < 0.95);
     }
 
     #[test]
     fn conflict_dampening() {
         let c = combine_confidences(Confidence::new(0.8), Confidence::new(0.2));
-        // ln(4) + ln(0.25) = ln(4) − ln(4) = 0 → σ(0) = 0.5
         assert!((c.value() - 0.5).abs() < 0.001);
     }
 
     #[test]
     fn neutral_evidence_does_not_shift() {
-        // 0.5 has zero log-odds → combining with 0.5 leaves the other unchanged
         let c = combine_confidences(Confidence::new(0.5), Confidence::new(0.9));
         assert!((c.value() - 0.9).abs() < 0.001);
     }
@@ -118,17 +107,12 @@ mod tests {
     #[test]
     fn edge_case_zero_clamped() {
         let c = combine_confidences(Confidence::new(0.0), Confidence::new(0.8));
-        // 0.0 → ε ≈ 1e-6: log_odds ≈ ln(1e-6) ≈ −13.82
-        // 0.8: log_odds = ln(4) ≈ 1.386
-        // combined ≈ −12.43 → σ ≈ 4e-6 → still essentially 0
         assert!(c.value() < 1e-5);
     }
 
     #[test]
     fn edge_case_one_clamped() {
         let c = combine_confidences(Confidence::new(1.0), Confidence::new(0.8));
-        // 1.0 → 1−ε: log_odds ≈ ln(1e6) ≈ 13.82
-        // combined with ln(4) → σ ≈ very close to 1.0
         assert!(c.value() > 0.9999);
     }
 
@@ -140,7 +124,6 @@ mod tests {
 
     #[test]
     fn monotonic_both_increase() {
-        // Combining should produce a value ≥ both inputs when both > 0.5
         let c = combine_confidences(Confidence::new(0.6), Confidence::new(0.7));
         assert!(c.value() >= 0.6);
         assert!(c.value() >= 0.7);

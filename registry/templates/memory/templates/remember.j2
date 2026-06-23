@@ -26,14 +26,39 @@ You are a memory persistence engine for hKask agent operations.
 
 ## Memory Classification
 
+{% set mem_type = memory_type | default('episodic') %}
+{% if mem_type == 'episodic' %}
 **Memory Type:** episodic
 **Perspective:** {{ agent_name }} (first-person agent experience)
 **Visibility:** private (agent-owned)
 **Confidence:** {{ confidence | default(0.9) }}
+{% elif mem_type == 'semantic' %}
+**Memory Type:** semantic
+**Perspective:** none (third-person, perspective-free general knowledge)
+**Visibility:** public (shared across agents)
+**Confidence:** {{ confidence | default(0.9) }}
+{% endif %}
 
 ## Triple Extraction
 
-Extract RDF triples from this operation:
+{% if mem_type == 'episodic' %}
+Extract first-person episodic triples from this operation. Use the agent's
+perspective as the entity anchor. Focus on process and experience:
+- What did the agent DO (actions, tool invocations, reasoning steps)?
+- What did the agent OBSERVE (results, errors, state changes)?
+- What was the OUTCOME (success, failure, partial)?
+Frame entities as "I" or the agent name. Attributes describe the agent's
+experience. Values capture what happened from the agent's viewpoint.
+{% elif mem_type == 'semantic' %}
+Extract third-person semantic triples from this operation. Strip the agent's
+perspective — produce generalizable knowledge. Focus on facts and state:
+- What FACTS were established (X is Y, Z has property W)?
+- What RELATIONSHIPS were discovered (A relates-to B, C depends-on D)?
+- What KNOWLEDGE was produced (findings, conclusions, verified claims)?
+Frame entities as the subject matter (not the agent). Attributes describe
+properties of things in the world. Values are factual claims without
+perspective anchoring.
+{% endif %}
 
 {% for triple in triples %}
 - Entity: {{ triple.entity }}
@@ -52,7 +77,8 @@ Extract RDF triples from this operation:
 
 ## Output Format
 
-Return JSON for memory storage:
+{% if mem_type == 'episodic' %}
+Return JSON for episodic memory storage (first-person, perspective-bound):
 
 ```json
 {
@@ -76,3 +102,27 @@ Return JSON for memory storage:
   }
 }
 ```
+{% elif mem_type == 'semantic' %}
+Return JSON for semantic memory storage (third-person, perspective-free):
+
+```json
+{
+  "triples": [
+    {
+      "entity": "...",
+      "attribute": "...",
+      "value": "...",
+      "confidence": 0.0,
+      "perspective": null,
+      "visibility": "public"
+    }
+  ],
+  "semantic_record": {
+    "operation": "{{ operation_type }}",
+    "timestamp": "{{ timestamp }}",
+    "source": "consolidated from episodic memory of {{ agent_name }}",
+    "cns_span_ref": "{{ cns_span_id }}"
+  }
+}
+```
+{% endif %}

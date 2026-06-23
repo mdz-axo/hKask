@@ -34,9 +34,10 @@ use crate::runtime::CnsRuntime;
 use crate::set_points::{DEFAULT_MAX_ITERATIONS, SetPoints};
 use crate::wallet_budget::WalletBackedBudget;
 
+use crate::algedonic::{AlertSeverity, RuntimeAlert};
 use crate::types::loops::{
     ActionType, CurationInput, CuratorDirective, Deviation, DeviationDirection, HkaskLoop,
-    LoopAction, LoopId, LoopQuality, RuntimeAlert, Signal, SignalMetric, ToolConsumptionEvent,
+    LoopAction, LoopId, LoopQuality, Signal, SignalMetric, ToolConsumptionEvent,
 };
 use hkask_ports::BackpressureSignal;
 use hkask_types::WebID;
@@ -79,7 +80,7 @@ impl CyberneticsLoop {
     }
 
     fn build(cns: Arc<RwLock<CnsRuntime>>, set_points: SetPoints) -> Self {
-        Self {
+        let slf = Self {
             cns,
             energy_budget_manager: EnergyBudgetManager::new(),
             set_points,
@@ -90,7 +91,11 @@ impl CyberneticsLoop {
             tool_consumption_rx: None,
             curator_directive_rx: None,
             loop_quality: Arc::new(RwLock::new(LoopQuality::default())),
+        };
+        if slf.event_sink.is_none() && slf.alerts_tx.is_none() {
+            tracing::warn!(target: "cns.cybernetics", "CyberneticsLoop constructed with no alert pathway — alerts will be lost until with_alerts_channel() or with_event_sink() is called");
         }
+        slf
     }
 
     /// Algedonic alerts and directive acknowledgments persisted to NuEventStore.
@@ -590,11 +595,23 @@ impl HkaskLoop for CyberneticsLoop {
             // live channel has no receiver.
             if action.action_type == ActionType::Escalate && target_id == LoopId::Curation {
                 let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
+                let domain = action
+                    .parameters
+                    .get("domain")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string();
                 let alert = RuntimeAlert {
-                    current: deficit,
-                    threshold,
+                    domain,
                     deficit,
+                    threshold,
+                    severity: AlertSeverity::Critical,
+                    escalated: true,
                     timestamp: chrono::Utc::now(),
+                    message: format!(
+                        "Variety deficit {} exceeds threshold {}",
+                        deficit, threshold
+                    ),
                 };
 
                 // Primary path: live channel to Curator's inbox
@@ -619,9 +636,12 @@ impl HkaskLoop for CyberneticsLoop {
                             Span::from_kind(SpanKind::VarietyAlgedonicAlert),
                             Phase::Act,
                             serde_json::json!({
-                                "deficit": deficit,
-                                "threshold": threshold,
-                                "current": deficit,
+                                "domain": alert.domain,
+                                "deficit": alert.deficit,
+                                "threshold": alert.threshold,
+                                "severity": "Critical",
+                                "escalated": true,
+                                "message": alert.message,
                                 "timestamp": alert.timestamp.to_rfc3339(),
                             }),
                             0,

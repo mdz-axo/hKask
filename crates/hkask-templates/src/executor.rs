@@ -622,6 +622,11 @@ impl ManifestExecutor {
 
     /// **Populate** — Render a template with the accumulated context.
     ///
+    /// If the step has `input_mapping` (bindings), those are resolved against
+    /// the context and merged in before template rendering. This allows selector
+    /// output fields like `step_1_result.memory_type` to be promoted to top-level
+    /// template variables via `{"$ref": "step_1_result.memory_type"}` bindings.
+    ///
     /// The template is rendered with the current context map. The rendered
     /// output is stored in context under `step_{ordinal}_populated`.
     async fn execute_populate(
@@ -629,6 +634,17 @@ impl ManifestExecutor {
         step: &BundleManifestStep,
         mut context: HashMap<String, Value>,
     ) -> Result<HashMap<String, Value>> {
+        // Resolve bindings from input_mapping and merge into context.
+        // Uses {"$ref": "dot.path"} syntax — same as execute_tool_invoke.
+        if let Some(ref mapping) = step.input_mapping {
+            let resolved = bind_parameters(mapping, &context);
+            if let Value::Object(map) = resolved {
+                for (k, v) in map {
+                    context.insert(k, v);
+                }
+            }
+        }
+
         let populated = self.render_step_template(step, &context)?;
         context.insert(
             format!("step_{}_populated", step.ordinal),

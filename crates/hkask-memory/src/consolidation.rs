@@ -93,11 +93,17 @@ impl ConsolidationBridge {
         let mut expired_count = 0usize;
         let mut failed_count = 0usize;
 
+        let now = chrono::Utc::now();
         for triple in &candidates {
+            // Confidence is always decayed at point of use.
+            let days_since = (now - triple.recalled_at).num_seconds() as f64 / 86400.0;
+            let episodic_c = triple
+                .confidence
+                .decay_memory_life(self.episodic.memory_life_days(), days_since);
             // 1. Check for existing semantic triple with same EAV
             if let Some(existing) = self.semantic.find_existing_by_eav(triple) {
-                // 1a. BAYESIAN COMBINE: existing semantic fact + new episodic evidence
-                let combined = combine_confidences(existing.confidence, triple.confidence);
+                // 1a. BAYESIAN COMBINE: existing semantic fact + current episodic evidence
+                let combined = combine_confidences(existing.confidence, episodic_c);
 
                 match self
                     .semantic
@@ -123,10 +129,12 @@ impl ConsolidationBridge {
                             target: "cns.consolidation",
                             entity = %triple.entity,
                             attribute = %triple.attribute,
-                            episodic_confidence = %triple.confidence,
-                            semantic_confidence = %existing.confidence,
-                            combined_confidence = %combined,
-                            "Bayesian combined: episodic + existing semantic evidence"
+                            stored = %triple.confidence,
+                            days_since_recall = days_since,
+                            episodic = %episodic_c,
+                            semantic = %existing.confidence,
+                            combined = %combined,
+                            "Bayesian combined: current episodic + existing semantic"
                         );
                     }
                     Err(e) => {
@@ -142,16 +150,16 @@ impl ConsolidationBridge {
                     }
                 }
             } else {
-                // 1b. NO MATCH: seed as new semantic triple
+                // 1b. NO MATCH: seed as new semantic triple with current decayed confidence
                 let semantic_triple = Triple {
                     id: TripleID::new(),
                     entity: triple.entity.clone(),
                     attribute: triple.attribute.clone(),
                     value: triple.value.clone(),
                     temporal: triple.temporal.clone(),
-                    confidence: triple.confidence,
+                    confidence: episodic_c,
                     access: triple.access.to_semantic(),
-                    recalled_at: chrono::Utc::now(),
+                    recalled_at: now,
                 };
 
                 match self.semantic.store_consolidated(semantic_triple) {
@@ -174,7 +182,9 @@ impl ConsolidationBridge {
                             target: "cns.consolidation",
                             entity = %triple.entity,
                             attribute = %triple.attribute,
-                            inherited_confidence = %triple.confidence,
+                            stored = %triple.confidence,
+                            days_since_recall = days_since,
+                            episodic = %episodic_c,
                             "New semantic triple seeded (no prior EAV match)"
                         );
                     }

@@ -28,46 +28,48 @@ pub enum EpisodicMemoryError {
     MissingPerspective,
 }
 
-/// Default decay rate for episodic memory confidence.
-///
-/// Derived from a 3-month (90-day) half-life: λ = ln(2) / (90 × 86400) ≈ 8.913 × 10⁻⁸.
-/// Time units are seconds (matching `valid_from` timestamps).
-pub(crate) const DEFAULT_DECAY_RATE: f64 = crate::bayesian::DEFAULT_DECAY_RATE;
-
 /// Default per-agent storage budget (max triples).
 pub(crate) const DEFAULT_EPISODIC_BUDGET: usize = 10_000;
+
+/// Default memory life in days: 180 days (6 months × 30).
+///
+/// Wozniak & Gorzelanczyk (1995), equation (3): R(t) = exp(-t/S).
+/// S is memory life in days — configurable by admin. After S days
+/// without recall, confidence decays to exp(-1) ≈ 36.8%.
+pub(crate) const DEFAULT_MEMORY_LIFE_DAYS: f64 = crate::bayesian::DEFAULT_MEMORY_LIFE_DAYS;
 
 // EpisodicMemory — first-person experience with subloops
 
 /// Episodic memory — first-person experience
 ///
 /// Provides the following subloops:
-/// - **Confidence decay** (2a.3): Decays confidence based on time since
-///   storage using `Confidence::decay()`. Applied at recall time, not persisted.
+/// - **Confidence decay** (2a.3): Decays confidence using the Wozniak-Gorzelanczyk
+///   (1995) human forgetting curve: R(t) = exp(-t/S) where S is memory life in days.
 /// - **Temporal attention** (2a.2): Weights recalled triples by recency.
 /// - **Storage budget** (2a.4): Per-agent storage limit with consolidation
 ///   candidate identification (uses decayed confidence for prioritization).
 pub struct EpisodicMemory {
     event_sink: Option<Arc<dyn NuEventSink>>,
     triple_store: TripleStore,
-    /// Decay rate for confidence (λ in e^(-λt)). Default derived from 30-day half-life.
-    decay_rate: f64,
+    /// Memory life S in days — configurable, default 180 (6 months × 30).
+    /// The forgetting curve is R(t) = exp(-t/S) where t is days since recall.
+    memory_life_days: f64,
     /// Per-agent storage budget (max triples). Default: 10,000
     storage_budget: usize,
 }
 
 impl EpisodicMemory {
-    /// Create a new EpisodicMemory with default decay rate and storage budget.
+    /// Create a new EpisodicMemory with default memory life and storage budget.
     ///
     /// expect: "I can store first-person experience triples in my sovereign episodic memory"
     /// \[P3\] Motivating: Generative Space — creates a sovereign first-person experience store
-    /// \[P9\] Constraining: Homeostatic Self-Regulation — default decay and budget are regulation defaults
+    /// \[P9\] Constraining: Homeostatic Self-Regulation — default memory life and budget are regulation defaults
     /// pre:  triple_store is initialized
-    /// post: returns EpisodicMemory with DEFAULT_DECAY_RATE and DEFAULT_EPISODIC_BUDGET
+    /// post: returns EpisodicMemory with DEFAULT_MEMORY_LIFE_DAYS and DEFAULT_EPISODIC_BUDGET
     pub fn new(triple_store: TripleStore) -> Self {
         Self {
             triple_store,
-            decay_rate: DEFAULT_DECAY_RATE,
+            memory_life_days: DEFAULT_MEMORY_LIFE_DAYS,
             storage_budget: DEFAULT_EPISODIC_BUDGET,
             event_sink: None,
         }
@@ -77,11 +79,16 @@ impl EpisodicMemory {
         self
     }
 
-    /// Override the decay half-life (in seconds). Computes λ = ln(2) / half_life.
+    /// Override memory life S in days (Wozniak-Gorzelanczyk, 1995).
     ///
-    /// Default is 6 months. Set via ServiceConfig.decay_half_life_months.
-    pub fn with_decay_half_life_secs(mut self, half_life_secs: f64) -> Self {
-        self.decay_rate = std::f64::consts::LN_2 / half_life_secs;
+    /// Sets S in the forgetting curve R(t) = exp(-t/S). Default 180 days.
+    /// Admin-configurable via ServiceConfig.memory_life_days.
+    ///
+    /// expect: "I can store first-person experience triples in my sovereign episodic memory"
+    /// pre:  days > 0
+    /// post: self.memory_life_days = days
+    pub fn with_memory_life_days(mut self, days: f64) -> Self {
+        self.memory_life_days = days;
         self
     }
 
@@ -160,19 +167,21 @@ impl EpisodicMemory {
             .into_iter()
             .filter(|t| t.access.perspective == Some(perspective))
             .map(|mut t| {
-                // Apply confidence decay using time since last recall
-                let time_since = (now - t.recalled_at).num_seconds() as f64;
+                // Wozniak-Gorzelanczyk (1995) forgetting curve: R(t) = exp(-t/S)
+                let days_since = (now - t.recalled_at).num_seconds() as f64 / 86400.0;
                 let original_confidence = t.confidence;
-                t.confidence = t.confidence.decay(self.decay_rate, time_since);
+                t.confidence = t
+                    .confidence
+                    .decay_memory_life(self.memory_life_days, days_since);
                 tracing::debug!(
                     target: "cns.memory.decay",
                     entity = %t.entity,
                     attribute = %t.attribute,
                     original_confidence = %original_confidence,
                     decayed_confidence = %t.confidence,
-                    time_since_recall_secs = time_since,
-                    decay_rate = self.decay_rate,
-                    "Episodic confidence decayed"
+                    days_since_recall = days_since,
+                    memory_life_days = self.memory_life_days,
+                    "Episodic confidence decayed (Wozniak-Gorzelanczyk forgetting curve)"
                 );
                 t
             })
@@ -227,14 +236,21 @@ impl EpisodicMemory {
         let now = Utc::now();
 
         // Sort by decayed confidence ascending, then by valid_from ascending (oldest first)
+        // Uses Wozniak-Gorzelanczyk (1995) forgetting curve: R(t) = exp(-t/S)
         triples.sort_by(|a, b| {
             let a_effective = a
                 .confidence
-                .decay(self.decay_rate, (now - a.recalled_at).num_seconds() as f64)
+                .decay_memory_life(
+                    self.memory_life_days,
+                    (now - a.recalled_at).num_seconds() as f64 / 86400.0,
+                )
                 .value();
             let b_effective = b
                 .confidence
-                .decay(self.decay_rate, (now - b.recalled_at).num_seconds() as f64)
+                .decay_memory_life(
+                    self.memory_life_days,
+                    (now - b.recalled_at).num_seconds() as f64 / 86400.0,
+                )
                 .value();
             a_effective
                 .partial_cmp(&b_effective)
@@ -296,10 +312,13 @@ impl EpisodicMemory {
         }
     }
 
-    /// Get the configured decay rate.
+    /// Get the configured memory life S in days.
+    ///
+    /// Memory life is the time constant of the forgetting curve R(t) = exp(-t/S).
+    /// Default: 180 days (6 months × 30). Configurable via ServiceConfig.memory_life_days.
     ///
     /// **Membrane-sealed:** Only callable from within this crate.
-    pub(crate) fn decay_rate(&self) -> f64 {
-        self.decay_rate
+    pub(crate) fn memory_life_days(&self) -> f64 {
+        self.memory_life_days
     }
 }

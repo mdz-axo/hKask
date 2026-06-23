@@ -29,11 +29,18 @@ steps:
     template_ref: memory/templates/${operation}.j2
     renderer: minijinja
     bindings:
-      entity: "${input.entity}"
-      attribute: "${input.attribute}"
-      value: "${input.value}"
-      confidence: "${input.confidence}"
-      visibility: "${input.visibility}"
+      memory_type:
+        $ref: step_1_result.memory_type
+      entity:
+        $ref: input.entity
+      attribute:
+        $ref: input.attribute
+      value:
+        $ref: input.value
+      confidence:
+        $ref: input.confidence
+      visibility:
+        $ref: input.visibility
 
   - ordinal: 3
     action: execute

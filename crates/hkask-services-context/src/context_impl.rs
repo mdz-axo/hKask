@@ -922,10 +922,10 @@ async fn build_loops(
             .conn_arc()
     };
     let triple_store = TripleStore::new(Arc::clone(&mem_conn));
-    let half_life_secs = config.decay_half_life_months * 30.0 * 24.0 * 3600.0;
+    let memory_life_days = config.memory_life_days;
     let episodic_memory = Arc::new(
         EpisodicMemory::new(triple_store)
-            .with_decay_half_life_secs(half_life_secs)
+            .with_memory_life_days(memory_life_days)
             .with_cns(Arc::clone(&f.cns_event_sink)),
     );
     let storage_budget = episodic_memory.storage_budget();

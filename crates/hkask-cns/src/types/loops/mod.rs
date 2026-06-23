@@ -31,9 +31,7 @@ pub mod curation;
 pub mod episodic;
 pub mod signals;
 
-pub use channels::{
-    CurationInput, GoalTransitionEvent, RuntimeAlert, SpecEvent, ToolConsumptionEvent,
-};
+pub use channels::{CurationInput, GoalTransitionEvent, SpecEvent, ToolConsumptionEvent};
 pub use curation::{CuratorDirective, CuratorHandle};
 pub use episodic::ExperienceClassification;
 

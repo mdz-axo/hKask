@@ -381,18 +381,19 @@ async fn select_model() -> Result<String, OnboardingError> {
         idx += 1;
     }
 
-    // Offer fusion if OpenRouter is configured
+    // Offer fusion if OpenRouter is configured (uses kask defaults when
+    // no explicit HKASK_FUSION_JUDGE/PANEL env vars are set).
     let config = hkask_services::InferenceConfig::from_env();
-    let has_fusion = !config.openrouter_api_key.is_empty() && config.fusion.is_some();
-    if has_fusion {
-        let fusion_name = config
+    let has_openrouter = !config.openrouter_api_key.is_empty();
+    if has_openrouter {
+        let fusion = config
             .fusion
             .as_ref()
-            .map(|f| f.group.as_str())
-            .unwrap_or("kask");
+            .map(|f| format!("openrouter/fusion ({})", f.description()))
+            .unwrap_or_else(|| "openrouter/fusion (kask defaults)".to_string());
         println!(
             "    {}. \x1b[1;33m⚡ Fusion: \x1b[36m{}\x1b[0m\x1b[0m",
-            idx, fusion_name
+            idx, fusion
         );
         idx += 1;
     }
@@ -411,11 +412,11 @@ async fn select_model() -> Result<String, OnboardingError> {
     let model_count = ONBOARDING_MODELS.len();
     match choice {
         Ok(n) if n <= model_count => Ok(ONBOARDING_MODELS[n - 1].to_string()),
-        Ok(n) if has_fusion && n == fusion_idx => Ok(config
+        Ok(n) if has_openrouter && n == fusion_idx => Ok(config
             .fusion
             .as_ref()
             .map(|f| f.model_id())
-            .unwrap_or_else(|| "OR/openrouter/fusion/kask".to_string())),
+            .unwrap_or_else(|| "openrouter/fusion".to_string())),
         Ok(_) => {
             let input = prompt_line("  Model name:")?;
             if input.trim().is_empty() {

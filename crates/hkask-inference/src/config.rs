@@ -145,6 +145,20 @@ pub struct FusionConfig {
 }
 
 impl FusionConfig {
+    /// The kask default panel models for multi-model deliberation.
+    pub const KASK_PANEL: &[&str] = &["Kimi2.7", "Qwen3.7 Max", "GLM5.2", "Minimax3"];
+
+    /// The kask default judge/fuser model.
+    pub const KASK_JUDGE: &str = "deepseek-v4-pro";
+
+    /// Return the kask default fusion configuration.
+    pub fn kask_default() -> Self {
+        Self {
+            judge: Self::KASK_JUDGE.to_string(),
+            panel: Self::KASK_PANEL.iter().map(|s| s.to_string()).collect(),
+        }
+    }
+
     /// Build the OpenRouter Fusion plugin payload for the `plugins` request field.
     pub fn plugin_payload(&self) -> Vec<FusionPlugin> {
         vec![FusionPlugin {
@@ -345,6 +359,14 @@ fn parse_provider_code(raw: &str) -> ProviderId {
 ///
 /// Returns `None` if no fusion is configured.
 fn parse_fusion_config() -> Option<FusionConfig> {
+    // Explicit disable: HKASK_FUSION_OFF=1
+    if std::env::var("HKASK_FUSION_OFF")
+        .map(|v| v == "1")
+        .unwrap_or(false)
+    {
+        return None;
+    }
+
     // Structured config: HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL
     if let Ok(judge) = std::env::var("HKASK_FUSION_JUDGE") {
         let panel: Vec<String> = std::env::var("HKASK_FUSION_PANEL")
@@ -384,6 +406,13 @@ fn parse_fusion_config() -> Option<FusionConfig> {
             judge: "deepseek-v4-pro".to_string(),
             panel: vec![name],
         });
+    }
+
+    // Default: use kask defaults when OpenRouter is available.
+    // This makes fusion work out-of-the-box without explicit env vars.
+    let or_key = resolve_api_key("OPENROUTER_API_KEY");
+    if !or_key.is_empty() {
+        return Some(FusionConfig::kask_default());
     }
 
     None

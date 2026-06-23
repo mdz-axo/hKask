@@ -28,8 +28,14 @@ Given the user's request, determine the appropriate memory operation.
 
 ## Memory Type
 
-- **semantic** — Third-person, shared knowledge (public by default)
 - **episodic** — First-person, personal experience (private by default)
+  Use when: The request is about the agent's own actions, observations,
+  process, or experience. Signals: "what did I", "record my", "during my session".
+
+- **semantic** — Third-person, shared knowledge (public by default)
+  Use when: The request is about facts, relationships, or knowledge that
+  exists independently of any agent's perspective. Signals: "X is Y",
+  "store this finding", information from documents or external sources.
 
 ## Output Format
 

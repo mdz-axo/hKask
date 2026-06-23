@@ -432,8 +432,16 @@ pub fn stream_chat_completion(
 > {
     Box::pin(
         futures_util::stream::once(async move {
-            let request =
-                build_chat_request(&model, &prompt, None, &params, Some(true), None, None);
+            let request = build_chat_request(
+                &model,
+                &prompt,
+                None,
+                &params,
+                Some(true),
+                None,
+                None::<Vec<ChatToolDefinition>>,
+                None::<Vec<FusionPlugin>>,
+            );
 
             let response = match client
                 .post(format!("{}/v1/chat/completions", base_url))
@@ -538,7 +546,8 @@ mod tests {
             &params,
             Some(false),
             None,
-            None,
+            None::<Vec<ChatToolDefinition>>,
+            None::<Vec<FusionPlugin>>,
         );
         let json = serde_json::to_value(&req).expect("serialization must succeed");
         assert_eq!(json["stream"], serde_json::json!(false));
@@ -579,7 +588,8 @@ mod tests {
             &params,
             Some(false),
             None,
-            None,
+            None::<Vec<ChatToolDefinition>>,
+            None::<Vec<FusionPlugin>>,
         );
         let json = serde_json::to_value(&req).expect("serialization must succeed");
         assert_eq!(json["enable_thinking"], serde_json::json!(false));
@@ -610,7 +620,8 @@ mod tests {
             &params,
             Some(false),
             None,
-            None,
+            None::<Vec<ChatToolDefinition>>,
+            None::<Vec<FusionPlugin>>,
         );
         let json = serde_json::to_value(&req).expect("serialization must succeed");
         // enable_thinking should NOT appear in JSON when true (skip_serializing_if)

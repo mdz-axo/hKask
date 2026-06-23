@@ -37,6 +37,7 @@ pub mod openrouter_backend;
 pub mod together_backend;
 
 // Re-exports — public API
+pub use chat_protocol::FusionPlugin;
 pub use config::{FusionConfig, InferenceConfig, ProviderId};
 pub use embedding_router::EmbeddingRouter;
 pub use inference_router::InferenceRouter;

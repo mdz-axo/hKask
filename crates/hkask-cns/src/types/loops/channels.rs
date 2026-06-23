@@ -3,25 +3,13 @@
 //! Each pathway gets its own typed `tokio::mpsc` channel. Channel identity replaces
 //! both the former `LoopId` and `DispatchTarget` routing of the old Communication Loop.
 
+use crate::algedonic::RuntimeAlert;
 use hkask_types::WebID;
 
 // ── Alerts channel: Cybernetics → Curation ──────────────────────────────────
 
-/// Runtime alert from Cybernetics to Curation when variety deficit exceeds threshold.
-///
-/// Replaces `LoopPayload::AlgedonicAlert`. Sent on a dedicated
-/// `tokio::sync::mpsc::Sender<RuntimeAlert>` channel directly from
-/// CyberneticsLoop to CurationLoop's inbox.
-///
-/// \[NORMATIVE\] This pathway is a Prohibition-level constraint — it must survive unbroken (P9 — Homeostatic Self-Regulation).
-/// because Curation depends on the algedonic signal to detect regulation failure.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct RuntimeAlert {
-    pub current: u64,
-    pub threshold: u64,
-    pub deficit: u64,
-    pub timestamp: chrono::DateTime<chrono::Utc>,
-}
+// RuntimeAlert is the canonical type in crate::algedonic.
+// Re-imported here so CurationInput::Alert(RuntimeAlert) compiles.
 
 // ── Tool consumption channel: GovernedTool → Cybernetics ─────────────────────
 
