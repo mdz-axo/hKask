@@ -52,6 +52,12 @@ pub struct MockBackupBridge {
     pub verified: bool,
 }
 
+impl Default for MockBackupBridge {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockBackupBridge {
     pub fn new() -> Self {
         Self {

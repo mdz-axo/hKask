@@ -43,10 +43,10 @@ use ratatui::prelude::CrosstermBackend;
 use std::io::Stdout;
 use std::time::Duration;
 
+use bridges::{BackupDataBridge, ConfigDataBridge, WalletDataBridge};
 pub use repl_bridge::{InferenceState, ReplBridge, TurnResult};
 pub use window::{Window, WindowId, WindowKind};
 pub use workspace::{SplitDirection, Workspace};
-use bridges::{BackupDataBridge, ConfigDataBridge, WalletDataBridge};
 
 /// Top-level TUI session — owns the terminal, workspace, and event loop.
 ///

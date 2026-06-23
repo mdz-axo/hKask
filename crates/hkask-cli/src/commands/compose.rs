@@ -6,7 +6,9 @@
 //!
 //! Cognition: registry/styles/*/...-synthesizer.yaml and registry/styles/*/...-mashup.yaml
 
-use hkask_services::{CognitionConfig, ComposeRequest, ComposeService, InferenceConfig, InferenceContext};
+use hkask_services::{
+    CognitionConfig, ComposeRequest, ComposeService, InferenceConfig, InferenceContext,
+};
 
 use std::path::PathBuf;
 

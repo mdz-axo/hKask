@@ -235,6 +235,9 @@ impl ServerContext {
 /// Error healing callback: (error_string, operation_name).
 type HealCallback = Box<dyn Fn(&str, &str) + Send + Sync>;
 
+/// Experience recording callback: fires when a span finishes with "success" or "error".
+pub type ExperienceCallback = Box<dyn Fn(&str) + Send + Sync>;
+
 /// RAII guard — emits CNS tool span on drop. Use `span.ok(output)` or `span.error(kind, output)`.
 pub struct ToolSpanGuard {
     tool_name: String,
@@ -243,6 +246,8 @@ pub struct ToolSpanGuard {
     emitted: bool,
     /// Optional heal callback: (error_string, operation_name).
     heal_error_cb: Option<HealCallback>,
+    /// Optional experience callback: fires on ok/error with "success"/"error".
+    experience_cb: Option<ExperienceCallback>,
 }
 
 impl ToolSpanGuard {
@@ -257,12 +262,21 @@ impl ToolSpanGuard {
             caller: *caller,
             emitted: false,
             heal_error_cb: None,
+            experience_cb: None,
         }
     }
 
     /// Attach a self-healing callback for automatic error recovery.
     pub fn with_heal_cb(mut self, cb: HealCallback) -> Self {
         self.heal_error_cb = Some(cb);
+        self
+    }
+
+    /// Attach an experience callback that fires when the span completes.
+    ///
+    /// The callback receives "success" or "error" based on how the span finishes.
+    pub fn with_experience(mut self, cb: ExperienceCallback) -> Self {
+        self.experience_cb = Some(cb);
         self
     }
 
@@ -274,6 +288,9 @@ impl ToolSpanGuard {
         self.emitted = true;
         let duration_ms = self.start.elapsed().as_millis() as u64;
         emit_tool_span_with_caller(&self.tool_name, "ok", duration_ms, None, Some(&self.caller));
+        if let Some(ref cb) = self.experience_cb {
+            cb("success");
+        }
         output
     }
 
@@ -293,6 +310,9 @@ impl ToolSpanGuard {
         );
         if let Some(ref cb) = self.heal_error_cb {
             cb(&output, &self.tool_name);
+        }
+        if let Some(ref cb) = self.experience_cb {
+            cb("error");
         }
         output
     }

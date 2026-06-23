@@ -131,10 +131,7 @@ impl Window for WalletWindow {
             .as_ref()
             .map(|w| w.gas_per_rjoule())
             .unwrap_or(1000);
-        lines.push(Line::from(format!(
-            "    Rate:      {} gas / rJ",
-            rate
-        )));
+        lines.push(Line::from(format!("    Rate:      {} gas / rJ", rate)));
         lines.push(Line::from(""));
 
         // ── Transaction history section ──

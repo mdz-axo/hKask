@@ -13,6 +13,8 @@
 
 // ── Re-exports from extracted service crates ───────────────────────────
 
+pub use hkask_inference::model_constants;
+pub use hkask_inference::{InferenceConfig, InferenceRouter};
 pub use hkask_services_backup::config::{
     BackupConfig, EncryptionConfig, RetentionPolicy, backup_config_path, load_backup_config,
 };
@@ -32,8 +34,6 @@ pub use hkask_services_core::settings::{
     HkaskSettings, load_settings, save_settings, settings_path,
 };
 pub use hkask_services_core::{InferenceContext, InferenceService, ModelInfo};
-pub use hkask_inference::model_constants;
-pub use hkask_inference::{InferenceConfig, InferenceRouter};
 pub use hkask_services_discover::{
     DiscoverRequest, DiscoverResult, DiscoveredWork, DiscoveryService, default_corpus_config,
     download_and_cache, generate_corpus_yaml, slugify,

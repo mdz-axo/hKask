@@ -19,7 +19,7 @@ use gallery::GalleryState;
 use gallery::vision::{self};
 use hkask_agents::VoiceDesign;
 use hkask_inference::InferenceRouter;
-use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_tool_url};
+use hkask_mcp::server::{ExperienceCallback, McpToolError, ToolSpanGuard, validate_tool_url};
 use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_ports::InferencePort;
 use hkask_storage::{GalleryMode, GalleryStore, GalleryStoreError, Store};
@@ -190,6 +190,55 @@ impl MediaServer {
                 }
             });
         }
+    }
+
+    /// Create a ToolSpanGuard that automatically records tool experiences.
+    ///
+    /// Replaces `ToolSpanGuard::new()` + `self.record_experience()`. The callback
+    /// fires on ok()/error()/finish()/ok_json()/internal_error() with "success"/"error".
+    fn span_with_memory(
+        &self,
+        tool_name: &str,
+        input_summary: String,
+        detail: serde_json::Value,
+    ) -> ToolSpanGuard {
+        let daemon = self.daemon.clone();
+        let replicant = self.replicant.clone();
+        let tool = tool_name.to_string();
+        let input = input_summary;
+        let cb: ExperienceCallback = Box::new(move |outcome| {
+            if let Some(ref daemon) = daemon {
+                let value = serde_json::json!({
+                    "tool": tool,
+                    "input": input,
+                    "outcome": outcome,
+                    "detail": detail,
+                    "timestamp": now_rfc3339(),
+                });
+                let daemon = daemon.clone();
+                let replicant = replicant.clone();
+                let tool_name = tool.clone();
+                tokio::spawn(async move {
+                    match daemon
+                        .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                        .await
+                    {
+                        Ok(DaemonResponse::StoreResponse { stored: true, .. }) => {
+                            tracing::debug!(target: "cns.mcp.media.memory", tool = %tool_name, "Experience stored via daemon");
+                        }
+                        Ok(other) => {
+                            tracing::warn!(target: "cns.mcp.media.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                        }
+                        Err(e) => {
+                            tracing::warn!(target: "cns.mcp.media.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                        }
+                    }
+                });
+            } else {
+                tracing::warn!(target: "cns.mcp.media.memory", tool = %tool, outcome = %outcome, "Experience not persisted — daemon unavailable");
+            }
+        });
+        ToolSpanGuard::new(tool_name, &self.webid).with_experience(cb)
     }
 
     /// Render a Jinja2 prompt template with the given variables.
@@ -1714,7 +1763,11 @@ impl MediaServer {
         &self,
         Parameters(DescribeImageRequest { image_url, style }): Parameters<DescribeImageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("describe_image", &self.webid);
+        let span = self.span_with_memory(
+            "describe_image",
+            image_url.clone(),
+            serde_json::json!({"style": style}),
+        );
         if let Err(e) = validate_tool_url(&image_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -2281,7 +2334,11 @@ impl MediaServer {
             search_terms,
         }): Parameters<GalleryTimelineRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("gallery_timeline", &self.webid);
+        let span = self.span_with_memory(
+            "gallery_timeline",
+            format!("gallery timeline: {}", period),
+            serde_json::json!({"period": period.clone(), "count": count, "per_period": per_period}),
+        );
 
         let guard = match self.gallery_state.lock() {
             Ok(g) => g,
@@ -2366,12 +2423,6 @@ impl MediaServer {
             }));
         }
 
-        self.record_experience(
-            &period,
-            &format!("gallery timeline: {}", period),
-            "success",
-            serde_json::json!({"count": count, "periods": result_periods.len()}),
-        );
         span.ok_json(serde_json::json!({
             "period_type": period,
             "periods": result_periods,
@@ -2390,7 +2441,11 @@ impl MediaServer {
             new_bg_color: _new_bg_color,
         }): Parameters<RemoveBackgroundRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("image_remove_background", &self.webid);
+        let span = self.span_with_memory(
+            "image_remove_background",
+            format!("image_index={}", image_index),
+            serde_json::json!({}),
+        );
         let image_url = match self.resolve_image_url(image_index) {
             Ok(url) => url,
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
@@ -2423,7 +2478,11 @@ impl MediaServer {
             strength,
         }): Parameters<ApplyStyleRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("image_apply_style", &self.webid);
+        let span = self.span_with_memory(
+            "image_apply_style",
+            style_prompt.clone(),
+            serde_json::json!({"strength": strength}),
+        );
         let image_url = match self.resolve_image_url(image_index) {
             Ok(url) => url,
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
@@ -2434,12 +2493,6 @@ impl MediaServer {
             .image_to_image(&image_url, &style_prompt, strength)
             .await
             .map_err(|e| McpToolError::unavailable(format!("Style transfer failed: {}", e)));
-        self.record_experience(
-            "image_apply_style",
-            &style_prompt,
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"strength": strength}),
-        );
         span.finish(result)
     }
 
@@ -2458,7 +2511,11 @@ impl MediaServer {
             canvas_size,
         }): Parameters<CreateCollageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("image_create_collage", &self.webid);
+        let span = self.span_with_memory(
+            "image_create_collage",
+            "compose collage".to_string(),
+            serde_json::json!({"max_items": max_items, "layout": layout}),
+        );
 
         // Validate mutual exclusivity: exactly one mode must be active
         let mode_count = search_terms.is_some() as u8
@@ -2754,7 +2811,11 @@ impl MediaServer {
             end_sec,
         }): Parameters<VideoClipRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("video_clip", &self.webid);
+        let span = self.span_with_memory(
+            "video_clip",
+            video_url.clone(),
+            serde_json::json!({"start_sec": start_sec, "end_sec": end_sec}),
+        );
         if let Err(e) = validate_tool_url(&video_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -2804,7 +2865,11 @@ impl MediaServer {
             fps,
         }): Parameters<VideoToGifRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("video_to_gif", &self.webid);
+        let span = self.span_with_memory(
+            "video_to_gif",
+            video_url.clone(),
+            serde_json::json!({"start": start_sec, "duration": duration_sec, "width": width, "fps": fps}),
+        );
         if let Err(e) = validate_tool_url(&video_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -2850,7 +2915,11 @@ impl MediaServer {
             model,
         }): Parameters<ImageToVideoRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("image_to_video", &self.webid);
+        let span = self.span_with_memory(
+            "image_to_video",
+            format!("image_index={}", image_index),
+            serde_json::json!({"model": model, "duration": duration}),
+        );
         let image_url = match self.resolve_image_url(image_index) {
             Ok(url) => url,
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
@@ -2880,7 +2949,11 @@ impl MediaServer {
             font_size,
         }): Parameters<VideoAddCaptionRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("video_add_caption", &self.webid);
+        let span = self.span_with_memory(
+            "video_add_caption",
+            video_url.clone(),
+            serde_json::json!({"text": text, "position": position, "font_size": font_size}),
+        );
         if let Err(e) = validate_tool_url(&video_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -2927,7 +3000,11 @@ impl MediaServer {
             caption_text,
         }): Parameters<VideoRemixRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("video_remix", &self.webid);
+        let span = self.span_with_memory(
+            "video_remix",
+            video_url.clone(),
+            serde_json::json!({"start": start_sec, "end": end_sec, "caption": caption_text}),
+        );
         if let Err(e) = validate_tool_url(&video_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -3021,7 +3098,11 @@ impl MediaServer {
             format,
         }): Parameters<VideoFromImagesRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("video_from_images", &self.webid);
+        let span = self.span_with_memory(
+            "video_from_images",
+            format!("{} images", image_indices.len()),
+            serde_json::json!({"fps": fps, "format": format}),
+        );
 
         if image_indices.is_empty() {
             return span.error(
@@ -3070,7 +3151,11 @@ impl MediaServer {
         &self,
         Parameters(VideoConcatRequest { video_urls }): Parameters<VideoConcatRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("video_concat", &self.webid);
+        let span = self.span_with_memory(
+            "video_concat",
+            format!("{} clips", video_urls.len()),
+            serde_json::json!({}),
+        );
 
         if video_urls.len() < 2 {
             return span.error(
@@ -3107,16 +3192,14 @@ impl MediaServer {
         &self,
         Parameters(VideoCaptionRequest { video_url, style }): Parameters<VideoCaptionRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("video_caption", &self.webid);
+        let span = self.span_with_memory(
+            "video_caption",
+            video_url.clone(),
+            serde_json::json!({"style": style}),
+        );
 
         let style_str = style.as_deref().unwrap_or("descriptive");
         if !self.ffmpeg.available {
-            self.record_experience(
-                "video_caption",
-                &video_url,
-                "error",
-                serde_json::json!({"style": style_str}),
-            );
             return span.error(
                 McpErrorKind::Unavailable,
                 McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
@@ -3127,12 +3210,6 @@ impl MediaServer {
         let frames = match self.ffmpeg.extract_keyframes(&video_url, 2.0, 10).await {
             Ok(f) => f,
             Err(e) => {
-                self.record_experience(
-                    "video_caption",
-                    &video_url,
-                    "error",
-                    serde_json::json!({"style": style_str}),
-                );
                 return span.error(
                     McpErrorKind::Internal,
                     McpToolError::internal(format!("Keyframe extraction failed: {}", e))
@@ -3142,12 +3219,6 @@ impl MediaServer {
         };
 
         if frames.is_empty() {
-            self.record_experience(
-                "video_caption",
-                &video_url,
-                "error",
-                serde_json::json!({"style": style_str}),
-            );
             return span.error(
                 McpErrorKind::Internal,
                 McpToolError::internal("No keyframes extracted from video.").to_json_string(),
@@ -3174,12 +3245,6 @@ impl MediaServer {
         let prompt = match self.render_prompt("video_caption", &vars) {
             Ok(p) => p,
             Err(e) => {
-                self.record_experience(
-                    "video_caption",
-                    &video_url,
-                    "error",
-                    serde_json::json!({"style": style_str}),
-                );
                 return span.error(
                     McpErrorKind::Internal,
                     McpToolError::internal(format!("Template render failed: {}", e))
@@ -3191,12 +3256,6 @@ impl MediaServer {
         let (vision_model, _vision_label) = match self.resolve_vision_model().await {
             Some(v) => v,
             None => {
-                self.record_experience(
-                    "video_caption",
-                    &video_url,
-                    "error",
-                    serde_json::json!({"style": style_str}),
-                );
                 return span.error(
                     McpErrorKind::Unavailable,
                     McpToolError::unavailable(
@@ -3218,32 +3277,16 @@ impl MediaServer {
         }
 
         match result {
-            Ok(r) => {
-                self.record_experience(
-                    "video_caption",
-                    &video_url,
-                    "success",
-                    serde_json::json!({"style": style_str}),
-                );
-                span.ok_json(serde_json::json!({
-                    "caption": r.text.trim(),
-                    "style": style_str,
-                    "frames_analyzed": image_urls.len(),
-                }))
-            }
-            Err(e) => {
-                self.record_experience(
-                    "video_caption",
-                    &video_url,
-                    "error",
-                    serde_json::json!({"style": style_str}),
-                );
-                span.error(
-                    McpErrorKind::Unavailable,
-                    McpToolError::unavailable(format!("Vision inference failed: {}", e))
-                        .to_json_string(),
-                )
-            }
+            Ok(r) => span.ok_json(serde_json::json!({
+                "caption": r.text.trim(),
+                "style": style_str,
+                "frames_analyzed": image_urls.len(),
+            })),
+            Err(e) => span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable(format!("Vision inference failed: {}", e))
+                    .to_json_string(),
+            ),
         }
     }
 
@@ -3261,7 +3304,11 @@ impl MediaServer {
             font_path,
         }): Parameters<VideoMemeRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("video_meme", &self.webid);
+        let span = self.span_with_memory(
+            "video_meme",
+            format!("image_index={}", image_index),
+            serde_json::json!({"motion": motion, "duration": duration}),
+        );
 
         // Resolve image to a file path (we need it for imageproc pixel manipulation)
         let image_path = match self.resolve_image_path(image_index) {
@@ -3386,7 +3433,11 @@ impl MediaServer {
             character_description,
         }): Parameters<VoiceDesignRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("voice_design", &self.webid);
+        let span = self.span_with_memory(
+            "voice_design",
+            character_description.clone(),
+            serde_json::json!({}),
+        );
 
         let mut vars = HashMap::new();
         vars.insert("character_description", character_description.as_str());
@@ -3416,13 +3467,6 @@ impl MediaServer {
                 McpToolError::unavailable(format!("Voice design inference failed: {}", e))
             });
 
-        self.record_experience(
-            "voice_design",
-            &character_description,
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({}),
-        );
-
         match result {
             Ok(r) => {
                 // Validate that the response is valid JSON
@@ -3449,8 +3493,6 @@ impl MediaServer {
         &self,
         Parameters(GenerateSpeechRequest { text, voice_design }): Parameters<GenerateSpeechRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("generate_speech", &self.webid);
-
         // Resolve voice preset from VoiceDesign or use default
         let voice = if let Some(ref vd_json) = voice_design {
             match serde_json::from_str::<VoiceDesign>(vd_json) {
@@ -3461,18 +3503,17 @@ impl MediaServer {
             "Rachel".to_string()
         };
 
+        let span = self.span_with_memory(
+            "generate_speech",
+            text.clone(),
+            serde_json::json!({"voice": voice}),
+        );
+
         let result = self
             .inference
             .generate_speech(&text, &voice)
             .await
             .map_err(|e| McpToolError::unavailable(format!("Speech generation failed: {}", e)));
-
-        self.record_experience(
-            "generate_speech",
-            &text,
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"voice": voice}),
-        );
 
         span.finish(result)
     }
@@ -3489,7 +3530,11 @@ impl MediaServer {
             language,
         }): Parameters<TranscribeRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("transcribe", &self.webid);
+        let span = self.span_with_memory(
+            "transcribe",
+            format!("audio_url={}", audio_url),
+            serde_json::json!({"language": language}),
+        );
         if let Err(e) = validate_tool_url(&audio_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -3499,13 +3544,6 @@ impl MediaServer {
             .transcribe(&audio_url, language.as_deref())
             .await
             .map_err(|e| McpToolError::unavailable(format!("Transcription failed: {}", e)));
-
-        self.record_experience(
-            "transcribe",
-            &format!("audio_url={}", audio_url),
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"language": language}),
-        );
 
         span.finish(result)
     }
@@ -3520,7 +3558,11 @@ impl MediaServer {
             language,
         }): Parameters<TranscribeRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("transcribe_bundle", &self.webid);
+        let span = self.span_with_memory(
+            "transcribe_bundle",
+            format!("audio_url={}", audio_url),
+            serde_json::json!({"language": language}),
+        );
         if let Err(e) = validate_tool_url(&audio_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -3586,13 +3628,6 @@ impl MediaServer {
                     model,
                 };
 
-                self.record_experience(
-                    "transcribe_bundle",
-                    &format!("audio_url={}", audio_url),
-                    "success",
-                    serde_json::json!({"word_count": bundle.word_count()}),
-                );
-
                 span.ok_json(
                     serde_json::to_value(&bundle).unwrap_or_else(
                         |_| serde_json::json!({"error": "Failed to serialize bundle"}),
@@ -3613,7 +3648,11 @@ impl MediaServer {
             output_path,
         }): Parameters<AudioCaptureRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("audio_capture", &self.webid);
+        let span = self.span_with_memory(
+            "audio_capture",
+            format!("duration={}s", duration_secs),
+            serde_json::json!({"duration_secs": duration_secs}),
+        );
 
         if duration_secs <= 0.0 || duration_secs > 3600.0 {
             return span.error(
@@ -3638,22 +3677,14 @@ impl MediaServer {
             .capture_audio(duration_secs, output_path.as_deref())
             .await
         {
-            Ok(path) => {
-                self.record_experience(
-                    "audio_capture",
-                    &format!("duration={}s", duration_secs),
-                    "success",
-                    serde_json::json!({"output": path.display().to_string()}),
-                );
-                span.ok_json(serde_json::json!({
-                    "status": "captured",
-                    "duration_secs": duration_secs,
-                    "output": path.display().to_string(),
-                    "format": "wav",
-                    "sample_rate": 16000,
-                    "channels": 1,
-                }))
-            }
+            Ok(path) => span.ok_json(serde_json::json!({
+                "status": "captured",
+                "duration_secs": duration_secs,
+                "output": path.display().to_string(),
+                "format": "wav",
+                "sample_rate": 16000,
+                "channels": 1,
+            })),
             Err(e) => span.error(
                 McpErrorKind::Internal,
                 McpToolError::internal(e).to_json_string(),
@@ -3671,7 +3702,11 @@ impl MediaServer {
             language,
         }): Parameters<RecordAndTranscribeRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("record_and_transcribe", &self.webid);
+        let span = self.span_with_memory(
+            "record_and_transcribe",
+            format!("duration={}s", duration_secs),
+            serde_json::json!({"duration_secs": duration_secs, "language": language}),
+        );
 
         if duration_secs <= 0.0 || duration_secs > 3600.0 {
             return span.error(
@@ -3784,15 +3819,6 @@ impl MediaServer {
                     model,
                 };
 
-                self.record_experience(
-                    "record_and_transcribe",
-                    &format!("duration={}s", duration_secs),
-                    "success",
-                    serde_json::json!({
-                        "audio_path": audio_path_str,
-                        "word_count": bundle.word_count(),
-                    }),
-                );
                 span.ok_json(
                     serde_json::to_value(&bundle).unwrap_or_else(
                         |_| serde_json::json!({"error": "Failed to serialize bundle"}),
@@ -3826,19 +3852,17 @@ impl MediaServer {
             num_images,
         }): Parameters<GenerateImageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("generate_image", &self.webid);
         let size = image_size.clone();
+        let span = self.span_with_memory(
+            "generate_image",
+            prompt.clone(),
+            serde_json::json!({"image_size": size.clone(), "num_images": num_images}),
+        );
         let result = self
             .inference
             .generate_image(&prompt, size.as_deref(), num_images)
             .await
             .map_err(|e| McpToolError::unavailable(format!("Image generation failed: {}", e)));
-        self.record_experience(
-            "generate_image",
-            &prompt,
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"image_size": size, "num_images": num_images}),
-        );
         span.finish(result)
     }
 
@@ -3853,7 +3877,11 @@ impl MediaServer {
             strength,
         }): Parameters<TransformImageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("transform_image", &self.webid);
+        let span = self.span_with_memory(
+            "transform_image",
+            prompt.clone(),
+            serde_json::json!({"strength": strength}),
+        );
         if let Err(e) = validate_tool_url(&image_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -3862,12 +3890,6 @@ impl MediaServer {
             .image_to_image(&image_url, &prompt, strength)
             .await
             .map_err(|e| McpToolError::unavailable(format!("Image transform failed: {}", e)));
-        self.record_experience(
-            "transform_image",
-            &prompt,
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"strength": strength}),
-        );
         span.finish(result)
     }
 
@@ -3876,7 +3898,11 @@ impl MediaServer {
         &self,
         Parameters(UpscaleImageRequest { image_url, scale }): Parameters<UpscaleImageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("upscale_image", &self.webid);
+        let span = self.span_with_memory(
+            "upscale_image",
+            image_url.clone(),
+            serde_json::json!({"scale": scale}),
+        );
         if let Err(e) = validate_tool_url(&image_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -3885,12 +3911,6 @@ impl MediaServer {
             .upscale(&image_url, scale)
             .await
             .map_err(|e| McpToolError::unavailable(format!("Upscale failed: {}", e)));
-        self.record_experience(
-            "upscale_image",
-            &image_url,
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"scale": scale}),
-        );
         span.finish(result)
     }
 
@@ -3901,18 +3921,16 @@ impl MediaServer {
         &self,
         Parameters(GenerateVideoRequest { prompt, duration }): Parameters<GenerateVideoRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("generate_video", &self.webid);
+        let span = self.span_with_memory(
+            "generate_video",
+            prompt.clone(),
+            serde_json::json!({"duration": duration}),
+        );
         let result = self
             .inference
             .generate_video(&prompt, duration)
             .await
             .map_err(|e| McpToolError::unavailable(format!("Video generation failed: {}", e)));
-        self.record_experience(
-            "generate_video",
-            &prompt,
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"duration": duration}),
-        );
         span.finish(result)
     }
 }

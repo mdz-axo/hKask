@@ -34,6 +34,12 @@ pub struct MockConfigBridge {
     pub snapshot: ConfigSnapshot,
 }
 
+impl Default for MockConfigBridge {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockConfigBridge {
     pub fn new() -> Self {
         Self {

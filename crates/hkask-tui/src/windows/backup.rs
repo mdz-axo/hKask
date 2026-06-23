@@ -79,7 +79,11 @@ impl Window for BackupWindow {
             } else {
                 lines.push(Line::from("    Last:         none"));
             }
-            let verify_color = if verified { Color::Green } else { Color::Yellow };
+            let verify_color = if verified {
+                Color::Green
+            } else {
+                Color::Yellow
+            };
             lines.push(Line::from(vec![
                 Span::raw("    Verified:     "),
                 Span::styled(verify_msg, Style::default().fg(verify_color)),
@@ -125,7 +129,9 @@ impl Window for BackupWindow {
         lines.push(Line::from("    /backup snapshot   — Create a new snapshot"));
         lines.push(Line::from("    /backup restore    — Restore from snapshot"));
         lines.push(Line::from("    /backup list       — List all snapshots"));
-        lines.push(Line::from("    /backup verify     — Verify backup integrity"));
+        lines.push(Line::from(
+            "    /backup verify     — Verify backup integrity",
+        ));
         lines.push(Line::from("    /backup prune      — Remove old snapshots"));
         lines.push(Line::from(""));
 

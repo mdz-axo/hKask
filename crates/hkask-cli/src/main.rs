@@ -6,8 +6,8 @@
 use clap::Parser;
 use hkask_cli::cli::Commands;
 use hkask_cli::commands;
-use hkask_services::{InferenceConfig, InferenceRouter};
 use hkask_mcp::runtime::McpRuntime;
+use hkask_services::{InferenceConfig, InferenceRouter};
 use hkask_templates::SqliteRegistry;
 use std::time::Instant;
 

@@ -48,6 +48,12 @@ pub struct MockWalletBridge {
     pub txs: Vec<WalletTxSummary>,
 }
 
+impl Default for MockWalletBridge {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockWalletBridge {
     pub fn new() -> Self {
         Self {
