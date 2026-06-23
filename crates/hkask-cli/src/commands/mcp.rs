@@ -13,33 +13,10 @@ const BUILTIN_SERVERS: &[(&str, &str)] = &[
 
 fn build_service_context(
     rt: &tokio::runtime::Runtime,
-    servers: &[(&str, &str)],
 ) -> hkask_services::AgentService {
-    let config = super::helpers::or_exit(
-        hkask_services::ServiceConfig::from_env(),
-        "Failed to resolve config",
-    );
-    let ctx = super::helpers::or_exit(
-        rt.block_on(hkask_services::AgentService::build(config)),
-        "Failed to build AgentService",
-    );
+    let ctx = super::helpers::build_service_context();
     let replicant_name = ctx.config().agent_name.clone();
-    let mut extra_env = std::collections::HashMap::new();
-    extra_env.insert("HKASK_REPLICANT".to_string(), replicant_name);
-    for (server_id, command) in servers {
-        match rt.block_on(ctx.mcp_runtime().start_server_with_env(
-            server_id,
-            command,
-            extra_env.clone(),
-        )) {
-            Ok(()) => {
-                tracing::info!(target: "hkask.cli", server_id = %server_id, "MCP server started")
-            }
-            Err(e) => {
-                tracing::warn!(target: "hkask.cli", server_id = %server_id, error = %e, "Failed to start MCP server")
-            }
-        }
-    }
+    super::helpers::start_mcp_servers_with_env(rt, &ctx, BUILTIN_SERVERS, &replicant_name);
     ctx
 }
 
@@ -49,7 +26,7 @@ fn build_service_context(
 pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
     match action {
         McpAction::ListServers => {
-            let ctx = build_service_context(rt, BUILTIN_SERVERS);
+            let ctx = build_service_context(rt);
             let servers = rt.block_on(ctx.mcp_runtime().list_servers());
             println!("MCP servers:");
             if servers.is_empty() {
@@ -61,7 +38,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
             }
         }
         McpAction::ListTools => {
-            let ctx = build_service_context(rt, BUILTIN_SERVERS);
+            let ctx = build_service_context(rt);
             let tools = rt.block_on(ctx.mcp_runtime().discover_tools());
             println!("Available tools:");
             if tools.is_empty() {
@@ -73,7 +50,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
             }
         }
         McpAction::GetTool { name } => {
-            let ctx = build_service_context(rt, BUILTIN_SERVERS);
+            let ctx = build_service_context(rt);
             match rt.block_on(ctx.mcp_runtime().get_tool_info(&name)) {
                 Some(info) => {
                     println!("Tool: {}", info.name);
@@ -102,7 +79,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
             use hkask_templates::McpPort;
             let input_value: serde_json::Value =
                 super::helpers::or_exit(serde_json::from_str(&input), "parse JSON input");
-            let ctx = build_service_context(rt, BUILTIN_SERVERS);
+            let ctx = build_service_context(rt);
             let from = super::helpers::resolve_user_webid();
             let to = super::helpers::resolve_user_webid();
             let token = ctx

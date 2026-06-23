@@ -42,7 +42,9 @@ pub fn run(
     // Build service context and start the research MCP server
     let ctx = crate::commands::helpers::build_service_context();
     if !crate::commands::helpers::start_mcp_server(rt, &ctx, "research", "hkask-mcp-research") {
-        eprintln!("Failed to start MCP research server. Make sure hkask-mcp-research is built and on PATH.");
+        eprintln!(
+            "Failed to start MCP research server. Make sure hkask-mcp-research is built and on PATH."
+        );
         std::process::exit(1);
     }
 

@@ -119,3 +119,27 @@ pub fn start_mcp_server(
         }
     }
 }
+
+/// Start MCP servers with extra environment overrides. Returns count of successfully started servers.
+pub fn start_mcp_servers_with_env(
+    rt: &tokio::runtime::Runtime,
+    ctx: &hkask_services::AgentService,
+    servers: &[(&str, &str)],
+    replicant_name: &str,
+) -> usize {
+    let mut extra_env = std::collections::HashMap::new();
+    extra_env.insert("HKASK_REPLICANT".to_string(), replicant_name.to_string());
+    let mut started = 0;
+    for (server_id, command) in servers {
+        match rt.block_on(ctx.mcp_runtime().start_server_with_env(server_id, command, extra_env.clone())) {
+            Ok(()) => {
+                started += 1;
+                tracing::info!(target: "hkask.cli", server_id = %server_id, "MCP server started");
+            }
+            Err(e) => {
+                tracing::warn!(target: "hkask.cli", server_id = %server_id, error = %e, "Failed to start MCP server");
+            }
+        }
+    }
+    started
+}

@@ -112,12 +112,7 @@ pub(super) fn single_agent_turn(
         };
 
         // Build TurnRequest for this iteration.
-        let turn_req = build_turn_request(
-            state,
-            &current_input,
-            iteration,
-            tool_results.take(),
-        );
+        let turn_req = build_turn_request(state, &current_input, iteration, tool_results.take());
 
         let chat_result = rt.block_on(ChatService::execute_turn(
             &state.service_context,
@@ -290,12 +285,7 @@ pub(crate) fn single_agent_turn_captured(
             };
         };
 
-        let turn_req = build_turn_request(
-            state,
-            &current_input,
-            iteration,
-            tool_results.take(),
-        );
+        let turn_req = build_turn_request(state, &current_input, iteration, tool_results.take());
 
         let chat_result = rt.block_on(ChatService::execute_turn(
             &state.service_context,

@@ -328,9 +328,12 @@ impl ReplSettings {
                 | "tool_loop_limit"
                 | "context_turns"
                 | "temperature"
-                | "generation_model" | "gen_model"
-                | "embedding_model" | "emb_model"
-                | "classifier_model" | "cls_model"
+                | "generation_model"
+                | "gen_model"
+                | "embedding_model"
+                | "emb_model"
+                | "classifier_model"
+                | "cls_model"
         )
     }
 }
