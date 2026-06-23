@@ -24,7 +24,9 @@ use crate::commands;
 /// inference port for standalone CLI commands — the REPL reuses its shared
 /// port, but standalone commands (`kask bundle compose`) create one on demand.
 fn resolve_composition_port() -> Arc<dyn InferencePort> {
-    let inference_config = hkask_inference::InferenceConfig::from_env();
+    let inference_config = hkask_services::ServiceConfig::from_env()
+        .map(|c| c.inference_config)
+        .unwrap_or_default();
     let default_model = inference_config.default_model.clone();
     let ctx = hkask_services::InferenceContext::from_parts(None, &default_model, inference_config);
     commands::helpers::or_exit(

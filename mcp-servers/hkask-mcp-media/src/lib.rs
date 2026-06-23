@@ -1019,8 +1019,20 @@ impl MediaServer {
             if !analyze_errors.is_empty() {
                 r["analyze_errors"] = serde_json::json!(analyze_errors);
             }
+            self.record_experience(
+                "gallery_organize",
+                &format!("path={}", path),
+                "success",
+                serde_json::json!({"path": path, "mode": mode, "auto_analyze": auto_analyze}),
+            );
             span.ok_json(r)
         } else {
+            self.record_experience(
+                "gallery_organize",
+                &format!("path={}", path),
+                "success",
+                serde_json::json!({"path": path, "mode": mode, "auto_analyze": auto_analyze}),
+            );
             span.ok_json(result)
         }
     }
@@ -1037,11 +1049,27 @@ impl MediaServer {
             }
         };
         match &*guard {
-            Some(state) => span.ok_json(state.summary()),
-            None => span.ok_json(serde_json::json!({
-                "status": "no_gallery",
-                "message": "No gallery organized. Use gallery_organize to point at a photo folder."
-            })),
+            Some(state) => {
+                self.record_experience(
+                    "gallery_status",
+                    "get gallery status",
+                    "success",
+                    serde_json::json!({}),
+                );
+                span.ok_json(state.summary())
+            }
+            None => {
+                self.record_experience(
+                    "gallery_status",
+                    "get gallery status",
+                    "success",
+                    serde_json::json!({}),
+                );
+                span.ok_json(serde_json::json!({
+                    "status": "no_gallery",
+                    "message": "No gallery organized. Use gallery_organize to point at a photo folder."
+                }))
+            }
         }
     }
 
@@ -1151,6 +1179,12 @@ impl MediaServer {
             })
             .collect();
 
+        self.record_experience(
+            &query,
+            &format!("gallery search: {}", query),
+            "success",
+            serde_json::json!({"limit": limit, "results": results.len()}),
+        );
         span.ok_json(serde_json::json!({
             "query": query,
             "results": results,
@@ -1355,6 +1389,12 @@ impl MediaServer {
         let query_label = text
             .clone()
             .unwrap_or_else(|| format!("image_index={}", image_index.unwrap_or(0)));
+        self.record_experience(
+            &query_label,
+            &format!("find similar to: {}", query_label),
+            "success",
+            serde_json::json!({"limit": limit, "results": results.len()}),
+        );
         span.ok_json(serde_json::json!({
             "query": query_label,
             "results": results,
@@ -1636,6 +1676,12 @@ impl MediaServer {
             }
         }
 
+        self.record_experience(
+            "gallery_refresh",
+            "refresh gallery metadata",
+            "success",
+            serde_json::json!({"analyzed": analyzed, "recursive": recursive, "include_faces": include_faces}),
+        );
         span.ok_json(serde_json::json!({
             "status": "refreshed",
             "gallery_id": gid,
@@ -1806,6 +1852,12 @@ impl MediaServer {
             .map(|(_, label)| label)
             .unwrap_or("none");
 
+        self.record_experience(
+            &mode,
+            &format!("analyze gallery: {}", mode),
+            "success",
+            serde_json::json!({"analyzed": analyzed, "pipelines": pipelines}),
+        );
         span.ok_json(serde_json::json!({
             "status": "complete",
             "images_analyzed": analyzed,
@@ -1917,6 +1969,12 @@ impl MediaServer {
             }
         }
 
+        self.record_experience(
+            "gallery_name_face",
+            &format!("face_group={}", face_group),
+            "success",
+            serde_json::json!({"name": resolved_name, "renamed": renamed}),
+        );
         span.ok_json(serde_json::json!({
             "status": "named",
             "face_group": face_group,
@@ -2296,6 +2354,12 @@ impl MediaServer {
             }));
         }
 
+        self.record_experience(
+            &period,
+            &format!("gallery timeline: {}", period),
+            "success",
+            serde_json::json!({"count": count, "periods": result_periods.len()}),
+        );
         span.ok_json(serde_json::json!({
             "period_type": period,
             "periods": result_periods,
@@ -3074,12 +3138,17 @@ impl MediaServer {
             }
         }
 
-        let style_str = style.as_deref().unwrap_or("descriptive");
         let mut vars = HashMap::new();
         vars.insert("style", style_str);
         let prompt = match self.render_prompt("video_caption", &vars) {
             Ok(p) => p,
             Err(e) => {
+                self.record_experience(
+                    "video_caption",
+                    &video_url,
+                    "error",
+                    serde_json::json!({"style": style_str}),
+                );
                 return span.error(
                     McpErrorKind::Internal,
                     McpToolError::internal(format!("Template render failed: {}", e))
@@ -3091,6 +3160,12 @@ impl MediaServer {
         let (vision_model, _vision_label) = match self.resolve_vision_model().await {
             Some(v) => v,
             None => {
+                self.record_experience(
+                    "video_caption",
+                    &video_url,
+                    "error",
+                    serde_json::json!({"style": style_str}),
+                );
                 return span.error(
                     McpErrorKind::Unavailable,
                     McpToolError::unavailable(
@@ -3112,16 +3187,32 @@ impl MediaServer {
         }
 
         match result {
-            Ok(r) => span.ok_json(serde_json::json!({
-                "caption": r.text.trim(),
-                "style": style_str,
-                "frames_analyzed": image_urls.len(),
-            })),
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Vision inference failed: {}", e))
-                    .to_json_string(),
-            ),
+            Ok(r) => {
+                self.record_experience(
+                    "video_caption",
+                    &video_url,
+                    "success",
+                    serde_json::json!({"style": style_str}),
+                );
+                span.ok_json(serde_json::json!({
+                    "caption": r.text.trim(),
+                    "style": style_str,
+                    "frames_analyzed": image_urls.len(),
+                }))
+            }
+            Err(e) => {
+                self.record_experience(
+                    "video_caption",
+                    &video_url,
+                    "error",
+                    serde_json::json!({"style": style_str}),
+                );
+                span.error(
+                    McpErrorKind::Unavailable,
+                    McpToolError::unavailable(format!("Vision inference failed: {}", e))
+                        .to_json_string(),
+                )
+            }
         }
     }
 

@@ -367,7 +367,7 @@ const ONBOARDING_MODELS: &[&str] = &[
 
 /// Let the user select a model from the curated cloud frontier list.
 async fn select_model() -> Result<String, OnboardingError> {
-    let default_model = hkask_inference::InferenceConfig::from_env().default_model;
+    let default_model = hkask_services::ServiceConfig::from_env().map(|c| c.inference_config).default_model;
 
     println!("  \x1b[1mAvailable models\x1b[0m (via DeepInfra):");
     let mut idx = 1usize;
@@ -382,7 +382,7 @@ async fn select_model() -> Result<String, OnboardingError> {
     }
 
     // Offer fusion if OpenRouter is configured
-    let config = hkask_inference::InferenceConfig::from_env();
+    let config = hkask_services::ServiceConfig::from_env().map(|c| c.inference_config);
     let has_fusion = !config.openrouter_api_key.is_empty() && config.fusion_model.is_some();
     if has_fusion {
         let fusion_name = config
@@ -431,7 +431,7 @@ async fn select_model() -> Result<String, OnboardingError> {
 /// If not, prompts the user to load from a providers.env file, enter a key
 /// directly, or skip (with a warning).
 async fn setup_provider() -> Result<(), OnboardingError> {
-    let config = hkask_inference::InferenceConfig::from_env();
+    let config = hkask_services::ServiceConfig::from_env().map(|c| c.inference_config);
 
     // Check if any cloud provider is already configured
     let has_deepinfra = !config.deepinfra_api_key.is_empty();

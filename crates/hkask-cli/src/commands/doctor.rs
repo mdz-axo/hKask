@@ -3,7 +3,7 @@
 //! Checks each provider key is set and makes a lightweight API call
 //! to verify the credentials are valid. Reports tier status.
 
-use hkask_inference::{InferenceConfig, InferenceRouter};
+use hkask_services::{InferenceConfig, InferenceRouter};
 
 /// Run a diagnostic check on all configured providers.
 pub async fn run_doctor() {

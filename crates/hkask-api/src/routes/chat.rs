@@ -17,9 +17,8 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiState;
 use crate::middleware::auth::AuthContext;
-use hkask_inference::model_constants;
 use hkask_ports::InferencePort;
-use hkask_services::{ChatRequest as ServiceChatRequest, ChatService};
+use hkask_services::{ChatRequest as ServiceChatRequest, ChatService, model_constants};
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -176,7 +175,10 @@ pub(crate) async fn chat_stream(
         None => strategy.frame(&req.input).to_string(),
     };
 
-    let fusion_active = hkask_inference::InferenceConfig::from_env()
+    let fusion_active = state
+        .agent_service
+        .config()
+        .inference_config
         .fusion_model
         .is_some();
     let params = LLMParameters {

@@ -2,7 +2,7 @@
 //!
 //! Shows CNS health, MCP server status, pod inventory, and context
 //! window pressure in a single scrollable panel. This is the
-//! cybernetic "dashboard" that closes the S3 (Control) feedback loop.
+//! cybernetic control panel that closes the S3 (Control) feedback loop.
 //!
 //! # RDF Triple
 //! ```text
@@ -57,14 +57,14 @@ pub struct SidebarWindow {
     id: WindowId,
     active_section: SidebarSection,
     #[allow(dead_code)]
-    service_context: Arc<hkask_services::AgentService>,
+    service_context: Option<Arc<hkask_services::AgentService>>,
     bridge: Arc<dyn ReplBridge>,
 }
 
 impl SidebarWindow {
     pub fn new(
         id: WindowId,
-        service_context: Arc<hkask_services::AgentService>,
+        service_context: Option<Arc<hkask_services::AgentService>>,
         bridge: Arc<dyn ReplBridge>,
     ) -> Self {
         Self {

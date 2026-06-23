@@ -68,7 +68,9 @@ pub(super) fn init_repl_state(
     // Resolve inference config from env for InferenceService calls.
     // Onboarding has already completed above; this is used to build the
     // inference port that serves the interactive REPL session.
-    let inference_config = hkask_inference::InferenceConfig::from_env();
+    let inference_config = hkask_services::ServiceConfig::from_env()
+        .map(|c| c.inference_config)
+        .unwrap_or_default();
 
     // Initialize inference port once — reused across all chat turns.
     // Route through InferenceService so all surfaces share the same logic.

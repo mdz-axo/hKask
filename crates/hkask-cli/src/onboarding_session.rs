@@ -98,7 +98,9 @@ impl OnboardingSession {
 
     async fn advance_provider(&mut self) -> Result<(), OnboardingError> {
         // Provider setup is idempotent — skip if already configured.
-        let config = hkask_inference::InferenceConfig::from_env();
+        let config = hkask_services::ServiceConfig::from_env()
+            .map(|c| c.inference_config)
+            .unwrap_or_default();
         if config.deepinfra_api_key.is_empty()
             && config.together_api_key.is_empty()
             && config.fal_api_key.is_empty()

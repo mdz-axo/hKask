@@ -19,12 +19,23 @@ use crate::repl_bridge::ReplBridge;
 use crate::status_bar::StatusBar;
 use crate::tab::Tab;
 use crate::window::{Window, WindowId, WindowKind};
+use crate::windows::backup::BackupWindow;
 use crate::windows::chat::ChatWindow;
 use crate::windows::cns_monitor::CnsMonitorWindow;
+use crate::windows::companies::CompaniesWindow;
+use crate::windows::configuration::ConfigurationWindow;
 use crate::windows::curator::CuratorWindow;
+use crate::windows::editor::EditorWindow;
+use crate::windows::kanban::KanbanWindow;
+use crate::windows::matrix::MatrixWindow;
+use crate::windows::media::MediaWindow;
+use crate::windows::memory::MemoryWindow;
 use crate::windows::pods::PodsWindow;
 use crate::windows::registry::RegistryWindow;
 use crate::windows::sidebar::SidebarWindow;
+use crate::windows::skills::SkillsWindow;
+use crate::windows::terminal::TerminalWindow;
+use crate::windows::training::TrainingWindow;
 use crate::windows::wallet::WalletWindow;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -275,7 +286,7 @@ impl Workspace {
             chat_id,
             &agent,
             &model,
-            service_context.clone(),
+            Some(service_context.clone()),
             bridge.clone(),
         );
 
@@ -436,14 +447,14 @@ impl Workspace {
         let new_win: Box<dyn Window> = match new_kind {
             WindowKind::Sidebar => Box::new(SidebarWindow::new(
                 new_id,
-                self.service_context.clone(),
+                Some(self.service_context.clone()),
                 self.bridge.clone(),
             )),
             _ => Box::new(ChatWindow::new(
                 new_id,
                 self.bridge.agent_name(),
                 self.bridge.model_name(),
-                self.service_context.clone(),
+                Some(self.service_context.clone()),
                 self.bridge.clone(),
             )),
         };
@@ -499,7 +510,7 @@ impl Workspace {
             chat_id,
             self.bridge.agent_name(),
             self.bridge.model_name(),
-            self.service_context.clone(),
+            Some(self.service_context.clone()),
             self.bridge.clone(),
         );
         let root = SplitNode::Leaf(Box::new(chat));
@@ -562,6 +573,9 @@ impl Workspace {
             WindowKind::Media,
             WindowKind::Skills,
             WindowKind::Matrix,
+            WindowKind::Memory,
+            WindowKind::Companies,
+            WindowKind::Kanban,
             WindowKind::Chat,
         ];
         let kind = KINDS[self.window_kind_idx % KINDS.len()];
@@ -569,19 +583,32 @@ impl Workspace {
 
         let new_id = WindowId(uuid::Uuid::new_v4());
         let bridge = self.bridge.clone();
+        let service_context = self.service_context.clone();
         let new_win: Box<dyn Window> = match kind {
             WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(new_id, bridge)),
             WindowKind::Pods => Box::new(PodsWindow::new(new_id, bridge)),
             WindowKind::Wallet => Box::new(WalletWindow::new(new_id, bridge)),
             WindowKind::Registry => Box::new(RegistryWindow::new(new_id, bridge)),
-            WindowKind::Backup => {
-                Box::new(crate::windows::backup::BackupWindow::new(new_id, bridge))
+            WindowKind::Backup => Box::new(BackupWindow::new(new_id, bridge)),
+            WindowKind::Curator => Box::new(CuratorWindow::new(new_id, bridge)),
+            WindowKind::Configuration => Box::new(ConfigurationWindow::new(new_id, bridge)),
+            WindowKind::Terminal => Box::new(TerminalWindow::new(new_id, bridge)),
+            WindowKind::Editor => Box::new(EditorWindow::new(new_id, bridge)),
+            WindowKind::Training => Box::new(TrainingWindow::new(new_id, bridge)),
+            WindowKind::Media => Box::new(MediaWindow::new(new_id, bridge)),
+            WindowKind::Skills => Box::new(SkillsWindow::new(new_id, bridge)),
+            WindowKind::Matrix => Box::new(MatrixWindow::new(new_id, bridge)),
+            WindowKind::Memory => Box::new(MemoryWindow::new(new_id, bridge)),
+            WindowKind::Companies => Box::new(CompaniesWindow::new(new_id, bridge)),
+            WindowKind::Kanban => Box::new(KanbanWindow::new(new_id, bridge)),
+            WindowKind::Sidebar => {
+                Box::new(SidebarWindow::new(new_id, Some(service_context), bridge))
             }
-            _ => Box::new(ChatWindow::new(
+            WindowKind::Chat => Box::new(ChatWindow::new(
                 new_id,
                 self.bridge.agent_name(),
                 self.bridge.model_name(),
-                self.service_context.clone(),
+                Some(service_context),
                 bridge,
             )),
         };

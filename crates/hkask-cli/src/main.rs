@@ -6,7 +6,7 @@
 use clap::Parser;
 use hkask_cli::cli::Commands;
 use hkask_cli::commands;
-use hkask_inference::{InferenceConfig, InferenceRouter};
+use hkask_services::{InferenceConfig, InferenceRouter};
 use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::SqliteRegistry;
 use std::time::Instant;
@@ -58,7 +58,7 @@ fn check_fusion_startup(rt: &tokio::runtime::Runtime) {
 fn prompt_proceed_or_wait(fusion: &str, connection_error: bool) {
     use std::io::{self, Write};
 
-    let default = hkask_inference::model_constants::DEFAULT_FALLBACK_MODEL;
+    let default = hkask_services::model_constants::DEFAULT_FALLBACK_MODEL;
     let wait_msg = if connection_error {
         "Wait while I fix the OpenRouter connection and set up the 'kask' fusion group"
     } else {

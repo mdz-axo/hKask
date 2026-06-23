@@ -170,13 +170,13 @@ fn default_gen_model() -> String {
     "deepseek-v4-flash:cloud".to_string()
 }
 fn default_emb_model() -> String {
-    hkask_inference::model_constants::EMBEDDING_MODEL.to_string()
+    hkask_services::model_constants::EMBEDDING_MODEL.to_string()
 }
 fn default_cls_model() -> String {
-    hkask_inference::model_constants::CLASSIFIER_MODEL.to_string()
+    hkask_services::model_constants::CLASSIFIER_MODEL.to_string()
 }
 fn default_ocr() -> String {
-    hkask_inference::model_constants::OCR_MODEL.to_string()
+    hkask_services::model_constants::OCR_MODEL.to_string()
 }
 fn default_ocr_simple_max() -> f32 {
     0.05

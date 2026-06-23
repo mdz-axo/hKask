@@ -11,9 +11,7 @@ const BUILTIN_SERVERS: &[(&str, &str)] = &[
     ("media", "hkask-mcp-media"),
 ];
 
-fn build_service_context(
-    rt: &tokio::runtime::Runtime,
-) -> hkask_services::AgentService {
+fn build_service_context(rt: &tokio::runtime::Runtime) -> hkask_services::AgentService {
     let ctx = super::helpers::build_service_context();
     let replicant_name = ctx.config().agent_name.clone();
     super::helpers::start_mcp_servers_with_env(rt, &ctx, BUILTIN_SERVERS, &replicant_name);

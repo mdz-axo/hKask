@@ -682,7 +682,7 @@ fn emit_tool_span_with_caller(
     error_kind: Option<&McpErrorKind>,
     caller: Option<&hkask_types::WebID>,
 ) {
-    tracing::info!(target: "cns.tool", tool = tool_name, outcome = outcome, duration_ms = duration_ms, error_kind = error_kind.map(|k| k.to_string()).as_deref().unwrap_or(""), caller = caller.map(|w| w.to_string()).as_deref().unwrap_or(""), "CNS tool span");
+    tracing::info!(target: "cns.tool", tool = tool_name, outcome = outcome, duration_ms = duration_ms, error_kind = error_kind.map(|k| k.to_string()).as_deref().unwrap_or(""), caller = caller.map(|w| w.to_string()).as_deref().unwrap_or(""), "CNS");
 }
 
 // run_stdio_server — Common Server Bootstrap
