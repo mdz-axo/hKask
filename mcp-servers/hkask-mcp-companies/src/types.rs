@@ -146,9 +146,11 @@ pub struct ResultFeedbackRequest {
     pub tool: String,
     /// The query that was used (symbol, portfolio name, search query, etc.)
     pub query: String,
-    /// User judgment: "accurate", "inaccurate", or "partial"
-    pub rating: String,
-    /// Optional context about what was wrong or why it was accurate
+    /// 1–5 satisfaction score (5 = exceeded expectations, 1 = completely missed)
+    /// Omit if you just want to leave comments without a score.
+    pub score: Option<u8>,
+    /// Free-text comments about what worked, what didn't, or what was missing.
+    /// Omit if you just want to leave a score without comments.
     #[serde(default)]
-    pub note: String,
+    pub comments: String,
 }

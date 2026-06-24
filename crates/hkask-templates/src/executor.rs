@@ -14,8 +14,11 @@
 //! - **abort**: Exit the cascade with a convergence status. Emits `cns.skill.converged`.
 //! - **escalate**: Exit the cascade with an escalation error. Emits `cns.skill.escalated`.
 //!
-//! The executor respects energy budgets (`step.gas_cap`), timeout constraints
-//! (`step.timeout_seconds`), and iterative convergence (`manifest.convergence`).
+//! The executor respects iterative convergence (`manifest.convergence`),
+//! gas budgets (`manifest.gas.cap` — hard parent allocation with
+//! per-token deduction after inference calls), timeout constraints
+//! (`step.timeout_seconds` — hard, enforced via tokio::time::timeout),
+//! and conditional step execution (`step.condition`).
 //! The PDCA loop executes steps in ordinal order, handling `loop` actions by
 //! re-entering from the target ordinal until convergence threshold is met,
 //! max iterations are exhausted, or `abort`/`escalate` is triggered.
@@ -141,6 +144,13 @@ impl ManifestExecutor {
         let mut iteration: u32 = 0;
         let mut recursion_depth: u8 = 0;
         let matryoshka_limit: u8 = hkask_capability::SYSTEM_MAX_RECURSION;
+        // Gas tracking — hard parent allocation
+        let gas_cap = manifest.gas.cap as f64;
+        let cost_per_token = manifest.gas.cost_per_token;
+        let alert_threshold = manifest.gas.alert_threshold;
+        let hard_limit = manifest.gas.hard_limit;
+        let mut gas_used: f64 = 0.0;
+        let mut gas_alerted: bool = false;
 
         context.insert(
             "_convergence".to_string(),
@@ -153,6 +163,9 @@ impl ManifestExecutor {
                 "exit_reason": null,
                 "improvement_target": manifest.convergence.improvement_ratio,
                 "baseline_quality": null,
+                "gas_cap": gas_cap,
+                "gas_used": 0.0,
+                "gas_remaining": gas_cap,
             }),
         );
 
@@ -170,6 +183,9 @@ impl ManifestExecutor {
                     "exit_reason": null,
                     "improvement_target": manifest.convergence.improvement_ratio,
                     "baseline_quality": baseline_quality,
+                    "gas_cap": gas_cap,
+                    "gas_used": gas_used,
+                    "gas_remaining": (gas_cap - gas_used).max(0.0),
                 }),
             );
             let mut step_idx: usize = 0;
@@ -185,6 +201,22 @@ impl ManifestExecutor {
                     description = %step.description,
                     "CNS"
                 );
+
+                // Evaluate step condition — skip if false
+                if let Some(ref cond) = step.condition {
+                    if !evaluate_step_condition(cond, &context) {
+                        info!(
+                            target: "cns.skill.cascade",
+                            iteration = iteration,
+                            step = step.ordinal,
+                            condition = %cond,
+                            skipped = true,
+                            "CNS"
+                        );
+                        step_idx += 1;
+                        continue;
+                    }
+                }
 
                 match step.action.as_str() {
                     // ── Abort: converged — exit with success ──
@@ -346,7 +378,39 @@ impl ManifestExecutor {
 
                     // ── Standard actions: select, populate, execute ──
                     "select" => {
-                        context = self.execute_select(step, context).await?;
+                        context = self.execute_select(step, context, &mut gas_used, gas_cap, cost_per_token, hard_limit).await?;
+                        // Check gas exhaustion after select
+                        if hard_limit && gas_used >= gas_cap {
+                            info!(
+                                target: "cns.skill.gas_exhausted",
+                                iteration = iteration,
+                                gas_used = gas_used,
+                                gas_cap = gas_cap,
+                                "CNS"
+                            );
+                            self.finalize_convergence_report(
+                                &mut context,
+                                "maxed_out",
+                                "energy_spent",
+                                iteration,
+                                threshold,
+                                &field,
+                                baseline_quality,
+                                manifest.convergence.improvement_ratio,
+                            );
+                            break 'cascade;
+                        }
+                        // Gas alert threshold
+                        if !gas_alerted && (gas_used / gas_cap) >= alert_threshold {
+                            gas_alerted = true;
+                            info!(
+                                target: "cns.skill.gas_alert",
+                                gas_used = gas_used,
+                                gas_cap = gas_cap,
+                                pct = (gas_used / gas_cap) * 100.0,
+                                "CNS"
+                            );
+                        }
                     }
                     "populate" => {
                         context = self.execute_populate(step, context).await?;
@@ -364,6 +428,28 @@ impl ManifestExecutor {
                 }
 
                 step_idx += 1;
+            }
+
+            // Check gas exhaustion at end of pass
+            if hard_limit && gas_used >= gas_cap {
+                info!(
+                    target: "cns.skill.gas_exhausted",
+                    iteration = iteration,
+                    gas_used = gas_used,
+                    gas_cap = gas_cap,
+                    "CNS"
+                );
+                self.finalize_convergence_report(
+                    &mut context,
+                    "maxed_out",
+                    "energy_spent",
+                    iteration,
+                    threshold,
+                    &field,
+                    baseline_quality,
+                    manifest.convergence.improvement_ratio,
+                );
+                break 'cascade;
             }
 
             // Capture baseline quality on first full pass
@@ -471,6 +557,8 @@ impl ManifestExecutor {
             .and_then(|v| v.as_f64())
             .or_else(|| resolve_dot_path(field, context).and_then(|v| v.as_f64()));
 
+        let gas_used_val = context.get("_gas").and_then(|g| g.get("used")).and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let gas_cap_val = context.get("_gas").and_then(|g| g.get("cap")).and_then(|v| v.as_f64()).unwrap_or(0.0);
         context.insert(
             "_convergence".to_string(),
             serde_json::json!({
@@ -484,6 +572,10 @@ impl ManifestExecutor {
                 "improvement_pct": baseline_quality.and_then(|b| quality.map(|q| if b > 0.0 { ((b - q) / b) * 100.0 } else { 0.0 })),
                 "improvement_target": improvement_target,
                 "baseline_quality": baseline_quality,
+                "gas_used": gas_used_val,
+                "gas_cap": gas_cap_val,
+                "gas_remaining": (gas_cap_val - gas_used_val).max(0.0),
+                "gas_pct": if gas_cap_val > 0.0 { (gas_used_val / gas_cap_val) * 100.0 } else { 0.0 },
             }),
         );
     }
@@ -623,15 +715,49 @@ impl ManifestExecutor {
         &self,
         step: &BundleManifestStep,
         mut context: HashMap<String, Value>,
+        gas_used: &mut f64,
+        gas_cap: f64,
+        cost_per_token: f64,
+        hard_limit: bool,
     ) -> Result<HashMap<String, Value>> {
         let prompt = self.render_step_template(step, &context)?;
 
         let params = self.default_params.clone();
 
-        let result: InferenceResult = self.inference.generate(&prompt, &params, None).await?;
+        // Hard timeout enforcement
+        let timeout_dur = std::time::Duration::from_secs(step.timeout_seconds as u64);
+        let result: InferenceResult = match tokio::time::timeout(timeout_dur, self.inference.generate(&prompt, &params, None)).await {
+            Ok(Ok(r)) => r,
+            Ok(Err(e)) => return Err(TemplateError::Inference(e)),
+            Err(_elapsed) => {
+                return Err(TemplateError::Manifest(format!(
+                    "Step {} timed out after {}s",
+                    step.ordinal, step.timeout_seconds
+                )));
+            }
+        };
+
+        // Gas tracking — deduct tokens from budget
+        let tokens = result.usage.total_tokens as f64;
+        *gas_used += tokens * cost_per_token;
+        let remaining = (gas_cap - *gas_used).max(0.0);
+
+        // Gas exhausted check
+        if hard_limit && remaining <= 0.0 {
+            context.insert("_gas_exhausted".to_string(), serde_json::json!(true));
+            // Let the parsed result through — convergence check will escalate
+        }
 
         let parsed: Value = parse_json_response(&result.text, step.ordinal)?;
         context.insert(format!("step_{}_result", step.ordinal), parsed);
+
+        // Inject gas context for template awareness
+        context.insert("_gas".to_string(), serde_json::json!({
+            "used": *gas_used,
+            "cap": gas_cap,
+            "remaining": remaining,
+            "cost_per_token": cost_per_token,
+        }));
 
         Ok(context)
     }
@@ -1005,6 +1131,46 @@ impl ManifestExecutor {
             }
             _ => 0.0,
         }
+    }
+}
+
+/// Evaluate a step condition expression against the context.
+/// Supported: "var_name" (truthy), "NOT var_name" (falsy),
+/// "a AND b" (both truthy), "a OR b" (either truthy).
+fn evaluate_step_condition(condition: &str, context: &HashMap<String, Value>) -> bool {
+    let condition = condition.trim();
+    
+    // Check for boolean operators
+    if let Some(pos) = condition.find(" AND ") {
+        let left = &condition[..pos].trim();
+        let right = &condition[pos + 5..].trim();
+        return evaluate_step_condition(left, context) && evaluate_step_condition(right, context);
+    }
+    if let Some(pos) = condition.find(" OR ") {
+        let left = &condition[..pos].trim();
+        let right = &condition[pos + 4..].trim();
+        return evaluate_step_condition(left, context) || evaluate_step_condition(right, context);
+    }
+    
+    // Check for negation
+    if condition.starts_with("NOT ") {
+        let inner = condition[4..].trim();
+        return !evaluate_step_condition(inner, context);
+    }
+    
+    // Simple variable check: is it truthy in context?
+    // Also resolve dot-paths like "step_1_result.intervention_needed"
+    let key = condition;
+    let resolved = resolve_dot_path(key, context);
+    let val: Option<&Value> = context.get(key).or(resolved.as_ref());
+    match val {
+        Some(Value::Bool(b)) => *b,
+        Some(Value::Number(n)) => n.as_f64().map(|f| f != 0.0).unwrap_or(false),
+        Some(Value::String(s)) => !s.is_empty() && s != "false" && s != "0",
+        Some(Value::Array(a)) => !a.is_empty(),
+        Some(Value::Object(o)) => !o.is_empty(),
+        Some(Value::Null) => false,
+        None => false,
     }
 }
 

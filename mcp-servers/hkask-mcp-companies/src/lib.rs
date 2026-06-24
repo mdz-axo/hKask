@@ -1872,37 +1872,38 @@ impl CompaniesServer {
     }
 
     #[tool(
-        description = "Rate a previous tool result: accurate, inaccurate, or partial. Feeds the learning loop so the system can detect patterns in provider behavior and analysis quality."
+        description = "Rate a previous tool result on a 1–5 scale with optional comments. Score: 5 = exceeded expectations, 3 = met expectations, 1 = completely missed. Both score and comments are optional — provide either, both, or neither to acknowledge you saw the result. Feeds the learning loop."
     )]
     pub async fn result_feedback(
         &self,
         Parameters(types::ResultFeedbackRequest {
             tool,
             query,
-            rating,
-            note,
+            score,
+            comments,
         }): Parameters<types::ResultFeedbackRequest>,
     ) -> String {
         execute_tool(self, "result_feedback", async {
-            // Validate rating
-            match rating.as_str() {
-                "accurate" | "inaccurate" | "partial" => {}
-                other => {
+            // Validate score range if provided
+            if let Some(s) = score {
+                if !(1..=5).contains(&s) {
                     return Err(McpToolError::invalid_argument(format!(
-                        "rating must be 'accurate', 'inaccurate', or 'partial', got '{other}'"
+                        "score must be 1–5, got {s}"
                     )));
                 }
             }
 
+            // Accept empty feedback as an acknowledgment (no score, no comments = "I saw it")
+            let has_feedback = score.is_some() || !comments.is_empty();
+
             // Store feedback as a daemon experience linked to the original tool.
-            // Entity = original tool name so a pattern consumer can join
-            // on (tool, query) to find feedback for past experiences.
             if let Some(ref daemon) = self.daemon {
                 let value = serde_json::json!({
                     "tool": tool,
                     "query": query,
-                    "rating": rating,
-                    "note": note,
+                    "score": score,
+                    "comments": comments,
+                    "has_feedback": has_feedback,
                     "timestamp": now_rfc3339(),
                 });
                 let daemon_clone = daemon.clone();
@@ -1921,11 +1922,21 @@ impl CompaniesServer {
                 });
             }
 
+            let summary = if has_feedback {
+                if let Some(s) = score {
+                    format!("score {s}/5")
+                } else {
+                    "comments only".to_string()
+                }
+            } else {
+                "acknowledged".to_string()
+            };
+
             Ok(serde_json::json!({
                 "status": "recorded",
                 "tool": tool,
                 "query": query,
-                "rating": rating,
+                "summary": summary,
             }))
         })
         .await
@@ -2146,29 +2157,31 @@ mod tests {
         );
     }
 
-    // ── result_feedback: rating validation contract ────────────────
+    // ── result_feedback: score validation + conversational prompts ─
 
     #[test]
-    fn result_feedback_valid_ratings_accepted() {
-        // Valid ratings pass the validation match (tested via the match logic)
-        for rating in &["accurate", "inaccurate", "partial"] {
-            let result = match *rating {
-                "accurate" | "inaccurate" | "partial" => Ok(()),
-                other => Err(format!("invalid: {other}")),
-            };
-            assert!(result.is_ok(), "{rating} should be accepted");
+    fn result_feedback_score_range_contract() {
+        // Valid scores: 1–5
+        for s in 1..=5u8 {
+            let valid = (1..=5).contains(&s);
+            assert!(valid, "score {s} should be accepted");
+        }
+        // Invalid scores: 0 and 6+
+        for s in [0u8, 6, 10, 255] {
+            let valid = (1..=5).contains(&s);
+            assert!(!valid, "score {s} should be rejected");
         }
     }
 
     #[test]
-    fn result_feedback_invalid_ratings_rejected() {
-        for rating in &["wrong", "", "ACCURATE", "partial "] {
-            let result = match *rating {
-                "accurate" | "inaccurate" | "partial" => Ok(()),
-                other => Err(format!("invalid: {other}")),
-            };
-            assert!(result.is_err(), "'{rating}' should be rejected");
-        }
+    fn result_feedback_both_optional() {
+        let _score: Option<u8> = None;
+        let _comments: &str = "";
+        assert!(_score.is_none() && _comments.is_empty(), "both optional");
+        let score: Option<u8> = Some(4);
+        assert!(score.is_some(), "score only is valid feedback");
+        let comments: &str = "missing sector field";
+        assert!(!comments.is_empty(), "comments only is valid feedback");
     }
 }
 

@@ -410,6 +410,10 @@ impl KanbanService {
         board_id: BoardId,
         filter: TaskFilter,
     ) -> Result<Vec<Task>, KanbanError> {
+        // Verify board exists
+        self.board_get(board_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
+
         let index_entity = format!("{BOARD_TASKS_PREFIX}{board_id}");
 
         // Get task IDs from the index
@@ -623,14 +627,11 @@ impl KanbanService {
             });
         }
 
-        // rSolidity contract-based verification
-        // The task IS a contract. Both agent and replicant run the same assertions.
-        //
-        // NOTE: ocap_gates is empty — capability-gated verification (P3)
-        // is not yet enforced. The verifier's WebID is recorded (P12), but
-        // no capability token check gates the verification path.
+        // Task completion is user-feedback-driven.
+        // Evidence (the user's confirmation text) IS the completion signal.
+        // Criteria are informational — they guide work but don't gate completion.
         let mut contract =
-            crate::kanban::TaskContract::new("inline".into(), task.owner, verifier, &task, vec![]);
+            crate::kanban::TaskContract::new("inline".into(), task.owner, verifier, &task);
         let result = contract.check_completion(evidence);
 
         let passed = result.passed;

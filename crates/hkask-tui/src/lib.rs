@@ -74,8 +74,6 @@ pub use workspace::{SplitDirection, Workspace};
 pub struct TuiSession {
     terminal: Terminal<CrosstermBackend<Stdout>>,
     workspace: Workspace,
-    /// Whether the session should exit (set by quit keybinding or window close)
-    should_quit: bool,
     layout_path: Option<std::path::PathBuf>,
     /// Tick rate for event polling (ms)
     tick_rate: Duration,
@@ -98,7 +96,6 @@ impl TuiSession {
         Ok(Self {
             terminal,
             workspace,
-            should_quit: false,
             layout_path: None,
             tick_rate: Duration::from_millis(16),
         })
@@ -212,7 +209,7 @@ impl TuiSession {
         // Restore saved layout if available
         self.restore_layout();
 
-        while !self.should_quit {
+        while !self.workspace.should_quit {
             // Render current frame
             self.terminal.draw(|f| self.workspace.render(f))?;
 
@@ -272,117 +269,12 @@ impl TuiSession {
         }
 
         // Global keybindings take precedence
-        if self.handle_global_key(key) {
+        if self.workspace.handle_global_key(key) {
             return;
         }
 
         // Route to focused window
         self.workspace.handle_key(key);
-    }
-
-    /// Global keybindings that work regardless of which window is focused.
-    fn handle_global_key(&mut self, key: KeyEvent) -> bool {
-        use KeyCode::*;
-
-        match (key.modifiers, key.code) {
-            // Quit
-            (KeyModifiers::CONTROL, Char('q')) => {
-                self.should_quit = true;
-                true
-            }
-            // New tab
-            (KeyModifiers::CONTROL, Char('t')) => {
-                self.workspace.new_tab();
-                true
-            }
-            // Close focused window
-            (KeyModifiers::CONTROL, Char('w')) => {
-                self.workspace.close_tab();
-                if self.workspace.is_empty() {
-                    self.should_quit = true;
-                }
-                true
-            }
-            // Split horizontal (open sidebar or split)
-            (modifiers, Char('h'))
-                if modifiers.contains(KeyModifiers::CONTROL.union(KeyModifiers::SHIFT)) =>
-            {
-                self.workspace.split_focused(SplitDirection::Horizontal);
-                true
-            }
-            // Split vertical
-            (modifiers, Char('j'))
-                if modifiers.contains(KeyModifiers::CONTROL.union(KeyModifiers::SHIFT)) =>
-            {
-                self.workspace.split_focused(SplitDirection::Vertical);
-                true
-            }
-            // Navigation between windows
-            (KeyModifiers::CONTROL, Char('k')) | (KeyModifiers::CONTROL, Up) => {
-                self.workspace.focus_prev();
-                true
-            }
-            (KeyModifiers::CONTROL, Char('j')) | (KeyModifiers::CONTROL, Down) => {
-                self.workspace.focus_next();
-                true
-            }
-            (KeyModifiers::CONTROL, Char('h')) | (KeyModifiers::CONTROL, Left) => {
-                self.workspace.focus_prev();
-                true
-            }
-            (KeyModifiers::CONTROL, Char('l')) | (KeyModifiers::CONTROL, Right) => {
-                self.workspace.focus_next();
-                true
-            }
-            // Increase/decrease split ratio
-            (KeyModifiers::CONTROL, Char('=')) => {
-                self.workspace.resize_focused(0.05);
-                true
-            }
-            (KeyModifiers::CONTROL, Char('-')) => {
-                self.workspace.resize_focused(-0.05);
-                true
-            }
-            // Tab switching
-            (KeyModifiers::CONTROL, Char(d @ '1'..='9')) => {
-                let idx = (d as u8 - b'1') as usize;
-                self.workspace.switch_tab(idx);
-                true
-            }
-            // Command palette
-            (KeyModifiers::CONTROL, Char('p')) => {
-                self.workspace.open_command_palette();
-                true
-            }
-            // Toggle sidebar
-            (KeyModifiers::CONTROL, Char('b')) => {
-                self.workspace.toggle_sidebar();
-                true
-            }
-            // Help overlay
-            (KeyModifiers::NONE, Char('?')) => {
-                self.workspace.toggle_help();
-                true
-            }
-            // New Chat window
-            (KeyModifiers::CONTROL, Char('n')) => {
-                self.workspace.new_chat_window();
-                true
-            }
-            // Tab: next window focus (passthrough for Terminal PTY)
-            (KeyModifiers::NONE, KeyCode::Tab) => {
-                if let Some(focus) = self.workspace.focused_window() {
-                    if self.workspace.root().window_kind(focus)
-                        == Some(crate::window::WindowKind::Terminal)
-                    {
-                        return false; // let Terminal handle Tab
-                    }
-                }
-                self.workspace.focus_next();
-                true
-            }
-            _ => false,
-        }
     }
 }
 

@@ -10,7 +10,6 @@ use hkask_services_kanban::{
     ConsentProof, TaskFilter, TaskSpec, TaskStatus, VerificationCriterion,
 };
 use hkask_services_kanban::{KanbanError, KanbanService};
-use hkask_storage::Store;
 use hkask_storage::TripleStore;
 use hkask_test_harness::{TestDb, TestWebId};
 use hkask_types::WebID;

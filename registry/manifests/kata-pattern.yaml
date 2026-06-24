@@ -73,6 +73,7 @@ steps:
     template_ref: kata/habit-intervention.j2
     gas_cap: 4000
     timeout_seconds: 30
+    condition: "step_3_result.intervention_needed"
 
   - ordinal: 5
     action: select

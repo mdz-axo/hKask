@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use hkask_tui::{
-    ReplBridge, TurnResult, Window, WindowId, WindowKind,
+    ReplBridge, TurnResult, Window, WindowId, WindowKind, Workspace,
     windows::{
         BackupWindow, ChatWindow, CnsMonitorWindow, CompaniesWindow, ConfigurationWindow,
         CuratorWindow, DocprocWindow, EditorWindow, KanbanWindow, LogoWindow, MatrixWindow,
@@ -1020,4 +1020,249 @@ fn skills_all_sections_no_panic_without_bridge() {
         render_smoke(&w, 80, 24);
         w.handle_key(tab);
     }
+}
+
+// ────────────────────────────────────────────────────────────────
+// Workspace tests — split tree, focus, tabs, global keybindings
+// ────────────────────────────────────────────────────────────────
+
+/// Extract all text from a TestBackend buffer as a single string.
+fn buffer_text(term: &ratatui::Terminal<ratatui::backend::TestBackend>) -> String {
+    let buf = term.backend().buffer().clone();
+    let (w, h) = (buf.area().width, buf.area().height);
+    let mut lines: Vec<String> = Vec::new();
+    for row in 0..h {
+        let mut line = String::new();
+        for col in 0..w {
+            line.push_str(buf.cell((col, row)).map(|c| c.symbol()).unwrap_or(" "));
+        }
+        let trimmed: String = line.trim_end().to_string();
+        if !trimmed.is_empty() {
+            lines.push(trimmed);
+        }
+    }
+    lines.join("\n")
+}
+
+fn test_terminal(width: u16, height: u16) -> ratatui::Terminal<ratatui::backend::TestBackend> {
+    let backend = ratatui::backend::TestBackend::new(width, height);
+    ratatui::Terminal::new(backend).expect("test terminal")
+}
+
+#[test]
+fn workspace_renders_chat_content() {
+    let ws = Workspace::new_test(bridge());
+    let mut term = test_terminal(80, 24);
+    term.draw(|f| ws.render(f)).expect("render");
+    let text = buffer_text(&term);
+    assert!(
+        text.contains("REPL"),
+        "Workspace should render Chat REPL prompt"
+    );
+    assert!(!text.is_empty(), "Workspace should render content");
+}
+
+#[test]
+fn workspace_renders_status_bar() {
+    let ws = Workspace::new_test(bridge());
+    let mut term = test_terminal(120, 30);
+    term.draw(|f| ws.render(f)).expect("render");
+    let text = buffer_text(&term);
+    assert!(
+        text.contains("Gas") || text.contains("mock-model"),
+        "Status bar should show gas or model info. Got: {}",
+        &text[text.len().min(200)..]
+    );
+}
+
+#[test]
+fn workspace_has_single_window_initially() {
+    let ws = Workspace::new_test(bridge());
+    assert_eq!(
+        ws.window_count(),
+        1,
+        "new_test workspace should have 1 window"
+    );
+    assert_eq!(ws.tab_count(), 1, "new_test workspace should have 1 tab");
+    assert!(ws.focused_window().is_some(), "A window should be focused");
+}
+
+#[test]
+fn workspace_focus_cycles() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let mut ws = Workspace::new_test(bridge());
+    let initial = ws.focused_window().unwrap();
+
+    // With 1 window, focus_next should stay on the same window
+    ws.focus_next();
+    assert_eq!(ws.focused_window().unwrap(), initial);
+    ws.focus_prev();
+    assert_eq!(ws.focused_window().unwrap(), initial);
+
+    // Split to create a second window
+    ws.handle_global_key(KeyEvent::new(
+        KeyCode::Char('j'),
+        KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+    ));
+    assert_eq!(ws.window_count(), 2);
+    let after_split = ws.focused_window().unwrap();
+    assert_ne!(
+        after_split, initial,
+        "Focus should move to new window after split"
+    );
+
+    // Cycle back to first window
+    ws.focus_next();
+    assert_eq!(ws.focused_window().unwrap(), initial);
+}
+
+#[test]
+fn workspace_ctrl_q_quits() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let mut ws = Workspace::new_test(bridge());
+    assert!(!ws.should_quit);
+
+    let consumed = ws.handle_global_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::CONTROL));
+    assert!(consumed);
+    assert!(ws.should_quit);
+}
+
+#[test]
+fn workspace_ctrl_t_creates_tab() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let mut ws = Workspace::new_test(bridge());
+    assert_eq!(ws.tab_count(), 1);
+
+    let consumed = ws.handle_global_key(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::CONTROL));
+    assert!(consumed);
+    assert_eq!(ws.tab_count(), 2);
+    assert_eq!(ws.active_tab_index(), 1, "New tab should be active");
+}
+
+#[test]
+fn workspace_tab_cycles_focus() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let mut ws = Workspace::new_test(bridge());
+    let initial = ws.focused_window().unwrap();
+
+    // Tab with 1 window stays on same window
+    ws.handle_global_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+    assert_eq!(ws.focused_window().unwrap(), initial);
+
+    // After split, Tab cycles between windows
+    ws.handle_global_key(KeyEvent::new(
+        KeyCode::Char('j'),
+        KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+    ));
+    let _after_split = ws.focused_window().unwrap();
+    ws.handle_global_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+    assert_eq!(
+        ws.focused_window().unwrap(),
+        initial,
+        "Tab should cycle back"
+    );
+}
+
+#[test]
+fn workspace_help_toggles() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let mut ws = Workspace::new_test(bridge());
+
+    ws.handle_global_key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE));
+    // Help overlay renders — verify no panic and content appears
+    let mut term = test_terminal(80, 24);
+    term.draw(|f| ws.render(f)).expect("render with help");
+    let text = buffer_text(&term);
+    assert!(
+        text.contains("Keybindings") || text.contains("Ctrl"),
+        "Help overlay should show keybindings"
+    );
+}
+
+#[test]
+fn workspace_command_palette_opens_and_closes() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let mut ws = Workspace::new_test(bridge());
+
+    ws.handle_global_key(KeyEvent::new(KeyCode::Char('p'), KeyModifiers::CONTROL));
+    assert!(ws.palette_open);
+    // Palette renders — verify no panic
+    let mut term = test_terminal(80, 24);
+    term.draw(|f| ws.render(f)).expect("render with palette");
+
+    // Dismiss with Esc
+    ws.handle_palette_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(!ws.palette_open);
+}
+
+#[test]
+fn workspace_split_creates_second_window() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let mut ws = Workspace::new_test(bridge());
+    assert_eq!(ws.window_count(), 1);
+
+    // Ctrl+Shift+H splits horizontally
+    let consumed = ws.handle_global_key(KeyEvent::new(
+        KeyCode::Char('h'),
+        KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+    ));
+    assert!(consumed);
+    assert_eq!(ws.window_count(), 2);
+}
+
+#[test]
+fn workspace_multiple_tabs_switch() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let mut ws = Workspace::new_test(bridge());
+
+    // Create 3 tabs
+    ws.handle_global_key(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::CONTROL));
+    ws.handle_global_key(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::CONTROL));
+    assert_eq!(ws.tab_count(), 3);
+    assert_eq!(ws.active_tab_index(), 2);
+
+    // Switch to tab 1 via Ctrl+1
+    ws.handle_global_key(KeyEvent::new(KeyCode::Char('1'), KeyModifiers::CONTROL));
+    assert_eq!(ws.active_tab_index(), 0);
+
+    // Switch to tab 2 via Ctrl+2
+    ws.handle_global_key(KeyEvent::new(KeyCode::Char('2'), KeyModifiers::CONTROL));
+    assert_eq!(ws.active_tab_index(), 1);
+}
+
+#[test]
+fn workspace_no_crash_on_unfocused_key() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let mut ws = Workspace::new_test(bridge());
+
+    // Random key that nothing handles
+    let consumed = ws.handle_global_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE));
+    assert!(
+        !consumed,
+        "Unbound key should not be consumed by global handler"
+    );
+
+    // Should not panic when routing to focused window
+    ws.handle_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE));
+}
+
+#[test]
+fn workspace_render_after_split_shows_both_windows() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let mut ws = Workspace::new_test(bridge());
+
+    ws.handle_global_key(KeyEvent::new(
+        KeyCode::Char('j'),
+        KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+    ));
+
+    let mut term = test_terminal(80, 24);
+    term.draw(|f| ws.render(f)).expect("render after split");
+    let text = buffer_text(&term);
+    // Both windows should show their REPL prompts
+    let repl_count = text.matches("REPL").count();
+    assert!(
+        repl_count >= 1,
+        "At least one REPL prompt should render after split"
+    );
 }

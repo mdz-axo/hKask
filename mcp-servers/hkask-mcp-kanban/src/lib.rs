@@ -145,6 +145,7 @@ impl KanbanServer {
             criteria,
             assignee_webid,
             capability_token: _cap,
+            gas_budget,
         }): Parameters<TaskCreateRequest>,
     ) -> String {
         execute_tool(self, "kanban_task_create", async {
@@ -162,6 +163,9 @@ impl KanbanServer {
             }
             if let Some(cs) = criteria {
                 spec = spec.with_criteria(cs.into_iter().map(VerificationCriterion::new).collect());
+            }
+            if let Some(gas) = gas_budget {
+                spec = spec.with_gas_budget(gas);
             }
             if let Some(a) = assignee_webid {
                 match a.parse::<hkask_types::WebID>() {
@@ -222,10 +226,12 @@ impl KanbanServer {
                         .into_iter()
                         .map(|t| TaskInfo {
                             task_id: t.id.to_string(),
+                            board_id: t.board_id.to_string(),
                             title: t.title,
                             status: t.status.to_string(),
                             assignee: t.assignee.map(|a| a.to_string()),
                             criteria_count: t.criteria.len(),
+                            gas_remaining: t.gas_remaining,
                         })
                         .collect(),
                 })
@@ -322,10 +328,6 @@ impl KanbanServer {
             match self
                 .service
                 .task_assign(tid, agent, ConsentProof::new(consent_agent, tid))
-                // NOTE: ConsentProof.consented_at is set to server-time (Utc::now()).
-                // The actual time the agent consented is not transmitted over MCP.
-                // For precise audit trails, the consent timestamp should come from
-                // the agent's signed consent payload rather than the server clock.
             {
                 Ok(task) => Ok(serde_json::to_value(TaskAssignResponse {
                     task_id: task.id.to_string(),

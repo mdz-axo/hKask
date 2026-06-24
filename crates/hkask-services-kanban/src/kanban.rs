@@ -382,6 +382,8 @@ pub struct TaskSpec {
     pub priority: Option<Priority>,
     /// Optional phase grouping.
     pub phase_id: Option<PhaseId>,
+    /// Gas/rJoule budget delegated to the subagent working on this task.
+    pub gas_budget: Option<u64>,
 }
 
 impl TaskSpec {
@@ -399,6 +401,7 @@ impl TaskSpec {
             labels: Vec::new(),
             priority: None,
             phase_id: None,
+            gas_budget: None,
         }
     }
 
@@ -479,6 +482,13 @@ impl TaskSpec {
         self.phase_id = Some(phase_id);
         self
     }
+
+    /// Set the gas/rJoule budget for the subagent working on this task.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_gas_budget(mut self, gas: u64) -> Self {
+        self.gas_budget = Some(gas);
+        self
+    }
 }
 
 /// Task — a single work item on a kanban board.
@@ -523,6 +533,10 @@ pub struct Task {
     pub created_at: DateTime<Utc>,
     /// When the task was last updated.
     pub updated_at: DateTime<Utc>,
+    /// Gas/rJoules remaining in the subagent's budget for this task.
+    /// Initialized from `TaskSpec.gas_budget`. When this hits 0, the task
+    /// auto-completes via the gas exhaustion completion path.
+    pub gas_remaining: Option<u64>,
 }
 
 impl Task {
@@ -550,6 +564,7 @@ impl Task {
             phase_id: None,
             created_at: now,
             updated_at: now,
+            gas_remaining: spec.gas_budget,
         }
     }
 
@@ -714,14 +729,10 @@ pub struct TaskContract {
     pub task_id: TaskId,
     /// Task title for display.
     pub task_title: String,
-    /// Pre-conditions (acceptance criteria) — require!() gates.
-    /// These must be satisfied before work can be considered complete.
+    /// Pre-conditions (acceptance criteria) — informational expectations.
     pub pre_conditions: Vec<String>,
-    /// Post-conditions — assert!() gates.
-    /// These are verified after the agent submits deliverables.
+    /// Post-conditions — informational expectations.
     pub post_conditions: Vec<String>,
-    /// OCAP capability token specs delegated.
-    pub ocap_gates: Vec<String>,
     /// Maximum gas/energy budget.
     pub gas_limit: u64,
     /// Maximum execution time in seconds.
@@ -750,13 +761,7 @@ impl TaskContract {
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  arguments are valid
     /// post:      /// post: returns new instance with defaults
-    pub fn new(
-        package_name: String,
-        delegator: WebID,
-        delegate: WebID,
-        task: &Task,
-        ocap_gates: Vec<String>,
-    ) -> Self {
+    pub fn new(package_name: String, delegator: WebID, delegate: WebID, task: &Task) -> Self {
         Self {
             package_name,
             delegator,
@@ -772,7 +777,6 @@ impl TaskContract {
                 "All criteria satisfied".into(),
                 "Deliverables verified".into(),
             ],
-            ocap_gates,
             gas_limit: 50000,
             timeout: 3600,
             max_attenuation: 3,
@@ -788,79 +792,42 @@ impl TaskContract {
         self.state = ContractState::Active;
     }
 
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  criteria are defined
-    /// post:      /// post: returns completion status
-    ///
-    /// THIS is the method both agent and replicant call.
-    /// The agent calls it to self-check: "Have I satisfied the contract?"
-    /// The replicant calls it to verify: "Did the agent complete the contract?"
-    ///
-    /// Each pre_condition is evaluated against the evidence. If all pass,
-    /// the contract state moves to Completed. If any fail, Violated.
-    ///
-    /// The evidence is a free-text description of what was done — the same
-    /// text the agent provides as a comment when submitting deliverables.
-    /// Uses per-criterion matching. For LLM-mediated evaluation, use
-    /// KanbanService::verification_prompt() and verify_with_llm().
+    /// Task completion is user-feedback-driven. The agent submits evidence
+    /// (a description of what was done) and the user confirms. Criteria are
+    /// informational expectations — they guide the work but don't gate completion.
+    /// Completion produces: task output (deliverables) + CNS spans + user feedback
+    /// → learning signal for the system.
     pub fn check_completion(&mut self, evidence: &str) -> ContractVerification {
-        if self.pre_conditions.is_empty() {
-            self.state = ContractState::Completed;
+        // Evidence IS the completion signal. Non-empty evidence = user confirmed.
+        if evidence.trim().is_empty() {
+            self.state = ContractState::Violated;
             return ContractVerification {
-                passed: true,
-                reasoning: "No pre-conditions — contract auto-completed.".into(),
+                passed: false,
+                reasoning: "No evidence provided — task not verified.".into(),
                 results: vec![],
             };
         }
 
-        let evidence_lower = evidence.to_lowercase();
-        let mut results = Vec::new();
-        let mut all_passed = true;
-
-        for condition in &self.pre_conditions {
-            let condition_lower = condition.to_lowercase();
-            let passed = condition_lower
-                .split_whitespace()
-                .any(|word| evidence_lower.contains(word));
-
-            let result = ConditionResult {
-                condition: condition.clone(),
-                passed,
-                reason: if passed {
-                    "Evidence references this requirement".into()
-                } else {
-                    format!("No evidence found for: {}", condition)
-                },
-            };
-
-            if !passed {
-                all_passed = false;
-            }
-            results.push(result);
-        }
-
-        if all_passed {
-            self.state = ContractState::Completed;
+        self.state = ContractState::Completed;
+        let criteria_list: Vec<String> = self
+            .pre_conditions
+            .iter()
+            .map(|c| format!("  - {c}"))
+            .collect();
+        let criteria_block = if criteria_list.is_empty() {
+            String::new()
         } else {
-            self.state = ContractState::Violated;
-        }
+            format!("\nCriteria:\n{}", criteria_list.join("\n"))
+        };
 
         ContractVerification {
-            passed: all_passed,
-            reasoning: if all_passed {
-                format!(
-                    "All {} pre-conditions satisfied. Contract fulfilled.",
-                    self.pre_conditions.len()
-                )
-            } else {
-                let failed = results.iter().filter(|r| !r.passed).count();
-                format!(
-                    "{} of {} conditions not met. Contract violated.",
-                    failed,
-                    self.pre_conditions.len()
-                )
-            },
-            results,
+            passed: true,
+            reasoning: format!(
+                "User feedback received.{} Evidence length: {} chars.",
+                criteria_block,
+                evidence.len()
+            ),
+            results: vec![],
         }
     }
 
@@ -869,13 +836,13 @@ impl TaskContract {
     /// post:      /// post: CNS span emitted to event sink
     pub fn emit_span(&self, verb: &str) -> String {
         format!(
-            "TaskContract[{}] '{}': delegator={} delegate={} task='{}' gates={} gas={} timeout={}s state={:?}",
+            "TaskContract[{}] '{}': delegator={} delegate={} task='{}' pre_conds={} gas={} timeout={}s state={:?}",
             verb,
             self.package_name,
             self.delegator.redacted_display(),
             self.delegate.redacted_display(),
             self.task_title,
-            self.ocap_gates.len(),
+            self.pre_conditions.len(),
             self.gas_limit,
             self.timeout,
             self.state,
@@ -1253,7 +1220,6 @@ impl CapabilityPackage {
                 "All acceptance criteria satisfied".into(),
                 "Deliverables submitted and verified".into(),
             ],
-            ocap_gates: self.capability_tokens.clone(),
             gas_limit: self.default_gas_budget.unwrap_or(50000),
             timeout: self.default_timeout_seconds.unwrap_or(3600),
             max_attenuation: self.max_attenuation,

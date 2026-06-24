@@ -35,7 +35,7 @@ steps:
       Synthesize variety counters, alert states, and performance metrics.
     renderer: minijinja
     template_ref: curator/system_state_gather.j2
-    mcp: hkask-mcp-memory # was hkask-mcp-storage
+    mcp: hkask-mcp-memory
     gas_cap: 3000
     timeout_seconds: 30
     output_schema:
@@ -52,64 +52,6 @@ steps:
           type: object
 
   - ordinal: 2
-    action: select
-    description: >
-      Select appropriate metacognitive operation based on system state.
-    renderer: minijinja
-    template_ref: curator/metacognition-selector.j2
-    gas_cap: 4000
-    timeout_seconds: 30
-    output_schema:
-      type: object
-      properties:
-        operation:
-          type: string
-          enum: [calibrate, diagnose, escalate, maintain]
-        rationale:
-          type: string
-        confidence:
-          type: number
-
-  - ordinal: 3
-    action: populate
-    description: >
-      Execute selected metacognitive operation.
-      Calibrate thresholds, diagnose issues, or prepare escalation.
-    renderer: minijinja
-    template_ref: curator/metacognition-${operation}.j2
-    mcp: hkask-mcp-memory # CNS feedback now via memory server
-    gas_cap: 6000
-    timeout_seconds: 60
-    output_schema:
-      type: object
-      properties:
-        action_taken:
-          type: string
-        parameters_adjusted:
-          type: object
-        administrator_notification:
-          type: boolean
-
-  - ordinal: 4
-    action: execute
-    description: >
-      Emit metacognition outcome to CNS and prepare administrator report.
-    renderer: null
-    template_ref: null
-    target: emit_metacognition_outcome
-    mcp: hkask-mcp-memory # CNS feedback now via memory server
-    tool: cns_emit
-    gas_cap: 2000
-    timeout_seconds: 10
-    output_schema:
-      type: object
-      properties:
-        cns_event_id:
-          type: string
-        administrator_report:
-          type: string
-
-  - ordinal: 5
     action: populate
     description: >
       Render Kata coaching directives when capability gaps are detected.

@@ -68,6 +68,9 @@ pub struct TaskCreateRequest {
     pub criteria: Option<Vec<String>>,
     pub assignee_webid: Option<String>,
     pub capability_token: Option<String>,
+    /// Gas/rJoule budget for the subagent working on this task.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gas_budget: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -93,10 +96,14 @@ pub struct TaskListResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TaskInfo {
     pub task_id: String,
+    pub board_id: String,
     pub title: String,
     pub status: String,
     pub assignee: Option<String>,
     pub criteria_count: usize,
+    /// Remaining gas/rJoules in the subagent's budget (None = no budget set).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gas_remaining: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

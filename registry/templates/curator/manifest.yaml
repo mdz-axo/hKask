@@ -34,24 +34,6 @@ templates:
       Escalate critical issues to the Administrator. Prepare structured
       notification with impact assessment and resolution attempt history.
 
-  - id: curator/metacognition-maintain
-    path: metacognition-maintain.j2
-    type: KnowAct
-    lexicon_terms: [monitor, observe, verify, assess, evaluate]
-    description: >
-      Confirm system is operating normally. Assess health, variety deficit,
-      active alerts, bot success rate, and energy efficiency. No intervention
-      required.
-
-  - id: curator/metacognition-selector
-    path: metacognition-selector.j2
-    type: KnowAct
-    lexicon_terms: [select, evaluate, discriminate, orient, classify]
-    description: >
-      Select the appropriate metacognitive operation based on current system
-      state: health, variety deficit, active alerts, energy budget, and bot
-      coordination status.
-
   - id: curator/system_state_gather
     path: system_state_gather.j2
     type: KnowAct

@@ -94,13 +94,13 @@ impl SplitNode {
         }
     }
 
-    fn window_ids(&self) -> Vec<WindowId> {
+    pub fn window_ids(&self) -> Vec<WindowId> {
         let mut ids = Vec::new();
         self.collect_ids(&mut ids);
         ids
     }
 
-    pub(crate) fn window_kind(&self, target: WindowId) -> Option<crate::window::WindowKind> {
+    pub fn window_kind(&self, target: WindowId) -> Option<crate::window::WindowKind> {
         match self {
             SplitNode::Leaf(w) if w.id() == target => Some(w.kind()),
             SplitNode::Horizontal { left, right, .. } => left
@@ -113,7 +113,7 @@ impl SplitNode {
         }
     }
 
-    fn contains_window(&self, target: WindowId) -> bool {
+    pub fn contains_window(&self, target: WindowId) -> bool {
         match self {
             SplitNode::Leaf(w) => w.id() == target,
             SplitNode::Horizontal { left, right, .. } => {
@@ -286,7 +286,9 @@ pub struct Workspace {
     tabs: Vec<Tab>,
     active_tab: usize,
     focused_window: Option<WindowId>,
-    service_context: Arc<hkask_services::AgentService>,
+    /// Whether the session should quit (set by Ctrl+Q).
+    pub should_quit: bool,
+    service_context: Option<Arc<hkask_services::AgentService>>,
     bridge: Arc<dyn ReplBridge>,
     wallet_bridge: Option<Arc<dyn WalletDataBridge>>,
     config_bridge: Option<Arc<dyn ConfigDataBridge>>,
@@ -305,7 +307,7 @@ pub struct Workspace {
     status_bar: StatusBar,
     sidebar_open: bool,
     help_visible: bool,
-    pub(crate) palette_open: bool,
+    pub palette_open: bool,
     palette_prev_focus: Option<WindowId>,
     pub(crate) command_palette: crate::command_palette::CommandPalette,
 }
@@ -356,7 +358,8 @@ impl Workspace {
             tabs: vec![tab],
             active_tab: 0,
             focused_window: Some(chat_id),
-            service_context,
+            should_quit: false,
+            service_context: Some(service_context),
             bridge,
             wallet_bridge: None,
             config_bridge: None,
@@ -447,16 +450,76 @@ impl Workspace {
         self
     }
 
+    /// Create a minimal workspace for testing — no AgentService, single Chat window.
+    /// Uses the provided bridge for all window data. No logo, no curator, no splits.
+    pub fn new_test(bridge: Arc<dyn ReplBridge>) -> Self {
+        let agent = bridge.agent_name().to_string();
+        let model = bridge.model_name().to_string();
+        let chat_id = WindowId(Uuid::new_v4());
+        let chat = ChatWindow::new(chat_id, &agent, &model, None, bridge.clone());
+        let root = SplitNode::Leaf(Box::new(chat));
+        let tab = Tab::new("Test".to_string(), root);
+
+        let mut status_bar = StatusBar::new();
+        status_bar.model = model;
+        status_bar.gas_remaining = bridge.gas_remaining();
+        status_bar.gas_cap = bridge.gas_cap();
+
+        Self {
+            tabs: vec![tab],
+            active_tab: 0,
+            focused_window: Some(chat_id),
+            should_quit: false,
+            service_context: None,
+            bridge,
+            wallet_bridge: None,
+            config_bridge: None,
+            backup_bridge: None,
+            registry_bridge: None,
+            memory_bridge: None,
+            kanban_bridge: None,
+            matrix_bridge: None,
+            media_bridge: None,
+            training_bridge: None,
+            companies_bridge: None,
+            research_bridge: None,
+            docproc_bridge: None,
+            replica_bridge: None,
+            skills_bridge: None,
+            status_bar,
+            sidebar_open: false,
+            help_visible: false,
+            palette_open: false,
+            palette_prev_focus: None,
+            command_palette: crate::command_palette::CommandPalette::new(),
+        }
+    }
+
     /// Get the currently focused window ID.
     pub fn focused_window(&self) -> Option<WindowId> {
         self.focused_window
+    }
+
+    /// Number of windows in the active tab's split tree.
+    pub fn window_count(&self) -> usize {
+        self.root().window_ids().len()
+    }
+
+    /// Number of open tabs.
+    pub fn tab_count(&self) -> usize {
+        self.tabs.len()
+    }
+
+    /// Index of the currently active tab.
+    pub fn active_tab_index(&self) -> usize {
+        self.active_tab
     }
 
     pub fn is_empty(&self) -> bool {
         self.tabs.is_empty() || self.tabs[self.active_tab].root.window_ids().is_empty()
     }
 
-    pub(crate) fn root(&self) -> &SplitNode {
+    pub fn root(&self) -> &SplitNode {
         &self.tabs[self.active_tab].root
     }
     fn root_mut(&mut self) -> &mut SplitNode {
@@ -529,6 +592,98 @@ impl Workspace {
         self.root_mut().handle_key(key, focused);
     }
 
+    /// Handle global keybindings. Returns true if the event was consumed.
+    /// These are keys that work regardless of which window is focused.
+    pub fn handle_global_key(&mut self, key: KeyEvent) -> bool {
+        use KeyCode::*;
+        use crossterm::event::{KeyCode, KeyModifiers};
+
+        match (key.modifiers, key.code) {
+            (KeyModifiers::CONTROL, Char('q')) => {
+                self.should_quit = true;
+                true
+            }
+            (KeyModifiers::CONTROL, Char('t')) => {
+                self.new_tab();
+                true
+            }
+            (KeyModifiers::CONTROL, Char('w')) => {
+                self.close_tab();
+                if self.is_empty() {
+                    self.should_quit = true;
+                }
+                true
+            }
+            (modifiers, Char('h'))
+                if modifiers.contains(KeyModifiers::CONTROL.union(KeyModifiers::SHIFT)) =>
+            {
+                self.split_focused(SplitDirection::Horizontal);
+                true
+            }
+            (modifiers, Char('j'))
+                if modifiers.contains(KeyModifiers::CONTROL.union(KeyModifiers::SHIFT)) =>
+            {
+                self.split_focused(SplitDirection::Vertical);
+                true
+            }
+            (KeyModifiers::CONTROL, Char('k')) | (KeyModifiers::CONTROL, Up) => {
+                self.focus_prev();
+                true
+            }
+            (KeyModifiers::CONTROL, Char('j')) | (KeyModifiers::CONTROL, Down) => {
+                self.focus_next();
+                true
+            }
+            (KeyModifiers::CONTROL, Char('h')) | (KeyModifiers::CONTROL, Left) => {
+                self.focus_prev();
+                true
+            }
+            (KeyModifiers::CONTROL, Char('l')) | (KeyModifiers::CONTROL, Right) => {
+                self.focus_next();
+                true
+            }
+            (KeyModifiers::CONTROL, Char('=')) => {
+                self.resize_focused(0.05);
+                true
+            }
+            (KeyModifiers::CONTROL, Char('-')) => {
+                self.resize_focused(-0.05);
+                true
+            }
+            (KeyModifiers::CONTROL, Char(d @ '1'..='9')) => {
+                let idx = (d as u8 - b'1') as usize;
+                self.switch_tab(idx);
+                true
+            }
+            (KeyModifiers::CONTROL, Char('p')) => {
+                self.open_command_palette();
+                true
+            }
+            (KeyModifiers::CONTROL, Char('b')) => {
+                self.toggle_sidebar();
+                true
+            }
+            (KeyModifiers::NONE, Char('?')) => {
+                self.toggle_help();
+                true
+            }
+            (KeyModifiers::CONTROL, Char('n')) => {
+                self.new_chat_window();
+                true
+            }
+            (KeyModifiers::NONE, KeyCode::Tab) => {
+                if let Some(focus) = self.focused_window {
+                    if self.root().window_kind(focus) == Some(crate::window::WindowKind::Terminal) {
+                        return false; // let Terminal handle Tab
+                    }
+                }
+                self.focus_next();
+                true
+            }
+            _ => false,
+        }
+    }
+
     // ── Focus ────────────────────────────────────────────────────────
 
     pub fn focus_next(&mut self) {
@@ -580,17 +735,14 @@ impl Workspace {
             SplitDirection::Horizontal => WindowKind::Sidebar,
             SplitDirection::Vertical => WindowKind::Chat,
         };
+        let svc = self.service_context.clone();
         let new_win: Box<dyn Window> = match new_kind {
-            WindowKind::Sidebar => Box::new(SidebarWindow::new(
-                new_id,
-                Some(self.service_context.clone()),
-                self.bridge.clone(),
-            )),
+            WindowKind::Sidebar => Box::new(SidebarWindow::new(new_id, svc, self.bridge.clone())),
             _ => Box::new(ChatWindow::new(
                 new_id,
                 self.bridge.agent_name(),
                 self.bridge.model_name(),
-                Some(self.service_context.clone()),
+                svc,
                 self.bridge.clone(),
             )),
         };
@@ -642,11 +794,12 @@ impl Workspace {
 
     pub fn new_tab(&mut self) {
         let chat_id = WindowId(Uuid::new_v4());
+        let svc = self.service_context.clone();
         let chat = ChatWindow::new(
             chat_id,
             self.bridge.agent_name(),
             self.bridge.model_name(),
-            Some(self.service_context.clone()),
+            svc,
             self.bridge.clone(),
         );
         let root = SplitNode::Leaf(Box::new(chat));
@@ -773,7 +926,7 @@ impl Workspace {
     /// Create a window of the given kind without adding it to the tree.
     fn create_window_of_kind(&self, kind: WindowKind, id: WindowId) -> Box<dyn Window> {
         let bridge = self.bridge.clone();
-        let service_context = self.service_context.clone();
+        let svc = self.service_context.clone();
         let wb = self.wallet_bridge.clone();
         let cb = self.config_bridge.clone();
         let bb = self.backup_bridge.clone();
@@ -895,13 +1048,13 @@ impl Workspace {
                 }
                 Box::new(w)
             }
-            WindowKind::Sidebar => Box::new(SidebarWindow::new(id, Some(service_context), bridge)),
+            WindowKind::Sidebar => Box::new(SidebarWindow::new(id, svc, bridge)),
             WindowKind::Logo => Box::new(LogoWindow::new(id)),
             WindowKind::Chat => Box::new(ChatWindow::new(
                 id,
                 self.bridge.agent_name(),
                 self.bridge.model_name(),
-                Some(service_context),
+                svc,
                 bridge,
             )),
         }

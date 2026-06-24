@@ -36,7 +36,9 @@ pub struct BundleManifestStep {
     pub renderer: Option<String>,
     pub template_ref: Option<String>,
     pub mcp: Option<String>,
+    /// Per-step gas budget estimate (informational — total gas.cap is the hard boundary).
     pub gas_cap: u32,
+    /// Per-step timeout in seconds (hard — enforced via tokio::time::timeout).
     pub timeout_seconds: u32,
     #[serde(default)]
     pub input_mapping: Option<serde_json::Value>,
@@ -44,6 +46,12 @@ pub struct BundleManifestStep {
     pub output_schema: Option<serde_json::Value>,
     #[serde(default)]
     pub phase: CascadePhase,
+    /// Optional condition expression. If present, the step is only executed when
+    /// the condition evaluates to true against the current context.
+    /// Supported: "var_name" (truthy), "NOT var_name" (falsy),
+    /// "a AND b" (both truthy), "a OR b" (either truthy).
+    #[serde(default)]
+    pub condition: Option<String>,
 }
 
 impl BundleManifestStep {
