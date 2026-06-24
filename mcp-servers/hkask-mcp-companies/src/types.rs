@@ -154,3 +154,37 @@ pub struct ResultFeedbackRequest {
     #[serde(default)]
     pub comments: String,
 }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DcfValuationRequest {
+    pub symbol: String,
+    /// Stage 1 years (1–3, default 3)
+    pub stage1_years: Option<u8>,
+    /// Stage 2 years (2–7, default 7)
+    pub stage2_years: Option<u8>,
+    /// Discount rate / WACC (0.0–0.30, default 0.10)
+    pub discount_rate: Option<f64>,
+    /// Terminal growth rate (0.0–0.10, default 0.025)
+    pub terminal_growth: Option<f64>,
+    /// Terminal method: "perpetuity" or "multiple"
+    pub terminal_method: Option<String>,
+    /// Exit multiple (only used when terminal_method = "multiple", default 15.0)
+    pub terminal_multiple: Option<f64>,
+    /// Projection frequency: "annual" or "quarterly" (default "annual")
+    pub frequency: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ReverseDcfRequest {
+    pub symbol: String,
+    /// Stage 1 years (1–3, default 3)
+    pub stage1_years: Option<u8>,
+    /// Stage 2 years (2–7, default 7)
+    pub stage2_years: Option<u8>,
+    /// Discount rate / WACC (0.0–0.30, default 0.10)
+    pub discount_rate: Option<f64>,
+    /// Terminal growth rate (0.0–0.10, default 0.025)
+    pub terminal_growth: Option<f64>,
+    /// Projection frequency: "annual" or "quarterly" (default "annual")
+    pub frequency: Option<String>,
+}

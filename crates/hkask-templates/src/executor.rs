@@ -144,13 +144,21 @@ impl ManifestExecutor {
         let mut iteration: u32 = 0;
         let mut recursion_depth: u8 = 0;
         let matryoshka_limit: u8 = hkask_capability::SYSTEM_MAX_RECURSION;
-        // Gas tracking — hard parent allocation
-        let gas_cap = manifest.gas.cap as f64;
-        let cost_per_token = manifest.gas.cost_per_token;
-        let alert_threshold = manifest.gas.alert_threshold;
-        let hard_limit = manifest.gas.hard_limit;
-        let mut gas_used: f64 = 0.0;
+        // Gas tracking — hard parent allocation for compute cycles
+        let gas_cap = manifest.gas.cap as u64;
+        let gas_cost_per_iter = manifest.gas.cost_per_iteration as u64;
+        let gas_alert_threshold = manifest.gas.alert_threshold;
+        let gas_hard_limit = manifest.gas.hard_limit;
+        let mut gas_used: u64 = 0;
         let mut gas_alerted: bool = false;
+        // rJoule tracking — hard parent allocation for inference energy
+        let rjoule_cap = manifest.rjoule.cap as f64;
+        let rjoule_cost_per_token = manifest.rjoule.cost_per_token;
+        let rjoule_alert_threshold = manifest.rjoule.alert_threshold;
+        let rjoule_hard_limit = manifest.rjoule.hard_limit;
+        let rjoule_enabled = rjoule_cap > 0.0;
+        let mut rjoule_used: f64 = 0.0;
+        let mut rjoule_alerted: bool = false;
 
         context.insert(
             "_convergence".to_string(),
@@ -164,8 +172,11 @@ impl ManifestExecutor {
                 "improvement_target": manifest.convergence.improvement_ratio,
                 "baseline_quality": null,
                 "gas_cap": gas_cap,
-                "gas_used": 0.0,
+                "gas_used": 0,
                 "gas_remaining": gas_cap,
+                "rjoule_cap": rjoule_cap,
+                "rjoule_used": 0.0,
+                "rjoule_remaining": rjoule_cap,
             }),
         );
 
@@ -185,7 +196,10 @@ impl ManifestExecutor {
                     "baseline_quality": baseline_quality,
                     "gas_cap": gas_cap,
                     "gas_used": gas_used,
-                    "gas_remaining": (gas_cap - gas_used).max(0.0),
+                    "gas_remaining": gas_cap.saturating_sub(gas_used),
+                    "rjoule_cap": rjoule_cap,
+                    "rjoule_used": rjoule_used,
+                    "rjoule_remaining": (rjoule_cap - rjoule_used).max(0.0),
                 }),
             );
             let mut step_idx: usize = 0;
@@ -378,9 +392,9 @@ impl ManifestExecutor {
 
                     // ── Standard actions: select, populate, execute ──
                     "select" => {
-                        context = self.execute_select(step, context, &mut gas_used, gas_cap, cost_per_token, hard_limit).await?;
+                        context = self.execute_select(step, context, &mut gas_used, gas_cap, gas_cost_per_iter, &mut rjoule_used, rjoule_cap, rjoule_cost_per_token, rjoule_enabled, rjoule_hard_limit).await?;
                         // Check gas exhaustion after select
-                        if hard_limit && gas_used >= gas_cap {
+                        if gas_hard_limit && gas_used >= gas_cap {
                             info!(
                                 target: "cns.skill.gas_exhausted",
                                 iteration = iteration,
@@ -401,13 +415,45 @@ impl ManifestExecutor {
                             break 'cascade;
                         }
                         // Gas alert threshold
-                        if !gas_alerted && (gas_used / gas_cap) >= alert_threshold {
+                        if !gas_alerted && gas_cap > 0 && (gas_used as f64 / gas_cap as f64) >= gas_alert_threshold {
                             gas_alerted = true;
                             info!(
                                 target: "cns.skill.gas_alert",
                                 gas_used = gas_used,
                                 gas_cap = gas_cap,
-                                pct = (gas_used / gas_cap) * 100.0,
+                                pct = (gas_used as f64 / gas_cap as f64) * 100.0,
+                                "CNS"
+                            );
+                        }
+                        // Check rJoule exhaustion after select
+                        if rjoule_enabled && rjoule_hard_limit && rjoule_used >= rjoule_cap {
+                            info!(
+                                target: "cns.skill.rjoule_exhausted",
+                                iteration = iteration,
+                                rjoule_used = rjoule_used,
+                                rjoule_cap = rjoule_cap,
+                                "CNS"
+                            );
+                            self.finalize_convergence_report(
+                                &mut context,
+                                "maxed_out",
+                                "energy_spent",
+                                iteration,
+                                threshold,
+                                &field,
+                                baseline_quality,
+                                manifest.convergence.improvement_ratio,
+                            );
+                            break 'cascade;
+                        }
+                        // rJoule alert threshold
+                        if !rjoule_alerted && rjoule_cap > 0.0 && (rjoule_used / rjoule_cap) >= rjoule_alert_threshold {
+                            rjoule_alerted = true;
+                            info!(
+                                target: "cns.skill.rjoule_alert",
+                                rjoule_used = rjoule_used,
+                                rjoule_cap = rjoule_cap,
+                                pct = (rjoule_used / rjoule_cap) * 100.0,
                                 "CNS"
                             );
                         }
@@ -431,7 +477,7 @@ impl ManifestExecutor {
             }
 
             // Check gas exhaustion at end of pass
-            if hard_limit && gas_used >= gas_cap {
+            if gas_hard_limit && gas_used >= gas_cap {
                 info!(
                     target: "cns.skill.gas_exhausted",
                     iteration = iteration,
@@ -557,7 +603,7 @@ impl ManifestExecutor {
             .and_then(|v| v.as_f64())
             .or_else(|| resolve_dot_path(field, context).and_then(|v| v.as_f64()));
 
-        let gas_used_val = context.get("_gas").and_then(|g| g.get("used")).and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let gas_used_val = context.get("_gas").and_then(|g| g.get("used")).and_then(|v| v.as_u64()).map(|v| v as f64).unwrap_or(0.0);
         let gas_cap_val = context.get("_gas").and_then(|g| g.get("cap")).and_then(|v| v.as_f64()).unwrap_or(0.0);
         context.insert(
             "_convergence".to_string(),
@@ -576,6 +622,8 @@ impl ManifestExecutor {
                 "gas_cap": gas_cap_val,
                 "gas_remaining": (gas_cap_val - gas_used_val).max(0.0),
                 "gas_pct": if gas_cap_val > 0.0 { (gas_used_val / gas_cap_val) * 100.0 } else { 0.0 },
+                "rjoule_used": context.get("_rjoule").and_then(|g| g.get("used")).and_then(|v| v.as_f64()).unwrap_or(0.0),
+                "rjoule_cap": context.get("_rjoule").and_then(|g| g.get("cap")).and_then(|v| v.as_f64()).unwrap_or(0.0),
             }),
         );
     }
@@ -715,10 +763,14 @@ impl ManifestExecutor {
         &self,
         step: &BundleManifestStep,
         mut context: HashMap<String, Value>,
-        gas_used: &mut f64,
-        gas_cap: f64,
-        cost_per_token: f64,
-        hard_limit: bool,
+        gas_used: &mut u64,
+        gas_cap: u64,
+        gas_cost_per_iter: u64,
+        rjoule_used: &mut f64,
+        rjoule_cap: f64,
+        rjoule_cost_per_token: f64,
+        rjoule_enabled: bool,
+        _rjoule_hard_limit: bool,
     ) -> Result<HashMap<String, Value>> {
         let prompt = self.render_step_template(step, &context)?;
 
@@ -737,26 +789,33 @@ impl ManifestExecutor {
             }
         };
 
-        // Gas tracking — deduct tokens from budget
-        let tokens = result.usage.total_tokens as f64;
-        *gas_used += tokens * cost_per_token;
-        let remaining = (gas_cap - *gas_used).max(0.0);
-
-        // Gas exhausted check
-        if hard_limit && remaining <= 0.0 {
-            context.insert("_gas_exhausted".to_string(), serde_json::json!(true));
-            // Let the parsed result through — convergence check will escalate
+        // rJoule tracking — deduct inference tokens from rJoule budget
+        if rjoule_enabled {
+            let tokens = result.usage.total_tokens as f64;
+            *rjoule_used += tokens * rjoule_cost_per_token;
         }
+
+        // Gas tracking — deduct one iteration of compute
+        *gas_used = gas_used.saturating_add(gas_cost_per_iter);
 
         let parsed: Value = parse_json_response(&result.text, step.ordinal)?;
         context.insert(format!("step_{}_result", step.ordinal), parsed);
 
-        // Inject gas context for template awareness
+        // Inject dual-budget context for template awareness
+        let gas_remaining = gas_cap.saturating_sub(*gas_used);
+        let rjoule_remaining = (rjoule_cap - *rjoule_used).max(0.0);
         context.insert("_gas".to_string(), serde_json::json!({
             "used": *gas_used,
             "cap": gas_cap,
-            "remaining": remaining,
-            "cost_per_token": cost_per_token,
+            "remaining": gas_remaining,
+            "cost_per_iteration": gas_cost_per_iter,
+        }));
+        context.insert("_rjoule".to_string(), serde_json::json!({
+            "used": *rjoule_used,
+            "cap": rjoule_cap,
+            "remaining": rjoule_remaining,
+            "cost_per_token": rjoule_cost_per_token,
+            "enabled": rjoule_enabled,
         }));
 
         Ok(context)

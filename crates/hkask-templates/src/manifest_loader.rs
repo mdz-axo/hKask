@@ -8,7 +8,7 @@
 
 use crate::bundle::{
     AuditConfig, BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep,
-    BundleSkill, CnsConfig, ConvergenceConfig, ErrorHandlingConfig, GasConfig, OcapConfig,
+    BundleSkill, CnsConfig, ConvergenceConfig, ErrorHandlingConfig, GasConfig, OcapConfig, RjouleConfig,
 };
 use hkask_types::Visibility;
 use serde::Deserialize;
@@ -48,6 +48,8 @@ struct ManifestFile {
     convergence: Option<ConvergenceConfig>,
     #[serde(default)]
     gas: Option<GasConfig>,
+    #[serde(default)]
+    rjoule: Option<RjouleConfig>,
     #[serde(default)]
     error_handling: Option<ErrorHandlingConfig>,
     #[serde(default)]
@@ -137,6 +139,7 @@ pub(crate) fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, Mani
         steps: file.steps,
         convergence: file.convergence.unwrap_or_default(),
         gas: file.gas.unwrap_or_default(),
+        rjoule: file.rjoule.unwrap_or_default(),
         error_handling: file.error_handling.unwrap_or_default(),
         ocap: file.ocap.unwrap_or_default(),
         cns: file.cns.unwrap_or_default(),

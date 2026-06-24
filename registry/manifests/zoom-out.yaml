@@ -23,6 +23,12 @@ convergence:
   on_not_reached: escalate
 
 gas:
+  cap: 100000
+  cost_per_iteration: 100
+  alert_threshold: 0.8
+  hard_limit: true
+
+rjoule:
   cap: 12000
   cost_per_token: 0.25
   alert_threshold: 0.8

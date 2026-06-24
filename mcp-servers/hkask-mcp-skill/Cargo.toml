@@ -11,6 +11,8 @@ hkask-templates = { path = "../../crates/hkask-templates" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-ports = { path = "../../crates/hkask-ports" }
 hkask-inference = { path = "../../crates/hkask-inference" }
+hkask-bridge-pko = { path = "../../crates/hkask-bridge-pko" }
+hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true
 serde.workspace = true

@@ -78,19 +78,37 @@ The 5W1H core is grounded in Ontology Design Pattern (ODP) methodology as descri
 
 **P5.3 — Minimalist Test (the 5W1H gate):** Before any module, type, or abstraction is added, ask: which of the 5W1H does it answer? If the answer is "none," the addition is a P5 violation. If the answer is "it bridges to a domain ontology that answers one," the bridge itself must justify its existence by the same test. Bridges earn their keep by connecting a 5W1H question to domain-specific depth — they are not free passes.
 
-**P5.4 — Ontological Bridge Registry (v0.31.0):** Each MCP server anchors to a domain-specific ontology. Bridges are thin mapping layers following the `fibo.rs` pattern: canonical concept URI constants, field-to-ontology mapping functions, no dependencies, no reasoners, no overhead. Cross-cutting vocabularies (Dublin Core, BIBO) live in shared crates as pure vocabulary resources.
+**P5.4 — Dual-Axis Ontological Framework (v0.31.0):** hKask anchors on two complementary ontological axes — no single source of truth, by design.
 
-| MCP Server | Ontology | Scope | Bridge Location |
+| Axis | Master Ontology | Question | Domain |
 |---|---|---|---|
-| **companies** | FIBO (Financial Industry Business Ontology) | Financial concepts, ratios, securities, corporations | `mcp-servers/hkask-mcp-companies/src/fibo.rs` |
-| **kanban** | PKO (Procedural Knowledge Ontology) | Procedure → Step → Action, execution tracking, issues, feedback, roles | `crates/hkask-bridge-pko/` |
-| **docproc** | PKO | Document processing as knowledge production procedure | `crates/hkask-bridge-pko/` (shared) |
-| **research** | PKO | Discovery + synthesis as knowledge production procedure | `crates/hkask-bridge-pko/` (shared) |
-| **replica** | GOLEM (Graphs and Ontologies for Literary Evolution Models) | Narrative structure: characters, events, settings, narrative functions | `mcp-servers/hkask-mcp-replica/src/golem.rs` |
-| **memory** | CogAT (Cognitive Atlas) | Episodic memory, semantic memory, consolidation, encoding, recall, salience | `mcp-servers/hkask-mcp-memory/src/cogat.rs` |
-| **training** | ML-Schema (W3C Community Group) | ML experiment: Run, Model, HyperParameter, Evaluation | `mcp-servers/hkask-mcp-training/src/mlschema.rs` |
-| **media** | OMC (MovieLabs Ontology for Media Creation) | Assets (Image/Audio/CG), Participants, Creative Works, Versions, Camera Metadata | `mcp-servers/hkask-mcp-media/src/omc.rs` |
-| **cross-cutting** | Dublin Core + BIBO + CiTO | Bibliographic metadata, resource typing, citation relationships | `crates/hkask-bridge-dublincore/` |
+| **Process (Flow)** | PKO (Procedural Knowledge Ontology) | How did this come to be? What flow is it part of? | Procedures, steps, executions, actions, transformations — the *verb* dimension |
+| **State (Entity)** | Dublin Core + BIBO | What is this? What type, who made it, when? | Entities, resources, types, metadata, relationships — the *noun* dimension |
+
+Every artifact in hKask has both a state identity and a process identity — it is simultaneously a noun AND a verb. This is the Planck constant at the architectural level: you cannot reduce one axis to the other. And per Heisenberg, the more precisely you measure state (DC typing), the less you can know about process position (PKO flow), and vice versa. You are always sampling, never arriving at truth. The bridges are sampling instruments, not truth claims.
+
+**Every MCP server uses BOTH axes.** Domain-specific bridges (FIBO, GOLEM, CogAT, ML-Schema, OMC) are layered on top where DC+BIBO's state axis isn't specific enough for a domain. They are NOT alternatives to the dual-axis core — they supplement it.
+
+| MCP Server | Process Axis | State Axis | Domain Bridge |
+|---|---|---|---|
+| **kanban** | PKO | DC+BIBO | — |
+| **docproc** | PKO | DC+BIBO | — |
+| **research** | PKO | DC+BIBO | — |
+| **spec** | PKO | DC+BIBO | — |
+| **skill** | PKO | DC+BIBO | — |
+| **companies** | PKO | DC+BIBO | FIBO (financial concepts) |
+| **replica** | PKO | DC+BIBO | GOLEM (narrative structure) |
+| **memory** | PKO | DC+BIBO | CogAT (cognitive concepts) |
+| **training** | PKO | DC+BIBO | ML-Schema (ML experiments) |
+| **media** | PKO | DC+BIBO | OMC (media creation) |
+| **condenser** | PKO | DC+BIBO | — (DC is the connective tissue for graph saliency) |
+| **curator** | PKO | DC+BIBO | — (the curator IS the 5W1H core applied as Socratic inquiry) |
+| **communication** | PKO | DC+BIBO | — (deferred) |
+
+**Bridge locations:**
+- Process axis vocabulary: `crates/hkask-bridge-pko/` (shared crate)
+- State axis vocabulary: `crates/hkask-bridge-dublincore/` (shared crate)
+- Domain-specific bridges: server-local modules following the `fibo.rs` pattern
 
 #### P6 — Space for Replicants & Bots
 hKask exists as a generative container for bot and replicant agency under sovereignty and capability constraints.
@@ -107,18 +125,24 @@ Types and seams should emerge from real usage, not speculative abstraction.
 #### P8 — Semantic Grounding
 System claims must be grounded in traceable, provenance-aware representations.
 
-**P8.1 — Ontological Bridging (v0.31.0):** The 5W1H core (P5.2) is the default grounding level. When deeper domain semantics are needed, hKask maintains **bridges** to domain-specific ontologies. Every bridge follows the `fibo.rs` pattern:
+**P8.1 — Ontological Bridging (v0.31.0):** The 5W1H core (P5.2) is the default grounding level. Anchored beneath it are two complementary ontological axes — no single source of truth, by design.
+
+**Dual-axis grounding:** Every artifact carries both a state identity (DC+BIBO — the noun) and a process identity (PKO — the verb). You cannot reduce one axis to the other, and per Heisenberg, the more precisely you sample one, the less you can know about the other. Bridging is always sampling, never arriving at truth. The bridges are sampling instruments calibrated to universal anchors (PKO namespace, DC namespace) but deployed from domain-specific perspectives.
+
+**Every bridge follows the `fibo.rs` pattern:**
 
 1. **Concept URI constants** — `pub const CONCEPT_NAME: OntologyConcept = "namespace:LocalName"`
 2. **Field-to-concept mapping functions** — `pub fn internal_field_to_ontology(field: &str) -> Option<OntologyConcept>`
 3. **No dependencies** — bridges are pure Rust with zero external crates beyond what the server already uses
 4. **No reasoners, no OWL parsing, no graph databases** — bridges are thin vocabulary layers, not ontology engines
 
-Bridges use the STAR extraction pattern (seed terms + direct logical entailments, no intermediate hierarchy) from Norouzi et al. (2025). Each bridge module is typically ≤150 lines. A bridge that grows beyond ~7 terms is a signal to re-evaluate whether the domain concept should be promoted into the 5W1H core.
+**Bridge hierarchy:**
+- **Universal anchors:** `crates/hkask-bridge-pko/` (process axis) + `crates/hkask-bridge-dublincore/` (state axis) — shared vocabulary crates providing the canonical concept constants. Every server depends on both.
+- **Domain supplements:** Server-local modules (FIBO in companies, GOLEM in replica, CogAT in memory, ML-Schema in training, OMC in media) — layered on top where DC+BIBO's state axis isn't specific enough for a domain. These are supplements, not alternatives.
 
-Cross-cutting vocabularies (Dublin Core, BIBO, CiTO) live in `crates/hkask-bridge-dublincore/` as a shared pure-vocabulary crate — a resource any server can reference, not a constraint that binds them. Domain-specific bridges live either in shared crates (PKO, shared by kanban/docproc/research) or as server-local modules (GOLEM in replica, CogAT in memory, ML-Schema in training, OMC in media, FIBO in companies). See P5.4 for the full registry.
+Bridges use the STAR extraction pattern (seed terms + direct logical entailments, no intermediate hierarchy) from Norouzi et al. (2025). Each bridge module is typically ≤150 lines.
 
-The architectural invariant: **hKask never requires knowledge of a full domain ontology.** All interaction with domain ontologies flows through thin bridges. The core remains 5W1H; bridges are opt-in depth.
+The architectural invariant: **hKask never requires knowledge of a full domain ontology.** All interaction with domain ontologies flows through thin bridges. The dual-axis core (PKO + DC+BIBO) provides the minimum viable ontology for any server; domain bridges are opt-in specificity.
 
 #### P9 — Homeostatic Self-Regulation
 The system must remain observable and self-correcting through cybernetic feedback loops.

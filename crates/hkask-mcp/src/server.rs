@@ -245,6 +245,8 @@ pub struct ToolSpanGuard {
     start: Instant,
     caller: hkask_types::WebID,
     emitted: bool,
+    /// Domain ontology concept for type-aware feedback routing (e.g. "pko:ChangeOfStatus").
+    ontology: Option<&'static str>,
     /// Optional heal callback: (error_string, operation_name).
     heal_error_cb: Option<HealCallback>,
     /// Optional experience callback: fires on ok/error with "success"/"error".
@@ -262,9 +264,17 @@ impl ToolSpanGuard {
             start: Instant::now(),
             caller: *caller,
             emitted: false,
+            ontology: None,
             heal_error_cb: None,
             experience_cb: None,
         }
+    }
+
+    /// Tag this span with a domain ontology concept (e.g. "pko:ChangeOfStatus").
+    /// The concept flows into the CNS span for type-aware feedback routing.
+    pub fn with_ontology(mut self, concept: &'static str) -> Self {
+        self.ontology = Some(concept);
+        self
     }
 
     /// Attach a self-healing callback for automatic error recovery.
@@ -288,7 +298,14 @@ impl ToolSpanGuard {
     pub fn ok(mut self, output: String) -> String {
         self.emitted = true;
         let duration_ms = self.start.elapsed().as_millis() as u64;
-        emit_tool_span_with_caller(&self.tool_name, "ok", duration_ms, None, Some(&self.caller));
+        emit_tool_span_with_caller(
+            &self.tool_name,
+            "ok",
+            duration_ms,
+            None,
+            Some(&self.caller),
+            self.ontology,
+        );
         if let Some(ref cb) = self.experience_cb {
             cb("success");
         }
@@ -308,6 +325,7 @@ impl ToolSpanGuard {
             duration_ms,
             Some(&kind),
             Some(&self.caller),
+            self.ontology,
         );
         if let Some(ref cb) = self.heal_error_cb {
             cb(&output, &self.tool_name);
@@ -367,6 +385,7 @@ impl Drop for ToolSpanGuard {
                 duration_ms,
                 None,
                 Some(&self.caller),
+                None,
             );
         }
     }
@@ -419,6 +438,26 @@ pub async fn execute_tool<C: ToolContext>(
     fut: impl std::future::Future<Output = Result<Value, McpToolError>>,
 ) -> String {
     let span = ToolSpanGuard::new(tool_name, ctx.webid());
+    let result = fut.await;
+    match &result {
+        Ok(_) => ctx.record_tool_outcome(tool_name, "success"),
+        Err(_) => ctx.record_tool_outcome(tool_name, "error"),
+    }
+    span.finish(result)
+}
+
+/// Like `execute_tool` but tags the CNS span with a domain ontology concept
+/// (e.g. "pko:ChangeOfStatus") for type-aware feedback routing.
+pub async fn execute_tool_semantic<C: ToolContext>(
+    ctx: &C,
+    tool_name: &str,
+    ontology: Option<&'static str>,
+    fut: impl std::future::Future<Output = Result<Value, McpToolError>>,
+) -> String {
+    let mut span = ToolSpanGuard::new(tool_name, ctx.webid());
+    if let Some(concept) = ontology {
+        span = span.with_ontology(concept);
+    }
     let result = fut.await;
     match &result {
         Ok(_) => ctx.record_tool_outcome(tool_name, "success"),
@@ -799,8 +838,9 @@ fn emit_tool_span_with_caller(
     duration_ms: u64,
     error_kind: Option<&McpErrorKind>,
     caller: Option<&hkask_types::WebID>,
+    ontology: Option<&str>,
 ) {
-    tracing::info!(target: "cns.tool", tool = tool_name, outcome = outcome, duration_ms = duration_ms, error_kind = error_kind.map(|k| k.to_string()).as_deref().unwrap_or(""), caller = caller.map(|w| w.to_string()).as_deref().unwrap_or(""), "CNS");
+    tracing::info!(target: "cns.tool", tool = tool_name, outcome = outcome, duration_ms = duration_ms, error_kind = error_kind.map(|k| k.to_string()).as_deref().unwrap_or(""), caller = caller.map(|w| w.to_string()).as_deref().unwrap_or(""), ontology = ontology.unwrap_or(""), "CNS");
 }
 
 // run_stdio_server — Common Server Bootstrap

@@ -59,6 +59,9 @@ pub struct BoardInfo {
     pub board_id: String,
     pub name: String,
     pub column_count: usize,
+    /// PKO concept: <https://w3id.org/pko#Procedure>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
 }
 
 // ── Task tools ─────────────────────────────────────────────────────────────
@@ -116,6 +119,9 @@ pub struct TaskInfo {
     /// Remaining rJoules for inference/API calls.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rjoule_remaining: Option<u64>,
+    /// PKO concept: <https://w3id.org/pko#Step>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -147,6 +153,9 @@ pub struct TaskAssignRequest {
 pub struct TaskAssignResponse {
     pub task_id: String,
     pub assignee: String,
+    /// PKO concept: <https://www.w3.org/ns/prov#wasAssociatedWith>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -181,6 +190,9 @@ pub struct TaskAddGasRequest {
 pub struct TaskAddGasResponse {
     pub task_id: String,
     pub new_gas_remaining: u64,
+    /// PKO concept: <https://www.w3.org/ns/prov#used>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -195,6 +207,9 @@ pub struct TaskAddRjoulesRequest {
 pub struct TaskAddRjoulesResponse {
     pub task_id: String,
     pub new_rjoule_remaining: u64,
+    /// PKO concept: <https://www.w3.org/ns/prov#used>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
 }
 
 // ── Comments ────────────────────────────────────────────────────────────────
@@ -249,6 +264,9 @@ pub struct TaskAddDeliverableRequest {
 pub struct TaskAddDeliverableResponse {
     pub task_id: String,
     pub deliverable_count: usize,
+    /// PKO concept: <https://www.w3.org/ns/prov#wasGeneratedBy>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
 }
 
 // ── Reopen ──────────────────────────────────────────────────────────────────
@@ -271,6 +289,9 @@ pub struct TaskReopenResponse {
     pub new_status: String,
     pub gas_remaining: Option<u64>,
     pub rjoule_remaining: Option<u64>,
+    /// PKO concept: <https://w3id.org/pko#ChangeOfStatus>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
 }
 
 // ── Contract proposals ──────────────────────────────────────────────────────
@@ -305,6 +326,9 @@ pub struct TaskKataPracticeRequest {
 pub struct TaskKataResponse {
     pub task_id: String,
     pub prompt: String,
+    /// PKO concept: <https://w3id.org/pko#UserQuestionOccurrence>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
 }
 
 // ── Spawn ───────────────────────────────────────────────────────────────────
@@ -333,4 +357,7 @@ pub struct TaskSpawnRequest {
 pub struct TaskSpawnResponse {
     pub task_id: String,
     pub message: String,
+    /// PKO concept: <https://w3id.org/pko#StepExecution>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
 }

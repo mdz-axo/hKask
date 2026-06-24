@@ -9,7 +9,7 @@
 pub mod pko;
 pub mod types;
 
-use hkask_mcp::server::{McpToolError, ServerContext, execute_tool};
+use hkask_mcp::server::{McpToolError, ServerContext, execute_tool, execute_tool_semantic};
 use hkask_services_kanban::KanbanError;
 use hkask_services_kanban::KanbanService;
 use hkask_services_kanban::{ConsentProof, TaskFilter, TaskSpec, VerificationCriterion};
@@ -65,7 +65,7 @@ impl KanbanServer {
             capability_token: _cap,
         }): Parameters<BoardCreateRequest>,
     ) -> String {
-        execute_tool(self, "kanban_board_create", async {
+        execute_tool_semantic(self, "kanban_board_create", kanban_type_to_pko("kanban_board_create"), async {
             let column_defs = match columns {
                 Some(inputs) => inputs
                     .into_iter()
@@ -119,7 +119,7 @@ impl KanbanServer {
             capability_token: _cap,
         }): Parameters<BoardListRequest>,
     ) -> String {
-        execute_tool(self, "kanban_board_list", async {
+        execute_tool_semantic(self, "kanban_board_list", kanban_type_to_pko("kanban_board_list"), async {
             match self.service.board_list(&self.webid) {
                 Ok(boards) => Ok(serde_json::to_value(BoardListResponse {
                     boards: boards
@@ -128,6 +128,7 @@ impl KanbanServer {
                             board_id: b.id.to_string(),
                             name: b.name,
                             column_count: b.columns.len(),
+                            pko: kanban_type_to_pko("Board").map(|s| s.to_string()),
                         })
                         .collect(),
                 })
@@ -152,7 +153,7 @@ impl KanbanServer {
             rjoule_budget,
         }): Parameters<TaskCreateRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_create", async {
+        execute_tool_semantic(self, "kanban_task_create", kanban_type_to_pko("kanban_task_create"), async {
             let bid = match board_id.parse::<hkask_types::BoardId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -208,7 +209,7 @@ impl KanbanServer {
             capability_token: _cap,
         }): Parameters<TaskListRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_list", async {
+        execute_tool_semantic(self, "kanban_task_list", kanban_type_to_pko("kanban_task_list"), async {
             let bid = match board_id.parse::<hkask_types::BoardId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -241,6 +242,7 @@ impl KanbanServer {
                             criteria_count: t.criteria.len(),
                             gas_remaining: t.gas_remaining,
                             rjoule_remaining: t.rjoule_remaining,
+                            pko: kanban_type_to_pko("Task").map(|s| s.to_string()),
                         })
                         .collect(),
                 })
@@ -262,7 +264,7 @@ impl KanbanServer {
     ) -> String {
         use pko::kanban_type_to_pko;
 
-        execute_tool(self, "kanban_task_move", async {
+        execute_tool_semantic(self, "kanban_task_move", kanban_type_to_pko("kanban_task_move"), async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -312,7 +314,7 @@ impl KanbanServer {
             capability_token: _cap,
         }): Parameters<TaskAssignRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_assign", async {
+        execute_tool_semantic(self, "kanban_task_assign", kanban_type_to_pko("kanban_task_assign"), async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -344,6 +346,7 @@ impl KanbanServer {
                 Ok(task) => Ok(serde_json::to_value(TaskAssignResponse {
                     task_id: task.id.to_string(),
                     assignee: task.assignee.map(|a| a.to_string()).unwrap_or_default(),
+                    pko: kanban_type_to_pko("kanban_task_assign").map(|s| s.to_string()),
                 })
                 .unwrap()),
                 Err(e) => Err(map_kanban_error(e)),
@@ -361,7 +364,7 @@ impl KanbanServer {
             capability_token: _cap,
         }): Parameters<TaskVerifyRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_verify", async {
+        execute_tool_semantic(self, "kanban_task_verify", kanban_type_to_pko("kanban_task_verify"), async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -399,7 +402,7 @@ impl KanbanServer {
             capability_token: _cap,
         }): Parameters<TaskAddGasRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_add_gas", async {
+        execute_tool_semantic(self, "kanban_task_add_gas", kanban_type_to_pko("kanban_task_add_gas"), async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -415,6 +418,7 @@ impl KanbanServer {
                 Ok(task) => Ok(serde_json::to_value(TaskAddGasResponse {
                     task_id: task.id.to_string(),
                     new_gas_remaining: task.gas_remaining.unwrap_or(0),
+                    pko: kanban_type_to_pko("kanban_task_add_gas").map(|s| s.to_string()),
                 })
                 .unwrap()),
                 Err(e) => Err(map_kanban_error(e)),
@@ -432,7 +436,7 @@ impl KanbanServer {
             capability_token: _cap,
         }): Parameters<TaskAddRjoulesRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_add_rjoules", async {
+        execute_tool_semantic(self, "kanban_task_add_rjoules", kanban_type_to_pko("kanban_task_add_rjoules"), async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -448,6 +452,7 @@ impl KanbanServer {
                 Ok(task) => Ok(serde_json::to_value(TaskAddRjoulesResponse {
                     task_id: task.id.to_string(),
                     new_rjoule_remaining: task.rjoule_remaining.unwrap_or(0),
+                    pko: kanban_type_to_pko("kanban_task_add_rjoules").map(|s| s.to_string()),
                 })
                 .unwrap()),
                 Err(e) => Err(map_kanban_error(e)),
@@ -467,7 +472,7 @@ impl KanbanServer {
             capability_token: _cap,
         }): Parameters<TaskCommentRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_comment", async {
+        execute_tool_semantic(self, "kanban_task_comment", kanban_type_to_pko("kanban_task_comment"), async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -507,7 +512,7 @@ impl KanbanServer {
             since_index,
         }): Parameters<TaskCommentsSinceRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_comments_since", async {
+        execute_tool_semantic(self, "kanban_task_comments_since", kanban_type_to_pko("kanban_task_comments_since"), async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -552,7 +557,7 @@ impl KanbanServer {
             capability_token: _cap,
         }): Parameters<TaskAddDeliverableRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_add_deliverable", async {
+        execute_tool_semantic(self, "kanban_task_add_deliverable", kanban_type_to_pko("kanban_task_add_deliverable"), async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -568,6 +573,7 @@ impl KanbanServer {
                 Ok(task) => Ok(serde_json::to_value(TaskAddDeliverableResponse {
                     task_id: task.id.to_string(),
                     deliverable_count: task.deliverables.len(),
+                    pko: kanban_type_to_pko("kanban_task_add_deliverable").map(|s| s.to_string()),
                 })
                 .unwrap()),
                 Err(e) => Err(map_kanban_error(e)),
@@ -588,7 +594,7 @@ impl KanbanServer {
             capability_token: _cap,
         }): Parameters<TaskReopenRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_reopen", async {
+        execute_tool_semantic(self, "kanban_task_reopen", kanban_type_to_pko("kanban_task_reopen"), async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -618,6 +624,7 @@ impl KanbanServer {
                 new_status: task.status.to_string(),
                 gas_remaining: task.gas_remaining,
                 rjoule_remaining: task.rjoule_remaining,
+                pko: kanban_type_to_pko("kanban_task_reopen").map(|s| s.to_string()),
             })
             .unwrap())
         })
@@ -631,7 +638,7 @@ impl KanbanServer {
         &self,
         Parameters(TaskKataCoachingRequest { task_id }): Parameters<TaskKataCoachingRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_kata_coaching", async {
+        execute_tool_semantic(self, "kanban_task_kata_coaching", kanban_type_to_pko("kanban_task_kata_coaching"), async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -644,6 +651,7 @@ impl KanbanServer {
                 Ok(prompt) => Ok(serde_json::to_value(TaskKataResponse {
                     task_id: tid.to_string(),
                     prompt,
+                    pko: kanban_type_to_pko("kanban_task_kata_coaching").map(|s| s.to_string()),
                 })
                 .unwrap()),
                 Err(e) => Err(map_kanban_error(e)),
@@ -657,7 +665,7 @@ impl KanbanServer {
         &self,
         Parameters(TaskKataImprovementRequest { task_id }): Parameters<TaskKataImprovementRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_kata_improvement", async {
+        execute_tool_semantic(self, "kanban_task_kata_improvement", kanban_type_to_pko("kanban_task_kata_improvement"), async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -670,6 +678,7 @@ impl KanbanServer {
                 Ok(prompt) => Ok(serde_json::to_value(TaskKataResponse {
                     task_id: tid.to_string(),
                     prompt,
+                    pko: kanban_type_to_pko("kanban_task_kata_improvement").map(|s| s.to_string()),
                 })
                 .unwrap()),
                 Err(e) => Err(map_kanban_error(e)),
@@ -686,7 +695,7 @@ impl KanbanServer {
             sub_problem,
         }): Parameters<TaskKataPracticeRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_kata_practice", async {
+        execute_tool_semantic(self, "kanban_task_kata_practice", kanban_type_to_pko("kanban_task_kata_practice"), async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -699,6 +708,7 @@ impl KanbanServer {
                 Ok(prompt) => Ok(serde_json::to_value(TaskKataResponse {
                     task_id: tid.to_string(),
                     prompt,
+                    pko: kanban_type_to_pko("kanban_task_kata_practice").map(|s| s.to_string()),
                 })
                 .unwrap()),
                 Err(e) => Err(map_kanban_error(e)),
@@ -722,7 +732,7 @@ impl KanbanServer {
             capability_token: _cap,
         }): Parameters<TaskSpawnRequest>,
     ) -> String {
-        execute_tool(self, "kanban_task_spawn", async {
+        execute_tool_semantic(self, "kanban_task_spawn", kanban_type_to_pko("kanban_task_spawn"), async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
                 Err(e) => {
@@ -750,6 +760,7 @@ impl KanbanServer {
                 Ok(message) => Ok(serde_json::to_value(TaskSpawnResponse {
                     task_id: tid.to_string(),
                     message,
+                    pko: kanban_type_to_pko("kanban_task_spawn").map(|s| s.to_string()),
                 })
                 .unwrap()),
                 Err(e) => Err(map_kanban_error(e)),
@@ -781,7 +792,7 @@ impl KanbanServer {
             proposals_json,
         }): Parameters<ContractProposeExpect>,
     ) -> String {
-        execute_tool(self, "contract_propose_expect", async {
+        execute_tool_semantic(self, "contract_propose_expect", kanban_type_to_pko("contract_propose_expect"), async {
             let bid = match board_id.parse::<hkask_types::BoardId>() {
                 Ok(id) => id,
                 Err(e) => return Err(McpToolError::invalid_argument(format!("invalid board_id: {e}"))),

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use super::cascade::CascadePhase;
 use super::composition::{BundleComplementarity, BundleConflict};
 use super::config::{
-    AuditConfig, CnsConfig, ConvergenceConfig, ErrorHandlingConfig, GasConfig, OcapConfig,
+    AuditConfig, CnsConfig, ConvergenceConfig, ErrorHandlingConfig, GasConfig, OcapConfig, RjouleConfig,
 };
 use hkask_types::SkillPolarity;
 use hkask_types::Visibility;
@@ -78,6 +78,7 @@ pub struct BundleManifest {
     pub steps: Vec<BundleManifestStep>,
     pub convergence: ConvergenceConfig,
     pub gas: GasConfig,
+    pub rjoule: RjouleConfig,
     pub error_handling: ErrorHandlingConfig,
     pub ocap: OcapConfig,
     pub cns: CnsConfig,

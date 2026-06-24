@@ -99,23 +99,24 @@ pub const USED: PkoConcept = "prov:used";
 /// Returns None for internal types without a PKO equivalent.
 pub fn kanban_type_to_pko(type_name: &str) -> Option<PkoConcept> {
     match type_name {
-        "Board" | "kanban_board_create" => Some(PROCEDURE),
-        "Task" | "kanban_task_create" => Some(STEP),
+        "Board" | "kanban_board_create" | "kanban_board_list" => Some(PROCEDURE),
+        "Task" | "kanban_task_create" | "kanban_task_list" => Some(STEP),
         "Task.decomposed" | "kanban_task_decompose" => Some(MULTISTEP),
-        "Task.execution" | "Task.in_progress" => Some(STEP_EXECUTION),
+        "Task.execution" | "Task.in_progress" | "kanban_task_spawn" => Some(STEP_EXECUTION),
         "Board.execution" => Some(PROCEDURE_EXECUTION),
         "Column" | "TaskStatus" => Some(PROCEDURE_EXECUTION_STATUS),
-        "kanban_task_move" => Some(CHANGE_OF_STATUS),
+        "kanban_task_move" | "kanban_task_reopen" => Some(CHANGE_OF_STATUS),
         "kanban_task_verify" | "Verification" | "VerificationCriterion" => Some(STEP_VERIFICATION),
         "Comment" | "kanban_task_comment" => Some(USER_FEEDBACK_OCCURRENCE),
-        "Comment.question" | "kanban_task_kata_coaching" | "kanban_task_kata_improvement" => {
-            Some(USER_QUESTION_OCCURRENCE)
-        }
+        "Comment.question"
+        | "kanban_task_kata_coaching"
+        | "kanban_task_kata_improvement"
+        | "kanban_task_kata_practice" => Some(USER_QUESTION_OCCURRENCE),
         "UnjamItem" | "kanban_unjam" => Some(ISSUE_OCCURRENCE),
         "UnjamItem.error" => Some(ERROR),
         "Assignee" | "kanban_task_assign" => Some(WAS_ASSOCIATED_WITH),
         "Deliverable" | "kanban_task_add_deliverable" => Some(WAS_GENERATED_BY),
-        "GasEntry" | "gas_spend" => Some(USED),
+        "GasEntry" | "gas_spend" | "kanban_task_add_gas" | "kanban_task_add_rjoules" => Some(USED),
         "estimated_hours" => Some(HAS_EXPECTED_DURATION),
         "Agent" | "assignee" => Some(AGENT),
         _ => None,

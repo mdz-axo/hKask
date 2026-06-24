@@ -43,6 +43,7 @@ use hkask_types::time::now_rfc3339;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 mod analysis;
+mod dcf;
 pub mod fibo;
 mod portfolio;
 mod providers;
@@ -1902,6 +1903,247 @@ impl CompaniesServer {
             }))
         })
         .await
+    }
+
+    #[tool(
+        description = "Two-stage DCF valuation. Projects free cash flow through explicit stage 1 (1-3yr) and convergence stage 2 (2-7yr), then applies a terminal value (perpetuity or exit multiple). Returns intrinsic value per share, margin of safety, and full projection table. Default: 10yr model, 3yr stage 1, 7yr stage 2, 10% WACC, 2.5% terminal growth, annual projections."
+    )]
+    pub async fn dcf_valuation(
+        &self,
+        Parameters(req): Parameters<types::DcfValuationRequest>,
+    ) -> String {
+        execute_tool(self, "dcf_valuation", async {
+            validate_symbol(&req.symbol)?;
+
+            // Fetch fundamentals
+            let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
+            let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
+            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "1")]).await;
+
+            let (metrics, profile, cf) = match (metrics_result, profile_result, cf_result) {
+                (Ok(m), Ok(p), Ok(c)) => (m, p, c),
+                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
+                    self.record_experience("dcf_valuation", &format!("symbol={}", req.symbol), "error", serde_json::json!({"error": e.to_json_string()}));
+                    return Err(e);
+                }
+            };
+
+            let metrics_arr = metrics.as_array();
+            let profile_obj = profile.as_array().and_then(|a| a.first());
+            let cf_obj = cf.as_array().and_then(|a| a.first());
+
+            if metrics_arr.is_none_or(|m| m.is_empty()) || profile_obj.is_none() || cf_obj.is_none() {
+                return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient data"}));
+            }
+
+            let m = metrics_arr.as_ref().unwrap();
+            let p = profile_obj.unwrap();
+            let cf_ref = cf_obj.unwrap();
+
+            // Extract fundamentals
+            let revenue_values: Vec<f64> = m.iter()
+                .filter_map(|e| e.get("revenuePerShare").and_then(|v| v.as_f64()))
+                .collect();
+            let ttm_revenue = revenue_values.first().copied().unwrap_or(0.0);
+            let hist_revenue_growth = if revenue_values.len() >= 2 {
+                crate::cagr_from_series(
+                    &revenue_values.windows(2)
+                        .filter_map(|w| if w[0] > 0.0 { Some((w[1] - w[0]) / w[0]) } else { None })
+                        .collect::<Vec<_>>()
+                )
+            } else { 0.05 };
+
+            let fcf_margin = cf_ref
+                .get("freeCashFlow")
+                .and_then(|v| v.as_f64())
+                .map(|fcf| if ttm_revenue > 0.0 { fcf / ttm_revenue } else { 0.05 })
+                .unwrap_or(0.05);
+
+            let ttm_fcf = ttm_revenue * fcf_margin;
+            let shares = p.get("sharesOutstanding").and_then(|v| v.as_f64()).unwrap_or(1_000.0);
+            let current_price = p.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let market_cap = p.get("mktCap").and_then(|v| v.as_f64()).unwrap_or(0.0);
+
+            // Build DCF config
+            let stage1 = req.stage1_years.unwrap_or(3);
+            let stage2 = req.stage2_years.unwrap_or(7);
+            let discount = req.discount_rate.unwrap_or(0.10);
+            let term_g = req.terminal_growth.unwrap_or(0.025);
+            let term_method = match req.terminal_method.as_deref().unwrap_or("perpetuity") {
+                "multiple" => dcf::TerminalMethod::Multiple(req.terminal_multiple.unwrap_or(15.0)),
+                _ => dcf::TerminalMethod::Perpetuity,
+            };
+            let freq = match req.frequency.as_deref().unwrap_or("annual") {
+                "quarterly" => dcf::ProjectionFrequency::Quarterly,
+                _ => dcf::ProjectionFrequency::Annual,
+            };
+
+            let config = dcf::DcfConfig {
+                stage1_years: stage1,
+                stage2_years: stage2,
+                discount_rate: discount,
+                terminal_growth: term_g,
+                terminal_method: term_method,
+                frequency: freq,
+            };
+
+            let fundamentals = dcf::CompanyFundamentals {
+                ttm_revenue,
+                ttm_fcf,
+                fcf_margin,
+                hist_revenue_growth,
+                shares_outstanding: shares,
+                current_price,
+                market_cap,
+            };
+
+            let result = dcf::run_dcf(&fundamentals, &config)
+                .map_err(|e| McpToolError::invalid_argument(e))?;
+
+            // Build period summary for JSON output
+            let period_summary: Vec<serde_json::Value> = result.periods.iter().map(|p| {
+                serde_json::json!({
+                    "year": p.year,
+                    "revenue": p.revenue,
+                    "fcf": p.fcf,
+                    "growth_rate": p.growth_rate,
+                    "discount_factor": p.discount_factor,
+                    "present_value": p.present_value,
+                })
+            }).collect();
+
+            let output = serde_json::json!({
+                "symbol": req.symbol,
+                "config": {
+                    "stage1_years": config.stage1_years,
+                    "stage2_years": config.stage2_years,
+                    "total_years": config.total_years(),
+                    "discount_rate": config.discount_rate,
+                    "terminal_growth": config.capped_terminal_growth(),
+                    "terminal_method": if matches!(config.terminal_method, dcf::TerminalMethod::Perpetuity) { "perpetuity" } else { "multiple" },
+                    "frequency": if matches!(config.frequency, dcf::ProjectionFrequency::Annual) { "annual" } else { "quarterly" },
+                },
+                "fundamentals": {
+                    "ttm_revenue": ttm_revenue,
+                    "fcf_margin": fcf_margin,
+                    "hist_revenue_growth": hist_revenue_growth,
+                    "shares_outstanding": shares,
+                },
+                "projections": period_summary,
+                "valuation": {
+                    "pv_cash_flows": result.sum_pv_cash_flows,
+                    "terminal_value": result.terminal_value,
+                    "terminal_pv": result.terminal_pv,
+                    "enterprise_value": result.enterprise_value,
+                    "intrinsic_per_share": result.intrinsic_per_share,
+                    "current_price": result.current_price,
+                    "margin_of_safety": result.margin_of_safety,
+                },
+                "framework": "Two-stage DCF: Stage 1 (explicit, growth tapers from historical toward midpoint), Stage 2 (convergence toward terminal rate), Terminal Value (Gordon Growth perpetuity capped at 10% or exit multiple). Damodaran (2012) Investment Valuation.",
+            });
+
+            self.record_experience("dcf_valuation", &format!("symbol={}", req.symbol), "success", output.clone());
+            Ok(output)
+        }).await
+    }
+
+    #[tool(
+        description = "Reverse DCF (Mauboussin's Expectations Investing). Solves for the revenue growth rate implied by the current stock price. \"What growth does the market expect?\" — compare to your own estimate to find mispricing. Default: 10yr model, 3yr stage 1, 7yr stage 2, 10% WACC."
+    )]
+    pub async fn reverse_dcf(
+        &self,
+        Parameters(req): Parameters<types::ReverseDcfRequest>,
+    ) -> String {
+        execute_tool(self, "reverse_dcf", async {
+            validate_symbol(&req.symbol)?;
+
+            let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
+            let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
+            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "1")]).await;
+
+            let (metrics, profile, cf) = match (metrics_result, profile_result, cf_result) {
+                (Ok(m), Ok(p), Ok(c)) => (m, p, c),
+                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
+                    self.record_experience("reverse_dcf", &format!("symbol={}", req.symbol), "error", serde_json::json!({"error": e.to_json_string()}));
+                    return Err(e);
+                }
+            };
+
+            let metrics_arr = metrics.as_array();
+            let profile_obj = profile.as_array().and_then(|a| a.first());
+            let cf_obj = cf.as_array().and_then(|a| a.first());
+
+            if metrics_arr.is_none_or(|m| m.is_empty()) || profile_obj.is_none() || cf_obj.is_none() {
+                return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient data"}));
+            }
+
+            let m = metrics_arr.as_ref().unwrap();
+            let p = profile_obj.unwrap();
+            let cf_ref = cf_obj.unwrap();
+
+            let revenue_values: Vec<f64> = m.iter()
+                .filter_map(|e| e.get("revenuePerShare").and_then(|v| v.as_f64()))
+                .collect();
+            let ttm_revenue = revenue_values.first().copied().unwrap_or(0.0);
+
+            let fcf_margin = cf_ref
+                .get("freeCashFlow")
+                .and_then(|v| v.as_f64())
+                .map(|fcf| if ttm_revenue > 0.0 { fcf / ttm_revenue } else { 0.05 })
+                .unwrap_or(0.05);
+
+            let ttm_fcf = ttm_revenue * fcf_margin;
+            let shares = p.get("sharesOutstanding").and_then(|v| v.as_f64()).unwrap_or(1_000.0);
+            let current_price = p.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let market_cap = p.get("mktCap").and_then(|v| v.as_f64()).unwrap_or(0.0);
+
+            let config = dcf::DcfConfig {
+                stage1_years: req.stage1_years.unwrap_or(3),
+                stage2_years: req.stage2_years.unwrap_or(7),
+                discount_rate: req.discount_rate.unwrap_or(0.10),
+                terminal_growth: req.terminal_growth.unwrap_or(0.025),
+                terminal_method: dcf::TerminalMethod::Perpetuity,
+                frequency: match req.frequency.as_deref().unwrap_or("annual") {
+                    "quarterly" => dcf::ProjectionFrequency::Quarterly,
+                    _ => dcf::ProjectionFrequency::Annual,
+                },
+            };
+
+            let fundamentals = dcf::CompanyFundamentals {
+                ttm_revenue,
+                ttm_fcf,
+                fcf_margin,
+                hist_revenue_growth: 0.05, // placeholder — reverse DCF solves for this
+                shares_outstanding: shares,
+                current_price,
+                market_cap,
+            };
+
+            let (implied_growth, result) = dcf::reverse_dcf(&fundamentals, &config)
+                .map_err(|e| McpToolError::invalid_argument(e))?;
+
+            let output = serde_json::json!({
+                "symbol": req.symbol,
+                "current_price": current_price,
+                "implied_growth_rate": implied_growth,
+                "intrinsic_at_implied": result.intrinsic_per_share,
+                "enterprise_value_at_implied": result.enterprise_value,
+                "config": {
+                    "stage1_years": config.stage1_years,
+                    "stage2_years": config.stage2_years,
+                    "discount_rate": config.discount_rate,
+                    "terminal_growth": config.capped_terminal_growth(),
+                },
+                "interpretation": {
+                    "implied_growth_pct": format!("{:.1}%", implied_growth * 100.0),
+                    "signal": if implied_growth < 0.05 { "low_expectations" } else if implied_growth > 0.15 { "high_expectations" } else { "moderate_expectations" },
+                    "mauboussin_framework": "The current stock price implies a revenue growth rate. Compare this to your own estimate of sustainable growth. If your estimate is higher, the stock may be undervalued. If lower, it may be overvalued. The gap between implied and expected growth is the expectations gap — the core of Expectations Investing (Mauboussin & Rappaport, 2001).",
+                },
+            });
+
+            self.record_experience("reverse_dcf", &format!("symbol={}", req.symbol), "success", output.clone());
+            Ok(output)
+        }).await
     }
 
     #[tool(

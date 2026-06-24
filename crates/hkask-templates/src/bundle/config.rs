@@ -5,6 +5,11 @@
 
 use serde::{Deserialize, Serialize};
 
+
+/// System constant: 250,000 compute gas cycles = 1 rJoule of inference energy.
+/// This reflects the cost differential between local compute and LLM inference.
+pub const RJOULE_TO_GAS: u64 = 250_000;
+
 /// Convergence configuration for PDCA loop exit conditions.
 ///
 /// Supports two exit rails: absolute quality threshold AND/OR improvement from baseline.
@@ -86,20 +91,49 @@ fn default_weight() -> f64 {
     1.0
 }
 
-/// Gas (energy budget) configuration
+/// Gas (compute cycle budget) configuration — caps local loop iterations.
+/// Gas is cheap compute. 250,000 gas cycles ≈ 1 rJoule of inference.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GasConfig {
+    /// Total compute gas budget for the cascade.
     pub cap: u32,
-    pub cost_per_token: f64,
+    /// Compute gas cost per cascade iteration (loop pass).
+    /// Legacy alias `cost_per_token` accepted for backward compat.
+    #[serde(alias = "cost_per_token")]
+    pub cost_per_iteration: u32,
     pub alert_threshold: f64,
     pub hard_limit: bool,
 }
 impl Default for GasConfig {
     fn default() -> Self {
         Self {
-            cap: 10000,
-            cost_per_token: 0.25,
+            cap: 100000,
+            cost_per_iteration: 100,
+            alert_threshold: 0.8,
+            hard_limit: true,
+        }
+    }
+}
+
+/// rJoule (inference energy budget) configuration — caps LLM inference cost.
+/// rJoule is expensive. 1 rJ ≈ 1 inference token at default model.
+/// 1 rJ = 250,000 gas cycles (system constant `RJOULE_TO_GAS`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RjouleConfig {
+    /// Total rJoule budget for inference in this cascade.
+    pub cap: u32,
+    /// rJoule cost per inference token.
+    pub cost_per_token: f64,
+    pub alert_threshold: f64,
+    pub hard_limit: bool,
+}
+impl Default for RjouleConfig {
+    fn default() -> Self {
+        Self {
+            cap: 0,  // 0 = no rJoule budget (backward compat)
+            cost_per_token: 1.0,
             alert_threshold: 0.8,
             hard_limit: true,
         }
