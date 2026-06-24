@@ -460,12 +460,12 @@ impl SpecServer {
                 serde_json::json!({"goal_id": spec_id.to_string(), "category": category.as_str()}),
             );
 
-            Ok(serde_json::to_value(&GoalCaptureResponse {
+            serde_json::to_value(&GoalCaptureResponse {
                 goal_id: spec_id.to_string(),
                 requirements,
                 ocap_boundaries,
             })
-            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))
         })
         .await
     }
@@ -538,11 +538,11 @@ impl SpecServer {
                 serde_json::json!({"sub_goal_count": sub_goals.len()}),
             );
 
-            Ok(serde_json::to_value(&GoalDecomposeResponse {
+            serde_json::to_value(&GoalDecomposeResponse {
                 sub_goals,
                 dependencies,
             })
-            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))
         })
         .await
     }
@@ -620,7 +620,7 @@ impl SpecServer {
                 ),
             };
 
-            Ok(serde_json::to_value(&WritingQualityResponse {
+            serde_json::to_value(&WritingQualityResponse {
                 dimensions_passing,
                 meets_publication_standard: meets_standard,
                 replica_persona: replica_persona.clone(),
@@ -628,7 +628,7 @@ impl SpecServer {
                 weakest_dimension,
                 rewrite_prompt,
             })
-            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))
         }).await
     }
 
@@ -711,12 +711,12 @@ impl SpecServer {
             serde_json::json!({"nodes": nodes.len(), "edges": edges.len(), "paths": paths.len()}),
         );
 
-            Ok(serde_json::to_value(&GraphQueryResponse {
+            serde_json::to_value(&GraphQueryResponse {
                 nodes,
                 edges,
                 paths,
             })
-            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))
         })
         .await
     }
@@ -771,12 +771,12 @@ impl SpecServer {
                 }
             }
 
-            Ok(serde_json::to_value(&GraphCoherenceResponse {
+            serde_json::to_value(&GraphCoherenceResponse {
                 coherence_score: coherence,
                 violations,
                 suggestions,
             })
-            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))
         })
         .await
     }
@@ -986,7 +986,7 @@ impl SpecServer {
                 100.0
             };
 
-            Ok(serde_json::to_value(&ContractAuditResponse {
+            serde_json::to_value(&ContractAuditResponse {
                 crates: crate_results,
                 totals: AuditTotals {
                     total_pub_fns: total_fns,
@@ -995,7 +995,7 @@ impl SpecServer {
                     uncontracted_total: total_uncontracted,
                 },
             })
-            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))
         })
         .await
     }
@@ -1046,13 +1046,13 @@ impl SpecServer {
             );
             let _ = self.triple_store.insert(&triple);
 
-            Ok(serde_json::to_value(&ContractProposeResponse {
+            serde_json::to_value(&ContractProposeResponse {
                 contract_id,
                 crate_name,
                 function,
                 status: "proposed".to_string(),
             })
-            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))
         })
         .await
     }
@@ -1087,11 +1087,11 @@ impl SpecServer {
                         .update(&triple.id, value, hkask_types::Confidence::full());
             }
 
-            Ok(serde_json::to_value(&ContractAcceptResponse {
+            serde_json::to_value(&ContractAcceptResponse {
                 contract_id,
                 status: "accepted".to_string(),
             })
-            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))
         })
         .await
     }
@@ -1128,11 +1128,11 @@ impl SpecServer {
                         .update(&triple.id, value, hkask_types::Confidence::full());
             }
 
-            Ok(serde_json::to_value(&ContractRejectResponse {
+            serde_json::to_value(&ContractRejectResponse {
                 contract_id,
                 status: "rejected".to_string(),
             })
-            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))
         })
         .await
     }
@@ -1159,10 +1159,8 @@ impl SpecServer {
                 })
                 .collect();
 
-            Ok(
-                serde_json::to_value(&ContractListResponse { proposals: entries })
-                    .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?,
-            )
+            serde_json::to_value(&ContractListResponse { proposals: entries })
+                .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))
         })
         .await
     }
@@ -1197,7 +1195,7 @@ impl SpecServer {
                         );
                     }
 
-                    Ok(serde_json::to_value(&TestRunResponse {
+                    serde_json::to_value(&TestRunResponse {
                         crate_name: result.crate_name,
                         total_tests: result.total_tests,
                         passed: result.passed,
@@ -1213,7 +1211,7 @@ impl SpecServer {
                             .collect(),
                         pass: result.failed == 0,
                     })
-                    .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+                    .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))
                 }
                 None => Err(McpToolError::internal(format!(
                     "cargo test unavailable for crate '{}'",

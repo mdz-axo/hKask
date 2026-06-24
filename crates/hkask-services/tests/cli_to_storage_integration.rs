@@ -90,7 +90,7 @@ async fn sovereignty_consent_round_trip() {
 
     // Initially no consent for EpisodicMemory
     let has_consent = sovereignty.has_consent(&webid_str, &DataCategory::EpisodicMemory);
-    assert!(!has_consent, "new WebID should not have consent");
+    assert!(!has_consent.unwrap(), "new WebID should not have consent");
 
     // Grant consent
     sovereignty
@@ -99,7 +99,10 @@ async fn sovereignty_consent_round_trip() {
 
     // Verify consent is now granted
     let has_consent = sovereignty.has_consent(&webid_str, &DataCategory::EpisodicMemory);
-    assert!(has_consent, "consent should be granted after grant_consent");
+    assert!(
+        has_consent.unwrap(),
+        "consent should be granted after grant_consent"
+    );
 }
 
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.

@@ -42,8 +42,8 @@ pub use hkask_memory::ranking::parse_age_to_days;
 pub use ranking::{apply_rerank, dedup_results, normalize_date_bucket, rrf_score};
 pub use rate_limiter::RateLimiter;
 pub use validation::{
-    COMPOUND_PROVIDER_TIMEOUT_SECS, sanitize_health_error, validate_browse_request, validate_extract_request,
-    validate_search_request,
+    COMPOUND_PROVIDER_TIMEOUT_SECS, sanitize_health_error, validate_browse_request,
+    validate_extract_request, validate_search_request,
 };
 
 // ── Request types ──

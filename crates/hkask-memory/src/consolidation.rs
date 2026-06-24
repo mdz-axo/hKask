@@ -28,13 +28,6 @@ pub struct ConsolidationBridge {
     semantic: Arc<SemanticMemory>,
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct ConsolidationResult {
-    pub consolidated_count: usize,
-    pub deleted_count: usize,
-    pub failed_count: usize,
-}
-
 impl ConsolidationBridge {
     pub fn new(episodic: Arc<EpisodicMemory>, semantic: Arc<SemanticMemory>) -> Self {
         Self { episodic, semantic }
@@ -49,6 +42,7 @@ impl ConsolidationBridge {
     ///       update existing semantic triple
     ///    b. **No match:** Insert as new semantic triple
     /// 3. Expire episodic source (soft-delete via valid_to)
+    #[allow(clippy::doc_lazy_continuation, clippy::doc_overindented_list_items)]
     pub fn consolidate(
         &self,
         perspective: WebID,

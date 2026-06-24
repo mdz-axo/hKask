@@ -46,28 +46,25 @@ impl ConsolidationService {
 
         let mut deleted_count = 0usize;
 
-        if let Some(floor) = request.confidence_floor {
-            if let Ok(candidates) = self.semantic.low_confidence_triples(floor, usize::MAX) {
-                if !candidates.is_empty() {
-                    for triple in &candidates {
-                        if self.semantic.delete_triple(&triple.id).is_ok() {
-                            deleted_count += 1;
-                        }
-                    }
+        if let Some(floor) = request.confidence_floor
+            && let Ok(candidates) = self.semantic.low_confidence_triples(floor, usize::MAX)
+            && !candidates.is_empty()
+        {
+            for triple in &candidates {
+                if self.semantic.delete_triple(&triple.id).is_ok() {
+                    deleted_count += 1;
                 }
             }
         }
 
-        if let Some(max) = request.max_semantic_triples {
-            if let Ok(count) = self.semantic.triple_count() {
-                if count > max {
-                    if let Ok(candidates) = self.semantic.lowest_confidence_triples(count - max) {
-                        for triple in &candidates {
-                            if self.semantic.delete_triple(&triple.id).is_ok() {
-                                deleted_count += 1;
-                            }
-                        }
-                    }
+        if let Some(max) = request.max_semantic_triples
+            && let Ok(count) = self.semantic.triple_count()
+            && count > max
+            && let Ok(candidates) = self.semantic.lowest_confidence_triples(count - max)
+        {
+            for triple in &candidates {
+                if self.semantic.delete_triple(&triple.id).is_ok() {
+                    deleted_count += 1;
                 }
             }
         }

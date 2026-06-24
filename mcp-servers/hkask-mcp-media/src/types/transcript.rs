@@ -108,7 +108,9 @@ impl TranscriptBundle {
     /// post: returns Some(&TimedWord) if a word spans ms (start_ms <= ms < end_ms);
     ///       returns None if no word covers that position
     pub fn word_at_ms(&self, ms: u64) -> Option<&TimedWord> {
-        self.words.iter().find(|w| w.start_ms <= ms && ms < w.end_ms)
+        self.words
+            .iter()
+            .find(|w| w.start_ms <= ms && ms < w.end_ms)
     }
 
     /// Get the segment containing a given millisecond position.
@@ -118,7 +120,9 @@ impl TranscriptBundle {
     /// post: returns Some(&TranscriptSegment) if a segment spans ms
     ///       (start_ms <= ms < end_ms); returns None otherwise
     pub fn segment_at_ms(&self, ms: u64) -> Option<&TranscriptSegment> {
-        self.segments.iter().find(|s| s.start_ms <= ms && ms < s.end_ms)
+        self.segments
+            .iter()
+            .find(|s| s.start_ms <= ms && ms < s.end_ms)
     }
 }
 
@@ -128,7 +132,11 @@ mod tests {
 
     #[test]
     fn bundle_has_format_marker() {
-        let bundle = TranscriptBundle::new("/tmp/audio.wav".to_string(), 10.0, "Hello world.".to_string());
+        let bundle = TranscriptBundle::new(
+            "/tmp/audio.wav".to_string(),
+            10.0,
+            "Hello world.".to_string(),
+        );
         assert_eq!(bundle.format, "hkask-transcript-v1");
     }
 
@@ -149,7 +157,11 @@ mod tests {
                     confidence: Some(0.98),
                 },
             ],
-            ..TranscriptBundle::new("/tmp/audio.wav".to_string(), 2.0, "Hello world.".to_string())
+            ..TranscriptBundle::new(
+                "/tmp/audio.wav".to_string(),
+                2.0,
+                "Hello world.".to_string(),
+            )
         };
 
         assert_eq!(bundle.word_at_ms(200).unwrap().word, "Hello");

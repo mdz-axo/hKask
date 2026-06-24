@@ -55,7 +55,8 @@ impl FfmpegRunner {
 
     /// Ensure the temp directory exists.
     fn ensure_temp_dir(&self) -> Result<(), String> {
-        std::fs::create_dir_all(&self.temp_dir).map_err(|e| format!("Failed to create temp dir: {}", e))
+        std::fs::create_dir_all(&self.temp_dir)
+            .map_err(|e| format!("Failed to create temp dir: {}", e))
     }
 
     /// Generate a unique output path in the temp directory.
@@ -94,7 +95,10 @@ impl FfmpegRunner {
             .map_err(|e| format!("ffmpeg clip spawn failed: {}", e))?;
 
         if !status.success() {
-            return Err(format!("ffmpeg clip failed with exit code: {:?}", status.code()));
+            return Err(format!(
+                "ffmpeg clip failed with exit code: {:?}",
+                status.code()
+            ));
         }
 
         tracing::info!(target: "cns.mcp.media.ffmpeg", input = %input, duration = %duration, output = %output.display(), "Video clipped");
@@ -179,7 +183,10 @@ impl FfmpegRunner {
         };
 
         // Escape special characters in text for ffmpeg filter
-        let escaped_text = text.replace('\\', "\\\\").replace(':', "\\:").replace('\'', "\\'");
+        let escaped_text = text
+            .replace('\\', "\\\\")
+            .replace(':', "\\:")
+            .replace('\'', "\\'");
 
         let drawtext = format!(
             "drawtext=text='{}':fontsize={}:fontcolor=white:box=1:boxcolor=black@0.5:boxborderw=5:x=(w-text_w)/2:y={}",
@@ -201,7 +208,10 @@ impl FfmpegRunner {
             .map_err(|e| format!("ffmpeg caption spawn failed: {}", e))?;
 
         if !status.success() {
-            return Err(format!("ffmpeg caption failed with exit code: {:?}", status.code()));
+            return Err(format!(
+                "ffmpeg caption failed with exit code: {:?}",
+                status.code()
+            ));
         }
 
         tracing::info!(target: "cns.mcp.media.ffmpeg", input = %input, text = %text, output = %output.display(), "Caption added");
@@ -211,7 +221,11 @@ impl FfmpegRunner {
     /// Capture audio from the default system input device.
     /// Uses ffmpeg to record from the platform-specific default audio source.
     /// Saves to a WAV file in the temp directory (or specified path).
-    pub async fn capture_audio(&self, duration_secs: f32, output_path: Option<&str>) -> Result<PathBuf, String> {
+    pub async fn capture_audio(
+        &self,
+        duration_secs: f32,
+        output_path: Option<&str>,
+    ) -> Result<PathBuf, String> {
         if !self.available {
             return Err("ffmpeg not available".to_string());
         }
@@ -292,7 +306,8 @@ impl FfmpegRunner {
             .map(|p| format!("file '{}'", p.display()))
             .collect::<Vec<_>>()
             .join("\n");
-        std::fs::write(&list_path, list_content).map_err(|e| format!("Failed to write image list: {}", e))?;
+        std::fs::write(&list_path, list_content)
+            .map_err(|e| format!("Failed to write image list: {}", e))?;
 
         let status = Command::new(&self.ffmpeg_path)
             .arg("-f")
@@ -351,7 +366,8 @@ impl FfmpegRunner {
             .map(|p| format!("file '{}'", p))
             .collect::<Vec<_>>()
             .join("\n");
-        std::fs::write(&list_path, list_content).map_err(|e| format!("Failed to write concat list: {}", e))?;
+        std::fs::write(&list_path, list_content)
+            .map_err(|e| format!("Failed to write concat list: {}", e))?;
 
         let status = Command::new(&self.ffmpeg_path)
             .arg("-f")
@@ -372,7 +388,10 @@ impl FfmpegRunner {
         let _ = std::fs::remove_file(&list_path);
 
         if !status.success() {
-            return Err(format!("ffmpeg concat failed with exit code: {:?}", status.code()));
+            return Err(format!(
+                "ffmpeg concat failed with exit code: {:?}",
+                status.code()
+            ));
         }
 
         tracing::info!(target: "cns.mcp.media.ffmpeg", clip_count = video_paths.len(), output = %output.display(), "Videos concatenated");

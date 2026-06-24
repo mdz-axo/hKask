@@ -40,8 +40,9 @@ pub async fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage
     }
 
     // Create temp directory for page images
-    let temp_dir = tempfile::tempdir()
-        .map_err(|e| PipelineError::DecimationFailed(format!("Failed to create temp directory: {}", e)))?;
+    let temp_dir = tempfile::tempdir().map_err(|e| {
+        PipelineError::DecimationFailed(format!("Failed to create temp directory: {}", e))
+    })?;
     let prefix = temp_dir.path().join("page");
 
     // Invoke pdftoppm
@@ -78,8 +79,9 @@ pub async fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage
         if !path.exists() {
             break;
         }
-        let mut img = image::open(&path)
-            .map_err(|e| PipelineError::DecimationFailed(format!("Failed to load page {} image: {}", page, e)))?;
+        let mut img = image::open(&path).map_err(|e| {
+            PipelineError::DecimationFailed(format!("Failed to load page {} image: {}", page, e))
+        })?;
         preprocess_via_fal(&mut img).await;
         images.push(img);
         page += 1;
@@ -137,7 +139,10 @@ async fn try_fal_docres(image: &DynamicImage, api_key: &str) -> Option<DynamicIm
     // Encode image as PNG base64 data URI
     let mut png_bytes: Vec<u8> = Vec::new();
     if image
-        .write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)
+        .write_to(
+            &mut std::io::Cursor::new(&mut png_bytes),
+            image::ImageFormat::Png,
+        )
         .is_err()
     {
         return None;
@@ -172,7 +177,14 @@ async fn try_fal_docres(image: &DynamicImage, api_key: &str) -> Option<DynamicIm
     let result: serde_json::Value = response.json().await.ok()?;
     let image_url = result["image"]["url"].as_str()?;
 
-    let enhanced_bytes = client.get(image_url).send().await.ok()?.bytes().await.ok()?;
+    let enhanced_bytes = client
+        .get(image_url)
+        .send()
+        .await
+        .ok()?
+        .bytes()
+        .await
+        .ok()?;
     image::load_from_memory(&enhanced_bytes).ok()
 }
 
@@ -192,7 +204,11 @@ fn otsu_binarize(image: &mut DynamicImage) {
     let otsu_level = otsu_level(&hist);
 
     // Apply threshold: pixels > otsu_level → 255, else → 0
-    let binarized = threshold(&gray, otsu_level as u8, imageproc::contrast::ThresholdType::Binary);
+    let binarized = threshold(
+        &gray,
+        otsu_level as u8,
+        imageproc::contrast::ThresholdType::Binary,
+    );
     *image = DynamicImage::ImageLuma8(binarized);
 }
 
@@ -217,7 +233,11 @@ fn otsu_level(hist: &[u32; 256]) -> u8 {
     let mut max_variance: f64 = 0.0;
     let mut best_threshold: u8 = 0;
 
-    let sum_total: f64 = hist.iter().enumerate().map(|(i, &count)| i as f64 * count as f64).sum();
+    let sum_total: f64 = hist
+        .iter()
+        .enumerate()
+        .map(|(i, &count)| i as f64 * count as f64)
+        .sum();
 
     for (t, &count_val) in hist.iter().enumerate() {
         let count = count_val as f64;
@@ -370,7 +390,8 @@ mod tests {
     #[test]
     fn otsu_uniform_image() {
         // Uniform gray image — Otsu should still produce valid output
-        let mut img = DynamicImage::ImageLuma8(image::ImageBuffer::from_pixel(100, 100, image::Luma([128])));
+        let mut img =
+            DynamicImage::ImageLuma8(image::ImageBuffer::from_pixel(100, 100, image::Luma([128])));
         otsu_binarize(&mut img);
         // Should not panic, output is valid
         assert!(img.as_luma8().is_some());
@@ -432,7 +453,8 @@ mod tests {
                     elapsed
                 );
                 if let Some(luma) = enhanced.as_luma8() {
-                    let unique: std::collections::BTreeSet<u8> = luma.as_raw().iter().copied().collect();
+                    let unique: std::collections::BTreeSet<u8> =
+                        luma.as_raw().iter().copied().collect();
                     eprintln!("Unique pixel values: {} ({:?})", unique.len(), unique);
                 }
             }

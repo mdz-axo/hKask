@@ -7,11 +7,8 @@
 //! Each token can only be constructed by the loop that governs it — private
 //! fields prevent forgery. The module path IS the loop assignment.
 
-use hkask_types::WebID;
-
 /// Token proving that a consolidation (Episodic → Semantic) operation
 /// was authorized. No longer required — consolidation is always permitted.
-
 #[cfg(test)]
 mod tests {
     // ConsolidationToken removed — consolidation no longer requires token authorization.

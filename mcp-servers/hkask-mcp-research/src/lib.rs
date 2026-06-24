@@ -429,9 +429,7 @@ impl ResearchServer {
     )]
     pub async fn web_search(&self, Parameters(req): Parameters<SearchRequest>) -> String {
         execute_tool(self, "web_search", async {
-            if let Err(e) = self.rate_limiter.check("web_search") {
-                return Err(e);
-            }
+            self.rate_limiter.check("web_search")?;
 
             if req.query.is_empty() {
                 return Err(McpToolError::invalid_argument("query must not be empty"));
@@ -487,7 +485,7 @@ impl ResearchServer {
                 .pool
                 .search(&search_query, strat, None)
                 .await
-                .map_err(|e| McpToolError::from(e))?;
+                .map_err(McpToolError::from)?;
 
             compound.results.truncate(num_results as usize);
 
@@ -544,9 +542,7 @@ impl ResearchServer {
         Parameters(FindSimilarRequest { url, num_results }): Parameters<FindSimilarRequest>,
     ) -> String {
         execute_tool(self, "web_find_similar", async {
-            if let Err(e) = self.rate_limiter.check("web_find_similar") {
-                return Err(e);
-            }
+            self.rate_limiter.check("web_find_similar")?;
 
             validate_tool_url(&url)?;
 
@@ -600,9 +596,7 @@ impl ResearchServer {
         }): Parameters<ExtractRequest>,
     ) -> String {
         execute_tool(self, "web_extract", async {
-            if let Err(e) = self.rate_limiter.check("web_extract") {
-                return Err(e);
-            }
+            self.rate_limiter.check("web_extract")?;
 
             if url.len() > MAX_URL_LENGTH {
                 return Err(McpToolError::invalid_argument(format!(
@@ -700,9 +694,7 @@ impl ResearchServer {
         }): Parameters<BrowseRequest>,
     ) -> String {
         execute_tool(self, "web_browse", async {
-            if let Err(e) = self.rate_limiter.check("web_browse") {
-                return Err(e);
-            }
+            self.rate_limiter.check("web_browse")?;
 
             if url.len() > MAX_URL_LENGTH {
                 return Err(McpToolError::invalid_argument(format!(

@@ -70,7 +70,10 @@ impl OcrExecutor for TesseractExecutor {
         is_fallback: bool,
     ) -> Result<OcrResult, String> {
         if *backend != OcrBackend::Tesseract {
-            return Err(format!("TesseractExecutor cannot handle backend {:?}", backend));
+            return Err(format!(
+                "TesseractExecutor cannot handle backend {:?}",
+                backend
+            ));
         }
 
         let start = Instant::now();
@@ -86,7 +89,10 @@ impl OcrExecutor for TesseractExecutor {
 
         // Build tesseract command
         let mut cmd = Command::new("tesseract");
-        cmd.arg(&input_path).arg(&output_base).arg("-l").arg(&self.language);
+        cmd.arg(&input_path)
+            .arg(&output_base)
+            .arg("-l")
+            .arg(&self.language);
 
         if let Some(psm) = self.psm {
             cmd.arg("--psm").arg(psm.to_string());
@@ -101,7 +107,8 @@ impl OcrExecutor for TesseractExecutor {
 
         // Read output text (tesseract appends .txt to output base)
         let txt_path = output_base.with_extension("txt");
-        let text = std::fs::read_to_string(&txt_path).map_err(|e| format!("Failed to read tesseract output: {}", e))?;
+        let text = std::fs::read_to_string(&txt_path)
+            .map_err(|e| format!("Failed to read tesseract output: {}", e))?;
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
@@ -239,9 +246,15 @@ mod tests {
 
         let executor = TesseractExecutor::new();
         let image = text_image();
-        let result = executor.execute(0, &OcrBackend::Tesseract, &image, false).await;
+        let result = executor
+            .execute(0, &OcrBackend::Tesseract, &image, false)
+            .await;
 
-        assert!(result.is_ok(), "tesseract should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "tesseract should succeed: {:?}",
+            result.err()
+        );
         let ocr_result = result.unwrap();
         assert_eq!(ocr_result.page_index, 0);
         assert!(!ocr_result.text.trim().is_empty(), "should produce text");

@@ -90,13 +90,19 @@ fn feed_text(feed_text: &Option<feed_rs::model::Text>) -> &str {
     feed_text.as_ref().map(|t| t.content.as_str()).unwrap_or("")
 }
 
-pub fn upsert_feed(conn: &Connection, url: &str, feed: &feed_rs::model::Feed) -> Result<i64, anyhow::Error> {
+pub fn upsert_feed(
+    conn: &Connection,
+    url: &str,
+    feed: &feed_rs::model::Feed,
+) -> Result<i64, anyhow::Error> {
     let title = feed_text(&feed.title);
     let description = feed_text(&feed.description);
     let site_url = feed.links.first().map(|l| l.href.as_str()).unwrap_or("");
 
     let existing_id: Option<i64> = conn
-        .query_row("SELECT id FROM feeds WHERE url = ?1", [url], |row| row.get(0))
+        .query_row("SELECT id FROM feeds WHERE url = ?1", [url], |row| {
+            row.get(0)
+        })
         .ok();
 
     if let Some(id) = existing_id {
@@ -134,12 +140,27 @@ pub fn insert_entries(
             continue;
         }
 
-        let title = entry.title.as_ref().map(|t| t.content.as_str()).unwrap_or("");
+        let title = entry
+            .title
+            .as_ref()
+            .map(|t| t.content.as_str())
+            .unwrap_or("");
         let url = entry.links.first().map(|l| l.href.as_str()).unwrap_or("");
         let author = entry.authors.first().map(|a| a.name.as_str()).unwrap_or("");
-        let content = entry.content.as_ref().and_then(|c| c.body.as_deref()).unwrap_or("");
-        let summary = entry.summary.as_ref().map(|t| t.content.as_str()).unwrap_or("");
-        let published_at = entry.published.map(|dt| dt.to_rfc3339()).unwrap_or_default();
+        let content = entry
+            .content
+            .as_ref()
+            .and_then(|c| c.body.as_deref())
+            .unwrap_or("");
+        let summary = entry
+            .summary
+            .as_ref()
+            .map(|t| t.content.as_str())
+            .unwrap_or("");
+        let published_at = entry
+            .published
+            .map(|dt| dt.to_rfc3339())
+            .unwrap_or_default();
         let updated_at = entry.updated.map(|dt| dt.to_rfc3339()).unwrap_or_default();
 
         conn.execute(
@@ -189,10 +210,15 @@ pub fn resolve_feed_url(conn: &Connection, stream_id: &str) -> Option<String> {
 }
 
 /// Build (base SQL fragment, params) for a stream. `aux_where` is appended (e.g., "s.is_read = 0").
-pub fn build_entry_query(stream_id: &str, aux_where: &str) -> (String, Vec<Box<dyn rusqlite::types::ToSql>>) {
+pub fn build_entry_query(
+    stream_id: &str,
+    aux_where: &str,
+) -> (String, Vec<Box<dyn rusqlite::types::ToSql>>) {
     let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
     let (join, wc) = match stream_id {
-        "user/-/state/com.google/reading-list" => ("JOIN subscriptions sub ON e.feed_id = sub.feed_id", ""),
+        "user/-/state/com.google/reading-list" => {
+            ("JOIN subscriptions sub ON e.feed_id = sub.feed_id", "")
+        }
         "user/-/state/com.google/starred" => ("", "WHERE s.is_starred = 1"),
         "user/-/state/com.google/read" => ("", "WHERE s.is_read = 1"),
         _ if stream_id.starts_with("user/-/label/") => {
@@ -221,8 +247,10 @@ pub fn build_entry_query(stream_id: &str, aux_where: &str) -> (String, Vec<Box<d
 }
 
 fn entry_row_to_json(row: &rusqlite::Row) -> rusqlite::Result<serde_json::Value> {
-    let str_col =
-        |n: &str| -> rusqlite::Result<String> { row.get::<_, Option<String>>(n).map(|v| v.unwrap_or_default()) };
+    let str_col = |n: &str| -> rusqlite::Result<String> {
+        row.get::<_, Option<String>>(n)
+            .map(|v| v.unwrap_or_default())
+    };
     Ok(serde_json::json!({
         "id": row.get::<_, i64>("id")?,
         "entry_id": row.get::<_, String>("entry_id")?,
@@ -236,7 +264,12 @@ fn entry_row_to_json(row: &rusqlite::Row) -> rusqlite::Result<serde_json::Value>
     }))
 }
 
-fn query_and_collect<T, P, F>(conn: &Connection, sql: &str, params: P, mapper: F) -> Result<Vec<T>, anyhow::Error>
+fn query_and_collect<T, P, F>(
+    conn: &Connection,
+    sql: &str,
+    params: P,
+    mapper: F,
+) -> Result<Vec<T>, anyhow::Error>
 where
     P: rusqlite::Params,
     F: Fn(&rusqlite::Row) -> rusqlite::Result<T>,
@@ -268,15 +301,20 @@ pub fn query_entries(
         extra.push("s.is_starred = 1");
     }
     let (join_where, mut params) = build_entry_query(stream_id, &extra.join(" AND "));
-    let sql =
-        format!("SELECT {ENTRY_COLS} {ENTRY_FROM_JOIN} {join_where} ORDER BY e.published_at DESC LIMIT ? OFFSET ?");
+    let sql = format!(
+        "SELECT {ENTRY_COLS} {ENTRY_FROM_JOIN} {join_where} ORDER BY e.published_at DESC LIMIT ? OFFSET ?"
+    );
     params.push(Box::new(limit as i64));
     params.push(Box::new(offset as i64));
     let param_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
     query_and_collect(conn, &sql, param_refs.as_slice(), entry_row_to_json)
 }
 
-pub fn count_entries(conn: &Connection, stream_id: &str, unread_only: bool) -> Result<usize, anyhow::Error> {
+pub fn count_entries(
+    conn: &Connection,
+    stream_id: &str,
+    unread_only: bool,
+) -> Result<usize, anyhow::Error> {
     let aux = if unread_only {
         "(s.is_read = 0 OR s.is_read IS NULL)"
     } else {
@@ -311,7 +349,10 @@ pub fn mark_stream_read(conn: &Connection, stream_id: &str) -> Result<usize, any
     Ok(entry_ids.len())
 }
 
-pub fn edit_tags(conn: &Connection, req: &EditTagRequest) -> Result<serde_json::Value, anyhow::Error> {
+pub fn edit_tags(
+    conn: &Connection,
+    req: &EditTagRequest,
+) -> Result<serde_json::Value, anyhow::Error> {
     let now = now_rfc3339();
     let mut updated = 0u64;
 
@@ -381,14 +422,26 @@ pub fn edit_tags(conn: &Connection, req: &EditTagRequest) -> Result<serde_json::
 
 // Search and listing
 
-pub fn search_entries(conn: &Connection, query: &str, limit: usize) -> Result<Vec<serde_json::Value>, anyhow::Error> {
+pub fn search_entries(
+    conn: &Connection,
+    query: &str,
+    limit: usize,
+) -> Result<Vec<serde_json::Value>, anyhow::Error> {
     let sql = format!(
         "SELECT {ENTRY_COLS} FROM entries e JOIN entries_fts fts ON e.id = fts.rowid LEFT JOIN entry_states s ON e.id = s.entry_id WHERE entries_fts MATCH ?1 ORDER BY rank LIMIT ?2"
     );
-    query_and_collect(conn, &sql, rusqlite::params![query, limit as i64], entry_row_to_json)
+    query_and_collect(
+        conn,
+        &sql,
+        rusqlite::params![query, limit as i64],
+        entry_row_to_json,
+    )
 }
 
-pub fn list_subscriptions(conn: &Connection, folder: Option<&str>) -> Result<Vec<serde_json::Value>, anyhow::Error> {
+pub fn list_subscriptions(
+    conn: &Connection,
+    folder: Option<&str>,
+) -> Result<Vec<serde_json::Value>, anyhow::Error> {
     let sql = if folder.is_some() {
         format!("{SUB_QUERY} WHERE s.folder = ?1 ORDER BY s.added_at")
     } else {
@@ -411,9 +464,13 @@ pub fn list_subscriptions(conn: &Connection, folder: Option<&str>) -> Result<Vec
 
     let mut stmt = conn.prepare(&sql)?;
     let results = if let Some(f) = folder {
-        stmt.query_map([f], map_row)?.filter_map(|r| r.ok()).collect()
+        stmt.query_map([f], map_row)?
+            .filter_map(|r| r.ok())
+            .collect()
     } else {
-        stmt.query_map([], map_row)?.filter_map(|r| r.ok()).collect()
+        stmt.query_map([], map_row)?
+            .filter_map(|r| r.ok())
+            .collect()
     };
     Ok(results)
 }
@@ -432,7 +489,8 @@ fn opml_outline(indent: &str, url: &str, title: &str) -> String {
 pub fn export_opml(conn: &Connection) -> Result<String, anyhow::Error> {
     let subs = list_subscriptions(conn, None)?;
 
-    let mut folders: std::collections::BTreeMap<String, Vec<&serde_json::Value>> = std::collections::BTreeMap::new();
+    let mut folders: std::collections::BTreeMap<String, Vec<&serde_json::Value>> =
+        std::collections::BTreeMap::new();
     let mut unfiled: Vec<&serde_json::Value> = Vec::new();
 
     for sub in &subs {
@@ -451,7 +509,9 @@ pub fn export_opml(conn: &Connection) -> Result<String, anyhow::Error> {
 
     for (folder, subs) in &folders {
         let escaped = xml_escape(folder);
-        xml.push_str(&format!("    <outline text=\"{escaped}\" title=\"{escaped}\">\n"));
+        xml.push_str(&format!(
+            "    <outline text=\"{escaped}\" title=\"{escaped}\">\n"
+        ));
         for sub in subs {
             let url = sub["url"].as_str().unwrap_or("");
             let title = sub["title"].as_str().unwrap_or("");
@@ -480,7 +540,10 @@ fn xml_escape(s: &str) -> String {
 
 // OPML import
 
-pub fn import_opml(conn: &Connection, opml_content: &str) -> Result<serde_json::Value, anyhow::Error> {
+pub fn import_opml(
+    conn: &Connection,
+    opml_content: &str,
+) -> Result<serde_json::Value, anyhow::Error> {
     let re = regex::Regex::new(r#"<outline[^>]*xmlUrl\s*=\s*"([^"]+)"[^>]*/?\s*>"#)?;
 
     let mut imported = 0u32;
@@ -514,7 +577,9 @@ pub fn import_opml(conn: &Connection, opml_content: &str) -> Result<serde_json::
         )?;
 
         let feed_id: i64 = conn
-            .query_row("SELECT id FROM feeds WHERE url = ?1", [&url], |row| row.get(0))
+            .query_row("SELECT id FROM feeds WHERE url = ?1", [&url], |row| {
+                row.get(0)
+            })
             .unwrap_or(0);
 
         if feed_id == 0 {

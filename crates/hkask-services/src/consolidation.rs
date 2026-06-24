@@ -5,7 +5,6 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use hkask_cns::types::loops::CuratorHandle;
 use hkask_memory::{ConsolidationBridge, EpisodicMemory, SemanticMemory};
 use hkask_ports::{ConsolidationOutcome, ConsolidationRequest};
 use hkask_storage::{Database, EmbeddingStore, TripleStore};

@@ -117,7 +117,16 @@ pub async fn companies_get(
     // Try primary provider
     let primary_result = match primary {
         Provider::Fmp => fmp_get(client, mapping.fmp_path, fmp_api_key, symbol, extra_params).await,
-        Provider::Eodhd => eodhd_get(client, mapping.eodhd_path, eodhd_api_key, symbol, extra_params).await,
+        Provider::Eodhd => {
+            eodhd_get(
+                client,
+                mapping.eodhd_path,
+                eodhd_api_key,
+                symbol,
+                extra_params,
+            )
+            .await
+        }
     };
 
     match primary_result {
@@ -137,7 +146,9 @@ pub async fn companies_get(
             };
 
             let fallback_result = match secondary {
-                Provider::Fmp => fmp_get(client, mapping.fmp_path, fmp_api_key, symbol, extra_params).await,
+                Provider::Fmp => {
+                    fmp_get(client, mapping.fmp_path, fmp_api_key, symbol, extra_params).await
+                }
                 Provider::Eodhd => {
                     // For FMP→EODHD fallback on plain symbols, try with .US suffix
                     let eodhd_symbol = if !is_international_symbol(symbol) {
@@ -145,7 +156,14 @@ pub async fn companies_get(
                     } else {
                         symbol.to_string()
                     };
-                    eodhd_get(client, mapping.eodhd_path, eodhd_api_key, &eodhd_symbol, extra_params).await
+                    eodhd_get(
+                        client,
+                        mapping.eodhd_path,
+                        eodhd_api_key,
+                        &eodhd_symbol,
+                        extra_params,
+                    )
+                    .await
                 }
             };
 
@@ -189,7 +207,8 @@ async fn fmp_get(
         return Err(classify_http_error("FMP", status, &body));
     }
 
-    serde_json::from_str(&body).map_err(|e| McpToolError::internal(format!("failed to parse FMP response: {e}")))
+    serde_json::from_str(&body)
+        .map_err(|e| McpToolError::internal(format!("failed to parse FMP response: {e}")))
 }
 
 // ── EODHD API caller ───────────────────────────────────────────────
@@ -218,7 +237,8 @@ async fn eodhd_get(
         return Err(classify_http_error("EODHD", status, &body));
     }
 
-    serde_json::from_str(&body).map_err(|e| McpToolError::internal(format!("failed to parse EODHD response: {e}")))
+    serde_json::from_str(&body)
+        .map_err(|e| McpToolError::internal(format!("failed to parse EODHD response: {e}")))
 }
 
 // ── EODHD → FMP format normalizers ─────────────────────────────────
@@ -442,7 +462,12 @@ fn normalize_eodhd_key_metrics(fundamentals: &Value) -> Value {
 /// - roic = netIncome / totalAssets (simplified approximation)
 /// - daysOfPayablesOutstanding = accountsPayable / (costOfRevenue / 365)
 /// - daysOfSalesOutstanding = accountsReceivable / (revenue / 365)
-fn compute_year_metrics(obj: &mut Value, date: &str, income_yearly: Option<&Value>, balance_yearly: Option<&Value>) {
+fn compute_year_metrics(
+    obj: &mut Value,
+    date: &str,
+    income_yearly: Option<&Value>,
+    balance_yearly: Option<&Value>,
+) {
     let income_entry = income_yearly.and_then(|iy| iy.get(date));
     let balance_entry = balance_yearly.and_then(|by| by.get(date));
 
@@ -470,7 +495,9 @@ fn compute_year_metrics(obj: &mut Value, date: &str, income_yearly: Option<&Valu
             if let (Some(ni), Some(ta)) = (net_income, total_assets)
                 && ta > 0.0
             {
-                obj_map.entry("roic".to_string()).or_insert(Value::from(ni / ta));
+                obj_map
+                    .entry("roic".to_string())
+                    .or_insert(Value::from(ni / ta));
             }
         }
 
@@ -545,7 +572,8 @@ pub async fn fmp_search_get(
         return Err(classify_http_error("FMP", status, &body));
     }
 
-    serde_json::from_str(&body).map_err(|e| McpToolError::internal(format!("failed to parse FMP search response: {e}")))
+    serde_json::from_str(&body)
+        .map_err(|e| McpToolError::internal(format!("failed to parse FMP search response: {e}")))
 }
 
 /// EODHD symbol search by name query.
@@ -720,7 +748,9 @@ mod tests {
         // Newest first
         assert_eq!(arr[0]["calendarYear"], "2024");
         // Highlights merged into latest
-        assert!((arr[0]["MarketCapitalization"].as_f64().unwrap() - 3000000000000.0_f64).abs() < 1.0);
+        assert!(
+            (arr[0]["MarketCapitalization"].as_f64().unwrap() - 3000000000000.0_f64).abs() < 1.0
+        );
         // Computed grossProfitMargin: 169148000000 / 383285000000 ≈ 0.441
         let gpm = arr[0]["grossProfitMargin"].as_f64().unwrap();
         assert!((gpm - 0.441).abs() < 0.01, "expected ~0.441, got {gpm}");

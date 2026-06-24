@@ -62,8 +62,9 @@ impl WebSearchProvider for TavilyProvider {
             });
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| WebError::ProviderError(format!("Failed to parse Tavily response: {e}")))?;
+        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            WebError::ProviderError(format!("Failed to parse Tavily response: {e}"))
+        })?;
 
         let mut content_previews = HashMap::new();
         let results = parsed["results"]

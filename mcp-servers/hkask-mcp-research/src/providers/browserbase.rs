@@ -22,7 +22,12 @@ impl WebBrowseProvider for BrowserbaseProvider {
         "browserbase"
     }
 
-    async fn browse(&self, url: &str, instruction: &str, timeout: Duration) -> Result<BrowseResult, WebError> {
+    async fn browse(
+        &self,
+        url: &str,
+        instruction: &str,
+        timeout: Duration,
+    ) -> Result<BrowseResult, WebError> {
         let payload = serde_json::json!({
             "url": url,
             "actions": [{ "type": "wait", "milliseconds": 2000u64 }],
@@ -37,7 +42,9 @@ impl WebBrowseProvider for BrowserbaseProvider {
             .timeout(timeout)
             .send()
             .await
-            .map_err(|e| WebError::ProviderUnavailable(format!("Browserbase request failed: {e}")))?;
+            .map_err(|e| {
+                WebError::ProviderUnavailable(format!("Browserbase request failed: {e}"))
+            })?;
 
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
@@ -48,8 +55,9 @@ impl WebBrowseProvider for BrowserbaseProvider {
             )));
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| WebError::ProviderError(format!("Failed to parse Browserbase response: {e}")))?;
+        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            WebError::ProviderError(format!("Failed to parse Browserbase response: {e}"))
+        })?;
 
         let content = parsed["content"]
             .as_str()
@@ -74,7 +82,9 @@ impl WebBrowseProvider for BrowserbaseProvider {
             .timeout(Duration::from_secs(5))
             .send()
             .await
-            .map_err(|e| WebError::ProviderUnavailable(format!("Browserbase health check failed: {e}")))?;
+            .map_err(|e| {
+                WebError::ProviderUnavailable(format!("Browserbase health check failed: {e}"))
+            })?;
         let status = resp.status();
         if status.is_success() || status.as_u16() == 429 {
             Ok(())

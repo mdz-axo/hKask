@@ -107,6 +107,7 @@ pub struct FusionPlugin {
 /// \[P9\] Motivating: Homeostatic Self-Regulation — constructs regulated LLM request payload
 /// pre:  model is non-empty, prompt is non-empty
 /// post: returns serde_json::Value with model, messages, and parameters
+#[allow(clippy::too_many_arguments)]
 pub fn build_chat_request(
     model: &str,
     prompt: &str,

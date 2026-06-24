@@ -166,7 +166,10 @@ pub trait AdapterStore: Send + Sync {
     async fn store_blob(&self, adapter_id: &str, blob: Vec<u8>) -> Result<(), AdapterStoreError>;
 
     /// Retrieve adapter metadata by ID.
-    async fn get_metadata(&self, adapter_id: &str) -> Result<Option<LoRAAdapter>, AdapterStoreError>;
+    async fn get_metadata(
+        &self,
+        adapter_id: &str,
+    ) -> Result<Option<LoRAAdapter>, AdapterStoreError>;
 
     /// Retrieve adapter weight blob by ID.
     async fn get_blob(&self, adapter_id: &str) -> Result<Option<Vec<u8>>, AdapterStoreError>;
@@ -179,7 +182,10 @@ pub trait AdapterStore: Send + Sync {
 
     /// Retrieve the latest adapter for a given skill name (highest version).
     /// Returns `None` if no adapter exists for this skill.
-    async fn get_by_skill_name(&self, skill_name: &str) -> Result<Option<LoRAAdapter>, AdapterStoreError> {
+    async fn get_by_skill_name(
+        &self,
+        skill_name: &str,
+    ) -> Result<Option<LoRAAdapter>, AdapterStoreError> {
         // Default: scan all adapters. SQLite overrides with an indexed query.
         let all = self.list_all().await?;
         Ok(all
@@ -246,7 +252,10 @@ impl AdapterStore for InMemoryAdapterStore {
         Ok(())
     }
 
-    async fn get_metadata(&self, adapter_id: &str) -> Result<Option<LoRAAdapter>, AdapterStoreError> {
+    async fn get_metadata(
+        &self,
+        adapter_id: &str,
+    ) -> Result<Option<LoRAAdapter>, AdapterStoreError> {
         Ok(self
             .metadata
             .read()
@@ -301,7 +310,9 @@ pub struct SqliteAdapterStore {
 impl SqliteAdapterStore {
     /// Create a new SQLite-backed store using an existing `hkask_storage::Database`.
     pub fn new(db: hkask_storage::Database) -> Self {
-        Self { conn: db.conn_arc() }
+        Self {
+            conn: db.conn_arc(),
+        }
     }
 
     /// Initialize the `lora_adapters` and `lora_blobs` tables.
@@ -367,7 +378,10 @@ impl AdapterStore for SqliteAdapterStore {
         let metrics_json = adapter
             .metrics
             .as_ref()
-            .map(|m| serde_json::to_string(m).map_err(|e| AdapterStoreError::Serialization(format!("Metrics: {}", e))))
+            .map(|m| {
+                serde_json::to_string(m)
+                    .map_err(|e| AdapterStoreError::Serialization(format!("Metrics: {}", e)))
+            })
             .transpose()?;
 
         let conn = self.lock()?;
@@ -401,7 +415,10 @@ impl AdapterStore for SqliteAdapterStore {
         )
     }
 
-    async fn get_metadata(&self, adapter_id: &str) -> Result<Option<LoRAAdapter>, AdapterStoreError> {
+    async fn get_metadata(
+        &self,
+        adapter_id: &str,
+    ) -> Result<Option<LoRAAdapter>, AdapterStoreError> {
         let conn = self.lock()?;
         let mut stmt = conn
             .prepare(
@@ -507,7 +524,8 @@ impl AdapterStore for SqliteAdapterStore {
 
         let mut adapters = Vec::new();
         for row in rows {
-            adapters.push(row.map_err(|e| AdapterStoreError::Storage(format!("Row error: {}", e)))?);
+            adapters
+                .push(row.map_err(|e| AdapterStoreError::Storage(format!("Row error: {}", e)))?);
         }
         Ok(adapters)
     }
@@ -533,7 +551,10 @@ impl AdapterStore for SqliteAdapterStore {
         Ok(())
     }
 
-    async fn get_by_skill_name(&self, skill_name: &str) -> Result<Option<LoRAAdapter>, AdapterStoreError> {
+    async fn get_by_skill_name(
+        &self,
+        skill_name: &str,
+    ) -> Result<Option<LoRAAdapter>, AdapterStoreError> {
         let conn = self.lock()?;
         let mut stmt = conn
             .prepare(
@@ -787,7 +808,11 @@ mod tests {
 
         store.store_metadata(&adapter).await.expect("store");
 
-        let retrieved = store.get_metadata("test-adapter-1").await.expect("get").expect("found");
+        let retrieved = store
+            .get_metadata("test-adapter-1")
+            .await
+            .expect("get")
+            .expect("found");
 
         assert_eq!(retrieved.skill_name, "constraint-forces");
         assert_eq!(retrieved.version, 3);
@@ -841,7 +866,10 @@ mod tests {
             metrics: None,
         };
         store.store_metadata(&adapter).await.expect("store");
-        store.store_blob("to-delete", vec![1, 2, 3]).await.expect("store blob");
+        store
+            .store_blob("to-delete", vec![1, 2, 3])
+            .await
+            .expect("store blob");
 
         store.delete("to-delete").await.expect("delete");
 
@@ -883,7 +911,15 @@ mod tests {
         let store = JobStore::new(conn);
 
         store
-            .store("job-2", "model", "/data.jsonl", "{}", "queued", 2000, "axolotl")
+            .store(
+                "job-2",
+                "model",
+                "/data.jsonl",
+                "{}",
+                "queued",
+                2000,
+                "axolotl",
+            )
             .expect("store");
 
         store.update_status("job-2", "running").expect("update");
@@ -898,7 +934,9 @@ mod tests {
         let conn = db.conn_arc();
         let store = JobStore::new(conn);
 
-        store.store("j1", "m1", "/d1", "{}", "queued", 100, "t").expect("store");
+        store
+            .store("j1", "m1", "/d1", "{}", "queued", 100, "t")
+            .expect("store");
         store
             .store("j2", "m2", "/d2", "{}", "completed", 200, "t")
             .expect("store");

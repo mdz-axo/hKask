@@ -19,11 +19,31 @@ pub fn detect_format(path: &str) -> (&'static str, bool, Option<&'static str>) {
         "md" | "markdown" => ("markdown", true, None),
         "html" | "htm" => ("html", true, None),
         "txt" => ("plain", true, None),
-        "docx" | "doc" => ("docx", false, Some("DOCX support requires additional Rust crate")),
-        "pptx" | "ppt" => ("pptx", false, Some("PPTX support requires additional Rust crate")),
-        "xlsx" | "xls" => ("xlsx", false, Some("XLSX support requires additional Rust crate")),
-        "csv" => ("csv", false, Some("CSV support requires additional Rust crate")),
-        "rtf" => ("rtf", false, Some("RTF support requires additional Rust crate")),
+        "docx" | "doc" => (
+            "docx",
+            false,
+            Some("DOCX support requires additional Rust crate"),
+        ),
+        "pptx" | "ppt" => (
+            "pptx",
+            false,
+            Some("PPTX support requires additional Rust crate"),
+        ),
+        "xlsx" | "xls" => (
+            "xlsx",
+            false,
+            Some("XLSX support requires additional Rust crate"),
+        ),
+        "csv" => (
+            "csv",
+            false,
+            Some("CSV support requires additional Rust crate"),
+        ),
+        "rtf" => (
+            "rtf",
+            false,
+            Some("RTF support requires additional Rust crate"),
+        ),
         _ => ("unknown", false, None),
     }
 }
@@ -36,7 +56,12 @@ pub fn is_format_supported(format: &str) -> bool {
 /// Strip YAML frontmatter (delimited by `---`) from content.
 pub fn strip_frontmatter(content: &str) -> String {
     if content.starts_with("---") {
-        content.splitn(3, "---").nth(2).unwrap_or(content).trim().to_string()
+        content
+            .splitn(3, "---")
+            .nth(2)
+            .unwrap_or(content)
+            .trim()
+            .to_string()
     } else {
         content.to_string()
     }
@@ -90,7 +115,10 @@ pub fn strip_html(html: &str) -> String {
             // Check for closing script/style tags
             if lower_remaining.starts_with("</script") || lower_remaining.starts_with("</style") {
                 // Insert space boundary when exiting a strip tag
-                if in_strip_tag && !result.is_empty() && !result.chars().last().is_none_or(|c| c.is_whitespace()) {
+                if in_strip_tag
+                    && !result.is_empty()
+                    && !result.chars().last().is_none_or(|c| c.is_whitespace())
+                {
                     result.push(' ');
                 }
                 in_strip_tag = false;
@@ -129,7 +157,10 @@ pub fn strip_html(html: &str) -> String {
                 .to_lowercase();
             let is_block = BLOCK_TAGS.contains(&tag_name.as_str());
 
-            if is_block && !result.is_empty() && !result.chars().last().is_none_or(|c| c.is_whitespace()) {
+            if is_block
+                && !result.is_empty()
+                && !result.chars().last().is_none_or(|c| c.is_whitespace())
+            {
                 result.push(' ');
             }
 

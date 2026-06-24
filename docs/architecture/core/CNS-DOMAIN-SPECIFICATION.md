@@ -212,11 +212,17 @@ kask cns health
 | 6 | `episodic_budget_exceeded_no_bridge` | `episodic_loop.rs` | Budget exceeded, no bridge |
 | 7 | `episodic_calibrate` | `episodic_loop.rs` | Non-budget calibration action |
 | 8 | `episodic_regulate` | `episodic_loop.rs` | Unhandled regulatory action |
-| 9 | `confidence_decayed` | `episodic.rs` | Decay at recall |
+| 9 | `confidence_decayed` | `episodic.rs` | Wozniak-Gorzelanczyk forgetting curve R(t)=exp(-t/S) applied at recall |
 | 10 | `semantic_condensed` | `semantic_loop.rs` | Old triples condensed |
 | 11 | `semantic_budget_enforced` | `semantic_loop.rs` | Low-confidence review deletes |
 | 12 | `consolidation_completed` | `consolidation.rs` | Bridge finishes |
 | 13 | `consolidation_service_completed` | `consolidation_service.rs` | Service finishes all 3 phases |
+
+### Signal Metrics
+
+The Episodic Loop (2a) emits `cns.memory.life` carrying memory life S in days
+(Wozniak-Gorzelanczyk, 1995). Default 180 days. Configurable via
+`HKASK_MEMORY_LIFE_DAYS` env var or `ServiceConfig.memory_life_days`.
 
 ---
 

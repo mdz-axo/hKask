@@ -65,7 +65,11 @@ pub fn strip_html(html: &str) -> String {
         result.push(ch);
     }
 
-    let lines: Vec<&str> = result.lines().map(|l| l.trim_end()).filter(|l| !l.is_empty()).collect();
+    let lines: Vec<&str> = result
+        .lines()
+        .map(|l| l.trim_end())
+        .filter(|l| !l.is_empty())
+        .collect();
     lines.join("\n")
 }
 

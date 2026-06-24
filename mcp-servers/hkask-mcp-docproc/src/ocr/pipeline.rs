@@ -11,7 +11,9 @@ use std::time::Instant;
 
 use async_trait::async_trait;
 
-use crate::ocr::{CrossValidation, OcrBackend, OcrResult, PipelineError, PipelineOutcome, ThresholdConfig};
+use crate::ocr::{
+    CrossValidation, OcrBackend, OcrResult, PipelineError, PipelineOutcome, ThresholdConfig,
+};
 use image::DynamicImage;
 
 use crate::ocr::complexity::score_page_complexity;
@@ -82,7 +84,8 @@ pub async fn run_pipeline(
     let mut results: Vec<OcrResult> = Vec::with_capacity(expected_pages);
     let mut errors: Vec<PipelineError> = Vec::new();
     let mut cross_validations: Vec<CrossValidation> = Vec::new();
-    let mut backend_counts: std::collections::HashMap<OcrBackend, usize> = std::collections::HashMap::new();
+    let mut backend_counts: std::collections::HashMap<OcrBackend, usize> =
+        std::collections::HashMap::new();
     let mut total_estimated_words: usize = 0;
 
     for (page_index, image) in pages.into_iter().enumerate() {
@@ -90,14 +93,20 @@ pub async fn run_pipeline(
         let score = score_page_complexity(&image, thresholds);
 
         // Track word estimate using pixel count × complexity density
-        total_estimated_words +=
-            crate::ocr::verification::estimate_word_count(image.width(), image.height(), score.value);
+        total_estimated_words += crate::ocr::verification::estimate_word_count(
+            image.width(),
+            image.height(),
+            score.value,
+        );
 
         // Step 2: Route to backends
         let backends = route_page(score, &mut state, None, llm_model);
 
         // Filter to available backends
-        let available: Vec<OcrBackend> = backends.into_iter().filter(|b| executor.is_available(b)).collect();
+        let available: Vec<OcrBackend> = backends
+            .into_iter()
+            .filter(|b| executor.is_available(b))
+            .collect();
 
         if available.is_empty() {
             errors.push(PipelineError::OcrFailed {
@@ -181,7 +190,9 @@ pub async fn run_pipeline(
 
             // Semantic enrichment if embedding router is available
             if let Some((router, model)) = embedding_router
-                && let Some(sim) = semantic::enrich_with_semantic(&primary.text, &secondary.text, router, model).await
+                && let Some(sim) =
+                    semantic::enrich_with_semantic(&primary.text, &secondary.text, router, model)
+                        .await
             {
                 cv.semantic_similarity = Some(sim);
             }
@@ -243,7 +254,11 @@ fn assemble_document(results: &[OcrResult]) -> String {
         if !assembled.is_empty() {
             assembled.push('\n');
         }
-        assembled.push_str(&format!("--- PAGE {} ---\n{}", result.page_index + 1, result.text));
+        assembled.push_str(&format!(
+            "--- PAGE {} ---\n{}",
+            result.page_index + 1,
+            result.text
+        ));
     }
     assembled
 }

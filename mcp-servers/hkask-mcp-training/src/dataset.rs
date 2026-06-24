@@ -146,7 +146,10 @@ impl DatasetPipeline {
         }
 
         let format = DatasetFormat::detect(file_path).ok_or_else(|| {
-            DatasetError::UnsupportedFormat(format!("Cannot determine format for {}", file_path.display()))
+            DatasetError::UnsupportedFormat(format!(
+                "Cannot determine format for {}",
+                file_path.display()
+            ))
         })?;
 
         let raw = std::fs::read_to_string(file_path)?;
@@ -187,10 +190,11 @@ impl DatasetPipeline {
             struct ChatMLRecord {
                 messages: Vec<ChatMessage>,
             }
-            let record: ChatMLRecord = serde_json::from_str(trimmed).map_err(|e| DatasetError::Validation {
-                line: i + 1,
-                message: format!("Invalid ChatML record: {}", e),
-            })?;
+            let record: ChatMLRecord =
+                serde_json::from_str(trimmed).map_err(|e| DatasetError::Validation {
+                    line: i + 1,
+                    message: format!("Invalid ChatML record: {}", e),
+                })?;
             conversations.push(ChatConversation {
                 messages: record.messages,
             });
@@ -220,10 +224,11 @@ impl DatasetPipeline {
             struct ShareGPTRecord {
                 conversations: Vec<ShareGPTTurn>,
             }
-            let record: ShareGPTRecord = serde_json::from_str(trimmed).map_err(|e| DatasetError::Validation {
-                line: i + 1,
-                message: format!("Invalid ShareGPT record: {}", e),
-            })?;
+            let record: ShareGPTRecord =
+                serde_json::from_str(trimmed).map_err(|e| DatasetError::Validation {
+                    line: i + 1,
+                    message: format!("Invalid ShareGPT record: {}", e),
+                })?;
             let messages: Vec<ChatMessage> = record
                 .conversations
                 .into_iter()
@@ -233,7 +238,10 @@ impl DatasetPipeline {
                         "gpt" => "assistant".to_string(),
                         other => other.to_string(),
                     };
-                    ChatMessage { role, content: t.value }
+                    ChatMessage {
+                        role,
+                        content: t.value,
+                    }
                 })
                 .collect();
             conversations.push(ChatConversation { messages });
@@ -255,10 +263,11 @@ impl DatasetPipeline {
             input: String,
             output: String,
         }
-        let records: Vec<AlpacaRecord> = serde_json::from_str(raw).map_err(|e| DatasetError::Validation {
-            line: 0,
-            message: format!("Invalid Alpaca JSON: {}", e),
-        })?;
+        let records: Vec<AlpacaRecord> =
+            serde_json::from_str(raw).map_err(|e| DatasetError::Validation {
+                line: 0,
+                message: format!("Invalid Alpaca JSON: {}", e),
+            })?;
         if records.is_empty() {
             return Err(DatasetError::Empty);
         }
@@ -334,7 +343,11 @@ impl DatasetPipeline {
                 if msg.content.trim().is_empty() {
                     return Err(DatasetError::Validation {
                         line: i + 1,
-                        message: format!("Empty content for role '{}' at position {}", msg.role, j + 1),
+                        message: format!(
+                            "Empty content for role '{}' at position {}",
+                            msg.role,
+                            j + 1
+                        ),
                     });
                 }
                 // System messages only allowed as first message
@@ -350,19 +363,24 @@ impl DatasetPipeline {
     }
 
     /// Write normalized conversations to cache as JSONL.
-    fn cache(&self, path: &std::path::Path, conversations: &[ChatConversation]) -> Result<(), DatasetError> {
+    fn cache(
+        &self,
+        path: &std::path::Path,
+        conversations: &[ChatConversation],
+    ) -> Result<(), DatasetError> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
                 .map_err(|e| DatasetError::Cache(format!("Failed to create cache dir: {}", e)))?;
         }
         let mut output = String::new();
         for conv in conversations {
-            let json =
-                serde_json::to_string(conv).map_err(|e| DatasetError::Cache(format!("Serialization error: {}", e)))?;
+            let json = serde_json::to_string(conv)
+                .map_err(|e| DatasetError::Cache(format!("Serialization error: {}", e)))?;
             output.push_str(&json);
             output.push('\n');
         }
-        std::fs::write(path, output).map_err(|e| DatasetError::Cache(format!("Failed to write cache: {}", e)))?;
+        std::fs::write(path, output)
+            .map_err(|e| DatasetError::Cache(format!("Failed to write cache: {}", e)))?;
         Ok(())
     }
 }
@@ -396,7 +414,8 @@ pub fn to_unsloth_format(
             .collect();
         let record = serde_json::json!({"text": text.join("\n")});
         output.push_str(
-            &serde_json::to_string(&record).map_err(|e| DatasetError::Cache(format!("Serialization error: {}", e)))?,
+            &serde_json::to_string(&record)
+                .map_err(|e| DatasetError::Cache(format!("Serialization error: {}", e)))?,
         );
         output.push('\n');
     }
@@ -465,7 +484,11 @@ mod tests {
             {"role": "user", "content": "What is P5?"},
             {"role": "assistant", "content": "Minimal Architecture."}
         ]});
-        std::fs::write(&input, format!("{}\n", serde_json::to_string(&record).unwrap())).expect("write");
+        std::fs::write(
+            &input,
+            format!("{}\n", serde_json::to_string(&record).unwrap()),
+        )
+        .expect("write");
 
         let mut pipeline = DatasetPipeline::new(cache.clone());
         let first = pipeline.ingest(&input).expect("first ingest");

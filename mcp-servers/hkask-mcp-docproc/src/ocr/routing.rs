@@ -130,7 +130,10 @@ mod tests {
         // Default model (olmOCR-2 on DeepInfra)
         let mut state = SamplingState::new(0.10);
         let backends = route_page(score, &mut state, None, None);
-        assert_eq!(backends, vec![OcrBackend::LlmOcr(DEFAULT_LLM_OCR_MODEL.into())]);
+        assert_eq!(
+            backends,
+            vec![OcrBackend::LlmOcr(DEFAULT_LLM_OCR_MODEL.into())]
+        );
 
         // Custom model override
         let mut state = SamplingState::new(0.10);
@@ -182,7 +185,10 @@ mod tests {
         };
         let mut state = SamplingState::new(0.10);
         let backends = route_page(score, &mut state, Some(&OcrBackend::Tesseract), None);
-        assert!(backends.is_empty(), "excluding only backend should yield empty list");
+        assert!(
+            backends.is_empty(),
+            "excluding only backend should yield empty list"
+        );
     }
 
     #[test]

@@ -25,7 +25,9 @@ use types::*;
 fn respond<T: serde::Serialize>(span: ToolSpanGuard, resp: &T) -> String {
     match serde_json::to_value(resp) {
         Ok(val) => span.ok_json(val),
-        Err(e) => span.internal_error(serde_json::json!({"error": format!("serialization failed: {e}")})),
+        Err(e) => {
+            span.internal_error(serde_json::json!({"error": format!("serialization failed: {e}")}))
+        }
     }
 }
 
@@ -80,12 +82,14 @@ impl KanbanServer {
             Some(inputs) => inputs
                 .into_iter()
                 .enumerate()
-                .map(
-                    |(i, input)| match hkask_services_kanban::TaskStatus::parse_str(&input.status) {
-                        Some(s) => Ok(hkask_services_kanban::ColumnDef::new(input.name, s, i as u32)),
+                .map(|(i, input)| {
+                    match hkask_services_kanban::TaskStatus::parse_str(&input.status) {
+                        Some(s) => Ok(hkask_services_kanban::ColumnDef::new(
+                            input.name, s, i as u32,
+                        )),
                         None => Err(format!("invalid status: {}", input.status)),
-                    },
-                )
+                    }
+                })
                 .collect::<Result<Vec<_>, _>>(),
             None => Ok(default_columns()),
         };
@@ -117,7 +121,9 @@ impl KanbanServer {
     #[tool(description = "List all kanban boards owned by the caller")]
     pub async fn kanban_board_list(
         &self,
-        Parameters(BoardListRequest { capability_token: _cap }): Parameters<BoardListRequest>,
+        Parameters(BoardListRequest {
+            capability_token: _cap,
+        }): Parameters<BoardListRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("kanban_board_list", &self.webid);
         match self.service.board_list(&self.webid) {
@@ -350,10 +356,11 @@ impl KanbanServer {
             Err(e) => return err(span, &format!("invalid board_id: {e}")),
         };
 
-        let proposals: Vec<hkask_test_harness::ExpectProposal> = match serde_json::from_str(&proposals_json) {
-            Ok(p) => p,
-            Err(e) => return err(span, &format!("invalid proposals JSON: {e}")),
-        };
+        let proposals: Vec<hkask_test_harness::ExpectProposal> =
+            match serde_json::from_str(&proposals_json) {
+                Ok(p) => p,
+                Err(e) => return err(span, &format!("invalid proposals JSON: {e}")),
+            };
 
         if proposals.is_empty() {
             return err(span, "proposals must be non-empty");
@@ -361,7 +368,10 @@ impl KanbanServer {
 
         let mut created: Vec<String> = Vec::new();
         for prop in &proposals {
-            let title = format!("contract({}): add expect: to {}", prop.crate_name, prop.function,);
+            let title = format!(
+                "contract({}): add expect: to {}",
+                prop.crate_name, prop.function,
+            );
             let description = format!(
                 "File: {}:{}\nContract: {}\nPre: {}\nPost: {}\n\nTemplate:\n{}\n\nSuggested principle: {}\nConstraining: {:?}",
                 prop.file,
@@ -377,7 +387,10 @@ impl KanbanServer {
             match self.service.task_create(bid, spec, self.webid) {
                 Ok(task) => created.push(task.id.to_string()),
                 Err(e) => {
-                    return err(span, &format!("failed to create task for {}: {e}", prop.function));
+                    return err(
+                        span,
+                        &format!("failed to create task for {}: {e}", prop.function),
+                    );
                 }
             }
         }
@@ -405,37 +418,65 @@ impl hkask_mcp::server::ToolContext for KanbanServer {
 
 pub fn default_columns() -> Vec<hkask_services_kanban::ColumnDef> {
     vec![
-        hkask_services_kanban::ColumnDef::new("Backlog".into(), hkask_services_kanban::TaskStatus::Backlog, 0),
-        hkask_services_kanban::ColumnDef::new("Ready".into(), hkask_services_kanban::TaskStatus::Ready, 1),
-        hkask_services_kanban::ColumnDef::new("In Progress".into(), hkask_services_kanban::TaskStatus::InProgress, 2),
-        hkask_services_kanban::ColumnDef::new("Review".into(), hkask_services_kanban::TaskStatus::Review, 3),
-        hkask_services_kanban::ColumnDef::new("Done".into(), hkask_services_kanban::TaskStatus::Done, 4),
+        hkask_services_kanban::ColumnDef::new(
+            "Backlog".into(),
+            hkask_services_kanban::TaskStatus::Backlog,
+            0,
+        ),
+        hkask_services_kanban::ColumnDef::new(
+            "Ready".into(),
+            hkask_services_kanban::TaskStatus::Ready,
+            1,
+        ),
+        hkask_services_kanban::ColumnDef::new(
+            "In Progress".into(),
+            hkask_services_kanban::TaskStatus::InProgress,
+            2,
+        ),
+        hkask_services_kanban::ColumnDef::new(
+            "Review".into(),
+            hkask_services_kanban::TaskStatus::Review,
+            3,
+        ),
+        hkask_services_kanban::ColumnDef::new(
+            "Done".into(),
+            hkask_services_kanban::TaskStatus::Done,
+            4,
+        ),
     ]
 }
 
 /// Run the kanban MCP server (used by binary target).
-pub async fn run(replicant: String, daemon_client: Option<hkask_mcp::DaemonClient>) -> Result<(), hkask_mcp::McpError> {
+pub async fn run(
+    replicant: String,
+    daemon_client: Option<hkask_mcp::DaemonClient>,
+) -> Result<(), hkask_mcp::McpError> {
     hkask_mcp::run_server(
         "hkask-mcp-kanban",
         env!("CARGO_PKG_VERSION"),
         |ctx: ServerContext| {
             Ok((|| -> anyhow::Result<KanbanServer> {
                 // Use the standard per-agent kanban DB path when not explicitly set.
-                let kanban_db_path = ctx.credentials.get("HKASK_KANBAN_DB").cloned().unwrap_or_else(|| {
-                    let default_path = hkask_types::agent_paths::agent_kanban_db(&replicant);
-                    if let Some(parent) = default_path.parent() {
-                        std::fs::create_dir_all(parent).ok();
-                    }
-                    tracing::info!(
-                        target: "hkask.mcp.kanban",
-                        path = %default_path.display(),
-                        replicant = %replicant,
-                        "Using default per-agent kanban database"
-                    );
-                    default_path.to_string_lossy().to_string()
-                });
+                let kanban_db_path = ctx
+                    .credentials
+                    .get("HKASK_KANBAN_DB")
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        let default_path = hkask_types::agent_paths::agent_kanban_db(&replicant);
+                        if let Some(parent) = default_path.parent() {
+                            std::fs::create_dir_all(parent).ok();
+                        }
+                        tracing::info!(
+                            target: "hkask.mcp.kanban",
+                            path = %default_path.display(),
+                            replicant = %replicant,
+                            "Using default per-agent kanban database"
+                        );
+                        default_path.to_string_lossy().to_string()
+                    });
                 let db = if let Some(passphrase) = ctx.credentials.get("HKASK_DB_PASSPHRASE") {
-                    hkask_storage::Database::open(&kanban_db_path, passphrase).map_err(|e| anyhow::anyhow!("{e}"))?
+                    hkask_storage::Database::open(&kanban_db_path, passphrase)
+                        .map_err(|e| anyhow::anyhow!("{e}"))?
                 } else {
                     hkask_storage::Database::in_memory().map_err(|e| anyhow::anyhow!("{e}"))?
                 };

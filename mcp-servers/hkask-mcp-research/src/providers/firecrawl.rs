@@ -1,4 +1,6 @@
-use super::{ProviderSearchOutput, WebBrowseProvider, WebError, WebExtractProvider, WebSearchProvider};
+use super::{
+    ProviderSearchOutput, WebBrowseProvider, WebError, WebExtractProvider, WebSearchProvider,
+};
 use crate::types::*;
 use async_trait::async_trait;
 use std::time::Duration;
@@ -50,14 +52,17 @@ impl WebSearchProvider for FirecrawlProvider {
         let body = resp.text().await.unwrap_or_default();
         if !status.is_success() {
             return Err(match status.as_u16() {
-                401 | 403 => WebError::ProviderUnavailable(format!("Firecrawl auth error: {status}")),
+                401 | 403 => {
+                    WebError::ProviderUnavailable(format!("Firecrawl auth error: {status}"))
+                }
                 429 => WebError::RateLimited(format!("Firecrawl rate limited: {status}")),
                 _ => WebError::ProviderError(format!("Firecrawl API error {status}")),
             });
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| WebError::ProviderError(format!("Failed to parse Firecrawl response: {e}")))?;
+        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            WebError::ProviderError(format!("Failed to parse Firecrawl response: {e}"))
+        })?;
 
         let results = parsed["data"]
             .as_array()
@@ -99,7 +104,11 @@ impl WebExtractProvider for FirecrawlProvider {
         "firecrawl"
     }
 
-    async fn extract(&self, url: &str, opts: &ExtractOptions) -> Result<ExtractedContent, WebError> {
+    async fn extract(
+        &self,
+        url: &str,
+        opts: &ExtractOptions,
+    ) -> Result<ExtractedContent, WebError> {
         let auth = self.auth_header()?;
         let mut payload = serde_json::json!({ "url": url });
         match opts.format.as_str() {
@@ -139,13 +148,17 @@ impl WebExtractProvider for FirecrawlProvider {
             )));
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| WebError::ProviderError(format!("Failed to parse Firecrawl extract response: {e}")))?;
+        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            WebError::ProviderError(format!("Failed to parse Firecrawl extract response: {e}"))
+        })?;
 
         let content = if opts.format == "json" {
             parsed["data"]["json"].to_string()
         } else {
-            parsed["data"]["markdown"].as_str().unwrap_or("").to_string()
+            parsed["data"]["markdown"]
+                .as_str()
+                .unwrap_or("")
+                .to_string()
         };
         let metadata = parsed["data"]["metadata"]
             .as_object()
@@ -172,7 +185,12 @@ impl WebBrowseProvider for FirecrawlProvider {
         "firecrawl"
     }
 
-    async fn browse(&self, url: &str, instruction: &str, timeout: Duration) -> Result<BrowseResult, WebError> {
+    async fn browse(
+        &self,
+        url: &str,
+        instruction: &str,
+        timeout: Duration,
+    ) -> Result<BrowseResult, WebError> {
         let auth = self.auth_header()?;
         let payload = serde_json::json!({
             "url": url, "formats": ["markdown"],
@@ -192,15 +210,21 @@ impl WebBrowseProvider for FirecrawlProvider {
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            return Err(WebError::ProviderError(format!("Firecrawl browse error {status}")));
+            return Err(WebError::ProviderError(format!(
+                "Firecrawl browse error {status}"
+            )));
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| WebError::ProviderError(format!("Failed to parse Firecrawl browse response: {e}")))?;
+        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            WebError::ProviderError(format!("Failed to parse Firecrawl browse response: {e}"))
+        })?;
 
         Ok(BrowseResult {
             url: url.to_string(),
-            content: parsed["data"]["markdown"].as_str().unwrap_or("").to_string(),
+            content: parsed["data"]["markdown"]
+                .as_str()
+                .unwrap_or("")
+                .to_string(),
             instruction: Some(instruction.to_string()),
             actions_taken: vec!["scrape".to_string()],
         })

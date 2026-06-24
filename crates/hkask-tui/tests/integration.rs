@@ -506,9 +506,8 @@ fn render_snapshot(window: &dyn Window, width: u16, height: u16) -> Vec<String> 
     for row in 0..height {
         let mut line = String::new();
         for col in 0..width {
-            if let Some(cell) = buf.get(col, row) {
-                line.push_str(cell.symbol());
-            }
+            let cell = buf.cell((col, row)).unwrap();
+            line.push_str(cell.symbol());
         }
         // Trim trailing whitespace for snapshot comparison
         let trimmed: String = line.trim_end().to_string();
@@ -522,7 +521,9 @@ fn render_snapshot(window: &dyn Window, width: u16, height: u16) -> Vec<String> 
 #[test]
 fn chat_snapshot_contains_prompt() {
     let b = bridge();
-    let w = ChatWindow::new(window_id(), b.agent_name(), b.model_name(), None, b);
+    let agent_name = b.agent_name().to_string();
+    let model_name = b.model_name().to_string();
+    let w = ChatWindow::new(window_id(), &agent_name, &model_name, None, b);
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
     assert!(text.contains("REPL"), "Chat should show REPL prompt");

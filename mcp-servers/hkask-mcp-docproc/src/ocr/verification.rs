@@ -116,7 +116,10 @@ mod tests {
         assert!(report.passed, "clean document should pass: {:#?}", report);
         // Check that per-page details have backend info
         assert_eq!(report.page_details.len(), 2);
-        assert_eq!(report.page_details[0].backend_used, Some(OcrBackend::Tesseract));
+        assert_eq!(
+            report.page_details[0].backend_used,
+            Some(OcrBackend::Tesseract)
+        );
     }
 
     #[test]
@@ -133,7 +136,10 @@ mod tests {
         }];
         // 1 result, 2 expected → mismatch. Estimated words: arbitrary for this test.
         let report = verify_output(2, &results, 5, &[]);
-        assert!(!report.page_count_match, "page count mismatch should be detected");
+        assert!(
+            !report.page_count_match,
+            "page count mismatch should be detected"
+        );
         assert!(!report.passed, "mismatch should cause failure");
     }
 
@@ -160,9 +166,15 @@ mod tests {
             },
         ];
         let report = verify_output(2, &results, 10, &[]);
-        assert!(!report.empty_pages.is_empty(), "empty page should be flagged");
+        assert!(
+            !report.empty_pages.is_empty(),
+            "empty page should be flagged"
+        );
         assert_eq!(report.empty_pages, vec![1]);
-        assert!(report.page_details[1].was_fallback, "fallback should be recorded");
+        assert!(
+            report.page_details[1].was_fallback,
+            "fallback should be recorded"
+        );
         assert!(!report.passed, "empty page should cause failure");
     }
 

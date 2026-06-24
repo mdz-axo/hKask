@@ -512,6 +512,7 @@ impl A2ARuntime {
         Ok(count)
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn is_registered(&self, webid: &WebID) -> bool {
         let state = self.state.read().await;
         state.agents.contains_key(webid)

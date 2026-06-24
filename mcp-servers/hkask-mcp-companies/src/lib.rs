@@ -93,7 +93,13 @@ impl CompaniesServer {
     }
 
     /// Record a tool call as a narrative experience in the agent's memory.
-    fn record_experience(&self, tool: &str, input_summary: &str, outcome: &str, detail: serde_json::Value) {
+    fn record_experience(
+        &self,
+        tool: &str,
+        input_summary: &str,
+        outcome: &str,
+        detail: serde_json::Value,
+    ) {
         if let Some(ref daemon) = self.daemon {
             let value = serde_json::json!({
                 "tool": tool,
@@ -140,7 +146,10 @@ impl hkask_mcp::server::ToolContext for CompaniesServer {
 #[tool_router(server_handler)]
 impl CompaniesServer {
     #[tool(description = "Get company profile")]
-    pub async fn company_profile(&self, Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>) -> String {
+    pub async fn company_profile(
+        &self,
+        Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
+    ) -> String {
         let span = ToolSpanGuard::new("company_profile", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
@@ -156,7 +165,12 @@ impl CompaniesServer {
         .await;
         match &result {
             Ok(v) => {
-                self.record_experience("company_profile", &format!("symbol={}", symbol), "success", v.clone());
+                self.record_experience(
+                    "company_profile",
+                    &format!("symbol={}", symbol),
+                    "success",
+                    v.clone(),
+                );
             }
             Err(e) => {
                 self.record_experience(
@@ -171,7 +185,10 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Get stock quote")]
-    pub async fn stock_quote(&self, Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>) -> String {
+    pub async fn stock_quote(
+        &self,
+        Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
+    ) -> String {
         let span = ToolSpanGuard::new("stock_quote", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
@@ -187,7 +204,12 @@ impl CompaniesServer {
         .await;
         match &result {
             Ok(v) => {
-                self.record_experience("stock_quote", &format!("symbol={}", symbol), "success", v.clone());
+                self.record_experience(
+                    "stock_quote",
+                    &format!("symbol={}", symbol),
+                    "success",
+                    v.clone(),
+                );
             }
             Err(e) => {
                 self.record_experience(
@@ -316,7 +338,10 @@ impl CompaniesServer {
     }
 
     #[tool(description = "Search for symbols")]
-    pub async fn symbol_search(&self, Parameters(SearchRequest { query, limit }): Parameters<SearchRequest>) -> String {
+    pub async fn symbol_search(
+        &self,
+        Parameters(SearchRequest { query, limit }): Parameters<SearchRequest>,
+    ) -> String {
         let span = ToolSpanGuard::new("symbol_search", &self.webid);
         if query.is_empty() {
             return span.error(
@@ -327,12 +352,18 @@ impl CompaniesServer {
         let limit_str = limit.unwrap_or(10).to_string();
         // Search is special: it doesn't use a symbol, it uses a query.
         // Route to FMP first (better US coverage), fall back to EODHD.
-        let fmp_result = providers::fmp_search_get(&self.client, &query, &limit_str, &self.fmp_api_key).await;
+        let fmp_result =
+            providers::fmp_search_get(&self.client, &query, &limit_str, &self.fmp_api_key).await;
         match fmp_result {
             Ok(v) => span.ok_json(v),
             Err(_) => {
-                let eodhd_result =
-                    providers::eodhd_search_get(&self.client, &query, &limit_str, &self.eodhd_api_key).await;
+                let eodhd_result = providers::eodhd_search_get(
+                    &self.client,
+                    &query,
+                    &limit_str,
+                    &self.eodhd_api_key,
+                )
+                .await;
                 span.finish(eodhd_result)
             }
         }
@@ -341,7 +372,10 @@ impl CompaniesServer {
     #[tool(
         description = "Analyze competitive moat using MAIA framework: gross margin stability and working capital market power signal"
     )]
-    pub async fn moat_check(&self, Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>) -> String {
+    pub async fn moat_check(
+        &self,
+        Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
+    ) -> String {
         let span = ToolSpanGuard::new("moat_check", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
@@ -417,7 +451,12 @@ impl CompaniesServer {
             },
             "data_periods": gross_margins.len(),
         });
-        self.record_experience("moat_check", &format!("symbol={}", symbol), "success", output.clone());
+        self.record_experience(
+            "moat_check",
+            &format!("symbol={}", symbol),
+            "success",
+            output.clone(),
+        );
         span.ok_json(output)
     }
 
@@ -517,7 +556,9 @@ impl CompaniesServer {
                 let period = entry.get("period").and_then(|p| p.as_str()).unwrap_or("");
                 let dpo = entry.get("daysOfPayablesOutstanding")?.as_f64()?;
                 let dso = entry.get("daysOfSalesOutstanding")?.as_f64()?;
-                let dio = entry.get("daysOfInventoryOutstanding").and_then(|v| v.as_f64());
+                let dio = entry
+                    .get("daysOfInventoryOutstanding")
+                    .and_then(|v| v.as_f64());
                 let ccc = entry.get("cashConversionCycle").and_then(|v| v.as_f64());
                 Some(serde_json::json!({
                     "year": year,
@@ -532,7 +573,10 @@ impl CompaniesServer {
             .collect();
 
         // MAIA CFO score: consistency of working capital management
-        let spreads: Vec<f64> = periods.iter().filter_map(|p| p.get("spread")?.as_f64()).collect();
+        let spreads: Vec<f64> = periods
+            .iter()
+            .filter_map(|p| p.get("spread")?.as_f64())
+            .collect();
         let spread_stability = analysis::gross_margin_stability(&spreads);
 
         let cfo_rating = if spread_stability > 0.8 {
@@ -556,7 +600,10 @@ impl CompaniesServer {
     #[tool(
         description = "Expectations gap: compare trailing 5-year actual performance to the future performance implied by the current price. Uses Gordon Growth Model to compute implied growth from valuation multiples vs historical profitability and growth."
     )]
-    pub async fn expectations_gap(&self, Parameters(req): Parameters<ExpectationsGapRequest>) -> String {
+    pub async fn expectations_gap(
+        &self,
+        Parameters(req): Parameters<ExpectationsGapRequest>,
+    ) -> String {
         let span = ToolSpanGuard::new("expectations_gap", &self.webid);
         if let Err(e) = validate_symbol(&req.symbol) {
             return span.error(e.kind, e.to_json_string());
@@ -613,7 +660,9 @@ impl CompaniesServer {
             }));
         }
 
-        let metrics = metrics_list.as_ref().expect("guarded by is_none_or check above");
+        let metrics = metrics_list
+            .as_ref()
+            .expect("guarded by is_none_or check above");
 
         // ── Set A: Net Margins, Sales Growth, P/Sales ──
         let (net_margins, sales_growths) = extract_net_margin_and_sales_growth(metrics);
@@ -757,7 +806,10 @@ impl CompaniesServer {
         let span = ToolSpanGuard::new("portfolio_list", &self.webid);
         match self.portfolio.list() {
             Ok(names) => span.ok_json(serde_json::json!({"portfolios": names})),
-            Err(e) => span.error(McpErrorKind::Internal, McpToolError::internal(e).to_json_string()),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e).to_json_string(),
+            ),
         }
     }
 
@@ -788,16 +840,15 @@ impl CompaniesServer {
         match result {
             Ok(ids) => {
                 // Auto-validate after import
-                let validation = self
-                    .portfolio
-                    .validate(&portfolio)
-                    .unwrap_or_else(|e| portfolio::ValidationReport {
+                let validation = self.portfolio.validate(&portfolio).unwrap_or_else(|e| {
+                    portfolio::ValidationReport {
                         valid: false,
                         transaction_count: ids.len(),
                         positions: vec![],
                         cash_balance: 0.0,
                         issues: vec![e],
-                    });
+                    }
+                });
                 span.ok_json(serde_json::json!({
                     "status": "imported",
                     "count": ids.len(),
@@ -839,7 +890,11 @@ impl CompaniesServer {
     #[tool(description = "Append a note to an existing transaction")]
     pub async fn transaction_note_append(
         &self,
-        Parameters(TransactionNoteRequest { portfolio, tx_id, note }): Parameters<TransactionNoteRequest>,
+        Parameters(TransactionNoteRequest {
+            portfolio,
+            tx_id,
+            note,
+        }): Parameters<TransactionNoteRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("transaction_note_append", &self.webid);
         match self.portfolio.append_note(&portfolio, &tx_id, &note) {
@@ -851,7 +906,9 @@ impl CompaniesServer {
         }
     }
 
-    #[tool(description = "Compare two portfolios side by side — positions, overlap, unique symbols")]
+    #[tool(
+        description = "Compare two portfolios side by side — positions, overlap, unique symbols"
+    )]
     pub async fn portfolio_comparison(
         &self,
         Parameters(PortfolioCompareRequest {
@@ -872,11 +929,18 @@ impl CompaniesServer {
     #[tool(description = "Time-weighted and money-weighted returns for a date range")]
     pub async fn portfolio_returns(
         &self,
-        Parameters(PortfolioReturnsRequest { portfolio, from, to }): Parameters<PortfolioReturnsRequest>,
+        Parameters(PortfolioReturnsRequest {
+            portfolio,
+            from,
+            to,
+        }): Parameters<PortfolioReturnsRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("portfolio_returns", &self.webid);
 
-        let txs = match self.portfolio.get_transactions(&portfolio, None, None, None, None) {
+        let txs = match self
+            .portfolio
+            .get_transactions(&portfolio, None, None, None, None)
+        {
             Ok(t) => t,
             Err(e) => {
                 return span.error(
@@ -887,8 +951,10 @@ impl CompaniesServer {
         };
 
         // ── Compute positions at from and to ─────────────────────
-        let mut positions_start: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
-        let mut positions_end: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+        let mut positions_start: std::collections::HashMap<String, f64> =
+            std::collections::HashMap::new();
+        let mut positions_end: std::collections::HashMap<String, f64> =
+            std::collections::HashMap::new();
         let mut cash_start = 0.0f64;
         let mut cash_end = 0.0f64;
 
@@ -924,7 +990,10 @@ impl CompaniesServer {
             }
 
             // Collect deposit/withdrawal events in (from, to] for TWR sub-periods
-            if tx.date > from && tx.date <= to && (tx.tx_type == "deposit" || tx.tx_type == "withdrawal") {
+            if tx.date > from
+                && tx.date <= to
+                && (tx.tx_type == "deposit" || tx.tx_type == "withdrawal")
+            {
                 let amt = match tx.tx_type.as_str() {
                     "deposit" => tx.amount.unwrap_or(0.0),
                     "withdrawal" => -tx.amount.unwrap_or(0.0),
@@ -965,7 +1034,8 @@ impl CompaniesServer {
             .into_iter()
             .collect();
 
-        let mut prices_at: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+        let mut prices_at: std::collections::HashMap<String, f64> =
+            std::collections::HashMap::new();
 
         // Try price_cache first, then API
         for date in [&from, &to] {
@@ -1005,7 +1075,10 @@ impl CompaniesServer {
             positions
                 .iter()
                 .map(|(sym, shares)| {
-                    let price = prices_at.get(&format!("{date}:{sym}")).copied().unwrap_or(0.0);
+                    let price = prices_at
+                        .get(&format!("{date}:{sym}"))
+                        .copied()
+                        .unwrap_or(0.0);
                     shares * price
                 })
                 .sum()
@@ -1037,7 +1110,8 @@ impl CompaniesServer {
         let weighted_flows: f64 = cash_flow_events
             .iter()
             .map(|(date_str, amt)| {
-                let cf_date = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap_or_default();
+                let cf_date =
+                    chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap_or_default();
                 let days_remaining = (to_date - cf_date).num_days().max(0) as f64;
                 let weight = days_remaining / period_days;
                 amt * weight
@@ -1057,7 +1131,8 @@ impl CompaniesServer {
             let from_days = from_date.num_days_from_ce();
             let mut cfs: Vec<(f64, f64)> = vec![(-total_start, from_days as f64)];
             for (date_str, amt) in &cash_flow_events {
-                let cf_date = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap_or_default();
+                let cf_date =
+                    chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap_or_default();
                 let days = (cf_date.num_days_from_ce() - from_days) as f64;
                 cfs.push((*amt, days));
             }
@@ -1065,7 +1140,11 @@ impl CompaniesServer {
             cfs.push((total_end, to_days));
 
             // Newton's method: r_{n+1} = r_n - NPV(r_n) / NPV'(r_n)
-            let npv = |r: f64| -> f64 { cfs.iter().map(|(cf, days)| cf / (1.0 + r).powf(days / 365.0)).sum() };
+            let npv = |r: f64| -> f64 {
+                cfs.iter()
+                    .map(|(cf, days)| cf / (1.0 + r).powf(days / 365.0))
+                    .sum()
+            };
             let npv_deriv = |r: f64| -> f64 {
                 cfs.iter()
                     .map(|(cf, days)| -cf * (days / 365.0) / (1.0 + r).powf(days / 365.0 + 1.0))
@@ -1194,10 +1273,9 @@ impl CompaniesServer {
         }): Parameters<FileAttachRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("file_attach", &self.webid);
-        match self
-            .portfolio
-            .attach_file(&portfolio, &symbol, &date, &filename, &mime_type, &data, &notes)
-        {
+        match self.portfolio.attach_file(
+            &portfolio, &symbol, &date, &filename, &mime_type, &data, &notes,
+        ) {
             Ok(id) => span.ok_json(serde_json::json!({"status": "attached", "id": id})),
             Err(e) => span.error(
                 McpErrorKind::InvalidArgument,
@@ -1241,11 +1319,17 @@ impl CompaniesServer {
     #[tool(
         description = "What moved the portfolio — each position's weight, return, and contribution, ranked by impact"
     )]
-    pub async fn portfolio_attribution(&self, Parameters(req): Parameters<AttributionRequest>) -> String {
+    pub async fn portfolio_attribution(
+        &self,
+        Parameters(req): Parameters<AttributionRequest>,
+    ) -> String {
         let span = ToolSpanGuard::new("portfolio_attribution", &self.webid);
 
         // Get transactions and compute positions at start and end
-        let txs = match self.portfolio.get_transactions(&req.portfolio, None, None, None, None) {
+        let txs = match self
+            .portfolio
+            .get_transactions(&req.portfolio, None, None, None, None)
+        {
             Ok(t) => t,
             Err(e) => {
                 return span.error(
@@ -1256,21 +1340,35 @@ impl CompaniesServer {
         };
 
         // Compute positions at from_date and to_date
-        let mut positions_start: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
-        let mut positions_end: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+        let mut positions_start: std::collections::HashMap<String, f64> =
+            std::collections::HashMap::new();
+        let mut positions_end: std::collections::HashMap<String, f64> =
+            std::collections::HashMap::new();
         for tx in &txs {
             if let Some(ref sym) = tx.symbol {
                 if tx.date <= req.from {
                     match tx.tx_type.as_str() {
-                        "buy" => *positions_start.entry(sym.clone()).or_insert(0.0) += tx.quantity.unwrap_or(0.0),
-                        "sell" => *positions_start.entry(sym.clone()).or_insert(0.0) -= tx.quantity.unwrap_or(0.0),
+                        "buy" => {
+                            *positions_start.entry(sym.clone()).or_insert(0.0) +=
+                                tx.quantity.unwrap_or(0.0)
+                        }
+                        "sell" => {
+                            *positions_start.entry(sym.clone()).or_insert(0.0) -=
+                                tx.quantity.unwrap_or(0.0)
+                        }
                         _ => {}
                     }
                 }
                 if tx.date <= req.to {
                     match tx.tx_type.as_str() {
-                        "buy" => *positions_end.entry(sym.clone()).or_insert(0.0) += tx.quantity.unwrap_or(0.0),
-                        "sell" => *positions_end.entry(sym.clone()).or_insert(0.0) -= tx.quantity.unwrap_or(0.0),
+                        "buy" => {
+                            *positions_end.entry(sym.clone()).or_insert(0.0) +=
+                                tx.quantity.unwrap_or(0.0)
+                        }
+                        "sell" => {
+                            *positions_end.entry(sym.clone()).or_insert(0.0) -=
+                                tx.quantity.unwrap_or(0.0)
+                        }
                         _ => {}
                     }
                 }
@@ -1280,7 +1378,9 @@ impl CompaniesServer {
         // Only include symbols with non-zero position at start
         positions_start.retain(|_, v| *v > 0.0001);
         if positions_start.is_empty() {
-            return span.ok_json(serde_json::json!({"attribution": [], "message": "no positions at start date"}));
+            return span.ok_json(
+                serde_json::json!({"attribution": [], "message": "no positions at start date"}),
+            );
         }
 
         // Fetch prices for all symbols at both dates
@@ -1325,7 +1425,10 @@ impl CompaniesServer {
         // Build attribution table
         let mut rows = Vec::new();
         for (sym, shares) in &positions_start {
-            let p_start = prices_start.get(sym).and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let p_start = prices_start
+                .get(sym)
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
             let p_end = prices_end.get(sym).and_then(|v| v.as_f64()).unwrap_or(0.0);
             if p_start <= 0.0 {
                 continue;
@@ -1373,7 +1476,10 @@ impl CompaniesServer {
     #[tool(
         description = "Weighted-average fundamentals of what the portfolio owns — valuation, profitability, leverage, growth, composition"
     )]
-    pub async fn portfolio_characteristics(&self, Parameters(req): Parameters<CharacteristicsRequest>) -> String {
+    pub async fn portfolio_characteristics(
+        &self,
+        Parameters(req): Parameters<CharacteristicsRequest>,
+    ) -> String {
         let span = ToolSpanGuard::new("portfolio_characteristics", &self.webid);
 
         let symbols = match self.portfolio.get_symbols(&req.portfolio) {
@@ -1387,28 +1493,36 @@ impl CompaniesServer {
         };
 
         if symbols.is_empty() {
-            return span.ok_json(serde_json::json!({"characteristics": {}, "message": "no symbols in portfolio"}));
+            return span.ok_json(
+                serde_json::json!({"characteristics": {}, "message": "no symbols in portfolio"}),
+            );
         }
 
         // Get positions at the as-of date
-        let txs = match self
-            .portfolio
-            .get_transactions(&req.portfolio, None, None, None, Some(&req.date))
-        {
-            Ok(t) => t,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(e).to_json_string(),
-                );
-            }
-        };
-        let mut positions: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+        let txs =
+            match self
+                .portfolio
+                .get_transactions(&req.portfolio, None, None, None, Some(&req.date))
+            {
+                Ok(t) => t,
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument(e).to_json_string(),
+                    );
+                }
+            };
+        let mut positions: std::collections::HashMap<String, f64> =
+            std::collections::HashMap::new();
         for tx in &txs {
             if let Some(ref sym) = tx.symbol {
                 match tx.tx_type.as_str() {
-                    "buy" => *positions.entry(sym.clone()).or_insert(0.0) += tx.quantity.unwrap_or(0.0),
-                    "sell" => *positions.entry(sym.clone()).or_insert(0.0) -= tx.quantity.unwrap_or(0.0),
+                    "buy" => {
+                        *positions.entry(sym.clone()).or_insert(0.0) += tx.quantity.unwrap_or(0.0)
+                    }
+                    "sell" => {
+                        *positions.entry(sym.clone()).or_insert(0.0) -= tx.quantity.unwrap_or(0.0)
+                    }
                     _ => {}
                 }
             }
@@ -1446,7 +1560,8 @@ impl CompaniesServer {
 
         let total_mv: f64 = market_values.iter().map(|(_, _, _, mv)| mv).sum();
         if total_mv <= 0.0 {
-            return span.ok_json(serde_json::json!({"characteristics": {}, "message": "no market value"}));
+            return span
+                .ok_json(serde_json::json!({"characteristics": {}, "message": "no market value"}));
         }
 
         // Fetch fundamentals and compute weighted averages
@@ -1476,11 +1591,14 @@ impl CompaniesServer {
                                 .entry(format!("{field}_breakdown"))
                                 .or_insert(serde_json::json!({}));
                             if let Some(sub_map) = sub.as_object_mut() {
-                                let e = sub_map.entry(str_val.to_string()).or_insert(serde_json::json!(0.0));
+                                let e = sub_map
+                                    .entry(str_val.to_string())
+                                    .or_insert(serde_json::json!(0.0));
                                 *e = serde_json::json!(e.as_f64().unwrap_or(0.0) + weight);
                             }
                         } else if let Some(num) = val.as_f64() {
-                            *entry = serde_json::json!(entry.as_f64().unwrap_or(0.0) + weight * num);
+                            *entry =
+                                serde_json::json!(entry.as_f64().unwrap_or(0.0) + weight * num);
                         }
                     }
                 }
@@ -1649,7 +1767,10 @@ fn cagr_from_series(yoy_growths: &[f64]) -> f64 {
 // ── Entry point ─────────────────────────────────────────────────────
 
 /// Run the companies MCP server (used by binary target).
-pub async fn run(replicant: String, daemon_client: Option<DaemonClient>) -> Result<(), hkask_mcp::McpError> {
+pub async fn run(
+    replicant: String,
+    daemon_client: Option<DaemonClient>,
+) -> Result<(), hkask_mcp::McpError> {
     hkask_mcp::run_server(
         "hkask-mcp-companies",
         env!("CARGO_PKG_VERSION"),
@@ -1673,8 +1794,14 @@ pub async fn run(replicant: String, daemon_client: Option<DaemonClient>) -> Resu
             )?)
         },
         vec![
-            hkask_mcp::CredentialRequirement::required("HKASK_FMP_API_KEY", "Financial Modeling Prep API key"),
-            hkask_mcp::CredentialRequirement::required("HKASK_EODHD_API_KEY", "EOD Historical Data (EODHD) API key"),
+            hkask_mcp::CredentialRequirement::required(
+                "HKASK_FMP_API_KEY",
+                "Financial Modeling Prep API key",
+            ),
+            hkask_mcp::CredentialRequirement::required(
+                "HKASK_EODHD_API_KEY",
+                "EOD Historical Data (EODHD) API key",
+            ),
         ],
     )
     .await

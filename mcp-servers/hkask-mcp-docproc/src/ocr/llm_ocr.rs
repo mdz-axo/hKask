@@ -72,7 +72,10 @@ impl OcrExecutor for LlmOcrExecutor {
         // Encode image as base64 PNG
         let mut png_bytes: Vec<u8> = Vec::new();
         image
-            .write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)
+            .write_to(
+                &mut std::io::Cursor::new(&mut png_bytes),
+                image::ImageFormat::Png,
+            )
             .map_err(|e| format!("Failed to encode page image as PNG: {}", e))?;
 
         let b64_data = base64::engine::general_purpose::STANDARD.encode(&png_bytes);
@@ -94,7 +97,11 @@ impl OcrExecutor for LlmOcrExecutor {
         let duration_ms = start.elapsed().as_millis() as u64;
 
         // Confidence heuristic: non-empty output = nominal confidence
-        let confidence = if result.text.trim().is_empty() { 0.0 } else { 0.85 };
+        let confidence = if result.text.trim().is_empty() {
+            0.0
+        } else {
+            0.85
+        };
 
         Ok(OcrResult {
             page_index,
@@ -134,7 +141,9 @@ mod tests {
     async fn execute_rejects_wrong_backend() {
         let executor = LlmOcrExecutor::new(InferenceConfig::from_env());
         let image = test_image();
-        let result = executor.execute(0, &OcrBackend::Tesseract, &image, false).await;
+        let result = executor
+            .execute(0, &OcrBackend::Tesseract, &image, false)
+            .await;
         assert!(result.is_err());
     }
 }

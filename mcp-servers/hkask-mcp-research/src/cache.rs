@@ -43,9 +43,13 @@ impl ResponseCache {
 
     pub async fn get(&self, key: &CacheKey) -> Option<serde_json::Value> {
         let entries = self.entries.read().await;
-        entries
-            .get(key)
-            .and_then(|e| if e.is_expired() { None } else { Some(e.data.clone()) })
+        entries.get(key).and_then(|e| {
+            if e.is_expired() {
+                None
+            } else {
+                Some(e.data.clone())
+            }
+        })
     }
 
     pub async fn insert(&self, key: CacheKey, data: serde_json::Value) {
@@ -88,7 +92,12 @@ impl ResponseCache {
 /// If providers are added or removed, the cache key changes and a fresh
 /// result is computed rather than serving a stale result from when a
 /// different set of providers was available.
-pub fn cache_key(strategy: &str, query: &str, params: &serde_json::Value, provider_fingerprint: &str) -> CacheKey {
+pub fn cache_key(
+    strategy: &str,
+    query: &str,
+    params: &serde_json::Value,
+    provider_fingerprint: &str,
+) -> CacheKey {
     let hash = blake3::hash(
         format!(
             "{strategy}:{query}:{}:{provider_fingerprint}",

@@ -91,18 +91,29 @@ impl GalleryState {
     /// Validate that the gallery path exists and is a directory.
     pub fn validate(&self) -> Result<(), String> {
         if !self.path.exists() {
-            return Err(format!("Gallery path does not exist: {}", self.path.display()));
+            return Err(format!(
+                "Gallery path does not exist: {}",
+                self.path.display()
+            ));
         }
         if !self.path.is_dir() {
-            return Err(format!("Gallery path is not a directory: {}", self.path.display()));
+            return Err(format!(
+                "Gallery path is not a directory: {}",
+                self.path.display()
+            ));
         }
         Ok(())
     }
 
     /// Ensure the .hkask-gallery metadata directory exists.
     pub fn ensure_meta_dir(&self) -> Result<(), String> {
-        std::fs::create_dir_all(&self.meta_dir)
-            .map_err(|e| format!("Failed to create metadata directory {}: {}", self.meta_dir.display(), e))
+        std::fs::create_dir_all(&self.meta_dir).map_err(|e| {
+            format!(
+                "Failed to create metadata directory {}: {}",
+                self.meta_dir.display(),
+                e
+            )
+        })
     }
 
     /// Scan the gallery directory for images.
@@ -159,7 +170,11 @@ impl GalleryState {
                     let (width, height) = match image::image_dimensions(path) {
                         Ok(dims) => dims,
                         Err(e) => {
-                            errors.push(format!("Failed to read dimensions for {}: {}", path.display(), e));
+                            errors.push(format!(
+                                "Failed to read dimensions for {}: {}",
+                                path.display(),
+                                e
+                            ));
                             continue;
                         }
                     };
@@ -230,10 +245,10 @@ mod tests {
             0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
             0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR
             0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1
-            0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44,
-            0x41, // IDAT
-            0x54, 0x08, 0xD7, 0x63, 0x60, 0x60, 0x60, 0x00, 0x00, 0x00, 0x04, 0x00, 0x01, 0x27, 0x34, 0x0A, 0x1E, 0x00,
-            0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, // IEND
+            0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49,
+            0x44, 0x41, // IDAT
+            0x54, 0x08, 0xD7, 0x63, 0x60, 0x60, 0x60, 0x00, 0x00, 0x00, 0x04, 0x00, 0x01, 0x27,
+            0x34, 0x0A, 0x1E, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, // IEND
             0x44, 0xAE, 0x42, 0x60, 0x82,
         ];
         let mut file = std::fs::File::create(&img_path).unwrap();
@@ -254,7 +269,10 @@ mod tests {
 
     #[test]
     fn validate_rejects_missing_path() {
-        let state = GalleryState::new(PathBuf::from("/nonexistent/path/12345"), GalleryMode::ReadOnly);
+        let state = GalleryState::new(
+            PathBuf::from("/nonexistent/path/12345"),
+            GalleryMode::ReadOnly,
+        );
         let result = state.validate();
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("does not exist"));
@@ -292,7 +310,10 @@ mod tests {
         let (_dir, gallery_path) = setup_test_gallery();
         let mut state = GalleryState::new(gallery_path.clone(), GalleryMode::ReadOnly);
         let result = state.scan(true, Some(&["gif".to_string(), "bmp".to_string()]));
-        assert_eq!(result.added, 0, "PNG should be excluded by extension filter");
+        assert_eq!(
+            result.added, 0,
+            "PNG should be excluded by extension filter"
+        );
     }
 
     #[test]

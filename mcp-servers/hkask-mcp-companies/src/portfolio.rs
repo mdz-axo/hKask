@@ -237,7 +237,9 @@ impl PortfolioManager {
 
     /// Base directory for portfolio file storage (parent of master.db).
     fn base_dir(&self) -> &std::path::Path {
-        self.db_path.parent().unwrap_or_else(|| std::path::Path::new("."))
+        self.db_path
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."))
     }
 
     // ── Portfolio CRUD ───────────────────────────────────────────
@@ -283,7 +285,11 @@ impl PortfolioManager {
 
     fn check_exists(&self, conn: &Connection, name: &str) -> Result<(), String> {
         let exists: bool = conn
-            .query_row("SELECT 1 FROM portfolios WHERE name = ?1", params![name], |_| Ok(()))
+            .query_row(
+                "SELECT 1 FROM portfolios WHERE name = ?1",
+                params![name],
+                |_| Ok(()),
+            )
             .is_ok();
         if !exists {
             return Err(format!("portfolio '{name}' does not exist"));
@@ -540,7 +546,8 @@ impl PortfolioManager {
         let conn = self.open()?;
         self.check_exists(&conn, name)?;
         let mut sql = "SELECT id, date, type, symbol, quantity, price, commission, amount, currency, notes, created_at FROM transactions WHERE portfolio_name = ?1".to_string();
-        let mut bind_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(name.to_string())];
+        let mut bind_values: Vec<Box<dyn rusqlite::types::ToSql>> =
+            vec![Box::new(name.to_string())];
 
         if let Some(s) = symbol {
             bind_values.push(Box::new(s.to_string()));
@@ -560,7 +567,8 @@ impl PortfolioManager {
         }
         sql.push_str(" ORDER BY date ASC");
 
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> = bind_values.iter().map(|b| b.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            bind_values.iter().map(|b| b.as_ref()).collect();
         let mut stmt = conn.prepare(&sql).map_err(|e| format!("query: {e}"))?;
         let rows = stmt
             .query_map(params_refs.as_slice(), |row| {
@@ -592,7 +600,8 @@ impl PortfolioManager {
     pub fn validate(&self, name: &str) -> Result<ValidationReport, String> {
         let txs = self.get_transactions(name, None, None, None, None)?;
         let mut issues = Vec::new();
-        let mut positions: std::collections::HashMap<String, (f64, f64)> = std::collections::HashMap::new();
+        let mut positions: std::collections::HashMap<String, (f64, f64)> =
+            std::collections::HashMap::new();
         let mut cash = 0.0f64;
 
         for tx in &txs {
@@ -618,7 +627,10 @@ impl PortfolioManager {
                     let price = tx.price.unwrap_or(0.0);
                     let comm = tx.commission.unwrap_or(0.0);
                     if qty <= 0.0 {
-                        issues.push(format!("{}: sell with non-positive quantity {}", tx.id, qty));
+                        issues.push(format!(
+                            "{}: sell with non-positive quantity {}",
+                            tx.id, qty
+                        ));
                     }
                     if price <= 0.0 {
                         issues.push(format!("{}: sell with non-positive price {}", tx.id, price));
@@ -636,14 +648,20 @@ impl PortfolioManager {
                 "deposit" => {
                     let amt = tx.amount.unwrap_or(0.0);
                     if amt <= 0.0 {
-                        issues.push(format!("{}: deposit with non-positive amount {}", tx.id, amt));
+                        issues.push(format!(
+                            "{}: deposit with non-positive amount {}",
+                            tx.id, amt
+                        ));
                     }
                     cash += amt;
                 }
                 "withdrawal" => {
                     let amt = tx.amount.unwrap_or(0.0);
                     if amt <= 0.0 {
-                        issues.push(format!("{}: withdrawal with non-positive amount {}", tx.id, amt));
+                        issues.push(format!(
+                            "{}: withdrawal with non-positive amount {}",
+                            tx.id, amt
+                        ));
                     }
                     cash -= amt;
                 }
@@ -676,7 +694,8 @@ impl PortfolioManager {
     // ── Import / Export ──────────────────────────────────────────
 
     pub fn import_json(&self, name: &str, json: &str) -> Result<Vec<String>, String> {
-        let txs: Vec<Transaction> = serde_json::from_str(json).map_err(|e| format!("invalid JSON: {e}"))?;
+        let txs: Vec<Transaction> =
+            serde_json::from_str(json).map_err(|e| format!("invalid JSON: {e}"))?;
         self.import_transactions(name, txs)
     }
 
@@ -696,11 +715,17 @@ impl PortfolioManager {
             }
             let fields: Vec<&str> = line.split(',').map(|f| f.trim()).collect();
 
-            let get_str = |col: &str| -> Option<String> { idx(col).and_then(|i| fields.get(i)).map(|s| s.to_string()) };
-            let get_f64 =
-                |col: &str| -> Option<f64> { idx(col).and_then(|i| fields.get(i)).and_then(|s| s.parse().ok()) };
+            let get_str = |col: &str| -> Option<String> {
+                idx(col).and_then(|i| fields.get(i)).map(|s| s.to_string())
+            };
+            let get_f64 = |col: &str| -> Option<f64> {
+                idx(col)
+                    .and_then(|i| fields.get(i))
+                    .and_then(|s| s.parse().ok())
+            };
 
-            let tx_type = get_str("type").ok_or(format!("line {line_num}: missing 'type' column"))?;
+            let tx_type =
+                get_str("type").ok_or(format!("line {line_num}: missing 'type' column"))?;
             let date = get_str("date").unwrap_or_default();
             let symbol = get_str("symbol");
             let quantity = get_f64("quantity");
@@ -732,7 +757,11 @@ impl PortfolioManager {
         self.import_transactions(name, txs)
     }
 
-    fn import_transactions(&self, name: &str, txs: Vec<Transaction>) -> Result<Vec<String>, String> {
+    fn import_transactions(
+        &self,
+        name: &str,
+        txs: Vec<Transaction>,
+    ) -> Result<Vec<String>, String> {
         let conn = self.open()?;
         self.check_exists(&conn, name)?;
         let mut imported = Vec::new();
@@ -771,7 +800,9 @@ impl PortfolioManager {
 
     pub fn export_csv(&self, name: &str) -> Result<String, String> {
         let txs = self.get_transactions(name, None, None, None, None)?;
-        let mut out = String::from("id,date,type,symbol,quantity,price,commission,amount,currency,notes,created_at\n");
+        let mut out = String::from(
+            "id,date,type,symbol,quantity,price,commission,amount,currency,notes,created_at\n",
+        );
         for tx in &txs {
             out.push_str(&format!(
                 "{},{},{},{},{},{},{},{},{},{},{}\n",
@@ -845,13 +876,22 @@ impl PortfolioManager {
         let report_a = self.validate(name_a)?;
         let report_b = self.validate(name_b)?;
 
-        let positions_a: std::collections::HashMap<&str, &PositionSummary> =
-            report_a.positions.iter().map(|p| (p.symbol.as_str(), p)).collect();
-        let positions_b: std::collections::HashMap<&str, &PositionSummary> =
-            report_b.positions.iter().map(|p| (p.symbol.as_str(), p)).collect();
+        let positions_a: std::collections::HashMap<&str, &PositionSummary> = report_a
+            .positions
+            .iter()
+            .map(|p| (p.symbol.as_str(), p))
+            .collect();
+        let positions_b: std::collections::HashMap<&str, &PositionSummary> = report_b
+            .positions
+            .iter()
+            .map(|p| (p.symbol.as_str(), p))
+            .collect();
 
-        let all_symbols: std::collections::BTreeSet<&str> =
-            positions_a.keys().chain(positions_b.keys()).copied().collect();
+        let all_symbols: std::collections::BTreeSet<&str> = positions_a
+            .keys()
+            .chain(positions_b.keys())
+            .copied()
+            .collect();
 
         let mut shared = Vec::new();
         let mut only_a = Vec::new();
@@ -940,8 +980,10 @@ impl PortfolioManager {
         let conn = self.open()?;
         self.check_exists(&conn, portfolio)?;
         let mut sql = "SELECT id, symbol, date, title, body, tags, created_at FROM notes WHERE portfolio_name = ?1 AND symbol = ?2".to_string();
-        let mut bind_values: Vec<Box<dyn rusqlite::types::ToSql>> =
-            vec![Box::new(portfolio.to_string()), Box::new(symbol.to_string())];
+        let mut bind_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![
+            Box::new(portfolio.to_string()),
+            Box::new(symbol.to_string()),
+        ];
 
         if let Some(f) = date_from {
             bind_values.push(Box::new(f.to_string()));
@@ -953,7 +995,8 @@ impl PortfolioManager {
         }
         sql.push_str(" ORDER BY date DESC");
 
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> = bind_values.iter().map(|b| b.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            bind_values.iter().map(|b| b.as_ref()).collect();
         let mut stmt = conn.prepare(&sql).map_err(|e| format!("query: {e}"))?;
         let rows = stmt
             .query_map(params_refs.as_slice(), |row| {
@@ -1046,7 +1089,11 @@ impl PortfolioManager {
     }
 
     /// List attached files for a symbol in a portfolio.
-    pub fn list_files(&self, portfolio: &str, symbol: &str) -> Result<Vec<serde_json::Value>, String> {
+    pub fn list_files(
+        &self,
+        portfolio: &str,
+        symbol: &str,
+    ) -> Result<Vec<serde_json::Value>, String> {
         let conn = self.open()?;
         self.check_exists(&conn, portfolio)?;
         let mut stmt = conn
@@ -1082,9 +1129,11 @@ impl PortfolioManager {
         let conn = self.open()?;
         // Look up the file path first
         let path: String = conn
-            .query_row("SELECT path FROM files WHERE id = ?1", params![file_id], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT path FROM files WHERE id = ?1",
+                params![file_id],
+                |row| row.get(0),
+            )
             .map_err(|e| format!("lookup: {e}"))?;
 
         let rows = conn
@@ -1175,10 +1224,14 @@ mod tests {
         tx2.date = "2024-07-01".to_string();
         pm.add_transaction("test", &tx2).unwrap();
 
-        let aapl = pm.get_transactions("test", Some("AAPL"), None, None, None).unwrap();
+        let aapl = pm
+            .get_transactions("test", Some("AAPL"), None, None, None)
+            .unwrap();
         assert_eq!(aapl.len(), 1);
 
-        let sells = pm.get_transactions("test", None, Some("sell"), None, None).unwrap();
+        let sells = pm
+            .get_transactions("test", None, Some("sell"), None, None)
+            .unwrap();
         assert_eq!(sells.len(), 1);
 
         let july = pm
@@ -1219,7 +1272,11 @@ mod tests {
         assert!(report.valid);
         assert_eq!(report.transaction_count, 4);
 
-        let aapl = report.positions.iter().find(|p| p.symbol == "AAPL").unwrap();
+        let aapl = report
+            .positions
+            .iter()
+            .find(|p| p.symbol == "AAPL")
+            .unwrap();
         assert!((aapl.shares - 12.0).abs() < 0.001);
         assert!((aapl.total_buys - 15.0).abs() < 0.001);
         assert!((aapl.total_sells - 3.0).abs() < 0.001);
@@ -1299,7 +1356,12 @@ deposit,2024-01-01,,,,,10000.0
 
         let report = pm.validate("test").unwrap();
         assert!(!report.valid);
-        assert!(report.issues.iter().any(|i| i.contains("non-positive quantity")));
+        assert!(
+            report
+                .issues
+                .iter()
+                .any(|i| i.contains("non-positive quantity"))
+        );
     }
 
     #[test]
@@ -1342,7 +1404,9 @@ deposit,2024-01-01,,,,,10000.0
             .unwrap();
         assert_eq!(in_range.len(), 1);
 
-        let out_of_range = pm.list_notes("test", "AAPL", Some("2025-01-01"), None, None).unwrap();
+        let out_of_range = pm
+            .list_notes("test", "AAPL", Some("2025-01-01"), None, None)
+            .unwrap();
         assert!(out_of_range.is_empty());
 
         // Delete
@@ -1366,7 +1430,10 @@ deposit,2024-01-01,,,,,10000.0
         let pm = PortfolioManager::with_dir(dir.path().to_path_buf());
         pm.create("test").unwrap();
 
-        let data = base64::engine::Engine::encode(&base64::engine::general_purpose::STANDARD, b"Hello, portfolio!");
+        let data = base64::engine::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            b"Hello, portfolio!",
+        );
 
         let id = pm
             .attach_file(
@@ -1401,10 +1468,21 @@ deposit,2024-01-01,,,,,10000.0
         let pm = PortfolioManager::with_dir(dir.path().to_path_buf());
         pm.create("test").unwrap();
 
-        let data = base64::engine::Engine::encode(&base64::engine::general_purpose::STANDARD, b"temp file");
+        let data = base64::engine::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            b"temp file",
+        );
 
         let id = pm
-            .attach_file("test", "MSFT", "2024-01-01", "temp.txt", "text/plain", &data, "")
+            .attach_file(
+                "test",
+                "MSFT",
+                "2024-01-01",
+                "temp.txt",
+                "text/plain",
+                &data,
+                "",
+            )
             .unwrap();
 
         let files = pm.list_files("test", "MSFT").unwrap();

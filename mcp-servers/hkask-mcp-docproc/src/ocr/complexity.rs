@@ -22,7 +22,10 @@ use image::DynamicImage;
 /// Complexity scoring is a performance optimization (routing shortcut),
 /// not a correctness dependency. Delete it → pipeline degrades to
 /// single-backend; keep it small.
-pub fn score_page_complexity(image: &DynamicImage, thresholds: &ThresholdConfig) -> ComplexityScore {
+pub fn score_page_complexity(
+    image: &DynamicImage,
+    thresholds: &ThresholdConfig,
+) -> ComplexityScore {
     let gray = image.to_luma8();
     let (w, h) = gray.dimensions();
     let w_i = w as isize;
@@ -112,7 +115,10 @@ mod tests {
         let img = DynamicImage::new_luma8(100, 100);
         let score = score_page_complexity(&img, &default_thresholds());
         assert_eq!(score.tier, ComplexityTier::Simple);
-        assert!(score.value < 0.01, "blank image should have near-zero edge density");
+        assert!(
+            score.value < 0.01,
+            "blank image should have near-zero edge density"
+        );
     }
 
     #[test]
@@ -141,7 +147,11 @@ mod tests {
         // Checkerboard with thick blocks — many asymmetric edges
         for y in 0..200 {
             for x in 0..200 {
-                let v = if ((x / 20) + (y / 20)) % 2 == 0 { 0u8 } else { 255u8 };
+                let v = if ((x / 20) + (y / 20)) % 2 == 0 {
+                    0u8
+                } else {
+                    255u8
+                };
                 img.put_pixel(x, y, Rgb([v, v, v]));
             }
         }
@@ -195,7 +205,11 @@ mod tests {
         let mut img: RgbImage = ImageBuffer::new(200, 200);
         for y in 0..200 {
             for x in 0..200 {
-                let v = if ((x / 20) + (y / 20)) % 2 == 0 { 0u8 } else { 255u8 };
+                let v = if ((x / 20) + (y / 20)) % 2 == 0 {
+                    0u8
+                } else {
+                    255u8
+                };
                 img.put_pixel(x, y, Rgb([v, v, v]));
             }
         }
