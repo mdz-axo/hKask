@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hkask
+  namespace: hkask
+  labels:
+    app: hkask
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hkask
+  template:
+    metadata:
+      labels:
+        app: hkask
+    spec:
+      containers:
+        - name: hkask
+          image: ghcr.io/mdz-axo/hkask:kask-main
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+            - name: matrix
+              containerPort: 8008
+              protocol: TCP
+          env:
+            # Pod identity from downward API
+            - name: POD_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # Domain must come before HKASK_BASE_URL (env var interpolation)
+            - name: HKASK_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: hkask-config
+                  key: domain
+            # Base URL for OAuth redirects
+            - name: HKASK_BASE_URL
+              value: "https://$(HKASK_DOMAIN)"
+            # Non-secret config from ConfigMap
+            - name: CONDUIT_SERVER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: hkask-config
+                  key: conduit-server-name
+            - name: LITESTREAM_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: hkask-config
+                  key: litestream-bucket
+            - name: LITESTREAM_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: hkask-config
+                  key: litestream-endpoint
+            - name: LITESTREAM_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: hkask-config
+                  key: litestream-region
+            - name: LITESTREAM_FORCE_PATH_STYLE
+              valueFrom:
+                configMapKeyRef:
+                  name: hkask-config
+                  key: litestream-force-path-style
+            # Secrets
+            - name: HKASK_OAUTH_GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: oauth-github-client-id
+            - name: HKASK_OAUTH_GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: oauth-github-client-secret
+            - name: LITESTREAM_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: litestream-access-key-id
+            - name: LITESTREAM_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: litestream-secret-access-key
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: hkask-data

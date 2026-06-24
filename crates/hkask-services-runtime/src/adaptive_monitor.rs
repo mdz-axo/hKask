@@ -271,8 +271,7 @@ mod tests {
             &self,
             _api_key: &str,
             _model_name: &str,
-        ) -> Result<crate::provider_intel::CostRate, crate::provider_intel::ProviderError>
-        {
+        ) -> Result<crate::provider_intel::CostRate, crate::provider_intel::ProviderError> {
             Ok(self.cost_rate.clone())
         }
     }

@@ -8,8 +8,8 @@
 
 use crate::cli::QaAction;
 use hkask_mcp::runtime::McpRuntime;
-use hkask_services_runtime::{self, ClassifierConfig};
 use hkask_services_core::self_heal::{HealInferenceFn, SelfHealer};
+use hkask_services_runtime::{self, ClassifierConfig};
 use hkask_test_harness::qa_script::{ClassifyResult, QaScriptRunner};
 use hkask_test_harness::triage::{self, BoleroFailure, QaDiagnosis, TriageReport};
 use std::collections::HashMap;

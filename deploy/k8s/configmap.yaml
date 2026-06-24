@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hkask-config
+  namespace: hkask
+data:
+  domain: "hkask.example.com"
+  conduit-server-name: "hkask.example.com"
+  litestream-bucket: "hkask-backups"
+  litestream-endpoint: "https://s3.example.com"
+  litestream-region: "auto"
+  litestream-force-path-style: "true"

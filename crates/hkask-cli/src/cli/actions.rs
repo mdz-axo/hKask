@@ -518,6 +518,18 @@ pub enum ReplicantAction {
         #[arg()]
         replicant_name: String,
     },
+    /// Rename a replicant
+    Rename {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+    },
+    /// Delete a replicant and all its data
+    Delete {
+        #[arg()]
+        name: String,
+    },
 }
 
 /// Sovereignty export actions

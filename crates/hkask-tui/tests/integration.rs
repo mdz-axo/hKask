@@ -389,7 +389,7 @@ fn all_windows_render_at_multiple_sizes() {
 fn kanban_sections_cycle() {
     let mut w = KanbanWindow::new(window_id(), bridge());
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
     // 4 presses = back to start
     render_smoke(&w, 80, 24);
     assert!(w.handle_key(tab));
@@ -403,7 +403,7 @@ fn kanban_sections_cycle() {
 fn memory_sections_cycle() {
     let mut w = MemoryWindow::new(window_id(), bridge());
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
     render_smoke(&w, 80, 24);
     // 5-state cycle: Episodic -> Semantic -> Triples -> Consolidation -> Chat -> Episodic
     for _ in 0..5 {
@@ -628,7 +628,7 @@ fn mcp_tab_kanban_cycles_sections_and_chat() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
     let mut w = KanbanWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
 
     assert_eq!(w.active_tab(), McpTab::Data);
     render_smoke(&w, 80, 24);
@@ -650,7 +650,7 @@ fn mcp_tab_companies_cycles_sections_and_chat() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
     let mut w = CompaniesWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
 
     assert_eq!(w.active_tab(), McpTab::Data);
     // Tab x4: Search -> Profile -> Financials -> Portfolio -> Chat
@@ -667,7 +667,7 @@ fn mcp_tab_memory_cycles_sections_and_chat() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
     let mut w = MemoryWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
 
     assert_eq!(w.active_tab(), McpTab::Data);
     for _ in 0..4 {
@@ -679,16 +679,17 @@ fn mcp_tab_memory_cycles_sections_and_chat() {
 }
 
 #[test]
+#[test]
 fn mcp_tab_training_toggles_chat() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
     let mut w = TrainingWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
-
+    let right = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
+    let left = KeyEvent::new(KeyCode::Char('['), KeyModifiers::NONE);
     assert_eq!(w.active_tab(), McpTab::Data);
-    assert!(w.handle_key(tab));
+    assert!(w.handle_key(right));
     assert_eq!(w.active_tab(), McpTab::Chat);
-    assert!(w.handle_key(tab));
+    assert!(w.handle_key(left));
     assert_eq!(w.active_tab(), McpTab::Data);
 }
 
@@ -743,13 +744,19 @@ fn command_palette_backspace_clears_filter() {
     palette.handle_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE));
     palette.handle_key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE));
     palette.handle_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE));
-    assert!(palette.selected_kind().is_none(), "unmatched filter returns None");
+    assert!(
+        palette.selected_kind().is_none(),
+        "unmatched filter returns None"
+    );
 
     // Backspace clears filter, all items show again
     palette.handle_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
     palette.handle_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
     palette.handle_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
-    assert!(palette.selected_kind().is_some(), "empty filter returns first item");
+    assert!(
+        palette.selected_kind().is_some(),
+        "empty filter returns first item"
+    );
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -774,7 +781,7 @@ fn companies_renders_with_bridge() {
 fn companies_all_sections_no_panic_without_bridge() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let mut w = CompaniesWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
     for _ in 0..5 {
         render_smoke(&w, 80, 24);
         w.handle_key(tab);
@@ -787,7 +794,7 @@ fn companies_all_sections_no_panic_with_bridge() {
     use hkask_tui::bridges::companies::MockCompaniesBridge;
     let mut w = CompaniesWindow::new(window_id(), bridge())
         .with_companies_bridge(MockCompaniesBridge::with_sample().arc());
-    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
     for _ in 0..5 {
         render_smoke(&w, 80, 24);
         w.handle_key(tab);

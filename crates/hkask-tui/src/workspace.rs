@@ -287,7 +287,6 @@ pub struct Workspace {
     pub(crate) palette_open: bool,
     palette_prev_focus: Option<WindowId>,
     pub(crate) command_palette: crate::command_palette::CommandPalette,
-    window_kind_idx: usize,
 }
 
 impl Workspace {
@@ -354,7 +353,6 @@ impl Workspace {
             palette_open: false,
             palette_prev_focus: None,
             command_palette: crate::command_palette::CommandPalette::new(),
-            window_kind_idx: 0,
         }
     }
 
@@ -649,30 +647,9 @@ impl Workspace {
         }
     }
 
-    /// Cycle through available window kinds and open one as a vertical split.
-    pub fn open_next_window_kind(&mut self) {
-        const KINDS: &[WindowKind] = &[
-            WindowKind::CnsMonitor,
-            WindowKind::Pods,
-            WindowKind::Wallet,
-            WindowKind::Registry,
-            WindowKind::Backup,
-            WindowKind::Curator,
-            WindowKind::Configuration,
-            WindowKind::Terminal,
-            WindowKind::Editor,
-            WindowKind::Training,
-            WindowKind::Media,
-            WindowKind::Skills,
-            WindowKind::Matrix,
-            WindowKind::Memory,
-            WindowKind::Companies,
-            WindowKind::Kanban,
-            WindowKind::Chat,
-        ];
-        let kind = KINDS[self.window_kind_idx % KINDS.len()];
-        self.window_kind_idx = self.window_kind_idx.wrapping_add(1);
-        self.open_window_kind(kind);
+    /// Open a new Chat window as a vertical split from the focused window.
+    pub fn new_chat_window(&mut self) {
+        self.open_window_kind(WindowKind::Chat);
     }
 
     pub fn open_command_palette(&mut self) {

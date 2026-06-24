@@ -349,90 +349,29 @@ The ordered sequence matters: templates first (so pods can deploy), then pods (s
 
 ---
 
-## 5. Server Migration
+## 5. Encryption Model
 
-### 5.1 Flow
-
-```
-User has: backup archive downloaded from old server
-
-kask export upload --server https://new-server.hkask.example
-  │
-  ▼
-User authenticates to new server (OAuth sign-in — creates account if new)
-  │
-  ▼
-User provides archive file + passphrase
-  │
-  ▼
-New server decrypts archive, checks schema_version, verifies webid match
-  │
-  ▼
-For each replicant entity in the archive:
-  ├── Name collision with existing replicant on new server?
-  │     YES → auto-rename: "ada" → "ada-migrated-20260617"
-  │     NO  → import as-is
-  │
-  ▼
-All triples upserted into new server's TripleStore (idempotent)
-  │
-  ▼
-New server returns MigrationReceipt { triple_count, renamed_replicants: [...] }
-  │
-  ▼
-User sees: "Archive imported. X triples.
-  Renamed replicants: ada → ada-migrated-20260617
-  Run `kask replicate merge --from ada-migrated-20260617 --into ada` to reconcile."
-```
-
-### 5.2 Replicant Operations
-
-| Command | What It Does |
-|---------|-------------|
-| `kask replicate rename <from> <to>` | Rename a replicant entity |
-| `kask replicate merge --from <source> --into <target>` | Upsert all triples from source entity into target entity. Source unchanged. |
-| `kask replicate delete <name>` | Remove a replicant and all its triples |
-
-**Merge semantics:** `INSERT OR REPLACE` by TripleID. Idempotent — running merge twice produces the same result. CNS span: `ReplicantMerge`.
-
-### 5.3 Fault Tolerance
-
-The CRDT merge (`INSERT OR REPLACE` by TripleID) is associative, commutative, and idempotent. Export and upload are resumable by retry:
-
-- **Interrupted export:** Re-run `kask export create`. Fresh snapshot.
-- **Interrupted upload:** Re-run `kask export upload`. 73% of triples already merged (no-ops), 27% fill in. Converged.
-
-No progress tracking. No chunking protocol. The merge is the fault tolerance.
-
-### 5.4 No Server-to-Server Protocol
-
-Servers never communicate. Migration is user-mediated: download archive from old server, upload to new server. The archive file is the bridge. P1: the user controls the transfer.
-
----
-
-## 6. Encryption Model
-
-### 6.1 Two Layers, Two Keys
+### 5.1 Two Layers, Two Keys
 
 | Layer | Key | Purpose |
 |-------|-----|---------|
 | Transport | Caddy TLS (Let's Encrypt) | HTTPS for all browser/API traffic. SSH for terminal sessions. |
 | Storage | User-provided passphrase at export time | Encrypts the backup archive (SQLCipher). Server never stores this. |
 
-### 6.2 Server-Side Encryption
+### 5.2 Server-Side Encryption
 
 - **TripleStore:** SQLCipher-encrypted, key derived from server master passphrase (Argon2id → AES-256).
 - **Git backup:** Already implemented — AES-256-GCM encrypted blobs before CAS storage.
 - **Archive SQLCipher:** Key derived via Argon2id from user-provided passphrase → AES-256. Reuses `Database::open_impl` encryption path from `hkask-storage` (v0.28.0). Does NOT use server master passphrase — the user's key is independent.
 - **PII:** Encrypted in `UserStore` with per-user PII key.
 
-### 6.3 Key Rotation
+### 5.3 Key Rotation
 
 Server key rotation follows the existing `hkask-keystore::master_key` pattern: increment `key_version`, old-version keys remain derivable. Zero new crypto code.
 
 ---
 
-## 7. CLI Command Surface
+## 6. CLI Command Surface
 
 ```
 kask init
@@ -447,48 +386,43 @@ kask matrix status-sidecar
 kask export create [--passphrase <passphrase>]
     Generate encrypted sovereignty archive for the authenticated user.
 
-kask export upload --server <url> [--archive <path>]
-    Upload sovereignty archive to a new server for migration.
+kask export upload --archive <path> --passphrase <passphrase>
+    Restore a sovereignty archive (simple idempotent insert).
 
-kask replicate rename <from> <to>
-kask replicate merge --from <source> --into <target>
-kask replicate delete <name>
-    Manage replicants after migration.
+kask replicant rename --from <name> --to <name>
+kask replicant delete <name>
+    Manage replicants.
 ```
 
-**Note:** `kask backup` commands (snapshot, restore, list, prune, verify, config) remain for operational backup — see §4.6. The `download` operation is API-only (`GET /api/v1/export/download`) since the CLI runs on the server and the file is local. Scheduled auto-export is deferred to Phase 6 (§13).
+**Note:** `kask backup` commands (snapshot, restore, list, prune, verify, config) remain for operational backup — see §4.6. The `download` operation is API-only (`GET /api/v1/export/download`) since the CLI runs on the server and the file is local. Scheduled auto-export is deferred to Phase 6 (§12).
 
 ---
 
-## 8. Type Summary
+## 7. Type Summary
 
-### 8.1 New Types
+### 7.1 New Types
 
 | Type | Crate | Fields / Variants |
 |------|-------|-------------------|
 | `OAuthProvider` | `hkask-api` | `GitHub`, `Google` |
 | `OAuthConfig` | `hkask-api` | `client_id: String`, `client_secret: SecretRef`, `redirect_uri: String` |
 | `OAuthUserProfile` | `hkask-api` | `provider: OAuthProvider`, `provider_user_id: String`, `email: String`, `display_name: String` |
-| `BackupArchive` | `hkask-storage` | Wraps `Database` (SQLCipher) — methods: `create(user_passphrase, triples)`, `open(user_passphrase)`, `metadata()` |
-| `MigrationReceipt` | `hkask-storage` | `triple_count: u64`, `renamed_replicants: Vec<(String, String)>` |
-| `MergeReceipt` | `hkask-storage` | `triple_count: u64`, `source: String`, `target: String` |
+| `BackupArchive` | `hkask-storage` | Wraps `Database` (SQLCipher) — methods: `create(user_passphrase, triples)`, `open(user_passphrase)`, `metadata()`, `restore_into()` |
+| `MigrationReceipt` | `hkask-storage` | `triple_count: u64` |
 
-### 8.2 CNS Span Additions
+### 7.2 CNS Span Additions
 
-**Status: Not yet implemented.** The following spans are defined in the plan but not yet added to the `CnsSpan` enum in `crates/hkask-types/src/cns.rs`:
+**Status: Implemented.** The following spans are added to `CnsSpan` and wired into route handlers:
 
 ```rust
-CnsSpan::SessionOpen,      // { user_id, provider }
-CnsSpan::SessionClose,     // { user_id, duration }
-CnsSpan::BackupExport,     // { triple_count, bytes, duration }
-CnsSpan::BackupAutoExport, // { webid, triple_count, bytes, duration }
-CnsSpan::BackupUpload,     // { triple_count, bytes, duration }
-CnsSpan::ReplicantMerge,   // { source, target, triple_count, duration }
+CnsSpan::SessionOpen,      // { user_id, provider } — emitted on OAuth callback
+CnsSpan::SessionClose,     // { user_id, duration } — emitted on logout
+CnsSpan::BackupExport,     // { triple_count, bytes, duration } — emitted on export create
+CnsSpan::BackupAutoExport, // { webid, triple_count, bytes, duration } — deferred (Phase 6)
+CnsSpan::BackupUpload,     // { triple_count, bytes, duration } — emitted on export upload
 ```
 
-Route handlers for auth, export, and replicant operations currently log via `tracing` but do not emit CNS spans. Wiring these spans is the top-priority remaining implementation task.
-
-### 8.3 API Endpoints (New)
+### 7.3 API Endpoints (New)
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -498,8 +432,7 @@ Route handlers for auth, export, and replicant operations currently log via `tra
 | `POST` | `/api/v1/auth/logout` | Destroy session |
 | `POST` | `/api/v1/export/create` | Generate and return encrypted sovereignty archive |
 | `GET` | `/api/v1/export/download` | Download latest sovereignty archive (browser) |
-| `POST` | `/api/v1/export/upload` | Upload sovereignty archive for migration |
-| `POST` | `/api/v1/replicants/merge` | Merge two replicants |
+| `POST` | `/api/v1/export/upload` | Restore sovereignty archive (idempotent insert) |
 | `POST` | `/api/v1/replicants/rename` | Rename a replicant |
 | `DELETE` | `/api/v1/replicants/{name}` | Delete a replicant |
 
@@ -507,7 +440,7 @@ Route handlers for auth, export, and replicant operations currently log via `tra
 
 ---
 
-## 9. Existing Infrastructure Reused
+## 8. Existing Infrastructure Reused
 
 | Infrastructure | Used For | Crate |
 |---------------|----------|-------|
@@ -527,7 +460,7 @@ Route handlers for auth, export, and replicant operations currently log via `tra
 
 ---
 
-## 10. What Is NOT Being Built
+## 9. What Is NOT Being Built
 
 Explicit exclusions — considered and rejected:
 
@@ -538,7 +471,6 @@ Explicit exclusions — considered and rejected:
 - **No CRDT pull/upload streaming protocol.** Backup is a file. CRDT idempotence provides fault tolerance for migration uploads.
 - **No client-side encryption key management.** User provides passphrase at export time. Server never stores it.
 - **No server-to-server protocol.** Migration is user-mediated via downloadable archive.
-- **No conflict resolution UI.** Replicant merge is user-initiated, idempotent upsert.
 - **No backup archive export pruning code.** The archive is a single snapshot — no versioned history to prune. Operational backup pruning (`BackupService::prune` with `RetentionPolicy`, via `BackupLoop`) is a separate system for git-based artifact versioning and is already implemented. The memory pipeline (consolidation, salience, condensation) handles live triple pruning independently of both.
 - **No artifact replication (LORA, research files).** Out of scope. Backup covers triples only.
 - **No SSH key setup required.** Browser terminal is the default. SSH is an optional power-user feature.
@@ -546,7 +478,7 @@ Explicit exclusions — considered and rejected:
 
 ---
 
-## 11. Success Criteria
+## 10. Success Criteria
 
 ```
 1. [Deploy]  kask init
@@ -562,14 +494,16 @@ Explicit exclusions — considered and rejected:
              -> archive.db created, encrypted with passphrase
              -> CnsSpan::BackupExport emitted
 
-4. [Migrate] kask export upload --server https://new-server.example
+4. [Restore] kask export upload --archive archive.db --passphrase "user-chosen"
              -> MigrationReceipt.triple_count matches archive count
-             -> replicants renamed on collision
 
-5. [Merge]   kask replicate merge --from ada-migrated-xxx --into ada
-             -> triples merged, source unchanged
+5. [Rename] kask replicant rename --from old-name --to new-name
+             -> replicant renamed
 
-6. [Multi]   Users A and B both signed in
+6. [Delete]  kask replicant delete old-name
+             -> replicant deleted
+
+7. [Multi]   Users A and B both signed in
              -> A cannot see B's triples, pods, or wallet
              -> B cannot see A's triples, pods, or wallet
 
@@ -579,30 +513,30 @@ Explicit exclusions — considered and rejected:
 
 ---
 
-## 12. Open Questions
+## 11. Open Questions
 
 | # | Question | Resolution |
 |---|----------|------------|
-| Q1 | ~~Should auto-export archives be encrypted with the user's session key (server-side) or require a passphrase at download time?~~ | **Resolved:** Passphrase-at-download only. Session-key encryption would mean the server holds the key, contradicting §4.3 ("server never stores the user's backup password") and §6.1 ("Storage: User-provided passphrase at export time"). Auto-export archives are encrypted at rest with a key derived from the user's passphrase, provided at download time. The server stores only the encrypted blob. |
+| Q1 | ~~Should auto-export archives be encrypted with the user's session key (server-side) or require a passphrase at download time?~~ | **Resolved:** Passphrase-at-download only. Session-key encryption would mean the server holds the key, contradicting §4.3 ("server never stores the user's backup password") and §5.1 ("Storage: User-provided passphrase at export time"). Auto-export archives are encrypted at rest with a key derived from the user's passphrase, provided at download time. The server stores only the encrypted blob. |
 | Q2 | OAuth provider scope: GitHub only? GitHub + Google? | **Resolved:** GitHub first (developer audience). Google sign-in button is on the landing page but the callback handler only supports GitHub. The Google button will be removed until the callback handler is implemented. Revisit if demand exists. |
 | Q3 | Should the backup include artifacts (LORA, research files, skill bundles) organized by registry in a zip? | Extends the backup format. Needs artifact store maturity first. |
 
 ---
 
-## 13. Implementation Sequence
+## 12. Implementation Sequence
 
 | Phase | Tasks | Depends On | Status |
 |-------|-------|-----------|--------|
 | **Phase 1 — OAuth** | `OAuthProvider`, OAuth config, `/auth/login` + `/auth/callback`, session cookie, `HumanUser.provider` fields | — | ✅ Implemented (GitHub complete; Google deferred per Q2) |
 | **Phase 2 — Terminal** | `/api/v1/terminal/ws` WebSocket endpoint, PTY spawn + I/O pipe, static `/terminal` page with xterm.js | Phase 1 | ✅ Implemented |
-| **Phase 3 — Export** | `BackupArchive` type, `kask export create`, CNS spans | Phase 1 | ⚠️ Partial — types + HTTP routes done; CLI command + CNS spans pending |
-| **Phase 4 — Migration** | `kask export upload`, replicant rename/merge/delete, `MigrationReceipt`, auto-rename on collision | Phase 3 | ⚠️ Partial — types + HTTP routes done; CLI commands + CNS spans pending |
-| **Phase 5 — Integration** | End-to-end: deploy → OAuth sign-in → terminal → export → upload to second server → merge → verify | Phase 4 | 🔴 Not started |
+| **Phase 3 — Export** | `BackupArchive` type, `kask export create`, CNS spans | Phase 1 | ✅ Implemented (types, HTTP routes, CLI commands, CNS spans done) |
+| **Phase 4 — Upload & Replicants** | `kask export upload`, replicant rename/delete, `MigrationReceipt` | Phase 3 | ✅ Implemented (types, HTTP routes, CLI commands done) |
+| **Phase 5 — Integration** | End-to-end: deploy → OAuth sign-in → terminal → export → upload → rename → verify | Phase 4 | 🔴 Not started |
 | **Phase 6 — Harden** | Interruption testing, multi-user isolation, backup auto-export tuning | Phase 5 | 🔴 Not started (deferred) |
 
 ---
 
-## 14. Related Research and Past Plans
+## 13. Related Research and Past Plans
 
 > **Incorporated from:** `plans/hetzner-blocking-issues.md`, `plans/hetzner-k3s-implementation-plan.md`, `plans/rjoule-cost-tracking-implementation.md`, `research/cloud-deployment-research-report.md`, `research/cloud-implementation-plans.md`
 

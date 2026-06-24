@@ -123,18 +123,6 @@ fn run_upload(archive_path: &PathBuf, passphrase: &str) {
             "Import complete. {} triples imported.",
             receipt["triple_count"].as_u64().unwrap_or(0)
         );
-        if let Some(renamed) = receipt["renamed_replicants"].as_array() {
-            if !renamed.is_empty() {
-                println!("Renamed replicants:");
-                for pair in renamed {
-                    println!(
-                        "  {} -> {}",
-                        pair[0].as_str().unwrap_or("?"),
-                        pair[1].as_str().unwrap_or("?")
-                    );
-                }
-            }
-        }
 
         Ok(())
     });

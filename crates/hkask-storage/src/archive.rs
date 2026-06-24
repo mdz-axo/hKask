@@ -12,7 +12,6 @@ use crate::triples::TripleStore;
 use chrono::Utc;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::path::PathBuf;
 use thiserror::Error;
 #[derive(Debug, Error)]
@@ -420,10 +419,8 @@ mod tests {
             )
             .unwrap();
         let target_webid = WebID::new();
-        let names = HashSet::new();
-        let receipt = archive.import_into(&target, &target_webid, &names).unwrap();
+        let receipt = archive.restore_into(&target, &target_webid).unwrap();
         assert_eq!(receipt.triple_count, 3);
-        assert!(receipt.renamed_replicants.is_empty());
         // Verify triples in target
         let target_count: i64 = target
             .lock_conn()
@@ -459,10 +456,9 @@ mod tests {
             )
             .unwrap();
         let tw = WebID::new();
-        let names = HashSet::new();
-        let r1 = archive.import_into(&target, &tw, &names).unwrap();
+        let r1 = archive.restore_into(&target, &tw).unwrap();
         assert_eq!(r1.triple_count, 3);
-        let r2 = archive.import_into(&target, &tw, &names).unwrap();
+        let r2 = archive.restore_into(&target, &tw).unwrap();
         assert_eq!(r2.triple_count, 3);
         // Count should still be 3 (INSERT OR REPLACE)
         let count: i64 = target
@@ -471,33 +467,5 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM triples", [], |r| r.get(0))
             .unwrap();
         assert_eq!(count, 3);
-    }
-    #[test]
-    fn import_auto_renames_on_collision() {
-        let (source, src_webid) = setup_triple_store();
-        let path = temp_path(&format!("hkask-test-{}.db", uuid::Uuid::new_v4()));
-        let archive = BackupArchive::create(path, "test-pass", &source, &src_webid, "srv").unwrap();
-        let target_db = in_memory_db();
-        let target = TripleStore::new(target_db.conn_arc());
-        target
-            .lock_conn()
-            .unwrap()
-            .execute_batch(
-                "CREATE TABLE IF NOT EXISTS triples (
-                id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
-                value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
-                confidence REAL NOT NULL DEFAULT 1.0, perspective TEXT,
-                visibility TEXT NOT NULL DEFAULT 'private', owner_webid TEXT NOT NULL
-            );",
-            )
-            .unwrap();
-        let tw = WebID::new();
-        let mut names = HashSet::new();
-        names.insert("replicant:ada".to_string());
-        let receipt = archive.import_into(&target, &tw, &names).unwrap();
-        assert_eq!(receipt.triple_count, 3);
-        assert_eq!(receipt.renamed_replicants.len(), 1);
-        assert_eq!(receipt.renamed_replicants[0].0, "replicant:ada");
-        assert!(receipt.renamed_replicants[0].1.contains("migrated"));
     }
 }

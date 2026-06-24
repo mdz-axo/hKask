@@ -312,9 +312,14 @@ impl TuiSession {
                 self.workspace.toggle_help();
                 true
             }
-            // New window (cycle through kinds)
+            // New Chat window
             (KeyModifiers::CONTROL, Char('n')) => {
-                self.workspace.open_next_window_kind();
+                self.workspace.new_chat_window();
+                true
+            }
+            // Tab: next window focus
+            (KeyModifiers::NONE, KeyCode::Tab) => {
+                self.workspace.focus_next();
                 true
             }
             _ => false,

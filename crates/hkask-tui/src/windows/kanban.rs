@@ -1,31 +1,18 @@
 //! Kanban window — task board for agent coordination.
 //!
-//! Displays kanban board with columns (Backlog, In Progress, Review, Done).
-//! Each card is a task that can be assigned to agents.
-//!
-//! Adopts the MCP two-tab design (TUI_SPECIFICATION.md §3):
-//! - Tab 1 (Chat): Focused chat scoped to the Kanban MCP server
-//! - Tab 2 (Data): Board, Backlog, InProgress, Done sections
-//!
-//! Tab key behavior: cycles Board → Backlog → InProgress → Done → Chat → Board.
-//!
-//! # Architecture
-//! ⟨Kanban⟩ displays ⟨Columns, Cards, Assignments⟩ .
-//! ⟨Kanban⟩ integratesWith ⟨hkask-services-kanban⟩ .
+//! `]` forward, `[` backward through Board→Backlog→InProgress→Done→Chat.
 
-use std::sync::Arc;
-
+use crate::bridges::KanbanDataBridge;
+use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
+use crate::repl_bridge::ReplBridge;
+use crate::window::{Window, WindowId, WindowKind};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
-
-use crate::bridges::KanbanDataBridge;
-use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
-use crate::repl_bridge::ReplBridge;
-use crate::window::{Window, WindowId, WindowKind};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum KanbanSection {
@@ -34,7 +21,6 @@ enum KanbanSection {
     InProgress,
     Done,
 }
-
 impl KanbanSection {
     fn next(self) -> Self {
         match self {
@@ -42,6 +28,14 @@ impl KanbanSection {
             Self::Backlog => Self::InProgress,
             Self::InProgress => Self::Done,
             Self::Done => Self::Board,
+        }
+    }
+    fn prev(self) -> Self {
+        match self {
+            Self::Board => Self::Done,
+            Self::Backlog => Self::Board,
+            Self::InProgress => Self::Backlog,
+            Self::Done => Self::InProgress,
         }
     }
     fn title(&self) -> &str {
@@ -59,7 +53,6 @@ pub struct KanbanWindow {
     section: KanbanSection,
     active_tab: McpTab,
     chat_state: McpChatState,
-    #[allow(dead_code)]
     bridge: Arc<dyn ReplBridge>,
     kanban: Option<Arc<dyn KanbanDataBridge>>,
 }
@@ -75,7 +68,6 @@ impl KanbanWindow {
             kanban: None,
         }
     }
-
     pub fn with_kanban_bridge(mut self, kb: Arc<dyn KanbanDataBridge>) -> Self {
         self.kanban = Some(kb);
         self
@@ -87,46 +79,59 @@ impl Window for KanbanWindow {
         self.id
     }
     fn title(&self) -> &str {
-        "Kanban"
+        match self.active_tab {
+            McpTab::Chat => "Kanban Chat",
+            McpTab::Data => "Kanban",
+        }
     }
     fn kind(&self) -> WindowKind {
         WindowKind::Kanban
     }
-
-    fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
+    fn render(&self, f: &mut Frame, area: Rect, _: bool) {
         match self.active_tab {
-            McpTab::Chat => {
-                Self::default_render_chat_tab(&self.chat_state, "kanban", f, area);
-            }
+            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "kanban", f, area),
             McpTab::Data => self.render_data_tab(f, area),
         }
     }
-
     fn handle_key(&mut self, key: KeyEvent) -> bool {
-        if key.code == KeyCode::Tab {
-            match self.active_tab {
-                McpTab::Chat => {
-                    // Tab from Chat → switch to Data (first section)
-                    self.active_tab = McpTab::Data;
-                    self.section = KanbanSection::Board;
-                    return true;
-                }
-                McpTab::Data => {
-                    // Tab from Data: cycle sections, then wrap to Chat
-                    self.section = self.section.next();
-                    if self.section == KanbanSection::Board {
-                        // Wrapped around → switch to Chat tab
-                        self.active_tab = McpTab::Chat;
+        match key.code {
+            KeyCode::Char(']') => {
+                match self.active_tab {
+                    McpTab::Chat => {
+                        self.active_tab = McpTab::Data;
+                        self.section = KanbanSection::Board;
                     }
-                    return true;
+                    McpTab::Data => {
+                        self.section = self.section.next();
+                        if self.section == KanbanSection::Board {
+                            self.active_tab = McpTab::Chat;
+                        }
+                    }
                 }
+                return true;
             }
+            KeyCode::Char('[') => {
+                match self.active_tab {
+                    McpTab::Chat => {
+                        self.active_tab = McpTab::Data;
+                        self.section = KanbanSection::Done;
+                    }
+                    McpTab::Data => {
+                        self.section = self.section.prev();
+                        if self.section == KanbanSection::Done {
+                            self.active_tab = McpTab::Chat;
+                        }
+                    }
+                }
+                return true;
+            }
+            _ => {}
         }
-
         match self.active_tab {
             McpTab::Chat => {
                 if let Some(msg) = self.handle_chat_key(key) {
-                    self.bridge.start_scoped_inference(msg, self.mcp_server_name());
+                    self.bridge
+                        .start_scoped_inference(msg, self.mcp_server_name());
                     return true;
                 }
                 matches!(
@@ -144,91 +149,64 @@ impl McpTabbedWindow for KanbanWindow {
     fn active_tab(&self) -> McpTab {
         self.active_tab
     }
-
     fn set_active_tab(&mut self, tab: McpTab) {
         self.active_tab = tab;
     }
-
     fn chat_state_mut(&mut self) -> &mut McpChatState {
         &mut self.chat_state
     }
-
     fn mcp_server_name(&self) -> &str {
         "kanban"
     }
-
     fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
         Self::default_render_chat_tab(&self.chat_state, "kanban", f, area);
     }
-
     fn render_data_tab(&self, f: &mut Frame, area: Rect) {
         let mut lines = vec![
             Line::from(Span::styled(
-                format!(
-                    "── Kanban: {} (Tab: next | Tab×4: Chat) ──",
-                    self.section.title()
-                ),
+                format!("── Kanban: {} ([ ] to navigate) ──", self.section.title()),
                 Style::default().fg(Color::Cyan).bold(),
             )),
             Line::from(""),
         ];
-
         if let Some(ref kb) = self.kanban {
             let boards = kb.board_list();
             let counts = kb.status_counts();
-
+            let bk = kb.tasks_by_status("backlog", 20);
+            let ip = kb.tasks_by_status("in_progress", 20);
+            let dn = kb.tasks_by_status("done", 20);
             match self.section {
                 KanbanSection::Board => {
                     if let Some(ref board) = boards.first() {
-                        lines.push(Line::from(vec![
-                            Span::raw("  Board: "),
-                            Span::styled(
-                                format!("{} ({})", board.name, board.id),
-                                Style::default().fg(Color::Green),
-                            ),
-                        ]));
+                        lines.push(Line::from(format!(
+                            "  Board: {} ({})",
+                            board.name, board.id
+                        )));
                         lines.push(Line::from(format!("  Total tasks: {}", board.task_count)));
                     }
                     lines.push(Line::from(format!(
                         "  Backlog: {}   In Progress: {}   Review: {}   Done: {}",
                         counts.backlog, counts.in_progress, counts.review, counts.done
                     )));
-                    lines.push(Line::from(""));
-                    lines.push(Line::from("  Columns:"));
-                    if let Some(ref board) = boards.first() {
-                        for col in &board.columns {
-                            lines.push(Line::from(format!("    • {}", col)));
-                        }
-                    }
                 }
                 KanbanSection::Backlog => {
                     lines.push(Line::from(format!(
                         "  {} task(s) in backlog",
                         counts.backlog
                     )));
-                    lines.push(Line::from(""));
-                    let tasks = kb.tasks_by_status("backlog", 20);
-                    if tasks.is_empty() {
-                        lines.push(Line::from("  No tasks awaiting assignment."));
-                    } else {
-                        for t in &tasks {
-                            let title = t.title.to_string();
-                            let prio = t.priority.as_deref().unwrap_or("-");
-                            let color = match prio {
-                                "critical" | "high" => Color::Red,
-                                "medium" => Color::Yellow,
-                                _ => Color::DarkGray,
-                            };
-                            lines.push(Line::from(vec![
-                                Span::raw("  • "),
-                                Span::styled(title, Style::default().fg(Color::White)),
-                                Span::styled(format!("  [{}]", prio), Style::default().fg(color)),
-                            ]));
-                            if !t.labels.is_empty() {
-                                let labels = t.labels.join(", ");
-                                lines.push(Line::from(format!("    labels: {}", labels)));
-                            }
-                        }
+                    for t in &bk {
+                        let title = t.title.clone();
+                        let prio = t.priority.as_deref().unwrap_or("-");
+                        let c = match prio {
+                            "critical" | "high" => Color::Red,
+                            "medium" => Color::Yellow,
+                            _ => Color::DarkGray,
+                        };
+                        lines.push(Line::from(vec![
+                            Span::raw("  • "),
+                            Span::styled(title, Style::default().fg(Color::White)),
+                            Span::styled(format!("  [{}]", prio), Style::default().fg(c)),
+                        ]));
                     }
                 }
                 KanbanSection::InProgress => {
@@ -236,80 +214,33 @@ impl McpTabbedWindow for KanbanWindow {
                         "  {} task(s) in progress",
                         counts.in_progress
                     )));
-                    lines.push(Line::from(""));
-                    let tasks = kb.tasks_by_status("in_progress", 20);
-                    if tasks.is_empty() {
-                        lines.push(Line::from("  No tasks currently being worked on."));
-                    } else {
-                        for t in &tasks {
-                            let title = t.title.to_string();
-                            let assignee =
-                                t.assignee.as_deref().unwrap_or("unassigned").to_string();
-                            lines.push(Line::from(vec![
-                                Span::raw("  • "),
-                                Span::styled(title, Style::default().fg(Color::Yellow)),
-                                Span::styled(
-                                    format!("  [{}]", assignee),
-                                    Style::default().fg(Color::Cyan),
-                                ),
-                            ]));
-                        }
+                    for t in &ip {
+                        let title = t.title.clone();
+                        let a = t.assignee.as_deref().unwrap_or("unassigned");
+                        lines.push(Line::from(vec![
+                            Span::raw("  • "),
+                            Span::styled(title, Style::default().fg(Color::Yellow)),
+                            Span::styled(format!("  [{}]", a), Style::default().fg(Color::Cyan)),
+                        ]));
                     }
                 }
                 KanbanSection::Done => {
                     lines.push(Line::from(format!("  {} task(s) completed", counts.done)));
-                    lines.push(Line::from(""));
-                    let tasks = kb.tasks_by_status("done", 20);
-                    if tasks.is_empty() {
-                        lines.push(Line::from("  No completed tasks."));
-                    } else {
-                        for t in &tasks {
-                            let title = t.title.to_string();
-                            lines.push(Line::from(vec![
-                                Span::raw("  ✓ "),
-                                Span::styled(title, Style::default().fg(Color::Green)),
-                            ]));
-                        }
+                    for t in &dn {
+                        let title = t.title.clone();
+                        lines.push(Line::from(vec![
+                            Span::raw("  ✓ "),
+                            Span::styled(title, Style::default().fg(Color::Green)),
+                        ]));
                     }
                 }
             }
         } else {
             match self.section {
-                KanbanSection::Board => {
-                    lines.push(Line::from(
-                        "  Columns: Backlog | In Progress | Review | Done",
-                    ));
-                    lines.push(Line::from(
-                        "  Each card is a task assigned to an agent pod.",
-                    ));
-                    lines.push(Line::from("  Cards flow left-to-right as work progresses."));
-                    lines.push(Line::from(""));
-                    lines.push(Line::from("  Use `kask kanban` CLI for board management."));
-                }
-                KanbanSection::Backlog => {
-                    lines.push(Line::from("  Tasks awaiting assignment."));
-                    lines.push(Line::from(
-                        "  Created via /kanban create or kata PDCA cycles.",
-                    ));
-                }
-                KanbanSection::InProgress => {
-                    lines.push(Line::from("  Tasks currently being worked on."));
-                    lines.push(Line::from(
-                        "  Agent pods execute tasks within their OCAP boundary.",
-                    ));
-                }
-                KanbanSection::Done => {
-                    lines.push(Line::from("  Completed tasks with verification status."));
-                    lines.push(Line::from("  Triggers memory consolidation on completion."));
-                }
+                KanbanSection::Board => lines.push(Line::from("  No kanban service connected.")),
+                _ => lines.push(Line::from("  No kanban service connected.")),
             }
         }
-
-        lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled(
-            "  Kanban integrates with Kata coaching loop for task-scoped scientific thinking.",
-            Style::default().fg(Color::DarkGray),
-        )));
         f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
     }
 }

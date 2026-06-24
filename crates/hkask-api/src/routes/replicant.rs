@@ -1,4 +1,4 @@
-//! Replicant API — list, rename, merge, and delete replicants.
+//! Replicant API — list, rename, and delete replicants.
 //!
 //! REQ: P1-deploy-replicant-manage — P1 User Sovereignty: user manages their replicants.
 //! expect: "I can manage my replicants through the API"
@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::ApiState;
 use crate::middleware::AuthContext;
-use hkask_storage::MergeReceipt;
 
 #[derive(Debug, Serialize)]
 pub struct ReplicantInfo {
@@ -29,12 +28,6 @@ pub struct ReplicantListResponse {
 pub struct RenameRequest {
     pub from: String,
     pub to: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct MergeRequest {
-    pub from: String,
-    pub into: String,
 }
 
 /// GET /api/v1/replicants
@@ -124,10 +117,6 @@ pub fn replicant_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
         .route(
             "/api/v1/replicants/rename",
             axum::routing::post(rename_replicant),
-        )
-        .route(
-            "/api/v1/replicants/merge",
-            axum::routing::post(merge_replicants),
         )
         .route(
             "/api/v1/replicants/{name}",

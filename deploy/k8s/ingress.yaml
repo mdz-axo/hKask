@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hkask
+  namespace: hkask
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - hkask.example.com
+      secretName: hkask-tls
+  rules:
+    - host: hkask.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hkask
+                port:
+                  number: 3000
+          - path: /_matrix
+            pathType: Prefix
+            backend:
+              service:
+                name: hkask
+                port:
+                  number: 8008
+          - path: /_well-known
+            pathType: Prefix
+            backend:
+              service:
+                name: hkask
+                port:
+                  number: 8008

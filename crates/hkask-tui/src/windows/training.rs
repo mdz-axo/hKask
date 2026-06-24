@@ -1,33 +1,23 @@
 //! Training window — LoRA adapter management and training sessions.
 //!
-//! Displays adapters, deployment status, and session counts. Live data
-//! from TrainingDataBridge / hkask-mcp-training.
-//!
-//! Adopts the MCP two-tab design (TUI_SPECIFICATION.md §3):
-//! - Tab 1 (Chat): Focused chat scoped to the Training MCP server
-//! - Tab 2 (Data): Adapters and deployments overview
-//!
-//! Tab key: toggles Chat ↔ Data directly (single data view).
+//! `]` switches to Chat, `[` switches to Data.
 
-use std::sync::Arc;
-
+use crate::bridges::TrainingDataBridge;
+use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
+use crate::repl_bridge::ReplBridge;
+use crate::window::{Window, WindowId, WindowKind};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
-
-use crate::bridges::TrainingDataBridge;
-use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
-use crate::repl_bridge::ReplBridge;
-use crate::window::{Window, WindowId, WindowKind};
+use std::sync::Arc;
 
 pub struct TrainingWindow {
     id: WindowId,
     active_tab: McpTab,
     chat_state: McpChatState,
-    #[allow(dead_code)]
     bridge: Arc<dyn ReplBridge>,
     training: Option<Arc<dyn TrainingDataBridge>>,
 }
@@ -42,7 +32,6 @@ impl TrainingWindow {
             training: None,
         }
     }
-
     pub fn with_training_bridge(mut self, t: Arc<dyn TrainingDataBridge>) -> Self {
         self.training = Some(t);
         self
@@ -62,29 +51,29 @@ impl Window for TrainingWindow {
     fn kind(&self) -> WindowKind {
         WindowKind::Training
     }
-
-    fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
+    fn render(&self, f: &mut Frame, area: Rect, _: bool) {
         match self.active_tab {
-            McpTab::Chat => {
-                Self::default_render_chat_tab(&self.chat_state, "training", f, area);
-            }
+            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "training", f, area),
             McpTab::Data => self.render_data_tab(f, area),
         }
     }
-
     fn handle_key(&mut self, key: KeyEvent) -> bool {
-        if key.code == KeyCode::Tab {
-            self.active_tab = match self.active_tab {
-                McpTab::Chat => McpTab::Data,
-                McpTab::Data => McpTab::Chat,
-            };
-            return true;
+        match key.code {
+            KeyCode::Char(']') => {
+                self.active_tab = McpTab::Chat;
+                return true;
+            }
+            KeyCode::Char('[') => {
+                self.active_tab = McpTab::Data;
+                return true;
+            }
+            _ => {}
         }
-
         match self.active_tab {
             McpTab::Chat => {
                 if let Some(msg) = self.handle_chat_key(key) {
-                    self.bridge.start_scoped_inference(msg, self.mcp_server_name());
+                    self.bridge
+                        .start_scoped_inference(msg, self.mcp_server_name());
                     return true;
                 }
                 matches!(
@@ -111,28 +100,26 @@ impl McpTabbedWindow for TrainingWindow {
     fn mcp_server_name(&self) -> &str {
         "training"
     }
-
     fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
         Self::default_render_chat_tab(&self.chat_state, "training", f, area);
     }
-
     fn render_data_tab(&self, f: &mut Frame, area: Rect) {
         let mut lines = vec![
             Line::from(Span::styled(
-                "── Training (Tab: Chat) ──",
+                "── Training ([ ] Chat/Data) ──",
                 Style::default().fg(Color::Cyan).bold(),
             )),
             Line::from(""),
         ];
-
         if let Some(ref t) = self.training {
             let adapters = t.adapter_list();
             let deployments = t.deployment_list();
-
-            lines.push(Line::from(format!("  Sessions:    {}", t.session_count())));
-            lines.push(Line::from(format!("  Adapters:    {}", t.adapter_count())));
+            lines.push(Line::from(format!(
+                "  Sessions: {}   Adapters: {}",
+                t.session_count(),
+                t.adapter_count()
+            )));
             lines.push(Line::from(""));
-
             lines.push(Line::from(Span::styled(
                 "  Adapters:",
                 Style::default().fg(Color::Yellow),
@@ -140,22 +127,12 @@ impl McpTabbedWindow for TrainingWindow {
             if adapters.is_empty() {
                 lines.push(Line::from("    • None registered"));
             } else {
-                let adapter_data: Vec<(String, String, String, String, u64)> = adapters
-                    .iter()
-                    .map(|a| {
-                        (
-                            a.name.clone(),
-                            a.version.clone(),
-                            a.base_model.clone(),
-                            a.expertise.clone(),
-                            a.size_bytes,
-                        )
-                    })
-                    .collect();
-                for (name, version, base_model, expertise, size_bytes) in &adapter_data {
+                for a in &adapters {
+                    let name = a.name.clone();
+                    let version = a.version.clone();
                     lines.push(Line::from(vec![
                         Span::raw("    • "),
-                        Span::styled(name.clone(), Style::default().fg(Color::Magenta)),
+                        Span::styled(name, Style::default().fg(Color::Magenta)),
                         Span::styled(
                             format!("  v{}", version),
                             Style::default().fg(Color::DarkGray),
@@ -163,14 +140,13 @@ impl McpTabbedWindow for TrainingWindow {
                     ]));
                     lines.push(Line::from(format!(
                         "      {}  {}  {} MB",
-                        base_model,
-                        expertise,
-                        size_bytes / 1_000_000
+                        a.base_model,
+                        a.expertise,
+                        a.size_bytes / 1_000_000
                     )));
                 }
             }
             lines.push(Line::from(""));
-
             lines.push(Line::from(Span::styled(
                 "  Deployments:",
                 Style::default().fg(Color::Yellow),
@@ -178,52 +154,22 @@ impl McpTabbedWindow for TrainingWindow {
             if deployments.is_empty() {
                 lines.push(Line::from("    • No active deployments"));
             } else {
-                let deployment_data: Vec<(String, String, String)> = deployments
-                    .iter()
-                    .map(|d| (d.adapter_name.clone(), d.provider.clone(), d.status.clone()))
-                    .collect();
-                for (name, provider, status) in &deployment_data {
-                    let color = match status.as_str() {
+                for d in &deployments {
+                    let name = d.adapter_name.clone();
+                    let color = match d.status.as_str() {
                         "active" => Color::Green,
                         "provisioning" => Color::Yellow,
                         _ => Color::Red,
                     };
                     lines.push(Line::from(vec![
                         Span::raw("    • "),
-                        Span::styled(name.clone(), Style::default().fg(Color::Cyan)),
-                        Span::raw(format!("  via {:12}", provider)),
-                        Span::styled(format!("  [{}]", status), Style::default().fg(color)),
+                        Span::styled(name, Style::default().fg(Color::Cyan)),
+                        Span::raw(format!("  via {:12}", d.provider)),
+                        Span::styled(format!("  [{}]", d.status), Style::default().fg(color)),
                     ]));
                 }
             }
-            lines.push(Line::from(""));
-            lines.push(Line::from(Span::styled(
-                "  Use `kask adapter` CLI for deployment. 4 commands: list, deploy, status, teardown.",
-                Style::default().fg(Color::DarkGray),
-            )));
-        } else {
-            lines.push(Line::from("  Active Sessions: 0"));
-            lines.push(Line::from("  Completed:       0"));
-            lines.push(Line::from(""));
-            lines.push(Line::from(Span::styled(
-                "  LoRA Adapters:",
-                Style::default().fg(Color::Yellow),
-            )));
-            lines.push(Line::from("    • None deployed"));
-            lines.push(Line::from(""));
-            lines.push(Line::from(Span::styled(
-                "  Training Artifacts:",
-                Style::default().fg(Color::Yellow),
-            )));
-            lines.push(Line::from("    • agents/{name}/adapters/"));
-            lines.push(Line::from("    • agents/{name}/sessions/"));
-            lines.push(Line::from(""));
-            lines.push(Line::from(Span::styled(
-                "  Use `axolotl` CLI for fine-tuning, then deploy adapters via /adapter.",
-                Style::default().fg(Color::DarkGray),
-            )));
         }
-
         f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
     }
 }

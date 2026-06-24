@@ -443,7 +443,70 @@ pub fn run_replicant(action: crate::cli::ReplicantAction) {
         ReplicantAction::Passphrase { replicant_name } => {
             change_passphrase(&replicant_name);
         }
+        ReplicantAction::Rename { from, to } => {
+            replicant_rename(&from, &to);
+        }
+        ReplicantAction::Delete { name } => {
+            replicant_delete(&name);
+        }
     }
+}
+
+/// Rename a replicant via the API.
+fn replicant_rename(from: &str, to: &str) {
+    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+    rt.block_on(async {
+        let client = reqwest::Client::new();
+        let base_url =
+            std::env::var("HKASK_BASE_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
+        let resp = client
+            .post(format!("{base_url}/api/v1/replicants/rename"))
+            .json(&serde_json::json!({"from": from, "to": to}))
+            .send()
+            .await;
+        match resp {
+            Ok(r) if r.status().is_success() => {
+                println!("Replicant renamed: {from} -> {to}");
+            }
+            Ok(r) => {
+                let body = r.text().await.unwrap_or_default();
+                eprintln!("Rename failed: {body}");
+                std::process::exit(1);
+            }
+            Err(e) => {
+                eprintln!("Request failed: {e}");
+                std::process::exit(1);
+            }
+        }
+    });
+}
+
+/// Delete a replicant via the API.
+fn replicant_delete(name: &str) {
+    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+    rt.block_on(async {
+        let client = reqwest::Client::new();
+        let base_url =
+            std::env::var("HKASK_BASE_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
+        let resp = client
+            .delete(format!("{base_url}/api/v1/replicants/{name}"))
+            .send()
+            .await;
+        match resp {
+            Ok(r) if r.status().is_success() => {
+                println!("Replicant deleted: {name}");
+            }
+            Ok(r) => {
+                let body = r.text().await.unwrap_or_default();
+                eprintln!("Delete failed: {body}");
+                std::process::exit(1);
+            }
+            Err(e) => {
+                eprintln!("Request failed: {e}");
+                std::process::exit(1);
+            }
+        }
+    });
 }
 
 /// expect: "I can access all hKask functionality through the kask CLI"

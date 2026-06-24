@@ -710,7 +710,6 @@ impl TrainingDataBridge for TuiReplBridge {
     }
 }
 
-
 // ── CompaniesDataBridge (live MCP dispatch to hkask-mcp-companies) ──
 
 impl CompaniesDataBridge for TuiReplBridge {
@@ -792,14 +791,10 @@ impl CompaniesDataBridge for TuiReplBridge {
                 .and_then(|v| v.as_array())
                 .and_then(|arr| arr.first());
 
-            let pe_ratio = metrics_array
-                .and_then(|m| m["peRatio"].as_f64());
-            let revenue_growth = metrics_array
-                .and_then(|m| m["revenueGrowth"].as_f64());
-            let price = quote_array
-                .and_then(|q| q["price"].as_f64());
-            let change_pct = quote_array
-                .and_then(|q| q["changesPercentage"].as_f64());
+            let pe_ratio = metrics_array.and_then(|m| m["peRatio"].as_f64());
+            let revenue_growth = metrics_array.and_then(|m| m["revenueGrowth"].as_f64());
+            let price = quote_array.and_then(|q| q["price"].as_f64());
+            let change_pct = quote_array.and_then(|q| q["changesPercentage"].as_f64());
 
             Some(FinancialSummary {
                 symbol: sym,
