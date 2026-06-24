@@ -211,6 +211,23 @@ impl OnboardingService {
         } else {
             name.to_string()
         };
+
+        // ── Idempotent retry guard ──────────────────────────────────────
+        // If init_registry() restored this replicant from a prior DB
+        // (e.g., leftover from a previous install where the keychain was
+        // cleared but data/hkask.db and its salt survived), the agent is
+        // already in both the store and A2A.  Re-registering the same
+        // deterministic WebID would hit AgentAlreadyRegistered.
+        if store.get(&display_name).is_ok() {
+            tracing::info!(
+                target: "cns.onboarding",
+                operation = "replicant_already_registered",
+                name = %display_name,
+                "Replicant already in store — skipping A2A registration (idempotent retry)",
+            );
+            return Ok(());
+        }
+
         let webid = WebID::from_persona_with_namespace(display_name.as_bytes(), "replicant");
 
         let default_capabilities = vec![
