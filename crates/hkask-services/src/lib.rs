@@ -62,9 +62,6 @@ pub use hkask_services_runtime::{
     generate_raw, load_classifier_config,
 };
 pub use hkask_services_skill::resolve_replicant_name;
-pub use hkask_services_verification::{
-    Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
-};
 pub use hkask_services_wallet::WalletService;
 
 // ── Remaining inline modules ───────────────────────────────────────────
@@ -82,6 +79,9 @@ pub mod contacts;
 pub mod curator;
 pub mod federation;
 pub mod verification;
+pub use crate::verification::{
+    Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
+};
 
 pub mod experience;
 pub mod goal;

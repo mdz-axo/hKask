@@ -16,7 +16,7 @@ reviewed_via: [pragmatic-laziness, essentialist, grill-me, coding-guidelines]
 
 **Decision:** There is no client — no binary, no install, no SSH setup. Users visit a website, sign in with GitHub or Google, and get a terminal. The "client" is a browser tab running xterm.js connected to the server via WebSocket. The server spawns `kask repl` on a PTY and pipes I/O. That is the entire product surface.
 
-**Status:** Planning phase. Converged design after multi-perspective review. No implementation has begun.
+**Status:** Partially implemented. Phases 1–4 code exists (routes, types, CLI scaffolding). Awaiting Phase 5 integration (CNS instrumentation, CLI commands, end-to-end verification). See §13 for per-phase status.
 
 ---
 
@@ -474,6 +474,8 @@ kask replicate delete <name>
 
 ### 8.2 CNS Span Additions
 
+**Status: Not yet implemented.** The following spans are defined in the plan but not yet added to the `CnsSpan` enum in `crates/hkask-types/src/cns.rs`:
+
 ```rust
 CnsSpan::SessionOpen,      // { user_id, provider }
 CnsSpan::SessionClose,     // { user_id, duration }
@@ -482,6 +484,8 @@ CnsSpan::BackupAutoExport, // { webid, triple_count, bytes, duration }
 CnsSpan::BackupUpload,     // { triple_count, bytes, duration }
 CnsSpan::ReplicantMerge,   // { source, target, triple_count, duration }
 ```
+
+Route handlers for auth, export, and replicant operations currently log via `tracing` but do not emit CNS spans. Wiring these spans is the top-priority remaining implementation task.
 
 ### 8.3 API Endpoints (New)
 
@@ -576,24 +580,24 @@ Explicit exclusions — considered and rejected:
 
 ## 12. Open Questions
 
-| # | Question | Why Deferred |
-|---|----------|-------------|
-| Q1 | ~~Should auto-export archives be encrypted with the user's session key (server-side) or require a passphrase at download time?~~ **Resolved:** Passphrase-at-download only. Session-key encryption would mean the server holds the key, contradicting §4.3 ("server never stores the user's backup password") and §6.1 ("Storage: User-provided passphrase at export time"). Auto-export archives are encrypted at rest with a key derived from the user's passphrase, provided at download time. The server stores only the encrypted blob. | Resolved per P1 consistency. |
-| Q2 | OAuth provider scope: GitHub only? GitHub + Google? | Start with GitHub (developer audience). Add Google if demand exists. |
+| # | Question | Resolution |
+|---|----------|------------|
+| Q1 | ~~Should auto-export archives be encrypted with the user's session key (server-side) or require a passphrase at download time?~~ | **Resolved:** Passphrase-at-download only. Session-key encryption would mean the server holds the key, contradicting §4.3 ("server never stores the user's backup password") and §6.1 ("Storage: User-provided passphrase at export time"). Auto-export archives are encrypted at rest with a key derived from the user's passphrase, provided at download time. The server stores only the encrypted blob. |
+| Q2 | OAuth provider scope: GitHub only? GitHub + Google? | **Resolved:** GitHub first (developer audience). Google sign-in button is on the landing page but the callback handler only supports GitHub. The Google button will be removed until the callback handler is implemented. Revisit if demand exists. |
 | Q3 | Should the backup include artifacts (LORA, research files, skill bundles) organized by registry in a zip? | Extends the backup format. Needs artifact store maturity first. |
 
 ---
 
 ## 13. Implementation Sequence
 
-| Phase | Tasks | Depends On |
-|-------|-------|-----------|
-| **Phase 1 — OAuth** | `OAuthProvider`, OAuth config, `/auth/login` + `/auth/callback`, session cookie, `HumanUser.provider` fields | — |
-| **Phase 2 — Terminal** | `/api/v1/terminal/ws` WebSocket endpoint, PTY spawn + I/O pipe, static `/terminal` page with xterm.js | Phase 1 |
-| **Phase 3 — Export** | `BackupArchive` type, `kask export create`, CNS spans | Phase 1 |
-| **Phase 4 — Migration** | `kask export upload`, replicant rename/merge/delete, `MigrationReceipt`, auto-rename on collision | Phase 3 |
-| **Phase 5 — Integration** | End-to-end: deploy → OAuth sign-in → terminal → export → upload to second server → merge → verify | Phase 4 |
-| **Phase 6 — Harden** | Interruption testing, multi-user isolation, backup auto-export tuning | Phase 5 |
+| Phase | Tasks | Depends On | Status |
+|-------|-------|-----------|--------|
+| **Phase 1 — OAuth** | `OAuthProvider`, OAuth config, `/auth/login` + `/auth/callback`, session cookie, `HumanUser.provider` fields | — | ✅ Implemented (GitHub complete; Google deferred per Q2) |
+| **Phase 2 — Terminal** | `/api/v1/terminal/ws` WebSocket endpoint, PTY spawn + I/O pipe, static `/terminal` page with xterm.js | Phase 1 | ✅ Implemented |
+| **Phase 3 — Export** | `BackupArchive` type, `kask export create`, CNS spans | Phase 1 | ⚠️ Partial — types + HTTP routes done; CLI command + CNS spans pending |
+| **Phase 4 — Migration** | `kask export upload`, replicant rename/merge/delete, `MigrationReceipt`, auto-rename on collision | Phase 3 | ⚠️ Partial — types + HTTP routes done; CLI commands + CNS spans pending |
+| **Phase 5 — Integration** | End-to-end: deploy → OAuth sign-in → terminal → export → upload to second server → merge → verify | Phase 4 | 🔴 Not started |
+| **Phase 6 — Harden** | Interruption testing, multi-user isolation, backup auto-export tuning | Phase 5 | 🔴 Not started (deferred) |
 
 ---
 

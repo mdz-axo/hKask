@@ -2,41 +2,37 @@
 
 Company financial data MCP server — FMP + EODHD dual-provider integration for global fundamental analysis.
 
-## Tools (31)
+## Tools (27)
 
 | Tool | Description |
 |------|-------------|
-| `company_profile` | Company profile lookup |
-| `stock_quote` | Real-time stock quote |
-| `income_statement` | Income statement data |
-| `balance_sheet` | Balance sheet data |
-| `cash_flow_statement` | Cash flow statement |
-| `key_metrics` | Key financial metrics |
-| `historical_price` | Historical price data |
-| `symbol_search` | Symbol search |
-| `fmp_search_get` | FMP provider search |
-| `eodhd_search_get` | EODHD provider search |
-| `expectations_gap` | Expectations gap analysis |
-| `management_scorecard` | Management quality scorecard |
-| `moat_check` | Economic moat analysis |
-| `working_capital_cycle` | Working capital cycle analysis |
-| `companies_get` | Get company data |
-| `portfolio_list` | List portfolios |
-| `portfolio_delete` | Delete portfolio |
-| `portfolio_returns` | Portfolio returns |
-| `portfolio_attribution` | Portfolio attribution |
-| `portfolio_characteristics` | Portfolio characteristics |
-| `portfolio_comparison` | Portfolio comparison |
-| `note_add` | Add note |
-| `note_delete` | Delete note |
-| `note_list` | List notes |
-| `transaction_note_append` | Append transaction note |
-| `ledger_export` | Export ledger |
-| `ledger_import` | Import ledger |
-| `file_attach` | Attach file |
-| `file_delete` | Delete file |
-| `file_list` | List files |
-| `run` | Main run loop |
+| `company_profile` | Get company profile |
+| `stock_quote` | Get stock quote |
+| `income_statement` | Get income statement |
+| `balance_sheet` | Get balance sheet |
+| `cash_flow_statement` | Get cash flow statement |
+| `key_metrics` | Get key metrics |
+| `historical_price` | Get historical price data |
+| `symbol_search` | Search for symbols |
+| `moat_check` | Analyze competitive moat using MAIA framework: gross margin stability and working capital market power signal |
+| `management_scorecard` | CEO capital allocation scorecard (MAIA framework): rates how well management allocates capital by comparing returns on capital vs invested capital over time |
+| `working_capital_cycle` | Working capital cycle analysis (MAIA CFO scorecard): tracks days payable, days sales outstanding, and cash conversion cycle over time |
+| `expectations_gap` | Expectations gap: compare trailing 5-year actual performance to the future performance implied by the current price. Uses Gordon Growth Model to compute implied growth from valuation multiples vs historical profitability and growth |
+| `portfolio_delete` | Delete a portfolio and all its data |
+| `portfolio_list` | List all portfolios |
+| `ledger_import` | Import transactions from CSV or JSON into a portfolio ledger |
+| `ledger_export` | Export portfolio ledger to CSV or JSON |
+| `transaction_note_append` | Append a note to an existing transaction |
+| `portfolio_comparison` | Compare two portfolios side by side — positions, overlap, unique symbols |
+| `portfolio_returns` | Time-weighted and money-weighted returns for a date range |
+| `portfolio_attribution` | What moved the portfolio — each position's weight, return, and contribution, ranked by impact |
+| `portfolio_characteristics` | Weighted-average fundamentals of what the portfolio owns — valuation, profitability, leverage, growth, composition |
+| `note_add` | Add a note to a company/security as of a date |
+| `note_list` | List notes for a symbol, optionally filtered by date range or tags |
+| `note_delete` | Delete a note by ID |
+| `file_attach` | Attach a file (base64-encoded) to a company/security |
+| `file_list` | List attached files for a symbol in a portfolio |
+| `file_delete` | Delete an attached file by ID — removes record and file from disk |
 
 ## Configuration
 

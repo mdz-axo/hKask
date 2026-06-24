@@ -2,27 +2,19 @@
 
 Unified document processing MCP server — format conversion, OCR, chunking, parsing, and QA generation.
 
-## Tools (17)
+## Tools (9)
 
 | Tool | Description |
 |------|-------------|
-| `docproc_convert` | Convert document formats |
-| `docproc_ocr` | OCR document images |
-| `docproc_chunk` | Chunk document text |
-| `docproc_embed` | Embed document chunks |
-| `docproc_query` | Query document embeddings |
-| `docproc_generate_qa` | Generate QA pairs from documents |
-| `docproc_extract_triples` | Extract knowledge triples |
-| `docproc_cache` | Cache document processing results |
-| `docproc_clear_index` | Clear document index |
-| `do_ocr` | Run OCR on image |
-| `pdf_to_images` | Convert PDF to images |
-| `run_pipeline` | Run full document processing pipeline |
-| `index_passages` | Index text passages |
-| `enrich_with_semantic` | Enrich with semantic data |
-| `resolve_ocr_model` | Resolve OCR model |
-| `persist_pipeline_outcome` | Persist pipeline results |
-| `run` | Main run loop |
+| `docproc_convert` | Extract text from a document. Detects format, extracts text with automatic OCR fallback for scanned/image-based PDFs. For PDF: tries text extraction first, falls back to vision OCR if result is near-empty. For other supported formats (TXT, MD, HTML): extracts plain text. Requires HKASK_OCR_MODEL for OCR fallback. |
+| `docproc_ocr` | OCR a document using a local vision model. Requires HKASK_OCR_MODEL env var or explicit model parameter. The model must be a vision-capable model available in the inference catalog. |
+| `docproc_chunk` | Chunk text into passages at configurable token granularity. Accepts raw text or a file path (extracts text from PDF/MD/HTML/TXT with OCR fallback for scanned PDFs). Supports single-tier or multi-tier (coarse/medium/fine) output. |
+| `docproc_generate_qa` | Generate QA pairs from a text chunk by calling the inference engine. Returns structured question-answer pairs at specified Bloom's taxonomy levels. |
+| `docproc_extract_triples` | Extract RDF triples (subject, predicate, object) from text using the inference engine. Returns structured knowledge triples with confidence scores. |
+| `docproc_embed` | Generate embedding vectors for a list of texts (passages or triples). Uses the configured embedding model via the inference router. |
+| `docproc_cache` | Cache processed document text for reference. Stores content keyed by label in the docproc cache directory (~/.config/hkask/docproc-cache/). |
+| `docproc_query` | Query the in-memory vector index for passages relevant to a natural language question. Embeds the query, computes cosine similarity against indexed passages, and returns top-k results. Optionally generates an LLM-augmented answer from retrieved context. |
+| `docproc_clear_index` | Clear the in-memory vector index. Call this when starting a new document set to avoid cross-document contamination in query results. |
 
 ## Configuration
 

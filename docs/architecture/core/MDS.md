@@ -102,11 +102,9 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |----------|--------|----------------|-------|--------|
 | `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, contacts, curator, experience, goals, pods, scheduler, skills, spec | `P{N}-svc-{domain}-*` | 102 | ✅ Realigned |
 | `hkask-services-backup` | GitCAS operational backup | `P{N}-svc-backup-*` | 39 | ✅ Realigned |
-| `hkask-services-classify` | Prompt classification | `P{N}-svc-classify-*` | 5 | ✅ Realigned |
+| `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | ✅ Realigned |
 | `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | ✅ Realigned |
-| `hkask-services-daemon` | Daemon lifecycle and health | `P{N}-svc-daemon-*` | 8 | ✅ Realigned |
-| `hkask-services-discover` | Service discovery | `P{N}-svc-discover-*` | 24 | ✅ Realigned |
-| `hkask-services-embed` | Embedding service | `P{N}-svc-embed-*` | 6 | ✅ Realigned |
+| `hkask-services-corpus` | Content corpus: discovery + embed | `P{N}-svc-corpus-*` | 30 | ✅ Realigned |
 | `hkask-services-inference-svc` | Inference orchestration | `P{N}-svc-inference-*` | 7 | ✅ Realigned |
 | `hkask-services-kanban` | Kanban task board coordination | `KAN-SVC-*` (legacy) | 34 | ⚠️ Migration pending |
 | `hkask-services-kata` | Toyota Kata engine | `P{N}-svc-kata-*` | 27 | ✅ Realigned |

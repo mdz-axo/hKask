@@ -12,7 +12,7 @@ mds_categories: [lifecycle]
 
 **Purpose:** A practical guide for hKask developers who need to understand enough Kubernetes to deploy and operate hKask pods on Hetzner Cloud using K3s. Assumes zero prior Kubernetes knowledge.
 
-**Related:** [Cloud Deployment Research Report](../plans/deployment-and-backup.md#14-related-research-and-past-plans), [Cloud Implementation Plans](../plans/deployment-and-backup.md#14-related-research-and-past-plans), `crates/hkask-services-cloud/src/hetzner.rs`, `crates/hkask-cli/src/commands/pod.rs::export_k8s`
+**Related:** [Cloud Deployment Research Report](../plans/deployment-and-backup.md#14-related-research-and-past-plans), [Cloud Implementation Plans](../plans/deployment-and-backup.md#14-related-research-and-past-plans), `crates/hkask-services/src/cloud.rs`, `crates/hkask-cli/src/commands/pod.rs::export_k8s`
 
 ---
 

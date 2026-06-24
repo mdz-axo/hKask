@@ -153,13 +153,11 @@ risk and typically covered by struct-level or integration tests.
 | hkask-services-skill | 7 |
 | hkask-mcp-media | 7 |
 | hkask-services-onboarding | 4 |
-| hkask-services-embed | 4 |
-| hkask-services-discover | 3 |
-| hkask-services-verification | 2 |
-| hkask-services-sovereignty | 2 |
+| hkask-services-corpus | 7 |
+| hkask-services | 2 |
 | hkask-mcp-spec | 2 |
 | hkask-services-inference-svc | 1 |
-| hkask-services-classify | 1 |
+| hkask-services-runtime | 1 |
 | hkask-mcp-communication | 1 |
 | hkask-communication | 1 |
 | hkask-acp | 1 |

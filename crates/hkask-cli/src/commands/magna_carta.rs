@@ -44,7 +44,7 @@ fn run_verify(filter: Option<&str>) {
         println!();
 
         for result in &pr.assertion_results {
-            let status_icon = match result.status {
+            let status_icon = match result.status.as_str() {
                 "pass" => "✓",
                 "fail" => "✗",
                 "gap" => "△",
@@ -66,7 +66,7 @@ fn run_verify(filter: Option<&str>) {
                 println!("    ⚑ {rec}");
             }
 
-            match result.status {
+            match result.status.as_str() {
                 "pass" => principle_pass += 1,
                 "fail" => principle_fail += 1,
                 "gap" => principle_gap += 1,

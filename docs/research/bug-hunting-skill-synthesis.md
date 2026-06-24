@@ -36,7 +36,7 @@ The bug-hunt skill operates through hKask's existing machinery:
 | **CNS spans** | Observability | `cns.qa.*` spans track bug detection and triage |
 | **OCAP delegation** | Access control | Tool dispatch gated by capability tokens |
 | **Property-based testing** | Invariant verification | Proptest + bolero fuzz targets |
-| **LLM triage** | Classification | `hkask-services-classify` → Gemma 4 diagnosis |
+| **LLM triage** | Classification | `hkask-services-runtime` → Gemma 4 diagnosis |
 | **Curator feedback** | Loop closure | Findings → algedonic escalation → human review |
 
 ### Template Architecture (≤7 public templates, P5 Essentialism)

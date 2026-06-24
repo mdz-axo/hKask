@@ -2,19 +2,18 @@
 
 Kanban board coordination MCP server — task management with WIP limits, OCAP delegation, and CNS observability.
 
-## Tools (9)
+## Tools (8)
 
 | Tool | Description |
 |------|-------------|
-| `kanban_board_create` | Create a kanban board |
-| `kanban_board_list` | List kanban boards |
-| `kanban_task_create` | Create a task |
-| `kanban_task_list` | List tasks on a board |
-| `kanban_task_move` | Move task between columns |
-| `kanban_task_assign` | Assign task to agent |
-| `kanban_task_verify` | Verify task completion |
-| `contract_propose_expect` | Propose contract expectation |
-| `run` | Main run loop |
+| `kanban_board_create` | Create a new kanban board with optional custom columns |
+| `kanban_board_list` | List all kanban boards owned by the caller |
+| `kanban_task_create` | Create a new task on a kanban board |
+| `kanban_task_list` | List tasks on a kanban board, optionally filtered by status |
+| `kanban_task_move` | Move a task to a new column (status transition) |
+| `kanban_task_assign` | Assign a task to an agent with consent proof (P1 compliance) |
+| `kanban_task_verify` | Verify a task against its acceptance criteria |
+| `contract_propose_expect` | Create kanban tasks for contracts missing expect: annotations. Takes JSON from propose_missing_expect_annotations. |
 
 ## Configuration
 

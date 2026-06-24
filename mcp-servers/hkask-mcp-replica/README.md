@@ -2,19 +2,18 @@
 
 Style replica MCP server — embed author corpora, compose prose, and manage style registries.
 
-## Tools (9)
+## Tools (8)
 
 | Tool | Description |
 |------|-------------|
-| `replica_build` | Build a style replica from corpus |
-| `replica_compose` | Compose prose in a style |
-| `replica_compare` | Compare two styles |
-| `replica_discover` | Discover styles from text |
-| `replica_explain` | Explain a style's characteristics |
-| `replica_mashup` | Mashup multiple styles |
-| `replica_registry` | List registered styles |
-| `replica_cache_work` | Cache work for later use |
-| `run` | Main run loop |
+| `replica_build` | Embed a style corpus and create an authorial replica. Downloads public domain texts, chunks them, generates embeddings, and computes a style centroid. |
+| `replica_compose` | Generate prose in an author's style |
+| `replica_compare` | Compare all built author replicas, or evaluate a document against a persona's centroids |
+| `replica_discover` | Discover an academic author's body of work and generate a corpus.yaml for replica_build. Delegates to the replica-discovery skill manifest which orchestrates multi-source search (Semantic Scholar, arXiv, web, YouTube transcripts), content extraction, and corpus generation. Supports agentic (fully automated) and curated (human-in-the-loop) modes. |
+| `replica_explain` | Explain what style centroids are and how the metadata layer works |
+| `replica_mashup` | Generate prose blending two authors' styles |
+| `replica_registry` | Manage the registry of built author replicas |
+| `replica_cache_work` | Cache an extracted work's content to disk for reuse by replica_build. Writes content to {cache_dir}/{slug}.txt so the embedding pipeline can skip re-downloading. |
 
 ## Configuration
 

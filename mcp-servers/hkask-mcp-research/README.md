@@ -2,39 +2,27 @@
 
 Web search, extraction, and feed-based research MCP server.
 
-## Tools (29)
+## Tools (17)
 
 | Tool | Description |
 |------|-------------|
-| `web_ping` | Web search health check |
-| `web_search` | Web search |
-| `web_browse` | Browse web page |
-| `web_extract` | Extract structured data |
-| `web_find_similar` | Find similar content |
-| `search_with_fallback` | Search with provider fallback |
-| `search_compound` | Compound search across providers |
-| `search_by_capability` | Search by capability |
-| `browse_with_fallback` | Browse with fallback |
-| `extract_with_fallback` | Extract with fallback |
-| `find_similar` | Find similar content |
-| `fetch_feed` | Fetch RSS/Atom feed |
-| `discover_feeds` | Discover feeds from page |
-| `rss_subscribe` | Subscribe to feed |
-| `rss_unsubscribe` | Unsubscribe from feed |
-| `rss_list_subscriptions` | List subscriptions |
-| `rss_fetch` | Fetch feed entries |
-| `rss_get_entries` | Get feed entries |
-| `rss_get_unread_count` | Get unread count |
-| `rss_mark_all_read` | Mark all as read |
-| `rss_search` | Search feeds |
-| `rss_discover_feeds` | Discover feeds |
-| `rss_edit_tag` | Edit feed tags |
-| `rss_export_opml` | Export OPML |
-| `rss_import_opml` | Import OPML |
-| `health_check_all` | Health check all providers |
-| `get` | Get item |
-| `insert` | Insert item |
-| `run` | Main run loop |
+| `web_ping` | Liveness and provider health check |
+| `web_search` | Search the web with RRF fusion across providers. Strategy selects providers: quick (single keyword), web (all), news (news-capable), deep (all + rerank) |
+| `web_find_similar` | Find pages similar to a given URL using Exa findSimilar |
+| `web_extract` | Extract content from a URL into markdown or structured JSON |
+| `web_browse` | Interactive browsing of JS-heavy pages via headless browser |
+| `rss_subscribe` | Subscribe to an RSS/Atom feed (Google Reader stream model) |
+| `rss_unsubscribe` | Unsubscribe from a feed (stream_id e.g. 'feed/http://...') |
+| `rss_list_subscriptions` | List subscriptions, optionally filtered by folder |
+| `rss_fetch` | Fetch/sync new entries from a feed (supports ETag/Last-Modified) |
+| `rss_get_entries` | Get entries from a stream (Google Reader stream IDs: feed/*, user/-/state/*, user/-/label/*) |
+| `rss_mark_all_read` | Mark all entries in a stream as read |
+| `rss_get_unread_count` | Get unread count for a stream |
+| `rss_search` | Full-text search across feed entries |
+| `rss_export_opml` | Export subscriptions as OPML 2.0 |
+| `rss_import_opml` | Import subscriptions from OPML content |
+| `rss_discover_feeds` | Discover RSS/Atom feeds from a URL via HTML link autodiscovery |
+| `rss_edit_tag` | Edit tags on entries: mark read/unread, star/unstar, add/remove labels |
 
 ## Quick Start
 

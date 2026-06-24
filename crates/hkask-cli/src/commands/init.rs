@@ -170,7 +170,7 @@ After=network.target
 Type=simple
 Restart=on-failure
 User=hkask
-ExecStart=/usr/local/bin/kask daemon
+ExecStart=/usr/local/bin/kask serve
 RestartSec=5
 
 [Install]

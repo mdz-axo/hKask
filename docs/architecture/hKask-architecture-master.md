@@ -333,7 +333,7 @@ CLOUD SERVER (single binary, all crates compiled)
   Conduit (Docker) - Matrix homeserver
   hkask-mcp-cloud-gateway - mTLS + DelegationToken transport for remote MCP/ACP clients
   hkask-api - OAuth, WebSocket /terminal, backup endpoints
-  hkask-services-daemon - daemon orchestration
+  hkask-services-runtime - daemon orchestration
   hkask-mcp - MCP server runtime
   hkask-agents - bot/replicant lifecycle
   hkask-cns - cybernetic nervous system

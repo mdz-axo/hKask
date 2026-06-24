@@ -200,7 +200,7 @@ The `classify_batch` function computes `cost_urj` from actual token usage × pro
 
 | File | Change |
 |------|--------|
-| `crates/hkask-services-classify/src/classify_impl.rs` | Add `Usage` to `ChatResponse`; add `prompt_tokens` + `completion_tokens` to `ClassifyResult`; parse from both success and error responses |
+| `crates/hkask-services-runtime/src/classify_impl.rs` | Add `Usage` to `ChatResponse`; add `prompt_tokens` + `completion_tokens` to `ClassifyResult`; parse from both success and error responses |
 | `crates/hkask-test-harness/src/qa_script.rs` | Add `CostTracker` (integer µrJ); replace `cost_per_token` with `gas_per_function`; track gas per step; implement `alert_threshold`; update `QaScriptReport` with `CostSummary`; add verification invariant |
 | `crates/hkask-cli/src/commands/qa.rs` | Propagate token counts through classify closure; display CostSummary |
 | `hKask/docs/architecture/specs/rjoule-cost-system.md` | This document |

@@ -203,6 +203,18 @@ pub enum CnsSpan {
     FederationCrdtConflict,
     /// Self-healing operation span. Canonical string: `"cns.heal"`.
     SelfHeal,
+    /// User session opened (OAuth sign-in).
+    SessionOpen,
+    /// User session closed (logout or expiry).
+    SessionClose,
+    /// Sovereignty backup export created.
+    BackupExport,
+    /// Scheduled auto-export triggered.
+    BackupAutoExport,
+    /// Sovereignty backup uploaded to server (migration).
+    BackupUpload,
+    /// Two replicants merged after migration.
+    ReplicantMerge,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.

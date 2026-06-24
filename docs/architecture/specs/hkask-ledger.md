@@ -239,7 +239,7 @@ provider_intelligence.on_rate_change(
 | `crates/hkask-cli/src/commands/qa.rs` | Pass ledger to CostTracker; display ledger-confirmed balances |
 | `mcp-servers/hkask-mcp-companies/src/portfolio.rs` | Port `PortfolioManager` to use `hkask-ledger` (or keep as-is with ledger as alternative backend) |
 | `crates/hkask-wallet/src/` | Wallet operations commit to `wallet:*` accounts |
-| `crates/hkask-services-classify/src/classify_impl.rs` | Classify service optionally accepts `Arc<ProviderIntelligence>` for actual cost lookups |
+| `crates/hkask-services-runtime/src/classify_impl.rs` | Classify service optionally accepts `Arc<ProviderIntelligence>` for actual cost lookups |
 
 ## 11. Resolved Design Decisions
 

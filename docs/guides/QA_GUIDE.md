@@ -42,7 +42,7 @@ The system integrates with:
 
 - **bolero** — coverage-guided fuzzer for Rust
 - **cargo-mutants** — mutation testing framework
-- **hkask-services-classify** — LLM-powered classification (DeepInfra, OpenRouter, etc.)
+- **hkask-services-runtime** — LLM-powered classification (DeepInfra, OpenRouter, etc.)
 - **CNS** — Cybernetic Nervous System for observability and homeostatic guards
 
 ### Principle Grounding
@@ -67,7 +67,7 @@ The system integrates with:
 │  kask qa run      ─┘       ▲                                              │
 │                            │                                              │
 │  ┌─────────────────────────┴──────────────────────────────────┐         │
-│  │  Classification Service (hkask-services-classify)           │         │
+│  │  Classification Service (hkask-services-runtime)            │         │
 │  │  - classify_batch()   → batch LLM classification            │         │
 │  │  - extract_triples()  → structured data extraction          │         │
 │  │  - ClassifierConfig   → loaded from registry YAML           │         │
@@ -374,7 +374,7 @@ steps:
 
 ## 5. Classification Service
 
-The classification service (`hkask-services-classify`) is the decision engine for
+The classification service (`hkask-services-runtime`) is the decision engine for
 all QA operations. It sends text passages to an LLM and returns structured
 classifications.
 
