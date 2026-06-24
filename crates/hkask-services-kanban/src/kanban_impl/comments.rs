@@ -24,6 +24,18 @@ impl KanbanService {
         Ok(task.comments)
     }
 
+    /// Fetch comments starting from a given index (for incremental polling).
+    pub fn task_comments_since(
+        &self,
+        task_id: TaskId,
+        since_index: usize,
+    ) -> Result<Vec<Comment>, KanbanError> {
+        let task = self
+            .task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        Ok(task.comments.into_iter().skip(since_index).collect())
+    }
+
     pub fn task_add_deliverable(&self, task_id: TaskId, path: &str) -> Result<Task, KanbanError> {
         let mut task = self
             .task_get(task_id)?

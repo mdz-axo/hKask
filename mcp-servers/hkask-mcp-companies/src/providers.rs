@@ -110,9 +110,19 @@ pub async fn companies_get(
     fmp_api_key: &str,
     eodhd_api_key: &str,
     extra_params: &[(&str, &str)],
+    learning: Option<&super::LearningState>,
 ) -> Result<Value, McpToolError> {
     let mapping = endpoint_mapping(tool);
-    let primary = primary_provider(symbol);
+    // Learning-aware routing: feedback state can override default provider.
+    let primary = if let Some(learn) = learning {
+        match learn.preferred_provider(symbol) {
+            Some(ref p) if p == "FMP" => Provider::Fmp,
+            Some(ref p) if p == "EODHD" => Provider::Eodhd,
+            _ => primary_provider(symbol),
+        }
+    } else {
+        primary_provider(symbol)
+    };
 
     // Try primary provider
     let primary_result = match primary {

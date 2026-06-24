@@ -10,6 +10,8 @@ description = "Unified document processing MCP server: format conversion, OCR, c
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-ports = { path = "../../crates/hkask-ports" }
+hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }
+hkask-bridge-pko = { path = "../../crates/hkask-bridge-pko" }
 
 # OCR pipeline (from markitdown)
 hkask-inference = { path = "../../crates/hkask-inference" }

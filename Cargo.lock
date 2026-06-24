@@ -3945,6 +3945,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-bridge-dublincore"
+version = "0.30.0"
+
+[[package]]
+name = "hkask-bridge-pko"
+version = "0.30.0"
+
+[[package]]
 name = "hkask-capability"
 version = "0.30.0"
 dependencies = [
@@ -4393,6 +4401,8 @@ dependencies = [
  "dirs 6.0.0",
  "dotenvy",
  "headless_chrome",
+ "hkask-bridge-dublincore",
+ "hkask-bridge-pko",
  "hkask-inference",
  "hkask-mcp",
  "hkask-memory",
@@ -4446,6 +4456,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "dotenvy",
+ "hkask-bridge-pko",
  "hkask-mcp",
  "hkask-services-kanban",
  "hkask-storage",
@@ -4622,6 +4633,8 @@ dependencies = [
  "dotenvy",
  "feed-rs",
  "futures-util",
+ "hkask-bridge-dublincore",
+ "hkask-bridge-pko",
  "hkask-mcp",
  "hkask-memory",
  "hkask-storage",

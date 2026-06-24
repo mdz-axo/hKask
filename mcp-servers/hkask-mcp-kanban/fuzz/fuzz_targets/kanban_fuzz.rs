@@ -297,6 +297,7 @@ fn fuzz_kanban_roundtrip_task_create_list() {
                 assignee_webid: None,
                 capability_token: None,
                 gas_budget: None,
+                rjoule_budget: None,
             };
             let task_output = call_tool(server.kanban_task_create(Parameters(task_req)));
             let task_val: serde_json::Value =
@@ -371,6 +372,7 @@ fn fuzz_kanban_roundtrip_task_move() {
                 assignee_webid: None,
                 capability_token: None,
                 gas_budget: None,
+                rjoule_budget: None,
             };
             let task_output = call_tool(server.kanban_task_create(Parameters(task_req)));
             let task_val: serde_json::Value =
@@ -493,6 +495,7 @@ fn fuzz_kanban_state_machine_sequence() {
                         assignee_webid: None,
                         capability_token: None,
                         gas_budget: None,
+                        rjoule_budget: None,
                     };
                     let output = call_tool(server.kanban_task_create(Parameters(req)));
                     let val: serde_json::Value = serde_json::from_str(&output).unwrap_or_default();

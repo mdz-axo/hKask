@@ -24,6 +24,7 @@
 //! - `memory_backup` — Export the memory database to a local backup file
 //! - `memory_restore` — Restore the memory database from a local backup file
 
+pub mod cogat;
 pub mod types;
 
 use hkask_mcp::server::{McpToolError, execute_tool};

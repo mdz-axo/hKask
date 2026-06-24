@@ -1,0 +1,10 @@
+[package]
+name = "hkask-bridge-dublincore"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Dublin Core + BIBO + CiTO vocabulary bridge — shared bibliographic metadata constants"
+
+[dependencies]
+
+[dev-dependencies]

@@ -56,8 +56,21 @@ impl KanbanService {
                 items.push(UnjamItem {
                     task_id: task.id,
                     task_title: task.title.clone(),
-                    issue: "Out of gas — budget exhausted.".into(),
+                    issue: "Out of gas — software budget exhausted.".into(),
                     suggestion: "Task will auto-complete. Reopen with more gas to continue.".into(),
+                });
+            }
+
+            // Report tasks that are out of rJoules
+            if (task.status == TaskStatus::InProgress || task.status == TaskStatus::Review)
+                && let Some(remaining) = task.rjoule_remaining
+                && remaining == 0
+            {
+                items.push(UnjamItem {
+                    task_id: task.id,
+                    task_title: task.title.clone(),
+                    issue: "Out of rJoules — inference budget exhausted.".into(),
+                    suggestion: "Task will auto-complete. Add rJoules to continue.".into(),
                 });
             }
         }
@@ -116,19 +129,40 @@ impl KanbanService {
                 && let Some(remaining) = task.gas_remaining
                 && remaining == 0
             {
-                let idle_since_gas_zero = (now - task.updated_at).num_minutes();
-                if idle_since_gas_zero > 60 {
+                let idle = (now - task.updated_at).num_minutes();
+                if idle > 60 {
                     match self.task_gas_exhaust(task.id) {
                         Ok(_) => fixes.push(UnjamFix {
                             task_id: task.id,
                             task_title: task.title.clone(),
-                            action: "Auto-completed (gas exhausted, no response from delegator)"
-                                .into(),
+                            action: "Auto-completed (gas exhausted, no response)".into(),
                         }),
                         Err(e) => fixes.push(UnjamFix {
                             task_id: task.id,
                             task_title: task.title.clone(),
                             action: format!("Gas-exhaust failed: {}", e),
+                        }),
+                    }
+                }
+            }
+
+            // rJoule exhaustion: same logic, separate budget
+            if (task.status == TaskStatus::InProgress || task.status == TaskStatus::Review)
+                && let Some(remaining) = task.rjoule_remaining
+                && remaining == 0
+            {
+                let idle = (now - task.updated_at).num_minutes();
+                if idle > 60 {
+                    match self.task_gas_exhaust(task.id) {
+                        Ok(_) => fixes.push(UnjamFix {
+                            task_id: task.id,
+                            task_title: task.title.clone(),
+                            action: "Auto-completed (rJoules exhausted, no response)".into(),
+                        }),
+                        Err(e) => fixes.push(UnjamFix {
+                            task_id: task.id,
+                            task_title: task.title.clone(),
+                            action: format!("rJoule-exhaust failed: {}", e),
                         }),
                     }
                 }
@@ -191,7 +225,33 @@ impl KanbanService {
         let new_remaining = remaining.saturating_sub(amount);
         task.gas_remaining = Some(new_remaining);
         task.gas_spend
-            .push(GasEntry::spend(amount, reason.to_string()));
+            .push(GasEntry::gas_spend(amount, reason.to_string()));
+        task.updated_at = chrono::Utc::now();
+        self.update_task_triple(&task)?;
+
+        Ok(new_remaining)
+    }
+
+    /// Deduct rJoules from a task's inference/API budget.
+    ///
+    /// Same pattern as `task_consume_gas` but for the rJoule budget
+    /// (250k rJoules ≈ $1 inference spend). Logs a GasEntry with kind
+    /// "rjoule_spend".
+    pub fn task_consume_rjoules(
+        &self,
+        task_id: TaskId,
+        amount: u64,
+        reason: &str,
+    ) -> Result<u64, KanbanError> {
+        let mut task = self
+            .task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+
+        let remaining = task.rjoule_remaining.unwrap_or(0);
+        let new_remaining = remaining.saturating_sub(amount);
+        task.rjoule_remaining = Some(new_remaining);
+        task.gas_spend
+            .push(GasEntry::rjoule_spend(amount, reason.to_string()));
         task.updated_at = chrono::Utc::now();
         self.update_task_triple(&task)?;
 

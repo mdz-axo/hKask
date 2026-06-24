@@ -773,7 +773,7 @@ impl KanbanService {
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
         let current = task.gas_remaining.unwrap_or(0);
         task.gas_remaining = Some(current.saturating_add(amount));
-        task.gas_spend.push(GasEntry::refill(amount));
+        task.gas_spend.push(GasEntry::gas_refill(amount));
         task.updated_at = chrono::Utc::now();
         self.update_task_triple(&task)?;
         tracing::info!(
@@ -782,6 +782,27 @@ impl KanbanService {
             task_id = %task_id,
             added = amount,
             new_remaining = task.gas_remaining,
+            "CNS"
+        );
+        Ok(task)
+    }
+
+    /// Add rJoules to a task's inference/API budget.
+    pub fn task_add_rjoules(&self, task_id: TaskId, amount: u64) -> Result<Task, KanbanError> {
+        let mut task = self
+            .task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let current = task.rjoule_remaining.unwrap_or(0);
+        task.rjoule_remaining = Some(current.saturating_add(amount));
+        task.gas_spend.push(GasEntry::rjoule_refill(amount));
+        task.updated_at = chrono::Utc::now();
+        self.update_task_triple(&task)?;
+        tracing::info!(
+            target: "cns.kanban",
+            operation = "task_rjoules_added",
+            task_id = %task_id,
+            added = amount,
+            new_remaining = task.rjoule_remaining,
             "CNS"
         );
         Ok(task)

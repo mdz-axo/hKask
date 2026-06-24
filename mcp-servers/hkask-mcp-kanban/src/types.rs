@@ -32,6 +32,9 @@ pub struct BoardCreateResponse {
     pub board_id: String,
     pub name: String,
     pub columns: Vec<ColumnInfo>,
+    /// PKO concept: <https://w3id.org/pko#Procedure>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -71,6 +74,9 @@ pub struct TaskCreateRequest {
     /// Gas/rJoule budget for the subagent working on this task.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gas_budget: Option<u64>,
+    /// Inference/API rJoule budget (250k ≈ $1 spend).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rjoule_budget: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -79,6 +85,9 @@ pub struct TaskCreateResponse {
     pub board_id: String,
     pub title: String,
     pub status: String,
+    /// PKO concept: <https://w3id.org/pko#Step>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -104,6 +113,9 @@ pub struct TaskInfo {
     /// Remaining gas/rJoules in the subagent's budget (None = no budget set).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gas_remaining: Option<u64>,
+    /// Remaining rJoules for inference/API calls.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rjoule_remaining: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -118,6 +130,9 @@ pub struct TaskMoveResponse {
     pub task_id: String,
     pub previous_status: String,
     pub new_status: String,
+    /// PKO concept: <https://w3id.org/pko#ChangeOfStatus>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -147,6 +162,9 @@ pub struct TaskVerifyResponse {
     pub passed: bool,
     pub reasoning: String,
     pub new_status: String,
+    /// PKO concept: <https://w3id.org/pko#StepVerification>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
 }
 
 // ── Gas management ──────────────────────────────────────────────────────────
@@ -165,6 +183,20 @@ pub struct TaskAddGasResponse {
     pub new_gas_remaining: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskAddRjoulesRequest {
+    pub task_id: String,
+    /// Amount of rJoules to add to the inference/API budget.
+    pub amount: u64,
+    pub capability_token: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskAddRjoulesResponse {
+    pub task_id: String,
+    pub new_rjoule_remaining: u64,
+}
+
 // ── Comments ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -181,6 +213,64 @@ pub struct TaskCommentResponse {
     pub task_id: String,
     pub author: String,
     pub body: String,
+    pub created_at: String,
+    /// PKO concept: <https://w3id.org/pko#UserFeedbackOccurrence>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pko: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskCommentsSinceRequest {
+    pub task_id: String,
+    /// Return only comments at or after this index (0-based).
+    #[serde(default)]
+    pub since_index: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskCommentsSinceResponse {
+    pub task_id: String,
+    pub comments: Vec<TaskCommentResponse>,
+    /// Total comment count on the task (for cursor tracking).
+    pub total_count: usize,
+}
+
+// ── Deliverables ────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskAddDeliverableRequest {
+    pub task_id: String,
+    /// File path or URL pointing to work output.
+    pub path: String,
+    pub capability_token: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskAddDeliverableResponse {
+    pub task_id: String,
+    pub deliverable_count: usize,
+}
+
+// ── Reopen ──────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskReopenRequest {
+    pub task_id: String,
+    /// Optional new gas budget to grant on reopen.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gas_budget: Option<u64>,
+    /// Optional new rJoule budget to grant on reopen.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rjoule_budget: Option<u64>,
+    pub capability_token: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskReopenResponse {
+    pub task_id: String,
+    pub new_status: String,
+    pub gas_remaining: Option<u64>,
+    pub rjoule_remaining: Option<u64>,
 }
 
 // ── Contract proposals ──────────────────────────────────────────────────────
@@ -190,4 +280,57 @@ pub struct ContractProposeExpect {
     pub board_id: String,
     /// JSON array of ExpectProposal structs from hkask-test-harness
     pub proposals_json: String,
+}
+
+// ── Kata prompts ───────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskKataCoachingRequest {
+    pub task_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskKataImprovementRequest {
+    pub task_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskKataPracticeRequest {
+    pub task_id: String,
+    /// What specific sub-problem to focus the observation drill on.
+    pub sub_problem: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskKataResponse {
+    pub task_id: String,
+    pub prompt: String,
+}
+
+// ── Spawn ───────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskSpawnRequest {
+    pub task_id: String,
+    /// Delegation level: "minimal", "standard", or "maximal".
+    pub delegation_level: String,
+    /// Skills to delegate (e.g. ["bug-hunt", "tdd"]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub delegated_skills: Vec<String>,
+    /// Memory scope: "none", "episodic", or "full".
+    #[serde(default)]
+    pub memory_scope: Option<String>,
+    /// Gas budget to grant on spawn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gas_budget: Option<u64>,
+    /// rJoule budget to grant on spawn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rjoule_budget: Option<u64>,
+    pub capability_token: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskSpawnResponse {
+    pub task_id: String,
+    pub message: String,
 }

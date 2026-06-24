@@ -6,6 +6,7 @@
 //! The KanbanServer struct and tool methods are exported from the library
 //! target to enable fuzz testing (P5 Testing Discipline, P4 Clear Boundaries).
 
+pub mod pko;
 pub mod types;
 
 use hkask_mcp::server::{McpToolError, ServerContext, execute_tool};
@@ -15,6 +16,7 @@ use hkask_services_kanban::{ConsentProof, TaskFilter, TaskSpec, VerificationCrit
 use hkask_storage::Store;
 use hkask_storage::TripleStore;
 use hkask_types::WebID;
+use pko::kanban_type_to_pko;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use rusqlite::Connection;
@@ -101,6 +103,7 @@ impl KanbanServer {
                             status: c.status.to_string(),
                         })
                         .collect(),
+                    pko: kanban_type_to_pko("Board").map(|s| s.to_string()),
                 })
                 .unwrap()),
                 Err(e) => Err(map_kanban_error(e)),
@@ -146,6 +149,7 @@ impl KanbanServer {
             assignee_webid,
             capability_token: _cap,
             gas_budget,
+            rjoule_budget,
         }): Parameters<TaskCreateRequest>,
     ) -> String {
         execute_tool(self, "kanban_task_create", async {
@@ -167,6 +171,9 @@ impl KanbanServer {
             if let Some(gas) = gas_budget {
                 spec = spec.with_gas_budget(gas);
             }
+            if let Some(rj) = rjoule_budget {
+                spec = spec.with_rjoule_budget(rj);
+            }
             if let Some(a) = assignee_webid {
                 match a.parse::<hkask_types::WebID>() {
                     Ok(w) => spec = spec.with_assignee(w),
@@ -183,6 +190,7 @@ impl KanbanServer {
                     board_id: task.board_id.to_string(),
                     title: task.title,
                     status: task.status.to_string(),
+                    pko: kanban_type_to_pko("Task").map(|s| s.to_string()),
                 })
                 .unwrap()),
                 Err(e) => Err(map_kanban_error(e)),
@@ -232,6 +240,7 @@ impl KanbanServer {
                             assignee: t.assignee.map(|a| a.to_string()),
                             criteria_count: t.criteria.len(),
                             gas_remaining: t.gas_remaining,
+                            rjoule_remaining: t.rjoule_remaining,
                         })
                         .collect(),
                 })
@@ -251,6 +260,8 @@ impl KanbanServer {
             capability_token: _cap,
         }): Parameters<TaskMoveRequest>,
     ) -> String {
+        use pko::kanban_type_to_pko;
+
         execute_tool(self, "kanban_task_move", async {
             let tid = match task_id.parse::<hkask_types::TaskId>() {
                 Ok(id) => id,
@@ -282,6 +293,7 @@ impl KanbanServer {
                     task_id: task.id.to_string(),
                     previous_status,
                     new_status: task.status.to_string(),
+                    pko: kanban_type_to_pko("kanban_task_move").map(|s| s.to_string()),
                 })
                 .unwrap()),
                 Err(e) => Err(map_kanban_error(e)),
@@ -367,6 +379,7 @@ impl KanbanServer {
                     passed: verification.passed,
                     reasoning: verification.reasoning,
                     new_status: task.status.to_string(),
+                    pko: kanban_type_to_pko("kanban_task_verify").map(|s| s.to_string()),
                 })
                 .unwrap()),
                 Err(e) => Err(map_kanban_error(e)),
@@ -410,6 +423,39 @@ impl KanbanServer {
         .await
     }
 
+    #[tool(description = "Add rJoules to a task's inference/API budget (250k ≈ $1 spend)")]
+    pub async fn kanban_task_add_rjoules(
+        &self,
+        Parameters(TaskAddRjoulesRequest {
+            task_id,
+            amount,
+            capability_token: _cap,
+        }): Parameters<TaskAddRjoulesRequest>,
+    ) -> String {
+        execute_tool(self, "kanban_task_add_rjoules", async {
+            let tid = match task_id.parse::<hkask_types::TaskId>() {
+                Ok(id) => id,
+                Err(e) => {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "invalid task_id: {e}"
+                    )));
+                }
+            };
+            if amount == 0 {
+                return Err(McpToolError::invalid_argument("amount must be > 0"));
+            }
+            match self.service.task_add_rjoules(tid, amount) {
+                Ok(task) => Ok(serde_json::to_value(TaskAddRjoulesResponse {
+                    task_id: task.id.to_string(),
+                    new_rjoule_remaining: task.rjoule_remaining.unwrap_or(0),
+                })
+                .unwrap()),
+                Err(e) => Err(map_kanban_error(e)),
+            }
+        })
+        .await
+    }
+
     #[tool(
         description = "Add a comment to a task (feedback thread for subagent↔agent communication)"
     )]
@@ -441,6 +487,269 @@ impl KanbanServer {
                     task_id: comment.task_id.to_string(),
                     author: comment.author.to_string(),
                     body: comment.body,
+                    created_at: comment.created_at.to_rfc3339(),
+                    pko: kanban_type_to_pko("Comment").map(|s| s.to_string()),
+                })
+                .unwrap()),
+                Err(e) => Err(map_kanban_error(e)),
+            }
+        })
+        .await
+    }
+
+    #[tool(
+        description = "Fetch task comments starting from an index (for incremental memory ingestion)"
+    )]
+    pub async fn kanban_task_comments_since(
+        &self,
+        Parameters(TaskCommentsSinceRequest {
+            task_id,
+            since_index,
+        }): Parameters<TaskCommentsSinceRequest>,
+    ) -> String {
+        execute_tool(self, "kanban_task_comments_since", async {
+            let tid = match task_id.parse::<hkask_types::TaskId>() {
+                Ok(id) => id,
+                Err(e) => {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "invalid task_id: {e}"
+                    )));
+                }
+            };
+            match self.service.task_comments_since(tid, since_index) {
+                Ok(comments) => {
+                    let total = comments.len() + since_index;
+                    let mapped: Vec<TaskCommentResponse> = comments
+                        .into_iter()
+                        .map(|c| TaskCommentResponse {
+                            comment_id: c.id.to_string(),
+                            task_id: c.task_id.to_string(),
+                            author: c.author.to_string(),
+                            body: c.body,
+                            created_at: c.created_at.to_rfc3339(),
+                            pko: kanban_type_to_pko("Comment").map(|s| s.to_string()),
+                        })
+                        .collect();
+                    Ok(serde_json::to_value(TaskCommentsSinceResponse {
+                        task_id: tid.to_string(),
+                        comments: mapped,
+                        total_count: total,
+                    })
+                    .unwrap())
+                }
+                Err(e) => Err(map_kanban_error(e)),
+            }
+        })
+        .await
+    }
+
+    #[tool(description = "Attach a deliverable (file path or URL) to a task as work output")]
+    pub async fn kanban_task_add_deliverable(
+        &self,
+        Parameters(TaskAddDeliverableRequest {
+            task_id,
+            path,
+            capability_token: _cap,
+        }): Parameters<TaskAddDeliverableRequest>,
+    ) -> String {
+        execute_tool(self, "kanban_task_add_deliverable", async {
+            let tid = match task_id.parse::<hkask_types::TaskId>() {
+                Ok(id) => id,
+                Err(e) => {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "invalid task_id: {e}"
+                    )));
+                }
+            };
+            if path.trim().is_empty() {
+                return Err(McpToolError::invalid_argument("path must not be empty"));
+            }
+            match self.service.task_add_deliverable(tid, &path) {
+                Ok(task) => Ok(serde_json::to_value(TaskAddDeliverableResponse {
+                    task_id: task.id.to_string(),
+                    deliverable_count: task.deliverables.len(),
+                })
+                .unwrap()),
+                Err(e) => Err(map_kanban_error(e)),
+            }
+        })
+        .await
+    }
+
+    #[tool(
+        description = "Reopen a completed task (Done → InProgress) with optional new gas/rJoule budgets"
+    )]
+    pub async fn kanban_task_reopen(
+        &self,
+        Parameters(TaskReopenRequest {
+            task_id,
+            gas_budget,
+            rjoule_budget,
+            capability_token: _cap,
+        }): Parameters<TaskReopenRequest>,
+    ) -> String {
+        execute_tool(self, "kanban_task_reopen", async {
+            let tid = match task_id.parse::<hkask_types::TaskId>() {
+                Ok(id) => id,
+                Err(e) => {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "invalid task_id: {e}"
+                    )));
+                }
+            };
+            self.service
+                .task_reopen(tid)
+                .map_err(|e| map_kanban_error(e))?;
+            // Apply new budgets if specified
+            if let Some(g) = gas_budget {
+                let _ = self.service.task_add_gas(tid, g);
+            }
+            if let Some(r) = rjoule_budget {
+                let _ = self.service.task_add_rjoules(tid, r);
+            }
+            // Re-read to get final state
+            let task = self
+                .service
+                .task_get(tid)
+                .map_err(|e| map_kanban_error(e))?
+                .ok_or_else(|| McpToolError::not_found(format!("task {task_id}")))?;
+            Ok(serde_json::to_value(TaskReopenResponse {
+                task_id: task.id.to_string(),
+                new_status: task.status.to_string(),
+                gas_remaining: task.gas_remaining,
+                rjoule_remaining: task.rjoule_remaining,
+            })
+            .unwrap())
+        })
+        .await
+    }
+
+    // ── Kata tools — scientific-thinking prompts scoped to a task ──────────
+
+    #[tool(description = "Generate a Coaching Kata prompt (5-question dialogue) for a task")]
+    pub async fn kanban_task_kata_coaching(
+        &self,
+        Parameters(TaskKataCoachingRequest { task_id }): Parameters<TaskKataCoachingRequest>,
+    ) -> String {
+        execute_tool(self, "kanban_task_kata_coaching", async {
+            let tid = match task_id.parse::<hkask_types::TaskId>() {
+                Ok(id) => id,
+                Err(e) => {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "invalid task_id: {e}"
+                    )));
+                }
+            };
+            match self.service.task_coaching_prompt(tid) {
+                Ok(prompt) => Ok(serde_json::to_value(TaskKataResponse {
+                    task_id: tid.to_string(),
+                    prompt,
+                })
+                .unwrap()),
+                Err(e) => Err(map_kanban_error(e)),
+            }
+        })
+        .await
+    }
+
+    #[tool(description = "Generate an Improvement Kata prompt (PDCA cycle) for a task")]
+    pub async fn kanban_task_kata_improvement(
+        &self,
+        Parameters(TaskKataImprovementRequest { task_id }): Parameters<TaskKataImprovementRequest>,
+    ) -> String {
+        execute_tool(self, "kanban_task_kata_improvement", async {
+            let tid = match task_id.parse::<hkask_types::TaskId>() {
+                Ok(id) => id,
+                Err(e) => {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "invalid task_id: {e}"
+                    )));
+                }
+            };
+            match self.service.task_improvement_prompt(tid) {
+                Ok(prompt) => Ok(serde_json::to_value(TaskKataResponse {
+                    task_id: tid.to_string(),
+                    prompt,
+                })
+                .unwrap()),
+                Err(e) => Err(map_kanban_error(e)),
+            }
+        })
+        .await
+    }
+
+    #[tool(description = "Generate a Starter Kata observation drill prompt for a task sub-problem")]
+    pub async fn kanban_task_kata_practice(
+        &self,
+        Parameters(TaskKataPracticeRequest {
+            task_id,
+            sub_problem,
+        }): Parameters<TaskKataPracticeRequest>,
+    ) -> String {
+        execute_tool(self, "kanban_task_kata_practice", async {
+            let tid = match task_id.parse::<hkask_types::TaskId>() {
+                Ok(id) => id,
+                Err(e) => {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "invalid task_id: {e}"
+                    )));
+                }
+            };
+            match self.service.task_practice_prompt(tid, &sub_problem) {
+                Ok(prompt) => Ok(serde_json::to_value(TaskKataResponse {
+                    task_id: tid.to_string(),
+                    prompt,
+                })
+                .unwrap()),
+                Err(e) => Err(map_kanban_error(e)),
+            }
+        })
+        .await
+    }
+
+    // ── Spawn — activate a subagent pod for task execution ─────────────────
+
+    #[tool(description = "Spawn a subagent for task execution with delegated skills and budgets")]
+    pub async fn kanban_task_spawn(
+        &self,
+        Parameters(TaskSpawnRequest {
+            task_id,
+            delegation_level,
+            delegated_skills,
+            memory_scope,
+            gas_budget,
+            rjoule_budget,
+            capability_token: _cap,
+        }): Parameters<TaskSpawnRequest>,
+    ) -> String {
+        execute_tool(self, "kanban_task_spawn", async {
+            let tid = match task_id.parse::<hkask_types::TaskId>() {
+                Ok(id) => id,
+                Err(e) => {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "invalid task_id: {e}"
+                    )));
+                }
+            };
+            // Apply budgets before spawn if specified
+            if let Some(g) = gas_budget {
+                let _ = self.service.task_add_gas(tid, g);
+            }
+            if let Some(r) = rjoule_budget {
+                let _ = self.service.task_add_rjoules(tid, r);
+            }
+            let spec = hkask_services_kanban::SpawnSpec::new(tid)
+                .with_level(&delegation_level)
+                .with_skills(delegated_skills);
+            let spec = if let Some(ref ms) = memory_scope {
+                spec.with_memory(ms)
+            } else {
+                spec
+            };
+            match self.service.spawn_task(tid, spec) {
+                Ok(message) => Ok(serde_json::to_value(TaskSpawnResponse {
+                    task_id: tid.to_string(),
+                    message,
                 })
                 .unwrap()),
                 Err(e) => Err(map_kanban_error(e)),

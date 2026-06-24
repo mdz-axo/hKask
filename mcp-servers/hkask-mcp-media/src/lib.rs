@@ -11,6 +11,8 @@
 // Pre-existing clippy lints from original bin-only codebase (addressed in separate refactoring pass).
 #![allow(clippy::collapsible_if, clippy::cloned_ref_to_slice_refs)]
 
+pub mod omc;
+
 mod gallery;
 mod templates;
 mod video;

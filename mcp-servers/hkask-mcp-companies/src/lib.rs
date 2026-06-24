@@ -43,12 +43,13 @@ use hkask_types::time::now_rfc3339;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 mod analysis;
+pub mod fibo;
 mod portfolio;
 mod providers;
 pub mod types;
 
 use portfolio::PortfolioManager;
-use providers::companies_get;
+
 use types::*;
 
 // ── Validation ──────────────────────────────────────────────────────
@@ -58,7 +59,79 @@ fn validate_symbol(symbol: &str) -> Result<(), McpToolError> {
     validate_identifier("symbol", symbol, 32)
 }
 
+/// Extract a symbol from a query string for learning state tracking.
+/// Handles: "symbol=AAPL", "symbol=VOD.L", "query=..." (search queries).
+fn parse_symbol_from_query(query: &str) -> Option<String> {
+    if let Some(sym) = query.strip_prefix("symbol=") {
+        let sym = sym.split('&').next().unwrap_or(sym);
+        if !sym.is_empty() {
+            return Some(sym.to_string());
+        }
+    }
+    // For symbol_search, the query IS the search term — use it directly.
+    if let Some(q) = query.strip_prefix("query=") {
+        if !q.is_empty() {
+            return Some(q.to_string());
+        }
+    }
+    None
+}
+
 // ── Server struct ──────────────────────────────────────────────────
+
+/// Learning state — tracks user feedback per (tool, symbol) to adapt
+/// provider routing. Kanban-style: feedback → state → behavior change.
+/// No separate consumer process needed — the feedback tool updates this
+/// directly and the provider router reads it.
+#[derive(Debug, Clone, Default)]
+pub struct LearningState {
+    /// (symbol, provider) → (inaccurate_count, total_ratings, avg_score)
+    provider_scores: std::collections::HashMap<(String, String), (u64, u64, f64)>,
+}
+
+impl LearningState {
+    /// Record a user rating for a tool result. Updates running averages.
+    pub fn record(&mut self, symbol: &str, provider: &str, score: Option<u8>) {
+        let key = (symbol.to_string(), provider.to_string());
+        let entry = self.provider_scores.entry(key).or_insert((0, 0, 0.0));
+        entry.1 += 1; // total ratings
+        if let Some(s) = score {
+            entry.2 = (entry.2 * (entry.1 - 1) as f64 + s as f64) / entry.1 as f64;
+            if s <= 2 {
+                entry.0 += 1; // inaccurate if score 1-2
+            }
+        }
+    }
+
+    /// Check if a provider should be avoided for a given symbol.
+    /// Returns true if the provider has >3 inaccurate ratings with average <3.
+    pub fn is_flaky(&self, symbol: &str, provider: &str) -> bool {
+        if let Some((inaccurate, total, avg)) = self
+            .provider_scores
+            .get(&(symbol.to_string(), provider.to_string()))
+        {
+            *inaccurate > 3 && *avg < 3.0 && *total >= 5
+        } else {
+            false
+        }
+    }
+
+    /// Get the preferred provider for a symbol based on learning.
+    /// Returns None if no preference (both providers are fine or no data).
+    pub fn preferred_provider(&self, symbol: &str) -> Option<String> {
+        let _fmp_key = (symbol.to_string(), "FMP".to_string());
+        let _eodhd_key = (symbol.to_string(), "EODHD".to_string());
+        let fmp_flaky = self.is_flaky(symbol, "FMP");
+        let eodhd_flaky = self.is_flaky(symbol, "EODHD");
+        if fmp_flaky && !eodhd_flaky {
+            Some("EODHD".to_string())
+        } else if eodhd_flaky && !fmp_flaky {
+            Some("FMP".to_string())
+        } else {
+            None
+        }
+    }
+}
 
 pub struct CompaniesServer {
     pub webid: WebID,
@@ -70,6 +143,9 @@ pub struct CompaniesServer {
     pub fmp_api_key: String,
     pub eodhd_api_key: String,
     pub portfolio: PortfolioManager,
+    /// Learning state — kanban-style feedback loop. Updated by result_feedback,
+    /// read by provider routing to adapt provider preference per symbol.
+    pub learning: std::sync::Arc<std::sync::Mutex<LearningState>>,
 }
 
 impl CompaniesServer {
@@ -89,9 +165,15 @@ impl CompaniesServer {
             fmp_api_key,
             eodhd_api_key,
             portfolio: PortfolioManager::new(),
+            learning: std::sync::Arc::new(std::sync::Mutex::new(LearningState::default())),
         })
     }
 
+
+    async fn fetch(&self, tool: &str, symbol: &str, extra: &[(&str, &str)]) -> Result<serde_json::Value, McpToolError> {
+        let l = self.learning.lock().unwrap().clone();
+        providers::companies_get(&self.client, tool, symbol, &self.fmp_api_key, &self.eodhd_api_key, extra, Some(&l)).await
+    }
     /// Record a tool call as a narrative experience in the agent's memory.
     fn record_experience(
         &self,
@@ -152,14 +234,11 @@ impl CompaniesServer {
     ) -> String {
         execute_tool(self, "company_profile", async {
             validate_symbol(&symbol)?;
-            let result = companies_get(
-                &self.client,
-                "company_profile",
-                &symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[],
-            )
+            let result = self.fetch(
+     "company_profile",
+     &symbol,
+     &[],
+ )
             .await;
             match &result {
                 Ok(v) => {
@@ -191,14 +270,11 @@ impl CompaniesServer {
     ) -> String {
         execute_tool(self, "stock_quote", async {
             validate_symbol(&symbol)?;
-            let result = companies_get(
-                &self.client,
-                "stock_quote",
-                &symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[],
-            )
+            let result = self.fetch(
+     "stock_quote",
+     &symbol,
+     &[],
+ )
             .await;
             match &result {
                 Ok(v) => {
@@ -231,14 +307,11 @@ impl CompaniesServer {
         execute_tool(self, "income_statement", async {
             validate_symbol(&symbol)?;
             let limit_str = limit.unwrap_or(5).to_string();
-            let result = companies_get(
-                &self.client,
-                "income_statement",
-                &symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[("limit", &limit_str)],
-            )
+            let result = self.fetch(
+     "income_statement",
+     &symbol,
+     &[("limit", &limit_str)],
+ )
             .await;
             match &result {
                 Ok(v) => {
@@ -271,14 +344,11 @@ impl CompaniesServer {
         execute_tool(self, "balance_sheet", async {
             validate_symbol(&symbol)?;
             let limit_str = limit.unwrap_or(5).to_string();
-            let result = companies_get(
-                &self.client,
-                "balance_sheet",
-                &symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[("limit", &limit_str)],
-            )
+            let result = self.fetch(
+     "balance_sheet",
+     &symbol,
+     &[("limit", &limit_str)],
+ )
             .await;
             match &result {
                 Ok(v) => {
@@ -311,14 +381,11 @@ impl CompaniesServer {
         execute_tool(self, "cash_flow_statement", async {
             validate_symbol(&symbol)?;
             let limit_str = limit.unwrap_or(5).to_string();
-            let result = companies_get(
-                &self.client,
-                "cash_flow_statement",
-                &symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[("limit", &limit_str)],
-            )
+            let result = self.fetch(
+     "cash_flow_statement",
+     &symbol,
+     &[("limit", &limit_str)],
+ )
             .await;
             match &result {
                 Ok(v) => {
@@ -351,14 +418,11 @@ impl CompaniesServer {
         execute_tool(self, "key_metrics", async {
             validate_symbol(&symbol)?;
             let limit_str = limit.unwrap_or(5).to_string();
-            let result = companies_get(
-                &self.client,
-                "key_metrics",
-                &symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[("limit", &limit_str)],
-            )
+            let result = self.fetch(
+     "key_metrics",
+     &symbol,
+     &[("limit", &limit_str)],
+ )
             .await;
             match &result {
                 Ok(v) => {
@@ -390,14 +454,11 @@ impl CompaniesServer {
     ) -> String {
         execute_tool(self, "historical_price", async {
             validate_symbol(&symbol)?;
-            let result = companies_get(
-                &self.client,
-                "historical_price",
-                &symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[("from", &from), ("to", &to)],
-            )
+            let result = self.fetch(
+     "historical_price",
+     &symbol,
+     &[("from", &from), ("to", &to)],
+ )
             .await;
             match &result {
                 Ok(v) => {
@@ -493,14 +554,11 @@ impl CompaniesServer {
 
             // Fetch 10 years of key metrics for gross margin stability analysis
             let limit = "10";
-            let metrics_result = companies_get(
-                &self.client,
-                "key_metrics",
-                &symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[("limit", limit)],
-            )
+            let metrics_result = self.fetch(
+     "key_metrics",
+     &symbol,
+     &[("limit", limit)],
+ )
             .await;
 
             let metrics = match metrics_result {
@@ -583,24 +641,18 @@ impl CompaniesServer {
             validate_symbol(&symbol)?;
 
             let limit = "10";
-            let metrics_result = companies_get(
-                &self.client,
-                "key_metrics",
-                &symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[("limit", limit)],
-            )
+            let metrics_result = self.fetch(
+     "key_metrics",
+     &symbol,
+     &[("limit", limit)],
+ )
             .await;
 
-            let bs_result = companies_get(
-                &self.client,
-                "balance_sheet",
-                &symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[("limit", limit)],
-            )
+            let bs_result = self.fetch(
+     "balance_sheet",
+     &symbol,
+     &[("limit", limit)],
+ )
             .await;
 
             let (metrics, balance_sheets) = match (metrics_result, bs_result) {
@@ -667,14 +719,11 @@ impl CompaniesServer {
             validate_symbol(&symbol)?;
             let limit_str = (limit.unwrap_or(10) as usize).min(40).to_string();
 
-            let result = companies_get(
-                &self.client,
-                "key_metrics",
-                &symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[("limit", &limit_str)],
-            )
+            let result = self.fetch(
+     "key_metrics",
+     &symbol,
+     &[("limit", &limit_str)],
+ )
             .await;
 
             let metrics = match result {
@@ -771,34 +820,25 @@ impl CompaniesServer {
             let target_return = req.target_return.unwrap_or(0.15);
 
             // Fetch 5 years of key metrics for historical profitability and growth
-            let metrics_result = companies_get(
-                &self.client,
-                "key_metrics",
-                &req.symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[("limit", "5")],
-            )
+            let metrics_result = self.fetch(
+     "key_metrics",
+     &req.symbol,
+     &[("limit", "5")],
+ )
             .await;
 
-            let profile_result = companies_get(
-                &self.client,
-                "company_profile",
-                &req.symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[],
-            )
+            let profile_result = self.fetch(
+     "company_profile",
+     &req.symbol,
+     &[],
+ )
             .await;
 
-            let bs_result = companies_get(
-                &self.client,
-                "balance_sheet",
-                &req.symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[("limit", "1")],
-            )
+            let bs_result = self.fetch(
+     "balance_sheet",
+     &req.symbol,
+     &[("limit", "1")],
+ )
             .await;
 
             let (metrics_arr, profile_arr, bs_arr) =
@@ -1228,13 +1268,10 @@ impl CompaniesServer {
                         continue;
                     }
                     // Fall back to API
-                    if let Ok(value) = companies_get(
-                        &self.client,
-                        "historical_price",
-                        sym,
-                        &self.fmp_api_key,
-                        &self.eodhd_api_key,
-                        &[("from", date), ("to", date)],
+                    if let Ok(value) = self.fetch(
+                            "historical_price",
+                            sym,
+                            &[("from", date), ("to", date)],
                     )
                     .await
                         && let Some(days) = value.get("historical").and_then(|h| h.as_array())
@@ -1571,13 +1608,10 @@ impl CompaniesServer {
                 for (date, prices_map) in
                     [(&req.from, &mut prices_start), (&req.to, &mut prices_end)]
                 {
-                    match companies_get(
-                        &self.client,
-                        "historical_price",
-                        sym,
-                        &self.fmp_api_key,
-                        &self.eodhd_api_key,
-                        &[("from", date), ("to", date)],
+                    match self.fetch(
+                            "historical_price",
+                            sym,
+                            &[("from", date), ("to", date)],
                     )
                     .await
                     {
@@ -1723,13 +1757,10 @@ impl CompaniesServer {
             let mut market_values = Vec::new();
             let mut errors = Vec::new();
             for sym in positions.keys() {
-                match companies_get(
-                    &self.client,
-                    "stock_quote",
-                    sym,
-                    &self.fmp_api_key,
-                    &self.eodhd_api_key,
-                    &[],
+                match self.fetch(
+                        "stock_quote",
+                        sym,
+                        &[],
                 )
                 .await
                 {
@@ -1761,13 +1792,10 @@ impl CompaniesServer {
                 let weight = mv / total_mv;
 
                 // Fetch profile for sector/industry/country/market cap
-                if let Ok(profile_val) = companies_get(
-                    &self.client,
-                    "company_profile",
-                    sym,
-                    &self.fmp_api_key,
-                    &self.eodhd_api_key,
-                    &[],
+                if let Ok(profile_val) = self.fetch(
+                        "company_profile",
+                        sym,
+                        &[],
                 )
                 .await
                     && let Some(profile) = profile_val.as_array().and_then(|a| a.first())
@@ -1798,13 +1826,10 @@ impl CompaniesServer {
                 }
 
                 // Fetch key metrics for profitability/valuation
-                if let Ok(metrics_val) = companies_get(
-                    &self.client,
-                    "key_metrics",
-                    sym,
-                    &self.fmp_api_key,
-                    &self.eodhd_api_key,
-                    &[("limit", "1")],
+                if let Ok(metrics_val) = self.fetch(
+                        "key_metrics",
+                        sym,
+                        &[("limit", "1")],
                 )
                 .await
                     && let Some(metrics) = metrics_val.as_array().and_then(|a| a.first())
@@ -1824,23 +1849,25 @@ impl CompaniesServer {
                         "epsGrowth",
                     ] {
                         if let Some(val) = metrics.get(field).and_then(|v| v.as_f64()) {
+                            let fibo_uri = fibo::fmp_field_to_fibo(field)
+                                .unwrap_or("unknown");
                             let entry = characteristics
                                 .entry(field.to_string())
-                                .or_insert(serde_json::json!(0.0));
-                            *entry =
-                                serde_json::json!(entry.as_f64().unwrap_or(0.0) + weight * val);
+                                .or_insert(serde_json::json!({"value": 0.0, "fibo": fibo_uri}));
+                            let current = entry["value"].as_f64().unwrap_or(0.0);
+                            *entry = serde_json::json!({
+                                "value": current + weight * val,
+                                "fibo": fibo_uri,
+                            });
                         }
                     }
                 }
 
                 // Balance sheet for leverage
-                if let Ok(bs_val) = companies_get(
-                    &self.client,
-                    "balance_sheet",
-                    sym,
-                    &self.fmp_api_key,
-                    &self.eodhd_api_key,
-                    &[("limit", "1")],
+                if let Ok(bs_val) = self.fetch(
+                        "balance_sheet",
+                        sym,
+                        &[("limit", "1")],
                 )
                 .await
                     && let Some(bs) = bs_val.as_array().and_then(|a| a.first())
@@ -1851,10 +1878,16 @@ impl CompaniesServer {
                         && e > 0.0
                     {
                         let lev = a / e;
+                        let fibo_uri = fibo::fmp_field_to_fibo("financialLeverage")
+                            .unwrap_or("unknown");
                         let entry = characteristics
                             .entry("financialLeverage".to_string())
-                            .or_insert(serde_json::json!(0.0));
-                        *entry = serde_json::json!(entry.as_f64().unwrap_or(0.0) + weight * lev);
+                            .or_insert(serde_json::json!({"value": 0.0, "fibo": fibo_uri}));
+                        let current = entry["value"].as_f64().unwrap_or(0.0);
+                        *entry = serde_json::json!({
+                            "value": current + weight * lev,
+                            "fibo": fibo_uri,
+                        });
                     }
                 }
             }
@@ -1920,6 +1953,23 @@ impl CompaniesServer {
                         )
                         .await;
                 });
+            }
+
+            // Kanban-style learning: feedback updates in-process state.
+            // Extracts symbol from query to track per-symbol provider quality.
+            if let Some(sym) = parse_symbol_from_query(&query) {
+                if let Ok(mut state) = self.learning.lock() {
+                    let prov = if comments.contains("provider=eodhd") {
+                        "EODHD"
+                    } else if comments.contains("provider=fmp") {
+                        "FMP"
+                    } else if sym.contains('.') {
+                        "EODHD"
+                    } else {
+                        "FMP"
+                    };
+                    state.record(&sym, prov, score);
+                }
             }
 
             let summary = if has_feedback {
@@ -2183,6 +2233,90 @@ mod tests {
         let comments: &str = "missing sector field";
         assert!(!comments.is_empty(), "comments only is valid feedback");
     }
+    // ── Learning loop integration: feedback → state → routing ────────
+
+    #[test]
+    fn learning_loop_flaky_provider_override() {
+        let mut state = LearningState::default();
+
+        // No data → no provider preference
+        assert!(!state.is_flaky("AAPL", "FMP"));
+        assert!(state.preferred_provider("AAPL").is_none());
+
+        // Feed 5 inaccurate ratings for FMP on AAPL (scores 1-2)
+        for _ in 0..5 {
+            state.record("AAPL", "FMP", Some(1));
+        }
+        // 5 ratings, avg=1.0, all inaccurate → flaky
+        assert!(state.is_flaky("AAPL", "FMP"));
+        assert_eq!(
+            state.preferred_provider("AAPL"),
+            Some("EODHD".to_string()),
+            "FMP flaky → should prefer EODHD"
+        );
+
+        // EODHD is not flaky for AAPL
+        assert!(!state.is_flaky("AAPL", "EODHD"));
+
+        // MSFT has no data → no preference
+        assert!(state.preferred_provider("MSFT").is_none());
+    }
+
+    #[test]
+    fn learning_loop_both_flaky_no_override() {
+        let mut state = LearningState::default();
+
+        // Feed flaky ratings for both providers
+        for _ in 0..5 {
+            state.record("VOD.L", "FMP", Some(2));
+            state.record("VOD.L", "EODHD", Some(1));
+        }
+        assert!(state.is_flaky("VOD.L", "FMP"));
+        assert!(state.is_flaky("VOD.L", "EODHD"));
+        // Both flaky → no preference (let default routing handle it)
+        assert!(state.preferred_provider("VOD.L").is_none());
+    }
+
+    #[test]
+    fn learning_loop_recovery_after_accurate_ratings() {
+        let mut state = LearningState::default();
+
+        // Make FMP flaky
+        for _ in 0..5 {
+            state.record("AAPL", "FMP", Some(1));
+        }
+        assert!(state.is_flaky("AAPL", "FMP"));
+
+        // Feed 5 accurate ratings — running avg rises, inaccurate count stays
+        for _ in 0..5 {
+            state.record("AAPL", "FMP", Some(5));
+        }
+        // Now 10 total ratings, avg = (5×1 + 5×5)/10 = 3.0, 5 inaccurate
+        // is_flaky requires avg < 3.0 → avg=3.0 passes the threshold
+        // It's still flaky because inaccurate count > 3 but avg >= 3.0
+        // Wait: is_flaky requires inaccurate > 3 AND avg < 3.0 AND total >= 5
+        // avg = 3.0, so avg < 3.0 is FALSE → not flaky anymore
+        assert!(
+            !state.is_flaky("AAPL", "FMP"),
+            "should recover after consistent 5s raise avg to 3.0"
+        );
+    }
+
+    #[test]
+    fn learning_loop_insufficient_data_no_override() {
+        let mut state = LearningState::default();
+
+        // Only 3 ratings — below the total >= 5 threshold
+        for _ in 0..3 {
+            state.record("AAPL", "FMP", Some(1));
+        }
+        assert!(
+            !state.is_flaky("AAPL", "FMP"),
+            "3 ratings < 5 threshold → not enough data"
+        );
+        assert!(state.preferred_provider("AAPL").is_none());
+    }
+
 }
 
 // ── Entry point ─────────────────────────────────────────────────────

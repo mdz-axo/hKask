@@ -14,6 +14,7 @@
 //! - replica_discover — discover an academic author's work and generate corpus.yaml
 //! - replica_cache_work — cache extracted work content to disk
 
+pub mod golem;
 pub mod types;
 
 use hkask_inference::EmbeddingRouter;

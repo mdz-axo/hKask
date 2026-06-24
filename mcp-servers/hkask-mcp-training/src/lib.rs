@@ -1,4 +1,6 @@
 //! hKask MCP Training — Model training data ingestion and fine-tuning server.
+
+pub mod mlschema;
 //!
 //! Exposes a full training surface:
 //! - `training_ingest_qa` — Ingest QA pairs for model fine-tuning
