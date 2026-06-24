@@ -7,7 +7,7 @@ use hkask_templates::BundleRegistryIndex;
 use hkask_tui::ReplBridge;
 use hkask_tui::bridges::{
     backup::{BackupConfigSummary, BackupDataBridge, SnapshotInfo},
-    companies::{CompaniesDataBridge, CompanySummary, PersonSummary},
+    companies::{CompaniesDataBridge, CompanySummary, FinancialSummary, PortfolioSummary},
     config::{ConfigDataBridge, ConfigSnapshot},
     kanban::{KanbanBoardSummary, KanbanDataBridge, KanbanStatusCounts, KanbanTaskSummary},
     matrix::{MatrixConnectionStatus, MatrixDataBridge, MatrixMessageSummary, MatrixRoomSummary},
@@ -721,7 +721,11 @@ impl CompaniesDataBridge for TuiReplBridge {
         None
     }
 
-    fn people(&self) -> Vec<PersonSummary> {
+    fn financials(&self) -> Option<FinancialSummary> {
+        None
+    }
+
+    fn portfolio_list(&self) -> Vec<PortfolioSummary> {
         Vec::new()
     }
 }

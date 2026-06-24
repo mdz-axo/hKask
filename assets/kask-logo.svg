@@ -1,8 +1,50 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
-  <!-- Kask Logo - Vintage Galvanized Milk Can with Spiraling Dual-Color Brushstrokes -->
+  <!-- Kask Logo - Vintage Galvanized Milk Can with Barber Pole Spiraling Brushstrokes -->
   <title>Kask</title>
-  <desc>Vintage galvanized milk can with dual-color calligraphic brushstrokes (Eye of the Tiger gold and steel blue) spiraling into the Curator's Eye</desc>
+  <desc>Vintage galvanized milk can with barber pole spiral pattern (Sunburst gold and steel blue) rotating along each stroke and spiraling into the Curator's Eye</desc>
+
+  <defs>
+    <!-- Barber pole pattern: diagonal stripes of sunburst gold and steel blue -->
+    <!-- Vertical strokes (left side, neck) - stripes rotate clockwise going down -->
+    <pattern id="barber-vertical" patternUnits="userSpaceOnUse" width="8" height="16" patternTransform="rotate(25)">
+      <rect width="8" height="8" fill="#FAE466"/>
+      <rect y="8" width="8" height="8" fill="#4682B4"/>
+    </pattern>
+
+    <!-- Horizontal strokes (ribs, shoulder, bottom) - stripes rotate along length -->
+    <pattern id="barber-horizontal" patternUnits="userSpaceOnUse" width="8" height="16" patternTransform="rotate(-25)">
+      <rect width="8" height="8" fill="#FAE466"/>
+      <rect y="8" width="8" height="8" fill="#4682B4"/>
+    </pattern>
+
+    <!-- Curved strokes (handles, shoulders) - steeper angle -->
+    <pattern id="barber-curve" patternUnits="userSpaceOnUse" width="7" height="14" patternTransform="rotate(35)">
+      <rect width="7" height="7" fill="#FAE466"/>
+      <rect y="7" width="7" height="7" fill="#4682B4"/>
+    </pattern>
+
+    <!-- Eye spiral pattern - tighter rotation for the iris vortex -->
+    <pattern id="barber-eye" patternUnits="userSpaceOnUse" width="6" height="12" patternTransform="rotate(45)">
+      <rect width="6" height="6" fill="#FAE466"/>
+      <rect y="6" width="6" height="6" fill="#4682B4"/>
+    </pattern>
+
+    <!-- Metallic gold highlight gradient for sheen -->
+    <linearGradient id="gold-sheen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF8DC" stop-opacity="0.5"/>
+      <stop offset="50%" stop-color="#FAE466" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#B8860B" stop-opacity="0.3"/>
+    </linearGradient>
+
+    <!-- Metallic sheen overlay for strokes -->
+    <linearGradient id="metallic-overlay" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.25"/>
+      <stop offset="30%" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="70%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.15"/>
+    </linearGradient>
+  </defs>
 
   <!-- Background -->
   <rect width="400" height="600" fill="#FFFFFF"/>
@@ -21,183 +63,193 @@
           fill="none" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
   </g>
 
-  <!-- MAIN MILK CAN BODY - Dual-color spiraling brushstrokes -->
-  <!-- Each stroke has gold (#E3B26F) and steel blue (#4682B4) side-by-side -->
-  <!-- The colors rotate as the brush moves, spiraling toward the eye -->
+  <!-- MAIN MILK CAN BODY - Barber pole spiraling brushstrokes -->
+  <!-- Each stroke is a black-outlined shape filled with the barber pole pattern -->
+  <!-- The pattern angle rotates along each stroke, with occasional breaks -->
 
-  <!-- Left side - vertical downstroke (gold left, blue right at top; rotates to blue left, gold right at bottom) -->
-  <path d="M 138 180 L 138 460" fill="none" stroke="#000000" stroke-width="11" stroke-linecap="round"/>
-  <path d="M 139 180 L 139 460" fill="none" stroke="#E3B26F" stroke-width="5" stroke-linecap="round"/>
-  <path d="M 143 180 L 143 460" fill="none" stroke="#4682B4" stroke-width="5" stroke-linecap="round"/>
-  <!-- Rotation effect: colors swap positions mid-stroke -->
-  <path d="M 139 320 L 139 460" fill="none" stroke="#4682B4" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
-  <path d="M 143 320 L 143 460" fill="none" stroke="#E3B26F" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  <!-- Left side - vertical downstroke with barber pole -->
+  <path d="M 135 180 L 135 460" fill="none" stroke="#000000" stroke-width="12" stroke-linecap="round"/>
+  <path d="M 135 180 L 135 460" fill="none" stroke="url(#barber-vertical)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 135 180 L 135 460" fill="none" stroke="url(#metallic-overlay)" stroke-width="10" stroke-linecap="round"/>
+  <!-- Break in pattern - gap in the spiral -->
+  <path d="M 135 290 L 135 300" fill="none" stroke="#000000" stroke-width="12" stroke-linecap="round"/>
+  <path d="M 135 290 L 135 300" fill="none" stroke="#FAE466" stroke-width="10" stroke-linecap="round"/>
 
-  <!-- Right side - vertical downstroke (blue left, gold right at top; rotates to gold left, blue right at bottom) -->
-  <path d="M 258 180 L 258 460" fill="none" stroke="#000000" stroke-width="11" stroke-linecap="round"/>
-  <path d="M 259 180 L 259 460" fill="none" stroke="#4682B4" stroke-width="5" stroke-linecap="round"/>
-  <path d="M 263 180 L 263 460" fill="none" stroke="#E3B26F" stroke-width="5" stroke-linecap="round"/>
-  <!-- Rotation effect -->
-  <path d="M 259 320 L 259 460" fill="none" stroke="#E3B26F" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
-  <path d="M 263 320 L 263 460" fill="none" stroke="#4682B4" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  <!-- Right side - vertical downstroke with barber pole (rotated opposite) -->
+  <path d="M 265 180 L 265 460" fill="none" stroke="#000000" stroke-width="12" stroke-linecap="round"/>
+  <path d="M 265 180 L 265 460" fill="none" stroke="url(#barber-vertical)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 265 180 L 265 460" fill="none" stroke="url(#metallic-overlay)" stroke-width="10" stroke-linecap="round"/>
+  <!-- Break in pattern -->
+  <path d="M 265 370 L 265 380" fill="none" stroke="#000000" stroke-width="12" stroke-linecap="round"/>
+  <path d="M 265 370 L 265 380" fill="none" stroke="#4682B4" stroke-width="10" stroke-linecap="round"/>
 
-  <!-- Bottom curve - horizontal stroke (gold top, blue bottom; rotates as it curves) -->
-  <path d="M 140 458 Q 140 470 200 470 Q 260 470 260 458" fill="none" stroke="#000000" stroke-width="11" stroke-linecap="round"/>
-  <path d="M 140 459 Q 140 469 200 469 Q 260 469 260 459" fill="none" stroke="#E3B26F" stroke-width="5" stroke-linecap="round"/>
-  <path d="M 140 463 Q 140 473 200 473 Q 260 473 260 463" fill="none" stroke="#4682B4" stroke-width="5" stroke-linecap="round"/>
+  <!-- Bottom curve - horizontal barber pole -->
+  <path d="M 135 460 Q 135 472 200 472 Q 265 472 265 460" fill="none" stroke="#000000" stroke-width="12" stroke-linecap="round"/>
+  <path d="M 135 460 Q 135 472 200 472 Q 265 472 265 460" fill="none" stroke="url(#barber-horizontal)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 135 460 Q 135 472 200 472 Q 265 472 265 460" fill="none" stroke="url(#metallic-overlay)" stroke-width="10" stroke-linecap="round"/>
 
-  <!-- Top shoulder - horizontal stroke (gold top, blue bottom) -->
-  <path d="M 140 178 Q 200 173 260 178" fill="none" stroke="#000000" stroke-width="9" stroke-linecap="round"/>
-  <path d="M 140 177 Q 200 172 260 177" fill="none" stroke="#E3B26F" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 140 181 Q 200 176 260 181" fill="none" stroke="#4682B4" stroke-width="4" stroke-linecap="round"/>
+  <!-- Top shoulder - horizontal barber pole -->
+  <path d="M 135 180 Q 200 174 265 180" fill="none" stroke="#000000" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 135 180 Q 200 174 265 180" fill="none" stroke="url(#barber-horizontal)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 135 180 Q 200 174 265 180" fill="none" stroke="url(#metallic-overlay)" stroke-width="8" stroke-linecap="round"/>
 
-  <!-- GALVANIZED RIBBING - dual-color horizontal bands -->
+  <!-- GALVANIZED RIBBING - barber pole horizontal bands -->
   <!-- Upper rib -->
-  <path d="M 140 218 Q 200 216 260 218" fill="none" stroke="#000000" stroke-width="7" stroke-linecap="round"/>
-  <path d="M 140 217 Q 200 215 260 217" fill="none" stroke="#E3B26F" stroke-width="3" stroke-linecap="round"/>
-  <path d="M 140 221 Q 200 219 260 221" fill="none" stroke="#4682B4" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 135 220 Q 200 217 265 220" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 135 220 Q 200 217 265 220" fill="none" stroke="url(#barber-horizontal)" stroke-width="6" stroke-linecap="round"/>
+  <!-- Break -->
+  <path d="M 190 219 L 210 219" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 190 219 L 210 219" fill="none" stroke="#FAE466" stroke-width="6" stroke-linecap="round"/>
 
-  <!-- Middle rib (above eye) - colors starting to spiral -->
-  <path d="M 140 278 Q 200 276 260 278" fill="none" stroke="#000000" stroke-width="7" stroke-linecap="round"/>
-  <path d="M 140 277 Q 200 275 260 277" fill="none" stroke="#4682B4" stroke-width="3" stroke-linecap="round"/>
-  <path d="M 140 281 Q 200 279 260 281" fill="none" stroke="#E3B26F" stroke-width="3" stroke-linecap="round"/>
+  <!-- Middle rib (above eye) -->
+  <path d="M 135 280 Q 200 277 265 280" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 135 280 Q 200 277 265 280" fill="none" stroke="url(#barber-horizontal)" stroke-width="6" stroke-linecap="round"/>
+  <!-- Break -->
+  <path d="M 155 279 L 170 279" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 155 279 L 170 279" fill="none" stroke="#4682B4" stroke-width="6" stroke-linecap="round"/>
 
-  <!-- Lower rib (below eye) - colors continuing to spiral -->
-  <path d="M 140 398 Q 200 396 260 398" fill="none" stroke="#000000" stroke-width="7" stroke-linecap="round"/>
-  <path d="M 140 397 Q 200 395 260 397" fill="none" stroke="#E3B26F" stroke-width="3" stroke-linecap="round"/>
-  <path d="M 140 401 Q 200 399 260 401" fill="none" stroke="#4682B4" stroke-width="3" stroke-linecap="round"/>
+  <!-- Lower rib (below eye) -->
+  <path d="M 135 400 Q 200 397 265 400" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 135 400 Q 200 397 265 400" fill="none" stroke="url(#barber-horizontal)" stroke-width="6" stroke-linecap="round"/>
+  <!-- Break -->
+  <path d="M 230 399 L 245 399" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 230 399 L 245 399" fill="none" stroke="#FAE466" stroke-width="6" stroke-linecap="round"/>
 
   <!-- Bottom rib -->
-  <path d="M 140 438 Q 200 436 260 438" fill="none" stroke="#000000" stroke-width="7" stroke-linecap="round"/>
-  <path d="M 140 437 Q 200 435 260 437" fill="none" stroke="#4682B4" stroke-width="3" stroke-linecap="round"/>
-  <path d="M 140 441 Q 200 439 260 441" fill="none" stroke="#E3B26F" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 135 440 Q 200 437 265 440" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 135 440 Q 200 437 265 440" fill="none" stroke="url(#barber-horizontal)" stroke-width="6" stroke-linecap="round"/>
 
-  <!-- SHOULDER curves - dual-color with rotation -->
+  <!-- SHOULDER curves - barber pole with curve pattern -->
   <!-- Left shoulder -->
-  <path d="M 138 180 C 138 163 158 153 158 143" fill="none" stroke="#000000" stroke-width="10" stroke-linecap="round"/>
-  <path d="M 139 180 C 139 164 159 154 159 144" fill="none" stroke="#E3B26F" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 143 180 C 143 164 163 154 163 144" fill="none" stroke="#4682B4" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 135 180 C 135 163 157 153 157 143" fill="none" stroke="#000000" stroke-width="11" stroke-linecap="round"/>
+  <path d="M 135 180 C 135 163 157 153 157 143" fill="none" stroke="url(#barber-curve)" stroke-width="9" stroke-linecap="round"/>
+  <path d="M 135 180 C 135 163 157 153 157 143" fill="none" stroke="url(#metallic-overlay)" stroke-width="9" stroke-linecap="round"/>
 
   <!-- Right shoulder -->
-  <path d="M 258 180 C 258 163 238 153 238 143" fill="none" stroke="#000000" stroke-width="10" stroke-linecap="round"/>
-  <path d="M 259 180 C 259 164 239 154 239 144" fill="none" stroke="#4682B4" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 263 180 C 263 164 243 154 243 144" fill="none" stroke="#E3B26F" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 265 180 C 265 163 243 153 243 143" fill="none" stroke="#000000" stroke-width="11" stroke-linecap="round"/>
+  <path d="M 265 180 C 265 163 243 153 243 143" fill="none" stroke="url(#barber-curve)" stroke-width="9" stroke-linecap="round"/>
+  <path d="M 265 180 C 265 163 243 153 243 143" fill="none" stroke="url(#metallic-overlay)" stroke-width="9" stroke-linecap="round"/>
 
-  <!-- NECK - dual-color vertical strokes -->
-  <path d="M 158 138 L 158 145" fill="none" stroke="#000000" stroke-width="10" stroke-linecap="round"/>
-  <path d="M 159 138 L 159 145" fill="none" stroke="#E3B26F" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 163 138 L 163 145" fill="none" stroke="#4682B4" stroke-width="4" stroke-linecap="round"/>
+  <!-- NECK - barber pole vertical -->
+  <path d="M 157 138 L 157 145" fill="none" stroke="#000000" stroke-width="11" stroke-linecap="round"/>
+  <path d="M 157 138 L 157 145" fill="none" stroke="url(#barber-vertical)" stroke-width="9" stroke-linecap="round"/>
 
-  <path d="M 238 138 L 238 145" fill="none" stroke="#000000" stroke-width="10" stroke-linecap="round"/>
-  <path d="M 239 138 L 239 145" fill="none" stroke="#4682B4" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 243 138 L 243 145" fill="none" stroke="#E3B26F" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 243 138 L 243 145" fill="none" stroke="#000000" stroke-width="11" stroke-linecap="round"/>
+  <path d="M 243 138 L 243 145" fill="none" stroke="url(#barber-vertical)" stroke-width="9" stroke-linecap="round"/>
 
-  <!-- RIM - dual-color elliptical stroke -->
-  <path d="M 153 138 C 153 131 200 126 247 138 C 247 145 200 150 153 138" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round"/>
-  <path d="M 153 137 C 153 130 200 125 247 137" fill="none" stroke="#E3B26F" stroke-width="3" stroke-linecap="round"/>
-  <path d="M 153 141 C 153 148 200 153 247 141" fill="none" stroke="#4682B4" stroke-width="3" stroke-linecap="round"/>
+  <!-- RIM - barber pole elliptical -->
+  <path d="M 152 138 C 152 131 200 126 248 138 C 248 145 200 150 152 138" fill="none" stroke="#000000" stroke-width="9" stroke-linecap="round"/>
+  <path d="M 152 138 C 152 131 200 126 248 138 C 248 145 200 150 152 138" fill="none" stroke="url(#barber-horizontal)" stroke-width="7" stroke-linecap="round"/>
+  <path d="M 152 138 C 152 131 200 126 248 138 C 248 145 200 150 152 138" fill="none" stroke="url(#metallic-overlay)" stroke-width="7" stroke-linecap="round"/>
 
-  <!-- LID - dual-color ellipse -->
-  <ellipse cx="200" cy="133" rx="47" ry="11" fill="none" stroke="#000000" stroke-width="8"/>
-  <ellipse cx="200" cy="132" rx="46" ry="10" fill="none" stroke="#E3B26F" stroke-width="3"/>
-  <ellipse cx="200" cy="136" rx="46" ry="10" fill="none" stroke="#4682B4" stroke-width="3"/>
+  <!-- LID - barber pole ellipse -->
+  <ellipse cx="200" cy="133" rx="48" ry="12" fill="none" stroke="#000000" stroke-width="9"/>
+  <ellipse cx="200" cy="133" rx="48" ry="12" fill="none" stroke="url(#barber-horizontal)" stroke-width="7"/>
+  <ellipse cx="200" cy="133" rx="48" ry="12" fill="none" stroke="url(#metallic-overlay)" stroke-width="7"/>
 
-  <!-- LID KNOB - dual-color arc -->
-  <path d="M 190 123 Q 200 116 210 123" fill="none" stroke="#000000" stroke-width="9" stroke-linecap="round"/>
-  <path d="M 191 122 Q 200 115 209 122" fill="none" stroke="#E3B26F" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 191 126 Q 200 119 209 126" fill="none" stroke="#4682B4" stroke-width="4" stroke-linecap="round"/>
+  <!-- LID KNOB - barber pole arc -->
+  <path d="M 190 121 Q 200 114 210 121" fill="none" stroke="#000000" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 190 121 Q 200 114 210 121" fill="none" stroke="url(#barber-curve)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 190 121 Q 200 114 210 121" fill="none" stroke="url(#metallic-overlay)" stroke-width="8" stroke-linecap="round"/>
 
-  <!-- SIDE HANDLES - dual-color curves -->
+  <!-- SIDE HANDLES - barber pole curves -->
   <!-- Left handle -->
-  <path d="M 138 218 C 113 218 108 248 113 268 C 116 278 126 283 138 278" fill="none" stroke="#000000" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 139 219 C 114 219 109 249 114 269 C 117 279 127 284 139 279" fill="none" stroke="#E3B26F" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 143 219 C 118 219 113 249 118 269 C 121 279 131 284 143 279" fill="none" stroke="#4682B4" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 135 218 C 110 218 105 248 110 268 C 113 278 123 283 135 278" fill="none" stroke="#000000" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 135 218 C 110 218 105 248 110 268 C 113 278 123 283 135 278" fill="none" stroke="url(#barber-curve)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 135 218 C 110 218 105 248 110 268 C 113 278 123 283 135 278" fill="none" stroke="url(#metallic-overlay)" stroke-width="8" stroke-linecap="round"/>
+  <!-- Break -->
+  <path d="M 108 245 L 109 255" fill="none" stroke="#000000" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 108 245 L 109 255" fill="none" stroke="#FAE466" stroke-width="8" stroke-linecap="round"/>
 
   <!-- Right handle -->
-  <path d="M 258 218 C 283 218 288 248 283 268 C 280 278 270 283 258 278" fill="none" stroke="#000000" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 259 219 C 284 219 289 249 284 269 C 281 279 271 284 259 279" fill="none" stroke="#4682B4" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 263 219 C 288 219 293 249 288 269 C 285 279 275 284 263 279" fill="none" stroke="#E3B26F" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 265 218 C 290 218 295 248 290 268 C 287 278 277 283 265 278" fill="none" stroke="#000000" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 265 218 C 290 218 295 248 290 268 C 287 278 277 283 265 278" fill="none" stroke="url(#barber-curve)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 265 218 C 290 218 295 248 290 268 C 287 278 277 283 265 278" fill="none" stroke="url(#metallic-overlay)" stroke-width="8" stroke-linecap="round"/>
+  <!-- Break -->
+  <path d="M 291 245 L 292 255" fill="none" stroke="#000000" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 291 245 L 292 255" fill="none" stroke="#4682B4" stroke-width="8" stroke-linecap="round"/>
 
-  <!-- CURATOR'S EYE - Spiraling dual-color brushstrokes converging to center -->
-  <!-- The two colors spiral inward, creating a vortex effect -->
+  <!-- CURATOR'S EYE - Barber pole spiraling into the center vortex -->
 
-  <!-- Upper eyelid - spiraling strokes -->
-  <path d="M 163 328 Q 200 310 237 328" fill="none" stroke="#000000" stroke-width="10" stroke-linecap="round"/>
-  <!-- Gold starts outside, spirals inward -->
-  <path d="M 165 327 Q 200 309 235 327" fill="none" stroke="#E3B26F" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 170 329 Q 200 313 230 329" fill="none" stroke="#4682B4" stroke-width="4" stroke-linecap="round"/>
-  <!-- Colors swap as they spiral -->
-  <path d="M 175 331 Q 200 317 225 331" fill="none" stroke="#E3B26F" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
-  <path d="M 180 333 Q 200 321 220 333" fill="none" stroke="#4682B4" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <!-- Upper eyelid - barber pole with tightening spiral -->
+  <path d="M 163 328 Q 200 308 237 328" fill="none" stroke="#000000" stroke-width="11" stroke-linecap="round"/>
+  <path d="M 163 328 Q 200 308 237 328" fill="none" stroke="url(#barber-eye)" stroke-width="9" stroke-linecap="round"/>
+  <path d="M 163 328 Q 200 308 237 328" fill="none" stroke="url(#metallic-overlay)" stroke-width="9" stroke-linecap="round"/>
+  <!-- Inner eyelid spiral - tighter pattern -->
+  <path d="M 170 330 Q 200 314 230 330" fill="none" stroke="#000000" stroke-width="7" stroke-linecap="round"/>
+  <path d="M 170 330 Q 200 314 230 330" fill="none" stroke="url(#barber-eye)" stroke-width="5" stroke-linecap="round"/>
 
-  <!-- Lower eyelid - spiraling strokes -->
-  <path d="M 166 354 Q 200 374 234 354" fill="none" stroke="#000000" stroke-width="7" stroke-linecap="round"/>
-  <path d="M 168 353 Q 200 373 232 353" fill="none" stroke="#4682B4" stroke-width="3" stroke-linecap="round"/>
-  <path d="M 172 355 Q 200 371 228 355" fill="none" stroke="#E3B26F" stroke-width="3" stroke-linecap="round"/>
-  <!-- Spiral continues -->
-  <path d="M 176 357 Q 200 369 224 357" fill="none" stroke="#4682B4" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
-  <path d="M 180 359 Q 200 367 220 359" fill="none" stroke="#E3B26F" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+  <!-- Lower eyelid - barber pole -->
+  <path d="M 166 354 Q 200 374 234 354" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 166 354 Q 200 374 234 354" fill="none" stroke="url(#barber-eye)" stroke-width="6" stroke-linecap="round"/>
+  <path d="M 166 354 Q 200 374 234 354" fill="none" stroke="url(#metallic-overlay)" stroke-width="6" stroke-linecap="round"/>
+  <!-- Inner lower spiral -->
+  <path d="M 174 356 Q 200 370 226 356" fill="none" stroke="#000000" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 174 356 Q 200 370 226 356" fill="none" stroke="url(#barber-eye)" stroke-width="3" stroke-linecap="round"/>
 
-  <!-- Iris - SPIRALING DUAL-COLOR VORTEX -->
+  <!-- Iris - SPIRALING BARBER POLE VORTEX -->
+  <!-- The barber pole pattern tightens as it spirals to the center -->
+
   <!-- Black outline -->
-  <circle cx="200" cy="342" r="22" fill="#000000"/>
+  <circle cx="200" cy="342" r="23" fill="#000000"/>
 
-  <!-- Outer spiral ring 1 - gold dominant -->
-  <circle cx="200" cy="342" r="21" fill="none" stroke="#E3B26F" stroke-width="3"/>
-  <path d="M 200 321 A 21 21 0 0 1 221 342" fill="none" stroke="#4682B4" stroke-width="3"/>
+  <!-- Outer iris ring - barber pole -->
+  <circle cx="200" cy="342" r="22" fill="none" stroke="url(#barber-eye)" stroke-width="4"/>
+  <circle cx="200" cy="342" r="22" fill="none" stroke="url(#metallic-overlay)" stroke-width="4"/>
 
-  <!-- Spiral ring 2 - colors swap -->
-  <circle cx="200" cy="342" r="18" fill="none" stroke="#4682B4" stroke-width="3"/>
-  <path d="M 200 324 A 18 18 0 0 0 182 342" fill="none" stroke="#E3B26F" stroke-width="3"/>
+  <!-- Spiral ring 2 - rotated pattern -->
+  <circle cx="200" cy="342" r="18" fill="none" stroke="#000000" stroke-width="5"/>
+  <circle cx="200" cy="342" r="18" fill="none" stroke="url(#barber-eye)" stroke-width="3"/>
+  <!-- Break in spiral -->
+  <path d="M 218 342 A 18 18 0 0 1 214 354" fill="none" stroke="#000000" stroke-width="5"/>
+  <path d="M 218 342 A 18 18 0 0 1 214 354" fill="none" stroke="#FAE466" stroke-width="3"/>
 
-  <!-- Spiral ring 3 - back to gold -->
-  <circle cx="200" cy="342" r="15" fill="none" stroke="#E3B26F" stroke-width="3"/>
-  <path d="M 200 327 A 15 15 0 0 1 215 342" fill="none" stroke="#4682B4" stroke-width="3"/>
+  <!-- Spiral ring 3 - tighter -->
+  <circle cx="200" cy="342" r="14" fill="none" stroke="#000000" stroke-width="5"/>
+  <circle cx="200" cy="342" r="14" fill="none" stroke="url(#barber-eye)" stroke-width="3"/>
+  <!-- Break -->
+  <path d="M 186 342 A 14 14 0 0 0 190 330" fill="none" stroke="#000000" stroke-width="5"/>
+  <path d="M 186 342 A 14 14 0 0 0 190 330" fill="none" stroke="#4682B4" stroke-width="3"/>
 
-  <!-- Spiral ring 4 - blue -->
-  <circle cx="200" cy="342" r="12" fill="none" stroke="#4682B4" stroke-width="3"/>
-  <path d="M 200 330 A 12 12 0 0 0 188 342" fill="none" stroke="#E3B26F" stroke-width="3"/>
+  <!-- Spiral ring 4 - even tighter -->
+  <circle cx="200" cy="342" r="10" fill="none" stroke="#000000" stroke-width="4"/>
+  <circle cx="200" cy="342" r="10" fill="none" stroke="url(#barber-eye)" stroke-width="2"/>
 
-  <!-- Inner spiral - converging to center -->
-  <circle cx="200" cy="342" r="9" fill="none" stroke="#E3B26F" stroke-width="2"/>
-  <path d="M 200 333 A 9 9 0 0 1 209 342" fill="none" stroke="#4682B4" stroke-width="2"/>
+  <!-- Pupil - final convergence -->
+  <circle cx="200" cy="342" r="7" fill="#000000"/>
+  <circle cx="200" cy="342" r="6" fill="none" stroke="url(#barber-eye)" stroke-width="2"/>
+  <!-- Break -->
+  <path d="M 200 336 A 6 6 0 0 1 206 342" fill="none" stroke="#000000" stroke-width="4"/>
+  <path d="M 200 336 A 6 6 0 0 1 206 342" fill="none" stroke="#FAE466" stroke-width="2"/>
 
-  <!-- Pupil - final spiral convergence -->
-  <circle cx="200" cy="342" r="6" fill="#000000"/>
-  <circle cx="200" cy="342" r="5" fill="none" stroke="#4682B4" stroke-width="2"/>
-  <path d="M 200 337 A 5 5 0 0 0 195 342" fill="none" stroke="#E3B26F" stroke-width="2"/>
-
-  <!-- Center point - both colors meet -->
-  <circle cx="200" cy="342" r="3" fill="#E3B26F"/>
+  <!-- Center point - both colors converge with metallic sheen -->
+  <circle cx="200" cy="342" r="3" fill="#FAE466"/>
   <circle cx="201" cy="341" r="1.5" fill="#4682B4"/>
+  <circle cx="199" cy="341" r="1" fill="#FFF8DC" opacity="0.9"/>
 
-  <!-- Light reflection - white with steel blue glow -->
-  <circle cx="207" cy="335" r="7" fill="#4682B4" opacity="0.3"/>
+  <!-- Light reflection - white with sunburst glow -->
+  <circle cx="207" cy="335" r="7" fill="#FAE466" opacity="0.3"/>
   <circle cx="207" cy="335" r="6" fill="#FFFFFF"/>
   <circle cx="207" cy="335" r="4" fill="#FFFFFF" opacity="0.8"/>
 
-  <!-- Eyelashes - dual-color flicks spiraling outward -->
-  <path d="M 176 326 L 173 319" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 176 326 L 173 319" stroke="#E3B26F" stroke-width="2" stroke-linecap="round"/>
-  <path d="M 177 327 L 174 320" stroke="#4682B4" stroke-width="2" stroke-linecap="round"/>
+  <!-- Eyelashes - barber pole flicks -->
+  <path d="M 176 326 L 173 319" stroke="#000000" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 176 326 L 173 319" stroke="url(#barber-curve)" stroke-width="3" stroke-linecap="round"/>
 
-  <path d="M 188 322 L 186 314" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 188 322 L 186 314" stroke="#4682B4" stroke-width="2" stroke-linecap="round"/>
-  <path d="M 189 323 L 187 315" stroke="#E3B26F" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 188 322 L 186 314" stroke="#000000" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 188 322 L 186 314" stroke="url(#barber-curve)" stroke-width="3" stroke-linecap="round"/>
 
-  <path d="M 212 322 L 214 314" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 212 322 L 214 314" stroke="#E3B26F" stroke-width="2" stroke-linecap="round"/>
-  <path d="M 211 323 L 213 315" stroke="#4682B4" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 212 322 L 214 314" stroke="#000000" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 212 322 L 214 314" stroke="url(#barber-curve)" stroke-width="3" stroke-linecap="round"/>
 
-  <path d="M 224 326 L 227 319" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 224 326 L 227 319" stroke="#4682B4" stroke-width="2" stroke-linecap="round"/>
-  <path d="M 223 327 L 226 320" stroke="#E3B26F" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 224 326 L 227 319" stroke="#000000" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 224 326 L 227 319" stroke="url(#barber-curve)" stroke-width="3" stroke-linecap="round"/>
 
   <!-- Operator Authority Gap - spiraling break in iris -->
   <path d="M 209 333 A 20 20 0 0 1 211 351" fill="none" stroke="#000000" stroke-width="5" opacity="0.9"/>
   <path d="M 209 333 A 20 20 0 0 1 211 351" fill="none" stroke="#FFFFFF" stroke-width="4" opacity="0.8"/>
   <path d="M 210 334 A 19 19 0 0 1 212 350" fill="none" stroke="#4682B4" stroke-width="2" opacity="0.6"/>
-  <path d="M 211 335 A 18 18 0 0 1 213 349" fill="none" stroke="#E3B26F" stroke-width="2" opacity="0.6"/>
+  <path d="M 211 335 A 18 18 0 0 1 213 349" fill="none" stroke="#FAE466" stroke-width="2" opacity="0.6"/>
 
   <!-- Label - simple monospace -->
   <text x="200" y="540" font-family="monospace" font-size="18" fill="#1A1A1A" text-anchor="middle" letter-spacing="8">KASK</text>

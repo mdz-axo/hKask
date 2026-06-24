@@ -199,14 +199,4 @@ pub trait McpTabbedWindow: Window {
         let para = Paragraph::new(lines).wrap(Wrap { trim: false });
         f.render_widget(para, inner);
     }
-
-    /// Default Tab key handler — toggles between Chat and Data.
-    fn handle_tab_key(&mut self, key: KeyEvent) -> bool {
-        if key.code == KeyCode::Tab {
-            let next = self.active_tab().next();
-            self.set_active_tab(next);
-            return true;
-        }
-        false
-    }
 }

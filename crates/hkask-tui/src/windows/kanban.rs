@@ -1,8 +1,13 @@
 //! Kanban window — task board for agent coordination.
 //!
 //! Displays kanban board with columns (Backlog, In Progress, Review, Done).
-//! Each card is a task that can be assigned to agents. Tab-cycled sections:
-//! Board, Backlog, InProgress, Done.
+//! Each card is a task that can be assigned to agents.
+//!
+//! Adopts the MCP two-tab design (TUI_SPECIFICATION.md §3):
+//! - Tab 1 (Chat): Focused chat scoped to the Kanban MCP server
+//! - Tab 2 (Data): Board, Backlog, InProgress, Done sections
+//!
+//! Tab key behavior: cycles Board → Backlog → InProgress → Done → Chat → Board.
 //!
 //! # Architecture
 //! ⟨Kanban⟩ displays ⟨Columns, Cards, Assignments⟩ .
@@ -18,6 +23,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
 use crate::bridges::KanbanDataBridge;
+use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::window::{Window, WindowId, WindowKind};
 
@@ -51,6 +57,8 @@ impl KanbanSection {
 pub struct KanbanWindow {
     id: WindowId,
     section: KanbanSection,
+    active_tab: McpTab,
+    chat_state: McpChatState,
     #[allow(dead_code)]
     bridge: Arc<dyn ReplBridge>,
     kanban: Option<Arc<dyn KanbanDataBridge>>,
@@ -61,6 +69,8 @@ impl KanbanWindow {
         Self {
             id,
             section: KanbanSection::Board,
+            active_tab: McpTab::Data,
+            chat_state: McpChatState::new(),
             bridge,
             kanban: None,
         }
@@ -84,9 +94,79 @@ impl Window for KanbanWindow {
     }
 
     fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
+        match self.active_tab {
+            McpTab::Chat => {
+                Self::default_render_chat_tab(&self.chat_state, "kanban", f, area);
+            }
+            McpTab::Data => self.render_data_tab(f, area),
+        }
+    }
+
+    fn handle_key(&mut self, key: KeyEvent) -> bool {
+        if key.code == KeyCode::Tab {
+            match self.active_tab {
+                McpTab::Chat => {
+                    // Tab from Chat → switch to Data (first section)
+                    self.active_tab = McpTab::Data;
+                    self.section = KanbanSection::Board;
+                    return true;
+                }
+                McpTab::Data => {
+                    // Tab from Data: cycle sections, then wrap to Chat
+                    self.section = self.section.next();
+                    if self.section == KanbanSection::Board {
+                        // Wrapped around → switch to Chat tab
+                        self.active_tab = McpTab::Chat;
+                    }
+                    return true;
+                }
+            }
+        }
+
+        match self.active_tab {
+            McpTab::Chat => {
+                if let Some(_msg) = self.handle_chat_key(key) {
+                    return true;
+                }
+                matches!(
+                    key.code,
+                    KeyCode::Char(_) | KeyCode::Backspace | KeyCode::Enter | KeyCode::Esc
+                )
+            }
+            McpTab::Data => false,
+        }
+    }
+    fn tick(&mut self) {}
+}
+
+impl McpTabbedWindow for KanbanWindow {
+    fn active_tab(&self) -> McpTab {
+        self.active_tab
+    }
+
+    fn set_active_tab(&mut self, tab: McpTab) {
+        self.active_tab = tab;
+    }
+
+    fn chat_state_mut(&mut self) -> &mut McpChatState {
+        &mut self.chat_state
+    }
+
+    fn mcp_server_name(&self) -> &str {
+        "kanban"
+    }
+
+    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
+        Self::default_render_chat_tab(&self.chat_state, "kanban", f, area);
+    }
+
+    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
         let mut lines = vec![
             Line::from(Span::styled(
-                format!("── Kanban: {} (Tab to switch) ──", self.section.title()),
+                format!(
+                    "── Kanban: {} (Tab: next | Tab×4: Chat) ──",
+                    self.section.title()
+                ),
                 Style::default().fg(Color::Cyan).bold(),
             )),
             Line::from(""),
@@ -231,14 +311,4 @@ impl Window for KanbanWindow {
         )));
         f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
     }
-
-    fn handle_key(&mut self, key: KeyEvent) -> bool {
-        if key.code == KeyCode::Tab {
-            self.section = self.section.next();
-            true
-        } else {
-            false
-        }
-    }
-    fn tick(&mut self) {}
 }

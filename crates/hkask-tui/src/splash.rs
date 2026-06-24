@@ -1073,7 +1073,7 @@ fn pixel_color(
     dark_steel: Color,
     bg: Color,
 ) -> Color {
-    let eye_of_tiger = Color::Rgb(227, 178, 111); // #E3B26F
+    let eye_of_tiger = Color::Rgb(250, 228, 102); // #FAE466 Sunburst gold
     let steel_blue_full = Color::Rgb(70, 130, 180); // #4682B4
     match value {
         1 => main, // black tracing

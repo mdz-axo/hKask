@@ -641,7 +641,7 @@ impl AgentService {
         let mcp_pods = build_mcp_and_pods(&config, &loops, &foundation, system_webid).await?;
 
         // ── Matrix transport + 7R7 listener ──────────────────────────────
-        let matrix_transport = build_matrix().await;
+        let matrix_transport = self::matrix::build_matrix().await;
 
         // ── Registry + wallet: agent records, A2A restore, rJoule ───────
         let reg_wallet = build_registry_and_wallet(&config, &foundation, &loops, &mcp_pods).await?;
@@ -809,13 +809,7 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     let _triple_store = Arc::new(TripleStore::new(Arc::clone(&primary_conn)));
 
     // Spawn periodic seam drift check (R7.3 background watcher).
-    spawn_seam_drift_check(&seam_watcher, &cns_runtime, &cns_event_sink);
-
-    // Spawn periodic contract test monitor — runs cargo test on priority crates
-    // and emits cns.contract.violated spans on REQ-tagged failures.
-    let _workspace_root = std::env::current_dir()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|_| ".".to_string());
+    self::seam_monitor::spawn_seam_drift_check(&seam_watcher, &cns_runtime, &cns_event_sink);
 
     Ok(Foundation {
         db,
@@ -833,14 +827,6 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
         cns_event_sink,
         gas_event_store,
     })
-}
-
-fn spawn_seam_drift_check(
-    seam_watcher: &Arc<RwLock<Option<SeamWatcher>>>,
-    cns_runtime: &Arc<RwLock<CnsRuntime>>,
-    event_sink: &Arc<dyn NuEventSink>,
-) {
-    self::seam_monitor::spawn_seam_drift_check(seam_watcher, cns_runtime, event_sink)
 }
 
 /// Loops: cybernetics, inference, episodic, semantic, curation, snapshot, backup.
@@ -1080,9 +1066,9 @@ struct McpPods {
     daemon_handler: Arc<hkask_services_runtime::ServiceDaemonHandler>,
     energy_estimator: Arc<hkask_cns::CalibratedEnergyEstimator>,
     /// Keeps the CuratorSync cancellation channel alive.
-    #[allow(dead_code)]
+    /// The channel sender is held only for its Drop impl — when McpPods is dropped,
+    /// the receiver detects the closed channel and cancels the CuratorSync polling loop.
     _curator_cancel: tokio::sync::watch::Sender<bool>,
-    /// Signals when the CuratorPod has been activated (or failed).
     curator_ready: tokio::sync::oneshot::Receiver<()>,
 }
 
@@ -1330,12 +1316,6 @@ impl ArtifactProducer for ConfigProducer {
             .await?;
         Ok(1)
     }
-}
-
-/// Matrix transport + 7R7 listener. Non-blocking: returns None if Conduit unreachable.
-async fn build_matrix()
--> Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>> {
-    self::matrix::build_matrix().await
 }
 
 /// Registry + wallet: agent records, A2A restore, rJoule payments.
