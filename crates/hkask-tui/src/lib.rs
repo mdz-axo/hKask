@@ -45,6 +45,7 @@ mod workspace;
 
 pub mod bridges;
 pub mod command_palette;
+pub mod layout;
 pub mod mcp_tabbed;
 pub mod widgets;
 pub mod windows;
@@ -74,6 +75,7 @@ pub struct TuiSession {
     workspace: Workspace,
     /// Whether the session should exit (set by quit keybinding or window close)
     should_quit: bool,
+    layout_path: Option<std::path::PathBuf>,
     /// Tick rate for event polling (ms)
     tick_rate: Duration,
 }
@@ -96,6 +98,7 @@ impl TuiSession {
             terminal,
             workspace,
             should_quit: false,
+            layout_path: None,
             tick_rate: Duration::from_millis(16),
         })
     }
@@ -160,9 +163,33 @@ impl TuiSession {
     }
 
     /// Run the main event loop. Blocks until the user quits.
+    /// Set the layout path for per-agent workspace persistence.
+    pub fn with_layout_path(mut self, path: std::path::PathBuf) -> Self {
+        self.layout_path = Some(path);
+        self
+    }
+
+    fn restore_layout(&mut self) {
+        if let Some(ref path) = self.layout_path {
+            if let Some(layout) = crate::layout::load(path) {
+                self.workspace.restore_layout(&layout);
+            }
+        }
+    }
+
+    fn save_layout(&self) {
+        if let Some(ref path) = self.layout_path {
+            let layout = self.workspace.extract_layout();
+            let _ = crate::layout::save(path, &layout);
+        }
+    }
+
     pub fn run(&mut self) -> anyhow::Result<()> {
         // Show splash screen first
         self.show_splash()?;
+
+        // Restore saved layout if available
+        self.restore_layout();
 
         while !self.should_quit {
             // Render current frame
@@ -185,6 +212,8 @@ impl TuiSession {
             self.workspace.tick();
         }
 
+        // Save layout on quit
+        self.save_layout();
         Ok(())
     }
 
@@ -208,6 +237,8 @@ impl TuiSession {
             std::thread::sleep(Duration::from_millis(16));
         }
 
+        // Save layout on quit
+        self.save_layout();
         Ok(())
     }
 

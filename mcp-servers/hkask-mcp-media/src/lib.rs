@@ -34,6 +34,39 @@ use video::FfmpegRunner;
 use ab_glyph::Font;
 use face_id::analyzer::FaceAnalyzer;
 
+// ── Model configuration ───────────────────────────────────────────────
+
+/// Default open-weight models for media processing.
+/// All can be overridden via environment variables.
+pub mod models {
+    /// Default TTS model via DeepInfra
+    pub const TTS_DEFAULT: &str = "Qwen3-TTS";
+    pub const TTS_ENV: &str = "HKASK_MEDIA_TTS_MODEL";
+
+    /// Default STT model: Qwen3 ASR via DeepInfra
+    pub const STT_DEFAULT: &str = "Qwen/Qwen3-ASR";
+    pub const STT_ENV: &str = "HKASK_MEDIA_STT_MODEL";
+
+    /// Default vision model: Qwen 2.5 VL
+    pub const VISION_DEFAULT: &str = "Qwen/Qwen3-VL-235B-A22B-Instruct";
+    pub const VISION_ENV: &str = "HKASK_MEDIA_VISION_MODEL";
+
+    /// Default image generation model
+    pub const IMAGE_GEN_DEFAULT: &str = "fal-ai/flux-pro/v1.1";
+    pub const IMAGE_GEN_ENV: &str = "HKASK_MEDIA_IMAGE_GEN_MODEL";
+
+    /// Resolve a model name from env var or default.
+    pub fn resolve(env_key: &str, default: &str) -> String {
+        std::env::var(env_key).unwrap_or_else(|_| default.to_string())
+    }
+
+    pub fn tts_model() -> String { resolve(TTS_ENV, TTS_DEFAULT) }
+    pub fn stt_model() -> String { resolve(STT_ENV, STT_DEFAULT) }
+    pub fn vision_model() -> String { resolve(VISION_ENV, VISION_DEFAULT) }
+    pub fn image_gen_model() -> String { resolve(IMAGE_GEN_ENV, IMAGE_GEN_DEFAULT) }
+}
+
+
 /// Lock-free snapshot of gallery state — safe to hold across .await points.
 struct GalleryAccess {
     gallery_id: String,

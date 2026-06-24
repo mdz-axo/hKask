@@ -169,7 +169,7 @@ pub(super) fn init_repl_state(
     }
 
     // Register the CLI's inference loop on the shared loop system.
-    rt.block_on(ctx.loop_system().register_loop(inference_loop.clone()));
+    rt.block_on(ctx.loop_system.register_loop(inference_loop.clone()));
 
     // P2: Affirmative Consent — MCP servers are NOT auto-started at REPL boot.
     // Users must explicitly consent via the post-sign-on prompt or the /mcp command.

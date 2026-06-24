@@ -376,6 +376,57 @@ impl CommunicationServer {
         })
         .await
     }
+
+    #[tool(description = "Upload a file to the Matrix homeserver. Returns an mxc:// URI for use in messages.")]
+    async fn upload_file(
+        &self,
+        Parameters(UploadFileRequest {
+            filename,
+            mime_type,
+            data_base64,
+        }): Parameters<UploadFileRequest>,
+    ) -> String {
+        use base64::Engine;
+        execute_tool(self, "upload_file", async {
+            let data = base64::engine::general_purpose::STANDARD
+                .decode(&data_base64)
+                .map_err(|e| McpToolError::invalid_argument(format!("Invalid base64: {}", e)))?;
+            match self.matrix.upload_file(&filename, &mime_type, &data).await {
+                Ok(uri) => Ok(serde_json::json!({"uri": uri, "filename": filename, "mime_type": mime_type, "size": data.len()})),
+                Err(e) => Err(McpToolError::unavailable(format!("Upload failed: {}", e))),
+            }
+        })
+        .await
+    }
+
+    #[tool(description = "Upload a file and send it as an attachment to a Matrix room. Supports images, video, audio, and generic files.")]
+    async fn send_file(
+        &self,
+        Parameters(SendFileRequest {
+            room_id,
+            filename,
+            mime_type,
+            data_base64,
+            caption,
+        }): Parameters<SendFileRequest>,
+    ) -> String {
+        use base64::Engine;
+        execute_tool(self, "send_file", async {
+            let data = base64::engine::general_purpose::STANDARD
+                .decode(&data_base64)
+                .map_err(|e| McpToolError::invalid_argument(format!("Invalid base64: {}", e)))?;
+            match self
+                .matrix
+                .send_file(&RoomId::new(&room_id), &filename, &mime_type, &data, caption.as_deref())
+                .await
+            {
+                Ok(()) => Ok(serde_json::json!({"sent": true, "room_id": room_id, "filename": filename, "size": data.len()})),
+                Err(e) => Err(McpToolError::unavailable(format!("Send file failed: {}", e))),
+            }
+        })
+        .await
+    }
+
 }
 
 impl hkask_mcp::server::ToolContext for CommunicationServer {

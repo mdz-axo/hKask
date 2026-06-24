@@ -59,3 +59,21 @@ pub struct TagAgentRequest {
     pub replicant_id: String,
     pub body: String,
 }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct UploadFileRequest {
+    pub filename: String,
+    pub mime_type: String,
+    /// Base64-encoded file content
+    pub data_base64: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SendFileRequest {
+    pub room_id: String,
+    pub filename: String,
+    pub mime_type: String,
+    /// Base64-encoded file content
+    pub data_base64: String,
+    pub caption: Option<String>,
+}

@@ -103,19 +103,19 @@ pub struct AgentService {
     registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
 
     /// MCP runtime for tool discovery and invocation.
-    mcp_runtime: Arc<McpRuntime>,
+    pub mcp_runtime: Arc<McpRuntime>,
 
     /// MCP dispatcher for OCAP-protected tool invocation.
     mcp_dispatcher: Arc<McpDispatcher>,
 
     /// CNS runtime for variety sensing and algedonic alerts.
-    cns_runtime: Arc<RwLock<CnsRuntime>>,
+    pub cns_runtime: Arc<RwLock<CnsRuntime>>,
 
     /// Cybernetics loop for energy budget regulation.
     cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
 
     /// Loop system for 6-loop regulation.
-    loop_system: Arc<LoopSystem>,
+    pub loop_system: Arc<LoopSystem>,
 
     /// Backup loop for scheduled snapshot management (TUI, status queries).
     backup_loop: Arc<hkask_services_backup::BackupLoop>,
@@ -149,7 +149,7 @@ pub struct AgentService {
     /// Backed by `config.mcp_secret` — the inter-process HMAC key. Use this
     /// checker to derive tokens for any service operation that needs a verifiable
     /// capability token (e.g., `ChatService::chat()` memory access tokens).
-    capability_checker: Arc<hkask_capability::CapabilityChecker>,
+    pub capability_checker: Arc<hkask_capability::CapabilityChecker>,
 
     /// System WebID for signing capabilities.
     system_webid: WebID,
@@ -192,7 +192,7 @@ pub struct AgentService {
     /// background task (which calls `check_drift(&mut self)`) and the
     /// Curator (which reads summary data).
     /// None if the inventory JSON file is missing (non-fatal).
-    seam_watcher: Arc<RwLock<Option<SeamWatcher>>>,
+    pub seam_watcher: Arc<RwLock<Option<SeamWatcher>>>,
 
     /// Configuration used to build this context.
     config: ServiceConfig,

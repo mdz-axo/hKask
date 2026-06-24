@@ -709,11 +709,23 @@ impl Workspace {
         // Navigation/typing consumed by palette
         true
     }
-
     /// Open a window of the given kind at the currently focused split.
-    /// Reuses the window-creation logic from open_next_window_kind.
     pub fn open_window_kind(&mut self, kind: WindowKind) {
         let new_id = WindowId(uuid::Uuid::new_v4());
+        let new_win = self.create_window_of_kind(kind, new_id);
+        let focused = self.focused_window;
+        if self.root_mut().replace_leaf_with_split(
+            focused.unwrap_or(WindowId(uuid::Uuid::nil())),
+            new_win,
+            SplitDirection::Vertical,
+            0.6,
+        ) {
+            self.focused_window = Some(new_id);
+        }
+    }
+
+    /// Create a window of the given kind without adding it to the tree.
+    fn create_window_of_kind(&self, kind: WindowKind, id: WindowId) -> Box<dyn Window> {
         let bridge = self.bridge.clone();
         let service_context = self.service_context.clone();
         let wb = self.wallet_bridge.clone();
@@ -726,110 +738,26 @@ impl Workspace {
         let mdb = self.media_bridge.clone();
         let tb = self.training_bridge.clone();
         let cpb = self.companies_bridge.clone();
-        let new_win: Box<dyn Window> = match kind {
-            WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(new_id, bridge)),
-            WindowKind::Pods => Box::new(PodsWindow::new(new_id, bridge)),
-            WindowKind::Wallet => {
-                let mut w = WalletWindow::new(new_id, bridge);
-                if let Some(b) = wb {
-                    w = w.with_wallet_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Registry => {
-                let mut w = RegistryWindow::new(new_id, bridge);
-                if let Some(b) = rb {
-                    w = w.with_registry_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Backup => {
-                let mut w = BackupWindow::new(new_id, bridge);
-                if let Some(b) = bb {
-                    w = w.with_backup_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Curator => Box::new(CuratorWindow::new(new_id, bridge)),
-            WindowKind::Configuration => {
-                let mut w = ConfigurationWindow::new(new_id, bridge);
-                if let Some(b) = cb {
-                    w = w.with_config_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Terminal => Box::new(TerminalWindow::new(new_id, bridge)),
-            WindowKind::Editor => Box::new(EditorWindow::new(new_id, bridge)),
-            WindowKind::Training => {
-                let mut w = TrainingWindow::new(new_id, bridge);
-                if let Some(b) = tb {
-                    w = w.with_training_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Media => {
-                let mut w = MediaWindow::new(new_id, bridge);
-                if let Some(b) = mdb {
-                    w = w.with_media_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Skills => {
-                let mut w = SkillsWindow::new(new_id, bridge);
-                if let Some(b) = rb {
-                    w = w.with_registry_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Matrix => {
-                let mut w = MatrixWindow::new(new_id, bridge);
-                if let Some(b) = mxb {
-                    w = w.with_matrix_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Memory => {
-                let mut w = MemoryWindow::new(new_id, bridge);
-                if let Some(b) = mb {
-                    w = w.with_memory_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Companies => {
-                let mut w = CompaniesWindow::new(new_id, bridge);
-                if let Some(b) = cpb {
-                    w = w.with_companies_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Kanban => {
-                let mut w = KanbanWindow::new(new_id, bridge);
-                if let Some(b) = kb {
-                    w = w.with_kanban_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Sidebar => {
-                Box::new(SidebarWindow::new(new_id, Some(service_context), bridge))
-            }
-            WindowKind::Logo => Box::new(LogoWindow::new(new_id)),
-            WindowKind::Chat => Box::new(ChatWindow::new(
-                new_id,
-                self.bridge.agent_name(),
-                self.bridge.model_name(),
-                Some(service_context),
-                bridge,
-            )),
-        };
-
-        let focused = self.focused_window;
-        if self.root_mut().replace_leaf_with_split(
-            focused.unwrap_or(WindowId(uuid::Uuid::nil())),
-            new_win,
-            SplitDirection::Vertical,
-            0.6,
-        ) {
-            self.focused_window = Some(new_id);
+        match kind {
+            WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(id, bridge)),
+            WindowKind::Pods => Box::new(PodsWindow::new(id, bridge)),
+            WindowKind::Wallet => { let mut w = WalletWindow::new(id, bridge); if let Some(b) = wb { w = w.with_wallet_bridge(b); } Box::new(w) }
+            WindowKind::Registry => { let mut w = RegistryWindow::new(id, bridge); if let Some(b) = rb { w = w.with_registry_bridge(b); } Box::new(w) }
+            WindowKind::Backup => { let mut w = BackupWindow::new(id, bridge); if let Some(b) = bb { w = w.with_backup_bridge(b); } Box::new(w) }
+            WindowKind::Curator => Box::new(CuratorWindow::new(id, bridge)),
+            WindowKind::Configuration => { let mut w = ConfigurationWindow::new(id, bridge); if let Some(b) = cb { w = w.with_config_bridge(b); } Box::new(w) }
+            WindowKind::Terminal => Box::new(TerminalWindow::new(id, bridge)),
+            WindowKind::Editor => Box::new(EditorWindow::new(id, bridge)),
+            WindowKind::Training => { let mut w = TrainingWindow::new(id, bridge); if let Some(b) = tb { w = w.with_training_bridge(b); } Box::new(w) }
+            WindowKind::Media => { let mut w = MediaWindow::new(id, bridge); if let Some(b) = mdb { w = w.with_media_bridge(b); } Box::new(w) }
+            WindowKind::Skills => { let mut w = SkillsWindow::new(id, bridge); if let Some(b) = rb { w = w.with_registry_bridge(b); } Box::new(w) }
+            WindowKind::Matrix => { let mut w = MatrixWindow::new(id, bridge); if let Some(b) = mxb { w = w.with_matrix_bridge(b); } Box::new(w) }
+            WindowKind::Memory => { let mut w = MemoryWindow::new(id, bridge); if let Some(b) = mb { w = w.with_memory_bridge(b); } Box::new(w) }
+            WindowKind::Companies => { let mut w = CompaniesWindow::new(id, bridge); if let Some(b) = cpb { w = w.with_companies_bridge(b); } Box::new(w) }
+            WindowKind::Kanban => { let mut w = KanbanWindow::new(id, bridge); if let Some(b) = kb { w = w.with_kanban_bridge(b); } Box::new(w) }
+            WindowKind::Sidebar => Box::new(SidebarWindow::new(id, Some(service_context), bridge)),
+            WindowKind::Logo => Box::new(LogoWindow::new(id)),
+            WindowKind::Chat => Box::new(ChatWindow::new(id, self.bridge.agent_name(), self.bridge.model_name(), Some(service_context), bridge)),
         }
     }
 
@@ -874,6 +802,94 @@ impl Workspace {
     }
 
     // ── Tick ─────────────────────────────────────────────────────────
+
+    // ── Layout persistence ────────────────────────────────────────────
+
+    /// Extract the current layout into a serializable form.
+    pub fn extract_layout(&self) -> crate::layout::SavedLayout {
+        let tabs: Vec<crate::layout::SavedTab> = self
+            .tabs
+            .iter()
+            .map(|tab| crate::layout::SavedTab {
+                name: tab.name.clone(),
+                root: Self::extract_split(&tab.root),
+            })
+            .collect();
+        crate::layout::SavedLayout {
+            version: 1,
+            tabs,
+            active_tab: self.active_tab,
+        }
+    }
+
+    fn extract_split(node: &SplitNode) -> crate::layout::SavedSplit {
+        match node {
+            SplitNode::Leaf(window) => crate::layout::SavedSplit::Leaf(crate::layout::SavedLeaf {
+                kind: crate::layout::kind_to_string(window.kind()),
+            }),
+            SplitNode::Horizontal { left, right, ratio } => {
+                crate::layout::SavedSplit::Horizontal {
+                    left: Box::new(Self::extract_split(left)),
+                    right: Box::new(Self::extract_split(right)),
+                    ratio: *ratio,
+                }
+            }
+            SplitNode::Vertical { top, bottom, ratio } => {
+                crate::layout::SavedSplit::Vertical {
+                    top: Box::new(Self::extract_split(top)),
+                    bottom: Box::new(Self::extract_split(bottom)),
+                    ratio: *ratio,
+                }
+            }
+        }
+    }
+
+    /// Build a window from a saved leaf kind.
+    fn build_window(&self, kind: crate::layout::SavedLeaf) -> Box<dyn Window> {
+        let wk = crate::layout::string_to_kind(&kind.kind);
+        let new_id = WindowId(uuid::Uuid::new_v4());
+        self.create_window_of_kind(wk, new_id)
+    }
+
+    fn restore_split(&self, saved: &crate::layout::SavedSplit) -> SplitNode {
+        match saved {
+            crate::layout::SavedSplit::Leaf(leaf) => {
+                SplitNode::Leaf(self.build_window(leaf.clone()))
+            }
+            crate::layout::SavedSplit::Horizontal { left, right, ratio } => {
+                SplitNode::Horizontal {
+                    left: Box::new(self.restore_split(left)),
+                    right: Box::new(self.restore_split(right)),
+                    ratio: *ratio,
+                }
+            }
+            crate::layout::SavedSplit::Vertical { top, bottom, ratio } => {
+                SplitNode::Vertical {
+                    top: Box::new(self.restore_split(top)),
+                    bottom: Box::new(self.restore_split(bottom)),
+                    ratio: *ratio,
+                }
+            }
+        }
+    }
+
+    /// Restore the workspace from a saved layout.
+    /// Replaces all tabs and windows with those from the saved layout.
+    pub fn restore_layout(&mut self, layout: &crate::layout::SavedLayout) {
+        self.tabs.clear();
+        for saved_tab in &layout.tabs {
+            let root = self.restore_split(&saved_tab.root);
+            self.tabs.push(crate::tab::Tab::new(saved_tab.name.clone(), root));
+        }
+        if layout.active_tab < self.tabs.len() {
+            self.active_tab = layout.active_tab;
+        } else if !self.tabs.is_empty() {
+            self.active_tab = 0;
+        }
+        if let Some(&first) = self.root().window_ids().first() {
+            self.focused_window = Some(first);
+        }
+    }
 
     pub fn tick(&mut self) {
         self.root_mut().tick();

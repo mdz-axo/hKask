@@ -263,6 +263,9 @@ pub fn run_tui(
         .map(|s| s.a2a_secret.as_bytes().to_vec())
         .unwrap_or_default();
 
+    // Compute layout path before agent_name is moved into the bridge
+    let layout_path = hkask_tui::layout::layout_path(&agent_name);
+
     // Keep ReplState alive inside the bridge for full inference
     let bridge = Arc::new(TuiReplBridge {
         state: Arc::new(std::sync::Mutex::new(state)),
@@ -282,6 +285,7 @@ pub fn run_tui(
     match hkask_tui::TuiSession::new(service_context, bridge.clone()) {
         Ok(session) => {
             let session = session
+                .with_layout_path(layout_path)
                 .with_config_bridge(bridge.clone())
                 .with_registry_bridge(bridge.clone())
                 .with_wallet_bridge(bridge.clone())
@@ -524,7 +528,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
     fn mcp_status(&self) -> (usize, usize) {
         // Query McpRuntime for server count via blocking async
         if let Ok(s) = self.state.lock() {
-            let runtime = s.service_context.mcp_runtime().clone();
+            let runtime = s.service_context.mcp_runtime.clone();
             let servers = self.rt_handle.block_on(runtime.list_servers());
             (0, servers.len())
         } else {
