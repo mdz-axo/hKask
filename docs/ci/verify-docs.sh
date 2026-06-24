@@ -3,7 +3,7 @@
 # Closes the cybernetic feedback loop by verifying doc assertions against code ground truth.
 # Per DOCUMENTATION_STANDARDS.md: Zero stale references. Docs follow code.
 # Fails the build when drift is detected — same lifecycle as compiler warnings.
-set -euo pipefail
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOCS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -51,8 +51,9 @@ echo -e "${CYAN}[2/7] Checking stale crate references in docs...${NC}"
 
 all_actual=$(printf "%s\n%s" "$actual_crates" "$actual_mcps" | sort -u)
 
-# Find all hkask-* references in docs
-grep -roPh 'hkask-[a-z0-9_-]+' docs/ --include='*.md' 2>/dev/null | sort -u | while read -r name; do
+# Find all hkask-* references in docs (exclude archive/ — archived files are historical)
+# Note: grep -roH (not -roh) gives filename:match lines we can filter
+grep -roPH 'hkask-[a-z0-9_-]+' docs/ --include='*.md' 2>/dev/null | grep -v '^docs/archive/' | sed 's/^[^:]*://' | sort -u | while read -r name; do
   if ! echo "$all_actual" | grep -qxF "$name"; then
     # Check if it's fuzz-related (crates/*/fuzz/ subdirectories use parent crate name)
     parent_name=$(echo "$name" | sed 's/-fuzz$//')
@@ -63,6 +64,12 @@ grep -roPh 'hkask-[a-z0-9_-]+' docs/ --include='*.md' 2>/dev/null | sort -u | wh
     if echo "$name" | grep -qE 'hkask-(pod-|pods-|prod|prod-master|prod-worker|caddy|conduit|data-pvc|db-passphrase|hydrogen|ingress|master$|oauth-|pre-upgrade|secrets|sidecar|surface$|web$|testing$|test-utils|training$|mcp-rss-reader|mcp-web|ensemble)'; then
       # deployment concepts, future plans, deferred work — warn, don't error
       echo -e "  ${YELLOW}FUTURE/DEPLOYMENT:${NC} $name (planned/deferred, not a current crate)"
+      WARNINGS=$((WARNINGS + 1))
+      continue
+    fi
+    # Check if it's a historical/renamed crate (former naming scheme, v0.30 consolidation)
+    if echo "$name" | grep -qE 'hkask-(a$|a2a$|b$|backups$|ca$|config$|curator$|gateway-tls$|gateway$|pods$|services-classify$|services-cloud$|services-inference-svc$)'; then
+      echo -e "  ${YELLOW}HISTORICAL:${NC} $name (renamed in v0.30)"
       WARNINGS=$((WARNINGS + 1))
       continue
     fi

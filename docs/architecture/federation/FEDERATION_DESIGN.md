@@ -108,8 +108,8 @@ LLM-Assessed (Curator opinion):
 │ eignty verify│  Backpressure signals     │  MCP tool dispatch│
 │ Ad-hoc CNS   │  Queue depth monitoring   │  Per-pod MCP      │
 │ queries      │  Arc<AtomicU64> counter   │  server bindings  │
-│              │  Crates: hkask-commun-    │  Crates: hkask-   │
-│              │  ication, hkask-cns       │  agents/pod       │
+│              │  Crates: hkask-communication,│  Crates: hkask-   │
+│              │  hkask-cns                │  agents/pod       │
 └──────────────┴───────────────────────────┴───────────────────┘
 ```
 
