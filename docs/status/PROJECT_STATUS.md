@@ -16,8 +16,10 @@ Single source of truth for build, test, and CI health. Updated per session.
 
 **This session (2026-06-23):**
 - AgentService getters → pub fields refactoring complete (28 of 34 getters deleted, ~200 lines removed).
+- TUI: 22 windows complete (Research, Docproc, Replica added), 14 domain bridge impls, 75 integration tests.
+- CLI bridge wiring: ResearchDataBridge, DocprocDataBridge, ReplicaDataBridge, SkillsDataBridge implemented on TuiReplBridge.
 - Document alignment sweep: README.md, PROJECT_STATUS.md, AGENTS.md updated against codebase ground truth.
-- Build: clean (0 errors, 0 warnings). Tests: 1,460/1,460 pass.
+- Build: clean (0 errors, 0 warnings). Tests: 1,478/1,478 pass.
 
 **Previous (2026-06-19):** v0.30.0 — Multi-Pod Architecture Complete: Three-tier Solid Pod isomorphism (CuratorPod/TeamPod/ReplicantPod).
 
@@ -58,7 +60,7 @@ All 34 workspace members (excluding fuzz targets).
 | hkask-communication | 25 |
 | hkask-mcp | 38 |
 | hkask-cli | 43 |
-| hkask-tui | 57 |
+| hkask-tui | 75 |
 | hkask-api | 12 |
 | hkask-acp | 4 |
 | hkask-adapter | 51 |

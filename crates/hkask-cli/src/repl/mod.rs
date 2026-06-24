@@ -280,6 +280,7 @@ pub fn run_tui(
         context_window: std::sync::atomic::AtomicU32::new(128_000),
         context_used: std::sync::atomic::AtomicU32::new(0),
         last_companies_search: std::sync::Mutex::new(None),
+        last_research_search: std::sync::Mutex::new(None),
     });
 
     match hkask_tui::TuiSession::new(service_context, bridge.clone()) {
@@ -295,7 +296,11 @@ pub fn run_tui(
                 .with_backup_bridge(bridge.clone())
                 .with_media_bridge(bridge.clone())
                 .with_training_bridge(bridge.clone())
-                .with_companies_bridge(bridge.clone());
+                .with_companies_bridge(bridge.clone())
+                .with_research_bridge(bridge.clone())
+                .with_docproc_bridge(bridge.clone())
+                .with_replica_bridge(bridge.clone())
+                .with_skills_bridge(bridge.clone());
             let mut session = session;
             if let Err(e) = session.run() {
                 eprintln!("TUI error: {}", e);
@@ -334,6 +339,7 @@ struct TuiReplBridge {
     /// Approximate current context usage in tokens
     context_used: std::sync::atomic::AtomicU32,
     last_companies_search: std::sync::Mutex<Option<String>>,
+    last_research_search: std::sync::Mutex<Option<String>>,
 }
 
 impl TuiReplBridge {

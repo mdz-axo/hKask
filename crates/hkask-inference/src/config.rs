@@ -15,11 +15,9 @@
 //! # API Key Resolution
 //!
 //! Provider API keys resolve through a 2-tier chain:
+//! Keys are resolved:
 //! 1. OS keychain (encrypted at rest) — preferred for cloud deployments
-//! 2. Environment variable (SSH sessions, CI/CD)
-//!
-//! Use `kask keystore load --path providers.env --shred` to load keys into the
-//! keychain and securely delete the plaintext file.
+//! 2. Environment variables (auto-loaded from .env via dotenvy)
 //!
 //! # Model Naming Convention
 //!

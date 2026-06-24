@@ -1021,8 +1021,8 @@ Provider selection via `HKASK_DEFAULT_PROVIDER`:
 
 ```bash
 # One-time setup on cloud server
-cp providers.env.example providers.env
-kask keystore load --path providers.env --shred
+cp .env.example .env
+kask keystore load --path .env --shred
 kask matrix deploy-sidecar --domain my-server.example.com
 cd ~/.config/hkask/sidecar && docker compose up -d
 kask init --profile server

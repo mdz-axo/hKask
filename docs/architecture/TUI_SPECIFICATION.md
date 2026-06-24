@@ -1,7 +1,7 @@
 # hKask TUI Specification
 
 **Version:** 0.30.0  
-**Status:** Implemented (19 windows, 10 with live domain bridges, PTY terminal)
+**Status:** Implemented (22 windows, 14 with live domain bridges, PTY terminal)
 **last_updated:** 2026-06-23  
 **Framework:** ratatui 0.28 + crossterm 0.28  
 **Crate:** `crates/hkask-tui/`
@@ -47,7 +47,7 @@ The `ReplBridge` trait decouples the TUI crate from `hkask-cli`. The CLI provide
 - Live CNS alerts, context pressure, gas tracking, MCP server enumeration, pod counts
 - Curator daemon routing (P12.1)
 
-**Domain-specific bridges** (9 total, in `crates/hkask-tui/src/bridges/`) provide live service data to scaffolded windows via separate traits:
+**Domain-specific bridges** (14 total, in `crates/hkask-tui/src/bridges/`) provide live service data to scaffolded windows via separate traits:
 - `ConfigDataBridge` → `ReplSettings` (temperature, top_p, tool_loop, gas)
 - `RegistryDataBridge` → `SqliteRegistry` (templates, skills, bundles)
 - `WalletDataBridge` → `WalletService` (rJoule balance, transactions)
@@ -57,8 +57,13 @@ The `ReplBridge` trait decouples the TUI crate from `hkask-cli`. The CLI provide
 - `MatrixDataBridge` → `MatrixTransport` (connection health, rooms, messages)
 - `MediaDataBridge` → MCP `media/gallery_status` (gallery, recent images)
 - `TrainingDataBridge` → MCP `training/training_list_adapters` (adapters, deployments)
+- `CompaniesDataBridge` → MCP `companies/symbol_search` (search, financials, portfolio)
+- `ResearchDataBridge` → MCP `research/web_search` (search, feeds, extract)
+- `DocprocDataBridge` → MCP `docproc/docproc_chunk` (chunks, QA, index)
+- `ReplicaDataBridge` → MCP `replica/replica_registry` (author replicas)
+- `SkillsDataBridge` → MCP `skill/skill_list` (skill corpus, execute)
 
-Each bridge accepts `Option<Arc<dyn Trait>>` — windows gracefully degrade to placeholder text when the bridge is `None`. The CLI implements all 9 on `TuiReplBridge` in `crates/hkask-cli/src/repl/tui_bridges.rs`, wired at `run_tui()` via `TuiSession.with_*_bridge()`. Backup, Media, and Training use `rt_handle.block_on()` for async service calls.
+Each bridge accepts `Option<Arc<dyn Trait>>` — windows gracefully degrade to placeholder text when the bridge is `None`. The CLI implements all 14 on `TuiReplBridge` in `crates/hkask-cli/src/repl/tui_bridges.rs`, wired at `run_tui()` via `TuiSession.with_*_bridge()`. Backup, Media, and Training use `rt_handle.block_on()` for async service calls.
 
 ### 1.4 Keybindings
 
@@ -69,7 +74,7 @@ Each bridge accepts `Option<Arc<dyn Trait>>` — windows gracefully degrade to p
 | `Ctrl+T` | New tab |
 | `Ctrl+W` | Close window |
 | `Ctrl+B` | Toggle sidebar |
-| `Ctrl+P` | Command palette (fuzzy search all 19 window kinds) |
+| `Ctrl+P` | Command palette (fuzzy search all 22 window kinds) |
 | `Tab` | Focus next window |
 | `Ctrl+H/J/K/L` | Navigate focus |
 | `Ctrl+Shift+H` | Split horizontal |
@@ -84,7 +89,7 @@ Each bridge accepts `Option<Arc<dyn Trait>>` — windows gracefully degrade to p
 
 ---
 
-## §2. Window Catalog (19 Windows)
+## §2. Window Catalog (22 Windows)
 
 ### 2.0 Launch Behavior
 
@@ -335,17 +340,57 @@ Task coordination board. Tab-cycled sections:
 ### 2.18 Companies
 **File:** `windows/companies.rs`  
 **Kind:** `WindowKind::Companies`  
-**Status:** Scaffolded (deferred — needs hkask-mcp-companies / Firecrawl)
+**Status:** Live — CompaniesDataBridge wired (MCP dispatch)
 
 Organization and entity data. Tab-cycled sections:
-- **Search:** company lookup by name/domain/industry
+- **Search:** company lookup by symbol/name
 - **Profile:** detailed company information
-- **People:** key personnel and contacts
-- **Relations:** subsidiaries, competitors, partners
+- **Financials:** key metrics and market data
+- **Portfolio:** tracked companies
 
 ---
 
-### 2.19 Logo
+### 2.19 Research
+**File:** `windows/research.rs`  
+**Kind:** `WindowKind::Research`  
+**Status:** Live — ResearchDataBridge wired (MCP dispatch)
+
+Web research and content extraction. Tab-cycled sections:
+- **Search:** web search with RRF fusion across providers
+- **Feeds:** RSS/Atom feed monitoring (placeholder)
+- **Extract:** URL content extraction to markdown
+
+MCP Chat tab scoped to `research` server tools (`web_search`, `web_extract`).
+
+---
+
+### 2.20 Docproc
+**File:** `windows/docproc.rs`  
+**Kind:** `WindowKind::Docproc`  
+**Status:** Live — DocprocDataBridge wired (MCP dispatch)
+
+Document processing pipeline. Tab-cycled sections:
+- **Chunks:** text chunks with token counts and previews
+- **QA:** generated question-answer pairs at Bloom's taxonomy levels
+- **Index:** vector index status (indexed/total)
+
+MCP Chat tab scoped to `docproc` server tools (`docproc_chunk`, `docproc_generate_qa`, `docproc_query`, etc.).
+
+---
+
+### 2.21 Replica
+**File:** `windows/replica.rs`  
+**Kind:** `WindowKind::Replica`  
+**Status:** Live — ReplicaDataBridge wired (MCP dispatch)
+
+Authorial style replicas. Single data view + Chat tab:
+- **Replicas:** built author replicas with centroid counts and status
+
+MCP Chat tab scoped to `replica` server tools (`replica_build`, `replica_compose`, `replica_registry`, etc.).
+
+---
+
+### 2.22 Logo
 **File:** `windows/logo.rs`  
 **Kind:** `WindowKind::Logo`  
 **Status:** Persistent — always present (top-left anchor)
@@ -361,7 +406,7 @@ Unicode characters (`▀ ▄ █`). Features:
 
 ## §3. MCP Two-Tab Design Pattern (Implemented)
 
-MCP-focused windows (Companies, Kanban, Training, Media, Matrix, Memory) use a unified two-tab architecture:
+MCP-focused windows (Companies, Kanban, Training, Media, Matrix, Memory, Research, Docproc, Replica, Skills) use a unified two-tab architecture:
 
 ```
 ┌─ [MCP Name] ────────────────────────┐

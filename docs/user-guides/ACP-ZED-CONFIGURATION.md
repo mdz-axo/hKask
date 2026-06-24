@@ -77,7 +77,7 @@ In Zed, open the Agent Panel (`cmd-?` on macOS, `ctrl-?` on Linux/Windows) and s
 
 ### Provider Configuration
 
-The ACP replicant uses hKask's centralized inference router. Provider configuration is read from `providers.env` (or individual env vars: `DEEPINFRA_API_KEY`, `OPENROUTER_API_KEY`, etc.). Set these in Zed's `env` block or in the daemon's environment:
+The ACP replicant uses hKask's centralized inference router. Provider configuration is read from `.env` (or individual env vars: `DEEPINFRA_API_KEY`, `OPENROUTER_API_KEY`, etc.). Set these in Zed's `env` block or in the daemon's environment:
 
 ```json
 "env": {

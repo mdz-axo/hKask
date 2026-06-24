@@ -9,11 +9,15 @@ use hkask_tui::bridges::{
     backup::{BackupConfigSummary, BackupDataBridge, SnapshotInfo},
     companies::{CompaniesDataBridge, CompanySummary, FinancialSummary, PortfolioSummary},
     config::{ConfigDataBridge, ConfigSnapshot},
+    docproc::{ChunkInfo, DocprocDataBridge, QAPair},
     kanban::{KanbanBoardSummary, KanbanDataBridge, KanbanStatusCounts, KanbanTaskSummary},
     matrix::{MatrixConnectionStatus, MatrixDataBridge, MatrixMessageSummary, MatrixRoomSummary},
     media::{GalleryStatus, ImageSummary, MediaDataBridge},
     memory::{ConsolidationStatus, MemoryDataBridge, MemorySummary, MemoryTriple},
     registry::{BundleSummary, RegistryDataBridge, SkillSummary, TemplateSummary},
+    replica::{ReplicaDataBridge, ReplicaInfo},
+    research::{ExtractResult, FeedInfo, ResearchDataBridge, SearchResult},
+    skills::{SkillExecResult, SkillInfo, SkillsDataBridge},
     training::{AdapterSummary, DeploymentSummary, TrainingDataBridge},
     wallet::{WalletDataBridge, WalletTxSummary},
 };
@@ -835,5 +839,247 @@ impl CompaniesDataBridge for TuiReplBridge {
                 Err(_) => Vec::new(),
             }
         })
+    }
+}
+
+// ── ResearchDataBridge (live MCP dispatch to hkask-mcp-research) ──
+
+impl ResearchDataBridge for TuiReplBridge {
+    fn search(&self, query: &str) -> Vec<SearchResult> {
+        let state = self.state.lock().expect("lock");
+        let runtime = state.service_context.mcp_runtime().clone();
+        let query = query.to_string();
+        *self.last_research_search.lock().expect("lock") = Some(query.clone());
+        self.rt_handle.block_on(async {
+            let mut args = serde_json::Map::new();
+            args.insert("query".into(), serde_json::Value::String(query));
+            args.insert("count".into(), serde_json::Value::from(10_u64));
+            match runtime.call_tool("research", "web_search", args).await {
+                Ok(ref result) => {
+                    let content = parse_mcp_json(result);
+                    content
+                        .as_ref()
+                        .and_then(|v| v["results"].as_array())
+                        .map(|results| {
+                            results
+                                .iter()
+                                .filter_map(|r| {
+                                    Some(SearchResult {
+                                        title: r["title"].as_str()?.to_string(),
+                                        url: r["url"].as_str()?.to_string(),
+                                        snippet: r["snippet"]
+                                            .as_str()
+                                            .map(String::from)
+                                            .unwrap_or_default(),
+                                    })
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                }
+                Err(_) => Vec::new(),
+            }
+        })
+    }
+
+    fn feed_list(&self) -> Vec<FeedInfo> {
+        // No MCP tool for RSS feeds — feeds are managed through search queries.
+        Vec::new()
+    }
+
+    fn extract(&self, url: &str) -> Option<ExtractResult> {
+        let state = self.state.lock().expect("lock");
+        let runtime = state.service_context.mcp_runtime().clone();
+        let url = url.to_string();
+        self.rt_handle.block_on(async {
+            let mut args = serde_json::Map::new();
+            args.insert("url".into(), serde_json::Value::String(url.clone()));
+            args.insert("format".into(), serde_json::Value::String("markdown".into()));
+            match runtime.call_tool("research", "web_extract", args).await {
+                Ok(ref result) => {
+                    let text = extract_mcp_text(result)?;
+                    Some(ExtractResult {
+                        url: url.clone(),
+                        content: text,
+                        format: "markdown".into(),
+                    })
+                }
+                Err(_) => None,
+            }
+        })
+    }
+
+    fn last_query(&self) -> Option<String> {
+        self.last_research_search.lock().expect("lock").clone()
+    }
+}
+
+// ── DocprocDataBridge (live MCP dispatch to hkask-mcp-docproc) ──
+
+impl DocprocDataBridge for TuiReplBridge {
+    fn chunk_list(&self) -> Vec<ChunkInfo> {
+        let state = self.state.lock().expect("lock");
+        let runtime = state.service_context.mcp_runtime().clone();
+        self.rt_handle.block_on(async {
+            let mut args = serde_json::Map::new();
+            args.insert("text".into(), serde_json::Value::String("".into()));
+            args.insert("max_tokens".into(), serde_json::Value::from(512_u64));
+            match runtime.call_tool("docproc", "docproc_chunk", args).await {
+                Ok(ref result) => {
+                    let content = parse_mcp_json(result);
+                    content
+                        .as_ref()
+                        .and_then(|v| v["chunks"].as_array())
+                        .map(|chunks| {
+                            chunks
+                                .iter()
+                                .enumerate()
+                                .map(|(i, c)| ChunkInfo {
+                                    index: i,
+                                    token_count: c["token_count"].as_u64().unwrap_or(0) as usize,
+                                    preview: c["text"]
+                                        .as_str()
+                                        .map(|t| t.chars().take(80).collect())
+                                        .unwrap_or_default(),
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                }
+                Err(_) => Vec::new(),
+            }
+        })
+    }
+
+    fn qa_list(&self) -> Vec<QAPair> {
+        // QA pairs are generated on demand via generate_qa tool — not listed.
+        Vec::new()
+    }
+
+    fn index_status(&self) -> (usize, usize) {
+        let state = self.state.lock().expect("lock");
+        let runtime = state.service_context.mcp_runtime().clone();
+        self.rt_handle.block_on(async {
+            let mut args = serde_json::Map::new();
+            args.insert("question".into(), serde_json::Value::String("".into()));
+            args.insert("top_k".into(), serde_json::Value::from(1_u64));
+            match runtime.call_tool("docproc", "docproc_query", args).await {
+                Ok(ref result) => {
+                    let content = parse_mcp_json(result);
+                    let total = content
+                        .as_ref()
+                        .and_then(|v| v["index_size"].as_u64())
+                        .unwrap_or(0) as usize;
+                    (total, total)
+                }
+                Err(_) => (0, 0),
+            }
+        })
+    }
+}
+
+// ── ReplicaDataBridge (live MCP dispatch to hkask-mcp-replica) ──
+
+impl ReplicaDataBridge for TuiReplBridge {
+    fn list_replicas(&self) -> Vec<ReplicaInfo> {
+        let state = self.state.lock().expect("lock");
+        let runtime = state.service_context.mcp_runtime().clone();
+        self.rt_handle.block_on(async {
+            let mut args = serde_json::Map::new();
+            args.insert("action".into(), serde_json::Value::String("list".into()));
+            match runtime.call_tool("replica", "replica_registry", args).await {
+                Ok(ref result) => {
+                    let content = parse_mcp_json(result);
+                    content
+                        .as_ref()
+                        .and_then(|v| v["replicas"].as_array())
+                        .map(|replicas| {
+                            replicas
+                                .iter()
+                                .filter_map(|r| {
+                                    Some(ReplicaInfo {
+                                        author: r["author"].as_str()?.to_string(),
+                                        centroid_count: r["centroid_count"].as_u64().unwrap_or(0)
+                                            as usize,
+                                        status: r["status"]
+                                            .as_str()
+                                            .map(String::from)
+                                            .unwrap_or_else(|| "unknown".into()),
+                                    })
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                }
+                Err(_) => Vec::new(),
+            }
+        })
+    }
+
+    fn replica_count(&self) -> usize {
+        self.list_replicas().len()
+    }
+}
+
+// ── SkillsDataBridge (live MCP dispatch to hkask-mcp-skill) ──
+
+impl SkillsDataBridge for TuiReplBridge {
+    fn skill_list(&self) -> Vec<SkillInfo> {
+        let state = self.state.lock().expect("lock");
+        let runtime = state.service_context.mcp_runtime().clone();
+        self.rt_handle.block_on(async {
+            let args = serde_json::Map::new();
+            match runtime.call_tool("skill", "skill_list", args).await {
+                Ok(ref result) => {
+                    let content = parse_mcp_json(result);
+                    content
+                        .as_ref()
+                        .and_then(|v| v["skills"].as_array())
+                        .map(|skills| {
+                            skills
+                                .iter()
+                                .filter_map(|s| {
+                                    Some(SkillInfo {
+                                        id: s["id"].as_str()?.to_string(),
+                                        description: s["description"]
+                                            .as_str()
+                                            .map(String::from)
+                                            .unwrap_or_default(),
+                                    })
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                }
+                Err(_) => Vec::new(),
+            }
+        })
+    }
+
+    fn skill_execute(&self, skill_id: &str, context: &str) -> Option<SkillExecResult> {
+        let state = self.state.lock().expect("lock");
+        let runtime = state.service_context.mcp_runtime().clone();
+        let skill_id = skill_id.to_string();
+        let context = context.to_string();
+        self.rt_handle.block_on(async {
+            let mut args = serde_json::Map::new();
+            args.insert("skill_id".into(), serde_json::Value::String(skill_id));
+            args.insert("context".into(), serde_json::Value::String(context));
+            match runtime.call_tool("skill", "skill_execute", args).await {
+                Ok(ref result) => {
+                    let text = extract_mcp_text(result)?;
+                    Some(SkillExecResult {
+                        skill_id: "".into(),
+                        output: text,
+                        tokens_used: 0,
+                    })
+                }
+                Err(_) => None,
+            }
+        })
+    }
+
+    fn skill_count(&self) -> usize {
+        self.skill_list().len()
     }
 }

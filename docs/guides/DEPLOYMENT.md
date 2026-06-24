@@ -205,7 +205,7 @@ Model names use 2-letter provider prefixes for routing:
 - `OR/` → OpenRouter (cloud) — requires `OPENROUTER_API_KEY`
 - No prefix → defaults to DeepInfra
 
-API keys can be set in environment variables or in a `providers.env` file. The `kask` binary auto-loads `.env` on startup via `dotenvy`. For OAuth credentials (GitHub/Google client IDs and secrets), see the [Deployment Plan](../plans/deployment-and-backup.md).
+API keys can be set in environment variables or in a `.env` file. The `kask` binary auto-loads `.env` on startup via `dotenvy`. For OAuth credentials (GitHub/Google client IDs and secrets), see the [Deployment Plan](../plans/deployment-and-backup.md).
 
 ### 4.2 Chat Configuration
 
@@ -523,7 +523,7 @@ chmod 600 /var/lib/hkask/hkask.db
 
 | Issue | Cause | Resolution |
 |-------|-------|------------|
-| `Provider X is not available` | API key not set | Set `DI_API_KEY` or `OPENROUTER_API_KEY` in env or `providers.env` file |
+| `Provider X is not available` | API key not set | Set `DI_API_KEY` or `OPENROUTER_API_KEY` in env or `.env` file |
 | `Inference error: error sending request` | Provider unreachable | Verify provider URL and network connectivity |
 | `Database locked` | Concurrent access | Ensure single writer; use WAL mode |
 | `Template not found` | Registry empty | Register templates with `kask template register` |

@@ -62,10 +62,10 @@ hKask deploys as a single binary (`kask`) with a Unix socket daemon at `~/.confi
 
 ```bash
 # Copy template, fill in keys
-cp providers.env.example providers.env
+cp .env.example .env
 
 # Load into OS keychain (encrypted at rest)
-kask keystore load --path providers.env --shred
+kask keystore load --path .env --shred
 ```
 
 ### Build
@@ -131,7 +131,7 @@ kask keystore set DI_API_KEY "new-key-value"
 kask keystore delete OLD_KEY_NAME
 
 # Bulk reload from .env
-kask keystore load --path new-providers.env --shred
+kask keystore load --path new-.env --shred
 ```
 
 ---
@@ -254,7 +254,7 @@ cargo mutants -p hkask-types --timeout 120 2>&1 | grep "Uncaught" | kask qa sugg
 ### Recovery Procedure
 
 1. Restore `~/.config/hkask/` from backup
-2. Re-load API keys: `kask keystore load --path providers.env`
+2. Re-load API keys: `kask keystore load --path .env`
 3. Start Conduit: `./scripts/conduit-docker.sh start`
 4. Start daemon: `kask daemon start`
 5. Verify: `kask sovereignty verify`

@@ -27,8 +27,8 @@ kask keystore set HKASK_FMP_API_KEY "your-fmp-key"
 kask keystore set HKASK_EODHD_API_KEY "your-eodhd-key"
 
 # Or load from file (then securely delete plaintext)
-cp providers.env.example providers.env   # edit with your keys
-kask keystore load --path providers.env --shred
+cp .env.example .env   # edit with your keys
+kask keystore load --path .env --shred
 ```
 
 ### Test Your Setup
@@ -243,7 +243,7 @@ mcp-servers/hkask-mcp-companies/src/
 | `HKASK_FMP_API_KEY` | Yes | — | Financial Modeling Prep API key |
 | `HKASK_EODHD_API_KEY` | Yes | — | EOD Historical Data API key |
 
-Keys are resolved from the OS keychain (`kask keystore`) first, then environment variables. Use `kask keystore load --path providers.env --shred` for bulk setup with secure deletion.
+Keys are resolved from the OS keychain (`kask keystore`) first, then environment variables. Use `kask keystore load --path .env --shred` for bulk setup with secure deletion.
 
 ---
 

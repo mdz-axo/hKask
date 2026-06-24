@@ -431,9 +431,9 @@ async fn select_model() -> Result<String, OnboardingError> {
 
 /// Interactive provider setup during first-run onboarding.
 ///
-/// Checks if a provider API key is already configured (env var or keychain).
-/// If not, prompts the user to load from a providers.env file, enter a key
-/// directly, or skip (with a warning).
+/// Checks if a provider API key is already configured (env var or keychain —
+/// .env is auto-loaded by dotenvy at startup). If not, prompts to enter a key
+/// directly or skip.
 async fn setup_provider() -> Result<(), OnboardingError> {
     let config = hkask_services::InferenceConfig::from_env();
 
@@ -470,142 +470,16 @@ async fn setup_provider() -> Result<(), OnboardingError> {
     println!("    \x1b[36mhttps://together.ai/\x1b[0m  (inference + fine-tuning)");
     println!("    \x1b[36mhttps://fal.ai/\x1b[0m      (specialized vision/OCR models)");
     println!();
-    println!("  You can set this up now, or later with:");
+    println!("  Set your key in .env (auto-loaded at startup) or enter it now.");
     println!();
-    println!("    \x1b[36mkask keystore load --path providers.env --shred\x1b[0m");
-    println!();
-    println!("  How would you like to configure?");
-    println!("    1. Load from providers.env file");
-    println!("    2. Enter API key directly (input is hidden)");
-    println!("    3. Skip for now");
+    println!("    1. Enter API key directly (input is hidden)");
+    println!("    2. Skip for now");
     println!();
 
-    let choice = prompt_choice("  Choice (1-3):", 1..=3)?;
+    let choice = prompt_choice("  Choice (1-2):", 1..=2)?;
 
     match choice {
         1 => {
-            // Load from file
-            let path_str = prompt_line("  Path to providers.env:")?;
-            let path_str = path_str.trim();
-            if path_str.is_empty() {
-                println!("  No path entered — skipping provider setup.");
-                println!("  Run `kask keystore load --path providers.env --shred` later.");
-                return Ok(());
-            }
-            let path = std::path::PathBuf::from(path_str);
-            if !path.exists() {
-                println!("  \x1b[31m✗\x1b[0m File not found: {}", path.display());
-                println!("  Create it from the template: cp providers.env.example providers.env");
-                println!("  Then fill in your API keys and run `kask chat` again.");
-                return Err(OnboardingError::Cancelled);
-            }
-
-            // Parse the file to check it has keys
-            let content = std::fs::read_to_string(&path).map_err(|e| {
-                eprintln!("  \x1b[31m✗\x1b[0m Cannot read {}: {}", path.display(), e);
-                OnboardingError::Service(ServiceError::Infra(InfrastructureError::Io(
-                    e.to_string(),
-                )))
-            })?;
-
-            let mut found_keys: Vec<&str> = Vec::new();
-            for line in content.lines() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-                if let Some((key, value)) = line.split_once('=')
-                    && !value.trim().is_empty()
-                    && (key.trim() == "DI_API_KEY"
-                        || key.trim() == "TG_API_KEY"
-                        || key.trim() == "TOGETHER_API_KEY"
-                        || key.trim() == "FA_API_KEY")
-                {
-                    found_keys.push(key.trim());
-                }
-            }
-
-            if found_keys.is_empty() {
-                println!(
-                    "  \x1b[31m✗\x1b[0m No API keys found in {}.",
-                    path.display()
-                );
-                println!("  Fill in at least one of DI_API_KEY, TOGETHER_API_KEY, or FA_API_KEY.");
-                return Err(OnboardingError::Cancelled);
-            }
-
-            println!(
-                "  Found {} provider key(s): {}",
-                found_keys.len(),
-                found_keys.join(", ")
-            );
-
-            // Store in keychain
-            let keychain = hkask_keystore::Keychain::default();
-            let mut stored = 0usize;
-            let mut failed = 0usize;
-            for line in content.lines() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-                if let Some((key, value)) = line.split_once('=') {
-                    let key = key.trim();
-                    let value = value.trim();
-                    if value.is_empty() {
-                        continue;
-                    }
-                    // Store all non-empty keys (not just API keys — also HKASK_DEFAULT_PROVIDER, etc.)
-                    match keychain.store_by_key(key, value) {
-                        Ok(()) => stored += 1,
-                        Err(e) => {
-                            eprintln!("  \x1b[31m✗\x1b[0m Failed to store {}: {}", key, e);
-                            failed += 1;
-                        }
-                    }
-                }
-            }
-            if failed == 0 {
-                println!("  \x1b[32m✓\x1b[0m {} keys stored in OS keychain.", stored);
-            } else {
-                println!(
-                    "  \x1b[33m⚠\x1b[0m  {} keys stored, {} failed (check keychain permissions).",
-                    stored, failed
-                );
-            }
-
-            // Shred with consent
-            println!();
-            println!("  ═══════════════════════════════════════════════════════════");
-            println!(
-                "  ⚠️  The file {} will now be permanently deleted.",
-                path.display()
-            );
-            println!("  Make sure you have a backup of your API keys.");
-            println!("  ═══════════════════════════════════════════════════════════");
-            println!();
-
-            let shred_choice = prompt_choice(
-                &format!(
-                    "  Delete {}? [1=yes, I have a backup / 2=no, keep the file]:",
-                    path.display()
-                ),
-                1..=2,
-            )?;
-
-            if shred_choice == 1 {
-                match crate::commands::keystore::secure_delete_file(&path) {
-                    Ok(()) => println!("  \x1b[32m✓\x1b[0m File shredded."),
-                    Err(e) => {
-                        eprintln!("  \x1b[31m✗\x1b[0m Failed to shred: {}", e);
-                        eprintln!("  Keys are safe in keychain. Delete manually when ready.");
-                    }
-                }
-            } else {
-                println!("  File kept on disk — delete it yourself when ready.");
-            }
-        }
-        2 => {
             // Enter API key directly
             println!();
             println!("  Supported providers:");
@@ -655,14 +529,13 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             println!("  \x1b[32m✓\x1b[0m Key stored in OS keychain.");
             println!("  Default provider set to {}.", provider_str);
         }
-        3 => {
+        2 => {
             println!();
             println!("  \x1b[33m⚠\x1b[0m  Skipping cloud provider setup.");
             println!("  hKask requires a cloud inference provider to generate responses.");
             println!("  Without one, your replicant cannot reply to you.");
             println!();
-            println!("  To add a cloud provider later:");
-            println!("    \x1b[36mkask keystore load --path providers.env --shred\x1b[0m");
+            println!("  To add a cloud provider later, add your key to .env and restart.");
         }
         _ => unreachable!(),
     }
