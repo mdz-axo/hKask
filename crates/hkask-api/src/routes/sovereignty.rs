@@ -16,10 +16,6 @@ fn consent_name(value: bool) -> &'static str {
     if value { "required" } else { "open" }
 }
 
-fn parse_data_category(s: &str) -> hkask_types::DataCategory {
-    hkask_types::DataCategory::parse(s)
-}
-
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  none
 /// post: returns OpenApi`Router<ApiState>` with sovereignty routes registered
@@ -161,7 +157,7 @@ pub(crate) async fn sovereignty_grant_consent(
     tracing::info!(target: "cns.api", operation = "sovereignty_grant", category = %req.category, "CNS");
     let webid_str = auth.webid.to_string();
     let cat_str = req.category;
-    let cat = parse_data_category(&cat_str);
+    let cat = hkask_services::parse_data_category(&cat_str);
     let cm = &state.agent_service.sovereignty();
     cm.grant_consent(&webid_str, &cat)
         .map_err(|e| ServiceError::Consent {
@@ -234,7 +230,7 @@ pub(crate) async fn sovereignty_check_access(
         }
         .into());
     }
-    let cat = parse_data_category(cat_str);
+    let cat = hkask_services::parse_data_category(cat_str);
     let cat_name = cat.as_str();
     let webid_str = auth.webid.to_string();
     let boundary = DataSovereigntyBoundary::hkask_default();

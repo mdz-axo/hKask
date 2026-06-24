@@ -300,6 +300,15 @@ impl CnsRuntime {
         self
     }
 
+    /// Override the outcome quality thresholds from YAML configurable SetPoints.
+    ///
+    /// Called by the CyberneticsLoop when SetPointsConfig is loaded.
+    pub async fn set_outcome_thresholds(&self, warning: f64, critical: f64) {
+        let state = self.state.write().await;
+        let mut mgr = state.algedonic.write();
+        mgr.set_outcome_thresholds(warning, critical);
+    }
+
     // ── Health & Alerts ──
 
     /// Get CNS health status.

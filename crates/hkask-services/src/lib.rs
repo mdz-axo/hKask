@@ -31,13 +31,21 @@ pub use hkask_services_backup::serialization::{
     ArtifactEnvelopeValue, artifact_git_path, deserialize_artifact, serialize_artifact,
 };
 pub use hkask_services_backup::{BackupError, BackupService};
+pub use hkask_services_classify::{
+    ClassifierConfig, CostRate, DeepInfraProvider, FalProvider, FirecrawlProvider, LimitUnit,
+    OpenRouterProvider, ProviderError, ProviderIntelligence, ProviderState, RunpodProvider,
+    SelfTrackedConfig, SelfTrackedProvider, TogetherProvider, TripleExtraction, UsageStatus,
+    classify_batch, create_provider, extract_triples_batch, generate_raw, load_classifier_config,
+};
 pub use hkask_services_context::{AgentService, PerAgentMemory};
 pub use hkask_services_core::config::{DEFAULT_DB_PATH, ServiceConfig};
 pub use hkask_services_core::error::ServiceError;
+pub use hkask_services_core::parse_data_category;
 pub use hkask_services_core::settings::{
     HkaskSettings, load_settings, save_settings, settings_path,
 };
 pub use hkask_services_core::{InferenceContext, InferenceService, ModelInfo};
+pub use hkask_services_daemon::{AdaptiveMonitor, ServiceDaemonHandler};
 pub use hkask_services_discover::{
     DiscoverRequest, DiscoverResult, DiscoveredWork, DiscoveryService, default_corpus_config,
     download_and_cache, generate_corpus_yaml, slugify,
@@ -75,6 +83,7 @@ pub mod compose;
 pub mod contacts;
 pub mod curator;
 pub mod federation;
+pub mod verification;
 
 pub mod experience;
 pub mod goal;
@@ -114,3 +123,70 @@ pub use spec::{
     CoherenceResult, SpecCaptureRequest, SpecCaptureResponse, SpecDetail, SpecListEntry,
     SpecService, WritingQualityResult,
 };
+
+#[cfg(test)]
+mod tests {
+    /// Extract dependency names starting with `hkask-services-` from the
+    /// `[dependencies]` section of Cargo.toml via naive line-scanning.
+    fn parse_service_deps(toml: &str) -> Vec<String> {
+        let mut in_deps = false;
+        let mut deps = Vec::new();
+        for line in toml.lines() {
+            let trimmed = line.trim();
+            if trimmed == "[dependencies]" {
+                in_deps = true;
+                continue;
+            }
+            // Stop at the next section header.
+            if in_deps && trimmed.starts_with('[') {
+                break;
+            }
+            if in_deps {
+                // Lines look like: hkask-services-foo = { path = "..." }
+                if let Some(name) = trimmed.split('=').next() {
+                    let name = name.trim();
+                    if name.starts_with("hkask-services-") {
+                        deps.push(name.to_string());
+                    }
+                }
+            }
+        }
+        deps
+    }
+
+    fn is_reexported(dep_name: &str, lib_source: &str) -> bool {
+        // Crate name hyphen → Rust module underscore.
+        let module_name = dep_name.replace('-', "_");
+        let needle = format!("pub use {}::", module_name);
+        lib_source.contains(&needle)
+    }
+
+    #[test]
+    fn all_service_deps_are_reexported() {
+        let cargo_toml = include_str!("../Cargo.toml");
+        let lib_source = include_str!("../src/lib.rs");
+
+        let service_deps = parse_service_deps(cargo_toml);
+        assert!(
+            !service_deps.is_empty(),
+            "expected at least one hkask-services-* dependency"
+        );
+
+        let missing: Vec<_> = service_deps
+            .iter()
+            .filter(|dep| !is_reexported(dep, lib_source))
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "{} hkask-services-* dep(s) missing re-exports:\n  {}\n\n\
+             Add `pub use <crate_name>::...` to lib.rs for each.",
+            missing.len(),
+            missing
+                .iter()
+                .map(|d| d.as_str())
+                .collect::<Vec<_>>()
+                .join("\n  ")
+        );
+    }
+}

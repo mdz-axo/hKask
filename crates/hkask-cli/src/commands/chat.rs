@@ -19,7 +19,7 @@ use hkask_services::{
 use hkask_types::template::LLMParameters;
 
 /// Build AgentService from secrets or environment.
-/// Single construction path for all chat variants.
+/// Routes through the canonical `helpers::build_service_context_from_secrets`.
 ///
 /// # REQ: P7-converge — AgentService construction is single-source
 /// expect: "I can access all hKask functionality through the kask CLI"
@@ -27,31 +27,8 @@ async fn build_chat_context(
     name: &str,
     secrets: Option<&ResolvedSecrets>,
 ) -> Result<AgentService, ChatResponse> {
-    let config = match secrets {
-        Some(s) => {
-            let mcp_secret = hkask_keystore::keychain::resolve_mcp_secret()
-                .map(|s| String::from_utf8_lossy(&s).to_string())
-                .unwrap_or_else(|_| "hkask-mcp-default".to_string());
-            hkask_services::ServiceConfig::from_secrets(
-                s.a2a_secret.clone(),
-                s.db_passphrase.clone(),
-                mcp_secret,
-                name.to_string(),
-            )
-        }
-        None => match hkask_services::ServiceConfig::from_env() {
-            Ok(c) => c,
-            Err(e) => {
-                return Err(ChatResponse {
-                    text: format!("Config error: {}", e),
-                    usage: None,
-                    finish_reason: "error".to_string(),
-                    tool_calls: vec![],
-                });
-            }
-        },
-    };
-    AgentService::build(config).await.map_err(|e| ChatResponse {
+    let from_secrets = secrets.map(|s| (name, s));
+    super::helpers::build_service_context_from_secrets(from_secrets).map_err(|e| ChatResponse {
         text: format!("AgentService error: {}", e),
         usage: None,
         finish_reason: "error".to_string(),

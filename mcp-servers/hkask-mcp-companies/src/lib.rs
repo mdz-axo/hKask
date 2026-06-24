@@ -36,10 +36,10 @@
 //! - `portfolio_returns` — TWR and IRR for any date range
 
 use chrono::Datelike;
-use hkask_mcp::server::{execute_tool, McpToolError, validate_identifier};
+use hkask_mcp::server::{McpToolError, execute_tool, validate_identifier};
 use hkask_mcp::{DaemonClient, DaemonResponse};
-use hkask_types::time::now_rfc3339;
 use hkask_types::WebID;
+use hkask_types::time::now_rfc3339;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 mod analysis;
@@ -180,7 +180,8 @@ impl CompaniesServer {
                 }
             }
             result
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "Get stock quote")]
@@ -218,7 +219,8 @@ impl CompaniesServer {
                 }
             }
             result
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "Get income statement")]
@@ -238,7 +240,8 @@ impl CompaniesServer {
                 &[("limit", &limit_str)],
             )
             .await
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "Get balance sheet")]
@@ -258,7 +261,8 @@ impl CompaniesServer {
                 &[("limit", &limit_str)],
             )
             .await
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "Get cash flow statement")]
@@ -278,7 +282,8 @@ impl CompaniesServer {
                 &[("limit", &limit_str)],
             )
             .await
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "Get key metrics")]
@@ -298,7 +303,8 @@ impl CompaniesServer {
                 &[("limit", &limit_str)],
             )
             .await
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "Get historical price data")]
@@ -317,7 +323,8 @@ impl CompaniesServer {
                 &[("from", &from), ("to", &to)],
             )
             .await
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "Search for symbols")]
@@ -347,7 +354,8 @@ impl CompaniesServer {
                     .await
                 }
             }
-        }).await
+        })
+        .await
     }
 
     #[tool(
@@ -437,7 +445,8 @@ impl CompaniesServer {
                 output.clone(),
             );
             Ok(output)
-        }).await
+        })
+        .await
     }
 
     #[tool(
@@ -787,20 +796,19 @@ impl CompaniesServer {
         execute_tool(self, "portfolio_delete", async {
             self.portfolio
                 .delete(&name)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
             Ok(serde_json::json!({"status": "deleted", "name": name}))
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "List all portfolios")]
     pub async fn portfolio_list(&self) -> String {
         execute_tool(self, "portfolio_list", async {
-            let names = self
-                .portfolio
-                .list()
-                .map_err(|e| McpToolError::internal(e))?;
+            let names = self.portfolio.list().map_err(McpToolError::internal)?;
             Ok(serde_json::json!({"portfolios": names}))
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "Import transactions from CSV or JSON into a portfolio ledger")]
@@ -824,23 +832,20 @@ impl CompaniesServer {
             let result = match format.as_str() {
                 "csv" => self.portfolio.import_csv(&portfolio, &data),
                 "json" => self.portfolio.import_json(&portfolio, &data),
-                other => Err(format!(
-                    "unsupported format '{other}'; use 'csv' or 'json'"
-                )),
+                other => Err(format!("unsupported format '{other}'; use 'csv' or 'json'")),
             };
             match result {
                 Ok(ids) => {
                     // Auto-validate after import
-                    let validation =
-                        self.portfolio
-                            .validate(&portfolio)
-                            .unwrap_or_else(|e| portfolio::ValidationReport {
-                                valid: false,
-                                transaction_count: ids.len(),
-                                positions: vec![],
-                                cash_balance: 0.0,
-                                issues: vec![e],
-                            });
+                    let validation = self.portfolio.validate(&portfolio).unwrap_or_else(|e| {
+                        portfolio::ValidationReport {
+                            valid: false,
+                            transaction_count: ids.len(),
+                            positions: vec![],
+                            cash_balance: 0.0,
+                            issues: vec![e],
+                        }
+                    });
                     Ok(serde_json::json!({
                         "status": "imported",
                         "count": ids.len(),
@@ -854,30 +859,27 @@ impl CompaniesServer {
                 }
                 Err(e) => Err(McpToolError::invalid_argument(e)),
             }
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "Export portfolio ledger to CSV or JSON")]
     pub async fn ledger_export(
         &self,
-        Parameters(LedgerExportRequest {
-            portfolio,
-            format,
-        }): Parameters<LedgerExportRequest>,
+        Parameters(LedgerExportRequest { portfolio, format }): Parameters<LedgerExportRequest>,
     ) -> String {
         execute_tool(self, "ledger_export", async {
             let result = match format.as_str() {
                 "csv" => self.portfolio.export_csv(&portfolio),
                 "json" => self.portfolio.export_json(&portfolio),
-                other => Err(format!(
-                    "unsupported format '{other}'; use 'csv' or 'json'"
-                )),
+                other => Err(format!("unsupported format '{other}'; use 'csv' or 'json'")),
             };
             match result {
                 Ok(data) => Ok(serde_json::json!({"format": format, "data": data})),
                 Err(e) => Err(McpToolError::invalid_argument(e)),
             }
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "Append a note to an existing transaction")]
@@ -892,9 +894,10 @@ impl CompaniesServer {
         execute_tool(self, "transaction_note_append", async {
             self.portfolio
                 .append_note(&portfolio, &tx_id, &note)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
             Ok(serde_json::json!({"status": "note appended", "tx_id": tx_id}))
-        }).await
+        })
+        .await
     }
 
     #[tool(
@@ -910,8 +913,9 @@ impl CompaniesServer {
         execute_tool(self, "portfolio_comparison", async {
             self.portfolio
                 .compare(&portfolio_a, &portfolio_b)
-                .map_err(|e| McpToolError::invalid_argument(e))
-        }).await
+                .map_err(McpToolError::invalid_argument)
+        })
+        .await
     }
 
     #[tool(description = "Time-weighted and money-weighted returns for a date range")]
@@ -1055,19 +1059,18 @@ impl CompaniesServer {
             }
 
             // ── Compute market values ─────────────────────────────────
-            let mv_at =
-                |positions: &std::collections::HashMap<String, f64>, date: &str| -> f64 {
-                    positions
-                        .iter()
-                        .map(|(sym, shares)| {
-                            let price = prices_at
-                                .get(&format!("{date}:{sym}"))
-                                .copied()
-                                .unwrap_or(0.0);
-                            shares * price
-                        })
-                        .sum()
-                };
+            let mv_at = |positions: &std::collections::HashMap<String, f64>, date: &str| -> f64 {
+                positions
+                    .iter()
+                    .map(|(sym, shares)| {
+                        let price = prices_at
+                            .get(&format!("{date}:{sym}"))
+                            .copied()
+                            .unwrap_or(0.0);
+                        shares * price
+                    })
+                    .sum()
+            };
 
             let mv_start = mv_at(&positions_start, &from);
             let mv_end = mv_at(&positions_end, &to);
@@ -1088,8 +1091,7 @@ impl CompaniesServer {
             let total_return = (total_end - total_start - net_flows) / total_start;
 
             // ── Modified Dietz (approximate TWR) ──────────────────────
-            let to_date =
-                chrono::NaiveDate::parse_from_str(&to, "%Y-%m-%d").unwrap_or_default();
+            let to_date = chrono::NaiveDate::parse_from_str(&to, "%Y-%m-%d").unwrap_or_default();
             let from_date =
                 chrono::NaiveDate::parse_from_str(&from, "%Y-%m-%d").unwrap_or_default();
             let period_days = (to_date - from_date).num_days().max(1) as f64;
@@ -1097,8 +1099,8 @@ impl CompaniesServer {
             let weighted_flows: f64 = cash_flow_events
                 .iter()
                 .map(|(date_str, amt)| {
-                    let cf_date = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
-                        .unwrap_or_default();
+                    let cf_date =
+                        chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap_or_default();
                     let days_remaining = (to_date - cf_date).num_days().max(0) as f64;
                     let weight = days_remaining / period_days;
                     amt * weight
@@ -1118,8 +1120,8 @@ impl CompaniesServer {
                 let from_days = from_date.num_days_from_ce();
                 let mut cfs: Vec<(f64, f64)> = vec![(-total_start, from_days as f64)];
                 for (date_str, amt) in &cash_flow_events {
-                    let cf_date = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
-                        .unwrap_or_default();
+                    let cf_date =
+                        chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap_or_default();
                     let days = (cf_date.num_days_from_ce() - from_days) as f64;
                     cfs.push((*amt, days));
                 }
@@ -1134,9 +1136,7 @@ impl CompaniesServer {
                 };
                 let npv_deriv = |r: f64| -> f64 {
                     cfs.iter()
-                        .map(|(cf, days)| {
-                            -cf * (days / 365.0) / (1.0 + r).powf(days / 365.0 + 1.0)
-                        })
+                        .map(|(cf, days)| -cf * (days / 365.0) / (1.0 + r).powf(days / 365.0 + 1.0))
                         .sum()
                 };
 
@@ -1177,7 +1177,8 @@ impl CompaniesServer {
                 "positions_at_start": positions_start.len(),
                 "positions_at_end": positions_end.len(),
             }))
-        }).await
+        })
+        .await
     }
 
     // ── Notes & Files tools ─────────────────────────────────────
@@ -1198,9 +1199,10 @@ impl CompaniesServer {
             let id = self
                 .portfolio
                 .add_note(&portfolio, &symbol, &date, &title, &body, &tags)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
             Ok(serde_json::json!({"status": "created", "id": id}))
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "List notes for a symbol, optionally filtered by date range or tags")]
@@ -1224,9 +1226,10 @@ impl CompaniesServer {
                     date_to.as_deref(),
                     tags.as_deref(),
                 )
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
             Ok(serde_json::json!({"notes": notes}))
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "Delete a note by ID")]
@@ -1237,9 +1240,10 @@ impl CompaniesServer {
         execute_tool(self, "note_delete", async {
             self.portfolio
                 .delete_note(&note_id)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
             Ok(serde_json::json!({"status": "deleted", "id": note_id}))
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "Attach a file (base64-encoded) to a company/security")]
@@ -1258,27 +1262,28 @@ impl CompaniesServer {
         execute_tool(self, "file_attach", async {
             let id = self
                 .portfolio
-                .attach_file(&portfolio, &symbol, &date, &filename, &mime_type, &data, &notes)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .attach_file(
+                    &portfolio, &symbol, &date, &filename, &mime_type, &data, &notes,
+                )
+                .map_err(McpToolError::invalid_argument)?;
             Ok(serde_json::json!({"status": "attached", "id": id}))
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "List attached files for a symbol in a portfolio")]
     pub async fn file_list(
         &self,
-        Parameters(FileListRequest {
-            portfolio,
-            symbol,
-        }): Parameters<FileListRequest>,
+        Parameters(FileListRequest { portfolio, symbol }): Parameters<FileListRequest>,
     ) -> String {
         execute_tool(self, "file_list", async {
             let files = self
                 .portfolio
                 .list_files(&portfolio, &symbol)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
             Ok(serde_json::json!({"files": files}))
-        }).await
+        })
+        .await
     }
 
     #[tool(description = "Delete an attached file by ID — removes record and file from disk")]
@@ -1289,9 +1294,10 @@ impl CompaniesServer {
         execute_tool(self, "file_delete", async {
             self.portfolio
                 .delete_file(&file_id)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
             Ok(serde_json::json!({"status": "deleted", "id": file_id}))
-        }).await
+        })
+        .await
     }
 
     // ── Analysis tools ───────────────────────────────────────────
@@ -1486,10 +1492,13 @@ impl CompaniesServer {
             }
 
             // Get positions at the as-of date
-            let txs = match self
-                .portfolio
-                .get_transactions(&req.portfolio, None, None, None, Some(&req.date))
-            {
+            let txs = match self.portfolio.get_transactions(
+                &req.portfolio,
+                None,
+                None,
+                None,
+                Some(&req.date),
+            ) {
                 Ok(t) => t,
                 Err(e) => {
                     return Err(McpToolError::invalid_argument(e));
@@ -1570,9 +1579,8 @@ impl CompaniesServer {
                     for field in ["sector", "industry", "country", "mktCap"] {
                         if let Some(val) = profile.get(field) {
                             let key = field.to_string();
-                            let entry = characteristics
-                                .entry(key)
-                                .or_insert(serde_json::json!(0.0));
+                            let entry =
+                                characteristics.entry(key).or_insert(serde_json::json!(0.0));
                             if val.is_string() {
                                 let str_val =
                                     val.as_str().expect("guarded by is_string check above");
@@ -1583,14 +1591,11 @@ impl CompaniesServer {
                                     let e = sub_map
                                         .entry(str_val.to_string())
                                         .or_insert(serde_json::json!(0.0));
-                                    *e = serde_json::json!(
-                                        e.as_f64().unwrap_or(0.0) + weight
-                                    );
+                                    *e = serde_json::json!(e.as_f64().unwrap_or(0.0) + weight);
                                 }
                             } else if let Some(num) = val.as_f64() {
-                                *entry = serde_json::json!(
-                                    entry.as_f64().unwrap_or(0.0) + weight * num
-                                );
+                                *entry =
+                                    serde_json::json!(entry.as_f64().unwrap_or(0.0) + weight * num);
                             }
                         }
                     }
@@ -1626,9 +1631,8 @@ impl CompaniesServer {
                             let entry = characteristics
                                 .entry(field.to_string())
                                 .or_insert(serde_json::json!(0.0));
-                            *entry = serde_json::json!(
-                                entry.as_f64().unwrap_or(0.0) + weight * val
-                            );
+                            *entry =
+                                serde_json::json!(entry.as_f64().unwrap_or(0.0) + weight * val);
                         }
                     }
                 }
@@ -1667,7 +1671,8 @@ impl CompaniesServer {
                 "characteristics": characteristics,
                 "errors": errors,
             }))
-        }).await
+        })
+        .await
     }
 }
 

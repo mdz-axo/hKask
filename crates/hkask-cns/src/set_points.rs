@@ -48,6 +48,32 @@ pub const DEFAULT_SEAM_COVERAGE_MIN: f64 = 0.0;
 /// Prevents unbounded cascading in the compute→act pipeline.
 pub const DEFAULT_MAX_ITERATIONS: u32 = 100;
 
+/// Default dampener window in seconds (60s).
+///
+/// Within this window, repeated identical directives are suppressed.
+pub const DEFAULT_DAMPEN_WINDOW_SECS: u64 = 60;
+
+/// Default metacognitive dampener window in seconds (300s).
+///
+/// Metacognitive overrides are dampened at a longer window.
+pub const DEFAULT_METACOGNITIVE_WINDOW_SECS: u64 = 300;
+
+/// Default override cooldown in seconds (120s).
+///
+/// After any metacognitive override passes dedup, ALL subsequent overrides
+/// are suppressed for this duration.
+pub const DEFAULT_OVERRIDE_COOLDOWN_SECS: u64 = 120;
+
+/// Default outcome warning threshold (0.50 = 50% success rate).
+///
+/// When outcome success rate drops below this, a warning alert is emitted.
+pub const DEFAULT_OUTCOME_WARNING_THRESHOLD: f64 = 0.50;
+
+/// Default outcome critical threshold (0.25 = 25% success rate).
+///
+/// When outcome success rate drops below this, a critical alert is emitted.
+pub const DEFAULT_OUTCOME_CRITICAL_THRESHOLD: f64 = 0.25;
+
 /// Homeostatic set-points for the Cybernetics Loop.
 ///
 /// These define the reference values against which sensed signals
@@ -89,6 +115,21 @@ pub struct SetPoints {
     pub fed_invitation_rate_warning_per_hour: u64,
     /// Registry divergence warning threshold (entries/sync). Default: 10.
     pub fed_registry_divergence_warning: u64,
+    // ── Dampener configuration (v0.30.0) ──
+    /// Dampener window for routine directives (seconds). Default: 60.
+    pub dampen_window_secs: u64,
+    /// Dampener window for metacognitive overrides (seconds). Default: 300.
+    pub metacognitive_window_secs: u64,
+    /// Override cooldown window after any metacognitive override (seconds). Default: 120.
+    pub override_cooldown_secs: u64,
+    // ── Outcome thresholds (v0.30.0) ──
+    /// Outcome success rate warning threshold. Default: 0.50.
+    pub outcome_warning_threshold: f64,
+    /// Outcome success rate critical threshold. Default: 0.25.
+    pub outcome_critical_threshold: f64,
+    // ── Loop regulation (v0.30.0) ──
+    /// Maximum regulation iterations per cycle. Default: 100.
+    pub max_iterations: u32,
 }
 
 /// Configurable thresholds for Curation decisions (spec coherence, drift).
@@ -115,6 +156,12 @@ pub struct SetPointsConfig {
     pub fed_max_pause_duration_hours: Option<u64>,
     pub fed_invitation_rate_warning_per_hour: Option<u64>,
     pub fed_registry_divergence_warning: Option<u64>,
+    pub dampen_window_secs: Option<u64>,
+    pub metacognitive_window_secs: Option<u64>,
+    pub override_cooldown_secs: Option<u64>,
+    pub outcome_warning_threshold: Option<f64>,
+    pub outcome_critical_threshold: Option<f64>,
+    pub max_iterations: Option<u32>,
 }
 
 impl SetPointsConfig {
@@ -148,6 +195,12 @@ impl Default for SetPoints {
             fed_max_pause_duration_hours: 24,
             fed_invitation_rate_warning_per_hour: 5,
             fed_registry_divergence_warning: 10,
+            dampen_window_secs: DEFAULT_DAMPEN_WINDOW_SECS,
+            metacognitive_window_secs: DEFAULT_METACOGNITIVE_WINDOW_SECS,
+            override_cooldown_secs: DEFAULT_OVERRIDE_COOLDOWN_SECS,
+            outcome_warning_threshold: DEFAULT_OUTCOME_WARNING_THRESHOLD,
+            outcome_critical_threshold: DEFAULT_OUTCOME_CRITICAL_THRESHOLD,
+            max_iterations: DEFAULT_MAX_ITERATIONS,
         }
     }
 }
@@ -197,6 +250,22 @@ impl SetPoints {
             fed_registry_divergence_warning: config
                 .fed_registry_divergence_warning
                 .unwrap_or(defaults.fed_registry_divergence_warning),
+            dampen_window_secs: config
+                .dampen_window_secs
+                .unwrap_or(defaults.dampen_window_secs),
+            metacognitive_window_secs: config
+                .metacognitive_window_secs
+                .unwrap_or(defaults.metacognitive_window_secs),
+            override_cooldown_secs: config
+                .override_cooldown_secs
+                .unwrap_or(defaults.override_cooldown_secs),
+            outcome_warning_threshold: config
+                .outcome_warning_threshold
+                .unwrap_or(defaults.outcome_warning_threshold),
+            outcome_critical_threshold: config
+                .outcome_critical_threshold
+                .unwrap_or(defaults.outcome_critical_threshold),
+            max_iterations: config.max_iterations.unwrap_or(defaults.max_iterations),
         }
     }
 }

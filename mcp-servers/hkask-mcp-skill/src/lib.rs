@@ -181,7 +181,7 @@ impl SkillServer {
 
             // Render the Jinja2 template
             let rendered = render_skill_template(&def.template_content, &ctx)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             // Prepend system prompt
             let full_prompt = format!(

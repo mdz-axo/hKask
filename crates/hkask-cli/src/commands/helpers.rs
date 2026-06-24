@@ -19,38 +19,68 @@ pub fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T 
     }
 }
 
-/// Build an AgentService from environment config. Shared across all commands
-/// that previously duplicated `build_service_context()`.
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  service config must be resolvable from environment
-/// post: builds and returns an AgentService from environment config; exits on failure
+/// Convenience: `build_service_context_inner(None)` with exit-on-failure.
+/// Preserves backward compatibility for all call sites that already
+/// expected a non-fallible return.
 pub fn build_service_context() -> hkask_services::AgentService {
-    let config = or_exit(
-        hkask_services::ServiceConfig::from_env(),
-        "Failed to resolve service config",
-    );
+    or_exit(
+        build_service_context_inner(None),
+        "Failed to build service context",
+    )
+}
+
+/// Build an AgentService from environment config or pre-resolved secrets.
+/// Returns `Result` so callers that need graceful error handling (e.g. chat)
+/// can map the error to their own response type instead of exiting.
+///
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  if `from_secrets` is Some → (agent_name, ResolvedSecrets) used
+/// pre:  if `from_secrets` is None → ServiceConfig::from_env() used
+/// post: returns Ok(AgentService) or Err(String) describing the failure
+pub fn build_service_context_from_secrets(
+    from_secrets: Option<(&str, &hkask_services::ResolvedSecrets)>,
+) -> Result<hkask_services::AgentService, String> {
+    build_service_context_inner(from_secrets)
+}
+
+fn build_service_context_inner(
+    from_secrets: Option<(&str, &hkask_services::ResolvedSecrets)>,
+) -> Result<hkask_services::AgentService, String> {
+    let config = match from_secrets {
+        Some((name, secrets)) => {
+            let mcp_secret = hkask_keystore::keychain::resolve_mcp_secret()
+                .map(|s| String::from_utf8_lossy(&s).to_string())
+                .unwrap_or_else(|_| "hkask-mcp-default".to_string());
+            hkask_services::ServiceConfig::from_secrets(
+                secrets.a2a_secret.clone(),
+                secrets.db_passphrase.clone(),
+                mcp_secret,
+                name.to_string(),
+            )
+        }
+        None => hkask_services::ServiceConfig::from_env()
+            .map_err(|e| format!("Failed to resolve service config: {}", e))?,
+    };
     // Use current runtime if available, otherwise create a fresh one.
     // This avoids "Cannot start a runtime from within a runtime" panics
     // when called from inside an existing tokio context.
-    let result: Result<hkask_services::AgentService, String> =
-        match tokio::runtime::Handle::try_current() {
-            Ok(handle) => {
-                let (tx, rx) = std::sync::mpsc::channel();
-                let cfg = config.clone();
-                handle.spawn(async move {
-                    let _ = tx.send(hkask_services::AgentService::build(cfg).await);
-                });
-                rx.recv()
-                    .map_err(|_| "Service build task panicked".to_string())
-                    .and_then(|r| r.map_err(|e| e.to_string()))
-            }
-            Err(_) => {
-                let rt = tokio::runtime::Runtime::new().expect("runtime should start");
-                rt.block_on(hkask_services::AgentService::build(config))
-                    .map_err(|e| e.to_string())
-            }
-        };
-    or_exit(result, "Failed to build service context")
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let cfg = config.clone();
+            handle.spawn(async move {
+                let _ = tx.send(hkask_services::AgentService::build(cfg).await);
+            });
+            rx.recv()
+                .map_err(|_| "Service build task panicked".to_string())
+                .and_then(|r| r.map_err(|e| e.to_string()))
+        }
+        Err(_) => {
+            let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+            rt.block_on(hkask_services::AgentService::build(config))
+                .map_err(|e| e.to_string())
+        }
+    }
 }
 
 /// Write content to a file or print to stdout.

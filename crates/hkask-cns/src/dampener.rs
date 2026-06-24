@@ -116,7 +116,24 @@ impl Dampener {
         }
     }
 
-    /// \[NORMATIVE\] Check if a directive should be dampened (suppressed). (P9 — Homeostatic Self-Regulation).
+    /// Create a new dampener with fully configurable windows from SetPointsConfig.
+    ///
+    /// All three windows can be overridden via YAML configuration.
+    pub(crate) fn with_windows(
+        dampen_window: Duration,
+        metacognitive_window: Duration,
+        override_cooldown: Duration,
+    ) -> Self {
+        Self {
+            seen: Mutex::new(HashMap::new()),
+            window: dampen_window,
+            metacognitive_window,
+            last_override: Mutex::new(None),
+            override_cooldown,
+        }
+    }
+
+    /// [NORMATIVE] Check if a directive should be dampened (suppressed). (P9 — Homeostatic Self-Regulation).
     ///
     /// Two dampening layers are applied in order:
     ///

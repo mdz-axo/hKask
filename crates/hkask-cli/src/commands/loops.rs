@@ -1,27 +1,18 @@
 //! Loops command handlers for `kask loops`
 //!
 //! Implements the CLI display logic for starting the cybernetic loop system.
-//! Uses `AgentService::build()` to assemble all shared infrastructure
-//! (CNS, loop system, curation, episodic/semantic loops).
+//! Routes through `helpers::build_service_context()` — the canonical
+//! single entry point shared across all CLI commands.
 
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  rt is a valid tokio Runtime; service config must be resolvable
 /// post: starts the cybernetic loop system; prints registered loops; runs until Ctrl+C
 pub fn run(rt: &tokio::runtime::Runtime) {
-    // Resolve configuration from keystore and environment
-    let config = hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
-        eprintln!("Failed to resolve service config: {}", e);
-        eprintln!("Using in-memory config for loop system.");
-        hkask_services::ServiceConfig::in_memory()
-    });
-
-    // Build AgentService with all shared infrastructure
-    let ctx = rt
-        .block_on(hkask_services::AgentService::build(config))
-        .unwrap_or_else(|e| {
-            eprintln!("Failed to build service context for loop system: {e}");
-            std::process::exit(1);
-        });
+    // Build AgentService through the shared canonical helper
+    let ctx = super::helpers::or_exit(
+        super::helpers::build_service_context_from_secrets(None),
+        "Failed to build service context for loop system",
+    );
 
     // Start the loop system
     println!("Starting Loop System (per-loop default tick intervals)");

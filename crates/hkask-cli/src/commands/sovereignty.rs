@@ -18,25 +18,8 @@ pub fn run(action: crate::cli::SovereigntyAction) {
     }
 }
 
-fn parse_data_category(s: &str) -> DataCategory {
-    DataCategory::parse(s)
-}
-
 fn build_consent() -> (hkask_services::AgentService, Arc<ConsentManager>) {
-    let config = hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
-        eprintln!("Config env: {e}");
-        std::process::exit(1);
-    });
-    let rt = tokio::runtime::Runtime::new().unwrap_or_else(|e| {
-        eprintln!("runtime: {e}");
-        std::process::exit(1);
-    });
-    let svc = rt
-        .block_on(hkask_services::AgentService::build(config))
-        .unwrap_or_else(|e| {
-            eprintln!("build svc: {e}");
-            std::process::exit(1);
-        });
+    let svc = super::helpers::build_service_context();
     let cm = svc.sovereignty();
     (svc, cm)
 }
@@ -136,7 +119,7 @@ fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {
         crate::cli::SovereigntyAction::Grant { category } => {
             let webid = super::helpers::resolve_user_webid();
             let (_svc, cm) = build_consent();
-            let cat = parse_data_category(&category);
+            let cat = crate::cli::parse_data_category(&category);
             match cm.grant_consent(&webid.to_string(), &cat) {
                 Ok(()) => {
                     println!("Consent granted for category: {category}");
@@ -162,7 +145,7 @@ fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {
         }
         crate::cli::SovereigntyAction::Check { category } => {
             let webid = hkask_types::WebID::from_persona(b"cli-user");
-            let cat = parse_data_category(&category);
+            let cat = crate::cli::parse_data_category(&category);
             let (_svc, cm) = build_consent();
             let boundary = DataSovereigntyBoundary::hkask_default();
 

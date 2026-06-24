@@ -29,9 +29,12 @@ const SPLASH_DURATION_MS: u64 = 2500;
 //
 // Pixel values:
 //   0 = background (transparent)
-//   1 = main stroke (#1A1A1A → light gray on dark bg)
+//   1 = black tracing (behind steel blue)
 //   2 = shadow stroke (15% opacity → dim gray)
 //   3 = highlight (white — eye reflection, operator gap)
+//   4 = steel blue highlight (#4682B4)
+//   5 = dark steel shadow (#2C3E50)
+//   6 = Eye of the Tiger (#E3B26F) — main calligraphic brushstroke
 
 const CANVAS_W: usize = 80;
 const CANVAS_H: usize = 120;
@@ -112,9 +115,17 @@ fn build_logo_buffer() -> Vec<u8> {
     // ── MAIN MILK CAN BODY ──
 
     // Left side — thick downstroke: M 140 180 L 140 460, width 9
-    draw_thick_line(&mut buf, sx(140.0), sy(180.0), sx(140.0), sy(460.0), 2, 1);
+    draw_thick_line(&mut buf, sx(140.0), sy(180.0), sx(140.0), sy(460.0), 2, 6);
+    // Left side black tracing (behind)
+    draw_thick_line(&mut buf, sx(139.0), sy(180.0), sx(139.0), sy(460.0), 1, 1);
+    // Left side steel blue highlight
+    draw_thick_line(&mut buf, sx(143.0), sy(185.0), sx(143.0), sy(455.0), 1, 4);
     // Right side — thick downstroke: M 260 180 L 260 460, width 9
-    draw_thick_line(&mut buf, sx(260.0), sy(180.0), sx(260.0), sy(460.0), 2, 1);
+    draw_thick_line(&mut buf, sx(260.0), sy(180.0), sx(260.0), sy(460.0), 2, 6);
+    // Right side black tracing (behind)
+    draw_thick_line(&mut buf, sx(261.0), sy(180.0), sx(261.0), sy(460.0), 1, 1);
+    // Right side dark steel shadow
+    draw_thick_line(&mut buf, sx(257.0), sy(185.0), sx(257.0), sy(455.0), 1, 5);
     // Bottom — thick curved base: M 140 460 Q 140 470 200 470 Q 260 470 260 460, width 9
     draw_quad_bezier(
         &mut buf,
@@ -125,7 +136,7 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(200.0),
         sy(470.0),
         2,
-        1,
+        6,
     );
     draw_quad_bezier(
         &mut buf,
@@ -136,7 +147,53 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(260.0),
         sy(460.0),
         2,
+        6,
+    );
+    // Bottom black tracing (behind)
+    draw_quad_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(461.0),
+        sx(140.0),
+        sy(471.0),
+        sx(200.0),
+        sy(471.0),
         1,
+        1,
+    );
+    draw_quad_bezier(
+        &mut buf,
+        sx(200.0),
+        sy(471.0),
+        sx(260.0),
+        sy(471.0),
+        sx(260.0),
+        sy(461.0),
+        1,
+        1,
+    );
+    // Bottom dark steel shadow
+    draw_quad_bezier(
+        &mut buf,
+        sx(145.0),
+        sy(462.0),
+        sx(145.0),
+        sy(468.0),
+        sx(200.0),
+        sy(468.0),
+        1,
+        5,
+    );
+    draw_quad_bezier(
+        &mut buf,
+        sx(200.0),
+        sy(468.0),
+        sx(255.0),
+        sy(468.0),
+        sx(255.0),
+        sy(462.0),
+        1,
+        5,
     );
     // Top shoulder — thinner transition: M 140 180 Q 200 175 260 180, width 7
     draw_quad_bezier(
@@ -148,7 +205,31 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(260.0),
         sy(180.0),
         1,
+        6,
+    );
+    // Top shoulder black tracing (behind)
+    draw_quad_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(181.0),
+        sx(200.0),
+        sy(176.0),
+        sx(260.0),
+        sy(181.0),
         1,
+        1,
+    );
+    // Top shoulder steel blue highlight
+    draw_quad_bezier(
+        &mut buf,
+        sx(145.0),
+        sy(178.0),
+        sx(200.0),
+        sy(173.0),
+        sx(255.0),
+        sy(178.0),
+        1,
+        4,
     );
 
     // ── GALVANIZED RIBBING ──
@@ -162,7 +243,31 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(260.0),
         sy(220.0),
         1,
+        6,
+    );
+    // Upper rib black tracing (behind)
+    draw_quad_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(221.0),
+        sx(200.0),
+        sy(219.0),
+        sx(260.0),
+        sy(221.0),
         1,
+        1,
+    );
+    // Upper rib steel blue highlight
+    draw_quad_bezier(
+        &mut buf,
+        sx(145.0),
+        sy(219.0),
+        sx(200.0),
+        sy(217.0),
+        sx(255.0),
+        sy(219.0),
+        1,
+        4,
     );
     // Middle rib: M 140 280 Q 200 278 260 280, width 5
     draw_quad_bezier(
@@ -174,7 +279,31 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(260.0),
         sy(280.0),
         1,
+        6,
+    );
+    // Middle rib black tracing (behind)
+    draw_quad_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(281.0),
+        sx(200.0),
+        sy(279.0),
+        sx(260.0),
+        sy(281.0),
         1,
+        1,
+    );
+    // Middle rib steel blue highlight
+    draw_quad_bezier(
+        &mut buf,
+        sx(145.0),
+        sy(279.0),
+        sx(200.0),
+        sy(277.0),
+        sx(255.0),
+        sy(279.0),
+        1,
+        4,
     );
     // Lower rib: M 140 400 Q 200 398 260 400, width 5
     draw_quad_bezier(
@@ -186,7 +315,31 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(260.0),
         sy(400.0),
         1,
+        6,
+    );
+    // Lower rib black tracing (behind)
+    draw_quad_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(401.0),
+        sx(200.0),
+        sy(399.0),
+        sx(260.0),
+        sy(401.0),
         1,
+        1,
+    );
+    // Lower rib steel blue highlight
+    draw_quad_bezier(
+        &mut buf,
+        sx(145.0),
+        sy(399.0),
+        sx(200.0),
+        sy(397.0),
+        sx(255.0),
+        sy(399.0),
+        1,
+        4,
     );
     // Bottom rib: M 140 440 Q 200 438 260 440, width 5
     draw_quad_bezier(
@@ -198,7 +351,31 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(260.0),
         sy(440.0),
         1,
+        6,
+    );
+    // Bottom rib black tracing (behind)
+    draw_quad_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(441.0),
+        sx(200.0),
+        sy(439.0),
+        sx(260.0),
+        sy(441.0),
         1,
+        1,
+    );
+    // Bottom rib steel blue highlight
+    draw_quad_bezier(
+        &mut buf,
+        sx(145.0),
+        sy(439.0),
+        sx(200.0),
+        sy(437.0),
+        sx(255.0),
+        sy(439.0),
+        1,
+        4,
     );
 
     // ── SHOULDER ──
@@ -214,7 +391,35 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(160.0),
         sy(145.0),
         2,
+        6,
+    );
+    // Left shoulder black tracing (behind)
+    draw_cubic_bezier(
+        &mut buf,
+        sx(139.0),
+        sy(180.0),
+        sx(139.0),
+        sy(165.0),
+        sx(159.0),
+        sy(155.0),
+        sx(159.0),
+        sy(145.0),
         1,
+        1,
+    );
+    // Left shoulder steel blue highlight
+    draw_cubic_bezier(
+        &mut buf,
+        sx(142.0),
+        sy(178.0),
+        sx(142.0),
+        sy(164.0),
+        sx(161.0),
+        sy(154.0),
+        sx(161.0),
+        sy(145.0),
+        1,
+        4,
     );
     // Right shoulder curve: M 260 180 C 260 165 240 155 240 145, width 8
     draw_cubic_bezier(
@@ -228,14 +433,46 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(240.0),
         sy(145.0),
         2,
+        6,
+    );
+    // Right shoulder black tracing (behind)
+    draw_cubic_bezier(
+        &mut buf,
+        sx(261.0),
+        sy(180.0),
+        sx(261.0),
+        sy(165.0),
+        sx(241.0),
+        sy(155.0),
+        sx(241.0),
+        sy(145.0),
         1,
+        1,
+    );
+    // Right shoulder dark steel shadow
+    draw_cubic_bezier(
+        &mut buf,
+        sx(258.0),
+        sy(178.0),
+        sx(258.0),
+        sy(164.0),
+        sx(239.0),
+        sy(154.0),
+        sx(239.0),
+        sy(145.0),
+        1,
+        5,
     );
 
     // ── NECK ──
     // Left neck: M 160 140 L 160 145, width 8
-    draw_thick_line(&mut buf, sx(160.0), sy(140.0), sx(160.0), sy(145.0), 2, 1);
+    draw_thick_line(&mut buf, sx(160.0), sy(140.0), sx(160.0), sy(145.0), 2, 6);
+    // Left neck black tracing
+    draw_thick_line(&mut buf, sx(159.0), sy(140.0), sx(159.0), sy(145.0), 1, 1);
     // Right neck: M 240 140 L 240 145, width 8
-    draw_thick_line(&mut buf, sx(240.0), sy(140.0), sx(240.0), sy(145.0), 2, 1);
+    draw_thick_line(&mut buf, sx(240.0), sy(140.0), sx(240.0), sy(145.0), 2, 6);
+    // Right neck black tracing
+    draw_thick_line(&mut buf, sx(241.0), sy(140.0), sx(241.0), sy(145.0), 1, 1);
 
     // ── RIM ──
     // M 155 140 C 155 133 200 128 245 140 C 245 147 200 152 155 140, width 6
@@ -250,7 +487,7 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(245.0),
         sy(140.0),
         1,
-        1,
+        6,
     );
     draw_cubic_bezier(
         &mut buf,
@@ -263,12 +500,41 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(155.0),
         sy(140.0),
         1,
+        6,
+    );
+    // Rim black tracing (behind)
+    draw_cubic_bezier(
+        &mut buf,
+        sx(155.0),
+        sy(141.0),
+        sx(155.0),
+        sy(134.0),
+        sx(200.0),
+        sy(129.0),
+        sx(245.0),
+        sy(141.0),
+        1,
+        1,
+    );
+    draw_cubic_bezier(
+        &mut buf,
+        sx(245.0),
+        sy(141.0),
+        sx(245.0),
+        sy(148.0),
+        sx(200.0),
+        sy(153.0),
+        sx(155.0),
+        sy(141.0),
+        1,
         1,
     );
 
     // ── LID ──
     // Ellipse cx=200 cy=135 rx=45 ry=10 (approximate with rect)
-    draw_rect_stroke(&mut buf, sx(155.0), sy(125.0), sx(90.0), sy(20.0), 1, 1);
+    draw_rect_stroke(&mut buf, sx(155.0), sy(125.0), sx(90.0), sy(20.0), 1, 6);
+    // Lid black tracing
+    draw_rect_stroke(&mut buf, sx(155.0), sy(126.0), sx(90.0), sy(20.0), 1, 1);
 
     // ── LID KNOB ──
     // M 192 125 Q 200 118 208 125, width 7
@@ -281,6 +547,18 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(208.0),
         sy(125.0),
         2,
+        6,
+    );
+    // Lid knob black tracing
+    draw_quad_bezier(
+        &mut buf,
+        sx(192.0),
+        sy(126.0),
+        sx(200.0),
+        sy(119.0),
+        sx(208.0),
+        sy(126.0),
+        1,
         1,
     );
 
@@ -297,7 +575,7 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(115.0),
         sy(270.0),
         1,
-        1,
+        6,
     );
     draw_cubic_bezier(
         &mut buf,
@@ -309,6 +587,33 @@ fn build_logo_buffer() -> Vec<u8> {
         sy(285.0),
         sx(140.0),
         sy(280.0),
+        1,
+        6,
+    );
+    // Left handle black tracing
+    draw_cubic_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(221.0),
+        sx(115.0),
+        sy(221.0),
+        sx(110.0),
+        sy(251.0),
+        sx(115.0),
+        sy(271.0),
+        1,
+        1,
+    );
+    draw_cubic_bezier(
+        &mut buf,
+        sx(115.0),
+        sy(271.0),
+        sx(118.0),
+        sy(281.0),
+        sx(128.0),
+        sy(286.0),
+        sx(140.0),
+        sy(281.0),
         1,
         1,
     );
@@ -324,7 +629,7 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(285.0),
         sy(270.0),
         1,
-        1,
+        6,
     );
     draw_cubic_bezier(
         &mut buf,
@@ -336,6 +641,33 @@ fn build_logo_buffer() -> Vec<u8> {
         sy(285.0),
         sx(260.0),
         sy(280.0),
+        1,
+        6,
+    );
+    // Right handle black tracing
+    draw_cubic_bezier(
+        &mut buf,
+        sx(260.0),
+        sy(221.0),
+        sx(285.0),
+        sy(221.0),
+        sx(290.0),
+        sy(251.0),
+        sx(285.0),
+        sy(271.0),
+        1,
+        1,
+    );
+    draw_cubic_bezier(
+        &mut buf,
+        sx(285.0),
+        sy(271.0),
+        sx(282.0),
+        sy(281.0),
+        sx(272.0),
+        sy(286.0),
+        sx(260.0),
+        sy(281.0),
         1,
         1,
     );
@@ -351,7 +683,31 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(235.0),
         sy(330.0),
         2,
+        6,
+    );
+    // Upper eyelid black tracing
+    draw_quad_bezier(
+        &mut buf,
+        sx(165.0),
+        sy(331.0),
+        sx(200.0),
+        sy(313.0),
+        sx(235.0),
+        sy(331.0),
         1,
+        1,
+    );
+    // Upper eyelid steel blue highlight
+    draw_quad_bezier(
+        &mut buf,
+        sx(170.0),
+        sy(328.0),
+        sx(200.0),
+        sy(314.0),
+        sx(230.0),
+        sy(328.0),
+        1,
+        4,
     );
     // Lower eyelid — thinner: M 168 352 Q 200 372 232 352, width 5
     draw_quad_bezier(
@@ -363,24 +719,66 @@ fn build_logo_buffer() -> Vec<u8> {
         sx(232.0),
         sy(352.0),
         1,
+        6,
+    );
+    // Lower eyelid black tracing
+    draw_quad_bezier(
+        &mut buf,
+        sx(168.0),
+        sy(353.0),
+        sx(200.0),
+        sy(373.0),
+        sx(232.0),
+        sy(353.0),
+        1,
         1,
     );
+    // Lower eyelid dark steel shadow
+    draw_quad_bezier(
+        &mut buf,
+        sx(172.0),
+        sy(353.0),
+        sx(200.0),
+        sy(370.0),
+        sx(228.0),
+        sy(353.0),
+        1,
+        5,
+    );
 
-    // Iris — solid fill: cx=200 cy=342 r=20
-    draw_filled_circle(&mut buf, sx(200.0), sy(342.0), sx(20.0), 1);
-    // Pupil — darker: cx=200 cy=342 r=11
-    draw_filled_circle(&mut buf, sx(200.0), sy(342.0), sx(11.0), 1);
-    // Light reflection — white: cx=206 cy=336 r=5
+    // Iris — solid fill with Eye of the Tiger: cx=200 cy=342 r=20
+    draw_filled_circle(&mut buf, sx(200.0), sy(342.0), sx(20.0), 6);
+    // Iris black tracing (outer edge)
+    draw_filled_circle(&mut buf, sx(200.0), sy(342.0), sx(21.0), 1);
+    // Iris steel blue ring (outer)
+    draw_filled_circle(&mut buf, sx(200.0), sy(342.0), sx(18.0), 4);
+    // Iris dark steel ring (inner)
+    draw_filled_circle(&mut buf, sx(200.0), sy(342.0), sx(15.0), 5);
+    // Pupil — darker with Eye of the Tiger: cx=200 cy=342 r=11
+    draw_filled_circle(&mut buf, sx(200.0), sy(342.0), sx(11.0), 6);
+    // Pupil black tracing
+    draw_filled_circle(&mut buf, sx(200.0), sy(342.0), sx(12.0), 1);
+    // Pupil steel blue inner ring
+    draw_filled_circle(&mut buf, sx(200.0), sy(342.0), sx(9.0), 4);
+    // Light reflection — white with steel blue glow: cx=206 cy=336 r=5
+    draw_filled_circle(&mut buf, sx(206.0), sy(336.0), sx(6.0), 4);
     draw_filled_circle(&mut buf, sx(206.0), sy(336.0), sx(5.0), 3);
 
-    // Eyelashes — subtle flicks
-    draw_thick_line(&mut buf, sx(178.0), sy(328.0), sx(175.0), sy(321.0), 1, 1);
-    draw_thick_line(&mut buf, sx(190.0), sy(324.0), sx(188.0), sy(316.0), 1, 1);
-    draw_thick_line(&mut buf, sx(210.0), sy(324.0), sx(212.0), sy(316.0), 1, 1);
-    draw_thick_line(&mut buf, sx(222.0), sy(328.0), sx(225.0), sy(321.0), 1, 1);
+    // Eyelashes — subtle flicks with Eye of the Tiger
+    draw_thick_line(&mut buf, sx(178.0), sy(328.0), sx(175.0), sy(321.0), 1, 6);
+    draw_thick_line(&mut buf, sx(190.0), sy(324.0), sx(188.0), sy(316.0), 1, 6);
+    draw_thick_line(&mut buf, sx(210.0), sy(324.0), sx(212.0), sy(316.0), 1, 6);
+    draw_thick_line(&mut buf, sx(222.0), sy(328.0), sx(225.0), sy(321.0), 1, 6);
+    // Eyelashes black tracing
+    draw_thick_line(&mut buf, sx(178.0), sy(329.0), sx(175.0), sy(322.0), 1, 1);
+    draw_thick_line(&mut buf, sx(190.0), sy(325.0), sx(188.0), sy(317.0), 1, 1);
+    draw_thick_line(&mut buf, sx(210.0), sy(325.0), sx(212.0), sy(317.0), 1, 1);
+    draw_thick_line(&mut buf, sx(222.0), sy(329.0), sx(225.0), sy(322.0), 1, 1);
 
     // Operator Authority Gap — white arc: M 209 333 A 20 20 0 0 1 211 351, width 3
     draw_thick_line(&mut buf, sx(209.0), sy(333.0), sx(211.0), sy(351.0), 1, 3);
+    // Operator gap steel blue accent
+    draw_thick_line(&mut buf, sx(210.0), sy(334.0), sx(212.0), sy(350.0), 1, 4);
 
     buf
 }
@@ -650,9 +1048,11 @@ fn half_block_pixel(top: u8, bot: u8) -> (&'static str, Color, Color) {
     let main = Color::Rgb(224, 224, 224); // #E0E0E0 light gray
     let shadow = Color::Rgb(60, 60, 70); // dim shadow
     let highlight = Color::White; // eye reflection
+    let steel_blue = Color::Rgb(70, 130, 180); // #4682B4 steel blue
+    let dark_steel = Color::Rgb(44, 62, 80); // #2C3E50 dark steel
 
-    let top_color = pixel_color(top, main, shadow, highlight, bg);
-    let bot_color = pixel_color(bot, main, shadow, highlight, bg);
+    let top_color = pixel_color(top, main, shadow, highlight, steel_blue, dark_steel, bg);
+    let bot_color = pixel_color(bot, main, shadow, highlight, steel_blue, dark_steel, bg);
 
     match (top, bot) {
         (0, 0) => (" ", bg, bg),
@@ -663,11 +1063,23 @@ fn half_block_pixel(top: u8, bot: u8) -> (&'static str, Color, Color) {
     }
 }
 
-fn pixel_color(value: u8, main: Color, shadow: Color, highlight: Color, bg: Color) -> Color {
+fn pixel_color(
+    value: u8,
+    main: Color,
+    shadow: Color,
+    highlight: Color,
+    steel_blue: Color,
+    dark_steel: Color,
+    bg: Color,
+) -> Color {
+    let eye_of_tiger = Color::Rgb(227, 178, 111); // #E3B26F
     match value {
-        1 => main,
+        1 => main, // black tracing
         2 => shadow,
         3 => highlight,
+        4 => steel_blue,
+        5 => dark_steel,
+        6 => eye_of_tiger,
         _ => bg,
     }
 }

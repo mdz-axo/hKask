@@ -113,7 +113,7 @@ install_system_dependencies() {
             ;;
         dnf|yum)
             log "Installing build dependencies (Fedora/RHEL)..."
-            sudo $pkg_mgr install -y \
+            sudo "$pkg_mgr" install -y \
                 gcc \
                 gcc-c++ \
                 make \
@@ -241,10 +241,12 @@ clone_repo() {
     rm -rf "$clone_dir"
 
     # Try version tag first, fall back to main branch
-    local clone_err
-    clone_err=$(git clone --depth 1 --branch "v${HKASK_VERSION}" "$HKASK_REPO_URL" "$clone_dir" 2>&1) && {
+    local clone_err clone_rc
+    clone_err=$(git clone --depth 1 --branch "v${HKASK_VERSION}" "$HKASK_REPO_URL" "$clone_dir" 2>&1)
+    clone_rc=$?
+    if [ "$clone_rc" -eq 0 ]; then
         log "Checked out tag v${HKASK_VERSION}"
-    } || {
+    else
         # Only fall back if the error is "tag not found", not a network failure
         if echo "$clone_err" | grep -qE '(Remote branch.*not found|pathspec.*did not match|could not find remote branch)'; then
             log "Tag v${HKASK_VERSION} not found, cloning main branch"
@@ -254,7 +256,7 @@ clone_repo() {
             echo "$clone_err" >&2
             exit 1
         fi
-    }
+    fi
     HKASK_SOURCE_DIR="$clone_dir"
     log_success "Repository cloned to $HKASK_SOURCE_DIR"
 }
@@ -351,9 +353,11 @@ add_to_path() {
         for cfg in "${configs[@]}"; do
             if [ -f "$cfg" ] || [ "$(basename "$cfg")" = ".profile" ]; then
                 if ! grep -q "$BIN_DIR" "$cfg" 2>/dev/null; then
-                    echo "" >> "$cfg"
-                    echo "# hKask" >> "$cfg"
-                    echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$cfg"
+                    {
+                        echo ""
+                        echo "# hKask"
+                        echo "export PATH=\"$BIN_DIR:\$PATH\""
+                    } >> "$cfg"
                     log "Added PATH entry to $cfg"
                     added=true
                 fi

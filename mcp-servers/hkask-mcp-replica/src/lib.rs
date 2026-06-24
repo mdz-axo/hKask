@@ -66,7 +66,6 @@ impl ReplicaServer {
     }
 }
 
-
 impl hkask_mcp::server::ToolContext for ReplicaServer {
     fn webid(&self) -> &WebID {
         &self.webid
@@ -450,8 +449,8 @@ impl ReplicaServer {
                     elapsed_ms: started.elapsed().as_millis() as u64,
                 };
 
-                return Ok(serde_json::to_value(&result)
-                    .map_err(|e| McpToolError::internal(e.to_string()))?);
+                return serde_json::to_value(&result)
+                    .map_err(|e| McpToolError::internal(e.to_string()));
             }
 
             // ── Pairwise author comparison path (backward compat) ─────
@@ -503,11 +502,11 @@ impl ReplicaServer {
                 }
             }
 
-            Ok(serde_json::to_value(&CompareResult {
+            serde_json::to_value(&CompareResult {
                 authors: author_info,
                 distances,
             })
-            .map_err(|e| McpToolError::internal(e.to_string()))?)
+            .map_err(|e| McpToolError::internal(e.to_string()))
         })
         .await
     }

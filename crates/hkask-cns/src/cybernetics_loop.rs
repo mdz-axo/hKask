@@ -31,7 +31,7 @@ use crate::dampener::Dampener;
 use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost, EnergyError};
 use crate::energy_budget_management::EnergyBudgetManager;
 use crate::runtime::CnsRuntime;
-use crate::set_points::{DEFAULT_MAX_ITERATIONS, SetPoints};
+use crate::set_points::SetPoints;
 use crate::wallet_budget::WalletBackedBudget;
 
 use crate::algedonic::{AlertSeverity, RuntimeAlert};
@@ -80,12 +80,18 @@ impl CyberneticsLoop {
     }
 
     fn build(cns: Arc<RwLock<CnsRuntime>>, set_points: SetPoints) -> Self {
+        let dampener = Arc::new(Dampener::with_windows(
+            std::time::Duration::from_secs(set_points.dampen_window_secs),
+            std::time::Duration::from_secs(set_points.metacognitive_window_secs),
+            std::time::Duration::from_secs(set_points.override_cooldown_secs),
+        ));
+        let max_iterations = set_points.max_iterations;
         let slf = Self {
             cns,
             energy_budget_manager: EnergyBudgetManager::new(),
             set_points,
-            max_iterations: DEFAULT_MAX_ITERATIONS,
-            dampener: Arc::new(Dampener::new()),
+            max_iterations,
+            dampener,
             event_sink: None,
             alerts_tx: None,
             tool_consumption_rx: None,

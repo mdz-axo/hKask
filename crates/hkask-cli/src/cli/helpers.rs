@@ -2,14 +2,8 @@
 
 use hkask_types::template_type::TemplateType as Type;
 
-/// Parse a string into a DataCategory (delegates to DataCategory::parse)
-///
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  s is any string
-/// post: returns DataCategory parsed from s (defaults to Public on unrecognized)
-pub fn parse_data_category(s: &str) -> hkask_types::DataCategory {
-    hkask_types::DataCategory::parse(s)
-}
+// Shared canonical location: hkask-services-core
+pub use hkask_services_core::parse_data_category;
 
 /// Parse a template type string into a TemplateType enum
 ///

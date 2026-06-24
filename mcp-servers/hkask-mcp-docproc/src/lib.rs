@@ -488,7 +488,7 @@ fn tokens_to_words(tokens: usize) -> usize {
 fn chunk_word_bounds(max_tokens: Option<usize>, overlap_tokens: Option<usize>) -> (usize, usize) {
     let max_w = tokens_to_words(max_tokens.unwrap_or(512));
     let min_w = tokens_to_words(overlap_tokens.unwrap_or(64)).max(max_w / 4);
-    (max_w, min_w as usize)
+    (max_w, min_w)
 }
 
 /// Serialize (entity_ref, text) pair vec into json.

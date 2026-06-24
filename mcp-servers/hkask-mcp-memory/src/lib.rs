@@ -115,9 +115,9 @@ impl MemoryServer {
                 .with_perspective(self.webid)
                 .with_confidence(confidence.unwrap_or(1.0))
                 .with_visibility(Visibility::Private);
-            self.episodic.store(triple).map_err(|e| {
-                McpToolError::internal(format!("store episodic triple: {}", e))
-            })?;
+            self.episodic
+                .store(triple)
+                .map_err(|e| McpToolError::internal(format!("store episodic triple: {}", e)))?;
             Ok(json!({
                 "stored": true, "entity": entity, "attribute": attribute,
             }))
@@ -135,9 +135,7 @@ impl MemoryServer {
             let triples = self
                 .episodic
                 .query_for_deduped(&entity, self.webid)
-                .map_err(|e| {
-                    McpToolError::internal(format!("recall episodic triples: {}", e))
-                })?;
+                .map_err(|e| McpToolError::internal(format!("recall episodic triples: {}", e)))?;
             let serialized: Vec<serde_json::Value> = triples
                 .iter()
                 .map(|t| {
@@ -176,9 +174,7 @@ impl MemoryServer {
             let triples = self
                 .episodic
                 .query_for_deduped(&entity, self.webid)
-                .map_err(|e| {
-                    McpToolError::internal(format!("recall episodic triples: {}", e))
-                })?;
+                .map_err(|e| McpToolError::internal(format!("recall episodic triples: {}", e)))?;
 
             if triples.is_empty() {
                 return Ok(json!({"count": 0, "episodes": []}));
@@ -315,9 +311,9 @@ impl MemoryServer {
             let triple = Triple::new(&entity, &attribute, value, self.webid)
                 .with_visibility(Visibility::Public)
                 .with_confidence(confidence.unwrap_or(1.0));
-            self.semantic.store(triple).map_err(|e| {
-                McpToolError::internal(format!("store semantic triple: {}", e))
-            })?;
+            self.semantic
+                .store(triple)
+                .map_err(|e| McpToolError::internal(format!("store semantic triple: {}", e)))?;
             Ok(json!({"stored": true, "entity": entity, "attribute": attribute}))
         })
         .await
@@ -333,9 +329,7 @@ impl MemoryServer {
             let triples = self
                 .semantic
                 .query_deduped(&entity)
-                .map_err(|e| {
-                    McpToolError::internal(format!("recall semantic triples: {}", e))
-                })?;
+                .map_err(|e| McpToolError::internal(format!("recall semantic triples: {}", e)))?;
             let serialized: Vec<_> = triples
                 .iter()
                 .map(|t| {
@@ -455,9 +449,10 @@ impl MemoryServer {
             let limit = limit.unwrap_or(10);
 
             // ── Semantic recall (third-person facts, no personal filter) ──
-            let semantic_triples = self.semantic.query_deduped(&entity).map_err(|e| {
-                McpToolError::internal(format!("recall semantic memory: {}", e))
-            })?;
+            let semantic_triples = self
+                .semantic
+                .query_deduped(&entity)
+                .map_err(|e| McpToolError::internal(format!("recall semantic memory: {}", e)))?;
             let semantic: Vec<_> = semantic_triples
                 .iter()
                 .take(limit)
@@ -476,9 +471,7 @@ impl MemoryServer {
             let episodic_triples = self
                 .episodic
                 .query_for_deduped(&entity, self.webid)
-                .map_err(|e| {
-                    McpToolError::internal(format!("recall episodic memory: {}", e))
-                })?;
+                .map_err(|e| McpToolError::internal(format!("recall episodic memory: {}", e)))?;
 
             if episodic_triples.is_empty() {
                 return Ok(json!({
@@ -704,13 +697,8 @@ impl MemoryServer {
             } else {
                 text.clone()
             };
-            let passages = SemanticMemory::chunk_text(
-                &processed,
-                &entity_ref_prefix,
-                min_w,
-                max_w,
-                &boundary,
-            );
+            let passages =
+                SemanticMemory::chunk_text(&processed, &entity_ref_prefix, min_w, max_w, &boundary);
             let serialized: Vec<_> = passages
                 .into_iter()
                 .map(|(entity_ref, passage_text)| {

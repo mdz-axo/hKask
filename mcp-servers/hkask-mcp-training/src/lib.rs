@@ -65,9 +65,8 @@ use hkask_adapter::AdapterPort;
 use hkask_adapter::AdapterRouter;
 use hkask_adapter::{EndpointLifecycle, EndpointPhase};
 use hkask_inference::{InferenceConfig, InferenceRouter};
-use hkask_mcp::DaemonResponse;
+
 use hkask_mcp::server::{McpToolError, execute_tool};
-use hkask_mcp::validate_field;
 use hkask_memory::SemanticMemory;
 use hkask_ports::InferencePort;
 use hkask_storage::Triple;
@@ -247,9 +246,7 @@ impl TrainingServer {
                 return Err(McpToolError::invalid_argument("qa_items must not be empty"));
             }
 
-            if let Err(e) = hkask_mcp::validate_identifier("source", &source, 256) {
-                return Err(e);
-            }
+            hkask_mcp::validate_identifier("source", &source, 256)?;
 
             let ds = dataset.as_deref().unwrap_or("default");
 
@@ -1567,11 +1564,7 @@ impl TrainingServer {
         let triples = match semantic.query_by_attribute("training_qa_pair") {
             Ok(t) => t,
             Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Failed to query QA triples: {}", e))
-                        .to_json_string(),
-                );
+                return Err(McpToolError::internal(format!("Failed to query QA triples: {}", e)));
             }
         };
 
@@ -1731,14 +1724,12 @@ impl TrainingServer {
                     "quality_threshold_met": (reviewed - corrections) as f64 / reviewed.max(1) as f64 >= 0.7,
                     "tokens_used": total_tokens,
                 });
-                                Ok(result)
+                Ok(result)
             }
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to write feedback file: {}", e))
-                    .to_json_string(),
-            ),
+            Err(e) => Err(McpToolError::internal(format!("Failed to write feedback file: {}", e))),
         }
+        })
+        .await
     }
 
     #[tool(
@@ -1756,7 +1747,7 @@ impl TrainingServer {
             merged_output_path,
         }): Parameters<TrainRetrainRequest>,
     ) -> String {
-        
+        execute_tool(self, "training_retrain", async {
         tracing::info!(
             target: "cns.training.retrain.started",
             skill = %skill_name,
@@ -1767,51 +1758,38 @@ impl TrainingServer {
         // Validate input files exist
         let original = PathBuf::from(&original_dataset_path);
         if !original.exists() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(format!(
-                    "Original dataset not found: {}",
-                    original_dataset_path
-                ))
-                .to_json_string(),
-            );
+            return Err(McpToolError::invalid_argument(format!(
+                "Original dataset not found: {}",
+                original_dataset_path
+            )));
         }
 
         let feedback = PathBuf::from(&feedback_path);
         if !feedback.exists() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(format!(
-                    "Feedback file not found: {}",
-                    feedback_path
-                ))
-                .to_json_string(),
-            );
+            return Err(McpToolError::invalid_argument(format!(
+                "Feedback file not found: {}",
+                feedback_path
+            )));
         }
 
         // Read and merge datasets
         let original_content = match std::fs::read_to_string(&original) {
             Ok(c) => c,
             Err(e) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(format!(
-                        "Failed to read original dataset: {}",
-                        e
-                    ))
-                    .to_json_string(),
-                );
+                return Err(McpToolError::invalid_argument(format!(
+                    "Failed to read original dataset: {}",
+                    e
+                )));
             }
         };
 
         let feedback_content = match std::fs::read_to_string(&feedback) {
             Ok(c) => c,
             Err(e) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(format!("Failed to read feedback file: {}", e))
-                        .to_json_string(),
-                );
+                return Err(McpToolError::invalid_argument(format!(
+                    "Failed to read feedback file: {}",
+                    e
+                )));
             }
         };
 
@@ -1844,7 +1822,9 @@ impl TrainingServer {
         }
 
         if merged.is_empty() {
-            return Err(McpToolError::invalid_argument("No valid examples found in either dataset"));
+            return Err(McpToolError::invalid_argument(
+                "No valid examples found in either dataset",
+            ));
         }
 
         // Write merged dataset
@@ -1852,11 +1832,10 @@ impl TrainingServer {
             .unwrap_or_else(|| format!("/tmp/hkask-retrain-{}.jsonl", &adapter_name));
 
         if let Err(e) = std::fs::write(&merged_path, &merged) {
-            return span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to write merged dataset: {}", e))
-                    .to_json_string(),
-            );
+            return Err(McpToolError::internal(format!(
+                "Failed to write merged dataset: {}",
+                e
+            )));
         }
 
         // Determine version: look up previous adapter by skill name and increment
@@ -1893,11 +1872,10 @@ impl TrainingServer {
         {
             Ok(path) => path,
             Err(e) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(format!("Dataset pipeline error: {}", e))
-                        .to_json_string(),
-                );
+                return Err(McpToolError::invalid_argument(format!(
+                    "Dataset pipeline error: {}",
+                    e
+                )));
             }
         };
 
@@ -1973,7 +1951,7 @@ impl TrainingServer {
                         "description": "A/B baseline from previous adapter. New adapter must beat this on >=2 of 3 metrics to auto-promote.",
                     })),
                 });
-                                Ok(result)
+                Ok(result)
             }
             Err(e) => {
                 tracing::error!(
@@ -1981,13 +1959,14 @@ impl TrainingServer {
                     error = %e,
                     "Retraining job submission failed"
                 );
-                span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Retraining job failed: {}", e))
-                        .to_json_string(),
-                )
+                Err(McpToolError::internal(format!(
+                    "Retraining job failed: {}",
+                    e
+                )))
             }
         }
+        })
+        .await
     }
 
     #[tool(
@@ -2000,14 +1979,13 @@ impl TrainingServer {
             cache_dir,
         }): Parameters<TrainIngestDatasetRequest>,
     ) -> String {
-        
+        execute_tool(self, "training_ingest_dataset", async {
         let file_path = PathBuf::from(&dataset_path);
         if !file_path.exists() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(format!("Dataset file not found: {}", dataset_path))
-                    .to_json_string(),
-            );
+            return Err(McpToolError::invalid_argument(format!(
+                "Dataset file not found: {}",
+                dataset_path
+            )));
         }
 
         // Use provided cache dir or create a pipeline with the default
@@ -2030,27 +2008,28 @@ impl TrainingServer {
                     "detected_format": format.map(|f| format!("{:?}", f)).unwrap_or_else(|| "unknown".to_string()),
                     "cached": true,
                 });
-                                Ok(result)
+                Ok(result)
             }
-            Err(e) => span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(format!("Dataset ingest error: {}", e))
-                    .to_json_string(),
-            ),
+            Err(e) => Err(McpToolError::invalid_argument(format!(
+                "Dataset ingest error: {}",
+                e
+            ))),
         }
+        })
+        .await
     }
 
     #[tool(
         description = "Submit a parameter sweep across learning rates, LoRA ranks, batch sizes, and epochs. All combinations submitted as separate jobs. Use training_status to track results."
     )]
     async fn training_sweep(&self, Parameters(req): Parameters<TrainSweepRequest>) -> String {
-                let file_path = PathBuf::from(&req.dataset_path);
+        execute_tool(self, "training_sweep", async {
+        let file_path = PathBuf::from(&req.dataset_path);
         if !file_path.exists() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(format!("Dataset not found: {}", req.dataset_path))
-                    .to_json_string(),
-            );
+            return Err(McpToolError::invalid_argument(format!(
+                "Dataset not found: {}",
+                req.dataset_path
+            )));
         }
         let normalized = match self
             .pipeline
@@ -2060,10 +2039,7 @@ impl TrainingServer {
         {
             Ok(p) => p,
             Err(e) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(format!("Pipeline: {}", e)).to_json_string(),
-                );
+                return Err(McpToolError::invalid_argument(format!("Pipeline: {}", e)));
             }
         };
         let mut jobs_out = Vec::new();
@@ -2116,7 +2092,9 @@ impl TrainingServer {
         }
         let result =
             json!({"total": idx, "submitted": submitted, "failures": failures, "jobs": jobs_out});
-                Ok(result)
+        Ok(result)
+        })
+        .await
     }
 
     #[tool(
@@ -2135,11 +2113,13 @@ impl TrainingServer {
             generation_config,
         }): Parameters<GenerateChainOfThoughtRequest>,
     ) -> String {
-        
+        execute_tool(self, "training_generate_chain_of_thought", async {
         let count = num_traces.unwrap_or(20);
         let steps = num_steps.unwrap_or(3);
         if count == 0 || steps == 0 {
-            return Err(McpToolError::invalid_argument("num_traces and num_steps must be > 0"));
+            return Err(McpToolError::invalid_argument(
+                "num_traces and num_steps must be > 0",
+            ));
         }
 
         let skill_text = if let Ok(content) = std::fs::read_to_string(&skill_document) {
@@ -2213,10 +2193,7 @@ impl TrainingServer {
                     }
                 }
                 if valid == 0 {
-                    return span.error(
-                        McpErrorKind::Internal,
-                        McpToolError::internal("No valid CoT traces generated").to_json_string(),
-                    );
+                    return Err(McpToolError::internal("No valid CoT traces generated"));
                 }
                 match std::fs::write(&output_path, &output) {
                     Ok(()) => {
@@ -2230,17 +2207,13 @@ impl TrainingServer {
                         });
                         Ok(result)
                     }
-                    Err(e) => span.error(
-                        McpErrorKind::Internal,
-                        McpToolError::internal(format!("Failed to write: {}", e)).to_json_string(),
-                    ),
+                    Err(e) => Err(McpToolError::internal(format!("Failed to write: {}", e))),
                 }
             }
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Inference failed: {}", e)).to_json_string(),
-            ),
+            Err(e) => Err(McpToolError::internal(format!("Inference failed: {}", e))),
         }
+        })
+        .await
     }
 
     #[tool(
@@ -2256,23 +2229,21 @@ impl TrainingServer {
             density,
         }): Parameters<MergeAdaptersRequest>,
     ) -> String {
-        
+        execute_tool(self, "training_merge_adapters", async {
         if adapter_ids.len() < 2 {
-            return Err(McpToolError::invalid_argument("At least 2 adapter IDs required for merge"));
+            return Err(McpToolError::invalid_argument(
+                "At least 2 adapter IDs required for merge",
+            ));
         }
 
         if let Some(ref w) = weights
             && w.len() != adapter_ids.len()
         {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(format!(
-                    "weights length ({}) must match adapter_ids length ({})",
-                    w.len(),
-                    adapter_ids.len()
-                ))
-                .to_json_string(),
-            );
+            return Err(McpToolError::invalid_argument(format!(
+                "weights length ({}) must match adapter_ids length ({})",
+                w.len(),
+                adapter_ids.len()
+            )));
         }
 
         // Look up each adapter's metadata to find weight paths and base models.
@@ -2284,14 +2255,10 @@ impl TrainingServer {
                 Ok(Some(meta)) => {
                     if let Some(ref bm) = base_model {
                         if meta.base_model != *bm {
-                            return span.error(
-                                McpErrorKind::InvalidArgument,
-                                McpToolError::invalid_argument(format!(
-                                    "All adapters must share the same base model. Found '{}' and '{}'",
-                                    bm, meta.base_model
-                                ))
-                                .to_json_string(),
-                            );
+                            return Err(McpToolError::invalid_argument(format!(
+                                "All adapters must share the same base model. Found '{}' and '{}'",
+                                bm, meta.base_model
+                            )));
                         }
                     } else {
                         base_model = Some(meta.base_model.clone());
@@ -2301,33 +2268,24 @@ impl TrainingServer {
                     match self.host.adapter_weight_path(adapter_id).await {
                         Ok(Some(path)) => adapter_weight_paths.push(path),
                         _ => {
-                            return span.error(
-                                McpErrorKind::InvalidArgument,
-                                McpToolError::invalid_argument(format!(
-                                    "Adapter '{}' weights not found locally. Use training_submit first.",
-                                    adapter_id
-                                ))
-                                .to_json_string(),
-                            );
+                            return Err(McpToolError::invalid_argument(format!(
+                                "Adapter '{}' weights not found locally. Use training_submit first.",
+                                adapter_id
+                            )));
                         }
                     }
                 }
                 Ok(None) => {
-                    return span.error(
-                        McpErrorKind::InvalidArgument,
-                        McpToolError::invalid_argument(format!(
-                            "Adapter '{}' not found in registry",
-                            adapter_id
-                        ))
-                        .to_json_string(),
-                    );
+                    return Err(McpToolError::invalid_argument(format!(
+                        "Adapter '{}' not found in registry",
+                        adapter_id
+                    )));
                 }
                 Err(e) => {
-                    return span.error(
-                        McpErrorKind::Internal,
-                        McpToolError::internal(format!("Adapter store error: {}", e))
-                            .to_json_string(),
-                    );
+                    return Err(McpToolError::internal(format!(
+                        "Adapter store error: {}",
+                        e
+                    )));
                 }
             }
         }
@@ -2370,19 +2328,20 @@ impl TrainingServer {
                 });
                 Ok(result)
             }
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to store merged adapter: {}", e))
-                    .to_json_string(),
-            ),
+            Err(e) => Err(McpToolError::internal(format!(
+                "Failed to store merged adapter: {}",
+                e
+            ))),
         }
+        })
+        .await
     }
 
     #[tool(
         description = "Deploy a trained adapter to a cloud inference endpoint. Looks up the adapter by name from AdapterStore, resolves the base model, estimates cost and setup time per provider, and provisions or locates an endpoint. For Together AI, the fine-tuned model is auto-deployed — returns the model name directly. For Baseten/Runpod, returns a deployment ID for status polling. CNS span: cns.training.deploy."
     )]
     async fn training_deploy(&self, Parameters(req): Parameters<TrainDeployRequest>) -> String {
-        
+        execute_tool(self, "training_deploy", async {
         // Look up adapter from store — validate it exists.
         // Try by exact ID first, then by skill/expertise name.
         let adapter_meta = match self.adapter_store.get_metadata(&req.adapter_name).await {
@@ -2395,21 +2354,16 @@ impl TrainingServer {
                 {
                     Ok(Some(meta)) => meta,
                     Ok(None) => {
-                        return span.error(
-                            McpErrorKind::InvalidArgument,
-                            McpToolError::invalid_argument(format!(
-                                "Adapter '{}' not found by ID or skill name. Use training_list_adapters to see available adapters.",
-                                req.adapter_name
-                            ))
-                            .to_json_string(),
-                        );
+                        return Err(McpToolError::invalid_argument(format!(
+                            "Adapter '{}' not found by ID or skill name. Use training_list_adapters to see available adapters.",
+                            req.adapter_name
+                        )));
                     }
                     Err(e) => {
-                        return span.error(
-                            McpErrorKind::Internal,
-                            McpToolError::internal(format!("Adapter store error: {}", e))
-                                .to_json_string(),
-                        );
+                        return Err(McpToolError::internal(format!(
+                            "Adapter store error: {}",
+                            e
+                        )));
                     }
                 }
             }
@@ -2439,11 +2393,9 @@ impl TrainingServer {
             {
                 Ok(e) => e,
                 Err(e) => {
-                    return span.error(
-                        McpErrorKind::Internal,
-                        McpToolError::internal(format!("Composition estimate failed: {e}"))
-                            .to_json_string(),
-                    );
+                    return Err(McpToolError::internal(format!(
+                        "Composition estimate failed: {e}"
+                    )));
                 }
             };
 
@@ -2454,11 +2406,9 @@ impl TrainingServer {
                 {
                     Ok(h) => h,
                     Err(e) => {
-                        return span.error(
-                            McpErrorKind::Internal,
-                            McpToolError::internal(format!("Endpoint creation failed: {e}"))
-                                .to_json_string(),
-                        );
+                        return Err(McpToolError::internal(format!(
+                            "Endpoint creation failed: {e}"
+                        )));
                     }
                 };
 
@@ -2497,7 +2447,7 @@ impl TrainingServer {
             }
 
             tracing::info!(target: "cns.training.deploy", endpoint_id = %handle.endpoint_id, adapter = %req.adapter_name, provider = ?req.provider, "Adapter deployed via AdapterRouter");
-                        return Ok(result);
+            return Ok(result);
         }
 
         // Fallback: local deployment pipeline
@@ -2575,7 +2525,9 @@ impl TrainingServer {
             "note": provider_note,
         });
         tracing::info!(target: "cns.training.deploy", deployment_id = %deploy_id, adapter = %req.adapter_name, provider = ?req.provider, cost_hr = cost_hr, "Adapter deployment initiated");
-                Ok(result)
+        Ok(result)
+        })
+        .await
     }
 
     #[tool(
@@ -2585,74 +2537,74 @@ impl TrainingServer {
         &self,
         Parameters(req): Parameters<TrainTeardownRequest>,
     ) -> String {
-        
-        // Try router first for live status
-        if let Some(ref router) = self.adapter_router
-            && let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id)
-        {
-            let token = hkask_capability::DelegationToken::new(
-                hkask_capability::DelegationResource::Tool,
-                "adapter:read".into(),
-                hkask_capability::DelegationAction::Execute,
-                self.webid,
-                self.webid,
-                &hkask_capability::auth::derive_signing_key(b"training-mcp-status"),
-            );
-            if let Ok(status) = AdapterPort::endpoint_status(router.as_ref(), endpoint_id, &token) {
-                return Ok(json!({
-                    "deployment_id": status.endpoint_id.to_string(),
-                    "expertise_name": status.expertise_name,
-                    "provider": format!("{:?}", status.provider).to_lowercase(),
-                    "phase": format!("{:?}", status.phase).to_lowercase(),
-                    "cost_accrued": status.cost_accrued,
-                    "elapsed_seconds": status.elapsed_seconds as u64,
-                    "route": "hkask-adapter",
-                }));
+        execute_tool(self, "training_deployment_status", async {
+            // Try router first for live status
+            if let Some(ref router) = self.adapter_router
+                && let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id)
+            {
+                let token = hkask_capability::DelegationToken::new(
+                    hkask_capability::DelegationResource::Tool,
+                    "adapter:read".into(),
+                    hkask_capability::DelegationAction::Execute,
+                    self.webid,
+                    self.webid,
+                    &hkask_capability::auth::derive_signing_key(b"training-mcp-status"),
+                );
+                if let Ok(status) =
+                    AdapterPort::endpoint_status(router.as_ref(), endpoint_id, &token)
+                {
+                    return Ok(json!({
+                        "deployment_id": status.endpoint_id.to_string(),
+                        "expertise_name": status.expertise_name,
+                        "provider": format!("{:?}", status.provider).to_lowercase(),
+                        "phase": format!("{:?}", status.phase).to_lowercase(),
+                        "cost_accrued": status.cost_accrued,
+                        "elapsed_seconds": status.elapsed_seconds as u64,
+                        "route": "hkask-adapter",
+                    }));
+                }
             }
-        }
 
-        // Fallback: local deployment map
-        let deployment = if let Ok(map) = self.deployments.lock() {
-            map.get(&req.deployment_id).cloned()
-        } else {
-            None
-        };
-        match deployment {
-            Some(d) => {
-                let elapsed = (chrono::Utc::now() - d.deployed_at).num_seconds() as f64;
-                let lifecycle_cost = d.cost_accrued();
-                let estimated_cost = if lifecycle_cost > 0.0 {
-                    lifecycle_cost
-                } else {
-                    d.estimated_cost_per_hour as f64 * (elapsed / 3600.0)
-                };
-                Ok(json!({
-                    "deployment_id": d.deployment_id,
-                    "adapter_name": d.adapter_name,
-                    "provider": format!("{:?}", d.provider).to_lowercase(),
-                    "phase": format!("{:?}", d.phase()).to_lowercase(),
-                    "endpoint_url": d.endpoint_url,
-                    "estimated_cost_per_hour_usd": d.estimated_cost_per_hour,
-                    "elapsed_seconds": elapsed as u64,
-                    "accrued_cost_usd": format!("{:.4}", estimated_cost),
-                }))
-            }
-            None => span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(format!(
+            // Fallback: local deployment map
+            let deployment = if let Ok(map) = self.deployments.lock() {
+                map.get(&req.deployment_id).cloned()
+            } else {
+                None
+            };
+            match deployment {
+                Some(d) => {
+                    let elapsed = (chrono::Utc::now() - d.deployed_at).num_seconds() as f64;
+                    let lifecycle_cost = d.cost_accrued();
+                    let estimated_cost = if lifecycle_cost > 0.0 {
+                        lifecycle_cost
+                    } else {
+                        d.estimated_cost_per_hour as f64 * (elapsed / 3600.0)
+                    };
+                    Ok(json!({
+                        "deployment_id": d.deployment_id,
+                        "adapter_name": d.adapter_name,
+                        "provider": format!("{:?}", d.provider).to_lowercase(),
+                        "phase": format!("{:?}", d.phase()).to_lowercase(),
+                        "endpoint_url": d.endpoint_url,
+                        "estimated_cost_per_hour_usd": d.estimated_cost_per_hour,
+                        "elapsed_seconds": elapsed as u64,
+                        "accrued_cost_usd": format!("{:.4}", estimated_cost),
+                    }))
+                }
+                None => Err(McpToolError::invalid_argument(format!(
                     "Deployment '{}' not found. It may have been torn down or never existed.",
                     req.deployment_id
-                ))
-                .to_json_string(),
-            ),
-        }
+                ))),
+            }
+        })
+        .await
     }
 
     #[tool(
         description = "Tear down a deployed adapter endpoint. Stops the cloud inference endpoint and releases GPU resources. CNS span: cns.training.teardown."
     )]
     async fn training_teardown(&self, Parameters(req): Parameters<TrainTeardownRequest>) -> String {
-        
+        execute_tool(self, "training_teardown", async {
         // Try router first
         if let Some(ref router) = self.adapter_router
             && let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id)
@@ -2660,13 +2612,10 @@ impl TrainingServer {
             match AdapterPort::teardown_endpoint(router.as_ref(), endpoint_id).await {
                 Ok(()) => {
                     let result = json!({"deployment_id": req.deployment_id, "status": "torn_down", "route": "hkask-adapter"});
-                                        return Ok(result);
+                    return Ok(result);
                 }
                 Err(e) => {
-                    return span.error(
-                        McpErrorKind::Internal,
-                        McpToolError::internal(e.to_string()).to_json_string(),
-                    );
+                    return Err(McpToolError::internal(e.to_string()));
                 }
             }
         }
@@ -2679,7 +2628,9 @@ impl TrainingServer {
         };
         let result = json!({"deployment_id": req.deployment_id, "status": "torn_down", "existed": existed, "note": if existed { "Endpoint torn down. GPU resources released." } else { "Deployment not found (may have already been torn down)." }});
         tracing::info!(target: "cns.training.teardown", deployment_id = %req.deployment_id, existed = existed, "Adapter deployment torn down");
-                Ok(result)
+        Ok(result)
+        })
+        .await
     }
 }
 

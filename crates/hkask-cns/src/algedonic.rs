@@ -141,6 +141,10 @@ pub(crate) struct AlgedonicManager {
     default_expected_variety: u64,
     expected_variety: HashMap<String, u64>,
     alerts: Vec<RuntimeAlert>,
+    /// Outcome success rate warning threshold. Falls back to DEFAULT_OUTCOME_WARNING_THRESHOLD.
+    outcome_warning_threshold: f64,
+    /// Outcome success rate critical threshold. Falls back to DEFAULT_OUTCOME_CRITICAL_THRESHOLD.
+    outcome_critical_threshold: f64,
 }
 
 impl AlgedonicManager {
@@ -150,7 +154,15 @@ impl AlgedonicManager {
             default_expected_variety,
             expected_variety: HashMap::new(),
             alerts: Vec::new(),
+            outcome_warning_threshold: Self::DEFAULT_OUTCOME_WARNING_THRESHOLD,
+            outcome_critical_threshold: Self::DEFAULT_OUTCOME_CRITICAL_THRESHOLD,
         }
+    }
+
+    /// Override the outcome quality thresholds from SetPointsConfig.
+    pub(crate) fn set_outcome_thresholds(&mut self, warning: f64, critical: f64) {
+        self.outcome_warning_threshold = warning;
+        self.outcome_critical_threshold = critical;
     }
 
     /// Set expected variety for a specific domain
@@ -224,18 +236,21 @@ impl AlgedonicManager {
     /// Check outcome quality and generate alert if success rate is degraded.
     ///
     /// Uses binary thresholds on success_rate (higher is better, so we invert):
-    /// - success_rate < 0.25 → Critical (75%+ failure rate)
-    /// - success_rate < 0.50 → Warning (50%+ failure rate)
-    /// - success_rate ≥ 0.50 → Info (healthy)
+    /// - success_rate < critical_threshold → Critical
+    /// - success_rate < warning_threshold → Warning
+    /// - success_rate ≥ warning_threshold → Info (healthy)
+    ///
+    /// Thresholds come from the instance fields (defaulting to 0.50/0.25),
+    /// which can be overridden via `set_outcome_thresholds()` from SetPointsConfig.
     pub(crate) fn check_outcome(
         &mut self,
         domain: &str,
         success_rate: f64,
         total_ops: u64,
     ) -> Option<&RuntimeAlert> {
-        let severity = if success_rate < Self::DEFAULT_OUTCOME_CRITICAL_THRESHOLD {
+        let severity = if success_rate < self.outcome_critical_threshold {
             AlertSeverity::Critical
-        } else if success_rate < Self::DEFAULT_OUTCOME_WARNING_THRESHOLD {
+        } else if success_rate < self.outcome_warning_threshold {
             AlertSeverity::Warning
         } else {
             return None; // Healthy — no alert needed
@@ -244,7 +259,7 @@ impl AlgedonicManager {
         let alert = RuntimeAlert {
             domain: format!("outcome:{domain}"),
             deficit: ((1.0 - success_rate) * 100.0) as u64, // failure rate as "deficit"
-            threshold: ((1.0 - Self::DEFAULT_OUTCOME_WARNING_THRESHOLD) * 100.0) as u64,
+            threshold: ((1.0 - self.outcome_warning_threshold) * 100.0) as u64,
             severity,
             escalated: severity == AlertSeverity::Critical,
             timestamp: Utc::now(),
@@ -393,5 +408,35 @@ mod tests {
         let alert = mgr.check_outcome("tool", 0.10, 10).unwrap();
         assert!(alert.domain.starts_with("outcome:"));
         assert!(alert.domain.contains("tool"));
+    }
+
+    #[test]
+    fn set_outcome_thresholds_overrides_defaults() {
+        let mut mgr = AlgedonicManager::new(100, 10);
+        // Set custom thresholds: warning at 0.80, critical at 0.60
+        mgr.set_outcome_thresholds(0.80, 0.60);
+
+        // 70% success → below custom warning (0.80) but above custom critical (0.60) → Warning
+        let alert = mgr.check_outcome("test", 0.70, 10);
+        assert!(
+            alert.is_some(),
+            "70% should trigger warning with custom thresholds"
+        );
+        assert_eq!(alert.unwrap().severity, AlertSeverity::Warning);
+
+        // 50% success → below custom critical (0.60) → Critical
+        let alert = mgr.check_outcome("test", 0.50, 10);
+        assert!(
+            alert.is_some(),
+            "50% should trigger critical with custom thresholds"
+        );
+        assert_eq!(alert.unwrap().severity, AlertSeverity::Critical);
+
+        // 85% success → above custom warning (0.80) → healthy
+        let alert = mgr.check_outcome("test", 0.85, 10);
+        assert!(
+            alert.is_none(),
+            "85% should be healthy with custom thresholds"
+        );
     }
 }

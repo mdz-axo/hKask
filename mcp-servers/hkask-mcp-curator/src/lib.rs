@@ -58,7 +58,9 @@ impl CuratorServer {
     pub async fn curator_escalations(&self, Parameters(_req): Parameters<PingRequest>) -> String {
         execute_tool(self, "curator_escalations", async {
             let Some(ref queue) = self.escalation_queue else {
-                return Err(McpToolError::permission_denied("EscalationQueue not available"));
+                return Err(McpToolError::permission_denied(
+                    "EscalationQueue not available",
+                ));
             };
             match queue.list_pending() {
                 Ok(entries) => {
@@ -80,7 +82,9 @@ impl CuratorServer {
                         .collect();
                     Ok(json!({"count": serialized.len(), "escalations": serialized}))
                 }
-                Err(e) => Err(McpToolError::internal(format!("Failed to list escalations: {e}"))),
+                Err(e) => Err(McpToolError::internal(format!(
+                    "Failed to list escalations: {e}"
+                ))),
             }
         })
         .await
@@ -93,7 +97,9 @@ impl CuratorServer {
     ) -> String {
         execute_tool(self, "curator_escalation_resolve", async {
             let Some(ref queue) = self.escalation_queue else {
-                return Err(McpToolError::permission_denied("EscalationQueue not available"));
+                return Err(McpToolError::permission_denied(
+                    "EscalationQueue not available",
+                ));
             };
             match queue.resolve(&req.id, &self.replicant) {
                 Ok(()) => Ok(json!({"resolved": true, "id": req.id})),
@@ -110,7 +116,9 @@ impl CuratorServer {
     ) -> String {
         execute_tool(self, "curator_escalation_dismiss", async {
             let Some(ref queue) = self.escalation_queue else {
-                return Err(McpToolError::permission_denied("EscalationQueue not available"));
+                return Err(McpToolError::permission_denied(
+                    "EscalationQueue not available",
+                ));
             };
             match queue.dismiss(&req.id, &self.replicant) {
                 Ok(()) => Ok(json!({"dismissed": true, "id": req.id})),
@@ -130,7 +138,10 @@ impl CuratorServer {
             };
             match daemon.curator_health_query(&self.replicant).await {
                 Ok(DaemonResponse::CuratorHealthResponse { health }) => Ok(health),
-                Ok(other) => Err(McpToolError::internal(format!("Bad daemon response: {:?}", other))),
+                Ok(other) => Err(McpToolError::internal(format!(
+                    "Bad daemon response: {:?}",
+                    other
+                ))),
                 Err(e) => Err(McpToolError::internal(format!("Daemon query failed: {e}"))),
             }
         })
@@ -151,7 +162,10 @@ impl CuratorServer {
                 .await
             {
                 Ok(DaemonResponse::CnsStatusResponse { status }) => Ok(status),
-                Ok(other) => Err(McpToolError::internal(format!("Bad daemon response: {:?}", other))),
+                Ok(other) => Err(McpToolError::internal(format!(
+                    "Bad daemon response: {:?}",
+                    other
+                ))),
                 Err(e) => Err(McpToolError::internal(format!("Daemon query failed: {e}"))),
             }
         })
@@ -172,7 +186,10 @@ impl CuratorServer {
                 .await
             {
                 Ok(DaemonResponse::BotStatusResponse { status }) => Ok(status),
-                Ok(other) => Err(McpToolError::internal(format!("Bad daemon response: {:?}", other))),
+                Ok(other) => Err(McpToolError::internal(format!(
+                    "Bad daemon response: {:?}",
+                    other
+                ))),
                 Err(e) => Err(McpToolError::internal(format!("Daemon query failed: {e}"))),
             }
         })
@@ -195,7 +212,10 @@ impl CuratorServer {
                 .await
             {
                 Ok(DaemonResponse::SpecDriftResponse { drift }) => Ok(drift),
-                Ok(other) => Err(McpToolError::internal(format!("Bad daemon response: {:?}", other))),
+                Ok(other) => Err(McpToolError::internal(format!(
+                    "Bad daemon response: {:?}",
+                    other
+                ))),
                 Err(e) => Err(McpToolError::internal(format!("Daemon query failed: {e}"))),
             }
         })
@@ -304,7 +324,9 @@ impl CuratorServer {
     ) -> String {
         execute_tool(self, "curator_algedonic_log", async {
             let Some(ref store) = self.nu_event_store else {
-                return Err(McpToolError::permission_denied("NuEventStore not available"));
+                return Err(McpToolError::permission_denied(
+                    "NuEventStore not available",
+                ));
             };
             let hours = req.hours.unwrap_or(24);
             let since = chrono::Utc::now() - chrono::Duration::hours(hours as i64);
@@ -323,7 +345,9 @@ impl CuratorServer {
                         .collect();
                     Ok(json!({"window_hours": hours, "count": s.len(), "events": s}))
                 }
-                Err(e) => Err(McpToolError::internal(format!("Algedonic query failed: {e}"))),
+                Err(e) => Err(McpToolError::internal(format!(
+                    "Algedonic query failed: {e}"
+                ))),
             }
         })
         .await
