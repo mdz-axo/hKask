@@ -518,25 +518,6 @@ pub enum ReplicantAction {
         #[arg()]
         replicant_name: String,
     },
-    /// Rename a replicant
-    Rename {
-        #[arg(long)]
-        from: String,
-        #[arg(long)]
-        to: String,
-    },
-    /// Merge triples from one replicant into another
-    Merge {
-        #[arg(long)]
-        from: String,
-        #[arg(long)]
-        into: String,
-    },
-    /// Delete a replicant and all its triples
-    Delete {
-        #[arg()]
-        name: String,
-    },
 }
 
 /// Sovereignty export actions

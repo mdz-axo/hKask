@@ -98,36 +98,6 @@ pub async fn rename_replicant(
     ))
 }
 
-/// POST /api/v1/replicants/merge
-pub async fn merge_replicants(
-    State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
-    Json(req): Json<MergeRequest>,
-) -> Result<Json<MergeReceipt>, (StatusCode, String)> {
-    let user_store = state.agent_service.user_store();
-    let store = user_store.lock().map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Lock error: {e}"),
-        )
-    })?;
-    let receipt = store
-        .merge_replicant_triples(&req.from, &req.into)
-        .map_err(|e| (StatusCode::BAD_REQUEST, format!("{e}")))?;
-
-    // CNS: ReplicantMerge span
-    tracing::info!(
-        target = "cns.deploy.replicant",
-        operation = "replicant_merge",
-        source = %req.from,
-        target = %req.into,
-        triple_count = receipt.triple_count,
-        "CNS"
-    );
-
-    Ok(Json(receipt))
-}
-
 /// DELETE /api/v1/replicants/{name}
 pub async fn delete_replicant(
     State(state): State<ApiState>,

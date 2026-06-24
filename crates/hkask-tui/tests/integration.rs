@@ -405,10 +405,10 @@ fn memory_sections_cycle() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
     render_smoke(&w, 80, 24);
-    assert!(w.handle_key(tab));
-    assert!(w.handle_key(tab));
-    assert!(w.handle_key(tab));
-    assert!(w.handle_key(tab));
+    // 5-state cycle: Episodic -> Semantic -> Triples -> Consolidation -> Chat -> Episodic
+    for _ in 0..5 {
+        assert!(w.handle_key(tab));
+    }
     render_smoke(&w, 80, 24);
 }
 
@@ -617,4 +617,179 @@ fn editor_snapshot_renders() {
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
     assert!(!text.is_empty(), "Editor should render content");
+}
+
+// ────────────────────────────────────────────────────────────────
+// MCP Two-Tab contract — Tab cycles through sections + Chat
+// ────────────────────────────────────────────────────────────────
+
+#[test]
+fn mcp_tab_kanban_cycles_sections_and_chat() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
+    let mut w = KanbanWindow::new(window_id(), bridge());
+    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+
+    assert_eq!(w.active_tab(), McpTab::Data);
+    render_smoke(&w, 80, 24);
+
+    // Tab x4: Board -> Backlog -> InProgress -> Done -> Chat
+    for _ in 0..4 {
+        assert!(w.handle_key(tab));
+    }
+    assert_eq!(w.active_tab(), McpTab::Chat);
+    render_smoke(&w, 80, 24);
+
+    // Tab from Chat -> back to Data
+    assert!(w.handle_key(tab));
+    assert_eq!(w.active_tab(), McpTab::Data);
+}
+
+#[test]
+fn mcp_tab_companies_cycles_sections_and_chat() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
+    let mut w = CompaniesWindow::new(window_id(), bridge());
+    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+
+    assert_eq!(w.active_tab(), McpTab::Data);
+    // Tab x4: Search -> Profile -> Financials -> Portfolio -> Chat
+    for _ in 0..4 {
+        assert!(w.handle_key(tab));
+    }
+    assert_eq!(w.active_tab(), McpTab::Chat);
+    assert!(w.handle_key(tab));
+    assert_eq!(w.active_tab(), McpTab::Data);
+}
+
+#[test]
+fn mcp_tab_memory_cycles_sections_and_chat() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
+    let mut w = MemoryWindow::new(window_id(), bridge());
+    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+
+    assert_eq!(w.active_tab(), McpTab::Data);
+    for _ in 0..4 {
+        assert!(w.handle_key(tab));
+    }
+    assert_eq!(w.active_tab(), McpTab::Chat);
+    assert!(w.handle_key(tab));
+    assert_eq!(w.active_tab(), McpTab::Data);
+}
+
+#[test]
+fn mcp_tab_training_toggles_chat() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
+    let mut w = TrainingWindow::new(window_id(), bridge());
+    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+
+    assert_eq!(w.active_tab(), McpTab::Data);
+    assert!(w.handle_key(tab));
+    assert_eq!(w.active_tab(), McpTab::Chat);
+    assert!(w.handle_key(tab));
+    assert_eq!(w.active_tab(), McpTab::Data);
+}
+
+// ────────────────────────────────────────────────────────────────
+// Command palette — fuzzy search, selection, dismiss
+// ────────────────────────────────────────────────────────────────
+
+#[test]
+fn command_palette_filters_and_selects() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use hkask_tui::command_palette::CommandPalette;
+
+    let mut palette = CommandPalette::new();
+
+    // Starts with items visible
+    assert!(palette.selected_kind().is_some());
+
+    // Type to filter
+    palette.handle_key(KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE));
+    palette.handle_key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE));
+    palette.handle_key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE));
+    assert!(palette.selected_kind().is_some());
+
+    // Arrow navigation
+    palette.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    palette.handle_key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+
+    // Enter selects
+    let result = palette.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    assert!(result.is_some());
+
+    // Reset and verify Esc dismisses
+    palette.reset();
+    let dismiss = palette.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert_eq!(dismiss, Some(hkask_tui::WindowKind::Chat));
+
+    // Reset and verify Ctrl+P dismisses
+    palette.reset();
+    let toggle = palette.handle_key(KeyEvent::new(KeyCode::Char('p'), KeyModifiers::CONTROL));
+    assert_eq!(toggle, Some(hkask_tui::WindowKind::Chat));
+}
+
+#[test]
+#[test]
+fn command_palette_backspace_clears_filter() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use hkask_tui::command_palette::CommandPalette;
+
+    let mut palette = CommandPalette::new();
+
+    // "xyz" matches no window kind
+    palette.handle_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE));
+    palette.handle_key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE));
+    palette.handle_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE));
+    assert!(palette.selected_kind().is_none(), "unmatched filter returns None");
+
+    // Backspace clears filter, all items show again
+    palette.handle_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+    palette.handle_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+    palette.handle_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+    assert!(palette.selected_kind().is_some(), "empty filter returns first item");
+}
+
+// ────────────────────────────────────────────────────────────────
+// Companies window — graceful degradation with None bridge
+// ────────────────────────────────────────────────────────────────
+
+#[test]
+fn companies_renders_without_bridge() {
+    let w = CompaniesWindow::new(window_id(), bridge());
+    render_smoke(&w, 80, 24);
+}
+
+#[test]
+fn companies_renders_with_bridge() {
+    use hkask_tui::bridges::companies::MockCompaniesBridge;
+    let w = CompaniesWindow::new(window_id(), bridge())
+        .with_companies_bridge(MockCompaniesBridge::with_sample().arc());
+    render_smoke(&w, 80, 24);
+}
+
+#[test]
+fn companies_all_sections_no_panic_without_bridge() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let mut w = CompaniesWindow::new(window_id(), bridge());
+    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+    for _ in 0..5 {
+        render_smoke(&w, 80, 24);
+        w.handle_key(tab);
+    }
+}
+
+#[test]
+fn companies_all_sections_no_panic_with_bridge() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use hkask_tui::bridges::companies::MockCompaniesBridge;
+    let mut w = CompaniesWindow::new(window_id(), bridge())
+        .with_companies_bridge(MockCompaniesBridge::with_sample().arc());
+    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+    for _ in 0..5 {
+        render_smoke(&w, 80, 24);
+        w.handle_key(tab);
+    }
 }

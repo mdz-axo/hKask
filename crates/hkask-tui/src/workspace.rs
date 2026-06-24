@@ -695,16 +695,13 @@ impl Workspace {
             return false;
         }
         use crossterm::event::{KeyCode, KeyModifiers};
-        match (key.modifiers, key.code) {
-            // Toggle dismiss
-            (KeyModifiers::CONTROL, KeyCode::Char('p')) => {
-                self.palette_open = false;
-                if let Some(prev) = self.palette_prev_focus.take() {
-                    self.focus_window(prev);
-                }
-                return true;
+        // Toggle dismiss
+        if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('p') {
+            self.palette_open = false;
+            if let Some(prev) = self.palette_prev_focus.take() {
+                self.focus_window(prev);
             }
-            _ => {}
+            return true;
         }
         if let Some(kind) = self.command_palette.handle_key(key) {
             // Check if it's a dismiss signal (Esc) or a selection (Enter)

@@ -32,24 +32,13 @@ pub struct BackupMeta {
     pub triple_count: i64,
     pub schema_version: u32,
 }
-/// Receipt returned after a successful migration import.
+/// Receipt returned after restoring an export archive.
 ///
 /// expect: "My user data and sovereignty boundaries are stored under my control"
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationReceipt {
-    /// Number of triples imported (or already present).
+    /// Number of triples imported.
     pub triple_count: i64,
-    /// Replicant names that were auto-renamed to avoid collision.
-    pub renamed_replicants: Vec<(String, String)>,
-}
-/// Receipt returned after replicant merge.
-///
-/// expect: "The system provides durable storage for migration data"
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MergeReceipt {
-    pub triple_count: u64,
-    pub source: String,
-    pub target: String,
 }
 pub struct BackupArchive {
     db: Database,
@@ -180,38 +169,24 @@ impl BackupArchive {
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
         Ok(count)
     }
-    /// Import triples from this archive into a target TripleStore.
+    /// Restore triples from this archive into a target TripleStore.
     ///
+    /// Simple idempotent insert — no collision handling, no renaming.
     /// expect: "The system provides durable storage for archival data"
-    /// pre:  archive is open; target is a live TripleStore; existing_names are current replicant names
+    /// pre:  archive is open; target is a live TripleStore
     /// post: all triples upserted into target
-    /// post: auto-renamed entities where collision with existing replicant names
-    /// post: returns MigrationReceipt with triple_count and renamed_replicants
-    pub fn import_into(
+    pub fn restore_into(
         &self,
         target: &TripleStore,
         owner_webid: &WebID,
-        existing_replicant_names: &HashSet<String>,
     ) -> Result<MigrationReceipt, ArchiveError> {
         let rows = self.read_triples()?;
         let total = rows.len() as i64;
-        let mut renamed: Vec<(String, String)> = Vec::new();
-        let date_suffix = Utc::now().format("%Y%m%d").to_string();
         let conn = target
             .lock_conn()
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
-        for mut row in rows {
-            // Auto-rename entity if it collides with an existing replicant name
-            if existing_replicant_names.contains(&row.entity) {
-                let new_name = format!("{}-migrated-{}", row.entity, date_suffix);
-                if !renamed.iter().any(|(old, _)| old == &row.entity) {
-                    renamed.push((row.entity.clone(), new_name.clone()));
-                }
-                row.entity = new_name;
-            }
-            // Update owner_webid to target user
-            row.owner_webid = owner_webid.to_string();
-            // Idempotent upsert by TripleID
+        for row in rows {
+            let owner = owner_webid.to_string();
             conn.execute(
                 "INSERT OR REPLACE INTO triples (id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
@@ -225,14 +200,13 @@ impl BackupArchive {
                     row.confidence,
                     row.perspective,
                     row.visibility,
-                    row.owner_webid,
+                    owner,
                 ],
             )
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
         }
         Ok(MigrationReceipt {
             triple_count: total,
-            renamed_replicants: renamed,
         })
     }
     /// Read all triples from this archive.

@@ -276,6 +276,7 @@ pub fn run_tui(
         alert_count: std::sync::atomic::AtomicU32::new(0),
         context_window: std::sync::atomic::AtomicU32::new(128_000),
         context_used: std::sync::atomic::AtomicU32::new(0),
+        last_companies_search: std::sync::Mutex::new(None),
     });
 
     match hkask_tui::TuiSession::new(service_context, bridge.clone()) {
@@ -328,6 +329,7 @@ struct TuiReplBridge {
     context_window: std::sync::atomic::AtomicU32,
     /// Approximate current context usage in tokens
     context_used: std::sync::atomic::AtomicU32,
+    last_companies_search: std::sync::Mutex<Option<String>>,
 }
 
 impl TuiReplBridge {
@@ -379,6 +381,50 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
             let result = Self::build_result(&capture);
 
             // Feed response into streaming buffer chunk by chunk
+            let text = result.text.clone();
+            let chars: Vec<char> = text.chars().collect();
+            for chunk in chars.chunks(3) {
+                let s: String = chunk.iter().collect();
+                if let Ok(mut buf) = streaming.lock() {
+                    buf.push_str(&s);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(8));
+            }
+
+            let _ = tx.send(result);
+        });
+    }
+
+    fn start_scoped_inference(&self, input: String, mcp_server: &str) {
+        let state = self.state.clone();
+        let rt = self.rt_handle.clone();
+        let a2a = self.a2a_secret.clone();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let streaming = self.streaming_text.clone();
+        let scope = mcp_server.to_string();
+
+        *streaming.lock().expect("stream lock") = String::new();
+        *self.pending.lock().expect("pending lock") = Some(rx);
+
+        std::thread::spawn(move || {
+            let mut s = state.lock().expect("ReplState lock");
+
+            // Filter tool definitions to only the scoped MCP server
+            let original_tools = std::mem::take(&mut s.tool_definitions);
+            let prefix = format!("{}/", scope);
+            s.tool_definitions = original_tools
+                .iter()
+                .filter(|td| td.function.name.starts_with(&prefix))
+                .cloned()
+                .collect();
+
+            let capture = turn::single_agent_turn_captured(&input, &mut s, &rt, &a2a);
+
+            // Restore original tool definitions
+            s.tool_definitions = original_tools;
+
+            let result = Self::build_result(&capture);
+
             let text = result.text.clone();
             let chars: Vec<char> = text.chars().collect();
             for chunk in chars.chunks(3) {

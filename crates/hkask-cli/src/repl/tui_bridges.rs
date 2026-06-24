@@ -710,22 +710,135 @@ impl TrainingDataBridge for TuiReplBridge {
     }
 }
 
-// ── CompaniesDataBridge (stub — deferred Firecrawl integration) ─────
+
+// ── CompaniesDataBridge (live MCP dispatch to hkask-mcp-companies) ──
 
 impl CompaniesDataBridge for TuiReplBridge {
-    fn search(&self, _query: &str) -> Vec<CompanySummary> {
-        Vec::new()
+    fn search(&self, query: &str) -> Vec<CompanySummary> {
+        let state = self.state.lock().expect("lock");
+        let runtime = state.service_context.mcp_runtime().clone();
+        let query = query.to_string();
+        // Store the query for last_searched
+        *self.last_companies_search.lock().expect("lock") = Some(query.clone());
+        self.rt_handle.block_on(async {
+            let mut args = serde_json::Map::new();
+            args.insert("query".into(), serde_json::Value::String(query));
+            args.insert("limit".into(), serde_json::Value::from(10_u64));
+            match runtime.call_tool("companies", "symbol_search", args).await {
+                Ok(ref result) => {
+                    let content = parse_mcp_json(result);
+                    content
+                        .as_ref()
+                        .and_then(|v| v.as_array())
+                        .map(|results| {
+                            results
+                                .iter()
+                                .filter_map(|r| {
+                                    Some(CompanySummary {
+                                        symbol: r["symbol"].as_str()?.to_string(),
+                                        name: r["name"].as_str()?.to_string(),
+                                        exchange: r["exchangeShortName"].as_str().map(String::from),
+                                        industry: r["industry"].as_str().map(String::from),
+                                        sector: r["sector"].as_str().map(String::from),
+                                        market_cap: r["marketCap"].as_f64(),
+                                        description: None,
+                                    })
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                }
+                Err(_) => Vec::new(),
+            }
+        })
     }
 
     fn last_searched(&self) -> Option<String> {
-        None
+        self.last_companies_search.lock().expect("lock").clone()
     }
 
     fn financials(&self) -> Option<FinancialSummary> {
-        None
+        let symbol = self.last_companies_search.lock().expect("lock").clone()?;
+        let state = self.state.lock().expect("lock");
+        let runtime = state.service_context.mcp_runtime().clone();
+        let sym = symbol.clone();
+        let sym2 = symbol.clone();
+        self.rt_handle.block_on(async {
+            // Fetch key metrics (P/E, revenue growth)
+            let mut metric_args = serde_json::Map::new();
+            metric_args.insert("symbol".into(), serde_json::Value::String(sym.clone()));
+            metric_args.insert("limit".into(), serde_json::Value::from(1_u64));
+            let metrics = runtime
+                .call_tool("companies", "key_metrics", metric_args)
+                .await
+                .ok()
+                .and_then(|r| parse_mcp_json(&r));
+
+            // Fetch stock quote (price, change)
+            let mut quote_args = serde_json::Map::new();
+            quote_args.insert("symbol".into(), serde_json::Value::String(sym2.clone()));
+            let quote = runtime
+                .call_tool("companies", "stock_quote", quote_args)
+                .await
+                .ok()
+                .and_then(|r| parse_mcp_json(&r));
+
+            let metrics_array = metrics
+                .as_ref()
+                .and_then(|v| v.as_array())
+                .and_then(|arr| arr.first());
+            let quote_array = quote
+                .as_ref()
+                .and_then(|v| v.as_array())
+                .and_then(|arr| arr.first());
+
+            let pe_ratio = metrics_array
+                .and_then(|m| m["peRatio"].as_f64());
+            let revenue_growth = metrics_array
+                .and_then(|m| m["revenueGrowth"].as_f64());
+            let price = quote_array
+                .and_then(|q| q["price"].as_f64());
+            let change_pct = quote_array
+                .and_then(|q| q["changesPercentage"].as_f64());
+
+            Some(FinancialSummary {
+                symbol: sym,
+                price,
+                change_pct,
+                pe_ratio,
+                revenue_growth,
+            })
+        })
     }
 
     fn portfolio_list(&self) -> Vec<PortfolioSummary> {
-        Vec::new()
+        let state = self.state.lock().expect("lock");
+        let runtime = state.service_context.mcp_runtime().clone();
+        self.rt_handle.block_on(async {
+            let args = serde_json::Map::new();
+            match runtime.call_tool("companies", "portfolio_list", args).await {
+                Ok(ref result) => {
+                    let content = parse_mcp_json(result);
+                    content
+                        .as_ref()
+                        .and_then(|v| v["portfolios"].as_array())
+                        .map(|portfolios| {
+                            portfolios
+                                .iter()
+                                .filter_map(|p| {
+                                    let name = p.as_str()?.to_string();
+                                    Some(PortfolioSummary {
+                                        name,
+                                        holdings: 0,
+                                        created: None,
+                                    })
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                }
+                Err(_) => Vec::new(),
+            }
+        })
     }
 }

@@ -26,6 +26,8 @@ reviewed_via: [pragmatic-laziness, essentialist, grill-me, coding-guidelines]
 
 One binary (`kask`), one server, many users. Each user gets a terminal session scoped to their WebID.
 
+Two deployment paths are supported: **bare-metal** (binary + Docker sidecars, see admin install guide) and **K8s pod** (single container with supervisord managing kask + Litestream + Conduit, see `deploy/` directory).
+
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                    CLOUD SERVER (single hKask install)        │
@@ -178,13 +180,12 @@ cargo build --release --bin kask
 cp target/release/kask /usr/local/bin/kask
 
 # Initialize
-kask init --profile server
+kask init
 # Prompts for:
 #   - Server master passphrase (Argon2id → HKDF key derivation)
-#   - Admin WebID creation
 #   - Data directory (default: /var/lib/hkask/)
 #   - Domain name (for Caddy TLS + OAuth redirect URIs)
-#   - OAuth provider credentials (GitHub and/or Google client ID + secret)
+#   - OAuth provider credentials (GitHub client ID + secret)
 ```
 
 **What this creates:**
@@ -434,7 +435,7 @@ Server key rotation follows the existing `hkask-keystore::master_key` pattern: i
 ## 7. CLI Command Surface
 
 ```
-kask init --profile server
+kask init
     Initialize server, configure domain, OAuth providers, master passphrase.
 
 kask matrix deploy-sidecar --domain <domain> [--with-web-client]
@@ -548,7 +549,7 @@ Explicit exclusions — considered and rejected:
 ## 11. Success Criteria
 
 ```
-1. [Deploy]  kask init --profile server
+1. [Deploy]  kask init
              kask matrix deploy-sidecar --domain example.com
              -> Caddy serves HTTPS, Conduit responds on /_matrix/
 

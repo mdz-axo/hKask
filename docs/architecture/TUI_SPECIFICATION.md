@@ -358,9 +358,9 @@ Unicode characters (`▀ ▄ █`). Features:
 
 ---
 
-## §3. MCP Two-Tab Design Pattern (Future)
+## §3. MCP Two-Tab Design Pattern (Implemented)
 
-MCP-focused windows (Companies, Kanban, Training, Media, Matrix, Research, etc.) will adopt a unified two-tab architecture:
+MCP-focused windows (Companies, Kanban, Training, Media, Matrix, Memory) use a unified two-tab architecture:
 
 ```
 ┌─ [MCP Name] ────────────────────────┐
@@ -378,35 +378,88 @@ MCP-focused windows (Companies, Kanban, Training, Media, Matrix, Research, etc.)
 - **Tab 1 (Chat):** A focused chat that only has access to one MCP server's tools. The system prompt includes only that MCP's tool definitions.
 - **Tab 2 (Data):** Structured UI widgets rendering MCP artifacts — tables, trees, cards, galleries. Non-chat interaction surface.
 - Toggle between tabs with `Tab` key within the window.
+- Chat tab sends scoped inference via `ReplBridge::start_scoped_inference()` — only the window's MCP server tools are available to the model.
+
+---
+## §4. Implementation Status
+
+
+
+| Layer | Status |
+
+|-------|--------|
+
+| Window trait + WindowKind enum (19 variants) | ✅ Complete |
+
+| SplitNode tree (Leaf/Horizontal/Vertical) | ✅ Complete |
+
+| Workspace (focus, split, resize, tabs, sidebar, help, close) | ✅ Complete |
+
+| ReplBridge trait (16 methods) | ✅ Complete |
+
+| 9 domain-specific bridge traits | ✅ Complete |
+
+| CLI bridge implementations (tui_bridges.rs, live on TuiReplBridge) | ✅ Complete |
+
+| TuiReplBridge (async inference, live CNS/MCP/pods, scoped inference) | ✅ Complete |
+
+| Status bar (model, gas, CNS, context %, hints) | ✅ Live |
+
+| Command palette (Ctrl+P, fuzzy search, 19 window kinds) | ✅ Complete |
+
+| Chat window (full inference, streaming, spinner, export) | ✅ Complete |
+
+| Curator window (P12.1 dual-presence, CNS alerts) | ✅ Live |
+
+| CNS Monitor, Pods, Sidebar (live bridge data) | ✅ Live |
+
+| Wallet, Config, Backup (live domain bridges) | ✅ Live |
+
+| Registry, Skills (live SqliteRegistry data) | ✅ Live |
+
+| Memory, Kanban (MCP two-tab, live service data) | ✅ Live |
+
+| Matrix, Media, Training (MCP two-tab, MCP-backed bridges) | ✅ Live |
+
+| Companies (MCP two-tab, live financial data via hkask-mcp-companies) | ✅ Live |
+
+| Terminal (portable-pty interactive shell) | ✅ Live |
+
+| Editor (file open/save, Ctrl+S/Ctrl+O) | ✅ Live |
+
+| Logo (persistent top-left, SVG-rasterized) | ✅ Complete |
+
+| MCP Chat scoping (start_scoped_inference, per-window tool filtering) | ✅ Complete |
+
+| Help overlay (? key) | ✅ Complete |
+
+| Integration tests (56 total: 8 unit + 48 smoke/rendering/contract) | ✅ Complete |
+
+| Property tests (TuiMode transitions + MCP tab cycles + command palette) | ✅ Passing |
 
 ---
 
-## §4. Implementation Status
+## §5. Known Variety Deficits
 
-| Layer | Status |
-|-------|--------|
-| Window trait + WindowKind enum (19 variants) | ✅ Complete |
-| SplitNode tree (Leaf/Horizontal/Vertical) | ✅ Complete |
-| Workspace (focus, split, resize, tabs, sidebar, help, close) | ✅ Complete |
-| ReplBridge trait (15 methods) | ✅ Complete |
-| 9 domain-specific bridge traits (config, registry, wallet, memory, kanban, backup, matrix, media, training) | ✅ Complete |
-| CLI bridge implementations (tui_bridges.rs, live on TuiReplBridge) | ✅ Complete |
-| TuiReplBridge (async inference, live CNS/MCP/pods) | ✅ Complete |
-| Status bar (model, gas, CNS, context %, hints) | ✅ Live |
-| Chat window (full inference, streaming, spinner, export) | ✅ Complete |
-| Curator window (P12.1 dual-presence, CNS alerts) | ✅ Live |
-| CNS Monitor, Pods, Sidebar (live bridge data) | ✅ Live |
-| Wallet, Config, Backup (live domain bridges) | ✅ Live |
-| Registry, Skills (live SqliteRegistry data) | ✅ Live |
-| Memory, Kanban (live memory/kanban service data) | ✅ Live |
-| Matrix, Media, Training (MCP-backed bridges) | ✅ Live |
-| Terminal (portable-pty interactive shell) | ✅ Live |
-| Editor (file open/save, Ctrl+S/Ctrl+O) | ✅ Live |
-| Logo (persistent top-left, SVG-rasterized) | ✅ Complete |
-| Companies (deferred — needs hkask-mcp-companies) | ⏸ Scaffolded |
-| Integration tests (43 total: 8 unit + 35 smoke/rendering) | ✅ Complete |
-| Wallet, Registry, Backup, Configuration | ✅ Scaffolded |
-| Terminal, Editor | ✅ Scaffolded |
-| Training, Media, Skills, Matrix, Memory, Kanban, Companies | ✅ Scaffolded |
-| Help overlay (? key) | ✅ Complete |
-| 8 property tests (TuiMode transitions) | ✅ Passing |
+### 5.1 Terminal Window CNS Blind Spot
+
+The PTY-backed `TerminalWindow` (`windows/terminal.rs`) runs an interactive shell
+(`portable-pty` spawning bash/fish/powershell). Shell commands executed inside
+the PTY are invisible to the CNS regulator — no CNS spans are emitted for
+commands typed into the embedded terminal.
+
+**Impact:** The regulator cannot observe terminal activity. Commands that
+modify files, start/stop services, or consume resources are unmonitored. This
+is a variety blind spot per Ashby's Law — the CNS's attenuator cannot
+compress terminal behavior into a variety counter.
+
+**Mitigation:** The shell process runs as a child of the hKask TUI process,
+so resource consumption (CPU, memory) is indirectly observable at the OS level.
+The terminal is scoped to the user's shell environment — it does not have
+elevated privileges beyond what the user already has.
+
+**Resolution path (v0.31+):** CNS observation of PTY output is blocked by
+P1 (User Sovereignty) — capturing private shell content without explicit
+consent would violate the Magna Carta. The correct resolution is a consent
+gate: the user must explicitly opt in to PTY CNS monitoring. Until then,
+this is an acknowledged variety deficit.

@@ -79,4 +79,11 @@ pub trait ReplBridge: Send + Sync {
 
     /// Send a message to the Curator daemon and get a response.
     fn send_curator_message(&self, input: &str) -> String;
+
+    /// Start inference scoped to a single MCP server's tools.
+    /// Only tools belonging to `mcp_server` are available to the model.
+    /// Default implementation falls back to unscoped inference.
+    fn start_scoped_inference(&self, input: String, _mcp_server: &str) {
+        self.start_inference(input);
+    }
 }

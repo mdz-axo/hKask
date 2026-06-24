@@ -25,7 +25,7 @@ pub mod triples;
 pub mod user_store;
 pub mod wallet_store;
 pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
-pub use archive::{ArchiveError, BackupArchive, BackupMeta, MergeReceipt, MigrationReceipt};
+pub use archive::{ArchiveError, BackupArchive, BackupMeta, MigrationReceipt};
 pub use consent_store::{ConsentStore, ConsentStoreError, StoredConsentRecord};
 pub use database::{Database, DatabaseError, in_memory_db, open_database};
 pub use embeddings::{EmbeddingError, EmbeddingStore, SimilarityResult, StoredEmbedding};

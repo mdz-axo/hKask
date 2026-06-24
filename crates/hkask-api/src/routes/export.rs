@@ -9,7 +9,6 @@
 use axum::{Extension, Json, extract::State, http::StatusCode, response::Response};
 use base64::Engine;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::path::PathBuf;
 use std::time::Instant;
 use tracing;
@@ -144,24 +143,6 @@ pub async fn export_upload(
         (StatusCode::BAD_REQUEST, msg)
     })?;
     let user_store = state.agent_service.user_store();
-    let existing_names: HashSet<String> = {
-        let store = user_store.lock().map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Lock error: {e}"),
-            )
-        })?;
-        store
-            .list_all_replicant_names()
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to list replicants: {e}"),
-                )
-            })?
-            .into_iter()
-            .collect()
-    };
     let triple_store = {
         let store = user_store.lock().map_err(|e| {
             (
@@ -172,15 +153,13 @@ pub async fn export_upload(
         TripleStore::new(store.conn_arc())
     };
     let webid = auth.webid;
-    let receipt = archive
-        .import_into(&triple_store, &webid, &existing_names)
-        .map_err(|e| {
-            let _ = std::fs::remove_file(&tmp_path);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Import failed: {e}"),
-            )
-        })?;
+    let receipt = archive.restore_into(&triple_store, &webid).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp_path);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Import failed: {e}"),
+        )
+    })?;
     let duration_ms = start.elapsed().as_millis() as u64;
     tracing::info!(target = "cns.backup.upload", webid = %webid, triple_count = receipt.triple_count, duration_ms = duration_ms, "CNS");
     let _ = std::fs::remove_file(&tmp_path);

@@ -213,8 +213,6 @@ pub enum CnsSpan {
     BackupAutoExport,
     /// Sovereignty backup uploaded to server (migration).
     BackupUpload,
-    /// Two replicants merged after migration.
-    ReplicantMerge,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -412,7 +410,6 @@ impl CnsSpan {
             CnsSpan::BackupExport => "cns.deploy.backup_export",
             CnsSpan::BackupAutoExport => "cns.deploy.backup_auto_export",
             CnsSpan::BackupUpload => "cns.deploy.backup_upload",
-            CnsSpan::ReplicantMerge => "cns.deploy.replicant_merge",
         }
     }
 }
@@ -539,7 +536,6 @@ impl std::str::FromStr for CnsSpan {
             "cns.deploy.backup_export" => Ok(CnsSpan::BackupExport),
             "cns.deploy.backup_auto_export" => Ok(CnsSpan::BackupAutoExport),
             "cns.deploy.backup_upload" => Ok(CnsSpan::BackupUpload),
-            "cns.deploy.replicant_merge" => Ok(CnsSpan::ReplicantMerge),
             _ => Err(()),
         }
     }

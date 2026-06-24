@@ -24,8 +24,8 @@ if [ ! -f "$DB_PATH" ]; then
     fi
 fi
 
-echo "Running database migrations..."
-kask migrate --data-dir "$DATA_DIR" || echo "Warning: migrate command failed"
+# Schema initialization is lazy — UserStore::initialize_schema() runs on first access.
+# No explicit migration step needed.
 
 echo "Starting supervisord..."
 exec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf

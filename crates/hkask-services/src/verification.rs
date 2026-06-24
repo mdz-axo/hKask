@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::ptr_arg)]
 //! Magna Carta verification service.
 //!
 //! Loads YAML assertion manifests from `.agents/skills/magna-carta-verifier/manifests/`

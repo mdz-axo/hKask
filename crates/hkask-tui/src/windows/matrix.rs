@@ -118,7 +118,8 @@ impl Window for MatrixWindow {
 
         match self.active_tab {
             McpTab::Chat => {
-                if let Some(_msg) = self.handle_chat_key(key) {
+                if let Some(msg) = self.handle_chat_key(key) {
+                    self.bridge.start_scoped_inference(msg, self.mcp_server_name());
                     return true;
                 }
                 matches!(
