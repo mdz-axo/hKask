@@ -1,21 +1,42 @@
 ---
 name: qa-script-builder
 visibility: public
-description: "Design and generate autonomous QA pipeline manifests for the hKask QA system. Walks through a structured persona→discover→design→generate→validate pipeline: generates diverse testing scenarios from persona + goal, maps testing intent to the QA system's capabilities (fuzz, classify, branch, loop, auto-repair), designs the branching state machine, and produces a valid YAML manifest for `kask qa run --script`. Use when the user says 'build a QA script', 'create a QA pipeline', 'design a fuzz workflow', or 'generate a QA manifest'."
+description: "Design and generate autonomous QA pipeline manifests for the hKask QA system. Walks through a structured persona→discover→design→generate→validate pipeline: generates diverse testing scenarios from persona + goal, maps testing intent to the QA system's capabilities (run_command, mcp_tool, classify, loop), designs the branching state machine, and produces a valid YAML manifest for `kask qa run-script`. Use when the user says 'build a QA script', 'create a QA pipeline', 'design a fuzz workflow', or 'generate a QA manifest'."
 ---
 
 # QA Script Builder
 
-You are a QA pipeline designer. Your job is to translate a user's quality-assurance intent into a **QA script manifest** — a YAML file that the hKask QA system's `QaScriptRunner` can execute autonomously via `kask qa run --script`.
+You are a QA pipeline designer. Your job is to translate a user's quality-assurance intent into a **QA script manifest** — a YAML file that the hKask QA system's `QaScriptRunner` can execute autonomously via `kask qa run-script --script <path>`.
+
+## Honest Scope
+
+The QA system tests **backend services, MCP servers, and shell-invokable operations**. It does NOT test user interfaces.
+
+**What it CAN test:**
+- MCP server liveness and tool dispatch (start binary, call tools, verify responses)
+- Build integrity (compilation, dependency resolution)
+- Test suite regression (run `cargo test`, classify failures, retry flakes)
+- Contract/invariant verification (run contract tests, verify properties)
+- Security posture (check test coverage exists for critical crates)
+- Service smoke tests (binary exists, starts, responds, shuts down cleanly)
+
+**What it CANNOT test:**
+- Visual interfaces (ratatui, GUI, web frontends) — no keystroke injection, no buffer inspection
+- Interactive workflows — no stdin simulation beyond shell commands
+- Multi-step stateful scenarios — no variable passing between steps
+- Anything requiring an API key without that key available in the environment
+
+**How it works with UIs:** The QA system can run `cargo test -p <crate>` which exercises ratatui's `TestBackend`-based integration tests (buffer inspection, key event injection, state machines). But those tests are written in Rust, not in QA manifests. The QA script's role is to orchestrate failure response when those tests break.
 
 ## What You Build
 
 A QA script manifest is a state machine expressed in YAML. Steps can:
-- Run shell commands and branch on exit codes
-- Send passages to LLM classifiers and branch on confidence levels
-- Loop with retry/backoff until a condition is met or max iterations exhausted
+- Run shell commands and branch on exit codes (`run_command`)
+- Call MCP server tools and branch on success/failure (`mcp_tool`)
+- Send passages to LLM classifiers and branch on confidence levels (`classify`)
+- Loop with retry until a condition is met or max iterations exhausted (`loop`)
 
-The manifest controls: gas budgets, CNS observability spans, error handling, and audit trails.
+The manifest controls: gas budgets, CNS observability spans, and cost tracking.
 
 ## Registry Templates
 
@@ -24,169 +45,140 @@ This skill's runtime templates live in `registry/templates/qa-script-builder/`:
 | Template | Type | Purpose |
 |----------|------|---------|
 | `qa-persona.j2` | KnowAct | Phase 0: Generate diverse QA testing scenarios from persona + goal using Falstaffian perspective rotation and grill-me adversarial probing |
-| `qa-discover.j2` | KnowAct | Phase 1: Discover the test surface — crate, failure modes, existing fuzz coverage, what needs testing (accepts persona scenario or raw intent) |
+| `qa-discover.j2` | KnowAct | Phase 1: Discover the test surface — crate/server, failure modes, existing coverage, what needs testing |
 | `qa-design.j2` | KnowAct | Phase 2: Design the branching state machine from testing intent to step topology |
-| `qa-generate.j2` | KnowAct | Phase 3: Generate the YAML manifest. Supports `caveman` mode for ultra-minimal CI output. |
+| `qa-generate.j2` | KnowAct | Phase 3: Generate the YAML manifest |
 | `qa-validate.j2` | KnowAct | Phase 4: Validate the manifest. Supports `essentialist` mode for 3-gate deletion test. |
 
-The SKILL.md (this file) teaches the Zed coding agent the QA script design methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
+## The Runner's Actual Schema
 
-## The QA System You're Targeting
+These are the exact fields the `QaScriptRunner` deserializes. Any field not listed here will cause a parse error.
 
-Before designing any script, you must understand the capabilities of the runner.
+### Manifest (QaScriptManifest)
+
+```rust
+pub struct QaScriptManifest {
+    pub manifest: ManifestMeta,    // id, description
+    pub gas: GasConfig,            // cap, gas_per_function, alert_threshold, hard_limit
+    pub cns: CnsConfig,            // emit_spans, alert (optional string)
+    pub steps: Vec<QaScriptStep>,  // ordered step list
+}
+```
+
+### Step (QaScriptStep)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `ordinal` | u32 | **Yes** | Unique step number; branches reference this |
+| `action` | string | **Yes** | `run_command`, `mcp_tool`, `classify`, or `loop` |
+| `description` | string | **Yes** | Human-readable description (also fed to classifier as context) |
+| `retries` | u32 | **Yes** | Retry count (set to 0 for no retry; required on ALL steps including `loop`) |
+| `command` | string | No | Shell command for `run_command` and `loop` actions |
+| `classifier` | string | No | Classifier config name for `classify` action (e.g., `qa-triage`) |
+| `tool_name` | string | No | MCP tool name for `mcp_tool` action |
+| `tool_params` | string | No | JSON parameters for `mcp_tool` invocation |
+| `branching` | map | No | Outcome → ordinal mapping (defaults to empty) |
+| `default_next` | u32 | No | Fallback ordinal if no branch matches |
+| `terminal` | bool | No | If true, script ends after this step (default: false) |
+| `gas_multiplier` | u32 | No | Cost multiplier for this step (default: 1) |
+| `training_cost_urj` | u64 | No | Training cost in micro-rJoules |
+| `max_iterations` | u32 | No | Max iterations for `loop` action |
+
+### Fields NOT supported (will cause parse errors)
+
+- `escalate_on`, `severity_map`, `domain`, `threshold`, `cooldown_secs` on steps
+- Global `alert:` section with `enabled`, `default_domain`, etc.
+- `iteration_delay_secs` on loop steps
+- `name`, `version`, `visibility` in manifest metadata (only `id` and `description`)
+- `cost_per_token` in gas config (only `cap`, `gas_per_function`, `alert_threshold`, `hard_limit`)
 
 ### Step Actions
 
 | Action | What It Does | Key Fields |
 |--------|-------------|------------|
 | `run_command` | Executes `sh -c "<command>"`, branches on exit code 0 (success) vs non-zero (failure) | `command`, `branching` |
-| `classify` | Sends a passage to an LLM classifier, branches on confidence level | `classifier` (name of classifier config), `branching` |
-| `loop` | Repeats a command or classify action until a branch condition matches or `max_iterations` hit | `max_iterations`, `iteration_delay_secs`, `command` or `classifier` |
+| `mcp_tool` | Calls an MCP server tool, branches on success vs failure | `tool_name`, `tool_params`, `branching` |
+| `classify` | Sends description text to an LLM classifier, branches on confidence level | `classifier`, `branching` |
+| `loop` | Repeats a command until a branch condition matches or `max_iterations` hit | `max_iterations`, `command`, `branching` |
 
 ### Branch Conditions
 
 | Condition | Triggered When | Applicable Actions |
 |-----------|---------------|-------------------|
-| `success` | Shell command exit code = 0 | `run_command`, `loop` |
-| `failure` | Shell command exit code ≠ 0 | `run_command`, `loop` |
-| `high_confidence` | Classifier returned confidence ≥ 0.95 | `classify` |
-| `medium_confidence` | Classifier returned confidence 0.70–0.949 | `classify` |
-| `low_confidence` | Classifier returned confidence > 0 and < 0.70 | `classify` |
+| `success` | Shell command exit code = 0, or MCP tool returned OK | `run_command`, `mcp_tool`, `loop` |
+| `failure` | Shell command exit code ≠ 0, or MCP tool returned error | `run_command`, `mcp_tool`, `loop` |
+| `high_confidence` | Classifier returned confidence ≥ 0.85 | `classify` |
+| `medium_confidence` | Classifier returned confidence 0.50–0.849 | `classify` |
+| `low_confidence` | Classifier returned confidence > 0 and < 0.50 | `classify` |
 | `flake` | Classifier returned `is_flake: true` | `classify` |
 | `unparseable` | Classifier returned non-JSON or confidence = 0 | `classify` |
 | `loop_exhausted` | Loop reached max_iterations without matching any branch | `loop` |
 
-If no branch condition matches, the runner uses `default_next`. If neither is set, it advances linearly.
+If no branch condition matches, the runner uses `default_next`. If neither is set, it advances to the next ordinal.
 
 ### Gas Budget
 
-Every script can declare a `gas` section that tracks estimated token costs:
-- `cap`: maximum gas units (default: 15000)
-- `cost_per_token`: per-token cost for estimation (default: 0.25)
-- `alert_threshold`: fraction of cap that triggers a warning (default: 0.7)
-- `hard_limit`: if true, script aborts when cap exceeded (default: true)
-
-When the runner hits the gas cap, it errors with `GasExceeded` unless `hard_limit: false`.
-
-### Algedonic Signalling (CNS Integration)
-
-QA scripts don't just observe — they **signal**. Every classify step and terminal step can raise a direct algedonic alert that flows through the CNS Cybernetics Loop into the Curation Loop's inbox, where the Curator reviews it with the human operator. This is per-failure, per-classification, immediate — not aggregated variety deficit.
-
-**The signal path:**
-```
-QA classify step → RuntimeAlert → alerts_tx channel → CurationInput::Alert
-    → Curation Loop inbox → CuratorAgent → human review → (training_curate_feedback)
+```yaml
+gas:
+  cap: 20000            # maximum gas units (becomes 80000 µrJ at 4 µrJ/gas)
+  alert_threshold: 0.8  # fraction of cap that triggers a warning (default: 0.7)
+  hard_limit: true      # abort when cap exceeded (default: true)
 ```
 
-**Alert configuration per step:**
-
-| Field | Purpose | Default |
-|-------|---------|--------|
-| `escalate_on` | Which classification outcomes trigger alerts | `[]` (no alerts) |
-| `severity_map` | Outcome → severity: `critical`, `warning`, `info` | `{}` (all info) |
-| `domain` | Alert domain for correlation (e.g., `qa.hkask-types.fuzz`) | `qa.<script-id>` |
-| `threshold` | Escalate after this many failures in the domain | 3 |
-| `cooldown_secs` | Don't re-escalate within this window | 300 |
-
-**Global alert section in manifest:**
+### CNS Configuration
 
 ```yaml
-alert:
-  enabled: true                     # Master switch
-  default_domain: qa.<script-id>    # Fallback domain
-  default_threshold: 5              # Escalate after N failures
-  default_cooldown_secs: 600        # Suppress repeat alerts
-  escalate_to_curator: true         # Route alerts to Curation Loop
+cns:
+  emit_spans: true            # emit tracing spans per step
+  alert: qa.<domain>.<crate>  # optional alert namespace string
 ```
 
-**Critical:** Alerts are active escalation, not passive logging. A `cns_span` string on a step is a tracing target (goes to logs). An `alert` config on a step raises a `RuntimeAlert` that reaches the Curator. They are orthogonal:
-- `cns_span` → tracing/logging (always works)
-- `alert` → algedonic escalation (requires wired alerts_tx channel)
+CNS spans go to tracing/logging. The `alert` field is a namespace identifier — the runner does NOT do active algedonic escalation at the step level. Alert routing to the Curator is handled externally.
 
 ### Existing Classifier Configs
 
-| Classifier | Purpose | Model |
-|-----------|---------|-------|
-| `qa-triage` | Diagnose Rust test failures (confidence, root_cause, proposed_fix, is_flake) | Gemma 4 26B A4B |
-| `qa-feedback` | Suggest fuzz targets from surviving mutants | Gemma 4 26B A4B |
+| Classifier | Purpose | Model | API Key |
+|-----------|---------|-------|---------|
+| `qa-triage` | Diagnose Rust test failures (confidence, root_cause, proposed_fix, is_flake) | Gemma 4 26B A4B | `DI_API_KEY` |
+| `qa-feedback` | Suggest fuzz targets from surviving mutants | Gemma 4 26B A4B | `DI_API_KEY` |
 
-Both live at `registry/classify/<name>.yaml` and require `DEEPINFRA_API_KEY`.
+Both live at `registry/classify/<name>.yaml`. The API key env var is `DI_API_KEY` (set in `.env`).
 
-### Runner Capabilities & Limitations
+### Self-Healer
 
-**Capabilities:**
-- Execute shell commands and branch on exit codes
-- Classify passages via LLM and branch on confidence levels
-- Loop with retry/backoff
-- Raise algedonic alerts on classification outcomes (direct to Curator)
-- Emit CNS tracing spans for observability
-- Track and enforce gas budgets
+The runner has a built-in self-healer that intercepts `run_command` failures BEFORE the manifest's branching logic. On failure, it:
+1. Re-runs the command (up to 3 attempts)
+2. Runs `cargo check`, `cargo build`, `ls -R` to diagnose the failure
+3. Tries to modify files to fix the issue (Stage 1, no API key needed)
+4. If healing is exhausted, escalates to Curator
 
-**Limitations:**
-- Cannot modify files (no file I/O beyond shell commands you write)
-- Cannot call `kask` subcommands (runs raw shell)
-- Cannot pass data between steps (no variables, no state sharing)
-- Cannot conditionally skip steps (branching only, no `if` expressions)
-- Cannot spawn sub-scripts (no nested manifest execution)
-- Cannot run classifiers without an API key (`DEEPINFRA_API_KEY`)
+This means the manifest's `branching.failure` target on `run_command` steps is only reached if the self-healer is not wired or gives up immediately.
 
 ## The 5-Phase Pipeline
 
 ### Phase 0: Persona (Scenario Generation)
 
-Generate diverse testing scenarios from a user persona and goal. This phase produces a `scenario_set` — a family of testing intents that stress-test different MCP servers and central services from different angles.
+Generate diverse testing scenarios from a user persona and goal. Use Falstaffian perspective rotation for diversity and grill-me adversarial probing for hardening.
 
-**Input:** A persona description ("You are an SRE responsible for MCP server reliability") and a goal ("I want to monitor flake rates across all services").
-
-**Process:** Apply Falstaffian perspective rotation to generate diversity:
-1. **Obvious path** — the most direct interpretation of the goal
-2. **Shadow path** — the failure mode the persona fears but isn't saying
-3. **Adjacent path** — a neighboring concern one hop away
-4. **Inversion** — the complementary scenario (verify non-failures, not detect failures)
-5. **Wildcard** (optional) — a capability the persona is overlooking
-
-Then apply grill-me adversarial probing to each scenario: "What assumption might not hold?" "What's the smallest input that could break this?" Output hardened scenarios with `grill_hardened: true`.
-
-**Output:** A `scenario_set` array of 3–5 scenarios, each with:
-- `user_intent` — natural-language testing intent (feeds into Phase 1)
-- `testing_angle` — unique angle (fuzz, contract, flake, alert, CNS, gas, loop, repair)
-- `failure_mode` — what they're testing against
-- `suggested_tool` — which tool produces failures
-- `alert_posture` — escalation severity mapping
-- `gas_environment` — CI-tight or local-generous
-- `stress_target` — which MCP server or central service this exercises
-
-**When to skip Phase 0:** When the user already has a specific testing intent and doesn't need scenario diversity.
+**When to skip Phase 0:** When the user already has a specific testing intent.
 
 ### Phase 1: Discover
 
-Map the user's testing intent (or a persona-generated scenario) to the QA system's capabilities. Ask:
+Map the testing intent to the QA system's capabilities. Ask:
 
-1. **What are we testing?** Crate? Function? Behavior? Invariant?
-2. **What failure modes matter?** Panics? Assertions? Timeouts? Flakes? Logic errors?
-3. **What tool produces the failures?** `cargo bolero test`? `cargo test`? `cargo mutants`? Custom script?
-4. **What should happen on failure?** Auto-repair high-confidence? Escalate medium? Retry flakes? Log and move on?
-5. **What severity triggers escalation?** High-confidence failures → critical alert? Medium → warning? Flakes after retry exhaustion → critical? Per-outcome severity mapping.
-6. **What's the gas budget?** Is this CI (tight budget) or local (generous)?
-7. **What alert domain and thresholds?** Namespace for this script's alerts (`qa.<crate>.fuzz`). How many failures before the Curator is alerted? Cooldown between re-escalations?
-8. **Are there existing fuzz targets / classifier configs to reuse?**
+1. **What are we testing?** MCP server? Crate? Build? Invariant?
+2. **What failure modes matter?** Panics? Timeouts? Tool errors? Contract violations?
+3. **What commands produce the failures?** `cargo test`? `cargo build`? MCP tool calls? Custom script?
+4. **What should happen on failure?** Auto-repair? Escalate? Retry?
+5. **What's the gas budget?** CI (tight) or local (generous)?
+6. **Are there existing classifier configs to reuse?**
 
 ### Phase 2: Design
 
-Translate discovery into a step topology — a directed graph where nodes are steps and edges are branch conditions.
+Translate discovery into a step topology — a directed graph of steps and branches.
 
-Key design decisions:
-- **Entry point**: Which command produces the test output?
-- **Classification**: Do we classify failures? With which classifier?
-- **Branching topology**: Where does each confidence level route?
-- **Alert topology**: Which outcomes trigger alerts? At what severity? With what domain?
-- **Terminal states**: Which steps have no outgoing branches (script ends there)?
-- **Loops**: Do we retry flakes? With what delay and max iterations?
-- **Error handling**: What happens on gas exceeded? On command timeout?
-
-Draw the topology mentally before generating YAML:
 ```
-Step 1 (fuzz) ──success──> Step 2 (classify)
+Step 1 (run_command) ──success──> Step 2 (classify)
   │ failure                       │
   └──> Step N (report)      ┌─────┼─────┬──────┐
                             │     │     │      │
@@ -195,13 +187,18 @@ Step 1 (fuzz) ──success──> Step 2 (classify)
                             ▼     ▼     ▼      ▼
 ```
 
+Key decisions:
+- Entry point: which command or tool call?
+- Classification: which classifier? on which output?
+- Branch routing: where does each confidence level go?
+- Terminal states: which steps end the script?
+- Loops: retry flakes? how many times?
+
 ### Phase 3: Generate
 
-Produce the YAML manifest with all sections: `manifest`, `gas`, `steps`, `error_handling`, `cns`, `audit`.
+Produce the YAML manifest. Every step ordinal must be unique. Every branch target must reference an existing ordinal. Classifier names must match existing configs in `registry/classify/`.
 
-Every step ordinal must be unique. Every branch target must reference an existing ordinal. Classifier names must match existing configs in `registry/classify/`.
-
-**Caveman mode** (`caveman: true`): For CI-tight budgets, strips descriptions, uses inline branching syntax, caps gas at minimum viable, and removes non-execution-critical sections (`inputs`, `audit`, `cns_span` on non-alert steps).
+Only include fields the runner actually parses (see schema above).
 
 ### Phase 4: Validate
 
@@ -209,118 +206,154 @@ Check the generated manifest:
 
 | Check | Severity | Description |
 |-------|----------|-------------|
-| All branch targets resolve | Error | Every `branching` value must reference a step ordinal that exists |
-| Classifier configs exist | Error | Every `classifier` field must reference a known classifier config name |
-| Alert escalate_on targets valid outcomes | Error | Every outcome in `escalate_on` must be a valid branch condition for that action type |
-| Alert domains are namespaced | Warning | Alert domains should follow `qa.<crate>.<tool>` convention |
-| Terminal steps with alerts specify severity | Warning | Terminal steps that escalate should declare severity in `severity_map` |
+| All branch targets resolve | Error | Every `branching` value references a step ordinal that exists |
+| Classifier configs exist | Error | Every `classifier` field references a known config name |
 | No orphan steps | Warning | Every step should be reachable from the entry point |
-| Gas budget is sensible | Warning | For CI scripts, cap should reflect actual token estimates |
+| Gas budget is sensible | Warning | Cap should reflect actual token estimates (~200 in + ~300 out per classify) |
 | No duplicate ordinals | Error | Every step must have a unique ordinal |
 | At least one terminal state | Warning | Script must be able to terminate |
-
-**Essentialist mode** (`essentialist: true`): Applies 3-gate deletion test to every step:
-- **Exist** — delete the step; does any behavior vanish?
-- **Surface** — do multiple branch conditions route to the same target? Merge them.
-- **Contract** — would a single retry suffice instead of a loop? Tighten it.
-Emits an `essentialist_report` with findings classified by constraint force (prohibition/guardrail/guideline/hypothesis).
+| `retries` present on every step | Error | All steps including `loop` actions require `retries: 0` |
+| No unsupported fields | Error | No `escalate_on`, `severity_map`, `iteration_delay_secs`, global `alert:`, etc. |
 
 ## Common Script Patterns
 
-### Pattern A: Fuzz → Classify → Alert → Auto-repair or Escalate
+### Pattern A: Test Suite Regression Gate
 
-The canonical pattern. Run fuzz tests, classify failures, raise direct algedonic alerts per outcome, auto-repair high-confidence, escalate the rest.
+The most common pattern. Run `cargo test`, classify failures, retry flakes, escalate ambiguous.
 
+```yaml
+manifest:
+  id: qa-example
+  description: "Run tests, classify failures, retry flakes"
+
+steps:
+  - ordinal: 1
+    action: run_command
+    command: "cargo test -p my-crate 2>&1"
+    description: "Run test suite"
+    retries: 0
+    branching:
+      success: 2
+      failure: 3
+
+  - ordinal: 2
+    action: run_command
+    command: 'echo "PASS"'
+    description: "All tests passed"
+    retries: 0
+    terminal: true
+
+  - ordinal: 3
+    action: classify
+    classifier: qa-triage
+    description: "Test failure. Classify root cause, confidence, and flake status."
+    retries: 0
+    branching:
+      high_confidence: 4
+      medium_confidence: 5
+      low_confidence: 5
+      flake: 6
+      unparseable: 5
+
+  - ordinal: 4
+    action: run_command
+    command: 'echo "HIGH-CONFIDENCE — proposed fix available"'
+    description: "Classifier returned high-confidence diagnosis"
+    retries: 0
+    terminal: true
+
+  - ordinal: 5
+    action: run_command
+    command: 'echo "AMBIGUOUS — manual review needed"'
+    description: "Classifier uncertain"
+    retries: 0
+    terminal: true
+
+  - ordinal: 6
+    action: loop
+    max_iterations: 3
+    command: "cargo test -p my-crate 2>&1"
+    description: "Flake — retry up to 3 times"
+    retries: 0
+    branching:
+      success: 2
+      loop_exhausted: 5
 ```
-Step 1: cargo bolero test
-  → success: Step 2
-  → failure: Step 5 (infrastructure failure)
 
-Step 2: classify (qa-triage)
-  → high_confidence: Step 3 (auto-repair)
-  → medium_confidence: Step 4 (escalate)
-  → low_confidence: Step 4
-  → flake: Step 6 (retry loop)
-  alert:
-    escalate_on: [high_confidence, medium_confidence]
-    severity_map:
-      high_confidence: critical
-      medium_confidence: warning
-      flake: info
-    domain: qa.hkask-types.fuzz
-    threshold: 3
+### Pattern B: MCP Server Smoke Test
 
-Step 3: echo "auto-repair triggered"     [terminal]
-Step 4: echo "escalate to human"          [terminal]
-Step 5: echo "fuzz infrastructure failure" [terminal]
-Step 6: loop (retry up to 3 times)
-  → success: Step 1 (re-run fuzz)
-  → loop_exhausted: Step 4 (escalate)
-  alert:
-    escalate_on: [loop_exhausted]
-    severity_map:
-      loop_exhausted: critical
-    domain: qa.hkask-types.fuzz
-```
+Verify an MCP server binary: exists → starts → tool call works → shuts down cleanly.
 
-### Pattern B: Contract Verification Gate
+```yaml
+manifest:
+  id: qa-mcp-smoke
+  description: "MCP server smoke test"
 
-Run contract tests, classify failures, pass/fail gate.
+steps:
+  - ordinal: 1
+    action: run_command
+    command: 'test -x ./target/debug/hkask-mcp-media && echo "BINARY_OK" || exit 1'
+    description: "Verify binary exists and is executable"
+    retries: 0
+    branching:
+      success: 2
+      failure: 7
 
-```
-Step 1: cargo test --contract
-  → success: Step 3 (pass)
-  → failure: Step 2 (classify)
+  - ordinal: 2
+    action: run_command
+    command: './target/debug/hkask-mcp-media & PID=$!; sleep 2; kill -0 $PID && echo "STARTED" && kill $PID || exit 1'
+    description: "Start server, verify alive, clean shutdown"
+    retries: 0
+    branching:
+      success: 3
+      failure: 8
 
-Step 2: classify (qa-triage)
-  → high_confidence: Step 4 (auto-fix)
-  → medium_confidence: Step 5 (escalate)
-  → low_confidence: Step 5
+  - ordinal: 3
+    action: mcp_tool
+    tool_name: gallery_status
+    tool_params: "{}"
+    description: "Call gallery_status to verify tool dispatch"
+    retries: 0
+    branching:
+      success: 4
+      failure: 9
 
-Step 3: echo "all contracts hold"        [terminal - PASS]
-Step 4: echo "auto-fix violation"        [terminal - FAIL with fix]
-Step 5: echo "human review needed"       [terminal - FAIL ambiguous]
-```
+  - ordinal: 4
+    action: run_command
+    command: 'echo "PASS"'
+    description: "All smoke checks passed"
+    retries: 0
+    terminal: true
 
-### Pattern C: Mutation → Fuzz Suggestion
-
-Run mutation testing, suggest fuzz targets for survivors.
-
-```
-Step 1: cargo mutants --timeout 60
-  → success: Step 3 (clean)
-  → failure: Step 2 (suggest fuzz targets)
-
-Step 2: classify (qa-feedback)
-  → [terminal, suggestions printed]
-
-Step 3: echo "no surviving mutants"      [terminal]
+  # ... failure handlers for ordinals 7-9 ...
 ```
 
 ## Anti-Patterns
 
 | Anti-Pattern | Why It's Wrong | Fix |
 |-------------|---------------|-----|
-| **Infinite loops** | Loop without `loop_exhausted` branch and no terminal condition | Always add a `loop_exhausted` branch or ensure the loop condition can be met |
-| **Unreachable steps** | Steps with ordinals above the max branch target | Reorder or remove unreachable steps |
-| **Classifier without API key** | `classify` step without a reachable API key config | Warn user — script will fail at runtime; suggest `run_command` dry-run mode |
-| **Under-specified terminals** | Terminal steps that don't tell the user what happened | Every terminal step should print context (what was decided, what to do next) |
-| **Gas budget too tight** | Gas cap lower than estimated classification cost | Estimate tokens: ~200 in + ~300 out per classify step, multiply by step count |
+| **Testing UIs** | The runner can't inject keystrokes or read terminal buffers | Use `cargo test` to run existing `TestBackend`-based integration tests; the QA script orchestrates failure response |
+| **Infinite loops** | Loop without `loop_exhausted` branch | Always add a `loop_exhausted` branch |
+| **Unreachable steps** | Steps with ordinals above the max branch target | Reorder or remove |
+| **Using unsupported fields** | `escalate_on`, `severity_map`, `iteration_delay_secs`, global `alert:` — all cause parse errors | Only use fields from the actual schema |
+| **Missing `retries`** | Every step including `loop` requires `retries` | Add `retries: 0` to all steps |
+| **Wrong CLI command** | `kask qa run` doesn't exist | Use `kask qa run-script --script <path>` |
+| **Wrong API key env var** | `DEEPINFRA_API_KEY` doesn't match `.env` | Use `DI_API_KEY` |
 
 ## Workflow
 
-### Persona-Driven Path (when user describes a role + goal)
+### Persona-Driven Path
 
-1. **User describes persona + goal** — "I am an SRE. I want to monitor flake rates across all MCP servers."
-2. **Phase 0: Persona** — Apply Falstaffian perspective rotation to generate 3–5 diverse testing scenarios. Present the `perspective_summary`. Ask: "Do these angles cover what you need?"
-3. **For each scenario:** Run Phase 1→4 to produce a script manifest.
-4. **User saves and runs** — `kask qa run --script <path>/<scenario-name>.yaml`
+1. User describes persona + goal
+2. Phase 0: Generate 3–5 diverse testing scenarios
+3. For each scenario: run Phase 1→4 to produce a manifest
+4. User saves and runs: `kask qa run-script --script <path>`
 
-### Direct Path (when user has a specific testing intent)
+### Direct Path
 
-1. **User describes testing intent** — "I want to fuzz hkask-types and auto-repair panics"
-2. **Phase 1: Discover** — Load the test surface (crate, existing fuzz targets, classifier configs). Name ambiguities.
-3. **Phase 2: Design** — Present the branching topology as a mermaid diagram or text graph. Ask: "Does this flow match what you want?"
-4. **Phase 3: Generate** — Produce the YAML manifest. Include the `manifest.id`, `manifest.description`, and all steps.
-5. **Phase 4: Validate** — Run validation checks, surface warnings, offer to fix issues.
-6. **User saves and runs** — `kask qa run --script <path>/<script-name>.yaml`
+1. User describes testing intent
+2. Phase 1: Discover — map intent to capabilities, identify failure modes, confirm classifier configs exist
+3. Phase 2: Design — present branching topology, confirm routing
+4. Phase 3: Generate — produce YAML using only supported fields
+5. Phase 4: Validate — check branch resolution, field validity, gas budget
+6. User saves and runs: `kask qa run-script --script <path>`

@@ -404,6 +404,7 @@ fn mcp_task_move_reports_correct_previous_status() {
         criteria: None,
         assignee_webid: None,
         capability_token: None,
+        gas_budget: None,
     })));
     let task_val = parse_tool_output(&task_json);
     let task_id = task_val["content"]["task_id"]
@@ -493,6 +494,7 @@ fn mcp_task_verify_rejects_empty_evidence() {
         criteria: Some(vec!["criterion 1".into()]),
         assignee_webid: None,
         capability_token: None,
+        gas_budget: None,
     })));
     let task_val = parse_tool_output(&task_json);
     let task_id = task_val["content"]["task_id"]

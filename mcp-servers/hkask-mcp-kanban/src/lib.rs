@@ -375,6 +375,80 @@ impl KanbanServer {
         .await
     }
 
+    #[tool(
+        description = "Add gas/rJoules to a task's remaining budget so the subagent can continue"
+    )]
+    pub async fn kanban_task_add_gas(
+        &self,
+        Parameters(TaskAddGasRequest {
+            task_id,
+            amount,
+            capability_token: _cap,
+        }): Parameters<TaskAddGasRequest>,
+    ) -> String {
+        execute_tool(self, "kanban_task_add_gas", async {
+            let tid = match task_id.parse::<hkask_types::TaskId>() {
+                Ok(id) => id,
+                Err(e) => {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "invalid task_id: {e}"
+                    )));
+                }
+            };
+            if amount == 0 {
+                return Err(McpToolError::invalid_argument("amount must be > 0"));
+            }
+            match self.service.task_add_gas(tid, amount) {
+                Ok(task) => Ok(serde_json::to_value(TaskAddGasResponse {
+                    task_id: task.id.to_string(),
+                    new_gas_remaining: task.gas_remaining.unwrap_or(0),
+                })
+                .unwrap()),
+                Err(e) => Err(map_kanban_error(e)),
+            }
+        })
+        .await
+    }
+
+    #[tool(
+        description = "Add a comment to a task (feedback thread for subagent↔agent communication)"
+    )]
+    pub async fn kanban_task_comment(
+        &self,
+        Parameters(TaskCommentRequest {
+            task_id,
+            body,
+            capability_token: _cap,
+        }): Parameters<TaskCommentRequest>,
+    ) -> String {
+        execute_tool(self, "kanban_task_comment", async {
+            let tid = match task_id.parse::<hkask_types::TaskId>() {
+                Ok(id) => id,
+                Err(e) => {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "invalid task_id: {e}"
+                    )));
+                }
+            };
+            if body.trim().is_empty() {
+                return Err(McpToolError::invalid_argument(
+                    "comment body must not be empty",
+                ));
+            }
+            match self.service.task_comment(tid, self.webid, &body) {
+                Ok(comment) => Ok(serde_json::to_value(TaskCommentResponse {
+                    comment_id: comment.id.to_string(),
+                    task_id: comment.task_id.to_string(),
+                    author: comment.author.to_string(),
+                    body: comment.body,
+                })
+                .unwrap()),
+                Err(e) => Err(map_kanban_error(e)),
+            }
+        })
+        .await
+    }
+
     /// Create kanban tasks for contracts missing `expect:` user-voice annotations.
     ///
     /// Takes a JSON list of ExpectProposal structs (from test-harness

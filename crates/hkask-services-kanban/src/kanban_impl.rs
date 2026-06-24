@@ -11,8 +11,8 @@
 //!   kanban:board_tasks:{board_id} → {task_id} → task_id (index)
 
 use crate::kanban::{
-    Board, ColumnDef, Comment, ConsentProof, Phase, Task, TaskFilter, TaskSpec, TaskStatus,
-    Verification,
+    Board, ColumnDef, Comment, ConsentProof, GasEntry, Phase, Task, TaskFilter, TaskSpec,
+    TaskStatus, Verification,
 };
 use hkask_storage::{Triple, TripleStore};
 use hkask_types::WebID;
@@ -760,6 +760,30 @@ impl KanbanService {
         task.verification = None;
         task.updated_at = chrono::Utc::now();
         self.update_task_triple(&task)?;
+        Ok(task)
+    }
+
+    /// Add gas (rJoules) to a task's remaining budget.
+    ///
+    /// Called by the delegating agent to refill a subagent's gas budget
+    /// so it can continue work after exhausting its initial budget.
+    pub fn task_add_gas(&self, task_id: TaskId, amount: u64) -> Result<Task, KanbanError> {
+        let mut task = self
+            .task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let current = task.gas_remaining.unwrap_or(0);
+        task.gas_remaining = Some(current.saturating_add(amount));
+        task.gas_spend.push(GasEntry::refill(amount));
+        task.updated_at = chrono::Utc::now();
+        self.update_task_triple(&task)?;
+        tracing::info!(
+            target: "cns.kanban",
+            operation = "task_gas_added",
+            task_id = %task_id,
+            added = amount,
+            new_remaining = task.gas_remaining,
+            "CNS"
+        );
         Ok(task)
     }
 

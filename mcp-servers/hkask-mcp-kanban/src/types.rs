@@ -149,6 +149,40 @@ pub struct TaskVerifyResponse {
     pub new_status: String,
 }
 
+// ── Gas management ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskAddGasRequest {
+    pub task_id: String,
+    /// Amount of gas/rJoules to add to the task's remaining budget.
+    pub amount: u64,
+    pub capability_token: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskAddGasResponse {
+    pub task_id: String,
+    pub new_gas_remaining: u64,
+}
+
+// ── Comments ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskCommentRequest {
+    pub task_id: String,
+    pub body: String,
+    /// Optional capability token for authorization.
+    pub capability_token: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskCommentResponse {
+    pub comment_id: String,
+    pub task_id: String,
+    pub author: String,
+    pub body: String,
+}
+
 // ── Contract proposals ──────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

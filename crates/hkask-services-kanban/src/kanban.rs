@@ -491,6 +491,42 @@ impl TaskSpec {
     }
 }
 
+/// GasEntry — a record of gas consumed or added on a task.
+///
+/// Each entry tracks what operation consumed or granted gas, how much,
+/// and when. This is the audit trail for subagent resource usage.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GasEntry {
+    /// Amount consumed (positive) or added (also positive, context is in `kind`).
+    pub amount: u64,
+    /// "spend" (consumed) or "refill" (added by delegator).
+    pub kind: String,
+    /// What consumed the gas: "inference: deepseek-v4", "template: bug-hunt",
+    /// "tool: kanban_task_list", etc.
+    pub reason: String,
+    /// When this entry was recorded.
+    pub at: DateTime<Utc>,
+}
+
+impl GasEntry {
+    pub fn spend(amount: u64, reason: String) -> Self {
+        Self {
+            amount,
+            kind: "spend".into(),
+            reason,
+            at: Utc::now(),
+        }
+    }
+    pub fn refill(amount: u64) -> Self {
+        Self {
+            amount,
+            kind: "refill".into(),
+            reason: "delegator added gas".into(),
+            at: Utc::now(),
+        }
+    }
+}
+
 /// Task — a single work item on a kanban board.
 ///
 /// Every task carries `owner: WebID` (P12) — the creator of the task.
@@ -537,6 +573,9 @@ pub struct Task {
     /// Initialized from `TaskSpec.gas_budget`. When this hits 0, the task
     /// auto-completes via the gas exhaustion completion path.
     pub gas_remaining: Option<u64>,
+    /// Audit trail of gas consumption and refills.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub gas_spend: Vec<GasEntry>,
 }
 
 impl Task {
@@ -565,6 +604,7 @@ impl Task {
             created_at: now,
             updated_at: now,
             gas_remaining: spec.gas_budget,
+            gas_spend: Vec::new(),
         }
     }
 

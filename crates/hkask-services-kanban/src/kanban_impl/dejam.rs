@@ -110,21 +110,27 @@ impl KanbanService {
             }
 
             // Gas exhaustion: auto-complete tasks that have run out of gas
+            // and have been sitting at zero gas for > 1 hour (grace period for
+            // the delegator to respond with more gas or verification).
             if (task.status == TaskStatus::InProgress || task.status == TaskStatus::Review)
                 && let Some(remaining) = task.gas_remaining
                 && remaining == 0
             {
-                match self.task_gas_exhaust(task.id) {
-                    Ok(_) => fixes.push(UnjamFix {
-                        task_id: task.id,
-                        task_title: task.title.clone(),
-                        action: "Auto-completed (gas budget exhausted)".into(),
-                    }),
-                    Err(e) => fixes.push(UnjamFix {
-                        task_id: task.id,
-                        task_title: task.title.clone(),
-                        action: format!("Gas-exhaust failed: {}", e),
-                    }),
+                let idle_since_gas_zero = (now - task.updated_at).num_minutes();
+                if idle_since_gas_zero > 60 {
+                    match self.task_gas_exhaust(task.id) {
+                        Ok(_) => fixes.push(UnjamFix {
+                            task_id: task.id,
+                            task_title: task.title.clone(),
+                            action: "Auto-completed (gas exhausted, no response from delegator)"
+                                .into(),
+                        }),
+                        Err(e) => fixes.push(UnjamFix {
+                            task_id: task.id,
+                            task_title: task.title.clone(),
+                            action: format!("Gas-exhaust failed: {}", e),
+                        }),
+                    }
                 }
             }
         }
@@ -165,11 +171,18 @@ impl KanbanService {
 
     /// Deduct gas from a task's remaining budget.
     ///
-    /// Called by the subagent execution framework after each inference step
-    /// or tool dispatch. When gas hits zero, subsequent calls succeed but
-    /// the caller should check `gas_remaining` and stop work. The unjam
-    /// flow auto-completes zero-gas tasks.
-    pub fn task_consume_gas(&self, task_id: TaskId, amount: u64) -> Result<u64, KanbanError> {
+    /// Called by the subagent execution framework after each inference step,
+    /// template execution, or tool dispatch. Logs a GasEntry recording what
+    /// consumed the gas and how much.
+    ///
+    /// `reason` describes the cost: "inference: deepseek-v4 (500 tokens)",
+    /// "template: bug-hunt", "tool: kanban_task_list", etc.
+    pub fn task_consume_gas(
+        &self,
+        task_id: TaskId,
+        amount: u64,
+        reason: &str,
+    ) -> Result<u64, KanbanError> {
         let mut task = self
             .task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
@@ -177,6 +190,8 @@ impl KanbanService {
         let remaining = task.gas_remaining.unwrap_or(0);
         let new_remaining = remaining.saturating_sub(amount);
         task.gas_remaining = Some(new_remaining);
+        task.gas_spend
+            .push(GasEntry::spend(amount, reason.to_string()));
         task.updated_at = chrono::Utc::now();
         self.update_task_triple(&task)?;
 
