@@ -894,7 +894,10 @@ impl ResearchDataBridge for TuiReplBridge {
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
             args.insert("url".into(), serde_json::Value::String(url.clone()));
-            args.insert("format".into(), serde_json::Value::String("markdown".into()));
+            args.insert(
+                "format".into(),
+                serde_json::Value::String("markdown".into()),
+            );
             match runtime.call_tool("research", "web_extract", args).await {
                 Ok(ref result) => {
                     let text = extract_mcp_text(result)?;

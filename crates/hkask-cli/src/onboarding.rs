@@ -455,9 +455,15 @@ async fn setup_provider() -> Result<(), OnboardingError> {
         );
         // Auto-load into keychain so future sessions don't need .env in cwd
         let keychain = hkask_keystore::Keychain::default();
-        if has_deepinfra { let _ = keychain.store_by_key("DI_API_KEY", &config.deepinfra_api_key); }
-        if has_together { let _ = keychain.store_by_key("TOGETHER_API_KEY", &config.together_api_key); }
-        if has_fal { let _ = keychain.store_by_key("FA_API_KEY", &config.fal_api_key); }
+        if has_deepinfra {
+            let _ = keychain.store_by_key("DI_API_KEY", &config.deepinfra_api_key);
+        }
+        if has_together {
+            let _ = keychain.store_by_key("TOGETHER_API_KEY", &config.together_api_key);
+        }
+        if has_fal {
+            let _ = keychain.store_by_key("FA_API_KEY", &config.fal_api_key);
+        }
         return Ok(());
     }
 
@@ -512,11 +518,17 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             let api_key = api_key.trim();
             if api_key.is_empty() {
                 println!("  No key entered — skipping provider setup.");
-        // Auto-load into keychain so future sessions don't need .env in cwd
-        let keychain = hkask_keystore::Keychain::default();
-        if has_deepinfra { let _ = keychain.store_by_key("DI_API_KEY", &config.deepinfra_api_key); }
-        if has_together { let _ = keychain.store_by_key("TOGETHER_API_KEY", &config.together_api_key); }
-        if has_fal { let _ = keychain.store_by_key("FA_API_KEY", &config.fal_api_key); }
+                // Auto-load into keychain so future sessions don't need .env in cwd
+                let keychain = hkask_keystore::Keychain::default();
+                if has_deepinfra {
+                    let _ = keychain.store_by_key("DI_API_KEY", &config.deepinfra_api_key);
+                }
+                if has_together {
+                    let _ = keychain.store_by_key("TOGETHER_API_KEY", &config.together_api_key);
+                }
+                if has_fal {
+                    let _ = keychain.store_by_key("FA_API_KEY", &config.fal_api_key);
+                }
                 return Ok(());
             }
 
