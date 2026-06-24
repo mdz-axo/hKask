@@ -5,7 +5,8 @@
 //! `hkask-storage` to avoid re-processing.
 //!
 //! Each provider adapter then translates canonical ChatML to its native format
-//! (axolotl YAML configs, unsloth Python scripts, etc.).
+//! for cloud dispatch (axolotl YAML configs → Together/Runpod, unsloth → Baseten).
+//! All training is cloud-only — there is no local training path.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

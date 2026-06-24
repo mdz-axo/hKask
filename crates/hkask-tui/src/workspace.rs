@@ -15,10 +15,9 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 use uuid::Uuid;
 
 use crate::bridges::{
-    BackupDataBridge, CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge,
-    KanbanDataBridge, MatrixDataBridge, MediaDataBridge, MemoryDataBridge,
-    RegistryDataBridge, ReplicaDataBridge, ResearchDataBridge, SkillsDataBridge,
-    TrainingDataBridge, WalletDataBridge,
+    BackupDataBridge, CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge, KanbanDataBridge,
+    MatrixDataBridge, MediaDataBridge, MemoryDataBridge, RegistryDataBridge, ReplicaDataBridge,
+    ResearchDataBridge, SkillsDataBridge, TrainingDataBridge, WalletDataBridge,
 };
 use crate::keybindings::{CHAT_BINDINGS, GLOBAL_BINDINGS};
 use crate::repl_bridge::ReplBridge;
@@ -31,6 +30,7 @@ use crate::windows::cns_monitor::CnsMonitorWindow;
 use crate::windows::companies::CompaniesWindow;
 use crate::windows::configuration::ConfigurationWindow;
 use crate::windows::curator::CuratorWindow;
+use crate::windows::docproc::DocprocWindow;
 use crate::windows::editor::EditorWindow;
 use crate::windows::kanban::KanbanWindow;
 use crate::windows::logo::LogoWindow;
@@ -39,10 +39,9 @@ use crate::windows::media::MediaWindow;
 use crate::windows::memory::MemoryWindow;
 use crate::windows::pods::PodsWindow;
 use crate::windows::registry::RegistryWindow;
-use crate::windows::sidebar::SidebarWindow;
-use crate::windows::docproc::DocprocWindow;
 use crate::windows::replica::ReplicaWindow;
 use crate::windows::research::ResearchWindow;
+use crate::windows::sidebar::SidebarWindow;
 use crate::windows::skills::SkillsWindow;
 use crate::windows::terminal::TerminalWindow;
 use crate::windows::training::TrainingWindow;
@@ -104,8 +103,12 @@ impl SplitNode {
     pub(crate) fn window_kind(&self, target: WindowId) -> Option<crate::window::WindowKind> {
         match self {
             SplitNode::Leaf(w) if w.id() == target => Some(w.kind()),
-            SplitNode::Horizontal { left, right, .. } => left.window_kind(target).or_else(|| right.window_kind(target)),
-            SplitNode::Vertical { top, bottom, .. } => top.window_kind(target).or_else(|| bottom.window_kind(target)),
+            SplitNode::Horizontal { left, right, .. } => left
+                .window_kind(target)
+                .or_else(|| right.window_kind(target)),
+            SplitNode::Vertical { top, bottom, .. } => top
+                .window_kind(target)
+                .or_else(|| bottom.window_kind(target)),
             _ => None,
         }
     }
@@ -551,8 +554,6 @@ impl Workspace {
         }
     }
 
-
-
     fn focus_window(&mut self, id: WindowId) {
         if self.focused_window == Some(id) {
             return;
@@ -790,26 +791,119 @@ impl Workspace {
         match kind {
             WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(id, bridge)),
             WindowKind::Pods => Box::new(PodsWindow::new(id, bridge)),
-            WindowKind::Wallet => { let mut w = WalletWindow::new(id, bridge); if let Some(b) = wb { w = w.with_wallet_bridge(b); } Box::new(w) }
-            WindowKind::Registry => { let mut w = RegistryWindow::new(id, bridge); if let Some(b) = rb { w = w.with_registry_bridge(b); } Box::new(w) }
-            WindowKind::Backup => { let mut w = BackupWindow::new(id, bridge); if let Some(b) = bb { w = w.with_backup_bridge(b); } Box::new(w) }
+            WindowKind::Wallet => {
+                let mut w = WalletWindow::new(id, bridge);
+                if let Some(b) = wb {
+                    w = w.with_wallet_bridge(b);
+                }
+                Box::new(w)
+            }
+            WindowKind::Registry => {
+                let mut w = RegistryWindow::new(id, bridge);
+                if let Some(b) = rb {
+                    w = w.with_registry_bridge(b);
+                }
+                Box::new(w)
+            }
+            WindowKind::Backup => {
+                let mut w = BackupWindow::new(id, bridge);
+                if let Some(b) = bb {
+                    w = w.with_backup_bridge(b);
+                }
+                Box::new(w)
+            }
             WindowKind::Curator => Box::new(CuratorWindow::new(id, bridge)),
-            WindowKind::Configuration => { let mut w = ConfigurationWindow::new(id, bridge); if let Some(b) = cb { w = w.with_config_bridge(b); } Box::new(w) }
+            WindowKind::Configuration => {
+                let mut w = ConfigurationWindow::new(id, bridge);
+                if let Some(b) = cb {
+                    w = w.with_config_bridge(b);
+                }
+                Box::new(w)
+            }
             WindowKind::Terminal => Box::new(TerminalWindow::new(id, bridge)),
             WindowKind::Editor => Box::new(EditorWindow::new(id, bridge)),
-            WindowKind::Training => { let mut w = TrainingWindow::new(id, bridge); if let Some(b) = tb { w = w.with_training_bridge(b); } Box::new(w) }
-            WindowKind::Media => { let mut w = MediaWindow::new(id, bridge); if let Some(b) = mdb { w = w.with_media_bridge(b); } Box::new(w) }
-            WindowKind::Skills => { let mut w = SkillsWindow::new(id, bridge); if let Some(b) = rb { w = w.with_registry_bridge(b); } if let Some(b) = sb { w = w.with_skills_bridge(b); } Box::new(w) }
-            WindowKind::Research => { let mut w = ResearchWindow::new(id, bridge); if let Some(b) = rsb { w = w.with_research_bridge(b); } Box::new(w) }
-            WindowKind::Docproc => { let mut w = DocprocWindow::new(id, bridge); if let Some(b) = dpb { w = w.with_docproc_bridge(b); } Box::new(w) }
-            WindowKind::Replica => { let mut w = ReplicaWindow::new(id, bridge); if let Some(b) = rpb { w = w.with_replica_bridge(b); } Box::new(w) }
-            WindowKind::Matrix => { let mut w = MatrixWindow::new(id, bridge); if let Some(b) = mxb { w = w.with_matrix_bridge(b); } Box::new(w) }
-            WindowKind::Memory => { let mut w = MemoryWindow::new(id, bridge); if let Some(b) = mb { w = w.with_memory_bridge(b); } Box::new(w) }
-            WindowKind::Companies => { let mut w = CompaniesWindow::new(id, bridge); if let Some(b) = cpb { w = w.with_companies_bridge(b); } Box::new(w) }
-            WindowKind::Kanban => { let mut w = KanbanWindow::new(id, bridge); if let Some(b) = kb { w = w.with_kanban_bridge(b); } Box::new(w) }
+            WindowKind::Training => {
+                let mut w = TrainingWindow::new(id, bridge);
+                if let Some(b) = tb {
+                    w = w.with_training_bridge(b);
+                }
+                Box::new(w)
+            }
+            WindowKind::Media => {
+                let mut w = MediaWindow::new(id, bridge);
+                if let Some(b) = mdb {
+                    w = w.with_media_bridge(b);
+                }
+                Box::new(w)
+            }
+            WindowKind::Skills => {
+                let mut w = SkillsWindow::new(id, bridge);
+                if let Some(b) = rb {
+                    w = w.with_registry_bridge(b);
+                }
+                if let Some(b) = sb {
+                    w = w.with_skills_bridge(b);
+                }
+                Box::new(w)
+            }
+            WindowKind::Research => {
+                let mut w = ResearchWindow::new(id, bridge);
+                if let Some(b) = rsb {
+                    w = w.with_research_bridge(b);
+                }
+                Box::new(w)
+            }
+            WindowKind::Docproc => {
+                let mut w = DocprocWindow::new(id, bridge);
+                if let Some(b) = dpb {
+                    w = w.with_docproc_bridge(b);
+                }
+                Box::new(w)
+            }
+            WindowKind::Replica => {
+                let mut w = ReplicaWindow::new(id, bridge);
+                if let Some(b) = rpb {
+                    w = w.with_replica_bridge(b);
+                }
+                Box::new(w)
+            }
+            WindowKind::Matrix => {
+                let mut w = MatrixWindow::new(id, bridge);
+                if let Some(b) = mxb {
+                    w = w.with_matrix_bridge(b);
+                }
+                Box::new(w)
+            }
+            WindowKind::Memory => {
+                let mut w = MemoryWindow::new(id, bridge);
+                if let Some(b) = mb {
+                    w = w.with_memory_bridge(b);
+                }
+                Box::new(w)
+            }
+            WindowKind::Companies => {
+                let mut w = CompaniesWindow::new(id, bridge);
+                if let Some(b) = cpb {
+                    w = w.with_companies_bridge(b);
+                }
+                Box::new(w)
+            }
+            WindowKind::Kanban => {
+                let mut w = KanbanWindow::new(id, bridge);
+                if let Some(b) = kb {
+                    w = w.with_kanban_bridge(b);
+                }
+                Box::new(w)
+            }
             WindowKind::Sidebar => Box::new(SidebarWindow::new(id, Some(service_context), bridge)),
             WindowKind::Logo => Box::new(LogoWindow::new(id)),
-            WindowKind::Chat => Box::new(ChatWindow::new(id, self.bridge.agent_name(), self.bridge.model_name(), Some(service_context), bridge)),
+            WindowKind::Chat => Box::new(ChatWindow::new(
+                id,
+                self.bridge.agent_name(),
+                self.bridge.model_name(),
+                Some(service_context),
+                bridge,
+            )),
         }
     }
 
@@ -879,20 +973,16 @@ impl Workspace {
             SplitNode::Leaf(window) => crate::layout::SavedSplit::Leaf(crate::layout::SavedLeaf {
                 kind: crate::layout::kind_to_string(window.kind()),
             }),
-            SplitNode::Horizontal { left, right, ratio } => {
-                crate::layout::SavedSplit::Horizontal {
-                    left: Box::new(Self::extract_split(left)),
-                    right: Box::new(Self::extract_split(right)),
-                    ratio: *ratio,
-                }
-            }
-            SplitNode::Vertical { top, bottom, ratio } => {
-                crate::layout::SavedSplit::Vertical {
-                    top: Box::new(Self::extract_split(top)),
-                    bottom: Box::new(Self::extract_split(bottom)),
-                    ratio: *ratio,
-                }
-            }
+            SplitNode::Horizontal { left, right, ratio } => crate::layout::SavedSplit::Horizontal {
+                left: Box::new(Self::extract_split(left)),
+                right: Box::new(Self::extract_split(right)),
+                ratio: *ratio,
+            },
+            SplitNode::Vertical { top, bottom, ratio } => crate::layout::SavedSplit::Vertical {
+                top: Box::new(Self::extract_split(top)),
+                bottom: Box::new(Self::extract_split(bottom)),
+                ratio: *ratio,
+            },
         }
     }
 
@@ -908,20 +998,16 @@ impl Workspace {
             crate::layout::SavedSplit::Leaf(leaf) => {
                 SplitNode::Leaf(self.build_window(leaf.clone()))
             }
-            crate::layout::SavedSplit::Horizontal { left, right, ratio } => {
-                SplitNode::Horizontal {
-                    left: Box::new(self.restore_split(left)),
-                    right: Box::new(self.restore_split(right)),
-                    ratio: *ratio,
-                }
-            }
-            crate::layout::SavedSplit::Vertical { top, bottom, ratio } => {
-                SplitNode::Vertical {
-                    top: Box::new(self.restore_split(top)),
-                    bottom: Box::new(self.restore_split(bottom)),
-                    ratio: *ratio,
-                }
-            }
+            crate::layout::SavedSplit::Horizontal { left, right, ratio } => SplitNode::Horizontal {
+                left: Box::new(self.restore_split(left)),
+                right: Box::new(self.restore_split(right)),
+                ratio: *ratio,
+            },
+            crate::layout::SavedSplit::Vertical { top, bottom, ratio } => SplitNode::Vertical {
+                top: Box::new(self.restore_split(top)),
+                bottom: Box::new(self.restore_split(bottom)),
+                ratio: *ratio,
+            },
         }
     }
 
@@ -931,7 +1017,8 @@ impl Workspace {
         self.tabs.clear();
         for saved_tab in &layout.tabs {
             let root = self.restore_split(&saved_tab.root);
-            self.tabs.push(crate::tab::Tab::new(saved_tab.name.clone(), root));
+            self.tabs
+                .push(crate::tab::Tab::new(saved_tab.name.clone(), root));
         }
         if layout.active_tab < self.tabs.len() {
             self.active_tab = layout.active_tab;

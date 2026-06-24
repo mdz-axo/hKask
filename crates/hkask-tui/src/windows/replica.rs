@@ -111,17 +111,23 @@ impl McpTabbedWindow for ReplicaWindow {
             )),
             Line::from(""),
         ];
-        let rep_data: Vec<(String, usize, String)> = self.replica.as_ref().map(|r| r.list_replicas().iter().map(|r2| (r2.author.clone(), r2.centroid_count, r2.status.clone())).collect()).unwrap_or_default();
+        let rep_data: Vec<(String, usize, String)> = self
+            .replica
+            .as_ref()
+            .map(|r| {
+                r.list_replicas()
+                    .iter()
+                    .map(|r2| (r2.author.clone(), r2.centroid_count, r2.status.clone()))
+                    .collect()
+            })
+            .unwrap_or_default();
         if let Some(ref r) = self.replica {
             lines.push(Line::from(format!("  {} replica(s)", rep_data.len())));
             for (author, centroid_count, status) in &rep_data {
                 lines.push(Line::from(vec![
                     Span::raw("  • "),
                     Span::styled(author, Style::default().fg(Color::Green)),
-                    Span::raw(format!(
-                        "  {} centroids  [{}]",
-                        centroid_count, status
-                    )),
+                    Span::raw(format!("  {} centroids  [{}]", centroid_count, status)),
                 ]));
             }
         } else {

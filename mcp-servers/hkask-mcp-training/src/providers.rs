@@ -25,13 +25,17 @@ use thiserror::Error;
 /// *base model* layer (what model is fine-tuned: Qwen/Gemma/Mistral).
 ///
 /// Each variant represents a training framework that produces LoRA adapters.
-/// A harness can run on any host (local GPU or cloud), depending on configuration.
+/// All training runs on cloud hosts — there is no local training path.
+///
+/// Harness → Host mapping:
+///   Axolotl → Together AI, Runpod
+///   Unsloth → Baseten
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TrainingHarnessId {
-    /// axolotl — YAML-based training framework, runs locally via CLI or dispatched to Runpod
+    /// axolotl — YAML-based training framework, dispatched to Together AI or Runpod
     Axolotl,
-    /// unsloth — memory-efficient Python training framework, runs locally via CLI or dispatched to Baseten
+    /// unsloth — memory-efficient Python training framework, dispatched to Baseten
     Unsloth,
 }
 
@@ -51,17 +55,23 @@ impl TrainingHarnessId {
 
 /// Training hosts — where the GPU compute runs.
 ///
-/// This is the *host* layer (cloud or local), distinct from the *harness* layer
-/// (Axolotl/Unsloth tooling) and the *base model* layer (Qwen/Gemma/Mistral/etc.).
-/// Each variant represents a backend that can execute training jobs.
+/// This is the *host* layer (cloud only — no local training), distinct from the
+/// *harness* layer (Axolotl/Unsloth tooling) and the *base model* layer
+/// (Qwen/Gemma/Mistral/etc.). Each variant represents a cloud backend that
+/// executes training jobs.
+///
+/// Host → Harness mapping:
+///   Together → Axolotl
+///   Runpod   → Axolotl
+///   Baseten  → Unsloth
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TrainingHostId {
-    /// together — Together AI cloud fine-tuning API
+    /// together — Together AI cloud fine-tuning API (Axolotl harness)
     Together,
-    /// runpod — Runpod GPU cloud training (pod-based axolotl dispatch)
+    /// runpod — Runpod GPU cloud training, pod-based axolotl dispatch
     Runpod,
-    /// baseten — Baseten managed training infrastructure (bring your own train.py)
+    /// baseten — Baseten managed training infrastructure, Unsloth harness
     Baseten,
 }
 

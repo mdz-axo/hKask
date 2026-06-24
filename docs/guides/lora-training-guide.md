@@ -80,15 +80,15 @@ The pipeline handles:
 
 ### 1.4 Converting to Training Frameworks
 
-The pipeline exports to framework-specific formats:
+The pipeline exports to framework-specific formats for cloud dispatch:
 
 ```rust
 use hkask_mcp_training::dataset::{to_axolotl_format, to_unsloth_format};
 
-// For Axolotl training (Runpod-hosted)
+// Axolotl → Together AI / Runpod (cloud-only, no local training)
 let axolotl_path = to_axolotl_format(&records, "/output/axolotl")?;
 
-// For Unsloth training (Baseten-hosted)
+// Unsloth → Baseten (cloud-only, no local training)
 let unsloth_path = to_unsloth_format(&records, "/output/unsloth")?;
 ```
 
@@ -115,23 +115,23 @@ The training pipeline is managed by the `hkask-mcp-training` MCP server, which w
 
 ### 2.1 Training Architecture
 
-The training system separates three concerns:
+The training system separates three concerns. All training is cloud-only — there is no local training path.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                     Training Job                          │
 │                                                          │
-│  Harness (how):    Axolotl  │  Unsloth                  │
+│  Harness (how):    Axolotl              │  Unsloth      │
 │  Host (where):   Together  │  Runpod   │  Baseten       │
 │  Base Model:      Qwen  │  Gemma  │  Llama  │  Mistral  │
 └─────────────────────────────────────────────────────────┘
 ```
 
-| Layer | Variants | Description |
-|-------|----------|-------------|
-| **Harness** | `Axolotl`, `Unsloth` | Training framework that produces the LoRA adapter |
-| **Host** | `Together`, `Runpod`, `Baseten` | Where GPU compute runs |
-| **Base Model** | `llama-3.3-70b`, `qwen2.5-72b`, etc. | What model is fine-tuned |
+| Layer | Variants | Cloud Host | Description |
+|-------|----------|-----------|-------------|
+| **Harness** | `Axolotl` | Together AI, Runpod | YAML-based training framework |
+| **Harness** | `Unsloth` | Baseten | Memory-efficient Python training framework |
+| **Base Model** | `llama-3.3-70b`, `qwen2.5-72b`, etc. | — | What model is fine-tuned |
 
 ### 2.2 Training Parameters
 
@@ -478,11 +478,11 @@ kask cns health --filter endpoint.cost
 
 ### 5.1 Provider Capabilities
 
-| Provider | Training Host | Inference LoRA Compose | Hourly Rate | Base Models |
-|----------|-------------|----------------------|-------------|-------------|
-| **Together AI** | ✅ (`Together`) | ✅ Real HTTP upload + inference | $1.10/hr | llama-3.3-70b, llama-3.1-70b, qwen2.5-72b |
-| **Runpod** | ✅ (`Runpod`) | ✅ vLLM skeleton | $0.79/hr | llama-3.3-70b, llama-3.1-70b, qwen2.5-72b, mixtral-8x7b |
-| **Baseten** | ✅ (`Baseten`) | ✅ vLLM skeleton | $0.85/hr | llama-3.3-70b, qwen2.5-72b |
+| Provider | Harness | Training Host | Inference LoRA Compose | Hourly Rate | Base Models |
+|----------|---------|-------------|----------------------|-------------|-------------|
+| **Together AI** | Axolotl | ✅ (`Together`) | ✅ Real HTTP upload + inference | $1.10/hr | llama-3.3-70b, llama-3.1-70b, qwen2.5-72b |
+| **Runpod** | Axolotl | ✅ (`Runpod`) | ✅ vLLM skeleton | $0.79/hr | llama-3.3-70b, llama-3.1-70b, qwen2.5-72b, mixtral-8x7b |
+| **Baseten** | Unsloth | ✅ (`Baseten`) | ✅ vLLM skeleton | $0.85/hr | llama-3.3-70b, qwen2.5-72b |
 
 ### 5.2 Together AI
 

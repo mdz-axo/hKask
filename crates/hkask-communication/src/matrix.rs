@@ -522,7 +522,10 @@ impl MatrixTransport {
     ) -> Result<String, MatrixError> {
         let client = self.client.as_ref().ok_or(MatrixError::NotLoggedIn)?;
         let mime: mime::Mime = mime_type.parse().unwrap_or(mime::APPLICATION_OCTET_STREAM);
-        let response = client.media().upload(&mime, data.to_vec(), None).await
+        let response = client
+            .media()
+            .upload(&mime, data.to_vec(), None)
+            .await
             .map_err(|e| MatrixError::Network(format!("Upload failed: {}", e)))?;
         let uri = response.content_uri.to_string();
         tracing::info!(target: "cns.communication.matrix.file.uploaded", filename = %filename, uri = %uri, "File uploaded");
@@ -542,28 +545,50 @@ impl MatrixTransport {
         let client = self.client.as_ref().ok_or(MatrixError::NotLoggedIn)?;
         let rid = matrix_sdk::ruma::RoomId::parse(room_id.as_str())
             .map_err(|e| MatrixError::Room(format!("Invalid room ID: {}", e)))?;
-        let room = client.get_room(&rid)
+        let room = client
+            .get_room(&rid)
             .ok_or_else(|| MatrixError::Room(format!("Room not found: {}", rid)))?;
         let body = caption.unwrap_or(filename);
         let mxc = matrix_sdk::ruma::OwnedMxcUri::from(uri);
         let content = if mime_type.starts_with("image/") {
             matrix_sdk::ruma::events::room::message::RoomMessageEventContent::new(
                 matrix_sdk::ruma::events::room::message::MessageType::Image(
-                    matrix_sdk::ruma::events::room::message::ImageMessageEventContent::plain(body.to_string(), mxc)))
+                    matrix_sdk::ruma::events::room::message::ImageMessageEventContent::plain(
+                        body.to_string(),
+                        mxc,
+                    ),
+                ),
+            )
         } else if mime_type.starts_with("video/") {
             matrix_sdk::ruma::events::room::message::RoomMessageEventContent::new(
                 matrix_sdk::ruma::events::room::message::MessageType::Video(
-                    matrix_sdk::ruma::events::room::message::VideoMessageEventContent::plain(body.to_string(), mxc)))
+                    matrix_sdk::ruma::events::room::message::VideoMessageEventContent::plain(
+                        body.to_string(),
+                        mxc,
+                    ),
+                ),
+            )
         } else if mime_type.starts_with("audio/") {
             matrix_sdk::ruma::events::room::message::RoomMessageEventContent::new(
                 matrix_sdk::ruma::events::room::message::MessageType::Audio(
-                    matrix_sdk::ruma::events::room::message::AudioMessageEventContent::plain(body.to_string(), mxc)))
+                    matrix_sdk::ruma::events::room::message::AudioMessageEventContent::plain(
+                        body.to_string(),
+                        mxc,
+                    ),
+                ),
+            )
         } else {
             matrix_sdk::ruma::events::room::message::RoomMessageEventContent::new(
                 matrix_sdk::ruma::events::room::message::MessageType::File(
-                    matrix_sdk::ruma::events::room::message::FileMessageEventContent::plain(body.to_string(), mxc)))
+                    matrix_sdk::ruma::events::room::message::FileMessageEventContent::plain(
+                        body.to_string(),
+                        mxc,
+                    ),
+                ),
+            )
         };
-        room.send(content).await
+        room.send(content)
+            .await
             .map_err(|e| MatrixError::Network(format!("File send failed: {}", e)))?;
         tracing::info!(target: "cns.communication.matrix.file.sent", room_id = %rid, filename = %filename, "File sent");
         Ok(())

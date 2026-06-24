@@ -377,7 +377,9 @@ impl CommunicationServer {
         .await
     }
 
-    #[tool(description = "Upload a file to the Matrix homeserver. Returns an mxc:// URI for use in messages.")]
+    #[tool(
+        description = "Upload a file to the Matrix homeserver. Returns an mxc:// URI for use in messages."
+    )]
     async fn upload_file(
         &self,
         Parameters(UploadFileRequest {
@@ -399,7 +401,9 @@ impl CommunicationServer {
         .await
     }
 
-    #[tool(description = "Upload a file and send it as an attachment to a Matrix room. Supports images, video, audio, and generic files.")]
+    #[tool(
+        description = "Upload a file and send it as an attachment to a Matrix room. Supports images, video, audio, and generic files."
+    )]
     async fn send_file(
         &self,
         Parameters(SendFileRequest {
@@ -426,7 +430,6 @@ impl CommunicationServer {
         })
         .await
     }
-
 }
 
 impl hkask_mcp::server::ToolContext for CommunicationServer {

@@ -57,10 +57,9 @@ use std::io::Stdout;
 use std::time::Duration;
 
 use bridges::{
-    BackupDataBridge, CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge,
-    KanbanDataBridge, MatrixDataBridge, MediaDataBridge, MemoryDataBridge,
-    RegistryDataBridge, ReplicaDataBridge, ResearchDataBridge, SkillsDataBridge,
-    TrainingDataBridge, WalletDataBridge,
+    BackupDataBridge, CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge, KanbanDataBridge,
+    MatrixDataBridge, MediaDataBridge, MemoryDataBridge, RegistryDataBridge, ReplicaDataBridge,
+    ResearchDataBridge, SkillsDataBridge, TrainingDataBridge, WalletDataBridge,
 };
 pub use repl_bridge::{InferenceState, ReplBridge, TurnResult};
 pub use splash::SplashScreen;
@@ -164,7 +163,10 @@ impl TuiSession {
         self
     }
 
-    pub fn with_research_bridge(mut self, research: std::sync::Arc<dyn ResearchDataBridge>) -> Self {
+    pub fn with_research_bridge(
+        mut self,
+        research: std::sync::Arc<dyn ResearchDataBridge>,
+    ) -> Self {
         self.workspace.with_research_bridge(research);
         self
     }
@@ -370,7 +372,9 @@ impl TuiSession {
             // Tab: next window focus (passthrough for Terminal PTY)
             (KeyModifiers::NONE, KeyCode::Tab) => {
                 if let Some(focus) = self.workspace.focused_window() {
-                    if self.workspace.root().window_kind(focus) == Some(crate::window::WindowKind::Terminal) {
+                    if self.workspace.root().window_kind(focus)
+                        == Some(crate::window::WindowKind::Terminal)
+                    {
                         return false; // let Terminal handle Tab
                     }
                 }
