@@ -1,47 +1,44 @@
-//! Skills window — browse and manage the skill corpus.
+//! Skills window — skill corpus browser, template executor, and editor.
 //!
-//! Live data from RegistryDataBridge (SqliteRegistry). Tab-cycled
-//! sections: Installed, Available, Active.
+//! `]` forward, `[` backward through Browse→Execute→Active→Chat.
 
-use std::sync::Arc;
-
+use crate::bridges::{RegistryDataBridge, SkillsDataBridge};
+use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
+use crate::repl_bridge::ReplBridge;
+use crate::window::{Window, WindowId, WindowKind};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
-
-use crate::bridges::RegistryDataBridge;
-use crate::repl_bridge::ReplBridge;
-use crate::window::{Window, WindowId, WindowKind};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SkillSection {
-    Installed,
-    Available,
+    Browse,
+    Execute,
     Active,
 }
-
 impl SkillSection {
     fn next(self) -> Self {
         match self {
-            Self::Installed => Self::Available,
-            Self::Available => Self::Active,
-            Self::Active => Self::Installed,
+            Self::Browse => Self::Execute,
+            Self::Execute => Self::Active,
+            Self::Active => Self::Browse,
         }
     }
     fn prev(self) -> Self {
         match self {
-            Self::Installed => Self::Active,
-            Self::Available => Self::Installed,
-            Self::Active => Self::Available,
+            Self::Browse => Self::Active,
+            Self::Execute => Self::Browse,
+            Self::Active => Self::Execute,
         }
     }
     fn title(&self) -> &str {
         match self {
-            Self::Installed => "Installed",
-            Self::Available => "Available",
+            Self::Browse => "Browse",
+            Self::Execute => "Execute",
             Self::Active => "Active",
         }
     }
@@ -50,23 +47,31 @@ impl SkillSection {
 pub struct SkillsWindow {
     id: WindowId,
     section: SkillSection,
-    #[allow(dead_code)]
+    active_tab: McpTab,
+    chat_state: McpChatState,
     bridge: Arc<dyn ReplBridge>,
     registry: Option<Arc<dyn RegistryDataBridge>>,
+    skills: Option<Arc<dyn SkillsDataBridge>>,
 }
 
 impl SkillsWindow {
     pub fn new(id: WindowId, bridge: Arc<dyn ReplBridge>) -> Self {
         Self {
             id,
-            section: SkillSection::Installed,
+            section: SkillSection::Browse,
+            active_tab: McpTab::Data,
+            chat_state: McpChatState::new(),
             bridge,
             registry: None,
+            skills: None,
         }
     }
-
-    pub fn with_registry_bridge(mut self, reg: Arc<dyn RegistryDataBridge>) -> Self {
-        self.registry = Some(reg);
+    pub fn with_registry_bridge(mut self, r: Arc<dyn RegistryDataBridge>) -> Self {
+        self.registry = Some(r);
+        self
+    }
+    pub fn with_skills_bridge(mut self, s: Arc<dyn SkillsDataBridge>) -> Self {
+        self.skills = Some(s);
         self
     }
 }
@@ -76,143 +81,160 @@ impl Window for SkillsWindow {
         self.id
     }
     fn title(&self) -> &str {
-        "Skills"
+        match self.active_tab {
+            McpTab::Chat => "Skills Chat",
+            McpTab::Data => "Skills",
+        }
     }
     fn kind(&self) -> WindowKind {
         WindowKind::Skills
     }
+    fn render(&self, f: &mut Frame, area: Rect, _: bool) {
+        match self.active_tab {
+            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "skill", f, area),
+            McpTab::Data => self.render_data_tab(f, area),
+        }
+    }
+    fn handle_key(&mut self, key: KeyEvent) -> bool {
+        match key.code {
+            KeyCode::Char(']') => {
+                match self.active_tab {
+                    McpTab::Chat => {
+                        self.active_tab = McpTab::Data;
+                        self.section = SkillSection::Browse;
+                    }
+                    McpTab::Data => {
+                        self.section = self.section.next();
+                        if self.section == SkillSection::Browse {
+                            self.active_tab = McpTab::Chat;
+                        }
+                    }
+                }
+                return true;
+            }
+            KeyCode::Char('[') => {
+                match self.active_tab {
+                    McpTab::Chat => {
+                        self.active_tab = McpTab::Data;
+                        self.section = SkillSection::Active;
+                    }
+                    McpTab::Data => {
+                        self.section = self.section.prev();
+                        if self.section == SkillSection::Active {
+                            self.active_tab = McpTab::Chat;
+                        }
+                    }
+                }
+                return true;
+            }
+            _ => {}
+        }
+        match self.active_tab {
+            McpTab::Chat => {
+                if let Some(msg) = self.handle_chat_key(key) {
+                    self.bridge
+                        .start_scoped_inference(msg, self.mcp_server_name());
+                    return true;
+                }
+                matches!(
+                    key.code,
+                    KeyCode::Char(_) | KeyCode::Backspace | KeyCode::Enter | KeyCode::Esc
+                )
+            }
+            McpTab::Data => false,
+        }
+    }
+    fn tick(&mut self) {}
+}
 
-    fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
+impl McpTabbedWindow for SkillsWindow {
+    fn active_tab(&self) -> McpTab {
+        self.active_tab
+    }
+    fn set_active_tab(&mut self, tab: McpTab) {
+        self.active_tab = tab;
+    }
+    fn chat_state_mut(&mut self) -> &mut McpChatState {
+        &mut self.chat_state
+    }
+    fn mcp_server_name(&self) -> &str {
+        "skill"
+    }
+    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
+        Self::default_render_chat_tab(&self.chat_state, "skill", f, area);
+    }
+    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
         let mut lines = vec![
             Line::from(Span::styled(
-                format!("── Skills: {} (Tab to switch) ──", self.section.title()),
+                format!("── Skills: {} ([ ] to navigate) ──", self.section.title()),
                 Style::default().fg(Color::Cyan).bold(),
             )),
             Line::from(""),
         ];
-
-        if let Some(ref reg) = self.registry {
-            match self.section {
-                SkillSection::Installed => {
-                    let skills = reg.list_skills();
-                    lines.push(Line::from(format!("  {} skill(s) installed", skills.len())));
-                    lines.push(Line::from(""));
-                    if skills.is_empty() {
-                        lines.push(Line::from("  No skills installed."));
-                    } else {
-                        for s in &skills {
-                            let name = s.name.to_string();
-                            let domain = s.domain.to_string();
-                            let desc: String = s
-                                .description
-                                .as_deref()
-                                .map(|d| format!(" — {}", d))
-                                .unwrap_or_default();
-                            lines.push(Line::from(vec![
-                                Span::raw("  • "),
-                                Span::styled(name, Style::default().fg(Color::Magenta)),
-                                Span::raw(format!("  [{}]", domain)),
-                                Span::styled(desc, Style::default().fg(Color::DarkGray)),
-                            ]));
-                        }
+        match self.section {
+            SkillSection::Browse => {
+                if let Some(ref sk) = self.skills {
+                    let list = sk.skill_list();
+                    lines.push(Line::from(format!("  {} skill(s) registered", list.len())));
+                    let skill_items: Vec<(String, String)> = list
+                        .iter()
+                        .map(|s| (s.id.clone(), s.description.clone()))
+                        .collect();
+                    for (id, desc) in &skill_items {
+                        lines.push(Line::from(vec![
+                            Span::raw("  • "),
+                            Span::styled(id.clone(), Style::default().fg(Color::Green)),
+                            Span::raw(" — "),
+                            Span::styled(desc.clone(), Style::default().fg(Color::DarkGray)),
+                        ]));
                     }
-                }
-                SkillSection::Available => {
-                    let templates = reg.list_templates();
+                } else if let Some(ref r) = self.registry {
                     lines.push(Line::from(format!(
-                        "  {} template(s) available",
-                        templates.len()
+                        "  Templates: {}   Bundles: {}",
+                        r.template_count(),
+                        r.bundle_count()
                     )));
-                    lines.push(Line::from(""));
-                    if templates.is_empty() {
-                        lines.push(Line::from("  No templates available."));
-                    } else {
-                        for t in templates.iter().take(30) {
-                            let name = t.name.to_string();
-                            let desc: String = t
-                                .description
-                                .as_deref()
-                                .map(|d| format!(" — {}", d))
-                                .unwrap_or_default();
-                            lines.push(Line::from(vec![
-                                Span::raw("  • "),
-                                Span::styled(name, Style::default().fg(Color::Cyan)),
-                                Span::styled(desc, Style::default().fg(Color::DarkGray)),
-                            ]));
-                        }
-                        if templates.len() > 30 {
-                            lines.push(Line::from(format!(
-                                "  ... and {} more",
-                                templates.len() - 30
-                            )));
-                        }
+                    let tmpl_ids: Vec<String> =
+                        r.list_templates().iter().map(|t| t.id.clone()).collect();
+                    for id in &tmpl_ids {
+                        lines.push(Line::from(vec![
+                            Span::raw("  • "),
+                            Span::styled(id.clone(), Style::default().fg(Color::Green)),
+                        ]));
                     }
-                }
-                SkillSection::Active => {
-                    let bundles = reg.list_bundles();
-                    lines.push(Line::from(format!(
-                        "  {} bundle(s) available",
-                        bundles.len()
-                    )));
-                    lines.push(Line::from(""));
-                    if bundles.is_empty() {
-                        lines.push(Line::from("  No active bundles."));
-                    } else {
-                        for b in &bundles {
-                            let name = b.name.to_string();
-                            let version = b.version.to_string();
-                            let desc: String = b
-                                .description
-                                .as_deref()
-                                .map(|d| format!(" — {}", d))
-                                .unwrap_or_default();
-                            lines.push(Line::from(vec![
-                                Span::raw("  • "),
-                                Span::styled(name, Style::default().fg(Color::Green)),
-                                Span::raw(format!("  v{}", version)),
-                                Span::styled(desc, Style::default().fg(Color::DarkGray)),
-                            ]));
-                            lines.push(Line::from(format!("     {} skill(s)", b.skill_count)));
-                        }
-                    }
+                } else {
+                    lines.push(Line::from("  Use `kask mcp start skill` to enable."));
                 }
             }
-        } else {
-            match self.section {
-                SkillSection::Installed => {
-                    lines.push(Line::from("  Installed skills from .agents/skills/"));
-                    lines.push(Line::from("  Use /skill list to see installed skills."));
+            SkillSection::Execute => {
+                lines.push(Line::from(
+                    "  Execute a skill template with context variables.",
+                ));
+                lines.push(Line::from(
+                    "  Use the Chat tab to run: skill_execute <id> <context_json>",
+                ));
+                if let Some(ref sk) = self.skills {
+                    lines.push(Line::from(format!(
+                        "  {} skill(s) available for execution",
+                        sk.skill_count()
+                    )));
                 }
-                SkillSection::Available => {
-                    lines.push(Line::from("  Skills available in the registry:"));
-                    lines.push(Line::from("    • coding-guidelines"));
-                    lines.push(Line::from("    • tdd"));
-                    lines.push(Line::from("    • diagnose"));
-                }
-                SkillSection::Active => {
-                    lines.push(Line::from("  Currently active skills:"));
-                    lines.push(Line::from("    • None active"));
+            }
+            SkillSection::Active => {
+                if let Some(ref r) = self.registry {
+                    let bundles = r.list_bundles();
+                    for b in &bundles {
+                        lines.push(Line::from(vec![
+                            Span::raw("  • "),
+                            Span::styled(b.name.clone(), Style::default().fg(Color::Magenta)),
+                            Span::raw(format!(" v{}  ({} skills)", b.version, b.skill_count)),
+                        ]));
+                    }
+                } else {
+                    lines.push(Line::from("  No active bundles."));
                 }
             }
         }
-        lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled(
-            "  Skills are PDCA FlowDef loops with quality threshold + energy budget.",
-            Style::default().fg(Color::DarkGray),
-        )));
         f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
     }
-
-    fn handle_key(&mut self, key: KeyEvent) -> bool {
-        if key.code == KeyCode::Char('[') {
-            self.section = self.section.prev();
-            true
-        } else if key.code == KeyCode::Char(']') {
-            self.section = self.section.next();
-            true
-        } else {
-            false
-        }
-    }
-    fn tick(&mut self) {}
 }

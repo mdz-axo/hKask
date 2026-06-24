@@ -15,8 +15,10 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 use uuid::Uuid;
 
 use crate::bridges::{
-    BackupDataBridge, CompaniesDataBridge, ConfigDataBridge, KanbanDataBridge, MatrixDataBridge,
-    MediaDataBridge, MemoryDataBridge, RegistryDataBridge, TrainingDataBridge, WalletDataBridge,
+    BackupDataBridge, CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge,
+    KanbanDataBridge, MatrixDataBridge, MediaDataBridge, MemoryDataBridge,
+    RegistryDataBridge, ReplicaDataBridge, ResearchDataBridge, SkillsDataBridge,
+    TrainingDataBridge, WalletDataBridge,
 };
 use crate::keybindings::{CHAT_BINDINGS, GLOBAL_BINDINGS};
 use crate::repl_bridge::ReplBridge;
@@ -38,6 +40,9 @@ use crate::windows::memory::MemoryWindow;
 use crate::windows::pods::PodsWindow;
 use crate::windows::registry::RegistryWindow;
 use crate::windows::sidebar::SidebarWindow;
+use crate::windows::docproc::DocprocWindow;
+use crate::windows::replica::ReplicaWindow;
+use crate::windows::research::ResearchWindow;
 use crate::windows::skills::SkillsWindow;
 use crate::windows::terminal::TerminalWindow;
 use crate::windows::training::TrainingWindow;
@@ -290,6 +295,10 @@ pub struct Workspace {
     media_bridge: Option<Arc<dyn MediaDataBridge>>,
     training_bridge: Option<Arc<dyn TrainingDataBridge>>,
     companies_bridge: Option<Arc<dyn CompaniesDataBridge>>,
+    research_bridge: Option<Arc<dyn ResearchDataBridge>>,
+    docproc_bridge: Option<Arc<dyn DocprocDataBridge>>,
+    replica_bridge: Option<Arc<dyn ReplicaDataBridge>>,
+    skills_bridge: Option<Arc<dyn SkillsDataBridge>>,
     status_bar: StatusBar,
     sidebar_open: bool,
     help_visible: bool,
@@ -356,6 +365,10 @@ impl Workspace {
             media_bridge: None,
             training_bridge: None,
             companies_bridge: None,
+            research_bridge: None,
+            docproc_bridge: None,
+            replica_bridge: None,
+            skills_bridge: None,
             status_bar,
             sidebar_open: false,
             help_visible: false,
@@ -412,6 +425,22 @@ impl Workspace {
 
     pub fn with_companies_bridge(&mut self, companies: Arc<dyn CompaniesDataBridge>) -> &mut Self {
         self.companies_bridge = Some(companies);
+        self
+    }
+    pub fn with_research_bridge(&mut self, research: Arc<dyn ResearchDataBridge>) -> &mut Self {
+        self.research_bridge = Some(research);
+        self
+    }
+    pub fn with_docproc_bridge(&mut self, docproc: Arc<dyn DocprocDataBridge>) -> &mut Self {
+        self.docproc_bridge = Some(docproc);
+        self
+    }
+    pub fn with_replica_bridge(&mut self, replica: Arc<dyn ReplicaDataBridge>) -> &mut Self {
+        self.replica_bridge = Some(replica);
+        self
+    }
+    pub fn with_skills_bridge(&mut self, skills: Arc<dyn SkillsDataBridge>) -> &mut Self {
+        self.skills_bridge = Some(skills);
         self
     }
 
@@ -754,6 +783,10 @@ impl Workspace {
         let mdb = self.media_bridge.clone();
         let tb = self.training_bridge.clone();
         let cpb = self.companies_bridge.clone();
+        let rsb = self.research_bridge.clone();
+        let dpb = self.docproc_bridge.clone();
+        let rpb = self.replica_bridge.clone();
+        let sb = self.skills_bridge.clone();
         match kind {
             WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(id, bridge)),
             WindowKind::Pods => Box::new(PodsWindow::new(id, bridge)),
@@ -766,7 +799,10 @@ impl Workspace {
             WindowKind::Editor => Box::new(EditorWindow::new(id, bridge)),
             WindowKind::Training => { let mut w = TrainingWindow::new(id, bridge); if let Some(b) = tb { w = w.with_training_bridge(b); } Box::new(w) }
             WindowKind::Media => { let mut w = MediaWindow::new(id, bridge); if let Some(b) = mdb { w = w.with_media_bridge(b); } Box::new(w) }
-            WindowKind::Skills => { let mut w = SkillsWindow::new(id, bridge); if let Some(b) = rb { w = w.with_registry_bridge(b); } Box::new(w) }
+            WindowKind::Skills => { let mut w = SkillsWindow::new(id, bridge); if let Some(b) = rb { w = w.with_registry_bridge(b); } if let Some(b) = sb { w = w.with_skills_bridge(b); } Box::new(w) }
+            WindowKind::Research => { let mut w = ResearchWindow::new(id, bridge); if let Some(b) = rsb { w = w.with_research_bridge(b); } Box::new(w) }
+            WindowKind::Docproc => { let mut w = DocprocWindow::new(id, bridge); if let Some(b) = dpb { w = w.with_docproc_bridge(b); } Box::new(w) }
+            WindowKind::Replica => { let mut w = ReplicaWindow::new(id, bridge); if let Some(b) = rpb { w = w.with_replica_bridge(b); } Box::new(w) }
             WindowKind::Matrix => { let mut w = MatrixWindow::new(id, bridge); if let Some(b) = mxb { w = w.with_matrix_bridge(b); } Box::new(w) }
             WindowKind::Memory => { let mut w = MemoryWindow::new(id, bridge); if let Some(b) = mb { w = w.with_memory_bridge(b); } Box::new(w) }
             WindowKind::Companies => { let mut w = CompaniesWindow::new(id, bridge); if let Some(b) = cpb { w = w.with_companies_bridge(b); } Box::new(w) }

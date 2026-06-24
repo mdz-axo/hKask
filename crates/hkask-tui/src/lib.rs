@@ -57,8 +57,10 @@ use std::io::Stdout;
 use std::time::Duration;
 
 use bridges::{
-    BackupDataBridge, CompaniesDataBridge, ConfigDataBridge, KanbanDataBridge, MatrixDataBridge,
-    MediaDataBridge, MemoryDataBridge, RegistryDataBridge, TrainingDataBridge, WalletDataBridge,
+    BackupDataBridge, CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge,
+    KanbanDataBridge, MatrixDataBridge, MediaDataBridge, MemoryDataBridge,
+    RegistryDataBridge, ReplicaDataBridge, ResearchDataBridge, SkillsDataBridge,
+    TrainingDataBridge, WalletDataBridge,
 };
 pub use repl_bridge::{InferenceState, ReplBridge, TurnResult};
 pub use splash::SplashScreen;
@@ -159,6 +161,23 @@ impl TuiSession {
         companies: std::sync::Arc<dyn CompaniesDataBridge>,
     ) -> Self {
         self.workspace.with_companies_bridge(companies);
+        self
+    }
+
+    pub fn with_research_bridge(mut self, research: std::sync::Arc<dyn ResearchDataBridge>) -> Self {
+        self.workspace.with_research_bridge(research);
+        self
+    }
+    pub fn with_docproc_bridge(mut self, docproc: std::sync::Arc<dyn DocprocDataBridge>) -> Self {
+        self.workspace.with_docproc_bridge(docproc);
+        self
+    }
+    pub fn with_replica_bridge(mut self, replica: std::sync::Arc<dyn ReplicaDataBridge>) -> Self {
+        self.workspace.with_replica_bridge(replica);
+        self
+    }
+    pub fn with_skills_bridge(mut self, skills: std::sync::Arc<dyn SkillsDataBridge>) -> Self {
+        self.workspace.with_skills_bridge(skills);
         self
     }
 
