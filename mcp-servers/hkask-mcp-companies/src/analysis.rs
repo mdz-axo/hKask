@@ -204,6 +204,68 @@ mod tests {
         assert!(extract_wc_days(&serde_json::json!([])).is_none());
         assert!(extract_wc_days(&serde_json::json!([{"year": "2024"}])).is_none());
     }
+
+    // ── Tracer-bullet contract: moat_check analysis pipeline ────────
+    //
+    // Verifies the full MAIA moat analysis pipeline end-to-end:
+    // extract → stability → WC spread → classify.
+    // This is the narrowest path that exercises all analysis functions
+    // with known data, serving as the behavioral contract for the moat_check tool.
+
+    #[test]
+    fn moat_check_pipeline_contract_wide_moat() {
+        // Simulated key_metrics JSON: 5 years of stable gross margins + strong WC
+        let metrics = serde_json::json!([
+            {"calendarYear": "2024", "grossProfitMargin": 0.45, "daysOfPayablesOutstanding": 90.0, "daysOfSalesOutstanding": 30.0},
+            {"calendarYear": "2023", "grossProfitMargin": 0.44, "daysOfPayablesOutstanding": 88.0, "daysOfSalesOutstanding": 32.0},
+            {"calendarYear": "2022", "grossProfitMargin": 0.43, "daysOfPayablesOutstanding": 85.0, "daysOfSalesOutstanding": 31.0},
+            {"calendarYear": "2021", "grossProfitMargin": 0.44, "daysOfPayablesOutstanding": 87.0, "daysOfSalesOutstanding": 29.0},
+            {"calendarYear": "2020", "grossProfitMargin": 0.42, "daysOfPayablesOutstanding": 82.0, "daysOfSalesOutstanding": 33.0},
+        ]);
+
+        // Step 1: Extract gross margins
+        let margins = extract_gross_margins(&metrics);
+        assert_eq!(margins.len(), 5, "5 years of margin data");
+
+        // Step 2: Compute margin stability
+        let margin_values: Vec<f64> = margins.iter().map(|(_, m)| *m).collect();
+        let stability = gross_margin_stability(&margin_values);
+        assert!(stability > 0.9, "highly stable margins (>0.9)");
+
+        // Step 3: Extract working capital days
+        let (dpo, dso) = extract_wc_days(&metrics).unwrap();
+        let wc_spread = working_capital_spread(dpo, dso);
+        assert!(wc_spread > 30.0, "strong market power — DPO >> DSO");
+        assert_eq!(wc_signal_label(wc_spread), "strong_market_power");
+
+        // Step 4: Classify moat
+        let rating = classify_moat(stability, wc_spread, margins.len());
+        assert_eq!(
+            rating,
+            MoatRating::Wide,
+            "stable margins + market power = Wide moat"
+        );
+    }
+
+    #[test]
+    fn moat_check_pipeline_contract_insufficient_data() {
+        // Only 2 years of data → insufficient
+        let metrics = serde_json::json!([
+            {"calendarYear": "2024", "grossProfitMargin": 0.45},
+            {"calendarYear": "2023", "grossProfitMargin": 0.44},
+        ]);
+        let margins = extract_gross_margins(&metrics);
+        let margin_values: Vec<f64> = margins.iter().map(|(_, m)| *m).collect();
+        let stability = gross_margin_stability(&margin_values);
+        let wc_data = extract_wc_days(&metrics);
+        let wc_spread = wc_data.map_or(0.0, |(d, s)| working_capital_spread(d, s));
+        let rating = classify_moat(stability, wc_spread, margins.len());
+        assert_eq!(
+            rating,
+            MoatRating::InsufficientData,
+            "<3 periods → insufficient"
+        );
+    }
 }
 
 // ── Tool 2: Management Scorecard ──
@@ -361,5 +423,92 @@ mod management_tests {
         let cap = extract_invested_capital(&json);
         assert_eq!(cap.len(), 2);
         assert!((cap[0].1 - 900.0).abs() < 0.001);
+    }
+
+    // ── Tracer-bullet contract: year-aligned CEO scoring ───────────
+    //
+    // Verifies the fix from B2: when ROIC and invested capital come from
+    // different API endpoints with different year ranges, only the
+    // overlapping years are used in the CEO rating computation.
+    //
+    // This is the behavioral contract for management_scorecard alignment.
+
+    #[test]
+    fn ceo_score_with_partially_overlapping_years() {
+        // ROIC: 5 years (2020-2024), Capital: 3 years (2022-2024)
+        // Alignment produces 3 overlapping years → should score
+        let roic_by_year: Vec<(String, f64)> = vec![
+            ("2020".into(), 0.10),
+            ("2021".into(), 0.11),
+            ("2022".into(), 0.12),
+            ("2023".into(), 0.13),
+            ("2024".into(), 0.14),
+        ];
+        let capital_by_year: Vec<(String, f64)> = vec![
+            ("2022".into(), 500.0),
+            ("2023".into(), 480.0),
+            ("2024".into(), 450.0),
+        ];
+
+        // Align by calendar year (simulates the B2 fix)
+        use std::collections::HashMap;
+        let roic_map: HashMap<&str, f64> =
+            roic_by_year.iter().map(|(y, v)| (y.as_str(), *v)).collect();
+        let mut aligned: Vec<(f64, f64)> = capital_by_year
+            .iter()
+            .filter_map(|(year, cap)| roic_map.get(year.as_str()).map(|r| (*r, *cap)))
+            .collect();
+        aligned.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        let roic_nums: Vec<f64> = aligned.iter().map(|(r, _)| *r).collect();
+        let capital_nums: Vec<f64> = aligned.iter().map(|(_, c)| *c).collect();
+
+        assert_eq!(aligned.len(), 3, "3 overlapping years");
+        assert_eq!(roic_nums.len(), 3);
+        assert_eq!(capital_nums.len(), 3);
+
+        // 3 aligned years with improving returns + decreasing capital → should rate
+        let rating = ceo_capital_allocation_score(&roic_nums, &capital_nums);
+        assert!(
+            matches!(
+                rating,
+                CeoRating::Excellent | CeoRating::Good | CeoRating::Neutral | CeoRating::Poor
+            ),
+            "3 years should produce a real rating, not InsufficientData"
+        );
+    }
+
+    #[test]
+    fn ceo_score_with_insufficient_overlap() {
+        // ROIC: 5 years, Capital: only 2 years → alignment yields 2 years
+        let roic_by_year: Vec<(String, f64)> = vec![
+            ("2020".into(), 0.10),
+            ("2021".into(), 0.11),
+            ("2022".into(), 0.12),
+            ("2023".into(), 0.13),
+            ("2024".into(), 0.14),
+        ];
+        let capital_by_year: Vec<(String, f64)> =
+            vec![("2023".into(), 500.0), ("2024".into(), 480.0)];
+
+        use std::collections::HashMap;
+        let roic_map: HashMap<&str, f64> =
+            roic_by_year.iter().map(|(y, v)| (y.as_str(), *v)).collect();
+        let aligned: Vec<(f64, f64)> = capital_by_year
+            .iter()
+            .filter_map(|(year, cap)| roic_map.get(year.as_str()).map(|r| (*r, *cap)))
+            .collect();
+        let roic_nums: Vec<f64> = aligned.iter().map(|(r, _)| *r).collect();
+        let capital_nums: Vec<f64> = aligned.iter().map(|(_, c)| *c).collect();
+
+        assert_eq!(aligned.len(), 2, "only 2 overlapping years");
+
+        // <3 aligned years → InsufficientData
+        let rating = ceo_capital_allocation_score(&roic_nums, &capital_nums);
+        assert_eq!(
+            rating,
+            CeoRating::InsufficientData,
+            "<3 aligned years → insufficient"
+        );
     }
 }

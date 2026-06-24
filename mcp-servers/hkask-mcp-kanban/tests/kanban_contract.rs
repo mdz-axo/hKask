@@ -10,10 +10,14 @@ use hkask_services_kanban::{
     ConsentProof, TaskFilter, TaskSpec, TaskStatus, VerificationCriterion,
 };
 use hkask_services_kanban::{KanbanError, KanbanService};
+use hkask_storage::Store;
 use hkask_storage::TripleStore;
 use hkask_test_harness::{TestDb, TestWebId};
 use hkask_types::WebID;
 use proptest::prelude::*;
+use rmcp::handler::server::wrapper::Parameters;
+use rusqlite::Connection;
+use std::sync::{Arc, Mutex};
 
 fn setup() -> (KanbanService, WebID) {
     let db = TestDb::new();
@@ -343,4 +347,220 @@ proptest! {
         let fetched = svc.task_get(task.id).expect("get").expect("exists");
         prop_assert_eq!(fetched.board_id, board.id);
     }
+}
+
+// ── MCP response fidelity tests (exercises the full KanbanServer tool path) ───
+
+/// Construct a KanbanServer backed by an in-memory database for testing.
+fn test_mcp_server() -> hkask_mcp_kanban::KanbanServer {
+    let db = hkask_storage::Database::in_memory().expect("in-memory db");
+    let conn = db.conn_arc();
+    let store = hkask_storage::TripleStore::new(Arc::clone(&conn));
+    let service = hkask_services_kanban::KanbanService::new(store);
+    hkask_mcp_kanban::KanbanServer::new(
+        service,
+        TestWebId::alice(),
+        "test-replicant".into(),
+        None,
+        Some(conn),
+    )
+}
+
+/// Call an async tool method and return the JSON string output.
+fn call_tool_output<F: std::future::Future<Output = String>>(f: F) -> String {
+    let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+    rt.block_on(f)
+}
+
+/// Parse a tool output string into `{"content": [...], "error": ..., "kind": ...}`.
+fn parse_tool_output(output: &str) -> serde_json::Value {
+    serde_json::from_str(output).expect("tool output must be valid JSON")
+}
+
+#[test]
+fn mcp_task_move_reports_correct_previous_status() {
+    use hkask_mcp_kanban::types::*;
+
+    let server = test_mcp_server();
+
+    // Create board
+    let board_json = call_tool_output(server.kanban_board_create(Parameters(BoardCreateRequest {
+        name: "Fidelity Test".into(),
+        columns: None,
+        capability_token: None,
+    })));
+    let board_val = parse_tool_output(&board_json);
+    // McpToolOutput wraps response as {"content": <value>}
+    let board_data = &board_val["content"];
+    let board_id = board_data["board_id"]
+        .as_str()
+        .map(String::from)
+        .expect("board_id must be present");
+
+    // Create task
+    let task_json = call_tool_output(server.kanban_task_create(Parameters(TaskCreateRequest {
+        board_id: board_id.clone(),
+        title: "Test Move Fidelity".into(),
+        description: None,
+        criteria: None,
+        assignee_webid: None,
+        capability_token: None,
+    })));
+    let task_val = parse_tool_output(&task_json);
+    let task_id = task_val["content"]["task_id"]
+        .as_str()
+        .map(String::from)
+        .expect("task_id must be present");
+
+    // Move task from Backlog → Ready
+    let move_json = call_tool_output(server.kanban_task_move(Parameters(TaskMoveRequest {
+        task_id: task_id.clone(),
+        target_status: "Ready".into(),
+        capability_token: None,
+    })));
+    let move_val = parse_tool_output(&move_json);
+    let move_data = &move_val["content"];
+
+    let previous = move_data["previous_status"]
+        .as_str()
+        .expect("previous_status must be present");
+    let new_status = move_data["new_status"]
+        .as_str()
+        .expect("new_status must be present");
+
+    assert_eq!(
+        previous, "backlog",
+        "previous_status should be the status before the move"
+    );
+    assert_eq!(
+        new_status, "ready",
+        "new_status should be the target status"
+    );
+    assert_ne!(
+        previous, new_status,
+        "previous_status must differ from new_status"
+    );
+}
+
+#[test]
+fn mcp_not_found_error_uses_not_found_kind() {
+    use hkask_mcp_kanban::types::*;
+
+    let server = test_mcp_server();
+
+    // Try to move a non-existent task — valid UUID format, won't exist
+    let output = call_tool_output(server.kanban_task_move(Parameters(TaskMoveRequest {
+        task_id: "00000000-0000-0000-0000-000000000000".into(),
+        target_status: "ready".into(),
+        capability_token: None,
+    })));
+    let val = parse_tool_output(&output);
+
+    // Error responses from finish() use McpToolError::to_json_string() format.
+    // Success is {"content": <value>}; error is {"error": "...", "kind": "..."}
+    let error_kind = val["kind"].as_str();
+    assert!(
+        error_kind == Some("not_found"),
+        "not_found error should use 'not_found' kind, got: {error_kind:?}. Full response: {val}"
+    );
+    assert!(
+        val.get("error").is_some(),
+        "not_found should have an error field"
+    );
+}
+
+#[test]
+fn mcp_task_verify_rejects_empty_evidence() {
+    use hkask_mcp_kanban::types::*;
+
+    let server = test_mcp_server();
+
+    // Create board + task + move to Review first
+    let board_json = call_tool_output(server.kanban_board_create(Parameters(BoardCreateRequest {
+        name: "Verify Test".into(),
+        columns: None,
+        capability_token: None,
+    })));
+    let board_val = parse_tool_output(&board_json);
+    let board_id = board_val["content"]["board_id"]
+        .as_str()
+        .map(String::from)
+        .expect("board_id");
+
+    let task_json = call_tool_output(server.kanban_task_create(Parameters(TaskCreateRequest {
+        board_id: board_id.clone(),
+        title: "Empty Evidence Test".into(),
+        description: None,
+        criteria: Some(vec!["criterion 1".into()]),
+        assignee_webid: None,
+        capability_token: None,
+    })));
+    let task_val = parse_tool_output(&task_json);
+    let task_id = task_val["content"]["task_id"]
+        .as_str()
+        .map(String::from)
+        .expect("task_id");
+
+    // Move to Review
+    for status in &["Ready", "InProgress", "Review"] {
+        call_tool_output(server.kanban_task_move(Parameters(TaskMoveRequest {
+            task_id: task_id.clone(),
+            target_status: status.to_string(),
+            capability_token: None,
+        })));
+    }
+
+    // Verify with empty evidence should be rejected
+    let empty_output = call_tool_output(server.kanban_task_verify(Parameters(TaskVerifyRequest {
+        task_id: task_id.clone(),
+        evidence: String::new(),
+        capability_token: None,
+    })));
+    let empty_val = parse_tool_output(&empty_output);
+    assert!(
+        empty_val.get("error").is_some(),
+        "empty evidence should produce an error. Got: {empty_val}"
+    );
+
+    // Whitespace-only evidence should also be rejected
+    let ws_output = call_tool_output(server.kanban_task_verify(Parameters(TaskVerifyRequest {
+        task_id,
+        evidence: "   ".into(),
+        capability_token: None,
+    })));
+    let ws_val = parse_tool_output(&ws_output);
+    assert!(
+        ws_val.get("error").is_some(),
+        "whitespace-only evidence should produce an error. Got: {ws_val}"
+    );
+}
+
+#[test]
+fn mcp_board_create_supports_wip_limit() {
+    use hkask_mcp_kanban::types::*;
+
+    let server = test_mcp_server();
+
+    let board_json = call_tool_output(server.kanban_board_create(Parameters(BoardCreateRequest {
+        name: "WIP Test".into(),
+        columns: Some(vec![ColumnDefInput {
+            name: "Todo".into(),
+            status: "Backlog".into(),
+            wip_limit: Some(3),
+        }]),
+        capability_token: None,
+    })));
+    let board_val = parse_tool_output(&board_json);
+    let board_data = &board_val["content"];
+
+    // The response should include the board with columns
+    let board_id = board_data["board_id"].as_str().expect("board_id");
+    assert!(!board_id.is_empty());
+
+    // Verify the column was created (WIP limit is internal, not in response)
+    let columns = board_data["columns"]
+        .as_array()
+        .expect("columns must be array");
+    assert_eq!(columns.len(), 1);
+    assert_eq!(columns[0]["name"].as_str().unwrap(), "Todo");
 }

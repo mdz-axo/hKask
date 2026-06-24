@@ -9,6 +9,7 @@
 pub mod types;
 
 use hkask_mcp::server::{McpToolError, ServerContext, execute_tool};
+use hkask_services_kanban::KanbanError;
 use hkask_services_kanban::KanbanService;
 use hkask_services_kanban::{ConsentProof, TaskFilter, TaskSpec, VerificationCriterion};
 use hkask_storage::Store;
@@ -69,9 +70,14 @@ impl KanbanServer {
                     .enumerate()
                     .map(|(i, input)| {
                         match hkask_services_kanban::TaskStatus::parse_str(&input.status) {
-                            Some(s) => Ok(hkask_services_kanban::ColumnDef::new(
-                                input.name, s, i as u32,
-                            )),
+                            Some(s) => {
+                                let mut col =
+                                    hkask_services_kanban::ColumnDef::new(input.name, s, i as u32);
+                                if let Some(wip) = input.wip_limit {
+                                    col = col.with_wip_limit(wip);
+                                }
+                                Ok(col)
+                            }
                             None => Err(format!("invalid status: {}", input.status)),
                         }
                     })
@@ -97,7 +103,7 @@ impl KanbanServer {
                         .collect(),
                 })
                 .unwrap()),
-                Err(e) => Err(McpToolError::invalid_argument(e.to_string())),
+                Err(e) => Err(map_kanban_error(e)),
             }
         })
         .await
@@ -123,7 +129,7 @@ impl KanbanServer {
                         .collect(),
                 })
                 .unwrap()),
-                Err(e) => Err(McpToolError::invalid_argument(e.to_string())),
+                Err(e) => Err(map_kanban_error(e)),
             }
         })
         .await
@@ -175,7 +181,7 @@ impl KanbanServer {
                     status: task.status.to_string(),
                 })
                 .unwrap()),
-                Err(e) => Err(McpToolError::invalid_argument(e.to_string())),
+                Err(e) => Err(map_kanban_error(e)),
             }
         })
         .await
@@ -224,7 +230,7 @@ impl KanbanServer {
                         .collect(),
                 })
                 .unwrap()),
-                Err(e) => Err(McpToolError::invalid_argument(e.to_string())),
+                Err(e) => Err(map_kanban_error(e)),
             }
         })
         .await
@@ -248,6 +254,15 @@ impl KanbanServer {
                     )));
                 }
             };
+            let previous_status = match self.service.task_get(tid) {
+                Ok(Some(t)) => t.status.to_string(),
+                Ok(None) => {
+                    return Err(McpToolError::not_found(format!(
+                        "task not found: {task_id}"
+                    )));
+                }
+                Err(e) => return Err(map_kanban_error(e)),
+            };
             let target = match hkask_services_kanban::TaskStatus::parse_str(&target_status) {
                 Some(s) => s,
                 None => {
@@ -259,11 +274,11 @@ impl KanbanServer {
             match self.service.task_move(tid, target, self.webid) {
                 Ok(task) => Ok(serde_json::to_value(TaskMoveResponse {
                     task_id: task.id.to_string(),
-                    previous_status: target_status,
+                    previous_status,
                     new_status: task.status.to_string(),
                 })
                 .unwrap()),
-                Err(e) => Err(McpToolError::invalid_argument(e.to_string())),
+                Err(e) => Err(map_kanban_error(e)),
             }
         })
         .await
@@ -307,13 +322,17 @@ impl KanbanServer {
             match self
                 .service
                 .task_assign(tid, agent, ConsentProof::new(consent_agent, tid))
+                // NOTE: ConsentProof.consented_at is set to server-time (Utc::now()).
+                // The actual time the agent consented is not transmitted over MCP.
+                // For precise audit trails, the consent timestamp should come from
+                // the agent's signed consent payload rather than the server clock.
             {
                 Ok(task) => Ok(serde_json::to_value(TaskAssignResponse {
                     task_id: task.id.to_string(),
                     assignee: task.assignee.map(|a| a.to_string()).unwrap_or_default(),
                 })
                 .unwrap()),
-                Err(e) => Err(McpToolError::invalid_argument(e.to_string())),
+                Err(e) => Err(map_kanban_error(e)),
             }
         })
         .await
@@ -337,6 +356,9 @@ impl KanbanServer {
                     )));
                 }
             };
+            if evidence.trim().is_empty() {
+                return Err(McpToolError::invalid_argument("evidence must not be empty"));
+            }
             match self.service.task_verify(tid, &evidence, self.webid) {
                 Ok((task, verification)) => Ok(serde_json::to_value(TaskVerifyResponse {
                     task_id: task.id.to_string(),
@@ -345,7 +367,7 @@ impl KanbanServer {
                     new_status: task.status.to_string(),
                 })
                 .unwrap()),
-                Err(e) => Err(McpToolError::invalid_argument(e.to_string())),
+                Err(e) => Err(map_kanban_error(e)),
             }
         })
         .await
@@ -411,10 +433,7 @@ impl KanbanServer {
                 match self.service.task_create(bid, spec, self.webid) {
                     Ok(task) => created.push(task.id.to_string()),
                     Err(e) => {
-                        return Err(McpToolError::invalid_argument(format!(
-                            "failed to create task for {}: {e}",
-                            prop.function,
-                        )));
+                        return Err(map_kanban_error(e));
                     }
                 }
             }
@@ -436,6 +455,27 @@ impl hkask_mcp::server::ToolContext for KanbanServer {
 
     fn record_tool_outcome(&self, tool: &str, outcome: &str) {
         hkask_mcp::record_via_daemon(&self.daemon, &self.replicant, tool, outcome);
+    }
+}
+
+/// Map a service-layer `KanbanError` to the correct `McpToolError` variant.
+///
+/// Each `KanbanError` variant maps to a semantically appropriate MCP error kind
+/// so that callers can distinguish not-found, permission-denied, precondition
+/// failures, and internal errors from simple invalid-input errors.
+///
+/// contract: kanban-error-mapping
+/// expect: "I can distinguish not-found, permission, and workflow errors from invalid-input errors" \[P4\]
+/// pre:  e is a valid KanbanError
+/// post: returns McpToolError with appropriate McpErrorKind
+fn map_kanban_error(e: KanbanError) -> McpToolError {
+    match e {
+        KanbanError::NotFound(msg) => McpToolError::not_found(msg),
+        KanbanError::InvalidInput(msg) => McpToolError::invalid_argument(msg),
+        KanbanError::InvalidTransition { .. } => McpToolError::failed_precondition(e.to_string()),
+        KanbanError::ConsentViolation(msg) => McpToolError::permission_denied(msg),
+        KanbanError::WipLimitExceeded { .. } => McpToolError::failed_precondition(e.to_string()),
+        KanbanError::Internal(msg) => McpToolError::internal(msg),
     }
 }
 
@@ -501,7 +541,13 @@ pub async fn run(
                     hkask_storage::Database::open(&kanban_db_path, passphrase)
                         .map_err(|e| anyhow::anyhow!("{e}"))?
                 } else {
-                    hkask_storage::Database::in_memory().map_err(|e| anyhow::anyhow!("{e}"))?
+                    // No passphrase configured — use a deterministic default key so
+                    // the computed kanban_db_path is actually used for persistence.
+                    // This is NOT encrypted; users should set HKASK_DB_PASSPHRASE
+                    // for production deployments.
+                    let default_key = format!("__k4nb4n__{}__d3f4ult__", replicant);
+                    hkask_storage::Database::open(&kanban_db_path, &default_key)
+                        .map_err(|e| anyhow::anyhow!("{e}"))?
                 };
                 let conn = db.conn_arc();
                 let store = TripleStore::new(Arc::clone(&conn));

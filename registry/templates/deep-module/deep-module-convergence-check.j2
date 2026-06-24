@@ -11,30 +11,70 @@ contract:
     primary_result: object
   output:
     convergence_metric: number
+    convergence_method: string
+    metric_decomposition: object
     rationale: string
+    blockers: array
 energy_cap: 2048
 visibility: Public
 ---
 {# Template: deep-module/deep-module-convergence-check.j2 #}
-{# goal: Compute normalized convergence metric for deep-module analysis cycles. #}
+{# goal: Compute normalized convergence metric for deep-module cycles. #}
+{#
+  Group: C (Design/Architecture)
+  Convergence method: LLM-assessed saturation detection
+  Measures: Whether module-depth recommendations are stable and actionable.
+    Extended max_iterations (5) because design work needs more passes.
+#}
 
 [inference]
 temperature = 0.1
 reasoning_effort = "medium"
 verbosity = "terse"
-max_tokens = 900
+max_tokens = 1200
 thinking_budget = "standard"
 
-Given the latest depth/deletion/design output, return JSON:
-- convergence_metric in [0,1], where 0 means module-depth recommendations are stable.
-- rationale.
+You are a convergence evaluator for deep-module. Measure whether module design recommendations are stable.
 
-Input:
+## Context
+- Convergence threshold: {{ _convergence.threshold | default(0.15) }}
+- Iteration: {{ _convergence.iterations_completed | default(0) }} / {{ _convergence.max_iterations | default(5) }}
+- Improvement target: {{ _convergence.improvement_target | default(0.10) }}
+- Baseline quality: {{ _convergence.baseline_quality | default("first pass") }}
+
+## Convergence Method: Saturation Detection
+- 0.00 = module passes deletion test, ≤7 public items, interface minimal → converged
+- 0.15 = minor depth opportunities remain → converged at threshold
+- 0.50 = significant shallow modules identified, not yet acted on
+- 1.00 = no depth analysis performed
+
+## Scoring Guidance
+1. Deletion test: would removing the module cause complexity to reappear? → +0.20 if unclear
+2. Interface depth: public surface ≤7 items with justified exceptions? → +0.15 per excess
+3. Dependency direction: are dependencies acyclic and toward stability? → +0.15 if circular
+4. Caller analysis: do callers benefit from the abstraction? → +0.15 if pass-through
+5. Recommendations actionable: are depth improvements specific? → +0.10 if vague
+6. Start at 1.0, subtract for each satisfied check. Clamp to [0,1].
+
+## Input
 ```json
 {{ primary_result | tojson }}
 ```
 
 Return JSON only:
 ```json
-{"convergence_metric": 0.0, "rationale": "..."}
+{
+  "convergence_metric": 0.0,
+  "convergence_method": "LLM-assessed saturation detection — deletion test + interface depth + dependency direction",
+  "metric_decomposition": {
+    "deletion_test_pass": true,
+    "public_item_count": 7,
+    "excess_items_justified": 0,
+    "dependency_cycles": 0,
+    "pass_through_abstractions": 0,
+    "recommendations_actionable": true
+  },
+  "rationale": "short explanation",
+  "blockers": ["specific gap preventing convergence"]
+}
 ```

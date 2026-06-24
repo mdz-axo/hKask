@@ -13,8 +13,8 @@ manifest:
   visibility: Public
 
 convergence:
-  threshold: 0.15
-  improvement_ratio: 0.10
+  threshold: 0.25
+  improvement_ratio: 0.05
   improvement_gate: threshold_only
   max_iterations: 3
   min_iterations: 1

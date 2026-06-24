@@ -14,8 +14,8 @@ manifest:
   visibility: Public
 
 convergence:
-  threshold: 0.15
-  improvement_ratio: 0.10
+  threshold: 0.05
+  improvement_ratio: 0.05
   improvement_gate: threshold_only
   max_iterations: 3
   min_iterations: 1
@@ -118,8 +118,7 @@ steps:
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
-      verify_result: "{{ step_4_result }}"
-      gap_result: "{{ step_5_result }}"
+      primary_result: "{{ step_4_result }}"
 
   - ordinal: 7
     action: loop

@@ -231,7 +231,7 @@ impl CompaniesServer {
         execute_tool(self, "income_statement", async {
             validate_symbol(&symbol)?;
             let limit_str = limit.unwrap_or(5).to_string();
-            companies_get(
+            let result = companies_get(
                 &self.client,
                 "income_statement",
                 &symbol,
@@ -239,7 +239,26 @@ impl CompaniesServer {
                 &self.eodhd_api_key,
                 &[("limit", &limit_str)],
             )
-            .await
+            .await;
+            match &result {
+                Ok(v) => {
+                    self.record_experience(
+                        "income_statement",
+                        &format!("symbol={}", symbol),
+                        "success",
+                        v.clone(),
+                    );
+                }
+                Err(e) => {
+                    self.record_experience(
+                        "income_statement",
+                        &format!("symbol={}", symbol),
+                        "error",
+                        serde_json::json!({"error": e.to_json_string()}),
+                    );
+                }
+            }
+            result
         })
         .await
     }
@@ -252,7 +271,7 @@ impl CompaniesServer {
         execute_tool(self, "balance_sheet", async {
             validate_symbol(&symbol)?;
             let limit_str = limit.unwrap_or(5).to_string();
-            companies_get(
+            let result = companies_get(
                 &self.client,
                 "balance_sheet",
                 &symbol,
@@ -260,7 +279,26 @@ impl CompaniesServer {
                 &self.eodhd_api_key,
                 &[("limit", &limit_str)],
             )
-            .await
+            .await;
+            match &result {
+                Ok(v) => {
+                    self.record_experience(
+                        "balance_sheet",
+                        &format!("symbol={}", symbol),
+                        "success",
+                        v.clone(),
+                    );
+                }
+                Err(e) => {
+                    self.record_experience(
+                        "balance_sheet",
+                        &format!("symbol={}", symbol),
+                        "error",
+                        serde_json::json!({"error": e.to_json_string()}),
+                    );
+                }
+            }
+            result
         })
         .await
     }
@@ -273,7 +311,7 @@ impl CompaniesServer {
         execute_tool(self, "cash_flow_statement", async {
             validate_symbol(&symbol)?;
             let limit_str = limit.unwrap_or(5).to_string();
-            companies_get(
+            let result = companies_get(
                 &self.client,
                 "cash_flow_statement",
                 &symbol,
@@ -281,7 +319,26 @@ impl CompaniesServer {
                 &self.eodhd_api_key,
                 &[("limit", &limit_str)],
             )
-            .await
+            .await;
+            match &result {
+                Ok(v) => {
+                    self.record_experience(
+                        "cash_flow_statement",
+                        &format!("symbol={}", symbol),
+                        "success",
+                        v.clone(),
+                    );
+                }
+                Err(e) => {
+                    self.record_experience(
+                        "cash_flow_statement",
+                        &format!("symbol={}", symbol),
+                        "error",
+                        serde_json::json!({"error": e.to_json_string()}),
+                    );
+                }
+            }
+            result
         })
         .await
     }
@@ -294,7 +351,7 @@ impl CompaniesServer {
         execute_tool(self, "key_metrics", async {
             validate_symbol(&symbol)?;
             let limit_str = limit.unwrap_or(5).to_string();
-            companies_get(
+            let result = companies_get(
                 &self.client,
                 "key_metrics",
                 &symbol,
@@ -302,7 +359,26 @@ impl CompaniesServer {
                 &self.eodhd_api_key,
                 &[("limit", &limit_str)],
             )
-            .await
+            .await;
+            match &result {
+                Ok(v) => {
+                    self.record_experience(
+                        "key_metrics",
+                        &format!("symbol={}", symbol),
+                        "success",
+                        v.clone(),
+                    );
+                }
+                Err(e) => {
+                    self.record_experience(
+                        "key_metrics",
+                        &format!("symbol={}", symbol),
+                        "error",
+                        serde_json::json!({"error": e.to_json_string()}),
+                    );
+                }
+            }
+            result
         })
         .await
     }
@@ -314,7 +390,7 @@ impl CompaniesServer {
     ) -> String {
         execute_tool(self, "historical_price", async {
             validate_symbol(&symbol)?;
-            companies_get(
+            let result = companies_get(
                 &self.client,
                 "historical_price",
                 &symbol,
@@ -322,7 +398,26 @@ impl CompaniesServer {
                 &self.eodhd_api_key,
                 &[("from", &from), ("to", &to)],
             )
-            .await
+            .await;
+            match &result {
+                Ok(v) => {
+                    self.record_experience(
+                        "historical_price",
+                        &format!("symbol={}", symbol),
+                        "success",
+                        v.clone(),
+                    );
+                }
+                Err(e) => {
+                    self.record_experience(
+                        "historical_price",
+                        &format!("symbol={}", symbol),
+                        "error",
+                        serde_json::json!({"error": e.to_json_string()}),
+                    );
+                }
+            }
+            result
         })
         .await
     }
@@ -342,18 +437,46 @@ impl CompaniesServer {
             let fmp_result =
                 providers::fmp_search_get(&self.client, &query, &limit_str, &self.fmp_api_key)
                     .await;
-            match fmp_result {
-                Ok(v) => Ok(v),
-                Err(_) => {
-                    providers::eodhd_search_get(
+            let result = match fmp_result {
+                Ok(v) => {
+                    self.record_experience(
+                        "symbol_search",
+                        &format!("query={}, provider=fmp", query),
+                        "success",
+                        v.clone(),
+                    );
+                    Ok(v)
+                }
+                Err(_fmp_err) => {
+                    let eodhd_result = providers::eodhd_search_get(
                         &self.client,
                         &query,
                         &limit_str,
                         &self.eodhd_api_key,
                     )
-                    .await
+                    .await;
+                    match &eodhd_result {
+                        Ok(v) => {
+                            self.record_experience(
+                                "symbol_search",
+                                &format!("query={}, provider=eodhd", query),
+                                "success",
+                                v.clone(),
+                            );
+                        }
+                        Err(e) => {
+                            self.record_experience(
+                                "symbol_search",
+                                &format!("query={}", query),
+                                "error",
+                                serde_json::json!({"error": e.to_json_string()}),
+                            );
+                        }
+                    }
+                    eodhd_result
                 }
-            }
+            };
+            result
         })
         .await
     }
@@ -482,24 +605,54 @@ impl CompaniesServer {
 
             let (metrics, balance_sheets) = match (metrics_result, bs_result) {
                 (Ok(m), Ok(b)) => (m, b),
-                (Err(e), _) | (_, Err(e)) => return Err(e),
+                (Err(e), _) | (_, Err(e)) => {
+                    self.record_experience(
+                        "management_scorecard",
+                        &format!("symbol={}", symbol),
+                        "error",
+                        serde_json::json!({"error": e.to_json_string()}),
+                    );
+                    return Err(e);
+                }
             };
 
             let roic_values = analysis::extract_roic(&metrics);
             let capital_values = analysis::extract_invested_capital(&balance_sheets);
-            let roic_nums: Vec<f64> = roic_values.iter().map(|(_, v)| *v).collect();
-            let capital_nums: Vec<f64> = capital_values.iter().map(|(_, v)| *v).collect();
+
+            // Align ROIC and invested capital by calendar year — they come from
+            // different API endpoints and may have different year ranges.
+            use std::collections::HashMap;
+            let roic_by_year: HashMap<&str, f64> = roic_values
+                .iter()
+                .map(|(y, v)| (y.as_str(), *v))
+                .collect();
+            let mut aligned: Vec<(f64, f64)> = capital_values
+                .iter()
+                .filter_map(|(year, cap)| roic_by_year.get(year.as_str()).map(|r| (*r, *cap)))
+                .collect();
+            // Sort by invested capital ascending to preserve original ordering intent
+            aligned.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+            let roic_nums: Vec<f64> = aligned.iter().map(|(r, _)| *r).collect();
+            let capital_nums: Vec<f64> = aligned.iter().map(|(_, c)| *c).collect();
 
             let rating = analysis::ceo_capital_allocation_score(&roic_nums, &capital_nums);
 
-            Ok(serde_json::json!({
+            let output = serde_json::json!({
                 "symbol": symbol,
                 "ceo_rating": rating,
                 "returns_on_capital": roic_values,
                 "invested_capital": capital_values,
+                "aligned_periods": aligned.len(),
                 "data_periods": roic_nums.len(),
                 "framework": "MAIA: Good = decreasing capital with improving returns, OR increasing capital with improving returns. Bad = increasing capital with decreasing returns.",
-            }))
+            });
+            self.record_experience(
+                "management_scorecard",
+                &format!("symbol={}", symbol),
+                "success",
+                output.clone(),
+            );
+            Ok(output)
         }).await
     }
 
@@ -526,7 +679,15 @@ impl CompaniesServer {
 
             let metrics = match result {
                 Ok(v) => v,
-                Err(e) => return Err(e),
+                Err(e) => {
+                    self.record_experience(
+                        "working_capital_cycle",
+                        &format!("symbol={}", symbol),
+                        "error",
+                        serde_json::json!({"error": e.to_json_string()}),
+                    );
+                    return Err(e);
+                }
             };
 
             // Extract working capital days per period
@@ -580,14 +741,21 @@ impl CompaniesServer {
                 "volatile"
             };
 
-            Ok(serde_json::json!({
+            let output = serde_json::json!({
                 "symbol": symbol,
                 "cfo_working_capital_rating": cfo_rating,
                 "spread_stability": spread_stability,
                 "periods": periods,
                 "data_points": periods.len(),
                 "framework": "MAIA CFO scorecard: stability of working capital management through economic conditions. The level is structural; consistency is management skill.",
-            }))
+            });
+            self.record_experience(
+                "working_capital_cycle",
+                &format!("symbol={}", symbol),
+                "success",
+                output.clone(),
+            );
+            Ok(output)
         }).await
     }
 
@@ -637,6 +805,12 @@ impl CompaniesServer {
                 match (metrics_result, profile_result, bs_result) {
                     (Ok(m), Ok(p), Ok(b)) => (m, p, b),
                     (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
+                        self.record_experience(
+                            "expectations_gap",
+                            &format!("symbol={}", req.symbol),
+                            "error",
+                            serde_json::json!({"error": e.to_json_string()}),
+                        );
                         return Err(e);
                     }
                 };
@@ -734,23 +908,33 @@ impl CompaniesServer {
             // to grow 10% is also expected to improve profitability ~10%.
             // Total cash flow growth ≈ 2g, so: P/V = profitability / (r - 2g)
             // Rearranging: g = (r - profitability / (P/V)) / 2
+            //
+            // NaN → null in JSON to avoid silent corruption downstream.
             let implied_sales_growth = if ps > 0.0 && avg_net_margin > 0.0 {
-                (target_return - avg_net_margin / ps) / 2.0
+                Some((target_return - avg_net_margin / ps) / 2.0)
             } else {
-                f64::NAN
+                None
             };
             let implied_bv_growth = if pb > 0.0 && avg_roe > 0.0 {
-                (target_return - avg_roe / pb) / 2.0
+                Some((target_return - avg_roe / pb) / 2.0)
             } else {
-                f64::NAN
+                None
             };
             let implied_asset_growth = if pa > 0.0 && avg_roa > 0.0 {
-                (target_return - avg_roa / pa) / 2.0
+                Some((target_return - avg_roa / pa) / 2.0)
             } else {
-                f64::NAN
+                None
             };
 
-            Ok(serde_json::json!({
+            // Helper: finite f64 → JSON number, else null
+            let finite_or_null = |v: Option<f64>| -> serde_json::Value {
+                match v {
+                    Some(x) if x.is_finite() => serde_json::json!(x),
+                    _ => serde_json::Value::Null,
+                }
+            };
+
+            let output = serde_json::json!({
                 "symbol": req.symbol,
                 "target_return": target_return,
                 "historical": {
@@ -772,17 +956,24 @@ impl CompaniesServer {
                     },
                 },
                 "implied": {
-                    "set_a_sales_growth_implied": implied_sales_growth,
-                    "set_b_book_value_growth_implied": implied_bv_growth,
-                    "set_c_asset_growth_implied": implied_asset_growth,
+                    "set_a_sales_growth_implied": finite_or_null(implied_sales_growth),
+                    "set_b_book_value_growth_implied": finite_or_null(implied_bv_growth),
+                    "set_c_asset_growth_implied": finite_or_null(implied_asset_growth),
                 },
                 "gaps": {
-                    "sales_growth_gap": if implied_sales_growth.is_finite() && hist_sales_growth.is_finite() { implied_sales_growth - hist_sales_growth } else { f64::NAN },
-                    "book_value_growth_gap": if implied_bv_growth.is_finite() && hist_bv_growth.is_finite() { implied_bv_growth - hist_bv_growth } else { f64::NAN },
-                    "asset_growth_gap": if implied_asset_growth.is_finite() && hist_asset_growth.is_finite() { implied_asset_growth - hist_asset_growth } else { f64::NAN },
+                    "sales_growth_gap": finite_or_null(implied_sales_growth.and_then(|i| if hist_sales_growth.is_finite() { Some(i - hist_sales_growth) } else { None })),
+                    "book_value_growth_gap": finite_or_null(implied_bv_growth.and_then(|i| if hist_bv_growth.is_finite() { Some(i - hist_bv_growth) } else { None })),
+                    "asset_growth_gap": finite_or_null(implied_asset_growth.and_then(|i| if hist_asset_growth.is_finite() { Some(i - hist_asset_growth) } else { None })),
                 },
                 "framework": "Gordon Growth Model with profitability-growth correlation: P/V = profitability / (r - 2g). Assumes growth and profitability improvement are proportional — a company expected to grow 10% is also expected to improve profitability ~10%. Total cash flow growth ≈ 2g. Implied g = (r - profitability / valuation_ratio) / 2. Compare to historical CAGR. Consistent methodology → rank ordering is accurate even if precise quantification is not.",
-            }))
+            });
+            self.record_experience(
+                "expectations_gap",
+                &format!("symbol={}", req.symbol),
+                "success",
+                output.clone(),
+            );
+            Ok(output)
         }).await
     }
 
@@ -1141,6 +1332,7 @@ impl CompaniesServer {
                 };
 
                 let mut r = 0.1; // initial guess: 10%
+                let mut converged = false;
                 for _ in 0..50 {
                     let f = npv(r);
                     let fp = npv_deriv(r);
@@ -1150,6 +1342,7 @@ impl CompaniesServer {
                     let r_new = r - f / fp;
                     if (r_new - r).abs() < 1e-8 {
                         r = r_new;
+                        converged = true;
                         break;
                     }
                     r = r_new;
@@ -1160,8 +1353,10 @@ impl CompaniesServer {
                         r = 1.0; // cap at 100% and continue
                     }
                 }
-                r
+                (r, converged)
             };
+
+            let (irr, irr_converged) = irr;
 
             Ok(serde_json::json!({
                 "portfolio": portfolio,
@@ -1170,6 +1365,7 @@ impl CompaniesServer {
                 "total_return": total_return,
                 "modified_dietz": modified_dietz,
                 "irr": irr,
+                "irr_converged": irr_converged,
                 "start_value": total_start,
                 "end_value": total_end,
                 "net_cash_flows": net_flows,
@@ -1762,6 +1958,133 @@ fn cagr_from_series(yoy_growths: &[f64]) -> f64 {
     }
     let product: f64 = yoy_growths.iter().map(|g| 1.0 + g).product();
     product.powf(1.0 / yoy_growths.len() as f64) - 1.0
+}
+
+// ── Tracer-bullet contracts ───────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── expectations_gap: Gordon Growth Model formula ──────────────
+
+    #[test]
+    fn gordon_growth_formula_contract() {
+        let target_return = 0.15f64;
+        let avg_net_margin = 0.10f64;
+        let price_to_sales = 2.0f64;
+        let implied_growth = (target_return - avg_net_margin / price_to_sales) / 2.0;
+        assert!(
+            (implied_growth - 0.05).abs() < 0.0001,
+            "implied growth = 5%"
+        );
+        let hist_growth = 0.03f64;
+        let gap = implied_growth - hist_growth;
+        assert!(
+            (gap - 0.02).abs() < 0.0001,
+            "positive expectations gap = 2%"
+        );
+    }
+
+    #[test]
+    fn gordon_growth_formula_insufficient_data_null_output() {
+        let ps = 0.0;
+        let avg_net_margin = 0.10;
+        let implied: Option<f64> = if ps > 0.0 && avg_net_margin > 0.0 {
+            Some((0.15 - avg_net_margin / ps) / 2.0)
+        } else {
+            None
+        };
+        assert!(implied.is_none(), "zero P/S = no implied growth");
+        let ps = 2.0;
+        let avg_net_margin = 0.0;
+        let implied: Option<f64> = if ps > 0.0 && avg_net_margin > 0.0 {
+            Some((0.15 - avg_net_margin / ps) / 2.0)
+        } else {
+            None
+        };
+        assert!(implied.is_none(), "zero margin = no implied growth");
+    }
+
+    #[test]
+    fn extract_net_margin_and_sales_growth_contract() {
+        let m1 = serde_json::json!({"calendarYear": "2022", "netProfitMargin": 0.20, "revenuePerShare": 10.0});
+        let m2 = serde_json::json!({"calendarYear": "2023", "netProfitMargin": 0.18, "revenuePerShare": 11.0});
+        let m3 = serde_json::json!({"calendarYear": "2024", "netProfitMargin": 0.22, "revenuePerShare": 12.1});
+        let metrics = vec![m1, m2, m3];
+        let (margins, growths) = extract_net_margin_and_sales_growth(&metrics);
+        assert_eq!(margins.len(), 3, "3 net margin values");
+        assert_eq!(growths.len(), 2, "2 YoY growth rates");
+        assert!((growths[0] - 0.10).abs() < 0.001, "first growth = 10%");
+        assert!((growths[1] - 0.10).abs() < 0.001, "second growth = 10%");
+        let cagr = cagr_from_series(&growths);
+        assert!((cagr - 0.10).abs() < 0.001, "CAGR = 10%");
+    }
+
+    #[test]
+    fn cagr_from_series_edge_cases() {
+        assert!((cagr_from_series(&[]) - 0.0).abs() < 0.001, "empty = 0");
+        let cagr = cagr_from_series(&[0.50]);
+        assert!((cagr - 0.50).abs() < 0.001, "single 50% = 50% CAGR");
+        let cagr = cagr_from_series(&[0.20, -0.10]);
+        assert!((cagr - 0.0392).abs() < 0.001, "+20%, -10% = 3.92% CAGR");
+    }
+
+    // ── working_capital_cycle: CFO rating boundaries ───────────────
+
+    #[test]
+    fn cfo_rating_boundaries_contract() {
+        let perfect = [20.0, 20.0, 20.0, 20.0];
+        let score = analysis::gross_margin_stability(&perfect);
+        assert!(score > 0.99, "identical spreads = near-perfect stability");
+        assert!(score > 0.8, "= stable CFO rating");
+        let moderate = [20.0, 35.0, 10.0, 40.0];
+        let score = analysis::gross_margin_stability(&moderate);
+        assert!(
+            score > 0.5 && score <= 0.8,
+            "moderate variance = moderate CFO rating: {score}"
+        );
+    }
+
+    #[test]
+    fn cfo_rating_single_period_defaults() {
+        let single = analysis::gross_margin_stability(&[30.0]);
+        assert!((single - 1.0).abs() < 0.001, "single period = 1.0");
+    }
+
+    // ── portfolio_attribution: weight + contribution formulas ───────
+
+    #[test]
+    fn attribution_weight_and_contribution_contract() {
+        let positions = [
+            ("AAPL", 60000.0, 0.15),
+            ("MSFT", 30000.0, 0.05),
+            ("GOOGL", 10000.0, -0.10),
+        ];
+        let total_mv: f64 = positions.iter().map(|(_, mv, _)| mv).sum();
+        assert!((total_mv - 100000.0).abs() < 0.01, "total MV = $100K");
+        let weights: Vec<f64> = positions.iter().map(|(_, mv, _)| mv / total_mv).collect();
+        assert!((weights[0] - 0.60).abs() < 0.001, "AAPL weight = 60%");
+        assert!((weights[1] - 0.30).abs() < 0.001, "MSFT weight = 30%");
+        assert!((weights[2] - 0.10).abs() < 0.001, "GOOGL weight = 10%");
+        let contributions: Vec<f64> = weights
+            .iter()
+            .zip(positions.iter())
+            .map(|(w, (_, _, r))| w * r * 10000.0)
+            .collect();
+        assert!((contributions[0] - 900.0).abs() < 1.0, "AAPL = 900 bps");
+        assert!((contributions[1] - 150.0).abs() < 1.0, "MSFT = 150 bps");
+        assert!(
+            (contributions[2] - (-100.0)).abs() < 1.0,
+            "GOOGL = -100 bps"
+        );
+        let total_return_bps: f64 = contributions.iter().sum();
+        let portfolio_return = total_return_bps / 10000.0;
+        assert!(
+            (portfolio_return - 0.095).abs() < 0.001,
+            "portfolio return = 9.5%"
+        );
+    }
 }
 
 // ── Entry point ─────────────────────────────────────────────────────

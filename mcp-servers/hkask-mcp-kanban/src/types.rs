@@ -20,6 +20,11 @@ pub struct BoardCreateRequest {
 pub struct ColumnDefInput {
     pub name: String,
     pub status: String,
+    /// Optional WIP (work-in-progress) limit for this column.
+    /// When set, task moves into this column will be rejected if the
+    /// column already has this many tasks in the target status.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wip_limit: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

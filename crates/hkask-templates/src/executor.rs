@@ -151,11 +151,27 @@ impl ManifestExecutor {
                 "status": "running",
                 "iterations_completed": 0,
                 "exit_reason": null,
+                "improvement_target": manifest.convergence.improvement_ratio,
+                "baseline_quality": null,
             }),
         );
 
         'cascade: loop {
             iteration += 1;
+            // Update live convergence context for template awareness
+            context.insert(
+                "_convergence".to_string(),
+                serde_json::json!({
+                    "threshold": threshold,
+                    "max_iterations": max_iterations,
+                    "field": field,
+                    "status": "running",
+                    "iterations_completed": iteration,
+                    "exit_reason": null,
+                    "improvement_target": manifest.convergence.improvement_ratio,
+                    "baseline_quality": baseline_quality,
+                }),
+            );
             let mut step_idx: usize = 0;
 
             while step_idx < steps.len() {

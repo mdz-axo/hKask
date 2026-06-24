@@ -16,7 +16,7 @@ convergence:
   threshold: 0.15
   improvement_ratio: 0.10
   improvement_gate: threshold_only
-  max_iterations: 3
+  max_iterations: 5
   min_iterations: 1
   convergence_field: step_2_result.convergence_metric
   on_not_reached: escalate

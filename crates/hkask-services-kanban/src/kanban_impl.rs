@@ -269,7 +269,7 @@ impl KanbanService {
                 continue;
             }
             let wip = col.wip_limit.map_or(String::new(), |l| format!("/{}", l));
-            out.push_str(&format!("  {}{} ({}{})\n", col.name, wip, count, wip));
+            out.push_str(&format!("  {}{} ({})\n", col.name, wip, count));
         }
         out.push('\n');
 
@@ -625,6 +625,10 @@ impl KanbanService {
 
         // rSolidity contract-based verification
         // The task IS a contract. Both agent and replicant run the same assertions.
+        //
+        // NOTE: ocap_gates is empty — capability-gated verification (P3)
+        // is not yet enforced. The verifier's WebID is recorded (P12), but
+        // no capability token check gates the verification path.
         let mut contract =
             crate::kanban::TaskContract::new("inline".into(), task.owner, verifier, &task, vec![]);
         let result = contract.check_completion(evidence);
@@ -769,9 +773,21 @@ impl KanbanService {
 
         // Delete all tasks on this board
         let tasks = self.task_list(board_id, TaskFilter::all())?;
-        let task_count = tasks.len();
+        let mut deleted_count = 0usize;
         for task in &tasks {
-            let _ = self.task_delete(task.id);
+            match self.task_delete(task.id) {
+                Ok(()) => deleted_count += 1,
+                Err(e) => {
+                    tracing::warn!(
+                        target: "cns.kanban",
+                        operation = "board_delete",
+                        board_id = %board_id,
+                        task_id = %task.id,
+                        error = %e,
+                        "Failed to delete task during board deletion"
+                    );
+                }
+            }
         }
 
         // Close the board triple
@@ -786,7 +802,7 @@ impl KanbanService {
         }
         let _ = board;
 
-        Ok(task_count)
+        Ok(deleted_count)
     }
 
     // ── De-jamming ────────────────────────────────────────────────────
