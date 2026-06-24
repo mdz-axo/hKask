@@ -284,7 +284,9 @@ pub struct Workspace {
     status_bar: StatusBar,
     sidebar_open: bool,
     help_visible: bool,
-    _palette_prev_focus: Option<WindowId>,
+    pub(crate) palette_open: bool,
+    palette_prev_focus: Option<WindowId>,
+    pub(crate) command_palette: crate::command_palette::CommandPalette,
     window_kind_idx: usize,
 }
 
@@ -349,7 +351,9 @@ impl Workspace {
             status_bar,
             sidebar_open: false,
             help_visible: false,
-            _palette_prev_focus: None,
+            palette_open: false,
+            palette_prev_focus: None,
+            command_palette: crate::command_palette::CommandPalette::new(),
             window_kind_idx: 0,
         }
     }
@@ -435,6 +439,9 @@ impl Workspace {
         self.root().render(f, content_area, self.focused_window);
         if self.help_visible {
             self.render_help_overlay(f, content_area);
+        }
+        if self.palette_open {
+            self.command_palette.render(f, content_area);
         }
         self.render_status(f, status_area);
     }
@@ -665,7 +672,73 @@ impl Workspace {
         ];
         let kind = KINDS[self.window_kind_idx % KINDS.len()];
         self.window_kind_idx = self.window_kind_idx.wrapping_add(1);
+        self.open_window_kind(kind);
+    }
 
+    pub fn open_command_palette(&mut self) {
+        if self.palette_open {
+            self.palette_open = false;
+            if let Some(prev) = self.palette_prev_focus.take() {
+                self.focus_window(prev);
+            }
+        } else {
+            self.palette_open = true;
+            self.palette_prev_focus = self.focused_window;
+            self.command_palette.reset();
+        }
+    }
+
+    /// Handle a key event while the command palette is open.
+    /// Returns true if the event was consumed.
+    pub fn handle_palette_key(&mut self, key: KeyEvent) -> bool {
+        if !self.palette_open {
+            return false;
+        }
+        use crossterm::event::{KeyCode, KeyModifiers};
+        match (key.modifiers, key.code) {
+            // Toggle dismiss
+            (KeyModifiers::CONTROL, KeyCode::Char('p')) => {
+                self.palette_open = false;
+                if let Some(prev) = self.palette_prev_focus.take() {
+                    self.focus_window(prev);
+                }
+                return true;
+            }
+            _ => {}
+        }
+        if let Some(kind) = self.command_palette.handle_key(key) {
+            // Check if it's a dismiss signal (Esc) or a selection (Enter)
+            match key.code {
+                KeyCode::Esc => {
+                    self.palette_open = false;
+                    if let Some(prev) = self.palette_prev_focus.take() {
+                        self.focus_window(prev);
+                    }
+                    return true;
+                }
+                KeyCode::Enter => {
+                    self.palette_open = false;
+                    // Don't restore focus — focus moves to new window
+                    self.palette_prev_focus.take();
+                    self.open_window_kind(kind);
+                    return true;
+                }
+                _ => {}
+            }
+            // Other dismiss (Ctrl+P handled above)
+            self.palette_open = false;
+            if let Some(prev) = self.palette_prev_focus.take() {
+                self.focus_window(prev);
+            }
+            return true;
+        }
+        // Navigation/typing consumed by palette
+        true
+    }
+
+    /// Open a window of the given kind at the currently focused split.
+    /// Reuses the window-creation logic from open_next_window_kind.
+    pub fn open_window_kind(&mut self, kind: WindowKind) {
         let new_id = WindowId(uuid::Uuid::new_v4());
         let bridge = self.bridge.clone();
         let service_context = self.service_context.clone();
@@ -784,10 +857,6 @@ impl Workspace {
         ) {
             self.focused_window = Some(new_id);
         }
-    }
-
-    pub fn open_command_palette(&mut self) {
-        self._palette_prev_focus = self.focused_window;
     }
 
     fn render_help_overlay(&self, f: &mut Frame, area: Rect) {

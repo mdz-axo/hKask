@@ -3940,9 +3940,9 @@ dependencies = [
  "hkask-ports",
  "hkask-services",
  "hkask-services-backup",
- "hkask-services-classify",
  "hkask-services-core",
  "hkask-services-kanban",
+ "hkask-services-runtime",
  "hkask-storage",
  "hkask-templates",
  "hkask-test-harness",
@@ -4527,7 +4527,7 @@ dependencies = [
  "hkask-mcp",
  "hkask-services",
  "hkask-services-core",
- "hkask-services-embed",
+ "hkask-services-corpus",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
@@ -4772,15 +4772,13 @@ dependencies = [
  "hkask-memory",
  "hkask-ports",
  "hkask-services-backup",
- "hkask-services-classify",
  "hkask-services-context",
  "hkask-services-core",
- "hkask-services-daemon",
- "hkask-services-discover",
- "hkask-services-embed",
+ "hkask-services-corpus",
  "hkask-services-kanban",
  "hkask-services-kata",
  "hkask-services-onboarding",
+ "hkask-services-runtime",
  "hkask-services-skill",
  "hkask-services-verification",
  "hkask-services-wallet",
@@ -4834,24 +4832,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-services-classify"
-version = "0.30.0"
-dependencies = [
- "async-trait",
- "chrono",
- "hkask-inference",
- "hkask-ledger",
- "hkask-services-core",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml_neo",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "hkask-services-context"
 version = "0.30.0"
 dependencies = [
@@ -4874,7 +4854,7 @@ dependencies = [
  "hkask-ports",
  "hkask-services-backup",
  "hkask-services-core",
- "hkask-services-daemon",
+ "hkask-services-runtime",
  "hkask-services-wallet",
  "hkask-storage",
  "hkask-templates",
@@ -4921,61 +4901,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-services-daemon"
+name = "hkask-services-corpus"
 version = "0.30.0"
 dependencies = [
- "async-trait",
+ "base64 0.22.1",
  "chrono",
- "hkask-agents",
- "hkask-cns",
- "hkask-mcp",
- "hkask-ports",
- "hkask-services-classify",
- "hkask-services-core",
- "hkask-storage",
- "hkask-types",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "hkask-services-discover"
-version = "0.30.0"
-dependencies = [
  "hkask-capability",
  "hkask-inference",
  "hkask-memory",
  "hkask-ports",
  "hkask-services-core",
- "hkask-services-embed",
+ "hkask-services-runtime",
+ "hkask-storage",
  "hkask-templates",
  "hkask-types",
  "minijinja",
- "pdf-extract",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml_neo",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "hkask-services-embed"
-version = "0.30.0"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "hkask-inference",
- "hkask-memory",
- "hkask-services-classify",
- "hkask-services-core",
- "hkask-storage",
- "hkask-types",
  "pdf-extract",
  "reqwest",
  "serde",
@@ -5047,6 +4987,30 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "hkask-services-runtime"
+version = "0.30.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "hkask-agents",
+ "hkask-cns",
+ "hkask-inference",
+ "hkask-ledger",
+ "hkask-mcp",
+ "hkask-ports",
+ "hkask-services-core",
+ "hkask-storage",
+ "hkask-types",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml_neo",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -5244,6 +5208,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
  "uuid",
  "zeroize",
 ]

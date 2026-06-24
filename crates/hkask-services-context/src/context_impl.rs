@@ -176,7 +176,7 @@ pub struct AgentService {
     user_store: Arc<std::sync::Mutex<UserStore>>,
 
     /// Daemon handler — bridges Unix socket queries to PodManager and UserStore.
-    daemon_handler: Arc<hkask_services_daemon::ServiceDaemonHandler>,
+    daemon_handler: Arc<hkask_services_runtime::ServiceDaemonHandler>,
 
     /// Matrix transport for agent-to-agent and human-to-agent communication.
     /// Owned by the daemon, shared with REPL, pod activation, and MCP wrapper.
@@ -504,7 +504,7 @@ impl AgentService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns `&Arc<ServiceDaemonHandler>`
-    pub fn daemon_handler(&self) -> &Arc<hkask_services_daemon::ServiceDaemonHandler> {
+    pub fn daemon_handler(&self) -> &Arc<hkask_services_runtime::ServiceDaemonHandler> {
         &self.daemon_handler
     }
 
@@ -1077,7 +1077,7 @@ struct McpPods {
     mcp_dispatcher: Arc<McpDispatcher>,
     pod_manager: Arc<ActivePods>,
     capability_checker: Arc<CapabilityChecker>,
-    daemon_handler: Arc<hkask_services_daemon::ServiceDaemonHandler>,
+    daemon_handler: Arc<hkask_services_runtime::ServiceDaemonHandler>,
     energy_estimator: Arc<hkask_cns::CalibratedEnergyEstimator>,
     /// Keeps the CuratorSync cancellation channel alive.
     #[allow(dead_code)]
@@ -1208,7 +1208,7 @@ async fn build_mcp_and_pods(
     // Matrix auto-registration — deferred to per-pod activation
 
     // Daemon handler + listener (skip socket in test mode)
-    let daemon_handler = Arc::new(hkask_services_daemon::ServiceDaemonHandler::new(
+    let daemon_handler = Arc::new(hkask_services_runtime::ServiceDaemonHandler::new(
         Arc::clone(&pod_manager),
         Arc::clone(&f.user_store),
         Some(Arc::clone(&f.cns_runtime)),

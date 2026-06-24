@@ -5,7 +5,7 @@
 //! `classify_batch` confidence levels. Each step emits a CNS span.
 //!
 //! The runner is classifier-agnostic: the caller provides a `ClassifyFn` closure.
-//! The CLI wires in `hkask_services_classify::classify_batch`.
+//! The CLI wires in `hkask_services_runtime::classify_batch`.
 //!
 //! # Principle grounding
 //! - P8 (Semantic Grounding): every step maps to a CNS namespace

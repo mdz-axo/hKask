@@ -31,12 +31,6 @@ pub use hkask_services_backup::serialization::{
     ArtifactEnvelopeValue, artifact_git_path, deserialize_artifact, serialize_artifact,
 };
 pub use hkask_services_backup::{BackupError, BackupService};
-pub use hkask_services_classify::{
-    ClassifierConfig, CostRate, DeepInfraProvider, FalProvider, FirecrawlProvider, LimitUnit,
-    OpenRouterProvider, ProviderError, ProviderIntelligence, ProviderState, RunpodProvider,
-    SelfTrackedConfig, SelfTrackedProvider, TogetherProvider, TripleExtraction, UsageStatus,
-    classify_batch, create_provider, extract_triples_batch, generate_raw, load_classifier_config,
-};
 pub use hkask_services_context::{AgentService, PerAgentMemory};
 pub use hkask_services_core::config::{DEFAULT_DB_PATH, ServiceConfig};
 pub use hkask_services_core::error::ServiceError;
@@ -45,14 +39,11 @@ pub use hkask_services_core::settings::{
     HkaskSettings, load_settings, save_settings, settings_path,
 };
 pub use hkask_services_core::{InferenceContext, InferenceService, ModelInfo};
-pub use hkask_services_daemon::{AdaptiveMonitor, ServiceDaemonHandler};
-pub use hkask_services_discover::{
-    DiscoverRequest, DiscoverResult, DiscoveredWork, DiscoveryService, default_corpus_config,
-    download_and_cache, generate_corpus_yaml, slugify,
-};
-pub use hkask_services_embed::{
-    ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
-    EmbeddingConfig, Entity, EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,
+pub use hkask_services_corpus::{
+    ChunkingConfig, CorpusConfig, DiscoverRequest, DiscoverResult, DiscoveredWork,
+    DiscoveryService, EmbedPhase, EmbedProgress, EmbedResult, EmbedService, EmbeddingConfig,
+    Entity, EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,
+    default_corpus_config, download_and_cache, generate_corpus_yaml, slugify,
 };
 pub use hkask_services_kanban::{KanbanError, KanbanService, UnjamFix, UnjamItem};
 pub use hkask_services_kata::{
@@ -62,6 +53,13 @@ pub use hkask_services_kata::{
 pub use hkask_services_onboarding::{
     MatrixRegistrationResult, OnboardingService, RegistryHandle, ReplicantContactConfig,
     ResolvedSecrets, SignInOutcome, conduit_ensure_healthy, conduit_health_check,
+};
+pub use hkask_services_runtime::{
+    AdaptiveMonitor, ClassifierConfig, CostRate, DeepInfraProvider, FalProvider, FirecrawlProvider,
+    LimitUnit, OpenRouterProvider, ProviderError, ProviderIntelligence, ProviderState,
+    RunpodProvider, SelfTrackedConfig, SelfTrackedProvider, ServiceDaemonHandler, TogetherProvider,
+    TripleExtraction, UsageStatus, classify_batch, create_provider, extract_triples_batch,
+    generate_raw, load_classifier_config,
 };
 pub use hkask_services_skill::resolve_replicant_name;
 pub use hkask_services_verification::{

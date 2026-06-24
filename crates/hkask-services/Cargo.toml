@@ -10,14 +10,12 @@ hkask-services-core = { path = "../hkask-services-core" }
 hkask-services-backup = { path = "../hkask-services-backup" }
 hkask-services-kata = { path = "../hkask-services-kata" }
 hkask-services-kanban = { path = "../hkask-services-kanban" }
-hkask-services-classify = { path = "../hkask-services-classify" }
-hkask-services-embed = { path = "../hkask-services-embed" }
-hkask-services-discover = { path = "../hkask-services-discover" }
+hkask-services-runtime = { path = "../hkask-services-runtime" }
+hkask-services-corpus = { path = "../hkask-services-corpus" }
 hkask-services-wallet = { path = "../hkask-services-wallet" }
 hkask-services-onboarding = { path = "../hkask-services-onboarding" }
 hkask-services-skill = { path = "../hkask-services-skill" }
 hkask-services-verification = { path = "../hkask-services-verification" }
-hkask-services-daemon = { path = "../hkask-services-daemon" }
 hkask-services-context = { path = "../hkask-services-context" }
 hkask-types = { path = "../hkask-types" }
 hkask-ports = { path = "../hkask-ports" }

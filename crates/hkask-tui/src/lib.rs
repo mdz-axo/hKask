@@ -44,6 +44,8 @@ mod window;
 mod workspace;
 
 pub mod bridges;
+pub mod command_palette;
+pub mod mcp_tabbed;
 pub mod widgets;
 pub mod windows;
 
@@ -209,8 +211,14 @@ impl TuiSession {
         Ok(())
     }
 
-    /// Route a key event: try the focused window first, then global bindings.
+    /// Route a key event: palette (if open), then global bindings, then focused window.
     fn handle_key(&mut self, key: KeyEvent) {
+        // Command palette interception — palette eats all keys when open
+        if self.workspace.palette_open {
+            self.workspace.handle_palette_key(key);
+            return;
+        }
+
         // Global keybindings take precedence
         if self.handle_global_key(key) {
             return;

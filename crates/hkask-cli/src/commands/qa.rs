@@ -8,7 +8,7 @@
 
 use crate::cli::QaAction;
 use hkask_mcp::runtime::McpRuntime;
-use hkask_services_classify::{self, ClassifierConfig};
+use hkask_services_runtime::{self, ClassifierConfig};
 use hkask_services_core::self_heal::{HealInferenceFn, SelfHealer};
 use hkask_test_harness::qa_script::{ClassifyResult, QaScriptRunner};
 use hkask_test_harness::triage::{self, BoleroFailure, QaDiagnosis, TriageReport};
@@ -60,7 +60,7 @@ async fn triage(input_path: Option<PathBuf>) -> Result<(), Box<dyn std::error::E
 
     // Try to load classifier config
     let registry_dir = find_registry_dir();
-    let config = match hkask_services_classify::load_classifier_config("qa-triage", &registry_dir) {
+    let config = match hkask_services_runtime::load_classifier_config("qa-triage", &registry_dir) {
         Ok(def) => {
             println!("[QA] Classifier loaded: {} via {}", def.model, def.provider);
             Some(ClassifierConfig::from_def(&def))
@@ -89,7 +89,7 @@ async fn triage(input_path: Option<PathBuf>) -> Result<(), Box<dyn std::error::E
         // Classify each failure
         println!("[QA] Classifying {} failure(s) with LLM...", failures.len());
         let passages: Vec<String> = failures.iter().map(|f| f.to_passage()).collect();
-        let results = match hkask_services_classify::classify_batch(&passages, cfg, None).await {
+        let results = match hkask_services_runtime::classify_batch(&passages, cfg, None).await {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("[QA] Classifier API error: {e}");
@@ -197,7 +197,7 @@ fn find_registry_dir() -> PathBuf {
 /// Falls back to Stage 1 only if no classifier config with API key is found.
 fn build_healer(registry_dir: &Path) -> SelfHealer {
     for name in &["qa-triage", "triage", "classify"] {
-        if let Ok(def) = hkask_services_classify::load_classifier_config(name, registry_dir) {
+        if let Ok(def) = hkask_services_runtime::load_classifier_config(name, registry_dir) {
             let cfg = ClassifierConfig::from_def(&def);
             if !cfg.api_key.is_empty() {
                 println!("[QA] Self-healer wired to '{}' ({})", name, cfg.model);
@@ -210,7 +210,7 @@ fn build_healer(registry_dir: &Path) -> SelfHealer {
                             .build()
                             .map_err(|e| format!("{e}"))?
                             .block_on(async {
-                                hkask_services_classify::generate_raw(&prompt, &cfg)
+                                hkask_services_runtime::generate_raw(&prompt, &cfg)
                                     .await
                                     .map_err(|e| format!("{e}"))
                             })
@@ -289,7 +289,7 @@ async fn suggest_fuzz(input_path: Option<PathBuf>) -> Result<(), Box<dyn std::er
 
     // Load classifier config
     let registry_dir = find_registry_dir();
-    let config = match hkask_services_classify::load_classifier_config("qa-feedback", &registry_dir)
+    let config = match hkask_services_runtime::load_classifier_config("qa-feedback", &registry_dir)
     {
         Ok(def) => {
             println!(
@@ -328,7 +328,7 @@ async fn suggest_fuzz(input_path: Option<PathBuf>) -> Result<(), Box<dyn std::er
         })
         .collect();
 
-    let results = hkask_services_classify::classify_batch(&passages, cfg, None).await?;
+    let results = hkask_services_runtime::classify_batch(&passages, cfg, None).await?;
 
     println!("\n[QA] Fuzz target suggestions:\n");
     for (i, result) in results.iter().enumerate() {
@@ -384,13 +384,13 @@ fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
                 .build()
                 .map_err(|e| format!("Classify runtime: {}", e))?
                 .block_on(async move {
-                    let config = hkask_services_classify::load_classifier_config(&cfg_name, &rd)
+                    let config = hkask_services_runtime::load_classifier_config(&cfg_name, &rd)
                         .map_err(|e| format!("Failed to load classifier '{}': {}", cfg_name, e))?;
 
                     let cfg = ClassifierConfig::from_def(&config);
 
                     let results =
-                        hkask_services_classify::classify_batch(&passages_owned, cfg, None)
+                        hkask_services_runtime::classify_batch(&passages_owned, cfg, None)
                             .await
                             .map_err(|e| format!("Classify API error: {}", e))?;
 

@@ -9,9 +9,9 @@
 //! Emits CNS spans when a provider crosses from pre-paid/subscription
 //! into marginal/overage pricing (`cns.provider.marginal_activated`).
 
-use hkask_services_classify::ProviderIntelligence;
+use crate::provider_intel::ProviderIntelligence;
 #[cfg(test)]
-use hkask_services_classify::UsageStatus;
+use crate::provider_intel::UsageStatus;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -233,7 +233,7 @@ mod tests {
     struct MockProvider {
         id: &'static str,
         usage_status: UsageStatus,
-        cost_rate: hkask_services_classify::CostRate,
+        cost_rate: crate::provider_intel::CostRate,
         usage_ok: bool,
     }
 
@@ -245,12 +245,12 @@ mod tests {
         async fn discover(
             &self,
             _api_key: &str,
-        ) -> Result<hkask_services_classify::ProviderState, hkask_services_classify::ProviderError>
+        ) -> Result<crate::provider_intel::ProviderState, crate::provider_intel::ProviderError>
         {
-            Ok(hkask_services_classify::ProviderState {
+            Ok(crate::provider_intel::ProviderState {
                 tier: "mock".into(),
                 monthly_limit: None,
-                limit_unit: hkask_services_classify::LimitUnit::Tokens,
+                limit_unit: crate::provider_intel::LimitUnit::Tokens,
                 overage_rate: None,
                 billing_period_start: chrono::Utc::now(),
             })
@@ -258,11 +258,11 @@ mod tests {
         async fn usage(
             &self,
             _api_key: &str,
-        ) -> Result<UsageStatus, hkask_services_classify::ProviderError> {
+        ) -> Result<UsageStatus, crate::provider_intel::ProviderError> {
             if self.usage_ok {
                 Ok(self.usage_status.clone())
             } else {
-                Err(hkask_services_classify::ProviderError::Http(
+                Err(crate::provider_intel::ProviderError::Http(
                     "mock error".into(),
                 ))
             }
@@ -271,7 +271,7 @@ mod tests {
             &self,
             _api_key: &str,
             _model_name: &str,
-        ) -> Result<hkask_services_classify::CostRate, hkask_services_classify::ProviderError>
+        ) -> Result<crate::provider_intel::CostRate, crate::provider_intel::ProviderError>
         {
             Ok(self.cost_rate.clone())
         }
@@ -286,7 +286,7 @@ mod tests {
                 fraction,
                 estimated_exhaustion: None,
             },
-            cost_rate: hkask_services_classify::CostRate {
+            cost_rate: crate::provider_intel::CostRate {
                 input_nj_per_unit: 30,
                 output_nj_per_unit: 60,
                 cache_read_nj_per_unit: 0,
@@ -376,7 +376,7 @@ mod tests {
                 fraction: 0.95,
                 estimated_exhaustion: None,
             },
-            cost_rate: hkask_services_classify::CostRate {
+            cost_rate: crate::provider_intel::CostRate {
                 input_nj_per_unit: 30,
                 output_nj_per_unit: 60,
                 cache_read_nj_per_unit: 0,
@@ -412,7 +412,7 @@ mod tests {
                 fraction: 0.0,
                 estimated_exhaustion: None,
             },
-            cost_rate: hkask_services_classify::CostRate {
+            cost_rate: crate::provider_intel::CostRate {
                 input_nj_per_unit: 30,
                 output_nj_per_unit: 60,
                 cache_read_nj_per_unit: 0,
@@ -455,7 +455,7 @@ mod tests {
                 fraction: 0.9995,
                 estimated_exhaustion: None,
             },
-            cost_rate: hkask_services_classify::CostRate {
+            cost_rate: crate::provider_intel::CostRate {
                 input_nj_per_unit: 0,
                 output_nj_per_unit: 0,
                 cache_read_nj_per_unit: 0,
@@ -482,7 +482,7 @@ mod tests {
                 fraction: 1.0005,
                 estimated_exhaustion: None,
             },
-            cost_rate: hkask_services_classify::CostRate {
+            cost_rate: crate::provider_intel::CostRate {
                 input_nj_per_unit: 0,
                 output_nj_per_unit: 0,
                 cache_read_nj_per_unit: 0,

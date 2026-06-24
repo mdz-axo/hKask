@@ -29,12 +29,13 @@ const SPLASH_DURATION_MS: u64 = 2500;
 //
 // Pixel values:
 //   0 = background (transparent)
-//   1 = black tracing (behind steel blue)
+//   1 = black tracing (behind strokes)
 //   2 = shadow stroke (15% opacity → dim gray)
 //   3 = highlight (white — eye reflection, operator gap)
 //   4 = steel blue highlight (#4682B4)
 //   5 = dark steel shadow (#2C3E50)
 //   6 = Eye of the Tiger (#E3B26F) — main calligraphic brushstroke
+//   7 = steel blue (#4682B4) — dual-color brushstroke partner
 
 const CANVAS_W: usize = 80;
 const CANVAS_H: usize = 120;
@@ -1073,6 +1074,7 @@ fn pixel_color(
     bg: Color,
 ) -> Color {
     let eye_of_tiger = Color::Rgb(227, 178, 111); // #E3B26F
+    let steel_blue_full = Color::Rgb(70, 130, 180); // #4682B4
     match value {
         1 => main, // black tracing
         2 => shadow,
@@ -1080,6 +1082,7 @@ fn pixel_color(
         4 => steel_blue,
         5 => dark_steel,
         6 => eye_of_tiger,
+        7 => steel_blue_full,
         _ => bg,
     }
 }

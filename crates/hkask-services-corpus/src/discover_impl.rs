@@ -18,12 +18,12 @@
 //! 7. Method inference (LLM) → stylometric patterns from cached passages
 //! 8. Generate/augment corpus.yaml
 
+use crate::embed_impl::{CorpusConfig, EntityConfig, Work};
 use hkask_capability::DelegationToken;
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_memory::salience::{DeclaredMethod, MethodThresholds};
 use hkask_ports::InferencePort;
 use hkask_services_core::ServiceError;
-use hkask_services_embed::{CorpusConfig, EntityConfig, Work};
 use hkask_templates::ports::McpPort;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -534,20 +534,20 @@ pub fn generate_corpus_yaml(
 pub fn default_corpus_config(author_slug: &str) -> CorpusConfig {
     CorpusConfig {
         author: author_slug.to_string(),
-        embedding: hkask_services_embed::EmbeddingConfig {
+        embedding: crate::embed_impl::EmbeddingConfig {
             model: "DI/Qwen/Qwen3-Embedding-0.6B".to_string(),
             dim: 1024,
             batch_size: 64,
         },
         works: vec![],
         foundational_rules: vec![],
-        chunking: hkask_services_embed::ChunkingConfig {
+        chunking: crate::embed_impl::ChunkingConfig {
             min_words: 50,
             max_words: 200,
             sentence_boundary: ".!? ".to_string(),
         },
         centroid_entity_ref: format!("style:{author_slug}:centroid"),
-        validation: hkask_services_embed::ValidationConfig {
+        validation: crate::embed_impl::ValidationConfig {
             centroid_distance_max: 0.25,
             exemplar_count_min: 3,
             exemplar_count_max: 7,
@@ -640,7 +640,7 @@ fn augment_corpus_yaml(
             .iter()
             .map(|e| e.name.as_str())
             .collect();
-        let new_concepts: Vec<hkask_services_embed::Entity> = new_entities
+        let new_concepts: Vec<crate::embed_impl::Entity> = new_entities
             .concepts
             .iter()
             .filter(|e| !existing_concept_names.contains(e.name.as_str()))
@@ -654,7 +654,7 @@ fn augment_corpus_yaml(
             .iter()
             .map(|e| e.name.as_str())
             .collect();
-        let new_places: Vec<hkask_services_embed::Entity> = new_entities
+        let new_places: Vec<crate::embed_impl::Entity> = new_entities
             .places
             .iter()
             .filter(|e| !existing_place_names.contains(e.name.as_str()))
@@ -668,7 +668,7 @@ fn augment_corpus_yaml(
             .iter()
             .map(|e| e.name.as_str())
             .collect();
-        let new_events: Vec<hkask_services_embed::Entity> = new_entities
+        let new_events: Vec<crate::embed_impl::Entity> = new_entities
             .events
             .iter()
             .filter(|e| !existing_event_names.contains(e.name.as_str()))
@@ -980,7 +980,7 @@ async fn infer_methods(
 }
 
 /// Parse an entity list from a JSON field (e.g., "concepts", "places", "events").
-fn parse_entity_list(parsed: &serde_json::Value, field: &str) -> Vec<hkask_services_embed::Entity> {
+fn parse_entity_list(parsed: &serde_json::Value, field: &str) -> Vec<crate::embed_impl::Entity> {
     parsed[field]
         .as_array()
         .map(|arr| {
@@ -995,7 +995,7 @@ fn parse_entity_list(parsed: &serde_json::Value, field: &str) -> Vec<hkask_servi
                                 .collect()
                         })
                         .unwrap_or_default();
-                    Some(hkask_services_embed::Entity { name, appears_in })
+                    Some(crate::embed_impl::Entity { name, appears_in })
                 })
                 .collect()
         })
@@ -1372,7 +1372,7 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
                 word_count = word_count,
                 "PDF extraction near-empty — attempting OCR fallback"
             );
-            match hkask_services_embed::ocr_pdf_bytes(&bytes, url).await {
+            match crate::embed_impl::ocr_pdf_bytes(&bytes, url).await {
                 Ok(ocr_text) => {
                     let ocr_words = ocr_text.split_whitespace().count();
                     if ocr_words > word_count {
@@ -1397,7 +1397,7 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
             || raw.starts_with("<!DOCTYPE")
             || raw.starts_with("<html")
         {
-            hkask_services_embed::strip_html_tags(&raw)
+            crate::embed_impl::strip_html_tags(&raw)
         } else {
             raw
         }

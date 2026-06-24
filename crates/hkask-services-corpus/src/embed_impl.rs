@@ -20,7 +20,7 @@ use hkask_types::Visibility;
 use hkask_types::id::WebID;
 use hkask_types::template::LLMParameters;
 
-use hkask_services_classify::TripleExtraction;
+use hkask_services_runtime::TripleExtraction;
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -728,11 +728,11 @@ impl EmbedService {
         // Load classifier config if specified in corpus.yaml
         let classifier_config = if config.classifier.is_empty() {
             tracing::info!("No classifier configured — all passages default to Statement");
-            hkask_services_classify::ClassifierConfig::from_def(&Default::default())
+            hkask_services_runtime::ClassifierConfig::from_def(&Default::default())
         } else {
             let def =
-                hkask_services_classify::load_classifier_config(&config.classifier, registry_dir)?;
-            hkask_services_classify::ClassifierConfig::from_def(&def)
+                hkask_services_runtime::load_classifier_config(&config.classifier, registry_dir)?;
+            hkask_services_runtime::ClassifierConfig::from_def(&def)
         };
 
         let texts: Vec<String> = all_passages.iter().map(|p| p.text.clone()).collect();
@@ -745,7 +745,7 @@ impl EmbedService {
         );
 
         let classify_results =
-            hkask_services_classify::classify_batch(&texts, classifier_config, None).await?;
+            hkask_services_runtime::classify_batch(&texts, classifier_config, None).await?;
 
         for (passage, result) in all_passages.iter_mut().zip(classify_results.iter()) {
             passage.section_type = result.category.clone();
@@ -762,11 +762,11 @@ impl EmbedService {
         // ── Extract semantic triples (Gemma 4 classifier) ───────────
         if !config.triple_classifier.is_empty() {
             let triple_config = {
-                let def = hkask_services_classify::load_classifier_config(
+                let def = hkask_services_runtime::load_classifier_config(
                     &config.triple_classifier,
                     registry_dir,
                 )?;
-                hkask_services_classify::ClassifierConfig::from_def(&def)
+                hkask_services_runtime::ClassifierConfig::from_def(&def)
             };
 
             tracing::info!(
@@ -777,7 +777,7 @@ impl EmbedService {
             );
 
             let triple_extractions =
-                hkask_services_classify::extract_triples_batch(&texts, &triple_config).await?;
+                hkask_services_runtime::extract_triples_batch(&texts, &triple_config).await?;
 
             for (passage, extraction) in all_passages.iter_mut().zip(triple_extractions.iter()) {
                 passage.semantic_triples = extraction.clone();

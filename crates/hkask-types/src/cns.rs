@@ -278,6 +278,34 @@ impl ToolSubsystem {
 }
 
 impl CnsSpan {
+    /// Emit a typed CNS span event through the `tracing` infrastructure.
+    ///
+    /// Enforces the canonical CNS emission convention (PRINCIPLES.md §9.2):
+    /// - `target` = `"cns"` root namespace (full domain in `cns_domain` field)
+    /// - `cns_domain` = `self.as_str()` (e.g. `"cns.tool.media"`)
+    /// - `operation` = the verb describing what occurred (e.g. `"invoked"`)
+    /// - message = `"CNS"` (required for downstream ν-event parsing)
+    ///
+    /// Callers that need additional structured fields can attach them by
+    /// entering a child [`tracing::span`] before calling `emit()`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hkask_types::cns::{CnsSpan, ToolSubsystem};
+    ///
+    /// CnsSpan::Tool { subsystem: ToolSubsystem::Media }
+    ///     .emit("invoked");
+    /// ```
+    pub fn emit(&self, operation: &str) {
+        tracing::info!(
+            target: "cns",
+            cns_domain = %self.as_str(),
+            operation = %operation,
+            "CNS",
+        );
+    }
+
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  self is a valid CnsSpan variant
     /// post: returns the canonical namespace string (e.g. "cns.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
