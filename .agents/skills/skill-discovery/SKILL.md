@@ -282,3 +282,20 @@ Retirement: delete `registry/templates/<name>/` (canonical). Also delete `./agen
 |----------|------|--------|
 | `skill-discovery-detect-gap.j2` | KnowAct | Detect capability gaps in the registry corpus |
 | `skill-discovery-evaluate.j2` | KnowAct | Evaluate a candidate registry crate against criteria |
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/skill-discovery.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = the identified capability gap is sufficiently resolved
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 16000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

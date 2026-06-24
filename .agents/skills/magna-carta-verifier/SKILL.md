@@ -97,3 +97,20 @@ kask sovereignty verify --json       # JSON output (for MCP/API)
 ```
 
 There is no dedicated MCP tool for Magna Carta verification. The CLI command is the canonical entry point; it loads assertion manifests from `.agents/skills/magna-carta-verifier/manifests/` and reports pass/fail/gap status.
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/magna-carta-verifier.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.05 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = compliance analysis is stable and no critical principle blockers remain unresolved
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

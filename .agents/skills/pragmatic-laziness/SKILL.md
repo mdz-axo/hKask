@@ -110,3 +110,20 @@ Two templates. The skill is lazy.
 5. **Never relax** Prohibitions or Guardrails (constraint-forces). Laziness respects boundaries.
 
 *"Don't just do something, stand there."* — PRINCIPLES.md §0
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/pragmatic-laziness.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.25 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = stable least-action recommendation
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 16000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

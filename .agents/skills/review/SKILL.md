@@ -47,3 +47,20 @@ A companion skill for any reasoning or synthesis task. It inspects derived knowl
 | Template | Type | Purpose |
 |----------|------|--------|
 | `self_critique.j2` | WordAct | Self-critique reasoning output against quality criteria |
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/review.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.25 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = no unresolved high-severity critique blockers
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 14000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

@@ -116,3 +116,20 @@ Process manifest: `registry/manifests/kata-improvement.yaml` — 4-step scientif
 4. Working on multiple obstacles simultaneously — one at a time
 5. Stopping after one experiment — the knowledge threshold moves with each experiment; keep going
 6. Avoiding coaching — self-directed improvement is much harder; coaching accelerates learning
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/kata-improvement.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = all four steps coherent, experiment testable, feedback timing defined
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

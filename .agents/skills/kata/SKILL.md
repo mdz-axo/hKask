@@ -124,3 +124,20 @@ For detailed instructions on each practice, see the individual skill files:
 3. Coaching without an active IK cycle — the 5 questions need a target condition to reference
 4. Treating the bundle as a rigid process — the individual skills are independently useful
 5. Ignoring CNS alerts — variety deficits and habit decay require intervention, not silence
+
+
+## Registry Manifest
+
+**Type:** Bundle | **Manifest:** 
+
+### PDCA Convergence
+- **Threshold:** 0.20 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** both
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = practice session complete, outcome achieved, habit signal positive
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 120000 rJ, 0.0008 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles ()

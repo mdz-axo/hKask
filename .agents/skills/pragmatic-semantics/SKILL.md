@@ -160,3 +160,19 @@ Statement about the system?
 3. Higher rank wins
 4. State the conflict and resolution explicitly
 5. Never silently relax a Prohibition or Guardrail
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/pragmatic-semantics.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.25 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = classification is stable for action
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 12000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

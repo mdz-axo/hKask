@@ -127,3 +127,20 @@ The pipeline extracts against this schema and reports coverage:
 5. **Audit** — which fields are extracted, inferred, or unresolved?
 
 *"Structure from chaos."* — The extraction pipeline's governing principle
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/structured-extraction.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = schema coverage is acceptable and unresolved fields are low-risk/non-critical
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

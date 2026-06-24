@@ -211,3 +211,20 @@ Before extracting a module, ask:
 3. **Depth score**: Implementation lines / public items > 50? → Adequate. > 100? → Deep.
 4. **Interface count**: ≤ 7 public functions? → Good. > 7? → Split or deepen.
 5. **Dependency direction**: Does the module encapsulate its dependency? → Deep. Does it just re-expose it? → Shallow.
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/deep-module.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 5
+- **Convergence meaning:** 0 = module passes deletion test, ≤7 public items, interface minimal
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 14000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

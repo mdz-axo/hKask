@@ -357,3 +357,10 @@ steps:
 4. Phase 3: Generate — produce YAML using only supported fields
 5. Phase 4: Validate — check branch resolution, field validity, gas budget
 6. User saves and runs: `kask qa run-script --script <path>`
+
+
+## Registry Manifest
+
+**Type:** Template (one-shot) | **Manifest:** none (no registry crate — SKILL.md only)
+This is a Template, not a Skill. Templates are one-shot prompt executions without PDCA convergence.
+To upgrade to a Skill, create a registry crate at  +  templates.

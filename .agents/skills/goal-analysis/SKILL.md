@@ -109,3 +109,20 @@ A goal is not a task. A task is something you do. A goal is something you achiev
 5. **Resolve** — done / continue / blocked, with confidence-gated human review
 
 *"Shared language + shared goals = productive cooperation."* — Scott Page, *The Difference*
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/goal-analysis.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.25 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = verdict is confidently resolved for current cycle
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 14000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

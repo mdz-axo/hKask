@@ -206,3 +206,20 @@ These go beyond what `strangler-fig` and `deep-module` already cover:
 | `rsl-audit.j2` | KnowAct | Audit and classify duplicated operations across surfaces |
 | `rsl-strangle.j2` | KnowAct | Plan strangler fig migration for a selected domain |
 | `rsl-verify.j2` | KnowAct | Verify surgical completeness after domain migration |
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/refactor-service-layer.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 5
+- **Convergence meaning:** 0 = extraction path is verified and remaining blockers are non-critical
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 22000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

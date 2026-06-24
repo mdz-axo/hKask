@@ -89,3 +89,19 @@ Then give specific **recommendations** for what to study next.
 - If the user asks for a hint, give a minimal one — don't solve it for them.
 - After 3 failed attempts on a question, briefly explain the correct answer and move on.
 - Adapt difficulty dynamically based on the user's responses.
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/grill-me.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.25 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = interrogation coverage is sufficient and major gap areas are clearly identified
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

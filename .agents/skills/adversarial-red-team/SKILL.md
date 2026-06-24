@@ -128,3 +128,20 @@ Red-teaming is a **testing tool**, not an attack tool. Generated adversarial inp
 
 *"The best defense is knowing what breaks you."* — The red-teamer's maxim
 *"Red-teaming is not about proving your agent is secure. It's about finding out where it isn't."* — ATLAS adversarial testing framework
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/adversarial-red-team.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.05 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = critical adversarial failure modes are reduced and residual risk is acceptable
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 22000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

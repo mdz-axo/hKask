@@ -45,3 +45,20 @@ Activate caveman mode when the user wants terse, token-efficient responses witho
 | Template | Type | Purpose |
 |----------|------|--------|
 | `caveman-compress.j2` | WordAct | Compress a draft response into ultra-compact caveman mode |
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/caveman.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = output is sufficiently compressed while preserving clarity constraints
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 10000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

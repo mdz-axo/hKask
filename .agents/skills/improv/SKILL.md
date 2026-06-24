@@ -139,3 +139,20 @@ The improv skill monitors 5 derived trace target strings for observability. Thes
 | `improv-yes-and.j2` | WordAct | Accept and extend contributions additively |
 | `improv-yes-but.j2` | WordAct | Accept and constrain contributions |
 | `improv-freestyling.j2` | WordAct | Rapid collaborative short-response cycling |
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/improv.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.12 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = the mode and response are aligned and constructive constraints are satisfied
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 12000 rJ, 0.2 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

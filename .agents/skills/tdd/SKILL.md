@@ -302,3 +302,20 @@ The TDD cycle is a pre-commit development activity. Post-deployment, the CNS pro
 [ ] Gaps are recorded in OPEN_QUESTIONS.md with deferral rationale
 [ ] Any contract expect: or goal_principle change during refactor is flagged for P2 consent
 ```
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/tdd.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.05 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = all three phases (RED, GREEN, REFACTOR) pass with acceptable coverage
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 26000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

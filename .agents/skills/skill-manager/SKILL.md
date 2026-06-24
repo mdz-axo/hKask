@@ -204,3 +204,20 @@ Report skill corpus statistics:
 - "Install a skill": Add registry crate to the project, generate companion SKILL.md
 - "Remove a skill": Prune or deprecate registry crate and generated SKILL.md
 - "Skill stats": Registry-first corpus health overview
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/skill-manager.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = no critical blockers remain
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

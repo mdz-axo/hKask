@@ -116,3 +116,20 @@ Overconfidence bias shows as a Brier score higher than expected given the foreca
 
 *"The first step to better decision-making is to keep score."* — Daniel Kahneman, *Thinking, Fast and Slow*
 *"I have always believed that scientific research is a process of systematic overconfidence followed by humbling recalibration."* — Philip Tetlock
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/decision-journal.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.05 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = calibration quality is acceptable (low error, clear process evaluation, and actionable learning signal)
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

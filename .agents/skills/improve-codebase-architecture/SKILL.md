@@ -99,3 +99,19 @@ After the grilling loop, one of three outcomes:
 - `strangler-fig` — incremental migration once the target shape is known
 - `refactor-service-layer` — extracting shared business logic from CLI/API/MCP surfaces
 - `tdd` — anchoring the refactor with behavioral contracts and regression tests
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/improve-codebase-architecture.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 5
+- **Convergence meaning:** 0 = output is stable and complete
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

@@ -234,3 +234,20 @@ During normal sessions, flag issues when noticed:
 |----------|------|--------|
 | `skill-maintenance-audit.j2` | KnowAct | Audit registry crates for staleness and produce health scores |
 | `skill-maintenance-coverage.j2` | KnowAct | Analyze coverage gaps across the registry corpus |
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/skill-maintenance.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = critical staleness signals are resolved
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 16000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

@@ -361,3 +361,20 @@ A documentation sweep is successful when:
 - `bash docs/ci/check-links.sh` passes with zero broken links
 - Every consolidation target has absorbed its children's unique content
 - No information was lost (verify by diffing pre-merge child against post-merge target section)
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/document-update.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = blockers are resolved and dispositions are stable
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 14000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

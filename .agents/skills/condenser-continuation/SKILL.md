@@ -111,3 +111,19 @@ Assemble a structured continuation document with:
 - `cns.inference` for inference governance when thread_summary is active
 - Check `kask cns health` for current CNS state
 - Run `hkask-mcp-condenser` standalone to test MCP handshake without hKask runtime
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/condenser-continuation.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.05 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = continuation packet is coherent, actionable, and free of critical blockers
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 22000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

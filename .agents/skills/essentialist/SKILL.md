@@ -231,3 +231,20 @@ Before committing any artifact, ask:
 | Template | Type | Purpose |
 |----------|------|--------|
 | `essentialist-flow.j2` | KnowAct | Run the 3-gate eliminative interrogation loop |
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/essentialist.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.25 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = no material eliminations remain
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 16000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

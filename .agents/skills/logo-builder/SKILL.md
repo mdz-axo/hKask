@@ -218,3 +218,10 @@ User provides { name, industry, audience?, values? }
 3. Peters, Allan. *Logos That Last*. <https://www.petersdesigncompany.com/book>
 4. Müller-Brockmann, Josef. *Grid Systems in Graphic Design*. Niggli, 1981.
 5. Wong, Wucius. *Principles of Form and Design*. Wiley, 1993.
+
+
+## Registry Manifest
+
+**Type:** Template (one-shot) | **Manifest:** none (no registry crate — SKILL.md only)
+This is a Template, not a Skill. Templates are one-shot prompt executions without PDCA convergence.
+To upgrade to a Skill, create a registry crate at  +  templates.

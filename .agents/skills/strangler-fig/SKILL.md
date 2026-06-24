@@ -219,3 +219,20 @@ The SKILL.md (this file) teaches the Zed coding agent the strangler fig methodol
 - [ ] Clippy clean across workspace
 - [ ] No consumers reference the old architecture
 - [ ] Each migration step is independently documented and reversible
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/strangler-fig.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 5
+- **Convergence meaning:** 0 = migration step integrity is verified and no critical rollback blockers remain
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 22000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

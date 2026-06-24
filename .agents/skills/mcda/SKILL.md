@@ -109,3 +109,20 @@ Option B wins on composite (72 > 67). But without masking detection, you might n
 
 *"When you cannot measure, your knowledge is of a meager and unsatisfactory kind."* — Lord Kelvin
 *"Not everything that counts can be counted, and not everything that can be counted counts."* — William Bruce Cameron
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/mcda.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.05 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = ranking confidence is high and sensitivity analysis shows acceptable robustness
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 22000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

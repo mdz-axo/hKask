@@ -150,3 +150,19 @@ The SKILL.md (this file) teaches the Zed coding agent the cybernetic reasoning f
 2. Where does the model diverge from reality?
 3. Is the model updated when the system changes?
 4. Does the model include failure modes, or only success modes?
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/pragmatic-cybernetics.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.25 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = loop diagnostics are stable for intervention
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 12000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

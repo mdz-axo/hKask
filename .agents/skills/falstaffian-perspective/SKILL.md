@@ -131,3 +131,20 @@ The manifest at `registry/templates/falstaffian-perspective/manifest.yaml` defin
 
 *"What is honor? A word. What is in that word? Air."* — Falstaff, *Henry IV Part 1*, 5.1
 *"A good wit will make use of any thing."* — Falstaff, *Henry IV Part 2*, 1.2
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/falstaffian-perspective.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = perspective diversity and tension quality are sufficient for decision support
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

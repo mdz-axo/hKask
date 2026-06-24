@@ -35,3 +35,19 @@ The SKILL.md (this file) teaches the Zed coding agent the context-expansion meth
 - Use the project's own domain language, not generic terms.
 - When uncertain about a module's purpose, say so explicitly rather than guessing.
 - Focus on the current module and its immediate neighbors — don't map the entire system unless asked.
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/zoom-out.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.25 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = context map is sufficiently stable for downstream work
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 12000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

@@ -323,3 +323,20 @@ the lens of Rust's design:
 | `rust-idiom-audit.j2` | KnowAct | Audit Rust code for idiomatic compliance |
 | `rust-safety-boundary.j2` | KnowAct | Design and audit unsafe code boundaries |
 | `rust-refactor-plan.j2` | KnowAct | Plan idiomatic refactoring toward deeper modules |
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/rust-expertise.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.05 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = output is stable and complete
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 20000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

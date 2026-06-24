@@ -143,3 +143,20 @@ New to the vocabulary: `detach`, `endure`, `perceive`, `relinquish`, `renounce`.
 6. **Precept 21 resolves conflicts** — when precepts clash, the Way decides.
 
 *"Accept things exactly as they are."* — Dokkodo, Precept 1
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/dokkodo-mindset.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = sufficiently de-attached/clarified perception
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 14000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

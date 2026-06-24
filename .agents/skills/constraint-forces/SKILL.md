@@ -108,3 +108,19 @@ Before relaxing a constraint, ask:
 2. Is the user explicitly consenting?
 3. Is the reason for relaxation stated?
 4. Is a CNS span emitted for the override?
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/constraint-forces.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.25 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = stable force classification and actionability
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 12000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

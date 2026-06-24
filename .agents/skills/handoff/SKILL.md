@@ -87,3 +87,19 @@ Do NOT write the handoff document inside any skill directory (`.agents/skills/*/
 5. **No sensitive data.** No API keys, tokens, passwords, or PII. Redact if present.
 6. **Current state is precise.** Exactly where things left off, including what's unfinished, what compiles, what doesn't.
 7. **Max 8000 tokens.** If the handoff exceeds this, the session was too broad — narrow the scope.
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/handoff.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.05 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = handoff packet is complete, actionable, and redaction-safe
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 20000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

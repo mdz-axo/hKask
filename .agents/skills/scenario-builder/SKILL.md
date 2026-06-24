@@ -145,3 +145,20 @@ Robust strategies are your no-regret moves. Contingent strategies are your hedge
 5. **Implications** — robust strategies (all scenarios), contingent (specific), tripwires (early signals)
 
 *"The goal of scenario planning is not to predict the future but to make better decisions in the face of uncertainty."* — Peter Schwartz, *The Art of the Long View*
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/scenario-planning.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.05 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = scenarios are sufficiently divergent/coherent and implications+indicators are actionable
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 28000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

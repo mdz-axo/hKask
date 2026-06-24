@@ -140,3 +140,19 @@ If a correct seam exists:
 **Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling), note it for architecture review — after the fix, not before.
 
 If the answer is "a spec requirement should have existed for this behavior," that's a spec gap — document it.
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/diagnose.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.25 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = root cause confirmed, fix validated, regression tests pass
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 14000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

@@ -50,3 +50,20 @@ Use this skill to tighten a response through a bounded loop of generation, criti
 | `generate.j2` | WordAct | Produce an initial draft and quality score |
 | `critique.j2` | KnowAct | Evaluate a draft against quality criteria |
 | `revise.j2` | KnowAct | Produce a revised draft addressing each critique |
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/self-critique-revision.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.15 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = all major critique issues resolved, incremental gains < improvement target
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

@@ -70,3 +70,20 @@ When this cascade is wired into a runtime FlowDef, the FlowDef must live in `reg
 | `compose-proposal.j2` | KnowAct | Compose a revised artifact and unified diff |
 | `user-choice.j2` | WordAct | Present proposal and capture user choice |
 | `user-review-loop.j2` | KnowAct | Plan the bounded audit cascade routing |
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/skill-logic-audit/audit-flow.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.10 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 4
+- **Convergence meaning:** 0 = no material flaws remain
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 12000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

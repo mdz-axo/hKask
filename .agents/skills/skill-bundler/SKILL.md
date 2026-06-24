@@ -182,3 +182,19 @@ When the user says:
 - **"show bundle [name]"** — Display the manifest.
 - **"deactivate bundle"** — Stop applying the current bundle.
 - **"bundle skills"** — List available skills with polarity classifications.
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/skill-bundler.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.10 (converged when metric ≤ this)
+- **Improvement ratio:** 0.10 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = no blocking bundle violations remain
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 16000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

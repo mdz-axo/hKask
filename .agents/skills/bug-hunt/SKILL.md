@@ -50,3 +50,20 @@ Reasoning patterns from pragmatic-semantics (IS/OUGHT classification + epistemic
 
 - **Canonical source:** `registry/templates/bug-hunt/manifest.yaml`
 - **Template:** `registry/templates/bug-hunt/bug-hunt-expedition.j2`
+
+
+## Registry Manifest
+
+**Type:** Skill | **Manifest:** `registry/manifests/bug-hunt.yaml`
+
+### PDCA Convergence
+- **Threshold:** 0.25 (converged when metric ≤ this)
+- **Improvement ratio:** 0.05 (min relative reduction per iteration)
+- **Improvement gate:** threshold_only
+- **Max iterations:** 3
+- **Convergence meaning:** 0 = findings stable, no critical bugs remain unresolved
+
+### Energy Budgets
+- **Gas (compute cycles):** cap 100000, 100 per iteration
+- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)
