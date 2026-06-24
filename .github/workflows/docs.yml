@@ -46,3 +46,6 @@ jobs:
 
       - name: Check documentation links
         run: bash docs/ci/check-links.sh
+
+      - name: Verify documentation-code consistency (S3)
+        run: bash docs/ci/verify-docs.sh
