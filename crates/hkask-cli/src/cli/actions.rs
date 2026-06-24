@@ -518,6 +518,45 @@ pub enum ReplicantAction {
         #[arg()]
         replicant_name: String,
     },
+    /// Rename a replicant
+    Rename {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+    },
+    /// Merge triples from one replicant into another
+    Merge {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        into: String,
+    },
+    /// Delete a replicant and all its triples
+    Delete {
+        #[arg()]
+        name: String,
+    },
+}
+
+/// Sovereignty export actions
+#[derive(Debug, Subcommand)]
+pub enum ExportAction {
+    /// Create an encrypted sovereignty backup archive
+    Create {
+        /// Passphrase to encrypt the archive
+        #[arg(short, long)]
+        passphrase: String,
+    },
+    /// Upload a sovereignty archive to a server (migration)
+    Upload {
+        /// Path to the archive file
+        #[arg(short, long)]
+        archive: PathBuf,
+        /// Passphrase to decrypt the archive
+        #[arg(short, long)]
+        passphrase: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]

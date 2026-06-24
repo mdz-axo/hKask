@@ -45,15 +45,20 @@ struct OAuthConfig {
 }
 
 impl OAuthConfig {
-    /// Load OAuth config from environment variables.
+    /// Load OAuth config — prefers OS keychain (set by `kask init`), falls back to env vars.
     /// expect: "My API access is scoped to my sovereignty boundaries"
     fn from_env(provider: &OAuthProvider) -> Result<Self, String> {
+        let keychain = hkask_keystore::keychain::Keychain::new("hkask");
         match provider {
             OAuthProvider::GitHub => {
-                let client_id = std::env::var("HKASK_OAUTH_GITHUB_CLIENT_ID")
-                    .map_err(|_| "HKASK_OAUTH_GITHUB_CLIENT_ID not set".to_string())?;
-                let client_secret = std::env::var("HKASK_OAUTH_GITHUB_CLIENT_SECRET")
-                    .map_err(|_| "HKASK_OAUTH_GITHUB_CLIENT_SECRET not set".to_string())?;
+                let client_id = keychain
+                    .retrieve_by_key(hkask_types::keychain_keys::KEY_OAUTH_GITHUB_CLIENT_ID)
+                    .or_else(|_| std::env::var("HKASK_OAUTH_GITHUB_CLIENT_ID"))
+                    .map_err(|_| "GitHub OAuth Client ID not found in keychain or env. Run 'kask init' first.".to_string())?;
+                let client_secret = keychain
+                    .retrieve_by_key(hkask_types::keychain_keys::KEY_OAUTH_GITHUB_CLIENT_SECRET)
+                    .or_else(|_| std::env::var("HKASK_OAUTH_GITHUB_CLIENT_SECRET"))
+                    .map_err(|_| "GitHub OAuth Client Secret not found in keychain or env. Run 'kask init' first.".to_string())?;
                 let domain =
                     std::env::var("HKASK_DOMAIN").unwrap_or_else(|_| "localhost".to_string());
                 let scheme = if domain == "localhost" {
@@ -70,10 +75,17 @@ impl OAuthConfig {
                 })
             }
             OAuthProvider::Google => {
-                let client_id = std::env::var("HKASK_OAUTH_GOOGLE_CLIENT_ID")
-                    .map_err(|_| "HKASK_OAUTH_GOOGLE_CLIENT_ID not set".to_string())?;
-                let client_secret = std::env::var("HKASK_OAUTH_GOOGLE_CLIENT_SECRET")
-                    .map_err(|_| "HKASK_OAUTH_GOOGLE_CLIENT_SECRET not set".to_string())?;
+                let client_id = keychain
+                    .retrieve_by_key("hkask-oauth-google-client-id")
+                    .or_else(|_| std::env::var("HKASK_OAUTH_GOOGLE_CLIENT_ID"))
+                    .map_err(|_| {
+                        "Google OAuth Client ID not found. Set HKASK_OAUTH_GOOGLE_CLIENT_ID."
+                            .to_string()
+                    })?;
+                let client_secret = keychain
+                    .retrieve_by_key("hkask-oauth-google-client-secret")
+                    .or_else(|_| std::env::var("HKASK_OAUTH_GOOGLE_CLIENT_SECRET"))
+                    .map_err(|_| "Google OAuth Client Secret not found. Set HKASK_OAUTH_GOOGLE_CLIENT_SECRET.".to_string())?;
                 let domain =
                     std::env::var("HKASK_DOMAIN").unwrap_or_else(|_| "localhost".to_string());
                 let scheme = if domain == "localhost" {
@@ -250,6 +262,15 @@ pub async fn callback(
         replicant = %replicant.replicant_name,
         webid = %replicant.replicant_webid,
         "OAuth sign-in complete"
+    );
+
+    // CNS: SessionOpen span
+    tracing::info!(
+        target = "cns.deploy.session",
+        operation = "session_open",
+        provider = %provider,
+        webid = %replicant.replicant_webid,
+        "CNS"
     );
 
     // Clear state cookie and set session cookie
@@ -439,6 +460,15 @@ pub async fn logout(
                 format!("Lock error: {e}"),
             )
         })?;
+        // CNS: SessionClose span (before destroying session, so we can log webid)
+        if let Ok(Some(session)) = store.get_session(&session_id) {
+            tracing::info!(
+                target = "cns.deploy.session",
+                operation = "session_close",
+                webid = %session.replicant_webid,
+                "CNS"
+            );
+        }
         let _ = store.logout(&session_id);
     }
     Response::builder()

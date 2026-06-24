@@ -2,6 +2,12 @@
 //!
 //! Tab-cycled sections: Rooms, Messages, Contacts. Supports multiple
 //! instances. Live data from MatrixDataBridge / matrix-sdk.
+//!
+//! Adopts the MCP two-tab design (TUI_SPECIFICATION.md §3):
+//! - Tab 1 (Chat): Focused chat scoped to the Matrix MCP server
+//! - Tab 2 (Data): Rooms, Messages, Contacts sections
+//!
+//! Tab key: cycles Rooms → Messages → Contacts → Chat → Rooms.
 
 use std::sync::Arc;
 
@@ -13,6 +19,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
 use crate::bridges::MatrixDataBridge;
+use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::window::{Window, WindowId, WindowKind};
 
@@ -43,6 +50,8 @@ impl MatrixSection {
 pub struct MatrixWindow {
     id: WindowId,
     section: MatrixSection,
+    active_tab: McpTab,
+    chat_state: McpChatState,
     #[allow(dead_code)]
     bridge: Arc<dyn ReplBridge>,
     matrix: Option<Arc<dyn MatrixDataBridge>>,
@@ -53,6 +62,8 @@ impl MatrixWindow {
         Self {
             id,
             section: MatrixSection::Rooms,
+            active_tab: McpTab::Data,
+            chat_state: McpChatState::new(),
             bridge,
             matrix: None,
         }
@@ -69,16 +80,83 @@ impl Window for MatrixWindow {
         self.id
     }
     fn title(&self) -> &str {
-        "Matrix"
+        match self.active_tab {
+            McpTab::Chat => "Matrix Chat",
+            McpTab::Data => "Matrix",
+        }
     }
     fn kind(&self) -> WindowKind {
         WindowKind::Matrix
     }
 
     fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
+        match self.active_tab {
+            McpTab::Chat => {
+                Self::default_render_chat_tab(&self.chat_state, "matrix", f, area);
+            }
+            McpTab::Data => self.render_data_tab(f, area),
+        }
+    }
+
+    fn handle_key(&mut self, key: KeyEvent) -> bool {
+        if key.code == KeyCode::Tab {
+            match self.active_tab {
+                McpTab::Chat => {
+                    self.active_tab = McpTab::Data;
+                    self.section = MatrixSection::Rooms;
+                    return true;
+                }
+                McpTab::Data => {
+                    self.section = self.section.next();
+                    if self.section == MatrixSection::Rooms {
+                        self.active_tab = McpTab::Chat;
+                    }
+                    return true;
+                }
+            }
+        }
+
+        match self.active_tab {
+            McpTab::Chat => {
+                if let Some(_msg) = self.handle_chat_key(key) {
+                    return true;
+                }
+                matches!(
+                    key.code,
+                    KeyCode::Char(_) | KeyCode::Backspace | KeyCode::Enter | KeyCode::Esc
+                )
+            }
+            McpTab::Data => false,
+        }
+    }
+    fn tick(&mut self) {}
+}
+
+impl McpTabbedWindow for MatrixWindow {
+    fn active_tab(&self) -> McpTab {
+        self.active_tab
+    }
+    fn set_active_tab(&mut self, tab: McpTab) {
+        self.active_tab = tab;
+    }
+    fn chat_state_mut(&mut self) -> &mut McpChatState {
+        &mut self.chat_state
+    }
+    fn mcp_server_name(&self) -> &str {
+        "matrix"
+    }
+
+    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
+        Self::default_render_chat_tab(&self.chat_state, "matrix", f, area);
+    }
+
+    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
         let mut lines = vec![
             Line::from(Span::styled(
-                format!("── Matrix: {} (Tab to switch) ──", self.section.title()),
+                format!(
+                    "── Matrix: {} (Tab: next | Tab×3: Chat) ──",
+                    self.section.title()
+                ),
                 Style::default().fg(Color::Cyan).bold(),
             )),
             Line::from(""),
@@ -97,12 +175,11 @@ impl Window for MatrixWindow {
                         let rooms = m.list_rooms();
                         lines.push(Line::from(format!("  {} room(s)", rooms.len())));
                         lines.push(Line::from(""));
-                        // Collect owned data before pushing to avoid borrows outliving rooms
                         let room_data: Vec<(String, bool, usize, String, String)> = rooms
                             .iter()
                             .map(|r| {
                                 (
-                                    r.title.to_string(),
+                                    r.title.clone(),
                                     r.escalated,
                                     r.member_count,
                                     r.id.clone(),
@@ -110,19 +187,17 @@ impl Window for MatrixWindow {
                                 )
                             })
                             .collect();
-                        for (title, escalated, member_count, id, last_active) in &room_data {
-                            let title = title.clone();
+                        for (title, escalated, member_count, _id, _last_active) in &room_data {
                             let esc = if *escalated { " ⚠" } else { "" };
                             lines.push(Line::from(vec![
                                 Span::raw("  🏠 "),
-                                Span::styled(title, Style::default().fg(Color::Green)),
+                                Span::styled(title.clone(), Style::default().fg(Color::Green)),
                                 Span::styled(esc, Style::default().fg(Color::Red)),
                                 Span::styled(
                                     format!("  ({})", member_count),
                                     Style::default().fg(Color::DarkGray),
                                 ),
                             ]));
-                            lines.push(Line::from(format!("     {}  last: {}", id, last_active)));
                         }
                     }
                     MatrixSection::Messages => {
@@ -135,23 +210,24 @@ impl Window for MatrixWindow {
                                 msgs.len()
                             )));
                             lines.push(Line::from(""));
-                            // Collect owned message data before pushing
                             let msg_data: Vec<(String, String, String)> = msgs
                                 .iter()
                                 .map(|msg| {
                                     let body_trunc: String = if msg.body.len() > 60 {
-                                        let end = msg
-                                            .body
-                                            .char_indices()
-                                            .take(60)
-                                            .last()
-                                            .map(|(i, _)| i)
-                                            .unwrap_or(msg.body.len());
-                                        format!("{}...", &msg.body[..end])
+                                        format!(
+                                            "{}...",
+                                            &msg.body[..msg
+                                                .body
+                                                .char_indices()
+                                                .take(60)
+                                                .last()
+                                                .map(|(i, _)| i)
+                                                .unwrap_or(msg.body.len())]
+                                        )
                                     } else {
                                         msg.body.clone()
                                     };
-                                    (format!("{}", msg.timestamp), msg.sender.clone(), body_trunc)
+                                    (msg.timestamp.to_string(), msg.sender.clone(), body_trunc)
                                 })
                                 .collect();
                             for (timestamp, sender, body_trunc) in &msg_data {
@@ -181,22 +257,17 @@ impl Window for MatrixWindow {
                         lines.push(Line::from(format!("  Homeserver: {}", cs.homeserver)));
                         lines.push(Line::from(""));
                         let rooms = m.list_rooms();
-                        // Collect owned room data
                         let room_titles: Vec<String> =
                             rooms.iter().map(|r| r.title.clone()).collect();
                         let room_counts: Vec<usize> =
                             rooms.iter().map(|r| r.member_count).collect();
-                        let mut seen = std::collections::HashSet::new();
-                        for (i, (title, member_count)) in
-                            room_titles.iter().zip(room_counts.iter()).enumerate()
-                        {
+                        for (title, member_count) in room_titles.iter().zip(room_counts.iter()) {
                             lines.push(Line::from(format!(
                                 "  {} — {} member(s)",
                                 title, member_count
                             )));
-                            seen.insert(title.clone());
                         }
-                        if seen.is_empty() {
+                        if room_titles.is_empty() {
                             lines.push(Line::from("  No contacts visible."));
                         }
                     }
@@ -209,16 +280,13 @@ impl Window for MatrixWindow {
                     lines.push(Line::from(
                         "  Use /matrix join #room:server to join a room.",
                     ));
-                    lines.push(Line::from("  Use /matrix list to see joined rooms."));
                 }
                 MatrixSection::Messages => {
                     lines.push(Line::from("  Messages from Matrix rooms."));
-                    lines.push(Line::from("  Structured payloads render as JSON cards."));
                     lines.push(Line::from("  Use /matrix send <body> to send a message."));
                 }
                 MatrixSection::Contacts => {
                     lines.push(Line::from("  Contacts from connected Matrix rooms."));
-                    lines.push(Line::from("  CuratorPod links use Matrix for federation."));
                 }
             }
         }
@@ -229,14 +297,4 @@ impl Window for MatrixWindow {
         )));
         f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
     }
-
-    fn handle_key(&mut self, key: KeyEvent) -> bool {
-        if key.code == KeyCode::Tab {
-            self.section = self.section.next();
-            true
-        } else {
-            false
-        }
-    }
-    fn tick(&mut self) {}
 }

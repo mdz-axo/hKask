@@ -18,6 +18,7 @@ pub mod discover;
 pub mod docs;
 pub mod doctor;
 pub mod embed_corpus;
+pub mod export_cmd;
 pub mod federation;
 pub mod git_cmd;
 pub mod goal;

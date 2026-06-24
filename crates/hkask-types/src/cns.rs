@@ -407,6 +407,12 @@ impl CnsSpan {
             CnsSpan::FederationConduitRouteLost => "cns.federation.conduit_route_lost",
             CnsSpan::FederationCrdtConflict => "cns.federation.crdt_conflict",
             CnsSpan::SelfHeal => "cns.heal",
+            CnsSpan::SessionOpen => "cns.deploy.session_open",
+            CnsSpan::SessionClose => "cns.deploy.session_close",
+            CnsSpan::BackupExport => "cns.deploy.backup_export",
+            CnsSpan::BackupAutoExport => "cns.deploy.backup_auto_export",
+            CnsSpan::BackupUpload => "cns.deploy.backup_upload",
+            CnsSpan::ReplicantMerge => "cns.deploy.replicant_merge",
         }
     }
 }
@@ -528,6 +534,12 @@ impl std::str::FromStr for CnsSpan {
             "cns.federation.conduit_route_lost" => Ok(CnsSpan::FederationConduitRouteLost),
             "cns.federation.crdt_conflict" => Ok(CnsSpan::FederationCrdtConflict),
             "cns.heal" => Ok(CnsSpan::SelfHeal),
+            "cns.deploy.session_open" => Ok(CnsSpan::SessionOpen),
+            "cns.deploy.session_close" => Ok(CnsSpan::SessionClose),
+            "cns.deploy.backup_export" => Ok(CnsSpan::BackupExport),
+            "cns.deploy.backup_auto_export" => Ok(CnsSpan::BackupAutoExport),
+            "cns.deploy.backup_upload" => Ok(CnsSpan::BackupUpload),
+            "cns.deploy.replicant_merge" => Ok(CnsSpan::ReplicantMerge),
             _ => Err(()),
         }
     }

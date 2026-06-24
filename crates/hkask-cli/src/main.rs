@@ -185,6 +185,10 @@ fn main() {
             }
         }
 
+        Commands::Export { action } => {
+            commands::export_cmd::run(action);
+        }
+
         Commands::Wallet { action } => commands::wallet::run(action),
 
         Commands::List {

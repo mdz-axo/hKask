@@ -113,7 +113,9 @@ async fn handle_terminal(socket: WebSocket, webid: String, replicant_name: Strin
 
     let (mut ws_sender, mut ws_receiver) = socket.split();
 
-    // Spawn task to read child stdout/stderr and send to WebSocket
+    // Spawn task to read child stdout and send to WebSocket.
+    // Uses a oneshot channel so the main loop can detect when stdout closes.
+    let (stdout_done_tx, mut stdout_done_rx) = tokio::sync::oneshot::channel::<()>();
     let stdout_handle = tokio::spawn(async move {
         let mut buf = [0u8; 4096];
         loop {
@@ -134,6 +136,8 @@ async fn handle_terminal(socket: WebSocket, webid: String, replicant_name: Strin
                 }
             }
         }
+        // Signal that stdout has closed (ignored if receiver was dropped)
+        let _ = stdout_done_tx.send(());
     });
 
     // Forward stderr if available (for diagnostics)
@@ -150,29 +154,42 @@ async fn handle_terminal(socket: WebSocket, webid: String, replicant_name: Strin
         });
     }
 
-    // Main loop: read WebSocket messages, write to child stdin
-    while let Some(msg) = ws_receiver.next().await {
-        match msg {
-            Ok(Message::Binary(data)) => {
-                if child_stdin.write_all(&data).await.is_err() {
-                    break;
+    // Main loop: read WebSocket messages and write to child stdin.
+    // Uses select! to detect when stdout closes (process exit or task panic),
+    // and ensures the child process is always killed on exit.
+    loop {
+        tokio::select! {
+            msg = ws_receiver.next() => {
+                match msg {
+                    Some(Ok(Message::Binary(data))) => {
+                        if child_stdin.write_all(&data).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(Ok(Message::Text(data))) => {
+                        if child_stdin.write_all(data.as_bytes()).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(Ok(Message::Close(_))) => break,
+                    Some(Ok(Message::Ping(_))) | Some(Ok(Message::Pong(_))) => {}
+                    Some(Err(_)) => break,
+                    None => break, // WebSocket stream ended
                 }
             }
-            Ok(Message::Text(data)) => {
-                if child_stdin.write_all(data.as_bytes()).await.is_err() {
-                    break;
-                }
+            _ = &mut stdout_done_rx => {
+                // stdout closed — child process probably exited
+                break;
             }
-            Ok(Message::Close(_)) => break,
-            Ok(Message::Ping(_)) | Ok(Message::Pong(_)) => {}
-            Err(_) => break,
+            else => break,
         }
     }
 
-    // Cleanup
+    // Cleanup — guaranteed to run regardless of exit path
     let _ = child_stdin.shutdown().await;
     let _ = child.kill().await;
-    let _ = stdout_handle.await;
+    // Don't await stdout_handle — if it panicked, awaiting would propagate the panic
+    stdout_handle.abort();
 
     tracing::info!(
         target = "hkask.api.terminal",

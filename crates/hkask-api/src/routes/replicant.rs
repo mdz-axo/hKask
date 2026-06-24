@@ -114,6 +114,17 @@ pub async fn merge_replicants(
     let receipt = store
         .merge_replicant_triples(&req.from, &req.into)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("{e}")))?;
+
+    // CNS: ReplicantMerge span
+    tracing::info!(
+        target = "cns.deploy.replicant",
+        operation = "replicant_merge",
+        source = %req.from,
+        target = %req.into,
+        triple_count = receipt.triple_count,
+        "CNS"
+    );
+
     Ok(Json(receipt))
 }
 

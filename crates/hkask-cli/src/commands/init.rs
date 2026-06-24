@@ -93,12 +93,10 @@ pub fn run_init() -> Result<(), Box<dyn std::error::Error>> {
         config_dir.join("hkask.service").display()
     );
 
-    // 8. Set env vars for current session
+    // 8. Summary
     println!("\n\u{2713} Server initialized successfully!\n");
-    println!("  Add these to your environment or .env file:\n");
-    println!("  export HKASK_OAUTH_GITHUB_CLIENT_ID={}", gh_client_id);
-    println!("  # Client secret is stored in OS keychain — read with:");
-    println!("  #   security find-generic-password -s hkask-oauth-github-client-secret -w");
+    println!("  OAuth credentials stored in OS keychain.\n");
+    println!("  Set your domain if not using localhost:\n");
     println!("  export HKASK_DOMAIN={}", domain);
     println!("\n  Then run: kask serve");
 

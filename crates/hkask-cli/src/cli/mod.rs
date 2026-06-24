@@ -276,6 +276,12 @@ pub enum Commands {
     /// Initialize hKask server configuration (interactive)
     Init,
 
+    /// Sovereignty export — create and migrate encrypted triple archives
+    Export {
+        #[command(subcommand)]
+        action: ExportAction,
+    },
+
     /// Start the HTTP API server (shares state with CLI)
     Serve {
         /// Port to listen on
