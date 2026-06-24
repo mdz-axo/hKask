@@ -1,501 +1,659 @@
-//! Splash screen and persistent logo rendering.
+//! Splash screen — faithful terminal reproduction of the Kask SVG logo.
 //!
-//! Rasterizes the Kask SVG geometry (`assets/kask-logo.svg`) into pixel buffers
-//! and renders using Unicode half-block characters (`▀ ▄ █`). Supports two sizes:
+//! Rasterizes the SVG geometry (`assets/kask-logo.svg`) into a pixel buffer
+//! and renders it using Unicode half-block characters (`▀ ▄ █`). The four
+//! compositional elements are preserved:
 //!
-//! - **Full splash** (scale 0.2, 80×60 chars) — centered full-screen on launch
-//! - **Logo window** (scale 0.1, 40×30 chars) — persistent top-left corner
+//! 1. **Vintage galvanized milk can** — cylindrical body, neck, lid with knob, side handles, ribbing
+//! 2. **Calligraphic stroke variation** — thick (2px) downstrokes, thin (1px) transitions
+//! 3. **Curator's Eye** — almond eyelids, filled iris, pupil, white reflection, operator gap
+//! 4. **Bitemporal shadow** — same geometry offset left at reduced opacity
 //!
-//! Pixel values: 0=bg, 1=main stroke, 2=shadow, 3=highlight
+//! The pixel buffer is computed once from the SVG coordinates and cached.
 
 use crossterm::event::{self, Event};
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::Paragraph;
+use ratatui::widgets::{Block, Paragraph};
 use std::time::{Duration, Instant};
 
+/// Duration to display the splash screen before auto-transitioning.
 const SPLASH_DURATION_MS: u64 = 2500;
 
-// ── Rasterization context ────────────────────────────────────────────
+// ── Pixel buffer constants ──────────────────────────────────────────
+//
+// The SVG viewBox is 400×600. We rasterize at scale 0.2 → 80×120 pixels.
+// Each terminal row = 2 pixel rows (half-block rendering), so 60 terminal rows.
+//
+// Pixel values:
+//   0 = background (transparent)
+//   1 = main stroke (#1A1A1A → light gray on dark bg)
+//   2 = shadow stroke (15% opacity → dim gray)
+//   3 = highlight (white — eye reflection, operator gap)
 
-struct LogoCanvas {
-    buf: Vec<u8>,
-    w: usize,
-    h: usize,
-    scale: f64,
+const CANVAS_W: usize = 80;
+const CANVAS_H: usize = 120;
+const SCALE: f64 = 0.2;
+
+/// Pre-computed pixel buffer for the Kask logo.
+/// Computed once via `build_logo_buffer()`.
+fn build_logo_buffer() -> Vec<u8> {
+    let mut buf = vec![0u8; CANVAS_W * CANVAS_H];
+
+    // ── Helper: scale SVG coordinate to canvas coordinate ──
+    let sx = |x: f64| -> f64 { x * SCALE };
+    let sy = |y: f64| -> f64 { y * SCALE };
+
+    // ── BITEMPORAL SHADOW (drawn first, so main strokes overlay) ──
+    // Shadow offset
+    let so = -25.0;
+
+    // Shadow body rect: x=140 y=180 w=120 h=280
+    draw_rect_stroke(
+        &mut buf,
+        sx(140.0 + so),
+        sy(180.0),
+        sx(120.0),
+        sy(280.0),
+        1,
+        2,
+    );
+    // Shadow neck rect: x=160 y=140 w=80 h=45
+    draw_rect_stroke(
+        &mut buf,
+        sx(160.0 + so),
+        sy(140.0),
+        sx(80.0),
+        sy(45.0),
+        1,
+        2,
+    );
+    // Shadow lid ellipse (approximate with rect)
+    draw_rect_stroke(
+        &mut buf,
+        sx(155.0 + so),
+        sy(125.0),
+        sx(90.0),
+        sy(20.0),
+        1,
+        2,
+    );
+    // Shadow left handle
+    draw_cubic_bezier(
+        &mut buf,
+        sx(140.0 + so),
+        sy(220.0),
+        sx(115.0 + so),
+        sy(220.0),
+        sx(115.0 + so),
+        sy(280.0),
+        sx(140.0 + so),
+        sy(280.0),
+        1,
+        2,
+    );
+    // Shadow right handle
+    draw_cubic_bezier(
+        &mut buf,
+        sx(260.0 + so),
+        sy(220.0),
+        sx(285.0 + so),
+        sy(220.0),
+        sx(285.0 + so),
+        sy(280.0),
+        sx(260.0 + so),
+        sy(280.0),
+        1,
+        2,
+    );
+
+    // ── MAIN MILK CAN BODY ──
+
+    // Left side — thick downstroke: M 140 180 L 140 460, width 9
+    draw_thick_line(&mut buf, sx(140.0), sy(180.0), sx(140.0), sy(460.0), 2, 1);
+    // Right side — thick downstroke: M 260 180 L 260 460, width 9
+    draw_thick_line(&mut buf, sx(260.0), sy(180.0), sx(260.0), sy(460.0), 2, 1);
+    // Bottom — thick curved base: M 140 460 Q 140 470 200 470 Q 260 470 260 460, width 9
+    draw_quad_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(460.0),
+        sx(140.0),
+        sy(470.0),
+        sx(200.0),
+        sy(470.0),
+        2,
+        1,
+    );
+    draw_quad_bezier(
+        &mut buf,
+        sx(200.0),
+        sy(470.0),
+        sx(260.0),
+        sy(470.0),
+        sx(260.0),
+        sy(460.0),
+        2,
+        1,
+    );
+    // Top shoulder — thinner transition: M 140 180 Q 200 175 260 180, width 7
+    draw_quad_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(180.0),
+        sx(200.0),
+        sy(175.0),
+        sx(260.0),
+        sy(180.0),
+        1,
+        1,
+    );
+
+    // ── GALVANIZED RIBBING ──
+    // Upper rib: M 140 220 Q 200 218 260 220, width 5
+    draw_quad_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(220.0),
+        sx(200.0),
+        sy(218.0),
+        sx(260.0),
+        sy(220.0),
+        1,
+        1,
+    );
+    // Middle rib: M 140 280 Q 200 278 260 280, width 5
+    draw_quad_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(280.0),
+        sx(200.0),
+        sy(278.0),
+        sx(260.0),
+        sy(280.0),
+        1,
+        1,
+    );
+    // Lower rib: M 140 400 Q 200 398 260 400, width 5
+    draw_quad_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(400.0),
+        sx(200.0),
+        sy(398.0),
+        sx(260.0),
+        sy(400.0),
+        1,
+        1,
+    );
+    // Bottom rib: M 140 440 Q 200 438 260 440, width 5
+    draw_quad_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(440.0),
+        sx(200.0),
+        sy(438.0),
+        sx(260.0),
+        sy(440.0),
+        1,
+        1,
+    );
+
+    // ── SHOULDER ──
+    // Left shoulder curve: M 140 180 C 140 165 160 155 160 145, width 8
+    draw_cubic_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(180.0),
+        sx(140.0),
+        sy(165.0),
+        sx(160.0),
+        sy(155.0),
+        sx(160.0),
+        sy(145.0),
+        2,
+        1,
+    );
+    // Right shoulder curve: M 260 180 C 260 165 240 155 240 145, width 8
+    draw_cubic_bezier(
+        &mut buf,
+        sx(260.0),
+        sy(180.0),
+        sx(260.0),
+        sy(165.0),
+        sx(240.0),
+        sy(155.0),
+        sx(240.0),
+        sy(145.0),
+        2,
+        1,
+    );
+
+    // ── NECK ──
+    // Left neck: M 160 140 L 160 145, width 8
+    draw_thick_line(&mut buf, sx(160.0), sy(140.0), sx(160.0), sy(145.0), 2, 1);
+    // Right neck: M 240 140 L 240 145, width 8
+    draw_thick_line(&mut buf, sx(240.0), sy(140.0), sx(240.0), sy(145.0), 2, 1);
+
+    // ── RIM ──
+    // M 155 140 C 155 133 200 128 245 140 C 245 147 200 152 155 140, width 6
+    draw_cubic_bezier(
+        &mut buf,
+        sx(155.0),
+        sy(140.0),
+        sx(155.0),
+        sy(133.0),
+        sx(200.0),
+        sy(128.0),
+        sx(245.0),
+        sy(140.0),
+        1,
+        1,
+    );
+    draw_cubic_bezier(
+        &mut buf,
+        sx(245.0),
+        sy(140.0),
+        sx(245.0),
+        sy(147.0),
+        sx(200.0),
+        sy(152.0),
+        sx(155.0),
+        sy(140.0),
+        1,
+        1,
+    );
+
+    // ── LID ──
+    // Ellipse cx=200 cy=135 rx=45 ry=10 (approximate with rect)
+    draw_rect_stroke(&mut buf, sx(155.0), sy(125.0), sx(90.0), sy(20.0), 1, 1);
+
+    // ── LID KNOB ──
+    // M 192 125 Q 200 118 208 125, width 7
+    draw_quad_bezier(
+        &mut buf,
+        sx(192.0),
+        sy(125.0),
+        sx(200.0),
+        sy(118.0),
+        sx(208.0),
+        sy(125.0),
+        2,
+        1,
+    );
+
+    // ── SIDE HANDLES ──
+    // Left handle: M 140 220 C 115 220 110 250 115 270 C 118 280 128 285 140 280, width 7
+    draw_cubic_bezier(
+        &mut buf,
+        sx(140.0),
+        sy(220.0),
+        sx(115.0),
+        sy(220.0),
+        sx(110.0),
+        sy(250.0),
+        sx(115.0),
+        sy(270.0),
+        1,
+        1,
+    );
+    draw_cubic_bezier(
+        &mut buf,
+        sx(115.0),
+        sy(270.0),
+        sx(118.0),
+        sy(280.0),
+        sx(128.0),
+        sy(285.0),
+        sx(140.0),
+        sy(280.0),
+        1,
+        1,
+    );
+    // Right handle: M 260 220 C 285 220 290 250 285 270 C 282 280 272 285 260 280, width 7
+    draw_cubic_bezier(
+        &mut buf,
+        sx(260.0),
+        sy(220.0),
+        sx(285.0),
+        sy(220.0),
+        sx(290.0),
+        sy(250.0),
+        sx(285.0),
+        sy(270.0),
+        1,
+        1,
+    );
+    draw_cubic_bezier(
+        &mut buf,
+        sx(285.0),
+        sy(270.0),
+        sx(282.0),
+        sy(280.0),
+        sx(272.0),
+        sy(285.0),
+        sx(260.0),
+        sy(280.0),
+        1,
+        1,
+    );
+
+    // ── CURATOR'S EYE ──
+    // Upper eyelid — thick: M 165 330 Q 200 312 235 330, width 8
+    draw_quad_bezier(
+        &mut buf,
+        sx(165.0),
+        sy(330.0),
+        sx(200.0),
+        sy(312.0),
+        sx(235.0),
+        sy(330.0),
+        2,
+        1,
+    );
+    // Lower eyelid — thinner: M 168 352 Q 200 372 232 352, width 5
+    draw_quad_bezier(
+        &mut buf,
+        sx(168.0),
+        sy(352.0),
+        sx(200.0),
+        sy(372.0),
+        sx(232.0),
+        sy(352.0),
+        1,
+        1,
+    );
+
+    // Iris — solid fill: cx=200 cy=342 r=20
+    draw_filled_circle(&mut buf, sx(200.0), sy(342.0), sx(20.0), 1);
+    // Pupil — darker: cx=200 cy=342 r=11
+    draw_filled_circle(&mut buf, sx(200.0), sy(342.0), sx(11.0), 1);
+    // Light reflection — white: cx=206 cy=336 r=5
+    draw_filled_circle(&mut buf, sx(206.0), sy(336.0), sx(5.0), 3);
+
+    // Eyelashes — subtle flicks
+    draw_thick_line(&mut buf, sx(178.0), sy(328.0), sx(175.0), sy(321.0), 1, 1);
+    draw_thick_line(&mut buf, sx(190.0), sy(324.0), sx(188.0), sy(316.0), 1, 1);
+    draw_thick_line(&mut buf, sx(210.0), sy(324.0), sx(212.0), sy(316.0), 1, 1);
+    draw_thick_line(&mut buf, sx(222.0), sy(328.0), sx(225.0), sy(321.0), 1, 1);
+
+    // Operator Authority Gap — white arc: M 209 333 A 20 20 0 0 1 211 351, width 3
+    draw_thick_line(&mut buf, sx(209.0), sy(333.0), sx(211.0), sy(351.0), 1, 3);
+
+    buf
 }
 
-impl LogoCanvas {
-    fn new(scale: f64) -> Self {
-        let w = (400.0 * scale) as usize;
-        let h = (600.0 * scale) as usize;
-        Self {
-            buf: vec![0u8; w * h],
-            w,
-            h,
-            scale,
+// ── Rasterization primitives ────────────────────────────────────────
+
+fn set_pixel(buf: &mut [u8], x: f64, y: f64, value: u8) {
+    let ix = x.round() as i32;
+    let iy = y.round() as i32;
+    if ix >= 0 && (ix as usize) < CANVAS_W && iy >= 0 && (iy as usize) < CANVAS_H {
+        let idx = iy as usize * CANVAS_W + ix as usize;
+        // Main stroke (1) and highlight (3) override shadow (2); shadow doesn't override main
+        if value == 1 || value == 3 || buf[idx] == 0 {
+            buf[idx] = value;
         }
     }
+}
 
-    fn sx(&self, x: f64) -> f64 {
-        x * self.scale
+/// Bresenham line with thickness (draws parallel offset lines for width > 1).
+fn draw_thick_line(buf: &mut [u8], x0: f64, y0: f64, x1: f64, y1: f64, width: i32, value: u8) {
+    let dx = x1 - x0;
+    let dy = y1 - y0;
+    let len = (dx * dx + dy * dy).sqrt();
+    if len < 0.001 {
+        set_pixel(buf, x0, y0, value);
+        return;
     }
-    fn sy(&self, y: f64) -> f64 {
-        y * self.scale
-    }
+    // Normal vector perpendicular to line
+    let nx = -dy / len;
+    let ny = dx / len;
+    let half_w = (width as f64) / 2.0;
 
-    fn set_pixel(&mut self, x: f64, y: f64, value: u8) {
-        let ix = x.round() as i32;
-        let iy = y.round() as i32;
-        if ix >= 0 && (ix as usize) < self.w && iy >= 0 && (iy as usize) < self.h {
-            let idx = iy as usize * self.w + ix as usize;
-            if value == 1 || value == 3 || self.buf[idx] == 0 {
-                self.buf[idx] = value;
+    for w in 0..width {
+        let offset = (w as f64) - half_w + 0.5;
+        let ox = nx * offset;
+        let oy = ny * offset;
+        draw_line_bresenham(buf, x0 + ox, y0 + oy, x1 + ox, y1 + oy, value);
+    }
+}
+
+fn draw_line_bresenham(buf: &mut [u8], x0: f64, y0: f64, x1: f64, y1: f64, value: u8) {
+    let ix0 = x0.round() as i32;
+    let iy0 = y0.round() as i32;
+    let ix1 = x1.round() as i32;
+    let iy1 = y1.round() as i32;
+
+    let dx = (ix1 - ix0).abs();
+    let dy = -(iy1 - iy0).abs();
+    let sx: i32 = if ix0 < ix1 { 1 } else { -1 };
+    let sy: i32 = if iy0 < iy1 { 1 } else { -1 };
+    let mut err = dx + dy;
+    let mut x = ix0;
+    let mut y = iy0;
+
+    loop {
+        if x >= 0 && (x as usize) < CANVAS_W && y >= 0 && (y as usize) < CANVAS_H {
+            let idx = y as usize * CANVAS_W + x as usize;
+            if value == 1 || value == 3 || buf[idx] == 0 {
+                buf[idx] = value;
             }
         }
-    }
-
-    fn line(&mut self, x0: f64, y0: f64, x1: f64, y1: f64, value: u8) {
-        let ix0 = x0.round() as i32;
-        let iy0 = y0.round() as i32;
-        let ix1 = x1.round() as i32;
-        let iy1 = y1.round() as i32;
-        let dx = (ix1 - ix0).abs();
-        let dy = -(iy1 - iy0).abs();
-        let sx: i32 = if ix0 < ix1 { 1 } else { -1 };
-        let sy: i32 = if iy0 < iy1 { 1 } else { -1 };
-        let mut err = dx + dy;
-        let mut x = ix0;
-        let mut y = iy0;
-        loop {
-            if x >= 0 && (x as usize) < self.w && y >= 0 && (y as usize) < self.h {
-                let idx = y as usize * self.w + x as usize;
-                if value == 1 || value == 3 || self.buf[idx] == 0 {
-                    self.buf[idx] = value;
-                }
-            }
-            if x == ix1 && y == iy1 {
-                break;
-            }
-            let e2 = 2 * err;
-            if e2 >= dy {
-                err += dy;
-                x += sx;
-            }
-            if e2 <= dx {
-                err += dx;
-                y += sy;
-            }
+        if x == ix1 && y == iy1 {
+            break;
+        }
+        let e2 = 2 * err;
+        if e2 >= dy {
+            err += dy;
+            x += sx;
+        }
+        if e2 <= dx {
+            err += dx;
+            y += sy;
         }
     }
+}
 
-    fn thick_line(&mut self, x0: f64, y0: f64, x1: f64, y1: f64, width: i32, value: u8) {
-        let dx = x1 - x0;
-        let dy = y1 - y0;
-        let len = (dx * dx + dy * dy).sqrt();
-        if len < 0.001 {
-            self.set_pixel(x0, y0, value);
-            return;
-        }
-        let nx = -dy / len;
-        let ny = dx / len;
-        let half_w = (width as f64) / 2.0;
-        for w in 0..width {
-            let offset = (w as f64) - half_w + 0.5;
-            self.line(
-                x0 + nx * offset,
-                y0 + ny * offset,
-                x1 + nx * offset,
-                y1 + ny * offset,
-                value,
-            );
-        }
+/// Quadratic Bezier — subdivide into line segments.
+fn draw_quad_bezier(
+    buf: &mut [u8],
+    x0: f64,
+    y0: f64,
+    x1: f64,
+    y1: f64,
+    x2: f64,
+    y2: f64,
+    width: i32,
+    value: u8,
+) {
+    let steps = 40;
+    let mut prev_x = x0;
+    let mut prev_y = y0;
+    for i in 1..=steps {
+        let t = i as f64 / steps as f64;
+        let mt = 1.0 - t;
+        let px = mt * mt * x0 + 2.0 * mt * t * x1 + t * t * x2;
+        let py = mt * mt * y0 + 2.0 * mt * t * y1 + t * t * y2;
+        draw_thick_line(buf, prev_x, prev_y, px, py, width, value);
+        prev_x = px;
+        prev_y = py;
     }
+}
 
-    fn quad_bezier(
-        &mut self,
-        x0: f64,
-        y0: f64,
-        x1: f64,
-        y1: f64,
-        x2: f64,
-        y2: f64,
-        width: i32,
-        value: u8,
-    ) {
-        let steps = 40;
-        let mut px = x0;
-        let mut py = y0;
-        for i in 1..=steps {
-            let t = i as f64 / steps as f64;
-            let mt = 1.0 - t;
-            let qx = mt * mt * x0 + 2.0 * mt * t * x1 + t * t * x2;
-            let qy = mt * mt * y0 + 2.0 * mt * t * y1 + t * t * y2;
-            self.thick_line(px, py, qx, qy, width, value);
-            px = qx;
-            py = qy;
-        }
+/// Cubic Bezier — subdivide into line segments.
+fn draw_cubic_bezier(
+    buf: &mut [u8],
+    x0: f64,
+    y0: f64,
+    x1: f64,
+    y1: f64,
+    x2: f64,
+    y2: f64,
+    x3: f64,
+    y3: f64,
+    width: i32,
+    value: u8,
+) {
+    let steps = 50;
+    let mut prev_x = x0;
+    let mut prev_y = y0;
+    for i in 1..=steps {
+        let t = i as f64 / steps as f64;
+        let mt = 1.0 - t;
+        let px =
+            mt * mt * mt * x0 + 3.0 * mt * mt * t * x1 + 3.0 * mt * t * t * x2 + t * t * t * x3;
+        let py =
+            mt * mt * mt * y0 + 3.0 * mt * mt * t * y1 + 3.0 * mt * t * t * y2 + t * t * t * y3;
+        draw_thick_line(buf, prev_x, prev_y, px, py, width, value);
+        prev_x = px;
+        prev_y = py;
     }
+}
 
-    fn cubic_bezier(
-        &mut self,
-        x0: f64,
-        y0: f64,
-        x1: f64,
-        y1: f64,
-        x2: f64,
-        y2: f64,
-        x3: f64,
-        y3: f64,
-        width: i32,
-        value: u8,
-    ) {
-        let steps = 50;
-        let mut px = x0;
-        let mut py = y0;
-        for i in 1..=steps {
-            let t = i as f64 / steps as f64;
-            let mt = 1.0 - t;
-            let cx =
-                mt * mt * mt * x0 + 3.0 * mt * mt * t * x1 + 3.0 * mt * t * t * x2 + t * t * t * x3;
-            let cy =
-                mt * mt * mt * y0 + 3.0 * mt * mt * t * y1 + 3.0 * mt * t * t * y2 + t * t * t * y3;
-            self.thick_line(px, py, cx, cy, width, value);
-            px = cx;
-            py = cy;
-        }
-    }
-
-    fn filled_circle(&mut self, cx: f64, cy: f64, r: f64, value: u8) {
-        let ri = r.round() as i32;
-        let cxi = cx.round() as i32;
-        let cyi = cy.round() as i32;
-        for dy in -ri..=ri {
-            for dx in -ri..=ri {
-                if dx * dx + dy * dy <= ri * ri {
-                    let px = cxi + dx;
-                    let py = cyi + dy;
-                    if px >= 0 && (px as usize) < self.w && py >= 0 && (py as usize) < self.h {
-                        let idx = py as usize * self.w + px as usize;
-                        if value == 1 || value == 3 || self.buf[idx] == 0 {
-                            self.buf[idx] = value;
-                        }
+/// Filled circle using midpoint algorithm.
+fn draw_filled_circle(buf: &mut [u8], cx: f64, cy: f64, r: f64, value: u8) {
+    let r_int = r.round() as i32;
+    let cx_int = cx.round() as i32;
+    let cy_int = cy.round() as i32;
+    for dy in -r_int..=r_int {
+        for dx in -r_int..=r_int {
+            if dx * dx + dy * dy <= r_int * r_int {
+                let px = cx_int + dx;
+                let py = cy_int + dy;
+                if px >= 0 && (px as usize) < CANVAS_W && py >= 0 && (py as usize) < CANVAS_H {
+                    let idx = py as usize * CANVAS_W + px as usize;
+                    if value == 1 || value == 3 || buf[idx] == 0 {
+                        buf[idx] = value;
                     }
                 }
             }
         }
     }
+}
 
-    fn rect_stroke(&mut self, x: f64, y: f64, w: f64, h: f64, width: i32, value: u8) {
-        self.thick_line(x, y, x + w, y, width, value);
-        self.thick_line(x, y + h, x + w, y + h, width, value);
-        self.thick_line(x, y, x, y + h, width, value);
-        self.thick_line(x + w, y, x + w, y + h, width, value);
+/// Stroked rectangle (outline only).
+fn draw_rect_stroke(buf: &mut [u8], x: f64, y: f64, w: f64, h: f64, width: i32, value: u8) {
+    // Top
+    draw_thick_line(buf, x, y, x + w, y, width, value);
+    // Bottom
+    draw_thick_line(buf, x, y + h, x + w, y + h, width, value);
+    // Left
+    draw_thick_line(buf, x, y, x, y + h, width, value);
+    // Right
+    draw_thick_line(buf, x + w, y, x + w, y + h, width, value);
+}
+
+// ── Splash screen widget ────────────────────────────────────────────
+
+/// Kask logo splash screen — faithful reproduction of `kask-logo.svg`.
+pub struct SplashScreen {
+    start_time: Instant,
+    duration: Duration,
+    buffer: Vec<u8>,
+}
+
+impl SplashScreen {
+    pub fn new() -> Self {
+        Self {
+            start_time: Instant::now(),
+            duration: Duration::from_millis(SPLASH_DURATION_MS),
+            buffer: build_logo_buffer(),
+        }
+    }
+
+    /// Check if the splash screen should auto-dismiss.
+    pub fn should_dismiss(&self) -> bool {
+        self.start_time.elapsed() >= self.duration
+    }
+
+    /// Check for early dismissal via key press.
+    pub fn check_early_dismiss(&mut self) -> bool {
+        if event::poll(Duration::from_millis(16)).unwrap_or(false) {
+            if let Ok(Event::Key(_)) = event::read() {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Render the splash screen into the given frame.
+    pub fn render(&self, f: &mut Frame) {
+        let area = f.area();
+
+        // Clear to dark background
+        let bg = Block::default().style(Style::default().bg(Color::Rgb(11, 12, 21)));
+        f.render_widget(bg, area);
+
+        // The pixel buffer is CANVAS_W × CANVAS_H.
+        // With half-block rendering, terminal rows = CANVAS_H / 2.
+        let term_rows = CANVAS_H / 2;
+        let term_cols = CANVAS_W;
+
+        // Center the logo in the terminal
+        let x_off = area.x + area.width.saturating_sub(term_cols as u16) / 2;
+        let y_off = area.y + area.height.saturating_sub(term_rows as u16 + 4) / 2;
+
+        // Render pixel buffer using half-block characters
+        let mut lines: Vec<Line> = Vec::new();
+
+        for row in 0..term_rows {
+            let mut spans: Vec<Span> = Vec::new();
+            let top_y = row * 2;
+            let bot_y = row * 2 + 1;
+
+            for col in 0..term_cols {
+                let top = self.buffer[top_y * CANVAS_W + col];
+                let bot = self.buffer[bot_y * CANVAS_W + col];
+
+                let (ch, fg, bg_color) = half_block_pixel(top, bot);
+                spans.push(Span::styled(ch, Style::default().fg(fg).bg(bg_color)));
+            }
+            lines.push(Line::from(spans));
+        }
+
+        // Add "KASK" wordmark below the logo (monospace, letter-spaced)
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            format!("{:>width$}", "K  A  S  K", width = term_cols / 2 + 8),
+            Style::default()
+                .fg(Color::Rgb(224, 224, 224))
+                .bg(Color::Rgb(11, 12, 21)),
+        )));
+
+        // Prompt
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            format!(
+                "{:>width$}",
+                "Press any key to continue",
+                width = term_cols / 2 + 14
+            ),
+            Style::default()
+                .fg(Color::DarkGray)
+                .bg(Color::Rgb(11, 12, 21)),
+        )));
+
+        let render_area = Rect::new(x_off, y_off, term_cols as u16, (term_rows + 3) as u16);
+        let paragraph = Paragraph::new(lines);
+        f.render_widget(paragraph, render_area);
     }
 }
 
-// ── Logo geometry — drawn into any LogoCanvas ───────────────────────
-
-fn draw_logo_geometry(c: &mut LogoCanvas) {
-    let so = -25.0; // bitemporal shadow offset
-
-    // Bitemporal shadow
-    c.thick_line(
-        c.sx(160.0 + so),
-        c.sy(180.0),
-        c.sx(140.0 + so),
-        c.sy(440.0),
-        1,
-        2,
-    );
-    c.thick_line(
-        c.sx(140.0 + so),
-        c.sy(440.0),
-        c.sx(140.0 + so),
-        c.sy(460.0),
-        1,
-        2,
-    );
-    c.thick_line(
-        c.sx(140.0 + so),
-        c.sy(460.0),
-        c.sx(200.0 + so),
-        c.sy(460.0),
-        1,
-        2,
-    );
-    c.thick_line(
-        c.sx(200.0 + so),
-        c.sy(460.0),
-        c.sx(260.0 + so),
-        c.sy(460.0),
-        1,
-        2,
-    );
-    c.thick_line(
-        c.sx(260.0 + so),
-        c.sy(460.0),
-        c.sx(260.0 + so),
-        c.sy(440.0),
-        1,
-        2,
-    );
-    c.thick_line(
-        c.sx(260.0 + so),
-        c.sy(440.0),
-        c.sx(240.0 + so),
-        c.sy(180.0),
-        1,
-        2,
-    );
-    c.thick_line(
-        c.sx(240.0 + so),
-        c.sy(180.0),
-        c.sx(160.0 + so),
-        c.sy(180.0),
-        1,
-        2,
-    );
-    c.rect_stroke(c.sx(170.0 + so), c.sy(145.0), c.sx(60.0), c.sy(40.0), 1, 2);
-    c.cubic_bezier(
-        c.sx(165.0 + so),
-        c.sy(160.0),
-        c.sx(165.0 + so),
-        c.sy(80.0),
-        c.sx(200.0 + so),
-        c.sy(60.0),
-        c.sx(200.0 + so),
-        c.sy(60.0),
-        1,
-        2,
-    );
-    c.cubic_bezier(
-        c.sx(200.0 + so),
-        c.sy(60.0),
-        c.sx(200.0 + so),
-        c.sy(60.0),
-        c.sx(235.0 + so),
-        c.sy(80.0),
-        c.sx(235.0 + so),
-        c.sy(160.0),
-        1,
-        2,
-    );
-
-    // Main jug body
-    c.thick_line(c.sx(160.0), c.sy(180.0), c.sx(140.0), c.sy(440.0), 2, 1);
-    c.thick_line(c.sx(240.0), c.sy(180.0), c.sx(260.0), c.sy(440.0), 2, 1);
-    c.quad_bezier(
-        c.sx(140.0),
-        c.sy(440.0),
-        c.sx(140.0),
-        c.sy(460.0),
-        c.sx(200.0),
-        c.sy(460.0),
-        2,
-        1,
-    );
-    c.quad_bezier(
-        c.sx(200.0),
-        c.sy(460.0),
-        c.sx(260.0),
-        c.sy(460.0),
-        c.sx(260.0),
-        c.sy(440.0),
-        2,
-        1,
-    );
-    c.quad_bezier(
-        c.sx(160.0),
-        c.sy(180.0),
-        c.sx(200.0),
-        c.sy(175.0),
-        c.sx(240.0),
-        c.sy(180.0),
-        1,
-        1,
-    );
-
-    // Ribbing
-    c.quad_bezier(
-        c.sx(155.0),
-        c.sy(240.0),
-        c.sx(200.0),
-        c.sy(238.0),
-        c.sx(245.0),
-        c.sy(240.0),
-        1,
-        1,
-    );
-    c.quad_bezier(
-        c.sx(150.0),
-        c.sy(320.0),
-        c.sx(200.0),
-        c.sy(318.0),
-        c.sx(250.0),
-        c.sy(320.0),
-        1,
-        1,
-    );
-    c.quad_bezier(
-        c.sx(145.0),
-        c.sy(400.0),
-        c.sx(200.0),
-        c.sy(398.0),
-        c.sx(255.0),
-        c.sy(400.0),
-        1,
-        1,
-    );
-
-    // Neck
-    c.thick_line(c.sx(170.0), c.sy(145.0), c.sx(170.0), c.sy(185.0), 2, 1);
-    c.thick_line(c.sx(230.0), c.sy(145.0), c.sx(230.0), c.sy(185.0), 2, 1);
-    c.quad_bezier(
-        c.sx(170.0),
-        c.sy(145.0),
-        c.sx(200.0),
-        c.sy(140.0),
-        c.sx(230.0),
-        c.sy(145.0),
-        1,
-        1,
-    );
-
-    // Rim
-    c.cubic_bezier(
-        c.sx(165.0),
-        c.sy(145.0),
-        c.sx(165.0),
-        c.sy(138.0),
-        c.sx(200.0),
-        c.sy(135.0),
-        c.sx(235.0),
-        c.sy(145.0),
-        1,
-        1,
-    );
-    c.cubic_bezier(
-        c.sx(235.0),
-        c.sy(145.0),
-        c.sx(235.0),
-        c.sy(152.0),
-        c.sx(200.0),
-        c.sy(155.0),
-        c.sx(165.0),
-        c.sy(145.0),
-        1,
-        1,
-    );
-
-    // Spout
-    c.cubic_bezier(
-        c.sx(165.0),
-        c.sy(145.0),
-        c.sx(155.0),
-        c.sy(140.0),
-        c.sx(150.0),
-        c.sy(135.0),
-        c.sx(145.0),
-        c.sy(130.0),
-        1,
-        1,
-    );
-
-    // Bail handle
-    c.filled_circle(c.sx(165.0), c.sy(160.0), c.sx(4.0), 1);
-    c.filled_circle(c.sx(235.0), c.sy(160.0), c.sx(4.0), 1);
-    c.cubic_bezier(
-        c.sx(165.0),
-        c.sy(160.0),
-        c.sx(165.0),
-        c.sy(80.0),
-        c.sx(200.0),
-        c.sy(60.0),
-        c.sx(200.0),
-        c.sy(60.0),
-        1,
-        1,
-    );
-    c.cubic_bezier(
-        c.sx(200.0),
-        c.sy(60.0),
-        c.sx(200.0),
-        c.sy(60.0),
-        c.sx(235.0),
-        c.sy(80.0),
-        c.sx(235.0),
-        c.sy(160.0),
-        1,
-        1,
-    );
-    c.quad_bezier(
-        c.sx(190.0),
-        c.sy(65.0),
-        c.sx(200.0),
-        c.sy(60.0),
-        c.sx(210.0),
-        c.sy(65.0),
-        2,
-        1,
-    );
-
-    // Curator's Eye
-    c.quad_bezier(
-        c.sx(175.0),
-        c.sy(310.0),
-        c.sx(200.0),
-        c.sy(295.0),
-        c.sx(225.0),
-        c.sy(310.0),
-        2,
-        1,
-    );
-    c.quad_bezier(
-        c.sx(178.0),
-        c.sy(330.0),
-        c.sx(200.0),
-        c.sy(350.0),
-        c.sx(222.0),
-        c.sy(330.0),
-        1,
-        1,
-    );
-    c.filled_circle(c.sx(200.0), c.sy(320.0), c.sx(18.0), 1);
-    c.filled_circle(c.sx(200.0), c.sy(320.0), c.sx(10.0), 1);
-    c.filled_circle(c.sx(205.0), c.sy(315.0), c.sx(5.0), 3);
-    c.thick_line(c.sx(188.0), c.sy(308.0), c.sx(185.0), c.sy(302.0), 1, 1);
-    c.thick_line(c.sx(196.0), c.sy(305.0), c.sx(194.0), c.sy(298.0), 1, 1);
-    c.thick_line(c.sx(204.0), c.sy(305.0), c.sx(206.0), c.sy(298.0), 1, 1);
-    c.thick_line(c.sx(212.0), c.sy(308.0), c.sx(215.0), c.sy(302.0), 1, 1);
-    c.thick_line(c.sx(208.0), c.sy(312.0), c.sx(210.0), c.sy(328.0), 1, 3);
-}
-
-fn build_logo_buffer(scale: f64) -> (Vec<u8>, usize, usize) {
-    let mut c = LogoCanvas::new(scale);
-    draw_logo_geometry(&mut c);
-    (c.buf, c.w, c.h)
-}
-
-fn splash_buffer() -> (Vec<u8>, usize, usize) {
-    build_logo_buffer(0.2) // 80×120 px → 80×60 chars
-}
-
-fn logo_window_buffer() -> (Vec<u8>, usize, usize) {
-    build_logo_buffer(0.1) // 40×60 px → 40×30 chars
-}
-
-// ── Half-block pixel mapping ───────────────────────────────────────
-
+/// Map a pair of vertical pixels (top, bottom) to a half-block character + colors.
+///
+/// Pixel values: 0=bg, 1=main stroke, 2=shadow, 3=highlight
 fn half_block_pixel(top: u8, bot: u8) -> (&'static str, Color, Color) {
-    let bg = Color::Rgb(11, 12, 21);
-    let main = Color::Rgb(224, 224, 224);
-    let shadow = Color::Rgb(60, 60, 70);
-    let highlight = Color::White;
+    let bg = Color::Rgb(11, 12, 21); // #0B0C15 deep space
+    let main = Color::Rgb(224, 224, 224); // #E0E0E0 light gray
+    let shadow = Color::Rgb(60, 60, 70); // dim shadow
+    let highlight = Color::White; // eye reflection
+
     let top_color = pixel_color(top, main, shadow, highlight, bg);
     let bot_color = pixel_color(bot, main, shadow, highlight, bg);
+
     match (top, bot) {
         (0, 0) => (" ", bg, bg),
         (0, _) => ("▄", bot_color, bg),
@@ -514,14 +672,170 @@ fn pixel_color(value: u8, main: Color, shadow: Color, highlight: Color, bg: Colo
     }
 }
 
-/// Render a pixel buffer as half-block character rows into a Vec<Line>.
-fn render_logo_lines(
-    buf: &[u8],
-    w: usize,
-    h: usize,
-    show_wordmark: bool,
-    show_prompt: bool,
-) -> Vec<Line<'static>> {
+impl Default for SplashScreen {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ── Persistent logo window helper ───────────────────────────────────
+
+/// Build a downscaled logo for the persistent logo window (40×30 chars).
+/// Uses the same geometry but at half scale.
+pub fn build_logo_window_lines() -> Vec<Line<'static>> {
+    // Build a smaller buffer at scale 0.1
+    let scale = 0.1;
+    let w = (400.0 * scale) as usize;
+    let h = (600.0 * scale) as usize;
+    let mut buf = vec![0u8; w * h];
+
+    let sx = |x: f64| -> f64 { x * scale };
+    let sy = |y: f64| -> f64 { y * scale };
+
+    // Simplified geometry at half scale — just the main outlines
+    // Body sides
+    draw_thick_line_small(
+        &mut buf,
+        w,
+        h,
+        sx(140.0),
+        sy(180.0),
+        sx(140.0),
+        sy(460.0),
+        1,
+        1,
+    );
+    draw_thick_line_small(
+        &mut buf,
+        w,
+        h,
+        sx(260.0),
+        sy(180.0),
+        sx(260.0),
+        sy(460.0),
+        1,
+        1,
+    );
+    // Bottom
+    draw_thick_line_small(
+        &mut buf,
+        w,
+        h,
+        sx(140.0),
+        sy(460.0),
+        sx(260.0),
+        sy(460.0),
+        1,
+        1,
+    );
+    // Top
+    draw_thick_line_small(
+        &mut buf,
+        w,
+        h,
+        sx(140.0),
+        sy(180.0),
+        sx(260.0),
+        sy(180.0),
+        1,
+        1,
+    );
+    // Ribbing
+    draw_thick_line_small(
+        &mut buf,
+        w,
+        h,
+        sx(140.0),
+        sy(220.0),
+        sx(260.0),
+        sy(220.0),
+        1,
+        1,
+    );
+    draw_thick_line_small(
+        &mut buf,
+        w,
+        h,
+        sx(140.0),
+        sy(280.0),
+        sx(260.0),
+        sy(280.0),
+        1,
+        1,
+    );
+    draw_thick_line_small(
+        &mut buf,
+        w,
+        h,
+        sx(140.0),
+        sy(400.0),
+        sx(260.0),
+        sy(400.0),
+        1,
+        1,
+    );
+    draw_thick_line_small(
+        &mut buf,
+        w,
+        h,
+        sx(140.0),
+        sy(440.0),
+        sx(260.0),
+        sy(440.0),
+        1,
+        1,
+    );
+    // Neck
+    draw_thick_line_small(
+        &mut buf,
+        w,
+        h,
+        sx(160.0),
+        sy(140.0),
+        sx(160.0),
+        sy(180.0),
+        1,
+        1,
+    );
+    draw_thick_line_small(
+        &mut buf,
+        w,
+        h,
+        sx(240.0),
+        sy(140.0),
+        sx(240.0),
+        sy(180.0),
+        1,
+        1,
+    );
+    draw_thick_line_small(
+        &mut buf,
+        w,
+        h,
+        sx(160.0),
+        sy(140.0),
+        sx(240.0),
+        sy(140.0),
+        1,
+        1,
+    );
+    // Lid
+    draw_thick_line_small(
+        &mut buf,
+        w,
+        h,
+        sx(155.0),
+        sy(135.0),
+        sx(245.0),
+        sy(135.0),
+        1,
+        1,
+    );
+    // Eye (simplified)
+    draw_filled_circle_small(&mut buf, w, h, sx(200.0), sy(342.0), sx(15.0), 1);
+    draw_filled_circle_small(&mut buf, w, h, sx(206.0), sy(336.0), sx(3.0), 3);
+
+    // Render to lines
     let term_cols = w;
     let term_rows = h / 2;
     let mut lines: Vec<Line> = Vec::new();
@@ -539,110 +853,79 @@ fn render_logo_lines(
         lines.push(Line::from(spans));
     }
 
-    if show_wordmark {
-        lines.push(Line::from(""));
-        let label = if term_cols >= 40 {
-            "K  A  S  K"
-        } else {
-            "KASK"
-        };
-        lines.push(Line::from(Span::styled(
-            format!(
-                "{:>width$}",
-                label,
-                width = term_cols / 2 + label.len() / 2 + 1
-            ),
-            Style::default()
-                .fg(Color::Rgb(224, 224, 224))
-                .bg(Color::Rgb(11, 12, 21)),
-        )));
-    }
-
-    if show_prompt {
-        lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled(
-            format!(
-                "{:>width$}",
-                "Press any key to continue",
-                width = term_cols / 2 + 14
-            ),
-            Style::default()
-                .fg(Color::DarkGray)
-                .bg(Color::Rgb(11, 12, 21)),
-        )));
-    }
-
     lines
 }
 
-// ── Splash screen widget ────────────────────────────────────────────
-
-pub struct SplashScreen {
-    start_time: Instant,
-    duration: Duration,
-    buffer: Vec<u8>,
-    buf_w: usize,
-    buf_h: usize,
-}
-
-impl SplashScreen {
-    pub fn new() -> Self {
-        let (buf, w, h) = splash_buffer();
-        Self {
-            start_time: Instant::now(),
-            duration: Duration::from_millis(SPLASH_DURATION_MS),
-            buffer: buf,
-            buf_w: w,
-            buf_h: h,
-        }
-    }
-
-    pub fn should_dismiss(&self) -> bool {
-        self.start_time.elapsed() >= self.duration
-    }
-
-    pub fn check_early_dismiss(&mut self) -> bool {
-        if event::poll(Duration::from_millis(16)).unwrap_or(false) {
-            if let Ok(Event::Key(_)) = event::read() {
-                return true;
+/// Small-scale line drawing for the logo window.
+fn draw_thick_line_small(
+    buf: &mut [u8],
+    w: usize,
+    h: usize,
+    x0: f64,
+    y0: f64,
+    x1: f64,
+    y1: f64,
+    _width: i32,
+    value: u8,
+) {
+    let ix0 = x0.round() as i32;
+    let iy0 = y0.round() as i32;
+    let ix1 = x1.round() as i32;
+    let iy1 = y1.round() as i32;
+    let dx = (ix1 - ix0).abs();
+    let dy = -(iy1 - iy0).abs();
+    let sx: i32 = if ix0 < ix1 { 1 } else { -1 };
+    let sy: i32 = if iy0 < iy1 { 1 } else { -1 };
+    let mut err = dx + dy;
+    let mut x = ix0;
+    let mut y = iy0;
+    loop {
+        if x >= 0 && (x as usize) < w && y >= 0 && (y as usize) < h {
+            let idx = y as usize * w + x as usize;
+            if value == 1 || value == 3 || buf[idx] == 0 {
+                buf[idx] = value;
             }
         }
-        false
-    }
-
-    pub fn render(&self, f: &mut Frame) {
-        let area = f.area();
-        let bg_block =
-            ratatui::widgets::Block::default().style(Style::default().bg(Color::Rgb(11, 12, 21)));
-        f.render_widget(bg_block, area);
-
-        let term_rows = self.buf_h / 2;
-        let term_cols = self.buf_w;
-        let x_off = area.x + area.width.saturating_sub(term_cols as u16) / 2;
-        let y_off = area.y + area.height.saturating_sub(term_rows as u16 + 4) / 2;
-
-        let lines = render_logo_lines(&self.buffer, self.buf_w, self.buf_h, true, true);
-        let render_area = Rect::new(x_off, y_off, term_cols as u16, (term_rows + 3) as u16);
-        f.render_widget(Paragraph::new(lines), render_area);
+        if x == ix1 && y == iy1 {
+            break;
+        }
+        let e2 = 2 * err;
+        if e2 >= dy {
+            err += dy;
+            x += sx;
+        }
+        if e2 <= dx {
+            err += dx;
+            y += sy;
+        }
     }
 }
 
-impl Default for SplashScreen {
-    fn default() -> Self {
-        Self::new()
+/// Small-scale filled circle for the logo window.
+fn draw_filled_circle_small(
+    buf: &mut [u8],
+    w: usize,
+    h: usize,
+    cx: f64,
+    cy: f64,
+    r: f64,
+    value: u8,
+) {
+    let ri = r.round() as i32;
+    let cxi = cx.round() as i32;
+    let cyi = cy.round() as i32;
+    for dy in -ri..=ri {
+        for dx in -ri..=ri {
+            if dx * dx + dy * dy <= ri * ri {
+                let px = cxi + dx;
+                let py = cyi + dy;
+                if px >= 0 && (px as usize) < w && py >= 0 && (py as usize) < h {
+                    let idx = py as usize * w + px as usize;
+                    if value == 1 || value == 3 || buf[idx] == 0 {
+                        buf[idx] = value;
+                    }
+                }
+            }
+        }
     }
-}
-
-// ── Persistent logo window widget ───────────────────────────────────
-
-/// Persistent logo rendered at reduced scale (40×30 chars).
-/// Can be placed in a small workspace window (e.g. top-left corner).
-pub fn build_logo_window_lines() -> Vec<Line<'static>> {
-    let (buf, w, h) = logo_window_buffer();
-    render_logo_lines(&buf, w, h, false, false)
-}
-
-pub fn logo_window_size() -> (u16, u16) {
-    // 40 columns × 30 rows (60px / 2 half-block)
-    (40, 30)
 }

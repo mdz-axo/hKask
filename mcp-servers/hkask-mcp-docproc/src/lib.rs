@@ -23,11 +23,9 @@ use crate::ocr::tesseract::TesseractExecutor;
 use crate::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp::DaemonClient;
-use hkask_mcp::server::{McpToolError, ToolSpanGuard};
-use hkask_mcp::validate_field;
+use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_memory::SemanticMemory;
 use hkask_ports::{CnsObserver, InferencePort};
-use hkask_types::McpErrorKind;
 use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
@@ -490,7 +488,7 @@ fn tokens_to_words(tokens: usize) -> usize {
 fn chunk_word_bounds(max_tokens: Option<usize>, overlap_tokens: Option<usize>) -> (usize, usize) {
     let max_w = tokens_to_words(max_tokens.unwrap_or(512));
     let min_w = tokens_to_words(overlap_tokens.unwrap_or(64)).max(max_w / 4);
-    (max_w, min_w)
+    (max_w, min_w as usize)
 }
 
 /// Serialize (entity_ref, text) pair vec into json.
@@ -499,19 +497,6 @@ fn serialize_passages(passages: Vec<(String, String)>) -> Vec<serde_json::Value>
         .into_iter()
         .map(|(entity_ref, passage_text)| json!({"entity_ref": entity_ref, "text": passage_text}))
         .collect()
-}
-
-/// Validate a non-empty field; returns error JSON or continues.
-macro_rules! validate_non_empty {
-    ($span:expr, $kind:expr, $field_name:expr, $value:expr) => {
-        if $value.is_empty() {
-            return $span.error(
-                $kind,
-                McpToolError::invalid_argument(concat!($field_name, " must not be empty"))
-                    .to_json_string(),
-            );
-        }
-    };
 }
 
 /// Strip markdown code fences from LLM JSON responses.
@@ -694,196 +679,41 @@ impl DocProcServer {
         &self,
         Parameters(ConvertRequest { path, force_ocr }): Parameters<ConvertRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("docproc_convert", &self.webid);
-        let path_clone = path.clone();
-        validate_field!(span, "path", &path, 4096);
+        execute_tool(self, "docproc_convert", async {
+            let path_clone = path.clone();
+            hkask_mcp::validate_identifier("path", &path, 4096)
+                .map_err(|e| McpToolError::new(e.kind, e.to_json_string()))?;
 
-        let (format, _, _) = convert::detect_format(&path);
+            let (format, _, _) = convert::detect_format(&path);
 
-        // Read the file
-        let file_bytes = match std::fs::read(&path) {
-            Ok(b) => b,
-            Err(e) => {
-                return span.internal_error(serde_json::json!({
-                    "error": format!("Failed to read file '{}': {}", path, e),
-                }));
-            }
-        };
-
-        if file_bytes.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(format!("File '{}' is empty", path))
-                    .to_json_string(),
-            );
-        }
-
-        // When force_ocr is set, skip text extraction entirely.
-        if force_ocr {
-            if let Ok(image) = image::load_from_memory(&file_bytes) {
-                let model = match self.resolve_ocr_model(None).await {
-                    Ok(m) => m,
-                    Err(guidance) => {
-                        return span.error(
-                            McpErrorKind::FailedPrecondition,
-                            McpToolError::failed_precondition(guidance).to_json_string(),
-                        );
-                    }
-                };
-
-                let emb = self.embedding_router.as_ref().map(|r| {
-                    (
-                        r,
-                        self.ocr_model
-                            .as_deref()
-                            .unwrap_or("DI/Qwen/Qwen3-Embedding-0.6B"),
-                    )
-                });
-
-                let outcome = pipeline::run_pipeline(
-                    vec![image],
-                    1,
-                    self,
-                    &self.ocr_thresholds,
-                    Some(&model),
-                    emb,
-                )
-                .await;
-
-                self.persist_pipeline_outcome(&outcome).await;
-
-                let text = outcome
-                    .results
-                    .first()
-                    .map(|r| r.text.clone())
-                    .unwrap_or_default();
-                let result = serde_json::json!({
-                    "format": format,
-                    "path": path,
-                    "method": "ocr_pipeline",
-                    "model": model,
-                    "text": text,
-                    "word_count": text.split_whitespace().count(),
-                    "verification_passed": outcome.report.passed,
-                    "page_count_match": outcome.report.page_count_match,
-                    "empty_pages": outcome.report.empty_pages,
-                    "error_count": outcome.errors.len(),
-                });
-                self.record_experience("docproc_convert", &path_clone, "success", result.clone());
-                return span.ok_json(result);
-            }
-
-            // Not an image — try decimation + pipeline for PDFs
-            if format == "pdf" {
-                match decimation::pdf_to_images(std::path::Path::new(&path), 200).await {
-                    Ok(page_images) => {
-                        let model = match self.resolve_ocr_model(None).await {
-                            Ok(m) => m,
-                            Err(guidance) => {
-                                return span.error(
-                                    McpErrorKind::FailedPrecondition,
-                                    McpToolError::failed_precondition(guidance).to_json_string(),
-                                );
-                            }
-                        };
-                        let expected = page_images.len();
-                        let emb = self.embedding_router.as_ref().map(|r| {
-                            (
-                                r,
-                                self.ocr_model
-                                    .as_deref()
-                                    .unwrap_or("DI/Qwen/Qwen3-Embedding-0.6B"),
-                            )
-                        });
-                        let outcome = pipeline::run_pipeline(
-                            page_images,
-                            expected,
-                            self,
-                            &self.ocr_thresholds,
-                            Some(&model),
-                            emb,
-                        )
-                        .await;
-                        self.persist_pipeline_outcome(&outcome).await;
-                        let text = outcome
-                            .results
-                            .iter()
-                            .map(|r| r.text.as_str())
-                            .collect::<Vec<_>>()
-                            .join("\n\n");
-                        let result = serde_json::json!({
-                            "format": format, "path": path, "method": "ocr_pipeline",
-                            "model": model, "text": text,
-                            "word_count": text.split_whitespace().count(),
-                            "pages": expected,
-                            "verification_passed": outcome.report.passed,
-                            "page_count_match": outcome.report.page_count_match,
-                            "empty_pages": outcome.report.empty_pages,
-                            "error_count": outcome.errors.len(),
-                        });
-                        self.record_experience(
-                            "docproc_convert",
-                            &path_clone,
-                            "success",
-                            result.clone(),
-                        );
-                        return span.ok_json(result);
-                    }
-                    Err(_) => {
-                        // Decimation failed — fall through to do_ocr
-                    }
+            // Read the file
+            let file_bytes = match std::fs::read(&path) {
+                Ok(b) => b,
+                Err(e) => {
+                    return Err(McpToolError::internal(format!(
+                        "Failed to read file '{}': {}",
+                        path, e
+                    )));
                 }
+            };
+
+            if file_bytes.is_empty() {
+                return Err(McpToolError::invalid_argument(format!(
+                    "File '{}' is empty",
+                    path
+                )));
             }
 
-            // Final fallback: raw bytes OCR
-            match self.resolve_ocr_model(None).await {
-                Ok(model) => match self
-                    .do_ocr(&file_bytes, &model, default_ocr_max_tokens())
-                    .await
-                {
-                    Ok(text) => {
-                        let result = serde_json::json!({
-                            "format": format,
-                            "path": path,
-                            "method": "ocr",
-                            "model": model,
-                            "text": text,
-                            "word_count": text.split_whitespace().count(),
-                        });
-                        self.record_experience(
-                            "docproc_convert",
-                            &path_clone,
-                            "success",
-                            result.clone(),
-                        );
-                        return span.ok_json(result);
-                    }
-                    Err(e) => {
-                        return span.error(
-                            McpErrorKind::Unavailable,
-                            McpToolError::unavailable(e).to_json_string(),
-                        );
-                    }
-                },
-                Err(guidance) => {
-                    return span.error(
-                        McpErrorKind::FailedPrecondition,
-                        McpToolError::failed_precondition(guidance).to_json_string(),
-                    );
-                }
-            }
-        }
+            // When force_ocr is set, skip text extraction entirely.
+            if force_ocr {
+                if let Ok(image) = image::load_from_memory(&file_bytes) {
+                    let model = match self.resolve_ocr_model(None).await {
+                        Ok(m) => m,
+                        Err(guidance) => {
+                            return Err(McpToolError::failed_precondition(guidance));
+                        }
+                    };
 
-        // ── Text extraction path ──
-
-        let extract_result = match format {
-            "pdf" => {
-                // Try typed pipeline with decimation first (if OCR model is configured)
-                if let Ok(model) = self.resolve_ocr_model(None).await
-                    && let Ok(page_images) =
-                        decimation::pdf_to_images(std::path::Path::new(&path), 200).await
-                {
-                    let expected = page_images.len();
                     let emb = self.embedding_router.as_ref().map(|r| {
                         (
                             r,
@@ -894,8 +724,8 @@ impl DocProcServer {
                     });
 
                     let outcome = pipeline::run_pipeline(
-                        page_images,
-                        expected,
+                        vec![image],
+                        1,
                         self,
                         &self.ocr_thresholds,
                         Some(&model),
@@ -907,202 +737,339 @@ impl DocProcServer {
 
                     let text = outcome
                         .results
-                        .iter()
-                        .map(|r| r.text.as_str())
-                        .collect::<Vec<_>>()
-                        .join("\n\n");
-                    let word_count = text.split_whitespace().count();
-
+                        .first()
+                        .map(|r| r.text.clone())
+                        .unwrap_or_default();
                     let result = serde_json::json!({
                         "format": format,
                         "path": path,
                         "method": "ocr_pipeline",
                         "model": model,
                         "text": text,
-                        "word_count": word_count,
-                        "pages": expected,
+                        "word_count": text.split_whitespace().count(),
                         "verification_passed": outcome.report.passed,
                         "page_count_match": outcome.report.page_count_match,
                         "empty_pages": outcome.report.empty_pages,
                         "error_count": outcome.errors.len(),
-                        "cross_validations": outcome.cross_validations.len(),
                     });
-                    self.record_experience(
-                        "docproc_convert",
-                        &path_clone,
-                        "success",
-                        result.clone(),
-                    );
-                    return span.ok_json(result);
+                    self.record_experience("docproc_convert", &path_clone, "success", result.clone());
+                    return Ok(result);
                 }
 
-                // Try pdf-extract first; fall back to OCR if near-empty
-                match pdf_extract::extract_text(&path) {
-                    Ok(text) => {
-                        let word_count = text.split_whitespace().count();
-                        if word_count < OCR_FALLBACK_WORD_THRESHOLD {
-                            ExtractOutcome::NeedsOcr {
-                                partial_text: text,
-                                word_count,
-                            }
-                        } else {
-                            ExtractOutcome::Success { text, word_count }
+                // Not an image — try decimation + pipeline for PDFs
+                if format == "pdf" {
+                    match decimation::pdf_to_images(std::path::Path::new(&path), 200).await {
+                        Ok(page_images) => {
+                            let model = match self.resolve_ocr_model(None).await {
+                                Ok(m) => m,
+                                Err(guidance) => {
+                                    return Err(McpToolError::failed_precondition(guidance));
+                                }
+                            };
+                            let expected = page_images.len();
+                            let emb = self.embedding_router.as_ref().map(|r| {
+                                (
+                                    r,
+                                    self.ocr_model
+                                        .as_deref()
+                                        .unwrap_or("DI/Qwen/Qwen3-Embedding-0.6B"),
+                                )
+                            });
+                            let outcome = pipeline::run_pipeline(
+                                page_images,
+                                expected,
+                                self,
+                                &self.ocr_thresholds,
+                                Some(&model),
+                                emb,
+                            )
+                            .await;
+                            self.persist_pipeline_outcome(&outcome).await;
+                            let text = outcome
+                                .results
+                                .iter()
+                                .map(|r| r.text.as_str())
+                                .collect::<Vec<_>>()
+                                .join("\n\n");
+                            let result = serde_json::json!({
+                                "format": format, "path": path, "method": "ocr_pipeline",
+                                "model": model, "text": text,
+                                "word_count": text.split_whitespace().count(),
+                                "pages": expected,
+                                "verification_passed": outcome.report.passed,
+                                "page_count_match": outcome.report.page_count_match,
+                                "empty_pages": outcome.report.empty_pages,
+                                "error_count": outcome.errors.len(),
+                            });
+                            self.record_experience(
+                                "docproc_convert",
+                                &path_clone,
+                                "success",
+                                result.clone(),
+                            );
+                            return Ok(result);
+                        }
+                        Err(_) => {
+                            // Decimation failed — fall through to do_ocr
                         }
                     }
-                    Err(_) => ExtractOutcome::NeedsOcr {
-                        partial_text: String::new(),
-                        word_count: 0,
+                }
+
+                // Final fallback: raw bytes OCR
+                match self.resolve_ocr_model(None).await {
+                    Ok(model) => match self
+                        .do_ocr(&file_bytes, &model, default_ocr_max_tokens())
+                        .await
+                    {
+                        Ok(text) => {
+                            let result = serde_json::json!({
+                                "format": format,
+                                "path": path,
+                                "method": "ocr",
+                                "model": model,
+                                "text": text,
+                                "word_count": text.split_whitespace().count(),
+                            });
+                            self.record_experience(
+                                "docproc_convert",
+                                &path_clone,
+                                "success",
+                                result.clone(),
+                            );
+                            return Ok(result);
+                        }
+                        Err(e) => {
+                            return Err(McpToolError::unavailable(e));
+                        }
                     },
+                    Err(guidance) => {
+                        return Err(McpToolError::failed_precondition(guidance));
+                    }
                 }
             }
-            "plain" => match std::str::from_utf8(&file_bytes) {
-                Ok(text) => ExtractOutcome::Success {
-                    text: text.to_string(),
-                    word_count: text.split_whitespace().count(),
+
+            // ── Text extraction path ──
+
+            let extract_result = match format {
+                "pdf" => {
+                    // Try typed pipeline with decimation first (if OCR model is configured)
+                    if let Ok(model) = self.resolve_ocr_model(None).await
+                        && let Ok(page_images) =
+                            decimation::pdf_to_images(std::path::Path::new(&path), 200).await
+                    {
+                        let expected = page_images.len();
+                        let emb = self.embedding_router.as_ref().map(|r| {
+                            (
+                                r,
+                                self.ocr_model
+                                    .as_deref()
+                                    .unwrap_or("DI/Qwen/Qwen3-Embedding-0.6B"),
+                            )
+                        });
+
+                        let outcome = pipeline::run_pipeline(
+                            page_images,
+                            expected,
+                            self,
+                            &self.ocr_thresholds,
+                            Some(&model),
+                            emb,
+                        )
+                        .await;
+
+                        self.persist_pipeline_outcome(&outcome).await;
+
+                        let text = outcome
+                            .results
+                            .iter()
+                            .map(|r| r.text.as_str())
+                            .collect::<Vec<_>>()
+                            .join("\n\n");
+                        let word_count = text.split_whitespace().count();
+
+                        let result = serde_json::json!({
+                            "format": format,
+                            "path": path,
+                            "method": "ocr_pipeline",
+                            "model": model,
+                            "text": text,
+                            "word_count": word_count,
+                            "pages": expected,
+                            "verification_passed": outcome.report.passed,
+                            "page_count_match": outcome.report.page_count_match,
+                            "empty_pages": outcome.report.empty_pages,
+                            "error_count": outcome.errors.len(),
+                            "cross_validations": outcome.cross_validations.len(),
+                        });
+                        self.record_experience(
+                            "docproc_convert",
+                            &path_clone,
+                            "success",
+                            result.clone(),
+                        );
+                        return Ok(result);
+                    }
+
+                    // Try pdf-extract first; fall back to OCR if near-empty
+                    match pdf_extract::extract_text(&path) {
+                        Ok(text) => {
+                            let word_count = text.split_whitespace().count();
+                            if word_count < OCR_FALLBACK_WORD_THRESHOLD {
+                                ExtractOutcome::NeedsOcr {
+                                    partial_text: text,
+                                    word_count,
+                                }
+                            } else {
+                                ExtractOutcome::Success { text, word_count }
+                            }
+                        }
+                        Err(_) => ExtractOutcome::NeedsOcr {
+                            partial_text: String::new(),
+                            word_count: 0,
+                        },
+                    }
+                }
+                "plain" => match std::str::from_utf8(&file_bytes) {
+                    Ok(text) => ExtractOutcome::Success {
+                        text: text.to_string(),
+                        word_count: text.split_whitespace().count(),
+                    },
+                    Err(e) => {
+                        return Err(McpToolError::internal(format!(
+                            "Failed to decode text file '{}': {}",
+                            path, e
+                        )));
+                    }
                 },
-                Err(e) => {
-                    return span.internal_error(serde_json::json!({
-                        "error": format!("Failed to decode text file '{}': {}", path, e),
-                    }));
-                }
-            },
-            "markdown" => match std::str::from_utf8(&file_bytes) {
-                Ok(content) => {
-                    let text = convert::strip_frontmatter(content);
-                    let word_count = text.split_whitespace().count();
-                    ExtractOutcome::Success { text, word_count }
-                }
-                Err(e) => {
-                    return span.internal_error(serde_json::json!({
-                        "error": format!("Failed to decode markdown file '{}': {}", path, e),
-                    }));
-                }
-            },
-            "html" | "htm" => match std::str::from_utf8(&file_bytes) {
-                Ok(content) => {
-                    let text = convert::strip_html(content);
-                    let word_count = text.split_whitespace().count();
-                    ExtractOutcome::Success { text, word_count }
-                }
-                Err(e) => {
-                    return span.internal_error(serde_json::json!({
-                        "error": format!("Failed to decode HTML file '{}': {}", path, e),
-                    }));
-                }
-            },
-            other => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(format!(
+                "markdown" => match std::str::from_utf8(&file_bytes) {
+                    Ok(content) => {
+                        let text = convert::strip_frontmatter(content);
+                        let word_count = text.split_whitespace().count();
+                        ExtractOutcome::Success { text, word_count }
+                    }
+                    Err(e) => {
+                        return Err(McpToolError::internal(format!(
+                            "Failed to decode markdown file '{}': {}",
+                            path, e
+                        )));
+                    }
+                },
+                "html" | "htm" => match std::str::from_utf8(&file_bytes) {
+                    Ok(content) => {
+                        let text = convert::strip_html(content);
+                        let word_count = text.split_whitespace().count();
+                        ExtractOutcome::Success { text, word_count }
+                    }
+                    Err(e) => {
+                        return Err(McpToolError::internal(format!(
+                            "Failed to decode HTML file '{}': {}",
+                            path, e
+                        )));
+                    }
+                },
+                other => {
+                    return Err(McpToolError::invalid_argument(format!(
                         "Format '{}' is not supported for text extraction. Supported formats: pdf, markdown, html, plain. \
                          For DOCX/PPTX/XLSX/CSV/RTF, install the corresponding Rust crates. Path: '{}'",
                         other, path
-                    ))
-                    .to_json_string(),
-                );
-            }
-        };
+                    )));
+                }
+            };
 
-        match extract_result {
-            ExtractOutcome::Success { text, word_count } => {
-                let result = serde_json::json!({
-                    "format": format,
-                    "path": path,
-                    "method": "text_extraction",
-                    "text": text,
-                    "word_count": word_count,
-                });
-                self.record_experience("docproc_convert", &path_clone, "success", result.clone());
-                span.ok_json(result)
-            }
-            ExtractOutcome::NeedsOcr {
-                partial_text,
-                word_count,
-            } => {
-                // Fall back to OCR
-                match self.resolve_ocr_model(None).await {
-                    Ok(model) => {
-                        match self
-                            .do_ocr(&file_bytes, &model, default_ocr_max_tokens())
-                            .await
-                        {
-                            Ok(ocr_text) => {
-                                let ocr_word_count = ocr_text.split_whitespace().count();
-                                let (final_text, final_word_count, method) =
-                                    if ocr_word_count > word_count {
-                                        (ocr_text, ocr_word_count, "ocr")
-                                    } else {
-                                        (
-                                            partial_text,
-                                            word_count,
-                                            "text_extraction_ocr_fallback_insufficient",
-                                        )
-                                    };
-                                let result = serde_json::json!({
-                                    "format": format,
-                                    "path": path,
-                                    "method": method,
-                                    "model": model,
-                                    "text": final_text,
-                                    "word_count": final_word_count,
-                                    "extraction_word_count": word_count,
-                                });
-                                self.record_experience(
-                                    "docproc_convert",
-                                    &path_clone,
-                                    "success",
-                                    result.clone(),
-                                );
-                                span.ok_json(result)
-                            }
-                            Err(e) => {
-                                if word_count > 0 {
-                                    span.ok_json(serde_json::json!({
+            match extract_result {
+                ExtractOutcome::Success { text, word_count } => {
+                    let result = serde_json::json!({
+                        "format": format,
+                        "path": path,
+                        "method": "text_extraction",
+                        "text": text,
+                        "word_count": word_count,
+                    });
+                    self.record_experience("docproc_convert", &path_clone, "success", result.clone());
+                    Ok(result)
+                }
+                ExtractOutcome::NeedsOcr {
+                    partial_text,
+                    word_count,
+                } => {
+                    // Fall back to OCR
+                    match self.resolve_ocr_model(None).await {
+                        Ok(model) => {
+                            match self
+                                .do_ocr(&file_bytes, &model, default_ocr_max_tokens())
+                                .await
+                            {
+                                Ok(ocr_text) => {
+                                    let ocr_word_count = ocr_text.split_whitespace().count();
+                                    let (final_text, final_word_count, method) =
+                                        if ocr_word_count > word_count {
+                                            (ocr_text, ocr_word_count, "ocr")
+                                        } else {
+                                            (
+                                                partial_text,
+                                                word_count,
+                                                "text_extraction_ocr_fallback_insufficient",
+                                            )
+                                        };
+                                    let result = serde_json::json!({
                                         "format": format,
                                         "path": path,
-                                        "method": "text_extraction_ocr_failed",
-                                        "text": partial_text,
-                                        "word_count": word_count,
-                                        "ocr_error": e,
-                                    }))
-                                } else {
-                                    span.error(
-                                        McpErrorKind::Unavailable,
-                                        McpToolError::unavailable(format!(
+                                        "method": method,
+                                        "model": model,
+                                        "text": final_text,
+                                        "word_count": final_word_count,
+                                        "extraction_word_count": word_count,
+                                    });
+                                    self.record_experience(
+                                        "docproc_convert",
+                                        &path_clone,
+                                        "success",
+                                        result.clone(),
+                                    );
+                                    Ok(result)
+                                }
+                                Err(e) => {
+                                    if word_count > 0 {
+                                        Ok(serde_json::json!({
+                                            "format": format,
+                                            "path": path,
+                                            "method": "text_extraction_ocr_failed",
+                                            "text": partial_text,
+                                            "word_count": word_count,
+                                            "ocr_error": e,
+                                        }))
+                                    } else {
+                                        Err(McpToolError::unavailable(format!(
                                             "Text extraction returned near-empty result and OCR failed: {}",
                                             e
-                                        ))
-                                        .to_json_string(),
-                                    )
+                                        )))
+                                    }
                                 }
                             }
                         }
-                    }
-                    Err(guidance) => {
-                        if word_count > 0 {
-                            span.ok_json(serde_json::json!({
-                                "format": format,
-                                "path": path,
-                                "method": "text_extraction_no_ocr_available",
-                                "text": partial_text,
-                                "word_count": word_count,
-                                "ocr_available": false,
-                                "ocr_guidance": guidance,
-                            }))
-                        } else {
-                            span.error(
-                                McpErrorKind::FailedPrecondition,
-                                McpToolError::failed_precondition(format!(
+                        Err(guidance) => {
+                            if word_count > 0 {
+                                Ok(serde_json::json!({
+                                    "format": format,
+                                    "path": path,
+                                    "method": "text_extraction_no_ocr_available",
+                                    "text": partial_text,
+                                    "word_count": word_count,
+                                    "ocr_available": false,
+                                    "ocr_guidance": guidance,
+                                }))
+                            } else {
+                                Err(McpToolError::failed_precondition(format!(
                                     "PDF text extraction returned no text and no OCR model is configured. {}",
                                     guidance
-                                ))
-                                .to_json_string(),
-                            )
+                                )))
+                            }
                         }
                     }
                 }
             }
-        }
+        })
+        .await
     }
 
     #[tool(
@@ -1116,45 +1083,43 @@ impl DocProcServer {
             max_tokens,
         }): Parameters<OcrRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("docproc_ocr", &self.webid);
-        let path_clone = path.clone();
-        validate_field!(span, "path", &path, 4096);
+        execute_tool(self, "docproc_ocr", async {
+            let path_clone = path.clone();
+            hkask_mcp::validate_identifier("path", &path, 4096)
+                .map_err(|e| McpToolError::new(e.kind, e.to_json_string()))?;
 
-        let model = match self.resolve_ocr_model(model.as_deref()).await {
-            Ok(m) => m,
-            Err(guidance) => {
-                return span.error(
-                    McpErrorKind::FailedPrecondition,
-                    McpToolError::failed_precondition(guidance).to_json_string(),
-                );
-            }
-        };
+            let model = match self.resolve_ocr_model(model.as_deref()).await {
+                Ok(m) => m,
+                Err(guidance) => {
+                    return Err(McpToolError::failed_precondition(guidance));
+                }
+            };
 
-        let file_bytes = match std::fs::read(&path) {
-            Ok(b) => b,
-            Err(e) => {
-                return span.internal_error(serde_json::json!({
-                    "error": format!("Failed to read file '{}': {}", path, e),
-                }));
-            }
-        };
+            let file_bytes = match std::fs::read(&path) {
+                Ok(b) => b,
+                Err(e) => {
+                    return Err(McpToolError::internal(format!(
+                        "Failed to read file '{}': {}",
+                        path, e
+                    )));
+                }
+            };
 
-        match self.do_ocr(&file_bytes, &model, max_tokens).await {
-            Ok(text) => {
-                let result = serde_json::json!({
-                    "path": path,
-                    "model": model,
-                    "text": text,
-                    "word_count": text.split_whitespace().count(),
-                });
-                self.record_experience("docproc_ocr", &path_clone, "success", result.clone());
-                span.ok_json(result)
+            match self.do_ocr(&file_bytes, &model, max_tokens).await {
+                Ok(text) => {
+                    let result = serde_json::json!({
+                        "path": path,
+                        "model": model,
+                        "text": text,
+                        "word_count": text.split_whitespace().count(),
+                    });
+                    self.record_experience("docproc_ocr", &path_clone, "success", result.clone());
+                    Ok(result)
+                }
+                Err(e) => Err(McpToolError::unavailable(e)),
             }
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(e).to_json_string(),
-            ),
-        }
+        })
+        .await
     }
 
     #[tool(
@@ -1176,206 +1141,203 @@ impl DocProcServer {
             index,
         }): Parameters<ChunkRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("docproc_chunk", &self.webid);
-
-        // Exactly one of text or path must be provided
-        let has_text = text.as_ref().is_some_and(|t| !t.is_empty());
-        let has_path = path.as_ref().is_some_and(|p| !p.is_empty());
-        if has_text == has_path {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("Exactly one of 'text' or 'path' must be provided")
-                    .to_json_string(),
-            );
-        }
-
-        validate_non_empty!(
-            span,
-            McpErrorKind::InvalidArgument,
-            "entity_ref_prefix",
-            entity_ref_prefix
-        );
-        validate_field!(span, "entity_ref_prefix", &entity_ref_prefix, 256);
-
-        // Resolve the source text
-        let source_text: String;
-        let source_label: String;
-
-        if let Some(ref raw_text) = text
-            && !raw_text.is_empty()
-        {
-            source_text = raw_text.clone();
-            source_label = entity_ref_prefix.clone();
-        } else if let Some(ref file_path) = path
-            && !file_path.is_empty()
-        {
-            let (format, supported, _) = convert::detect_format(file_path);
-            if !supported {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(format!(
-                        "Unsupported document format '{}' for path '{}'. Supported formats: pdf, markdown, html, plain",
-                        format, file_path
-                    ))
-                    .to_json_string(),
-                );
+        execute_tool(self, "docproc_chunk", async {
+            // Exactly one of text or path must be provided
+            let has_text = text.as_ref().is_some_and(|t| !t.is_empty());
+            let has_path = path.as_ref().is_some_and(|p| !p.is_empty());
+            if has_text == has_path {
+                return Err(McpToolError::invalid_argument(
+                    "Exactly one of 'text' or 'path' must be provided",
+                ));
             }
 
-            source_text = match format {
-                "pdf" => match pdf_extract::extract_text(file_path) {
-                    Ok(t) => {
-                        let wc = t.split_whitespace().count();
-                        if wc < OCR_FALLBACK_WORD_THRESHOLD {
-                            if let Ok(model) = self.resolve_ocr_model(None).await {
-                                let file_bytes = match std::fs::read(file_path) {
-                                    Ok(b) => b,
-                                    Err(e) => {
-                                        return span.internal_error(serde_json::json!({
-                                                "error": format!("Failed to read file '{}': {}", file_path, e),
-                                            }));
+            if entity_ref_prefix.is_empty() {
+                return Err(McpToolError::invalid_argument(
+                    "entity_ref_prefix must not be empty",
+                ));
+            }
+            hkask_mcp::validate_identifier("entity_ref_prefix", &entity_ref_prefix, 256)
+                .map_err(|e| McpToolError::new(e.kind, e.to_json_string()))?;
+
+            // Resolve the source text
+            let source_text: String;
+            let source_label: String;
+
+            if let Some(ref raw_text) = text
+                && !raw_text.is_empty()
+            {
+                source_text = raw_text.clone();
+                source_label = entity_ref_prefix.clone();
+            } else if let Some(ref file_path) = path
+                && !file_path.is_empty()
+            {
+                let (format, supported, _) = convert::detect_format(file_path);
+                if !supported {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "Unsupported document format '{}' for path '{}'. Supported formats: pdf, markdown, html, plain",
+                        format, file_path
+                    )));
+                }
+
+                source_text = match format {
+                    "pdf" => match pdf_extract::extract_text(file_path) {
+                        Ok(t) => {
+                            let wc = t.split_whitespace().count();
+                            if wc < OCR_FALLBACK_WORD_THRESHOLD {
+                                if let Ok(model) = self.resolve_ocr_model(None).await {
+                                    let file_bytes = match std::fs::read(file_path) {
+                                        Ok(b) => b,
+                                        Err(e) => {
+                                            return Err(McpToolError::internal(format!(
+                                                "Failed to read file '{}': {}",
+                                                file_path, e
+                                            )));
+                                        }
+                                    };
+                                    match self
+                                        .do_ocr(&file_bytes, &model, default_ocr_max_tokens())
+                                        .await
+                                    {
+                                        Ok(ocr_text) => ocr_text,
+                                        Err(_) => t,
                                     }
-                                };
-                                match self
-                                    .do_ocr(&file_bytes, &model, default_ocr_max_tokens())
-                                    .await
-                                {
-                                    Ok(ocr_text) => ocr_text,
-                                    Err(_) => t,
+                                } else {
+                                    t
                                 }
                             } else {
                                 t
                             }
-                        } else {
-                            t
                         }
-                    }
-                    Err(_) => {
-                        return span.internal_error(serde_json::json!({
-                            "error": format!("Failed to extract text from PDF '{}'", file_path),
-                        }));
-                    }
-                },
-                "markdown" => match std::fs::read_to_string(file_path) {
-                    Ok(content) => convert::strip_frontmatter(&content),
-                    Err(e) => {
-                        return span.internal_error(serde_json::json!({
-                            "error": format!("Failed to read file '{}': {}", file_path, e),
-                        }));
-                    }
-                },
-                "html" | "htm" => match std::fs::read_to_string(file_path) {
-                    Ok(content) => convert::strip_html(&content),
-                    Err(e) => {
-                        return span.internal_error(serde_json::json!({
-                            "error": format!("Failed to read file '{}': {}", file_path, e),
-                        }));
-                    }
-                },
-                _ => match std::fs::read_to_string(file_path) {
-                    Ok(content) => content,
-                    Err(e) => {
-                        return span.internal_error(serde_json::json!({
-                            "error": format!("Failed to read file '{}': {}", file_path, e),
-                        }));
-                    }
-                },
+                        Err(_) => {
+                            return Err(McpToolError::internal(format!(
+                                "Failed to extract text from PDF '{}'",
+                                file_path
+                            )));
+                        }
+                    },
+                    "markdown" => match std::fs::read_to_string(file_path) {
+                        Ok(content) => convert::strip_frontmatter(&content),
+                        Err(e) => {
+                            return Err(McpToolError::internal(format!(
+                                "Failed to read file '{}': {}",
+                                file_path, e
+                            )));
+                        }
+                    },
+                    "html" | "htm" => match std::fs::read_to_string(file_path) {
+                        Ok(content) => convert::strip_html(&content),
+                        Err(e) => {
+                            return Err(McpToolError::internal(format!(
+                                "Failed to read file '{}': {}",
+                                file_path, e
+                            )));
+                        }
+                    },
+                    _ => match std::fs::read_to_string(file_path) {
+                        Ok(content) => content,
+                        Err(e) => {
+                            return Err(McpToolError::internal(format!(
+                                "Failed to read file '{}': {}",
+                                file_path, e
+                            )));
+                        }
+                    },
+                };
+                source_label = file_path.replace(['/', '\\', '.', ' '], "_");
+            } else {
+                // Unreachable — validated above
+                return Err(McpToolError::invalid_argument("No text or path provided"));
+            }
+
+            // Apply Gutenberg stripping if requested
+            let processed = if strip_gutenberg.unwrap_or(false) {
+                SemanticMemory::strip_gutenberg_headers(&source_text)
+            } else {
+                source_text
             };
-            source_label = file_path.replace(['/', '\\', '.', ' '], "_");
-        } else {
-            // Unreachable — validated above
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("No text or path provided").to_json_string(),
-            );
-        }
 
-        // Apply Gutenberg stripping if requested
-        let processed = if strip_gutenberg.unwrap_or(false) {
-            SemanticMemory::strip_gutenberg_headers(&source_text)
-        } else {
-            source_text
-        };
+            let boundary = ".!? ";
 
-        let boundary = ".!? ";
+            if multi_tier.unwrap_or(false) {
+                // Multi-tier: coarse / medium / fine
+                let chunk_tier = |tier: &str, max_tok: Option<usize>, default: usize| -> Vec<_> {
+                    let w = tokens_to_words(max_tok.unwrap_or(default));
+                    SemanticMemory::chunk_text(
+                        &processed,
+                        &format!("{source_label}:{tier}"),
+                        w / 4,
+                        w,
+                        boundary,
+                    )
+                };
 
-        if multi_tier.unwrap_or(false) {
-            // Multi-tier: coarse / medium / fine
-            let chunk_tier = |tier: &str, max_tok: Option<usize>, default: usize| -> Vec<_> {
-                let w = tokens_to_words(max_tok.unwrap_or(default));
-                SemanticMemory::chunk_text(
+                let coarse = chunk_tier("coarse", coarse_max_tokens, 2048);
+                let medium = chunk_tier("medium", medium_max_tokens, 512);
+                let fine = chunk_tier("fine", fine_max_tokens, 128);
+
+                let result = json!({
+                    "source": source_label,
+                    "multi_tier": true,
+                    "coarse_max_tokens": coarse_max_tokens.unwrap_or(2048),
+                    "medium_max_tokens": medium_max_tokens.unwrap_or(512),
+                    "fine_max_tokens": fine_max_tokens.unwrap_or(128),
+                    "coarse": serialize_passages(coarse.clone()),
+                    "medium": serialize_passages(medium.clone()),
+                    "fine": serialize_passages(fine.clone()),
+                });
+
+                // Auto-index if requested
+                let indexed = if index {
+                    let all: Vec<_> = coarse.into_iter().chain(medium).chain(fine).collect();
+                    self.index_passages(&all, &source_label).await
+                } else {
+                    0
+                };
+
+                let mut result = result;
+                result["indexed"] = json!(indexed);
+                self.record_experience("docproc_chunk", &source_label, "success", result.clone());
+                Ok(result)
+            } else {
+                // Single-tier
+                let (max_words, min_words) = chunk_word_bounds(max_tokens, overlap_tokens);
+
+                let passages = SemanticMemory::chunk_text(
                     &processed,
-                    &format!("{source_label}:{tier}"),
-                    w / 4,
-                    w,
+                    &entity_ref_prefix,
+                    min_words,
+                    max_words,
                     boundary,
-                )
-            };
+                );
 
-            let coarse = chunk_tier("coarse", coarse_max_tokens, 2048);
-            let medium = chunk_tier("medium", medium_max_tokens, 512);
-            let fine = chunk_tier("fine", fine_max_tokens, 128);
+                let total_passages = passages.len();
+                let serialized = serialize_passages(passages.clone());
 
-            let result = json!({
-                "source": source_label,
-                "multi_tier": true,
-                "coarse_max_tokens": coarse_max_tokens.unwrap_or(2048),
-                "medium_max_tokens": medium_max_tokens.unwrap_or(512),
-                "fine_max_tokens": fine_max_tokens.unwrap_or(128),
-                "coarse": serialize_passages(coarse.clone()),
-                "medium": serialize_passages(medium.clone()),
-                "fine": serialize_passages(fine.clone()),
-            });
+                // Auto-index if requested
+                let indexed = if index {
+                    self.index_passages(&passages, &source_label).await
+                } else {
+                    0
+                };
 
-            // Auto-index if requested
-            let indexed = if index {
-                let all: Vec<_> = coarse.into_iter().chain(medium).chain(fine).collect();
-                self.index_passages(&all, &source_label).await
-            } else {
-                0
-            };
-
-            let mut result = result;
-            result["indexed"] = json!(indexed);
-            self.record_experience("docproc_chunk", &source_label, "success", result.clone());
-            span.ok_json(result)
-        } else {
-            // Single-tier
-            let (max_words, min_words) = chunk_word_bounds(max_tokens, overlap_tokens);
-
-            let passages = SemanticMemory::chunk_text(
-                &processed,
-                &entity_ref_prefix,
-                min_words,
-                max_words,
-                boundary,
-            );
-
-            let total_passages = passages.len();
-            let serialized = serialize_passages(passages.clone());
-
-            // Auto-index if requested
-            let indexed = if index {
-                self.index_passages(&passages, &source_label).await
-            } else {
-                0
-            };
-
-            let result = json!({
-                "source": source_label,
-                "multi_tier": false,
-                "total_passages": total_passages,
-                "passages": serialized,
-                "max_tokens": max_tokens.unwrap_or(512),
-                "overlap_tokens": overlap_tokens.unwrap_or(64),
-                "max_words": max_words,
-                "min_words": min_words,
-                "sentence_boundary": boundary,
-                "stripped_gutenberg": strip_gutenberg.unwrap_or(false),
-                "indexed": indexed,
-            });
-            self.record_experience("docproc_chunk", &source_label, "success", result.clone());
-            span.ok_json(result)
-        }
+                let result = json!({
+                    "source": source_label,
+                    "multi_tier": false,
+                    "total_passages": total_passages,
+                    "passages": serialized,
+                    "max_tokens": max_tokens.unwrap_or(512),
+                    "overlap_tokens": overlap_tokens.unwrap_or(64),
+                    "max_words": max_words,
+                    "min_words": min_words,
+                    "sentence_boundary": boundary,
+                    "stripped_gutenberg": strip_gutenberg.unwrap_or(false),
+                    "indexed": indexed,
+                });
+                self.record_experience("docproc_chunk", &source_label, "success", result.clone());
+                Ok(result)
+            }
+        })
+        .await
     }
 
     #[tool(
@@ -1389,67 +1351,67 @@ impl DocProcServer {
             bloom_levels,
         }): Parameters<GenerateQaRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("docproc_generate_qa", &self.webid);
-
-        if text.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("text must not be empty").to_json_string(),
-            );
-        }
-
-        if chunk_id.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("chunk_id must not be empty").to_json_string(),
-            );
-        }
-
-        let levels =
-            bloom_levels.unwrap_or_else(|| vec!["factual".to_string(), "conceptual".to_string()]);
-
-        let levels_str = levels.join(", ");
-        let prompt = format!(
-            "Based on the following text, generate question-answer pairs at these Bloom's taxonomy levels: {levels_str}.\n\n\
-             Text (chunk {chunk_id}):\n{text}\n\n\
-             For each level, provide:\n\
-             - A question that tests understanding at that level\n\
-             - A concise, accurate answer derived from the text\n\
-             - The bloom_level classification\n\n\
-             Respond in JSON format: {{\"qa_pairs\": [{{\"question\": \"...\", \"answer\": \"...\", \"bloom_level\": \"...\"}}]}}"
-        );
-
-        let router = InferenceRouter::new(self.inference_config.clone());
-        let params = LLMParameters {
-            temperature: 0.3,
-            max_tokens: 4096,
-            ..Default::default()
-        };
-
-        match router.generate(&prompt, &params, None).await {
-            Ok(response) => {
-                let cleaned = strip_json_fences(&response.text);
-                let qa_pairs: serde_json::Value = match serde_json::from_str(&cleaned) {
-                    Ok(v) => v,
-                    Err(_) => {
-                        json!({"raw_response": response.text, "parse_error": "LLM response was not valid JSON"})
-                    }
-                };
-
-                let result = json!({
-                    "chunk_id": chunk_id,
-                    "bloom_levels": levels,
-                    "qa_pairs": qa_pairs,
-                    "tokens_used": response.usage.total_tokens,
-                });
-                self.record_experience("docproc_generate_qa", &chunk_id, "success", result.clone());
-                span.ok_json(result)
+        execute_tool(self, "docproc_generate_qa", async {
+            if text.is_empty() {
+                return Err(McpToolError::invalid_argument("text must not be empty"));
             }
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("QA generation failed: {}", e)).to_json_string(),
-            ),
-        }
+
+            if chunk_id.is_empty() {
+                return Err(McpToolError::invalid_argument("chunk_id must not be empty"));
+            }
+
+            let levels = bloom_levels
+                .unwrap_or_else(|| vec!["factual".to_string(), "conceptual".to_string()]);
+
+            let levels_str = levels.join(", ");
+            let prompt = format!(
+                "Based on the following text, generate question-answer pairs at these Bloom's taxonomy levels: {levels_str}.\n\n\
+                 Text (chunk {chunk_id}):\n{text}\n\n\
+                 For each level, provide:\n\
+                 - A question that tests understanding at that level\n\
+                 - A concise, accurate answer derived from the text\n\
+                 - The bloom_level classification\n\n\
+                 Respond in JSON format: {{\"qa_pairs\": [{{\"question\": \"...\", \"answer\": \"...\", \"bloom_level\": \"...\"}}]}}"
+            );
+
+            let router = InferenceRouter::new(self.inference_config.clone());
+            let params = LLMParameters {
+                temperature: 0.3,
+                max_tokens: 4096,
+                ..Default::default()
+            };
+
+            match router.generate(&prompt, &params, None).await {
+                Ok(response) => {
+                    let cleaned = strip_json_fences(&response.text);
+                    let qa_pairs: serde_json::Value = match serde_json::from_str(&cleaned) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            json!({"raw_response": response.text, "parse_error": "LLM response was not valid JSON"})
+                        }
+                    };
+
+                    let result = json!({
+                        "chunk_id": chunk_id,
+                        "bloom_levels": levels,
+                        "qa_pairs": qa_pairs,
+                        "tokens_used": response.usage.total_tokens,
+                    });
+                    self.record_experience(
+                        "docproc_generate_qa",
+                        &chunk_id,
+                        "success",
+                        result.clone(),
+                    );
+                    Ok(result)
+                }
+                Err(e) => Err(McpToolError::unavailable(format!(
+                    "QA generation failed: {}",
+                    e
+                ))),
+            }
+        })
+        .await
     }
 
     #[tool(
@@ -1463,61 +1425,65 @@ impl DocProcServer {
             max_triples,
         }): Parameters<ExtractTriplesRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("docproc_extract_triples", &self.webid);
-
-        if text.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("text must not be empty").to_json_string(),
-            );
-        }
-
-        let ns = namespace.unwrap_or_else(|| "doc".to_string());
-        let limit = max_triples.unwrap_or(50);
-
-        let prompt = format!(
-            "Extract up to {limit} factual RDF triples from the following text.\n\n\
-             Each triple should be in the form (subject, predicate, object) where:\n\
-             - subject: an entity mentioned in the text (prefix with '{ns}:')\n\
-             - predicate: a relationship or property (use standard RDF predicates like rdf:type, schema:name, etc.)\n\n\
-             - object: another entity, a literal value, or a type\n\n\
-             For each triple, also provide a confidence score (0.0-1.0) based on how clearly the text supports it.\n\n\
-             Text:\n{text}\n\n\
-             Respond in JSON format: {{\"triples\": [{{\"subject\": \"...\", \"predicate\": \"...\", \"object\": \"...\", \"confidence\": 0.95}}]}}"
-        );
-
-        let router = InferenceRouter::new(self.inference_config.clone());
-        let params = LLMParameters {
-            temperature: 0.1,
-            max_tokens: 4096,
-            ..Default::default()
-        };
-
-        match router.generate(&prompt, &params, None).await {
-            Ok(response) => {
-                let cleaned = strip_json_fences(&response.text);
-                let triples: serde_json::Value = match serde_json::from_str(&cleaned) {
-                    Ok(v) => v,
-                    Err(_) => {
-                        json!({"raw_response": response.text, "parse_error": "LLM response was not valid JSON"})
-                    }
-                };
-
-                let result = json!({
-                    "namespace": ns,
-                    "max_triples": limit,
-                    "triples": triples,
-                    "tokens_used": response.usage.total_tokens,
-                });
-                self.record_experience("docproc_extract_triples", &ns, "success", result.clone());
-                span.ok_json(result)
+        execute_tool(self, "docproc_extract_triples", async {
+            if text.is_empty() {
+                return Err(McpToolError::invalid_argument(
+                    "text must not be empty",
+                ));
             }
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Triple extraction failed: {}", e))
-                    .to_json_string(),
-            ),
-        }
+
+            let ns = namespace.unwrap_or_else(|| "doc".to_string());
+            let limit = max_triples.unwrap_or(50);
+
+            let prompt = format!(
+                "Extract up to {limit} factual RDF triples from the following text.\n\n\
+                 Each triple should be in the form (subject, predicate, object) where:\n\
+                 - subject: an entity mentioned in the text (prefix with '{ns}:')\n\
+                 - predicate: a relationship or property (use standard RDF predicates like rdf:type, schema:name, etc.)\n\n\
+                 - object: another entity, a literal value, or a type\n\n\
+                 For each triple, also provide a confidence score (0.0-1.0) based on how clearly the text supports it.\n\n\
+                 Text:\n{text}\n\n\
+                 Respond in JSON format: {{\"triples\": [{{\"subject\": \"...\", \"predicate\": \"...\", \"object\": \"...\", \"confidence\": 0.95}}]}}"
+            );
+
+            let router = InferenceRouter::new(self.inference_config.clone());
+            let params = LLMParameters {
+                temperature: 0.1,
+                max_tokens: 4096,
+                ..Default::default()
+            };
+
+            match router.generate(&prompt, &params, None).await {
+                Ok(response) => {
+                    let cleaned = strip_json_fences(&response.text);
+                    let triples: serde_json::Value = match serde_json::from_str(&cleaned) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            json!({"raw_response": response.text, "parse_error": "LLM response was not valid JSON"})
+                        }
+                    };
+
+                    let result = json!({
+                        "namespace": ns,
+                        "max_triples": limit,
+                        "triples": triples,
+                        "tokens_used": response.usage.total_tokens,
+                    });
+                    self.record_experience(
+                        "docproc_extract_triples",
+                        &ns,
+                        "success",
+                        result.clone(),
+                    );
+                    Ok(result)
+                }
+                Err(e) => Err(McpToolError::unavailable(format!(
+                    "Triple extraction failed: {}",
+                    e
+                ))),
+            }
+        })
+        .await
     }
 
     #[tool(
@@ -1527,53 +1493,47 @@ impl DocProcServer {
         &self,
         Parameters(EmbedRequest { texts, model }): Parameters<EmbedRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("docproc_embed", &self.webid);
-
-        if texts.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("texts must not be empty").to_json_string(),
-            );
-        }
-
-        let Some(ref emb_router) = self.embedding_router else {
-            return span.error(
-                McpErrorKind::FailedPrecondition,
-                McpToolError::failed_precondition(
-                    "Embedding router not configured — inference config may be missing",
-                )
-                .to_json_string(),
-            );
-        };
-
-        let model_name = model.unwrap_or_else(|| {
-            std::env::var("HKASK_EMBEDDING_MODEL")
-                .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string())
-        });
-
-        let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
-
-        match emb_router.embed_sentences(&model_name, &text_refs).await {
-            Ok(vectors) => {
-                let result = json!({
-                    "count": texts.len(),
-                    "dimensions": vectors.first().map(|v| v.len()).unwrap_or(0),
-                    "vectors": vectors,
-                    "model": model_name,
-                });
-                self.record_experience(
-                    "docproc_embed",
-                    &format!("{} texts", texts.len()),
-                    "success",
-                    result.clone(),
-                );
-                span.ok_json(result)
+        execute_tool(self, "docproc_embed", async {
+            if texts.is_empty() {
+                return Err(McpToolError::invalid_argument("texts must not be empty"));
             }
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Embedding failed: {}", e)).to_json_string(),
-            ),
-        }
+
+            let Some(ref emb_router) = self.embedding_router else {
+                return Err(McpToolError::failed_precondition(
+                    "Embedding router not configured — inference config may be missing",
+                ));
+            };
+
+            let model_name = model.unwrap_or_else(|| {
+                std::env::var("HKASK_EMBEDDING_MODEL")
+                    .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string())
+            });
+
+            let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+
+            match emb_router.embed_sentences(&model_name, &text_refs).await {
+                Ok(vectors) => {
+                    let result = json!({
+                        "count": texts.len(),
+                        "dimensions": vectors.first().map(|v| v.len()).unwrap_or(0),
+                        "vectors": vectors,
+                        "model": model_name,
+                    });
+                    self.record_experience(
+                        "docproc_embed",
+                        &format!("{} texts", texts.len()),
+                        "success",
+                        result.clone(),
+                    );
+                    Ok(result)
+                }
+                Err(e) => Err(McpToolError::unavailable(format!(
+                    "Embedding failed: {}",
+                    e
+                ))),
+            }
+        })
+        .await
     }
 
     #[tool(
@@ -1583,61 +1543,60 @@ impl DocProcServer {
         &self,
         Parameters(CacheRequest { content, label }): Parameters<CacheRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("docproc_cache", &self.webid);
-
-        if content.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("content must not be empty").to_json_string(),
-            );
-        }
-
-        if label.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("label must not be empty").to_json_string(),
-            );
-        }
-
-        // Resolve cache directory
-        let cache_dir = dirs::config_dir()
-            .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("hkask")
-            .join("docproc-cache");
-
-        if let Err(e) = std::fs::create_dir_all(&cache_dir) {
-            return span.internal_error(json!({
-                "error": format!("Failed to create cache directory '{}': {}", cache_dir.display(), e),
-            }));
-        }
-
-        // Sanitize label for filesystem
-        let safe_label: String = label
-            .chars()
-            .map(|c| {
-                if c.is_alphanumeric() || c == '-' || c == '_' {
-                    c
-                } else {
-                    '_'
-                }
-            })
-            .collect();
-        let cache_path = cache_dir.join(format!("{}.md", safe_label));
-
-        match std::fs::write(&cache_path, &content) {
-            Ok(()) => {
-                let result = json!({
-                    "label": label,
-                    "path": cache_path.display().to_string(),
-                    "size_bytes": content.len(),
-                });
-                self.record_experience("docproc_cache", &label, "success", result.clone());
-                span.ok_json(result)
+        execute_tool(self, "docproc_cache", async {
+            if content.is_empty() {
+                return Err(McpToolError::invalid_argument("content must not be empty"));
             }
-            Err(e) => span.internal_error(json!({
-                "error": format!("Failed to write cache file '{}': {}", cache_path.display(), e),
-            })),
-        }
+
+            if label.is_empty() {
+                return Err(McpToolError::invalid_argument("label must not be empty"));
+            }
+
+            // Resolve cache directory
+            let cache_dir = dirs::config_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join("hkask")
+                .join("docproc-cache");
+
+            if let Err(e) = std::fs::create_dir_all(&cache_dir) {
+                return Err(McpToolError::internal(format!(
+                    "Failed to create cache directory '{}': {}",
+                    cache_dir.display(),
+                    e
+                )));
+            }
+
+            // Sanitize label for filesystem
+            let safe_label: String = label
+                .chars()
+                .map(|c| {
+                    if c.is_alphanumeric() || c == '-' || c == '_' {
+                        c
+                    } else {
+                        '_'
+                    }
+                })
+                .collect();
+            let cache_path = cache_dir.join(format!("{}.md", safe_label));
+
+            match std::fs::write(&cache_path, &content) {
+                Ok(()) => {
+                    let result = json!({
+                        "label": label,
+                        "path": cache_path.display().to_string(),
+                        "size_bytes": content.len(),
+                    });
+                    self.record_experience("docproc_cache", &label, "success", result.clone());
+                    Ok(result)
+                }
+                Err(e) => Err(McpToolError::internal(format!(
+                    "Failed to write cache file '{}': {}",
+                    cache_path.display(),
+                    e
+                ))),
+            }
+        })
+        .await
     }
 
     #[tool(
@@ -1651,134 +1610,131 @@ impl DocProcServer {
             generate_answer,
         }): Parameters<QueryRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("docproc_query", &self.webid);
+        execute_tool(self, "docproc_query", async {
+            if query.is_empty() {
+                return Err(McpToolError::invalid_argument(
+                    "query must not be empty",
+                ));
+            }
 
-        if query.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("query must not be empty").to_json_string(),
-            );
-        }
+            let k = top_k.unwrap_or(5).clamp(1, 50);
 
-        let k = top_k.unwrap_or(5).clamp(1, 50);
-
-        // Embed the query
-        let Some(ref emb_router) = self.embedding_router else {
-            return span.error(
-                McpErrorKind::FailedPrecondition,
-                McpToolError::failed_precondition(
+            // Embed the query
+            let Some(ref emb_router) = self.embedding_router else {
+                return Err(McpToolError::failed_precondition(
                     "Embedding router not configured — cannot embed query",
-                )
-                .to_json_string(),
-            );
-        };
+                ));
+            };
 
-        let model_name = std::env::var("HKASK_EMBEDDING_MODEL")
-            .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string());
+            let model_name = std::env::var("HKASK_EMBEDDING_MODEL")
+                .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string());
 
-        let query_embedding = match emb_router
-            .embed_sentences(&model_name, &[query.as_str()])
-            .await
-        {
-            Ok(v) => v.into_iter().next().unwrap_or_default(),
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Unavailable,
-                    McpToolError::unavailable(format!("Query embedding failed: {}", e))
-                        .to_json_string(),
-                );
-            }
-        };
-
-        if query_embedding.is_empty() {
-            return span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable("Query embedding returned empty vector").to_json_string(),
-            );
-        }
-
-        // Search the index (scoped to drop guard before any await)
-        let (results, total_indexed) = {
-            let index = match self.index.lock() {
-                Ok(i) => i,
+            let query_embedding = match emb_router
+                .embed_sentences(&model_name, &[query.as_str()])
+                .await
+            {
+                Ok(v) => v.into_iter().next().unwrap_or_default(),
                 Err(e) => {
-                    return span.internal_error(
-                        serde_json::json!({"error": format!("Index lock error: {}", e)}),
-                    );
+                    return Err(McpToolError::unavailable(format!(
+                        "Query embedding failed: {}",
+                        e
+                    )));
                 }
             };
-            if index.is_empty() {
-                return span.ok_json(json!({
-                    "query": query,
-                    "results": [],
-                    "total_indexed": 0,
-                    "note": "No passages indexed. Run docproc_chunk with index=true first.",
-                }));
+
+            if query_embedding.is_empty() {
+                return Err(McpToolError::unavailable(
+                    "Query embedding returned empty vector",
+                ));
             }
 
-            let mut scored: Vec<(f32, &IndexedPassage)> = index
-                .iter()
-                .map(|p| (cosine_similarity(&query_embedding, &p.embedding), p))
-                .collect();
+            // Search the index (scoped to drop guard before any await)
+            let (results, total_indexed) = {
+                let index = match self.index.lock() {
+                    Ok(i) => i,
+                    Err(e) => {
+                        return Err(McpToolError::internal(format!(
+                            "Index lock error: {}",
+                            e
+                        )));
+                    }
+                };
+                if index.is_empty() {
+                    return Ok(json!({
+                        "query": query,
+                        "results": [],
+                        "total_indexed": 0,
+                        "note": "No passages indexed. Run docproc_chunk with index=true first.",
+                    }));
+                }
 
-            scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-            scored.truncate(k);
+                let mut scored: Vec<(f32, &IndexedPassage)> = index
+                    .iter()
+                    .map(|p| (cosine_similarity(&query_embedding, &p.embedding), p))
+                    .collect();
 
-            let results: Vec<serde_json::Value> = scored
-                .iter()
-                .map(|(score, p)| {
-                    json!({
-                        "text": p.text.clone(),
-                        "metadata": p.metadata.clone(),
-                        "score": score,
+                scored.sort_by(|a, b| {
+                    b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
+                });
+                scored.truncate(k);
+
+                let results: Vec<serde_json::Value> = scored
+                    .iter()
+                    .map(|(score, p)| {
+                        json!({
+                            "text": p.text.clone(),
+                            "metadata": p.metadata.clone(),
+                            "score": score,
+                        })
                     })
-                })
-                .collect();
+                    .collect();
 
-            (results, index.len())
-        }; // guard dropped here
+                (results, index.len())
+            }; // guard dropped here
 
-        let mut result = json!({
-            "query": query,
-            "results": results,
-            "total_indexed": total_indexed,
-        });
+            let mut result = json!({
+                "query": query,
+                "results": results,
+                "total_indexed": total_indexed,
+            });
 
-        // Optionally generate an LLM-augmented answer
-        if generate_answer.unwrap_or(false) && !results.is_empty() {
-            let context: String = results
-                .iter()
-                .map(|r| r["text"].as_str().unwrap_or(""))
-                .collect::<Vec<_>>()
-                .join("\n\n");
+            // Optionally generate an LLM-augmented answer
+            if generate_answer.unwrap_or(false) && !results.is_empty() {
+                let context: String = results
+                    .iter()
+                    .map(|r| r["text"].as_str().unwrap_or(""))
+                    .collect::<Vec<_>>()
+                    .join("\n\n");
 
-            let prompt = format!(
-                "Answer the following question based on the provided context. If the context doesn't contain enough information, say so.\n\n\
-                 Context:\n{context}\n\n\
-                 Question: {query}\n\n\
-                 Answer:"
-            );
+                let prompt = format!(
+                    "Answer the following question based on the provided context. If the context doesn't contain enough information, say so.\n\n\
+                     Context:\n{context}\n\n\
+                     Question: {query}\n\n\
+                     Answer:"
+                );
 
-            let router = InferenceRouter::new(self.inference_config.clone());
-            let params = LLMParameters {
-                temperature: 0.3,
-                max_tokens: 1024,
-                ..Default::default()
-            };
+                let router = InferenceRouter::new(self.inference_config.clone());
+                let params = LLMParameters {
+                    temperature: 0.3,
+                    max_tokens: 1024,
+                    ..Default::default()
+                };
 
-            match router.generate(&prompt, &params, None).await {
-                Ok(response) => {
-                    result["answer"] = json!(response.text);
-                    result["answer_tokens"] = json!(response.usage.total_tokens);
-                }
-                Err(e) => {
-                    result["answer_error"] = json!(format!("{}", e));
+                match router.generate(&prompt, &params, None).await {
+                    Ok(response) => {
+                        result["answer"] = json!(response.text);
+                        result["answer_tokens"] = json!(response.usage.total_tokens);
+                    }
+                    Err(e) => {
+                        result["answer_error"] = json!(format!("{}", e));
+                    }
                 }
             }
-        }
 
-        self.record_experience("docproc_query", &query, "success", result.clone());
-        span.ok_json(result)
+            self.record_experience("docproc_query", &query, "success", result.clone());
+            Ok(result)
+        })
+        .await
     }
 
     #[tool(
@@ -1788,18 +1744,18 @@ impl DocProcServer {
         &self,
         Parameters(ClearIndexRequest { index_id: _ }): Parameters<ClearIndexRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("docproc_clear_index", &self.webid);
-        let mut index = match self.index.lock() {
-            Ok(i) => i,
-            Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("Index lock error: {}", e)}),
-                );
-            }
-        };
-        let cleared = index.len();
-        index.clear();
-        span.ok_json(json!({"cleared": cleared}))
+        execute_tool(self, "docproc_clear_index", async {
+            let mut index = match self.index.lock() {
+                Ok(i) => i,
+                Err(e) => {
+                    return Err(McpToolError::internal(format!("Index lock error: {}", e)));
+                }
+            };
+            let cleared = index.len();
+            index.clear();
+            Ok(json!({"cleared": cleared}))
+        })
+        .await
     }
 }
 

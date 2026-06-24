@@ -23,13 +23,13 @@ use hkask_condenser::engine::CondenserEngine;
 use hkask_condenser::inference;
 use hkask_condenser::types::*;
 use hkask_inference::{InferenceConfig, InferenceRouter};
-use hkask_mcp::server::{CapabilityTier, McpToolError, ToolSpanGuard};
+use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
 use hkask_memory::EpisodicMemory;
 use hkask_ports::InferencePort;
 use hkask_storage::{Database, Triple};
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
-use hkask_types::{McpErrorKind, Visibility, WebID};
+use hkask_types::{Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::{Arc, Mutex};
 
@@ -132,34 +132,34 @@ impl hkask_mcp::server::ToolContext for CondenserServer {
 impl CondenserServer {
     #[tool(description = "Liveness and profile info")]
     pub async fn condenser_ping(&self) -> String {
-        let span = ToolSpanGuard::new("condenser_ping", &self.webid);
-        let engine = match self.engine.lock() {
-            Ok(guard) => guard,
-            Err(_) => {
-                return span.internal_error(serde_json::json!({"error": "engine lock poisoned"}));
-            }
-        };
-        let health = engine.check_global_health();
-        let mode = if self.capability_tier.embedded {
-            "embedded"
-        } else {
-            "standalone"
-        };
-        span.ok_json(serde_json::json!({
-            "status": "ok",
-            "version": SERVER_VERSION,
-            "mode": mode,
-            "capabilities": {
-                "persistence": self.has_persistence(),
-                "inference": true,
-                "keystore": self.capability_tier.keystore_available,
-                "cns": self.capability_tier.cns_available(),
-            },
-            "profile": engine.stats.current_profile,
-            "algorithms": engine.registry.list_algorithms(),
-            "health": health,
-            "default_model": self.default_model,
-        }))
+        execute_tool(self, "condenser_ping", async {
+            let engine = self
+                .engine
+                .lock()
+                .map_err(|_| McpToolError::internal("engine lock poisoned"))?;
+            let health = engine.check_global_health();
+            let mode = if self.capability_tier.embedded {
+                "embedded"
+            } else {
+                "standalone"
+            };
+            Ok(serde_json::json!({
+                "status": "ok",
+                "version": SERVER_VERSION,
+                "mode": mode,
+                "capabilities": {
+                    "persistence": self.has_persistence(),
+                    "inference": true,
+                    "keystore": self.capability_tier.keystore_available,
+                    "cns": self.capability_tier.cns_available(),
+                },
+                "profile": engine.stats.current_profile,
+                "algorithms": engine.registry.list_algorithms(),
+                "health": health,
+                "default_model": self.default_model,
+            }))
+        })
+        .await
     }
 
     #[tool(description = "Compress tool output using context-aware algorithms")]
@@ -171,44 +171,34 @@ impl CondenserServer {
             category,
         }): Parameters<CompressRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("condenser_compress", &self.webid);
-        if output.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("output must not be empty").to_json_string(),
-            );
-        }
-        let cat = match category.as_deref() {
-            Some(c) => match c.parse::<ContextCategory>() {
-                Ok(cat) => Some(cat),
-                Err(e) => {
-                    return span.error(
-                        McpErrorKind::InvalidArgument,
-                        McpToolError::invalid_argument(e).to_json_string(),
-                    );
-                }
-            },
-            None => None,
-        };
-        let mut engine = match self.engine.lock() {
-            Ok(guard) => guard,
-            Err(_) => {
-                return span.internal_error(serde_json::json!({"error": "engine lock poisoned"}));
+        execute_tool(self, "condenser_compress", async {
+            if output.is_empty() {
+                return Err(McpToolError::invalid_argument("output must not be empty"));
             }
-        };
-        let result = engine.compress(&tool_name, &output, cat);
+            let cat = match category.as_deref() {
+                Some(c) => match c.parse::<ContextCategory>() {
+                    Ok(cat) => Some(cat),
+                    Err(e) => {
+                        return Err(McpToolError::invalid_argument(e));
+                    }
+                },
+                None => None,
+            };
+            let mut engine = self.engine.lock().map_err(|_| McpToolError::internal("engine lock poisoned"))?;
+            let result = engine.compress(&tool_name, &output, cat);
 
-        self.record_experience(
-            "condenser_compress",
-            &tool_name,
-            "success",
-            serde_json::json!({ "original_size": output.len(), "compressed_size": result.content.len() }),
-        );
+            self.record_experience(
+                "condenser_compress",
+                &tool_name,
+                "success",
+                serde_json::json!({ "original_size": output.len(), "compressed_size": result.content.len() }),
+            );
 
-        // CompressedOutput contains only strings, integers, and a clamped f64 — never NaN/Inf.
-        span.ok_json(
-            serde_json::to_value(&result).expect("CompressedOutput serialization is infallible"),
-        )
+            // CompressedOutput contains only strings, integers, and a clamped f64 — never NaN/Inf.
+            Ok(
+                serde_json::to_value(&result).expect("CompressedOutput serialization is infallible"),
+            )
+        }).await
     }
 
     #[tool(description = "Set compression profile (heavy/normal/soft/light)")]
@@ -216,44 +206,39 @@ impl CondenserServer {
         &self,
         Parameters(SetProfileRequest { profile }): Parameters<SetProfileRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("condenser_set_profile", &self.webid);
-        let p = match profile.parse::<Profile>() {
-            Ok(p) => p,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(e).to_json_string(),
-                );
-            }
-        };
-        let mut engine = match self.engine.lock() {
-            Ok(guard) => guard,
-            Err(_) => {
-                return span.internal_error(serde_json::json!({"error": "engine lock poisoned"}));
-            }
-        };
-        engine.set_profile(p);
-        span.ok_json(serde_json::json!({
-            "profile": p.to_string(),
-            "retention_pct": p.retention_pct(),
-            "max_lines": p.max_lines(),
-        }))
+        execute_tool(self, "condenser_set_profile", async {
+            let p = match profile.parse::<Profile>() {
+                Ok(p) => p,
+                Err(e) => {
+                    return Err(McpToolError::invalid_argument(e));
+                }
+            };
+            let mut engine = self
+                .engine
+                .lock()
+                .map_err(|_| McpToolError::internal("engine lock poisoned"))?;
+            engine.set_profile(p);
+            Ok(serde_json::json!({
+                "profile": p.to_string(),
+                "retention_pct": p.retention_pct(),
+                "max_lines": p.max_lines(),
+            }))
+        })
+        .await
     }
 
     #[tool(description = "Cumulative compression statistics")]
     pub async fn condenser_stats(&self) -> String {
-        let span = ToolSpanGuard::new("condenser_stats", &self.webid);
-        let engine = match self.engine.lock() {
-            Ok(guard) => guard,
-            Err(_) => {
-                return span.internal_error(serde_json::json!({"error": "engine lock poisoned"}));
-            }
-        };
-        // CondenserStats contains only strings and integers — never NaN/Inf.
-        span.ok_json(
-            serde_json::to_value(engine.get_stats())
-                .expect("CondenserStats serialization is infallible"),
-        )
+        execute_tool(self, "condenser_stats", async {
+            let engine = self
+                .engine
+                .lock()
+                .map_err(|_| McpToolError::internal("engine lock poisoned"))?;
+            // CondenserStats contains only strings and integers — never NaN/Inf.
+            Ok(serde_json::to_value(engine.get_stats())
+                .expect("CondenserStats serialization is infallible"))
+        })
+        .await
     }
 
     #[tool(description = "Classify tool name to context category")]
@@ -261,19 +246,19 @@ impl CondenserServer {
         &self,
         Parameters(ClassifyRequest { tool_name }): Parameters<ClassifyRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("condenser_classify", &self.webid);
-        let engine = match self.engine.lock() {
-            Ok(guard) => guard,
-            Err(_) => {
-                return span.internal_error(serde_json::json!({"error": "engine lock poisoned"}));
-            }
-        };
-        let (category, algorithm) = engine.classify(&tool_name);
-        span.ok_json(serde_json::json!({
-            "tool_name": tool_name,
-            "category": category.label(),
-            "algorithm": algorithm,
-        }))
+        execute_tool(self, "condenser_classify", async {
+            let engine = self
+                .engine
+                .lock()
+                .map_err(|_| McpToolError::internal("engine lock poisoned"))?;
+            let (category, algorithm) = engine.classify(&tool_name);
+            Ok(serde_json::json!({
+                "tool_name": tool_name,
+                "category": category.label(),
+                "algorithm": algorithm,
+            }))
+        })
+        .await
     }
 
     #[tool(description = "Persist a compressed output to episodic memory")]
@@ -285,47 +270,44 @@ impl CondenserServer {
             confidence,
         }): Parameters<PersistRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("condenser_persist", &self.webid);
-
-        let Some(episodic) = &self.episodic else {
-            return span.error(
-                McpErrorKind::PermissionDenied,
-                McpToolError::permission_denied(
+        execute_tool(self, "condenser_persist", async {
+            let Some(episodic) = &self.episodic else {
+                return Err(McpToolError::permission_denied(
                     "Persistence not available — set HKASK_DB_PATH and HKASK_DB_PASSPHRASE",
-                )
-                .to_json_string(),
-            );
-        };
+                ));
+            };
 
-        if compressed_output.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("compressed_output must not be empty")
-                    .to_json_string(),
-            );
-        }
+            if compressed_output.is_empty() {
+                return Err(McpToolError::invalid_argument(
+                    "compressed_output must not be empty",
+                ));
+            }
 
-        let entity = format!("condenser:{tool_name}");
-        let triple = Triple::new(
-            &entity,
-            "content",
-            serde_json::Value::String(compressed_output),
-            self.webid,
-        )
-        .with_perspective(self.webid)
-        .with_visibility(Visibility::Private)
-        .with_confidence(confidence.unwrap_or(1.0));
+            let entity = format!("condenser:{tool_name}");
+            let triple = Triple::new(
+                &entity,
+                "content",
+                serde_json::Value::String(compressed_output),
+                self.webid,
+            )
+            .with_perspective(self.webid)
+            .with_visibility(Visibility::Private)
+            .with_confidence(confidence.unwrap_or(1.0));
 
-        match episodic.store(triple) {
-            Ok(()) => span.ok_json(serde_json::json!({
-                "persisted": true,
-                "entity": entity,
-                "attribute": "content",
-                "perspective": self.webid.to_string(),
-            })),
-            Err(e) => span
-                .internal_error(serde_json::json!({"error": format!("Failed to persist to episodic memory: {}", e)})),
-        }
+            match episodic.store(triple) {
+                Ok(()) => Ok(serde_json::json!({
+                    "persisted": true,
+                    "entity": entity,
+                    "attribute": "content",
+                    "perspective": self.webid.to_string(),
+                })),
+                Err(e) => Err(McpToolError::internal(format!(
+                    "Failed to persist to episodic memory: {}",
+                    e
+                ))),
+            }
+        })
+        .await
     }
 
     #[tool(
@@ -340,86 +322,74 @@ impl CondenserServer {
             model,
         }): Parameters<ThreadSummaryRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("condenser_thread_summary", &self.webid);
+        execute_tool(self, "condenser_thread_summary", async {
+            let effective_model = model.as_deref().unwrap_or(&self.default_model);
 
-        let effective_model = model.as_deref().unwrap_or(&self.default_model);
-
-        let msg_count = messages.len();
-        if msg_count == 0 {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("messages array is empty").to_json_string(),
-            );
-        }
-
-        let conversation_text = inference::format_conversation_text(&messages);
-        let max_tok = max_tokens.unwrap_or(500);
-
-        let summarization_prompt =
-            inference::build_summarization_prompt(&conversation_text, &current_query);
-
-        // Compose the full prompt: system + user
-        let full_prompt = format!(
-            "{}\n\nUser: {}",
-            THREAD_SUMMARY_SYSTEM_PROMPT, summarization_prompt
-        );
-
-        let params = LLMParameters {
-            temperature: 0.3,
-            top_p: 0.9,
-            top_k: 40,
-            min_p: 0.0,
-            typical_p: 0.0,
-            frequency_penalty: 0.0,
-            presence_penalty: 0.0,
-            max_tokens: max_tok,
-            seed: None,
-            disable_thinking: true,
-            adapter: None,
-            bypass_fusion: true,
-        };
-
-        let result = match self
-            .inference_port
-            .generate_with_model(&full_prompt, &params, Some(effective_model), None)
-            .await
-        {
-            Ok(r) => r,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Inference failed: {e}")).to_json_string(),
-                );
+            let msg_count = messages.len();
+            if msg_count == 0 {
+                return Err(McpToolError::invalid_argument("messages array is empty"));
             }
-        };
 
-        let summary = result.text;
-        if summary.trim().is_empty() {
-            return span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal("Inference engine returned an empty summary")
-                    .to_json_string(),
+            let conversation_text = inference::format_conversation_text(&messages);
+            let max_tok = max_tokens.unwrap_or(500);
+
+            let summarization_prompt =
+                inference::build_summarization_prompt(&conversation_text, &current_query);
+
+            // Compose the full prompt: system + user
+            let full_prompt = format!(
+                "{}\n\nUser: {}",
+                THREAD_SUMMARY_SYSTEM_PROMPT, summarization_prompt
             );
-        }
-        let summary_len = summary.len();
 
-        let output = inference::build_summary_output(
-            summary,
-            &conversation_text,
-            msg_count,
-            effective_model.to_string(),
-        );
+            let params = LLMParameters {
+                temperature: 0.3,
+                top_p: 0.9,
+                top_k: 40,
+                min_p: 0.0,
+                typical_p: 0.0,
+                frequency_penalty: 0.0,
+                presence_penalty: 0.0,
+                max_tokens: max_tok,
+                seed: None,
+                disable_thinking: true,
+                adapter: None,
+                bypass_fusion: true,
+            };
 
-        self.record_experience(
-            "condenser_thread_summary",
-            &format!("{} messages", msg_count),
-            "success",
-            serde_json::json!({"model": effective_model.to_string(), "summary_length": summary_len}),
-        );
+            let result = match self
+                .inference_port
+                .generate_with_model(&full_prompt, &params, Some(effective_model), None)
+                .await
+            {
+                Ok(r) => r,
+                Err(e) => {
+                    return Err(McpToolError::internal(format!("Inference failed: {e}")));
+                }
+            };
 
-        span.ok_json(
-            serde_json::to_value(&output).expect("ThreadSummaryOutput serialization is infallible"),
-        )
+            let summary = result.text;
+            if summary.trim().is_empty() {
+                return Err(McpToolError::internal("Inference engine returned an empty summary"));
+            }
+            let summary_len = summary.len();
+
+            let output = inference::build_summary_output(
+                summary,
+                &conversation_text,
+                msg_count,
+                effective_model.to_string(),
+            );
+
+            self.record_experience(
+                "condenser_thread_summary",
+                &format!("{} messages", msg_count),
+                "success",
+                serde_json::json!({"model": effective_model.to_string(), "summary_length": summary_len}),
+            );
+
+            Ok(serde_json::to_value(&output).expect("ThreadSummaryOutput serialization is infallible"))
+        }).await
     }
 }
 

@@ -17,17 +17,16 @@
 pub mod types;
 
 use hkask_inference::EmbeddingRouter;
-use hkask_mcp::server::{McpToolError, ToolSpanGuard};
+use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_services::{
     EmbedProgress, EmbedService, HkaskSettings, InferenceContext, cosine_distance,
 };
 use hkask_storage::{Database, EmbeddingStore};
-use hkask_types::time::now_rfc3339;
-use hkask_types::{McpErrorKind, WebID};
+use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use serde::Serialize;
-use serde_json::json;
+use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -57,10 +56,6 @@ pub struct ReplicaServer {
     pub daemon: Option<hkask_mcp::DaemonClient>,
 }
 
-fn internal_error(span: ToolSpanGuard, context: &str, e: impl std::fmt::Display) -> String {
-    hkask_mcp::tool_internal_error(span, context, e)
-}
-
 impl ReplicaServer {
     pub fn new(webid: WebID, replicant: String, daemon: Option<hkask_mcp::DaemonClient>) -> Self {
         Self {
@@ -69,42 +64,8 @@ impl ReplicaServer {
             daemon,
         }
     }
-
-    /// Record a tool call as a narrative experience in the agent's memory.
-    fn record_experience(
-        &self,
-        tool: &str,
-        input_summary: &str,
-        outcome: &str,
-        detail: serde_json::Value,
-    ) {
-        if let Some(ref daemon) = self.daemon {
-            let value = serde_json::json!({
-                "tool": tool, "input": input_summary, "outcome": outcome,
-                "detail": detail, "timestamp": now_rfc3339(),
-            });
-            let daemon_clone = daemon.clone();
-            let replicant = self.replicant.clone();
-            let tool_name = tool.to_string();
-            tokio::spawn(async move {
-                match daemon_clone
-                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
-                    .await
-                {
-                    Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
-                        tracing::debug!(target: "cns.mcp.replica.memory", tool = %tool_name, "Experience stored via daemon");
-                    }
-                    Ok(other) => {
-                        tracing::warn!(target: "cns.mcp.replica.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
-                    }
-                    Err(e) => {
-                        tracing::warn!(target: "cns.mcp.replica.memory", tool = %tool_name, error = %e, "Failed to store experience")
-                    }
-                }
-            });
-        }
-    }
 }
+
 
 impl hkask_mcp::server::ToolContext for ReplicaServer {
     fn webid(&self) -> &WebID {
@@ -278,12 +239,14 @@ impl ReplicaServer {
         description = "Embed a style corpus and create an authorial replica. Downloads public domain texts, chunks them, generates embeddings, and computes a style centroid."
     )]
     pub async fn replica_build(&self, Parameters(params): Parameters<BuildRequest>) -> String {
-        let span = ToolSpanGuard::new("replica_build", &self.webid);
         let config_path = PathBuf::from(&params.config_path);
 
-        let run = async {
+        execute_tool(self, "replica_build", async {
             if !config_path.exists() {
-                return Err(format!("Config file not found: {}", params.config_path));
+                return Err(McpToolError::invalid_argument(format!(
+                    "Config file not found: {}",
+                    params.config_path
+                )));
             }
 
             let progress = Arc::new(|p: &EmbedProgress| {
@@ -306,9 +269,9 @@ impl ReplicaServer {
                 Some(progress),
             )
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| McpToolError::internal(e.to_string()))?;
 
-            serde_json::to_string(&BuildResult {
+            let json_str = serde_json::to_string(&BuildResult {
                 author: result.author,
                 purged: result.purged,
                 total_passages: result.total_passages,
@@ -320,30 +283,17 @@ impl ReplicaServer {
                 triples_stored: result.triples_stored,
                 embedding_only: result.embedding_only,
             })
-            .map_err(|e| e.to_string())
-        };
+            .map_err(|e| McpToolError::internal(e.to_string()))?;
 
-        match run.await {
-            Ok(json) => {
-                let parsed: serde_json::Value = serde_json::from_str(&json).unwrap_or(json!({}));
-                self.record_experience(
-                    "replica_build",
-                    &config_path.to_string_lossy(),
-                    "success",
-                    parsed.clone(),
-                );
-                span.ok_json(parsed)
-            }
-            Err(e) => internal_error(span, "build replica", e),
-        }
+            let parsed: Value = serde_json::from_str(&json_str).unwrap_or(json!({}));
+            Ok(parsed)
+        })
+        .await
     }
 
     #[tool(description = "Generate prose in an author's style.")]
     pub async fn replica_compose(&self, Parameters(params): Parameters<ComposeRequest>) -> String {
-        let span = ToolSpanGuard::new("replica_compose", &self.webid);
-        let author = params.author.clone();
-
-        let run = async {
+        execute_tool(self, "replica_compose", async {
             let model = embedding_model();
             let gen_model = generation_model();
             let inf_cfg = inference_config();
@@ -374,38 +324,32 @@ impl ReplicaServer {
 
             let result = hkask_services::ComposeService::compose(request)
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| McpToolError::internal(e.to_string()))?;
 
-            serde_json::to_string(&ComposeResult {
+            let json_str = serde_json::to_string(&ComposeResult {
                 prose: result.generated_prose,
                 exemplar_count: result.exemplar_count,
                 centroid_distance: result.validation.as_ref().map(|v| v.distance),
                 style_passed: result.validation.map(|v| v.passed),
             })
-            .map_err(|e| e.to_string())
-        };
+            .map_err(|e| McpToolError::internal(e.to_string()))?;
 
-        match run.await {
-            Ok(json) => {
-                let parsed: serde_json::Value = serde_json::from_str(&json).unwrap_or(json!({}));
-                self.record_experience("replica_compose", &author, "success", parsed.clone());
-                span.ok_json(parsed)
-            }
-            Err(e) => internal_error(span, "compose prose", e),
-        }
+            let parsed: Value = serde_json::from_str(&json_str).unwrap_or(json!({}));
+            Ok(parsed)
+        })
+        .await
     }
 
     #[tool(
         description = "Compare all built author replicas, or evaluate a document against a persona's centroids."
     )]
     pub async fn replica_compare(&self, Parameters(params): Parameters<CompareRequest>) -> String {
-        let span = ToolSpanGuard::new("replica_compare", &self.webid);
         let persona = params.persona.clone();
         let document_content = params.document_content.clone();
 
-        let run = async {
-            let db =
-                Database::open(&params.db_path, &params.passphrase).map_err(|e| e.to_string())?;
+        execute_tool(self, "replica_compare", async {
+            let db = Database::open(&params.db_path, &params.passphrase)
+                .map_err(|e| McpToolError::internal(e.to_string()))?;
             let conn = db.conn_arc();
             let store = EmbeddingStore::new(conn);
 
@@ -420,14 +364,18 @@ impl ReplicaServer {
                 let vectors = embedder
                     .embed_sentences(&emb_model, &[doc_text.as_str()])
                     .await
-                    .map_err(|e| format!("Failed to embed document: {e}"))?;
+                    .map_err(|e| {
+                        McpToolError::internal(format!("Failed to embed document: {e}"))
+                    })?;
                 let doc_vec = vectors
                     .first()
-                    .ok_or_else(|| "Embedding returned empty result".to_string())?;
+                    .ok_or_else(|| McpToolError::internal("Embedding returned empty result"))?;
 
                 // Query centroids for this persona
                 let prefix = format!("style:{}:", persona.as_deref().unwrap_or(""));
-                let all_refs = store.query_by_prefix(&prefix).map_err(|e| e.to_string())?;
+                let all_refs = store
+                    .query_by_prefix(&prefix)
+                    .map_err(|e| McpToolError::internal(e.to_string()))?;
 
                 // Count non-centroid passages for passage_count on each centroid
                 let total_passages = all_refs.iter().filter(|r| !is_centroid_entity(r)).count();
@@ -440,7 +388,9 @@ impl ReplicaServer {
                         continue;
                     }
 
-                    let emb = store.get(entity_ref).map_err(|e| e.to_string())?;
+                    let emb = store
+                        .get(entity_ref)
+                        .map_err(|e| McpToolError::internal(e.to_string()))?;
                     let dist = cosine_distance(doc_vec, &emb.vector);
 
                     // Derive dimension name from entity_ref.
@@ -500,11 +450,14 @@ impl ReplicaServer {
                     elapsed_ms: started.elapsed().as_millis() as u64,
                 };
 
-                return serde_json::to_string(&result).map_err(|e| e.to_string());
+                return Ok(serde_json::to_value(&result)
+                    .map_err(|e| McpToolError::internal(e.to_string()))?);
             }
 
             // ── Pairwise author comparison path (backward compat) ─────
-            let centroids = store.query_by_prefix("style:").map_err(|e| e.to_string())?;
+            let centroids = store
+                .query_by_prefix("style:")
+                .map_err(|e| McpToolError::internal(e.to_string()))?;
 
             let mut author_names: Vec<String> = Vec::new();
             let mut author_info: Vec<AuthorInfo> = Vec::new();
@@ -518,7 +471,9 @@ impl ReplicaServer {
                             continue;
                         }
                         let prefix = format!("style:{}:", name);
-                        let refs = store.query_by_prefix(&prefix).map_err(|e| e.to_string())?;
+                        let refs = store
+                            .query_by_prefix(&prefix)
+                            .map_err(|e| McpToolError::internal(e.to_string()))?;
                         let passage_count =
                             refs.iter().filter(|r| !r.ends_with(":centroid")).count();
                         author_names.push(name.clone());
@@ -548,26 +503,18 @@ impl ReplicaServer {
                 }
             }
 
-            serde_json::to_string(&CompareResult {
+            Ok(serde_json::to_value(&CompareResult {
                 authors: author_info,
                 distances,
             })
-            .map_err(|e| e.to_string())
-        };
-
-        match run.await {
-            Ok(json) => span.ok_json(serde_json::from_str(&json).unwrap_or(json!({}))),
-            Err(e) => internal_error(span, "compare authors", e),
-        }
+            .map_err(|e| McpToolError::internal(e.to_string()))?)
+        })
+        .await
     }
 
     #[tool(description = "Generate prose blending two authors' styles.")]
     pub async fn replica_mashup(&self, Parameters(params): Parameters<MashupRequest>) -> String {
-        let span = ToolSpanGuard::new("replica_mashup", &self.webid);
-        let author_a = params.author_a.clone();
-        let author_b = params.author_b.clone();
-
-        let run = async {
+        execute_tool(self, "replica_mashup", async {
             let blend = params.blend.clamp(0.0, 1.0);
             let centroid_a_ref = format!("style:{}:centroid", params.author_a);
             let centroid_b_ref = format!("style:{}:centroid", params.author_b);
@@ -576,22 +523,22 @@ impl ReplicaServer {
                 params.author_a, params.author_b
             );
 
-            let db =
-                Database::open(&params.db_path, &params.passphrase).map_err(|e| e.to_string())?;
+            let db = Database::open(&params.db_path, &params.passphrase)
+                .map_err(|e| McpToolError::internal(e.to_string()))?;
             let conn = db.conn_arc();
             let store = EmbeddingStore::new(Arc::clone(&conn));
 
             let emb_a = store.get(&centroid_a_ref).map_err(|_| {
-                format!(
+                McpToolError::invalid_argument(format!(
                     "Author '{}' not found. Run replica_build first.",
                     params.author_a
-                )
+                ))
             })?;
             let emb_b = store.get(&centroid_b_ref).map_err(|_| {
-                format!(
+                McpToolError::invalid_argument(format!(
                     "Author '{}' not found. Run replica_build first.",
                     params.author_b
-                )
+                ))
             })?;
 
             let blended: Vec<f32> = emb_a
@@ -608,7 +555,7 @@ impl ReplicaServer {
             let gen_model = generation_model();
             store
                 .store(&blended_ref, &blended, &model)
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| McpToolError::internal(e.to_string()))?;
 
             let inf_cfg = inference_config();
             let config = hkask_services::CognitionConfig {
@@ -638,9 +585,9 @@ impl ReplicaServer {
 
             let result = hkask_services::ComposeService::compose(request)
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| McpToolError::internal(e.to_string()))?;
 
-            serde_json::to_string(&MashupResult {
+            let json_str = serde_json::to_string(&MashupResult {
                 prose: result.generated_prose,
                 exemplar_count: result.exemplar_count,
                 blend_ratio: blend,
@@ -649,18 +596,12 @@ impl ReplicaServer {
                 distance_a: dist_a,
                 distance_b: dist_b,
             })
-            .map_err(|e| e.to_string())
-        };
+            .map_err(|e| McpToolError::internal(e.to_string()))?;
 
-        match run.await {
-            Ok(json) => {
-                let parsed: serde_json::Value = serde_json::from_str(&json).unwrap_or(json!({}));
-                let summary = format!("{} x {}", author_a, author_b);
-                self.record_experience("replica_mashup", &summary, "success", parsed.clone());
-                span.ok_json(parsed)
-            }
-            Err(e) => internal_error(span, "mashup styles", e),
-        }
+            let parsed: Value = serde_json::from_str(&json_str).unwrap_or(json!({}));
+            Ok(parsed)
+        })
+        .await
     }
 
     #[tool(description = "Manage the registry of built author replicas.")]
@@ -668,17 +609,17 @@ impl ReplicaServer {
         &self,
         Parameters(params): Parameters<RegistryRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("replica_registry", &self.webid);
-
-        let run = || -> Result<String, String> {
-            let db =
-                Database::open(&params.db_path, &params.passphrase).map_err(|e| e.to_string())?;
+        execute_tool(self, "replica_registry", async {
+            let db = Database::open(&params.db_path, &params.passphrase)
+                .map_err(|e| McpToolError::internal(e.to_string()))?;
             let conn = db.conn_arc();
             let store = EmbeddingStore::new(conn);
 
-            match params.action {
+            let json_str = match params.action {
                 RegistryAction::List => {
-                    let centroids = store.query_by_prefix("style:").map_err(|e| e.to_string())?;
+                    let centroids = store
+                        .query_by_prefix("style:")
+                        .map_err(|e| McpToolError::internal(e.to_string()))?;
                     let mut entries: Vec<RegistryEntry> = Vec::new();
                     for entity_ref in &centroids {
                         if entity_ref.ends_with(":centroid") {
@@ -686,8 +627,9 @@ impl ReplicaServer {
                             if parts.len() >= 3 {
                                 let name = parts[1].to_string();
                                 let prefix = format!("style:{}:", name);
-                                let refs =
-                                    store.query_by_prefix(&prefix).map_err(|e| e.to_string())?;
+                                let refs = store
+                                    .query_by_prefix(&prefix)
+                                    .map_err(|e| McpToolError::internal(e.to_string()))?;
                                 let passage_count =
                                     refs.iter().filter(|r| !r.ends_with(":centroid")).count();
                                 entries.push(RegistryEntry {
@@ -702,12 +644,14 @@ impl ReplicaServer {
                         message: format!("{} author replicas registered", entries.len()),
                         entries,
                     })
-                    .map_err(|e| e.to_string())
+                    .map_err(|e| McpToolError::internal(e.to_string()))?
                 }
                 RegistryAction::Remove { author } => {
                     let prefix = format!("style:{}:", author);
                     // Remove embeddings
-                    let refs = store.query_by_prefix(&prefix).map_err(|e| e.to_string())?;
+                    let refs = store
+                        .query_by_prefix(&prefix)
+                        .map_err(|e| McpToolError::internal(e.to_string()))?;
                     let emb_count = refs.len();
                     for entity_ref in &refs {
                         let _ = store.delete(entity_ref);
@@ -731,21 +675,20 @@ impl ReplicaServer {
                         ),
                         entries: vec![],
                     })
-                    .map_err(|e| e.to_string())
+                    .map_err(|e| McpToolError::internal(e.to_string()))?
                 }
-            }
-        };
+            };
 
-        match run() {
-            Ok(json) => span.ok_json(serde_json::from_str(&json).unwrap_or(json!({}))),
-            Err(e) => internal_error(span, "manage registry", e),
-        }
+            let parsed: Value = serde_json::from_str(&json_str).unwrap_or(json!({}));
+            Ok(parsed)
+        })
+        .await
     }
 
     #[tool(description = "Explain what style centroids are and how the metadata layer works.")]
     pub async fn replica_explain(&self) -> String {
-        let span = ToolSpanGuard::new("replica_explain", &self.webid);
-        span.ok_json(json!({
+        execute_tool(self, "replica_explain", async {
+            Ok(json!({
             "what_is_a_centroid": "A style centroid is the average of all embedded passage vectors for an author. Each passage (50-200 words) is converted to a 1024-dimensional vector via DeepInfra's Qwen3-Embedding-0.6B. The centroid is the 'average passage' — prose that matches the author's style will have a low cosine distance to it.",
             "metadata_layer": {
                 "description": "Each embedded passage is enriched with metadata triples (entity-attribute-value) stored alongside embeddings. This enables parametric retrieval beyond pure vector similarity.",
@@ -807,6 +750,8 @@ impl ReplicaServer {
                 "human_exemplar_principle": "All exemplar types model a named human individual whose body of work constitutes a representational corpus. The logical validity of the replica derives from the relationship between the human and their work — the corpus IS the evidence of their voice, style, and intellectual framework."
             }
         }))
+    })
+        .await
     }
 
     #[tool(
@@ -816,21 +761,17 @@ impl ReplicaServer {
         &self,
         Parameters(params): Parameters<DiscoverRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("replica_discover", &self.webid);
+        execute_tool(self, "replica_discover", async {
         let author_name = params.author_name.clone();
 
         // Validate mode
         let mode = match params.mode.as_str() {
             "agentic" | "curated" => params.mode.clone(),
             other => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(format!(
-                        "Invalid mode '{}'. Use 'agentic' or 'curated'.",
-                        other
-                    ))
-                    .to_json_string(),
-                );
+                return Err(McpToolError::invalid_argument(format!(
+                    "Invalid mode '{}'. Use 'agentic' or 'curated'.",
+                    other
+                )));
             }
         };
 
@@ -912,14 +853,9 @@ impl ReplicaServer {
         let output = serde_json::to_value(&result)
             .unwrap_or_else(|_| serde_json::json!({"error": "serialization failed"}));
 
-        self.record_experience(
-            "replica_discover",
-            &params.author_name,
-            "delegated_to_manifest",
-            output.clone(),
-        );
-
-        span.ok_json(output)
+        Ok(output)
+        })
+        .await
     }
 
     #[tool(
@@ -929,57 +865,52 @@ impl ReplicaServer {
         &self,
         Parameters(params): Parameters<CacheWorkRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("replica_cache_work", &self.webid);
-
-        // Validate slug: alphanumeric + hyphens only, no path traversal
-        if params.slug.is_empty()
-            || !params
-                .slug
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-        {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(format!(
+        execute_tool(self, "replica_cache_work", async {
+            // Validate slug: alphanumeric + hyphens only, no path traversal
+            if params.slug.is_empty()
+                || !params
+                    .slug
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+            {
+                return Err(McpToolError::invalid_argument(format!(
                     "Invalid slug '{}': must be alphanumeric with hyphens/underscores only",
                     params.slug
-                ))
-                .to_json_string(),
-            );
-        }
-
-        let cache_dir = PathBuf::from(&params.cache_dir);
-        let cache_path = cache_dir.join(format!("{}.txt", params.slug));
-
-        // Create cache directory if it doesn't exist
-        if let Err(e) = std::fs::create_dir_all(&cache_dir) {
-            return span.internal_error(serde_json::json!({
-                "error": format!("Failed to create cache directory '{}': {}", cache_dir.display(), e),
-            }));
-        }
-
-        let bytes = params.content.as_bytes();
-        match std::fs::write(&cache_path, bytes) {
-            Ok(()) => {
-                let result = CacheWorkResult {
-                    slug: params.slug.clone(),
-                    path: cache_path.to_string_lossy().to_string(),
-                    bytes_written: bytes.len() as u64,
-                };
-                let output = serde_json::to_value(&result)
-                    .unwrap_or_else(|_| serde_json::json!({"error": "serialization failed"}));
-                self.record_experience(
-                    "replica_cache_work",
-                    &params.slug,
-                    "success",
-                    output.clone(),
-                );
-                span.ok_json(output)
+                )));
             }
-            Err(e) => span.internal_error(serde_json::json!({
-                "error": format!("Failed to write cache file '{}': {}", cache_path.display(), e),
-            })),
-        }
+
+            let cache_dir = PathBuf::from(&params.cache_dir);
+            let cache_path = cache_dir.join(format!("{}.txt", params.slug));
+
+            // Create cache directory if it doesn't exist
+            if let Err(e) = std::fs::create_dir_all(&cache_dir) {
+                return Err(McpToolError::internal(format!(
+                    "Failed to create cache directory '{}': {}",
+                    cache_dir.display(),
+                    e
+                )));
+            }
+
+            let bytes = params.content.as_bytes();
+            match std::fs::write(&cache_path, bytes) {
+                Ok(()) => {
+                    let result = CacheWorkResult {
+                        slug: params.slug.clone(),
+                        path: cache_path.to_string_lossy().to_string(),
+                        bytes_written: bytes.len() as u64,
+                    };
+                    let output = serde_json::to_value(&result)
+                        .unwrap_or_else(|_| serde_json::json!({"error": "serialization failed"}));
+                    Ok(output)
+                }
+                Err(e) => Err(McpToolError::internal(format!(
+                    "Failed to write cache file '{}': {}",
+                    cache_path.display(),
+                    e
+                ))),
+            }
+        })
+        .await
     }
 }
 

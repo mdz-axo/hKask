@@ -26,12 +26,11 @@
 
 pub mod types;
 
-use hkask_mcp::server::{McpToolError, ToolSpanGuard};
-use hkask_mcp::validate_field;
+use hkask_mcp::server::{McpToolError, execute_tool};
+use hkask_mcp::validate_identifier;
 use hkask_memory::{EpisodicMemory, SemanticMemory};
 use hkask_storage::Triple;
-use hkask_types::time::now_rfc3339;
-use hkask_types::{McpErrorKind, Visibility, WebID};
+use hkask_types::{Visibility, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use serde_json::json;
@@ -71,53 +70,6 @@ impl MemoryServer {
             daemon,
         }
     }
-
-    fn internal_error(
-        &self,
-        span: ToolSpanGuard,
-        context: &str,
-        e: impl std::fmt::Display,
-    ) -> String {
-        hkask_mcp::tool_internal_error(span, context, e)
-    }
-
-    /// Record a tool call as a narrative experience in the agent's memory.
-    fn record_experience(
-        &self,
-        tool: &str,
-        input_summary: &str,
-        outcome: &str,
-        detail: serde_json::Value,
-    ) {
-        if let Some(ref daemon) = self.daemon {
-            let value = serde_json::json!({
-                "tool": tool,
-                "input": input_summary,
-                "outcome": outcome,
-                "detail": detail,
-                "timestamp": now_rfc3339(),
-            });
-            let daemon_clone = daemon.clone();
-            let replicant = self.replicant.clone();
-            let tool_name = tool.to_string();
-            tokio::spawn(async move {
-                match daemon_clone
-                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
-                    .await
-                {
-                    Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
-                        tracing::debug!(target: "hkask.mcp.memory.memory", tool = %tool_name, "Experience stored via daemon");
-                    }
-                    Ok(other) => {
-                        tracing::warn!(target: "hkask.mcp.memory.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
-                    }
-                    Err(e) => {
-                        tracing::warn!(target: "hkask.mcp.memory.memory", tool = %tool_name, error = %e, "Failed to store experience")
-                    }
-                }
-            });
-        }
-    }
 }
 
 impl hkask_mcp::server::ToolContext for MemoryServer {
@@ -136,12 +88,14 @@ impl MemoryServer {
 
     #[tool(description = "Liveness and storage info for episodic memory")]
     pub async fn episodic_ping(&self) -> String {
-        let span = ToolSpanGuard::new("episodic_ping", &self.webid);
-        span.ok_json(json!({
-            "status": "ok",
-            "server": "hkask-mcp-memory",
-            "perspective": self.webid.to_string(),
-        }))
+        execute_tool(self, "episodic_ping", async {
+            Ok(json!({
+                "status": "ok",
+                "server": "hkask-mcp-memory",
+                "perspective": self.webid.to_string(),
+            }))
+        })
+        .await
     }
 
     #[tool(description = "Store an episodic triple (private, perspective-bound)")]
@@ -154,29 +108,21 @@ impl MemoryServer {
             confidence,
         }): Parameters<StoreRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("episodic_store", &self.webid);
-        validate_field!(span, "entity", &entity, 256);
-        validate_field!(span, "attribute", &attribute, 256);
-        let triple = Triple::new(&entity, &attribute, value, self.webid)
-            .with_perspective(self.webid)
-            .with_confidence(confidence.unwrap_or(1.0))
-            .with_visibility(Visibility::Private);
-        match self.episodic.store(triple) {
-            Ok(()) => {
-                self.record_experience(
-                    "episodic_store",
-                    &format!("{}:{}", entity, attribute),
-                    "stored",
-                    serde_json::json!({"entity": entity, "attribute": attribute}),
-                );
-                span.ok_json(json!({
-                    "stored": true, "entity": entity, "attribute": attribute,
-                }))
-            }
-            Err(e) => span.internal_error(
-                json!({"error": format!("Failed to store episodic triple: {}", e)}),
-            ),
-        }
+        execute_tool(self, "episodic_store", async {
+            validate_identifier("entity", &entity, 256)?;
+            validate_identifier("attribute", &attribute, 256)?;
+            let triple = Triple::new(&entity, &attribute, value, self.webid)
+                .with_perspective(self.webid)
+                .with_confidence(confidence.unwrap_or(1.0))
+                .with_visibility(Visibility::Private);
+            self.episodic.store(triple).map_err(|e| {
+                McpToolError::internal(format!("store episodic triple: {}", e))
+            })?;
+            Ok(json!({
+                "stored": true, "entity": entity, "attribute": attribute,
+            }))
+        })
+        .await
     }
 
     #[tool(description = "Recall episodic triples by entity (filtered by caller's WebID)")]
@@ -184,28 +130,29 @@ impl MemoryServer {
         &self,
         Parameters(RecallRequest { entity }): Parameters<RecallRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("episodic_recall", &self.webid);
-        validate_field!(span, "entity", &entity, 256);
-        match self.episodic.query_for_deduped(&entity, self.webid) {
-            Ok(triples) => {
-                let serialized: Vec<serde_json::Value> = triples
-                    .iter()
-                    .map(|t| {
-                        json!({
-                            "entity": t.entity,
-                            "attribute": t.attribute,
-                            "value": t.value,
-                            "confidence": t.confidence,
-                            "valid_from": t.temporal.valid_from.to_rfc3339(),
-                        })
+        execute_tool(self, "episodic_recall", async {
+            validate_identifier("entity", &entity, 256)?;
+            let triples = self
+                .episodic
+                .query_for_deduped(&entity, self.webid)
+                .map_err(|e| {
+                    McpToolError::internal(format!("recall episodic triples: {}", e))
+                })?;
+            let serialized: Vec<serde_json::Value> = triples
+                .iter()
+                .map(|t| {
+                    json!({
+                        "entity": t.entity,
+                        "attribute": t.attribute,
+                        "value": t.value,
+                        "confidence": t.confidence,
+                        "valid_from": t.temporal.valid_from.to_rfc3339(),
                     })
-                    .collect();
-                span.ok_json(json!({"count": serialized.len(), "triples": serialized}))
-            }
-            Err(e) => span.internal_error(
-                json!({"error": format!("Failed to recall episodic triples: {}", e)}),
-            ),
-        }
+                })
+                .collect();
+            Ok(json!({"count": serialized.len(), "triples": serialized}))
+        })
+        .await
     }
 
     #[tool(
@@ -222,100 +169,99 @@ impl MemoryServer {
             limit,
         }): Parameters<RecallContextRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("episodic_recall_context", &self.webid);
-        validate_field!(span, "entity", &entity, 256);
-        let limit = limit.unwrap_or(10);
+        execute_tool(self, "episodic_recall_context", async {
+            validate_identifier("entity", &entity, 256)?;
+            let limit = limit.unwrap_or(10);
 
-        let triples = match self.episodic.query_for_deduped(&entity, self.webid) {
-            Ok(t) if !t.is_empty() => t,
-            Ok(_) => {
-                return span.ok_json(json!({"count": 0, "episodes": []}));
+            let triples = self
+                .episodic
+                .query_for_deduped(&entity, self.webid)
+                .map_err(|e| {
+                    McpToolError::internal(format!("recall episodic triples: {}", e))
+                })?;
+
+            if triples.is_empty() {
+                return Ok(json!({"count": 0, "episodes": []}));
             }
-            Err(e) => {
-                return span.internal_error(
-                    json!({"error": format!("Failed to recall episodic triples: {}", e)}),
-                );
-            }
-        };
 
-        if let Some(ref ctx) = context {
-            // Salience-scored: build keywords from context, score each episode
-            let ctx_lower = ctx.to_lowercase();
-            let keywords: Vec<&str> = ctx_lower
-                .split_whitespace()
-                .filter(|w| w.len() > 2)
-                .collect();
+            if let Some(ref ctx) = context {
+                // Salience-scored: build keywords from context, score each episode
+                let ctx_lower = ctx.to_lowercase();
+                let keywords: Vec<&str> = ctx_lower
+                    .split_whitespace()
+                    .filter(|w| w.len() > 2)
+                    .collect();
 
-            let mut scored: Vec<(usize, serde_json::Value)> = triples
-                .iter()
-                .filter_map(|t| {
-                    let v = t.value.as_object()?;
-                    let ui = v.get("user_input")?.as_str()?;
-                    let ar = v.get("agent_response")?.as_str()?;
-                    let combined = format!("{} {}", ui.to_lowercase(), ar.to_lowercase());
-                    let score = keywords.iter().filter(|kw| combined.contains(*kw)).count();
-                    Some((
-                        score,
-                        json!({
+                let mut scored: Vec<(usize, serde_json::Value)> = triples
+                    .iter()
+                    .filter_map(|t| {
+                        let v = t.value.as_object()?;
+                        let ui = v.get("user_input")?.as_str()?;
+                        let ar = v.get("agent_response")?.as_str()?;
+                        let combined = format!("{} {}", ui.to_lowercase(), ar.to_lowercase());
+                        let score = keywords.iter().filter(|kw| combined.contains(*kw)).count();
+                        Some((
+                            score,
+                            json!({
+                                "user_input": ui,
+                                "agent_response": ar,
+                                "salience": score,
+                                "confidence": t.confidence,
+                                "valid_from": t.temporal.valid_from.to_rfc3339(),
+                            }),
+                        ))
+                    })
+                    .collect();
+
+                scored.sort_by(|a, b| b.0.cmp(&a.0));
+                let episodes: Vec<serde_json::Value> =
+                    scored.into_iter().take(limit).map(|(_, v)| v).collect();
+
+                Ok(json!({
+                    "count": episodes.len(),
+                    "context": ctx,
+                    "episodes": episodes,
+                }))
+            } else {
+                // No context: return most recent episodes, sorted by recency (reverse order)
+                let episodes: Vec<serde_json::Value> = triples
+                    .iter()
+                    .rev()
+                    .take(limit)
+                    .filter_map(|t| {
+                        let v = t.value.as_object()?;
+                        let ui = v.get("user_input")?.as_str()?;
+                        let ar = v.get("agent_response")?.as_str()?;
+                        Some(json!({
                             "user_input": ui,
                             "agent_response": ar,
-                            "salience": score,
                             "confidence": t.confidence,
                             "valid_from": t.temporal.valid_from.to_rfc3339(),
-                        }),
-                    ))
-                })
-                .collect();
+                        }))
+                    })
+                    .collect();
 
-            scored.sort_by(|a, b| b.0.cmp(&a.0));
-            let episodes: Vec<serde_json::Value> =
-                scored.into_iter().take(limit).map(|(_, v)| v).collect();
-
-            span.ok_json(json!({
-                "count": episodes.len(),
-                "context": ctx,
-                "episodes": episodes,
-            }))
-        } else {
-            // No context: return most recent episodes, sorted by recency (reverse order)
-            let episodes: Vec<serde_json::Value> = triples
-                .iter()
-                .rev()
-                .take(limit)
-                .filter_map(|t| {
-                    let v = t.value.as_object()?;
-                    let ui = v.get("user_input")?.as_str()?;
-                    let ar = v.get("agent_response")?.as_str()?;
-                    Some(json!({
-                        "user_input": ui,
-                        "agent_response": ar,
-                        "confidence": t.confidence,
-                        "valid_from": t.temporal.valid_from.to_rfc3339(),
-                    }))
-                })
-                .collect();
-
-            span.ok_json(json!({
-                "count": episodes.len(),
-                "episodes": episodes,
-            }))
-        }
+                Ok(json!({
+                    "count": episodes.len(),
+                    "episodes": episodes,
+                }))
+            }
+        })
+        .await
     }
 
     #[tool(description = "Storage usage and budget for episodic memory")]
     pub async fn episodic_budget(&self, Parameters(_budget): Parameters<BudgetRequest>) -> String {
-        let span = ToolSpanGuard::new("episodic_budget", &self.webid);
-        let usage = match self.episodic.storage_usage(&self.webid) {
-            Ok(u) => u,
-            Err(e) => {
-                return span.internal_error(
-                    json!({"error": format!("Failed to query storage usage: {}", e)}),
-                );
-            }
-        };
-        let budget = self.episodic.storage_budget();
-        let remaining = budget.saturating_sub(usage);
-        span.ok_json(json!({"used": usage, "budget": budget, "remaining": remaining}))
+        execute_tool(self, "episodic_budget", async {
+            let usage = self
+                .episodic
+                .storage_usage(&self.webid)
+                .map_err(|e| McpToolError::internal(format!("storage usage: {}", e)))?;
+            let budget = self.episodic.storage_budget();
+            let remaining = budget.saturating_sub(usage);
+            Ok(json!({"used": usage, "budget": budget, "remaining": remaining}))
+        })
+        .await
     }
 
     #[tool(
@@ -325,32 +271,32 @@ impl MemoryServer {
         &self,
         Parameters(_req): Parameters<ConsolidateStatusRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("episodic_consolidate_status", &self.webid);
-        let candidate_count = self.episodic.consolidation_candidate_count(&self.webid);
-        let usage = match self.episodic.storage_usage(&self.webid) {
-            Ok(u) => u,
-            Err(e) => {
-                return span.internal_error(
-                    json!({"error": format!("Failed to query storage usage: {}", e)}),
-                );
-            }
-        };
-        let budget = self.episodic.storage_budget();
-        let over_budget = usage > budget;
-        span.ok_json(json!({
-            "consolidation_candidates": candidate_count,
-            "episodic_usage": usage,
-            "episodic_budget": budget,
-            "over_budget": over_budget,
-        }))
+        execute_tool(self, "episodic_consolidate_status", async {
+            let candidate_count = self.episodic.consolidation_candidate_count(&self.webid);
+            let usage = self
+                .episodic
+                .storage_usage(&self.webid)
+                .map_err(|e| McpToolError::internal(format!("storage usage: {}", e)))?;
+            let budget = self.episodic.storage_budget();
+            let over_budget = usage > budget;
+            Ok(json!({
+                "consolidation_candidates": candidate_count,
+                "episodic_usage": usage,
+                "episodic_budget": budget,
+                "over_budget": over_budget,
+            }))
+        })
+        .await
     }
 
     // ── Semantic tools ──────────────────────────────────────────
 
     #[tool(description = "Liveness and storage info for semantic memory")]
     pub async fn semantic_ping(&self) -> String {
-        let span = ToolSpanGuard::new("semantic_ping", &self.webid);
-        span.ok_json(json!({"status": "ok", "server": "hkask-mcp-memory"}))
+        execute_tool(self, "semantic_ping", async {
+            Ok(json!({"status": "ok", "server": "hkask-mcp-memory"}))
+        })
+        .await
     }
 
     #[tool(description = "Store a shared semantic triple (no perspective)")]
@@ -363,24 +309,18 @@ impl MemoryServer {
             confidence,
         }): Parameters<StoreRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("semantic_store", &self.webid);
-        validate_field!(span, "entity", &entity, 256);
-        validate_field!(span, "attribute", &attribute, 256);
-        let triple = Triple::new(&entity, &attribute, value, self.webid)
-            .with_visibility(Visibility::Public)
-            .with_confidence(confidence.unwrap_or(1.0));
-        match self.semantic.store(triple) {
-            Ok(()) => {
-                self.record_experience(
-                    "semantic_store",
-                    &format!("{}:{}", entity, attribute),
-                    "stored",
-                    serde_json::json!({"entity": entity, "attribute": attribute}),
-                );
-                span.ok_json(json!({"stored": true, "entity": entity, "attribute": attribute}))
-            }
-            Err(e) => self.internal_error(span, "store semantic triple", e),
-        }
+        execute_tool(self, "semantic_store", async {
+            validate_identifier("entity", &entity, 256)?;
+            validate_identifier("attribute", &attribute, 256)?;
+            let triple = Triple::new(&entity, &attribute, value, self.webid)
+                .with_visibility(Visibility::Public)
+                .with_confidence(confidence.unwrap_or(1.0));
+            self.semantic.store(triple).map_err(|e| {
+                McpToolError::internal(format!("store semantic triple: {}", e))
+            })?;
+            Ok(json!({"stored": true, "entity": entity, "attribute": attribute}))
+        })
+        .await
     }
 
     #[tool(description = "Recall shared semantic triples by entity")]
@@ -388,26 +328,29 @@ impl MemoryServer {
         &self,
         Parameters(RecallRequest { entity }): Parameters<RecallRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("semantic_recall", &self.webid);
-        validate_field!(span, "entity", &entity, 256);
-        match self.semantic.query_deduped(&entity) {
-            Ok(triples) => {
-                let serialized: Vec<_> = triples
-                    .iter()
-                    .map(|t| {
-                        json!({
-                            "entity": t.entity,
-                            "attribute": t.attribute,
-                            "value": t.value,
-                            "confidence": t.confidence,
-                            "valid_from": t.temporal.valid_from.to_rfc3339(),
-                        })
+        execute_tool(self, "semantic_recall", async {
+            validate_identifier("entity", &entity, 256)?;
+            let triples = self
+                .semantic
+                .query_deduped(&entity)
+                .map_err(|e| {
+                    McpToolError::internal(format!("recall semantic triples: {}", e))
+                })?;
+            let serialized: Vec<_> = triples
+                .iter()
+                .map(|t| {
+                    json!({
+                        "entity": t.entity,
+                        "attribute": t.attribute,
+                        "value": t.value,
+                        "confidence": t.confidence,
+                        "valid_from": t.temporal.valid_from.to_rfc3339(),
                     })
-                    .collect();
-                span.ok_json(json!({"count": serialized.len(), "triples": serialized}))
-            }
-            Err(e) => self.internal_error(span, "recall semantic triples", e),
-        }
+                })
+                .collect();
+            Ok(json!({"count": serialized.len(), "triples": serialized}))
+        })
+        .await
     }
 
     // ── FlowDef dispatch tools — route by memory_type ───────────────────
@@ -425,33 +368,35 @@ impl MemoryServer {
             memory_type,
         }): Parameters<MemoryDispatchRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("remember", &self.webid);
-        match memory_type.as_str() {
-            "semantic" => {
-                validate_field!(span, "entity", &entity, 256);
-                validate_field!(span, "attribute", &attribute, 256);
-                let triple = Triple::new(&entity, &attribute, value, self.webid)
-                    .with_visibility(Visibility::Public)
-                    .with_confidence(confidence.unwrap_or(1.0));
-                match self.semantic.store(triple) {
-                    Ok(()) => span.ok_json(json!({"stored": true, "entity": entity, "attribute": attribute, "memory_type": "semantic"})),
-                    Err(e) => self.internal_error(span, "store semantic triple", e),
+        execute_tool(self, "remember", async {
+            match memory_type.as_str() {
+                "semantic" => {
+                    validate_identifier("entity", &entity, 256)?;
+                    validate_identifier("attribute", &attribute, 256)?;
+                    let triple = Triple::new(&entity, &attribute, value, self.webid)
+                        .with_visibility(Visibility::Public)
+                        .with_confidence(confidence.unwrap_or(1.0));
+                    self.semantic.store(triple).map_err(|e| {
+                        McpToolError::internal(format!("store semantic triple: {}", e))
+                    })?;
+                    Ok(json!({"stored": true, "entity": entity, "attribute": attribute, "memory_type": "semantic"}))
+                }
+                _ => {
+                    // Default: episodic
+                    validate_identifier("entity", &entity, 256)?;
+                    validate_identifier("attribute", &attribute, 256)?;
+                    let triple = Triple::new(&entity, &attribute, value, self.webid)
+                        .with_perspective(self.webid)
+                        .with_confidence(confidence.unwrap_or(1.0))
+                        .with_visibility(Visibility::Private);
+                    self.episodic.store(triple).map_err(|e| {
+                        McpToolError::internal(format!("store episodic triple: {}", e))
+                    })?;
+                    Ok(json!({"stored": true, "entity": entity, "attribute": attribute, "memory_type": "episodic"}))
                 }
             }
-            _ => {
-                // Default: episodic
-                validate_field!(span, "entity", &entity, 256);
-                validate_field!(span, "attribute", &attribute, 256);
-                let triple = Triple::new(&entity, &attribute, value, self.webid)
-                    .with_perspective(self.webid)
-                    .with_confidence(confidence.unwrap_or(1.0))
-                    .with_visibility(Visibility::Private);
-                match self.episodic.store(triple) {
-                    Ok(()) => span.ok_json(json!({"stored": true, "entity": entity, "attribute": attribute, "memory_type": "episodic"})),
-                    Err(e) => self.internal_error(span, "store episodic triple", e),
-                }
-            }
-        }
+        })
+        .await
     }
 
     #[tool(description = "Recall memory triples by entity — routes based on memory_type")]
@@ -462,35 +407,33 @@ impl MemoryServer {
             memory_type,
         }): Parameters<RecallDispatchRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("recall", &self.webid);
-        match memory_type.as_str() {
-            "semantic" => {
-                validate_field!(span, "entity", &entity, 256);
-                match self.semantic.query_deduped(&entity) {
-                    Ok(triples) => {
-                        let serialized: Vec<serde_json::Value> = triples.iter().map(|t| json!({
-                            "entity": t.entity, "attribute": t.attribute, "value": t.value,
-                            "confidence": t.confidence, "valid_from": t.temporal.valid_from.to_rfc3339(),
-                        })).collect();
-                        span.ok_json(json!({"count": serialized.len(), "triples": serialized, "memory_type": "semantic"}))
-                    }
-                    Err(e) => self.internal_error(span, "recall semantic triples", e),
+        execute_tool(self, "recall", async {
+            match memory_type.as_str() {
+                "semantic" => {
+                    validate_identifier("entity", &entity, 256)?;
+                    let triples = self.semantic.query_deduped(&entity).map_err(|e| {
+                        McpToolError::internal(format!("recall semantic triples: {}", e))
+                    })?;
+                    let serialized: Vec<serde_json::Value> = triples.iter().map(|t| json!({
+                        "entity": t.entity, "attribute": t.attribute, "value": t.value,
+                        "confidence": t.confidence, "valid_from": t.temporal.valid_from.to_rfc3339(),
+                    })).collect();
+                    Ok(json!({"count": serialized.len(), "triples": serialized, "memory_type": "semantic"}))
+                }
+                _ => {
+                    validate_identifier("entity", &entity, 256)?;
+                    let triples = self.episodic.query_for_deduped(&entity, self.webid).map_err(|e| {
+                        McpToolError::internal(format!("recall episodic triples: {}", e))
+                    })?;
+                    let serialized: Vec<serde_json::Value> = triples.iter().map(|t| json!({
+                        "entity": t.entity, "attribute": t.attribute, "value": t.value,
+                        "confidence": t.confidence, "valid_from": t.temporal.valid_from.to_rfc3339(),
+                    })).collect();
+                    Ok(json!({"count": serialized.len(), "triples": serialized, "memory_type": "episodic"}))
                 }
             }
-            _ => {
-                validate_field!(span, "entity", &entity, 256);
-                match self.episodic.query_for_deduped(&entity, self.webid) {
-                    Ok(triples) => {
-                        let serialized: Vec<serde_json::Value> = triples.iter().map(|t| json!({
-                            "entity": t.entity, "attribute": t.attribute, "value": t.value,
-                            "confidence": t.confidence, "valid_from": t.temporal.valid_from.to_rfc3339(),
-                        })).collect();
-                        span.ok_json(json!({"count": serialized.len(), "triples": serialized, "memory_type": "episodic"}))
-                    }
-                    Err(e) => self.internal_error(span, "recall episodic triples", e),
-                }
-            }
-        }
+        })
+        .await
     }
 
     #[tool(
@@ -507,13 +450,15 @@ impl MemoryServer {
             limit,
         }): Parameters<PairedRecallRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("memory_recall", &self.webid);
-        validate_field!(span, "entity", &entity, 256);
-        let limit = limit.unwrap_or(10);
+        execute_tool(self, "memory_recall", async {
+            validate_identifier("entity", &entity, 256)?;
+            let limit = limit.unwrap_or(10);
 
-        // ── Semantic recall (third-person facts, no personal filter) ──
-        let semantic = match self.semantic.query_deduped(&entity) {
-            Ok(triples) => triples
+            // ── Semantic recall (third-person facts, no personal filter) ──
+            let semantic_triples = self.semantic.query_deduped(&entity).map_err(|e| {
+                McpToolError::internal(format!("recall semantic memory: {}", e))
+            })?;
+            let semantic: Vec<_> = semantic_triples
                 .iter()
                 .take(limit)
                 .map(|t| {
@@ -525,86 +470,85 @@ impl MemoryServer {
                         "valid_from": t.temporal.valid_from.to_rfc3339(),
                     })
                 })
-                .collect::<Vec<_>>(),
-            Err(e) => {
-                return self.internal_error(span, "recall semantic memory", e);
-            }
-        };
+                .collect();
 
-        // ── Episodic recall (first-person, filtered by caller's WebID) ──
-        let episodic_triples = match self.episodic.query_for_deduped(&entity, self.webid) {
-            Ok(t) if !t.is_empty() => t,
-            Ok(_) => {
-                return span.ok_json(json!({
+            // ── Episodic recall (first-person, filtered by caller's WebID) ──
+            let episodic_triples = self
+                .episodic
+                .query_for_deduped(&entity, self.webid)
+                .map_err(|e| {
+                    McpToolError::internal(format!("recall episodic memory: {}", e))
+                })?;
+
+            if episodic_triples.is_empty() {
+                return Ok(json!({
                     "entity": entity,
                     "semantic": { "count": semantic.len(), "triples": semantic },
                     "episodic": { "count": 0, "episodes": [] },
                 }));
             }
-            Err(e) => {
-                return self.internal_error(span, "recall episodic memory", e);
-            }
-        };
 
-        let episodic = if let Some(ref ctx) = context {
-            // Salience-scored episodic recall (mirrors ChatService::recall_episodic)
-            let ctx_lower = ctx.to_lowercase();
-            let keywords: Vec<&str> = ctx_lower
-                .split_whitespace()
-                .filter(|w| w.len() > 2)
-                .collect();
+            let episodic = if let Some(ref ctx) = context {
+                // Salience-scored episodic recall (mirrors ChatService::recall_episodic)
+                let ctx_lower = ctx.to_lowercase();
+                let keywords: Vec<&str> = ctx_lower
+                    .split_whitespace()
+                    .filter(|w| w.len() > 2)
+                    .collect();
 
-            let mut scored: Vec<(usize, serde_json::Value)> = episodic_triples
-                .iter()
-                .filter_map(|t| {
-                    let v = t.value.as_object()?;
-                    let ui = v.get("user_input")?.as_str()?;
-                    let ar = v.get("agent_response")?.as_str()?;
-                    let combined = format!("{} {}", ui.to_lowercase(), ar.to_lowercase());
-                    let score = keywords.iter().filter(|kw| combined.contains(*kw)).count();
-                    Some((
-                        score,
-                        json!({
+                let mut scored: Vec<(usize, serde_json::Value)> = episodic_triples
+                    .iter()
+                    .filter_map(|t| {
+                        let v = t.value.as_object()?;
+                        let ui = v.get("user_input")?.as_str()?;
+                        let ar = v.get("agent_response")?.as_str()?;
+                        let combined = format!("{} {}", ui.to_lowercase(), ar.to_lowercase());
+                        let score = keywords.iter().filter(|kw| combined.contains(*kw)).count();
+                        Some((
+                            score,
+                            json!({
+                                "user_input": ui,
+                                "agent_response": ar,
+                                "salience": score,
+                                "confidence": t.confidence,
+                                "valid_from": t.temporal.valid_from.to_rfc3339(),
+                            }),
+                        ))
+                    })
+                    .collect();
+                scored.sort_by(|a, b| b.0.cmp(&a.0));
+                scored
+                    .into_iter()
+                    .take(limit)
+                    .map(|(_, v)| v)
+                    .collect::<Vec<_>>()
+            } else {
+                // No context: most recent by recency
+                episodic_triples
+                    .iter()
+                    .rev()
+                    .take(limit)
+                    .filter_map(|t| {
+                        let v = t.value.as_object()?;
+                        let ui = v.get("user_input")?.as_str()?;
+                        let ar = v.get("agent_response")?.as_str()?;
+                        Some(json!({
                             "user_input": ui,
                             "agent_response": ar,
-                            "salience": score,
                             "confidence": t.confidence,
                             "valid_from": t.temporal.valid_from.to_rfc3339(),
-                        }),
-                    ))
-                })
-                .collect();
-            scored.sort_by(|a, b| b.0.cmp(&a.0));
-            scored
-                .into_iter()
-                .take(limit)
-                .map(|(_, v)| v)
-                .collect::<Vec<_>>()
-        } else {
-            // No context: most recent by recency
-            episodic_triples
-                .iter()
-                .rev()
-                .take(limit)
-                .filter_map(|t| {
-                    let v = t.value.as_object()?;
-                    let ui = v.get("user_input")?.as_str()?;
-                    let ar = v.get("agent_response")?.as_str()?;
-                    Some(json!({
-                        "user_input": ui,
-                        "agent_response": ar,
-                        "confidence": t.confidence,
-                        "valid_from": t.temporal.valid_from.to_rfc3339(),
-                    }))
-                })
-                .collect::<Vec<_>>()
-        };
+                        }))
+                    })
+                    .collect::<Vec<_>>()
+            };
 
-        span.ok_json(json!({
-            "entity": entity,
-            "semantic": { "count": semantic.len(), "triples": semantic },
-            "episodic": { "count": episodic.len(), "episodes": episodic },
-        }))
+            Ok(json!({
+                "entity": entity,
+                "semantic": { "count": semantic.len(), "triples": semantic },
+                "episodic": { "count": episodic.len(), "episodes": episodic },
+            }))
+        })
+        .await
     }
 
     #[tool(description = "Store an embedding vector for similarity search")]
@@ -616,23 +560,22 @@ impl MemoryServer {
             model,
         }): Parameters<EmbedRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("semantic_embed", &self.webid);
-        validate_field!(span, "entity_ref", &entity_ref, 256);
-        if vector.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("vector must not be empty").to_json_string(),
-            );
-        }
-        match self.semantic.store_embedding(&entity_ref, &vector, &model) {
-            Ok(_id) => span.ok_json(json!({
+        execute_tool(self, "semantic_embed", async {
+            validate_identifier("entity_ref", &entity_ref, 256)?;
+            if vector.is_empty() {
+                return Err(McpToolError::invalid_argument("vector must not be empty"));
+            }
+            self.semantic
+                .store_embedding(&entity_ref, &vector, &model)
+                .map_err(|e| McpToolError::internal(format!("store embedding: {}", e)))?;
+            Ok(json!({
                 "stored": true,
                 "entity_ref": entity_ref,
                 "model": model,
                 "dimensions": vector.len(),
-            })),
-            Err(e) => self.internal_error(span, "store embedding", e),
-        }
+            }))
+        })
+        .await
     }
 
     #[tool(description = "KNN similarity search over embeddings")]
@@ -643,38 +586,29 @@ impl MemoryServer {
             limit,
         }): Parameters<SearchRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("semantic_search", &self.webid);
-        if query_vector.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("query_vector must not be empty").to_json_string(),
-            );
-        }
-        match self
-            .semantic
-            .search_similar(&query_vector, limit.unwrap_or(10))
-        {
-            Ok(results) => {
-                let serialized: Vec<_> = results
-                    .iter()
-                    .map(|r| {
-                        json!({
-                            "entity_ref": r.embedding.entity_ref,
-                            "model": r.embedding.model,
-                            "distance": r.distance,
-                        })
-                    })
-                    .collect();
-                self.record_experience(
-                    "semantic_search",
-                    &format!("dim={}", query_vector.len()),
-                    "success",
-                    serde_json::json!({"count": serialized.len()}),
-                );
-                span.ok_json(json!({"count": serialized.len(), "results": serialized}))
+        execute_tool(self, "semantic_search", async {
+            if query_vector.is_empty() {
+                return Err(McpToolError::invalid_argument(
+                    "query_vector must not be empty",
+                ));
             }
-            Err(e) => self.internal_error(span, "search embeddings", e),
-        }
+            let results = self
+                .semantic
+                .search_similar(&query_vector, limit.unwrap_or(10))
+                .map_err(|e| McpToolError::internal(format!("search embeddings: {}", e)))?;
+            let serialized: Vec<_> = results
+                .iter()
+                .map(|r| {
+                    json!({
+                        "entity_ref": r.embedding.entity_ref,
+                        "model": r.embedding.model,
+                        "distance": r.distance,
+                    })
+                })
+                .collect();
+            Ok(json!({"count": serialized.len(), "results": serialized}))
+        })
+        .await
     }
 
     #[tool(
@@ -691,33 +625,33 @@ impl MemoryServer {
             model,
         }): Parameters<CentroidRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("semantic_centroid", &self.webid);
-        validate_field!(span, "prefix", &prefix, 256);
-        validate_field!(span, "exclude_prefix", &exclude_prefix, 256);
-        validate_field!(span, "exclude_ref", &exclude_ref, 256);
-        if dim == 0 {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("dim must be positive").to_json_string(),
-            );
-        }
-        match self.semantic.compute_centroid(
-            &prefix,
-            &exclude_prefix,
-            &exclude_ref,
-            dim,
-            store_as.as_deref(),
-            model.as_deref(),
-        ) {
-            Ok(result) => span.ok_json(json!({
+        execute_tool(self, "semantic_centroid", async {
+            validate_identifier("prefix", &prefix, 256)?;
+            validate_identifier("exclude_prefix", &exclude_prefix, 256)?;
+            validate_identifier("exclude_ref", &exclude_ref, 256)?;
+            if dim == 0 {
+                return Err(McpToolError::invalid_argument("dim must be positive"));
+            }
+            let result = self
+                .semantic
+                .compute_centroid(
+                    &prefix,
+                    &exclude_prefix,
+                    &exclude_ref,
+                    dim,
+                    store_as.as_deref(),
+                    model.as_deref(),
+                )
+                .map_err(|e| McpToolError::internal(format!("compute centroid: {}", e)))?;
+            Ok(json!({
                 "centroid": result.centroid,
                 "dimensions": result.centroid.len(),
                 "prefix": prefix,
                 "passage_count": result.passage_count,
                 "stored": result.stored,
-            })),
-            Err(e) => self.internal_error(span, "compute centroid", e),
-        }
+            }))
+        })
+        .await
     }
 
     #[tool(description = "Delete all embeddings whose entity_ref starts with a prefix")]
@@ -725,12 +659,15 @@ impl MemoryServer {
         &self,
         Parameters(PurgeRequest { prefix }): Parameters<PurgeRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("semantic_purge", &self.webid);
-        validate_field!(span, "prefix", &prefix, 256);
-        match self.semantic.purge_by_prefix(&prefix) {
-            Ok(count) => span.ok_json(json!({"purged": count, "prefix": prefix})),
-            Err(e) => self.internal_error(span, "purge embeddings", e),
-        }
+        execute_tool(self, "semantic_purge", async {
+            validate_identifier("prefix", &prefix, 256)?;
+            let count = self
+                .semantic
+                .purge_by_prefix(&prefix)
+                .map_err(|e| McpToolError::internal(format!("purge embeddings: {}", e)))?;
+            Ok(json!({"purged": count, "prefix": prefix}))
+        })
+        .await
     }
 
     #[tool(
@@ -747,58 +684,65 @@ impl MemoryServer {
             strip_gutenberg,
         }): Parameters<ChunkTextRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("semantic_chunk", &self.webid);
-        if text.is_empty() || entity_ref_prefix.is_empty() {
-            let field = if text.is_empty() {
-                "text"
+        execute_tool(self, "semantic_chunk", async {
+            if text.is_empty() || entity_ref_prefix.is_empty() {
+                let field = if text.is_empty() {
+                    "text"
+                } else {
+                    "entity_ref_prefix"
+                };
+                return Err(McpToolError::invalid_argument(format!(
+                    "{field} must not be empty"
+                )));
+            }
+            validate_identifier("entity_ref_prefix", &entity_ref_prefix, 256)?;
+            let min_w = min_words.unwrap_or(50);
+            let max_w = max_words.unwrap_or(200);
+            let boundary = sentence_boundary.unwrap_or_else(|| ".!? ".to_string());
+            let processed = if strip_gutenberg.unwrap_or(false) {
+                SemanticMemory::strip_gutenberg_headers(&text)
             } else {
-                "entity_ref_prefix"
+                text.clone()
             };
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(format!("{field} must not be empty"))
-                    .to_json_string(),
+            let passages = SemanticMemory::chunk_text(
+                &processed,
+                &entity_ref_prefix,
+                min_w,
+                max_w,
+                &boundary,
             );
-        }
-        validate_field!(span, "entity_ref_prefix", &entity_ref_prefix, 256);
-        let min_w = min_words.unwrap_or(50);
-        let max_w = max_words.unwrap_or(200);
-        let boundary = sentence_boundary.unwrap_or_else(|| ".!? ".to_string());
-        let processed = if strip_gutenberg.unwrap_or(false) {
-            SemanticMemory::strip_gutenberg_headers(&text)
-        } else {
-            text.clone()
-        };
-        let passages =
-            SemanticMemory::chunk_text(&processed, &entity_ref_prefix, min_w, max_w, &boundary);
-        let serialized: Vec<_> = passages
-            .into_iter()
-            .map(|(entity_ref, passage_text)| {
-                json!({"entity_ref": entity_ref, "text": passage_text})
-            })
-            .collect();
-        span.ok_json(json!({
-            "total_passages": serialized.len(),
-            "passages": serialized,
-            "min_words": min_w,
-            "max_words": max_w,
-            "sentence_boundary": boundary,
-            "stripped_gutenberg": strip_gutenberg.unwrap_or(false),
-        }))
+            let serialized: Vec<_> = passages
+                .into_iter()
+                .map(|(entity_ref, passage_text)| {
+                    json!({"entity_ref": entity_ref, "text": passage_text})
+                })
+                .collect();
+            Ok(json!({
+                "total_passages": serialized.len(),
+                "passages": serialized,
+                "min_words": min_w,
+                "max_words": max_w,
+                "sentence_boundary": boundary,
+                "stripped_gutenberg": strip_gutenberg.unwrap_or(false),
+            }))
+        })
+        .await
     }
 
     #[tool(description = "Triple and embedding counts for semantic memory")]
     pub async fn semantic_count(&self, Parameters(_req): Parameters<CountRequest>) -> String {
-        let span = ToolSpanGuard::new("semantic_count", &self.webid);
-        let triple_count = match self.semantic.triple_count() {
-            Ok(c) => c,
-            Err(e) => return self.internal_error(span, "count triples", e),
-        };
-        let embedding_count = match self.semantic.embedding_count() {
-            Ok(c) => c,
-            Err(e) => return self.internal_error(span, "count embeddings", e),
-        };
-        span.ok_json(json!({"triple_count": triple_count, "embedding_count": embedding_count}))
+        execute_tool(self, "semantic_count", async {
+            let triple_count = self
+                .semantic
+                .triple_count()
+                .map_err(|e| McpToolError::internal(format!("count triples: {}", e)))?;
+            let embedding_count = self
+                .semantic
+                .embedding_count()
+                .map_err(|e| McpToolError::internal(format!("count embeddings: {}", e)))?;
+            Ok(json!({"triple_count": triple_count, "embedding_count": embedding_count}))
+        })
+        .await
     }
 
     // ── Backup/restore tools ───────────────────────────────────
@@ -811,59 +755,53 @@ impl MemoryServer {
             passphrase,
         }): Parameters<BackupRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("memory_backup", &self.webid);
-        let target = target_path.unwrap_or_else(|| "hkask-memory-backup.sqlite".to_string());
+        execute_tool(self, "memory_backup", async {
+            let target =
+                target_path.unwrap_or_else(|| "hkask-memory-backup.sqlite".to_string());
 
-        // \[NORMATIVE\] Refuse to write sovereign memory to an unencrypted file —
-        // a plaintext backup defeats the SQLCipher at-rest encryption boundary
-        // (P1 — User Sovereignty). A passphrase is mandatory.
-        let Some(passphrase) = passphrase.filter(|p| !p.is_empty()) else {
-            return self.internal_error(
-                span,
-                "backup",
-                "a non-empty passphrase is required: refusing to write an unencrypted backup of sovereign memory",
-            );
-        };
-
-        let Some(ref db_conn) = self.db else {
-            return self.internal_error(span, "backup", "in-memory database");
-        };
-
-        // Open the destination and key it as a SQLCipher-encrypted database
-        // BEFORE copying pages, so the backup is written encrypted.
-        let mut dst_conn = match rusqlite::Connection::open(&target) {
-            Ok(conn) => conn,
-            Err(e) => {
-                return self.internal_error(span, "open backup destination", e);
-            }
-        };
-        if let Err(e) = dst_conn.pragma_update(None, "key", passphrase.as_str()) {
-            return self.internal_error(span, "encrypt backup destination", e);
-        }
-
-        // Copy source → destination using SQLite's backup API (re-encrypts pages
-        // under the destination key)
-        let result = {
-            let src_conn = match db_conn.lock() {
-                Ok(guard) => guard,
-                Err(_) => return self.internal_error(span, "backup", "lock poisoned"),
+            // [NORMATIVE] Refuse to write sovereign memory to an unencrypted file —
+            // a plaintext backup defeats the SQLCipher at-rest encryption boundary
+            // (P1 — User Sovereignty). A passphrase is mandatory.
+            let Some(passphrase) = passphrase.filter(|p| !p.is_empty()) else {
+                return Err(McpToolError::internal(
+                    "backup: a non-empty passphrase is required: refusing to write an unencrypted backup of sovereign memory",
+                ));
             };
-            rusqlite::backup::Backup::new(&src_conn, &mut dst_conn)
+
+            let Some(ref db_conn) = self.db else {
+                return Err(McpToolError::internal("backup: in-memory database"));
+            };
+
+            // Open the destination and key it as a SQLCipher-encrypted database
+            // BEFORE copying pages, so the backup is written encrypted.
+            let mut dst_conn = rusqlite::Connection::open(&target)
+                .map_err(|e| McpToolError::internal(format!("open backup destination: {}", e)))?;
+            dst_conn
+                .pragma_update(None, "key", passphrase.as_str())
+                .map_err(|e| McpToolError::internal(format!("encrypt backup destination: {}", e)))?;
+
+            // Copy source → destination using SQLite's backup API (re-encrypts pages
+            // under the destination key)
+            let src_conn = db_conn
+                .lock()
+                .map_err(|_| McpToolError::internal("backup: lock poisoned"))?;
+            let result = rusqlite::backup::Backup::new(&src_conn, &mut dst_conn)
                 .map_err(|e| format!("Backup setup failed: {}", e))
                 .and_then(|backup| {
                     backup
                         .run_to_completion(100, Duration::from_millis(250), None)
                         .map_err(|e| format!("Backup failed: {}", e))
-                })
-        };
+                });
 
-        match result {
-            Ok(()) => span.ok_json(json!({
-                "backed_up": true,
-                "target_path": target,
-            })),
-            Err(e) => self.internal_error(span, "backup", e),
-        }
+            match result {
+                Ok(()) => Ok(json!({
+                    "backed_up": true,
+                    "target_path": target,
+                })),
+                Err(e) => Err(McpToolError::internal(format!("backup: {}", e))),
+            }
+        })
+        .await
     }
 
     #[tool(description = "Restore the memory database from a local backup file")]
@@ -874,72 +812,72 @@ impl MemoryServer {
             passphrase,
         }): Parameters<RestoreRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("memory_restore", &self.webid);
-
-        let Some(ref db_conn) = self.db else {
-            return self.internal_error(span, "restore", "in-memory database");
-        };
-
-        // Validate source file exists and is a SQLite database before destroying current data
-        let src_conn = match rusqlite::Connection::open(&source_path) {
-            Ok(conn) => {
-                // Backups are written encrypted (see `memory_backup`); key the
-                // source before reading so an encrypted backup can be restored.
-                if let Some(p) = passphrase.as_deref().filter(|p| !p.is_empty())
-                    && let Err(e) = conn.pragma_update(None, "key", p)
-                {
-                    return self.internal_error(span, "decrypt backup source", e);
-                }
-                // Quick validation: try reading sqlite_master
-                if let Err(e) = conn.query_row(
-                    "SELECT count(*) FROM sqlite_master WHERE type='table'",
-                    [],
-                    |row| row.get::<_, i64>(0),
-                ) {
-                    return self.internal_error(
-                        span,
-                        "validate backup source",
-                        format!("Not a valid SQLite database: {}", e),
-                    );
-                }
-                conn
-            }
-            Err(e) => {
-                return self.internal_error(span, "open backup source", e);
-            }
-        };
-
-        // Clear current database, then copy backup → current
-        let result = {
-            let mut dst_conn = match db_conn.lock() {
-                Ok(guard) => guard,
-                Err(_) => return self.internal_error(span, "restore", "lock poisoned"),
+        execute_tool(self, "memory_restore", async {
+            let Some(ref db_conn) = self.db else {
+                return Err(McpToolError::internal("restore: in-memory database"));
             };
-            if let Err(e) = dst_conn.execute_batch(
-                "PRAGMA writable_schema = 1; \
-                 DELETE FROM sqlite_master WHERE type IN ('table', 'index', 'trigger'); \
-                 PRAGMA writable_schema = 0;",
-            ) {
-                Err(format!("Failed to clear existing data: {}", e))
-            } else {
-                rusqlite::backup::Backup::new(&src_conn, &mut dst_conn)
-                    .map_err(|e| format!("Restore setup failed: {}", e))
-                    .and_then(|backup| {
-                        backup
-                            .run_to_completion(100, Duration::from_millis(250), None)
-                            .map_err(|e| format!("Restore failed: {}", e))
-                    })
-            }
-        };
 
-        match result {
-            Ok(()) => span.ok_json(json!({
-                "restored": true,
-                "source_path": source_path,
-                "warning": "Memory restored. Restart the MCP server for full consistency across all connections.",
-            })),
-            Err(e) => self.internal_error(span, "restore", e),
-        }
+            // Validate source file exists and is a SQLite database before destroying current data
+            let src_conn = match rusqlite::Connection::open(&source_path) {
+                Ok(conn) => {
+                    // Backups are written encrypted (see `memory_backup`); key the
+                    // source before reading so an encrypted backup can be restored.
+                    if let Some(p) = passphrase.as_deref().filter(|p| !p.is_empty())
+                        && let Err(e) = conn.pragma_update(None, "key", p)
+                    {
+                        return Err(McpToolError::internal(format!(
+                            "decrypt backup source: {}",
+                            e
+                        )));
+                    }
+                    // Quick validation: try reading sqlite_master
+                    if let Err(e) = conn.query_row(
+                        "SELECT count(*) FROM sqlite_master WHERE type='table'",
+                        [],
+                        |row| row.get::<_, i64>(0),
+                    ) {
+                        return Err(McpToolError::internal(format!(
+                            "validate backup source: Not a valid SQLite database: {}",
+                            e
+                        )));
+                    }
+                    conn
+                }
+                Err(e) => {
+                    return Err(McpToolError::internal(format!("open backup source: {}", e)));
+                }
+            };
+
+            // Clear current database, then copy backup → current
+            let mut dst_conn = db_conn
+                .lock()
+                .map_err(|_| McpToolError::internal("restore: lock poisoned"))?;
+            dst_conn
+                .execute_batch(
+                    "PRAGMA writable_schema = 1; \
+                     DELETE FROM sqlite_master WHERE type IN ('table', 'index', 'trigger'); \
+                     PRAGMA writable_schema = 0;",
+                )
+                .map_err(|e| McpToolError::internal(format!("Failed to clear existing data: {}", e)))?;
+
+            let result = rusqlite::backup::Backup::new(&src_conn, &mut dst_conn)
+                .map_err(|e| format!("Restore setup failed: {}", e))
+                .and_then(|backup| {
+                    backup
+                        .run_to_completion(100, Duration::from_millis(250), None)
+                        .map_err(|e| format!("Restore failed: {}", e))
+                });
+
+            match result {
+                Ok(()) => Ok(json!({
+                    "restored": true,
+                    "source_path": source_path,
+                    "warning": "Memory restored. Restart the MCP server for full consistency across all connections.",
+                })),
+                Err(e) => Err(McpToolError::internal(format!("restore: {}", e))),
+            }
+        })
+        .await
     }
 }
 

@@ -8,11 +8,10 @@
 //! 4. Returns the inference result
 
 use hkask_inference::{InferenceConfig, InferenceRouter};
-use hkask_mcp::server::{CapabilityTier, McpToolError, ToolSpanGuard};
+use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
 use hkask_ports::InferencePort;
 use hkask_ports::RegistryIndex;
 use hkask_templates::Registry;
-use hkask_types::McpErrorKind;
 use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -125,29 +124,33 @@ struct SkillExecuteRequest {
 impl SkillServer {
     #[tool(description = "Liveness and profile info")]
     pub async fn skill_ping(&self) -> String {
-        let span = ToolSpanGuard::new("skill_ping", &self.webid);
-        span.ok_json(serde_json::json!({
-            "status": "ok",
-            "version": SERVER_VERSION,
-            "mode": if self.capability_tier.embedded { "embedded" } else { "standalone" },
-            "skills_loaded": self.skills.len(),
-        }))
+        execute_tool(self, "skill_ping", async {
+            Ok(serde_json::json!({
+                "status": "ok",
+                "version": SERVER_VERSION,
+                "mode": if self.capability_tier.embedded { "embedded" } else { "standalone" },
+                "skills_loaded": self.skills.len(),
+            }))
+        })
+        .await
     }
 
     #[tool(description = "List available skill IDs with their descriptions")]
     pub async fn skill_list(&self) -> String {
-        let span = ToolSpanGuard::new("skill_list", &self.webid);
-        let skills: Vec<serde_json::Value> = self
-            .skills
-            .iter()
-            .map(|(id, def)| {
-                serde_json::json!({
-                    "id": id,
-                    "description": def.description,
+        execute_tool(self, "skill_list", async {
+            let skills: Vec<serde_json::Value> = self
+                .skills
+                .iter()
+                .map(|(id, def)| {
+                    serde_json::json!({
+                        "id": id,
+                        "description": def.description,
+                    })
                 })
-            })
-            .collect();
-        span.ok_json(serde_json::json!({ "skills": skills }))
+                .collect();
+            Ok(serde_json::json!({ "skills": skills }))
+        })
+        .await
     }
 
     #[tool(
@@ -159,64 +162,48 @@ impl SkillServer {
         &self,
         Parameters(SkillExecuteRequest { skill_id, context }): Parameters<SkillExecuteRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("skill_execute", &self.webid);
-
-        let def = match self.skills.get(&skill_id) {
-            Some(d) => d,
-            None => {
+        execute_tool(self, "skill_execute", async {
+            let def = self.skills.get(&skill_id).ok_or_else(|| {
                 let available: Vec<&str> = self.skills.keys().map(|s| s.as_str()).collect();
-                return span.error(
-                    McpErrorKind::NotFound,
+                McpToolError::new(
+                    hkask_types::McpErrorKind::NotFound,
                     format!("Skill '{}' not found. Available: {:?}", skill_id, available),
-                );
+                )
+            })?;
+
+            // Build context map for template rendering
+            let mut ctx = HashMap::new();
+            if let serde_json::Value::Object(map) = &context {
+                for (k, v) in map {
+                    ctx.insert(k.clone(), v.clone());
+                }
             }
-        };
 
-        // Build context map for template rendering
-        let mut ctx = HashMap::new();
-        if let serde_json::Value::Object(map) = &context {
-            for (k, v) in map {
-                ctx.insert(k.clone(), v.clone());
-            }
-        }
+            // Render the Jinja2 template
+            let rendered = render_skill_template(&def.template_content, &ctx)
+                .map_err(|e| McpToolError::invalid_argument(e))?;
 
-        // Render the Jinja2 template
-        let rendered = match render_skill_template(&def.template_content, &ctx) {
-            Ok(r) => r,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(e).to_json_string(),
-                );
-            }
-        };
+            // Prepend system prompt
+            let full_prompt = format!(
+                "You are executing a skill template. Follow its instructions precisely.\n\n{}",
+                rendered
+            );
 
-        // Prepend system prompt
-        let full_prompt = format!(
-            "You are executing a skill template. Follow its instructions precisely.\n\n{}",
-            rendered
-        );
+            let params = LLMParameters {
+                temperature: 0.3,
+                max_tokens: 2048,
+                ..Default::default()
+            };
 
-        let params = LLMParameters {
-            temperature: 0.3,
-            max_tokens: 2048,
-            ..Default::default()
-        };
+            let result = self
+                .inference_port
+                .generate(&full_prompt, &params, None)
+                .await
+                .map_err(|e| McpToolError::internal(format!("Inference failed: {}", e)))?;
 
-        let result = match self
-            .inference_port
-            .generate(&full_prompt, &params, None)
-            .await
-        {
-            Ok(r) => r,
-            Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("Inference failed: {}", e)}),
-                );
-            }
-        };
-
-        span.ok(result.text)
+            Ok(serde_json::Value::String(result.text))
+        })
+        .await
     }
 }
 

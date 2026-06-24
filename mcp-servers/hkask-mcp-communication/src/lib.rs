@@ -28,8 +28,8 @@ pub use hkask_communication::matrix;
 
 use hkask_communication::agent_registration::AgentRegistry;
 use hkask_communication::matrix::{MatrixTransport, RoomId};
-use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
-use hkask_types::{McpErrorKind, WebID};
+use hkask_mcp::server::{McpToolError, ServerContext, execute_tool};
+use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -71,37 +71,35 @@ impl CommunicationServer {
         &self,
         Parameters(TtsSpeakRequest { text, voice }): Parameters<TtsSpeakRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("tts_speak", &self.webid);
-        let voice_arg = if voice == "default" {
-            String::new()
-        } else {
-            format!("-v{}", voice)
-        };
-        let mut args = vec!["-s", "150"];
-        if !voice_arg.is_empty() {
-            args.push(&voice_arg);
-        }
-        args.push("--");
-        args.push(&text);
-        match std::process::Command::new("espeak")
-            .args(&args)
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .spawn()
-            .and_then(|mut c| c.wait())
-        {
-            Ok(status) if status.success() => span.ok_json(
-                serde_json::json!({"spoken": true, "text_length": text.len(), "engine": "espeak"}),
-            ),
-            Ok(_) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal("espeak exited with error").to_json_string(),
-            ),
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("espeak not available: {e}")).to_json_string(),
-            ),
-        }
+        execute_tool(self, "tts_speak", async {
+            let voice_arg = if voice == "default" {
+                String::new()
+            } else {
+                format!("-v{}", voice)
+            };
+            let mut args = vec!["-s", "150"];
+            if !voice_arg.is_empty() {
+                args.push(&voice_arg);
+            }
+            args.push("--");
+            args.push(&text);
+            match std::process::Command::new("espeak")
+                .args(&args)
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .and_then(|mut c| c.wait())
+            {
+                Ok(status) if status.success() => Ok(serde_json::json!({
+                    "spoken": true, "text_length": text.len(), "engine": "espeak"
+                })),
+                Ok(_) => Err(McpToolError::internal("espeak exited with error")),
+                Err(e) => Err(McpToolError::unavailable(format!(
+                    "espeak not available: {e}"
+                ))),
+            }
+        })
+        .await
     }
 
     #[tool(description = "Generate TTS audio file using system TTS. Returns path to WAV file.")]
@@ -109,26 +107,39 @@ impl CommunicationServer {
         &self,
         Parameters(TtsGenerateRequest { text, voice }): Parameters<TtsGenerateRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("tts_generate", &self.webid);
-        let file_name = format!("hkask-tts-{}.wav", uuid::Uuid::new_v4());
-        let path = std::env::temp_dir().join(&file_name);
-        let path_str = path.to_string_lossy().to_string();
-        let voice_arg = if voice == "default" {
-            String::new()
-        } else {
-            format!("-v{}", voice)
-        };
-        let mut args = vec!["-w", &path_str, "-s", "150"];
-        if !voice_arg.is_empty() {
-            args.push(&voice_arg);
-        }
-        args.push("--");
-        args.push(&text);
-        match std::process::Command::new("espeak").args(&args).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).spawn().and_then(|mut c| c.wait()) {
-            Ok(status) if status.success() => span.ok_json(serde_json::json!({"audio_path": path_str, "voice": voice, "text_length": text.len(), "engine": "espeak"})),
-            Ok(_) => span.error(McpErrorKind::Internal, McpToolError::internal("espeak exited with error").to_json_string()),
-            Err(e) => span.error(McpErrorKind::Unavailable, McpToolError::unavailable(format!("espeak not available: {e}")).to_json_string()),
-        }
+        execute_tool(self, "tts_generate", async {
+            let file_name = format!("hkask-tts-{}.wav", uuid::Uuid::new_v4());
+            let path = std::env::temp_dir().join(&file_name);
+            let path_str = path.to_string_lossy().to_string();
+            let voice_arg = if voice == "default" {
+                String::new()
+            } else {
+                format!("-v{}", voice)
+            };
+            let mut args = vec!["-w", &path_str, "-s", "150"];
+            if !voice_arg.is_empty() {
+                args.push(&voice_arg);
+            }
+            args.push("--");
+            args.push(&text);
+            match std::process::Command::new("espeak")
+                .args(&args)
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .and_then(|mut c| c.wait())
+            {
+                Ok(status) if status.success() => Ok(serde_json::json!({
+                    "audio_path": path_str, "voice": voice, "text_length": text.len(),
+                    "engine": "espeak"
+                })),
+                Ok(_) => Err(McpToolError::internal("espeak exited with error")),
+                Err(e) => Err(McpToolError::unavailable(format!(
+                    "espeak not available: {e}"
+                ))),
+            }
+        })
+        .await
     }
 
     #[tool(description = "List available system TTS voices (espeak)")]
@@ -136,39 +147,41 @@ impl CommunicationServer {
         &self,
         Parameters(ListVoicesRequest { language }): Parameters<ListVoicesRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("tts_list_voices", &self.webid);
-        let voices = serde_json::json!([
-            {"id": "default", "name": "Default", "language": "en"},
-            {"id": "en-us", "name": "English (US)", "language": "en-US"},
-            {"id": "en-uk", "name": "English (UK)", "language": "en-GB"},
-            {"id": "en-sc", "name": "English (Scottish)", "language": "en-GB"},
-            {"id": "fr", "name": "French", "language": "fr-FR"},
-            {"id": "de", "name": "German", "language": "de-DE"},
-            {"id": "es", "name": "Spanish", "language": "es-ES"},
-            {"id": "it", "name": "Italian", "language": "it-IT"},
-        ]);
-        let filtered: Vec<&serde_json::Value> = if let Some(ref lang) = language {
-            voices
-                .as_array()
-                .expect("voices json! literal is always an array")
-                .iter()
-                .filter(|v| {
-                    v["language"]
-                        .as_str()
-                        .unwrap_or("")
-                        .starts_with(lang.as_str())
-                })
-                .collect()
-        } else {
-            voices
-                .as_array()
-                .expect("voices json! literal is always an array")
-                .iter()
-                .collect()
-        };
-        span.ok_json(
-            serde_json::json!({"voices": filtered, "total": filtered.len(), "engine": "espeak"}),
-        )
+        execute_tool(self, "tts_list_voices", async {
+            let voices = serde_json::json!([
+                {"id": "default", "name": "Default", "language": "en"},
+                {"id": "en-us", "name": "English (US)", "language": "en-US"},
+                {"id": "en-uk", "name": "English (UK)", "language": "en-GB"},
+                {"id": "en-sc", "name": "English (Scottish)", "language": "en-GB"},
+                {"id": "fr", "name": "French", "language": "fr-FR"},
+                {"id": "de", "name": "German", "language": "de-DE"},
+                {"id": "es", "name": "Spanish", "language": "es-ES"},
+                {"id": "it", "name": "Italian", "language": "it-IT"},
+            ]);
+            let filtered: Vec<&serde_json::Value> = if let Some(ref lang) = language {
+                voices
+                    .as_array()
+                    .expect("voices json! literal is always an array")
+                    .iter()
+                    .filter(|v| {
+                        v["language"]
+                            .as_str()
+                            .unwrap_or("")
+                            .starts_with(lang.as_str())
+                    })
+                    .collect()
+            } else {
+                voices
+                    .as_array()
+                    .expect("voices json! literal is always an array")
+                    .iter()
+                    .collect()
+            };
+            Ok(serde_json::json!({
+                "voices": filtered, "total": filtered.len(), "engine": "espeak"
+            }))
+        })
+        .await
     }
 
     #[tool(description = "Send a message to a Matrix room.")]
@@ -176,19 +189,20 @@ impl CommunicationServer {
         &self,
         Parameters(SendMessageRequest { room_id, body }): Parameters<SendMessageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("send_message", &self.webid);
-        match self
-            .matrix
-            .send_message(&RoomId::new(&room_id), &body, None)
-            .await
-        {
-            Ok(()) => span.ok_json(serde_json::json!({"sent": true, "room_id": room_id})),
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Failed to send message: {}", e))
-                    .to_json_string(),
-            ),
-        }
+        execute_tool(self, "send_message", async {
+            match self
+                .matrix
+                .send_message(&RoomId::new(&room_id), &body, None)
+                .await
+            {
+                Ok(()) => Ok(serde_json::json!({"sent": true, "room_id": room_id})),
+                Err(e) => Err(McpToolError::unavailable(format!(
+                    "Failed to send message: {}",
+                    e
+                ))),
+            }
+        })
+        .await
     }
 
     #[tool(description = "Create a threaded conversation (Matrix room).")]
@@ -196,17 +210,16 @@ impl CommunicationServer {
         &self,
         Parameters(CreateThreadRequest { title, topic }): Parameters<CreateThreadRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("create_thread", &self.webid);
-        match self.matrix.create_room(&title, topic.as_deref()).await {
-            Ok(room_id) => {
-                span.ok_json(serde_json::json!({"room_id": room_id.as_str(), "title": title}))
+        execute_tool(self, "create_thread", async {
+            match self.matrix.create_room(&title, topic.as_deref()).await {
+                Ok(room_id) => Ok(serde_json::json!({"room_id": room_id.as_str(), "title": title})),
+                Err(e) => Err(McpToolError::unavailable(format!(
+                    "Failed to create thread: {}",
+                    e
+                ))),
             }
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Failed to create thread: {}", e))
-                    .to_json_string(),
-            ),
-        }
+        })
+        .await
     }
 
     #[tool(description = "Invite another replicant to a Matrix room.")]
@@ -217,69 +230,68 @@ impl CommunicationServer {
             replicant_id,
         }): Parameters<InviteAgentRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("invite_agent", &self.webid);
-        let webid = match WebID::from_str(&replicant_id) {
-            Ok(w) => w,
-            Err(_) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(format!(
+        execute_tool(self, "invite_agent", async {
+            let webid = match WebID::from_str(&replicant_id) {
+                Ok(w) => w,
+                Err(_) => {
+                    return Err(McpToolError::invalid_argument(format!(
                         "Invalid replicant ID: {}",
                         replicant_id
-                    ))
-                    .to_json_string(),
-                );
-            }
-        };
-        let user_id = match self.registry.resolve(&webid).await {
-            Some(uid) => uid,
-            None => {
-                return span.error(
-                    McpErrorKind::PermissionDenied,
-                    McpToolError::permission_denied(format!(
+                    )));
+                }
+            };
+            let user_id = match self.registry.resolve(&webid).await {
+                Some(uid) => uid,
+                None => {
+                    return Err(McpToolError::permission_denied(format!(
                         "Replicant {} not registered",
                         replicant_id
-                    ))
-                    .to_json_string(),
-                );
+                    )));
+                }
+            };
+            match self
+                .matrix
+                .invite_user(&RoomId::new(&room_id), &user_id)
+                .await
+            {
+                Ok(()) => Ok(serde_json::json!({
+                    "invited": true, "room_id": room_id, "replicant_id": replicant_id
+                })),
+                Err(e) => Err(McpToolError::unavailable(format!(
+                    "Failed to invite agent: {}",
+                    e
+                ))),
             }
-        };
-        match self.matrix.invite_user(&RoomId::new(&room_id), &user_id).await {
-            Ok(()) => {
-                span.ok_json(serde_json::json!({"invited": true, "room_id": room_id, "replicant_id": replicant_id}))
-            }
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Failed to invite agent: {}", e)).to_json_string(),
-            ),
-        }
+        })
+        .await
     }
 
     #[tool(description = "List active communication threads.")]
     async fn list_threads(&self) -> String {
-        let span = ToolSpanGuard::new("list_threads", &self.webid);
-        match self.matrix.list_rooms().await {
-            Ok(threads) => {
-                let thread_list: Vec<serde_json::Value> = threads
-                    .iter()
-                    .map(|t| {
-                        serde_json::json!({
-                            "room_id": t.room_id.as_str(), "title": t.title,
-                            "participants": t.participants.iter().map(|p| p.as_str()).collect::<Vec<_>>(),
-                            "monitored": t.monitored_by.len(), "escalated": t.escalated,
+        execute_tool(self, "list_threads", async {
+            match self.matrix.list_rooms().await {
+                Ok(threads) => {
+                    let thread_list: Vec<serde_json::Value> = threads
+                        .iter()
+                        .map(|t| {
+                            serde_json::json!({
+                                "room_id": t.room_id.as_str(), "title": t.title,
+                                "participants": t.participants.iter().map(|p| p.as_str()).collect::<Vec<_>>(),
+                                "monitored": t.monitored_by.len(), "escalated": t.escalated,
+                            })
                         })
-                    })
-                    .collect();
-                span.ok_json(
-                    serde_json::json!({"threads": thread_list, "total": thread_list.len()}),
-                )
+                        .collect();
+                    Ok(serde_json::json!({
+                        "threads": thread_list, "total": thread_list.len()
+                    }))
+                }
+                Err(e) => Err(McpToolError::unavailable(format!(
+                    "Failed to list threads: {}",
+                    e
+                ))),
             }
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Failed to list threads: {}", e))
-                    .to_json_string(),
-            ),
-        }
+        })
+        .await
     }
 
     #[tool(description = "Assign a thread to an agent's watchlist for monitoring.")]
@@ -290,29 +302,31 @@ impl CommunicationServer {
             replicant_id,
         }): Parameters<MonitorThreadRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("monitor_thread", &self.webid);
-        let webid = match WebID::from_str(&replicant_id) {
-            Ok(w) => w,
-            Err(_) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(format!(
+        execute_tool(self, "monitor_thread", async {
+            let webid = match WebID::from_str(&replicant_id) {
+                Ok(w) => w,
+                Err(_) => {
+                    return Err(McpToolError::invalid_argument(format!(
                         "Invalid replicant ID: {}",
                         replicant_id
-                    ))
-                    .to_json_string(),
-                );
+                    )));
+                }
+            };
+            match self
+                .registry
+                .monitor_thread(&webid, &RoomId::new(&room_id))
+                .await
+            {
+                Ok(()) => Ok(serde_json::json!({
+                    "monitored": true, "room_id": room_id, "replicant_id": replicant_id
+                })),
+                Err(e) => Err(McpToolError::permission_denied(format!(
+                    "Failed to monitor thread: {}",
+                    e
+                ))),
             }
-        };
-        match self.registry.monitor_thread(&webid, &RoomId::new(&room_id)).await {
-            Ok(()) => {
-                span.ok_json(serde_json::json!({"monitored": true, "room_id": room_id, "replicant_id": replicant_id}))
-            }
-            Err(e) => span.error(
-                McpErrorKind::PermissionDenied,
-                McpToolError::permission_denied(format!("Failed to monitor thread: {}", e)).to_json_string(),
-            ),
-        }
+        })
+        .await
     }
 
     #[tool(description = "Pull an agent into a discussion by sending them a tagged message.")]
@@ -324,48 +338,43 @@ impl CommunicationServer {
             body,
         }): Parameters<TagAgentRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("tag_agent", &self.webid);
-        let webid = match WebID::from_str(&replicant_id) {
-            Ok(w) => w,
-            Err(_) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(format!(
+        execute_tool(self, "tag_agent", async {
+            let webid = match WebID::from_str(&replicant_id) {
+                Ok(w) => w,
+                Err(_) => {
+                    return Err(McpToolError::invalid_argument(format!(
                         "Invalid replicant ID: {}",
                         replicant_id
-                    ))
-                    .to_json_string(),
-                );
-            }
-        };
-        let user_id = match self.registry.resolve(&webid).await {
-            Some(uid) => uid,
-            None => {
-                return span.error(
-                    McpErrorKind::PermissionDenied,
-                    McpToolError::permission_denied(format!(
+                    )));
+                }
+            };
+            let user_id = match self.registry.resolve(&webid).await {
+                Some(uid) => uid,
+                None => {
+                    return Err(McpToolError::permission_denied(format!(
                         "Replicant {} not registered",
                         replicant_id
-                    ))
-                    .to_json_string(),
-                );
+                    )));
+                }
+            };
+            let mention = format!("@{} {}", user_id.as_str(), body);
+            let structured =
+                serde_json::json!({"tag": {"target": replicant_id, "type": "mention"}});
+            match self
+                .matrix
+                .send_message(&RoomId::new(&room_id), &mention, Some(structured))
+                .await
+            {
+                Ok(()) => Ok(serde_json::json!({
+                    "tagged": true, "room_id": room_id, "replicant_id": replicant_id
+                })),
+                Err(e) => Err(McpToolError::unavailable(format!(
+                    "Failed to tag agent: {}",
+                    e
+                ))),
             }
-        };
-        let mention = format!("@{} {}", user_id.as_str(), body);
-        let structured = serde_json::json!({"tag": {"target": replicant_id, "type": "mention"}});
-        match self
-            .matrix
-            .send_message(&RoomId::new(&room_id), &mention, Some(structured))
-            .await
-        {
-            Ok(()) => {
-                span.ok_json(serde_json::json!({"tagged": true, "room_id": room_id, "replicant_id": replicant_id}))
-            }
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Failed to tag agent: {}", e)).to_json_string(),
-            ),
-        }
+        })
+        .await
     }
 }
 

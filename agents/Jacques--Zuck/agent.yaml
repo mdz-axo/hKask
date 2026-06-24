@@ -1,0 +1,28 @@
+# Agent definition for Jacques (Zuck) — created by hKask onboarding.
+agent:
+  name: "Jacques (Zuck)"
+  type: replicant
+
+charter:
+  description: "creative collaborator"
+
+capabilities:
+  - tool:inference:call
+  - tool:mcp:invoke
+  - registry:episodic_memory:read
+  - registry:episodic_memory:write
+
+# Directories containing public artifacts (synced to Curator).
+
+public_dirs:
+  - artifacts
+  - library
+  - gallery
+  - documents
+  - adapters
+
+# Directories containing private data (never leaves agent folder).
+
+private_dirs:
+  - sessions
+  - portfolios

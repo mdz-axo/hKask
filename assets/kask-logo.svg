@@ -1,114 +1,129 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
-  <!-- Kask Logo - Galvanized Milk Jug with Curator's Eye -->
+  <!-- Kask Logo - Vintage Galvanized Milk Can with Curator's Eye -->
   <title>Kask</title>
-  <desc>Old galvanized milk jug with bail handle, pouring spout, ribbing bands, and embedded Curator's Eye</desc>
+  <desc>Vintage galvanized milk can with ribbing, side handles, and embedded Curator's Eye replacing the NO.1 label</desc>
 
   <!-- Background -->
   <rect width="400" height="600" fill="#FFFFFF"/>
 
   <!-- BITEMPORAL SHADOW (subtle, offset left) -->
   <g opacity="0.15" transform="translate(-25, 0)">
-    <!-- Shadow Body - tapered jug shape -->
-    <path d="M 160 180 L 140 440 Q 140 460 200 460 Q 260 460 260 440 L 240 180 Z"
+    <!-- Shadow Body - cylindrical -->
+    <rect x="140" y="180" width="120" height="280" rx="5"
           fill="none" stroke="#000000" stroke-width="5"/>
     <!-- Shadow Neck -->
-    <rect x="170" y="145" width="60" height="40"
+    <rect x="160" y="140" width="80" height="45"
           fill="none" stroke="#000000" stroke-width="5"/>
-    <!-- Shadow Bail Handle -->
-    <path d="M 165 160 C 165 80 200 60 200 60 C 200 60 235 80 235 160"
+    <!-- Shadow Lid -->
+    <ellipse cx="200" cy="135" rx="45" ry="10"
+             fill="none" stroke="#000000" stroke-width="4"/>
+    <!-- Shadow Handles -->
+    <path d="M 140 220 C 115 220 115 280 140 280"
+          fill="none" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
+    <path d="M 260 220 C 285 220 285 280 260 280"
           fill="none" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
   </g>
 
-  <!-- MAIN JUG BODY - Calligraphic strokes -->
+  <!-- MAIN MILK CAN BODY - Vintage galvanized style -->
 
-  <!-- Body - tapered sides (wider at bottom, narrower at top) -->
+  <!-- Body - straight cylindrical sides -->
   <!-- Left side - thick downstroke -->
-  <path d="M 160 180 L 140 440"
+  <path d="M 140 180 L 140 460"
         fill="none" stroke="#1A1A1A" stroke-width="9" stroke-linecap="round"/>
 
   <!-- Right side - thick downstroke -->
-  <path d="M 240 180 L 260 440"
+  <path d="M 260 180 L 260 460"
         fill="none" stroke="#1A1A1A" stroke-width="9" stroke-linecap="round"/>
 
   <!-- Bottom - thick curved base -->
-  <path d="M 140 440 Q 140 460 200 460 Q 260 460 260 440"
+  <path d="M 140 460 Q 140 470 200 470 Q 260 470 260 460"
         fill="none" stroke="#1A1A1A" stroke-width="9" stroke-linecap="round"/>
 
   <!-- Top shoulder - thinner transition -->
-  <path d="M 160 180 Q 200 175 240 180"
+  <path d="M 140 180 Q 200 175 260 180"
         fill="none" stroke="#1A1A1A" stroke-width="7" stroke-linecap="round"/>
 
-  <!-- GALVANIZED RIBBING - three horizontal reinforcement bands -->
+  <!-- GALVANIZED RIBBING - horizontal reinforcement bands -->
   <!-- Upper rib -->
-  <path d="M 155 240 Q 200 238 245 240"
+  <path d="M 140 220 Q 200 218 260 220"
         fill="none" stroke="#1A1A1A" stroke-width="5" stroke-linecap="round"/>
 
-  <!-- Middle rib -->
-  <path d="M 150 320 Q 200 318 250 320"
+  <!-- Middle rib (above eye) -->
+  <path d="M 140 280 Q 200 278 260 280"
         fill="none" stroke="#1A1A1A" stroke-width="5" stroke-linecap="round"/>
 
-  <!-- Lower rib -->
-  <path d="M 145 400 Q 200 398 255 400"
+  <!-- Lower rib (below eye) -->
+  <path d="M 140 400 Q 200 398 260 400"
         fill="none" stroke="#1A1A1A" stroke-width="5" stroke-linecap="round"/>
 
-  <!-- NECK - narrower cylinder rising from shoulder -->
+  <!-- Bottom rib -->
+  <path d="M 140 440 Q 200 438 260 440"
+        fill="none" stroke="#1A1A1A" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- SHOULDER - tapered transition from body to neck -->
+  <!-- Left shoulder curve -->
+  <path d="M 140 180 C 140 165 160 155 160 145"
+        fill="none" stroke="#1A1A1A" stroke-width="8" stroke-linecap="round"/>
+  <!-- Right shoulder curve -->
+  <path d="M 260 180 C 260 165 240 155 240 145"
+        fill="none" stroke="#1A1A1A" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- NECK - narrower cylinder -->
   <!-- Left neck -->
-  <path d="M 170 145 L 170 185"
+  <path d="M 160 140 L 160 145"
         fill="none" stroke="#1A1A1A" stroke-width="8" stroke-linecap="round"/>
   <!-- Right neck -->
-  <path d="M 230 145 L 230 185"
+  <path d="M 240 140 L 240 145"
         fill="none" stroke="#1A1A1A" stroke-width="8" stroke-linecap="round"/>
-  <!-- Neck top - thick to thin -->
-  <path d="M 170 145 Q 200 140 230 145"
-        fill="none" stroke="#1A1A1A" stroke-width="7" stroke-linecap="round"/>
 
-  <!-- RIM - rolled edge at top -->
-  <path d="M 165 145 C 165 138 200 135 235 145 C 235 152 200 155 165 145"
+  <!-- RIM - rolled edge at top of neck -->
+  <path d="M 155 140 C 155 133 200 128 245 140 C 245 147 200 152 155 140"
         fill="none" stroke="#1A1A1A" stroke-width="6" stroke-linecap="round"/>
 
-  <!-- POURING SPOUT - small lip on left side of rim -->
-  <path d="M 165 145 C 155 140 150 135 145 130"
+  <!-- LID - flat disc sitting on rim -->
+  <ellipse cx="200" cy="135" rx="45" ry="10"
+           fill="none" stroke="#1A1A1A" stroke-width="6"/>
+
+  <!-- LID KNOB - small handle on top of lid -->
+  <path d="M 192 125 Q 200 118 208 125"
         fill="none" stroke="#1A1A1A" stroke-width="7" stroke-linecap="round"/>
 
-  <!-- BAIL HANDLE - wire arch from ear to ear -->
-  <!-- Left ear (attachment point) -->
-  <circle cx="165" cy="160" r="4" fill="#1A1A1A"/>
-  <!-- Right ear (attachment point) -->
-  <circle cx="235" cy="160" r="4" fill="#1A1A1A"/>
-  <!-- Bail wire - arching over the top -->
-  <path d="M 165 160 C 165 80 200 60 200 60 C 200 60 235 80 235 160"
-        fill="none" stroke="#1A1A1A" stroke-width="6" stroke-linecap="round"/>
-  <!-- Bail grip - thicker section at top -->
-  <path d="M 190 65 Q 200 60 210 65"
-        fill="none" stroke="#1A1A1A" stroke-width="9" stroke-linecap="round"/>
+  <!-- SIDE HANDLES - loop handles on the body -->
+  <!-- Left handle -->
+  <path d="M 140 220 C 115 220 110 250 115 270 C 118 280 128 285 140 280"
+        fill="none" stroke="#1A1A1A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
 
-  <!-- CURATOR'S EYE - embedded in jug body -->
+  <!-- Right handle -->
+  <path d="M 260 220 C 285 220 290 250 285 270 C 282 280 272 285 260 280"
+        fill="none" stroke="#1A1A1A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- CURATOR'S EYE - embedded in can body (replacing NO.1 label) -->
   <!-- Upper eyelid - thick to thin (pressure on downstroke) -->
-  <path d="M 175 310 Q 200 295 225 310"
+  <path d="M 165 330 Q 200 312 235 330"
         fill="none" stroke="#1A1A1A" stroke-width="8" stroke-linecap="round"/>
 
   <!-- Lower eyelid - thinner, softer -->
-  <path d="M 178 330 Q 200 350 222 330"
+  <path d="M 168 352 Q 200 372 232 352"
         fill="none" stroke="#1A1A1A" stroke-width="5" stroke-linecap="round"/>
 
-  <!-- Iris - solid fill with calligraphic outline variation -->
-  <circle cx="200" cy="320" r="18" fill="#1A1A1A"/>
+  <!-- Iris - solid fill -->
+  <circle cx="200" cy="342" r="20" fill="#1A1A1A"/>
 
   <!-- Pupil - smaller solid circle -->
-  <circle cx="200" cy="320" r="10" fill="#000000"/>
+  <circle cx="200" cy="342" r="11" fill="#000000"/>
 
   <!-- Light reflection - white dot -->
-  <circle cx="205" cy="315" r="5" fill="#FFFFFF"/>
+  <circle cx="206" cy="336" r="5" fill="#FFFFFF"/>
 
   <!-- Eyelashes - subtle calligraphic flicks -->
-  <path d="M 188 308 L 185 302" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
-  <path d="M 196 305 L 194 298" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
-  <path d="M 204 305 L 206 298" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
-  <path d="M 212 308 L 215 302" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 178 328 L 175 321" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 190 324 L 188 316" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 210 324 L 212 316" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 222 328 L 225 321" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
 
   <!-- Operator Authority Gap - subtle break in iris -->
-  <path d="M 208 312 A 18 18 0 0 1 210 328"
+  <path d="M 209 333 A 20 20 0 0 1 211 351"
         fill="none" stroke="#FFFFFF" stroke-width="3" opacity="0.8"/>
 
   <!-- Label - simple monospace -->
