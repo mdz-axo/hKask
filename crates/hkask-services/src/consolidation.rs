@@ -98,9 +98,7 @@ pub fn consolidate(
         Arc::clone(&episodic_memory),
         Arc::clone(&semantic_memory),
     ));
-    let curator_id = *CuratorHandle::system().curator_id();
-    let token = hkask_capability::ConsolidationToken::new(curator_id);
-    let domain_service = hkask_memory::ConsolidationService::new(bridge, semantic_memory, token);
+    let domain_service = hkask_memory::ConsolidationService::new(bridge, semantic_memory);
 
     let outcome =
         domain_service

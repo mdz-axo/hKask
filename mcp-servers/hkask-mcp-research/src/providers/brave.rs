@@ -30,10 +30,8 @@ impl WebSearchProvider for BraveProvider {
     }
 
     async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError> {
-        let mut params: Vec<(&str, String)> = vec![
-            ("q", query.query.clone()),
-            ("count", query.num_results.to_string()),
-        ];
+        let mut params: Vec<(&str, String)> =
+            vec![("q", query.query.clone()), ("count", query.num_results.to_string())];
         if let Some(ref freshness) = query.freshness {
             params.push(("freshness", freshness_brave(freshness)));
         }
@@ -96,9 +94,7 @@ impl WebSearchProvider for BraveProvider {
             .query(&[("q", "test"), ("count", "1")])
             .send()
             .await
-            .map_err(|e| {
-                WebError::ProviderUnavailable(format!("Brave health check failed: {e}"))
-            })?;
+            .map_err(|e| WebError::ProviderUnavailable(format!("Brave health check failed: {e}")))?;
         if resp.status().is_success() || resp.status().as_u16() == 429 {
             Ok(())
         } else {

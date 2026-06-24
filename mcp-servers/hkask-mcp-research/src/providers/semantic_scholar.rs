@@ -43,8 +43,7 @@ impl WebSearchProvider for SemanticScholarProvider {
             ("limit", query.num_results.to_string()),
             (
                 "fields",
-                "title,authors,year,abstract,externalIds,citationCount,url,publicationTypes,openAccessPdf"
-                    .to_string(),
+                "title,authors,year,abstract,externalIds,citationCount,url,publicationTypes,openAccessPdf".to_string(),
             ),
         ];
 
@@ -54,9 +53,7 @@ impl WebSearchProvider for SemanticScholarProvider {
             .query(&params)
             .send()
             .await
-            .map_err(|e| {
-                WebError::ProviderUnavailable(format!("Semantic Scholar request failed: {e}"))
-            })?;
+            .map_err(|e| WebError::ProviderUnavailable(format!("Semantic Scholar request failed: {e}")))?;
 
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
@@ -70,9 +67,8 @@ impl WebSearchProvider for SemanticScholarProvider {
             });
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
-            WebError::ProviderError(format!("Failed to parse Semantic Scholar response: {e}"))
-        })?;
+        let parsed: serde_json::Value = serde_json::from_str(&body)
+            .map_err(|e| WebError::ProviderError(format!("Failed to parse Semantic Scholar response: {e}")))?;
 
         let results = parsed["data"]
             .as_array()
@@ -89,9 +85,7 @@ impl WebSearchProvider for SemanticScholarProvider {
                             .unwrap_or_else(|| {
                                 paper["paperId"]
                                     .as_str()
-                                    .map(|id| {
-                                        format!("https://api.semanticscholar.org/CorpusID:{id}")
-                                    })
+                                    .map(|id| format!("https://api.semanticscholar.org/CorpusID:{id}"))
                                     .unwrap_or_default()
                             });
 
@@ -105,9 +99,7 @@ impl WebSearchProvider for SemanticScholarProvider {
                             })
                             .unwrap_or_default();
                         let year = paper["year"].as_u64().map(|y| y.to_string());
-                        let citations = paper["citationCount"]
-                            .as_u64()
-                            .map(|c| format!("{c} citations"));
+                        let citations = paper["citationCount"].as_u64().map(|c| format!("{c} citations"));
 
                         let mut desc_parts: Vec<String> = Vec::new();
                         if !authors.is_empty() {
@@ -165,9 +157,7 @@ impl WebSearchProvider for SemanticScholarProvider {
             .query(&[("query", "test"), ("limit", "1")])
             .send()
             .await
-            .map_err(|e| {
-                WebError::ProviderUnavailable(format!("Semantic Scholar health check failed: {e}"))
-            })?;
+            .map_err(|e| WebError::ProviderUnavailable(format!("Semantic Scholar health check failed: {e}")))?;
         if resp.status().is_success() || resp.status().as_u16() == 429 {
             Ok(())
         } else {

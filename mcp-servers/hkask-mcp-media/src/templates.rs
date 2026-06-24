@@ -18,8 +18,7 @@ pub fn create_env() -> Environment<'static> {
     env.add_template("caption", CAPTION).ok();
     env.add_template("voice_design", VOICE_DESIGN).ok();
     env.add_template("video_caption", VIDEO_CAPTION).ok();
-    env.add_template("validate_face_ref", VALIDATE_FACE_REF)
-        .ok();
+    env.add_template("validate_face_ref", VALIDATE_FACE_REF).ok();
     env.add_template("match_faces", MATCH_FACES).ok();
     env
 }

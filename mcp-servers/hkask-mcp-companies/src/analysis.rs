@@ -111,14 +111,8 @@ mod tests {
     #[test]
     fn gross_margin_stability_volatile() {
         let score = gross_margin_stability(&[0.60, 0.20, 0.80, 0.10]);
-        assert!(
-            score < 0.75,
-            "volatile margins should score lower than stable: {score}"
-        );
-        assert!(
-            score > 0.0,
-            "volatile margins should not score zero: {score}"
-        );
+        assert!(score < 0.75, "volatile margins should score lower than stable: {score}");
+        assert!(score > 0.0, "volatile margins should not score zero: {score}");
     }
 
     #[test]
@@ -235,8 +229,7 @@ pub fn ceo_capital_allocation_score(returns: &[f64], invested_capital: &[f64]) -
     let early_return = returns[..mid].iter().sum::<f64>() / mid as f64;
     let late_return = returns[mid..].iter().sum::<f64>() / (returns.len() - mid) as f64;
     let early_capital = invested_capital[..mid].iter().sum::<f64>() / mid as f64;
-    let late_capital =
-        invested_capital[mid..].iter().sum::<f64>() / (invested_capital.len() - mid) as f64;
+    let late_capital = invested_capital[mid..].iter().sum::<f64>() / (invested_capital.len() - mid) as f64;
 
     let return_improving = late_return > early_return;
     let capital_decreasing = late_capital < early_capital;
@@ -313,10 +306,7 @@ mod management_tests {
     fn ceo_score_excellent_decreasing_capital_improving_returns() {
         let returns = [0.10, 0.10, 0.12, 0.12, 0.15, 0.20];
         let capital = [500.0, 490.0, 480.0, 460.0, 440.0, 420.0];
-        assert_eq!(
-            ceo_capital_allocation_score(&returns, &capital),
-            CeoRating::Excellent
-        );
+        assert_eq!(ceo_capital_allocation_score(&returns, &capital), CeoRating::Excellent);
     }
 
     #[test]
@@ -324,20 +314,14 @@ mod management_tests {
         // Returns improve but by less than 10% → Good, not Excellent
         let returns = [0.10, 0.10, 0.11, 0.108, 0.108, 0.109];
         let capital = [100.0, 110.0, 120.0, 130.0, 140.0, 150.0];
-        assert_eq!(
-            ceo_capital_allocation_score(&returns, &capital),
-            CeoRating::Good
-        );
+        assert_eq!(ceo_capital_allocation_score(&returns, &capital), CeoRating::Good);
     }
 
     #[test]
     fn ceo_score_poor_increasing_capital_decreasing_returns() {
         let returns = [0.20, 0.18, 0.18, 0.15, 0.12, 0.10];
         let capital = [100.0, 120.0, 140.0, 180.0, 220.0, 300.0];
-        assert_eq!(
-            ceo_capital_allocation_score(&returns, &capital),
-            CeoRating::Poor
-        );
+        assert_eq!(ceo_capital_allocation_score(&returns, &capital), CeoRating::Poor);
     }
 
     #[test]

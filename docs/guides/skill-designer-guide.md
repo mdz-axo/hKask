@@ -43,6 +43,12 @@ A skill process manifest must include:
 
 `Bundle` remains a composition construct (for example `kata`) and is not a replacement for FlowDef skill processes. Bundles orchestrate multiple skills; each constituent skill still follows the FlowDef+PDCA model.
 
+### 1.3 Fusion — Runtime Multi-Model Deliberation
+
+Skills that invoke inference (classification, generation, critique) automatically benefit from Fusion when enabled. No skill-level configuration needed — the inference router transparently routes eligible calls through the Fusion pipeline. See the [skill user guide](../../docs/user-guides/skill-user-guide.md#34-fusion--multi-model-deliberation-for-skills) for configuration and usage.
+
+Design consideration: skills that make many small inference calls (e.g., per-item classification in a tight loop) may want to batch those calls or mark them with `bypass_fusion=true` to avoid the 4-5× cost multiplier per call.
+
 ---
 
 ## 2. Creating a SKILL.md (Zed Agent Layer)

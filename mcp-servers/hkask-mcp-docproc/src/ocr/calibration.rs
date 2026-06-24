@@ -67,8 +67,7 @@ pub fn analyze_threshold_drift(
         return None; // Insufficient data
     }
 
-    let mean_similarity: f32 =
-        moderate_cvs.iter().map(|cv| cv.similarity).sum::<f32>() / moderate_cvs.len() as f32;
+    let mean_similarity: f32 = moderate_cvs.iter().map(|cv| cv.similarity).sum::<f32>() / moderate_cvs.len() as f32;
 
     if mean_similarity <= 0.95 {
         return None; // Not enough agreement to justify threshold change

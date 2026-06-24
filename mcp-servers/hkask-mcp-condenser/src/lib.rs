@@ -80,13 +80,7 @@ impl CondenserServer {
     }
 
     /// Record a tool call as a narrative experience in the agent's memory.
-    pub fn record_experience(
-        &self,
-        tool: &str,
-        input_summary: &str,
-        outcome: &str,
-        detail: serde_json::Value,
-    ) {
+    pub fn record_experience(&self, tool: &str, input_summary: &str, outcome: &str, detail: serde_json::Value) {
         if let Some(ref daemon) = self.daemon {
             let value = serde_json::json!({
                 "tool": tool,
@@ -206,9 +200,7 @@ impl CondenserServer {
         );
 
         // CompressedOutput contains only strings, integers, and a clamped f64 — never NaN/Inf.
-        span.ok_json(
-            serde_json::to_value(&result).expect("CompressedOutput serialization is infallible"),
-        )
+        span.ok_json(serde_json::to_value(&result).expect("CompressedOutput serialization is infallible"))
     }
 
     #[tool(description = "Set compression profile (heavy/normal/soft/light)")]
@@ -250,10 +242,7 @@ impl CondenserServer {
             }
         };
         // CondenserStats contains only strings and integers — never NaN/Inf.
-        span.ok_json(
-            serde_json::to_value(engine.get_stats())
-                .expect("CondenserStats serialization is infallible"),
-        )
+        span.ok_json(serde_json::to_value(engine.get_stats()).expect("CondenserStats serialization is infallible"))
     }
 
     #[tool(description = "Classify tool name to context category")]
@@ -300,8 +289,7 @@ impl CondenserServer {
         if compressed_output.is_empty() {
             return span.error(
                 McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("compressed_output must not be empty")
-                    .to_json_string(),
+                McpToolError::invalid_argument("compressed_output must not be empty").to_json_string(),
             );
         }
 
@@ -323,8 +311,8 @@ impl CondenserServer {
                 "attribute": "content",
                 "perspective": self.webid.to_string(),
             })),
-            Err(e) =>
-                span.internal_error(serde_json::json!({"error": format!("Failed to persist to episodic memory: {}", e)})),
+            Err(e) => span
+                .internal_error(serde_json::json!({"error": format!("Failed to persist to episodic memory: {}", e)})),
         }
     }
 
@@ -355,14 +343,10 @@ impl CondenserServer {
         let conversation_text = inference::format_conversation_text(&messages);
         let max_tok = max_tokens.unwrap_or(500);
 
-        let summarization_prompt =
-            inference::build_summarization_prompt(&conversation_text, &current_query);
+        let summarization_prompt = inference::build_summarization_prompt(&conversation_text, &current_query);
 
         // Compose the full prompt: system + user
-        let full_prompt = format!(
-            "{}\n\nUser: {}",
-            THREAD_SUMMARY_SYSTEM_PROMPT, summarization_prompt
-        );
+        let full_prompt = format!("{}\n\nUser: {}", THREAD_SUMMARY_SYSTEM_PROMPT, summarization_prompt);
 
         let params = LLMParameters {
             temperature: 0.3,
@@ -397,18 +381,13 @@ impl CondenserServer {
         if summary.trim().is_empty() {
             return span.error(
                 McpErrorKind::Internal,
-                McpToolError::internal("Inference engine returned an empty summary")
-                    .to_json_string(),
+                McpToolError::internal("Inference engine returned an empty summary").to_json_string(),
             );
         }
         let summary_len = summary.len();
 
-        let output = inference::build_summary_output(
-            summary,
-            &conversation_text,
-            msg_count,
-            effective_model.to_string(),
-        );
+        let output =
+            inference::build_summary_output(summary, &conversation_text, msg_count, effective_model.to_string());
 
         self.record_experience(
             "condenser_thread_summary",
@@ -417,17 +396,12 @@ impl CondenserServer {
             serde_json::json!({"model": effective_model.to_string(), "summary_length": summary_len}),
         );
 
-        span.ok_json(
-            serde_json::to_value(&output).expect("ThreadSummaryOutput serialization is infallible"),
-        )
+        span.ok_json(serde_json::to_value(&output).expect("ThreadSummaryOutput serialization is infallible"))
     }
 }
 
 /// Run the condenser MCP server (used by binary target).
-pub async fn run(
-    replicant: String,
-    daemon_client: Option<hkask_mcp::DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
+pub async fn run(replicant: String, daemon_client: Option<hkask_mcp::DaemonClient>) -> Result<(), hkask_mcp::McpError> {
     // Build the centralized inference router from environment.
     let inference_config = InferenceConfig::from_env();
     let inference_router = InferenceRouter::new(inference_config);
@@ -451,14 +425,9 @@ pub async fn run(
                                 .get("HKASK_DB_PASSPHRASE")
                                 .cloned()
                                 .or_else(|| std::env::var("HKASK_DB_PASSPHRASE").ok())
-                                .ok_or_else(|| {
-                                    anyhow::anyhow!(
-                                        "HKASK_DB_PATH set but HKASK_DB_PASSPHRASE missing"
-                                    )
-                                })?;
-                            let db = Database::open(&path, &passphrase).map_err(|e| {
-                                anyhow::anyhow!("Failed to open condenser database: {}", e)
-                            })?;
+                                .ok_or_else(|| anyhow::anyhow!("HKASK_DB_PATH set but HKASK_DB_PASSPHRASE missing"))?;
+                            let db = Database::open(&path, &passphrase)
+                                .map_err(|e| anyhow::anyhow!("Failed to open condenser database: {}", e))?;
                             let triple_store = hkask_storage::TripleStore::new(db.conn_arc());
                             Some(hkask_memory::EpisodicMemory::new(triple_store))
                         }

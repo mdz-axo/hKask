@@ -110,20 +110,14 @@ pub trait WebSearchPort: Send + Sync {
 #[async_trait]
 pub(crate) trait WebExtractProvider: Send + Sync {
     fn kind(&self) -> &str;
-    async fn extract(&self, url: &str, opts: &ExtractOptions)
-    -> Result<ExtractedContent, WebError>;
+    async fn extract(&self, url: &str, opts: &ExtractOptions) -> Result<ExtractedContent, WebError>;
     async fn health(&self) -> Result<(), WebError>;
 }
 
 #[async_trait]
 pub(crate) trait WebBrowseProvider: Send + Sync {
     fn kind(&self) -> &str;
-    async fn browse(
-        &self,
-        url: &str,
-        instruction: &str,
-        timeout: Duration,
-    ) -> Result<BrowseResult, WebError>;
+    async fn browse(&self, url: &str, instruction: &str, timeout: Duration) -> Result<BrowseResult, WebError>;
     async fn health(&self) -> Result<(), WebError>;
 }
 
@@ -199,8 +193,7 @@ impl ProviderPool {
         query: &SearchQuery,
         primary: &str,
     ) -> Result<Vec<SearchResult>, WebError> {
-        let mut ordered: Vec<&dyn WebSearchProvider> =
-            self.search_providers.iter().map(|p| p.as_ref()).collect();
+        let mut ordered: Vec<&dyn WebSearchProvider> = self.search_providers.iter().map(|p| p.as_ref()).collect();
         if let Some(idx) = ordered.iter().position(|p| p.kind() == primary) {
             ordered.swap(0, idx);
         }
@@ -221,11 +214,7 @@ impl ProviderPool {
         Self::search_fallback(&filtered, query).await
     }
 
-    pub async fn search_compound(
-        &self,
-        query: &SearchQuery,
-        strategy: SearchStrategy,
-    ) -> CompoundSearchResult {
+    pub async fn search_compound(&self, query: &SearchQuery, strategy: SearchStrategy) -> CompoundSearchResult {
         let filtered: Vec<&dyn WebSearchProvider> = match strategy.provider_filter() {
             ProviderFilter::All => self.search_providers.iter().map(|p| p.as_ref()).collect(),
             ProviderFilter::Capabilities(caps) => self
@@ -386,22 +375,14 @@ impl ProviderPool {
         }
     }
 
-    pub async fn find_similar(
-        &self,
-        url: &str,
-        num_results: u32,
-    ) -> Result<ProviderSearchOutput, WebError> {
+    pub async fn find_similar(&self, url: &str, num_results: u32) -> Result<ProviderSearchOutput, WebError> {
         match self.exa {
             Some(ref exa) => exa.find_similar(url, num_results).await,
             None => Err(WebError::NoProvider),
         }
     }
 
-    pub async fn extract_with_fallback(
-        &self,
-        url: &str,
-        opts: &ExtractOptions,
-    ) -> Result<ExtractedContent, WebError> {
+    pub async fn extract_with_fallback(&self, url: &str, opts: &ExtractOptions) -> Result<ExtractedContent, WebError> {
         try_fallback!(&self.extract_providers, extract, url, opts)
     }
 
@@ -415,24 +396,15 @@ impl ProviderPool {
     }
 
     pub fn search_provider_kinds(&self) -> Vec<String> {
-        self.search_providers
-            .iter()
-            .map(|p| p.kind().to_string())
-            .collect()
+        self.search_providers.iter().map(|p| p.kind().to_string()).collect()
     }
 
     pub fn extract_provider_kinds(&self) -> Vec<String> {
-        self.extract_providers
-            .iter()
-            .map(|p| p.kind().to_string())
-            .collect()
+        self.extract_providers.iter().map(|p| p.kind().to_string()).collect()
     }
 
     pub fn browse_provider_kinds(&self) -> Vec<String> {
-        self.browse_providers
-            .iter()
-            .map(|p| p.kind().to_string())
-            .collect()
+        self.browse_providers.iter().map(|p| p.kind().to_string()).collect()
     }
 
     pub fn provider_fingerprint(&self) -> String {
@@ -480,9 +452,7 @@ fn check_capability(ctx: Option<&CapabilityContext>, name: &str) -> Result<(), W
     if let Some(ctx) = ctx
         && !ctx.allows(name)
     {
-        Err(WebError::ProviderUnavailable(
-            "capability not authorized".into(),
-        ))
+        Err(WebError::ProviderUnavailable("capability not authorized".into()))
     } else {
         Ok(())
     }

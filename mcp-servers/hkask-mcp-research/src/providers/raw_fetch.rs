@@ -27,17 +27,15 @@ impl WebExtractProvider for RawFetchProvider {
         "rawfetch"
     }
 
-    async fn extract(
-        &self,
-        url: &str,
-        _opts: &ExtractOptions,
-    ) -> Result<ExtractedContent, WebError> {
+    async fn extract(&self, url: &str, _opts: &ExtractOptions) -> Result<ExtractedContent, WebError> {
         // Task 6: Validate URL at provider boundary — RawFetch is the most SSRF-sensitive provider
         validate_provider_url(url)?;
-        let resp =
-            self.client.get(url).send().await.map_err(|e| {
-                WebError::ProviderUnavailable(format!("RawFetch request failed: {e}"))
-            })?;
+        let resp = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| WebError::ProviderUnavailable(format!("RawFetch request failed: {e}")))?;
         let status = resp.status();
         let body = resp
             .text()
@@ -65,9 +63,7 @@ impl WebExtractProvider for RawFetchProvider {
             .timeout(Duration::from_secs(5))
             .send()
             .await
-            .map_err(|e| {
-                WebError::ProviderUnavailable(format!("RawFetch health check failed: {e}"))
-            })?;
+            .map_err(|e| WebError::ProviderUnavailable(format!("RawFetch health check failed: {e}")))?;
         if resp.status().is_success() {
             Ok(())
         } else {
@@ -84,12 +80,7 @@ impl WebBrowseProvider for RawFetchProvider {
         "rawfetch"
     }
 
-    async fn browse(
-        &self,
-        url: &str,
-        instruction: &str,
-        timeout: Duration,
-    ) -> Result<BrowseResult, WebError> {
+    async fn browse(&self, url: &str, instruction: &str, timeout: Duration) -> Result<BrowseResult, WebError> {
         validate_provider_url(url)?;
         let resp = self
             .client
@@ -97,9 +88,7 @@ impl WebBrowseProvider for RawFetchProvider {
             .timeout(timeout)
             .send()
             .await
-            .map_err(|e| {
-                WebError::ProviderUnavailable(format!("RawFetch browse request failed: {e}"))
-            })?;
+            .map_err(|e| WebError::ProviderUnavailable(format!("RawFetch browse request failed: {e}")))?;
         let status = resp.status();
         let body = resp
             .text()

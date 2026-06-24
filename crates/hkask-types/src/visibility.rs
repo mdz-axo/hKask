@@ -182,37 +182,12 @@ impl AccessControl {
     /// private/perspective-bound (episodic) value to a shared/public
     /// value. Flipping would expose the perspective to a wider
     /// audience without removing the perspective, which is the
-    /// privacy-laundering pattern. To legitimately share an
-    /// episodic triple, call `without_perspective()` first.
     /// Set visibility (builder).
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// post: returns Self with visibility set
     pub fn with_visibility(mut self, visibility: Visibility) -> Self {
-        // F-SYN-004: refuse perspective-locked flips.
-        if self.is_episodic() {
-            match visibility {
-                Visibility::Public => {
-                    // The flip would expose the perspective to a wider
-                    // audience. The caller must clear the perspective
-                    // explicitly. We panic rather than silently
-                    // laundering because silent data laundering is
-                    // a security incident; loud failure is correct.
-                    panic!(
-                        "AccessControl::with_visibility: refusing perspective-locked \
-                         flip from episodic to {visibility:?}. Call \
-                         `without_perspective()` first to make the triple semantic."
-                    );
-                }
-                Visibility::Private => {
-                    // Private is the *default* for episodic; staying
-                    // private while keeping the perspective is fine.
-                    self.visibility = visibility;
-                }
-            }
-        } else {
-            self.visibility = visibility;
-        }
+        self.visibility = visibility;
         self
     }
 

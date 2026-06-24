@@ -16,11 +16,7 @@ impl ExaProvider {
         }
     }
 
-    pub async fn find_similar(
-        &self,
-        url: &str,
-        num_results: u32,
-    ) -> Result<ProviderSearchOutput, WebError> {
+    pub async fn find_similar(&self, url: &str, num_results: u32) -> Result<ProviderSearchOutput, WebError> {
         let payload = serde_json::json!({
             "url": url,
             "numResults": num_results,
@@ -41,9 +37,7 @@ impl ExaProvider {
         let body = resp.text().await.unwrap_or_default();
         if !status.is_success() {
             return Err(match status.as_u16() {
-                401 | 403 => {
-                    WebError::ProviderUnavailable(format!("Exa findSimilar auth error: {status}"))
-                }
+                401 | 403 => WebError::ProviderUnavailable(format!("Exa findSimilar auth error: {status}")),
                 429 => WebError::RateLimited(format!("Exa findSimilar rate limited: {status}")),
                 _ => WebError::ProviderError(format!(
                     "Exa findSimilar error {status}: {}",
@@ -52,9 +46,8 @@ impl ExaProvider {
             });
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
-            WebError::ProviderError(format!("Failed to parse Exa findSimilar response: {e}"))
-        })?;
+        let parsed: serde_json::Value = serde_json::from_str(&body)
+            .map_err(|e| WebError::ProviderError(format!("Failed to parse Exa findSimilar response: {e}")))?;
 
         let mut semantic_scores = HashMap::new();
         let mut content_previews = HashMap::new();

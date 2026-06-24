@@ -22,9 +22,7 @@ impl std::str::FromStr for Freshness {
         match s.to_lowercase().as_str() {
             "day" | "d" | "1d" | "past_day" | "past day" | "24h" => Ok(Freshness::Day),
             "week" | "w" | "1w" | "past_week" | "past week" | "7d" | "pw" => Ok(Freshness::Week),
-            "month" | "m" | "1m" | "past_month" | "past month" | "30d" | "pm" => {
-                Ok(Freshness::Month)
-            }
+            "month" | "m" | "1m" | "past_month" | "past month" | "30d" | "pm" => Ok(Freshness::Month),
             "year" | "y" | "1y" | "past_year" | "past year" | "365d" | "py" => Ok(Freshness::Year),
             _ => Err(WebError::BadArgs(format!(
                 "Unknown freshness: {s}. Use: day, week, month, year"

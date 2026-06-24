@@ -9,20 +9,12 @@ use hkask_inference::EmbeddingRouter;
 ///
 /// Returns `None` if embedding generation fails or texts are empty.
 /// Similarity is cosine in [0.0, 1.0].
-pub async fn enrich_with_semantic(
-    text_a: &str,
-    text_b: &str,
-    router: &EmbeddingRouter,
-    model: &str,
-) -> Option<f32> {
+pub async fn enrich_with_semantic(text_a: &str, text_b: &str, router: &EmbeddingRouter, model: &str) -> Option<f32> {
     if text_a.trim().is_empty() || text_b.trim().is_empty() {
         return None;
     }
 
-    let embeddings = router
-        .embed_sentences(model, &[text_a, text_b])
-        .await
-        .ok()?;
+    let embeddings = router.embed_sentences(model, &[text_a, text_b]).await.ok()?;
 
     if embeddings.len() < 2 {
         return None;

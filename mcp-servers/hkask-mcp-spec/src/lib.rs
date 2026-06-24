@@ -11,8 +11,8 @@
 
 pub mod types;
 
-use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
-use hkask_mcp::validate_field;
+use hkask_mcp::server::{McpToolError, ServerContext, execute_tool};
+use hkask_mcp::validate_identifier;
 
 use hkask_capability::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, TOKEN_ERR_EXPIRED,
@@ -71,15 +71,6 @@ impl std::fmt::Debug for SpecServer {
             .field("webid", &self.webid)
             .finish()
     }
-}
-
-// Capability-check macro — covers 5 tool handlers
-macro_rules! check_cap {
-    ($self:expr, $span:expr, $token:expr, $resource:expr, $action:expr) => {
-        if let Err(e) = $self.verify_capability($token.as_deref(), $resource, $action) {
-            return $span.error(e.kind, e.to_json_string());
-        }
-    };
 }
 
 impl SpecServer {
@@ -407,14 +398,11 @@ impl hkask_mcp::server::ToolContext for SpecServer {
     }
 }
 
-/// Serialize response and convert to ok_json.
-/// Returns an internal error span entry if serialization fails (e.g. NaN/Inf in an f64 field).
-fn respond<T: serde::Serialize>(span: ToolSpanGuard, resp: &T) -> String {
-    match serde_json::to_value(resp) {
-        Ok(val) => span.ok_json(val),
-        Err(e) => {
-            span.internal_error(serde_json::json!({"error": format!("serialization failed: {e}")}))
-        }
+/// Helper: convert a Value to a String for error messages.
+fn value_to_string(v: serde_json::Value) -> String {
+    match v {
+        serde_json::Value::String(s) => s,
+        other => other.to_string(),
     }
 }
 
@@ -433,56 +421,53 @@ impl SpecServer {
             capability_token,
         }): Parameters<GoalCaptureRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec_goal_capture", &self.webid);
-        check_cap!(
-            self,
-            span,
-            capability_token,
-            "capture",
-            DelegationAction::Write
-        );
+        execute_tool(self, "spec_goal_capture", async {
+            self.verify_capability(
+                capability_token.as_deref(),
+                "capture",
+                DelegationAction::Write,
+            )?;
 
-        let category = infer_spec_category(context.as_deref());
-        let anchor = DomainAnchor::Hkask;
-        let ocap_boundaries = Self::extract_ocap_boundaries(context.as_deref());
+            let category = infer_spec_category(context.as_deref());
+            let anchor = DomainAnchor::Hkask;
+            let ocap_boundaries = Self::extract_ocap_boundaries(context.as_deref());
 
-        let mut goal = GoalSpec::new(&description);
-        // Seed criteria from description sentences
-        for sentence in description.split('.') {
-            let trimmed = sentence.trim();
-            if !trimmed.is_empty() && trimmed.len() < 200 {
-                goal = goal.with_criterion(trimmed);
+            let mut goal = GoalSpec::new(&description);
+            // Seed criteria from description sentences
+            for sentence in description.split('.') {
+                let trimmed = sentence.trim();
+                if !trimmed.is_empty() && trimmed.len() < 200 {
+                    goal = goal.with_criterion(trimmed);
+                }
             }
-        }
 
-        let spec = Spec::new(&description, category, anchor).with_goal(goal);
-        let spec_id = spec.id;
+            let spec = Spec::new(&description, category, anchor).with_goal(goal);
+            let spec_id = spec.id;
 
-        if let Err(v) = self.persist_val(&spec) {
-            return span.internal_error(v);
-        }
+            self.persist_val(&spec)
+                .map_err(|v| McpToolError::internal(value_to_string(v)))?;
 
-        let requirements: Vec<String> = spec
-            .goals
-            .iter()
-            .flat_map(|g| g.criteria.iter().map(|c| c.description.clone()))
-            .collect();
+            let requirements: Vec<String> = spec
+                .goals
+                .iter()
+                .flat_map(|g| g.criteria.iter().map(|c| c.description.clone()))
+                .collect();
 
-        self.record_experience(
-            "spec_goal_capture",
-            &description,
-            "captured",
-            serde_json::json!({"goal_id": spec_id.to_string(), "category": category.as_str()}),
-        );
+            self.record_experience(
+                "spec_goal_capture",
+                &description,
+                "captured",
+                serde_json::json!({"goal_id": spec_id.to_string(), "category": category.as_str()}),
+            );
 
-        respond(
-            span,
-            &GoalCaptureResponse {
+            Ok(serde_json::to_value(&GoalCaptureResponse {
                 goal_id: spec_id.to_string(),
                 requirements,
                 ocap_boundaries,
-            },
-        )
+            })
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+        })
+        .await
     }
 
     /// MDS §3 tool 2: Decompose a specification goal into ordered sub-goals with dependencies.
@@ -496,74 +481,70 @@ impl SpecServer {
             capability_token,
         }): Parameters<GoalDecomposeRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec_goal_decompose", &self.webid);
-        validate_field!(span, "goal_id", &goal_id, 256);
-        check_cap!(
-            self,
-            span,
-            capability_token,
-            &goal_id,
-            DelegationAction::Write
-        );
+        execute_tool(self, "spec_goal_decompose", async {
+            validate_identifier("goal_id", &goal_id, 256)?;
+            self.verify_capability(
+                capability_token.as_deref(),
+                &goal_id,
+                DelegationAction::Write,
+            )?;
 
-        let mut spec = match self.load_spec(&goal_id) {
-            Ok(s) => s,
-            Err((kind, msg)) => return span.error(kind, msg),
-        };
+            let mut spec = self
+                .load_spec(&goal_id)
+                .map_err(|(kind, msg)| McpToolError::new(kind, msg))?;
 
-        // Decompose each goal that can have subgoals
-        for goal in &mut spec.goals {
-            if !goal.can_have_subgoals() || !goal.sub_goals.is_empty() {
-                continue;
-            }
-            let (sub_texts, _deps) = Self::decompose_description(&goal.text);
-            if sub_texts.len() <= 1 {
-                continue;
-            }
-            for text in &sub_texts {
-                let mut child = GoalSpec::new(text);
-                child.depth = goal.depth + 1;
-                goal.sub_goals.push(child);
-            }
-        }
-
-        let (sub_goals, dependencies) = {
-            let mut all_subs = Vec::new();
-            let mut all_deps = Vec::new();
-            for goal in &spec.goals {
-                for sub in &goal.sub_goals {
-                    all_subs.push(sub.text.clone());
+            // Decompose each goal that can have subgoals
+            for goal in &mut spec.goals {
+                if !goal.can_have_subgoals() || !goal.sub_goals.is_empty() {
+                    continue;
+                }
+                let (sub_texts, _deps) = Self::decompose_description(&goal.text);
+                if sub_texts.len() <= 1 {
+                    continue;
+                }
+                for text in &sub_texts {
+                    let mut child = GoalSpec::new(text);
+                    child.depth = goal.depth + 1;
+                    goal.sub_goals.push(child);
                 }
             }
-            if all_subs.len() > 1 {
-                for i in 1..all_subs.len() {
-                    all_deps.push(DependencyEdge {
-                        from: all_subs[i - 1].clone(),
-                        to: all_subs[i].clone(),
-                    });
+
+            let (sub_goals, dependencies) = {
+                let mut all_subs = Vec::new();
+                let mut all_deps = Vec::new();
+                for goal in &spec.goals {
+                    for sub in &goal.sub_goals {
+                        all_subs.push(sub.text.clone());
+                    }
                 }
-            }
-            (all_subs, all_deps)
-        };
+                if all_subs.len() > 1 {
+                    for i in 1..all_subs.len() {
+                        all_deps.push(DependencyEdge {
+                            from: all_subs[i - 1].clone(),
+                            to: all_subs[i].clone(),
+                        });
+                    }
+                }
+                (all_subs, all_deps)
+            };
 
-        if let Err(v) = self.persist_val(&spec) {
-            return span.internal_error(v);
-        }
+            self.persist_val(&spec)
+                .map_err(|v| McpToolError::internal(value_to_string(v)))?;
 
-        self.record_experience(
-            "spec_goal_decompose",
-            &goal_id,
-            "decomposed",
-            serde_json::json!({"sub_goal_count": sub_goals.len()}),
-        );
+            self.record_experience(
+                "spec_goal_decompose",
+                &goal_id,
+                "decomposed",
+                serde_json::json!({"sub_goal_count": sub_goals.len()}),
+            );
 
-        respond(
-            span,
-            &GoalDecomposeResponse {
+            Ok(serde_json::to_value(&GoalDecomposeResponse {
                 sub_goals,
                 dependencies,
-            },
-        )
+            })
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+        })
+        .await
     }
 
     /// MDS §3 tool 3: Assess a specification's writing quality via the 4-perspective test.
@@ -582,20 +563,17 @@ impl SpecServer {
             capability_token,
         }): Parameters<WritingQualityRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec_require_writing_quality", &self.webid);
-        validate_field!(span, "spec_id", &spec_id, 256);
-        check_cap!(
-            self,
-            span,
-            capability_token,
-            &spec_id,
-            DelegationAction::Read
-        );
+        execute_tool(self, "spec_require_writing_quality", async {
+            validate_identifier("spec_id", &spec_id, 256)?;
+            self.verify_capability(
+                capability_token.as_deref(),
+                &spec_id,
+                DelegationAction::Read,
+            )?;
 
-        let spec = match self.load_spec(&spec_id) {
-            Ok(s) => s,
-            Err((kind, msg)) => return span.error(kind, msg),
-        };
+            let spec = self
+                .load_spec(&spec_id)
+                .map_err(|(kind, msg)| McpToolError::new(kind, msg))?;
 
         let (quality, dimension_scores) = self
             .assess_writing_quality(
@@ -642,17 +620,16 @@ impl SpecServer {
                 ),
             };
 
-        respond(
-            span,
-            &WritingQualityResponse {
+            Ok(serde_json::to_value(&WritingQualityResponse {
                 dimensions_passing,
                 meets_publication_standard: meets_standard,
                 replica_persona: replica_persona.clone(),
                 dimension_scores,
                 weakest_dimension,
                 rewrite_prompt,
-            },
-        )
+            })
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+        }).await
     }
 
     /// MDS §3 tool 4: Query the specification graph by search term with configurable depth.
@@ -667,88 +644,81 @@ impl SpecServer {
             capability_token,
         }): Parameters<GraphQueryRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec_graph_query", &self.webid);
-        check_cap!(
-            self,
-            span,
-            capability_token,
-            "query",
-            DelegationAction::Read
-        );
+        execute_tool(self, "spec_graph_query", async {
+            self.verify_capability(capability_token.as_deref(), "query", DelegationAction::Read)?;
 
-        let max_depth = depth.unwrap_or(3);
-        let all_specs = match self.load_all_specs_val() {
-            Ok(specs) => specs,
-            Err(v) => return span.internal_error(v),
-        };
+            let max_depth = depth.unwrap_or(3);
+            let all_specs = self
+                .load_all_specs_val()
+                .map_err(|v| McpToolError::internal(value_to_string(v)))?;
 
-        let query_lower = query.to_lowercase();
+            let query_lower = query.to_lowercase();
 
-        // Match specs where name, goals, or category contain the query
-        let nodes: Vec<GraphNode> = all_specs
-            .iter()
-            .filter(|s| {
-                s.name.to_lowercase().contains(&query_lower)
-                    || s.goals
-                        .iter()
-                        .any(|g| g.text.to_lowercase().contains(&query_lower))
-                    || s.category.as_str().contains(&query_lower)
-            })
-            .map(|s| GraphNode {
-                id: s.id.to_string(),
-                label: s.name.clone(),
-                category: s.category.as_str().to_string(),
-            })
-            .collect();
+            // Match specs where name, goals, or category contain the query
+            let nodes: Vec<GraphNode> = all_specs
+                .iter()
+                .filter(|s| {
+                    s.name.to_lowercase().contains(&query_lower)
+                        || s.goals
+                            .iter()
+                            .any(|g| g.text.to_lowercase().contains(&query_lower))
+                        || s.category.as_str().contains(&query_lower)
+                })
+                .map(|s| GraphNode {
+                    id: s.id.to_string(),
+                    label: s.name.clone(),
+                    category: s.category.as_str().to_string(),
+                })
+                .collect();
 
-        // Build edges between specs in the same category (composition adjacency)
-        let mut edges = Vec::new();
-        for i in 0..nodes.len() {
-            for j in (i + 1)..nodes.len() {
-                if nodes[i].category == nodes[j].category {
-                    edges.push(GraphEdge {
-                        from: nodes[i].id.clone(),
-                        to: nodes[j].id.clone(),
-                        relation: "same-category".to_string(),
+            // Build edges between specs in the same category (composition adjacency)
+            let mut edges = Vec::new();
+            for i in 0..nodes.len() {
+                for j in (i + 1)..nodes.len() {
+                    if nodes[i].category == nodes[j].category {
+                        edges.push(GraphEdge {
+                            from: nodes[i].id.clone(),
+                            to: nodes[j].id.clone(),
+                            relation: "same-category".to_string(),
+                        });
+                    }
+                }
+            }
+
+            // Build simple paths (direct category-linked chains up to max_depth)
+            let mut paths = Vec::new();
+            for node in &nodes {
+                let linked: Vec<String> = edges
+                    .iter()
+                    .filter(|e| e.from == node.id || e.to == node.id)
+                    .flat_map(|e| vec![e.from.clone(), e.to.clone()])
+                    .collect::<std::collections::HashSet<_>>()
+                    .into_iter()
+                    .take(max_depth as usize)
+                    .collect();
+                if !linked.is_empty() {
+                    paths.push(GraphPath {
+                        nodes: linked,
+                        length: 1,
                     });
                 }
             }
-        }
 
-        // Build simple paths (direct category-linked chains up to max_depth)
-        let mut paths = Vec::new();
-        for node in &nodes {
-            let linked: Vec<String> = edges
-                .iter()
-                .filter(|e| e.from == node.id || e.to == node.id)
-                .flat_map(|e| vec![e.from.clone(), e.to.clone()])
-                .collect::<std::collections::HashSet<_>>()
-                .into_iter()
-                .take(max_depth as usize)
-                .collect();
-            if !linked.is_empty() {
-                paths.push(GraphPath {
-                    nodes: linked,
-                    length: 1,
-                });
-            }
-        }
-
-        self.record_experience(
+            self.record_experience(
             "spec_graph_query",
             &query,
             "success",
             serde_json::json!({"nodes": nodes.len(), "edges": edges.len(), "paths": paths.len()}),
         );
 
-        respond(
-            span,
-            &GraphQueryResponse {
+            Ok(serde_json::to_value(&GraphQueryResponse {
                 nodes,
                 edges,
                 paths,
-            },
-        )
+            })
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+        })
+        .await
     }
 
     /// MDS §3 tool 5: Validate specification collection coherence.
@@ -762,56 +732,53 @@ impl SpecServer {
             capability_token,
         }): Parameters<GraphCoherenceRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec_graph_coherence", &self.webid);
-        check_cap!(
-            self,
-            span,
-            capability_token,
-            "coherence",
-            DelegationAction::Read
-        );
+        execute_tool(self, "spec_graph_coherence", async {
+            self.verify_capability(
+                capability_token.as_deref(),
+                "coherence",
+                DelegationAction::Read,
+            )?;
 
-        let all_specs = match self.load_all_specs_val() {
-            Ok(specs) => specs,
-            Err(v) => return span.internal_error(v),
-        };
+            let all_specs = self
+                .load_all_specs_val()
+                .map_err(|v| McpToolError::internal(value_to_string(v)))?;
 
-        let coherence = Spec::collection_coherence(&all_specs);
-        let threshold = 0.7;
-        let mut violations = Vec::new();
-        let mut suggestions = Vec::new();
+            let coherence = Spec::collection_coherence(&all_specs);
+            let threshold = 0.7;
+            let mut violations = Vec::new();
+            let mut suggestions = Vec::new();
 
-        if coherence < threshold {
-            violations.push(format!(
-                "Collection coherence {:.2} below threshold {:.2}",
-                coherence, threshold
-            ));
-        }
-
-        let categories_covered: std::collections::HashSet<String> = all_specs
-            .iter()
-            .map(|s| s.category.as_str().to_string())
-            .collect();
-        for cat in SpecCategory::all() {
-            if !categories_covered.contains(cat.as_str()) {
-                suggestions.push(format!("Missing category: {}", cat.as_str()));
+            if coherence < threshold {
+                violations.push(format!(
+                    "Collection coherence {:.2} below threshold {:.2}",
+                    coherence, threshold
+                ));
             }
-        }
 
-        for spec in &all_specs {
-            if !spec.is_complete() {
-                suggestions.push(format!("Incomplete spec: {} ({})", spec.id, spec.name));
+            let categories_covered: std::collections::HashSet<String> = all_specs
+                .iter()
+                .map(|s| s.category.as_str().to_string())
+                .collect();
+            for cat in SpecCategory::all() {
+                if !categories_covered.contains(cat.as_str()) {
+                    suggestions.push(format!("Missing category: {}", cat.as_str()));
+                }
             }
-        }
 
-        respond(
-            span,
-            &GraphCoherenceResponse {
+            for spec in &all_specs {
+                if !spec.is_complete() {
+                    suggestions.push(format!("Incomplete spec: {} ({})", spec.id, spec.name));
+                }
+            }
+
+            Ok(serde_json::to_value(&GraphCoherenceResponse {
                 coherence_score: coherence,
                 violations,
                 suggestions,
-            },
-        )
+            })
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+        })
+        .await
     }
 
     /// Rewrite a passage or document using the Gentle Lovelace replica persona.
@@ -831,16 +798,14 @@ impl SpecServer {
             capability_token,
         }): Parameters<ReplicaRewriteRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec_replica_rewrite", &self.webid);
-        let started = Instant::now();
+        execute_tool(self, "spec_replica_rewrite", async {
+            let started = Instant::now();
 
-        check_cap!(
-            self,
-            span,
-            capability_token,
-            "rewrite",
-            DelegationAction::Read
-        );
+            self.verify_capability(
+                capability_token.as_deref(),
+                "rewrite",
+                DelegationAction::Read,
+            )?;
 
         // Build dimension-specific rewrite prompt
         let dimension_guidance = match dimension.to_lowercase().as_str() {
@@ -910,26 +875,27 @@ impl SpecServer {
         };
 
         match run.await {
-            Ok(result) => {
-                let output = serde_json::to_value(&ReplicaRewriteResponse {
-                    rewritten: result.generated_prose,
-                    dimension: dimension.clone(),
-                    exemplar_count: result.exemplar_count,
-                    centroid_distance: result.validation.as_ref().map(|v| v.distance),
-                    elapsed_ms: started.elapsed().as_millis() as u64,
-                })
-                .unwrap_or(serde_json::json!({"error": "serialization failed"}));
+                Ok(result) => {
+                    let output = serde_json::to_value(&ReplicaRewriteResponse {
+                        rewritten: result.generated_prose,
+                        dimension: dimension.clone(),
+                        exemplar_count: result.exemplar_count,
+                        centroid_distance: result.validation.as_ref().map(|v| v.distance),
+                        elapsed_ms: started.elapsed().as_millis() as u64,
+                    })
+                    .unwrap_or(serde_json::json!({"error": "serialization failed"}));
 
-                self.record_experience(
-                    "spec_replica_rewrite",
-                    &dimension,
-                    "success",
-                    output.clone(),
-                );
-                span.ok_json(output)
+                    self.record_experience(
+                        "spec_replica_rewrite",
+                        &dimension,
+                        "success",
+                        output.clone(),
+                    );
+                    Ok(output)
+                }
+                Err(e) => Err(McpToolError::internal(e)),
             }
-            Err(e) => span.internal_error(serde_json::json!({"error": e})),
-        }
+        }).await
     }
 
     /// Discover uncontracted public functions in a crate.
@@ -945,81 +911,82 @@ impl SpecServer {
             workspace_root,
         }): Parameters<ContractAuditRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("contract_audit", &self.webid);
+        execute_tool(self, "contract_audit", async {
+            let root = workspace_root.unwrap_or_else(|| {
+                std::env::var("HKASK_WORKSPACE_ROOT").unwrap_or_else(|_| {
+                    std::env::current_dir()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_else(|_| ".".to_string())
+                })
+            });
 
-        let root = workspace_root.unwrap_or_else(|| {
-            std::env::var("HKASK_WORKSPACE_ROOT").unwrap_or_else(|_| {
-                std::env::current_dir()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_else(|_| ".".to_string())
-            })
-        });
-
-        let crates: Vec<String> = if let Some(c) = crate_name {
-            vec![c]
-        } else {
-            let crates_dir = std::path::Path::new(&root).join("crates");
-            match std::fs::read_dir(&crates_dir) {
-                Ok(entries) => entries
-                    .flatten()
-                    .filter(|e| e.path().is_dir())
-                    .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
-                    .filter(|s| s.starts_with("hkask-"))
-                    .collect(),
-                Err(_) => return span.internal_error(
-                    serde_json::json!({"error": format!("crates directory not found: {}", crates_dir.display())})
-                ),
-            }
-        };
-
-        let mut crate_results = Vec::new();
-        let mut total_fns = 0usize;
-        let mut total_contracted = 0usize;
-        let mut total_uncontracted = 0usize;
-
-        for name in &crates {
-            match hkask_test_harness::test_runner::discover_uncontracted_functions(name, &root) {
-                Some(audit) => {
-                    total_fns += audit.total_pub_fns;
-                    total_contracted += audit.contracted;
-                    total_uncontracted += audit.uncontracted.len();
-                    crate_results.push(CrateCoverage {
-                        crate_name: name.clone(),
-                        total_pub_fns: audit.total_pub_fns,
-                        contracted: audit.contracted,
-                        coverage_pct: audit.coverage_pct,
-                        uncontracted: audit
-                            .uncontracted
-                            .iter()
-                            .map(|f| UncontractedFn {
-                                function_name: f.function_name.clone(),
-                                file: f.file.clone(),
-                                line: f.line,
-                            })
-                            .collect(),
-                    });
+            let crates: Vec<String> = if let Some(c) = crate_name {
+                vec![c]
+            } else {
+                let crates_dir = std::path::Path::new(&root).join("crates");
+                match std::fs::read_dir(&crates_dir) {
+                    Ok(entries) => entries
+                        .flatten()
+                        .filter(|e| e.path().is_dir())
+                        .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
+                        .filter(|s| s.starts_with("hkask-"))
+                        .collect(),
+                    Err(_) => {
+                        return Err(McpToolError::internal(format!(
+                            "crates directory not found: {}",
+                            crates_dir.display()
+                        )));
+                    }
                 }
-                None => {
-                    crate_results.push(CrateCoverage {
-                        crate_name: name.clone(),
-                        total_pub_fns: 0,
-                        contracted: 0,
-                        coverage_pct: 0.0,
-                        uncontracted: vec![],
-                    });
+            };
+
+            let mut crate_results = Vec::new();
+            let mut total_fns = 0usize;
+            let mut total_contracted = 0usize;
+            let mut total_uncontracted = 0usize;
+
+            for name in &crates {
+                match hkask_test_harness::test_runner::discover_uncontracted_functions(name, &root)
+                {
+                    Some(audit) => {
+                        total_fns += audit.total_pub_fns;
+                        total_contracted += audit.contracted;
+                        total_uncontracted += audit.uncontracted.len();
+                        crate_results.push(CrateCoverage {
+                            crate_name: name.clone(),
+                            total_pub_fns: audit.total_pub_fns,
+                            contracted: audit.contracted,
+                            coverage_pct: audit.coverage_pct,
+                            uncontracted: audit
+                                .uncontracted
+                                .iter()
+                                .map(|f| UncontractedFn {
+                                    function_name: f.function_name.clone(),
+                                    file: f.file.clone(),
+                                    line: f.line,
+                                })
+                                .collect(),
+                        });
+                    }
+                    None => {
+                        crate_results.push(CrateCoverage {
+                            crate_name: name.clone(),
+                            total_pub_fns: 0,
+                            contracted: 0,
+                            coverage_pct: 0.0,
+                            uncontracted: vec![],
+                        });
+                    }
                 }
             }
-        }
 
-        let overall_pct = if total_fns > 0 {
-            (total_contracted as f64 / total_fns as f64) * 100.0
-        } else {
-            100.0
-        };
+            let overall_pct = if total_fns > 0 {
+                (total_contracted as f64 / total_fns as f64) * 100.0
+            } else {
+                100.0
+            };
 
-        respond(
-            span,
-            &ContractAuditResponse {
+            Ok(serde_json::to_value(&ContractAuditResponse {
                 crates: crate_results,
                 totals: AuditTotals {
                     total_pub_fns: total_fns,
@@ -1027,8 +994,10 @@ impl SpecServer {
                     coverage_pct: overall_pct,
                     uncontracted_total: total_uncontracted,
                 },
-            },
-        )
+            })
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+        })
+        .await
     }
 
     /// Submit a contract proposal for human review.
@@ -1046,46 +1015,46 @@ impl SpecServer {
             replicant,
         }): Parameters<ContractProposeRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("contract_propose", &self.webid);
-        let rep = replicant.unwrap_or_else(|| self.webid.to_string());
+        execute_tool(self, "contract_propose", async {
+            let rep = replicant.unwrap_or_else(|| self.webid.to_string());
 
-        // Emit CNS span to real event sink (flows to Curator's review queue)
-        emit_contract_proposed(
-            &*self.event_sink,
-            &rep,
-            &crate_name,
-            &function,
-            &contract_id,
-        );
+            // Emit CNS span to real event sink (flows to Curator's review queue)
+            emit_contract_proposed(
+                &*self.event_sink,
+                &rep,
+                &crate_name,
+                &function,
+                &contract_id,
+            );
 
-        // Persist proposal as triple for Curator review
-        let value = serde_json::json!({
-            "replicant": rep,
-            "crate": crate_name,
-            "function": function,
-            "contract_id": contract_id,
-            "pre": pre,
-            "post": post,
-            "status": "proposed",
-            "proposed_at": chrono::Utc::now().to_rfc3339(),
-        });
-        let triple = hkask_storage::Triple::new(
-            "cns:contract_proposal",
-            &contract_id,
-            value,
-            hkask_types::WebID::from_persona(rep.as_bytes()),
-        );
-        let _ = self.triple_store.insert(&triple);
+            // Persist proposal as triple for Curator review
+            let value = serde_json::json!({
+                "replicant": rep,
+                "crate": crate_name,
+                "function": function,
+                "contract_id": contract_id,
+                "pre": pre,
+                "post": post,
+                "status": "proposed",
+                "proposed_at": chrono::Utc::now().to_rfc3339(),
+            });
+            let triple = hkask_storage::Triple::new(
+                "cns:contract_proposal",
+                &contract_id,
+                value,
+                hkask_types::WebID::from_persona(rep.as_bytes()),
+            );
+            let _ = self.triple_store.insert(&triple);
 
-        respond(
-            span,
-            &ContractProposeResponse {
+            Ok(serde_json::to_value(&ContractProposeResponse {
                 contract_id,
                 crate_name,
                 function,
                 status: "proposed".to_string(),
-            },
-        )
+            })
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+        })
+        .await
     }
 
     /// Accept a proposed contract (human consent gate).
@@ -1097,34 +1066,34 @@ impl SpecServer {
             reviewer,
         }): Parameters<ContractAcceptRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("contract_accept", &self.webid);
-        let rev = reviewer.unwrap_or_else(|| self.webid.to_string());
+        execute_tool(self, "contract_accept", async {
+            let rev = reviewer.unwrap_or_else(|| self.webid.to_string());
 
-        emit_contract_accepted(&*self.event_sink, &rev, "", "", "", &contract_id);
+            emit_contract_accepted(&*self.event_sink, &rev, "", "", "", &contract_id);
 
-        // Update proposal triple status
-        if let Ok(mut existing) = self
-            .triple_store
-            .query_by_entity_attribute("cns:contract_proposal", &contract_id)
-            && let Some(mut triple) = existing.pop()
-        {
-            let mut value = triple.value.clone();
-            value["status"] = serde_json::json!("accepted");
-            value["reviewer"] = serde_json::json!(&rev);
-            value["accepted_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
-            triple.value = value.clone();
-            let _ = self
+            // Update proposal triple status
+            if let Ok(mut existing) = self
                 .triple_store
-                .update(&triple.id, value, hkask_types::Confidence::full());
-        }
+                .query_by_entity_attribute("cns:contract_proposal", &contract_id)
+                && let Some(mut triple) = existing.pop()
+            {
+                let mut value = triple.value.clone();
+                value["status"] = serde_json::json!("accepted");
+                value["reviewer"] = serde_json::json!(&rev);
+                value["accepted_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+                triple.value = value.clone();
+                let _ =
+                    self.triple_store
+                        .update(&triple.id, value, hkask_types::Confidence::full());
+            }
 
-        respond(
-            span,
-            &ContractAcceptResponse {
+            Ok(serde_json::to_value(&ContractAcceptResponse {
                 contract_id,
                 status: "accepted".to_string(),
-            },
-        )
+            })
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+        })
+        .await
     }
 
     /// Reject a proposed contract with rationale.
@@ -1137,60 +1106,65 @@ impl SpecServer {
             reviewer,
         }): Parameters<ContractRejectRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("contract_reject", &self.webid);
-        let rev = reviewer.unwrap_or_else(|| self.webid.to_string());
+        execute_tool(self, "contract_reject", async {
+            let rev = reviewer.unwrap_or_else(|| self.webid.to_string());
 
-        emit_contract_rejected(&*self.event_sink, &rev, "", "", "", &contract_id, &reason);
+            emit_contract_rejected(&*self.event_sink, &rev, "", "", "", &contract_id, &reason);
 
-        // Update proposal triple status
-        if let Ok(mut existing) = self
-            .triple_store
-            .query_by_entity_attribute("cns:contract_proposal", &contract_id)
-            && let Some(mut triple) = existing.pop()
-        {
-            let mut value = triple.value.clone();
-            value["status"] = serde_json::json!("rejected");
-            value["reviewer"] = serde_json::json!(&rev);
-            value["reason"] = serde_json::json!(&reason);
-            value["rejected_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
-            triple.value = value.clone();
-            let _ = self
+            // Update proposal triple status
+            if let Ok(mut existing) = self
                 .triple_store
-                .update(&triple.id, value, hkask_types::Confidence::full());
-        }
+                .query_by_entity_attribute("cns:contract_proposal", &contract_id)
+                && let Some(mut triple) = existing.pop()
+            {
+                let mut value = triple.value.clone();
+                value["status"] = serde_json::json!("rejected");
+                value["reviewer"] = serde_json::json!(&rev);
+                value["reason"] = serde_json::json!(&reason);
+                value["rejected_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+                triple.value = value.clone();
+                let _ =
+                    self.triple_store
+                        .update(&triple.id, value, hkask_types::Confidence::full());
+            }
 
-        respond(
-            span,
-            &ContractRejectResponse {
+            Ok(serde_json::to_value(&ContractRejectResponse {
                 contract_id,
                 status: "rejected".to_string(),
-            },
-        )
+            })
+            .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+        })
+        .await
     }
 
     /// List proposed contracts awaiting review.
     #[tool(description = "List proposed behavioral contracts and their review status.")]
     pub async fn contract_list(&self) -> String {
-        let span = ToolSpanGuard::new("contract_list", &self.webid);
-        let proposals = self
-            .triple_store
-            .query_by_entity("cns:contract_proposal")
-            .unwrap_or_default();
+        execute_tool(self, "contract_list", async {
+            let proposals = self
+                .triple_store
+                .query_by_entity("cns:contract_proposal")
+                .unwrap_or_default();
 
-        let entries: Vec<ProposalEntry> = proposals
-            .iter()
-            .map(|t| ProposalEntry {
-                contract_id: t.value["contract_id"].as_str().unwrap_or("?").to_string(),
-                status: t.value["status"].as_str().unwrap_or("unknown").to_string(),
-                function: t.value["function"].as_str().unwrap_or("?").to_string(),
-                crate_name: t.value["crate"].as_str().unwrap_or("?").to_string(),
-                pre: t.value["pre"].as_str().unwrap_or("").to_string(),
-                post: t.value["post"].as_str().unwrap_or("").to_string(),
-                replicant: t.value["replicant"].as_str().map(|s| s.to_string()),
-            })
-            .collect();
+            let entries: Vec<ProposalEntry> = proposals
+                .iter()
+                .map(|t| ProposalEntry {
+                    contract_id: t.value["contract_id"].as_str().unwrap_or("?").to_string(),
+                    status: t.value["status"].as_str().unwrap_or("unknown").to_string(),
+                    function: t.value["function"].as_str().unwrap_or("?").to_string(),
+                    crate_name: t.value["crate"].as_str().unwrap_or("?").to_string(),
+                    pre: t.value["pre"].as_str().unwrap_or("").to_string(),
+                    post: t.value["post"].as_str().unwrap_or("").to_string(),
+                    replicant: t.value["replicant"].as_str().map(|s| s.to_string()),
+                })
+                .collect();
 
-        respond(span, &ContractListResponse { proposals: entries })
+            Ok(
+                serde_json::to_value(&ContractListResponse { proposals: entries })
+                    .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?,
+            )
+        })
+        .await
     }
 
     /// Run contract tests on a crate and report REQ-tagged violations.
@@ -1202,31 +1176,28 @@ impl SpecServer {
             workspace_root,
         }): Parameters<TestRunRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("test_run", &self.webid);
+        execute_tool(self, "test_run", async {
+            let root = workspace_root.unwrap_or_else(|| {
+                std::env::var("HKASK_WORKSPACE_ROOT").unwrap_or_else(|_| {
+                    std::env::current_dir()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_else(|_| ".".to_string())
+                })
+            });
 
-        let root = workspace_root.unwrap_or_else(|| {
-            std::env::var("HKASK_WORKSPACE_ROOT").unwrap_or_else(|_| {
-                std::env::current_dir()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_else(|_| ".".to_string())
-            })
-        });
+            match hkask_test_harness::test_runner::run_contract_tests(&crate_name, &root) {
+                Some(result) => {
+                    // Emit violations to CNS
+                    for v in &result.violations {
+                        emit_contract_violated(
+                            &*self.event_sink,
+                            &v.test_name,
+                            &v.contract_id,
+                            &v.failure_reason,
+                        );
+                    }
 
-        match hkask_test_harness::test_runner::run_contract_tests(&crate_name, &root) {
-            Some(result) => {
-                // Emit violations to CNS
-                for v in &result.violations {
-                    emit_contract_violated(
-                        &*self.event_sink,
-                        &v.test_name,
-                        &v.contract_id,
-                        &v.failure_reason,
-                    );
-                }
-
-                respond(
-                    span,
-                    &TestRunResponse {
+                    Ok(serde_json::to_value(&TestRunResponse {
                         crate_name: result.crate_name,
                         total_tests: result.total_tests,
                         passed: result.passed,
@@ -1241,13 +1212,16 @@ impl SpecServer {
                             })
                             .collect(),
                         pass: result.failed == 0,
-                    },
-                )
+                    })
+                    .map_err(|e| McpToolError::internal(format!("serialization failed: {e}")))?)
+                }
+                None => Err(McpToolError::internal(format!(
+                    "cargo test unavailable for crate '{}'",
+                    crate_name
+                ))),
             }
-            None => span.internal_error(
-                serde_json::json!({"error": format!("cargo test unavailable for crate '{}'", crate_name)}),
-            ),
-        }
+        })
+        .await
     }
 }
 

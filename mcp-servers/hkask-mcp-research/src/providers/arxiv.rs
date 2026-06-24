@@ -58,9 +58,7 @@ impl WebSearchProvider for ArxivProvider {
         if !status.is_success() {
             return Err(match status.as_u16() {
                 429 => WebError::RateLimited(format!("arXiv rate limited: {status}")),
-                503 => WebError::ProviderUnavailable(format!(
-                    "arXiv temporarily unavailable: {status}"
-                )),
+                503 => WebError::ProviderUnavailable(format!("arXiv temporarily unavailable: {status}")),
                 _ => WebError::ProviderError(format!(
                     "arXiv error {status}: {}",
                     body.chars().take(200).collect::<String>()
@@ -84,9 +82,7 @@ impl WebSearchProvider for ArxivProvider {
             .query(&[("search_query", "all:test"), ("max_results", "1")])
             .send()
             .await
-            .map_err(|e| {
-                WebError::ProviderUnavailable(format!("arXiv health check failed: {e}"))
-            })?;
+            .map_err(|e| WebError::ProviderUnavailable(format!("arXiv health check failed: {e}")))?;
         if resp.status().is_success() || resp.status().as_u16() == 503 {
             // 503 is arXiv's "busy" response — still alive
             Ok(())
@@ -157,11 +153,7 @@ fn parse_arxiv_atom(xml: &str) -> Vec<SearchResult> {
         }
         if !published.is_empty() {
             // Extract just the date part (YYYY-MM-DD)
-            let date = published
-                .split('T')
-                .next()
-                .unwrap_or(&published)
-                .to_string();
+            let date = published.split('T').next().unwrap_or(&published).to_string();
             desc_parts.push(format!("({date})"));
         }
         if !summary.is_empty() {

@@ -23,22 +23,14 @@ impl SerapiProvider {
     /// Extract a YouTube video ID from a URL or raw ID string.
     fn extract_video_id(query: &str) -> Option<String> {
         // Direct 11-char video ID (alphanumeric + _ -)
-        if query.len() == 11
-            && query
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
-        {
+        if query.len() == 11 && query.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
             return Some(query.to_string());
         }
         // youtube.com/watch?v=VIDEO_ID
         if let Some(pos) = query.find("v=") {
             let after = &query[pos + 2..];
             let id: String = after.chars().take(11).collect();
-            if id.len() == 11
-                && id
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
-            {
+            if id.len() == 11 && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
                 return Some(id);
             }
         }
@@ -46,11 +38,7 @@ impl SerapiProvider {
         if let Some(pos) = query.find("youtu.be/") {
             let after = &query[pos + 9..];
             let id: String = after.chars().take(11).collect();
-            if id.len() == 11
-                && id
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
-            {
+            if id.len() == 11 && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
                 return Some(id);
             }
         }
@@ -71,9 +59,7 @@ impl SerapiProvider {
             .query(&params)
             .send()
             .await
-            .map_err(|e| {
-                WebError::ProviderUnavailable(format!("SerpAPI transcript request failed: {e}"))
-            })?;
+            .map_err(|e| WebError::ProviderUnavailable(format!("SerpAPI transcript request failed: {e}")))?;
 
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
@@ -88,9 +74,8 @@ impl SerapiProvider {
             });
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
-            WebError::ProviderError(format!("Failed to parse SerpAPI transcript response: {e}"))
-        })?;
+        let parsed: serde_json::Value = serde_json::from_str(&body)
+            .map_err(|e| WebError::ProviderError(format!("Failed to parse SerpAPI transcript response: {e}")))?;
 
         // Transcript segments: each has "snippet", "start_ms", "end_ms"
         let transcript_text = parsed["transcript"]
@@ -209,9 +194,8 @@ impl WebSearchProvider for SerapiProvider {
             });
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
-            WebError::ProviderError(format!("Failed to parse SerpAPI response: {e}"))
-        })?;
+        let parsed: serde_json::Value = serde_json::from_str(&body)
+            .map_err(|e| WebError::ProviderError(format!("Failed to parse SerpAPI response: {e}")))?;
 
         let organic = parsed["organic_results"]
             .as_array()
@@ -253,10 +237,7 @@ impl WebSearchProvider for SerapiProvider {
         results.extend(news);
 
         let answer_box = parsed["answer_box"].as_object().map(|ab| AnswerBox {
-            title: ab
-                .get("title")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+            title: ab.get("title").and_then(|v| v.as_str()).map(|s| s.to_string()),
             snippet: ab
                 .get("snippet")
                 .or_else(|| ab.get("answer"))

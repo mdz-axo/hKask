@@ -13,10 +13,8 @@ use std::time::Instant;
 
 /// Check fusion model configuration at startup.
 ///
-/// When an OpenRouter API key is configured, fusion is enabled by default
-/// using the kask model set (Kimi2.7, Qwen3.7 Max, GLM5.2, Minimax3 panel,
-/// deepseek-v4-pro judge). Set HKASK_FUSION_JUDGE/HKASK_FUSION_PANEL to
-/// customize, or set HKASK_FUSION_OFF=1 to disable.
+/// Fusion is opt-in — only active when HKASK_FUSION_JUDGE or
+/// legacy vars are explicitly set. Prints the active configuration.
 fn check_fusion_startup(_rt: &tokio::runtime::Runtime) {
     let config = InferenceConfig::from_env();
     let fusion = match &config.fusion {
@@ -24,22 +22,10 @@ fn check_fusion_startup(_rt: &tokio::runtime::Runtime) {
         None => return,
     };
 
-    let has_explicit_config = std::env::var("HKASK_FUSION_JUDGE").is_ok()
-        || std::env::var("HKASK_FUSION_FUSER").is_ok()
-        || std::env::var("HKASK_FUSION_GROUP").is_ok()
-        || std::env::var("HKASK_FUSION_MODEL").is_ok();
-
     eprintln!(
         "\n  \x1b[1;33m⚡ Fusion mode active\x1b[0m — model: \x1b[36mopenrouter/fusion\x1b[0m\n     {}",
         fusion.description()
     );
-
-    if !has_explicit_config {
-        eprintln!(
-            "     \x1b[2mUsing kask defaults. Configure: HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL\x1b[0m"
-        );
-        eprintln!("     \x1b[2mDisable: HKASK_FUSION_OFF=1  |  In REPL: /fusion off\x1b[0m");
-    }
 }
 
 /// ── Main ─────────────────────────────────────────────────────────────────

@@ -95,11 +95,7 @@ pub async fn validate_face_reference(
     image_url: &str,
     vision_model: Option<&str>,
 ) -> Result<FaceValidationResult, String> {
-    let prompt = crate::templates::render(
-        template_env,
-        "validate_face_ref",
-        &std::collections::HashMap::new(),
-    )?;
+    let prompt = crate::templates::render(template_env, "validate_face_ref", &std::collections::HashMap::new())?;
 
     let params = LLMParameters {
         temperature: 0.1, // Low temperature for consistent, objective assessment
@@ -135,11 +131,7 @@ pub async fn match_faces(
     query_url: &str,
     vision_model: Option<&str>,
 ) -> Result<FaceMatchResult, String> {
-    let prompt = crate::templates::render(
-        template_env,
-        "match_faces",
-        &std::collections::HashMap::new(),
-    )?;
+    let prompt = crate::templates::render(template_env, "match_faces", &std::collections::HashMap::new())?;
 
     let params = LLMParameters {
         temperature: 0.1,

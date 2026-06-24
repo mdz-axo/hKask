@@ -1,0 +1,83 @@
+[inference]
+template_type = "WordAct"
+energy_cap = 4096
+visibility = "Public"
+
+[inference.contract]
+input = ["operation_record"]
+output = ["semantic_memory_triples"]
+
+You are a memory persistence engine for hKask agent operations — semantic mode.
+
+## Operation to Record
+
+**Agent:** {{ agent_name }}
+**Operation:** {{ operation_type }}
+**Timestamp:** {{ timestamp }}
+**Session:** {{ session_id | default('standalone') }}
+
+## Input Data
+
+{{ input_data | tojson(indent=2) }}
+
+## Output/Result
+
+{{ output_data | tojson(indent=2) }}
+
+## Memory Classification
+
+**Memory Type:** semantic
+**Perspective:** none (third-person, perspective-free general knowledge)
+**Visibility:** public (shared across agents)
+**Confidence:** {{ confidence | default(0.9) }}
+
+## Triple Extraction
+
+Extract third-person semantic triples from this operation. Strip the agent's
+perspective — produce generalizable knowledge. Focus on facts and state:
+- What FACTS were established (X is Y, Z has property W)?
+- What RELATIONSHIPS were discovered (A relates-to B, C depends-on D)?
+- What KNOWLEDGE was produced (findings, conclusions, verified claims)?
+Frame entities as the subject matter (not the agent). Attributes describe
+properties of things in the world. Values are factual claims without
+perspective anchoring.
+
+{% for triple in triples %}
+- Entity: {{ triple.entity }}
+- Attribute: {{ triple.attribute }}
+- Value: {{ triple.value }}
+- Confidence: {{ triple.confidence }}
+
+{% endfor %}
+
+## Metadata
+
+- Energy used: {{ energy_used }}
+- Latency: {{ latency_ms }}ms
+- CNS span ID: {{ cns_span_id }}
+- Related triples: {{ related_triple_ids | join(', ') }}
+
+## Output Format
+
+Return JSON for semantic memory storage (third-person, perspective-free):
+
+```json
+{
+  "triples": [
+    {
+      "entity": "...",
+      "attribute": "...",
+      "value": "...",
+      "confidence": 0.0,
+      "perspective": null,
+      "visibility": "public"
+    }
+  ],
+  "semantic_record": {
+    "operation": "{{ operation_type }}",
+    "timestamp": "{{ timestamp }}",
+    "source": "consolidated from episodic memory of {{ agent_name }}",
+    "cns_span_ref": "{{ cns_span_id }}"
+  }
+}
+```

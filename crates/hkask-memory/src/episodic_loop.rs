@@ -8,7 +8,6 @@ use std::sync::Arc;
 
 use crate::consolidation::ConsolidationBridge;
 use crate::episodic::EpisodicMemory;
-use hkask_capability::tokens::ConsolidationToken;
 use hkask_cns::types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
@@ -28,11 +27,7 @@ pub struct EpisodicLoop {
     memory: Arc<EpisodicMemory>,
     perspective: WebID,
     storage_budget: usize,
-    /// Consolidation bridge for promoting episodic triples to semantic memory
-    /// when budget pressure requires it.
     consolidation: Option<Arc<ConsolidationBridge>>,
-    /// OCAP token proving consolidation authority (issued by Curator/Cybernetics).
-    consolidation_token: Option<ConsolidationToken>,
 }
 
 impl EpisodicLoop {
@@ -52,35 +47,21 @@ impl EpisodicLoop {
             perspective,
             storage_budget,
             consolidation: None,
-            consolidation_token: None,
         }
     }
 
     /// Create an Episodic Loop with a consolidation bridge.
-    ///
-    /// When budget pressure requires it, the consolidation bridge fires
-    /// to promote episodic triples into semantic memory. The token proves
-    /// Curator/Cybernetics authority for the one-way bridge.
-    ///
-    /// expect: "The system wraps episodic memory in a regulated generative loop"
-    /// \[P3\] Motivating: Generative Space — enables promotion path when episodic budget is exceeded
-    /// \[P9\] Constraining: Homeostatic Self-Regulation — consolidation bridge fires only under token authority
-    /// pre:  memory is initialized, perspective is valid, storage_budget > 0
-    /// pre:  consolidation_token.issuer() == expected curator
-    /// post: returns EpisodicLoop with consolidation bridge and token
     pub fn with_consolidation(
         memory: Arc<EpisodicMemory>,
         perspective: WebID,
         storage_budget: usize,
         consolidation: Arc<ConsolidationBridge>,
-        consolidation_token: ConsolidationToken,
     ) -> Self {
         Self {
             memory,
             perspective,
             storage_budget,
             consolidation: Some(consolidation),
-            consolidation_token: Some(consolidation_token),
         }
     }
 
@@ -213,12 +194,9 @@ impl HkaskLoop for EpisodicLoop {
 
                         // Fire consolidation bridge: promote lowest-confidence,
                         // oldest episodic triples to semantic memory
-                        if let (Some(consolidation), Some(token)) =
-                            (&self.consolidation, &self.consolidation_token)
-                        {
+                        if let Some(consolidation) = &self.consolidation {
                             match consolidation.consolidate(
-                                token,
-                                &self.perspective,
+                                self.perspective,
                                 ConsolidationRequest {
                                     limit: overage,
                                     ..Default::default()

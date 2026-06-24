@@ -1,8 +1,8 @@
 //! Request validation and health error sanitization.
 
 use crate::types::{
-    BrowseRequest, ExtractRequest, MAX_INSTRUCTION_LENGTH, MAX_JSON_PROMPT_LENGTH,
-    MAX_JSON_SCHEMA_BYTES, MAX_QUERY_LENGTH, MAX_URL_LENGTH, SearchRequest, WebError,
+    BrowseRequest, ExtractRequest, MAX_INSTRUCTION_LENGTH, MAX_JSON_PROMPT_LENGTH, MAX_JSON_SCHEMA_BYTES,
+    MAX_QUERY_LENGTH, MAX_URL_LENGTH, SearchRequest, WebError,
 };
 
 // --- Task 6: Compound provider timeout (shorter than client timeout) ---
@@ -18,8 +18,7 @@ pub fn sanitize_health_error(error: &str) -> String {
     /// Lazily compiled API key regex pattern for sanitization.
     /// Avoids re-compiling the regex on every call to `sanitize_health_error`.
     static API_KEY_REGEX: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
-        regex::Regex::new(r"(?:sk-|pk-|fc-|ts-|br-|xai-|ghp_)[a-zA-Z0-9]{8,}")
-            .expect("static API key regex pattern")
+        regex::Regex::new(r"(?:sk-|pk-|fc-|ts-|br-|xai-|ghp_)[a-zA-Z0-9]{8,}").expect("static API key regex pattern")
     });
 
     let sanitized = API_KEY_REGEX.replace_all(error, "[REDACTED]").to_string();
@@ -31,8 +30,7 @@ pub fn sanitize_health_error(error: &str) -> String {
         "rate limited".to_string()
     } else if lower.contains("timeout") || lower.contains("timed out") {
         "timeout".to_string()
-    } else if lower.contains("unreachable") || lower.contains("connection") || lower.contains("dns")
-    {
+    } else if lower.contains("unreachable") || lower.contains("connection") || lower.contains("dns") {
         "unreachable".to_string()
     } else if lower.contains("no provider") {
         "no provider available".to_string()

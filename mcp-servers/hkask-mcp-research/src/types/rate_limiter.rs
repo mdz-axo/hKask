@@ -34,12 +34,10 @@ impl RateLimiter {
     /// Check whether a request for the given tool is allowed.
     /// Returns Ok(()) if allowed, or an McpToolError with RateLimited kind if exceeded.
     pub fn check(&self, tool_name: &str) -> Result<(), McpToolError> {
-        let mut windows = self.windows.lock().map_err(|_| {
-            McpToolError::new(
-                McpErrorKind::Internal,
-                "rate limiter lock poisoned".to_string(),
-            )
-        })?;
+        let mut windows = self
+            .windows
+            .lock()
+            .map_err(|_| McpToolError::new(McpErrorKind::Internal, "rate limiter lock poisoned".to_string()))?;
         let now = std::time::Instant::now();
         let entry = windows.entry(tool_name.to_string()).or_insert(RateWindow {
             count: 0,
@@ -103,10 +101,7 @@ mod tests {
         }
         let err = rl.check("my_tool").unwrap_err();
         let msg = err.to_string();
-        assert!(
-            msg.contains("my_tool"),
-            "error should mention tool name: {msg}"
-        );
+        assert!(msg.contains("my_tool"), "error should mention tool name: {msg}");
         assert!(msg.contains("2"), "error should mention limit: {msg}");
     }
 }

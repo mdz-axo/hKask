@@ -581,10 +581,8 @@ impl AgentService {
             Arc::clone(&episodic_memory),
             Arc::clone(&semantic_memory),
         ));
-        let curator_id = *CuratorHandle::system().curator_id();
-        let token = hkask_capability::ConsolidationToken::new(curator_id);
         let consolidation_service =
-            hkask_memory::ConsolidationService::new(bridge, semantic_memory, token);
+            hkask_memory::ConsolidationService::new(bridge, semantic_memory);
 
         // Storage ports via MemoryLoopForwarder — uses the same connection
         let mut adapter_epi = EpisodicMemory::new(TripleStore::new(Arc::clone(&conn)));

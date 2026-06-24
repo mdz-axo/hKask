@@ -18,7 +18,6 @@ pub use resources::{
 pub use token_types::{
     DelegationToken, DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
 };
-pub use tokens::ConsolidationToken;
 pub use verification::{
     CapabilityChecker, TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER,
     VerificationOutcome, require_read_access, require_write_access, token_err_insufficient_access,

@@ -142,11 +142,7 @@ impl TrainingJob {
 /// Estimate training cost in micro-rJoules (µrJ) from host provider pricing.
 ///
 /// Uses host-specific base rates multiplied by epoch count and model size.
-pub(crate) fn estimate_training_cost_urj(
-    host: &TrainingHostId,
-    num_epochs: u32,
-    base_model: &str,
-) -> u64 {
+pub(crate) fn estimate_training_cost_urj(host: &TrainingHostId, num_epochs: u32, base_model: &str) -> u64 {
     let base_per_epoch: u64 = match host {
         TrainingHostId::Together => 1_000_000, // ~$1.00/epoch
         TrainingHostId::Runpod => 500_000,     // ~$0.50/epoch
@@ -436,20 +432,14 @@ pub trait TrainingHost: Send + Sync {
     /// Return completion metadata for a finished job (base model, metrics, output path).
     /// Returns `None` if the job is not completed or the provider doesn't support metadata.
     /// Default implementation returns `None`.
-    async fn completion_metadata(
-        &self,
-        _job_id: &str,
-    ) -> Result<Option<CompletionMetadata>, ProviderError> {
+    async fn completion_metadata(&self, _job_id: &str) -> Result<Option<CompletionMetadata>, ProviderError> {
         Ok(None)
     }
 
     /// Return the filesystem path to adapter weights, if stored locally.
     /// Returns `None` for cloud hosts (Together AI) where weights are server-side.
     /// Default implementation returns `None`.
-    async fn adapter_weight_path(
-        &self,
-        _adapter_id: &str,
-    ) -> Result<Option<PathBuf>, ProviderError> {
+    async fn adapter_weight_path(&self, _adapter_id: &str) -> Result<Option<PathBuf>, ProviderError> {
         Ok(None)
     }
 
@@ -632,14 +622,10 @@ fn local_list_adapters(cfg: &LocalTrainingConfig) -> Result<Vec<String>, Provide
         return Ok(vec![]);
     }
     let mut adapters = Vec::new();
-    for entry in std::fs::read_dir(&output_root).map_err(|e| {
-        ProviderError::Backend(format!(
-            "Failed to read {} output dir: {}",
-            cfg.framework_name, e
-        ))
-    })? {
-        let entry = entry
-            .map_err(|e| ProviderError::Backend(format!("Failed to read dir entry: {}", e)))?;
+    for entry in std::fs::read_dir(&output_root)
+        .map_err(|e| ProviderError::Backend(format!("Failed to read {} output dir: {}", cfg.framework_name, e)))?
+    {
+        let entry = entry.map_err(|e| ProviderError::Backend(format!("Failed to read dir entry: {}", e)))?;
         if entry.path().join(cfg.adapter_marker).exists() {
             adapters.push(entry.file_name().to_string_lossy().to_string());
         }
@@ -647,32 +633,20 @@ fn local_list_adapters(cfg: &LocalTrainingConfig) -> Result<Vec<String>, Provide
     Ok(adapters)
 }
 
-async fn local_delete_adapter(
-    cfg: &LocalTrainingConfig,
-    adapter_id: &str,
-) -> Result<(), ProviderError> {
+async fn local_delete_adapter(cfg: &LocalTrainingConfig, adapter_id: &str) -> Result<(), ProviderError> {
     let adapter_dir = PathBuf::from(cfg.output_dir).join(adapter_id);
     if adapter_dir.exists() {
-        tokio::fs::remove_dir_all(&adapter_dir).await.map_err(|e| {
-            ProviderError::Backend(format!("Failed to delete adapter {}: {}", adapter_id, e))
-        })?;
+        tokio::fs::remove_dir_all(&adapter_dir)
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Failed to delete adapter {}: {}", adapter_id, e)))?;
         tracing::info!(target: "cns.training.adapter.deleted", adapter_id = %adapter_id, "LoRA adapter deleted");
     }
     Ok(())
 }
 
-fn local_adapter_weight_path(
-    cfg: &LocalTrainingConfig,
-    adapter_id: &str,
-) -> Result<Option<PathBuf>, ProviderError> {
-    let path = PathBuf::from(cfg.output_dir)
-        .join(adapter_id)
-        .join(cfg.weight_file);
-    if path.exists() {
-        Ok(Some(path))
-    } else {
-        Ok(None)
-    }
+fn local_adapter_weight_path(cfg: &LocalTrainingConfig, adapter_id: &str) -> Result<Option<PathBuf>, ProviderError> {
+    let path = PathBuf::from(cfg.output_dir).join(adapter_id).join(cfg.weight_file);
+    if path.exists() { Ok(Some(path)) } else { Ok(None) }
 }
 
 // ── Axolotl harness ────────────────────────────────────────────────────────
@@ -695,10 +669,7 @@ impl HarnessAdapter for AxolotlHarness {
         yaml.push_str("datasets:\n");
         yaml.push_str(&format!("  - path: {}\n", job.dataset_path.display()));
         yaml.push_str("    type: chatml\n");
-        yaml.push_str(&format!(
-            "output_dir: {}\n",
-            self.output_dir(&job.id).display()
-        ));
+        yaml.push_str(&format!("output_dir: {}\n", self.output_dir(&job.id).display()));
         yaml.push_str(&format!("num_epochs: {}\n", p.num_epochs));
         yaml.push_str(&format!("micro_batch_size: {}\n", p.batch_size));
         yaml.push_str(&format!("learning_rate: {:.6}\n", p.learning_rate));
@@ -818,14 +789,10 @@ impl TrainingHost for AxolotlProvider {
 
         let config_yaml = self.harness.render_config(job)?;
         let config_path = std::env::temp_dir().join(format!("hkask-training-{}.yaml", job.id));
-        std::fs::write(&config_path, &config_yaml).map_err(|e| {
-            ProviderError::Backend(format!("Failed to write axolotl config: {}", e))
-        })?;
+        std::fs::write(&config_path, &config_yaml)
+            .map_err(|e| ProviderError::Backend(format!("Failed to write axolotl config: {}", e)))?;
 
-        let cli = self
-            .cli_path
-            .as_deref()
-            .unwrap_or(std::path::Path::new("axolotl"));
+        let cli = self.cli_path.as_deref().unwrap_or(std::path::Path::new("axolotl"));
         let mut child = tokio::process::Command::new(cli)
             .arg("train")
             .arg(&config_path)
@@ -938,10 +905,7 @@ impl TrainingHost for AxolotlProvider {
         local_delete_adapter(&CFG, adapter_id).await
     }
 
-    async fn adapter_weight_path(
-        &self,
-        adapter_id: &str,
-    ) -> Result<Option<PathBuf>, ProviderError> {
+    async fn adapter_weight_path(&self, adapter_id: &str) -> Result<Option<PathBuf>, ProviderError> {
         static CFG: LocalTrainingConfig = LocalTrainingConfig {
             output_dir: "./axolotl-output",
             adapter_marker: "adapter_model.safetensors",
@@ -980,11 +944,7 @@ impl HarnessAdapter for UnslothHarness {
         script.push_str("from datasets import load_dataset\n\n");
 
         // Model loading with quantization
-        let load_kwargs = if q.load_in_4bit {
-            ", load_in_4bit=True"
-        } else {
-            ""
-        };
+        let load_kwargs = if q.load_in_4bit { ", load_in_4bit=True" } else { "" };
         let max_seq = seq.sequence_len.unwrap_or(2048);
         script.push_str(&format!(
             "model, tokenizer = FastLanguageModel.from_pretrained(\n    model_name=\"{}\",\n    max_seq_length={}{},\n)\n\n",
@@ -999,10 +959,7 @@ impl HarnessAdapter for UnslothHarness {
         script.push_str(&format!("    target_modules=[{}],\n", target_modules_str));
         script.push_str(&format!("    lora_dropout={},\n", lo.dropout));
         script.push_str("    bias=\"none\",\n");
-        script.push_str(&format!(
-            "    use_gradient_checkpointing=\"{}\",\n",
-            grad_ckpt
-        ));
+        script.push_str(&format!("    use_gradient_checkpointing=\"{}\",\n", grad_ckpt));
         if lo.use_rslora {
             script.push_str("    use_rslora=True,\n");
         }
@@ -1020,10 +977,7 @@ impl HarnessAdapter for UnslothHarness {
         script.push_str("trainer = SFTTrainer(\n    model=model,\n    tokenizer=tokenizer,\n    train_dataset=dataset,\n    dataset_text_field=\"text\",\n");
         script.push_str(&format!("    max_seq_length={},\n", max_seq));
         script.push_str("    args=TrainingArguments(\n");
-        script.push_str(&format!(
-            "        per_device_train_batch_size={},\n",
-            p.batch_size
-        ));
+        script.push_str(&format!("        per_device_train_batch_size={},\n", p.batch_size));
         script.push_str(&format!("        num_train_epochs={},\n", p.num_epochs));
         script.push_str(&format!("        learning_rate={},\n", p.learning_rate));
         if let Some(ref sched) = opt.lr_scheduler {
@@ -1117,10 +1071,7 @@ impl UnslothProvider {
 
     /// Check whether unsloth is available locally.
     fn available(&self) -> bool {
-        let py = self
-            .python_path
-            .as_deref()
-            .unwrap_or(std::path::Path::new("python3"));
+        let py = self.python_path.as_deref().unwrap_or(std::path::Path::new("python3"));
         std::process::Command::new(py)
             .args(["-c", "import unsloth"])
             .stdout(std::process::Stdio::null())
@@ -1142,14 +1093,10 @@ impl TrainingHost for UnslothProvider {
 
         let script = self.harness.render_config(job)?;
         let script_path = std::env::temp_dir().join(format!("hkask-training-{}.py", job.id));
-        std::fs::write(&script_path, &script).map_err(|e| {
-            ProviderError::Backend(format!("Failed to write unsloth script: {}", e))
-        })?;
+        std::fs::write(&script_path, &script)
+            .map_err(|e| ProviderError::Backend(format!("Failed to write unsloth script: {}", e)))?;
 
-        let py = self
-            .python_path
-            .as_deref()
-            .unwrap_or(std::path::Path::new("python3"));
+        let py = self.python_path.as_deref().unwrap_or(std::path::Path::new("python3"));
         let mut child = tokio::process::Command::new(py)
             .arg(&script_path)
             .stdout(std::process::Stdio::null())
@@ -1255,10 +1202,7 @@ impl TrainingHost for UnslothProvider {
         local_delete_adapter(&CFG, adapter_id).await
     }
 
-    async fn adapter_weight_path(
-        &self,
-        adapter_id: &str,
-    ) -> Result<Option<PathBuf>, ProviderError> {
+    async fn adapter_weight_path(&self, adapter_id: &str) -> Result<Option<PathBuf>, ProviderError> {
         static CFG: LocalTrainingConfig = LocalTrainingConfig {
             output_dir: "./unsloth-output",
             adapter_marker: "adapter",
@@ -1326,9 +1270,10 @@ impl TrainingHost for TogetherProvider {
             .map_err(|e| ProviderError::Backend(format!("Together AI upload failed: {}", e)))?;
 
         let upload_status = upload_response.status();
-        let upload_json: serde_json::Value = upload_response.json().await.map_err(|e| {
-            ProviderError::Backend(format!("Together AI upload parse error: {}", e))
-        })?;
+        let upload_json: serde_json::Value = upload_response
+            .json()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Together AI upload parse error: {}", e)))?;
 
         if !upload_status.is_success() {
             return Err(ProviderError::Backend(format!(
@@ -1406,14 +1351,13 @@ impl TrainingHost for TogetherProvider {
             .header("Authorization", format!("Bearer {}", self.api_key))
             .send()
             .await
-            .map_err(|e| {
-                ProviderError::Backend(format!("Together AI status request failed: {}", e))
-            })?;
+            .map_err(|e| ProviderError::Backend(format!("Together AI status request failed: {}", e)))?;
 
         let status_code = response.status();
-        let json: serde_json::Value = response.json().await.map_err(|e| {
-            ProviderError::Backend(format!("Together AI status parse error: {}", e))
-        })?;
+        let json: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Together AI status parse error: {}", e)))?;
 
         if !status_code.is_success() {
             return Err(ProviderError::Backend(format!(
@@ -1441,16 +1385,11 @@ impl TrainingHost for TogetherProvider {
             .header("Authorization", format!("Bearer {}", self.api_key))
             .send()
             .await
-            .map_err(|e| {
-                ProviderError::Backend(format!("Together AI cancel request failed: {}", e))
-            })?;
+            .map_err(|e| ProviderError::Backend(format!("Together AI cancel request failed: {}", e)))?;
 
         if !response.status().is_success() {
             let body = response.text().await.unwrap_or_default();
-            return Err(ProviderError::Backend(format!(
-                "Together AI cancel error: {}",
-                body
-            )));
+            return Err(ProviderError::Backend(format!("Together AI cancel error: {}", body)));
         }
 
         tracing::info!(
@@ -1469,9 +1408,7 @@ impl TrainingHost for TogetherProvider {
             .header("Authorization", format!("Bearer {}", self.api_key))
             .send()
             .await
-            .map_err(|e| {
-                ProviderError::Backend(format!("Together AI list request failed: {}", e))
-            })?;
+            .map_err(|e| ProviderError::Backend(format!("Together AI list request failed: {}", e)))?;
 
         let json: serde_json::Value = response
             .json()
@@ -1496,16 +1433,11 @@ impl TrainingHost for TogetherProvider {
             .header("Authorization", format!("Bearer {}", self.api_key))
             .send()
             .await
-            .map_err(|e| {
-                ProviderError::Backend(format!("Together AI delete request failed: {}", e))
-            })?;
+            .map_err(|e| ProviderError::Backend(format!("Together AI delete request failed: {}", e)))?;
 
         if !response.status().is_success() {
             let body = response.text().await.unwrap_or_default();
-            return Err(ProviderError::Backend(format!(
-                "Together AI delete error: {}",
-                body
-            )));
+            return Err(ProviderError::Backend(format!("Together AI delete error: {}", body)));
         }
 
         tracing::info!(
@@ -1517,23 +1449,19 @@ impl TrainingHost for TogetherProvider {
         Ok(())
     }
 
-    async fn completion_metadata(
-        &self,
-        job_id: &str,
-    ) -> Result<Option<CompletionMetadata>, ProviderError> {
+    async fn completion_metadata(&self, job_id: &str) -> Result<Option<CompletionMetadata>, ProviderError> {
         let response = self
             .client
             .get(format!("{}/v1/fine-tunes/{}", self.base_url, job_id))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .send()
             .await
-            .map_err(|e| {
-                ProviderError::Backend(format!("Together AI metadata request failed: {}", e))
-            })?;
+            .map_err(|e| ProviderError::Backend(format!("Together AI metadata request failed: {}", e)))?;
 
-        let json: serde_json::Value = response.json().await.map_err(|e| {
-            ProviderError::Backend(format!("Together AI metadata parse error: {}", e))
-        })?;
+        let json: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Together AI metadata parse error: {}", e)))?;
 
         let status_str = json["status"].as_str().unwrap_or("");
         if status_str != "completed" && status_str != "succeeded" {
@@ -1675,8 +1603,7 @@ impl TrainingHost for RunpodProvider {
             }
         "#;
 
-        let gpu_type_id =
-            std::env::var("RUNPOD_GPU_TYPE_ID").unwrap_or_else(|_| "NVIDIA RTX 4090".to_string());
+        let gpu_type_id = std::env::var("RUNPOD_GPU_TYPE_ID").unwrap_or_else(|_| "NVIDIA RTX 4090".to_string());
         let container_disk_gb: u32 = std::env::var("RUNPOD_CONTAINER_DISK_GB")
             .ok()
             .and_then(|s| s.parse().ok())
@@ -1749,10 +1676,7 @@ impl TrainingHost for RunpodProvider {
         let pod_id = match pod_id {
             Some(id) => id,
             None => {
-                return Err(ProviderError::JobFailed(format!(
-                    "No pod found for job {}",
-                    job_id
-                )));
+                return Err(ProviderError::JobFailed(format!("No pod found for job {}", job_id)));
             }
         };
 
@@ -1769,9 +1693,7 @@ impl TrainingHost for RunpodProvider {
 
         let result = self.graphql_query(query, json!({ "id": pod_id })).await?;
 
-        let status_str = result["data"]["pod"]["desiredStatus"]
-            .as_str()
-            .unwrap_or("UNKNOWN");
+        let status_str = result["data"]["pod"]["desiredStatus"].as_str().unwrap_or("UNKNOWN");
 
         match status_str {
             "CREATING" | "PENDING" => Ok(TrainingJobStatus::Queued),
@@ -1813,8 +1735,7 @@ impl TrainingHost for RunpodProvider {
             }
         "#;
 
-        self.graphql_query(mutation, json!({ "id": pod_id }))
-            .await?;
+        self.graphql_query(mutation, json!({ "id": pod_id })).await?;
 
         if let Ok(mut map) = self.jobs.lock() {
             map.remove(job_id);
@@ -1845,19 +1766,13 @@ impl TrainingHost for RunpodProvider {
         Ok(())
     }
 
-    async fn completion_metadata(
-        &self,
-        _job_id: &str,
-    ) -> Result<Option<CompletionMetadata>, ProviderError> {
+    async fn completion_metadata(&self, _job_id: &str) -> Result<Option<CompletionMetadata>, ProviderError> {
         // Runpod doesn't provide structured training metrics via API.
         // Metrics would need to be extracted from the pod's output logs.
         Ok(None)
     }
 
-    async fn adapter_weight_path(
-        &self,
-        _adapter_id: &str,
-    ) -> Result<Option<PathBuf>, ProviderError> {
+    async fn adapter_weight_path(&self, _adapter_id: &str) -> Result<Option<PathBuf>, ProviderError> {
         // Weights are on the Runpod pod — need to be downloaded separately.
         Ok(None)
     }
@@ -1906,11 +1821,7 @@ impl TrainerHarness {
         let grad_accum = opt.gradient_accumulation_steps.max(1);
         let warmup = opt.warmup_ratio.unwrap_or(0.1);
         let lr_scheduler = opt.lr_scheduler.as_deref().unwrap_or("cosine");
-        let grad_ckpt = p
-            .advanced
-            .gradient_checkpointing
-            .as_deref()
-            .unwrap_or("true");
+        let grad_ckpt = p.advanced.gradient_checkpointing.as_deref().unwrap_or("true");
         let dtype = if p.advanced.bf16 {
             ", torch_dtype=torch.bfloat16"
         } else if p.advanced.fp16 {
@@ -2127,10 +2038,7 @@ impl TrainingHost for BasetenProvider {
             }
         });
 
-        let url = format!(
-            "{}/v1/training_projects/{}/jobs",
-            self.base_url, self.project_id
-        );
+        let url = format!("{}/v1/training_projects/{}/jobs", self.base_url, self.project_id);
 
         let response = self
             .client
@@ -2190,10 +2098,7 @@ impl TrainingHost for BasetenProvider {
         let baseten_job_id = match baseten_job_id {
             Some(id) => id,
             None => {
-                return Err(ProviderError::JobFailed(format!(
-                    "No Baseten job found for {}",
-                    job_id
-                )));
+                return Err(ProviderError::JobFailed(format!("No Baseten job found for {}", job_id)));
             }
         };
 
@@ -2265,10 +2170,7 @@ impl TrainingHost for BasetenProvider {
 
         if !response.status().is_success() {
             let body = response.text().await.unwrap_or_default();
-            return Err(ProviderError::Backend(format!(
-                "Baseten cancel error: {}",
-                body
-            )));
+            return Err(ProviderError::Backend(format!("Baseten cancel error: {}", body)));
         }
 
         if let Ok(mut map) = self.jobs.lock() {
@@ -2297,18 +2199,12 @@ impl TrainingHost for BasetenProvider {
         Ok(())
     }
 
-    async fn completion_metadata(
-        &self,
-        _job_id: &str,
-    ) -> Result<Option<CompletionMetadata>, ProviderError> {
+    async fn completion_metadata(&self, _job_id: &str) -> Result<Option<CompletionMetadata>, ProviderError> {
         // Baseten checkpoints contain metrics; extraction requires checkpoint API.
         Ok(None)
     }
 
-    async fn adapter_weight_path(
-        &self,
-        _adapter_id: &str,
-    ) -> Result<Option<PathBuf>, ProviderError> {
+    async fn adapter_weight_path(&self, _adapter_id: &str) -> Result<Option<PathBuf>, ProviderError> {
         // Weights are on Baseten — download via checkpoint archive URL.
         Ok(None)
     }
@@ -2330,9 +2226,7 @@ pub fn create_host(config: &TrainingHostConfig) -> Result<Box<dyn TrainingHost>,
                     "Together AI API key not configured (set TOGETHER_API_KEY)".to_string(),
                 ));
             }
-            Ok(Box::new(TogetherProvider::new(
-                config.together_api_key.clone(),
-            )))
+            Ok(Box::new(TogetherProvider::new(config.together_api_key.clone())))
         }
         (TrainingHarnessId::Axolotl, TrainingHostId::Runpod) => {
             if config.runpod_api_key.is_empty() {
@@ -2356,9 +2250,7 @@ pub fn create_host(config: &TrainingHostConfig) -> Result<Box<dyn TrainingHost>,
                     "Together AI API key not configured (set TOGETHER_API_KEY)".to_string(),
                 ));
             }
-            Ok(Box::new(TogetherProvider::new(
-                config.together_api_key.clone(),
-            )))
+            Ok(Box::new(TogetherProvider::new(config.together_api_key.clone())))
         }
         (TrainingHarnessId::Unsloth, TrainingHostId::Runpod) => {
             if config.runpod_api_key.is_empty() {
@@ -2570,10 +2462,7 @@ impl TrainingHost for TrainingHostRouter {
         Err(last_err)
     }
 
-    async fn completion_metadata(
-        &self,
-        job_id: &str,
-    ) -> Result<Option<CompletionMetadata>, ProviderError> {
+    async fn completion_metadata(&self, job_id: &str) -> Result<Option<CompletionMetadata>, ProviderError> {
         let mut last_err = ProviderError::Unavailable("no hosts configured".to_string());
         for host in &self.hosts {
             match host.completion_metadata(job_id).await {
@@ -2587,10 +2476,7 @@ impl TrainingHost for TrainingHostRouter {
         Err(last_err)
     }
 
-    async fn adapter_weight_path(
-        &self,
-        adapter_id: &str,
-    ) -> Result<Option<PathBuf>, ProviderError> {
+    async fn adapter_weight_path(&self, adapter_id: &str) -> Result<Option<PathBuf>, ProviderError> {
         let mut last_err = ProviderError::Unavailable("no hosts configured".to_string());
         for host in &self.hosts {
             match host.adapter_weight_path(adapter_id).await {

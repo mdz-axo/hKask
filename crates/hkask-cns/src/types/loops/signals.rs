@@ -26,8 +26,6 @@ pub enum SignalMetric {
     /// Wozniak-Gorzelanczyk (1995) forgetting curve: R(t) = exp(-t/S).
     /// Default 180 days. Configurable via HKASK_MEMORY_LIFE_DAYS.
     MemoryLife,
-    /// Confidence decay rate (deprecated — replaced by MemoryLife)
-    DecayRate,
     /// Semantic triple count (Semantic Loop 2b)
     TripleCount,
     /// Low-confidence triple count (Semantic Loop 2b)
@@ -97,7 +95,6 @@ impl SignalMetric {
             SignalMetric::CommunicationQueueDepth => "communication_queue_depth",
             SignalMetric::StorageUsage => "storage_usage",
             SignalMetric::MemoryLife => "memory_life",
-            SignalMetric::DecayRate => "decay_rate",
             SignalMetric::TripleCount => "triple_count",
             SignalMetric::LowConfidenceCount => "low_confidence_count",
             SignalMetric::QueueDepth => "queue_depth",

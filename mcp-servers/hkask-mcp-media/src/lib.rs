@@ -88,11 +88,7 @@ fn levenshtein_similarity(a: &str, b: &str) -> f64 {
     for i in 1..=a_len {
         curr[0] = i;
         for j in 1..=b_len {
-            let cost = if a_chars[i - 1] == b_chars[j - 1] {
-                0
-            } else {
-                1
-            };
+            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
             curr[j] = (prev[j] + 1) // deletion
                 .min(curr[j - 1] + 1) // insertion
                 .min(prev[j - 1] + cost); // substitution
@@ -224,8 +220,7 @@ impl MediaServer {
             .get_image(&ga.gallery_id, Some(image_index), None)
             .map_err(|e| format!("Image not found at index {}: {}", image_index, e))?;
 
-        let data = std::fs::read(&img.absolute_path)
-            .map_err(|e| format!("Failed to read image: {}", e))?;
+        let data = std::fs::read(&img.absolute_path).map_err(|e| format!("Failed to read image: {}", e))?;
         let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
         let mime = match img.format.as_str() {
             "jpg" | "jpeg" => "image/jpeg",
@@ -284,8 +279,7 @@ impl MediaServer {
             .map_err(|e| format!("Image not found by ID {}: {}", image_id, e))?;
         drop(conn);
 
-        let data =
-            std::fs::read(&absolute_path).map_err(|e| format!("Failed to read image: {}", e))?;
+        let data = std::fs::read(&absolute_path).map_err(|e| format!("Failed to read image: {}", e))?;
         let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
         let mime = if absolute_path.ends_with(".png") {
             "image/png"
@@ -302,14 +296,7 @@ impl MediaServer {
     }
 
     /// Persist a single tag to the gallery store (best-effort, logs errors).
-    fn persist_tag(
-        &self,
-        image_id: &str,
-        tag_type: &str,
-        value: &str,
-        confidence: f64,
-        model: &str,
-    ) {
+    fn persist_tag(&self, image_id: &str, tag_type: &str, value: &str, confidence: f64, model: &str) {
         match self
             .gallery_store
             .tag_image(image_id, tag_type, value, confidence, model)
@@ -344,8 +331,7 @@ impl MediaServer {
         drop(conn);
 
         // Read and crop the image
-        let img =
-            image::open(&absolute_path).map_err(|e| format!("Failed to open image: {}", e))?;
+        let img = image::open(&absolute_path).map_err(|e| format!("Failed to open image: {}", e))?;
 
         let x_pct = bbox["x_pct"].as_f64().unwrap_or(0.0);
         let y_pct = bbox["y_pct"].as_f64().unwrap_or(0.0);
@@ -385,10 +371,7 @@ impl MediaServer {
         for model in &models {
             match model.provider {
                 hkask_inference::ProviderId::DeepInfra => {
-                    return Some((
-                        "DI/meta-llama/Llama-3.2-11B-Vision-Instruct",
-                        "llama-3.2-vision",
-                    ));
+                    return Some(("DI/meta-llama/Llama-3.2-11B-Vision-Instruct", "llama-3.2-vision"));
                 }
                 hkask_inference::ProviderId::OpenRouter => {
                     return Some(("OR/openai/gpt-4o", "gpt-4o-vision"));
@@ -406,10 +389,7 @@ impl MediaServer {
     /// Re-scan an existing gallery and persist new images.
     /// Returns (gallery_id, old_image_count, images_added, total_images, persisted_count).
     /// The MutexGuard is dropped before return so callers can safely await.
-    fn rescan_existing_gallery(
-        &self,
-        recursive: bool,
-    ) -> Result<(String, u64, u32, u32, u32), String> {
+    fn rescan_existing_gallery(&self, recursive: bool) -> Result<(String, u64, u32, u32, u32), String> {
         let ga = self.access_gallery()?;
         let mut state_clone = {
             let guard = self
@@ -459,11 +439,7 @@ impl MediaServer {
     /// Run the analysis pipeline on a subset of gallery images.
     /// Used internally by gallery_organize auto_analyze and gallery_analyze.
     /// Returns (analyzed_count, error_messages).
-    async fn run_analysis_on_indices(
-        &self,
-        indices: &[usize],
-        pipelines: &[String],
-    ) -> (u32, Vec<String>) {
+    async fn run_analysis_on_indices(&self, indices: &[usize], pipelines: &[String]) -> (u32, Vec<String>) {
         let (vision_model, vision_label) = match self.resolve_vision_model().await {
             Some(v) => v,
             None => return (0, vec!["No vision model available — configure a vision-capable provider (DeepInfra, OpenRouter, or Together AI)".to_string()]),
@@ -494,14 +470,7 @@ impl MediaServer {
             };
 
             if run_faces {
-                match vision::detect_faces(
-                    &self.inference,
-                    &self.template_env,
-                    &image_url,
-                    Some(vision_model),
-                )
-                .await
-                {
+                match vision::detect_faces(&self.inference, &self.template_env, &image_url, Some(vision_model)).await {
                     Ok(faces) => {
                         for face in &faces {
                             let value = serde_json::to_string(face).unwrap_or_default();
@@ -515,13 +484,7 @@ impl MediaServer {
             }
 
             if run_objects {
-                match vision::detect_objects(
-                    &self.inference,
-                    &self.template_env,
-                    &image_url,
-                    Some(vision_model),
-                )
-                .await
+                match vision::detect_objects(&self.inference, &self.template_env, &image_url, Some(vision_model)).await
                 {
                     Ok(objects) => {
                         for obj in &objects {
@@ -536,13 +499,7 @@ impl MediaServer {
             }
 
             if run_colors {
-                match vision::analyze_colors(
-                    &self.inference,
-                    &self.template_env,
-                    &image_url,
-                    Some(vision_model),
-                )
-                .await
+                match vision::analyze_colors(&self.inference, &self.template_env, &image_url, Some(vision_model)).await
                 {
                     Ok(parsed) => {
                         if let Some(colors) = parsed["colors"].as_array() {
@@ -564,13 +521,8 @@ impl MediaServer {
             }
 
             if run_composition {
-                match vision::analyze_composition(
-                    &self.inference,
-                    &self.template_env,
-                    &image_url,
-                    Some(vision_model),
-                )
-                .await
+                match vision::analyze_composition(&self.inference, &self.template_env, &image_url, Some(vision_model))
+                    .await
                 {
                     Ok(parsed) => {
                         for field in &[
@@ -595,14 +547,7 @@ impl MediaServer {
             }
 
             if run_scene {
-                match vision::caption_scene(
-                    &self.inference,
-                    &self.template_env,
-                    &image_url,
-                    Some(vision_model),
-                )
-                .await
-                {
+                match vision::caption_scene(&self.inference, &self.template_env, &image_url, Some(vision_model)).await {
                     Ok(caption) => {
                         self.persist_tag(&image_id, "caption", &caption, 0.9, vision_label);
                     }
@@ -628,11 +573,7 @@ impl MediaServer {
         let analyzer = match &self.face_analyzer {
             Some(a) => a,
             None => {
-                return (
-                    0,
-                    Vec::new(),
-                    vec!["ONNX analyzer not available".to_string()],
-                );
+                return (0, Vec::new(), vec!["ONNX analyzer not available".to_string()]);
             }
         };
 
@@ -716,20 +657,14 @@ impl MediaServer {
         for (code, name) in tag_map {
             if let Some(entry) = exif.get_by_code(nom_exif::IfdIndex::MAIN, *code) {
                 if let Some(value_str) = entry.as_str() {
-                    fields.insert(
-                        name.to_string(),
-                        serde_json::Value::String(value_str.to_string()),
-                    );
+                    fields.insert(name.to_string(), serde_json::Value::String(value_str.to_string()));
                 }
             }
         }
 
         // GPS info
         if let Some(gps) = exif.gps_info() {
-            fields.insert(
-                "gps".to_string(),
-                serde_json::Value::String(gps.to_iso6709()),
-            );
+            fields.insert("gps".to_string(), serde_json::Value::String(gps.to_iso6709()));
         }
 
         if fields.is_empty() {
@@ -754,10 +689,8 @@ impl hkask_mcp::server::ToolContext for MediaServer {
 /// then common system paths, then returns an error with guidance.
 fn load_meme_font(font_path: Option<&str>) -> Result<ab_glyph::FontVec, String> {
     if let Some(path) = font_path {
-        let data =
-            std::fs::read(path).map_err(|e| format!("Cannot read font at '{}': {}", path, e))?;
-        return ab_glyph::FontVec::try_from_vec(data)
-            .map_err(|e| format!("Invalid font file at '{}': {:?}", path, e));
+        let data = std::fs::read(path).map_err(|e| format!("Cannot read font at '{}': {}", path, e))?;
+        return ab_glyph::FontVec::try_from_vec(data).map_err(|e| format!("Invalid font file at '{}': {:?}", path, e));
     }
 
     // Try common system paths
@@ -871,14 +804,12 @@ impl MediaServer {
                             });
 
                             if auto_analyze && added > 0 {
-                                let new_indices: Vec<usize> = (old_count as usize
-                                    ..(old_count as usize + added as usize))
+                                let new_indices: Vec<usize> =
+                                    (old_count as usize..(old_count as usize + added as usize)).collect();
+                                let pipelines: Vec<String> = vec!["faces", "objects", "colors", "composition", "scene"]
+                                    .into_iter()
+                                    .map(|s| s.to_string())
                                     .collect();
-                                let pipelines: Vec<String> =
-                                    vec!["faces", "objects", "colors", "composition", "scene"]
-                                        .into_iter()
-                                        .map(|s| s.to_string())
-                                        .collect();
                                 let (analyzed, analyze_errors) =
                                     self.run_analysis_on_indices(&new_indices, &pipelines).await;
                                 let mut r = result;
@@ -900,10 +831,7 @@ impl MediaServer {
                     }
                 }
                 Err(e) => {
-                    return Err(McpToolError::internal(format!(
-                        "Failed to create gallery: {}",
-                        e
-                    )));
+                    return Err(McpToolError::internal(format!("Failed to create gallery: {}", e)));
                 }
             };
 
@@ -937,9 +865,10 @@ impl MediaServer {
             }
 
             {
-                let mut guard = self.gallery_state.lock().map_err(|e| {
-                    McpToolError::internal(format!("Gallery state lock error: {}", e))
-                })?;
+                let mut guard = self
+                    .gallery_state
+                    .lock()
+                    .map_err(|e| McpToolError::internal(format!("Gallery state lock error: {}", e)))?;
                 *guard = Some(state);
             }
 
@@ -956,13 +885,11 @@ impl MediaServer {
 
             if auto_analyze && scan_result.added > 0 {
                 let new_indices: Vec<usize> = (0..scan_result.added as usize).collect();
-                let pipelines: Vec<String> =
-                    vec!["faces", "objects", "colors", "composition", "scene"]
-                        .into_iter()
-                        .map(|s| s.to_string())
-                        .collect();
-                let (analyzed, analyze_errors) =
-                    self.run_analysis_on_indices(&new_indices, &pipelines).await;
+                let pipelines: Vec<String> = vec!["faces", "objects", "colors", "composition", "scene"]
+                    .into_iter()
+                    .map(|s| s.to_string())
+                    .collect();
+                let (analyzed, analyze_errors) = self.run_analysis_on_indices(&new_indices, &pipelines).await;
                 let mut r = result;
                 r["auto_analyzed"] = serde_json::json!(analyzed);
                 if !analyze_errors.is_empty() {
@@ -1007,9 +934,7 @@ impl MediaServer {
         }): Parameters<GallerySearchRequest>,
     ) -> String {
         execute_tool(self, "gallery_search", async {
-            let ga = self
-                .access_gallery()
-                .map_err(McpToolError::invalid_argument)?;
+            let ga = self.access_gallery().map_err(McpToolError::invalid_argument)?;
 
             let all_tags = self
                 .gallery_store
@@ -1018,8 +943,7 @@ impl MediaServer {
 
             let limit = limit.unwrap_or(10);
             let min_sim = min_similarity.unwrap_or(0.3);
-            let type_filter: Option<Vec<String>> =
-                tag_types.map(|t| t.into_iter().map(|s| s.to_lowercase()).collect());
+            let type_filter: Option<Vec<String>> = tag_types.map(|t| t.into_iter().map(|s| s.to_lowercase()).collect());
 
             let mut image_scores: std::collections::HashMap<String, (f64, Vec<serde_json::Value>)> =
                 std::collections::HashMap::new();
@@ -1037,9 +961,7 @@ impl MediaServer {
                 }
 
                 let weighted_sim = sim * tag.confidence;
-                let entry = image_scores
-                    .entry(relative_path.clone())
-                    .or_insert((0.0, Vec::new()));
+                let entry = image_scores.entry(relative_path.clone()).or_insert((0.0, Vec::new()));
                 entry.0 = entry.0.max(weighted_sim);
                 entry.1.push(serde_json::json!({
                     "tag_type": tag.tag_type,
@@ -1101,25 +1023,18 @@ impl MediaServer {
 
             // Determine the query embedding
             let query_embedding: Vec<f32> = if let Some(ref query_text) = text {
-                self.inference
-                    .embed_text(query_text, None)
-                    .await
-                    .map_err(|e| {
-                        McpToolError::unavailable(format!(
-                            "Embedding model unavailable: {}. Configure a cloud provider.",
-                            e
-                        ))
-                    })?
+                self.inference.embed_text(query_text, None).await.map_err(|e| {
+                    McpToolError::unavailable(format!(
+                        "Embedding model unavailable: {}. Configure a cloud provider.",
+                        e
+                    ))
+                })?
             } else if let Some(idx) = image_index {
-                let image_id = self
-                    .resolve_image_id(idx)
-                    .map_err(McpToolError::invalid_argument)?;
+                let image_id = self.resolve_image_id(idx).map_err(McpToolError::invalid_argument)?;
                 let tags = self
                     .gallery_store
                     .get_tags(&image_id)
-                    .map_err(|e| {
-                        McpToolError::internal(format!("Failed to query tags: {}", e))
-                    })?;
+                    .map_err(|e| McpToolError::internal(format!("Failed to query tags: {}", e)))?;
                 let captions: Vec<&str> = tags
                     .iter()
                     .filter(|t| t.tag_type == "caption")
@@ -1134,17 +1049,13 @@ impl MediaServer {
                 self.inference
                     .embed_text(&caption_text, None)
                     .await
-                    .map_err(|e| {
-                        McpToolError::unavailable(format!("Embedding model unavailable: {}", e))
-                    })?
+                    .map_err(|e| McpToolError::unavailable(format!("Embedding model unavailable: {}", e)))?
             } else {
                 unreachable!();
             };
 
             // Collect captions for all images in the gallery
-            let ga = self
-                .access_gallery()
-                .map_err(McpToolError::invalid_argument)?;
+            let ga = self.access_gallery().map_err(McpToolError::invalid_argument)?;
 
             let all_tags = self
                 .gallery_store
@@ -1161,10 +1072,7 @@ impl MediaServer {
                 }
                 if path != &current_path {
                     if !current_captions.is_empty() {
-                        candidates.push((
-                            std::mem::take(&mut current_path),
-                            current_captions.join(" "),
-                        ));
+                        candidates.push((std::mem::take(&mut current_path), current_captions.join(" ")));
                         current_captions.clear();
                     }
                     current_path = path.clone();
@@ -1246,12 +1154,10 @@ impl MediaServer {
             if include_faces {
                 pipeline_names.push("faces");
             }
-            let pipelines: Vec<String> =
-                pipeline_names.into_iter().map(|s| s.to_string()).collect();
+            let pipelines: Vec<String> = pipeline_names.into_iter().map(|s| s.to_string()).collect();
 
             let all_indices: Vec<usize> = (0..total as usize).take(max_images).collect();
-            let (analyzed, analyze_errors) =
-                self.run_analysis_on_indices(&all_indices, &pipelines).await;
+            let (analyzed, analyze_errors) = self.run_analysis_on_indices(&all_indices, &pipelines).await;
 
             let mut faces_matched = 0u32;
             let mut registry_count = 0usize;
@@ -1293,8 +1199,7 @@ impl MediaServer {
                 registry_count = registry.len();
 
                 let onnx_used = if self.face_analyzer.is_some() && !registry.is_empty() {
-                    let (_onnx_faces, onnx_embeddings, onnx_errors) =
-                        self.run_onnx_face_pipeline(&all_indices).await;
+                    let (_onnx_faces, onnx_embeddings, onnx_errors) = self.run_onnx_face_pipeline(&all_indices).await;
                     match_errors.extend(onnx_errors);
 
                     if !onnx_embeddings.is_empty() {
@@ -1313,11 +1218,9 @@ impl MediaServer {
                                     None => continue,
                                 };
 
-                                let similarity =
-                                    cosine_similarity(&query_embedding, &ref_embedding);
+                                let similarity = cosine_similarity(&query_embedding, &ref_embedding);
                                 if similarity >= 0.6 {
-                                    let name =
-                                        format!("{} {}", reg_entry.first_name, reg_entry.last_name);
+                                    let name = format!("{} {}", reg_entry.first_name, reg_entry.last_name);
                                     let new_value = serde_json::json!({
                                         "name": name,
                                         "match_confidence": similarity,
@@ -1356,8 +1259,7 @@ impl MediaServer {
 
                     let vision_model = self.resolve_vision_model().await;
                     if vision_model.is_none() {
-                        match_errors
-                            .push("Face matching skipped: no vision model available".to_string());
+                        match_errors.push("Face matching skipped: no vision model available".to_string());
                     }
 
                     for (tag, _path) in &all_tags {
@@ -1398,8 +1300,7 @@ impl MediaServer {
                             let ref_url = match self.resolve_image_url_by_id(&reg_entry.image_id) {
                                 Ok(url) => url,
                                 Err(e) => {
-                                    match_errors
-                                        .push(format!("Registry entry {}: {}", reg_entry.id, e));
+                                    match_errors.push(format!("Registry entry {}: {}", reg_entry.id, e));
                                     continue;
                                 }
                             };
@@ -1415,13 +1316,8 @@ impl MediaServer {
                             {
                                 Ok(result) => {
                                     if result.is_match && result.confidence >= 0.7 {
-                                        let name = format!(
-                                            "{} {}",
-                                            reg_entry.first_name, reg_entry.last_name
-                                        );
-                                        if let Ok(parsed) =
-                                            serde_json::from_str::<serde_json::Value>(&tag.value)
-                                        {
+                                        let name = format!("{} {}", reg_entry.first_name, reg_entry.last_name);
+                                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&tag.value) {
                                             let face_index = parsed["face_index"].as_u64();
                                             let new_value = serde_json::json!({
                                                 "face_index": face_index,
@@ -1443,10 +1339,7 @@ impl MediaServer {
                                     }
                                 }
                                 Err(e) => {
-                                    match_errors.push(format!(
-                                        "Match {} vs {}: {}",
-                                        reg_entry.id, tag.id, e
-                                    ));
+                                    match_errors.push(format!("Match {} vs {}: {}", reg_entry.id, tag.id, e));
                                 }
                             }
                         }
@@ -1504,9 +1397,7 @@ impl MediaServer {
                 .inference
                 .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
                 .await
-                .map_err(|e| {
-                    McpToolError::unavailable(format!("Vision inference failed: {}", e))
-                })?;
+                .map_err(|e| McpToolError::unavailable(format!("Vision inference failed: {}", e)))?;
 
             Ok(serde_json::json!({"description": r.text.trim(), "style": style_str}))
         })
@@ -1528,9 +1419,7 @@ impl MediaServer {
         }): Parameters<GalleryAnalyzeRequest>,
     ) -> String {
         execute_tool(self, "gallery_analyze", async {
-            let ga = self
-                .access_gallery()
-                .map_err(McpToolError::invalid_argument)?;
+            let ga = self.access_gallery().map_err(McpToolError::invalid_argument)?;
 
             let indices: Vec<usize> = match mode.as_str() {
                 "selection" => image_indices.unwrap_or_default(),
@@ -1558,11 +1447,10 @@ impl MediaServer {
                 }));
             }
 
-            let all_pipelines: Vec<String> =
-                vec!["faces", "objects", "colors", "composition", "scene"]
-                    .into_iter()
-                    .map(|s| s.to_string())
-                    .collect();
+            let all_pipelines: Vec<String> = vec!["faces", "objects", "colors", "composition", "scene"]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
             let pipelines = pipelines.unwrap_or(all_pipelines);
 
             let (analyzed, errors) = self.run_analysis_on_indices(&indices, &pipelines).await;
@@ -1601,9 +1489,7 @@ impl MediaServer {
                 self.gallery_store
                     .get_face(fid)
                     .map(|face| format!("{} {}", face.first_name, face.last_name))
-                    .map_err(|e| {
-                        McpToolError::invalid_argument(format!("Face registry ID not found: {}", e))
-                    })?
+                    .map_err(|e| McpToolError::invalid_argument(format!("Face registry ID not found: {}", e)))?
             } else {
                 match name {
                     Some(n) if !n.trim().is_empty() => n,
@@ -1615,9 +1501,7 @@ impl MediaServer {
                 }
             };
 
-            let ga = self
-                .access_gallery()
-                .map_err(McpToolError::invalid_argument)?;
+            let ga = self.access_gallery().map_err(McpToolError::invalid_argument)?;
 
             let all_tags = self
                 .gallery_store
@@ -1635,13 +1519,7 @@ impl MediaServer {
                             "face_index": face_group,
                             "name": resolved_name,
                         });
-                        self.persist_tag(
-                            &tag.image_id,
-                            "face",
-                            &new_value.to_string(),
-                            1.0,
-                            "user",
-                        );
+                        self.persist_tag(&tag.image_id, "face", &new_value.to_string(), 1.0, "user");
                         renamed += 1;
                     }
                 }
@@ -1673,14 +1551,10 @@ impl MediaServer {
 
             let (vision_model, _vision_label) = self.require_vision().await?;
 
-            let validation = vision::validate_face_reference(
-                &self.inference,
-                &self.template_env,
-                &image_url,
-                Some(vision_model),
-            )
-            .await
-            .map_err(|e| McpToolError::internal(format!("Face validation failed: {}", e)))?;
+            let validation =
+                vision::validate_face_reference(&self.inference, &self.template_env, &image_url, Some(vision_model))
+                    .await
+                    .map_err(|e| McpToolError::internal(format!("Face validation failed: {}", e)))?;
 
             Ok(serde_json::json!(validation))
         })
@@ -1783,10 +1657,7 @@ impl MediaServer {
     #[tool(
         description = "List all registered faces in the face registry. Optionally filter by status: 'valid', 'rejected', or 'pending'."
     )]
-    async fn face_list(
-        &self,
-        Parameters(FaceListRequest { status }): Parameters<FaceListRequest>,
-    ) -> String {
+    async fn face_list(&self, Parameters(FaceListRequest { status }): Parameters<FaceListRequest>) -> String {
         execute_tool(self, "face_list", async {
             let faces = self
                 .gallery_store
@@ -1801,13 +1672,8 @@ impl MediaServer {
         .await
     }
 
-    #[tool(
-        description = "Remove a face from the registry by its ID (returned by face_register or face_list)."
-    )]
-    async fn face_remove(
-        &self,
-        Parameters(FaceRemoveRequest { face_id }): Parameters<FaceRemoveRequest>,
-    ) -> String {
+    #[tool(description = "Remove a face from the registry by its ID (returned by face_register or face_list).")]
+    async fn face_remove(&self, Parameters(FaceRemoveRequest { face_id }): Parameters<FaceRemoveRequest>) -> String {
         execute_tool(self, "face_remove", async {
             self.gallery_store
                 .remove_face(&face_id)
@@ -1856,16 +1722,11 @@ impl MediaServer {
         }): Parameters<GalleryTimelineRequest>,
     ) -> String {
         execute_tool(self, "gallery_timeline", async {
-            let ga = self
-                .access_gallery()
-                .map_err(McpToolError::invalid_argument)?;
+            let ga = self.access_gallery().map_err(McpToolError::invalid_argument)?;
 
             let mut dated_images: Vec<(String, String)> = Vec::new();
             for idx in 0..ga.image_count as usize {
-                let img = match self
-                    .gallery_store
-                    .get_image(&ga.gallery_id, Some(idx), None)
-                {
+                let img = match self.gallery_store.get_image(&ga.gallery_id, Some(idx), None) {
                     Ok(i) => i,
                     Err(_) => continue,
                 };
@@ -1882,10 +1743,7 @@ impl MediaServer {
                 }
 
                 let exif = Self::extract_exif(&img.absolute_path);
-                let date_str = exif
-                    .get("date_taken")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown");
+                let date_str = exif.get("date_taken").and_then(|v| v.as_str()).unwrap_or("unknown");
 
                 let period_key = match period.as_str() {
                     "month" => date_str.chars().take(7).collect(),
@@ -1896,8 +1754,7 @@ impl MediaServer {
                 dated_images.push((period_key, img.relative_path));
             }
 
-            let mut periods: std::collections::BTreeMap<String, Vec<String>> =
-                std::collections::BTreeMap::new();
+            let mut periods: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
             for (key, path) in &dated_images {
                 periods.entry(key.clone()).or_default().push(path.clone());
             }
@@ -1922,9 +1779,7 @@ impl MediaServer {
 
     // ── Derivation tools ─────────────────────────────────────────────────────
 
-    #[tool(
-        description = "Remove background from a gallery image. Delegates to DeepInfra Bria RMBG 2.0."
-    )]
+    #[tool(description = "Remove background from a gallery image. Delegates to DeepInfra Bria RMBG 2.0.")]
     async fn image_remove_background(
         &self,
         Parameters(RemoveBackgroundRequest {
@@ -1945,9 +1800,7 @@ impl MediaServer {
         .await
     }
 
-    #[tool(
-        description = "Apply style transfer to a gallery image. Delegates to fal.ai Flux dev img2img."
-    )]
+    #[tool(description = "Apply style transfer to a gallery image. Delegates to fal.ai Flux dev img2img.")]
     async fn image_apply_style(
         &self,
         Parameters(ApplyStyleRequest {
@@ -1985,9 +1838,8 @@ impl MediaServer {
         }): Parameters<CreateCollageRequest>,
     ) -> String {
         execute_tool(self, "image_create_collage", async {
-            let mode_count = search_terms.is_some() as u8
-                + similar_to_index.is_some() as u8
-                + image_indices.is_some() as u8;
+            let mode_count =
+                search_terms.is_some() as u8 + similar_to_index.is_some() as u8 + image_indices.is_some() as u8;
             if mode_count == 0 {
                 return Err(McpToolError::invalid_argument(
                     "Must specify one of: search_terms, similar_to_index, or image_indices.",
@@ -1999,9 +1851,7 @@ impl MediaServer {
                 ));
             }
 
-            let ga = self
-                .access_gallery()
-                .map_err(McpToolError::invalid_argument)?;
+            let ga = self.access_gallery().map_err(McpToolError::invalid_argument)?;
 
             let mut paths = Vec::new();
 
@@ -2009,9 +1859,7 @@ impl MediaServer {
                 let all_tags = self
                     .gallery_store
                     .get_all_tags(&ga.gallery_id)
-                    .map_err(|e| {
-                        McpToolError::internal(format!("Failed to query tags: {}", e))
-                    })?;
+                    .map_err(|e| McpToolError::internal(format!("Failed to query tags: {}", e)))?;
 
                 let mut image_scores: HashMap<String, f64> = HashMap::new();
                 for (tag, relative_path) in &all_tags {
@@ -2019,16 +1867,14 @@ impl MediaServer {
                         let sim = levenshtein_similarity(term, &tag.value);
                         if sim >= 0.3 {
                             let weighted = sim * tag.confidence;
-                            let entry =
-                                image_scores.entry(relative_path.clone()).or_insert(0.0);
+                            let entry = image_scores.entry(relative_path.clone()).or_insert(0.0);
                             *entry = entry.max(weighted);
                         }
                     }
                 }
 
                 let mut ranked: Vec<(String, f64)> = image_scores.into_iter().collect();
-                ranked
-                    .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
                 ranked.truncate(max_items);
 
                 for (rel_path, _score) in &ranked {
@@ -2038,19 +1884,16 @@ impl MediaServer {
                 let ref_path = self
                     .resolve_image_path(ref_idx)
                     .map_err(McpToolError::invalid_argument)?;
-                let ref_image_id = self
-                    .resolve_image_id(ref_idx)
-                    .map_err(McpToolError::invalid_argument)?;
-                let ref_tags = self.gallery_store.get_tags(&ref_image_id).map_err(|e| {
-                    McpToolError::internal(format!("Failed to get reference tags: {}", e))
-                })?;
+                let ref_image_id = self.resolve_image_id(ref_idx).map_err(McpToolError::invalid_argument)?;
+                let ref_tags = self
+                    .gallery_store
+                    .get_tags(&ref_image_id)
+                    .map_err(|e| McpToolError::internal(format!("Failed to get reference tags: {}", e)))?;
 
                 let all_tags = self
                     .gallery_store
                     .get_all_tags(&ga.gallery_id)
-                    .map_err(|e| {
-                        McpToolError::internal(format!("Failed to query tags: {}", e))
-                    })?;
+                    .map_err(|e| McpToolError::internal(format!("Failed to query tags: {}", e)))?;
 
                 let mut image_scores: HashMap<String, f64> = HashMap::new();
                 for (tag, relative_path) in &all_tags {
@@ -2062,16 +1905,14 @@ impl MediaServer {
                         let sim = levenshtein_similarity(&ref_tag.value, &tag.value);
                         if sim >= 0.3 {
                             let weighted = sim * tag.confidence;
-                            let entry =
-                                image_scores.entry(relative_path.clone()).or_insert(0.0);
+                            let entry = image_scores.entry(relative_path.clone()).or_insert(0.0);
                             *entry = entry.max(weighted);
                         }
                     }
                 }
 
                 let mut ranked: Vec<(String, f64)> = image_scores.into_iter().collect();
-                ranked
-                    .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
                 ranked.truncate(max_items.saturating_sub(1));
 
                 paths.push(ref_path);
@@ -2080,9 +1921,7 @@ impl MediaServer {
                 }
             } else if let Some(ref indices) = image_indices {
                 if indices.is_empty() {
-                    return Err(McpToolError::invalid_argument(
-                        "At least one image index is required.",
-                    ));
+                    return Err(McpToolError::invalid_argument("At least one image index is required."));
                 }
                 if indices.len() > 9 {
                     return Err(McpToolError::invalid_argument(
@@ -2091,29 +1930,19 @@ impl MediaServer {
                 }
                 let limit = indices.len().min(max_items);
                 for idx in indices.iter().take(limit) {
-                    paths.push(
-                        self.resolve_image_path(*idx)
-                            .map_err(McpToolError::invalid_argument)?,
-                    );
+                    paths.push(self.resolve_image_path(*idx).map_err(McpToolError::invalid_argument)?);
                 }
             }
 
             if paths.is_empty() {
-                return Err(McpToolError::invalid_argument(
-                    "No images found for collage.",
-                ));
+                return Err(McpToolError::invalid_argument("No images found for collage."));
             }
 
             let mut images = Vec::new();
             for path in &paths {
                 images.push(
-                    image::open(path).map_err(|e| {
-                        McpToolError::internal(format!(
-                            "Failed to open {}: {}",
-                            path.display(),
-                            e
-                        ))
-                    })?,
+                    image::open(path)
+                        .map_err(|e| McpToolError::internal(format!("Failed to open {}: {}", path.display(), e)))?,
                 );
             }
 
@@ -2140,11 +1969,7 @@ impl MediaServer {
 
             let mut canvas = image::DynamicImage::new_rgba8(canvas_w, canvas_h);
             let bg = image::Rgba([30u8, 30u8, 30u8, 255u8]);
-            for pixel in canvas
-                .as_mut_rgba8()
-                .expect("canvas was created as RGBA8")
-                .pixels_mut()
-            {
+            for pixel in canvas.as_mut_rgba8().expect("canvas was created as RGBA8").pixels_mut() {
                 *pixel = bg;
             }
 
@@ -2158,12 +1983,8 @@ impl MediaServer {
                     image::imageops::FilterType::Lanczos3,
                 );
 
-                let x = spacing
-                    + col * (cell_w + spacing)
-                    + (cell_w.saturating_sub(spacing) - scaled.width()) / 2;
-                let y = spacing
-                    + row * (cell_h + spacing)
-                    + (cell_h.saturating_sub(spacing) - scaled.height()) / 2;
+                let x = spacing + col * (cell_w + spacing) + (cell_w.saturating_sub(spacing) - scaled.width()) / 2;
+                let y = spacing + row * (cell_h + spacing) + (cell_h.saturating_sub(spacing) - scaled.height()) / 2;
 
                 image::imageops::overlay(&mut canvas, &scaled, x as i64, y as i64);
             }
@@ -2172,9 +1993,9 @@ impl MediaServer {
             let _ = std::fs::create_dir_all(&temp_dir);
             let output_path = temp_dir.join(format!("collage_{}.png", uuid::Uuid::new_v4()));
 
-            canvas.save(&output_path).map_err(|e| {
-                McpToolError::internal(format!("Failed to save collage: {}", e))
-            })?;
+            canvas
+                .save(&output_path)
+                .map_err(|e| McpToolError::internal(format!("Failed to save collage: {}", e)))?;
 
             Ok(serde_json::json!({
                 "status": "created",
@@ -2206,9 +2027,7 @@ impl MediaServer {
             validate_tool_url(&video_url)?;
 
             if start_sec >= end_sec {
-                return Err(McpToolError::invalid_argument(
-                    "start_sec must be less than end_sec.",
-                ));
+                return Err(McpToolError::invalid_argument("start_sec must be less than end_sec."));
             }
 
             self.require_ffmpeg()?;
@@ -2271,9 +2090,7 @@ impl MediaServer {
         .await
     }
 
-    #[tool(
-        description = "Animate a gallery image into a short video clip. Delegates to fal.ai Seedance 2.0."
-    )]
+    #[tool(description = "Animate a gallery image into a short video clip. Delegates to fal.ai Seedance 2.0.")]
     async fn image_to_video(
         &self,
         Parameters(ImageToVideoRequest {
@@ -2314,9 +2131,7 @@ impl MediaServer {
             let pos = position.as_deref().unwrap_or("bottom");
             let size = font_size.unwrap_or(24);
             if size == 0 {
-                return Err(McpToolError::invalid_argument(
-                    "font_size must be greater than 0",
-                ));
+                return Err(McpToolError::invalid_argument("font_size must be greater than 0"));
             }
 
             let output = self
@@ -2351,9 +2166,7 @@ impl MediaServer {
             validate_tool_url(&video_url)?;
 
             if start_sec >= end_sec {
-                return Err(McpToolError::invalid_argument(
-                    "start_sec must be less than end_sec.",
-                ));
+                return Err(McpToolError::invalid_argument("start_sec must be less than end_sec."));
             }
 
             self.require_ffmpeg()?;
@@ -2375,13 +2188,7 @@ impl MediaServer {
 
             let gif = self
                 .ffmpeg
-                .to_gif(
-                    &captioned.to_string_lossy(),
-                    0.0,
-                    end_sec - start_sec,
-                    480,
-                    10,
-                )
+                .to_gif(&captioned.to_string_lossy(), 0.0, end_sec - start_sec, 480, 10)
                 .await
                 .map_err(|e| McpToolError::internal(format!("GIF step failed: {}", e)))?;
 
@@ -2413,19 +2220,14 @@ impl MediaServer {
     ) -> String {
         execute_tool(self, "video_from_images", async {
             if image_indices.is_empty() {
-                return Err(McpToolError::invalid_argument(
-                    "At least one image index is required.",
-                ));
+                return Err(McpToolError::invalid_argument("At least one image index is required."));
             }
 
             self.require_ffmpeg()?;
 
             let mut paths = Vec::new();
             for idx in &image_indices {
-                paths.push(
-                    self.resolve_image_path(*idx)
-                        .map_err(McpToolError::invalid_argument)?,
-                );
+                paths.push(self.resolve_image_path(*idx).map_err(McpToolError::invalid_argument)?);
             }
 
             let fps = fps.unwrap_or(24);
@@ -2455,18 +2257,12 @@ impl MediaServer {
     ) -> String {
         execute_tool(self, "video_concat", async {
             if video_urls.len() < 2 {
-                return Err(McpToolError::invalid_argument(
-                    "At least 2 video URLs are required.",
-                ));
+                return Err(McpToolError::invalid_argument("At least 2 video URLs are required."));
             }
 
             self.require_ffmpeg()?;
 
-            let output = self
-                .ffmpeg
-                .concat(&video_urls)
-                .await
-                .map_err(McpToolError::internal)?;
+            let output = self.ffmpeg.concat(&video_urls).await.map_err(McpToolError::internal)?;
 
             Ok(serde_json::json!({
                 "status": "concatenated",
@@ -2569,8 +2365,8 @@ impl MediaServer {
                 .resolve_image_path(image_index)
                 .map_err(McpToolError::invalid_argument)?;
 
-            let mut img = image::open(&image_path)
-                .map_err(|e| McpToolError::internal(format!("Failed to open image: {}", e)))?;
+            let mut img =
+                image::open(&image_path).map_err(|e| McpToolError::internal(format!("Failed to open image: {}", e)))?;
 
             let font = load_meme_font(font_path.as_deref()).map_err(|e| {
                 McpToolError::unavailable(format!(
@@ -2591,9 +2387,7 @@ impl MediaServer {
                 let x = ((img_w as i32 - tw as i32) / 2).max(0);
                 let y = (img_h as f32 * 0.05) as i32;
                 for &(dx, dy) in &[(1, 0), (-1, 0), (0, 1), (0, -1)] {
-                    imageproc::drawing::draw_text_mut(
-                        &mut img, black, x + dx, y + dy, scale, &font, &text_upper,
-                    );
+                    imageproc::drawing::draw_text_mut(&mut img, black, x + dx, y + dy, scale, &font, &text_upper);
                 }
                 imageproc::drawing::draw_text_mut(&mut img, white, x, y, scale, &font, &text_upper);
             }
@@ -2604,20 +2398,15 @@ impl MediaServer {
                 let x = ((img_w as i32 - tw as i32) / 2).max(0);
                 let y = (img_h as i32 - th as i32 - (img_h as f32 * 0.05) as i32).max(0);
                 for &(dx, dy) in &[(1, 0), (-1, 0), (0, 1), (0, -1)] {
-                    imageproc::drawing::draw_text_mut(
-                        &mut img, black, x + dx, y + dy, scale, &font, &text_upper,
-                    );
+                    imageproc::drawing::draw_text_mut(&mut img, black, x + dx, y + dy, scale, &font, &text_upper);
                 }
                 imageproc::drawing::draw_text_mut(&mut img, white, x, y, scale, &font, &text_upper);
             }
 
             let mut buf = std::io::Cursor::new(Vec::new());
             img.write_to(&mut buf, image::ImageFormat::Png)
-                .map_err(|e| {
-                    McpToolError::internal(format!("Failed to encode composited image: {}", e))
-                })?;
-            let b64 =
-                base64::Engine::encode(&base64::engine::general_purpose::STANDARD, buf.get_ref());
+                .map_err(|e| McpToolError::internal(format!("Failed to encode composited image: {}", e)))?;
+            let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, buf.get_ref());
             let data_uri = format!("data:image/png;base64,{}", b64);
 
             let motion_prompt = if motion.is_empty() {
@@ -2640,9 +2429,7 @@ impl MediaServer {
     )]
     async fn voice_design(
         &self,
-        Parameters(VoiceDesignRequest {
-            character_description,
-        }): Parameters<VoiceDesignRequest>,
+        Parameters(VoiceDesignRequest { character_description }): Parameters<VoiceDesignRequest>,
     ) -> String {
         execute_tool(self, "voice_design", async {
             let mut vars = HashMap::new();
@@ -2654,16 +2441,9 @@ impl MediaServer {
             let params = hkask_types::template::LLMParameters::default();
             let r = self
                 .inference
-                .generate_with_model(
-                    &prompt,
-                    &params,
-                    Some("DI/meta-llama/Llama-3.3-70B-Instruct"),
-                    None,
-                )
+                .generate_with_model(&prompt, &params, Some("DI/meta-llama/Llama-3.3-70B-Instruct"), None)
                 .await
-                .map_err(|e| {
-                    McpToolError::unavailable(format!("Voice design inference failed: {}", e))
-                })?;
+                .map_err(|e| McpToolError::unavailable(format!("Voice design inference failed: {}", e)))?;
 
             match serde_json::from_str::<serde_json::Value>(&r.text) {
                 Ok(v) => Ok(serde_json::json!({
@@ -2680,9 +2460,7 @@ impl MediaServer {
         .await
     }
 
-    #[tool(
-        description = "Generate speech audio from text using a voice design. Returns audio as base64 data URI."
-    )]
+    #[tool(description = "Generate speech audio from text using a voice design. Returns audio as base64 data URI.")]
     async fn generate_speech(
         &self,
         Parameters(GenerateSpeechRequest { text, voice_design }): Parameters<GenerateSpeechRequest>,
@@ -2707,15 +2485,10 @@ impl MediaServer {
 
     // ── Audio tools ─────────────────────────────────────────────────────────
 
-    #[tool(
-        description = "Transcribe speech audio to text. Returns transcribed text for REPL injection."
-    )]
+    #[tool(description = "Transcribe speech audio to text. Returns transcribed text for REPL injection.")]
     async fn transcribe(
         &self,
-        Parameters(TranscribeRequest {
-            audio_url,
-            language,
-        }): Parameters<TranscribeRequest>,
+        Parameters(TranscribeRequest { audio_url, language }): Parameters<TranscribeRequest>,
     ) -> String {
         execute_tool(self, "transcribe", async {
             validate_tool_url(&audio_url)?;
@@ -2733,10 +2506,7 @@ impl MediaServer {
     )]
     async fn transcribe_bundle(
         &self,
-        Parameters(TranscribeRequest {
-            audio_url,
-            language,
-        }): Parameters<TranscribeRequest>,
+        Parameters(TranscribeRequest { audio_url, language }): Parameters<TranscribeRequest>,
     ) -> String {
         execute_tool(self, "transcribe_bundle", async {
             validate_tool_url(&audio_url)?;
@@ -2747,16 +2517,9 @@ impl MediaServer {
                 .await
                 .map_err(|e| McpToolError::unavailable(format!("Transcription failed: {}", e)))?;
 
-            let full_text = raw
-                .get("text")
-                .and_then(|t| t.as_str())
-                .unwrap_or("")
-                .to_string();
+            let full_text = raw.get("text").and_then(|t| t.as_str()).unwrap_or("").to_string();
             let duration = raw.get("duration").and_then(|d| d.as_f64()).unwrap_or(0.0) as f32;
-            let model = raw
-                .get("model")
-                .and_then(|m| m.as_str())
-                .map(|s| s.to_string());
+            let model = raw.get("model").and_then(|m| m.as_str()).map(|s| s.to_string());
             let words: Vec<TimedWord> = raw
                 .get("words")
                 .and_then(|w| w.as_array())
@@ -2980,9 +2743,7 @@ impl MediaServer {
         .await
     }
 
-    #[tool(
-        description = "Transform an existing image with a text prompt. Describe the change you want."
-    )]
+    #[tool(description = "Transform an existing image with a text prompt. Describe the change you want.")]
     async fn transform_image(
         &self,
         Parameters(TransformImageRequest {
@@ -3016,9 +2777,7 @@ impl MediaServer {
         .await
     }
 
-    #[tool(
-        description = "Generate a short video from a text prompt. Describe the scene you want to see in motion."
-    )]
+    #[tool(description = "Generate a short video from a text prompt. Describe the scene you want to see in motion.")]
     async fn generate_video(
         &self,
         Parameters(GenerateVideoRequest { prompt, duration }): Parameters<GenerateVideoRequest>,
@@ -3053,11 +2812,7 @@ pub async fn run(
         }
     };
 
-    let daemon_client = if daemon_ok {
-        Some(DaemonClient::new())
-    } else {
-        None
-    };
+    let daemon_client = if daemon_ok { Some(DaemonClient::new()) } else { None };
 
     // Create an in-memory GalleryStore for the media server.
     // Gracefully degrade if DB initialization fails — gallery tools
@@ -3113,14 +2868,8 @@ pub async fn run(
                 "DI_API_KEY",
                 "DeepInfra API key for vision LLMs and media generation",
             ),
-            hkask_mcp::CredentialRequirement::optional(
-                "FA_API_KEY",
-                "fal.ai API key for image/video generation",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "TOGETHER_API_KEY",
-                "Together AI API key for vision LLMs",
-            ),
+            hkask_mcp::CredentialRequirement::optional("FA_API_KEY", "fal.ai API key for image/video generation"),
+            hkask_mcp::CredentialRequirement::optional("TOGETHER_API_KEY", "Together AI API key for vision LLMs"),
         ],
     )
     .await
@@ -3173,10 +2922,7 @@ mod integration_tests {
         create_test_image(temp.path(), "forest.png", 34, 139, 34);
 
         let gallery = store
-            .create(
-                &temp.path().to_string_lossy(),
-                hkask_storage::GalleryMode::ReadOnly,
-            )
+            .create(&temp.path().to_string_lossy(), hkask_storage::GalleryMode::ReadOnly)
             .expect("create gallery");
         assert_eq!(gallery.image_count, 0);
 
@@ -3199,14 +2945,10 @@ mod integration_tests {
                 .expect("add image");
         }
 
-        let img = store
-            .get_image(&gallery.id, Some(0), None)
-            .expect("get image");
+        let img = store.get_image(&gallery.id, Some(0), None).expect("get image");
         assert_eq!(img.width, 64);
 
-        store
-            .tag_image(&img.id, "object", "sunset", 0.95, "test")
-            .expect("tag");
+        store.tag_image(&img.id, "object", "sunset", 0.95, "test").expect("tag");
 
         let tags = store.get_tags(&img.id).expect("get tags");
         assert_eq!(tags.len(), 1);
@@ -3252,12 +2994,8 @@ mod integration_tests {
                 cell_h.saturating_sub(spacing),
                 image::imageops::FilterType::Lanczos3,
             );
-            let x = spacing
-                + col * (cell_w + spacing)
-                + (cell_w.saturating_sub(spacing) - scaled.width()) / 2;
-            let y = spacing
-                + row * (cell_h + spacing)
-                + (cell_h.saturating_sub(spacing) - scaled.height()) / 2;
+            let x = spacing + col * (cell_w + spacing) + (cell_w.saturating_sub(spacing) - scaled.width()) / 2;
+            let y = spacing + row * (cell_h + spacing) + (cell_h.saturating_sub(spacing) - scaled.height()) / 2;
             image::imageops::overlay(&mut canvas, &scaled, x as i64, y as i64);
         }
 
@@ -3267,34 +3005,19 @@ mod integration_tests {
         assert_eq!(collage.width(), 800);
         assert_eq!(collage.height(), 600);
 
-        let non_bg = collage
-            .to_rgba8()
-            .pixels()
-            .filter(|p| p.0 != [30, 30, 30, 255])
-            .count();
-        assert!(
-            non_bg > 100,
-            "collage should have non-bg pixels (got {})",
-            non_bg
-        );
+        let non_bg = collage.to_rgba8().pixels().filter(|p| p.0 != [30, 30, 30, 255]).count();
+        assert!(non_bg > 100, "collage should have non-bg pixels (got {})", non_bg);
     }
 
     #[test]
     fn gallery_store_image_not_found() {
         let (store, temp) = setup_store();
         let gallery = store
-            .create(
-                &temp.path().to_string_lossy(),
-                hkask_storage::GalleryMode::ReadOnly,
-            )
+            .create(&temp.path().to_string_lossy(), hkask_storage::GalleryMode::ReadOnly)
             .expect("create gallery");
 
         assert!(store.get_image(&gallery.id, Some(999), None).is_err());
-        assert!(
-            store
-                .get_image(&gallery.id, None, Some("nonexistent"))
-                .is_err()
-        );
+        assert!(store.get_image(&gallery.id, None, Some("nonexistent")).is_err());
     }
 
     #[test]
@@ -3303,10 +3026,7 @@ mod integration_tests {
         assert_eq!(GalleryMode::ReadOnly.as_str(), "read-only");
         assert_eq!(GalleryMode::CopyOnWrite.as_str(), "copy-on-write");
         assert_eq!(GalleryMode::Destructive.as_str(), "destructive");
-        assert_ne!(
-            GalleryMode::ReadOnly.as_str(),
-            GalleryMode::Destructive.as_str()
-        );
+        assert_ne!(GalleryMode::ReadOnly.as_str(), GalleryMode::Destructive.as_str());
     }
 
     // ── Face recognition tests ─────────────────────────────────────────────
@@ -3323,8 +3043,7 @@ mod integration_tests {
             "clarity": "sharp",
             "issues": []
         }"#;
-        let result: crate::gallery::vision::FaceValidationResult =
-            serde_json::from_str(json).expect("deserialize");
+        let result: crate::gallery::vision::FaceValidationResult = serde_json::from_str(json).expect("deserialize");
         assert!(result.valid);
         assert_eq!(result.face_count, 1);
         assert_eq!(result.face_coverage_pct, 45);
@@ -3348,8 +3067,7 @@ mod integration_tests {
                 "Profile pose — frontal or near-frontal required"
             ]
         }"#;
-        let result: crate::gallery::vision::FaceValidationResult =
-            serde_json::from_str(json).expect("deserialize");
+        let result: crate::gallery::vision::FaceValidationResult = serde_json::from_str(json).expect("deserialize");
         assert!(!result.valid);
         assert_eq!(result.face_count, 2);
         assert_eq!(result.issues.len(), 3);
@@ -3363,8 +3081,7 @@ mod integration_tests {
             "confidence": 0.94,
             "reasoning": "Same bone structure, identical eye spacing, matching nose shape."
         }"#;
-        let result: crate::gallery::vision::FaceMatchResult =
-            serde_json::from_str(json).expect("deserialize");
+        let result: crate::gallery::vision::FaceMatchResult = serde_json::from_str(json).expect("deserialize");
         assert!(result.is_match);
         assert!((result.confidence - 0.94).abs() < 0.001);
         assert!(result.reasoning.contains("bone structure"));
@@ -3377,8 +3094,7 @@ mod integration_tests {
             "confidence": 0.85,
             "reasoning": "Different jawline structure and eye shape — likely different people."
         }"#;
-        let result: crate::gallery::vision::FaceMatchResult =
-            serde_json::from_str(json).expect("deserialize");
+        let result: crate::gallery::vision::FaceMatchResult = serde_json::from_str(json).expect("deserialize");
         assert!(!result.is_match);
         assert!((result.confidence - 0.85).abs() < 0.001);
         assert!(result.reasoning.contains("Different"));
@@ -3433,33 +3149,13 @@ mod integration_tests {
             .create("/tmp/test-gallery", GalleryMode::ReadOnly)
             .expect("create gallery");
         let img1 = store
-            .add_image(
-                &gallery.id,
-                "a.jpg",
-                "/tmp/a.jpg",
-                "h1",
-                100,
-                100,
-                "jpg",
-                1000,
-            )
+            .add_image(&gallery.id, "a.jpg", "/tmp/a.jpg", "h1", 100, 100, "jpg", 1000)
             .expect("add img1");
         let img2 = store
-            .add_image(
-                &gallery.id,
-                "b.jpg",
-                "/tmp/b.jpg",
-                "h2",
-                100,
-                100,
-                "jpg",
-                1000,
-            )
+            .add_image(&gallery.id, "b.jpg", "/tmp/b.jpg", "h2", 100, 100, "jpg", 1000)
             .expect("add img2");
 
-        store
-            .register_face("Alice", "A", &img1.id, None, "valid", "")
-            .unwrap();
+        store.register_face("Alice", "A", &img1.id, None, "valid", "").unwrap();
         store
             .register_face("Bob", "B", &img2.id, None, "rejected", "Too dark")
             .unwrap();

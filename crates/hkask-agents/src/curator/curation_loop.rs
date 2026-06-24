@@ -374,12 +374,9 @@ impl HkaskLoop for CurationLoop {
                                 tracing::info!(target: CUR_TARGET, escalation_id = %entry.id, "Issued OverrideEnergyBudget directive for escalated bot");
                             }
                             if let Some(consolidation) = &self.consolidation {
-                                let handle = self.context.handle();
-                                let curator_id = *handle.curator_id();
-                                let token = hkask_capability::ConsolidationToken::new(curator_id);
+                                let curator_id = *self.context.handle().curator_id();
                                 match consolidation.consolidate(
-                                    &token,
-                                    &curator_id,
+                                    curator_id,
                                     ConsolidationRequest {
                                         limit: 100,
                                         ..Default::default()

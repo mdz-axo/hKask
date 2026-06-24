@@ -10,10 +10,7 @@ use crate::ocr::{ComplexityTier, CrossValidation, OcrResult};
 /// Returns `None` if the results are not comparable (different page index).
 /// Otherwise computes normalized Levenshtein similarity and bundles
 /// per-backend confidence scores with the complexity tier.
-pub fn compute_cross_validation(
-    primary: &OcrResult,
-    secondary: &OcrResult,
-) -> Option<CrossValidation> {
+pub fn compute_cross_validation(primary: &OcrResult, secondary: &OcrResult) -> Option<CrossValidation> {
     if primary.page_index != secondary.page_index {
         return None;
     }
@@ -65,11 +62,7 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
     for j in 1..=b_len {
         curr_row[0] = j;
         for i in 1..=a_len {
-            let cost = if a_chars[i - 1] == b_chars[j - 1] {
-                0
-            } else {
-                1
-            };
+            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
             curr_row[i] = (curr_row[i - 1] + 1) // insertion
                 .min(prev_row[i] + 1) // deletion
                 .min(prev_row[i - 1] + cost); // substitution
@@ -126,10 +119,7 @@ mod tests {
         assert!(cv.is_some());
         let cv = cv.unwrap();
         assert_eq!(cv.page_index, 0);
-        assert!(
-            cv.similarity > 0.5,
-            "similarity should be high for similar texts"
-        );
+        assert!(cv.similarity > 0.5, "similarity should be high for similar texts");
         assert_eq!(cv.confidence_a, 0.95);
         assert_eq!(cv.confidence_b, 0.89);
     }

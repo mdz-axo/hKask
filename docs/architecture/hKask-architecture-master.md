@@ -532,6 +532,33 @@ The REPL supports bidirectional voice interaction through the media MCP server (
 
 **Architecture:** `/talk` calls the speech summarizer (inference port) → `generate_speech` (MCP media) → ffplay. `/listen` calls `audio_capture` → `transcribe_bundle` (MCP media). Both use `GovernedTool` for OCAP-gated MCP invocation. The `TranscriptViewer` renders `TranscriptBundle` JSON using ratatui + ffplay subprocess.
 
+### Fusion — Multi-Model Deliberation
+
+Fusion routes prompts through multiple models in parallel, then has a judge model synthesize their responses. Implemented via OpenRouter's Fusion plugin API (not a pre-created fusion group).
+
+**Opt-in:** Fusion is disabled by default. Enable with `HKASK_FUSION_JUDGE` + `HKASK_FUSION_PANEL` env vars, or `/fusion on` in the REPL.
+
+**Default model set:**
+| Role | Model |
+|------|-------|
+| Judge/Fuser | `deepseek-v4-pro` |
+| Panel | `Kimi2.7`, `Qwen3.7 Max`, `GLM5.2`, `Minimax3` |
+
+**Routing:** When fusion is active, the `effective_model()` router returns `openrouter/fusion`. The dispatch injects a `plugins` array into the chat completion request with the panel models and judge. Panel models run in parallel with `web_search` and `web_fetch` tools; the judge compares their responses and returns structured analysis.
+
+**Bypass:** Chat uses the user's chosen model directly (`bypass_fusion=true`). Skills and tool invocations route through fusion when active (`bypass_fusion=false`). The condenser, daemon narratives, and summarization always bypass fusion.
+
+**Configuration:**
+| Env Var | Purpose |
+|---------|---------|
+| `HKASK_FUSION_JUDGE` | Judge/fuser model |
+| `HKASK_FUSION_PANEL` | Comma-separated panel models (1-8) |
+| `HKASK_FUSION_OFF=1` | Disable fusion |
+
+**REPL commands:** `/fusion` (status), `/fusion on`, `/fusion off`.
+
+**Crate:** `hkask-inference` (`config.rs`, `inference_router.rs`, `chat_protocol.rs`).
+
 ---
 
 ## Service Layer

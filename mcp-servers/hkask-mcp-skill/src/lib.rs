@@ -89,10 +89,7 @@ fn registry_entry_to_tool_id(id: &str) -> String {
 }
 
 /// Render a Jinja2 template with the given context map.
-fn render_skill_template(
-    template: &str,
-    context: &HashMap<String, serde_json::Value>,
-) -> Result<String, String> {
+fn render_skill_template(template: &str, context: &HashMap<String, serde_json::Value>) -> Result<String, String> {
     let mut env = minijinja::Environment::new();
     env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
 
@@ -150,11 +147,9 @@ impl SkillServer {
         span.ok_json(serde_json::json!({ "skills": skills }))
     }
 
-    #[tool(
-        description = "Execute a registered skill template with context variables. \
+    #[tool(description = "Execute a registered skill template with context variables. \
         Renders the skill as a Jinja2 template and runs inference. \
-        Use skill_list first to discover available skill IDs."
-    )]
+        Use skill_list first to discover available skill IDs.")]
     pub async fn skill_execute(
         &self,
         Parameters(SkillExecuteRequest { skill_id, context }): Parameters<SkillExecuteRequest>,
@@ -203,16 +198,10 @@ impl SkillServer {
             ..Default::default()
         };
 
-        let result = match self
-            .inference_port
-            .generate(&full_prompt, &params, None)
-            .await
-        {
+        let result = match self.inference_port.generate(&full_prompt, &params, None).await {
             Ok(r) => r,
             Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("Inference failed: {}", e)}),
-                );
+                return span.internal_error(serde_json::json!({"error": format!("Inference failed: {}", e)}));
             }
         };
 
@@ -232,10 +221,7 @@ impl hkask_mcp::server::ToolContext for SkillServer {
 
 // ── Server runner ─────────────────────────────────────────────────────────────
 
-pub async fn run(
-    replicant: String,
-    daemon_client: Option<hkask_mcp::DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
+pub async fn run(replicant: String, daemon_client: Option<hkask_mcp::DaemonClient>) -> Result<(), hkask_mcp::McpError> {
     let inference_config = InferenceConfig::from_env();
     let inference_router = InferenceRouter::new(inference_config);
     let inference_port: Arc<dyn InferencePort> = Arc::new(inference_router);

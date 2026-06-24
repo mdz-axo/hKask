@@ -121,6 +121,57 @@ The `kata-pattern` bundle routes to `kata-starter`, `kata-improvement`, or `kata
 
 ---
 
+## 3.4 Fusion — Multi-Model Deliberation for Skills
+
+Skills are where Fusion has the greatest utility. When a skill invokes inference — for classification, analysis, generation, or critique — it benefits from multiple model perspectives producing higher-quality results.
+
+### How It Works
+
+When Fusion is enabled, skill inference calls automatically route through OpenRouter's Fusion pipeline:
+
+1. The skill's prompt is sent to a **panel** of models in parallel (default: Kimi2.7, Qwen3.7 Max, GLM5.2, Minimax3)
+2. Each panel model has `web_search` and `web_fetch` tools for research-backed responses
+3. A **judge model** (default: deepseek-v4-pro) compares all responses and produces structured analysis
+4. The analysis — consensus, contradictions, blind spots — feeds back into the skill's output
+
+### Enabling Fusion
+
+Fusion is opt-in. Enable it before running skills:
+
+```bash
+# Via environment (persists across sessions)
+export HKASK_FUSION_JUDGE=deepseek-v4-pro
+export HKASK_FUSION_PANEL="Kimi2.7,Qwen3.7 Max,GLM5.2,Minimax3"
+
+# Via REPL (session only)
+/fusion on
+```
+
+Verify with `/fusion` or `kask doctor`.
+
+### When Fusion Helps Most
+
+| Skill Type | Fusion Benefit |
+|-----------|---------------|
+| Research (`firecrawl-research`, `bug-hunt`) | Multiple models find different sources; synthesis catches what one model misses |
+| Analysis (`mcda`, `superforecasting`, `scenario-builder`) | Diverse perspectives produce more calibrated judgments |
+| Critique (`review`, `grill-me`, `skill-logic-audit`) | One model's blind spot is another model's catch |
+| Generation (`logo-builder`, `qa-script-builder`) | Panel variety produces more creative and robust outputs |
+| Classification (`classify`) | Consensus across panel models reduces misclassification |
+
+### Cost
+
+Expect roughly 4-5× the cost of a single completion. Fusion is for high-stakes skill execution where the cost of being wrong outweighs the cost of extra completions. Short tactical prompts don't trigger it — the model decides whether deliberation is warranted.
+
+### Disabling
+
+```bash
+export HKASK_FUSION_OFF=1    # Env var
+/fusion off                  # REPL command
+```
+
+---
+
 ## 4. Skill Catalog
 
 ### 4.1 Perceptual

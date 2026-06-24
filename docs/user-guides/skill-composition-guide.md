@@ -192,6 +192,16 @@ This guide currently reflects the following migration assumptions used to normal
 
 Practical effect: current chains are structurally PDCA-convergent, but threshold and gas policy are still subject to explicit calibration decisions.
 
+### 1.6 Fusion — Multi-Model Deliberation in Compositions
+
+When Fusion is enabled, every inference call in a skill chain benefits from multi-model deliberation. This is particularly valuable for composed workflows:
+
+- **Perception skills** (dokkodo, pragmatic-laziness) → each panel model sees different aspects of the problem
+- **Analysis skills** (mcda, superforecasting, grill-me) → consensus across models produces more calibrated outputs
+- **Executive skills** (coding-guidelines, tdd, bug-hunt) → multiple models catch issues a single model would miss
+
+No composition-level configuration needed — enable Fusion once and all downstream skill inference calls use it automatically. See the [skill user guide](skill-user-guide.md#34-fusion--multi-model-deliberation-for-skills) for setup.
+
 ---
 
 ## 2. Primary Composition Chains

@@ -52,11 +52,7 @@ pub trait ModelRegistry: Send + Sync {
     ///
     /// Uses HF_TOKEN for gated model access.
     /// Returns the path to the downloaded weights.
-    async fn download_weights(
-        &self,
-        hf_model_id: &str,
-        cache_dir: &Path,
-    ) -> Result<PathBuf, HuggingFaceError>;
+    async fn download_weights(&self, hf_model_id: &str, cache_dir: &Path) -> Result<PathBuf, HuggingFaceError>;
 
     /// List available variants/checkpoints for a model.
     ///
@@ -123,11 +119,7 @@ pub trait DatasetRegistry: Send + Sync {
     /// Download a dataset from HuggingFace to a local file.
     ///
     /// Returns the local path to the downloaded dataset.
-    async fn download_dataset(
-        &self,
-        dataset_id: &str,
-        cache_dir: &Path,
-    ) -> Result<PathBuf, HuggingFaceError>;
+    async fn download_dataset(&self, dataset_id: &str, cache_dir: &Path) -> Result<PathBuf, HuggingFaceError>;
 }
 
 // ── Default implementation for model ID resolution ─────────────────────────
@@ -173,17 +165,12 @@ impl ModelRegistry for HfModelRegistry {
         resolve_model_id(base_model)
     }
 
-    async fn download_weights(
-        &self,
-        _hf_model_id: &str,
-        _cache_dir: &Path,
-    ) -> Result<PathBuf, HuggingFaceError> {
+    async fn download_weights(&self, _hf_model_id: &str, _cache_dir: &Path) -> Result<PathBuf, HuggingFaceError> {
         // Weight download via huggingface_hub Python library or hf_transfer.
         // For now, cloud hosts (Baseten) mount via hf:// directly — no local download needed.
         // Local download would use: huggingface_hub.snapshot_download()
         Err(HuggingFaceError::Download(
-            "Direct weight download via REST not implemented — use hf:// mount or huggingface_hub CLI"
-                .to_string(),
+            "Direct weight download via REST not implemented — use hf:// mount or huggingface_hub CLI".to_string(),
         ))
     }
 

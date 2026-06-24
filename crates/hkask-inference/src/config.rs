@@ -408,12 +408,9 @@ fn parse_fusion_config() -> Option<FusionConfig> {
         });
     }
 
-    // Default: use kask defaults when OpenRouter is available.
-    // This makes fusion work out-of-the-box without explicit env vars.
-    let or_key = resolve_api_key("OPENROUTER_API_KEY");
-    if !or_key.is_empty() {
-        return Some(FusionConfig::kask_default());
-    }
+    // Fusion is opt-in: only enabled when explicitly configured via env vars.
+    // To enable with kask defaults: HKASK_FUSION_JUDGE=deepseek-v4-pro
+    // To disable: HKASK_FUSION_OFF=1 or simply don't set any fusion vars.
 
     None
 }
