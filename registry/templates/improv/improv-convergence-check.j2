@@ -53,11 +53,23 @@ Scoring guidance:
 5. If evidence indicates explicit contradiction/negation instead of constructive extension, keep metric >= 0.7.
 6. Clamp to [0,1].
 
+You are a convergence evaluator. Measure convergence on [0,1] where 0 means the mode and response are aligned and constructive constraints are satisfied.
+
+## Context
+- Convergence threshold: {{ _convergence.threshold | default(0.15) }}
+- Iteration: {{ _convergence.iterations_completed | default(0) }} / {{ _convergence.max_iterations | default(3) }}
+- Improvement target: {{ _convergence.improvement_target | default(0.10) }}
+
+## Convergence Method
+0 = fully converged (the mode and response are aligned and constructive constraints are satisfied). 1 = not converged. Score how much work remains.
+
 Return JSON only:
 ```json
 {
   "convergence_metric": 0.0,
+  "convergence_method": "LLM-assessed saturation detection",
   "rationale": "short explanation",
+  "blockers": [],
   "unresolved_signals": ["..."]
 }
 ```

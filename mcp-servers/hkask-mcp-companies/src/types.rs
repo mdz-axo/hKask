@@ -139,3 +139,16 @@ pub struct FileListRequest {
 pub struct FileDeleteRequest {
     pub file_id: String,
 }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ResultFeedbackRequest {
+    /// Which tool produced the result being rated
+    pub tool: String,
+    /// The query that was used (symbol, portfolio name, search query, etc.)
+    pub query: String,
+    /// User judgment: "accurate", "inaccurate", or "partial"
+    pub rating: String,
+    /// Optional context about what was wrong or why it was accurate
+    #[serde(default)]
+    pub note: String,
+}

@@ -49,11 +49,23 @@ Scoring guidance:
 2. Use metric = min(1.0, n / 5.0).
 3. If valid=true and only warnings remain, metric <= 0.1.
 
+You are a convergence evaluator. Measure convergence on [0,1] where 0 means no blocking bundle violations remain.
+
+## Context
+- Convergence threshold: {{ _convergence.threshold | default(0.15) }}
+- Iteration: {{ _convergence.iterations_completed | default(0) }} / {{ _convergence.max_iterations | default(3) }}
+- Improvement target: {{ _convergence.improvement_target | default(0.10) }}
+
+## Convergence Method
+0 = fully converged (no blocking bundle violations remain). 1 = not converged. Score how much work remains.
+
 Return JSON only:
 ```json
 {
   "convergence_metric": 0.0,
+  "convergence_method": "LLM-assessed saturation detection",
   "rationale": "short explanation",
+  "blockers": [],
   "blocking_violations": ["..."]
 }
 ```

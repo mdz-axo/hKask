@@ -212,6 +212,11 @@ dispatch_test!(
     CharacteristicsRequest,
     portfolio_characteristics
 );
+dispatch_test!(
+    fuzz_companies_dispatch_result_feedback,
+    ResultFeedbackRequest,
+    result_feedback
+);
 
 /// portfolio_list takes no parameters — always dispatchable.
 #[test]

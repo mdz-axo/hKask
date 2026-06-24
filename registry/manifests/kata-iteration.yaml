@@ -9,7 +9,7 @@
 manifest:
   id: kata-iteration
   name: Kata Iteration
-  version: "0.1.0"
+  version: "0.30.0"
   description: >
     Iterate on a completed PDCA cycle to assess variance and build confidence.
     Re-executes the kata template with higher temperature, then compares
@@ -17,6 +17,15 @@ manifest:
     confidence increased. Maximum 2 iterations per session.
   editor: Curator
   visibility: Public
+
+convergence:
+  threshold: 0.20
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 2
+  min_iterations: 1
+  convergence_field: step_2_result.convergence_metric
+  on_not_reached: escalate
 
 gas:
   cap: 50000

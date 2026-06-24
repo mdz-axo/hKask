@@ -1,356 +1,234 @@
 # Kata Pattern Manifest
-# ℏKask v0.21.4 — Unified Kata execution with iteration support
+# ℏKask v0.30.0 — Unified Kata execution with PDCA convergence tracking
 
 manifest:
   id: kata-pattern
   name: Kata Pattern
-  version: "0.1.0"
+  version: "0.30.0"
   description: >
     Unified Kata execution pattern. Selects and executes one of three
-    Kata patterns: Improvement (4-step), Coaching (5-question), or Starter
-    (practice routine). All Kata outcomes recorded to memory and CNS.
-
-    Supports limited composition: Improvement ↔ Coaching switching when
-    obstacles or capability gaps are identified. Starter is self-contained.
+    Kata patterns: Improvement (4-step PDCA), Coaching (5-question PDCA), or Starter
+    (practice routine PDCA). All Kata outcomes recorded to memory and CNS.
+    Supports composition: Improvement ↔ Coaching switching when obstacles or
+    capability gaps are identified. Starter is self-contained.
+    This bundle delegates PDCA to sub-skills; it tracks aggregate convergence.
   functional_role: flowdef
   editor: Curator
   visibility: Public
 
+convergence:
+  threshold: 0.20
+  improvement_ratio: 0.10
+  improvement_gate: both
+  max_iterations: 3
+  min_iterations: 1
+  convergence_field: step_5_result.convergence_metric
+  on_not_reached: escalate
+
 gas:
-  accounting:
-    framework: GHG-Protocol-Scope-2
-    version: 2024-edition
-    reporting_method: dual
-
-  grid_intensity:
-    source: IEA-Emission-Factors-2026
-    default_location_based: 0.370
-    market_based: null
-
-  inference_energy:
-    source: LLMCO2-AAAI-2026
-    fast_local: 0.0003
-    balanced: 0.0008
-    reasoning_local: 0.0015
-
-  pue: 1.15
-  token_budget: 100000
+  cap: 120000
   cost_per_token: 0.0008
-  alert_threshold: 0.7
+  alert_threshold: 0.8
   hard_limit: true
 
-  carbon_accounting:
-    location_based_co2e: (energy_wh × pue × grid_intensity_location)
-    market_based_co2e: (energy_wh × pue × grid_intensity_market)
-    unit: kg-CO₂e
-
-  audit_trail:
-    required_disclosures:
-      - methodology_version
-      - grid_intensity_source
-      - pue_assumption
-      - uncertainty_range
-    verification_standard: ISO-14064-3
-    base_year: 2026
+inputs:
+  - name: challenge
+    type: string
+    required: false
+  - name: kata_type_hint
+    type: string
+    required: false
+    description: "improvement|coaching|starter — optional hint to skip selection"
 
 # Core Steps (always executed)
 steps:
   - ordinal: 1
     action: select
-    description: Verify consent and select Kata pattern
+    description: Verify consent and select Kata pattern (improvement, coaching, or starter).
     renderer: minijinja
     template_ref: kata/consent-and-select.j2
-    token_cap: 3000
+    gas_cap: 3000
     timeout_seconds: 20
-    output_schema:
-      type: object
-      properties:
-        consent_valid:
-          type: boolean
-        kata_type:
-          type: string
-          enum: [improvement, coaching, starter]
-        learner_bot:
-          type: string
-        confidence:
-          type: number
 
   - ordinal: 2
-    action: populate
-    description: Execute selected Kata pattern
+    action: select
+    description: Execute selected Kata pattern via sub-skill manifest.
     renderer: minijinja
     template_ref: kata/{{ kata_type }}-cycle.j2
-    token_cap: 70000
-    timeout_seconds: 60
-    output_schema:
-      type: object
-      properties:
-        kata_outcome:
-          type: object
-        learner_response:
-          type: string
+    gas_cap: 70000
+    timeout_seconds: 120
 
   - ordinal: 3
-    action: populate
-    description: Synthesize Kata outcome with habit assessment
+    action: select
+    description: Synthesize Kata outcome with habit assessment.
     renderer: minijinja
     template_ref: kata/outcome-and-habit.j2
-    token_cap: 8000
-    timeout_seconds: 30
-    output_schema:
-      type: object
-      properties:
-        capability_delta:
-          type: string
-        automaticity_score:
-          type: number
-        streak_days:
-          type: integer
-        intervention_needed:
-          type: boolean
+    gas_cap: 8000
+    timeout_seconds: 60
 
   - ordinal: 4
-    action: execute
-    description: Record practice to episodic memory (mandatory)
-    renderer: null
-    template_ref: null
-    target: record_kata_practice
-    mcp: hkask-mcp-memory
-    tool: memory_remember
-    token_cap: 2000
-    timeout_seconds: 10
-    required: true
-    output_schema:
-      type: object
-      properties:
-        triple_id:
-          type: string
-        memory_visibility:
-          type: string
-
-  - ordinal: 5
-    action: execute
-    description: Emit CNS span with carbon and habit data
-    renderer: null
-    template_ref: null
-    target: emit_kata_cns_span
-    mcp: hkask-mcp-memory # CNS feedback now via memory server
-    tool: cns_emit
-    token_cap: 2000
-    timeout_seconds: 10
-    output_schema:
-      type: object
-      properties:
-        cns_event_id:
-          type: string
-        span_type:
-          type: string
-        energy_wh:
-          type: number
-        co2e_kg:
-          type: number
-        automaticity_score:
-          type: number
-        streak_days:
-          type: integer
-
-  # Conditional Steps (only when triggered)
-  - ordinal: 6
     action: select
-    description: Check if intervention is needed (habit at risk)
+    description: Check if intervention is needed (habit at risk or decay detected).
     renderer: minijinja
     template_ref: kata/habit-intervention.j2
-    token_cap: 4000
-    timeout_seconds: 15
-    condition: intervention_needed OR days_since_practice_gt_3
-    output_schema:
-      type: object
-      properties:
-        intervention_type:
-          type: string
-        message:
-          type: string
+    gas_cap: 4000
+    timeout_seconds: 30
 
+  - ordinal: 5
+    action: select
+    description: Compute convergence metric for kata practice session.
+    renderer: minijinja
+    template_ref: kata/kata-convergence-check
+    gas_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      kata_type: "{{ step_1_result.kata_type | default('unknown') }}"
+      practice_result: "{{ step_3_result }}"
+      intervention_result: "{{ step_4_result }}"
+
+  - ordinal: 6
+    action: loop
+    description: Re-enter kata cycle if convergence not met (re-select or continue practice).
+    input_mapping:
+      loop_target: 1
+
+  # Conditional Steps (only when triggered)
   - ordinal: 7
     action: select
-    description: Check if Kata switching is requested
+    description: Check if Kata switching is requested (improvement↔coaching).
     renderer: minijinja
     template_ref: kata/kata-switch-check.j2
-    token_cap: 3000
-    timeout_seconds: 15
+    gas_cap: 3000
+    timeout_seconds: 30
     condition: composition_enabled
-    output_schema:
-      type: object
-      properties:
-        switch_requested:
-          type: boolean
-        to_kata:
-          type: string
-        reason:
-          type: string
 
   - ordinal: 8
-    action: execute
-    description: Execute Kata switch if requested (save state, invoke new)
+    action: choice
+    description: Execute Kata switch if requested (save state, invoke new kata type).
     renderer: null
     template_ref: null
-    target: execute_kata_switch
-    mcp: null # internal SqliteRegistry was hkask-mcp-templates
-    tool: kata_switch
-    token_cap: 5000
-    timeout_seconds: 20
     condition: switch_requested
-    output_schema:
-      type: object
-      properties:
-        state_saved:
-          type: boolean
-        new_kata_started:
-          type: boolean
-
-  - ordinal: 9
-    action: select
-    description: Check if iteration is needed (high variance or low confidence)
-    renderer: minijinja
-    template_ref: kata/iteration-check.j2
-    token_cap: 3000
-    timeout_seconds: 15
-    condition: variance_detected OR confidence_low
-    output_schema:
-      type: object
-      properties:
-        iteration_needed:
-          type: boolean
-        reason:
-          type: string
-        iterations_remaining:
-          type: integer
-
-  - ordinal: 10
-    action: execute
-    description: Execute iteration if triggered (invokes kata-iteration manifest)
-    renderer: null
-    template_ref: null
-    target: execute_kata_iteration
-    mcp: null # internal SqliteRegistry was hkask-mcp-templates
-    tool: kata_iteration
-    token_cap: 50000
-    timeout_seconds: 90
-    condition: iteration_needed
-    output_schema:
-      type: object
-      properties:
-        iteration_completed:
-          type: boolean
-        variance_score:
-          type: number
-        confidence:
-          type: string
-        best_iteration:
-          type: integer
 
 error_handling:
-  on_consent_revoked: abort_and_save_partial
-  on_token_exceeded: abort_and_escalate
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 1
-  on_memory_failure: escalate_to_curator
-  on_cns_failure: retry_once_then_escalate
+  on_validation_failure: abort
 
-# CNS Integration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: kata/consent-and-select
+      gas_budget: 3000
+    - resource: template
+      action: render
+      template_id: kata/improvement-cycle
+      gas_budget: 18000
+    - resource: template
+      action: render
+      template_id: kata/coaching-cycle
+      gas_budget: 18000
+    - resource: template
+      action: render
+      template_id: kata/starter-cycle
+      gas_budget: 16000
+    - resource: template
+      action: render
+      template_id: kata/outcome-and-habit
+      gas_budget: 8000
+    - resource: template
+      action: render
+      template_id: kata/habit-intervention
+      gas_budget: 4000
+    - resource: template
+      action: render
+      template_id: kata/kata-convergence-check
+      gas_budget: 2000
+    - resource: manifest
+      action: execute
+      template_id: kata-pattern
+      gas_budget: 1000
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
 cns:
   emit_spans: true
   span_namespace: cns.prompt.kata
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
 
-  # Carbon tracking (integrated)
-  carbon_tracking:
-    enabled: true
-    counter_id: kata.carbon.cumulative
-    unit: kg-CO₂e
-    grid_intensity_source: IEA-Emission-Factors-2026
-    pue: 1.15
+# Kata-specific features preserved from v0.21.4
+# These are kata-domain extensions — unknown fields in BundleManifest schema,
+# preserved for the KataEngine and kata-specific CNS counters.
 
-  # Capability metrics wired to counters
-  capability_metrics:
-    primary:
-      - metric_id: task.success_rate
-        counter_id: capability.task.success.rate
-        unit: percent
-        aggregation: mean
-      - metric_id: thinking.automaticity
-        counter_id: kata.automaticity.score
-        unit: score_0_to_1
-        aggregation: mean
+# Carbon tracking (kata-specific)
+carbon_tracking:
+  enabled: true
+  counter_id: kata.carbon.cumulative
+  unit: kg-CO₂e
+  framework: GHG-Protocol-Scope-2-2024
+  grid_intensity_source: IEA-Emission-Factors-2026
+  pue: 1.15
 
-  # Variety counters with baselines
-  variety_counters:
+# Variety counters (kata-specific CNS integration)
+variety_counters:
+  - counter_id: kata.practices.completed
+    increment_on: kata_execution_success
     baseline:
-      kata.practices.completed:
-        expected: 5
-        unit: per_week
-        warning_threshold: 0.6
-        critical_threshold: 0.4
-      kata.habit.formation:
-        expected: 1
-        unit: per_21_days
-        warning_threshold: 0.6
-        critical_threshold: 0.4
-      kata.automaticity.score:
-        expected: 0.05
-        unit: per_week_gain
-        warning_threshold: 0.03
-        critical_threshold: 0.01
+      {
+        expected: 5,
+        unit: per_week,
+        warning_threshold: 0.6,
+        critical_threshold: 0.4,
+      }
+  - counter_id: kata.habit.formation
+    increment_on: practice_streak_milestone
+    baseline:
+      {
+        expected: 1,
+        unit: per_21_days,
+        warning_threshold: 0.6,
+        critical_threshold: 0.4,
+      }
+  - counter_id: kata.automaticity.score
+    increment_on: automaticity_measurement
+    baseline:
+      {
+        expected: 0.05,
+        unit: per_week_gain,
+        warning_threshold: 0.03,
+        critical_threshold: 0.01,
+      }
 
-    counter_ids:
-      - counter_id: kata.practices.completed
-        increment_on: kata_execution_success
-      - counter_id: kata.habit.formation
-        increment_on: practice_streak_milestone
-      - counter_id: kata.automaticity.score
-        increment_on: automaticity_measurement
+# Algedonic alerts (kata-specific)
+algedonic_alerts:
+  - trigger: variety_deficit_warning
+    condition: practices_completed < 60%_of_baseline
+    escalate_to: Curator
+  - trigger: kata_practices_missed_3d
+    threshold: 3
+    escalate_to: Curator
+    action: send_encouragement
+  - trigger: kata_practices_missed_7d
+    threshold: 7
+    escalate_to: Curator
+    action: habit_decay_alert
+  - trigger: automaticity_decline
+    condition: automaticity_score_drop_0.2
+    escalate_to: Curator
 
-  # Algedonic alerts
-  algedonic_alerts:
-    - trigger: variety_deficit_warning
-      condition: practices_completed < 60%_of_baseline
-      escalate_to: Curator
-    - trigger: variety_deficit_critical
-      condition: practices_completed < 40%_of_baseline
-      escalate_to: hKask-Administrator
-    - trigger: kata_practices_missed_3d
-      threshold: 3
-      escalate_to: Curator
-      action: send_encouragement
-    - trigger: kata_practices_missed_7d
-      threshold: 7
-      escalate_to: hKask-Administrator
-      action: habit_decay_alert
-    - trigger: automaticity_decline
-      condition: automaticity_score_drop_0.2
-      escalate_to: Curator
-
-  # Iteration tracking
-  iteration_tracking:
-    enabled: true
-    max_iterations: 2
-    iteration_budget: 50000
-    variance_threshold: 0.3
-    confidence_threshold: 0.5
-
-    variety_counters:
-      - counter_id: kata.iterations.used
-        increment_on: iteration_executed
-        baseline:
-          expected: 0.5
-          warning_threshold: 1.5
-          critical_threshold: 2.0
-      - counter_id: kata.variance.score
-        increment_on: variance_measurement
-        baseline:
-          expected: 0.2
-          warning_threshold: 0.4
-          critical_threshold: 0.6
+# Iteration tracking (kata-specific — separate from PDCA convergence)
+iteration_tracking:
+  enabled: true
+  max_iterations: 2
+  iteration_budget: 50000
+  variance_threshold: 0.3
+  confidence_threshold: 0.5
 
 # Kata Composition
 composition:
@@ -370,32 +248,21 @@ composition:
     nested_kata:
       allowed: false
       reason: violates_minimalism
-
   switching_protocol:
     - complete_current_step
     - save_state_to_memory
     - invoke_new_kata
     - resume_original_on_completion
 
-# Security (OCAP)
+# Security (OCAP consent — kata-specific)
 security:
-  authentication:
-    required: true
-    method: webid_signature
-    check_step: ordinal_1
-
   consent:
     model: revocable_at_any_time
     grant_required_for:
       improvement: Curator
       coaching: Learner OR Curator
       starter: Self
-
     revocation:
-      who_can_revoke:
-        improvement: [Curator]
-        coaching: [Learner, Curator]
-        starter: [Self]
       mid_cycle_effect: abort_and_save_partial
       save_incomplete_outcome: true
       emit_cns_span: true
@@ -403,59 +270,22 @@ security:
       re_consent:
         automatic: false
         requires: explicit_grant
-
   authorization:
-    kata:improvement:
+    "kata:improvement":
       requires: Curator-consent
-    kata:coaching:
+    "kata:coaching":
       requires: learner-consent OR Curator-consent
-    kata:starter:
+    "kata:starter":
       requires: self-consent
-
-  ocap:
-    delegation_chain:
-      Curator:
-        can_delegate_to: [all_bots]
-        can_access: [own_episodic, all_public_semantic]
-        requires_consent: false
-      bots:
-        can_delegate_to: []
-        can_access: [own_episodic]
-        requires_consent: true
-    capability_enforcement:
-      runtime_check: true
-      on_violation: abort_and_escalate
-      audit_log: true
-
-  audit:
-    enabled: true
-    log:
-      - kata_invocation
-      - consent_granted
-      - consent_revoked
-      - outcome_recorded
-      - energy_wh
-      - co2e_kg
-      - automaticity_score
-      - streak_days
   rate_limiting:
     per_bot_per_day: 10
     per_session: 3
     on_exceed: queue_not_drop
 
-# Audit Trail
 audit:
   enabled: true
   log_level: info
   include_input: true
   include_output: true
-  include_token_count: true
-  include_energy_wh: true
-  include_co2e_kg: true
-  include_automaticity_score: true
-  include_streak_days: true
-  methodology_disclosure:
-    framework: GHG-Protocol-Scope-2-2024
-    grid_intensity_source: IEA-Emission-Factors-2026
-    pue_assumption: 1.15
-    uncertainty_range: ±50%
+  include_gas_cost: true
+  include_cns_events: true

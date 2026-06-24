@@ -12,11 +12,19 @@ manifest:
     round of critique and revision, and evaluates convergence. Invoked by
     self-critique-revision when quality has not yet converged.
   functional_role: knowact
-  version: 0.21.0
+  version: 0.30.0
   editor: curator-or-human-admin
   visibility: Public
   parent_manifest: self-critique-revision
+
+convergence:
+  threshold: 0.15
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
   max_iterations: 3
+  min_iterations: 1
+  convergence_field: step_3_result.quality_improvement
+  on_not_reached: escalate
 
 inputs:
   - name: task_prompt

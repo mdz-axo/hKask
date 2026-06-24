@@ -51,11 +51,23 @@ Scoring guidance:
 4. If no critical/high and coverage gaps are bounded, metric <= 0.1.
 5. Clamp to [0,1].
 
+You are a convergence evaluator. Measure convergence on [0,1] where 0 means critical staleness signals are resolved.
+
+## Context
+- Convergence threshold: {{ _convergence.threshold | default(0.15) }}
+- Iteration: {{ _convergence.iterations_completed | default(0) }} / {{ _convergence.max_iterations | default(3) }}
+- Improvement target: {{ _convergence.improvement_target | default(0.10) }}
+
+## Convergence Method
+0 = fully converged (critical staleness signals are resolved). 1 = not converged. Score how much work remains.
+
 Return JSON only:
 ```json
 {
   "convergence_metric": 0.0,
+  "convergence_method": "LLM-assessed saturation detection",
   "rationale": "short explanation",
+  "blockers": [],
   "unresolved_critical_signals": ["..."]
 }
 ```

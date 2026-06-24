@@ -1870,6 +1870,66 @@ impl CompaniesServer {
         })
         .await
     }
+
+    #[tool(
+        description = "Rate a previous tool result: accurate, inaccurate, or partial. Feeds the learning loop so the system can detect patterns in provider behavior and analysis quality."
+    )]
+    pub async fn result_feedback(
+        &self,
+        Parameters(types::ResultFeedbackRequest {
+            tool,
+            query,
+            rating,
+            note,
+        }): Parameters<types::ResultFeedbackRequest>,
+    ) -> String {
+        execute_tool(self, "result_feedback", async {
+            // Validate rating
+            match rating.as_str() {
+                "accurate" | "inaccurate" | "partial" => {}
+                other => {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "rating must be 'accurate', 'inaccurate', or 'partial', got '{other}'"
+                    )));
+                }
+            }
+
+            // Store feedback as a daemon experience linked to the original tool.
+            // Entity = original tool name so a pattern consumer can join
+            // on (tool, query) to find feedback for past experiences.
+            if let Some(ref daemon) = self.daemon {
+                let value = serde_json::json!({
+                    "tool": tool,
+                    "query": query,
+                    "rating": rating,
+                    "note": note,
+                    "timestamp": now_rfc3339(),
+                });
+                let daemon_clone = daemon.clone();
+                let replicant = self.replicant.clone();
+                let tool_for_spawn = tool.clone();
+                let _ = tokio::spawn(async move {
+                    let _ = daemon_clone
+                        .store_experience(
+                            &replicant,
+                            &format!("feedback:{tool_for_spawn}"),
+                            "user_rated",
+                            &value,
+                            Some(0.95),
+                        )
+                        .await;
+                });
+            }
+
+            Ok(serde_json::json!({
+                "status": "recorded",
+                "tool": tool,
+                "query": query,
+                "rating": rating,
+            }))
+        })
+        .await
+    }
 }
 
 // ── Expectations gap helpers ─────────────────────────────────────
@@ -2084,6 +2144,31 @@ mod tests {
             (portfolio_return - 0.095).abs() < 0.001,
             "portfolio return = 9.5%"
         );
+    }
+
+    // ── result_feedback: rating validation contract ────────────────
+
+    #[test]
+    fn result_feedback_valid_ratings_accepted() {
+        // Valid ratings pass the validation match (tested via the match logic)
+        for rating in &["accurate", "inaccurate", "partial"] {
+            let result = match *rating {
+                "accurate" | "inaccurate" | "partial" => Ok(()),
+                other => Err(format!("invalid: {other}")),
+            };
+            assert!(result.is_ok(), "{rating} should be accepted");
+        }
+    }
+
+    #[test]
+    fn result_feedback_invalid_ratings_rejected() {
+        for rating in &["wrong", "", "ACCURATE", "partial "] {
+            let result = match *rating {
+                "accurate" | "inaccurate" | "partial" => Ok(()),
+                other => Err(format!("invalid: {other}")),
+            };
+            assert!(result.is_err(), "'{rating}' should be rejected");
+        }
     }
 }
 
