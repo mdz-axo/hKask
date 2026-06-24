@@ -348,8 +348,13 @@ impl TuiSession {
                 self.workspace.new_chat_window();
                 true
             }
-            // Tab: next window focus
+            // Tab: next window focus (passthrough for Terminal PTY)
             (KeyModifiers::NONE, KeyCode::Tab) => {
+                if let Some(focus) = self.workspace.focused_window() {
+                    if self.workspace.root().window_kind(focus) == Some(crate::window::WindowKind::Terminal) {
+                        return false; // let Terminal handle Tab
+                    }
+                }
                 self.workspace.focus_next();
                 true
             }

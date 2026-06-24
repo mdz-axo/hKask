@@ -33,6 +33,14 @@ impl RegistrySection {
             Self::Bundles => Self::Templates,
         }
     }
+    fn prev(self) -> Self {
+        match self {
+            Self::Templates => Self::Bundles,
+            Self::Skills => Self::Templates,
+            Self::Styles => Self::Skills,
+            Self::Bundles => Self::Styles,
+        }
+    }
     fn title(&self) -> &str {
         match self {
             Self::Templates => "Templates",
@@ -210,7 +218,10 @@ impl Window for RegistryWindow {
     }
 
     fn handle_key(&mut self, key: KeyEvent) -> bool {
-        if key.code == KeyCode::Tab {
+        if key.code == KeyCode::Char('[') {
+            self.section = self.section.prev();
+            true
+        } else if key.code == KeyCode::Char(']') {
             self.section = self.section.next();
             true
         } else {

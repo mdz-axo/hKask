@@ -51,6 +51,15 @@ impl SidebarSection {
             SidebarSection::Keybindings => SidebarSection::CnsHealth,
         }
     }
+    fn prev(&self) -> Self {
+        match self {
+            SidebarSection::CnsHealth => SidebarSection::Keybindings,
+            SidebarSection::McpStatus => SidebarSection::CnsHealth,
+            SidebarSection::Pods => SidebarSection::McpStatus,
+            SidebarSection::Context => SidebarSection::Pods,
+            SidebarSection::Keybindings => SidebarSection::Context,
+        }
+    }
 }
 
 pub struct SidebarWindow {
@@ -239,7 +248,11 @@ impl Window for SidebarWindow {
     fn handle_key(&mut self, key: KeyEvent) -> bool {
         use crossterm::event::KeyCode;
         match key.code {
-            KeyCode::Tab => {
+            KeyCode::Char('[') => {
+                self.active_section = self.active_section.prev();
+                true
+            }
+            KeyCode::Char(']') => {
                 self.active_section = self.active_section.next();
                 true
             }

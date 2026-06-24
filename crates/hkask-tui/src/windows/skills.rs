@@ -31,6 +31,13 @@ impl SkillSection {
             Self::Active => Self::Installed,
         }
     }
+    fn prev(self) -> Self {
+        match self {
+            Self::Installed => Self::Active,
+            Self::Available => Self::Installed,
+            Self::Active => Self::Available,
+        }
+    }
     fn title(&self) -> &str {
         match self {
             Self::Installed => "Installed",
@@ -197,7 +204,10 @@ impl Window for SkillsWindow {
     }
 
     fn handle_key(&mut self, key: KeyEvent) -> bool {
-        if key.code == KeyCode::Tab {
+        if key.code == KeyCode::Char('[') {
+            self.section = self.section.prev();
+            true
+        } else if key.code == KeyCode::Char(']') {
             self.section = self.section.next();
             true
         } else {

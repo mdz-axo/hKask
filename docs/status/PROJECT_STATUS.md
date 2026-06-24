@@ -12,20 +12,12 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** v0.30.0 — TUI Windows Complete: 19 windows (10 live bridges, 2 functional, 6 bridge, 1 deferred). Multi-Pod Architecture Complete: (2026-06-23)
+**Current session:** v0.30.0 — AgentService pub-field refactoring complete. 1460 tests pass. Document alignment sweep (2026-06-23).
 
 **This session (2026-06-23):**
-- TUI ratatui interface: 19 window types all instantiable via `Ctrl+N`, workspace splits, sidebar, help overlay.
-- 9 domain-specific bridge traits (`bridges/`) with mock + live implementations on `TuiReplBridge`.
-- 10 windows with live service data: Chat, CNS Monitor, Curator, Pods, Sidebar, Logo, Wallet, Config, Backup, Registry, Skills, Memory, Kanban, Matrix, Media, Training.
-- Terminal upgraded to PTY-backed interactive shell (`portable-pty`, bash/fish).
-- Editor with file open/save (`Ctrl+S`/`Ctrl+O`).
-- Logo window: persistent top-left anchor rasterized from SVG at half-block Unicode characters.
-- CLI bridge implementations (`crates/hkask-cli/src/repl/tui_bridges.rs`) — 9 traits, live via `McpRuntime::call_tool()` for media/training, `BackupService` for backup.
-- BackupService exposed: `BackupLoop::service()` getter + `AgentService::backup_loop` field.
-- Integration tests: 43 total (8 unit + 35 rendering smoke tests).
-- Companies window deferred (needs `hkask-mcp-companies` / Firecrawl).
-- Build: clean (0 errors, 0 warnings). Tests: 43/43 pass.
+- AgentService getters → pub fields refactoring complete (28 of 34 getters deleted, ~200 lines removed).
+- Document alignment sweep: README.md, PROJECT_STATUS.md, AGENTS.md updated against codebase ground truth.
+- Build: clean (0 errors, 0 warnings). Tests: 1,460/1,460 pass.
 
 **Previous (2026-06-19):** v0.30.0 — Multi-Pod Architecture Complete: Three-tier Solid Pod isomorphism (CuratorPod/TeamPod/ReplicantPod).
 
@@ -33,20 +25,19 @@ Single source of truth for build, test, and CI health. Updated per session.
 
 ## Build
 
-All 35 workspace members (excluding fuzz targets).
+All 34 workspace members (excluding fuzz targets).
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo check --workspace`) | ✅ Pass (0 errors, 0 warnings) | 2026-06-20 |
-| Core crates (all 35) | ✅ Pass | 2026-06-20 |
-| Workspace (all 35 crates + 11 MCP servers + fuzz) | ✅ Pass | 2026-06-20 |
-| Warnings | 0 | 2026-06-20 |
+| Workspace (`cargo check --workspace`) | ✅ Pass (0 errors, 0 warnings) | 2026-06-23 |
+| Workspace (34 crates + 13 MCP servers + fuzz) | ✅ Pass | 2026-06-23 |
+| Warnings | 0 | 2026-06-23 |
 
 ---
 
 ## Test
 
-`cargo test --workspace` result: ✅ Pass — ~570 tests across 16 crates, 0 failures. Contracts use `expect:` + `[P{N}]` annotations with CNS span observation for runtime enforcement.
+`cargo test --workspace` result: ✅ Pass — 1,460 tests across workspace, 0 failures. Contracts use `expect:` + `[P{N}]` annotations with CNS span observation for runtime enforcement.
 
 ### Test Distribution
 
@@ -67,12 +58,12 @@ All 35 workspace members (excluding fuzz targets).
 | hkask-communication | 25 |
 | hkask-mcp | 38 |
 | hkask-cli | 43 |
-| hkask-api | ~12 |
+| hkask-tui | 57 |
+| hkask-api | 12 |
 | hkask-acp | 4 |
 | hkask-adapter | 51 |
-| **Crate subtotal** | **~575** |
-| MCP servers (10) | — |
-| **Workspace total** | **~571** |
+| MCP servers (13) | ~770 |
+| **Workspace total** | **~1,460** |
 
 ---
 
@@ -101,14 +92,13 @@ All 35 workspace members (excluding fuzz targets).
 
 | Metric | Value |
 |--------|-------|
-| Source files (crates) | 640+ |
-| Source files (MCP servers) | 120+ |
-| Source files (total) | 760+ |
-| Core LOC (src/) | ~124,000 |
-| MCP Server LOC (src/) | ~34,500 |
-| Workspace members | 35 |
-| Skills | 45 (72 registry crates, 232 Jinja2 templates) |
-| MCP servers | 11 |
+| Source files (total) | ~780 |
+| Core LOC (src/) | ~133,500 |
+| MCP Server LOC (src/) | ~35,700 |
+| Total LOC | ~191,700 |
+| Workspace members | 34 |
+| Skills | 46 (75 registry crates, 297 Jinja2 templates) |
+| MCP servers | 13 |
 | ACP replicant | 1 (`hkask-acp`) — IDE agent presence via Agent Client Protocol |
 | CNS spans | 84+ |
 
@@ -153,7 +143,7 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 |-------|--------|
 | Magna Carta P1 (User Sovereignty) | Sovereignty distributed across `hkask-types::sovereignty`, `hkask-agents::sovereignty`, `hkask-services::verification`. No single SovereigntyService — this is correct, not a gap. |
 | Magna Carta P2 (Affirmative Consent) | CNS consent denial events emitted. Prohibition gate — denial is terminal. |
-| Magna Carta P3 (Generative Space) | 11 MCP servers + multi-provider inference. No feature flags, no gated surfaces. |
+| Magna Carta P3 (Generative Space) | 13 MCP servers + multi-provider inference. No feature flags, no gated surfaces. |
 | Magna Carta P4 (Clear Boundaries) | OCAP capability membrane. Dual-gate enforcement (require_capability + require_sovereignty) with Ed25519 cryptographic tokens. DenyAllConsent default. Verified across all capability-granting paths. |
 
 ---
@@ -246,6 +236,20 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 - PROJECT_STATUS.md updated to v0.27.0 state
 
 ---
+
+## This Session (2026-06-23) — TUI Enhancement
+
+| Feature | Status |
+|---------|--------|
+| Command palette (Ctrl+P, fuzzy search 19 window kinds) | ✅ Complete |
+| MCP Two-Tab pattern (Chat + Data tabs for 6 MCP windows) | ✅ Complete |
+| MCP Chat scoping (start_scoped_inference, per-window tool filtering) | ✅ Complete |
+| Layout persistence (save/restore per-agent) | ✅ Complete |
+| Keybinding convention fix (Tab→focus next, `[`/`]`→section cycle, Ctrl+N→new Chat) | ✅ Complete |
+| Companies live bridge (MCP dispatch to hkask-mcp-companies) | ✅ Complete |
+| Matrix file attachments (upload_file, send_file via MCP tools) | ✅ Complete |
+| Media server default models (Qwen3-TTS, Qwen3-ASR, Qwen3-VL, Flux Pro 1.1) | ✅ Complete |
+| TUI tests | 57 (8 unit + 49 integration) |
 
 ## What Remains
 

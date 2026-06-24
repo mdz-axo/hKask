@@ -183,7 +183,9 @@ impl FfmpegRunner {
         };
 
         // Escape special characters in text for ffmpeg filter
+        // % must be escaped first to avoid double-escaping the %% we produce
         let escaped_text = text
+            .replace('%', "%%")
             .replace('\\', "\\\\")
             .replace(':', "\\:")
             .replace('\'', "\\'");
@@ -363,7 +365,7 @@ impl FfmpegRunner {
         let list_path = self.output_path("txt");
         let list_content: String = video_paths
             .iter()
-            .map(|p| format!("file '{}'", p))
+            .map(|p| format!("file '{}'", p.replace('\'', "'\\''")))
             .collect::<Vec<_>>()
             .join("\n");
         std::fs::write(&list_path, list_content)

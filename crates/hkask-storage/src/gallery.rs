@@ -178,7 +178,8 @@ impl GalleryStore {
                 status TEXT NOT NULL DEFAULT 'pending',
                 notes TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
+                updated_at TEXT NOT NULL,
+                UNIQUE(first_name, last_name, image_id)
             );
             CREATE INDEX IF NOT EXISTS idx_face_registry_status
                 ON face_registry(status);",
@@ -474,7 +475,7 @@ impl GalleryStore {
     /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — register a face
     /// pre:  face data is valid
-    /// post: face registered and returned
+    /// post: face registered and returned (idempotent — returns existing on duplicate)
     pub fn register_face(
         &self,
         first_name: &str,
@@ -488,21 +489,18 @@ impl GalleryStore {
         let id = uuid::Uuid::new_v4().to_string();
         let now = now_rfc3339();
         conn.execute(
-            "INSERT INTO face_registry (id, first_name, last_name, image_id, embedding, status, notes, created_at, updated_at)
+            "INSERT OR IGNORE INTO face_registry (id, first_name, last_name, image_id, embedding, status, notes, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
             rusqlite::params![id, first_name, last_name, image_id, embedding, status, notes, now],
         )?;
-        Ok(FaceRegistryRecord {
-            id,
-            first_name: first_name.to_string(),
-            last_name: last_name.to_string(),
-            image_id: image_id.to_string(),
-            embedding: embedding.map(|e| e.to_vec()),
-            status: status.to_string(),
-            notes: notes.to_string(),
-            created_at: now.clone(),
-            updated_at: now,
-        })
+        // Read back the existing row when insert was ignored (duplicate) or the new one
+        let existing: FaceRegistryRecord = conn.query_row(
+            "SELECT id, first_name, last_name, image_id, embedding, status, notes, created_at, updated_at
+             FROM face_registry WHERE first_name = ?1 AND last_name = ?2 AND image_id = ?3",
+            rusqlite::params![first_name, last_name, image_id],
+            Self::face_from_row,
+        )?;
+        Ok(existing)
     }
     /// List all faces in the registry, optionally filtered by status.
     ///

@@ -96,6 +96,15 @@ impl SplitNode {
         ids
     }
 
+    pub(crate) fn window_kind(&self, target: WindowId) -> Option<crate::window::WindowKind> {
+        match self {
+            SplitNode::Leaf(w) if w.id() == target => Some(w.kind()),
+            SplitNode::Horizontal { left, right, .. } => left.window_kind(target).or_else(|| right.window_kind(target)),
+            SplitNode::Vertical { top, bottom, .. } => top.window_kind(target).or_else(|| bottom.window_kind(target)),
+            _ => None,
+        }
+    }
+
     fn contains_window(&self, target: WindowId) -> bool {
         match self {
             SplitNode::Leaf(w) => w.id() == target,
@@ -406,11 +415,16 @@ impl Workspace {
         self
     }
 
+    /// Get the currently focused window ID.
+    pub fn focused_window(&self) -> Option<WindowId> {
+        self.focused_window
+    }
+
     pub fn is_empty(&self) -> bool {
         self.tabs.is_empty() || self.tabs[self.active_tab].root.window_ids().is_empty()
     }
 
-    fn root(&self) -> &SplitNode {
+    pub(crate) fn root(&self) -> &SplitNode {
         &self.tabs[self.active_tab].root
     }
     fn root_mut(&mut self) -> &mut SplitNode {
@@ -507,6 +521,8 @@ impl Workspace {
             self.focus_window(first);
         }
     }
+
+
 
     fn focus_window(&mut self, id: WindowId) {
         if self.focused_window == Some(id) {

@@ -60,12 +60,19 @@ pub mod models {
         std::env::var(env_key).unwrap_or_else(|_| default.to_string())
     }
 
-    pub fn tts_model() -> String { resolve(TTS_ENV, TTS_DEFAULT) }
-    pub fn stt_model() -> String { resolve(STT_ENV, STT_DEFAULT) }
-    pub fn vision_model() -> String { resolve(VISION_ENV, VISION_DEFAULT) }
-    pub fn image_gen_model() -> String { resolve(IMAGE_GEN_ENV, IMAGE_GEN_DEFAULT) }
+    pub fn tts_model() -> String {
+        resolve(TTS_ENV, TTS_DEFAULT)
+    }
+    pub fn stt_model() -> String {
+        resolve(STT_ENV, STT_DEFAULT)
+    }
+    pub fn vision_model() -> String {
+        resolve(VISION_ENV, VISION_DEFAULT)
+    }
+    pub fn image_gen_model() -> String {
+        resolve(IMAGE_GEN_ENV, IMAGE_GEN_DEFAULT)
+    }
 }
-
 
 /// Lock-free snapshot of gallery state — safe to hold across .await points.
 struct GalleryAccess {
@@ -443,26 +450,31 @@ impl MediaServer {
         &self,
         recursive: bool,
     ) -> Result<(String, u64, u32, u32, u32), String> {
-        let ga = self.access_gallery()?;
-        let mut state_clone = {
-            let guard = self
-                .gallery_state
-                .lock()
-                .map_err(|e| format!("Gallery state lock error: {}", e))?;
-            guard
-                .as_ref()
-                .ok_or("No gallery organized. Use gallery_organize first.".to_string())?
-                .clone()
-        };
-        let old_count = ga.image_count;
-        let scan_result = state_clone.scan(recursive, None);
+        // Hold the lock for the entire scan→persist operation to prevent lost-update
+        // races under concurrent calls. All operations inside are synchronous I/O
+        // (std::fs + GalleryStore), so holding std::sync::Mutex is safe.
+        let mut guard = self
+            .gallery_state
+            .lock()
+            .map_err(|e| format!("Gallery state lock error: {}", e))?;
+        let state = guard
+            .as_mut()
+            .ok_or("No gallery organized. Use gallery_organize first.".to_string())?;
+
+        let gallery_id = state
+            .gallery_id
+            .clone()
+            .ok_or_else(|| "Gallery not persisted — run gallery_organize first.".to_string())?;
+        let old_count = state.image_count;
+
+        let scan_result = state.scan(recursive, None);
         let mut persisted = 0u32;
         for entry in &scan_result.entries {
-            let abs_path = state_clone.path.join(&entry.relative_path);
+            let abs_path = state.path.join(&entry.relative_path);
             if self
                 .gallery_store
                 .add_image(
-                    &ga.gallery_id,
+                    &gallery_id,
                     &entry.relative_path,
                     &abs_path.to_string_lossy(),
                     &entry.checksum,
@@ -476,12 +488,9 @@ impl MediaServer {
                 persisted += 1;
             }
         }
-        *self
-            .gallery_state
-            .lock()
-            .map_err(|e| format!("Gallery state lock error: {}", e))? = Some(state_clone);
+
         Ok((
-            ga.gallery_id,
+            gallery_id,
             old_count,
             scan_result.added,
             scan_result.total,
@@ -787,6 +796,13 @@ impl hkask_mcp::server::ToolContext for MediaServer {
 /// then common system paths, then returns an error with guidance.
 fn load_meme_font(font_path: Option<&str>) -> Result<ab_glyph::FontVec, String> {
     if let Some(path) = font_path {
+        // Reject path traversal attempts — font_path must be a simple filename
+        if path.contains('/') || path.contains('\\') || path.contains("..") {
+            return Err(format!(
+                "font_path must be a simple filename, not a path: '{}'",
+                path
+            ));
+        }
         let data =
             std::fs::read(path).map_err(|e| format!("Cannot read font at '{}': {}", path, e))?;
         return ab_glyph::FontVec::try_from_vec(data)
@@ -1040,6 +1056,9 @@ impl MediaServer {
         }): Parameters<GallerySearchRequest>,
     ) -> String {
         execute_tool(self, "gallery_search", async {
+            if query.trim().is_empty() {
+                return Err(McpToolError::invalid_argument("query must not be empty"));
+            }
             let ga = self
                 .access_gallery()
                 .map_err(McpToolError::invalid_argument)?;
@@ -1551,6 +1570,12 @@ impl MediaServer {
                 .access_gallery()
                 .map_err(McpToolError::invalid_argument)?;
 
+            // NOTE: A benign race exists between access_gallery() snapshot and the loop below.
+            // If images are added/removed concurrently, resolve_image_id may fail for an index
+            // that was valid at snapshot time. These failures are silently skipped (continue),
+            // producing graceful degradation: at worst, a newly-added image is missed or a
+            // removed image is skipped. Holding the lock across the full analysis would block
+            // concurrent operations, so we accept this trade-off.
             let indices: Vec<usize> = match mode.as_str() {
                 "selection" => image_indices.unwrap_or_default(),
                 "all" => (0..ga.image_count as usize).collect(),
@@ -1850,6 +1875,11 @@ impl MediaServer {
         }): Parameters<ExtractObjectRequest>,
     ) -> String {
         execute_tool(self, "extract_object", async {
+            if object_description.trim().is_empty() {
+                return Err(McpToolError::invalid_argument(
+                    "object_description must not be empty",
+                ));
+            }
             let image_url = self
                 .resolve_image_url(image_index)
                 .map_err(McpToolError::invalid_argument)?;
@@ -1908,7 +1938,10 @@ impl MediaServer {
 
                 let period_key = match period.as_str() {
                     "month" => date_str.chars().take(7).collect(),
-                    "decade" => format!("{}0s", &date_str[..3]),
+                    "decade" => date_str
+                        .get(..3)
+                        .map(|s| format!("{}0s", s))
+                        .unwrap_or_else(|| "unknown".to_string()),
                     _ => date_str.chars().take(4).collect(),
                 };
 
@@ -1976,6 +2009,11 @@ impl MediaServer {
         }): Parameters<ApplyStyleRequest>,
     ) -> String {
         execute_tool(self, "image_apply_style", async {
+            if style_prompt.trim().is_empty() {
+                return Err(McpToolError::invalid_argument(
+                    "style_prompt must not be empty",
+                ));
+            }
             let image_url = self
                 .resolve_image_url(image_index)
                 .map_err(McpToolError::invalid_argument)?;
@@ -2192,6 +2230,12 @@ impl MediaServer {
         execute_tool(self, "video_clip", async {
             validate_tool_url(&video_url)?;
 
+            if start_sec < 0.0 || end_sec <= 0.0 {
+                return Err(McpToolError::invalid_argument(
+                    "timestamps must be non-negative",
+                ));
+            }
+
             if start_sec >= end_sec {
                 return Err(McpToolError::invalid_argument(
                     "start_sec must be less than end_sec.",
@@ -2239,6 +2283,20 @@ impl MediaServer {
             let w = width.unwrap_or(480);
             let f = fps.unwrap_or(10);
 
+            if start < 0.0 || dur <= 0.0 {
+                return Err(McpToolError::invalid_argument(
+                    "timestamps must be non-negative",
+                ));
+            }
+            if w == 0 {
+                return Err(McpToolError::invalid_argument(
+                    "width must be greater than 0",
+                ));
+            }
+            if f == 0 {
+                return Err(McpToolError::invalid_argument("fps must be greater than 0"));
+            }
+
             let output = self
                 .ffmpeg
                 .to_gif(&video_url, start, dur, w, f)
@@ -2271,6 +2329,11 @@ impl MediaServer {
         }): Parameters<ImageToVideoRequest>,
     ) -> String {
         execute_tool(self, "image_to_video", async {
+            if let Some(d) = duration {
+                if d <= 0.0 {
+                    return Err(McpToolError::invalid_argument("duration must be positive"));
+                }
+            }
             let image_url = self
                 .resolve_image_url(image_index)
                 .map_err(McpToolError::invalid_argument)?;
@@ -2360,7 +2423,7 @@ impl MediaServer {
                 clipped.clone()
             };
 
-            let gif = self
+            let gif_result = self
                 .ffmpeg
                 .to_gif(
                     &captioned.to_string_lossy(),
@@ -2369,13 +2432,16 @@ impl MediaServer {
                     480,
                     10,
                 )
-                .await
-                .map_err(|e| McpToolError::internal(format!("GIF step failed: {}", e)))?;
+                .await;
 
+            // Always clean up temp files regardless of outcome
             let _ = std::fs::remove_file(&clipped);
             if caption_text.is_some() {
                 let _ = std::fs::remove_file(&captioned);
             }
+
+            let gif = gif_result
+                .map_err(|e| McpToolError::internal(format!("GIF step failed: {}", e)))?;
 
             Ok(serde_json::json!({
                 "status": "remixed",
@@ -2418,6 +2484,10 @@ impl MediaServer {
             let fps = fps.unwrap_or(24);
             let fmt = format.as_deref().unwrap_or("mp4");
 
+            if fps == 0 {
+                return Err(McpToolError::invalid_argument("fps must be greater than 0"));
+            }
+
             let output = self
                 .ffmpeg
                 .images_to_video(&paths, fps, fmt)
@@ -2447,6 +2517,10 @@ impl MediaServer {
                 ));
             }
 
+            for url in &video_urls {
+                validate_tool_url(url)?;
+            }
+
             self.require_ffmpeg()?;
 
             let output = self
@@ -2472,6 +2546,8 @@ impl MediaServer {
         Parameters(VideoCaptionRequest { video_url, style }): Parameters<VideoCaptionRequest>,
     ) -> String {
         execute_tool(self, "video_caption", async {
+            validate_tool_url(&video_url)?;
+
             let style_str = style.as_deref().unwrap_or("descriptive");
             self.require_ffmpeg()?;
 
@@ -2625,6 +2701,11 @@ impl MediaServer {
         }): Parameters<VoiceDesignRequest>,
     ) -> String {
         execute_tool(self, "voice_design", async {
+            if character_description.trim().is_empty() {
+                return Err(McpToolError::invalid_argument(
+                    "character_description must not be empty",
+                ));
+            }
             let mut vars = HashMap::new();
             vars.insert("character_description", character_description.as_str());
             let prompt = self
@@ -2668,6 +2749,9 @@ impl MediaServer {
         Parameters(GenerateSpeechRequest { text, voice_design }): Parameters<GenerateSpeechRequest>,
     ) -> String {
         execute_tool(self, "generate_speech", async {
+            if text.trim().is_empty() {
+                return Err(McpToolError::invalid_argument("text must not be empty"));
+            }
             let voice = if let Some(ref vd_json) = voice_design {
                 match serde_json::from_str::<VoiceDesign>(vd_json) {
                     Ok(vd) => vd.to_elevenlabs_voice().to_string(),
@@ -2951,6 +3035,9 @@ impl MediaServer {
         }): Parameters<GenerateImageRequest>,
     ) -> String {
         execute_tool(self, "generate_image", async {
+            if prompt.trim().is_empty() {
+                return Err(McpToolError::invalid_argument("prompt must not be empty"));
+            }
             let size = image_size.clone();
             self.inference
                 .generate_image(&prompt, size.as_deref(), num_images)
@@ -2973,6 +3060,13 @@ impl MediaServer {
     ) -> String {
         execute_tool(self, "transform_image", async {
             validate_tool_url(&image_url)?;
+            if let Some(s) = strength {
+                if !(0.0..=1.0).contains(&s) {
+                    return Err(McpToolError::invalid_argument(
+                        "strength must be between 0.0 and 1.0",
+                    ));
+                }
+            }
             self.inference
                 .image_to_image(&image_url, &prompt, strength)
                 .await
@@ -3004,6 +3098,9 @@ impl MediaServer {
         Parameters(GenerateVideoRequest { prompt, duration }): Parameters<GenerateVideoRequest>,
     ) -> String {
         execute_tool(self, "generate_video", async {
+            if prompt.trim().is_empty() {
+                return Err(McpToolError::invalid_argument("prompt must not be empty"));
+            }
             self.inference
                 .generate_video(&prompt, duration)
                 .await

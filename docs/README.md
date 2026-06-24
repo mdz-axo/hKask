@@ -18,14 +18,13 @@ Documents are classified by **verification regime**, reflecting different audien
 
 | Tier | Audience | Count | Verification | Drift Risk |
 |------|----------|-------|-------------|------------|
-| **Tier 1 — Spec & Development** | Architects, developers, agents | **44** | `verify-docs.sh` enforces code-anchored claims; `check-links.sh` enforces cross-references | HIGH — stale claims cause agent hallucination |
+| **Tier 1 — Spec & Development** | Architects, developers, agents | **73** | `verify-docs.sh` enforces code-anchored claims; `check-links.sh` enforces cross-references | HIGH — stale claims cause agent hallucination |
 | **Tier 2 — User & Operator Guides** | Human operators, users, replicants | **18** | Link integrity only; content accuracy verified during onboarding/testing | LOW — guides serve human readers; drift degrades experience but not agent behavior |
 
-**Tier 1 consolidation target:** ≤40 spec/dev documents (currently 44 — 4 remaining to consolidate). Tier 2 guides are maintained separately; their count is driven by user needs, not architectural minimalism.
+**Tier 1 consolidation target:** ≤40 spec/dev documents. Tier 2 guides are maintained separately; their count is driven by user needs, not architectural minimalism.
 
 > **Lifecycle:** Retired documents are removed via `git rm`. The gitignored
-> `docs/archive/` holds date-stamped snapshots for reference. Active document count
-> verified by `docs/ci/check-links.sh` (259 links, 0 broken).
+> `docs/archive/` holds date-stamped snapshots for reference.
 
 ---
 
@@ -207,4 +206,4 @@ bash docs/ci/check-links.sh      # link integrity — zero broken links
 bash docs/ci/verify-docs.sh      # Tier 1 code-anchored claim verification
 ```
 
-*ℏKask — A Minimal Viable Container for Agents — v0.30.0 — 44 Tier 1 + 18 Tier 2 = 62 active documents*
+*ℏKask — A Minimal Viable Container for Agents — v0.30.0 — 55 Tier 1 + 18 Tier 2 = 73 active documents*

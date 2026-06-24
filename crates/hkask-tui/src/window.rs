@@ -52,6 +52,12 @@ pub enum WindowKind {
     Media,
     /// Skills manager — browse and manage skill corpus
     Skills,
+    /// Research — web search, RSS feeds, content extraction
+    Research,
+    /// Docproc — document processing, chunking, QA, RDF extraction
+    Docproc,
+    /// Replica — authorial style replica management
+    Replica,
     /// Logo — persistent Kask amphora logo window
     Logo,
 }
@@ -78,6 +84,9 @@ impl WindowKind {
             WindowKind::Training => "Training",
             WindowKind::Media => "Media",
             WindowKind::Skills => "Skills",
+            WindowKind::Research => "Research",
+            WindowKind::Docproc => "Docproc",
+            WindowKind::Replica => "Replica",
             WindowKind::Logo => "hKask",
         }
     }
@@ -103,6 +112,9 @@ impl WindowKind {
             WindowKind::Training => "Training monitor — LoRA adapters, sessions, and artifacts",
             WindowKind::Media => "Media gallery — browse images, audio, and video collections",
             WindowKind::Skills => "Skills manager — browse, install, and activate skills",
+            WindowKind::Research => "Web search, RSS feeds, and content extraction",
+            WindowKind::Docproc => "Document processing: chunk, QA, RDF, embeddings",
+            WindowKind::Replica => "Authorial style replicas — build, compare, generate",
             WindowKind::Logo => "Kask amphora logo — workspace identity marker",
         }
     }

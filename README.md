@@ -90,26 +90,19 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-test-harness` | Test infrastructure (TestDb, TestWebId, mocks, strategies) |
 | `hkask-mcp-cloud-gateway` | Cloud MCP gateway for remote tool dispatch |
 
-### Services (18 crates)
+### Services (11 crates)
 | Crate | Purpose |
 |-------|--------|
 | `hkask-services` | Facade: all service ports via dependency inversion |
 | `hkask-services-core` | Core service traits and port definitions |
+| `hkask-services-context` | AgentService context, CNS runtime, cybernetic loops |
+| `hkask-services-runtime` | Runtime orchestration (lifecycle, daemon, events) |
 | `hkask-services-backup` | Backup policy layer on Git CAS |
-| `hkask-services-classify` | Content classification |
-| `hkask-services-cloud` | Cloud deployment primitives |
-| `hkask-services-context` | Context window management |
-| `hkask-services-daemon` | Background daemon services |
-| `hkask-services-discover` | Content discovery and search |
-| `hkask-services-embed` | Embedding generation and storage |
-| `hkask-services-inference-svc` | Inference service orchestration |
+| `hkask-services-corpus` | Document corpus management and indexing |
 | `hkask-services-kanban` | Kanban board coordination |
 | `hkask-services-kata` | Toyota Kata coaching/improvement loops |
-| `hkask-services-lifecycle` | Agent lifecycle management |
 | `hkask-services-onboarding` | First-run and user onboarding |
 | `hkask-services-skill` | Skill registry and discovery |
-| `hkask-services-sovereignty` | Magna Carta enforcement |
-| `hkask-services-verification` | Capability verification |
 | `hkask-services-wallet` | Crypto wallet and chain port selection |
 
 ### Wallet, Identity & Ledger (3 crates)
@@ -140,19 +133,20 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 
 | Metric | Value |
 |--------|-------|
-| **Foundation LOC** | ~76,000 |
-| **Infrastructure LOC** | ~18,000 |
-| **Services LOC** | ~25,000 |
-| **Wallet & Identity LOC** | ~11,000 |
-| **Core Total (src/)** | ~130,000 |
+| **Foundation LOC** | ~82,600 |
+| **Infrastructure LOC** | ~18,100 |
+| **Services LOC** | ~27,500 |
+| **Wallet & Identity LOC** | ~5,300 |
+| **Core Total (src/)** | ~133,500 |
 | **MCP Server LOC (src/)** | ~35,700 |
-| **Test Files** | 124 (with `#[cfg(test)]` modules) |
-| **Core Crates** | 41 (12 foundation + 8 infra + 18 services + 3 wallet/identity) |
+| **Total LOC** | ~191,700 |
+| **Core Crates** | 34 (12 foundation + 8 infra + 11 services + 3 wallet/identity) |
 | **MCP Servers** | 13 |
+| **Tests** | 1,460 (workspace) |
 | **CLI Subcommands** | 39 |
 | **API Route Groups** | 26 |
 | **Build/Clippy/Fmt/Test** | All passing |
-| **Skills** | 46 (46 registry crates, 239 Jinja2 templates) |
+| **Skills** | 46 (75 registry crates, 297 Jinja2 templates) |
 | **QA Pipeline** | Fuzz triage, mutation analysis, autonomous script runner |
 
 ---
@@ -200,4 +194,4 @@ cargo fmt --check
 
 *ℏKask - A Minimal Viable Container for Agents — v0.30.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*
-*CI green. 41 crates. 13 MCP servers. 46 skills.*
+*CI green. 34 crates. 13 MCP servers. 46 skills.*

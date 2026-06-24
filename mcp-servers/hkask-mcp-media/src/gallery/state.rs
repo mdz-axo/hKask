@@ -89,7 +89,13 @@ impl GalleryState {
     }
 
     /// Validate that the gallery path exists and is a directory.
-    pub fn validate(&self) -> Result<(), String> {
+    /// Canonicalizes the path to resolve `..` components and prevent
+    /// path traversal attacks.
+    pub fn validate(&mut self) -> Result<(), String> {
+        self.path = self
+            .path
+            .canonicalize()
+            .map_err(|e| format!("Gallery path is not accessible: {}", e))?;
         if !self.path.exists() {
             return Err(format!(
                 "Gallery path does not exist: {}",
@@ -269,19 +275,19 @@ mod tests {
 
     #[test]
     fn validate_rejects_missing_path() {
-        let state = GalleryState::new(
+        let mut state = GalleryState::new(
             PathBuf::from("/nonexistent/path/12345"),
             GalleryMode::ReadOnly,
         );
         let result = state.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("does not exist"));
+        assert!(result.unwrap_err().contains("not accessible"));
     }
 
     #[test]
     fn validate_accepts_existing_dir() {
         let dir = tempfile::tempdir().unwrap();
-        let state = GalleryState::new(dir.path().to_path_buf(), GalleryMode::ReadOnly);
+        let mut state = GalleryState::new(dir.path().to_path_buf(), GalleryMode::ReadOnly);
         assert!(state.validate().is_ok());
     }
 

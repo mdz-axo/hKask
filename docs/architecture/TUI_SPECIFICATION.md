@@ -65,21 +65,22 @@ Each bridge accepts `Option<Arc<dyn Trait>>` — windows gracefully degrade to p
 | Key | Action |
 |-----|--------|
 | `Ctrl+Q` | Quit |
+| `Ctrl+N` | New Chat window |
 | `Ctrl+T` | New tab |
-| `Ctrl+W` | Close tab |
-| `Ctrl+N` | Cycle new window kind (19 kinds) |
+| `Ctrl+W` | Close window |
 | `Ctrl+B` | Toggle sidebar |
+| `Ctrl+P` | Command palette (fuzzy search all 19 window kinds) |
+| `Tab` | Focus next window |
 | `Ctrl+H/J/K/L` | Navigate focus |
 | `Ctrl+Shift+H` | Split horizontal |
 | `Ctrl+Shift+J` | Split vertical |
 | `Ctrl+=/-` | Resize split |
 | `Ctrl+1-9` | Switch tab |
-| `Ctrl+P` | Command palette |
 | `?` | Help overlay |
-| `Enter` | Send message (Chat/Curator/Terminal) |
+| `Enter` | Send message (Chat/Curator/MCP Chat tabs) |
 | `Esc` | Clear input / cancel |
+| `[` / `]` | Previous/next section (multi-section windows + Chat tab) |
 | `PgUp/PgDn` | Scroll |
-| `Tab` | Cycle sections (multi-section windows) |
 
 ---
 
@@ -377,7 +378,7 @@ MCP-focused windows (Companies, Kanban, Training, Media, Matrix, Memory) use a u
 
 - **Tab 1 (Chat):** A focused chat that only has access to one MCP server's tools. The system prompt includes only that MCP's tool definitions.
 - **Tab 2 (Data):** Structured UI widgets rendering MCP artifacts — tables, trees, cards, galleries. Non-chat interaction surface.
-- Toggle between tabs with `Tab` key within the window.
+- `]` cycles forward through sections + Chat tab, `[` cycles backward.
 - Chat tab sends scoped inference via `ReplBridge::start_scoped_inference()` — only the window's MCP server tools are available to the model.
 
 ---
