@@ -382,8 +382,10 @@ pub struct TaskSpec {
     pub priority: Option<Priority>,
     /// Optional phase grouping.
     pub phase_id: Option<PhaseId>,
-    /// Gas/rJoule budget delegated to the subagent working on this task.
+    /// Software-compute gas budget for this task (template exec, tool dispatch).
     pub gas_budget: Option<u64>,
+    /// Inference/API rJoule budget (250k rJoules ≈ $1 inference spend).
+    pub rjoule_budget: Option<u64>,
 }
 
 impl TaskSpec {
@@ -402,6 +404,7 @@ impl TaskSpec {
             priority: None,
             phase_id: None,
             gas_budget: None,
+            rjoule_budget: None,
         }
     }
 
@@ -489,6 +492,13 @@ impl TaskSpec {
         self.gas_budget = Some(gas);
         self
     }
+
+    /// Set the inference/API rJoule budget for the subagent.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_rjoule_budget(mut self, rjoules: u64) -> Self {
+        self.rjoule_budget = Some(rjoules);
+        self
+    }
 }
 
 /// GasEntry — a record of gas consumed or added on a task.
@@ -509,19 +519,35 @@ pub struct GasEntry {
 }
 
 impl GasEntry {
-    pub fn spend(amount: u64, reason: String) -> Self {
+    pub fn gas_spend(amount: u64, reason: String) -> Self {
         Self {
             amount,
-            kind: "spend".into(),
+            kind: "gas_spend".into(),
             reason,
             at: Utc::now(),
         }
     }
-    pub fn refill(amount: u64) -> Self {
+    pub fn rjoule_spend(amount: u64, reason: String) -> Self {
         Self {
             amount,
-            kind: "refill".into(),
+            kind: "rjoule_spend".into(),
+            reason,
+            at: Utc::now(),
+        }
+    }
+    pub fn gas_refill(amount: u64) -> Self {
+        Self {
+            amount,
+            kind: "gas_refill".into(),
             reason: "delegator added gas".into(),
+            at: Utc::now(),
+        }
+    }
+    pub fn rjoule_refill(amount: u64) -> Self {
+        Self {
+            amount,
+            kind: "rjoule_refill".into(),
+            reason: "delegator added rJoules".into(),
             at: Utc::now(),
         }
     }
@@ -573,7 +599,9 @@ pub struct Task {
     /// Initialized from `TaskSpec.gas_budget`. When this hits 0, the task
     /// auto-completes via the gas exhaustion completion path.
     pub gas_remaining: Option<u64>,
-    /// Audit trail of gas consumption and refills.
+    /// rJoules remaining for inference/API calls (250k ≈ $1 spend).
+    pub rjoule_remaining: Option<u64>,
+    /// Audit trail of gas and rJoule consumption/refills.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub gas_spend: Vec<GasEntry>,
 }
@@ -604,6 +632,7 @@ impl Task {
             created_at: now,
             updated_at: now,
             gas_remaining: spec.gas_budget,
+            rjoule_remaining: spec.rjoule_budget,
             gas_spend: Vec::new(),
         }
     }

@@ -1,16 +1,14 @@
 # Infrastructure config manifest for memory
-# hKask v0.28.0
-# Memory operation templates — selector (operation-selector.j2) and
-# operation templates (remember.j2, recall.j2) for the memory-ops FlowDef pipeline.
+# hKask v0.30.0
+# Memory operations are handled programmatically by the MemoryServer.
+# Template-based selectors have been removed.
 
 infrastructure:
   name: memory
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
-    Memory operation templates — selector (operation-selector.j2) and
-    operation templates (remember.j2, recall.j2) for the memory-ops
-    FlowDef pipeline.
+    Memory operation templates (remember.j2, recall.j2).
+    Operation routing is programmatic.
   role: config
   contains:
-    - selectors/
     - templates/

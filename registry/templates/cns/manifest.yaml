@@ -1,14 +1,12 @@
 # Infrastructure config manifest for cns
-# hKask v0.28.0
-# This directory contains CNS monitoring templates — alert selector
-# (alert-selector.j2) for the cns-monitoring FlowDef pipeline.
+# hKask v0.30.0
+# CNS alerting is handled programmatically by the CyberneticsLoop.
+# No template-based selectors remain.
 
 infrastructure:
   name: cns
-  version: "0.28.0"
+  version: "0.30.0"
   description: >
-    CNS (Cybernetic Nervous System) selector configuration. Maps CNS span
-    names to routing and alerting behavior.
+    CNS (Cybernetic Nervous System) infrastructure config.
+    Alert classification and escalation are programmatic.
   role: config
-  contains:
-    - selectors/
