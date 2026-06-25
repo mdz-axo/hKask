@@ -225,6 +225,7 @@ pub(super) fn single_agent_turn(
 
 /// Captured result of a single-agent inference turn.
 /// Returns structured output instead of printing to stdout.
+#[cfg(feature = "tui")]
 pub(crate) struct TurnCapture {
     pub response_text: String,
     pub tool_output: String,
@@ -239,6 +240,7 @@ pub(crate) struct TurnCapture {
 ///
 /// Same logic as single_agent_turn but returns structured data
 /// instead of printing to stdout. Used by the TUI bridge.
+#[cfg(feature = "tui")]
 pub(crate) fn single_agent_turn_captured(
     input: &str,
     state: &mut ReplState,

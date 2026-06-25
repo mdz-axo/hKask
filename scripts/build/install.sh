@@ -721,9 +721,10 @@ main() {
         esac
     done
 
-    # Post-process: --system requires BIN_DIR to track INSTALL_DIR if the
-    # user also supplied --install-dir (which may appear before or after --system).
+    # Post-process: --system takes precedence over --install-dir.
+    # If the user passed both, --system wins (system-wide paths are fixed).
     if [ "${HKASK_SYSTEM_INSTALL:-false}" = "true" ]; then
+        INSTALL_DIR="/usr/local/libexec/hkask"
         BIN_DIR="${INSTALL_DIR}/bin"
     fi
 

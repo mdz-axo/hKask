@@ -53,7 +53,8 @@ all_actual=$(printf "%s\n%s" "$actual_crates" "$actual_mcps" | sort -u)
 
 # Find all hkask-* references in docs (exclude archive/ — archived files are historical)
 # Note: grep -roH (not -roh) gives filename:match lines we can filter
-grep -roPH 'hkask-[a-z0-9_-]+' docs/ --include='*.md' 2>/dev/null | grep -v '^docs/archive/' | sed 's/^[^:]*://' | sort -u | while read -r name; do
+# Use process substitution to avoid subshell (ERRORS/WARNINGS must survive the loop)
+while read -r name; do
   if ! echo "$all_actual" | grep -qxF "$name"; then
     # Check if it's fuzz-related (crates/*/fuzz/ subdirectories use parent crate name)
     parent_name=$(echo "$name" | sed 's/-fuzz$//')
@@ -79,7 +80,7 @@ grep -roPH 'hkask-[a-z0-9_-]+' docs/ --include='*.md' 2>/dev/null | grep -v '^do
     done
     ERRORS=$((ERRORS + 1))
   fi
-done
+done < <(grep -roPH 'hkask-[a-z0-9_-]+' docs/ --include='*.md' 2>/dev/null | grep -v '^docs/archive/' | sed 's/^[^:]*://' | sort -u)
 echo ""
 
 # ────────────────────────────────────────────────────────────

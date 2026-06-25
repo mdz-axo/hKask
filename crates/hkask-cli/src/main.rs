@@ -211,6 +211,8 @@ fn main() {
         } => commands::registry::run_rm(&rt, &mut registry, target, db, passphrase),
 
         Commands::Transcript { path } => {
+            #[cfg(not(feature = "tui"))]
+            let _ = &path;
             #[cfg(feature = "tui")]
             {
                 let mut viewer = hkask_cli::transcript_viewer::TranscriptViewer::from_file(&path)

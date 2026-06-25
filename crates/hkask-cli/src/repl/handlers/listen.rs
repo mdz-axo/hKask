@@ -270,22 +270,30 @@ fn handle_view(file_arg: &str, _rt: &tokio::runtime::Handle) {
         return;
     }
 
-    println!(
-        "  Opening transcript viewer for \x1b[2m{}\x1b[0m...",
-        path.display()
-    );
+    #[cfg(feature = "tui")]
+    {
+        println!(
+            "  Opening transcript viewer for \x1b[2m{}\x1b[0m...",
+            path.display()
+        );
 
-    match crate::transcript_viewer::TranscriptViewer::from_file(&path) {
-        Ok(mut viewer) => {
-            if let Err(e) = viewer.run() {
-                eprintln!("  Transcript viewer error: {}", e);
+        match crate::transcript_viewer::TranscriptViewer::from_file(&path) {
+            Ok(mut viewer) => {
+                if let Err(e) = viewer.run() {
+                    eprintln!("  Transcript viewer error: {}", e);
+                }
+            }
+            Err(e) => {
+                println!("  \x1b[31mError loading transcript:\x1b[0m {}", e);
             }
         }
-        Err(e) => {
-            println!("  \x1b[31mError loading transcript:\x1b[0m {}", e);
-        }
+        println!();
     }
-    println!();
+    #[cfg(not(feature = "tui"))]
+    {
+        println!("  Transcript viewer not built — rebuild with `cargo build --features tui`");
+        println!();
+    }
 }
 
 /// Helper: get the user's config directory.

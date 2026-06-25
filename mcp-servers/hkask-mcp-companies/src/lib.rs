@@ -211,6 +211,7 @@ pub struct CompaniesServer {
 }
 
 impl CompaniesServer {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         webid: WebID,
         replicant: String,
