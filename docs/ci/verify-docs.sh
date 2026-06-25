@@ -51,36 +51,39 @@ echo -e "${CYAN}[2/7] Checking stale crate references in docs...${NC}"
 
 all_actual=$(printf "%s\n%s" "$actual_crates" "$actual_mcps" | sort -u)
 
-# Find all hkask-* references in docs (exclude archive/ — archived files are historical)
-# Note: grep -roH (not -roh) gives filename:match lines we can filter
-# Use process substitution to avoid subshell (ERRORS/WARNINGS must survive the loop)
-while read -r name; do
+# Docs that are forward-looking by design. References to non-existent
+# crate names in these files are plans/aspirations, not errors.
+# Also includes architecture docs about deployment infrastructure
+# and future-state specifications (not current code architecture).
+FORWARD_LOOKING_DIRS='^docs/(plans/|guides/|OPEN_QUESTIONS\.md|architecture/FUNCTIONAL_SPECIFICATION\.md|architecture/matrix-integration-architecture\.md)'
+
+# Find all hkask-* references with their source file.
+# Format: filepath:match (grep -H format). Exclude archive/.
+# Use process substitution to avoid subshell (ERRORS/WARNINGS must survive).
+while IFS=: read -r file name; do
+  # Skip empty lines / edge cases
+  [ -z "$file" ] && continue
+
   if ! echo "$all_actual" | grep -qxF "$name"; then
-    # Check if it's fuzz-related (crates/*/fuzz/ subdirectories use parent crate name)
+    # Fuzz targets use parent crate name (hkask-types-fuzz → hkask-types)
     parent_name=$(echo "$name" | sed 's/-fuzz$//')
     if echo "$all_actual" | grep -qxF "$parent_name"; then
-      continue  # fuzz target: hkask-types-fuzz → hkask-types exists, OK
+      continue
     fi
-    # Check if it's a pod/K8s/deployment/future name (not actual crates)
-    if echo "$name" | grep -qE 'hkask-(pod-|pods-|prod|prod-master|prod-worker|caddy|conduit|data-pvc|db-passphrase|hydrogen|ingress|master$|oauth-|pre-upgrade|secrets|sidecar|surface$|web$|testing$|test-utils|training$|mcp-rss-reader|mcp-web|ensemble)'; then
-      # deployment concepts, future plans, deferred work — warn, don't error
-      echo -e "  ${YELLOW}FUTURE/DEPLOYMENT:${NC} $name (planned/deferred, not a current crate)"
+
+    # Forward-looking docs (plans, guides, open questions) — non-blocking.
+    # These documents reference planned/aspirational names by design.
+    if echo "$file" | grep -qE "$FORWARD_LOOKING_DIRS"; then
+      echo -e "  ${YELLOW}PLANNED:${NC} $name → $file (forward-looking doc)"
       WARNINGS=$((WARNINGS + 1))
       continue
     fi
-    # Check if it's a historical/renamed crate (former naming scheme, v0.30 consolidation)
-    if echo "$name" | grep -qE 'hkask-(a$|a2a$|b$|backups$|ca$|config$|curator$|gateway-tls$|gateway$|pods$|services-classify$|services-cloud$|services-inference-svc$)'; then
-      echo -e "  ${YELLOW}HISTORICAL:${NC} $name (renamed in v0.30)"
-      WARNINGS=$((WARNINGS + 1))
-      continue
-    fi
-    echo -e "  ${RED}STALE:${NC} $name referenced in docs but not in Cargo.toml/filesystem"
-    grep -rl "$name" docs/ --include='*.md' 2>/dev/null | head -3 | while read -r f; do
-      echo "      in: $f"
-    done
+
+    # Architecture docs or other active documentation — this is a real stale reference.
+    echo -e "  ${RED}STALE:${NC} $name → $file (not in Cargo.toml/filesystem)"
     ERRORS=$((ERRORS + 1))
   fi
-done < <(grep -roPH 'hkask-[a-z0-9_-]+' docs/ --include='*.md' 2>/dev/null | grep -v '^docs/archive/' | sed 's/^[^:]*://' | sort -u)
+done < <(grep -roPH 'hkask-[a-z0-9_-]+' docs/ --include='*.md' 2>/dev/null | grep -v '^docs/archive/' | sort -u)
 echo ""
 
 # ────────────────────────────────────────────────────────────
@@ -187,7 +190,7 @@ if [ "$readme_skill_count" != "?" ] && [ "$readme_skill_count" != "$skill_count"
   ERRORS=$((ERRORS + 1))
 fi
 
-# AGENTS.md skill count (checks header "46 skills total")
+# AGENTS.md skill count
 agents_skill_claim=$(grep -oP '\*\*\K[0-9]+(?= skills total\*\*)' AGENTS.md 2>/dev/null || echo "?")
 if [ "$agents_skill_claim" != "?" ] && [ "$agents_skill_claim" != "$skill_count" ]; then
   echo -e "  ${RED}MISMATCH:${NC} AGENTS.md claims $agents_skill_claim skills, actual: $skill_count"
