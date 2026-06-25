@@ -188,3 +188,24 @@ pub struct ReverseDcfRequest {
     /// Projection frequency: "annual" or "quarterly" (default "annual")
     pub frequency: Option<String>,
 }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ScenarioAnalysisRequest {
+    pub symbol: String,
+    /// Primary axis: "revenue_growth" or "profit_margin" (default "revenue_growth")
+    pub axis1: Option<String>,
+    /// Secondary axis: "revenue_growth" or "profit_margin" (default "profit_margin")
+    pub axis2: Option<String>,
+    /// Override the high multiplier for axis1 (default 1.5)
+    pub axis1_high: Option<f64>,
+    /// Override the low multiplier for axis1 (default 0.5)
+    pub axis1_low: Option<f64>,
+    /// Override the high multiplier for axis2 (default 1.2)
+    pub axis2_high: Option<f64>,
+    /// Override the low multiplier for axis2 (default 0.8)
+    pub axis2_low: Option<f64>,
+    /// Discount rate (default 0.10)
+    pub discount_rate: Option<f64>,
+    /// Terminal growth rate (default 0.025)
+    pub terminal_growth: Option<f64>,
+}

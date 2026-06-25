@@ -149,6 +149,23 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, Ener
 
 **If removed:** System becomes a headless automaton — runs, monitors itself, but nobody reads the monitors. CNS fires alerts into a void. P12 partially violated.
 
+##### Curator Persona & Behavioral Specification
+
+> **Incorporated from:** `docs/architecture/reference/hKask-Curator-persona.md`
+
+The Curator is a **daemon**, not a replicant — always running, hosts daemon-level operations, responds in <3s latency target. Persona traits:
+
+| Trait | Standard |
+|-------|----------|
+| **Direct** | Answer immediately, no preface or postscript |
+| **Technical** | Precise terminology, no marketing language |
+| **Concise** | No filler words, no pleasantries, no hedging |
+| **No preamble** | Never starts with "Great", "Certainly", "Let me" |
+| **No emoji** | Zero emoji usage, ever |
+| **No filler** | Never asks unnecessary follow-up questions |
+
+**Required patterns:** Direct answer first; minimal verbosity; stop after task completion; technical precision; code in monospace. **Forbidden patterns:** No "Great!" or enthusiasm markers; no emojis; no preamble/postamble; no unnecessary questions; no filler transitions.
+
 ### Pattern D: Agent Creation with Sovereign Memory
 
 **What it is:** The pod lifecycle — how agents come into existence with their own identity, capabilities, memory, and consent boundaries.
@@ -180,6 +197,28 @@ Creation (kask pod create) → Populated → Registered → Activated → Deacti
 **What it is:** The architectural grounding of the agent pod in the five invariants that define a Solid Pod: (1) per-user WebID-grounded identity, (2) self-contained storage, (3) capability-based access control, (4) interoperable data as linked-data triples, (5) the pod IS the deployment unit.
 
 This isomorphism was the original architectural intent, as evidenced by the deployment model's backup design ("Backup as portable archive. Encrypted SQLCipher file. Export from one server, upload to another"). The migration from centralized `PodManager` to per-pod `PodDeployment` was completed in v0.30.0.
+
+> **Incorporated from:** `docs/architecture/core/SOLID_POD_ISOMORPHISM.md`, `docs/architecture/core/MULTI_POD_ARCHITECTURE.md`
+
+##### Solid Pod Ontological Model (RDF/Turtle)
+
+A Solid Pod is defined by five invariants with W3C Solid spec references:
+
+```turtle
+@prefix solid: <https://www.w3.org/ns/solid/terms#> .
+@prefix foaf:  <http://xmlns.com/foaf/0.1/> .
+@prefix acl:   <http://www.w3.org/ns/auth/acl#> .
+@prefix ldp:   <http://www.w3.org/ns/ldp#> .
+
+solid:Pod a ldp:Container ;
+  solid:owner              _:webid ;
+  solid:storage            solid:DataStore ;
+  solid:accessControl      acl:Authorization ;
+  solid:resourceContainment ldp:BasicContainer .
+
+_:webid a foaf:Agent ;
+  foaf:holdsAccount _:pod .
+```
 
 #### The Five Invariants Mapped onto hKask
 
@@ -406,7 +445,9 @@ core/PRINCIPLES.md  ←  12 principles (P1-P12), constraint forces, 5 anchors
        ↓
    core/MDS.md      ←  Minimal Domain Specification (5 categories, 12 tools)
        ↓
-loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
+   core/FUNCTIONAL_SPECIFICATION.md  ←  26-domain functional spec
+       ↓
+   core/TESTING_DISCIPLINE.md  ←  Property-based testing discipline
 ```
 
 ### Canonical Specifications
@@ -416,55 +457,163 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 | [`core/magna-carta.md`](core/magna-carta.md) | User sovereignty charter — catch-and-release, affirmative consent, OCAP verification |
 | [`core/PRINCIPLES.md`](core/PRINCIPLES.md) | 12 architecture principles (P1-P12), 5 anchors, anti-patterns |
 | [`core/MDS.md`](core/MDS.md) | Minimal Domain Specification — 5 categories, 12 tools, completeness predicate |
-| [`core/FUNCTIONAL_SPECIFICATION.md`](core/FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring, user expectations |
-| [`loop-architecture.md`](loop-architecture.md) | 4-loop architecture — RateLimiting→EnergyBudget subsumption, crate↔loop mapping |
-| [`core/PRINCIPLES.md`](core/PRINCIPLES.md) | 12 architecture principles (P1-P12) incl. P12 replicant host mandate (surface-host mapping, dual-presence) |
-| [`energy-gas-payments-api-keys.md`](energy-gas-payments-api-keys.md) | Energy, Gas, Payments & API Key System — economic layer, rJoules, wallets, key lifecycle |
-| [`core/CNS-DOMAIN-SPECIFICATION.md`](core/CNS-DOMAIN-SPECIFICATION.md) | CNS Domain Specification — 6 sub-domains, 44 contracts, P4/P9/P12 governed membranes |
+| [`core/FUNCTIONAL_SPECIFICATION.md`](core/FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring |
+| [`core/TESTING_DISCIPLINE.md`](core/TESTING_DISCIPLINE.md) | Testing discipline — property-based testing, CNS verification, proptest framework |
+| [`SPECIFICATION.md`](core/FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring |
+| [`core/CNS-DOMAIN-SPECIFICATION.md`](core/CNS-DOMAIN-SPECIFICATION.md) | CNS Domain Specification — 8 sub-domains, contract counts, Rust module mapping |
+| [`specs/hkask-ledger.md`](specs/hkask-ledger.md) | Ledger specification — triple-entry accounting, three-domain schema |
 
-**Curator persona** — The Curator is the canonical system daemon. Direct, technical, concise voice with no preamble, emojis, or conversational filler. Full specification: [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md).
+**TUI specification** — 22 windows with 14 live domain bridges, ratatui+crossterm framework, Zed-style workspace model. See `crates/hkask-tui/` for implementation.
+
+**Curator persona** — The Curator is the canonical system daemon. Defined in Pattern C above (§Curator Persona & Behavioral Specification).
 
 | [`../plans/deployment-and-backup.md`](../plans/deployment-and-backup.md) | Deployment & Multi-User Plan |
 
 ### Supplementary Architecture Patterns
 
-> **See also:** `specs/provider-intelligence.md`, `specs/rjoule-cost-system.md`, `self-healing.md`, `loop-architecture.md`, `energy-gas-payments-api-keys.md` for full specifications.
+#### Four-Loop Architecture — Semantic Root-Cause Analysis
 
-#### Provider Intelligence
+hKask decomposes into four authority loops organized as a **two-layer model** with crate-to-loop ownership:
 
-Provider selection is intelligence-driven. Each inference provider (DeepInfra, Together AI, fal.ai, OpenRouter) carries metadata: model availability, pricing per token, latency profile, and reliability score. The inference router uses this intelligence to select the optimal provider for each request. Provider metadata is cached and refreshed periodically. See [`specs/provider-intelligence.md`](specs/provider-intelligence.md) for full specification.
+| Loop | Layer | Role | Least Action Role | Key Crates |
+|------|-------|------|-------------------|------------|
+| **Inference** | Domain | Model dispatch, provider selection, rJoule accounting | Varies model to minimize action per task | `hkask-inference`, `hkask-mcp-inference` |
+| **Memory** | Domain | Dual episodic/semantic encoding, consolidation, narrative generation | Selects most salient memories (fewest bits for most prediction) | `hkask-memory`, `hkask-storage`, `hkask-mcp-memory` |
+| **Curation** | Meta | Spec drift detection, memory consolidation, catalog maintenance | Observes system, recommends minimal interventions | `hkask-agents` (curator), `hkask-cns` (curation) |
+| **Cybernetics** | Meta | CNS homeostatic control, algedonic escalation, variety engineering | Maintains Ashby-requisite variety with minimal energy | `hkask-cns`, `hkask-types` |
 
-#### rJoule Cost System
+**Communication is demoted to transport.** The Communication loop is not a conceptual loop — it's a `tokio::mpsc` channel connecting Curation to Cybernetics. Transport moves messages; agents decide what they mean.
 
-Energy consumption is tracked in rJoules — a normalized energy unit decoupled from any specific currency. Each inference operation consumes rJoules proportional to token count, model size, and provider efficiency. The cost system integrates with the triple-entry ledger (`hkask-ledger`) for immutable accounting. See [`specs/rjoule-cost-system.md`](specs/rjoule-cost-system.md) for full specification.
+##### Rate Limiting Subsumed by Energy Tracking
 
-#### Self-Healing Architecture
+Every rate limit is an energy constraint over a time window — a strict semantic subsumption:
 
-The system detects and recovers from degraded states through CNS-observed self-healing loops:
-- **Detection:** CNS variety counters + algedonic thresholds identify anomalies
-- **Diagnosis:** Curator classifies anomaly type (stall, saturation, drift, corruption)
-- **Recovery:** Automated restart, cache invalidation, connection reset, or escalation to human
-- **Verification:** Post-recovery CNS span confirms restoration. See [`self-healing.md`](self-healing.md) for full specification.
+| Rate Limiting Concept | Energy Tracking Equivalent |
+|-----------------------|---------------------------|
+| Token bucket capacity | `EnergyBudget` allocation |
+| Refill rate | `ReplenishmentCycle` |
+| Window (sliding/fixed) | `ReplenishmentCycle` period |
+| Throttle / backoff | `DepletionSignal` + `BackpressureSignal` |
+| 429 Rate Limited | `EnergyBudget.try_consume()` → `Err(InsufficientEnergy)` |
 
-#### 4-Loop Authority Model
+**Deeper reason: least action.** Energy tracking is the computational expression of the least action principle. Every operation costs gas because every operation has an action cost — the "distance" the system moves in configuration space. Rate limiting was a lossy projection of action tracking — energy tracking is the direct measurement.
 
-Architecture decomposes into four authority loops with RateLimiting subsumed by EnergyBudget:
-1. **Communication Loop** — Matrix transport, backpressure, queue depth monitoring
-2. **Inference Loop** — Provider dispatch, model selection, rJoule accounting
-3. **Curation Loop** — Specification drift detection, memory consolidation, catalog maintenance
-4. **Regulation Loop** — CNS homeostatic control, algedonic escalation, variety engineering
+**Consequence:** `RateLimiter`, `CnsTokenBucket`, and sliding window types were removed. Remaining external-boundary rate limiting (API gateway WAF, OAuth, IP bans) are system infrastructure, not architecture.
 
-Each loop maps to specific crates and CNS spans. See [`loop-architecture.md`](loop-architecture.md) for full decomposition.
+##### Crate-to-Loop Mapping
+
+| Crate | Loop | Rationale |
+|-------|------|-----------|
+| `hkask-inference` | Inference | Provider dispatch, model selection |
+| `hkask-mcp-inference` | Inference | LLM API connectivity |
+| `hkask-memory` | Memory | Episodic + semantic encoding |
+| `hkask-storage` | Memory | Triple store, queries |
+| `hkask-mcp-memory` | Memory | Memory search/consolidation |
+| `hkask-agents` (curator) | Curation | CuratorAgent, CurationLoop |
+| `hkask-condenser` | Curation | Context window condensation |
+| `hkask-cns` (seam_watcher) | Curation | Spec drift, contract coverage |
+| `hkask-qa` | Curation | QA runs, fuzzing |
+| `hkask-cns` (algedonic, runtime) | Cybernetics | Alerts, variety tracking |
+| `hkask-capability` | Cybernetics | OCAP enforcement, membranes |
+| `hkask-mcp-cloud-gateway` | Cybernetics | Transport regulation |
+| `hkask-templates` | Curation | Skill registry, FlowDef execution |
+
+**Shared substrate (no loop ownership):** `hkask-storage` (storage backend), `hkask-types` (shared types). Every loop imports them; neither loop owns them.
+
+##### Capability Membranes — Cross-Loop Access Control
+
+Every loop-to-loop interaction is governed by a capability membrane with explicit read/write/signal/never boundaries:
+
+| Access | Meaning | Example |
+|--------|---------|---------|
+| **Read** | Can observe state | Curation reads `NuEventStore` |
+| **Write** | Can modify state | Inference writes to episodic memory |
+| **Signal** | Can send directive | Curation signals Cybernetics via `mpsc` |
+| **Never** | Forbidden crossing | Inference never reads Curator's metacognition state |
+
+| Membrane | Source → Target | Access | Mechanism |
+|----------|----------------|--------|-----------|
+| Inference → Memory | Inference → Memory | Write | `EpisodicMemory::store()` via OCAP |
+| Memory → Curation | Memory → Curation | Read | `NuEventStore` cursor-based query |
+| Curation → Cybernetics | Curation → Cybernetics | Signal | `CuratorDirective` on `mpsc` channel |
+| Cybernetics → Curation | Cybernetics → Curation | Signal | `RuntimeAlert` → `NuEventStore` |
+| Inference → Cybernetics | Inference → Cybernetics | Signal | CNS span per inference call |
+| Cybernetics → Inference | Cybernetics → Inference | Signal | `BackpressureSignal`, `CircuitBreaker` |
+
+**Cross-loop authority rules:** (1) No struct passes a membrane by value — all crossings are typed message types. (2) Every crossing is OCAP-gated via `GovernedTool` or `GovernedInference`. (3) Every crossing is energy-accounted via `EnergyBudget.try_consume()`. (4) Every crossing is CNS-observable — a span is emitted for every membrane crossing.
+
+**Cycle-freedom guarantee:** The membrane graph is a DAG. Cybernetics ↔ Curation appears bidirectional but is directionally typed — signals differ (`CuratorDirective` vs `RuntimeAlert`), preventing infinite loops.
+
+##### Self-Healing Architecture
+
+Every fallible operation passes through a `SelfHealer`. Errors are signals that trigger autonomous recovery — graceful degradation is the LAST resort.
+
+```
+Error occurs → SelfHealer::attempt(error, context)
+  → HealRegistry.find_strategy(error) → HealStrategy
+    → HealAction: RunCommand | SetEnv | LoadDotEnv | CreateDefaultFile | RetryWithBackoff | ProposeCodeChange | Sequence
+  → HealOutcome: Healed (retry) | Degraded (fallback) | Unhealable (escalate to Curator via CNS)
+```
+
+| What Self-Healing Can Modify | Runtime? | CNS Path |
+|------------------------------|----------|----------|
+| `.env` files | ✅ | `cns.heal.dotenv` |
+| YAML manifests | ✅ | `cns.heal.file_created` |
+| Jinja2 templates | ✅ | `cns.heal.file_created` |
+| Environment variables | ✅ | `cns.heal.set_env` |
+| Rust source code | ❌ (compiled) | `cns.heal.code_change_proposed` |
+| File permissions | ⚠️ Advisory | `cns.heal.code_change_proposed` |
+
+**Built-in strategies:** `missing-api-key` (load .env), `permission-denied` (chmod), `command-not-found` (install), `config-file-not-found` (create default), `network-error` (retry with backoff), `transient-retry` (exponential delay).
+
+**Design constraints:** No runtime code modification; idempotent file operations; process-scoped env changes; full audit trail via CNS; never silently ignore errors.
+
+> **Incorporated from:** `docs/architecture/energy-gas-payments-api-keys.md`, `docs/architecture/specs/rjoule-cost-system.md`, `docs/architecture/specs/hkask-ledger.md`, `docs/architecture/specs/provider-intelligence.md`
 
 #### Energy, Gas, and API Key System
 
-The economic layer governs resource consumption across all surfaces:
-- **Gas heuristic:** Estimates token cost before inference dispatch
-- **Gas cap:** Hard limit per session, enforced by OCAP-gated tool dispatch
-- **API key lifecycle:** Provision, rotation, revocation per provider and per user
-- **Payment settlement:** rJoule → fiat conversion, provider billing integration
+The economic layer governs resource consumption across all surfaces.
 
-See [`energy-gas-payments-api-keys.md`](energy-gas-payments-api-keys.md) for full specification.
+##### Unit System
+
+| Term | Definition | Unit |
+|------|-----------|------|
+| **rJoule (rJ)** | Base energy unit. 1 rJ = 1 USD (v1 peg). Internal representation in µrJ (integer). | rJ |
+| **Gas** | Micro-subunit of rJoules. 1 rJ = 250,000 gas (`RJOULE_TO_GAS`). | gas |
+| **Wallet** | HD wallet derived from WebID via `hkask-wallet`. Holds rJoule balance. | rJ balance |
+| **Encumbrance** | rJoules reserved for an API key, locked against wallet balance during key activity. | rJ locked |
+| **Allocation** | rJoule budget assigned to an API key at issuance, drawn from funding replicant's wallet. | rJ |
+
+##### Dual-Track Cost Model (rJoule Cost System)
+
+Two distinct cost tracks merge into a single rJoule total:
+
+| Track | What It Measures | Methodology |
+|-------|-----------------|-------------|
+| **Gas** | Carbon shadow price of local processing (CPU, shell, orchestration) | SCI methodology: 0.02 kWh/function × 400 gCO₂e/kWh × $50/tonne → 100 gas/function = 400 µrJ |
+| **API & Service** | Direct economic costs (LLM tokens, training, subscriptions) | Per-token pricing from provider classifier config, converted to rJ at 1:1 USD peg |
+
+**CostTracker** aggregates: `gas_used × 2 + api_token_urj + training_urj` (subscriptions excluded from per-run totals). Five verification invariants: gas_mismatch, api_untracked, cap_exceeded, threshold_warning, missing_token_data.
+
+##### API Key Lifecycle
+
+Six-gate issuance: authentication → CNS history check → scope validation → purpose statement → rate limit feasibility → wallet balance check. Non-empty scope enforces URI path prefix match; mismatch returns `403 ScopeViolation`. Revocation triggers: 3 abuse alerts, >5 IPs in 1 hour, scope violation, or manual Curator directive.
+
+##### Ledger — Triple-Entry Accounting
+
+`hkask-ledger` provides immutable double-entry accounting serving three domains from a single SQLite schema:
+
+| Domain | Namespace | What It Tracks |
+|--------|-----------|---------------|
+| **Cost** | `cost:*` | System costs (gas, API, training, subscriptions) |
+| **Crypto** | `wallet:*` | Wallet transactions (Hedera, rJ token) |
+| **Securities** | `portfolio:*` | Portfolio transactions (buy, sell, dividends) |
+
+**Core invariants:** (1) Idempotency — same `reference` committed twice = no-op. (2) Double-entry — every transaction's postings sum to zero. (3) Immutability — no update or delete; balances always computed from postings. (4) Integer amounts — all in smallest unit (µrJ, µUSD, satoshis).
+
+##### Provider Intelligence
+
+Real-time provider cost tracking via the `ProviderIntelligence` trait (`discover()`, `usage()`, `actual_cost()`). Detects pre-paid→marginal pricing shifts. Adaptive monitoring frequency: <50% usage → daily check, 90%+ → 10-minute check. `CostRate` struct: `input_nj_per_unit`, `output_nj_per_unit`, `fixed_nj_per_call`, `is_marginal` flag. Per-provider profiles at `registry/providers/<name>.yaml`. Self-tracked providers (Brave, Firecrawl, Tavily, Exa) use persistent call counters in the ledger.
 
 ---
 
@@ -1118,36 +1267,35 @@ Detailed lookup tables and diagrams in `reference/`:
 
 ```
 docs/architecture/
-├── hKask-architecture-master.md                # THIS FILE (index)
-├── loop-architecture.md                        # 4-loop authority model
-├── energy-gas-payments-api-keys.md             # Energy, gas, payments
-├── self-healing.md                             # Self-healing patterns
+├── hKask-architecture-master.md                # THIS FILE (index + four-loop + energy + self-healing + pod + curator + TUI)
 ├── matrix-integration-architecture.md          # Matrix transport, Conduit
+├── TUI_SPECIFICATION.md                        # TUI specification (22 windows, ratatui)
 ├── specs/
 │   ├── hkask-ledger.md                         # Specification (triple-entry ledger)
-│   ├── provider-intelligence.md                # Specification (provider intelligence)
 │   └── rjoule-cost-system.md                   # Specification (rJoule cost system)
 ├── core/
 │   ├── magna-carta.md                          # Foundation (4 principles)
-│   ├── PRINCIPLES.md                           # P1-P12 incl. P12 mandate
+│   ├── PRINCIPLES.md                           # P1-P12 incl. dual-axis framework
 │   ├── MDS.md                                  # 5 categories, 12 tools
 │   ├── TESTING_DISCIPLINE.md                   # Testing + QA operations
-│   ├── CNS-DOMAIN-SPECIFICATION.md             # CNS 6 sub-domains
+│   ├── CNS-DOMAIN-SPECIFICATION.md             # CNS 8 sub-domains
 │   ├── FUNCTIONAL_SPECIFICATION.md             # AgentService functional spec
-│   ├── SOLID_POD_ISOMORPHISM.md                # Pod drift analysis
-│   └── MULTI_POD_ARCHITECTURE.md               # 3-tier pod structure
+│   ├── SOLID_POD_ISOMORPHISM.md                # Pod drift analysis (content absorbed into master)
+│   └── MULTI_POD_ARCHITECTURE.md               # 3-tier pod structure (content absorbed into master)
 ├── ADRs/
 │   ├── _TEMPLATE.md                            # ADR template
 │   ├── ADR-031-consolidation-authorization.md  # Active
 │   └── ADR-035-replicant-server-mode.md        # Active
 └── reference/
-    └── hKask-Curator-persona.md                # Persona spec
+    └── hKask-Curator-persona.md                # Persona spec (content absorbed into master)
 ```
 
-**Total:** 20 architecture documents (8 core + 2 root + 3 specs + 2 ADRs + 1 reference + 4 framework).
+**Total:** 19 architecture documents (8 core + 2 root + 2 specs + 2 ADRs + 1 TUI + 1 Matrix + 3 whose content is absorbed into master).
+
+**Merged into this document (2026-06-24):** loop-architecture.md, energy-gas-payments-api-keys.md, self-healing.md, provider-intelligence.md. Pod and Curator content absorbed from SOLID_POD_ISOMORPHISM, MULTI_POD_ARCHITECTURE, and hKask-Curator-persona.
 
 **Archived (2026-06-22):** QA_PLAN (merged into TESTING_DISCIPLINE), P12 mandate (merged into PRINCIPLES), OPEN_QUESTIONS_POD (merged into OPEN_QUESTIONS).
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.30.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.31.0*

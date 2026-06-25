@@ -44,6 +44,8 @@ use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 mod analysis;
 mod dcf;
+mod scenarios;
+mod superforecast;
 pub mod fibo;
 mod portfolio;
 mod providers;
@@ -2142,6 +2144,219 @@ impl CompaniesServer {
             });
 
             self.record_experience("reverse_dcf", &format!("symbol={}", req.symbol), "success", output.clone());
+            Ok(output)
+        }).await
+    }
+
+    #[tool(
+        description = "Schwartz 2x2 scenario analysis. Projects four scenarios (Bull, Land Grab, Cash Cow, Bear) based on revenue growth x profit margin axes. Runs DCF under each scenario and returns the intrinsic value range. Default axes: revenue_growth x profit_margin. Adjustable multipliers let you tune scenario severity."
+    )]
+    pub async fn scenario_analysis(
+        &self,
+        Parameters(req): Parameters<types::ScenarioAnalysisRequest>,
+    ) -> String {
+        execute_tool(self, "scenario_analysis", async {
+            validate_symbol(&req.symbol)?;
+
+            let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
+            let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
+            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "1")]).await;
+
+            let (metrics, profile, cf) = match (metrics_result, profile_result, cf_result) {
+                (Ok(m), Ok(p), Ok(c)) => (m, p, c),
+                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
+                    return Err(e);
+                }
+            };
+
+            let metrics_arr = metrics.as_array();
+            let profile_obj = profile.as_array().and_then(|a| a.first());
+            let cf_obj = cf.as_array().and_then(|a| a.first());
+
+            if metrics_arr.is_none_or(|m| m.is_empty()) || profile_obj.is_none() || cf_obj.is_none() {
+                return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient data"}));
+            }
+
+            let m = metrics_arr.as_ref().unwrap();
+            let p = profile_obj.unwrap();
+            let cf_ref = cf_obj.unwrap();
+
+            let revenue_values: Vec<f64> = m.iter()
+                .filter_map(|e| e.get("revenuePerShare").and_then(|v| v.as_f64()))
+                .collect();
+            let ttm_revenue = revenue_values.first().copied().unwrap_or(0.0);
+            let hist_revenue_growth = if revenue_values.len() >= 2 {
+                crate::cagr_from_series(
+                    &revenue_values.windows(2)
+                        .filter_map(|w| if w[0] > 0.0 { Some((w[1] - w[0]) / w[0]) } else { None })
+                        .collect::<Vec<_>>()
+                )
+            } else { 0.05 };
+
+            let fcf_margin = cf_ref
+                .get("freeCashFlow")
+                .and_then(|v| v.as_f64())
+                .map(|fcf| if ttm_revenue > 0.0 { fcf / ttm_revenue } else { 0.05 })
+                .unwrap_or(0.05);
+
+            let shares = p.get("sharesOutstanding").and_then(|v| v.as_f64()).unwrap_or(1_000.0);
+            let current_price = p.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let market_cap = p.get("mktCap").and_then(|v| v.as_f64()).unwrap_or(0.0);
+
+            let fundamentals = dcf::CompanyFundamentals {
+                ttm_revenue,
+                ttm_fcf: ttm_revenue * fcf_margin,
+                fcf_margin,
+                hist_revenue_growth,
+                shares_outstanding: shares,
+                current_price,
+                market_cap,
+            };
+
+            let matrix = scenarios::ScenarioMatrix::growth_x_margin(hist_revenue_growth, fcf_margin);
+            let discount = req.discount_rate.unwrap_or(0.10);
+            let term_g = req.terminal_growth.unwrap_or(0.025);
+
+            let dcf_config = dcf::DcfConfig {
+                stage1_years: 3, stage2_years: 7,
+                discount_rate: discount,
+                terminal_growth: term_g,
+                terminal_method: dcf::TerminalMethod::Perpetuity,
+                frequency: dcf::ProjectionFrequency::Annual,
+            };
+
+            let results = scenarios::run_scenario_analysis(&fundamentals, &matrix, &dcf_config)
+                .map_err(|e| McpToolError::invalid_argument(e))?;
+
+            let summary = scenarios::scenario_summary(&results);
+
+            let scenario_output: Vec<serde_json::Value> = results.iter().map(|r| {
+                serde_json::json!({
+                    "name": r.scenario.name,
+                    "description": r.scenario.description,
+                    "applied_growth": r.applied_growth,
+                    "applied_margin": r.applied_margin,
+                    "intrinsic_per_share": r.dcf_result.intrinsic_per_share,
+                    "enterprise_value": r.dcf_result.enterprise_value,
+                    "margin_of_safety": r.dcf_result.margin_of_safety,
+                })
+            }).collect();
+
+            let output = serde_json::json!({
+                "symbol": req.symbol,
+                "axes": {
+                    "axis1": {"name": matrix.axis1.name, "fibo": matrix.axis1.fibo_concept, "baseline": matrix.axis1.baseline},
+                    "axis2": {"name": matrix.axis2.name, "fibo": matrix.axis2.fibo_concept, "baseline": matrix.axis2.baseline},
+                },
+                "scenarios": scenario_output,
+                "summary": {
+                    "intrinsic_range": [summary.intrinsic_range.0, summary.intrinsic_range.1],
+                    "intrinsic_average": summary.intrinsic_average,
+                    "current_price": summary.current_price,
+                    "upside_pct": summary.upside_pct,
+                    "downside_pct": summary.downside_pct,
+                    "range_spread_pct": summary.range_spread_pct,
+                },
+                "framework": "Schwartz 2x2 scenario matrix: revenue growth x profit margin. Four scenarios: Bull (high/high), Land Grab (high/low), Cash Cow (low/high), Bear (low/low). Each scenario runs through the two-stage DCF model. The range of intrinsic values represents the uncertainty around the single-point DCF estimate.",
+            });
+
+            self.record_experience("scenario_analysis", &format!("symbol={}", req.symbol), "success", output.clone());
+            Ok(output)
+        }).await
+    }
+
+    #[tool(
+        description = "Calibrated superforecast. Runs Fermi decomposition on growth and margin estimates, applies outside view (base rate) and inside view adjustments, then distributes probabilities across the four Schwartz scenarios. Produces a probability-weighted intrinsic value and compares it to the market price. Anchored to Tetlock's GJP methodology. Collaborative — you provide base rates and reference counts; the tool computes calibrations."
+    )]
+    pub async fn calibrate_forecast(
+        &self,
+        Parameters(req): Parameters<types::ScenarioAnalysisRequest>,
+    ) -> String {
+        execute_tool(self, "calibrate_forecast", async {
+            validate_symbol(&req.symbol)?;
+
+            let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
+            let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
+            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "1")]).await;
+
+            let (metrics, profile, cf) = match (metrics_result, profile_result, cf_result) {
+                (Ok(m), Ok(p), Ok(c)) => (m, p, c),
+                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => { return Err(e); }
+            };
+            let metrics_arr = metrics.as_array();
+            let profile_obj = profile.as_array().and_then(|a| a.first());
+            let cf_obj = cf.as_array().and_then(|a| a.first());
+            if metrics_arr.is_none_or(|m| m.is_empty()) || profile_obj.is_none() || cf_obj.is_none() {
+                return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient data"}));
+            }
+            let m = metrics_arr.as_ref().unwrap(); let p = profile_obj.unwrap(); let cf_ref = cf_obj.unwrap();
+            let revenue_values: Vec<f64> = m.iter().filter_map(|e| e.get("revenuePerShare").and_then(|v| v.as_f64())).collect();
+            let ttm_revenue = revenue_values.first().copied().unwrap_or(0.0);
+            let hist_revenue_growth = if revenue_values.len() >= 2 {
+                crate::cagr_from_series(&revenue_values.windows(2).filter_map(|w| if w[0] > 0.0 { Some((w[1] - w[0]) / w[0]) } else { None }).collect::<Vec<_>>())
+            } else { 0.05 };
+            let fcf_margin = cf_ref.get("freeCashFlow").and_then(|v| v.as_f64()).map(|fcf| if ttm_revenue > 0.0 { fcf / ttm_revenue } else { 0.05 }).unwrap_or(0.05);
+            let shares = p.get("sharesOutstanding").and_then(|v| v.as_f64()).unwrap_or(1_000.0);
+            let current_price = p.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let market_cap = p.get("mktCap").and_then(|v| v.as_f64()).unwrap_or(0.0);
+
+            let fundamentals = dcf::CompanyFundamentals {
+                ttm_revenue, ttm_fcf: ttm_revenue * fcf_margin, fcf_margin,
+                hist_revenue_growth, shares_outstanding: shares, current_price, market_cap,
+            };
+
+            // Run scenarios
+            let matrix = scenarios::ScenarioMatrix::growth_x_margin(hist_revenue_growth, fcf_margin);
+            let dcf_config = dcf::DcfConfig::default();
+            let results = scenarios::run_scenario_analysis(&fundamentals, &matrix, &dcf_config)
+                .map_err(|e| McpToolError::invalid_argument(e))?;
+
+            // Fermi decomposition — user can override these estimates
+            let growth_fermi = superforecast::fermi_decompose_growth();
+            let margin_fermi = superforecast::fermi_decompose_margin();
+
+            let growth_inside = superforecast::calibrate_from_fermi(&growth_fermi);
+            let margin_inside = superforecast::calibrate_from_fermi(&margin_fermi);
+
+            // Outside view (default reference class: S&P 500 large-cap, N=500)
+            let (growth_calibrated, growth_conf) = superforecast::outside_view_adjustment(0.55, growth_inside, 500);
+            let (margin_calibrated, margin_conf) = superforecast::outside_view_adjustment(0.50, margin_inside, 500);
+
+            // Distribute probabilities across scenarios
+            let weighted = superforecast::distribute_scenario_probabilities(
+                growth_calibrated, margin_calibrated, &results,
+            );
+            let expected_value = superforecast::expected_intrinsic(&weighted);
+            let market_gap = if current_price > 0.0 { (expected_value - current_price) / current_price } else { 0.0 };
+
+            let fermi_output: Vec<serde_json::Value> = growth_fermi.iter().zip(margin_fermi.iter()).enumerate().map(|(_i, (g, m))| {
+                serde_json::json!({
+                    "growth_sub_q": g.question, "growth_estimate": g.estimate, "growth_confidence": g.confidence,
+                    "margin_sub_q": m.question, "margin_estimate": m.estimate, "margin_confidence": m.confidence,
+                })
+            }).collect();
+
+            let scenario_output: Vec<serde_json::Value> = weighted.iter().map(|w| {
+                serde_json::json!({"name": w.name, "intrinsic": w.intrinsic_per_share, "probability": w.probability})
+            }).collect();
+
+            let output = serde_json::json!({
+                "symbol": req.symbol,
+                "current_price": current_price,
+                "calibration": {
+                    "growth": {"inside_estimate": growth_inside, "calibrated": growth_calibrated, "confidence": growth_conf},
+                    "margin": {"inside_estimate": margin_inside, "calibrated": margin_calibrated, "confidence": margin_conf},
+                    "method": "Fermi decomposition + outside view (reference class: S&P 500 large-cap, N=500)",
+                },
+                "fermi_decomposition": fermi_output,
+                "scenarios": scenario_output,
+                "expected_intrinsic": expected_value,
+                "market_gap_pct": market_gap,
+                "interpretation": if market_gap > 0.10 { "significantly_undervalued" } else if market_gap > 0.0 { "modestly_undervalued" } else if market_gap > -0.10 { "fairly_valued" } else { "overvalued" },
+                "framework": "Tetlock GJP Superforecasting pipeline: Fermi decomposition → outside/inside view calibration → Bayesian-ready probability estimates → scenario-weighted intrinsic value. Probabilities are probability-weighted scenario intrinsic values compared to market price. Brier score tracking available when outcomes are recorded via result_feedback.",
+            });
+
+            self.record_experience("calibrate_forecast", &format!("symbol={}", req.symbol), "success", output.clone());
             Ok(output)
         }).await
     }

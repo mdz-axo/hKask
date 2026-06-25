@@ -3,7 +3,7 @@
 //! Provides the Kanban window with live board data. Implemented by
 //! the CLI via kanban service.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// Summary of a task for TUI display.
 #[derive(Debug, Clone)]
@@ -35,7 +35,7 @@ pub struct KanbanStatusCounts {
     pub done: usize,
 }
 
-/// Trait for querying kanban subsystem state.
+/// Trait for querying and mutating kanban subsystem state.
 pub trait KanbanDataBridge: Send + Sync {
     /// List all boards the agent owns.
     fn board_list(&self) -> Vec<KanbanBoardSummary>;
@@ -48,16 +48,23 @@ pub trait KanbanDataBridge: Send + Sync {
 
     /// All tasks across all statuses (for board overview).
     fn all_tasks(&self, limit: usize) -> Vec<KanbanTaskSummary>;
+
+    /// Move a task to a new status column.
+    /// Returns Err(message) if the transition is invalid or the task is not found.
+    fn move_task(&self, task_id: &str, to_status: &str) -> Result<KanbanTaskSummary, String>;
 }
 
 /// Mock implementation for TUI development and testing.
+///
+/// Uses interior mutability (Mutex) so `&self` methods can mutate state,
+/// matching the trait's object-safe signature.
 pub struct MockKanbanBridge {
     pub boards: Vec<KanbanBoardSummary>,
-    pub backlog_tasks: Vec<KanbanTaskSummary>,
-    pub in_progress_tasks: Vec<KanbanTaskSummary>,
-    pub done_tasks: Vec<KanbanTaskSummary>,
-    pub ready_tasks: Vec<KanbanTaskSummary>,
-    pub review_tasks: Vec<KanbanTaskSummary>,
+    backlog_tasks: Mutex<Vec<KanbanTaskSummary>>,
+    ready_tasks: Mutex<Vec<KanbanTaskSummary>>,
+    in_progress_tasks: Mutex<Vec<KanbanTaskSummary>>,
+    review_tasks: Mutex<Vec<KanbanTaskSummary>>,
+    done_tasks: Mutex<Vec<KanbanTaskSummary>>,
 }
 
 impl MockKanbanBridge {
@@ -75,11 +82,11 @@ impl MockKanbanBridge {
                 ],
                 task_count: 0,
             }],
-            backlog_tasks: Vec::new(),
-            in_progress_tasks: Vec::new(),
-            done_tasks: Vec::new(),
-            ready_tasks: Vec::new(),
-            review_tasks: Vec::new(),
+            backlog_tasks: Mutex::new(Vec::new()),
+            in_progress_tasks: Mutex::new(Vec::new()),
+            done_tasks: Mutex::new(Vec::new()),
+            ready_tasks: Mutex::new(Vec::new()),
+            review_tasks: Mutex::new(Vec::new()),
         }
     }
 
@@ -97,7 +104,7 @@ impl MockKanbanBridge {
                 ],
                 task_count: 7,
             }],
-            backlog_tasks: vec![
+            backlog_tasks: Mutex::new(vec![
                 KanbanTaskSummary {
                     id: "t1".into(),
                     title: "Implement wallet TUI bridge".into(),
@@ -114,8 +121,16 @@ impl MockKanbanBridge {
                     priority: Some("low".into()),
                     labels: vec!["tui".into()],
                 },
-            ],
-            in_progress_tasks: vec![
+            ]),
+            ready_tasks: Mutex::new(vec![KanbanTaskSummary {
+                id: "t7".into(),
+                title: "Memory live data bridge".into(),
+                status: "ready".into(),
+                assignee: None,
+                priority: Some("medium".into()),
+                labels: vec!["tui".into(), "memory".into()],
+            }]),
+            in_progress_tasks: Mutex::new(vec![
                 KanbanTaskSummary {
                     id: "t3".into(),
                     title: "Wire editor file save".into(),
@@ -132,8 +147,9 @@ impl MockKanbanBridge {
                     priority: Some("high".into()),
                     labels: vec!["tui".into(), "registry".into()],
                 },
-            ],
-            done_tasks: vec![
+            ]),
+            review_tasks: Mutex::new(Vec::new()),
+            done_tasks: Mutex::new(vec![
                 KanbanTaskSummary {
                     id: "t5".into(),
                     title: "Fix Ctrl+N routing".into(),
@@ -150,21 +166,24 @@ impl MockKanbanBridge {
                     priority: Some("high".into()),
                     labels: vec!["tui".into(), "testing".into()],
                 },
-            ],
-            ready_tasks: vec![KanbanTaskSummary {
-                id: "t7".into(),
-                title: "Memory live data bridge".into(),
-                status: "ready".into(),
-                assignee: None,
-                priority: Some("medium".into()),
-                labels: vec!["tui".into(), "memory".into()],
-            }],
-            review_tasks: Vec::new(),
+            ]),
         }
     }
 
     pub fn arc(self) -> Arc<Self> {
         Arc::new(self)
+    }
+
+    /// Map status string to the correct Mutex-guarded vec.
+    fn task_vec(&self, status: &str) -> &Mutex<Vec<KanbanTaskSummary>> {
+        match status {
+            "backlog" => &self.backlog_tasks,
+            "ready" => &self.ready_tasks,
+            "in_progress" => &self.in_progress_tasks,
+            "review" => &self.review_tasks,
+            "done" => &self.done_tasks,
+            _ => &self.backlog_tasks, // fallback, won't find anything
+        }
     }
 }
 
@@ -174,33 +193,63 @@ impl KanbanDataBridge for MockKanbanBridge {
     }
 
     fn tasks_by_status(&self, status: &str, _limit: usize) -> Vec<KanbanTaskSummary> {
-        match status {
-            "backlog" => self.backlog_tasks.clone(),
-            "ready" => self.ready_tasks.clone(),
-            "in_progress" => self.in_progress_tasks.clone(),
-            "review" => self.review_tasks.clone(),
-            "done" => self.done_tasks.clone(),
-            _ => Vec::new(),
-        }
+        self.task_vec(status).lock().unwrap().clone()
     }
 
     fn status_counts(&self) -> KanbanStatusCounts {
         KanbanStatusCounts {
-            backlog: self.backlog_tasks.len(),
-            ready: self.ready_tasks.len(),
-            in_progress: self.in_progress_tasks.len(),
-            review: self.review_tasks.len(),
-            done: self.done_tasks.len(),
+            backlog: self.backlog_tasks.lock().unwrap().len(),
+            ready: self.ready_tasks.lock().unwrap().len(),
+            in_progress: self.in_progress_tasks.lock().unwrap().len(),
+            review: self.review_tasks.lock().unwrap().len(),
+            done: self.done_tasks.lock().unwrap().len(),
         }
     }
 
     fn all_tasks(&self, _limit: usize) -> Vec<KanbanTaskSummary> {
         let mut tasks = Vec::new();
-        tasks.extend(self.backlog_tasks.clone());
-        tasks.extend(self.ready_tasks.clone());
-        tasks.extend(self.in_progress_tasks.clone());
-        tasks.extend(self.review_tasks.clone());
-        tasks.extend(self.done_tasks.clone());
+        tasks.extend(self.backlog_tasks.lock().unwrap().clone());
+        tasks.extend(self.ready_tasks.lock().unwrap().clone());
+        tasks.extend(self.in_progress_tasks.lock().unwrap().clone());
+        tasks.extend(self.review_tasks.lock().unwrap().clone());
+        tasks.extend(self.done_tasks.lock().unwrap().clone());
         tasks
+    }
+
+    fn move_task(&self, task_id: &str, to_status: &str) -> Result<KanbanTaskSummary, String> {
+        // Find and remove from all columns
+        let statuses = ["backlog", "ready", "in_progress", "review", "done"];
+        for status in &statuses {
+            let mut tasks = self.task_vec(status).lock().unwrap();
+            if let Some(pos) = tasks.iter().position(|t| t.id == task_id) {
+                let mut task = tasks.remove(pos);
+                let from = task.status.clone();
+
+                // Validate transition — simple forward/backward one step
+                let valid = match (from.as_str(), to_status) {
+                    ("backlog", "ready") | ("ready", "backlog") => true,
+                    ("ready", "in_progress") | ("in_progress", "ready") => true,
+                    ("in_progress", "review") | ("review", "in_progress") => true,
+                    ("review", "done") => true,
+                    _ => false,
+                };
+
+                if !valid {
+                    // Put it back
+                    tasks.push(task);
+                    return Err(format!("invalid transition: {from} → {to_status}"));
+                }
+
+                task.status = to_status.to_string();
+                let summary = task.clone();
+
+                // Insert into target column
+                drop(tasks);
+                self.task_vec(to_status).lock().unwrap().push(task);
+
+                return Ok(summary);
+            }
+        }
+        Err(format!("task not found: {task_id}"))
     }
 }

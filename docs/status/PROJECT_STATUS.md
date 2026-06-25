@@ -247,11 +247,12 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 | MCP Two-Tab pattern (Chat + Data tabs for 6 MCP windows) | ✅ Complete |
 | MCP Chat scoping (start_scoped_inference, per-window tool filtering) | ✅ Complete |
 | Layout persistence (save/restore per-agent) | ✅ Complete |
-| Keybinding convention fix (Tab→focus next, `[`/`]`→section cycle, Ctrl+N→new Chat) | ✅ Complete |
+| Keybinding convention fix (Tab to focus next, Ctrl+N to new Chat) | Complete |
 | Companies live bridge (MCP dispatch to hkask-mcp-companies) | ✅ Complete |
 | Matrix file attachments (upload_file, send_file via MCP tools) | ✅ Complete |
 | Media server default models (Qwen3-TTS, Qwen3-ASR, Qwen3-VL, Flux Pro 1.1) | ✅ Complete |
-| TUI tests | 57 (8 unit + 49 integration) |
+| TUI tests | 96 (8 unit + 88 integration) |
+| Kanban TUI (interactive multi-column board, task moving) | ✅ Complete |
 
 ## What Remains
 

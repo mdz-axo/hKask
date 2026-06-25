@@ -4,6 +4,7 @@
 
 pub mod kanban;
 mod kanban_impl;
+pub mod socratic;
 
 pub use kanban::{
     Board, CapabilityPackage, ColumnDef, Comment, ConditionResult, ConsentProof, ContractState,

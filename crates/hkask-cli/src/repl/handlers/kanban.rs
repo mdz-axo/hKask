@@ -824,10 +824,221 @@ pub(crate) fn handle_kanban(
             }
         }
 
+        "socratic" => {
+            use hkask_services_kanban::socratic;
+            let parts: Vec<&str> = rest.splitn(3, ' ').collect();
+            let action = parts.first().copied().unwrap_or("");
+            match action {
+                "start" => {
+                    let board_str = parts.get(1).copied().unwrap_or("");
+                    let topic = parts.get(2).copied().unwrap_or("");
+                    if board_str.is_empty() {
+                        println!("  Usage: /kanban socratic start <board-id> <topic>");
+                        return;
+                    }
+                    let bid = match board_str.parse() {
+                        Ok(id) => id,
+                        Err(_) => {
+                            println!("  Invalid board ID");
+                            return;
+                        }
+                    };
+                    let topic = if topic.is_empty() {
+                        "Untitled Inquiry"
+                    } else {
+                        topic
+                    };
+                    match socratic::create_inquiry(&service, bid, topic, webid) {
+                        Ok(task) => {
+                            println!("  Inquiry created: {} ({})", task.title, task.id);
+                            match socratic::prompt(&service, task.id) {
+                                Ok((prompt, stage)) => {
+                                    println!("  Stage: {}", stage);
+                                    println!("{prompt}");
+                                }
+                                Err(e) => println!("  Error generating prompt: {e}"),
+                            }
+                        }
+                        Err(e) => println!("  Error: {e}"),
+                    }
+                }
+                "continue" => {
+                    let task_str = parts.get(1).copied().unwrap_or("");
+                    let response = parts.get(2).copied().unwrap_or("");
+                    if task_str.is_empty() {
+                        println!("  Usage: /kanban socratic continue <task-id> <your response>");
+                        return;
+                    }
+                    let tid = match task_str.parse() {
+                        Ok(id) => id,
+                        Err(_) => {
+                            println!("  Invalid task ID");
+                            return;
+                        }
+                    };
+                    // Quality gate: evaluate before advancing
+                    if !response.is_empty() {
+                        match socratic::quality_check(&service, tid, response) {
+                            Ok(gate) if !gate.passed => {
+                                println!("  Quality gate ({}) — response needs work:", gate.stage);
+                                println!("  {}", gate.feedback);
+                                println!(
+                                    "  Re-submit with: /kanban socratic continue {} <improved response>",
+                                    task_str
+                                );
+                                return;
+                            }
+                            Err(e) => {
+                                println!("  Quality check error: {e}");
+                                return;
+                            }
+                            _ => {} // passed, continue
+                        }
+                    }
+                    // Post response as comment
+                    if !response.is_empty() {
+                        if let Err(e) = service.task_comment(tid, webid, response) {
+                            println!("  Error posting response: {e}");
+                            return;
+                        }
+                    }
+                    let task = match service.task_get(tid) {
+                        Ok(Some(t)) => t,
+                        Ok(None) => {
+                            println!("  Task not found");
+                            return;
+                        }
+                        Err(e) => {
+                            println!("  Error: {e}");
+                            return;
+                        }
+                    };
+                    let stage = socratic::stage_name(task.status);
+                    if task.status == hkask_services_kanban::TaskStatus::Review {
+                        if response.is_empty() {
+                            println!("  Provide your summary as evidence to complete the inquiry.");
+                            println!("  Usage: /kanban socratic continue <task-id> <your summary>");
+                            return;
+                        }
+                        match service.task_verify(tid, response, webid) {
+                            Ok((t, v)) => {
+                                println!(
+                                    "  Inquiry complete — {}",
+                                    if v.passed { "PASSED" } else { "REVIEW" }
+                                );
+                                println!("  {}", v.reasoning);
+                                println!("  Status: {}", t.status);
+                            }
+                            Err(e) => println!("  Error: {e}"),
+                        }
+                        return;
+                    }
+                    match socratic::advance(&service, tid, webid) {
+                        Ok(msg) => {
+                            println!("  {}", msg);
+                            match socratic::prompt(&service, tid) {
+                                Ok((prompt, stage)) => {
+                                    println!("  Stage: {}", stage);
+                                    println!("{prompt}");
+                                }
+                                Err(e) => println!("  Error generating prompt: {e}"),
+                            }
+                        }
+                        Err(e) => println!("  Error: {e}"),
+                    }
+                }
+                "team" => {
+                    let board_str = parts.get(1).copied().unwrap_or("");
+                    let topic = parts.get(2).copied().unwrap_or("");
+                    if board_str.is_empty() {
+                        println!("  Usage: /kanban socratic team <board-id> <topic>");
+                        println!("  Spawns Planner, Diagnoser, Tutor, and Assessor tasks");
+                        return;
+                    }
+                    let bid = match board_str.parse() {
+                        Ok(id) => id,
+                        Err(_) => {
+                            println!("  Invalid board ID");
+                            return;
+                        }
+                    };
+                    let topic = if topic.is_empty() { "Untitled" } else { topic };
+                    match socratic::spawn_role_inquiries(&service, bid, topic, webid) {
+                        Ok(tasks) => {
+                            println!("  Role team spawned (4 tasks):");
+                            for t in &tasks {
+                                println!("    {} ({})", t.title, t.id);
+                            }
+                            match socratic::synthesize_roles(&service, &tasks) {
+                                Ok(report) => println!("{report}"),
+                                Err(e) => println!("  Error: {e}"),
+                            }
+                        }
+                        Err(e) => println!("  Error: {e}"),
+                    }
+                }
+                "status" => {
+                    let task_str = parts.get(1).copied().unwrap_or("");
+                    if task_str.is_empty() {
+                        println!("  Usage: /kanban socratic status <task-id>");
+                        return;
+                    }
+                    let tid = match task_str.parse() {
+                        Ok(id) => id,
+                        Err(_) => {
+                            println!("  Invalid task ID");
+                            return;
+                        }
+                    };
+                    match service.task_get(tid) {
+                        Ok(Some(task)) => {
+                            let stage = socratic::stage_name(task.status);
+                            println!("  {} — Stage: {} ({})", task.title, stage, task.status);
+                            let comments = service.task_comments(tid).unwrap_or_default();
+                            println!("  Comments: {}", comments.len());
+                            if task.status != hkask_services_kanban::TaskStatus::Done
+                                && task.status != hkask_services_kanban::TaskStatus::Review
+                            {
+                                if let Some(last) = comments.last() {
+                                    match socratic::quality_check(&service, tid, &last.body) {
+                                        Ok(gate) => {
+                                            if gate.passed {
+                                                println!("  Quality: PASSED — ready to advance");
+                                            } else {
+                                                println!("  Quality: NEEDS WORK");
+                                                println!("  {}", gate.feedback);
+                                            }
+                                        }
+                                        Err(e) => println!("  Quality check error: {e}"),
+                                    }
+                                }
+                            }
+                        }
+                        Ok(None) => println!("  Task not found"),
+                        Err(e) => println!("  Error: {e}"),
+                    }
+                }
+                _ => {
+                    println!("  Socratic inquiry — structured 4-stage exploration");
+                    println!("    /kanban socratic start <board> <topic>        Begin inquiry");
+                    println!(
+                        "    /kanban socratic continue <task> <response>   Post + advance (with quality gate)"
+                    );
+                    println!(
+                        "    /kanban socratic team <board> <topic>         Spawn 4-role inquiry team"
+                    );
+                    println!(
+                        "    /kanban socratic status <task>                 Show stage + quality gate"
+                    );
+                    println!("  Stages: Elicit → Structure → Test → Summarize");
+                }
+            }
+        }
+
         _ => {
             println!("  Unknown kanban subcommand: {subcommand}");
             println!(
-                "  Try: board, view, task, move, accept, submit, note, notes, deliver, phase, delete, unassign, reopen, unjam, coach, improve, practice, decompose, spawn"
+                "  Try: board, view, task, move, accept, submit, note, notes, deliver, phase, delete, unassign, reopen, unjam, socratic, coach, improve, practice, decompose, spawn"
             );
             println!();
         }

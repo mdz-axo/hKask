@@ -362,6 +362,34 @@ impl KanbanDataBridge for TuiReplBridge {
             Vec::new()
         }
     }
+
+    fn move_task(&self, task_id: &str, to_status: &str) -> Result<KanbanTaskSummary, String> {
+        let state = self.state.lock().expect("lock");
+        let ks = state
+            .kanban_service
+            .as_ref()
+            .ok_or_else(|| "kanban service not initialized".to_string())?;
+
+        let tid: hkask_types::TaskId = task_id
+            .parse()
+            .map_err(|e| format!("invalid task id '{}': {}", task_id, e))?;
+
+        let target = hkask_services_kanban::TaskStatus::parse_str(to_status)
+            .ok_or_else(|| format!("unknown status: {}", to_status))?;
+
+        let actor = state.agent_webid;
+
+        ks.task_move(tid, target, actor)
+            .map(|task| KanbanTaskSummary {
+                id: task.id.to_string(),
+                title: task.title,
+                status: task.status.as_str().to_string(),
+                assignee: task.assignee.map(|a| a.to_string()),
+                priority: task.priority.map(|p| format!("{:?}", p).to_lowercase()),
+                labels: task.labels,
+            })
+            .map_err(|e| format!("{}", e))
+    }
 }
 
 // ── MatrixDataBridge ─────────────────────────────────────────────────

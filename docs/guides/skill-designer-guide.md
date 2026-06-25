@@ -24,7 +24,7 @@ Every skill is represented across up to three artifacts:
 
 | Layer | Location | Format | Purpose |
 |-------|----------|--------|---------|
-| **Skill process layer (authoritative)** | `registry/manifests/<skill>.yaml` | FlowDef manifest | Declares convergence rails, gas rails, step wiring, and explicit `loop` behavior |
+| **Skill process layer (authoritative)** | `registry/manifests/<skill>.yaml` | FlowDef manifest | Declares convergence rails, gas/rJoule dual budget, step wiring, conditional steps, and explicit `loop` behavior |
 | **Template crate layer** | `registry/templates/<skill>/` | `manifest.yaml` + `.j2` files | Declares and implements template steps referenced by `template_ref` |
 | **Zed companion layer** | `.agents/skills/<name>/SKILL.md` | Markdown with YAML frontmatter | Teaches the Zed coding agent usage methodology and activation heuristics |
 
@@ -33,11 +33,18 @@ Every skill is represented across up to three artifacts:
 A skill process manifest must include:
 
 1. `manifest.functional_role: flowdef`
-2. top-level `convergence` block including `convergence_field`
-3. top-level `gas` block
-4. at least one explicit `action: loop` step
-5. stable `step_n_result` wiring between steps
-6. template references that resolve to registered template ids
+2. top-level `convergence` block including `convergence_field` (quality gate)
+3. top-level `gas` block (compute cycle budget — prevents infinite loops)
+4. top-level `rjoule` block (inference energy budget — caps LLM spend, 1 rJ = 250,000 gas)
+5. at least one explicit `action: loop` step with `loop_target` ordinal
+6. a convergence check step (KnowAct) that outputs `convergence_metric` in [0,1]
+7. stable `step_n_result` wiring between steps
+8. template references that resolve to registered template ids
+
+Optional but recommended:
+- `condition` expressions on steps for conditional execution (`"var"`, `"NOT var"`, `"a AND b"`, `"a OR b"`)
+- `phase: Pre|Core|Post` tags for step purpose documentation (not enforced at runtime)
+- `aggregation` method for compound skills that delegate to sub-skills (`all_converged`, `min`, `weighted_avg`)
 
 ### 1.2 Bundle Exception
 

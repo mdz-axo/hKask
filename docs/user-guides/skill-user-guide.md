@@ -18,7 +18,15 @@ mds_categories: [composition]
 
 ## 1. What Are Skills?
 
-Skills are composable agent capabilities. In the current hKask model, a **skill is a FlowDef process manifest** that composes WordAct/KnowAct templates inside an explicit PDCA loop.
+Skills are composable agent capabilities with explicit PDCA convergence loops. hKask distinguishes three invocation types:
+
+| Type | Behavior | Exit |
+|------|----------|------|
+| **Template** | One-shot prompt execution | Returns output |
+| **Skill** | Iterative PDCA cascade with quality threshold + energy budget | Returns `converged` \| `maxed_out` \| `escalated` |
+| **Bundle** | Composition orchestration — delegates to sub-skills | Depends on aggregation method |
+
+In the current hKask model (v0.30.0), **42 Skills** have FlowDef process manifests with `convergence.threshold > 0`, `gas.cap > 0`, `rjoule.cap > 0`, and a `loop` action. **2 Templates** (logo-builder, qa-script-builder) are one-shot without registry manifests. **1 Bundle** (kata) composes skills but is not itself a PDCA loop. **1 Legacy** (kata-pattern pre-upgrade) remains at v0.21.4.
 
 | Layer | You interact with it via... | Purpose |
 |-------|---------------------------|---------|
@@ -58,7 +66,7 @@ Start here. These five skills compose together into the most common workflow and
 
 ### 1.3 Why Some Skills Lack SKILL.md
 
-Of the ~74 registry crates in `registry/templates/`, 45 have SKILL.md companions in `.agents/skills/`. The remaining ~29 are **infrastructure crates** — runtime dispatch, storage, monitoring, and orchestration templates that run the system rather than perform user-facing tasks. A skill with only a registry crate (`.j2` + `manifest.yaml`) is runtime-complete — the cascade can execute it. The SKILL.md is a **generated companion** for the Zed coding agent during development. When both exist, the registry crate is authoritative. See `hKask-architecture-master.md` Pattern A for the full derivation rule.
+Of 98 registry manifests, 46 have SKILL.md companions in `.agents/skills/`. The remaining 52 are **infrastructure crates** — runtime dispatch, storage, monitoring, and orchestration templates that run the system rather than perform user-facing tasks. A skill with only a registry crate (`.j2` + `manifest.yaml`) is runtime-complete — the cascade can execute it. The SKILL.md is a **generated companion** for the Zed coding agent during development. When both exist, the registry crate is authoritative. See `hKask-architecture-master.md` Pattern A for the full derivation rule.
 
 ---
 

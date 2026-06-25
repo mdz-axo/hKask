@@ -1,7 +1,7 @@
 ---
 title: "Kanban User Guide"
 audience: [users, replicants, agents]
-last_updated: 2026-06-17
+last_updated: 2026-06-24
 version: "0.31.0"
 status: "Active"
 domain: "Coordination"
@@ -11,7 +11,9 @@ mds_categories: [domain, composition, lifecycle]
 # Kanban User Guide
 
 Headless kanban for agent coordination. Boards, tasks, WIP limits, comments,
-deliverables, verification, and replicant spawning — all from CLI or REPL.
+deliverables, verification, gas/rJoule budgets, Socratic inquiry, and
+replicant spawning — all from CLI or REPL. Anchored on the PKO (Procedural
+Knowledge Ontology) standard with PROV-O provenance.
 
 ## Quick Start
 
@@ -32,19 +34,23 @@ deliverables, verification, and replicant spawning — all from CLI or REPL.
 /kanban move <task-id> ready
 /kanban move <task-id> in_progress
 
+# Set gas/rJoule budgets on task creation
+/kanban task create <board> "Refactor auth" --gas 10000 --rjoules 250000
+
 # Add a comment (agent ↔ replicant communication)
 /kanban note <task-id> "Parser module complete, working on type inference"
 
 # Link a deliverable
 /kanban deliver <task-id> ./src/parser.rs
 
+# Add more gas to a running task
+/kanban task add-gas <task-id> 5000
+
 # Submit for verification
 /kanban submit <task-id> "Parser handles all CSV dialects, tests pass"
 
-# LLM-mediated verification (for rigorous evaluation)
-/kanban verify <task-id> <evidence>
-  → copy prompt to LLM, paste response:
-/kanban verify-llm <task-id> '<llm-json-output>'
+# Reopen a completed/gas-exhausted task
+/kanban reopen <task-id> --gas 10000
 ```
 
 ## Board Templates
@@ -165,11 +171,109 @@ kask kanban task-assign <task> <agent>
 kask kanban task-verify <task> -e "evidence"
 ```
 
+## Socratic Inquiry
+
+Structured 4-stage Socratic exploration using kanban tasks and kata prompts.
+Each stage uses a different kata type to guide the dialogue. Quality gates
+ensure responses meet structural expectations before advancing.
+
+```bash
+# Start a Socratic inquiry
+/kanban socratic start <board> "What is knowledge?"
+  → Creates inquiry task, shows Elicit stage prompt (Coaching Kata)
+
+# Respond and advance (with quality gate)
+/kanban socratic continue <task> "Knowledge is justified true belief."
+  → Quality gate checks response → posts comment → advances to next stage
+
+# Check inquiry status
+/kanban socratic status <task>
+  → Shows current stage, comment count, and quality gate assessment
+
+# Spawn a 4-role inquiry team for coordinated exploration
+/kanban socratic team <board> "What is knowledge?"
+  → Creates Planner, Diagnoser, Tutor, and Assessor tasks
+  → Each role brings a different perspective on the topic
+```
+
+### Stages
+
+| Stage | Status | Kata Type | Focus |
+|-------|--------|-----------|-------|
+| Elicit | Backlog | Coaching Kata | Target condition, actual condition, obstacles, experiment |
+| Structure | Ready | Improvement Kata | Direction, current state, target, PDCA iteration |
+| Test | InProgress | Practice Kata | Observations vs. interpretations on a sub-problem |
+| Summarize | Review | Custom prompt | Synthesize: what learned, evidence, uncertainty |
+
+### Quality Gates
+
+Each stage has structural expectations evaluated by `quality_check()`:
+
+| Stage | Gate | Requirement |
+|-------|------|------------|
+| Elicit | Substance | Response ≥ 30 characters |
+| Structure | Direction + Current | Must identify target AND present state |
+| Test | Facts vs. Interpretations | Must distinguish observations from assumptions |
+| Summarize | Always passes | Delegated to task_verify |
+
+## Gas & rJoule Budgets
+
+Two separate resource budgets for subagent execution:
+
+| Currency | Purpose | Rate |
+|----------|---------|------|
+| **Gas** | Software compute (templates, tool dispatch) | Arbitrary units |
+| **rJoules** | Inference/API costs | 250,000 rJ ≈ $1 inference spend |
+
+```bash
+# Set at task creation
+/kanban task create <board> "Analyze logs" --gas 10000 --rjoules 250000
+
+# Add more during execution
+/kanban task add-gas <task-id> 5000
+/kanban task add-rjoules <task-id> 125000
+
+# View in task list
+/kanban task list <board>
+  → shows gas_remaining and rjoule_remaining per task
+```
+
+Gas consumption is tracked via `gas_spend` audit trail — each consumption
+records what operation consumed gas and when. When gas hits zero, the
+subagent posts a comment asking for more. If ignored for > 1 hour, the
+unjam flow auto-completes the task.
+
+## Ontology Anchoring (PKO)
+
+All kanban operations carry PKO (Procedural Knowledge Ontology) concept
+annotations in their JSON responses and CNS spans:
+
+| Kanban Type | PKO Concept |
+|------------|-------------|
+| Board | `pko:Procedure` |
+| Task | `pko:Step` |
+| Task move | `pko:ChangeOfStatus` |
+| Verification | `pko:StepVerification` |
+| Comment | `pko:UserFeedbackOccurrence` |
+| Kata prompt | `pko:UserQuestionOccurrence` |
+| Unjam item | `pko:IssueOccurrence` |
+| Deliverable | `prov:wasGeneratedBy` |
+| Gas consumption | `prov:used` |
+| Assignment | `prov:wasAssociatedWith` |
+
+CNS spans include `ontology` field for type-aware feedback routing.
+PKO reference: <https://w3id.org/pko> — Carriero et al., arXiv:2503.20634
+
 ## Architecture
 
 - **Persistence:** RDF triples via `TripleStore` (kanban:board, kanban:task, kanban:board_tasks:{id})
 - **P12:** Every action carries `owner: WebID`
 - **P1:** Assignment requires `ConsentProof`
+- **P3:** Clear Boundaries — verification is evidence-driven, not keyword-gated
 - **OCAP:** Spawning delegates capability tokens with attenuation
-- **CNS verification:** Task completion is CNS-observable via `expect:` + `[P{N}]` behavioral contracts
-- **CNS:** 5 span types for observability
+- **Gas/rJoule:** Two separate budgets for compute vs. inference, with `gas_spend` audit trail
+- **Socratic inquiry:** 4-stage kata-powered dialogue with structural quality gates
+- **Multi-role coordination:** Planner/Diagnoser/Tutor/Assessor as parallel inquiry tasks
+- **Ontology anchoring:** Every response carries `pko` concept field; CNS spans carry `ontology` field
+- **PKO reference:** <https://w3id.org/pko> (Carriero et al., ISWC 2024 / PERKS project)
+- **CNS:** 5 span types for observability, now ontology-tagged

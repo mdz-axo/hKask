@@ -63,33 +63,47 @@ Every skill template must answer:
 | **KnowAct** | ❌ Single-pass prompt | Metacognitive analysis within a FlowDef step ("evaluate this gate"), not the loop itself |
 | **WordAct** | ❌ Single-pass prompt | Persona rendering, system prompts |
 
-**Example — A recursive quality skill:**
+**Example — A convergent PDCA skill (v0.30.0 manifest format):**
 
 ```yaml
-# FlowDef: gentle-lovelace-converge
-select: quality_check
-execute:
-  - id: score
-    type: KnowAct
-    template: replica-report  # Score the document
-  - id: check_threshold
-    type: choice
-    branches:
-      - condition: "composite < 0.15"
-        action: abort  # Quality met, exit
-      - condition: "iteration >= max_iterations"
-        action: escalate  # Maxed out, human review
-      - condition: "default"
-        action: continue  # Rewrite and re-score
-  - id: rewrite
-    type: KnowAct
-    template: rewrite-weakest-dimension  # Fix the worst-scoring dimension
-  - id: loop
-    type: FlowDef  # Recursive: re-enter the score→check→rewrite→loop cascade
-    select: quality_check
+# self-critique-revision: draft → critique → revise → check → loop
+steps:
+  - ordinal: 1
+    action: select
+    template_ref: self-critique-revision/generate  # Draft
+  - ordinal: 2
+    action: select
+    template_ref: self-critique-revision/critique  # Evaluate
+  - ordinal: 3
+    action: select
+    template_ref: self-critique-revision/revise   # Improve
+  - ordinal: 4
+    action: select
+    template_ref: self-critique-revision/self-critique-convergence-check  # Check
+  - ordinal: 5
+    action: loop
+    input_mapping:
+      loop_target: 2  # Re-enter from critique step
+
+convergence:
+  threshold: 0.15
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 3
+  convergence_field: step_4_result.convergence_metric
+
+gas:
+  cap: 100000
+  cost_per_iteration: 100
+
+rjoule:
+  cap: 18000
+  cost_per_token: 0.25
 ```
 
-A skill whose template is a single KnowAct cannot converge — it can only produce output and stop. That is a prompt wearing a skill costume.
+The `ManifestExecutor` drives the cascade: select→select→select→select→loop. At the loop step, it checks whether `convergence_metric ≤ threshold`. If yes, exits with `converged`. If no and `max_iterations` reached, exits with `maxed_out`. If gas or rJoule exhausted, exits with `maxed_out`/`energy_spent`.
+
+A skill whose manifest is a single KnowAct without convergence cannot iterate — it can only produce output and stop. That is a prompt wearing a skill costume.
 
 ### Skill Output — The Convergence Report
 
@@ -120,32 +134,33 @@ A Skill's output IS its convergence report. When `kask run <skill>` completes, t
 | `threshold` | The Target Condition from the manifest (absolute quality floor) |
 | `field` | What was measured — traceability to the manifest |
 | `improvement_pct` | Percentage improvement from baseline to exit: `(baseline - quality_at_exit) / baseline * 100` |
-| `improvement_ratio` | The proportional improvement demand from the manifest (e.g., 0.25 means 25% improvement from baseline) |
+| `improvement_ratio` | The proportional improvement demand from the manifest |
 | `baseline_quality` | The quality score measured before the first iteration |
+| `gas_used` | Total compute gas consumed across all iterations |
+| `gas_cap` | Total compute gas budget (prevents infinite loops) |
+| `gas_remaining` | Remaining compute gas |
+| `rjoule_used` | Total inference rJoules consumed across all select steps |
+| `rjoule_cap` | Total inference energy budget (caps LLM spend) |
+| `gas_pct` | Percentage of gas budget consumed |
 
-The report is the proof that the kata ran and either achieved its target or exhausted its energy allocation. A template chain that runs once and returns raw output has no convergence report — it produced output and stopped, with no evidence that quality was pursued iteratively. That's the difference between a recipe and a skill.
+The report is the proof that the kata ran and either achieved its target or exhausted its energy allocation. The dual budget system ensures the skill cannot run forever — it converges on quality, exhausts compute gas, or exhausts inference rJoules. A template chain that runs once and returns raw output has no convergence report — it produced output and stopped, with no evidence that quality was pursued iteratively. That's the difference between a recipe and a skill.
 
 ### The Dual Gate — Threshold AND Improvement
 
-Convergence uses two independent gates both of which must be satisfied:
+Convergence can use up to three independent termination conditions:
 
-1. **Threshold** (`threshold`) — the absolute quality floor. "The document must be at least this good." If `quality_at_exit` ≤ `threshold`, the gate passes.
+1. **Threshold** (`threshold`) — the absolute quality floor. "The output must be at least this good." If `quality_at_exit ≤ threshold`, the gate passes. This is the primary gate (`threshold_only` mode, used by all 42 skills).
 
 2. **Improvement Ratio** (`improvement_ratio`) — the proportional improvement demand. "Must have improved by at least X% from where it started." If `(baseline_quality - quality_at_exit) / baseline_quality ≥ improvement_ratio`, the gate passes.
 
-These two gates prevent complementary failure modes:
+3. **Energy exhaustion** — the hard budget ceiling. If either `gas` (compute cycles) or `rjoule` (inference energy) is exhausted, the cascade terminates with `maxed_out`/`energy_spent` regardless of quality.
 
-- **Threshold alone** accepts stagnation: a document that starts at 0.40 with a threshold of 0.50 passes immediately with zero improvement — no iterative work was done, but the gate is satisfied.
-- **Ratio alone** accepts slightly-improved garbage: a document starting at 0.90 and improving to 0.80 (an 11% improvement) passes a 10% ratio, even though 0.80 is far below any useful quality bar.
+The `improvement_gate` field controls how threshold and improvement combine:
+- `threshold_only` (default for all 42 skills): only check threshold.
+- `both` (used by kata bundle): must satisfy threshold AND improvement.
+- `either`: must satisfy threshold OR improvement.
 
-Together they demand: *the output must be at least this good AND must represent real improvement from baseline.*
-
-Proportional improvement is fair across quality ranges:
-
-- 0.80 → 0.60 is a 0.20 delta, which is **25%** improvement.
-- 0.20 → 0.15 is a 0.05 delta, which is also **25%** improvement.
-
-Both represent the same proportional demand — the ratio normalizes for starting point so that already-good documents aren't penalized by small deltas and poor documents aren't let off with trivial ones.
+The dual energy budget (gas + rJoule) is a third independent gate — the cascade cannot run forever because both budgets are finite and hard-limited.
 
 ### The Skill-Kata Isomorphism
 
@@ -179,18 +194,27 @@ The two exit rails — quality threshold and energy budget — form the ratchet.
 
 `constraint-forces` runs across **all** layers and all compositions. Prohibitions and Guardrails are never relaxed.
 
-### Applied Migration Assumptions (Current State)
+### Applied Migration Assumptions (Current State — v0.30.0)
 
-This guide currently reflects the following migration assumptions used to normalize skills into FlowDef+PDCA behavior:
+As of v0.30.0, 42 skills have been upgraded to full PDCA FlowDef manifests with calibrated convergence policies:
 
-1. Skill convergence is measured as a normalized distance metric where lower is better (`0` = converged).
-2. Most migrated skills use `improvement_ratio: 0.10` and `improvement_gate: threshold_only`.
-3. Most migrated skills use `max_iterations: 3` (deeper audit flows may use 4).
-4. Thresholds were set in a consistency band (`0.10–0.15`) by nearby skill class, not yet globally calibrated by workload telemetry.
-5. Gas caps were assigned from per-step gas budgets with loop/overhead margin; they are policy defaults, not finalized cost/perf calibration.
-6. Composition wiring was normalized to stable `step_n_result` references and static `template_ref` ids.
+1. **Convergence metric**: Normalized [0,1] where 0 = fully converged. LLM-assessed saturation detection with structured scoring guidance per skill.
+2. **Improvement gate**: `threshold_only` for all skills (only absolute quality threshold matters). The `improvement_ratio` tracks progress but is not a hard gate by default. The kata bundle uses `improvement_gate: both`.
+3. **Per-group thresholds** calibrated by skill domain:
+   - Group A (Output Quality): threshold 0.15, improvement 0.10, max 3 iterations
+   - Group B (Analysis/Diagnosis): threshold 0.25, improvement 0.05, max 3 iterations (looser — can't improve past evidence)
+   - Group C (Design/Architecture): threshold 0.15, improvement 0.10, max **5** iterations
+   - Group D (Structured Process): threshold 0.05, improvement 0.05, max 3 iterations (tight — checklist-complete)
+   - Group E (Meta-Management): threshold 0.15, improvement 0.10, max 3 iterations
+   - Group F (Kata & Coaching): threshold 0.15, improvement 0.10, max 3 iterations (CNS-grounded in future)
+4. **Dual energy budgets** replace the old single gas model:
+   - `gas` (compute cycles): cap 100,000, cost 100 per loop pass — prevents infinite PDCA iteration
+   - `rjoule` (inference energy): cap varies by skill (10K–120K rJ), 1 rJ = 250,000 gas cycles — caps LLM inference spend
+5. **Timeout enforcement**: Per-step `timeout_seconds` enforced via `tokio::time::timeout` with retry per `error_handling.on_timeout`.
+6. **Conditional steps**: Steps may declare `condition` expressions (`"var"`, `"NOT var"`, `"a AND b"`, `"a OR b"`) evaluated against context.
+7. **Compound convergence**: Bundle-delegated skills aggregate via `all_converged`, `min`, or `weighted_avg` methods.
 
-Practical effect: current chains are structurally PDCA-convergent, but threshold and gas policy are still subject to explicit calibration decisions.
+Practical effect: chains are structurally PDCA-convergent with per-domain calibration. Gas prevents infinite loops; rJoule prevents inference overspend. Both are hard limits.
 
 ### 1.6 Fusion — Multi-Model Deliberation in Compositions
 

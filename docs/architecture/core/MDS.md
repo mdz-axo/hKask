@@ -488,3 +488,113 @@ bash docs/ci/check-links.sh    # Zero broken cross-references
 ---
 
 *MDS v0.28.0 — five categories, five tools, one predicate. Includes documentation structure (absorbed from MDS_SCAFFOLD.md).*
+
+---
+
+## AgentService Specification
+
+> **Incorporated from:** docs/specifications/specs/MDS-agent-service.md
+
+**Purpose:** Specification for the condensed service layer architecture. `AgentService` is the canonical service layer that owns all shared infrastructure. Both CLI and API surfaces compose an `AgentService` instance and add only presentation-specific state.
+
+### Bounded Context
+
+`AgentService` is the **single source of truth** for all shared infrastructure in hKask. **Boundary:** In-process only. MCP servers do NOT depend on `AgentService` (P1 Prohibition — out-of-process isolation).
+
+All 28 fields are **private** and exposed through **individual named accessor methods** — one method per field or small domain-coherent pair. This replaces the earlier 8-group-method tuple pattern.
+
+| Method | Returns | Category |
+|--------|---------|----------|
+| `config()` | `&ServiceConfig` | Configuration |
+| `wallet()` | `Option<&Arc<WalletService>>` | Payments |
+| `wallet_store()` | `Option<&Arc<WalletStore>>` | Payments |
+| `memory()` | `(&Arc<dyn EpisodicStoragePort>, &Arc<dyn SemanticStoragePort>)` | Memory |
+| `registry()` | `&Arc<tokio::sync::Mutex<SqliteRegistry>>` | Storage |
+| `goal_repo()` | `&Arc<SqliteGoalRepository>` | Storage |
+| `cns_runtime()` | `&Arc<RwLock<CnsRuntime>>` | CNS |
+| `cybernetics_loop()` | `&Arc<RwLock<CyberneticsLoop>>` | CNS |
+| `loop_system()` | `&Arc<LoopSystem>` | CNS |
+| `event_sink()` | `&Arc<dyn NuEventSink>` | CNS |
+| `seam_watcher()` | `&Arc<RwLock<Option<SeamWatcher>>>` | CNS |
+| `capability_checker()` | `&Arc<CapabilityChecker>` | Governance |
+| `mcp_dispatcher()` | `&Arc<McpDispatcher>` | Governance |
+| `escalation_queue()` | `&Arc<EscalationQueue>` | Governance |
+| `inference_port()` | `Option<Arc<dyn InferencePort>>` | Coordination |
+| `mcp_runtime()` | `&Arc<McpRuntime>` | Coordination |
+| `active_pods()` | `&Arc<ActivePods>` | Coordination |
+| `identity()` | `(&WebID, &Arc<hkask_agents::A2ARuntime>)` | Identity |
+| `sovereignty()` | `SovereigntyService` | Sovereignty |
+| `curation_inbox_tx()` | `&Option<mpsc::UnboundedSender<CurationInput>>` | Internal |
+| `sovereignty_boundary_store()` | `&SovereigntyBoundaryStore` | Sovereignty |
+| `spec_store()` | `&SqliteSpecStore` | Surface-specific |
+| `agent_registry_store()` | `&hkask_storage::AgentRegistryStore` | Surface-specific |
+| `user_store()` | `&Arc<std::sync::Mutex<UserStore>>` | Surface-specific |
+| `daemon_handler()` | `&Arc<ServiceDaemonHandler>` | Daemon |
+| `matrix_transport()` | `Option<&Arc<tokio::sync::Mutex<MatrixTransport>>>` | Communication |
+
+**Design rationale:** Individual accessors replaced the 8-group-method tuple pattern because callers typically need one field, not an entire domain group, and individual methods are self-documenting.
+
+### Service Layer Contracts
+
+| Subcrate | Domain | Contract Prefix | Count | Status |
+|----------|--------|----------------|-------|--------|
+| `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, contacts, curator, experience, goals, pods, scheduler, skills, spec | `P{N}-svc-{domain}-*` | 102 | Realigned |
+| `hkask-services-backup` | GitCAS operational backup | `P{N}-svc-backup-*` | 39 | Realigned |
+| `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | Realigned |
+| `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | Realigned |
+| `hkask-services-corpus` | Content corpus: discovery + embed | `P{N}-svc-corpus-*` | 30 | Realigned |
+| `hkask-services-inference-svc` | Inference orchestration | `P{N}-svc-inference-*` | 7 | Realigned |
+| `hkask-services-kanban` | Kanban task board coordination | `KAN-SVC-*` (legacy) | 34 | Migration pending |
+| `hkask-services-kata` | Toyota Kata engine | `P{N}-svc-kata-*` | 27 | Realigned |
+
+### Crate-to-Domain Mappings
+
+| Crate | MDS Category | Key Entities |
+|-------|-------------|-------------|
+| `hkask-services` | Domain, Composition | `AgentService`, `ServiceConfig`, `PerAgentMemory` |
+| `hkask-services-backup` | Lifecycle | GitCAS archive, export/import pipelines |
+| `hkask-services-runtime` | Lifecycle | `ClassifyService`, `DaemonService` |
+| `hkask-services-context` | Lifecycle | `ContextService`, contract monitoring |
+| `hkask-services-corpus` | Domain | `CorpusService`, embedding pipelines |
+| `hkask-services-inference-svc` | Composition | Inference orchestration, provider routing |
+| `hkask-services-kanban` | Domain | `Board`, `Column`, `Task`, Kanban coordination |
+| `hkask-services-kata` | Domain, Curation | `KataEngine`, `KataManifest`, coaching loops |
+
+### Dependency Direction
+
+```mermaid
+graph TD
+    CLI["hkask-cli"]
+    API["hkask-api"]
+    SVC["hkask-services (AgentService)"]
+    CLI --> SVC
+    API --> SVC
+    SVC --> AGENTS[hkask-agents]
+    SVC --> CNS[hkask-cns]
+    SVC --> MEM[hkask-memory]
+    SVC --> TEMPLATES[hkask-templates]
+    SVC --> TYPES[hkask-types]
+    SVC --> STORAGE[hkask-storage]
+```
+
+Domain crates **never** depend on `hkask-services`. MCP servers **never** depend on `hkask-services` for orchestration (P1 Prohibition).
+
+### OCAP Boundaries
+
+| Boundary | Enforcement | Principle |
+|----------|-------------|-----------|
+| Tool invocation | `CapabilityChecker` gating via `governed_tool` | P4 |
+| Inference calls | `governed_inference` membrane with energy budget checks | P4 |
+| MCP server isolation | Out-of-process; no `AgentService` dependency | P1 |
+| Capability attenuation | Max depth limit, TTL expiry on tokens | P4 |
+
+### Bootstrap Sequence
+
+1. `AgentService::build(config)` assembles all shared infrastructure
+2. Per-agent memory created via `build_per_agent_memory(db)`
+3. CLI surface wraps with `ReplState` (= `AgentService` + REPL fields)
+4. API surface wraps with `ApiState` (= `Arc<AgentService>` + HTTP fields)
+
+### Interface Equivalence
+
+Both CLI and API surfaces use identical `AgentService` accessors. The only surface-specific methods are `daemon_handler()` (CLI daemon mode only) and `matrix_transport()` (REPL only). All remaining 26 accessors are equivalent across surfaces.

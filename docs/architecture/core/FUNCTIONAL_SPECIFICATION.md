@@ -180,6 +180,90 @@ The service layer was extracted from duplicated surface logic using the strangle
 
 ---
 
+## CNS Domain Specification
+
+> **Incorporated from:** docs/architecture/core/CNS-DOMAIN-SPECIFICATION.md
+
+**Purpose:** A formal specification of the 8 cybernetic sub-domains implementing hKask's autonomous nervous system in `hkask-cns`. Each sub-domain maps to an authoritative principle from [`PRINCIPLES.md`](PRINCIPLES.md). All 197 contracts carry `expect:` fields encoding user functional expectations.
+
+### Sub-Domain Architecture
+
+The CNS is structured into 8 sub-domains, each implementing a specific cybernetic function. Each sub-domain is implemented in a single Rust file (or a tight cluster of files), following deep-module discipline (Ousterhout). The public surface is ≤ 7 items per module; internal plumbing is `pub(crate)`.
+
+```
+hkask-cns/src/
+├── algedonic.rs                  ← 4 contracts   — P9: Alert creation, escalation, severity classification
+├── runtime.rs                    ← 24 contracts  — P9: Variety monitoring, outcome tracking, energy budgets
+├── governed_tool.rs              ← 3 contracts   — P4: Tool membrane, OCAP gate, consumption channels
+├── governed_inference.rs         ← 2 contracts   — P4: Inference membrane, agent attribution
+├── circuit_breaker.rs            ← 3 contracts   — P4: Failure gating, state transitions
+├── api_metering.rs               ← 8 contracts   — P9: Rate limiting, span creation, alert classification
+├── energy.rs                     ← 16 contracts  — P9/P8: Gas budget types, delta, reserve, settle, repl
+├── dynamic_gas_table.rs          ← P9: Per-server gas cost calibration from CNS settled events
+├── gas_report.rs                 ← P9: Aggregate gas queries across agents and time windows
+├── calibrated_energy_estimator.rs ← P9: Self-regulating per-server gas cost estimator
+├── composite_energy_estimator.rs ← P9: Routes inference to token estimator, others to table
+├── wallet_budget.rs              ← P9/P4: Wallet-backed energy budget (rJoule debits)
+├── wallet_energy_estimator.rs    ← P9: Wallet-aware composite estimator with gas→rJoule rate
+└── wallet_gas_calibrator.rs      ← P9: Runtime calibration of wallet gas→rJoule conversion
+```
+
+### Sub-Domain Contract Summary
+
+| Sub-Domain | Principle | Core Module | Contracts | Key Function |
+|------------|-----------|-------------|-----------|--------------|
+| 1. Algedonic | P9 | `algedonic.rs` | 4 | Alert creation, escalation, severity classification |
+| 2. Runtime | P9 | `runtime.rs` | 24 | Variety monitoring, outcome tracking, energy budget registration |
+| 3. Governed Tool | P4 | `governed_tool.rs` | 3 | Tool membrane, OCAP gate, consumption channels |
+| 4. Governed Inference | P4 | `governed_inference.rs` | 2 | Inference membrane, agent attribution |
+| 5. Circuit Breaker | P4 | `circuit_breaker.rs` | 3 | Failure gating, state transitions |
+| 6. API Metering | P9 | `api_metering.rs` | 8 | Rate limiting, span creation, alert classification |
+| 7. Gas Cost Calibration | P9 | `dynamic_gas_table.rs` + `gas_report.rs` + `calibrated_energy_estimator.rs` | 4 | Per-server gas cost calibration via EMA |
+| 8. Wallet-Backed Energy | P9 + P4 | `wallet_budget.rs` + `wallet_energy_estimator.rs` + `wallet_gas_calibrator.rs` | 3 | Wallet-backed energy budget with gas→rJoule conversion |
+
+**Codebase Reference:** `crates/hkask-cns/src/` — 152 `pub fn`, 197 REQ-tagged contracts (129.6% coverage), 115 `expect:` fields encoding user expectations.
+
+### CNS Spans
+
+| Span | Sub-Domain | Trigger |
+|------|-----------|---------|
+| `cns.gas.calibrated` | Gas Cost Calibration | `CalibratedEnergyEstimator` adjusts per-server costs |
+| `cns.wallet.conversion.calibrated` | Wallet-Backed Energy | `WalletGasCalibrator` adjusts gas→rJoule rate |
+
+### Memory Verb Contracts
+
+> **Incorporated from:** `docs/architecture/core/CNS_MEMORY_VERB_CONTRACTS.md`
+
+13 CNS `MemoryEncode` NuEvents emitted by autonomous memory operations:
+
+| # | Verb | Source | Trigger |
+|---|------|--------|---------|
+| 1 | `episodic_stored` | `episodic.rs` | `store()` succeeds |
+| 2 | `semantic_stored` | `semantic.rs` | `store()` succeeds |
+| 3 | `consolidated` | `semantic.rs` | `store_consolidated()` succeeds |
+| 4 | `episodic_consolidated` | `episodic_loop.rs` | Consolidation bridge, outcome > 0 |
+| 5 | `episodic_consolidation_failed` | `episodic_loop.rs` | Bridge returns Err |
+| 6 | `episodic_budget_exceeded_no_bridge` | `episodic_loop.rs` | Budget exceeded, no bridge |
+| 7 | `episodic_calibrate` | `episodic_loop.rs` | Non-budget calibration action |
+| 8 | `episodic_regulate` | `episodic_loop.rs` | Unhandled regulatory action |
+| 9 | `confidence_decayed` | `episodic.rs` | Wozniak-Gorzelanczyk forgetting curve R(t)=exp(-t/S) applied at recall |
+| 10 | `semantic_condensed` | `semantic_loop.rs` | Old triples condensed |
+| 11 | `semantic_budget_enforced` | `semantic_loop.rs` | Low-confidence review deletes |
+| 12 | `consolidation_completed` | `consolidation.rs` | Bridge finishes |
+| 13 | `consolidation_service_completed` | `consolidation_service.rs` | Service finishes all 3 phases |
+
+The Episodic Loop emits `cns.memory.life` carrying memory life S in days (Wozniak-Gorzelanczyk, 1995). Default 180 days. Configurable via `HKASK_MEMORY_LIFE_DAYS` env var or `ServiceConfig.memory_life_days`.
+
+### Verification
+
+```bash
+cargo check -p hkask-cns
+cargo test -p hkask-cns
+kask cns health
+```
+
+---
+
 ## 2. Functional Requirements by Domain
 
 ### 2.1 Energy Budgeting (`energy`)

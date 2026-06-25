@@ -1,7 +1,7 @@
 ---
 title: "hKask Deployment & Multi-User Plan"
 audience: [architects, developers]
-last_updated: 2026-06-22
+last_updated: 2026-06-24
 version: "0.31.0"
 status: "Draft — Aligned with FUNCTIONAL_SPECIFICATION.md Domain 26"
 domain: "Cross-cutting"
@@ -16,7 +16,7 @@ reviewed_via: [pragmatic-laziness, essentialist, grill-me, coding-guidelines]
 
 **Decision:** There is no client — no binary, no install, no SSH setup. Users visit a website, sign in with GitHub or Google, and get a terminal. The "client" is a browser tab running xterm.js connected to the server via WebSocket. The server spawns `kask repl` on a PTY and pipes I/O. That is the entire product surface.
 
-**Status:** Partially implemented. Phases 1–4 code exists (routes, types, CLI scaffolding). Awaiting Phase 5 integration (CNS instrumentation, CLI commands, end-to-end verification). See §13 for per-phase status.
+**Status:** Partially implemented. Phases 1–4 code exists (routes, types, CLI scaffolding). Awaiting Phase 5 integration (CNS instrumentation, CLI commands, end-to-end verification). See §15 for per-phase status.
 
 ---
 
@@ -203,6 +203,135 @@ cd ~/.config/hkask/sidecar && docker compose up -d
 ### 3.2 User Onboarding
 
 No install. No SSH keys. User visits `https://my-server.hkask.example`, clicks "Sign in with GitHub," and gets a terminal. First sign-in provisions their WebID, default replicant, and wallet.
+
+### 3.3 Systemd Unit File
+
+> **Incorporated from:** `docs/guides/DEPLOYMENT.md`
+
+```ini
+[Unit]
+Description=hKask Server
+After=network.target docker.service
+
+[Service]
+Type=simple
+User=hkask
+Group=hkask
+ExecStart=/usr/local/bin/kask daemon --host 0.0.0.0 --port 8080
+Environment=DI_API_KEY=${DEEPINFRA_KEY}
+Environment=HKASK_DATABASE_URL=/var/lib/hkask/hkask.db
+Environment=RUST_LOG=hkask=info
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable: `sudo systemctl daemon-reload && sudo systemctl enable --now hkask`.
+
+### 3.4 Daemon & Socket Architecture
+
+> **Incorporated from:** `docs/guides/OPERATIONS_RUNBOOK.md`
+
+The `kask` daemon listens on `~/.config/hkask/daemon.sock` (Unix socket) and handles: agent authentication/session management, MCP server role assignment, OCAP capability verification, dual memory encoding (episodic + semantic). All CLI/API/MCP servers connect via this socket. `kask daemon start|stop|status` manages the lifecycle. Stale socket removal (`rm ~/.config/hkask/daemon.sock`) before restart resolves port-binding failures.
+
+### 3.5 Dockerfile Reference
+
+> **Incorporated from:** `docs/guides/DEPLOYMENT.md`
+
+```dockerfile
+FROM rust:1.91-slim AS builder
+WORKDIR /app
+COPY . .
+RUN cargo build --release --bin kask
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /app/target/release/kask /usr/local/bin/
+RUN useradd -m hkask
+USER hkask
+ENV HKASK_DATABASE_URL=/home/hkask/hkask.db
+EXPOSE 8080
+CMD ["kask", "daemon", "--host", "0.0.0.0", "--port", "8080"]
+```
+
+### 3.6 Kubernetes StatefulSet Model
+
+> **Incorporated from:** `docs/guides/kubernetes-primer.md`
+
+hKask uses **StatefulSets** (not Deployments) because each pod needs stable identity, its own persistent volume, and ordered startup. The pod contains 3 containers: `kask` binary (:3000), `litestream` sidecar (WAL replication to S3), `conduit` Matrix homeserver (:8008). All three share a PVC at `/data/`.
+
+**Key k8s resources per pod:**
+
+| Resource | Purpose |
+|----------|---------|
+| **StatefulSet** | Stable pod identity (`kask-0`), ordered startup |
+| **volumeClaimTemplate** | Auto-creates PVC per pod (10Gi, `hcloud-volumes` on Hetzner) |
+| **Init containers** | `litestream-restore` (restore DB from S3 if absent), `kask-migrate` (idempotent schema migrations) |
+| **NetworkPolicy** | Ingress only from ingress controller on :3000; egress to internet (:443/:80) |
+| **HPA** | CPU-based scaling 1–3 replicas (target 70% utilization, 5-min stabilization) |
+| **ConfigMap** | `litestream.yml` + `conduit.toml` |
+| **Secret** | Object storage credentials, keystore passphrase |
+
+**PVC survival:** Deleting the pod preserves the PVC. Deleting the StatefulSet preserves PVCs unless explicitly deleted. "Deactivate" (= scale to zero) never loses data.
+
+**Pod lifecycle commands:**
+```bash
+kask pod create <name>        # creates pod DB locally
+kask pod export-k8s <id>      # generates 6 YAML manifests
+kubectl apply -f k8s-manifests/
+kask pod activate <id>        # kubectl apply (best-effort)
+kask pod deactivate <id>      # scale statefulset to 0
+kubectl delete namespace hkask-pod-<id>  # destroy everything
+```
+
+**Useful kubectl commands:**
+```bash
+kubectl get namespaces -l app=hkask
+kubectl get pods -n hkask-pod-alice -w
+kubectl logs -n hkask-pod-alice statefulset/kask -c kask
+kubectl exec -n hkask-pod-alice statefulset/kask -c litestream -- litestream generations /data/kask.db
+kubectl describe pod -n hkask-pod-alice kask-0
+kubectl get hpa -n hkask-pod-alice
+kubectl get events -n hkask-pod-alice --sort-by='.lastTimestamp'
+kubectl port-forward -n hkask-pod-alice statefulset/kask 3000:3000
+```
+
+### 3.7 Cloud Gateway — Remote IDE Access (mTLS)
+
+> **Incorporated from:** `docs/guides/admin-setup-guide.md`
+
+The `hkask-mcp-cloud-gateway` provides secure remote access to the daemon for IDE clients outside the cluster. Uses mutual TLS (mTLS) for transport identity + Ed25519-signed DelegationTokens for per-request authorization.
+
+```
+IDE Client ──[mTLS 1.3]──▶ Cloud Gateway
+  ├── Client cert CN = replicant name
+  └── DelegationToken per request
+                             │
+                   ┌─────────┼─────────┐
+                   │ Gate 1  │ Gate 2  │ Gate 3
+                   │ CN→WebID│ Tool    │ Ed25519
+                   │ match?  │ match?  │ verify?
+                   └─────────┼─────────┘
+                             ▼
+                      DaemonHandler
+```
+
+**Security properties:** No API keys (identity is cryptographic). No ambient authority (every tool call requires scoped, expiring token). Token theft insufficient without matching client certificate.
+
+**Provisioning (summary):**
+```bash
+# Generate CA + server + client certs (ED25519)
+# Deploy as K8s service with TLS secrets
+kubectl create secret tls hkask-gateway-tls --cert=server.crt --key=server.key
+kask pod export-k8s gateway && kubectl apply -f k8s-manifests/
+
+# Issue scoped tokens
+kask token issue --replicant alice \
+  --capabilities curator:health,curator:cns \
+  --ttl 168h
+```
 
 ---
 
@@ -394,13 +523,67 @@ kask replicant delete <name>
     Manage replicants.
 ```
 
-**Note:** `kask backup` commands (snapshot, restore, list, prune, verify, config) remain for operational backup — see §4.6. The `download` operation is API-only (`GET /api/v1/export/download`) since the CLI runs on the server and the file is local. Scheduled auto-export is deferred to Phase 6 (§12).
+**Note:** `kask backup` commands (snapshot, restore, list, prune, verify, config) remain for operational backup — see §4.6. The `download` operation is API-only (`GET /api/v1/export/download`) since the CLI runs on the server and the file is local. Scheduled auto-export is deferred to Phase 6 (§15).
 
 ---
 
-## 7. Type Summary
+## 7. Operational Health Checks
 
-### 7.1 New Types
+> **Incorporated from:** `docs/guides/DEPLOYMENT.md`, `docs/guides/OPERATIONS_RUNBOOK.md`
+
+### 7.1 API Health Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/cns/health` | GET | CNS health status |
+| `/api/sovereignty/status` | GET | User sovereignty status |
+| `/api/templates` | GET | Template registry status |
+
+**Expected CNS health response:**
+```json
+{"overall_deficit": 0, "critical_count": 0, "warning_count": 0, "healthy": true}
+```
+
+### 7.2 CLI Health Commands
+
+```bash
+kask cns health              # CNS health
+kask sovereignty status      # Sovereignty status
+kask daemon status           # Daemon running? (daemon.sock present, PID file exists)
+```
+
+**Build-level health checks:**
+```bash
+cargo check --workspace
+cargo test --workspace
+cargo clippy --workspace -- -D warnings
+bash docs/ci/check-links.sh
+kask sovereignty verify
+```
+
+### 7.3 Metrics Thresholds
+
+| Metric | Alert Threshold | Action |
+|--------|-----------------|--------|
+| CNS variety deficit | >100 | Investigate tool usage patterns |
+| Algedonic alerts | >5/hour | Escalate to on-call |
+| API latency p99 | >500ms | Scale horizontally (HPA) |
+| Database size | >10GB | Archive old data |
+
+**Monitoring via CNS (no visual dashboards):**
+```bash
+journalctl -u hkask -p err --no-pager          # View recent errors
+journalctl -u hkask | grep "ALGEDONIC ALERT"   # CNS alerts
+journalctl -u hkask | grep "variety"            # Variety counters
+```
+
+All observability is programmatic — query CNS spans via `hkask-cns` crate APIs. Algedonic alerts escalate to Curator/human when variety deficit >100.
+
+---
+
+## 8. Type Summary
+
+### 8.1 New Types
 
 | Type | Crate | Fields / Variants |
 |------|-------|-------------------|
@@ -410,7 +593,7 @@ kask replicant delete <name>
 | `BackupArchive` | `hkask-storage` | Wraps `Database` (SQLCipher) — methods: `create(user_passphrase, triples)`, `open(user_passphrase)`, `metadata()`, `restore_into()` |
 | `MigrationReceipt` | `hkask-storage` | `triple_count: u64` |
 
-### 7.2 CNS Span Additions
+### 8.2 CNS Span Additions
 
 **Status: Implemented.** The following spans are added to `CnsSpan` and wired into route handlers:
 
@@ -422,7 +605,7 @@ CnsSpan::BackupAutoExport, // { webid, triple_count, bytes, duration } — defer
 CnsSpan::BackupUpload,     // { triple_count, bytes, duration } — emitted on export upload
 ```
 
-### 7.3 API Endpoints (New)
+### 8.3 API Endpoints (New)
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -440,7 +623,7 @@ CnsSpan::BackupUpload,     // { triple_count, bytes, duration } — emitted on e
 
 ---
 
-## 8. Existing Infrastructure Reused
+## 9. Existing Infrastructure Reused
 
 | Infrastructure | Used For | Crate |
 |---------------|----------|-------|
@@ -460,7 +643,7 @@ CnsSpan::BackupUpload,     // { triple_count, bytes, duration } — emitted on e
 
 ---
 
-## 9. What Is NOT Being Built
+## 10. What Is NOT Being Built
 
 Explicit exclusions — considered and rejected:
 
@@ -478,7 +661,47 @@ Explicit exclusions — considered and rejected:
 
 ---
 
-## 10. Success Criteria
+## 11. QA Pipeline
+
+> **Incorporated from:** `docs/guides/OPERATIONS_RUNBOOK.md`
+
+### 11.1 Fuzz Testing
+
+```bash
+# Property-based fuzzing (every CI push)
+cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz \
+           -p hkask-wallet-fuzz -p hkask-storage-fuzz -p hkask-templates-fuzz \
+           -p hkask-memory-fuzz -p hkask-services-core-fuzz -p hkask-improv-fuzz
+
+# Coverage-guided fuzzing (nightly)
+cargo +nightly bolero test -p hkask-types-fuzz fuzz_cns_span_parse_never_panics -T 60s -e libfuzzer
+
+# Mutation testing (measures test suite quality)
+cargo mutants -p hkask-types --timeout 120
+```
+
+### 11.2 Triage & Repair
+
+```bash
+# Triage bolero failures with LLM classifier
+export DEEPINFRA_API_KEY="your-key"
+cargo test -p hkask-types-fuzz 2>&1 | kask qa triage
+
+# Suggest fuzz targets from surviving mutants
+cargo mutants -p hkask-types --timeout 120 2>&1 | grep "Uncaught" | kask qa suggest-fuzz
+```
+
+| Command | Output | Action |
+|---------|--------|--------|
+| `kask qa triage` | "No bolero failures detected" | System healthy |
+| `kask qa triage` | "HIGH confidence: ..." | Check for auto-repair PR |
+| `kask qa triage` | "LOW confidence: ..." | Open investigation issue |
+| `kask qa suggest-fuzz` | "→ [suggestion]" | Consider adding suggested fuzz target |
+| `cargo mutants` | "Uncaught mutants in ..." | Test gap — add test or fuzz target |
+
+---
+
+## 12. Success Criteria
 
 ```
 1. [Deploy]  kask init
@@ -513,7 +736,7 @@ Explicit exclusions — considered and rejected:
 
 ---
 
-## 11. Open Questions
+## 13. Open Questions
 
 | # | Question | Resolution |
 |---|----------|------------|
@@ -523,7 +746,56 @@ Explicit exclusions — considered and rejected:
 
 ---
 
-## 12. Implementation Sequence
+## 14. Troubleshooting
+
+> **Incorporated from:** `docs/guides/DEPLOYMENT.md`, `docs/guides/OPERATIONS_RUNBOOK.md`, `docs/guides/admin-install.md`
+
+### 14.1 Common Issues
+
+| Issue | Cause | Resolution |
+|-------|-------|------------|
+| `Provider X is not available` | API key not set | Set `DI_API_KEY` or `OPENROUTER_API_KEY` |
+| `Inference error: error sending request` | Provider unreachable | Verify provider URL and network connectivity |
+| `Database locked` | Concurrent access | Ensure single writer; use WAL mode |
+| `Template not found` | Registry empty | Register templates: `kask template register` |
+| `Capability denied` | Missing/invalid token | Grant capability: `kask bot grant` |
+| `Chat response slow` | High inference latency | Check provider load; reduce `max_tokens` |
+| `WebSocket disconnected` | Session expired | Re-authenticate via OAuth sign-in |
+| Daemon won't start | Stale socket | `rm ~/.config/hkask/daemon.sock` then restart |
+
+### 14.2 Deployment-Specific
+
+**Connection refused :443:** Bare-metal → check Caddy (`docker ps \| grep caddy`), DNS (`dig`), firewall (ports 80/443). K8s → check ingress (`kubectl -n hkask get ingress`), cert-manager (`kubectl get certificaterequests -A`).
+
+**OAuth callback failed:** Verify callback URL matches GitHub OAuth App exactly: `https://hkask.example.com/api/v1/auth/callback?provider=github`. Check `HKASK_DOMAIN` (bare-metal) or `configmap.yaml` domain value (K8s).
+
+**Database errors:** Bare-metal → check `/var/lib/hkask/` exists and is writable. K8s → check PVC bound (`kubectl -n hkask get pvc`), check pod logs for Litestream restore errors.
+
+**Pod won't start (k8s):**
+```bash
+kubectl -n hkask describe pod -l app=hkask
+kubectl -n hkask logs -l app=hkask --tail=50
+```
+Common causes: image pull failure (check ghcr.io access), PVC not bound, secret/configmap missing.
+
+**Sidecar health check fails (bare-metal):** `cd ~/.config/hkask/sidecar && docker compose logs`. Conduit may take 15–30s to initialize DB on first start.
+
+### 14.3 Debug Mode
+
+```bash
+export RUST_LOG=debug
+kask cns health --verbose
+
+# Test inference provider connectivity
+curl -s https://api.deepinfra.com/v1/openai/chat/completions \
+  -H "Authorization: Bearer $DI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "meta-llama/Llama-3.3-70B-Instruct", "messages": [{"role": "user", "content": "test"}]}'
+```
+
+---
+
+## 15. Implementation Sequence
 
 | Phase | Tasks | Depends On | Status |
 |-------|-------|-----------|--------|
@@ -536,19 +808,40 @@ Explicit exclusions — considered and rejected:
 
 ---
 
-## 13. Related Research and Past Plans
+## 16. Related Research and Past Plans
 
 > **Incorporated from:** `plans/hetzner-blocking-issues.md`, `plans/hetzner-k3s-implementation-plan.md`, `plans/rjoule-cost-tracking-implementation.md`, `research/cloud-deployment-research-report.md`, `research/cloud-implementation-plans.md`
 
-### 14.1 Hetzner k3s Deployment
+### 16.1 Hetzner k3s Deployment
+
+> **Incorporated from:** `docs/guides/kubernetes-primer.md`
 
 Hetzner Cloud (CX22/CX32) + k3s cluster topology (3 master + 3 worker nodes) was evaluated as the production deployment target. Cilium CNI, Longhorn storage, cert-manager TLS. Blocking issues (boot volume encryption, firewalls, S3-compatible backup, PostgreSQL HA) confirmed available. Full implementation plan archived in `docs/archive/guides-2026-06-22/`.
 
-### 14.2 Cloud Provider Comparison
+**Provisioning flow via `hetzner-k3s`:**
+```bash
+hetzner-k3s create \
+  --name hkask-prod \
+  --location nbg1 \
+  --masters 3 --master-type cx33 \
+  --workers 3 --worker-type cx43
+```
+
+This single command provisions 6 servers and installs: private network (10.0.0.0/16), K3s on each node, Hetzner Cloud Controller Manager (enables Load Balancer creation), Hetzner CSI driver (NVMe block volumes, `hcloud-volumes` storage class), and Cluster Autoscaler. Total time: 2–3 minutes. Alternative: [Cloudfleet](https://cloudfleet.ai/) managed control plane (free tier up to 24 vCPUs).
+
+**Key Hetzner specifics:**
+- **CSI:** NVMe SSD volumes pinned to server location — can't move between Falkenstein and Nuremberg without snapshot/restore.
+- **CCM:** Provisions cloud Load Balancers (EUR 5.89/month) when K8s Services of type LoadBalancer are created.
+- **Object Storage:** S3-compatible, path-style addressing (`https://nbg1.your-objectstorage.com/bucket/object`), EUR 5/TB/month, 1TB free egress.
+- **Network:** 20TB free egress per server/month — significant cost advantage for inference API calls.
+
+**Decision guides:** Managed K8s (GKE/EKS/AKS) reduces operational burden at higher cost. Self-managed k3s on any VPS (DigitalOcean, Linode, Vultr) is viable if `hcloud-volumes` CSI driver is replaced with local-path or Longhorn. Minimum requirements: RWX or RWO persistent volumes, LoadBalancer Services, 2+ vCPUs, 4 GB RAM. Not viable: AWS Lambda, Cloud Run (no persistent volumes, no StatefulSet support).
+
+### 16.2 Cloud Provider Comparison
 
 Multi-provider evaluation: Hetzner, Fly.io, Railway, Render, DigitalOcean, AWS, GCP, Azure. Hetzner selected for cost-to-capability ratio. Key constraint: single binary deployment with SQLCipher as primary store.
 
-### 14.3 rJoule Cost Tracking
+### 16.3 rJoule Cost Tracking
 
 Per-provider pricing tracking, energy consumption estimation, and cumulative cost accounting design. Deferred until multi-provider inference routing is production-ready.
 

@@ -413,13 +413,16 @@ fn all_windows_render_at_multiple_sizes() {
 fn kanban_sections_cycle() {
     let mut w = KanbanWindow::new(window_id(), bridge());
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-    // 4 presses = back to start
+    let right = KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE);
+    let left = KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE);
+    // 5 columns: cycle right through all then back left
     render_smoke(&w, 80, 24);
-    assert!(w.handle_key(tab));
-    assert!(w.handle_key(tab));
-    assert!(w.handle_key(tab));
-    assert!(w.handle_key(tab));
+    for _ in 0..4 {
+        assert!(w.handle_key(right));
+    }
+    for _ in 0..4 {
+        assert!(w.handle_key(left));
+    }
     render_smoke(&w, 80, 24);
 }
 
@@ -611,8 +614,8 @@ fn kanban_snapshot_shows_board() {
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
     assert!(
-        text.contains("Board") || text.contains("Kanban"),
-        "Kanban should show board"
+        text.contains("Backlog") || text.contains("Kanban"),
+        "Kanban should show columns"
     );
 }
 
@@ -652,20 +655,17 @@ fn mcp_tab_kanban_cycles_sections_and_chat() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
     let mut w = KanbanWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
+    let tab_key = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
 
     assert_eq!(w.active_tab(), McpTab::Data);
     render_smoke(&w, 80, 24);
 
-    // Tab x4: Board -> Backlog -> InProgress -> Done -> Chat
-    for _ in 0..4 {
-        assert!(w.handle_key(tab));
-    }
+    // Tab toggles Data → Chat → Data
+    assert!(w.handle_key(tab_key));
     assert_eq!(w.active_tab(), McpTab::Chat);
     render_smoke(&w, 80, 24);
 
-    // Tab from Chat -> back to Data
-    assert!(w.handle_key(tab));
+    assert!(w.handle_key(tab_key));
     assert_eq!(w.active_tab(), McpTab::Data);
 }
 

@@ -94,6 +94,7 @@ pub fn validate_dcf_config(config: &DcfConfig) -> Result<(), String> {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct CompanyFundamentals {
     pub ttm_revenue: f64,
     pub ttm_fcf: f64,
@@ -105,6 +106,7 @@ pub struct CompanyFundamentals {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ProjectedPeriod {
     pub period: usize,
     pub year: f64,
@@ -116,6 +118,7 @@ pub struct ProjectedPeriod {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct DcfResult {
     pub config: DcfConfig,
     pub periods: Vec<ProjectedPeriod>,
