@@ -1,0 +1,448 @@
+//! Simplified 11-line-item financial model.
+//!
+//! Projects income statement, balance sheet, and cash flow items
+//! to derive free cash flow for DCF valuation. All key drivers
+//! are calibrated from historical company performance.
+//!
+//!   Item                          Source (FMP/EODHD field)
+//!   ──────────────────────────    ────────────────────────
+//!   1. Revenue                    income_statement.revenue
+//!   2. COGS                       income_statement.costOfRevenue
+//!   3. D&A                        income_statement.depreciationAndAmortization
+//!   4. Capex                      cash_flow_statement.capitalExpenditure
+//!   5. Assets                     balance_sheet.totalAssets
+//!   6. NWC (net of cash)         currentAssets - currentLiabilities - cash
+//!   7. Cash                       balance_sheet.cashAndCashEquivalents
+//!   8. Long-term debt             balance_sheet.longTermDebt
+//!   9. Owner's equity             balance_sheet.totalStockholdersEquity
+//!  10. Shares outstanding         key_metrics.weightedAverageShsOut or profile
+//!  11. Tax rate                   incomeTaxExpense / incomeBeforeTax
+
+use serde::Serialize;
+
+// ── Historical data snapshot ───────────────────────────────────────────────
+
+/// Historical financial data extracted from API responses.
+#[derive(Debug, Clone)]
+pub struct HistoricalSnapshot {
+    pub revenue: Vec<(String, f64)>,
+    pub cogs: Vec<(String, f64)>,
+    pub da: Vec<(String, f64)>,
+    pub capex: Vec<(String, f64)>,
+    pub total_assets: Vec<(String, f64)>,
+    pub current_assets: Vec<(String, f64)>,
+    pub current_liabilities: Vec<(String, f64)>,
+    pub cash: Vec<(String, f64)>,
+    pub long_term_debt: Vec<(String, f64)>,
+    pub equity: Vec<(String, f64)>,
+    pub shares_outstanding: f64,
+    pub tax_rate: f64,
+}
+
+impl HistoricalSnapshot {
+    /// Latest year's data.
+    pub fn latest_revenue(&self) -> f64 {
+        self.revenue.last().map(|(_, v)| *v).unwrap_or(0.0)
+    }
+    pub fn latest_cogs(&self) -> f64 {
+        self.cogs.last().map(|(_, v)| *v).unwrap_or(0.0)
+    }
+    pub fn latest_da(&self) -> f64 {
+        self.da.last().map(|(_, v)| *v).unwrap_or(0.0)
+    }
+    pub fn latest_capex(&self) -> f64 {
+        self.capex.last().map(|(_, v)| *v).unwrap_or(0.0)
+    }
+    pub fn latest_assets(&self) -> f64 {
+        self.total_assets.last().map(|(_, v)| *v).unwrap_or(0.0)
+    }
+    pub fn latest_cash(&self) -> f64 {
+        self.cash.last().map(|(_, v)| *v).unwrap_or(0.0)
+    }
+    pub fn latest_debt(&self) -> f64 {
+        self.long_term_debt.last().map(|(_, v)| *v).unwrap_or(0.0)
+    }
+    pub fn latest_equity(&self) -> f64 {
+        self.equity.last().map(|(_, v)| *v).unwrap_or(0.0)
+    }
+
+    /// Net working capital (net of cash): current_assets - current_liabilities - cash.
+    pub fn latest_nwc(&self) -> f64 {
+        let ca = self.current_assets.last().map(|(_, v)| *v).unwrap_or(0.0);
+        let cl = self
+            .current_liabilities
+            .last()
+            .map(|(_, v)| *v)
+            .unwrap_or(0.0);
+        let ch = self.latest_cash();
+        ca - cl - ch
+    }
+
+    /// Gross margin: (revenue - cogs) / revenue.
+    pub fn gross_margin(&self) -> f64 {
+        let rev = self.latest_revenue();
+        if rev <= 0.0 {
+            return 0.4;
+        }
+        (rev - self.latest_cogs()) / rev
+    }
+
+    /// D&A as percentage of revenue.
+    pub fn da_to_revenue(&self) -> f64 {
+        let rev = self.latest_revenue();
+        if rev <= 0.0 {
+            return 0.03;
+        }
+        self.latest_da() / rev
+    }
+
+    /// Capex as percentage of revenue.
+    pub fn capex_to_revenue(&self) -> f64 {
+        let rev = self.latest_revenue();
+        if rev <= 0.0 {
+            return 0.03;
+        }
+        self.latest_capex().abs() / rev
+    }
+
+    /// NWC as percentage of revenue.
+    pub fn nwc_to_revenue(&self) -> f64 {
+        let rev = self.latest_revenue();
+        if rev <= 0.0 {
+            return 0.10;
+        }
+        self.latest_nwc() / rev
+    }
+
+    /// Revenue CAGR from historical data.
+    pub fn revenue_cagr(&self) -> f64 {
+        if self.revenue.len() < 2 {
+            return 0.05;
+        }
+        let revs: Vec<f64> = self.revenue.iter().map(|(_, v)| *v).collect();
+        let growths: Vec<f64> = revs
+            .windows(2)
+            .filter_map(|w| {
+                if w[0] > 0.0 {
+                    Some((w[1] - w[0]) / w[0])
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if growths.is_empty() {
+            return 0.05;
+        }
+        let product: f64 = growths.iter().map(|g| 1.0 + g).product();
+        product.powf(1.0 / growths.len() as f64) - 1.0
+    }
+
+    /// Net debt: long_term_debt - cash.
+    pub fn net_debt(&self) -> f64 {
+        self.latest_debt() - self.latest_cash()
+    }
+}
+
+// ── Projected line item ────────────────────────────────────────────────────
+
+/// One period in the projected financial statements.
+#[derive(Debug, Clone, Serialize)]
+pub struct ProjectedLineItems {
+    pub period: usize,
+    pub year: f64,
+    pub revenue: f64,
+    pub cogs: f64,
+    pub gross_profit: f64,
+    pub da: f64,
+    pub ebit: f64,
+    pub tax: f64,
+    pub nopat: f64,
+    pub capex: f64,
+    pub change_in_nwc: f64,
+    pub free_cash_flow: f64,
+    pub discount_factor: f64,
+    pub present_value: f64,
+}
+
+/// The full projected model.
+#[derive(Debug, Clone)]
+pub struct ProjectedModel {
+    pub periods: Vec<ProjectedLineItems>,
+    pub terminal_value: f64,
+    pub terminal_pv: f64,
+    pub enterprise_value: f64,
+    pub net_debt: f64,
+    pub equity_value: f64,
+    pub intrinsic_per_share: f64,
+}
+
+/// Projection assumptions — overrideable by the user or calibrated from history.
+#[derive(Debug, Clone)]
+pub struct ProjectionAssumptions {
+    /// Revenue growth rate (annual).
+    pub revenue_growth: f64,
+    /// Gross margin: (revenue - cogs) / revenue.
+    pub gross_margin: f64,
+    /// D&A as % of revenue.
+    pub da_to_revenue: f64,
+    /// Capex as % of revenue.
+    pub capex_to_revenue: f64,
+    /// NWC as % of revenue.
+    pub nwc_to_revenue: f64,
+    /// Effective tax rate.
+    pub tax_rate: f64,
+    /// Discount rate (required return).
+    pub discount_rate: f64,
+    /// Terminal growth rate.
+    pub terminal_growth: f64,
+    /// Projection years.
+    pub total_years: u8,
+    /// Stage 1 years (growth phase).
+    pub stage1_years: u8,
+}
+
+impl Default for ProjectionAssumptions {
+    fn default() -> Self {
+        Self {
+            revenue_growth: 0.08,
+            gross_margin: 0.40,
+            da_to_revenue: 0.03,
+            capex_to_revenue: 0.03,
+            nwc_to_revenue: 0.10,
+            tax_rate: 0.21,
+            discount_rate: 0.10,
+            terminal_growth: 0.025,
+            total_years: 10,
+            stage1_years: 3,
+        }
+    }
+}
+
+impl ProjectionAssumptions {
+    /// Build from historical snapshot with optional overrides.
+    pub fn from_history(hist: &HistoricalSnapshot) -> Self {
+        Self {
+            revenue_growth: hist.revenue_cagr(),
+            gross_margin: hist.gross_margin(),
+            da_to_revenue: hist.da_to_revenue(),
+            capex_to_revenue: hist.capex_to_revenue(),
+            nwc_to_revenue: hist.nwc_to_revenue(),
+            tax_rate: hist.tax_rate,
+            ..Default::default()
+        }
+    }
+}
+
+// ── Projection engine ──────────────────────────────────────────────────────
+
+/// Project financial statements and compute free cash flow.
+pub fn project_model(
+    hist: &HistoricalSnapshot,
+    assumptions: &ProjectionAssumptions,
+    current_price: f64,
+) -> ProjectedModel {
+    let stage2_years = assumptions.total_years - assumptions.stage1_years;
+    let total_years = assumptions.total_years as usize;
+
+    // Stage 1 growth → midpoint between historical growth and terminal
+    let stage1_start = assumptions.revenue_growth;
+    let stage1_mid = (stage1_start + assumptions.terminal_growth) / 2.0;
+
+    let mut periods = Vec::with_capacity(total_years);
+    let mut revenue = hist.latest_revenue();
+    let mut prev_nwc = hist.latest_nwc();
+    let mut prev_revenue = revenue;
+
+    for p in 0..total_years {
+        let progress = if p < assumptions.stage1_years as usize {
+            let s1_p = p as f64 / (assumptions.stage1_years as f64 - 1.0).max(1.0);
+            stage1_start + (stage1_mid - stage1_start) * s1_p
+        } else {
+            let s2_p = (p - assumptions.stage1_years as usize) as f64
+                / (stage2_years as f64 - 1.0).max(1.0);
+            let stage1_end = stage1_start
+                + (stage1_mid - stage1_start)
+                    * ((assumptions.stage1_years - 1) as f64
+                        / (assumptions.stage1_years as f64 - 1.0).max(1.0));
+            stage1_end + (assumptions.terminal_growth - stage1_end) * s2_p
+        };
+
+        revenue = prev_revenue * (1.0 + progress);
+
+        let cogs = revenue * (1.0 - assumptions.gross_margin);
+        let gross_profit = revenue - cogs;
+        let da = revenue * assumptions.da_to_revenue;
+        let ebit = gross_profit - da; // simplified: no separate SG&A
+        let tax = ebit * assumptions.tax_rate;
+        let nopat = ebit - tax;
+        let capex = revenue * assumptions.capex_to_revenue;
+        let nwc = revenue * assumptions.nwc_to_revenue;
+        let change_in_nwc = nwc - prev_nwc;
+        let fcf = nopat + da - capex - change_in_nwc;
+
+        let df = 1.0 / (1.0 + assumptions.discount_rate).powi((p + 1) as i32);
+        let pv = fcf * df;
+
+        periods.push(ProjectedLineItems {
+            period: p,
+            year: (p + 1) as f64,
+            revenue,
+            cogs,
+            gross_profit,
+            da,
+            ebit,
+            tax,
+            nopat,
+            capex,
+            change_in_nwc,
+            free_cash_flow: fcf,
+            discount_factor: df,
+            present_value: pv,
+        });
+
+        prev_revenue = revenue;
+        prev_nwc = nwc;
+    }
+
+    // Terminal value (Gordon Growth perpetuity)
+    let last_fcf = periods.last().map(|p| p.free_cash_flow).unwrap_or(0.0);
+    let tg = assumptions
+        .terminal_growth
+        .min(assumptions.discount_rate - 0.005);
+    let terminal_value = last_fcf * (1.0 + tg) / (assumptions.discount_rate - tg);
+    let terminal_df = 1.0 / (1.0 + assumptions.discount_rate).powi(total_years as i32);
+    let terminal_pv = terminal_value * terminal_df;
+
+    // Enterprise → equity
+    let sum_pv: f64 = periods.iter().map(|p| p.present_value).sum();
+    let enterprise_value = sum_pv + terminal_pv;
+    let net_debt = hist.net_debt();
+    let equity_value = enterprise_value - net_debt;
+    let intrinsic_per_share = if hist.shares_outstanding > 0.0 {
+        equity_value / hist.shares_outstanding
+    } else {
+        0.0
+    };
+
+    ProjectedModel {
+        periods,
+        terminal_value,
+        terminal_pv,
+        enterprise_value,
+        net_debt,
+        equity_value,
+        intrinsic_per_share,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_hist() -> HistoricalSnapshot {
+        HistoricalSnapshot {
+            revenue: vec![
+                ("2022".into(), 80_000.0),
+                ("2023".into(), 90_000.0),
+                ("2024".into(), 100_000.0),
+            ],
+            cogs: vec![
+                ("2022".into(), 50_000.0),
+                ("2023".into(), 55_000.0),
+                ("2024".into(), 60_000.0),
+            ],
+            da: vec![
+                ("2022".into(), 3_000.0),
+                ("2023".into(), 3_200.0),
+                ("2024".into(), 3_500.0),
+            ],
+            capex: vec![
+                ("2022".into(), -2_500.0),
+                ("2023".into(), -2_800.0),
+                ("2024".into(), -3_000.0),
+            ],
+            total_assets: vec![("2024".into(), 200_000.0)],
+            current_assets: vec![("2024".into(), 50_000.0)],
+            current_liabilities: vec![("2024".into(), 30_000.0)],
+            cash: vec![("2024".into(), 10_000.0)],
+            long_term_debt: vec![("2024".into(), 40_000.0)],
+            equity: vec![("2024".into(), 80_000.0)],
+            shares_outstanding: 1_000.0,
+            tax_rate: 0.21,
+        }
+    }
+
+    #[test]
+    fn gross_margin_from_history() {
+        let h = sample_hist();
+        let gm = h.gross_margin();
+        assert!((gm - 0.40).abs() < 0.01);
+    }
+
+    #[test]
+    fn revenue_cagr_from_history() {
+        let h = sample_hist();
+        let cagr = h.revenue_cagr();
+        // (100/80)^(1/2) - 1 = 1.25^0.5 - 1 ≈ 0.118
+        assert!((cagr - 0.118).abs() < 0.01, "got {cagr}");
+    }
+
+    #[test]
+    fn nwc_computation() {
+        let h = sample_hist();
+        // CA=50, CL=30, Cash=10 → NWC = 50-30-10 = 10
+        assert!((h.latest_nwc() - 10_000.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn net_debt() {
+        let h = sample_hist();
+        // Debt=40, Cash=10 → net_debt = 40-10 = 30
+        assert!((h.net_debt() - 30_000.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn projection_has_all_periods() {
+        let h = sample_hist();
+        let a = ProjectionAssumptions::from_history(&h);
+        let model = project_model(&h, &a, 150.0);
+        assert_eq!(model.periods.len(), 10);
+    }
+
+    #[test]
+    fn free_cash_flow_is_positive() {
+        let h = sample_hist();
+        let a = ProjectionAssumptions::from_history(&h);
+        let model = project_model(&h, &a, 150.0);
+        for p in &model.periods {
+            assert!(p.free_cash_flow > 0.0, "FCF should be positive");
+        }
+    }
+
+    #[test]
+    fn terminal_value_positive() {
+        let h = sample_hist();
+        let a = ProjectionAssumptions::from_history(&h);
+        let model = project_model(&h, &a, 150.0);
+        assert!(model.terminal_value > 0.0);
+        assert!(model.terminal_pv > 0.0);
+    }
+
+    #[test]
+    fn intrinsic_per_share_reasonable() {
+        let h = sample_hist();
+        let a = ProjectionAssumptions::from_history(&h);
+        let model = project_model(&h, &a, 150.0);
+        assert!(model.intrinsic_per_share > 0.0);
+    }
+
+    #[test]
+    fn equity_value_net_of_debt() {
+        let h = sample_hist();
+        let a = ProjectionAssumptions::from_history(&h);
+        let model = project_model(&h, &a, 150.0);
+        // EV = sum_pv + terminal_pv, Equity = EV - net_debt
+        let expected_equity = model.enterprise_value - model.net_debt;
+        assert!((model.equity_value - expected_equity).abs() < 1.0);
+    }
+}

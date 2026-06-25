@@ -27,31 +27,19 @@ pub async fn run_doctor() {
     // ── Fusion ──────────────────────────────────────────────
     let config = InferenceConfig::from_env();
     if config.fusion.is_some() {
-        // Extract fusion info before config is consumed by InferenceRouter::new
         let fusion_model = config.fusion.as_ref().unwrap().model_id();
-        let fusion_provider = config.fusion.as_ref().unwrap().provider;
-        let fusion_tier = config.fusion.as_ref().unwrap().kilo_tier.clone();
         println!("Fusion Model");
         println!("────────────");
         let router = InferenceRouter::new(config);
         total += 1;
         match router.verify_fusion_model().await {
             Ok(true) => {
-                let provider = fusion_provider.as_str();
-                println!("  ✅ Fusion model verified ({provider}) — {fusion_model}");
+                println!("  ✅ Fusion judge reachable — {fusion_model}");
                 configured += 1;
             }
-            Ok(false) => match fusion_provider {
-                hkask_services::ProviderId::KiloCode => {
-                    let tier = fusion_tier.as_deref().unwrap_or("balanced");
-                    println!("  ❌ Kilo auto model NOT FOUND — kilo-auto/{tier}");
-                }
-                _ => {
-                    println!(
-                        "  ❌ Fusion group NOT FOUND — create it at https://openrouter.ai/fusion"
-                    );
-                }
-            },
+            Ok(false) => {
+                println!("  ❌ Fusion judge NOT reachable — {fusion_model}");
+            }
             Err(e) => {
                 println!("  ⚠️  Could not verify fusion model: {e}");
             }

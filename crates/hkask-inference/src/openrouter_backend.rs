@@ -82,7 +82,6 @@ impl OpenRouterBackend {
         prompt: &str,
         params: &LLMParameters,
         tools: Option<&[ChatToolDefinition]>,
-        plugins: Option<Vec<FusionPlugin>>,
     ) -> Result<InferenceResult, InferenceError> {
         validate_prompt(prompt)?;
         let tools = tools.map(|t| t.to_vec());
@@ -94,7 +93,7 @@ impl OpenRouterBackend {
             Some(false),
             Some(5),
             tools,
-            plugins,
+            None::<Vec<FusionPlugin>>,
         );
 
         let response = self

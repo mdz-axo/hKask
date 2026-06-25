@@ -45,7 +45,7 @@ pub struct PortfolioSummary {
 ///
 /// Implemented by the CLI via MCP tool dispatch to hkask-mcp-companies.
 /// Degrades gracefully to placeholder text when the MCP server is not running
-/// (Option<Arc<dyn Trait>> is None).
+/// (`Option<Arc<dyn Trait>>` is None).
 pub trait CompaniesDataBridge: Send + Sync {
     /// Search for a company by symbol or name.
     fn search(&self, query: &str) -> Vec<CompanySummary>;

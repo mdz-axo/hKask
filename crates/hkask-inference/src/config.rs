@@ -132,43 +132,141 @@ impl ProviderId {
 ///
 /// # Environment Variables
 ///
-/// - `HKASK_FUSION_JUDGE` — judge/fuser model for fusion (e.g., "deepseek-v4-pro")
-/// - `HKASK_FUSION_PANEL` — comma-separated panel models (e.g., "Kimi2.7,Qwen3.7 Max")
-use crate::chat_protocol::FusionPlugin;
+/// - `HKASK_FUSION_JUDGE` — judge/fuser model for fusion (e.g., "DI/deepseek-v4-pro")
+/// - `HKASK_FUSION_PANEL` — comma-separated panel models (e.g., "OR/auto,KC/anthropic/claude-sonnet-4.5")
+/// - `HKASK_FUSION_MODE` — judge deliberation mode (default: synthesis)
+/// - `HKASK_FUSION_SKILLS` — comma-separated skill anchors for the judge
+/// - `HKASK_FUSION_MAX_ROUNDS` — max rounds for deliberation mode (default: 5)
+
+/// Judge deliberation mode for fusion orchestration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum FusionMode {
+    /// Pick the single best panel response. No synthesis.
+    #[serde(rename = "best-of-n")]
+    BestOfN,
+    /// Compose a unified response incorporating best elements from all panelists.
+    #[serde(rename = "synthesis")]
+    #[default]
+    Synthesis,
+    /// 2-round: draft → panel critique → revised final.
+    #[serde(rename = "critique")]
+    Critique,
+    /// Multi-round deliberation with convergence check (up to max_rounds).
+    #[serde(rename = "deliberation")]
+    Deliberation,
+    /// 2-phase Plan-Implement: Phase 1 synthesizes strategy, Phase 2 synthesizes execution plan.
+    #[serde(rename = "pi")]
+    PlanImplement,
+}
+
+impl FusionMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            FusionMode::BestOfN => "best-of-n",
+            FusionMode::Synthesis => "synthesis",
+            FusionMode::Critique => "critique",
+            FusionMode::Deliberation => "deliberation",
+            FusionMode::PlanImplement => "pi",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "best-of-n" => FusionMode::BestOfN,
+            "synthesis" => FusionMode::Synthesis,
+            "critique" => FusionMode::Critique,
+            "deliberation" => FusionMode::Deliberation,
+            "pi" => FusionMode::PlanImplement,
+            _ => FusionMode::Synthesis,
+        }
+    }
+}
+
+/// Skill bundle that anchors the judge's reasoning framework.
+/// Each skill injects a compact methodology prompt into the judge's system context.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FusionSkill {
+    /// Pragmatic Semantics — classify statements by certainty, distinguish IS from OUGHT.
+    #[serde(rename = "pragmatic-semantics")]
+    PragmaticSemantics,
+    /// Pragmatic Cybernetics — feedback loops, variety engineering, homeostasis.
+    #[serde(rename = "pragmatic-cybernetics")]
+    PragmaticCybernetics,
+    /// Pragmatic Laziness — path of least action, procedural composition.
+    #[serde(rename = "pragmatic-laziness")]
+    PragmaticLaziness,
+    /// Coding Guidelines — Karpathy's four principles: think first, simplicity, surgical, goal-driven.
+    #[serde(rename = "coding-guidelines")]
+    CodingGuidelines,
+    /// Deep Module — deletion test, interface minimalism, dependency direction.
+    #[serde(rename = "deep-module")]
+    DeepModule,
+    /// Essentialist — recursive eliminative interrogation, 3-gate challenge loop.
+    #[serde(rename = "essentialist")]
+    Essentialist,
+    /// Constraint Forces — classify constraints as Prohibition/Guardrail/Guideline/Evidence/Hypothesis.
+    #[serde(rename = "constraint-forces")]
+    ConstraintForces,
+    /// Superforecasting — calibrated probability, Fermi decomposition, Bayesian updating.
+    #[serde(rename = "superforecasting")]
+    Superforecasting,
+    /// Multi-Criteria Decision Analysis — weighted scoring, sensitivity analysis.
+    #[serde(rename = "mcda")]
+    MCDA,
+    /// TDD — red-green-refactor, vertical tracer-bullet, contract-first.
+    #[serde(rename = "tdd")]
+    TestDrivenDevelopment,
+    /// Rust Expertise — type-driven design, ownership as architecture.
+    #[serde(rename = "rust-expertise")]
+    RustExpertise,
+}
+
+impl FusionSkill {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.trim() {
+            "pragmatic-semantics" => Some(FusionSkill::PragmaticSemantics),
+            "pragmatic-cybernetics" => Some(FusionSkill::PragmaticCybernetics),
+            "pragmatic-laziness" => Some(FusionSkill::PragmaticLaziness),
+            "coding-guidelines" => Some(FusionSkill::CodingGuidelines),
+            "deep-module" => Some(FusionSkill::DeepModule),
+            "essentialist" => Some(FusionSkill::Essentialist),
+            "constraint-forces" => Some(FusionSkill::ConstraintForces),
+            "superforecasting" => Some(FusionSkill::Superforecasting),
+            "mcda" => Some(FusionSkill::MCDA),
+            "tdd" => Some(FusionSkill::TestDrivenDevelopment),
+            "rust-expertise" => Some(FusionSkill::RustExpertise),
+            _ => None,
+        }
+    }
+}
 
 /// Configuration for fusion multi-model deliberation.
 ///
-/// Supports two providers:
-/// - **OpenRouter** (default): Client-side panel+judge plugin injection.
-///   Sends prompt to a panel of models in parallel, then has a judge
-///   synthesize responses. Uses `plugins[]` array in the request body.
-/// - **KiloCode**: Server-side auto-routing via `kilo-auto/*` virtual models.
-///   Kilo Gateway selects the best underlying model based on the configured
-///   tier (frontier/balanced/free/small) and optional mode header.
+/// Provider-agnostic: hKask orchestrates the fusion itself by sending
+/// the prompt to all panel models in parallel, collecting responses,
+/// then having the judge operate in the configured mode.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FusionConfig {
-    /// Which provider handles fusion routing.
-    /// Default: OpenRouter (backward compatible).
-    #[serde(default = "default_fusion_provider")]
-    pub provider: ProviderId,
     /// The judge/fuser model that orchestrates and synthesizes the fusion.
-    /// Only used when provider is OpenRouter.
+    /// Supports provider prefix routing (e.g., "DI/deepseek-v4-pro").
     pub judge: String,
     /// The panel of analysis models that answer in parallel.
-    /// Only used when provider is OpenRouter.
+    /// Each model supports provider prefix routing.
     pub panel: Vec<String>,
-    /// Kilo auto tier: "frontier", "balanced", "free", or "small".
-    /// Only used when provider is KiloCode. Default: "balanced".
+    /// Judge deliberation mode. Default: Synthesis.
     #[serde(default)]
-    pub kilo_tier: Option<String>,
-    /// Kilo mode header for auto-routing: "plan", "build", "code", "debug", "ask", "general".
-    /// Only used when provider is KiloCode. Sent as `x-kilocode-mode` header.
+    pub mode: FusionMode,
+    /// Skills that anchor the judge's reasoning framework.
+    /// Default: empty (no skill anchoring).
     #[serde(default)]
-    pub kilo_mode: Option<String>,
+    pub skills: Vec<FusionSkill>,
+    /// Max rounds for deliberation mode. Default: 5.
+    #[serde(default = "default_max_rounds")]
+    pub max_rounds: u32,
 }
 
-fn default_fusion_provider() -> ProviderId {
-    ProviderId::OpenRouter
+fn default_max_rounds() -> u32 {
+    5
 }
 
 impl FusionConfig {
@@ -178,61 +276,53 @@ impl FusionConfig {
     /// The kask default judge/fuser model.
     pub const KASK_JUDGE: &str = "deepseek-v4-pro";
 
-    /// Return the kask default fusion configuration (OpenRouter).
+    /// Return the kask default fusion configuration.
     pub fn kask_default() -> Self {
         Self {
-            provider: ProviderId::OpenRouter,
             judge: Self::KASK_JUDGE.to_string(),
             panel: Self::KASK_PANEL.iter().map(|s| s.to_string()).collect(),
-            kilo_tier: None,
-            kilo_mode: None,
+            mode: FusionMode::Synthesis,
+            skills: Vec::new(),
+            max_rounds: 5,
         }
     }
 
-    /// Build the OpenRouter Fusion plugin payload for the `plugins` request field.
-    /// Returns empty vec when provider is not OpenRouter (Kilo uses headers, not plugins).
-    pub fn plugin_payload(&self) -> Vec<FusionPlugin> {
-        if self.provider != ProviderId::OpenRouter {
-            return Vec::new();
-        }
-        vec![FusionPlugin {
-            id: "fusion".to_string(),
-            analysis_models: self.panel.clone(),
-            model: Some(self.judge.clone()),
-        }]
-    }
-
-    /// The model ID to use when fusion is active.
+    /// The model ID to use when fusion is active (judge model).
     pub fn model_id(&self) -> String {
-        match self.provider {
-            ProviderId::KiloCode => {
-                let tier = self.kilo_tier.as_deref().unwrap_or("balanced");
-                format!("KC/kilo-auto/{tier}")
-            }
-            _ => "openrouter/fusion".to_string(),
-        }
+        self.judge.clone()
     }
 
     /// Human-readable description of the fusion setup.
     pub fn description(&self) -> String {
-        match self.provider {
-            ProviderId::KiloCode => {
-                let tier = self.kilo_tier.as_deref().unwrap_or("balanced");
-                let mode = self.kilo_mode.as_deref().unwrap_or("auto");
-                format!("kilo-auto/{tier} (mode: {mode})")
-            }
-            _ => format!("{} panel models judged by {}", self.panel.len(), self.judge),
-        }
-    }
-
-    /// The mode header value for Kilo auto-routing.
-    /// Returns None when provider is not KiloCode or mode is unset.
-    pub fn kilo_mode_header(&self) -> Option<&str> {
-        if self.provider == ProviderId::KiloCode {
-            self.kilo_mode.as_deref()
+        let skills_str = if self.skills.is_empty() {
+            String::new()
         } else {
-            None
-        }
+            let names: Vec<&str> = self
+                .skills
+                .iter()
+                .map(|s| match s {
+                    FusionSkill::PragmaticSemantics => "pragmatic-semantics",
+                    FusionSkill::PragmaticCybernetics => "pragmatic-cybernetics",
+                    FusionSkill::PragmaticLaziness => "pragmatic-laziness",
+                    FusionSkill::CodingGuidelines => "coding-guidelines",
+                    FusionSkill::DeepModule => "deep-module",
+                    FusionSkill::Essentialist => "essentialist",
+                    FusionSkill::ConstraintForces => "constraint-forces",
+                    FusionSkill::Superforecasting => "superforecasting",
+                    FusionSkill::MCDA => "mcda",
+                    FusionSkill::TestDrivenDevelopment => "tdd",
+                    FusionSkill::RustExpertise => "rust-expertise",
+                })
+                .collect();
+            format!(" [{}]", names.join(", "))
+        };
+        format!(
+            "{} panel models judged by {} (mode: {}){}",
+            self.panel.len(),
+            self.judge,
+            self.mode.as_str(),
+            skills_str
+        )
     }
 }
 
@@ -424,7 +514,6 @@ fn parse_provider_code(raw: &str) -> ProviderId {
 /// Parse fusion configuration from environment variables.
 ///
 /// Priority: structured env vars (HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL) →
-///           Kilo auto-routing (HKASK_FUSION_PROVIDER=KC + HKASK_FUSION_KILO_TIER) →
 ///           legacy env vars (HKASK_FUSION_FUSER + HKASK_FUSION_MODELS) →
 ///           legacy HKASK_FUSION_MODEL string.
 ///
@@ -438,17 +527,22 @@ fn parse_fusion_config() -> Option<FusionConfig> {
         return None;
     }
 
-    // Determine fusion provider
-    let provider = std::env::var("HKASK_FUSION_PROVIDER")
+    // Parse shared optional fields
+    let mode = std::env::var("HKASK_FUSION_MODE")
         .ok()
-        .map(|p| parse_provider_code(&p))
-        .unwrap_or(ProviderId::OpenRouter);
+        .map(|m| FusionMode::from_str(&m))
+        .unwrap_or_default();
+    let skills: Vec<FusionSkill> = std::env::var("HKASK_FUSION_SKILLS")
+        .unwrap_or_default()
+        .split(',')
+        .filter_map(|s| FusionSkill::from_str(s.trim()))
+        .collect();
+    let max_rounds = std::env::var("HKASK_FUSION_MAX_ROUNDS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(5);
 
-    // KiloCode-specific: parse tier and mode
-    let kilo_tier = std::env::var("HKASK_FUSION_KILO_TIER").ok();
-    let kilo_mode = std::env::var("HKASK_FUSION_KILO_MODE").ok();
-
-    // Structured config: HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL (OpenRouter)
+    // Structured config: HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL
     if let Ok(judge) = std::env::var("HKASK_FUSION_JUDGE") {
         let panel: Vec<String> = std::env::var("HKASK_FUSION_PANEL")
             .unwrap_or_default()
@@ -458,24 +552,13 @@ fn parse_fusion_config() -> Option<FusionConfig> {
             .collect();
         if !judge.is_empty() && !panel.is_empty() {
             return Some(FusionConfig {
-                provider,
                 judge,
                 panel,
-                kilo_tier,
-                kilo_mode,
+                mode,
+                skills,
+                max_rounds,
             });
         }
-    }
-
-    // KiloCode auto-routing: enabled when provider is KC and tier is set
-    if provider == ProviderId::KiloCode && kilo_tier.is_some() {
-        return Some(FusionConfig {
-            provider,
-            judge: String::new(),
-            panel: Vec::new(),
-            kilo_tier,
-            kilo_mode,
-        });
     }
 
     // Legacy env vars: HKASK_FUSION_GROUP + HKASK_FUSION_MODELS + HKASK_FUSION_FUSER
@@ -490,11 +573,11 @@ fn parse_fusion_config() -> Option<FusionConfig> {
             .collect();
         if !judge.is_empty() && !panel.is_empty() {
             return Some(FusionConfig {
-                provider,
                 judge,
                 panel,
-                kilo_tier: None,
-                kilo_mode: None,
+                mode,
+                skills,
+                max_rounds,
             });
         }
     }
@@ -507,18 +590,13 @@ fn parse_fusion_config() -> Option<FusionConfig> {
             .unwrap_or(&legacy)
             .to_string();
         return Some(FusionConfig {
-            provider: ProviderId::OpenRouter,
             judge: "deepseek-v4-pro".to_string(),
             panel: vec![name],
-            kilo_tier: None,
-            kilo_mode: None,
+            mode: FusionMode::Synthesis,
+            skills: Vec::new(),
+            max_rounds: 5,
         });
     }
-
-    // Fusion is opt-in: only enabled when explicitly configured via env vars.
-    // To enable with kask defaults: HKASK_FUSION_JUDGE=deepseek-v4-pro
-    // To enable Kilo auto-routing: HKASK_FUSION_PROVIDER=KC + HKASK_FUSION_KILO_TIER=frontier
-    // To disable: HKASK_FUSION_OFF=1 or simply don't set any fusion vars.
 
     None
 }

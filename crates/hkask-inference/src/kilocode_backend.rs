@@ -25,9 +25,6 @@ pub struct KiloCodeBackend {
     base_url: String,
     api_key: String,
     client: Arc<reqwest::Client>,
-    /// Optional mode header for Kilo auto-routing (x-kilocode-mode).
-    /// Set from FusionConfig.kilo_mode when fusion provider is KiloCode.
-    kilocode_mode: Option<String>,
 }
 
 /// A model entry returned by Kilo Gateway's `/models` endpoint.
@@ -82,16 +79,10 @@ impl KiloCodeBackend {
             .build_client()
             .map(Arc::new)
             .map_err(InferenceError::Connection)?;
-        // Extract Kilo auto-routing mode from fusion config
-        let kilocode_mode = config
-            .fusion
-            .as_ref()
-            .and_then(|f| f.kilo_mode_header().map(|s| s.to_string()));
         Ok(Self {
             base_url: config.kilocode_base_url.clone(),
             api_key: config.kilocode_api_key.clone(),
             client,
-            kilocode_mode,
         })
     }
 
@@ -111,7 +102,6 @@ impl KiloCodeBackend {
         prompt: &str,
         params: &LLMParameters,
         tools: Option<&[ChatToolDefinition]>,
-        plugins: Option<Vec<FusionPlugin>>,
     ) -> Result<InferenceResult, InferenceError> {
         validate_prompt(prompt)?;
         let tools = tools.map(|t| t.to_vec());
@@ -123,20 +113,17 @@ impl KiloCodeBackend {
             Some(false),
             Some(5),
             tools,
-            plugins,
+            None::<Vec<FusionPlugin>>,
         );
 
-        let mut req = self
+        let response = self
             .client
             .post(format!("{}/chat/completions", self.base_url))
-            .header("Authorization", format!("Bearer {}", self.api_key));
-        if let Some(ref mode) = self.kilocode_mode {
-            req = req.header("x-kilocode-mode", mode);
-        }
-        let response =
-            req.json(&request).send().await.map_err(|e| {
-                InferenceError::Connection(format!("KiloCode request failed: {}", e))
-            })?;
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| InferenceError::Connection(format!("KiloCode request failed: {}", e)))?;
 
         let status = response.status();
         if !status.is_success() {
@@ -188,7 +175,6 @@ impl KiloCodeBackend {
         let model = model.to_string();
         let prompt = prompt.to_string();
         let params = params.clone();
-        let mode = self.kilocode_mode.clone();
 
         Box::pin(
             Box::pin(futures_util::stream::once(async move {
@@ -203,16 +189,15 @@ impl KiloCodeBackend {
                     None::<Vec<FusionPlugin>>,
                 );
 
-                let mut req = client
+                let response = match client
                     .post(format!("{base_url}/chat/completions"))
-                    .header("Authorization", &auth);
-                if let Some(ref m) = mode {
-                    req = req.header("x-kilocode-mode", m);
-                }
-
-                let response = match req.json(&request).send().await.map_err(|e| {
-                    InferenceError::Connection(format!("KiloCode stream request failed: {e}"))
-                }) {
+                    .header("Authorization", &auth)
+                    .json(&request)
+                    .send()
+                    .await
+                    .map_err(|e| {
+                        InferenceError::Connection(format!("KiloCode stream request failed: {e}"))
+                    }) {
                     Ok(r) => r,
                     Err(e) => return vec![Err(e)],
                 };
@@ -269,16 +254,16 @@ impl KiloCodeBackend {
             None::<Vec<FusionPlugin>>,
         );
 
-        let mut req = self
+        let response = self
             .client
             .post(format!("{}/chat/completions", self.base_url))
-            .header("Authorization", format!("Bearer {}", self.api_key));
-        if let Some(ref mode) = self.kilocode_mode {
-            req = req.header("x-kilocode-mode", mode);
-        }
-        let response = req.json(&request).send().await.map_err(|e| {
-            InferenceError::Connection(format!("KiloCode vision request failed: {}", e))
-        })?;
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| {
+                InferenceError::Connection(format!("KiloCode vision request failed: {}", e))
+            })?;
 
         let status = response.status();
         if !status.is_success() {

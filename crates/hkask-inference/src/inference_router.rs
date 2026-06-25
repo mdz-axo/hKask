@@ -5,7 +5,7 @@
 //! use the configured default provider.
 
 use crate::RouterModelEntry;
-use crate::chat_protocol::{FusionPlugin, validate_prompt};
+use crate::chat_protocol::validate_prompt;
 use crate::config::{FusionConfig, InferenceConfig, ProviderId};
 use crate::deepinfra_backend::DeepInfraBackend;
 use crate::embedding_router::EmbeddingRouter;
@@ -128,7 +128,10 @@ impl InferenceRouter {
     ///
     /// Returns `(provider, backend_model_name)` or an error if no backend
     /// is available for the requested provider.
-    fn resolve<'a>(&self, model: &'a str) -> Result<(ProviderId, &'a str), InferenceError> {
+    pub(crate) fn resolve<'a>(
+        &self,
+        model: &'a str,
+    ) -> Result<(ProviderId, &'a str), InferenceError> {
         let (provider, stripped_model) =
             ProviderId::parse_from_model(model).unwrap_or((self.config.default_provider, model));
 
@@ -159,7 +162,7 @@ impl InferenceRouter {
     /// pre:  model, prompt, params are validated and cloned
     /// post: returns Ok(InferenceResult) on success
     /// post: returns Err(Connection) if backend is None or provider is unsupported
-    async fn dispatch_generate(
+    pub(crate) async fn dispatch_generate(
         &self,
         provider: ProviderId,
         model: &str,
@@ -167,14 +170,6 @@ impl InferenceRouter {
         params: &LLMParameters,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Result<InferenceResult, InferenceError> {
-        // Compute fusion plugins when routing to OpenRouter with fusion active
-        let fusion_plugins: Option<Vec<FusionPlugin>> =
-            if provider == ProviderId::OpenRouter && !params.bypass_fusion {
-                self.config.fusion.as_ref().map(|f| f.plugin_payload())
-            } else {
-                None
-            };
-
         match provider {
             ProviderId::DeepInfra => {
                 self.deepinfra
@@ -209,7 +204,7 @@ impl InferenceRouter {
                     .ok_or_else(|| {
                         InferenceError::Connection("OpenRouter backend unavailable".to_string())
                     })?
-                    .generate(model, prompt, params, tools, fusion_plugins)
+                    .generate(model, prompt, params, tools)
                     .await
             }
             ProviderId::KiloCode => {
@@ -218,7 +213,7 @@ impl InferenceRouter {
                     .ok_or_else(|| {
                         InferenceError::Connection("KiloCode backend unavailable".to_string())
                     })?
-                    .generate(model, prompt, params, tools, fusion_plugins)
+                    .generate(model, prompt, params, tools)
                     .await
             }
             ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
@@ -714,6 +709,23 @@ impl InferencePort for InferenceRouter {
     ) -> Pin<
         Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
     > {
+        // Provider-agnostic fusion orchestration: when fusion is active and not bypassed,
+        // send to all panel models in parallel, then have the judge synthesize.
+        if !parameters.bypass_fusion
+            && let Some(ref fusion) = self.config.fusion
+        {
+            let prompt = prompt.to_string();
+            let parameters = parameters.clone();
+            let tools = tools.map(|t| t.to_vec());
+            let fusion = fusion.clone();
+            return Box::pin(async move {
+                validate_prompt(&prompt)?;
+                self.orchestrate_fusion(&prompt, &parameters, tools.as_deref(), &fusion)
+                    .await
+                    .map_err(|e| self.heal_error(e, "generate"))
+            });
+        }
+
         // LoRA adapter overrides the model entirely (includes base model).
         // Format: "Qwen3.5-9B#constraint-forces-v3" — adapter IS the full model identifier.
         if let Some(ref adapter) = parameters.adapter {
@@ -763,6 +775,24 @@ impl InferencePort for InferenceRouter {
     ) -> Pin<
         Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
     > {
+        // Provider-agnostic fusion orchestration: when fusion is active, not bypassed,
+        // and no explicit model_override is given, use multi-model deliberation.
+        if !parameters.bypass_fusion
+            && model_override.is_none()
+            && let Some(ref fusion) = self.config.fusion
+        {
+            let prompt = prompt.to_string();
+            let parameters = parameters.clone();
+            let tools = tools.map(|t| t.to_vec());
+            let fusion = fusion.clone();
+            return Box::pin(async move {
+                validate_prompt(&prompt)?;
+                self.orchestrate_fusion(&prompt, &parameters, tools.as_deref(), &fusion)
+                    .await
+                    .map_err(|e| self.heal_error(e, "generate_with_model"))
+            });
+        }
+
         // LoRA adapter overrides the model entirely (bypasses fusion).
         // Training is on a specific base model, not a committee — routing
         // through a fusion group makes no semantic sense here.
@@ -904,19 +934,35 @@ impl InferenceRouter {
         self.embedding.embed_sentence(model, text).await
     }
 
-    /// Verify that the configured fusion model is available on its provider.
+    /// Provider-agnostic fusion orchestration.
     ///
-    /// For OpenRouter: calls the models endpoint and checks whether the fusion
-    /// group ID is present.
-    /// For KiloCode: checks whether the configured kilo-auto tier is available.
+    /// Delegates to the fusion orchestrator which dispatches to panel
+    /// models in parallel, then routes to the configured fusion mode.
     ///
-    /// Returns `Ok(true)` if verified, `Ok(false)` if the model is not found,
-    /// or `Err` on connection failure.
+    /// expect: "Fusion orchestrates multi-model deliberation provider-agnostically"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — hKask-side fusion orchestration
+    /// pre:  fusion.panel is non-empty, fusion.judge is valid
+    /// post: returns judge output per the configured mode
+    async fn orchestrate_fusion(
+        &self,
+        prompt: &str,
+        params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
+        fusion: &FusionConfig,
+    ) -> Result<InferenceResult, InferenceError> {
+        crate::fusion_orchestrator::orchestrate(self, prompt, params, tools, fusion).await
+    }
+
+    /// Verify that the configured fusion judge model is reachable.
+    ///
+    /// Resolves the judge model name to a provider and checks that
+    /// the backend is available. Returns Ok(true) if reachable,
+    /// Ok(false) if not, or Err on resolution failure.
     ///
     /// expect: "Fusion model is verified before use to prevent unexpected costs"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — proactive cost-safety check
     /// pre:  config.fusion may be None or Some
-    /// post: if Some → calls provider API to verify model existence
+    /// post: if Some → resolves judge model to verify provider availability
     /// post: if None → returns Ok(true) immediately (nothing to verify)
     pub async fn verify_fusion_model(&self) -> Result<bool, InferenceError> {
         let fusion = match &self.config.fusion {
@@ -924,95 +970,43 @@ impl InferenceRouter {
             None => return Ok(true),
         };
 
-        match fusion.provider {
-            ProviderId::KiloCode => self.verify_kilo_fusion(fusion).await,
-            _ => self.verify_openrouter_fusion(fusion).await,
-        }
-    }
-
-    async fn verify_openrouter_fusion(
-        &self,
-        fusion: &FusionConfig,
-    ) -> Result<bool, InferenceError> {
-        let or = match &self.openrouter {
-            Some(or) => or,
-            None => {
-                return Err(InferenceError::Connection(
-                    "OpenRouter backend not configured (set OPENROUTER_API_KEY)".to_string(),
-                ));
+        match self.resolve(&fusion.judge) {
+            Ok((provider, _)) => {
+                tracing::info!(
+                    target: "cns.inference",
+                    fusion_judge = %fusion.judge,
+                    provider = %provider.as_str(),
+                    panel_count = fusion.panel.len(),
+                    "Fusion judge model reachable"
+                );
+                Ok(true)
             }
-        };
-        let search_id = &fusion.judge;
-        let models = or.list_models().await?;
-
-        let fusion_id = fusion.model_id();
-        let or_fusion_id = fusion_id.strip_prefix("OR/").unwrap_or(&fusion_id);
-        let found = models
-            .iter()
-            .any(|m| m.id == or_fusion_id || m.id == *search_id);
-        if found {
-            tracing::info!(
-                target: "cns.inference",
-                fusion_judge = %fusion.judge,
-                fusion_panel = ?fusion.panel,
-                "Fusion group verified on OpenRouter"
-            );
-            return Ok(true);
-        }
-
-        tracing::warn!(
-            target: "cns.inference",
-            fusion_judge = %fusion.judge,
-            "Fusion group NOT FOUND on OpenRouter. Create it at https://openrouter.ai/fusion"
-        );
-        Ok(false)
-    }
-
-    async fn verify_kilo_fusion(&self, fusion: &FusionConfig) -> Result<bool, InferenceError> {
-        let kc = match &self.kilocode {
-            Some(kc) => kc,
-            None => {
-                return Err(InferenceError::Connection(
-                    "KiloCode backend not configured (set KILOCODE_API_KEY)".to_string(),
-                ));
+            Err(e) => {
+                tracing::warn!(
+                    target: "cns.inference",
+                    fusion_judge = %fusion.judge,
+                    error = %e,
+                    "Fusion judge model NOT reachable"
+                );
+                Ok(false)
             }
-        };
-        let tier = fusion.kilo_tier.as_deref().unwrap_or("balanced");
-        let auto_model = format!("kilo-auto/{tier}");
-        let models = kc.list_models().await?;
-        let found = models.iter().any(|m| m.id == auto_model);
-        if found {
-            tracing::info!(
-                target: "cns.inference",
-                kilo_tier = %tier,
-                kilo_mode = ?fusion.kilo_mode,
-                "KiloCode auto-routing verified — {auto_model} available"
-            );
-            return Ok(true);
         }
-
-        tracing::warn!(
-            target: "cns.inference",
-            kilo_tier = %tier,
-            "KiloCode auto model NOT FOUND: {auto_model}"
-        );
-        Ok(false)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{FusionConfig, InferenceConfig};
+    use crate::config::{FusionConfig, FusionMode, InferenceConfig};
 
     fn config_with_fusion(judge: Option<&str>, panel: Option<&[&str]>) -> InferenceConfig {
         InferenceConfig {
             fusion: judge.map(|j| FusionConfig {
-                provider: ProviderId::OpenRouter,
                 judge: j.to_string(),
                 panel: panel.unwrap_or(&[]).iter().map(|s| s.to_string()).collect(),
-                kilo_tier: None,
-                kilo_mode: None,
+                mode: FusionMode::Synthesis,
+                skills: Vec::new(),
+                max_rounds: 5,
             }),
             ..Default::default()
         }
@@ -1030,7 +1024,7 @@ mod tests {
             bypass_fusion: false,
             ..Default::default()
         };
-        assert_eq!(router.effective_model(None, &params), "openrouter/fusion");
+        assert_eq!(router.effective_model(None, &params), "kask");
     }
 
     /// REQ: P9-inf-fusion-bypass

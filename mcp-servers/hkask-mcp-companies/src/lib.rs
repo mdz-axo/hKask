@@ -45,6 +45,7 @@ use hkask_types::time::now_rfc3339;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 mod analysis;
+mod financial_model;
 mod dcf;
 pub mod fibo;
 mod portfolio;

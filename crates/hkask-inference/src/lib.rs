@@ -32,6 +32,7 @@ pub mod config;
 pub mod deepinfra_backend;
 pub mod embedding_router;
 pub mod fal_backend;
+pub mod fusion_orchestrator;
 pub mod inference_router;
 pub mod kilocode_backend;
 pub mod model_constants;
@@ -40,7 +41,7 @@ pub mod together_backend;
 
 // Re-exports — public API
 pub use chat_protocol::FusionPlugin;
-pub use config::{FusionConfig, InferenceConfig, ProviderId};
+pub use config::{FusionConfig, FusionMode, FusionSkill, InferenceConfig, ProviderId};
 pub use embedding_router::EmbeddingRouter;
 pub use inference_router::InferenceRouter;
 
