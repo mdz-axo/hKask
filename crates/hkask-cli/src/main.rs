@@ -135,7 +135,16 @@ fn main() {
 
         Commands::Doctor => commands::doctor::run_doctor_cmd(&rt),
 
-        Commands::Onboard => commands::onboard::run(&rt),
+        Commands::Onboard => match rt.block_on(hkask_cli::onboarding::run_add_replicant()) {
+            Ok(()) => {}
+            Err(e) => {
+                if matches!(e, hkask_cli::onboarding::OnboardingError::Cancelled) {
+                    std::process::exit(0);
+                }
+                eprintln!("Onboarding failed: {}", e);
+                std::process::exit(1);
+            }
+        },
 
         Commands::Settings { action } => commands::settings::run(action),
 

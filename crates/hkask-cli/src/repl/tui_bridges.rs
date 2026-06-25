@@ -1,4 +1,3 @@
-#![cfg(feature = "tui")]
 //! TUI domain bridge implementations for `TuiReplBridge`.
 //!
 //! Implements the 9 domain-specific bridge traits from `hkask-tui` so that

@@ -1,4 +1,3 @@
-#![cfg(feature = "communication")]
 //! REPL /matrix and /msg handlers — Matrix chat interface in the TUI.
 //!
 //! /matrix [ROOM]  — list rooms, or show recent messages from a room

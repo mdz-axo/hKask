@@ -42,13 +42,13 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | 2 | **Essential Tools** | 13 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter) |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, keystore, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
-| 5 | **Composition** | Unified registry with template_type discriminator, 46 composable skills, 239 Jinja2 templates |
+| 5 | **Composition** | Unified registry with template_type discriminator, 47 composable skills, 299 Jinja2 templates |
 
 ---
 
 ## Skills & Composition
 
-hKask's behavioral surface is defined by **46 skills** — composable agent instructions stored as YAML manifests with Jinja2 templates. Skills are not code. They are declarative, user-editable, and versioned in a unified registry.
+hKask's behavioral surface is defined by **47 skills** — composable agent instructions stored as YAML manifests with Jinja2 templates. Skills are not code. They are declarative, user-editable, and versioned in a unified registry.
 
 | Layer | Format | Count | Purpose |
 |-------|--------|-------|--------|
@@ -194,4 +194,4 @@ cargo fmt --check
 
 *ℏKask - A Minimal Viable Container for Agents — v0.30.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*
-*CI green. 34 crates. 13 MCP servers. 46 skills.*
+*CI green. 34 crates. 13 MCP servers. 47 skills.*

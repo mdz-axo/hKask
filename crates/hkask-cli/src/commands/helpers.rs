@@ -150,6 +150,27 @@ pub fn start_mcp_server(
     }
 }
 
+/// Print a list of items with a standardized header/row/footer format.
+///
+/// Pattern: empty-check → "Label (N):" → indented rows → "N total."
+/// If the list is empty, prints the `empty_label` and returns.
+pub fn print_item_list<T>(
+    items: &[T],
+    empty_label: &str,
+    label: &str,
+    format_item: impl Fn(&T) -> String,
+) {
+    if items.is_empty() {
+        println!("{}", empty_label);
+        return;
+    }
+    println!("{} ({}):", label, items.len());
+    for item in items {
+        println!("  {}", format_item(item));
+    }
+    println!("{} total.", items.len());
+}
+
 /// Start MCP servers with extra environment overrides. Returns count of successfully started servers.
 pub fn start_mcp_servers_with_env(
     rt: &tokio::runtime::Runtime,

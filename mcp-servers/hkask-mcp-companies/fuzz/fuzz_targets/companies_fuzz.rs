@@ -20,6 +20,9 @@ fn test_server() -> CompaniesServer {
         None,
         "test-fmp-key".into(),
         "test-eodhd-key".into(),
+        None,
+        None,
+        None,
     )
     .expect("companies server construction")
 }

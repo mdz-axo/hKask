@@ -477,7 +477,7 @@ hKask decomposes into four authority loops organized as a **two-layer model** wi
 
 | Loop | Layer | Role | Least Action Role | Key Crates |
 |------|-------|------|-------------------|------------|
-| **Inference** | Domain | Model dispatch, provider selection, rJoule accounting | Varies model to minimize action per task | `hkask-inference`, `hkask-mcp-inference` |
+| **Inference** | Domain | Model dispatch, provider selection, rJoule accounting | Varies model to minimize action per task | `hkask-inference`, `hkask-agents` (inference loop) |
 | **Memory** | Domain | Dual episodic/semantic encoding, consolidation, narrative generation | Selects most salient memories (fewest bits for most prediction) | `hkask-memory`, `hkask-storage`, `hkask-mcp-memory` |
 | **Curation** | Meta | Spec drift detection, memory consolidation, catalog maintenance | Observes system, recommends minimal interventions | `hkask-agents` (curator), `hkask-cns` (curation) |
 | **Cybernetics** | Meta | CNS homeostatic control, algedonic escalation, variety engineering | Maintains Ashby-requisite variety with minimal energy | `hkask-cns`, `hkask-types` |
@@ -505,14 +505,14 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 | Crate | Loop | Rationale |
 |-------|------|-----------|
 | `hkask-inference` | Inference | Provider dispatch, model selection |
-| `hkask-mcp-inference` | Inference | LLM API connectivity |
+| `hkask-agents` (inference loop) | Inference | LLM API connectivity, prompt execution |
 | `hkask-memory` | Memory | Episodic + semantic encoding |
 | `hkask-storage` | Memory | Triple store, queries |
 | `hkask-mcp-memory` | Memory | Memory search/consolidation |
 | `hkask-agents` (curator) | Curation | CuratorAgent, CurationLoop |
 | `hkask-condenser` | Curation | Context window condensation |
 | `hkask-cns` (seam_watcher) | Curation | Spec drift, contract coverage |
-| `hkask-qa` | Curation | QA runs, fuzzing |
+| `hkask-test-harness` | Curation | QA runs, fuzzing infrastructure |
 | `hkask-cns` (algedonic, runtime) | Cybernetics | Alerts, variety tracking |
 | `hkask-capability` | Cybernetics | OCAP enforcement, membranes |
 | `hkask-mcp-cloud-gateway` | Cybernetics | Transport regulation |

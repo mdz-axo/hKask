@@ -29,21 +29,15 @@ pub fn create(text: &str, visibility: &str) -> Result<(), ServiceError> {
 
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  state is an optional state filter string
-/// post: returns Ok(()) and prints goals to stdout
 /// post: if no goals found → prints "No goals found."
 /// post: delegates to GoalService::list_goals
 pub fn list(state: Option<&str>) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
     let owner = hkask_types::WebID::from_persona(b"cli-user");
     let goals = GoalService::list_goals(&ctx, &owner, state)?;
-    if goals.is_empty() {
-        println!("No goals found.");
-        return Ok(());
-    }
-    println!("Goals ({}):", goals.len());
-    for g in goals {
-        println!("  {} [{}] {}", g.id, g.state, g.text);
-    }
+    super::helpers::print_item_list(&goals, "No goals found.", "Goals", |g| {
+        format!("{} [{}] {}", g.id, g.state, g.text)
+    });
     Ok(())
 }
 

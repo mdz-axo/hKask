@@ -28,12 +28,10 @@ pub mod kanban;
 pub mod kata;
 pub mod keystore;
 pub mod loops;
-pub mod magna_carta;
 pub mod matrix;
 pub mod mcp;
 
 pub mod models;
-pub mod onboard;
 pub mod pod;
 pub mod qa;
 pub mod registry;
