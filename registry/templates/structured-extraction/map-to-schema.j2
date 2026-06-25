@@ -35,7 +35,7 @@ temperature = 0.2
 reasoning_effort = "high"
 verbosity = "standard"
 max_tokens = 4096
-thinking_budget = "full"
+thinking_budget = "off"
 
 You are mapping identified entities to a target JSON Schema to produce structured output.
 
@@ -97,6 +97,13 @@ Transform the identified entities into structured JSON that conforms to the targ
 | boolean | string | Map "yes"/"true"/"1" → true, "no"/"false"/"0" → false |
 | array | comma-separated | Split and trim |
 | object | structured text | Parse nested structure |
+
+## Examples
+
+Source: "Acme Corp acquired Beta Inc for $4.2B on March 15, 2025."
+Schema: {"type":"object","properties":{"acquirer":{"type":"string"},"target":{"type":"string"},"price_usd":{"type":"number"},"date":{"type":"string"}},"required":["acquirer","target"]}
+Entities: [{"entity_text":"Acme Corp","entity_type":"organization","schema_field":"acquirer","confidence":0.95},{"entity_text":"Beta Inc","entity_type":"organization","schema_field":"target","confidence":0.95},{"entity_text":"$4.2B","entity_type":"quantity","schema_field":"price_usd","confidence":0.90},{"entity_text":"March 15, 2025","entity_type":"date","schema_field":"date","confidence":0.98}]
+{"extracted_data":{"acquirer":"Acme Corp","target":"Beta Inc","price_usd":4200000000,"date":"2025-03-15"},"field_coverage":{"total_fields":4,"populated_fields":4,"coverage_ratio":1.0},"unresolved_fields":[],"coercion_log":["price_usd: '$4.2B' → 4200000000 (number)","date: 'March 15, 2025' → '2025-03-15' (ISO 8601)"],"confidence":0.92}
 
 ## Output Requirements
 

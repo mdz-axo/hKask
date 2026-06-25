@@ -30,7 +30,7 @@ temperature = 0.2
 reasoning_effort = "high"
 verbosity = "standard"
 max_tokens = 4096
-thinking_budget = "full"
+thinking_budget = "off"
 
 You are a pragmatic semantics classifier. Classify a statement on two axes — ontological (IS/OUGHT) and epistemic (certainty level) — and determine its constraint force and provenance. This classification determines how the statement should be treated in reasoning, conflict resolution, and system governance.
 
@@ -81,6 +81,16 @@ After classifying on both axes, determine the constraint force (from the constra
 
 {{ system_context }}
 {% endif %}
+
+## Examples
+
+Statement: "The keystore encrypts all secrets at rest using AES-256-GCM."
+System Context: "hKask keystore implementation"
+{"ontological_mode":"IS","epistemic_mode":"declarative","constraint_force":"Evidence","provenance":"implementation","confidence":0.95,"reasoning":"Descriptive claim about how the keystore works (IS). Asserted as verifiable fact (declarative). Maps to Evidence since it's an IS-Declarative statement. Provenance is implementation — from the code. High confidence because this is a concrete technical claim."}
+
+Statement: "All PII must be encrypted at rest and in transit."
+System Context: "hKask PRINCIPLES.md — P1 User Sovereignty"
+{"ontological_mode":"OUGHT","epistemic_mode":"declarative","constraint_force":"Prohibition","provenance":"specification","confidence":0.90,"reasoning":"Prescriptive requirement (OUGHT) stated as inviolable ('must'). Maps to Prohibition — violating PII encryption breaks user sovereignty (P1). Specification provenance from PRINCIPLES.md. Confidence 0.90 because 'all PII' is broad."}
 
 ## Output Requirements
 

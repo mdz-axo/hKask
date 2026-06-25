@@ -239,6 +239,7 @@ Ensemble multi-agent commands are deferred. The dual-presence pattern (§7) is t
 | `/invoke` | `/inv` | `<server>/<tool> [args]` | Invoke MCP tool through GovernedTool membrane |
 | `/bundle` | `/b` | `[SKILLS]\|list\|off\|skills` | Compose, apply, or manage skill bundles |
 | `/repl` | | `[SETTING] [VALUE]` | Show or set REPL inference settings |
+| `/thread` | `/th` | `list\|switch <id>\|new [title]\|archive <id>` | Manage chat threads — short-term memory across sessions |
 
 ### 5.6 Governance Commands
 
@@ -397,7 +398,9 @@ Per Magna Carta P3 (Generative Space), every inference parameter is user-exposed
 | Setting | Flag | Type | Default | Valid Range | Description |
 |---------|------|------|---------|-------------|-------------|
 | `tool_loop_limit` | `loops` | u64 | 21 | 1+ | Max tool-call loop iterations per turn |
-| `context_turns` | `context` | u64 | 3 | 0+ (0 = no history) | Past turns appended as context |
+| `condense_saliency_window` | `saliency`, `context` | usize | 5 | 1–50 | Short-term memory recency window (thread history, episodic recall, condensation anchor) |
+| `condense_pressure_threshold` | `pressure` | f32 | 0.875 | 0.5–0.99 | Context fill fraction that triggers auto-condensation |
+| `short_term_memory_life` | `stm_life` | u32 | 60 | 0+ (0 = never) | Days before inactive threads auto-archive |
 | `temperature` | `temp` | f32 | 0.7 | 0.0–2.0 | LLM sampling temperature |
 | `top_p` | `top_p` | f32 | 0.9 | 0.0–1.0 | Nucleus sampling threshold |
 | `top_k` | `top_k` | u32 | 40 | 1+ | Top-k token filter |
@@ -407,7 +410,7 @@ Per Magna Carta P3 (Generative Space), every inference parameter is user-exposed
 | `seed` | `seed` | Option<u32> | None (random) | u32 or "off" | Deterministic seed |
 | `gas_heuristic` | `gas_heuristic` | u64 | 500 | 1+ | Per-turn gas reservation estimate |
 | `gas_cap` | `gas_cap` | u64 | 10,000 | 1+ | Total session energy budget |
-| `auto_condense` | `auto_condense` | bool | true | on/off | Auto-condense at 87.5% of context window |
+| `auto_condense` | `auto_condense` | bool | true | on/off | Auto-condense when context pressure exceeds threshold |
 
 ### 8.2 Model Metadata (Read-Only)
 
@@ -437,20 +440,47 @@ Settings are persisted to `~/.config/hkask/settings.json` whenever a valid setti
 
 ## 9. Memory Infrastructure
 
-### 9.1 Memory Types
+### 9.1 Memory Architecture
 
-| Memory | Scope | Storage | Purpose |
+Agents have three memory layers, structurally invariant:
+
+| Layer | Scope | Storage | Purpose |
 |--------|-------|---------|---------|
-| Episodic | Private, agent-scoped | SQLCipher `hkask-memory-{agent}.db` | Record of conversations and interactions |
-| Semantic | Public, shared | SQLCipher `hkask-memory-{agent}.db` | Consolidated knowledge triples |
+| **Thread (short-term)** | Per-thread, per-agent | `agents/{name}/threads/{uuid}.json` | Active conversation stream — the agent's immediate context |
+| **Episodic (long-term)** | Private, agent-scoped | SQLCipher `memory.db` | First-person process memory — all sessions, all threads |
+| **Semantic (long-term)** | Public, shared | SQLCipher `memory.db` | Third-person facts — consolidated knowledge triples |
 
-### 9.2 Memory Flow Per Turn
+Context assembly order (invariant):
+```
+[Thread history] → [Semantic facts] → [Episodic history] → [User input]
+```
 
-1. **Before inference:** Semantic recall retrieves relevant public triples
-2. **During inference:** Retrieved triples are incorporated into the prompt context
-3. **After inference:** The exchange is stored as an episodic triple (subject: agent, predicate: `responded_to`, object: input hash, context: full response)
+Thread history is injected only on cold starts (session restart or thread switch).
+After the first turn, episodic recall provides conversation context. The short-term
+memory recency window is controlled by `condense_saliency_window` (default 5).
 
-### 9.3 Consolidation (`/consolidate`)
+### 9.2 Thread Management (`/thread`)
+
+Threads persist across sessions in `agents/{name}/threads/`. Each thread is a
+self-contained JSON file with metadata and conversation turns (capped at 200).
+
+```
+/thread list              — Show all threads with status (active/archived)
+/thread switch <prefix>   — Resume a thread by UUID prefix
+/thread new [title]       — Start a fresh thread
+/thread archive <prefix>  — Toggle archive/activate
+```
+
+Auto-archival runs on session start based on `short_term_memory_life` (default
+60 days). Threads inactive longer than this are automatically archived.
+
+### 9.3 Memory Flow Per Turn
+
+1. **Before inference:** Thread history (cold starts only), semantic recall, episodic recall
+2. **During inference:** Retrieved context is incorporated into the prompt
+3. **After inference:** Exchange stored in episodic memory (long-term) AND appended to active thread (short-term)
+
+### 9.4 Consolidation (`/consolidate`)
 
 User-triggered episodic→semantic consolidation via `ConsolidationService`:
 
@@ -465,7 +495,7 @@ User-triggered episodic→semantic consolidation via `ConsolidationService`:
 
 The service shares the same underlying DB connection as the storage ports, so consolidation operates on the agent's actual triples.
 
-### 9.4 Fallback
+### 9.5 Fallback
 
 If the per-agent DB cannot be opened (e.g., wrong passphrase), the REPL falls back to an in-memory database with a warning message. Consolidation works on the in-memory DB.
 

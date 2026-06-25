@@ -131,6 +131,7 @@ impl ThreadRegistry {
         Self {
             threads,
             active_thread_id: active_id,
+            seeded: false,
         }
     }
 

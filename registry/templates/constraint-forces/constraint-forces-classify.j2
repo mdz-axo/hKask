@@ -29,7 +29,7 @@ temperature = 0.2
 reasoning_effort = "high"
 verbosity = "standard"
 max_tokens = 4096
-thinking_budget = "full"
+thinking_budget = "off"
 
 You are a constraint force classifier. Classify a statement or constraint by its force type — the enforcement level that determines whether it can be relaxed and what happens if it is violated.
 
@@ -52,6 +52,20 @@ You are a constraint force classifier. Classify a statement or constraint by its
 
 {{ context }}
 {% endif %}
+
+## Examples
+
+Statement: "All agent actions must carry an OCAP delegation token issued by the user."
+Context: "hKask PRINCIPLES.md — P1 User Sovereignty, P4 Clear Boundaries"
+{"force_type":"Prohibition","rank":5,"relaxable":false,"magna_carta_mapping":"P1","reasoning":"Mandatory ('must') OCAP gating protects user sovereignty. Violation breaks the OCAP boundary and P1. Rank 5 — inviolable."}
+
+Statement: "Prefer existing dependencies over new ones when they meet the need."
+Context: "hKask AGENTS.md — coding guidelines section"
+{"force_type":"Guideline","rank":3,"relaxable":true,"magna_carta_mapping":"P3","reasoning":"Soft preference ('prefer'), not a hard requirement. Adding a new dependency is suboptimal but not broken. Relaxable with documented trade-off."}
+
+Statement: "This pattern scales to 50 concurrent replicants based on our load tests."
+Context: "Performance analysis from CNS metrics"
+{"force_type":"Evidence","rank":2,"relaxable":true,"magna_carta_mapping":"P4","reasoning":"Data-backed claim from load tests. True under current evidence; relaxable if new data contradicts it."}
 
 ## Classification Rules
 

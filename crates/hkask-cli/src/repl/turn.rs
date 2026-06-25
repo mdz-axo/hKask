@@ -99,6 +99,16 @@ pub(super) fn single_agent_turn(
     let mut total_usage: Option<hkask_services::TokenUsage> = None;
     let mut final_response: Option<String> = None;
 
+    // CNS: turn lifecycle — emit start span for observability.
+    tracing::info!(
+        target: "cns",
+        cns_domain = "cns.chat.turn",
+        operation = "started",
+        agent = %agent_override.unwrap_or(&state.current_agent),
+        input_len = input.len(),
+        "CNS"
+    );
+
     loop {
         iteration += 1;
         if iteration > max_loops {
@@ -253,6 +263,19 @@ pub(super) fn single_agent_turn(
     // Mark thread as seeded — subsequent turns won't re-inject thread
     // history; episodic recall handles conversation context from here.
     state.thread_registry.mark_seeded();
+
+    // CNS: turn lifecycle — emit completion span.
+    if let Some(ref resp) = final_response {
+        tracing::info!(
+            target: "cns",
+            cns_domain = "cns.chat.turn",
+            operation = "completed",
+            agent = %agent_override.unwrap_or(&state.current_agent),
+            response_len = resp.len(),
+            iterations = iteration,
+            "CNS"
+        );
+    }
 
     cns_display::update_cns_and_display(state, rt);
 
