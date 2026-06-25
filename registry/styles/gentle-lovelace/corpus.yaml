@@ -30,7 +30,7 @@
 
 author: gentle-lovelace
 centroid_entity_ref: "style:gentle-lovelace:centroid"
-classifier: gemma-classifier
+classifier: section-classifier
 
 embedding:
   model: "DI/Qwen/Qwen3-Embedding-0.6B"

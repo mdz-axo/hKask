@@ -92,7 +92,22 @@ impl OcrExecutor for LlmOcrExecutor {
         let result = router
             .generate_vision(OCR_SYSTEM_PROMPT, &[b64_data], &params, Some(&model))
             .await
-            .map_err(|e| format!("OCR inference failed: {}", e))?;
+            .map_err(|e| {
+                let err_str = e.to_string();
+                // GAP-4: CNS variety — detect rate-limit backpressure
+                if err_str.contains("429")
+                    || err_str.contains("rate limit")
+                    || err_str.contains("Rate limit")
+                {
+                    tracing::warn!(
+                        target: "cns.pipeline.ocr.rate_limit",
+                        model = %model,
+                        page_index = page_index,
+                        "OCR inference rate-limited — backpressure may be needed"
+                    );
+                }
+                format!("OCR inference failed: {}", err_str)
+            })?;
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
@@ -104,6 +119,18 @@ impl OcrExecutor for LlmOcrExecutor {
         // Results are clamped to [0.0, 0.95] — 0.95 cap acknowledges that
         // heuristic confidence can never be fully certain.
         let confidence = ocr_quality_heuristic(&result.text, image.width(), image.height());
+
+        // GAP-4: CNS variety — flag suspiciously low confidence for Curator review
+        if confidence < 0.3 && !result.text.trim().is_empty() {
+            tracing::warn!(
+                target: "cns.pipeline.ocr.low_confidence",
+                page_index = page_index,
+                confidence = confidence,
+                model = %model,
+                text_len = result.text.len(),
+                "LLM OCR produced low-confidence output — possible hallucination or poor image quality"
+            );
+        }
 
         Ok(OcrResult {
             page_index,

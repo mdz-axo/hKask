@@ -233,6 +233,18 @@ fn otsu_binarize(image: &mut DynamicImage) {
         otsu_level as u8,
         imageproc::contrast::ThresholdType::Binary,
     );
+
+    // GAP-4: CNS variety — detect potential over-thresholding (uniform output)
+    let unique: std::collections::BTreeSet<u8> = binarized.as_raw().iter().copied().collect();
+    if unique.len() <= 1 {
+        tracing::warn!(
+            target: "cns.pipeline.decimation.binarize",
+            otsu_level = otsu_level,
+            unique_values = unique.len(),
+            "Otsu binarization produced uniform output — possible over-thresholding"
+        );
+    }
+
     *image = DynamicImage::ImageLuma8(binarized);
 }
 

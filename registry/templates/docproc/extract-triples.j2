@@ -35,6 +35,22 @@ Each triple should be in the form (subject, predicate, object) where:
 
 For each triple, also provide a confidence score (0.0-1.0) based on how clearly the text supports it.
 
+Examples:
+
+Text: "The hKask runtime enforces OCAP delegation. Every agent action requires a capability token issued by the user."
+{"triples": [
+  {"subject": "hkask:runtime", "predicate": "schema:enforces", "object": "hkask:OCAP", "confidence": 0.95},
+  {"subject": "hkask:agent-action", "predicate": "hkask:requires", "object": "hkask:capability-token", "confidence": 0.95},
+  {"subject": "hkask:capability-token", "predicate": "schema:issuedBy", "object": "hkask:user", "confidence": 0.90}
+]}
+
+Text: "DeepInfra hosts Gemma 4 with 26B total parameters. The model costs $0.15 per million input tokens."
+{"triples": [
+  {"subject": "di:DeepInfra", "predicate": "hkask:hosts", "object": "di:Gemma-4", "confidence": 0.95},
+  {"subject": "di:Gemma-4", "predicate": "schema:hasPart", "object": "26B-parameters", "confidence": 0.95},
+  {"subject": "di:Gemma-4", "predicate": "hkask:inputCost", "object": "$0.15-per-1M-tokens", "confidence": 0.90}
+]}
+
 Text:
 {{ text }}
 

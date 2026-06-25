@@ -16,20 +16,18 @@ use crate::ocr::{ComplexityTier, CrossValidation, PipelineOutcome, ThresholdConf
 
 /// Evidence backing a threshold drift suggestion.
 #[derive(Debug, Clone)]
-pub struct DriftEvidence {
+pub(crate) struct DriftEvidence {
     /// Number of dual-routed pages analyzed.
     pub sample_count: usize,
     /// Mean similarity across all dual-routed pages in this tier.
     pub mean_similarity: f32,
-    /// Which complexity tier the evidence covers.
-    pub tier: ComplexityTier,
 }
 
 /// A CNS alert suggesting a threshold adjustment.
 ///
 /// Observation only — does not autonomously change routing (P4).
 #[derive(Debug, Clone)]
-pub struct ThresholdDriftAlert {
+pub(crate) struct ThresholdDriftAlert {
     /// Which threshold parameter to adjust (e.g., "moderate_max").
     pub parameter: &'static str,
     /// Current configured value.
@@ -52,10 +50,15 @@ pub struct ThresholdDriftAlert {
 /// - Suggested adjustment: raise `moderate_max` by 0.05 (capped at 0.50)
 ///
 /// Returns `None` if insufficient data or similarity is too low.
-pub fn analyze_threshold_drift(
+pub(crate) fn analyze_threshold_drift(
     outcomes: &[PipelineOutcome],
     current_thresholds: &ThresholdConfig,
 ) -> Option<ThresholdDriftAlert> {
+    // P4: Respect the tuneable guardrail — if threshold tuning is disabled,
+    // don't even analyze. The field was previously defined but never enforced.
+    if !current_thresholds.tuneable {
+        return None;
+    }
     // P4: Respect the tuneable guardrail — if threshold tuning is disabled,
     // don't even analyze. The field was previously defined but never enforced.
     if !current_thresholds.tuneable {
@@ -95,7 +98,6 @@ pub fn analyze_threshold_drift(
         evidence: DriftEvidence {
             sample_count: moderate_cvs.len(),
             mean_similarity,
-            tier: ComplexityTier::Moderate,
         },
     })
 }
@@ -105,7 +107,7 @@ pub fn analyze_threshold_drift(
 /// Uses `tracing::warn!` under `cns.pipeline.calibration` target.
 /// Future: construct `NuEvent` with `SpanNamespace("cns.pipeline")` and
 /// persist to `NuEventStore` for CurationLoop consumption.
-pub fn emit_drift_alert(alert: &ThresholdDriftAlert) {
+pub(crate) fn emit_drift_alert(alert: &ThresholdDriftAlert) {
     tracing::warn!(
         target: "cns.pipeline.calibration",
         parameter = alert.parameter,

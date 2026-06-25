@@ -61,7 +61,7 @@ use crate::adapters::{
 use crate::dataset::DatasetPipeline;
 use crate::providers::{
     LoraParams, TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJob,
-    TrainingJobStatus, TrainingParams, create_host, AxolotlHarness, HarnessAdapter, UnslothHarness,
+    TrainingJobStatus, TrainingParams, create_host,
 };
 use crate::types::*;
 use hkask_adapter::AdapterPort;
@@ -2779,6 +2779,8 @@ pub async fn run(
     let host_config = TrainingHostConfig {
         harness: harness_id,
         host: host_id,
+        axolotl_path: std::env::var("HKASK_AXOLOTL_PATH").ok().map(PathBuf::from),
+        python_path: std::env::var("HKASK_PYTHON_PATH").ok().map(PathBuf::from),
         together_api_key: std::env::var("TOGETHER_API_KEY").unwrap_or_default(),
         runpod_api_key: std::env::var("RUNPOD_API_KEY").unwrap_or_default(),
         runpod_template_id: std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_default(),
@@ -2863,11 +2865,7 @@ pub async fn run(
                     ),
                 };
 
-                let harness: Box<dyn HarnessAdapter> = match harness_id {
-                    TrainingHarnessId::Axolotl => Box::new(AxolotlHarness),
-                    TrainingHarnessId::Unsloth => Box::new(UnslothHarness),
-                };
-                let host = create_host(&host_config, harness)
+                let host = create_host(&host_config)
                     .map_err(|e| anyhow::anyhow!("Failed to create training host: {}", e))?;
 
                 let inference_config = InferenceConfig::from_env();

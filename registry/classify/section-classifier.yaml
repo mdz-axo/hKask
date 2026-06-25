@@ -1,0 +1,53 @@
+# Section Classifier — passage type classification for corpus embedding
+# Used by: kask embed-corpus (section_type classification pass)
+# Prompting: Few-Shot (3-shot) with documentation examples.
+#   Martin et al. (arXiv:2603.29878): Few-Shot lifts structured extraction
+#   from <30% F1 (Zero-Shot) to 99%+; applies to classification tasks.
+# Primary model: qwen/qwen3-235b-a22b-2507 (22B active, 235B total, MoE)
+#   — controlled by HKASK_CLASSIFIER_MODEL env var / settings, NOT this YAML.
+# Fallback model (this file): qwen/qwen3.5-35b-a3b (3B active MoE)
+#   — used only if HkaskSettings.classifier_model() returns empty.
+# Provider: KiloCode (cloud API via Kilo Gateway, OpenAI-compatible)
+#
+# CI: This config is named after its FUNCTION (section classification),
+# not its model — the model is a variable controlled by settings.
+
+classifier:
+  name: section-classifier
+  model: qwen/qwen3.5-35b-a3b
+  provider: kilocode
+  concurrency: 150
+  timeout_secs: 30
+
+  system_prompt: >
+    Classify this passage. Return ONLY: {"category":"X"}.
+
+    Categories:
+    Statement=principle/rule/assertion.
+    Evidence=example/data/citation (look for: "for instance", "for example").
+    Diagram=structure/layout/mechanical description.
+    Implications=consequence ("therefore", "thus", "hence").
+
+    Examples:
+
+    Passage: "OCAP delegation requires every capability access to carry
+    an explicit, attenuating, unforgeable token."
+    {"category":"Statement"}
+
+    Passage: "For instance, a replicant calling version_info does not need
+    access to the wallet — the capability grant is scoped to read-only
+    visibility via the CNS span registry."
+    {"category":"Evidence"}
+
+    Passage: "If CNS thresholds are breached, the Curator escalates to the
+    human operator. Therefore, alert fatigue must be managed through
+    hysteresis and cooldown windows."
+    {"category":"Implications"}
+
+  base_url: https://api.kilo.ai/api/gateway/chat/completions
+  api_key_env: KILOCODE_API_KEY
+
+  temperature: 0.0
+  max_tokens: 15
+
+  fallback_category: Statement

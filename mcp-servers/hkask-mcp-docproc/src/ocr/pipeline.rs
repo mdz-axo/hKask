@@ -183,6 +183,18 @@ pub async fn run_pipeline(
 
         // Step 4: Cross-validation if dual-routed
         if let Some(ref secondary) = secondary_result {
+            // GAP-4: CNS variety — detect potential backend collusion
+            // (both backends agree on empty/near-empty output)
+            if primary.text.trim().is_empty() && secondary.text.trim().is_empty() {
+                tracing::warn!(
+                    target: "cns.pipeline.ocr.collusion",
+                    page_index = page_index,
+                    backend_a = %primary.backend,
+                    backend_b = %secondary.backend,
+                    "Both OCR backends produced empty output — possible blank page or collusion"
+                );
+            }
+
             let mut cv = match compute_cross_validation(&primary, secondary) {
                 Some(cv) => cv,
                 None => continue,

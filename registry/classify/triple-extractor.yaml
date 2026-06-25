@@ -1,5 +1,8 @@
 # Triple Extractor — Qwen3 MoE classifier for semantic triple generation
 # Used by: kask embed-corpus (triple extraction pass, after section_type)
+# Prompting: Few-Shot (3-shot) with hKask-domain examples.
+#   Martin et al. (arXiv:2603.29878): Few-Shot is the dominant strategy,
+#   lifting F1 from <30% (Zero-Shot) to 99%+ across all tested models.
 # Primary model: qwen/qwen3-235b-a22b-2507 (22B active, 235B total, MoE)
 #   — controlled by HKASK_CLASSIFIER_MODEL env var / settings, NOT this YAML.
 # Fallback model (this file): qwen/qwen3.5-35b-a3b (3B active MoE)
@@ -25,16 +28,46 @@ classifier:
 
   system_prompt: >
     Extract structured information from this technical documentation passage.
-    Return ONLY valid JSON, no commentary:
+    Return ONLY valid JSON, no commentary. Use consistent terminology and
+    prefer specific over generic labels.
 
-    {
-      "topic": "One sentence summary of this passage",
-      "concepts": ["key concept 1", "key concept 2"],
-      "entities": ["named entity mentioned", "tool/framework/service name"],
-      "relationships": ["how concepts or entities relate"],
-      "primary_dimension": "Gentle|Schriver|Hopper|Lovelace",
-      "quality_flags": ["flag1", "flag2"]
-    }
+    Examples:
+
+    Passage: "The CNS uses algedonic signals to detect variety deficits
+    and escalate to the Curator when thresholds are breached. Each signal
+    carries a severity level and a target agent ID."
+    {"topic":"CNS algedonic signaling for variety deficit detection",
+    "concepts":["algedonic signals","variety deficit","escalation threshold"],
+    "entities":["CNS","Curator"],
+    "relationships":["CNS produces algedonic signals for variety deficits",
+    "signals escalate to Curator on threshold breach"],
+    "primary_dimension":"Gentle",
+    "quality_flags":["precise","clear","actionable"]}
+
+    Passage: "OCAP delegation tokens enforce Principle 4: every capability
+    access requires an explicit, attenuating, unforgeable token. Tokens are
+    created by capability grants and verified at each use boundary."
+    {"topic":"OCAP delegation tokens for capability access control",
+    "concepts":["OCAP","delegation token","capability grant",
+    "attenuation"],
+    "entities":["Principle 4"],
+    "relationships":["OCAP tokens enforce P4 clear boundaries",
+    "tokens are attenuating and unforgeable",
+    "capability grants create delegation tokens"],
+    "primary_dimension":"Lovelace",
+    "quality_flags":["precise","authoritative"]}
+
+    Passage: "Templates follow a KnowAct contract pattern: input types,
+    output types, and an energy cap are declared in a frontmatter block.
+    The contract is verified at render time against the provided context."
+    {"topic":"KnowAct template contract pattern with energy caps",
+    "concepts":["KnowAct","template contract","energy cap",
+    "frontmatter"],
+    "entities":[],
+    "relationships":["contract declares input/output types and energy cap",
+    "contract is verified at render time against context"],
+    "primary_dimension":"Hopper",
+    "quality_flags":["clear","well_structured"]}
 
     Primary dimension meanings:
     - Gentle: agent-correctness, actionable, unambiguous

@@ -1102,25 +1102,24 @@ Agent: {}",
                 req.input.clone()
             };
 
-        // 2. Build context: thread history (short-term) → episodic (long-term) → semantic.
-        // Thread history is the active thread's own conversation stream — it
-        // changes when the user switches threads. Episodic memory is the
-        // long-term pipeline (all sessions, independently processed).
+        // 2. Build context — invariant structure for all agents:
+        //    [thread history] → [semantic facts] → [episodic history] → [user input]
         //
-        // When thread history is present, episodic recall is skipped: the thread
-        // already provides the conversation context. Episodic recall is a
-        // fallback for when no active thread exists (pure long-term memory).
+        // Thread history is short-term memory: the active thread's recent
+        // conversation stream. Episodic is long-term memory: past sessions,
+        // other threads, consolidated experience. Semantic injects relevant
+        // facts derived from both. All three layers coexist structurally;
+        // each may be empty (None) but the assembly order is invariant.
         let history_token = req.capability_checker.grant_registry(
             DelegationAction::Read,
             req.system_webid,
             req.agent_webid,
         );
-        let history_suffix = if req.thread_history.is_none()
-            && MemoryService::has_memory_consent(
-                ctx,
-                &req.agent_webid,
-                &DataCategory::EpisodicMemory,
-            ) {
+        let history_suffix = if MemoryService::has_memory_consent(
+            ctx,
+            &req.agent_webid,
+            &DataCategory::EpisodicMemory,
+        ) {
             MemoryService::recall_recent_turns(
                 &req.episodic_storage,
                 &req.agent_webid,
@@ -1141,12 +1140,15 @@ Agent: {}",
         } else {
             None
         };
-        let mut input_with_context = match (&req.thread_history, &history_suffix, semantic_suffix) {
-            (Some(thread), _, Some(sem)) => format!("{}\n\n{}\n\n{}", base_input, thread, sem),
-            (Some(thread), _, None) => format!("{}\n\n{}", base_input, thread),
-            (None, Some(ep), Some(sem)) => format!("{}\n\n{}\n\n{}", base_input, sem, ep),
-            (None, Some(ep), None) => format!("{}\n\n{}", base_input, ep),
-            (None, None, Some(sem)) => format!("{}\n\n{}", base_input, sem),
+        let mut input_with_context = match (&req.thread_history, &history_suffix, &semantic_suffix)
+        {
+            (Some(t), Some(e), Some(s)) => format!("{}\n\n{}\n\n{}\n\n{}", base_input, t, s, e),
+            (Some(t), Some(e), None) => format!("{}\n\n{}\n\n{}", base_input, t, e),
+            (Some(t), None, Some(s)) => format!("{}\n\n{}\n\n{}", base_input, t, s),
+            (Some(t), None, None) => format!("{}\n\n{}", base_input, t),
+            (None, Some(e), Some(s)) => format!("{}\n\n{}\n\n{}", base_input, s, e),
+            (None, Some(e), None) => format!("{}\n\n{}", base_input, e),
+            (None, None, Some(s)) => format!("{}\n\n{}", base_input, s),
             (None, None, None) => base_input.clone(),
         };
 

@@ -700,10 +700,22 @@ fn render_docproc_template(
         content
     };
 
-    // Strip [inference] blocks (non-Jinja2 metadata)
+    // Strip [inference] blocks (non-Jinja2 metadata).
+    // Only skip the explicit [inference] header block, not arbitrary [bracketed] lines.
     let prompt_body = body
         .lines()
-        .skip_while(|l| l.starts_with('[') || l.trim().is_empty() || l.trim().starts_with('#'))
+        .skip_while(|l| {
+            let trimmed = l.trim();
+            trimmed.starts_with("[inference]") || trimmed.is_empty() || trimmed.starts_with('#')
+        })
+        .skip_while(|l| {
+            // Skip the inference config lines (key = value pairs under [inference])
+            let trimmed = l.trim();
+            !trimmed.is_empty()
+                && !trimmed.starts_with('#')
+                && trimmed.contains('=')
+                && !trimmed.starts_with('{')
+        })
         .collect::<Vec<_>>()
         .join("\n")
         .trim()
