@@ -168,12 +168,21 @@ fn main() {
         }
 
         Commands::Serve {
-            port,
-            host,
-            json_logs,
+            port: _port,
+            host: _host,
+            json_logs: _json_logs,
         } => {
-            if let Err(e) = rt.block_on(commands::serve::run_server(port, &host, json_logs)) {
-                eprintln!("Server error: {}", e);
+            #[cfg(feature = "api")]
+            {
+                if let Err(e) = rt.block_on(commands::serve::run_server(_port, &_host, _json_logs))
+                {
+                    eprintln!("Server error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+            #[cfg(not(feature = "api"))]
+            {
+                eprintln!("HTTP API server not built — rebuild with `cargo build --features api`");
                 std::process::exit(1);
             }
         }
@@ -202,13 +211,23 @@ fn main() {
         } => commands::registry::run_rm(&rt, &mut registry, target, db, passphrase),
 
         Commands::Transcript { path } => {
-            let mut viewer = hkask_cli::transcript_viewer::TranscriptViewer::from_file(&path)
-                .unwrap_or_else(|e| {
-                    eprintln!("Failed to load transcript: {}", e);
+            #[cfg(feature = "tui")]
+            {
+                let mut viewer = hkask_cli::transcript_viewer::TranscriptViewer::from_file(&path)
+                    .unwrap_or_else(|e| {
+                        eprintln!("Failed to load transcript: {}", e);
+                        std::process::exit(1);
+                    });
+                if let Err(e) = viewer.run() {
+                    eprintln!("Transcript viewer error: {}", e);
                     std::process::exit(1);
-                });
-            if let Err(e) = viewer.run() {
-                eprintln!("Transcript viewer error: {}", e);
+                }
+            }
+            #[cfg(not(feature = "tui"))]
+            {
+                eprintln!(
+                    "Transcript viewer not built — rebuild with `cargo build --features tui`"
+                );
                 std::process::exit(1);
             }
         }

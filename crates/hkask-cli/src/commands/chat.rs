@@ -422,14 +422,29 @@ pub fn run_chat(
             .map(|v| v == "1")
             .unwrap_or(false)
     {
-        crate::repl::run_tui(
-            registry,
-            runtime,
-            template.as_deref(),
-            &agent,
-            model.as_deref(),
-            handle.clone(),
-        );
+        #[cfg(feature = "tui")]
+        {
+            crate::repl::run_tui(
+                registry,
+                runtime,
+                template.as_deref(),
+                &agent,
+                model.as_deref(),
+                handle.clone(),
+            );
+        }
+        #[cfg(not(feature = "tui"))]
+        {
+            eprintln!("TUI not built — rebuild with `cargo build --features tui`");
+            crate::repl::run(
+                registry,
+                runtime,
+                template.as_deref(),
+                &agent,
+                model.as_deref(),
+                handle.clone(),
+            );
+        }
     } else {
         crate::repl::run(
             registry,

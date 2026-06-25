@@ -330,8 +330,17 @@ pub(super) fn handle_slash_command(
         "listen" | "rec" | "record" => handlers::handle_listen(arg1, arg2, state, rt),
         "talk" | "speak" => handlers::handle_talk(arg1, arg2, state, rt),
         "improv" | "imp" => handlers::handle_improv(arg1, arg2, state),
+        #[cfg(feature = "communication")]
         "matrix" | "mx" => handlers::handle_matrix(arg1, rt),
+        #[cfg(feature = "communication")]
         "msg" | "dm" => handlers::handle_msg(arg1, arg2, rt),
+        #[cfg(not(feature = "communication"))]
+        cmd @ ("matrix" | "mx" | "msg" | "dm") => {
+            println!(
+                "  Matrix communication not built — rebuild with `cargo build --features communication`"
+            );
+            let _ = cmd;
+        }
         "kanban" | "kb" => handlers::handle_kanban(arg1, arg2, state, rt),
 
         _ => {

@@ -16,6 +16,7 @@ pub(crate) mod handlers;
 mod helper;
 mod init;
 mod tool_augmented;
+#[cfg(feature = "tui")]
 mod tui_bridges;
 mod turn;
 
@@ -239,6 +240,7 @@ fn history_path() -> std::path::PathBuf {
 }
 
 /// Launch the TUI workspace instead of the line-based REPL.
+#[cfg(feature = "tui")]
 pub fn run_tui(
     _registry: &mut SqliteRegistry,
     _runtime: &McpRuntime,
@@ -291,8 +293,10 @@ pub fn run_tui(
                 .with_registry_bridge(bridge.clone())
                 .with_wallet_bridge(bridge.clone())
                 .with_memory_bridge(bridge.clone())
-                .with_kanban_bridge(bridge.clone())
-                .with_matrix_bridge(bridge.clone())
+                .with_kanban_bridge(bridge.clone());
+            #[cfg(feature = "communication")]
+            let session = session.with_matrix_bridge(bridge.clone());
+            let session = session
                 .with_backup_bridge(bridge.clone())
                 .with_media_bridge(bridge.clone())
                 .with_training_bridge(bridge.clone())
@@ -323,6 +327,7 @@ pub fn run_tui(
 }
 
 /// Bridge implementation connecting the TUI to hKask's full inference engine.
+#[cfg(feature = "tui")]
 struct TuiReplBridge {
     state: Arc<std::sync::Mutex<ReplState>>,
     inference_loop: Arc<InferenceLoop>,
@@ -342,6 +347,7 @@ struct TuiReplBridge {
     last_research_search: std::sync::Mutex<Option<String>>,
 }
 
+#[cfg(feature = "tui")]
 impl TuiReplBridge {
     fn build_result(capture: &turn::TurnCapture) -> hkask_tui::TurnResult {
         if capture.budget_exhausted {
@@ -373,6 +379,7 @@ impl TuiReplBridge {
     }
 }
 
+#[cfg(feature = "tui")]
 impl hkask_tui::ReplBridge for TuiReplBridge {
     fn start_inference(&self, input: String) {
         let state = self.state.clone();

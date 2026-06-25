@@ -1,3 +1,4 @@
+#![cfg(feature = "tui")]
 //! TUI Transcript Viewer — interactive synchronized audio + transcript playback.
 //!
 //! Renders a TranscriptBundle in the terminal with:

@@ -10,6 +10,7 @@ pub(crate) mod improv;
 pub(crate) mod info;
 pub(crate) mod invoke;
 pub(crate) mod listen;
+#[cfg(feature = "communication")]
 pub(crate) mod matrix;
 pub(crate) mod mcp;
 pub(crate) mod model;
@@ -31,6 +32,7 @@ pub(crate) use info::{handle_history, handle_pods, handle_templates, handle_tool
 pub(crate) use invoke::handle_invoke;
 pub(crate) use kanban::handle_kanban;
 pub(crate) use listen::handle_listen;
+#[cfg(feature = "communication")]
 pub(crate) use matrix::{handle_matrix, handle_msg};
 pub(crate) use mcp::handle_mcp;
 pub(crate) use model::handle_model;

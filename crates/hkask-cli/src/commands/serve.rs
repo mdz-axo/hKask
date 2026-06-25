@@ -1,3 +1,4 @@
+#![cfg(feature = "api")]
 //! `kask serve` — Start the HTTP API server sharing CLI state
 //!
 //! Creates an `ApiState` via `AgentService::build()` and starts the

@@ -9,6 +9,12 @@ description = "CLI commands for hKask"
 name = "kask"
 path = "src/main.rs"
 
+[features]
+default = ["tui", "communication", "api"]
+tui = ["hkask-tui", "ratatui", "crossterm"]
+communication = ["hkask-communication"]
+api = ["hkask-api", "axum"]
+
 [dependencies]
 hkask-types = { path = "../hkask-types" }
 hkask-ports = { path = "../hkask-ports" }
@@ -18,13 +24,13 @@ hkask-templates = { path = "../hkask-templates" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-cns = { path = "../hkask-cns" }
-hkask-api = { path = "../hkask-api" }
+hkask-api = { path = "../hkask-api", optional = true }
 hkask-inference = { path = "../hkask-inference" }
 hkask-test-harness = { path = "../hkask-test-harness" }
 hkask-wallet = { path = "../hkask-wallet" }
 hkask-memory = { path = "../hkask-memory" }
 hkask-improv = { path = "../hkask-improv" }
-hkask-communication = { path = "../hkask-communication" }
+hkask-communication = { path = "../hkask-communication", optional = true }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-services = { path = "../hkask-services" }
 hkask-services-runtime = { path = "../hkask-services-runtime" }
@@ -33,7 +39,7 @@ hkask-services-backup = { path = "../hkask-services-backup" }
 hkask-services-kanban = { path = "../hkask-services-kanban" }
 hkask-ledger = { path = "../hkask-ledger" }
 rmcp.workspace = true
-axum.workspace = true
+axum = { workspace = true, optional = true }
 clap.workspace = true
 chrono.workspace = true
 serde.workspace = true
@@ -51,12 +57,12 @@ rusqlite.workspace = true
 zeroize.workspace = true
 rand.workspace = true
 hex.workspace = true
-ratatui.workspace = true
-crossterm.workspace = true
+ratatui = { workspace = true, optional = true }
+crossterm = { workspace = true, optional = true }
 anyhow.workspace = true
 futures-util.workspace = true
 rustyline = "18.0.0"
-hkask-tui = { path = "../hkask-tui" }
+hkask-tui = { path = "../hkask-tui", optional = true }
 dirs = "6"
 rpassword = "7"
 dotenvy.workspace = true

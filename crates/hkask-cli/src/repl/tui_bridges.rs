@@ -1,3 +1,4 @@
+#![cfg(feature = "tui")]
 //! TUI domain bridge implementations for `TuiReplBridge`.
 //!
 //! Implements the 9 domain-specific bridge traits from `hkask-tui` so that
@@ -394,6 +395,7 @@ impl KanbanDataBridge for TuiReplBridge {
 
 // ── MatrixDataBridge ─────────────────────────────────────────────────
 
+#[cfg(feature = "communication")]
 impl MatrixDataBridge for TuiReplBridge {
     fn connection_status(&self) -> MatrixConnectionStatus {
         let state = self.state.lock().expect("lock");
