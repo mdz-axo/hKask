@@ -180,7 +180,7 @@ fn parse_tesseract_tsv(tsv_content: &str) -> (String, f32) {
     let text = text_parts.join(" ");
 
     let confidence = if confidences.is_empty() {
-        if text.is_empty() { 0.0 } else { 0.0 }
+        if text.is_empty() { 0.0 } else { 1.0 }
     } else {
         let mean = confidences.iter().sum::<f32>() / confidences.len() as f32;
         (mean / 100.0).clamp(0.0, 1.0)

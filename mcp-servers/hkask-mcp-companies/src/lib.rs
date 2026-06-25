@@ -63,7 +63,6 @@ use portfolio::PortfolioManager;
 use types::*;
 pub mod tools;
 
-
 // ── Forecast store ───────────────────────────────────────────────────
 
 /// A stored forecast model for later decomposition during `forecast_record`.
@@ -309,18 +308,20 @@ impl hkask_mcp::server::ToolContext for CompaniesServer {
     }
 }
 
-
 // ── Combined tool router (P5 Essentialism — modular tool groups) ──────────
 
 impl CompaniesServer {
     fn combined_router() -> rmcp::handler::server::router::tool::ToolRouter<Self> {
-        Self::financial_data_router() + Self::analysis_router() + Self::portfolio_router() + Self::analytics_router() + Self::valuation_router()
+        Self::financial_data_router()
+            + Self::analysis_router()
+            + Self::portfolio_router()
+            + Self::analytics_router()
+            + Self::valuation_router()
     }
 }
 
 #[rmcp::tool_handler(router = Self::combined_router())]
 impl rmcp::ServerHandler for CompaniesServer {}
-
 
 // ── Expectations gap helpers ─────────────────────────────────────
 
@@ -472,7 +473,6 @@ pub async fn run(
 }
 
 // ── Tracer-bullet contracts ───────────────────────────────────────
-
 
 #[cfg(test)]
 mod tests {

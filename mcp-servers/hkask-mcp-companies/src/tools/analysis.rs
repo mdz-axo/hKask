@@ -628,5 +628,4 @@ impl CompaniesServer {
     }
 
     // ── Portfolio tools ──
-
 }

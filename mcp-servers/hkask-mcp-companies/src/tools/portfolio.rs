@@ -519,5 +519,4 @@ impl CompaniesServer {
     }
 
     // ── Analysis tools ───────────────────────────────────────────
-
 }

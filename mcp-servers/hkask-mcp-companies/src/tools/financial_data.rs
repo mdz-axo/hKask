@@ -292,5 +292,4 @@ impl CompaniesServer {
         })
         .await
     }
-
 }

@@ -2,8 +2,8 @@
 //!
 //! Docs: https://docs.runpod.io/serverless/endpoints/manage-endpoints
 
-use super::openai::openai_compatible_infer;
 use super::AdapterProviderBackend;
+use super::openai::openai_compatible_infer;
 use crate::adapter_config::AdapterConfig;
 use crate::adapter_port::AdapterError;
 use crate::adapter_store::TrainedLoRAAdapter;

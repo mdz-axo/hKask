@@ -168,11 +168,11 @@ impl DocProcServer {
                 }
 
                 // Insufficient text — try the typed OCR pipeline
-                if self.has_ocr() {
-                    if let Ok(model) = self.resolve_ocr_model(None).await
-                        && let Ok(page_images) =
-                            decimation::pdf_to_images(std::path::Path::new(&path), 200).await
-                    {
+                if self.has_ocr()
+                    && let Ok(model) = self.resolve_ocr_model(None).await
+                    && let Ok(page_images) =
+                        decimation::pdf_to_images(std::path::Path::new(&path), 200).await
+                {
                         let expected = page_images.len();
                         let emb = self.embedding_router.as_ref().map(|r| {
                             (r, default_embedding_model())
@@ -536,4 +536,20 @@ impl DocProcServer {
         })
         .await
     }
+
+    #[tool(
+        description = "Generate QA pairs from a text chunk by calling the inference engine. Returns structured question-answer pairs at specified Bloom's taxonomy levels."
+    )]
+    pub async fn docproc_generate_qa(
+        &self,
+        Parameters(GenerateQaRequest {
+            text,
+            chunk_id,
+            bloom_levels,
+        }): Parameters<GenerateQaRequest>,
+    ) -> String {
+        execute_tool(self, "docproc_generate_qa", async {
+            if text.is_empty() {
+                return Err(McpToolError::invalid_argument("text must not be empty"));
+            }
 }

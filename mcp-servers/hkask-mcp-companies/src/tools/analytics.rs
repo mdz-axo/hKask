@@ -822,5 +822,4 @@ impl CompaniesServer {
             Ok(output)
         }).await
     }
-
 }
