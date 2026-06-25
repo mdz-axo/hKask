@@ -48,32 +48,29 @@ impl FermiDefaults {
     /// Falls back to hardcoded defaults if unset or invalid.
     /// Expected format: {"growth": [{"estimate": 0.65, "confidence": 0.7}, ...], "margin": [...]}
     pub fn from_env() -> Self {
-        if let Ok(json_str) = std::env::var("HKASK_FERMI_DEFAULTS") {
-            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json_str) {
-                let growth = parsed.get("growth").and_then(|g| g.as_array());
-                let margin = parsed.get("margin").and_then(|m| m.as_array());
-                if let (Some(g_arr), Some(m_arr)) = (growth, margin) {
-                    let parse_questions = |arr: &[serde_json::Value]| -> Vec<SubQuestion> {
-                        arr.iter()
-                            .map(|v| SubQuestion {
-                                question: v
-                                    .get("question")
-                                    .and_then(|q| q.as_str())
-                                    .unwrap_or("")
-                                    .into(),
-                                estimate: v.get("estimate").and_then(|e| e.as_f64()).unwrap_or(0.5),
-                                confidence: v
-                                    .get("confidence")
-                                    .and_then(|c| c.as_f64())
-                                    .unwrap_or(0.5),
-                            })
-                            .collect()
-                    };
-                    return FermiDefaults {
-                        growth_questions: parse_questions(g_arr),
-                        margin_questions: parse_questions(m_arr),
-                    };
-                }
+        if let Ok(json_str) = std::env::var("HKASK_FERMI_DEFAULTS")
+            && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json_str)
+        {
+            let growth = parsed.get("growth").and_then(|g| g.as_array());
+            let margin = parsed.get("margin").and_then(|m| m.as_array());
+            if let (Some(g_arr), Some(m_arr)) = (growth, margin) {
+                let parse_questions = |arr: &[serde_json::Value]| -> Vec<SubQuestion> {
+                    arr.iter()
+                        .map(|v| SubQuestion {
+                            question: v
+                                .get("question")
+                                .and_then(|q| q.as_str())
+                                .unwrap_or("")
+                                .into(),
+                            estimate: v.get("estimate").and_then(|e| e.as_f64()).unwrap_or(0.5),
+                            confidence: v.get("confidence").and_then(|c| c.as_f64()).unwrap_or(0.5),
+                        })
+                        .collect()
+                };
+                return FermiDefaults {
+                    growth_questions: parse_questions(g_arr),
+                    margin_questions: parse_questions(m_arr),
+                };
             }
         }
         Self::default()
@@ -266,6 +263,7 @@ pub fn bayesian_update(prior: f64, evidence_likelihood: f64, evidence_base_rate:
 
 /// A recorded forecast outcome — what actually happened.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ForecastOutcome {
     pub symbol: String,
     pub forecast_date: String,
@@ -281,6 +279,7 @@ pub fn brier_score(probability: f64, outcome_occurred: bool) -> f64 {
 }
 
 /// Average Brier score across multiple events.
+#[allow(dead_code)]
 pub fn brier_score_multi(probabilities: &[f64], outcomes: &[bool]) -> f64 {
     if probabilities.is_empty() || probabilities.len() != outcomes.len() {
         return f64::NAN;
@@ -310,6 +309,17 @@ pub fn brier_interpretation(score: f64) -> &'static str {
         "worse_than_climatology"
     }
 }
+
+/// Check if an actual value falls within a tolerance band of the forecast.
+pub fn within_tolerance(forecast: f64, actual: f64, tolerance: f64) -> bool {
+    if forecast == 0.0 {
+        return actual.abs() < tolerance;
+    }
+    ((actual - forecast) / forecast).abs() <= tolerance
+}
+
+/// Valid forecast horizons.
+pub const FORECAST_HORIZONS: &[&str] = &["3mo", "6mo", "1yr", "2yr", "3yr"];
 
 // ── Scenario probability distribution ──────────────────────────────────────
 
@@ -470,44 +480,40 @@ mod tests {
         assert!((expected - 125.0).abs() < 0.01, "0.25*200 + 0.75*100 = 125");
     }
 
+    // ── Brier scoring tests ────────────────────────────────────────
+
     #[test]
-    fn brier_score_perfect() {
-        assert!(
-            (brier_score(1.0, true) - 0.0).abs() < 0.001,
-            "certain correct = 0"
-        );
-        assert!(
-            (brier_score(0.0, false) - 0.0).abs() < 0.001,
-            "certain correct = 0"
-        );
+    fn brier_perfect() {
+        assert!((brier_score(1.0, true) - 0.0).abs() < 0.001);
+        assert!((brier_score(0.0, false) - 0.0).abs() < 0.001);
     }
 
     #[test]
-    fn brier_score_worst() {
-        assert!(
-            (brier_score(1.0, false) - 1.0).abs() < 0.001,
-            "certain wrong = 1"
-        );
-        assert!(
-            (brier_score(0.0, true) - 1.0).abs() < 0.001,
-            "certain wrong = 1"
-        );
+    fn brier_worst() {
+        assert!((brier_score(1.0, false) - 1.0).abs() < 0.001);
     }
 
     #[test]
-    fn brier_score_mid() {
-        assert!(
-            (brier_score(0.5, true) - 0.25).abs() < 0.001,
-            "50% wrong = 0.25"
-        );
+    fn brier_mid() {
+        assert!((brier_score(0.5, true) - 0.25).abs() < 0.001);
     }
 
     #[test]
-    fn brier_multi_average() {
-        let probs = [0.9, 0.1, 0.7];
-        let outcomes = [true, false, true];
-        // (0.9-1)^2=0.01, (0.1-0)^2=0.01, (0.7-1)^2=0.09 → avg = 0.11/3 ≈ 0.0367
-        let score = brier_score_multi(&probs, &outcomes);
-        assert!((score - 0.0367).abs() < 0.001);
+    fn brier_multi() {
+        let p = [0.9, 0.1, 0.7];
+        let o = [true, false, true];
+        let s = brier_score_multi(&p, &o);
+        // (0.01 + 0.01 + 0.09) / 3 = 0.0367
+        assert!((s - 0.0367).abs() < 0.001);
+    }
+
+    #[test]
+    fn tolerance_bands() {
+        // Within 10% band → classified correctly
+        assert!(within_tolerance(100.0, 105.0, 0.10));
+        assert!(within_tolerance(100.0, 95.0, 0.10));
+        // Outside 10% band
+        assert!(!within_tolerance(100.0, 112.0, 0.10));
+        assert!(!within_tolerance(100.0, 88.0, 0.10));
     }
 }

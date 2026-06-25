@@ -17,8 +17,6 @@
 //! (e.g., `dctypes:Dataset`, `dctypes:Software`) and [`hkask_bridge_pko`]
 //! for training procedure classification.
 
-use hkask_bridge_dublincore as dc;
-use hkask_bridge_pko as pko;
 
 /// An ML-Schema concept URI.
 pub type MlConcept = &'static str;

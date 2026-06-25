@@ -18,8 +18,6 @@ pub mod golem;
 pub mod types;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
-use hkask_bridge_pko as _pko;
-use hkask_bridge_dublincore as _dc;
 
 use hkask_inference::EmbeddingRouter;
 use hkask_mcp::server::{McpToolError, execute_tool};

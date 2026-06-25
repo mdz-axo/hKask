@@ -217,19 +217,19 @@ impl ManifestExecutor {
                 );
 
                 // Evaluate step condition — skip if false
-                if let Some(ref cond) = step.condition {
-                    if !evaluate_step_condition(cond, &context) {
-                        info!(
-                            target: "cns.skill.cascade",
-                            iteration = iteration,
-                            step = step.ordinal,
-                            condition = %cond,
-                            skipped = true,
-                            "CNS"
-                        );
-                        step_idx += 1;
-                        continue;
-                    }
+                if let Some(ref cond) = step.condition
+                    && !evaluate_step_condition(cond, &context)
+                {
+                    info!(
+                        target: "cns.skill.cascade",
+                        iteration = iteration,
+                        step = step.ordinal,
+                        condition = %cond,
+                        skipped = true,
+                        "CNS"
+                    );
+                    step_idx += 1;
+                    continue;
                 }
 
                 match step.action.as_str() {
@@ -392,7 +392,20 @@ impl ManifestExecutor {
 
                     // ── Standard actions: select, populate, execute ──
                     "select" => {
-                        context = self.execute_select(step, context, &mut gas_used, gas_cap, gas_cost_per_iter, &mut rjoule_used, rjoule_cap, rjoule_cost_per_token, rjoule_enabled, rjoule_hard_limit).await?;
+                        context = self
+                            .execute_select(
+                                step,
+                                context,
+                                &mut gas_used,
+                                gas_cap,
+                                gas_cost_per_iter,
+                                &mut rjoule_used,
+                                rjoule_cap,
+                                rjoule_cost_per_token,
+                                rjoule_enabled,
+                                rjoule_hard_limit,
+                            )
+                            .await?;
                         // Check gas exhaustion after select
                         if gas_hard_limit && gas_used >= gas_cap {
                             info!(
@@ -415,7 +428,10 @@ impl ManifestExecutor {
                             break 'cascade;
                         }
                         // Gas alert threshold
-                        if !gas_alerted && gas_cap > 0 && (gas_used as f64 / gas_cap as f64) >= gas_alert_threshold {
+                        if !gas_alerted
+                            && gas_cap > 0
+                            && (gas_used as f64 / gas_cap as f64) >= gas_alert_threshold
+                        {
                             gas_alerted = true;
                             info!(
                                 target: "cns.skill.gas_alert",
@@ -447,7 +463,10 @@ impl ManifestExecutor {
                             break 'cascade;
                         }
                         // rJoule alert threshold
-                        if !rjoule_alerted && rjoule_cap > 0.0 && (rjoule_used / rjoule_cap) >= rjoule_alert_threshold {
+                        if !rjoule_alerted
+                            && rjoule_cap > 0.0
+                            && (rjoule_used / rjoule_cap) >= rjoule_alert_threshold
+                        {
                             rjoule_alerted = true;
                             info!(
                                 target: "cns.skill.rjoule_alert",
@@ -603,8 +622,17 @@ impl ManifestExecutor {
             .and_then(|v| v.as_f64())
             .or_else(|| resolve_dot_path(field, context).and_then(|v| v.as_f64()));
 
-        let gas_used_val = context.get("_gas").and_then(|g| g.get("used")).and_then(|v| v.as_u64()).map(|v| v as f64).unwrap_or(0.0);
-        let gas_cap_val = context.get("_gas").and_then(|g| g.get("cap")).and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let gas_used_val = context
+            .get("_gas")
+            .and_then(|g| g.get("used"))
+            .and_then(|v| v.as_u64())
+            .map(|v| v as f64)
+            .unwrap_or(0.0);
+        let gas_cap_val = context
+            .get("_gas")
+            .and_then(|g| g.get("cap"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
         context.insert(
             "_convergence".to_string(),
             serde_json::json!({
@@ -759,6 +787,7 @@ impl ManifestExecutor {
     /// The selector template (from `step.template_ref` or `step.renderer`) is
     /// rendered with the current context. The rendered prompt is sent to the
     /// inference port. The response is parsed as JSON and merged into context.
+    #[allow(clippy::too_many_arguments)]
     async fn execute_select(
         &self,
         step: &BundleManifestStep,
@@ -778,7 +807,12 @@ impl ManifestExecutor {
 
         // Hard timeout enforcement
         let timeout_dur = std::time::Duration::from_secs(step.timeout_seconds as u64);
-        let result: InferenceResult = match tokio::time::timeout(timeout_dur, self.inference.generate(&prompt, &params, None)).await {
+        let result: InferenceResult = match tokio::time::timeout(
+            timeout_dur,
+            self.inference.generate(&prompt, &params, None),
+        )
+        .await
+        {
             Ok(Ok(r)) => r,
             Ok(Err(e)) => return Err(TemplateError::Inference(e)),
             Err(_elapsed) => {
@@ -804,19 +838,25 @@ impl ManifestExecutor {
         // Inject dual-budget context for template awareness
         let gas_remaining = gas_cap.saturating_sub(*gas_used);
         let rjoule_remaining = (rjoule_cap - *rjoule_used).max(0.0);
-        context.insert("_gas".to_string(), serde_json::json!({
-            "used": *gas_used,
-            "cap": gas_cap,
-            "remaining": gas_remaining,
-            "cost_per_iteration": gas_cost_per_iter,
-        }));
-        context.insert("_rjoule".to_string(), serde_json::json!({
-            "used": *rjoule_used,
-            "cap": rjoule_cap,
-            "remaining": rjoule_remaining,
-            "cost_per_token": rjoule_cost_per_token,
-            "enabled": rjoule_enabled,
-        }));
+        context.insert(
+            "_gas".to_string(),
+            serde_json::json!({
+                "used": *gas_used,
+                "cap": gas_cap,
+                "remaining": gas_remaining,
+                "cost_per_iteration": gas_cost_per_iter,
+            }),
+        );
+        context.insert(
+            "_rjoule".to_string(),
+            serde_json::json!({
+                "used": *rjoule_used,
+                "cap": rjoule_cap,
+                "remaining": rjoule_remaining,
+                "cost_per_token": rjoule_cost_per_token,
+                "enabled": rjoule_enabled,
+            }),
+        );
 
         Ok(context)
     }
@@ -1198,7 +1238,7 @@ impl ManifestExecutor {
 /// "a AND b" (both truthy), "a OR b" (either truthy).
 fn evaluate_step_condition(condition: &str, context: &HashMap<String, Value>) -> bool {
     let condition = condition.trim();
-    
+
     // Check for boolean operators
     if let Some(pos) = condition.find(" AND ") {
         let left = &condition[..pos].trim();
@@ -1210,13 +1250,12 @@ fn evaluate_step_condition(condition: &str, context: &HashMap<String, Value>) ->
         let right = &condition[pos + 4..].trim();
         return evaluate_step_condition(left, context) || evaluate_step_condition(right, context);
     }
-    
+
     // Check for negation
-    if condition.starts_with("NOT ") {
-        let inner = condition[4..].trim();
-        return !evaluate_step_condition(inner, context);
+    if let Some(inner) = condition.strip_prefix("NOT ") {
+        return !evaluate_step_condition(inner.trim(), context);
     }
-    
+
     // Simple variable check: is it truthy in context?
     // Also resolve dot-paths like "step_1_result.intervention_needed"
     let key = condition;

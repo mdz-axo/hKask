@@ -36,8 +36,6 @@
 //! - `portfolio_returns` — TWR and IRR for any date range
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
-use hkask_bridge_pko as _pko;
-use hkask_bridge_dublincore as _dc;
 
 use chrono::Datelike;
 use hkask_mcp::server::{McpToolError, execute_tool, validate_identifier};
@@ -76,10 +74,10 @@ fn parse_symbol_from_query(query: &str) -> Option<String> {
         }
     }
     // For symbol_search, the query IS the search term — use it directly.
-    if let Some(q) = query.strip_prefix("query=") {
-        if !q.is_empty() {
-            return Some(q.to_string());
-        }
+    if let Some(q) = query.strip_prefix("query=")
+        && !q.is_empty()
+    {
+        return Some(q.to_string());
     }
     None
 }
@@ -497,7 +495,8 @@ impl CompaniesServer {
             let fmp_result =
                 providers::fmp_search_get(&self.client, &query, &limit_str, &self.fmp_api_key)
                     .await;
-            let result = match fmp_result {
+
+            match fmp_result {
                 Ok(v) => {
                     self.record_experience(
                         "symbol_search",
@@ -535,8 +534,7 @@ impl CompaniesServer {
                     }
                     eodhd_result
                 }
-            };
-            result
+            }
         })
         .await
     }
@@ -1968,7 +1966,7 @@ impl CompaniesServer {
             };
 
             let result = dcf::run_dcf(&fundamentals, &config)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             // Build period summary for JSON output
             let period_summary: Vec<serde_json::Value> = result.periods.iter().map(|p| {
@@ -2090,7 +2088,7 @@ impl CompaniesServer {
             };
 
             let (implied_growth, result) = dcf::reverse_dcf(&fundamentals, &config)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             let output = serde_json::json!({
                 "symbol": req.symbol,
@@ -2194,7 +2192,7 @@ impl CompaniesServer {
             };
 
             let results = scenarios::run_scenario_analysis(&fundamentals, &matrix, &dcf_config)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             let summary = scenarios::scenario_summary(&results);
 
@@ -2283,7 +2281,7 @@ impl CompaniesServer {
                 ..dcf::DcfConfig::default()
             };
             let results = scenarios::run_scenario_analysis(&fundamentals, &matrix, &dcf_config)
-                .map_err(|e| McpToolError::invalid_argument(e))?;
+                .map_err(McpToolError::invalid_argument)?;
 
             // Build Fermi estimates from server-level defaults, apply user overrides
             let mut growth_fermi = self.fermi_defaults.growth_questions.clone();
@@ -2324,7 +2322,7 @@ impl CompaniesServer {
             let expected_value = superforecast::expected_intrinsic(&weighted);
             let market_gap = if current_price > 0.0 { (expected_value - current_price) / current_price } else { 0.0 };
 
-            let fermi_output: Vec<serde_json::Value> = growth_fermi.iter().zip(margin_fermi.iter()).enumerate().map(|(_i, (g, m))| {
+            let fermi_output: Vec<serde_json::Value> = growth_fermi.iter().zip(margin_fermi.iter()).map(|(g, m)| {
                 serde_json::json!({
                     "growth_sub_q": g.question, "growth_estimate": g.estimate, "growth_confidence": g.confidence,
                     "margin_sub_q": m.question, "margin_estimate": m.estimate, "margin_confidence": m.confidence,
@@ -2359,7 +2357,7 @@ impl CompaniesServer {
     }
 
     #[tool(
-        description = "Record the actual outcome of a forecast to close the superforecasting feedback loop. Computes Brier scores for growth and margin probabilities, storing the outcome in the daemon for calibration tracking. Tetlock GJP: you can\'t improve what you don\'t score."
+        description = "Record a forecast outcome to close the superforecasting loop. Forecast a valuation multiple and price change over a horizon (3mo/6mo/1yr/2yr/3yr), then record what actually happened. Computes Brier scores on multiple direction and price return vs a tolerance band. Decompose the gap narratively — what drove the difference between forecast and actual?"
     )]
     pub async fn forecast_record(
         &self,
@@ -2368,61 +2366,54 @@ impl CompaniesServer {
         execute_tool(self, "forecast_record", async {
             validate_symbol(&req.symbol)?;
 
-            // Run current calibrate_forecast to get the probabilities that were forecast
-            // (Simplified: use current fundamentals and Fermi defaults as proxy for historical forecast)
-            let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
-            let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
-            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "1")]).await;
-
-            let (metrics, profile, cf) = match (metrics_result, profile_result, cf_result) {
-                (Ok(m), Ok(p), Ok(c)) => (m, p, c),
-                _ => return Ok(serde_json::json!({"status": "partial", "error": "could not fetch fundamentals for scoring"})),
-            };
-            let metrics_arr = metrics.as_array();
-            let profile_obj = profile.as_array().and_then(|a| a.first());
-            let cf_obj = cf.as_array().and_then(|a| a.first());
-            if metrics_arr.is_none_or(|m| m.is_empty()) || profile_obj.is_none() || cf_obj.is_none() {
-                return Ok(serde_json::json!({"status": "partial", "error": "insufficient data"}));
+            // Validate horizon
+            if !superforecast::FORECAST_HORIZONS.contains(&req.horizon.as_str()) {
+                return Err(McpToolError::invalid_argument(format!(
+                    "horizon must be one of: {}", superforecast::FORECAST_HORIZONS.join(", ")
+                )));
             }
 
-            // Use Fermi defaults to reconstruct approximate forecast probabilities
-            let growth_fermi = self.fermi_defaults.growth_questions.clone();
-            let margin_fermi = self.fermi_defaults.margin_questions.clone();
-            let p_growth = superforecast::calibrate_from_fermi(&growth_fermi);
-            let p_margin = superforecast::calibrate_from_fermi(&margin_fermi);
+            // Brier scores on binary outcomes
+            // Multiple: was actual multiple >= forecast? (binary direction)
+            let multiple_higher = req.actual_multiple >= req.forecast_multiple;
+            let p_multiple_up = if req.forecast_multiple > 0.0 { 0.5 } else { 0.5 };
+            let multiple_brier = superforecast::brier_score(p_multiple_up, multiple_higher);
 
-            // Determine which scenario actually occurred
-            let hist_avg = metrics_arr.as_ref().unwrap().iter()
-                .filter_map(|e| e.get("revenuePerShare").and_then(|v| v.as_f64()))
-                .collect::<Vec<_>>();
-            let hist_growth = if hist_avg.len() >= 2 {
-                crate::cagr_from_series(
-                    &hist_avg.windows(2).filter_map(|w| if w[0] > 0.0 { Some((w[1]-w[0])/w[0]) } else { None }).collect::<Vec<_>>()
-                )
-            } else { 0.05 };
-            let hist_margin = cf_obj.unwrap().get("freeCashFlow").and_then(|v| v.as_f64())
-                .map(|fcf| if hist_avg.first().copied().unwrap_or(1.0) > 0.0 { fcf / hist_avg[0] } else { 0.05 })
-                .unwrap_or(0.05);
+            // Price change: was actual return within 20% tolerance of forecast?
+            let return_accurate = superforecast::within_tolerance(
+                req.forecast_price_change, req.actual_price_change, 0.20,
+            );
+            let return_brier = superforecast::brier_score(0.7, return_accurate);
 
-            // Binary outcome: was actual above or below the forecast split point?
-            let growth_above = req.actual_growth > hist_growth;
-            let margin_above = req.actual_margin > hist_margin;
+            let combined = (multiple_brier + return_brier) / 2.0;
 
-            // Brier scores for each dimension
-            let growth_brier = superforecast::brier_score(p_growth, growth_above);
-            let margin_brier = superforecast::brier_score(p_margin, margin_above);
-            let combined_brier = (growth_brier + margin_brier) / 2.0;
+            // Gap decomposition
+            let multiple_gap = req.actual_multiple - req.forecast_multiple;
+            let return_gap = req.actual_price_change - req.forecast_price_change;
+            let gap_narrative = if multiple_gap.abs() > 2.0 && return_gap.abs() > 0.05 {
+                "multiple_and_return_diverged"
+            } else if multiple_gap.abs() > 2.0 {
+                "multiple_drove_gap"
+            } else if return_gap.abs() > 0.05 {
+                "return_drove_gap"
+            } else {
+                "forecast_accurate"
+            };
 
-            // Store outcome in daemon
+            // Store in daemon
             if let Some(ref daemon) = self.daemon {
                 let value = serde_json::json!({
                     "symbol": req.symbol,
                     "forecast_date": req.forecast_date,
+                    "horizon": req.horizon,
+                    "forecast_multiple": req.forecast_multiple,
+                    "forecast_price_change": req.forecast_price_change,
                     "outcome_date": req.outcome_date,
-                    "p_growth": p_growth, "actual_growth": req.actual_growth, "growth_brier": growth_brier,
-                    "p_margin": p_margin, "actual_margin": req.actual_margin, "margin_brier": margin_brier,
                     "actual_multiple": req.actual_multiple,
-                    "combined_brier": combined_brier,
+                    "actual_price_change": req.actual_price_change,
+                    "multiple_brier": multiple_brier,
+                    "return_brier": return_brier,
+                    "combined_brier": combined,
                     "timestamp": now_rfc3339(),
                 });
                 let daemon_clone = daemon.clone();
@@ -2439,26 +2430,27 @@ impl CompaniesServer {
             let output = serde_json::json!({
                 "status": "recorded",
                 "symbol": req.symbol,
-                "forecast_date": req.forecast_date,
-                "outcome_date": req.outcome_date,
+                "horizon": req.horizon,
                 "forecast": {
-                    "p_high_growth": p_growth,
-                    "p_high_margin": p_margin,
+                    "multiple": req.forecast_multiple,
+                    "price_change_pct": req.forecast_price_change,
                 },
-                "outcome": {
-                    "actual_growth": req.actual_growth,
-                    "actual_margin": req.actual_margin,
-                    "actual_multiple": req.actual_multiple,
-                    "growth_above_baseline": growth_above,
-                    "margin_above_baseline": margin_above,
+                "actual": {
+                    "multiple": req.actual_multiple,
+                    "price_change_pct": req.actual_price_change,
                 },
-                "brier_scores": {
-                    "growth": growth_brier,
-                    "margin": margin_brier,
-                    "combined": combined_brier,
-                    "interpretation": superforecast::brier_interpretation(combined_brier),
+                "gaps": {
+                    "multiple_gap": multiple_gap,
+                    "return_gap": return_gap,
+                    "narrative": gap_narrative,
                 },
-                "framework": "Tetlock GJP: Brier score = (probability - outcome)^2. Range [0,1], lower is better. 0 = perfect calibration. Scores are stored as daemon experiences for cumulative calibration tracking.",
+                "brier": {
+                    "multiple_direction": multiple_brier,
+                    "return_accuracy": return_brier,
+                    "combined": combined,
+                    "interpretation": superforecast::brier_interpretation(combined),
+                },
+                "framework": "Forecast → Record → Score (Tetlock GJP). Brier scores on binary outcomes: multiple direction (up/down) and return accuracy (within 20% tolerance). Gap decomposition identifies what diverged. Cumulative calibration tracked via daemon forecast_outcome records.",
             });
 
             self.record_experience("forecast_record", &format!("symbol={}", req.symbol), "success", output.clone());
@@ -2480,12 +2472,12 @@ impl CompaniesServer {
     ) -> String {
         execute_tool(self, "result_feedback", async {
             // Validate score range if provided
-            if let Some(s) = score {
-                if !(1..=5).contains(&s) {
-                    return Err(McpToolError::invalid_argument(format!(
-                        "score must be 1–5, got {s}"
-                    )));
-                }
+            if let Some(s) = score
+                && !(1..=5).contains(&s)
+            {
+                return Err(McpToolError::invalid_argument(format!(
+                    "score must be 1–5, got {s}"
+                )));
             }
 
             // Accept empty feedback as an acknowledgment (no score, no comments = "I saw it")
@@ -2504,7 +2496,7 @@ impl CompaniesServer {
                 let daemon_clone = daemon.clone();
                 let replicant = self.replicant.clone();
                 let tool_for_spawn = tool.clone();
-                let _ = tokio::spawn(async move {
+                tokio::spawn(async move {
                     let _ = daemon_clone
                         .store_experience(
                             &replicant,
@@ -2519,19 +2511,19 @@ impl CompaniesServer {
 
             // Kanban-style learning: feedback updates in-process state.
             // Extracts symbol from query to track per-symbol provider quality.
-            if let Some(sym) = parse_symbol_from_query(&query) {
-                if let Ok(mut state) = self.learning.lock() {
-                    let prov = if comments.contains("provider=eodhd") {
-                        "EODHD"
-                    } else if comments.contains("provider=fmp") {
-                        "FMP"
-                    } else if sym.contains('.') {
-                        "EODHD"
-                    } else {
-                        "FMP"
-                    };
-                    state.record(&sym, prov, score);
-                }
+            if let Some(sym) = parse_symbol_from_query(&query)
+                && let Ok(mut state) = self.learning.lock()
+            {
+                let prov = if comments.contains("provider=eodhd") {
+                    "EODHD"
+                } else if comments.contains("provider=fmp") {
+                    "FMP"
+                } else if sym.contains('.') {
+                    "EODHD"
+                } else {
+                    "FMP"
+                };
+                state.record(&sym, prov, score);
             }
 
             let summary = if has_feedback {

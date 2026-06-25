@@ -20,8 +20,6 @@
 //! (e.g., `dctypes:Dataset` for financial data) and [`hkask_bridge_pko`]
 //! for financial procedure classification.
 
-use hkask_bridge_dublincore as dc;
-use hkask_bridge_pko as pko;
 
 /// A FIBO concept URI — the canonical identifier for a financial data concept.
 pub type FiboConcept = &'static str;

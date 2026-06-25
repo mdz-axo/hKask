@@ -236,7 +236,7 @@ impl KiloCodeBackend {
 
                 parse_sse_stream(&body, &model)
             }))
-            .flat_map(|chunks| futures_util::stream::iter(chunks)),
+            .flat_map(futures_util::stream::iter),
         )
     }
 

@@ -315,7 +315,7 @@ pub fn synthesize_roles(service: &KanbanService, tasks: &[Task]) -> Result<Strin
         report.push_str(&format!("║  {} ({})\n", role, task.id));
         report.push_str("║  Status: ");
         report.push_str(stage_name(task.status));
-        report.push_str("\n");
+        report.push('\n');
         if let Some(last) = comments.last() {
             let preview: String = last.body.chars().take(120).collect();
             report.push_str(&format!("║  Latest: {}\n", preview));

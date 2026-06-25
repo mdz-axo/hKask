@@ -10,10 +10,8 @@ pub mod pko;
 pub mod types;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
-use hkask_bridge_pko as _pko;
-use hkask_bridge_dublincore as _dc;
 
-use hkask_mcp::server::{McpToolError, ServerContext, execute_tool, execute_tool_semantic};
+use hkask_mcp::server::{McpToolError, ServerContext, execute_tool_semantic};
 use hkask_services_kanban::KanbanError;
 use hkask_services_kanban::KanbanService;
 use hkask_services_kanban::{ConsentProof, TaskFilter, TaskSpec, VerificationCriterion};
@@ -609,7 +607,7 @@ impl KanbanServer {
             };
             self.service
                 .task_reopen(tid)
-                .map_err(|e| map_kanban_error(e))?;
+                .map_err(map_kanban_error)?;
             // Apply new budgets if specified
             if let Some(g) = gas_budget {
                 let _ = self.service.task_add_gas(tid, g);
@@ -621,7 +619,7 @@ impl KanbanServer {
             let task = self
                 .service
                 .task_get(tid)
-                .map_err(|e| map_kanban_error(e))?
+                .map_err(map_kanban_error)?
                 .ok_or_else(|| McpToolError::not_found(format!("task {task_id}")))?;
             Ok(serde_json::to_value(TaskReopenResponse {
                 task_id: task.id.to_string(),

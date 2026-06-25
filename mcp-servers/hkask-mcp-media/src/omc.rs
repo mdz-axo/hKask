@@ -16,8 +16,6 @@
 //! (e.g., `dctypes:StillImage`, `dctypes:Sound`) and [`hkask_bridge_pko`]
 //! for production step classification.
 
-use hkask_bridge_dublincore as dc;
-use hkask_bridge_pko as pko;
 
 /// An OMC concept URI.
 pub type OmcConcept = &'static str;

@@ -336,7 +336,7 @@ impl KanbanWindow {
         // Truncate to fit column width (approx 25 chars for 1/5 of 120-char terminal)
         if title.len() > 30 {
             title.truncate(27);
-            title.push_str("…");
+            title.push('…');
         }
 
         let assignee = task.assignee.as_deref().unwrap_or("");

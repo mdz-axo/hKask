@@ -263,12 +263,16 @@ pub struct ForecastRecordRequest {
     pub symbol: String,
     /// When the forecast was made (YYYY-MM-DD)
     pub forecast_date: String,
-    /// When the outcome was measured (YYYY-MM-DD)
+    /// Forecast horizon: "3mo", "6mo", "1yr", "2yr", "3yr"
+    pub horizon: String,
+    /// Forecast valuation multiple (e.g., P/E or EV/FCF)
+    pub forecast_multiple: f64,
+    /// Forecast price change over the horizon (e.g., 0.10 = 10% return)
+    pub forecast_price_change: f64,
+    /// Actual outcome date (YYYY-MM-DD)
     pub outcome_date: String,
-    /// Actual revenue growth rate over the forecast period (e.g., 0.07 = 7%)
-    pub actual_growth: f64,
-    /// Actual FCF margin at outcome date (e.g., 0.21 = 21%)
-    pub actual_margin: f64,
-    /// Actual valuation multiple at outcome date (optional)
-    pub actual_multiple: Option<f64>,
+    /// Actual valuation multiple at outcome date
+    pub actual_multiple: f64,
+    /// Actual price change from forecast date to outcome date
+    pub actual_price_change: f64,
 }

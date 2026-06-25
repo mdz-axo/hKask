@@ -226,13 +226,16 @@ impl KanbanDataBridge for MockKanbanBridge {
                 let from = task.status.clone();
 
                 // Validate transition — simple forward/backward one step
-                let valid = match (from.as_str(), to_status) {
-                    ("backlog", "ready") | ("ready", "backlog") => true,
-                    ("ready", "in_progress") | ("in_progress", "ready") => true,
-                    ("in_progress", "review") | ("review", "in_progress") => true,
-                    ("review", "done") => true,
-                    _ => false,
-                };
+                let valid = matches!(
+                    (from.as_str(), to_status),
+                    ("backlog", "ready")
+                        | ("ready", "backlog")
+                        | ("ready", "in_progress")
+                        | ("in_progress", "ready")
+                        | ("in_progress", "review")
+                        | ("review", "in_progress")
+                        | ("review", "done"),
+                );
 
                 if !valid {
                     // Put it back

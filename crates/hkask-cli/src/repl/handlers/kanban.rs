@@ -896,11 +896,11 @@ pub(crate) fn handle_kanban(
                         }
                     }
                     // Post response as comment
-                    if !response.is_empty() {
-                        if let Err(e) = service.task_comment(tid, webid, response) {
-                            println!("  Error posting response: {e}");
-                            return;
-                        }
+                    if !response.is_empty()
+                        && let Err(e) = service.task_comment(tid, webid, response)
+                    {
+                        println!("  Error posting response: {e}");
+                        return;
                     }
                     let task = match service.task_get(tid) {
                         Ok(Some(t)) => t,
@@ -913,7 +913,6 @@ pub(crate) fn handle_kanban(
                             return;
                         }
                     };
-                    let stage = socratic::stage_name(task.status);
                     if task.status == hkask_services_kanban::TaskStatus::Review {
                         if response.is_empty() {
                             println!("  Provide your summary as evidence to complete the inquiry.");
@@ -998,19 +997,18 @@ pub(crate) fn handle_kanban(
                             println!("  Comments: {}", comments.len());
                             if task.status != hkask_services_kanban::TaskStatus::Done
                                 && task.status != hkask_services_kanban::TaskStatus::Review
+                                && let Some(last) = comments.last()
                             {
-                                if let Some(last) = comments.last() {
-                                    match socratic::quality_check(&service, tid, &last.body) {
-                                        Ok(gate) => {
-                                            if gate.passed {
-                                                println!("  Quality: PASSED — ready to advance");
-                                            } else {
-                                                println!("  Quality: NEEDS WORK");
-                                                println!("  {}", gate.feedback);
-                                            }
+                                match socratic::quality_check(&service, tid, &last.body) {
+                                    Ok(gate) => {
+                                        if gate.passed {
+                                            println!("  Quality: PASSED — ready to advance");
+                                        } else {
+                                            println!("  Quality: NEEDS WORK");
+                                            println!("  {}", gate.feedback);
                                         }
-                                        Err(e) => println!("  Quality check error: {e}"),
                                     }
+                                    Err(e) => println!("  Quality check error: {e}"),
                                 }
                             }
                         }
