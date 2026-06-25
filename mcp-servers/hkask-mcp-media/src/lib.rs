@@ -883,7 +883,10 @@ fn blob_to_embedding(blob: &[u8]) -> Option<Vec<f32>> {
 
 impl MediaServer {
     fn combined_router() -> rmcp::handler::server::router::tool::ToolRouter<Self> {
-        Self::media_tools_router()
+        Self::gallery_router()
+            + Self::processing_router()
+            + Self::audio_router()
+            + Self::generation_router()
     }
 }
 

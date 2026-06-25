@@ -42,6 +42,46 @@ use commands::handle_slash_command;
 use handlers::ReplSettings;
 use helper::KaskHelper;
 
+/// Talk configuration — paired voice design and enabled state.
+///
+/// Set together via `/talk on|off|voice`. Checked in the turn pipeline
+/// to decide whether to summarize and speak responses aloud.
+#[derive(Debug, Clone)]
+pub(crate) struct TalkConfig {
+    pub(crate) enabled: bool,
+    /// Voice design JSON for TTS (None = default "Rachel" voice).
+    pub(crate) voice_design: Option<String>,
+}
+
+/// Manifest state — process manifest and its executor.
+///
+/// Both are `Some` together (manifest loaded + executor built) or both
+/// `None` (no manifest defined). The sub-struct makes this invariant
+/// explicit rather than relying on callers to keep two fields in sync.
+///
+/// Cannot derive `Debug` because `ManifestExecutor` wraps non-Debug types
+/// (trait objects, secrets).
+#[allow(missing_debug_implementations)]
+pub(crate) struct ManifestState {
+    pub(crate) executor: Option<ManifestExecutor>,
+    pub(crate) manifest: Option<BundleManifest>,
+}
+
+/// Tool prompt cache — the pre-formatted tool section and definitions.
+///
+/// Both are refreshed together during MCP tool discovery (REPL init
+/// and after server start/stop). Cached because `ToolPort` uses
+/// `impl Trait` returns, making re-derivation via `Arc<dyn ToolPort>`
+/// infeasible without changing the port trait.
+#[derive(Debug, Clone)]
+pub(crate) struct ToolPrompt {
+    /// Pre-formatted tool section of the system prompt.
+    pub(crate) section: String,
+    /// OpenAI-compatible tool definitions for native function calling.
+    /// When non-empty, tools are included in inference requests.
+    pub(crate) definitions: Vec<ChatToolDefinition>,
+}
+
 /// REPL state — initialized once, reused across all turns.
 ///
 /// Holds the shared inference port, InferenceLoop (with energy budget
@@ -78,26 +118,16 @@ pub(crate) struct ReplState {
     /// Persona constraints for the current agent — loaded from agent definition.
     /// When set, the persona filter strips forbidden patterns from model output.
     persona_constraints: Option<PersonaConstraints>,
-    /// Pre-formatted tool section of the system prompt — derived from MCP
-    /// runtime discovery at REPL init. The cache is intentional: `ToolPort`
-    /// uses `impl Trait` returns so it is not dyn-compatible, which prevents
-    /// re-deriving on demand via `Arc<dyn ToolPort>`. Re-derive it here when
-    /// servers start/stop dynamically, or when making `ToolPort` dyn-compatible
-    /// becomes a justified refactor.
-    pub(crate) tool_prompt_section: String,
-    /// OpenAI-compatible tool definitions for native function calling.
-    /// Built from the same MCP discovery as `tool_prompt_section`.
-    /// When non-empty, tools are included in inference requests so models
-    /// that support native function calling can return structured tool calls.
-    pub(crate) tool_definitions: Vec<ChatToolDefinition>,
-    /// Manifest executor — runs the process_manifest cascade for agents that
-    /// have one defined. Created at REPL init from the agent's process_manifest
-    /// reference. None if the agent has no process manifest or if loading failed.
-    manifest_executor: Option<ManifestExecutor>,
-    /// The resolved process manifest for the current agent.
-    /// Present when the agent definition includes a process_manifest reference
-    /// and the manifest was successfully loaded.
-    process_manifest: Option<BundleManifest>,
+    /// Tool prompt cache — derived from MCP runtime discovery. The cache is
+    /// intentional: `ToolPort` uses `impl Trait` returns so it is not
+    /// dyn-compatible, which prevents re-deriving on demand via
+    /// `Arc<dyn ToolPort>`. Re-derive here when servers start/stop
+    /// dynamically, or when making `ToolPort` dyn-compatible becomes
+    /// a justified refactor.
+    pub(crate) tool_prompt: ToolPrompt,
+    /// Manifest state — process manifest and executor for agents that
+    /// have a manifest cascade defined. Both Some or both None.
+    pub(crate) manifest_state: ManifestState,
     /// Shared service context — the canonical assembly point for all
     /// infrastructure.
     pub(crate) service_context: Arc<AgentService>,
@@ -107,10 +137,9 @@ pub(crate) struct ReplState {
     /// Whether this session started from a first-run onboarding (true)
     /// or a returning session (false). Controls First Steps display.
     pub(crate) is_first_run: bool,
-    /// Talk mode — when enabled, agent responses are summarized and spoken aloud.
-    pub(crate) talk_enabled: bool,
-    /// Voice design JSON for TTS (None = default "Rachel" voice).
-    pub(crate) voice_design: Option<String>,
+    /// Talk configuration — voice design and enabled state.
+    /// Set via /talk command; checked in the turn pipeline.
+    pub(crate) talk_config: TalkConfig,
     /// Active improv mode — set via /improv command.
     /// None means no improv posture is active (default agent behavior).
     pub(crate) improv_mode: Option<hkask_improv::ImprovMode>,
@@ -438,9 +467,9 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
             let mut s = state.lock().expect("ReplState lock");
 
             // Filter tool definitions to only the scoped MCP server
-            let original_tools = std::mem::take(&mut s.tool_definitions);
+            let original_tools = std::mem::take(&mut s.tool_prompt.definitions);
             let prefix = format!("{}/", scope);
-            s.tool_definitions = original_tools
+            s.tool_prompt.definitions = original_tools
                 .iter()
                 .filter(|td| td.function.name.starts_with(&prefix))
                 .cloned()
@@ -449,7 +478,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
             let capture = turn::single_agent_turn_captured(&input, &mut s, &rt, &a2a);
 
             // Restore original tool definitions
-            s.tool_definitions = original_tools;
+            s.tool_prompt.definitions = original_tools;
 
             let result = Self::build_result(&capture);
 

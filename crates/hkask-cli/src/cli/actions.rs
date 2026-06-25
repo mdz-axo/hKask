@@ -197,10 +197,7 @@ pub enum SovereigntyAction {
         #[arg(long)]
         category: String,
     },
-    Revoke {
-        #[arg(long)]
-        category: String,
-    },
+    Revoke,
     Check {
         #[arg(long)]
         category: String,
@@ -617,7 +614,7 @@ pub enum SpecAction {
     },
     Validate {
         #[arg(short, long)]
-        id: String,
+        spec_id: String,
     },
     Cultivate {
         #[arg(short, long)]

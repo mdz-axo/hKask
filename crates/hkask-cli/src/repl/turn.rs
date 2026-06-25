@@ -35,7 +35,7 @@ fn build_turn_request(
         semantic_storage: state.semantic_storage.clone(),
         agent_webid: state.agent_webid,
         persona_constraints: state.persona_constraints.clone(),
-        tool_section: state.tool_prompt_section.clone(),
+        tool_section: state.tool_prompt.section.clone(),
         llm_params: to_llm_params(settings),
         capability_checker: state.service_context.capability_checker.clone(),
         system_webid: *state.service_context.identity().0,
@@ -65,10 +65,10 @@ fn build_turn_request(
         },
         improv_mode: state.improv_mode.clone(),
         source: None,
-        tools: if state.tool_definitions.is_empty() {
+        tools: if state.tool_prompt.definitions.is_empty() {
             None
         } else {
-            Some(state.tool_definitions.clone())
+            Some(state.tool_prompt.definitions.clone())
         },
     }
 }
@@ -148,8 +148,8 @@ pub(super) fn single_agent_turn(
         let chat_result = rt.block_on(ChatService::execute_turn(
             &state.service_context,
             &turn_req,
-            state.manifest_executor.as_ref(),
-            state.process_manifest.as_ref(),
+            state.manifest_state.executor.as_ref(),
+            state.manifest_state.manifest.as_ref(),
         ));
         let chat_response = match chat_result {
             Ok(r) => r,
@@ -209,7 +209,7 @@ pub(super) fn single_agent_turn(
             }
             final_response = Some(processed.text.clone());
             // Talk mode: summarize and speak the response aloud
-            if state.talk_enabled {
+            if state.talk_config.enabled {
                 speak_response(&processed.text, state, rt);
             }
             break;
@@ -352,8 +352,8 @@ pub(crate) fn single_agent_turn_captured(
         let chat_result = rt.block_on(ChatService::execute_turn(
             &state.service_context,
             &turn_req,
-            state.manifest_executor.as_ref(),
-            state.process_manifest.as_ref(),
+            state.manifest_state.executor.as_ref(),
+            state.manifest_state.manifest.as_ref(),
         ));
         let chat_response = match chat_result {
             Ok(r) => r,
@@ -398,7 +398,7 @@ pub(crate) fn single_agent_turn_captured(
         if !processed.had_tool_calls {
             use std::fmt::Write;
             let _ = writeln!(captured_text, "{}", processed.text);
-            if state.talk_enabled {
+            if state.talk_config.enabled {
                 speak_response(&processed.text, state, rt);
             }
             break;

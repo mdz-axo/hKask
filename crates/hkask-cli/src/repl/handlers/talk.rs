@@ -34,8 +34,8 @@ pub(crate) fn handle_talk(
 ) {
     match subcommand {
         "on" => {
-            state.talk_enabled = true;
-            let voice_info = match &state.voice_design {
+            state.talk_config.enabled = true;
+            let voice_info = match &state.talk_config.voice_design {
                 Some(vd) => {
                     if let Ok(design) = serde_json::from_str::<serde_json::Value>(vd) {
                         design
@@ -55,14 +55,14 @@ pub(crate) fn handle_talk(
             println!();
         }
         "off" => {
-            state.talk_enabled = false;
+            state.talk_config.enabled = false;
             println!("  Talk mode \x1b[1moff\x1b[0m");
             println!();
         }
         "voice" => {
             if arg.is_empty() {
                 // Show current voice
-                match &state.voice_design {
+                match &state.talk_config.voice_design {
                     Some(vd) => {
                         println!("  Current voice design:");
                         match serde_json::from_str::<serde_json::Value>(vd) {
@@ -134,7 +134,7 @@ pub(crate) fn handle_talk(
                     // voice_design returns the VoiceDesign JSON directly or wrapped
                     let vd_json = serde_json::to_string(&value).unwrap_or_default();
                     let preset = voice_preset_from_design(&vd_json);
-                    state.voice_design = Some(vd_json);
+                    state.talk_config.voice_design = Some(vd_json);
                     println!("  \x1b[32m✓\x1b[0m Voice set to \x1b[36m{}\x1b[0m", preset);
                     if let Some(name) = value.get("name").and_then(|n| n.as_str()) {
                         println!("  Profile: \x1b[1m{}\x1b[0m", name);
@@ -148,8 +148,12 @@ pub(crate) fn handle_talk(
             println!();
         }
         "" => {
-            let status = if state.talk_enabled { "on" } else { "off" };
-            let voice_info = match &state.voice_design {
+            let status = if state.talk_config.enabled {
+                "on"
+            } else {
+                "off"
+            };
+            let voice_info = match &state.talk_config.voice_design {
                 Some(vd) => voice_preset_from_design(vd),
                 None => "Rachel (default)".to_string(),
             };
@@ -241,7 +245,7 @@ pub(crate) fn speak_response(
         &derive_signing_key(a2a_secret),
     );
 
-    let voice_design = state.voice_design.clone();
+    let voice_design = state.talk_config.voice_design.clone();
 
     let audio_result = rt.block_on(async {
         let mut args = serde_json::json!({"text": summary});

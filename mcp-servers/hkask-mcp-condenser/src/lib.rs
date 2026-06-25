@@ -333,7 +333,16 @@ impl CondenserServer {
             }
 
             let conversation_text = inference::format_conversation_text(&messages);
-            let max_tok = max_tokens.unwrap_or(500);
+            let max_tok = max_tokens.unwrap_or_else(|| {
+                // Fall back to HKASK_CONDENSE_SALIENCY_WINDOW env var as a
+                // default hint. Higher saliency = user wants more context
+                // preserved → longer summaries. Clamp to [150, 2000].
+                let saliency = std::env::var("HKASK_CONDENSE_SALIENCY_WINDOW")
+                    .ok()
+                    .and_then(|v| v.parse::<usize>().ok())
+                    .unwrap_or(5);
+                (saliency * 100).max(150).min(2000) as u32
+            });
 
             let summarization_prompt =
                 inference::build_summarization_prompt(&conversation_text, &current_query);

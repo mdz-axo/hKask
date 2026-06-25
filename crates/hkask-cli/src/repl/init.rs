@@ -10,6 +10,8 @@ use std::sync::Arc;
 
 use hkask_agents::InferenceLoop;
 use hkask_cns::{EnergyBudget, EnergyCost, GovernedTool};
+
+use super::{ManifestState, TalkConfig, ToolPrompt};
 use hkask_mcp::RawMcpToolPort;
 use hkask_ports::{InferencePort, ToolInfo, ToolPort};
 use hkask_services::{AgentService, InferenceContext, InferenceService};
@@ -64,6 +66,23 @@ pub(super) fn init_repl_state(
     // if available; falls back to ReplSettings::default().
     // Mutable here so the user can override via /repl during the session.
     let repl_settings: crate::repl::handlers::ReplSettings = hkask_services::load_settings();
+
+    // Propagate condensation settings to the MCP condenser server via env vars.
+    // The condenser server is a child process that inherits the REPL's
+    // environment. This bridges the two condensation paths (auto-condense in
+    // ChatService and agent-initiated condenser tools) so they share the same
+    // user-configured thresholds rather than diverging silently.
+    // SAFETY: REPL init runs single-threaded before tokio runtime starts.
+    unsafe {
+        std::env::set_var(
+            "HKASK_CONDENSE_PRESSURE_THRESHOLD",
+            repl_settings.condense_pressure_threshold.to_string(),
+        );
+        std::env::set_var(
+            "HKASK_CONDENSE_SALIENCY_WINDOW",
+            repl_settings.condense_saliency_window.to_string(),
+        );
+    }
 
     // Resolve inference config from env for InferenceService calls.
     // Onboarding has already completed above; this is used to build the
@@ -330,15 +349,21 @@ pub(super) fn init_repl_state(
         governed_tool,
         consolidation_service,
         persona_constraints: None,
-        tool_prompt_section: String::new(), // populated below
-        tool_definitions: Vec::new(),       // populated below alongside tool_prompt_section
-        manifest_executor: None,            // populated below
-        process_manifest: None,             // populated below
+        tool_prompt: ToolPrompt {
+            section: String::new(),  // populated below
+            definitions: Vec::new(), // populated below alongside section
+        },
+        manifest_state: ManifestState {
+            executor: None, // populated below
+            manifest: None, // populated below
+        },
         service_context: ctx.clone(),
         repl_settings,
         is_first_run: onboarding_outcome.is_first_run,
-        talk_enabled: false,
-        voice_design: None,
+        talk_config: TalkConfig {
+            enabled: false,
+            voice_design: None,
+        },
         improv_mode: None,
         kanban_service: None,
         degraded_servers: degraded,
@@ -369,8 +394,8 @@ pub(super) fn init_repl_state(
                 tools.push(info);
             }
         }
-        state.tool_prompt_section = tool_augmented::format_tool_prompt_section(&tools);
-        state.tool_definitions = tool_augmented::tools_to_definitions(&tools);
+        state.tool_prompt.section = tool_augmented::format_tool_prompt_section(&tools);
+        state.tool_prompt.definitions = tool_augmented::tools_to_definitions(&tools);
     }
 
     // Load rich agent definition from stored YAML for persona + process manifest.
@@ -427,8 +452,8 @@ pub(super) fn init_repl_state(
                 "Loaded process manifest for agent"
             );
 
-            state.process_manifest = Some(bundle);
-            state.manifest_executor = Some(executor);
+            state.manifest_state.manifest = Some(bundle);
+            state.manifest_state.executor = Some(executor);
         } else {
             tracing::warn!(
                 target: "hkask.repl",

@@ -221,13 +221,13 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
                 Err(e) => eprintln!("Error granting consent: {e}"),
             }
         }
-        SovereigntyAction::Revoke { category: _ } => {
+        SovereigntyAction::Revoke => {
             let webid = super::helpers::resolve_user_webid();
             let (_svc, cm) = build_consent();
             match cm.revoke_consent(&webid.to_string()) {
                 Ok(()) => {
-                    println!("Consent revoked.");
-                    println!("  Data sharing is now disabled for this category.");
+                    println!("Consent revoked for all categories.");
+                    println!("  All data sharing is now disabled.");
                     println!("  Only public data is accessible.");
                 }
                 Err(e) => eprintln!("Error revoking consent: {e}"),
