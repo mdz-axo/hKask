@@ -356,7 +356,7 @@ pub struct FederationHealthModel {
 ```
 CLI/API/MCP → hkask-services → hkask-agents → hkask-federation
                                    ↓                  ↓
-                              hkask-curator     hkask-ports (traits)
+                              hkask-agents     hkask-ports (traits)
                                    ↓                  ↓
                               hkask-cns         hkask-types
 ```

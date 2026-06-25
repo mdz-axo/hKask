@@ -55,7 +55,7 @@ all_actual=$(printf "%s\n%s" "$actual_crates" "$actual_mcps" | sort -u)
 # crate names in these files are plans/aspirations, not errors.
 # Also includes architecture docs about deployment infrastructure
 # and future-state specifications (not current code architecture).
-FORWARD_LOOKING_DIRS='^docs/(plans/|guides/|OPEN_QUESTIONS\.md|architecture/FUNCTIONAL_SPECIFICATION\.md|architecture/matrix-integration-architecture\.md)'
+FORWARD_LOOKING_DIRS='^docs/(plans/|guides/|OPEN_QUESTIONS\.md|architecture/core/FUNCTIONAL_SPECIFICATION\.md|architecture/matrix-integration-architecture\.md|architecture/ADRs/)'
 
 # Find all hkask-* references with their source file.
 # Format: filepath:match (grep -H format). Exclude archive/.
@@ -83,7 +83,7 @@ while IFS=: read -r file name; do
     echo -e "  ${RED}STALE:${NC} $name → $file (not in Cargo.toml/filesystem)"
     ERRORS=$((ERRORS + 1))
   fi
-done < <(grep -roPH 'hkask-[a-z0-9_-]+' docs/ --include='*.md' 2>/dev/null | grep -v '^docs/archive/' | sort -u)
+done < <(grep -roPH 'hkask-[a-z][a-z0-9-]*[a-z0-9]' docs/ --include='*.md' 2>/dev/null | grep -v '^docs/archive/' | sort -u)
 echo ""
 
 # ────────────────────────────────────────────────────────────

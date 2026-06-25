@@ -105,7 +105,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | ✅ Realigned |
 | `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | ✅ Realigned |
 | `hkask-services-corpus` | Content corpus: discovery + embed | `P{N}-svc-corpus-*` | 30 | ✅ Realigned |
-| `hkask-services-inference-svc` | Inference orchestration | `P{N}-svc-inference-*` | 7 | ✅ Realigned |
+| `hkask-inference` | Inference orchestration | `P{N}-svc-inference-*` | 7 | ✅ Realigned |
 | `hkask-services-kanban` | Kanban task board coordination | `KAN-SVC-*` (legacy) | 34 | ⚠️ Migration pending |
 | `hkask-services-kata` | Toyota Kata engine | `P{N}-svc-kata-*` | 27 | ✅ Realigned |
 
@@ -543,7 +543,7 @@ All 28 fields are **private** and exposed through **individual named accessor me
 | `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | Realigned |
 | `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | Realigned |
 | `hkask-services-corpus` | Content corpus: discovery + embed | `P{N}-svc-corpus-*` | 30 | Realigned |
-| `hkask-services-inference-svc` | Inference orchestration | `P{N}-svc-inference-*` | 7 | Realigned |
+| `hkask-inference` | Inference orchestration | `P{N}-svc-inference-*` | 7 | Realigned |
 | `hkask-services-kanban` | Kanban task board coordination | `KAN-SVC-*` (legacy) | 34 | Migration pending |
 | `hkask-services-kata` | Toyota Kata engine | `P{N}-svc-kata-*` | 27 | Realigned |
 
@@ -556,7 +556,7 @@ All 28 fields are **private** and exposed through **individual named accessor me
 | `hkask-services-runtime` | Lifecycle | `ClassifyService`, `DaemonService` |
 | `hkask-services-context` | Lifecycle | `ContextService`, contract monitoring |
 | `hkask-services-corpus` | Domain | `CorpusService`, embedding pipelines |
-| `hkask-services-inference-svc` | Composition | Inference orchestration, provider routing |
+| `hkask-inference` | Composition | Inference orchestration, provider routing |
 | `hkask-services-kanban` | Domain | `Board`, `Column`, `Task`, Kanban coordination |
 | `hkask-services-kata` | Domain, Curation | `KataEngine`, `KataManifest`, coaching loops |
 
