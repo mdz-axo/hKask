@@ -18,7 +18,7 @@ pub use crate::lifecycle::{
 };
 pub use hkask_agents::consent::ConsentManager;
 pub use hkask_inference::model_constants;
-pub use hkask_inference::{FusionConfig, InferenceConfig, InferenceRouter};
+pub use hkask_inference::{FusionConfig, InferenceConfig, InferenceRouter, ProviderId};
 pub use hkask_services_backup::config::{
     BackupConfig, EncryptionConfig, RetentionPolicy, backup_config_path, load_backup_config,
 };

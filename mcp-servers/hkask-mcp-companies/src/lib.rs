@@ -35,6 +35,10 @@
 //! - `portfolio_comparison` — Side-by-side comparison
 //! - `portfolio_returns` — TWR and IRR for any date range
 
+// Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
+use hkask_bridge_pko as _pko;
+use hkask_bridge_dublincore as _dc;
+
 use chrono::Datelike;
 use hkask_mcp::server::{McpToolError, execute_tool, validate_identifier};
 use hkask_mcp::{DaemonClient, DaemonResponse};
@@ -44,11 +48,11 @@ use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 mod analysis;
 mod dcf;
-mod scenarios;
-mod superforecast;
 pub mod fibo;
 mod portfolio;
 mod providers;
+mod scenarios;
+mod superforecast;
 pub mod types;
 
 use portfolio::PortfolioManager;
@@ -149,6 +153,9 @@ pub struct CompaniesServer {
     /// Learning state — kanban-style feedback loop. Updated by result_feedback,
     /// read by provider routing to adapt provider preference per symbol.
     pub learning: std::sync::Arc<std::sync::Mutex<LearningState>>,
+    /// Server-level Fermi seed/bootstrap estimates. Overridable via
+    /// HKASK_FERMI_DEFAULTS env var. Used by calibrate_forecast.
+    pub fermi_defaults: superforecast::FermiDefaults,
 }
 
 impl CompaniesServer {
@@ -169,13 +176,27 @@ impl CompaniesServer {
             eodhd_api_key,
             portfolio: PortfolioManager::new(),
             learning: std::sync::Arc::new(std::sync::Mutex::new(LearningState::default())),
+            fermi_defaults: superforecast::FermiDefaults::from_env(),
         })
     }
 
-
-    async fn fetch(&self, tool: &str, symbol: &str, extra: &[(&str, &str)]) -> Result<serde_json::Value, McpToolError> {
+    async fn fetch(
+        &self,
+        tool: &str,
+        symbol: &str,
+        extra: &[(&str, &str)],
+    ) -> Result<serde_json::Value, McpToolError> {
         let l = self.learning.lock().unwrap().clone();
-        providers::companies_get(&self.client, tool, symbol, &self.fmp_api_key, &self.eodhd_api_key, extra, Some(&l)).await
+        providers::companies_get(
+            &self.client,
+            tool,
+            symbol,
+            &self.fmp_api_key,
+            &self.eodhd_api_key,
+            extra,
+            Some(&l),
+        )
+        .await
     }
     /// Record a tool call as a narrative experience in the agent's memory.
     fn record_experience(
@@ -237,12 +258,7 @@ impl CompaniesServer {
     ) -> String {
         execute_tool(self, "company_profile", async {
             validate_symbol(&symbol)?;
-            let result = self.fetch(
-     "company_profile",
-     &symbol,
-     &[],
- )
-            .await;
+            let result = self.fetch("company_profile", &symbol, &[]).await;
             match &result {
                 Ok(v) => {
                     self.record_experience(
@@ -273,12 +289,7 @@ impl CompaniesServer {
     ) -> String {
         execute_tool(self, "stock_quote", async {
             validate_symbol(&symbol)?;
-            let result = self.fetch(
-     "stock_quote",
-     &symbol,
-     &[],
- )
-            .await;
+            let result = self.fetch("stock_quote", &symbol, &[]).await;
             match &result {
                 Ok(v) => {
                     self.record_experience(
@@ -310,12 +321,9 @@ impl CompaniesServer {
         execute_tool(self, "income_statement", async {
             validate_symbol(&symbol)?;
             let limit_str = limit.unwrap_or(5).to_string();
-            let result = self.fetch(
-     "income_statement",
-     &symbol,
-     &[("limit", &limit_str)],
- )
-            .await;
+            let result = self
+                .fetch("income_statement", &symbol, &[("limit", &limit_str)])
+                .await;
             match &result {
                 Ok(v) => {
                     self.record_experience(
@@ -347,12 +355,9 @@ impl CompaniesServer {
         execute_tool(self, "balance_sheet", async {
             validate_symbol(&symbol)?;
             let limit_str = limit.unwrap_or(5).to_string();
-            let result = self.fetch(
-     "balance_sheet",
-     &symbol,
-     &[("limit", &limit_str)],
- )
-            .await;
+            let result = self
+                .fetch("balance_sheet", &symbol, &[("limit", &limit_str)])
+                .await;
             match &result {
                 Ok(v) => {
                     self.record_experience(
@@ -384,12 +389,9 @@ impl CompaniesServer {
         execute_tool(self, "cash_flow_statement", async {
             validate_symbol(&symbol)?;
             let limit_str = limit.unwrap_or(5).to_string();
-            let result = self.fetch(
-     "cash_flow_statement",
-     &symbol,
-     &[("limit", &limit_str)],
- )
-            .await;
+            let result = self
+                .fetch("cash_flow_statement", &symbol, &[("limit", &limit_str)])
+                .await;
             match &result {
                 Ok(v) => {
                     self.record_experience(
@@ -421,12 +423,9 @@ impl CompaniesServer {
         execute_tool(self, "key_metrics", async {
             validate_symbol(&symbol)?;
             let limit_str = limit.unwrap_or(5).to_string();
-            let result = self.fetch(
-     "key_metrics",
-     &symbol,
-     &[("limit", &limit_str)],
- )
-            .await;
+            let result = self
+                .fetch("key_metrics", &symbol, &[("limit", &limit_str)])
+                .await;
             match &result {
                 Ok(v) => {
                     self.record_experience(
@@ -457,12 +456,9 @@ impl CompaniesServer {
     ) -> String {
         execute_tool(self, "historical_price", async {
             validate_symbol(&symbol)?;
-            let result = self.fetch(
-     "historical_price",
-     &symbol,
-     &[("from", &from), ("to", &to)],
- )
-            .await;
+            let result = self
+                .fetch("historical_price", &symbol, &[("from", &from), ("to", &to)])
+                .await;
             match &result {
                 Ok(v) => {
                     self.record_experience(
@@ -557,12 +553,9 @@ impl CompaniesServer {
 
             // Fetch 10 years of key metrics for gross margin stability analysis
             let limit = "10";
-            let metrics_result = self.fetch(
-     "key_metrics",
-     &symbol,
-     &[("limit", limit)],
- )
-            .await;
+            let metrics_result = self
+                .fetch("key_metrics", &symbol, &[("limit", limit)])
+                .await;
 
             let metrics = match metrics_result {
                 Ok(v) => v,
@@ -1271,12 +1264,9 @@ impl CompaniesServer {
                         continue;
                     }
                     // Fall back to API
-                    if let Ok(value) = self.fetch(
-                            "historical_price",
-                            sym,
-                            &[("from", date), ("to", date)],
-                    )
-                    .await
+                    if let Ok(value) = self
+                        .fetch("historical_price", sym, &[("from", date), ("to", date)])
+                        .await
                         && let Some(days) = value.get("historical").and_then(|h| h.as_array())
                         && let Some(day) = days.first()
                         && let Some(close) = day
@@ -1760,13 +1750,7 @@ impl CompaniesServer {
             let mut market_values = Vec::new();
             let mut errors = Vec::new();
             for sym in positions.keys() {
-                match self.fetch(
-                        "stock_quote",
-                        sym,
-                        &[],
-                )
-                .await
-                {
+                match self.fetch("stock_quote", sym, &[]).await {
                     Ok(value) => {
                         let price = value
                             .as_array()
@@ -1795,12 +1779,7 @@ impl CompaniesServer {
                 let weight = mv / total_mv;
 
                 // Fetch profile for sector/industry/country/market cap
-                if let Ok(profile_val) = self.fetch(
-                        "company_profile",
-                        sym,
-                        &[],
-                )
-                .await
+                if let Ok(profile_val) = self.fetch("company_profile", sym, &[]).await
                     && let Some(profile) = profile_val.as_array().and_then(|a| a.first())
                 {
                     for field in ["sector", "industry", "country", "mktCap"] {
@@ -1829,12 +1808,7 @@ impl CompaniesServer {
                 }
 
                 // Fetch key metrics for profitability/valuation
-                if let Ok(metrics_val) = self.fetch(
-                        "key_metrics",
-                        sym,
-                        &[("limit", "1")],
-                )
-                .await
+                if let Ok(metrics_val) = self.fetch("key_metrics", sym, &[("limit", "1")]).await
                     && let Some(metrics) = metrics_val.as_array().and_then(|a| a.first())
                 {
                     for field in [
@@ -1852,8 +1826,7 @@ impl CompaniesServer {
                         "epsGrowth",
                     ] {
                         if let Some(val) = metrics.get(field).and_then(|v| v.as_f64()) {
-                            let fibo_uri = fibo::fmp_field_to_fibo(field)
-                                .unwrap_or("unknown");
+                            let fibo_uri = fibo::fmp_field_to_fibo(field).unwrap_or("unknown");
                             let entry = characteristics
                                 .entry(field.to_string())
                                 .or_insert(serde_json::json!({"value": 0.0, "fibo": fibo_uri}));
@@ -1867,12 +1840,7 @@ impl CompaniesServer {
                 }
 
                 // Balance sheet for leverage
-                if let Ok(bs_val) = self.fetch(
-                        "balance_sheet",
-                        sym,
-                        &[("limit", "1")],
-                )
-                .await
+                if let Ok(bs_val) = self.fetch("balance_sheet", sym, &[("limit", "1")]).await
                     && let Some(bs) = bs_val.as_array().and_then(|a| a.first())
                 {
                     let assets = bs.get("totalAssets").and_then(|v| v.as_f64());
@@ -1881,8 +1849,8 @@ impl CompaniesServer {
                         && e > 0.0
                     {
                         let lev = a / e;
-                        let fibo_uri = fibo::fmp_field_to_fibo("financialLeverage")
-                            .unwrap_or("unknown");
+                        let fibo_uri =
+                            fibo::fmp_field_to_fibo("financialLeverage").unwrap_or("unknown");
                         let entry = characteristics
                             .entry("financialLeverage".to_string())
                             .or_insert(serde_json::json!({"value": 0.0, "fibo": fibo_uri}));
@@ -2270,7 +2238,7 @@ impl CompaniesServer {
     )]
     pub async fn calibrate_forecast(
         &self,
-        Parameters(req): Parameters<types::ScenarioAnalysisRequest>,
+        Parameters(req): Parameters<types::CalibrateForecastRequest>,
     ) -> String {
         execute_tool(self, "calibrate_forecast", async {
             validate_symbol(&req.symbol)?;
@@ -2307,20 +2275,47 @@ impl CompaniesServer {
 
             // Run scenarios
             let matrix = scenarios::ScenarioMatrix::growth_x_margin(hist_revenue_growth, fcf_margin);
-            let dcf_config = dcf::DcfConfig::default();
+            let dcf_config = dcf::DcfConfig {
+                stage1_years: req.stage1_years.unwrap_or(3),
+                stage2_years: req.stage2_years.unwrap_or(7),
+                discount_rate: req.discount_rate.unwrap_or(0.10),
+                terminal_growth: req.terminal_growth.unwrap_or(0.025),
+                ..dcf::DcfConfig::default()
+            };
             let results = scenarios::run_scenario_analysis(&fundamentals, &matrix, &dcf_config)
                 .map_err(|e| McpToolError::invalid_argument(e))?;
 
-            // Fermi decomposition — user can override these estimates
-            let growth_fermi = superforecast::fermi_decompose_growth();
-            let margin_fermi = superforecast::fermi_decompose_margin();
+            // Build Fermi estimates from server-level defaults, apply user overrides
+            let mut growth_fermi = self.fermi_defaults.growth_questions.clone();
+            let mut margin_fermi = self.fermi_defaults.margin_questions.clone();
 
-            let growth_inside = superforecast::calibrate_from_fermi(&growth_fermi);
-            let margin_inside = superforecast::calibrate_from_fermi(&margin_fermi);
+            if !req.growth_fermi_overrides.is_empty() {
+                let o: Vec<(usize, f64, f64)> = req.growth_fermi_overrides.iter()
+                    .map(|ov| (ov.index, ov.estimate, ov.confidence)).collect();
+                superforecast::apply_fermi_overrides(&mut growth_fermi, &o);
+            }
+            if !req.margin_fermi_overrides.is_empty() {
+                let o: Vec<(usize, f64, f64)> = req.margin_fermi_overrides.iter()
+                    .map(|ov| (ov.index, ov.estimate, ov.confidence)).collect();
+                superforecast::apply_fermi_overrides(&mut margin_fermi, &o);
+            }
 
-            // Outside view (default reference class: S&P 500 large-cap, N=500)
-            let (growth_calibrated, growth_conf) = superforecast::outside_view_adjustment(0.55, growth_inside, 500);
-            let (margin_calibrated, margin_conf) = superforecast::outside_view_adjustment(0.50, margin_inside, 500);
+            let growth_inside = req.growth_estimate.unwrap_or_else(|| {
+                superforecast::calibrate_from_fermi(&growth_fermi)
+            });
+            let margin_inside = req.margin_estimate.unwrap_or_else(|| {
+                superforecast::calibrate_from_fermi(&margin_fermi)
+            });
+
+            let ref_class = req.reference_class.unwrap_or_else(|| "S&P 500 large-cap, 2015-2025".into());
+            let ref_count = req.reference_count.unwrap_or(500);
+
+            let (growth_calibrated, growth_conf) = superforecast::outside_view_adjustment(
+                0.55, growth_inside, ref_count,
+            );
+            let (margin_calibrated, margin_conf) = superforecast::outside_view_adjustment(
+                0.50, margin_inside, ref_count,
+            );
 
             // Distribute probabilities across scenarios
             let weighted = superforecast::distribute_scenario_probabilities(
@@ -2346,7 +2341,9 @@ impl CompaniesServer {
                 "calibration": {
                     "growth": {"inside_estimate": growth_inside, "calibrated": growth_calibrated, "confidence": growth_conf},
                     "margin": {"inside_estimate": margin_inside, "calibrated": margin_calibrated, "confidence": margin_conf},
-                    "method": "Fermi decomposition + outside view (reference class: S&P 500 large-cap, N=500)",
+                    "reference_class": ref_class,
+                    "reference_count": ref_count,
+                    "method": "Fermi decomposition + outside/inside view calibration",
                 },
                 "fermi_decomposition": fermi_output,
                 "scenarios": scenario_output,
@@ -2357,6 +2354,114 @@ impl CompaniesServer {
             });
 
             self.record_experience("calibrate_forecast", &format!("symbol={}", req.symbol), "success", output.clone());
+            Ok(output)
+        }).await
+    }
+
+    #[tool(
+        description = "Record the actual outcome of a forecast to close the superforecasting feedback loop. Computes Brier scores for growth and margin probabilities, storing the outcome in the daemon for calibration tracking. Tetlock GJP: you can\'t improve what you don\'t score."
+    )]
+    pub async fn forecast_record(
+        &self,
+        Parameters(req): Parameters<types::ForecastRecordRequest>,
+    ) -> String {
+        execute_tool(self, "forecast_record", async {
+            validate_symbol(&req.symbol)?;
+
+            // Run current calibrate_forecast to get the probabilities that were forecast
+            // (Simplified: use current fundamentals and Fermi defaults as proxy for historical forecast)
+            let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
+            let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
+            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "1")]).await;
+
+            let (metrics, profile, cf) = match (metrics_result, profile_result, cf_result) {
+                (Ok(m), Ok(p), Ok(c)) => (m, p, c),
+                _ => return Ok(serde_json::json!({"status": "partial", "error": "could not fetch fundamentals for scoring"})),
+            };
+            let metrics_arr = metrics.as_array();
+            let profile_obj = profile.as_array().and_then(|a| a.first());
+            let cf_obj = cf.as_array().and_then(|a| a.first());
+            if metrics_arr.is_none_or(|m| m.is_empty()) || profile_obj.is_none() || cf_obj.is_none() {
+                return Ok(serde_json::json!({"status": "partial", "error": "insufficient data"}));
+            }
+
+            // Use Fermi defaults to reconstruct approximate forecast probabilities
+            let growth_fermi = self.fermi_defaults.growth_questions.clone();
+            let margin_fermi = self.fermi_defaults.margin_questions.clone();
+            let p_growth = superforecast::calibrate_from_fermi(&growth_fermi);
+            let p_margin = superforecast::calibrate_from_fermi(&margin_fermi);
+
+            // Determine which scenario actually occurred
+            let hist_avg = metrics_arr.as_ref().unwrap().iter()
+                .filter_map(|e| e.get("revenuePerShare").and_then(|v| v.as_f64()))
+                .collect::<Vec<_>>();
+            let hist_growth = if hist_avg.len() >= 2 {
+                crate::cagr_from_series(
+                    &hist_avg.windows(2).filter_map(|w| if w[0] > 0.0 { Some((w[1]-w[0])/w[0]) } else { None }).collect::<Vec<_>>()
+                )
+            } else { 0.05 };
+            let hist_margin = cf_obj.unwrap().get("freeCashFlow").and_then(|v| v.as_f64())
+                .map(|fcf| if hist_avg.first().copied().unwrap_or(1.0) > 0.0 { fcf / hist_avg[0] } else { 0.05 })
+                .unwrap_or(0.05);
+
+            // Binary outcome: was actual above or below the forecast split point?
+            let growth_above = req.actual_growth > hist_growth;
+            let margin_above = req.actual_margin > hist_margin;
+
+            // Brier scores for each dimension
+            let growth_brier = superforecast::brier_score(p_growth, growth_above);
+            let margin_brier = superforecast::brier_score(p_margin, margin_above);
+            let combined_brier = (growth_brier + margin_brier) / 2.0;
+
+            // Store outcome in daemon
+            if let Some(ref daemon) = self.daemon {
+                let value = serde_json::json!({
+                    "symbol": req.symbol,
+                    "forecast_date": req.forecast_date,
+                    "outcome_date": req.outcome_date,
+                    "p_growth": p_growth, "actual_growth": req.actual_growth, "growth_brier": growth_brier,
+                    "p_margin": p_margin, "actual_margin": req.actual_margin, "margin_brier": margin_brier,
+                    "actual_multiple": req.actual_multiple,
+                    "combined_brier": combined_brier,
+                    "timestamp": now_rfc3339(),
+                });
+                let daemon_clone = daemon.clone();
+                let replicant = self.replicant.clone();
+                let symbol = req.symbol.clone();
+                let _ = tokio::spawn(async move {
+                    let _ = daemon_clone.store_experience(
+                        &replicant, &format!("forecast_outcome:{symbol}"), "outcome_recorded",
+                        &value, Some(0.95),
+                    ).await;
+                });
+            }
+
+            let output = serde_json::json!({
+                "status": "recorded",
+                "symbol": req.symbol,
+                "forecast_date": req.forecast_date,
+                "outcome_date": req.outcome_date,
+                "forecast": {
+                    "p_high_growth": p_growth,
+                    "p_high_margin": p_margin,
+                },
+                "outcome": {
+                    "actual_growth": req.actual_growth,
+                    "actual_margin": req.actual_margin,
+                    "actual_multiple": req.actual_multiple,
+                    "growth_above_baseline": growth_above,
+                    "margin_above_baseline": margin_above,
+                },
+                "brier_scores": {
+                    "growth": growth_brier,
+                    "margin": margin_brier,
+                    "combined": combined_brier,
+                    "interpretation": superforecast::brier_interpretation(combined_brier),
+                },
+                "framework": "Tetlock GJP: Brier score = (probability - outcome)^2. Range [0,1], lower is better. 0 = perfect calibration. Scores are stored as daemon experiences for cumulative calibration tracking.",
+            });
+
+            self.record_experience("forecast_record", &format!("symbol={}", req.symbol), "success", output.clone());
             Ok(output)
         }).await
     }
@@ -2773,7 +2878,6 @@ mod tests {
         );
         assert!(state.preferred_provider("AAPL").is_none());
     }
-
 }
 
 // ── Entry point ─────────────────────────────────────────────────────

@@ -13,6 +13,10 @@ pub mod ocr;
 
 // ── Imports ────────────────────────────────────────────────────────────────
 
+// Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
+use hkask_bridge_pko as _pko;
+use hkask_bridge_dublincore as _dc;
+
 use async_trait::async_trait;
 
 use crate::ocr::calibration::{analyze_threshold_drift, emit_drift_alert};

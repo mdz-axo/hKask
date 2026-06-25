@@ -31,6 +31,8 @@ uuid.workspace = true
 base64.workspace = true
 dirs = "6"
 hkask-ledger = { path = "../../crates/hkask-ledger" }
+hkask-bridge-pko = { path = "../../crates/hkask-bridge-pko" }
+hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }
 
 [dev-dependencies]
 tempfile.workspace = true

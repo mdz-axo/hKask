@@ -2,7 +2,7 @@
 
 Multi-chain wallet service providing crypto wallet operations, chain port selection, and gas calibration. Implements the `WalletService` port trait.
 
-**Version:** v0.30.0 | **Crate:** `hkask-services-wallet`
+**Version:** v0.31.0 | **Crate:** `hkask-services-wallet`
 
 ## Exports
 

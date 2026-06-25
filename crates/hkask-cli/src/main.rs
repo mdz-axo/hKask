@@ -13,8 +13,8 @@ use std::time::Instant;
 
 /// Check fusion model configuration at startup.
 ///
-/// Fusion is opt-in — only active when HKASK_FUSION_JUDGE or
-/// legacy vars are explicitly set. Prints the active configuration.
+/// Fusion is opt-in — only active when HKASK_FUSION_JUDGE,
+/// HKASK_FUSION_KILO_TIER, or legacy vars are explicitly set.
 fn check_fusion_startup(_rt: &tokio::runtime::Runtime) {
     let config = InferenceConfig::from_env();
     let fusion = match &config.fusion {
@@ -22,9 +22,9 @@ fn check_fusion_startup(_rt: &tokio::runtime::Runtime) {
         None => return,
     };
 
+    let (model, desc) = (fusion.model_id(), fusion.description());
     eprintln!(
-        "\n  \x1b[1;33m⚡ Fusion mode active\x1b[0m — model: \x1b[36mopenrouter/fusion\x1b[0m\n     {}",
-        fusion.description()
+        "\n  \x1b[1;33m⚡ Fusion mode active\x1b[0m — model: \x1b[36m{model}\x1b[0m\n     {desc}"
     );
 }
 

@@ -9,6 +9,15 @@
 //!
 //! Pattern: thin mapping layer — canonical URI constants, mapping functions,
 //! no dependencies, no reasoners, no overhead ≤120 lines.
+//!
+//! # Shared Bridge Integration
+//!
+//! Uses [`hkask_bridge_dublincore`] for media type classification
+//! (e.g., `dctypes:StillImage`, `dctypes:Sound`) and [`hkask_bridge_pko`]
+//! for production step classification.
+
+use hkask_bridge_dublincore as dc;
+use hkask_bridge_pko as pko;
 
 /// An OMC concept URI.
 pub type OmcConcept = &'static str;

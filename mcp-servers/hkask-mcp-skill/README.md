@@ -2,7 +2,7 @@
 
 MCP server exposing the skill registry: listing, installing, discovering, and managing skills and their manifests.
 
-**Version:** v0.30.0 | **Crate:** `hkask-mcp-skill`
+**Version:** v0.31.0 | **Crate:** `hkask-mcp-skill`
 
 ## Tools (3)
 

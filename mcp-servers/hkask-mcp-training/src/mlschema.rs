@@ -10,6 +10,15 @@
 //!
 //! Pattern: thin mapping layer — canonical URI constants, mapping functions,
 //! no dependencies, no reasoners, no overhead ≤100 lines.
+//!
+//! # Shared Bridge Integration
+//!
+//! Uses [`hkask_bridge_dublincore`] for dataset and model metadata
+//! (e.g., `dctypes:Dataset`, `dctypes:Software`) and [`hkask_bridge_pko`]
+//! for training procedure classification.
+
+use hkask_bridge_dublincore as dc;
+use hkask_bridge_pko as pko;
 
 /// An ML-Schema concept URI.
 pub type MlConcept = &'static str;
@@ -97,15 +106,27 @@ mod tests {
     #[test]
     fn training_ops_map_to_mlschema() {
         assert_eq!(training_op_to_mlschema("training_submit"), Some(RUN));
-        assert_eq!(training_op_to_mlschema("training_evaluate"), Some(EVALUATION));
-        assert_eq!(training_op_to_mlschema("training_assemble_dataset"), Some(DATA));
-        assert_eq!(training_op_to_mlschema("training_register_adapter"), Some(MODEL));
+        assert_eq!(
+            training_op_to_mlschema("training_evaluate"),
+            Some(EVALUATION)
+        );
+        assert_eq!(
+            training_op_to_mlschema("training_assemble_dataset"),
+            Some(DATA)
+        );
+        assert_eq!(
+            training_op_to_mlschema("training_register_adapter"),
+            Some(MODEL)
+        );
         assert_eq!(training_op_to_mlschema("unknown"), None);
     }
 
     #[test]
     fn hyperparams_map_to_mlschema() {
-        assert_eq!(hyperparam_to_mlschema("learning_rate"), Some(HYPER_PARAMETER));
+        assert_eq!(
+            hyperparam_to_mlschema("learning_rate"),
+            Some(HYPER_PARAMETER)
+        );
         assert_eq!(hyperparam_to_mlschema("batch_size"), Some(HYPER_PARAMETER));
         assert_eq!(hyperparam_to_mlschema("lora_rank"), Some(HYPER_PARAMETER));
         assert_eq!(hyperparam_to_mlschema("random_seed"), None);

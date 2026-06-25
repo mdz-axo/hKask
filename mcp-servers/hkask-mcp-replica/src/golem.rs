@@ -10,6 +10,15 @@
 //!
 //! Pattern: thin mapping layer — canonical URI constants, mapping functions,
 //! no dependencies, no reasoners, no overhead ≤100 lines.
+//!
+//! # Shared Bridge Integration
+//!
+//! Uses [`hkask_bridge_dublincore`] for creative work classification
+//! (e.g., `dctypes:Text`, `bibo:Book`) and [`hkask_bridge_pko`] for
+//! narrative procedure classification.
+
+use hkask_bridge_dublincore as dc;
+use hkask_bridge_pko as pko;
 
 /// A GOLEM concept URI.
 pub type GolemConcept = &'static str;
@@ -85,7 +94,10 @@ mod tests {
     fn replica_ops_map_to_golem() {
         assert_eq!(replica_op_to_golem("replica_build"), Some(AUTHOR));
         assert_eq!(replica_op_to_golem("replica_compose"), Some(CREATIVE_WORK));
-        assert_eq!(replica_op_to_golem("replica_mashup"), Some(NARRATIVE_FUNCTION));
+        assert_eq!(
+            replica_op_to_golem("replica_mashup"),
+            Some(NARRATIVE_FUNCTION)
+        );
         assert_eq!(replica_op_to_golem("unknown_op"), None);
     }
 

@@ -97,6 +97,7 @@ impl EmbeddingRouter {
             ProviderId::OpenRouter => self.openrouter_client.is_some(),
             ProviderId::Fal => false,
             ProviderId::Together => false,
+            ProviderId::KiloCode => false,
             ProviderId::Runpod | ProviderId::Baseten => false,
         };
 
@@ -169,6 +170,11 @@ impl EmbeddingRouter {
                     &texts,
                 )
                 .await?
+            }
+            ProviderId::KiloCode => {
+                return Err(EmbeddingGenerationError::Connection(
+                    "KiloCode does not support embeddings yet".into(),
+                ));
             }
             ProviderId::Runpod | ProviderId::Baseten => {
                 return Err(EmbeddingGenerationError::Connection(

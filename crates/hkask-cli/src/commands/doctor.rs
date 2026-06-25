@@ -19,6 +19,7 @@ pub async fn run_doctor() {
     configured += check_env("FA_API_KEY", "fal.ai", &mut total);
     configured += check_env("TOGETHER_API_KEY", "Together AI", &mut total);
     configured += check_env("OPENROUTER_API_KEY", "OpenRouter", &mut total);
+    configured += check_env("KILOCODE_API_KEY", "KiloCode", &mut total);
     configured += check_env("RUNPOD_API_KEY", "RunPod", &mut total);
     configured += check_env("BASETEN_API_KEY", "Baseten", &mut total);
     println!();
@@ -26,20 +27,33 @@ pub async fn run_doctor() {
     // ── Fusion ──────────────────────────────────────────────
     let config = InferenceConfig::from_env();
     if config.fusion.is_some() {
+        // Extract fusion info before config is consumed by InferenceRouter::new
+        let fusion_model = config.fusion.as_ref().unwrap().model_id();
+        let fusion_provider = config.fusion.as_ref().unwrap().provider;
+        let fusion_tier = config.fusion.as_ref().unwrap().kilo_tier.clone();
         println!("Fusion Model");
         println!("────────────");
         let router = InferenceRouter::new(config);
         total += 1;
         match router.verify_fusion_model().await {
             Ok(true) => {
-                println!("  ✅ Fusion group verified on OpenRouter");
+                let provider = fusion_provider.as_str();
+                println!("  ✅ Fusion model verified ({provider}) — {fusion_model}");
                 configured += 1;
             }
-            Ok(false) => {
-                println!("  ❌ Fusion group NOT FOUND — create it at https://openrouter.ai/fusion");
-            }
+            Ok(false) => match fusion_provider {
+                hkask_services::ProviderId::KiloCode => {
+                    let tier = fusion_tier.as_deref().unwrap_or("balanced");
+                    println!("  ❌ Kilo auto model NOT FOUND — kilo-auto/{tier}");
+                }
+                _ => {
+                    println!(
+                        "  ❌ Fusion group NOT FOUND — create it at https://openrouter.ai/fusion"
+                    );
+                }
+            },
             Err(e) => {
-                println!("  ⚠️  Could not verify fusion group: {e}");
+                println!("  ⚠️  Could not verify fusion model: {e}");
             }
         }
         println!();

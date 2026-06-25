@@ -1,4 +1,4 @@
-//! Inference configuration — multi-provider routing for DeepInfra, fal.ai, Together AI, and OpenRouter.
+//! Inference configuration — multi-provider routing for DeepInfra, fal.ai, Together AI, OpenRouter, and KiloCode.
 //!
 //! # Environment Variables
 //!
@@ -10,7 +10,9 @@
 //! - `TOGETHER_API_KEY` — Together AI API key (required for TG provider)
 //! - `OR_BASE_URL` — OpenRouter base URL (default: <https://openrouter.ai/api>)
 //! - `OPENROUTER_API_KEY` — OpenRouter API key (required for OR provider)
-//! - `HKASK_DEFAULT_PROVIDER` — default provider for unprefixed models (DI, FA, TG, OR; default: DI)
+//! - `KC_BASE_URL` — KiloCode base URL (default: <https://api.kilo.ai/api/gateway>)
+//! - `KILOCODE_API_KEY` — KiloCode API key (required for KC provider)
+//! - `HKASK_DEFAULT_PROVIDER` — default provider for unprefixed models (DI, FA, TG, OR, KC; default: DI)
 //!
 //! # API Key Resolution
 //!
@@ -26,6 +28,7 @@
 //! - `FA/paddleocr` → fal.ai (cloud)
 //! - `TG/Qwen/Qwen2.5-7B-Instruct-Turbo` → Together AI (cloud)
 //! - `OR/openai/gpt-4o` → OpenRouter (cloud)
+//! - `KC/anthropic/claude-sonnet-4.5` → KiloCode (cloud)
 //! - No prefix → default provider (configurable, default: DeepInfra)
 
 use serde::{Deserialize, Serialize};
@@ -53,6 +56,9 @@ pub enum ProviderId {
     /// OpenRouter (cloud) — prefix `OR/`
     #[serde(rename = "OR")]
     OpenRouter,
+    /// KiloCode (cloud) — prefix `KC/`
+    #[serde(rename = "KC")]
+    KiloCode,
 }
 
 impl ProviderId {
@@ -64,7 +70,7 @@ impl ProviderId {
     /// expect: "The system normalizes provider responses for monitoring"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — model-name routing to provider boundary
     /// pre:  model is non-empty
-    /// post: returns Some((ProviderId, stripped_model)) for DI/, FA/, TG/, RP/, BT/ prefixes
+    /// post: returns Some((ProviderId, stripped_model)) for DI/, FA/, TG/, RP/, BT/, OR/, KC/ prefixes
     /// post: returns None for unrecognized or missing prefix
     pub fn parse_from_model(model: &str) -> Option<(Self, &str)> {
         if model.len() < 4 {
@@ -86,6 +92,7 @@ impl ProviderId {
             "RP" => Some((ProviderId::Runpod, rest)),
             "BT" => Some((ProviderId::Baseten, rest)),
             "OR" => Some((ProviderId::OpenRouter, rest)),
+            "KC" => Some((ProviderId::KiloCode, rest)),
             _ => None,
         }
     }
@@ -104,7 +111,7 @@ impl ProviderId {
     ///
     /// expect: "The system normalizes provider responses for monitoring"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — stable provider code for routing
-    /// post: returns "DI", "FA", "TG", "RP", or "BT"
+    /// post: returns "DI", "FA", "TG", "RP", "BT", "OR", or "KC"
     pub fn as_str(&self) -> &'static str {
         match self {
             ProviderId::DeepInfra => "DI",
@@ -113,6 +120,7 @@ impl ProviderId {
             ProviderId::Runpod => "RP",
             ProviderId::Baseten => "BT",
             ProviderId::OpenRouter => "OR",
+            ProviderId::KiloCode => "KC",
         }
     }
 }
@@ -128,17 +136,39 @@ impl ProviderId {
 /// - `HKASK_FUSION_PANEL` — comma-separated panel models (e.g., "Kimi2.7,Qwen3.7 Max")
 use crate::chat_protocol::FusionPlugin;
 
-/// Configuration for OpenRouter Fusion multi-model deliberation.
+/// Configuration for fusion multi-model deliberation.
 ///
-/// Fusion sends a prompt to a panel of models in parallel, then has a judge
-/// model synthesize their responses into a structured analysis. The plugin
-/// payload is injected into the request body as a `plugins` array.
+/// Supports two providers:
+/// - **OpenRouter** (default): Client-side panel+judge plugin injection.
+///   Sends prompt to a panel of models in parallel, then has a judge
+///   synthesize responses. Uses `plugins[]` array in the request body.
+/// - **KiloCode**: Server-side auto-routing via `kilo-auto/*` virtual models.
+///   Kilo Gateway selects the best underlying model based on the configured
+///   tier (frontier/balanced/free/small) and optional mode header.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FusionConfig {
+    /// Which provider handles fusion routing.
+    /// Default: OpenRouter (backward compatible).
+    #[serde(default = "default_fusion_provider")]
+    pub provider: ProviderId,
     /// The judge/fuser model that orchestrates and synthesizes the fusion.
+    /// Only used when provider is OpenRouter.
     pub judge: String,
     /// The panel of analysis models that answer in parallel.
+    /// Only used when provider is OpenRouter.
     pub panel: Vec<String>,
+    /// Kilo auto tier: "frontier", "balanced", "free", or "small".
+    /// Only used when provider is KiloCode. Default: "balanced".
+    #[serde(default)]
+    pub kilo_tier: Option<String>,
+    /// Kilo mode header for auto-routing: "plan", "build", "code", "debug", "ask", "general".
+    /// Only used when provider is KiloCode. Sent as `x-kilocode-mode` header.
+    #[serde(default)]
+    pub kilo_mode: Option<String>,
+}
+
+fn default_fusion_provider() -> ProviderId {
+    ProviderId::OpenRouter
 }
 
 impl FusionConfig {
@@ -148,16 +178,23 @@ impl FusionConfig {
     /// The kask default judge/fuser model.
     pub const KASK_JUDGE: &str = "deepseek-v4-pro";
 
-    /// Return the kask default fusion configuration.
+    /// Return the kask default fusion configuration (OpenRouter).
     pub fn kask_default() -> Self {
         Self {
+            provider: ProviderId::OpenRouter,
             judge: Self::KASK_JUDGE.to_string(),
             panel: Self::KASK_PANEL.iter().map(|s| s.to_string()).collect(),
+            kilo_tier: None,
+            kilo_mode: None,
         }
     }
 
     /// Build the OpenRouter Fusion plugin payload for the `plugins` request field.
+    /// Returns empty vec when provider is not OpenRouter (Kilo uses headers, not plugins).
     pub fn plugin_payload(&self) -> Vec<FusionPlugin> {
+        if self.provider != ProviderId::OpenRouter {
+            return Vec::new();
+        }
         vec![FusionPlugin {
             id: "fusion".to_string(),
             analysis_models: self.panel.clone(),
@@ -167,12 +204,35 @@ impl FusionConfig {
 
     /// The model ID to use when fusion is active.
     pub fn model_id(&self) -> String {
-        "openrouter/fusion".to_string()
+        match self.provider {
+            ProviderId::KiloCode => {
+                let tier = self.kilo_tier.as_deref().unwrap_or("balanced");
+                format!("KC/kilo-auto/{tier}")
+            }
+            _ => "openrouter/fusion".to_string(),
+        }
     }
 
     /// Human-readable description of the fusion setup.
     pub fn description(&self) -> String {
-        format!("{} panel models judged by {}", self.panel.len(), self.judge)
+        match self.provider {
+            ProviderId::KiloCode => {
+                let tier = self.kilo_tier.as_deref().unwrap_or("balanced");
+                let mode = self.kilo_mode.as_deref().unwrap_or("auto");
+                format!("kilo-auto/{tier} (mode: {mode})")
+            }
+            _ => format!("{} panel models judged by {}", self.panel.len(), self.judge),
+        }
+    }
+
+    /// The mode header value for Kilo auto-routing.
+    /// Returns None when provider is not KiloCode or mode is unset.
+    pub fn kilo_mode_header(&self) -> Option<&str> {
+        if self.provider == ProviderId::KiloCode {
+            self.kilo_mode.as_deref()
+        } else {
+            None
+        }
     }
 }
 
@@ -197,6 +257,8 @@ pub struct InferenceConfig {
     pub together_api_key: String,
     pub openrouter_base_url: String,
     pub openrouter_api_key: String,
+    pub kilocode_base_url: String,
+    pub kilocode_api_key: String,
     pub timeout_secs: u64,
     pub pool_max_idle: usize,
     pub default_model: String,
@@ -222,6 +284,8 @@ impl Default for InferenceConfig {
             together_api_key: String::new(),
             openrouter_base_url: "https://openrouter.ai/api".to_string(),
             openrouter_api_key: String::new(),
+            kilocode_base_url: "https://api.kilo.ai/api/gateway".to_string(),
+            kilocode_api_key: String::new(),
             timeout_secs: 120,
             pool_max_idle: 5,
             default_model: "deepseek-v4-pro".to_string(),
@@ -266,6 +330,11 @@ impl InferenceConfig {
 
         let openrouter_api_key = resolve_api_key("OPENROUTER_API_KEY");
 
+        let kilocode_base_url = std::env::var("KC_BASE_URL")
+            .unwrap_or_else(|_| "https://api.kilo.ai/api/gateway".to_string());
+
+        let kilocode_api_key = resolve_api_key("KILOCODE_API_KEY");
+
         let default_provider = resolve_default_provider();
 
         // Fusion: parse structured env vars. Falls back to legacy HKASK_FUSION_MODEL.
@@ -283,6 +352,8 @@ impl InferenceConfig {
             together_api_key,
             openrouter_base_url,
             openrouter_api_key,
+            kilocode_base_url,
+            kilocode_api_key,
             timeout_secs: 120,
             pool_max_idle: 5,
             default_model: std::env::var("HKASK_DEFAULT_MODEL")
@@ -336,7 +407,7 @@ fn resolve_default_provider() -> ProviderId {
 
 /// Parse a provider code string to a ProviderId.
 ///
-/// Accepted values: DI, FA, TG, RP, BT. Anything else (including empty) → DeepInfra.
+/// Accepted values: DI, FA, TG, RP, BT, OR, KC. Anything else (including empty) → DeepInfra.
 fn parse_provider_code(raw: &str) -> ProviderId {
     match raw {
         "DI" => ProviderId::DeepInfra,
@@ -345,6 +416,7 @@ fn parse_provider_code(raw: &str) -> ProviderId {
         "RP" => ProviderId::Runpod,
         "BT" => ProviderId::Baseten,
         "OR" => ProviderId::OpenRouter,
+        "KC" => ProviderId::KiloCode,
         _ => ProviderId::DeepInfra,
     }
 }
@@ -352,8 +424,9 @@ fn parse_provider_code(raw: &str) -> ProviderId {
 /// Parse fusion configuration from environment variables.
 ///
 /// Priority: structured env vars (HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL) →
+///           Kilo auto-routing (HKASK_FUSION_PROVIDER=KC + HKASK_FUSION_KILO_TIER) →
 ///           legacy env vars (HKASK_FUSION_FUSER + HKASK_FUSION_MODELS) →
-///           legacy HKASK_FUSION_MODEL string → kask defaults.
+///           legacy HKASK_FUSION_MODEL string.
 ///
 /// Returns `None` if no fusion is configured.
 fn parse_fusion_config() -> Option<FusionConfig> {
@@ -365,7 +438,17 @@ fn parse_fusion_config() -> Option<FusionConfig> {
         return None;
     }
 
-    // Structured config: HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL
+    // Determine fusion provider
+    let provider = std::env::var("HKASK_FUSION_PROVIDER")
+        .ok()
+        .map(|p| parse_provider_code(&p))
+        .unwrap_or(ProviderId::OpenRouter);
+
+    // KiloCode-specific: parse tier and mode
+    let kilo_tier = std::env::var("HKASK_FUSION_KILO_TIER").ok();
+    let kilo_mode = std::env::var("HKASK_FUSION_KILO_MODE").ok();
+
+    // Structured config: HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL (OpenRouter)
     if let Ok(judge) = std::env::var("HKASK_FUSION_JUDGE") {
         let panel: Vec<String> = std::env::var("HKASK_FUSION_PANEL")
             .unwrap_or_default()
@@ -374,8 +457,25 @@ fn parse_fusion_config() -> Option<FusionConfig> {
             .filter(|s| !s.is_empty())
             .collect();
         if !judge.is_empty() && !panel.is_empty() {
-            return Some(FusionConfig { judge, panel });
+            return Some(FusionConfig {
+                provider,
+                judge,
+                panel,
+                kilo_tier,
+                kilo_mode,
+            });
         }
+    }
+
+    // KiloCode auto-routing: enabled when provider is KC and tier is set
+    if provider == ProviderId::KiloCode && kilo_tier.is_some() {
+        return Some(FusionConfig {
+            provider,
+            judge: String::new(),
+            panel: Vec::new(),
+            kilo_tier,
+            kilo_mode,
+        });
     }
 
     // Legacy env vars: HKASK_FUSION_GROUP + HKASK_FUSION_MODELS + HKASK_FUSION_FUSER
@@ -389,7 +489,13 @@ fn parse_fusion_config() -> Option<FusionConfig> {
             .filter(|s| !s.is_empty())
             .collect();
         if !judge.is_empty() && !panel.is_empty() {
-            return Some(FusionConfig { judge, panel });
+            return Some(FusionConfig {
+                provider,
+                judge,
+                panel,
+                kilo_tier: None,
+                kilo_mode: None,
+            });
         }
     }
 
@@ -401,13 +507,17 @@ fn parse_fusion_config() -> Option<FusionConfig> {
             .unwrap_or(&legacy)
             .to_string();
         return Some(FusionConfig {
+            provider: ProviderId::OpenRouter,
             judge: "deepseek-v4-pro".to_string(),
             panel: vec![name],
+            kilo_tier: None,
+            kilo_mode: None,
         });
     }
 
     // Fusion is opt-in: only enabled when explicitly configured via env vars.
     // To enable with kask defaults: HKASK_FUSION_JUDGE=deepseek-v4-pro
+    // To enable Kilo auto-routing: HKASK_FUSION_PROVIDER=KC + HKASK_FUSION_KILO_TIER=frontier
     // To disable: HKASK_FUSION_OFF=1 or simply don't set any fusion vars.
 
     None

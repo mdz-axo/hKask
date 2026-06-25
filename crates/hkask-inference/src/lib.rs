@@ -11,7 +11,8 @@
 //!   ├── DeepInfraBackend    — DI/ prefix → api.deepinfra.com
 //!   ├── FalBackend          — FA/ prefix → api.fal.ai
 //!   ├── TogetherBackend     — TG/ prefix → api.together.xyz
-//!   └── OpenRouterBackend   — OR/ prefix → openrouter.ai/api
+//!   ├── OpenRouterBackend   — OR/ prefix → openrouter.ai/api
+//!   └── KiloCodeBackend     — KC/ prefix → api.kilo.ai/api/gateway
 //!
 //! EmbeddingRouter
 //!   ├── DeepInfraEmbedding — DI/ prefix → /v1/embeddings
@@ -32,6 +33,7 @@ pub mod deepinfra_backend;
 pub mod embedding_router;
 pub mod fal_backend;
 pub mod inference_router;
+pub mod kilocode_backend;
 pub mod model_constants;
 pub mod openrouter_backend;
 pub mod together_backend;
@@ -45,6 +47,7 @@ pub use inference_router::InferenceRouter;
 // Model listing types
 pub use deepinfra_backend::DeepInfraModelEntry;
 pub use fal_backend::FalModelEntry;
+pub use kilocode_backend::KiloCodeModel;
 pub use openrouter_backend::OpenRouterModel;
 pub use together_backend::TogetherModel;
 

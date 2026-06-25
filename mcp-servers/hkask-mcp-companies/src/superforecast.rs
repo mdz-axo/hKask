@@ -9,7 +9,76 @@
 //! Integrates with scenario analysis to produce calibrated probability
 //! distributions over intrinsic value scenarios.
 
+/// Apply user overrides to a set of Fermi sub-questions.
+/// `overrides`: list of (index, estimate, confidence) tuples.
+/// Only overrides for valid indices are applied; others are ignored.
+pub fn apply_fermi_overrides(sub_questions: &mut [SubQuestion], overrides: &[(usize, f64, f64)]) {
+    for (idx, est, conf) in overrides {
+        if *idx < sub_questions.len() {
+            sub_questions[*idx].estimate = *est;
+            sub_questions[*idx].confidence = *conf;
+        }
+    }
+}
+
 use crate::scenarios::ScenarioResult;
+
+// ── Fermi configuration ────────────────────────────────────────────────────
+
+/// Server-level default Fermi estimates.
+/// Overridable via environment variable HKASK_FERMI_DEFAULTS as JSON.
+/// Each deployment can set its own seed/bootstrap estimates.
+#[derive(Debug, Clone)]
+pub struct FermiDefaults {
+    pub growth_questions: Vec<SubQuestion>,
+    pub margin_questions: Vec<SubQuestion>,
+}
+
+impl Default for FermiDefaults {
+    fn default() -> Self {
+        Self {
+            growth_questions: fermi_decompose_growth(),
+            margin_questions: fermi_decompose_margin(),
+        }
+    }
+}
+
+impl FermiDefaults {
+    /// Load from HKASK_FERMI_DEFAULTS environment variable as JSON.
+    /// Falls back to hardcoded defaults if unset or invalid.
+    /// Expected format: {"growth": [{"estimate": 0.65, "confidence": 0.7}, ...], "margin": [...]}
+    pub fn from_env() -> Self {
+        if let Ok(json_str) = std::env::var("HKASK_FERMI_DEFAULTS") {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json_str) {
+                let growth = parsed.get("growth").and_then(|g| g.as_array());
+                let margin = parsed.get("margin").and_then(|m| m.as_array());
+                if let (Some(g_arr), Some(m_arr)) = (growth, margin) {
+                    let parse_questions = |arr: &[serde_json::Value]| -> Vec<SubQuestion> {
+                        arr.iter()
+                            .map(|v| SubQuestion {
+                                question: v
+                                    .get("question")
+                                    .and_then(|q| q.as_str())
+                                    .unwrap_or("")
+                                    .into(),
+                                estimate: v.get("estimate").and_then(|e| e.as_f64()).unwrap_or(0.5),
+                                confidence: v
+                                    .get("confidence")
+                                    .and_then(|c| c.as_f64())
+                                    .unwrap_or(0.5),
+                            })
+                            .collect()
+                    };
+                    return FermiDefaults {
+                        growth_questions: parse_questions(g_arr),
+                        margin_questions: parse_questions(m_arr),
+                    };
+                }
+            }
+        }
+        Self::default()
+    }
+}
 
 // ── Forecast question ──────────────────────────────────────────────────────
 
@@ -193,6 +262,55 @@ pub fn bayesian_update(prior: f64, evidence_likelihood: f64, evidence_base_rate:
     posterior.clamp(0.01, 0.99)
 }
 
+// ── Brier scoring ──────────────────────────────────────────────────────────
+
+/// A recorded forecast outcome — what actually happened.
+#[derive(Debug, Clone)]
+pub struct ForecastOutcome {
+    pub symbol: String,
+    pub forecast_date: String,
+    pub outcome_date: String,
+    pub actual_revenue_growth: f64,
+    pub actual_fcf_margin: f64,
+    pub actual_multiple: Option<f64>,
+}
+
+/// Brier score: (probability - outcome)^2. Lower = better.
+pub fn brier_score(probability: f64, outcome_occurred: bool) -> f64 {
+    (probability - if outcome_occurred { 1.0 } else { 0.0 }).powi(2)
+}
+
+/// Average Brier score across multiple events.
+pub fn brier_score_multi(probabilities: &[f64], outcomes: &[bool]) -> f64 {
+    if probabilities.is_empty() || probabilities.len() != outcomes.len() {
+        return f64::NAN;
+    }
+    probabilities
+        .iter()
+        .zip(outcomes.iter())
+        .map(|(p, o)| brier_score(*p, *o))
+        .sum::<f64>()
+        / probabilities.len() as f64
+}
+
+/// Human-readable interpretation of a Brier score.
+pub fn brier_interpretation(score: f64) -> &'static str {
+    if score.is_nan() {
+        return "no_data";
+    }
+    if score < 0.05 {
+        "excellent"
+    } else if score < 0.10 {
+        "good"
+    } else if score < 0.20 {
+        "fair"
+    } else if score < 0.33 {
+        "poor"
+    } else {
+        "worse_than_climatology"
+    }
+}
+
 // ── Scenario probability distribution ──────────────────────────────────────
 
 /// Distribute probabilities across the four Schwartz scenarios.
@@ -350,5 +468,46 @@ mod tests {
         ];
         let expected = expected_intrinsic(&probs);
         assert!((expected - 125.0).abs() < 0.01, "0.25*200 + 0.75*100 = 125");
+    }
+
+    #[test]
+    fn brier_score_perfect() {
+        assert!(
+            (brier_score(1.0, true) - 0.0).abs() < 0.001,
+            "certain correct = 0"
+        );
+        assert!(
+            (brier_score(0.0, false) - 0.0).abs() < 0.001,
+            "certain correct = 0"
+        );
+    }
+
+    #[test]
+    fn brier_score_worst() {
+        assert!(
+            (brier_score(1.0, false) - 1.0).abs() < 0.001,
+            "certain wrong = 1"
+        );
+        assert!(
+            (brier_score(0.0, true) - 1.0).abs() < 0.001,
+            "certain wrong = 1"
+        );
+    }
+
+    #[test]
+    fn brier_score_mid() {
+        assert!(
+            (brier_score(0.5, true) - 0.25).abs() < 0.001,
+            "50% wrong = 0.25"
+        );
+    }
+
+    #[test]
+    fn brier_multi_average() {
+        let probs = [0.9, 0.1, 0.7];
+        let outcomes = [true, false, true];
+        // (0.9-1)^2=0.01, (0.1-0)^2=0.01, (0.7-1)^2=0.09 → avg = 0.11/3 ≈ 0.0367
+        let score = brier_score_multi(&probs, &outcomes);
+        assert!((score - 0.0367).abs() < 0.001);
     }
 }

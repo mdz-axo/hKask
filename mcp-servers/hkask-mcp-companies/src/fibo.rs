@@ -13,7 +13,15 @@
 //! - fibo-be-le-corp  — Business Entities: Corporations (Release)
 //! - fibo-fnd-gao-gao — Foundations: Geographies (Release)
 //! - fibo-ind-ind-ind — Indices and Indicators: Weighted Averages
+//!
+//! # Shared Bridge Integration
+//!
+//! Uses [`hkask_bridge_dublincore`] for entity type classification
+//! (e.g., `dctypes:Dataset` for financial data) and [`hkask_bridge_pko`]
+//! for financial procedure classification.
 
+use hkask_bridge_dublincore as dc;
+use hkask_bridge_pko as pko;
 
 /// A FIBO concept URI — the canonical identifier for a financial data concept.
 pub type FiboConcept = &'static str;

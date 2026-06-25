@@ -1,15 +1,16 @@
 //! Inference router — multi-provider `InferencePort` implementation.
 //!
-//! Routes requests to DeepInfra, fal.ai, or Together AI based on the
+//! Routes requests to DeepInfra, fal.ai, Together AI, OpenRouter, or KiloCode based on the
 //! 2-letter provider prefix in the model name. Unprefixed model names
 //! use the configured default provider.
 
 use crate::RouterModelEntry;
 use crate::chat_protocol::{FusionPlugin, validate_prompt};
-use crate::config::{InferenceConfig, ProviderId};
+use crate::config::{FusionConfig, InferenceConfig, ProviderId};
 use crate::deepinfra_backend::DeepInfraBackend;
 use crate::embedding_router::EmbeddingRouter;
 use crate::fal_backend::FalBackend;
+use crate::kilocode_backend::KiloCodeBackend;
 use crate::openrouter_backend::OpenRouterBackend;
 use crate::together_backend::TogetherBackend;
 use hkask_ports::{
@@ -34,6 +35,7 @@ pub struct InferenceRouter {
     fal: Option<FalBackend>,
     together: Option<TogetherBackend>,
     openrouter: Option<OpenRouterBackend>,
+    kilocode: Option<KiloCodeBackend>,
     embedding: EmbeddingRouter,
     /// Optional error healing callback. Takes (error_string, operation_name).
     /// Wire this to a SelfHealer instance at construction.
@@ -57,6 +59,7 @@ impl InferenceRouter {
         let fal = FalBackend::new(&config).ok();
         let together = TogetherBackend::new(&config).ok();
         let openrouter = OpenRouterBackend::new(&config).ok();
+        let kilocode = KiloCodeBackend::new(&config).ok();
 
         if deepinfra.is_none() {
             warn!(target: "cns.inference", "DeepInfra backend unavailable (no API key)");
@@ -69,6 +72,9 @@ impl InferenceRouter {
         }
         if openrouter.is_none() {
             warn!(target: "cns.inference", "OpenRouter backend unavailable (no API key)");
+        }
+        if kilocode.is_none() {
+            warn!(target: "cns.inference", "KiloCode backend unavailable (no API key)");
         }
 
         let shared_client = config.build_client().map(Arc::new).ok();
@@ -83,6 +89,7 @@ impl InferenceRouter {
             fal,
             together,
             openrouter,
+            kilocode,
             embedding,
             heal_error_cb: None,
         }
@@ -130,6 +137,7 @@ impl InferenceRouter {
             ProviderId::Fal => self.fal.is_some(),
             ProviderId::Together => self.together.is_some(),
             ProviderId::OpenRouter => self.openrouter.is_some(),
+            ProviderId::KiloCode => self.kilocode.is_some(),
             ProviderId::Runpod | ProviderId::Baseten => false,
         };
 
@@ -204,6 +212,15 @@ impl InferenceRouter {
                     .generate(model, prompt, params, tools, fusion_plugins)
                     .await
             }
+            ProviderId::KiloCode => {
+                self.kilocode
+                    .as_ref()
+                    .ok_or_else(|| {
+                        InferenceError::Connection("KiloCode backend unavailable".to_string())
+                    })?
+                    .generate(model, prompt, params, tools, fusion_plugins)
+                    .await
+            }
             ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
                 "Runpod/Baseten are adapter providers".to_string(),
             )),
@@ -255,6 +272,14 @@ impl InferenceRouter {
             ProviderId::OpenRouter => {
                 match self.openrouter.as_ref().ok_or_else(|| {
                     InferenceError::Connection("OpenRouter backend unavailable".to_string())
+                }) {
+                    Ok(b) => b.generate_stream(&model, &prompt, &params),
+                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
+                }
+            }
+            ProviderId::KiloCode => {
+                match self.kilocode.as_ref().ok_or_else(|| {
+                    InferenceError::Connection("KiloCode backend unavailable".to_string())
                 }) {
                     Ok(b) => b.generate_stream(&model, &prompt, &params),
                     Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
@@ -322,6 +347,18 @@ impl InferenceRouter {
             for m in models {
                 entries.push(RouterModelEntry::from_model_entry(
                     ProviderId::OpenRouter,
+                    &m.id,
+                ));
+            }
+        }
+
+        // KiloCode models
+        if let Some(ref backend) = self.kilocode
+            && let Ok(models) = backend.list_models().await
+        {
+            for m in models {
+                entries.push(RouterModelEntry::from_model_entry(
+                    ProviderId::KiloCode,
                     &m.id,
                 ));
             }
@@ -425,6 +462,15 @@ impl InferenceRouter {
                     .as_ref()
                     .ok_or_else(|| {
                         InferenceError::Connection("OpenRouter backend unavailable".to_string())
+                    })?
+                    .generate_vision(&model, &prompt, &images, &params)
+                    .await
+            }
+            ProviderId::KiloCode => {
+                self.kilocode
+                    .as_ref()
+                    .ok_or_else(|| {
+                        InferenceError::Connection("KiloCode backend unavailable".to_string())
                     })?
                     .generate_vision(&model, &prompt, &images, &params)
                     .await
@@ -858,17 +904,19 @@ impl InferenceRouter {
         self.embedding.embed_sentence(model, text).await
     }
 
-    /// Verify that the configured fusion group exists on OpenRouter.
+    /// Verify that the configured fusion model is available on its provider.
     ///
-    /// When `config.fusion` is `Some`, calls OpenRouter's model listing
-    /// endpoint and checks whether the fusion model ID is present. Returns
-    /// `Ok(true)` if verified, `Ok(false)` if the model is not found,
+    /// For OpenRouter: calls the models endpoint and checks whether the fusion
+    /// group ID is present.
+    /// For KiloCode: checks whether the configured kilo-auto tier is available.
+    ///
+    /// Returns `Ok(true)` if verified, `Ok(false)` if the model is not found,
     /// or `Err` on connection failure.
     ///
     /// expect: "Fusion model is verified before use to prevent unexpected costs"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — proactive cost-safety check
     /// pre:  config.fusion may be None or Some
-    /// post: if Some → calls OpenRouter API to verify model existence
+    /// post: if Some → calls provider API to verify model existence
     /// post: if None → returns Ok(true) immediately (nothing to verify)
     pub async fn verify_fusion_model(&self) -> Result<bool, InferenceError> {
         let fusion = match &self.config.fusion {
@@ -876,6 +924,16 @@ impl InferenceRouter {
             None => return Ok(true),
         };
 
+        match fusion.provider {
+            ProviderId::KiloCode => self.verify_kilo_fusion(fusion).await,
+            _ => self.verify_openrouter_fusion(fusion).await,
+        }
+    }
+
+    async fn verify_openrouter_fusion(
+        &self,
+        fusion: &FusionConfig,
+    ) -> Result<bool, InferenceError> {
         let or = match &self.openrouter {
             Some(or) => or,
             None => {
@@ -887,7 +945,6 @@ impl InferenceRouter {
         let search_id = &fusion.judge;
         let models = or.list_models().await?;
 
-        // Try exact match on fusion model ID, then fuzzy match
         let fusion_id = fusion.model_id();
         let or_fusion_id = fusion_id.strip_prefix("OR/").unwrap_or(&fusion_id);
         let found = models
@@ -898,16 +955,46 @@ impl InferenceRouter {
                 target: "cns.inference",
                 fusion_judge = %fusion.judge,
                 fusion_panel = ?fusion.panel,
-                "Fusion group verified — exists on OpenRouter"
+                "Fusion group verified on OpenRouter"
             );
             return Ok(true);
         }
 
-        // Not found — try pattern matching on fusion group names
         tracing::warn!(
             target: "cns.inference",
             fusion_judge = %fusion.judge,
             "Fusion group NOT FOUND on OpenRouter. Create it at https://openrouter.ai/fusion"
+        );
+        Ok(false)
+    }
+
+    async fn verify_kilo_fusion(&self, fusion: &FusionConfig) -> Result<bool, InferenceError> {
+        let kc = match &self.kilocode {
+            Some(kc) => kc,
+            None => {
+                return Err(InferenceError::Connection(
+                    "KiloCode backend not configured (set KILOCODE_API_KEY)".to_string(),
+                ));
+            }
+        };
+        let tier = fusion.kilo_tier.as_deref().unwrap_or("balanced");
+        let auto_model = format!("kilo-auto/{tier}");
+        let models = kc.list_models().await?;
+        let found = models.iter().any(|m| m.id == auto_model);
+        if found {
+            tracing::info!(
+                target: "cns.inference",
+                kilo_tier = %tier,
+                kilo_mode = ?fusion.kilo_mode,
+                "KiloCode auto-routing verified — {auto_model} available"
+            );
+            return Ok(true);
+        }
+
+        tracing::warn!(
+            target: "cns.inference",
+            kilo_tier = %tier,
+            "KiloCode auto model NOT FOUND: {auto_model}"
         );
         Ok(false)
     }
@@ -921,8 +1008,11 @@ mod tests {
     fn config_with_fusion(judge: Option<&str>, panel: Option<&[&str]>) -> InferenceConfig {
         InferenceConfig {
             fusion: judge.map(|j| FusionConfig {
+                provider: ProviderId::OpenRouter,
                 judge: j.to_string(),
                 panel: panel.unwrap_or(&[]).iter().map(|s| s.to_string()).collect(),
+                kilo_tier: None,
+                kilo_mode: None,
             }),
             ..Default::default()
         }

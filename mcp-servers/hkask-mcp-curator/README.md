@@ -2,7 +2,7 @@
 
 MCP server exposing Curator daemon tools: algedonic monitoring, escalation management, CNS health, metacognition, and semantic memory recall.
 
-**Version:** v0.30.0 | **Crate:** `hkask-mcp-curator`
+**Version:** v0.31.0 | **Crate:** `hkask-mcp-curator`
 
 ## Tools (11)
 
