@@ -731,6 +731,7 @@ The judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSION_S
 | `constraint-forces` | Prohibition/Guardrail/Guideline/Evidence/Hypothesis |
 | `superforecasting` | Fermi decomposition, Bayesian updating |
 | `mcda` | Weighted scoring, sensitivity analysis |
+| `hypothesis-framer` | FINER criteria, PICO framework, hypothesis/aims formulation |
 | `tdd` | Red-Green-Refactor, contract-first |
 | `rust-expertise` | Type-driven design, ownership as architecture |
 

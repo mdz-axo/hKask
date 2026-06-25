@@ -223,6 +223,7 @@ Skills that support structured choice, prediction, and planning.
 | `decision-journal` | Kahneman-style decision recording with Brier score calibration | "journal this decision" |
 | `superforecasting` | Tetlock 8-stage calibrated probability forecasting | "forecast this", "superforecast" |
 | `scenario-builder` | Schwartz method scenario planning — STEEP, 2×2 matrix, robust strategies | "build scenarios", "explore futures" |
+| `hypothesis-framer` | Research framing with FINER criteria + PICO process — question → hypothesis → aims | "frame my research", "write a hypothesis" |
 
 ### 4.5 Analytic — Extraction & Summarization
 
@@ -321,6 +322,7 @@ Don't know which skill you need? Find your problem:
 | Choose between multiple options | `mcda` |
 | Predict a future outcome with calibration | `superforecasting` |
 | Plan for multiple possible futures | `scenario-builder` |
+| Frame a research question into a testable hypothesis | `hypothesis-framer` |
 | Record a decision and check if I was right later | `decision-journal` |
 | Track whether I achieved a specific goal | `goal-analysis` |
 | Extract structured data from prose | `structured-extraction` |
@@ -364,7 +366,23 @@ constraint-forces runs across all stages, never relaxed
 
 **When:** You face a design decision, architecture problem, or code review. The Dokkodo clears your perceptual field. Pragmatic laziness finds the least-action path. Essentialist deletes what doesn't earn existence. Coding guidelines enforce discipline throughout.
 
-### Pattern 2: Forecast → Decide → Record → Verify
+### Pattern 2: Frame → Plan → Decide
+
+```
+hypothesis-framer → scenario-builder → mcda
+```
+
+**When:** You have a research idea and need to move from broad topic through hypothesis to strategic decisions. Hypothesis-framer narrows the topic with FINER criteria, structures it with PICO, and produces a testable hypothesis. Scenario-builder explores futures where the hypothesis plays out. MCDA ranks research design alternatives on weighted criteria.
+
+**Example session:**
+```
+> frame my research on ventilator liberation in children with BPD
+> (agent produces FINER scores, PICO-structured question, H₁/H₀, aims)
+> build scenarios for this research program over the next 3 years
+> mcda: compare cross-sectional vs longitudinal vs RCT designs
+```
+
+### Pattern 3: Forecast → Decide → Record → Verify
 
 ```
 superforecasting → mcda → decision-journal → goal-analysis
@@ -372,7 +390,7 @@ superforecasting → mcda → decision-journal → goal-analysis
 
 **When:** You're making a consequential decision under uncertainty. Superforecasting produces calibrated probabilities. MCDA ranks alternatives on weighted criteria. The decision journal records the reasoning and schedules a revisit. Goal analysis tracks whether the outcome matches the prediction.
 
-### Pattern 3: Diagnose → Extract → Fix → Harden
+### Pattern 4: Diagnose → Extract → Fix → Harden
 
 ```
 diagnose → structured-extraction → refactor-service-layer → adversarial-red-team
@@ -380,7 +398,7 @@ diagnose → structured-extraction → refactor-service-layer → adversarial-re
 
 **When:** Something broke. Diagnose finds the bug. Structured extraction maps the incident to a root cause schema. Refactor-service-layer fixes it systematically. Adversarial red-team tests whether the fix holds under attack.
 
-### Pattern 4: Explore → Summarize → Compress
+### Pattern 5: Explore → Summarize → Compress
 
 ```
 zoom-out → chain-of-density → caveman
@@ -390,7 +408,7 @@ zoom-out → chain-of-density → caveman
 
 ---
 
-## 6. Skill Summary — All 45 Skills
+## 6. Skill Summary — All 46 Skills
 
 | # | Skill | Category | Type | What it does |
 |---|-------|----------|------|-------------|
@@ -427,18 +445,19 @@ zoom-out → chain-of-density → caveman
 | 31 | `review` | Meta-Cognition | FlowDef | Self-critique reasoning outputs via convergent review loops |
 | 32 | `rust-expertise` | Behavioral Guardrails | FlowDef | Idiomatic Rust design principles via convergent audit/refactor loops |
 | 33 | `scenario-builder` | Decision & Strategy | FlowDef | Schwartz method scenario planning via convergent scenario loops |
-| 34 | `self-critique-revision` | Meta-Cognition | FlowDef | Iterative draft → critique → revise via convergent loops |
-| 35 | `skill-bundler` | Skill Management | FlowDef | Orchestrate skills into bundles via convergent compose→validate loops |
-| 36 | `skill-discovery` | Skill Management | FlowDef | Find and install skills via convergent gap→evaluate loops |
-| 37 | `skill-logic-audit` | Skill Management | FlowDef | Audit template logic via bounded critique→proposal loops |
-| 38 | `skill-maintenance` | Skill Management | FlowDef | Audit skills for staleness/coverage via convergent maintenance loops |
-| 39 | `skill-manager` | Skill Management | FlowDef | Registry-first skill lifecycle management via convergent validation loops |
-| 40 | `skill-translator` | Skill Management | FlowDef | Convert skills between formats via convergent translation loops |
-| 41 | `strangler-fig` | Diagnostics | FlowDef | Incremental architectural migration with convergent step verification |
-| 42 | `structured-extraction` | Extraction/Summarization | FlowDef | Schema-driven extraction via convergent entity/relation/map loops |
-| 43 | `superforecasting` | Decision & Strategy | FlowDef | Tetlock 8-stage calibrated forecasting via convergent pipeline loops |
-| 44 | `tdd` | Behavioral Guardrails | FlowDef | Contract-anchored red-green-refactor via convergent TDD loops |
-| 45 | `zoom-out` | Extraction/Summarization | FlowDef | Broader context on unfamiliar code via convergent context loops |
+| 34 | `hypothesis-framer` | Decision & Strategy | FlowDef | FINER + PICO research framing via convergent PDCA — question → hypothesis → aims |
+| 35 | `self-critique-revision` | Meta-Cognition | FlowDef | Iterative draft → critique → revise via convergent loops |
+| 36 | `skill-bundler` | Skill Management | FlowDef | Orchestrate skills into bundles via convergent compose→validate loops |
+| 37 | `skill-discovery` | Skill Management | FlowDef | Find and install skills via convergent gap→evaluate loops |
+| 38 | `skill-logic-audit` | Skill Management | FlowDef | Audit template logic via bounded critique→proposal loops |
+| 39 | `skill-maintenance` | Skill Management | FlowDef | Audit skills for staleness/coverage via convergent maintenance loops |
+| 40 | `skill-manager` | Skill Management | FlowDef | Registry-first skill lifecycle management via convergent validation loops |
+| 41 | `skill-translator` | Skill Management | FlowDef | Convert skills between formats via convergent translation loops |
+| 42 | `strangler-fig` | Diagnostics | FlowDef | Incremental architectural migration with convergent step verification |
+| 43 | `structured-extraction` | Extraction/Summarization | FlowDef | Schema-driven extraction via convergent entity/relation/map loops |
+| 44 | `superforecasting` | Decision & Strategy | FlowDef | Tetlock 8-stage calibrated forecasting via convergent pipeline loops |
+| 45 | `tdd` | Behavioral Guardrails | FlowDef | Contract-anchored red-green-refactor via convergent TDD loops |
+| 46 | `zoom-out` | Extraction/Summarization | FlowDef | Broader context on unfamiliar code via convergent context loops |
 
 ---
 

@@ -149,14 +149,14 @@ The report is the proof that the kata ran and either achieved its target or exha
 
 Convergence can use up to three independent termination conditions:
 
-1. **Threshold** (`threshold`) — the absolute quality floor. "The output must be at least this good." If `quality_at_exit ≤ threshold`, the gate passes. This is the primary gate (`threshold_only` mode, used by all 42 skills).
+1. **Threshold** (`threshold`) — the absolute quality floor. "The output must be at least this good." If `quality_at_exit ≤ threshold`, the gate passes. This is the primary gate (`threshold_only` mode, used by all 43 skills).
 
 2. **Improvement Ratio** (`improvement_ratio`) — the proportional improvement demand. "Must have improved by at least X% from where it started." If `(baseline_quality - quality_at_exit) / baseline_quality ≥ improvement_ratio`, the gate passes.
 
 3. **Energy exhaustion** — the hard budget ceiling. If either `gas` (compute cycles) or `rjoule` (inference energy) is exhausted, the cascade terminates with `maxed_out`/`energy_spent` regardless of quality.
 
 The `improvement_gate` field controls how threshold and improvement combine:
-- `threshold_only` (default for all 42 skills): only check threshold.
+- `threshold_only` (default for all 43 skills): only check threshold.
 - `both` (used by kata bundle): must satisfy threshold AND improvement.
 - `either`: must satisfy threshold OR improvement.
 
@@ -196,7 +196,7 @@ The two exit rails — quality threshold and energy budget — form the ratchet.
 
 ### Applied Migration Assumptions (Current State — v0.30.0)
 
-As of v0.30.0, 42 skills have been upgraded to full PDCA FlowDef manifests with calibrated convergence policies:
+As of v0.30.0, 43 skills have been upgraded to full PDCA FlowDef manifests with calibrated convergence policies:
 
 1. **Convergence metric**: Normalized [0,1] where 0 = fully converged. LLM-assessed saturation detection with structured scoring guidance per skill.
 2. **Improvement gate**: `threshold_only` for all skills (only absolute quality threshold matters). The `improvement_ratio` tracks progress but is not a hard gate by default. The kata bundle uses `improvement_gate: both`.
@@ -356,7 +356,31 @@ scenario-builder → grill-me → self-critique-revision → gentle-lovelace
 
 ---
 
-### Chain 6: Hunt Bugs — Perceive Semantics → Analyze Loops → Probe → Report
+### Chain 6: Frame → Plan → Decide
+
+```
+hypothesis-framer → scenario-builder → mcda
+```
+
+| Stage | Skill | What happens |
+|-------|-------|-------------|
+| **Frame** | `hypothesis-framer` | FINER evaluation → PICO structure → hypothesis formulation → aims/objectives with alignment verification |
+| **Plan** | `scenario-builder` | Schwartz method — focal question, STEEP, 2×2 matrix, robust strategies for research program |
+| **Decide** | `mcda` | Identify criteria, weight and score research design alternatives, detect compensation masking, sensitivity analysis |
+
+**Use when:** Developing a research program — need to move from a broad idea through a testable hypothesis to a strategic research plan with justified design choices
+
+**Example session:**
+```
+> frame my research on early mobilization in ICU patients with delirium
+> (agent produces: FINER scores, PICO-structured question, H₁/H₀, aims, aligned objectives)
+> build scenarios for this ICU research program over 4 years
+> mcda: compare single-center pilot vs multi-center RCT vs stepped-wedge cluster design
+```
+
+---
+
+### Chain 7: Hunt Bugs — Perceive Semantics → Analyze Loops → Probe → Report
 
 ```
 pragmatic-semantics → pragmatic-cybernetics → bug-hunt
@@ -380,7 +404,7 @@ pragmatic-semantics → pragmatic-cybernetics → bug-hunt
 
 ---
 
-### Chain 7: Skill Lifecycle — Discover → Audit → Maintain → Manage → Translate → Bundle
+### Chain 8: Skill Lifecycle — Discover → Audit → Maintain → Manage → Translate → Bundle
 
 ```
 skill-discovery → skill-logic-audit → skill-maintenance → skill-manager → skill-translator → skill-bundler
@@ -403,7 +427,7 @@ that compose KnowAct/WordAct templates and exit with convergence rails
 
 ---
 
-### Chain 8: Resilience — Accept → Stabilize → Diagnose
+### Chain 9: Resilience — Accept → Stabilize → Diagnose
 
 ```
 dokkodo-mindset → diagnose → improve-codebase-architecture
@@ -426,11 +450,12 @@ dokkodo-mindset → diagnose → improve-codebase-architecture
 | Simplify a design | Chain 1: Perception → Analysis → Action |
 | Make a strategic decision | Chain 2: Forecast → Decide → Record → Verify |
 | Fix a bug properly | Chain 3: Diagnose → Extract → Fix → Harden |
-| Hunt bugs in code — semantic errors, interaction bugs | Chain 6: Hunt Bugs — Perceive Semantics → Analyze Loops → Probe → Report |
+| Hunt bugs in code — semantic errors, interaction bugs | Chain 7: Hunt Bugs — Perceive Semantics → Analyze Loops → Probe → Report |
 | Understand and explain code | Chain 4: Explore → Summarize → Compress |
 | Write a strategy document | Chain 5: Plan → Critique → Revise → Evaluate |
-| Respond to an error | Chain 8: Resilience — Accept → Stabilize → Diagnose |
-| Manage the skill corpus | Chain 7: Skill Lifecycle |
+| Frame a research question and develop a research program | Chain 6: Frame → Plan → Decide |
+| Respond to an error | Chain 9: Resilience — Accept → Stabilize → Diagnose |
+| Manage the skill corpus | Chain 8: Skill Lifecycle |
 | Improve agent capability | `kata-starter` → `kata-improvement` → `kata-coaching` |
 | Create a logo | `logo-builder` |
 | Update documentation | `document-update` |
@@ -447,6 +472,7 @@ dokkodo-mindset → diagnose → improve-codebase-architecture
 | Caveman before chain-of-density | Caveman drops entities for style; chain-of-density preserves them | Always densify first, compress second |
 | Decision journal without revisit scheduling | The journal becomes a log, not a calibration tool | Always define time horizons and resolution criteria |
 | Red-team without diagnose | You know it's vulnerable but not why | Diagnose the vulnerability before hardening |
+| Hypothesis-framer without FINER re-evaluation | The PDCA loop produces a hypothesis but the FINER scores from the first pass are stale | Always pass Step 1 results through to the convergence check — don't skip the feasibility recheck in the merged operationalize step |
 
 ---
 
