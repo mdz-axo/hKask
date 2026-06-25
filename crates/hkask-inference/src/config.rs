@@ -125,18 +125,18 @@ impl ProviderId {
     }
 }
 
-/// Configuration for a single OpenRouter fusion group.
-///
-/// When set, all text generation calls route through the fusion group by default.
-/// Individual calls can bypass with `LLMParameters.bypass_fusion = true`.
-///
-/// # Environment Variables
-///
-/// - `HKASK_FUSION_JUDGE` — judge/fuser model for fusion (e.g., "DI/deepseek-v4-pro")
-/// - `HKASK_FUSION_PANEL` — comma-separated panel models (e.g., "OR/auto,KC/anthropic/claude-sonnet-4.5")
-/// - `HKASK_FUSION_MODE` — judge deliberation mode (default: synthesis)
-/// - `HKASK_FUSION_SKILLS` — comma-separated skill anchors for the judge
-/// - `HKASK_FUSION_MAX_ROUNDS` — max rounds for deliberation mode (default: 5)
+// Configuration for a single OpenRouter fusion group.
+//
+// When set, all text generation calls route through the fusion group by default.
+// Individual calls can bypass with `LLMParameters.bypass_fusion = true`.
+//
+// # Environment Variables
+//
+// - `HKASK_FUSION_JUDGE` — judge/fuser model for fusion (e.g., "DI/deepseek-v4-pro")
+// - `HKASK_FUSION_PANEL` — comma-separated panel models (e.g., "OR/auto,KC/anthropic/claude-sonnet-4.5")
+// - `HKASK_FUSION_MODE` — judge deliberation mode (default: synthesis)
+// - `HKASK_FUSION_SKILLS` — comma-separated skill anchors for the judge
+// - `HKASK_FUSION_MAX_ROUNDS` — max rounds for deliberation mode (default: 5)
 
 /// Judge deliberation mode for fusion orchestration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -169,15 +169,19 @@ impl FusionMode {
             FusionMode::PlanImplement => "pi",
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Self {
+impl std::str::FromStr for FusionMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "best-of-n" => FusionMode::BestOfN,
-            "synthesis" => FusionMode::Synthesis,
-            "critique" => FusionMode::Critique,
-            "deliberation" => FusionMode::Deliberation,
-            "pi" => FusionMode::PlanImplement,
-            _ => FusionMode::Synthesis,
+            "best-of-n" => Ok(FusionMode::BestOfN),
+            "synthesis" => Ok(FusionMode::Synthesis),
+            "critique" => Ok(FusionMode::Critique),
+            "deliberation" => Ok(FusionMode::Deliberation),
+            "pi" => Ok(FusionMode::PlanImplement),
+            _ => Ok(FusionMode::Synthesis),
         }
     }
 }
@@ -221,21 +225,23 @@ pub enum FusionSkill {
     RustExpertise,
 }
 
-impl FusionSkill {
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for FusionSkill {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
-            "pragmatic-semantics" => Some(FusionSkill::PragmaticSemantics),
-            "pragmatic-cybernetics" => Some(FusionSkill::PragmaticCybernetics),
-            "pragmatic-laziness" => Some(FusionSkill::PragmaticLaziness),
-            "coding-guidelines" => Some(FusionSkill::CodingGuidelines),
-            "deep-module" => Some(FusionSkill::DeepModule),
-            "essentialist" => Some(FusionSkill::Essentialist),
-            "constraint-forces" => Some(FusionSkill::ConstraintForces),
-            "superforecasting" => Some(FusionSkill::Superforecasting),
-            "mcda" => Some(FusionSkill::MCDA),
-            "tdd" => Some(FusionSkill::TestDrivenDevelopment),
-            "rust-expertise" => Some(FusionSkill::RustExpertise),
-            _ => None,
+            "pragmatic-semantics" => Ok(FusionSkill::PragmaticSemantics),
+            "pragmatic-cybernetics" => Ok(FusionSkill::PragmaticCybernetics),
+            "pragmatic-laziness" => Ok(FusionSkill::PragmaticLaziness),
+            "coding-guidelines" => Ok(FusionSkill::CodingGuidelines),
+            "deep-module" => Ok(FusionSkill::DeepModule),
+            "essentialist" => Ok(FusionSkill::Essentialist),
+            "constraint-forces" => Ok(FusionSkill::ConstraintForces),
+            "superforecasting" => Ok(FusionSkill::Superforecasting),
+            "mcda" => Ok(FusionSkill::MCDA),
+            "tdd" => Ok(FusionSkill::TestDrivenDevelopment),
+            "rust-expertise" => Ok(FusionSkill::RustExpertise),
+            _ => Err(()),
         }
     }
 }
@@ -530,12 +536,12 @@ fn parse_fusion_config() -> Option<FusionConfig> {
     // Parse shared optional fields
     let mode = std::env::var("HKASK_FUSION_MODE")
         .ok()
-        .map(|m| FusionMode::from_str(&m))
+        .and_then(|m| m.parse().ok())
         .unwrap_or_default();
     let skills: Vec<FusionSkill> = std::env::var("HKASK_FUSION_SKILLS")
         .unwrap_or_default()
         .split(',')
-        .filter_map(|s| FusionSkill::from_str(s.trim()))
+        .filter_map(|s| s.trim().parse().ok())
         .collect();
     let max_rounds = std::env::var("HKASK_FUSION_MAX_ROUNDS")
         .ok()

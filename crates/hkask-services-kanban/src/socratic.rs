@@ -334,7 +334,7 @@ pub fn synthesize_roles(service: &KanbanService, tasks: &[Task]) -> Result<Strin
 mod tests {
     use super::*;
     use crate::kanban::ColumnDef;
-    use hkask_storage::{Database, Store, TripleStore};
+    use hkask_storage::{Database, TripleStore};
     use std::sync::Arc;
 
     fn make_svc() -> (KanbanService, WebID, BoardId) {

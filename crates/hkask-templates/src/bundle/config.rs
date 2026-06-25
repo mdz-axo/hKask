@@ -5,7 +5,6 @@
 
 use serde::{Deserialize, Serialize};
 
-
 /// System constant: 250,000 compute gas cycles = 1 rJoule of inference energy.
 /// This reflects the cost differential between local compute and LLM inference.
 pub const RJOULE_TO_GAS: u64 = 250_000;
@@ -132,7 +131,7 @@ pub struct RjouleConfig {
 impl Default for RjouleConfig {
     fn default() -> Self {
         Self {
-            cap: 0,  // 0 = no rJoule budget (backward compat)
+            cap: 0, // 0 = no rJoule budget (backward compat)
             cost_per_token: 1.0,
             alert_threshold: 0.8,
             hard_limit: true,

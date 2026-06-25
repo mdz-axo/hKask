@@ -16,7 +16,6 @@
 //! (e.g., `dctypes:StillImage`, `dctypes:Sound`) and [`hkask_bridge_pko`]
 //! for production step classification.
 
-
 /// An OMC concept URI.
 pub type OmcConcept = &'static str;
 

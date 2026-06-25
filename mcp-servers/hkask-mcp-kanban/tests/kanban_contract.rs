@@ -15,8 +15,7 @@ use hkask_test_harness::{TestDb, TestWebId};
 use hkask_types::WebID;
 use proptest::prelude::*;
 use rmcp::handler::server::wrapper::Parameters;
-use rusqlite::Connection;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 fn setup() -> (KanbanService, WebID) {
     let db = TestDb::new();

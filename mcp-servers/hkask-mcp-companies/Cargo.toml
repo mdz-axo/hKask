@@ -26,9 +26,11 @@ anyhow.workspace = true
 tracing.workspace = true
 chrono.workspace = true
 dotenvy.workspace = true
-rusqlite.workspace = true
-uuid.workspace = true
+	rusqlite.workspace = true
+	uuid.workspace = true
+	rand.workspace = true
 base64.workspace = true
+regex.workspace = true
 dirs = "6"
 hkask-ledger = { path = "../../crates/hkask-ledger" }
 hkask-bridge-pko = { path = "../../crates/hkask-bridge-pko" }

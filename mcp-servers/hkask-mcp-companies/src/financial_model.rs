@@ -620,6 +620,259 @@ pub fn decompose_gap(
     }
 }
 
+// ── Sensitivity analysis ────────────────────────────────────────────────────
+
+/// Result of varying one assumption and measuring intrinsic value delta.
+#[derive(Debug, Clone, Serialize)]
+pub struct SensitivityResult {
+    pub driver: String,
+    pub label: String,
+    pub base_value: f64,
+    pub low_value: f64,
+    pub high_value: f64,
+    pub intrinsic_low: f64,
+    pub intrinsic_high: f64,
+    pub delta_pct: f64,
+    pub fibo_concept: &'static str,
+}
+
+/// Run sensitivity analysis on all key DCF drivers.
+/// Varies each assumption by +/- range_pct and records intrinsic value impact.
+/// Returns results sorted by absolute delta (most impactful first).
+pub fn sensitivity_analysis(
+    hist: &HistoricalSnapshot,
+    base_assumptions: &ProjectionAssumptions,
+    range_pct: f64,
+) -> Vec<SensitivityResult> {
+    let base = project_model(hist, base_assumptions, 0.0);
+    let base_intrinsic = base.intrinsic_per_share;
+
+    #[allow(clippy::type_complexity)]
+    let drivers: [(
+        &str,
+        &str,
+        &dyn Fn(&ProjectionAssumptions) -> f64,
+        &dyn Fn(&mut ProjectionAssumptions, f64),
+        &str,
+    ); 6] = [
+        (
+            "revenue_growth",
+            "Revenue Growth",
+            &|a| a.revenue_growth,
+            &|a, v| a.revenue_growth = v.clamp(-0.50, 1.00),
+            "fibo-fbc-fct-ra:RevenueGrowthRate",
+        ),
+        (
+            "gross_margin",
+            "Gross Margin",
+            &|a| a.gross_margin,
+            &|a, v| a.gross_margin = v.clamp(0.05, 0.95),
+            "fibo-fbc-fct-ra:GrossProfitMargin",
+        ),
+        (
+            "da_to_revenue",
+            "D&A / Revenue",
+            &|a| a.da_to_revenue,
+            &|a, v| a.da_to_revenue = v.clamp(0.0, 0.20),
+            "fibo-fbc-fct-ra:DepreciationAndAmortization",
+        ),
+        (
+            "capex_to_revenue",
+            "Capex / Revenue",
+            &|a| a.capex_to_revenue,
+            &|a, v| a.capex_to_revenue = v.clamp(0.0, 0.30),
+            "fibo-fbc-fct-ra:CapitalExpenditure",
+        ),
+        (
+            "nwc_to_revenue",
+            "NWC / Revenue",
+            &|a| a.nwc_to_revenue,
+            &|a, v| a.nwc_to_revenue = v.clamp(-0.20, 0.50),
+            "fibo-fbc-fct-ra:NetWorkingCapital",
+        ),
+        (
+            "discount_rate",
+            "Discount Rate",
+            &|a| a.discount_rate,
+            &|a, v| a.discount_rate = v.clamp(0.05, 0.30),
+            "fibo-fbc-fct-ra:DiscountRate",
+        ),
+    ];
+
+    let mut results = Vec::new();
+    for (key, label, getter, setter, fibo) in &drivers {
+        let base_val = getter(base_assumptions);
+        let low_val = base_val * (1.0 - range_pct);
+        let high_val = base_val * (1.0 + range_pct);
+
+        let mut low_a = base_assumptions.clone();
+        setter(&mut low_a, low_val);
+        let intrinsic_low = project_model(hist, &low_a, 0.0).intrinsic_per_share;
+
+        let mut high_a = base_assumptions.clone();
+        setter(&mut high_a, high_val);
+        let intrinsic_high = project_model(hist, &high_a, 0.0).intrinsic_per_share;
+
+        let delta_pct = if base_intrinsic > 0.0 {
+            (intrinsic_high - intrinsic_low) / base_intrinsic
+        } else {
+            0.0
+        };
+
+        results.push(SensitivityResult {
+            driver: key.to_string(),
+            label: label.to_string(),
+            base_value: base_val,
+            low_value: low_val,
+            high_value: high_val,
+            intrinsic_low,
+            intrinsic_high,
+            delta_pct,
+            fibo_concept: fibo,
+        });
+    }
+
+    results.sort_by(|a, b| {
+        b.delta_pct
+            .partial_cmp(&a.delta_pct)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    results
+}
+
+// ── Monte Carlo DCF ─────────────────────────────────────────────────────────
+
+/// Distribution of intrinsic values from Monte Carlo simulation.
+#[derive(Debug, Clone, Serialize)]
+pub struct MonteCarloResult {
+    pub simulations: usize,
+    pub base_intrinsic: f64,
+    pub mean_intrinsic: f64,
+    pub std_dev: f64,
+    pub min_intrinsic: f64,
+    pub p10: f64,
+    pub p25: f64,
+    pub median: f64,
+    pub p75: f64,
+    pub p90: f64,
+    pub max_intrinsic: f64,
+    /// Probability intrinsic exceeds current price (if price > 0)
+    pub prob_undervalued: f64,
+    /// Histogram buckets: [(label, count)]
+    pub histogram: Vec<(String, usize)>,
+}
+
+/// Range specification for one assumption in Monte Carlo simulation.
+pub struct McRange {
+    pub revenue_growth: f64,
+    pub gross_margin: f64,
+    pub da_to_revenue: f64,
+    pub capex_to_revenue: f64,
+    pub nwc_to_revenue: f64,
+    pub discount_rate: f64,
+}
+
+impl Default for McRange {
+    fn default() -> Self {
+        Self {
+            revenue_growth: 0.03,
+            gross_margin: 0.03,
+            da_to_revenue: 0.01,
+            capex_to_revenue: 0.01,
+            nwc_to_revenue: 0.02,
+            discount_rate: 0.01,
+        }
+    }
+}
+
+/// Run N Monte Carlo simulations with randomized assumptions within +/- range.
+pub fn monte_carlo_dcf(
+    hist: &HistoricalSnapshot,
+    base_assumptions: &ProjectionAssumptions,
+    simulations: usize,
+    ranges: &McRange,
+    current_price: f64,
+    rng: &mut impl rand::Rng,
+) -> MonteCarloResult {
+    let base = project_model(hist, base_assumptions, current_price);
+    let mut values: Vec<f64> = Vec::with_capacity(simulations);
+
+    for _ in 0..simulations {
+        let mut a = base_assumptions.clone();
+        a.revenue_growth =
+            sample_uniform(rng, a.revenue_growth, ranges.revenue_growth).clamp(-0.50, 1.00);
+        a.gross_margin = sample_uniform(rng, a.gross_margin, ranges.gross_margin).clamp(0.05, 0.95);
+        a.da_to_revenue =
+            sample_uniform(rng, a.da_to_revenue, ranges.da_to_revenue).clamp(0.0, 0.20);
+        a.capex_to_revenue =
+            sample_uniform(rng, a.capex_to_revenue, ranges.capex_to_revenue).clamp(0.0, 0.30);
+        a.nwc_to_revenue =
+            sample_uniform(rng, a.nwc_to_revenue, ranges.nwc_to_revenue).clamp(-0.20, 0.50);
+        a.discount_rate =
+            sample_uniform(rng, a.discount_rate, ranges.discount_rate).clamp(0.05, 0.30);
+        values.push(project_model(hist, &a, current_price).intrinsic_per_share);
+    }
+
+    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let n = values.len();
+    let mean = values.iter().sum::<f64>() / n as f64;
+    let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n as f64;
+    let std_dev = variance.sqrt();
+
+    // Histogram with 10 buckets
+    let min_val = values[0];
+    let max_val = values[n - 1];
+    let bucket_width = (max_val - min_val) / 10.0;
+    let mut histogram: Vec<(String, usize)> = Vec::new();
+    if bucket_width > 0.0 {
+        for i in 0..10 {
+            let lo = min_val + i as f64 * bucket_width;
+            let hi = lo + bucket_width;
+            let count = values
+                .iter()
+                .filter(|&&v| v >= lo && (i == 9 || v < hi))
+                .count();
+            histogram.push((format!("{:.0}-{:.0}", lo, hi), count));
+        }
+    }
+
+    let prob_undervalued = if current_price > 0.0 {
+        values.iter().filter(|&&v| v > current_price).count() as f64 / n as f64
+    } else {
+        0.0
+    };
+
+    MonteCarloResult {
+        simulations: n,
+        base_intrinsic: base.intrinsic_per_share,
+        mean_intrinsic: mean,
+        std_dev,
+        min_intrinsic: values[0],
+        p10: percentile(&values, 0.10),
+        p25: percentile(&values, 0.25),
+        median: percentile(&values, 0.50),
+        p75: percentile(&values, 0.75),
+        p90: percentile(&values, 0.90),
+        max_intrinsic: values[n - 1],
+        prob_undervalued,
+        histogram,
+    }
+}
+
+fn sample_uniform(rng: &mut impl rand::Rng, center: f64, range: f64) -> f64 {
+    let lo = center - range;
+    let hi = center + range;
+    rng.random_range(lo..hi)
+}
+
+fn percentile(sorted: &[f64], p: f64) -> f64 {
+    if sorted.is_empty() {
+        return 0.0;
+    }
+    let idx = (p * (sorted.len() - 1) as f64).round() as usize;
+    sorted[idx.min(sorted.len() - 1)]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -774,5 +1027,38 @@ mod tests {
         assert!(gap.revenue_growth_contribution.is_finite());
         assert!(gap.gross_margin_contribution.is_finite());
         assert!(gap.residual.is_finite());
+    }
+
+    #[test]
+    fn sensitivity_analysis_all_drivers_finite() {
+        let h = sample_hist();
+        let a = ProjectionAssumptions::from_history(&h);
+        let results = sensitivity_analysis(&h, &a, 0.10);
+        assert_eq!(results.len(), 6);
+        for r in &results {
+            assert!(r.delta_pct.is_finite());
+            assert!(r.intrinsic_low > 0.0);
+            assert!(r.intrinsic_high > 0.0);
+        }
+        // Results should be sorted by descending delta_pct
+        for i in 1..results.len() {
+            assert!(results[i - 1].delta_pct >= results[i].delta_pct);
+        }
+    }
+
+    #[test]
+    fn monte_carlo_produces_distribution() {
+        let h = sample_hist();
+        let a = ProjectionAssumptions::from_history(&h);
+        let ranges = McRange::default();
+        let mut rng = rand::rng();
+        let result = monte_carlo_dcf(&h, &a, 500, &ranges, 150.0, &mut rng);
+        assert_eq!(result.simulations, 500);
+        assert!(result.mean_intrinsic > 0.0);
+        assert!(result.std_dev >= 0.0);
+        assert!(result.median >= result.p10);
+        assert!(result.p90 >= result.median);
+        assert!(result.prob_undervalued >= 0.0 && result.prob_undervalued <= 1.0);
+        assert_eq!(result.histogram.len(), 10);
     }
 }

@@ -17,6 +17,7 @@
 //! - `management_scorecard` — MAIA CEO capital allocation scorecard
 //! - `working_capital_cycle` — MAIA CFO working capital analysis
 //! - `expectations_gap` — Gordon Growth Model: implied vs historical growth
+//! - `scenario_weight` — Adjust Schwartz 2x2 scenario probabilities from fundamental research
 //!
 //! Portfolio tools:
 //! - `ledger_import` — Import CSV/JSON (auto-creates portfolio)
@@ -51,7 +52,9 @@ pub mod fibo;
 mod financial_model;
 mod portfolio;
 mod providers;
+pub mod research;
 mod scenarios;
+mod screener;
 mod superforecast;
 pub mod types;
 
@@ -188,6 +191,12 @@ pub struct CompaniesServer {
     pub client: reqwest::Client,
     pub fmp_api_key: String,
     pub eodhd_api_key: String,
+    /// Exa API key for fundamental research search (optional)
+    pub exa_api_key: Option<String>,
+    /// Tavily API key for fundamental research search (optional)
+    pub tavily_api_key: Option<String>,
+    /// Brave Search API key for fundamental research search (optional)
+    pub brave_api_key: Option<String>,
     pub portfolio: PortfolioManager,
     /// Learning state — kanban-style feedback loop. Updated by result_feedback,
     /// read by provider routing to adapt provider preference per symbol.
@@ -208,6 +217,9 @@ impl CompaniesServer {
         daemon: Option<DaemonClient>,
         fmp_api_key: String,
         eodhd_api_key: String,
+        exa_api_key: Option<String>,
+        tavily_api_key: Option<String>,
+        brave_api_key: Option<String>,
     ) -> Result<Self, anyhow::Error> {
         let client = reqwest::Client::new();
         Ok(Self {
@@ -217,6 +229,9 @@ impl CompaniesServer {
             client,
             fmp_api_key,
             eodhd_api_key,
+            exa_api_key,
+            tavily_api_key,
+            brave_api_key,
             portfolio: PortfolioManager::new(),
             learning: std::sync::Arc::new(std::sync::Mutex::new(LearningState::default())),
             fermi_defaults: superforecast::FermiDefaults::from_env(),
@@ -1057,7 +1072,273 @@ impl CompaniesServer {
         }).await
     }
 
-    // ── Portfolio tools ──────────────────────────────────────────
+    #[tool(
+        description = "Company screener. Parses natural language prompts into FMP stock screener API parameters. Supports filtering by market cap, price, volume, P/E ratio, dividend yield, beta, sector, industry, country, exchange, ROE, ROIC, and more. Use criteria_overrides to adjust parsed criteria. Reply with a modified prompt to refine results."
+    )]
+    pub async fn company_screener(
+        &self,
+        Parameters(req): Parameters<types::ScreenerRequest>,
+    ) -> String {
+        execute_tool(self, "company_screener", async {
+            // Parse the prompt
+            let mut criteria = screener::parse_screening_prompt(&req.prompt);
+
+            // Apply user overrides
+            if !req.criteria_overrides.is_null()
+                && let Some(obj) = req.criteria_overrides.as_object()
+                && let Some(crit_obj) = criteria.as_object_mut()
+            {
+                for (k, v) in obj {
+                    crit_obj.insert(k.clone(), v.clone());
+                }
+            }
+
+            // Add limit
+            if let Some(obj) = criteria.as_object_mut() {
+                obj.insert(
+                    "limit".to_string(),
+                    serde_json::Value::Number(serde_json::Number::from(req.limit)),
+                );
+            }
+
+            // Build query params from criteria
+            let mut query_params: Vec<(&str, String)> = Vec::new();
+            if let Some(obj) = criteria.as_object() {
+                for (k, v) in obj {
+                    if k != "apikey" {
+                        let val_str = match v {
+                            serde_json::Value::String(s) => s.clone(),
+                            other => other.to_string(),
+                        };
+                        query_params.push((k.as_str(), val_str));
+                    }
+                }
+            }
+
+            // Call FMP screener API
+            let url = "https://financialmodelingprep.com/api/v3/stock-screener";
+
+            let response = self
+                .client
+                .get(url)
+                .query(&[("apikey", self.fmp_api_key.as_str())])
+                .query(
+                    &query_params
+                        .iter()
+                        .map(|(k, v)| (*k, v.as_str()))
+                        .collect::<Vec<_>>(),
+                )
+                .send()
+                .await
+                .map_err(|e| McpToolError::internal(e.to_string()))?;
+
+            let body = response
+                .text()
+                .await
+                .map_err(|e| McpToolError::internal(e.to_string()))?;
+
+            let results: serde_json::Value =
+                serde_json::from_str(&body).unwrap_or(serde_json::Value::Array(vec![]));
+
+            let count = results.as_array().map(|a| a.len()).unwrap_or(0);
+
+            let output = serde_json::json!({
+                "prompt": req.prompt,
+                "criteria": criteria,
+                "count": count,
+                "results": results,
+                "fibo": {
+                    "screener": fibo::STOCK_SCREENER,
+                    "market_capitalization": fibo::MARKET_CAPITALIZATION,
+                    "price_earnings_ratio": fibo::PRICE_EARNINGS_RATIO,
+                    "dividend_yield": fibo::DIVIDEND_YIELD,
+                },
+                "framework": "FMP Stock Screener. Parses natural language screening prompts into FMP screener API parameters. Use criteria_overrides to adjust parsed criteria. Reply with a modified prompt or criteria_overrides to refine results."
+            });
+
+            self.record_experience(
+                "company_screener",
+                &format!("prompt={}", &req.prompt[..req.prompt.len().min(80)]),
+                "success",
+                output.clone(),
+            );
+            Ok(output)
+        })
+        .await
+    }
+
+    #[tool(
+        description = "Adjust scenario probabilities based on current fundamental research. Runs the four Schwartz scenarios (Bull/Land Grab/Cash Cow/Bear), searches across Exa, Tavily, and Brave for competitive and macro signals affecting the company, and adjusts scenario probabilities with reasoning chains. Returns baseline vs adjusted probabilities and expected intrinsic value shift."
+    )]
+    pub async fn scenario_weight(
+        &self,
+        Parameters(req): Parameters<types::ScenarioWeightRequest>,
+    ) -> String {
+        execute_tool(self, "scenario_weight", async {
+                validate_symbol(&req.symbol)?;
+
+                // 1. Fetch all financial data
+                let income_result = self.fetch("income_statement", &req.symbol, &[("limit", "5")]).await;
+                let balance_result = self.fetch("balance_sheet", &req.symbol, &[("limit", "5")]).await;
+                let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "5")]).await;
+                let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
+                let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
+
+                let (income, balance, cf, metrics, profile) =
+                    match (income_result, balance_result, cf_result, metrics_result, profile_result) {
+                        (Ok(inc), Ok(bal), Ok(cf), Ok(m), Ok(p)) => (inc, bal, cf, m, p),
+                        (Err(e), _, _, _, _) | (_, Err(e), _, _, _) | (_, _, Err(e), _, _)
+                        | (_, _, _, Err(e), _) | (_, _, _, _, Err(e)) => { return Err(e); }
+                    };
+
+                let income_arr = income.as_array();
+                let balance_arr = balance.as_array();
+                let cf_arr = cf.as_array();
+                let metrics_arr = metrics.as_array();
+                let profile_obj = profile.as_array().and_then(|a| a.first());
+
+                if income_arr.is_none_or(|a| a.is_empty())
+                    || balance_arr.is_none_or(|a| a.is_empty())
+                    || cf_arr.is_none_or(|a| a.is_empty())
+                    || profile_obj.is_none()
+                {
+                    return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient data"}));
+                }
+
+                let income_data = income_arr.unwrap();
+                let balance_data = balance_arr.unwrap();
+                let cf_data = cf_arr.unwrap();
+                let metrics_data: &[serde_json::Value] = metrics_arr.map_or(&[], |v| v);
+                let profile_data = profile_obj.unwrap();
+                let company_name = profile_data.get("companyName").and_then(|v| v.as_str()).unwrap_or(&req.symbol);
+
+                let hist = financial_model::HistoricalSnapshot::from_api_json(
+                    income_data, balance_data, cf_data, metrics_data, profile_data,
+                );
+
+                if hist.revenue.len() < 2 {
+                    return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient history"}));
+                }
+
+                let mut assumptions = financial_model::ProjectionAssumptions::from_history(&hist);
+                if let Some(dr) = req.discount_rate { assumptions.discount_rate = dr; }
+                if let Some(tg) = req.terminal_growth { assumptions.terminal_growth = tg; }
+
+                let current_price = profile_data.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+
+                // 2. Run base scenarios
+                let matrix = scenarios::ScenarioMatrix::growth_x_margin(assumptions.revenue_growth, assumptions.gross_margin);
+                let results = scenarios::run_scenario_analysis(&hist, &assumptions, &matrix);
+
+                // Base probabilities: equal weight
+                let base_scenarios: Vec<serde_json::Value> = results.iter().map(|r| {
+                    serde_json::json!({
+                        "name": r.scenario.name,
+                        "intrinsic": r.intrinsic_per_share,
+                        "probability": 0.25,
+                    })
+                }).collect();
+                let base_expected = results.iter().map(|r| r.intrinsic_per_share * 0.25).sum::<f64>();
+
+                // 3. Search for competitive and macro signals
+                let research = research::search_fundamental(
+                    &self.client,
+                    &req.symbol,
+                    company_name,
+                    "competition market share industry trends regulatory macro outlook",
+                    self.exa_api_key.as_deref(),
+                    self.tavily_api_key.as_deref(),
+                    self.brave_api_key.as_deref(),
+                ).await;
+
+                // 4. Extract signals and map to probability shifts
+                let mut signals: Vec<serde_json::Value> = Vec::new();
+                let mut bull_adj = 0.0_f64;
+                let mut landgrab_adj = 0.0_f64;
+                let mut cashcow_adj = 0.0_f64;
+                let mut bear_adj = 0.0_f64;
+
+                for claim in &research.claims {
+                    let text_lower = claim.text.to_lowercase();
+                    let (label, bull_d, land_d, cash_d, bear_d) = if text_lower.contains("margin") && claim.direction == "positive" {
+                        ("margin tailwind", 0.02, 0.0, 0.02, -0.02)
+                    } else if text_lower.contains("margin") && claim.direction == "negative" {
+                        ("margin headwind", -0.02, 0.0, -0.02, 0.02)
+                    } else if (text_lower.contains("demand") || text_lower.contains("growth") || text_lower.contains("market share")) && claim.direction == "positive" {
+                        ("growth tailwind", 0.03, 0.02, 0.0, -0.02)
+                    } else if text_lower.contains("competitor") || text_lower.contains("competition") || text_lower.contains("disrupt") {
+                        ("competitive threat", -0.03, -0.01, 0.0, 0.04)
+                    } else if text_lower.contains("regulation") || text_lower.contains("regulatory") {
+                        ("regulatory signal", -0.02, -0.02, -0.01, 0.03)
+                    } else if text_lower.contains("macro") || text_lower.contains("economy") || text_lower.contains("recession") {
+                        ("macro headwind", -0.02, -0.03, -0.01, 0.04)
+                    } else {
+                        continue;
+                    };
+
+                    bull_adj += bull_d;
+                    landgrab_adj += land_d;
+                    cashcow_adj += cash_d;
+                    bear_adj += bear_d;
+
+                    signals.push(serde_json::json!({
+                        "claim": &claim.text[..claim.text.len().min(200)],
+                        "signal_type": label,
+                        "source": claim.source,
+                    }));
+                }
+
+                // 5. Compute adjusted probabilities (equal base + signal adjustments, clamped)
+                let bull_p = (0.25 + bull_adj).clamp(0.05, 0.60);
+                let land_p = (0.25 + landgrab_adj).clamp(0.05, 0.60);
+                let cash_p = (0.25 + cashcow_adj).clamp(0.05, 0.60);
+                let bear_p = (0.25 + bear_adj).clamp(0.05, 0.60);
+                // Normalize
+                let total = bull_p + land_p + cash_p + bear_p;
+                let adj_scenarios: Vec<serde_json::Value> = vec![
+                    serde_json::json!({"name": "Bull Case", "intrinsic": results[0].intrinsic_per_share, "probability": bull_p / total}),
+                    serde_json::json!({"name": "Land Grab", "intrinsic": results[1].intrinsic_per_share, "probability": land_p / total}),
+                    serde_json::json!({"name": "Cash Cow", "intrinsic": results[2].intrinsic_per_share, "probability": cash_p / total}),
+                    serde_json::json!({"name": "Bear Case", "intrinsic": results[3].intrinsic_per_share, "probability": bear_p / total}),
+                ];
+
+                let adj_expected = adj_scenarios.iter().map(|s| {
+                    s["intrinsic"].as_f64().unwrap_or(0.0) * s["probability"].as_f64().unwrap_or(0.0)
+                }).sum::<f64>();
+
+                let expected_shift = adj_expected - base_expected;
+
+                let output = serde_json::json!({
+                    "symbol": req.symbol,
+                    "current_price": current_price,
+                    "baseline": {
+                        "scenarios": base_scenarios,
+                        "expected_intrinsic": base_expected,
+                    },
+                    "signals": signals,
+                    "signals_count": signals.len(),
+                    "adjusted": {
+                        "scenarios": adj_scenarios,
+                        "expected_intrinsic": adj_expected,
+                        "expected_shift": expected_shift,
+                    },
+                    "providers": research.provider_summary.iter().map(|p| {
+                        serde_json::json!({"provider": p.provider, "claims": p.claims_found, "status": p.status})
+                    }).collect::<Vec<_>>(),
+                    "fibo": {
+                        "scenario_analysis": fibo::SCENARIO_PROBABILITY,
+                        "expected_intrinsic": fibo::INTRINSIC_VALUE_PER_SHARE,
+                        "probability_weighting": "fibo-fbc-fct-ra:ProbabilityWeightedAverage",
+                    },
+                    "framework": "Signal-driven scenario weighting. Baseline Schwartz 2x2 scenarios (equal 25% each) adjusted by multi-provider fundamental research signals. Each competitive/macro claim shifts probabilities toward the scenario it supports, with reasoning chains. Probabilities are normalized to sum to 1.0."
+                });
+
+                self.record_experience("scenario_weight", &format!("symbol={}", req.symbol), "success", output.clone());
+                Ok(output)
+            }).await
+    }
+
+    // ── Portfolio tools ──
 
     #[tool(description = "Delete a portfolio and all its data")]
     pub async fn portfolio_delete(
@@ -1077,7 +1358,7 @@ impl CompaniesServer {
     pub async fn portfolio_list(&self) -> String {
         execute_tool(self, "portfolio_list", async {
             let names = self.portfolio.list().map_err(McpToolError::internal)?;
-            Ok(serde_json::json!({"portfolios": names}))
+            Ok(serde_json::json!({"portfolios": names, "fibo": {"portfolio": fibo::PORTFOLIO}}))
         })
         .await
     }
@@ -1146,7 +1427,7 @@ impl CompaniesServer {
                 other => Err(format!("unsupported format '{other}'; use 'csv' or 'json'")),
             };
             match result {
-                Ok(data) => Ok(serde_json::json!({"format": format, "data": data})),
+                Ok(data) => Ok(serde_json::json!({"format": format, "data": data, "fibo": {"transaction_ledger": fibo::TRANSACTION_LEDGER}})),
                 Err(e) => Err(McpToolError::invalid_argument(e)),
             }
         })
@@ -1446,6 +1727,10 @@ impl CompaniesServer {
                 "cash_flow_count": cash_flow_events.len(),
                 "positions_at_start": positions_start.len(),
                 "positions_at_end": positions_end.len(),
+                "fibo": {
+                    "time_weighted_return": fibo::TIME_WEIGHTED_RETURN,
+                    "internal_rate_of_return": fibo::INTERNAL_RATE_OF_RETURN,
+                },
             }))
         })
         .await
@@ -1733,6 +2018,9 @@ impl CompaniesServer {
                 "to": req.to,
                 "attribution": attribution,
                 "errors": errors,
+                "fibo": {
+                    "attribution_analysis": fibo::ATTRIBUTION_ANALYSIS,
+                },
             }))
         }).await
     }
@@ -2181,6 +2469,43 @@ impl CompaniesServer {
 
             let current_price = profile_data.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
 
+            // Verify price is within the range that -50%..+100% growth can explain
+            {
+                if current_price <= 0.0 {
+                    return Err(McpToolError::invalid_argument(
+                        "current price must be positive for reverse DCF",
+                    ));
+                }
+                let lo_model = financial_model::project_model(
+                    &hist,
+                    &financial_model::ProjectionAssumptions {
+                        revenue_growth: -0.50,
+                        ..assumptions.clone()
+                    },
+                    current_price,
+                );
+                if lo_model.intrinsic_per_share > current_price {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "price ({:.2}) below intrinsic ({:.2}) at -50% growth — stock may be distressed or data inconsistent",
+                        current_price, lo_model.intrinsic_per_share
+                    )));
+                }
+                let hi_model = financial_model::project_model(
+                    &hist,
+                    &financial_model::ProjectionAssumptions {
+                        revenue_growth: 1.00,
+                        ..assumptions.clone()
+                    },
+                    current_price,
+                );
+                if hi_model.intrinsic_per_share < current_price {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "price ({:.2}) implies growth > 100% — intrinsic at +100% growth is {:.2}",
+                        current_price, hi_model.intrinsic_per_share
+                    )));
+                }
+            }
+
             // Binary search for implied growth rate: lo=-0.50, hi=1.00, max 50 iterations
             let mut lo = -0.50_f64;
             let mut hi = 1.00_f64;
@@ -2348,6 +2673,526 @@ impl CompaniesServer {
             });
 
             self.record_experience("scenario_analysis", &format!("symbol={}", req.symbol), "success", output.clone());
+            Ok(output)
+        }).await
+    }
+
+    #[tool(
+        description = "Comparable company analysis. Gathers valuation multiples (P/E, P/B, P/S, EV/EBITDA) from peer companies in the same industry, alongside a DCF intrinsic value overlay for the target. Multiples provide market-relative context; DCF provides fundamentals-anchored valuation. Accepts optional comma-separated peer list."
+    )]
+    pub async fn comparable_analysis(
+        &self,
+        Parameters(req): Parameters<types::ComparableAnalysisRequest>,
+    ) -> String {
+        execute_tool(self, "comparable_analysis", async {
+            validate_symbol(&req.symbol)?;
+
+            // 1. Fetch target company profile and key_metrics
+            let profile_result = self
+                .fetch("company_profile", &req.symbol, &[])
+                .await;
+            let metrics_result = self
+                .fetch("key_metrics", &req.symbol, &[("limit", "1")])
+                .await;
+
+            let (profile, metrics) = match (profile_result, metrics_result) {
+                (Ok(p), Ok(m)) => (p, m),
+                (Err(e), _) | (_, Err(e)) => return Err(e),
+            };
+
+            let profile_arr = profile.as_array();
+            let metrics_arr = metrics.as_array();
+            let profile_obj = profile_arr.and_then(|a| a.first());
+            let metrics_obj = metrics_arr.and_then(|a| a.first());
+
+            let Some(profile_data) = profile_obj else {
+                return Ok(serde_json::json!({"symbol": req.symbol, "error": "company profile not found"}));
+            };
+
+            // 2. Parse peers (comma-separated)
+            let peers: Vec<String> = req
+                .peers
+                .as_ref()
+                .map(|s| {
+                    s.split(',')
+                        .map(|p| p.trim().to_string())
+                        .filter(|p| !p.is_empty())
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            // 3. Fetch peer profiles and metrics in parallel
+            let mut peer_data: Vec<(String, serde_json::Value, Option<serde_json::Value>)> =
+                Vec::new();
+            for peer_sym in &peers {
+                let pp_result = self.fetch("company_profile", peer_sym, &[]).await;
+                let pm_result = self
+                    .fetch("key_metrics", peer_sym, &[("limit", "1")])
+                    .await;
+                let pp = pp_result.unwrap_or(serde_json::Value::Null);
+                let pm =
+                    pm_result
+                        .ok()
+                        .and_then(|v| v.as_array().and_then(|a| a.first().cloned()));
+                peer_data.push((peer_sym.clone(), pp, pm));
+            }
+
+            // 4. Build comparison table
+            fn build_row(
+                sym: &str,
+                profile: &serde_json::Value,
+                metrics: Option<&serde_json::Value>,
+            ) -> serde_json::Value {
+                let name = profile
+                    .get("companyName")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let price = profile.get("price").and_then(|v| v.as_f64());
+                let mkt_cap = profile.get("mktCap").and_then(|v| v.as_f64());
+                let pe = metrics.and_then(|m| m.get("peRatio").and_then(|v| v.as_f64()));
+                let pb = metrics.and_then(|m| {
+                    m.get("priceToBookRatio").and_then(|v| v.as_f64())
+                });
+                let ps = metrics.and_then(|m| {
+                    m.get("priceToSalesRatio").and_then(|v| v.as_f64())
+                });
+                let ev_ebitda = metrics.and_then(|m| {
+                    m.get("evToEbitda")
+                        .or_else(|| m.get("enterpriseValueMultiple"))
+                        .and_then(|v| v.as_f64())
+                });
+                let div_yield =
+                    metrics.and_then(|m| m.get("dividendYield").and_then(|v| v.as_f64()));
+                let rev_growth =
+                    metrics.and_then(|m| m.get("revenueGrowth").and_then(|v| v.as_f64()));
+
+                let mut row = serde_json::json!({
+                    "symbol": sym,
+                    "name": name,
+                });
+                if let Some(v) = price {
+                    row["price"] = serde_json::json!(v);
+                }
+                if let Some(v) = mkt_cap {
+                    row["market_cap"] = serde_json::json!(v);
+                }
+                if let Some(v) = pe {
+                    row["pe_ratio"] = serde_json::json!(v);
+                }
+                if let Some(v) = pb {
+                    row["price_to_book"] = serde_json::json!(v);
+                }
+                if let Some(v) = ps {
+                    row["price_to_sales"] = serde_json::json!(v);
+                }
+                if let Some(v) = ev_ebitda {
+                    row["ev_to_ebitda"] = serde_json::json!(v);
+                }
+                if let Some(v) = div_yield {
+                    row["dividend_yield"] = serde_json::json!(v);
+                }
+                if let Some(v) = rev_growth {
+                    row["revenue_growth"] = serde_json::json!(v);
+                }
+                row
+            }
+
+            let mut comparison = vec![build_row(&req.symbol, profile_data, metrics_obj)];
+            for (sym, pp, pm) in &peer_data {
+                comparison.push(build_row(sym, pp, pm.as_ref()));
+            }
+
+            // 5. DCF overlay on target
+            let dcf_overlay = {
+                let inc_res = self
+                    .fetch("income_statement", &req.symbol, &[("limit", "5")])
+                    .await;
+                let bal_res = self
+                    .fetch("balance_sheet", &req.symbol, &[("limit", "5")])
+                    .await;
+                let cf_res = self
+                    .fetch("cash_flow_statement", &req.symbol, &[("limit", "5")])
+                    .await;
+                let km_res = self
+                    .fetch("key_metrics", &req.symbol, &[("limit", "5")])
+                    .await;
+
+                match (inc_res, bal_res, cf_res, km_res) {
+                    (Ok(inc), Ok(bal), Ok(cf), Ok(km)) => {
+                        let income_arr = inc.as_array();
+                        let balance_arr = bal.as_array();
+                        let cf_arr = cf.as_array();
+                        let metrics_arr = km.as_array();
+
+                        if income_arr.is_none_or(|a| a.is_empty())
+                            || balance_arr.is_none_or(|a| a.is_empty())
+                            || cf_arr.is_none_or(|a| a.is_empty())
+                        {
+                            serde_json::json!({"error": "insufficient data for DCF"})
+                        } else {
+                            let income_data = income_arr.unwrap();
+                            let balance_data = balance_arr.unwrap();
+                            let cf_data = cf_arr.unwrap();
+                            let metrics_data: &[serde_json::Value] =
+                                metrics_arr.map_or(&[], |v| v);
+
+                            let hist = financial_model::HistoricalSnapshot::from_api_json(
+                                income_data,
+                                balance_data,
+                                cf_data,
+                                metrics_data,
+                                profile_data,
+                            );
+
+                            if hist.revenue.len() < 2 {
+                                serde_json::json!({"error": "insufficient historical data"})
+                            } else {
+                                let mut assumptions =
+                                    financial_model::ProjectionAssumptions::from_history(&hist);
+                                if let Some(dr) = req.discount_rate {
+                                    assumptions.discount_rate = dr;
+                                }
+                                if let Some(tg) = req.terminal_growth {
+                                    assumptions.terminal_growth = tg;
+                                }
+                                let current_price = profile_data
+                                    .get("price")
+                                    .and_then(|v| v.as_f64())
+                                    .unwrap_or(0.0);
+                                let model = financial_model::project_model(
+                                    &hist,
+                                    &assumptions,
+                                    current_price,
+                                );
+                                let margin_of_safety =
+                                    if current_price > 0.0 {
+                                        (model.intrinsic_per_share - current_price)
+                                            / current_price
+                                    } else {
+                                        0.0
+                                    };
+                                serde_json::json!({
+                                    "intrinsic_per_share": model.intrinsic_per_share,
+                                    "current_price": current_price,
+                                    "margin_of_safety": margin_of_safety,
+                                })
+                            }
+                        }
+                    }
+                    _ => serde_json::json!({"error": "DCF overlay unavailable"}),
+                }
+            };
+
+            let company_name = profile_data
+                .get("companyName")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let sector = profile_data
+                .get("sector")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let industry = profile_data
+                .get("industry")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+
+            let output = serde_json::json!({
+                "symbol": req.symbol,
+                "company_name": company_name,
+                "sector": sector,
+                "industry": industry,
+                "peers": peers,
+                "dcf_overlay": dcf_overlay,
+                "comparison": comparison,
+                "fibo": {
+                    "comparable_analysis": fibo::COMPARABLE_COMPANY_ANALYSIS,
+                    "pe_ratio": fibo::PRICE_EARNINGS_RATIO,
+                    "price_to_book": fibo::PRICE_TO_BOOK_RATIO,
+                    "price_to_sales": fibo::PRICE_TO_SALES_RATIO,
+                    "ev_to_ebitda": fibo::ENTERPRISE_VALUE_MULTIPLE,
+                    "dividend_yield": fibo::DIVIDEND_YIELD,
+                    "revenue_growth": fibo::REVENUE_GROWTH_RATE,
+                },
+                "framework": "Comparable company analysis. Valuation multiples (P/E, P/B, P/S) from peer companies alongside DCF intrinsic value. Multiples provide market-relative context; DCF provides fundamentals-anchored valuation.",
+            });
+
+            self.record_experience(
+                "comparable_analysis",
+                &format!("symbol={}", req.symbol),
+                "success",
+                output.clone(),
+            );
+            Ok(output)
+        })
+        .await
+    }
+
+    #[tool(
+        description = "Tornado chart sensitivity analysis. Varies each DCF driver (revenue growth, gross margin, D&A, capex, NWC, discount rate) by +/- range_pct (default 10%) while holding others constant. Returns drivers ranked by impact on intrinsic value per share. Identifies which assumptions most affect the valuation."
+    )]
+    pub async fn sensitivity_analysis(
+        &self,
+        Parameters(req): Parameters<types::SensitivityAnalysisRequest>,
+    ) -> String {
+        execute_tool(self, "sensitivity_analysis", async {
+            validate_symbol(&req.symbol)?;
+
+            let income_result = self.fetch("income_statement", &req.symbol, &[("limit", "5")]).await;
+            let balance_result = self.fetch("balance_sheet", &req.symbol, &[("limit", "5")]).await;
+            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "5")]).await;
+            let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
+            let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
+
+            let (income, balance, cf, metrics, profile) =
+                match (income_result, balance_result, cf_result, metrics_result, profile_result) {
+                    (Ok(inc), Ok(bal), Ok(cf), Ok(m), Ok(p)) => (inc, bal, cf, m, p),
+                    (Err(e), _, _, _, _)
+                    | (_, Err(e), _, _, _)
+                    | (_, _, Err(e), _, _)
+                    | (_, _, _, Err(e), _)
+                    | (_, _, _, _, Err(e)) => {
+                        return Err(e);
+                    }
+                };
+
+            let income_arr = income.as_array();
+            let balance_arr = balance.as_array();
+            let cf_arr = cf.as_array();
+            let metrics_arr = metrics.as_array();
+            let profile_obj = profile.as_array().and_then(|a| a.first());
+
+            if income_arr.is_none_or(|a| a.is_empty())
+                || balance_arr.is_none_or(|a| a.is_empty())
+                || cf_arr.is_none_or(|a| a.is_empty())
+                || profile_obj.is_none()
+            {
+                return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient data"}));
+            }
+
+            let income_data = income_arr.unwrap();
+            let balance_data = balance_arr.unwrap();
+            let cf_data = cf_arr.unwrap();
+            let metrics_data: &[serde_json::Value] = metrics_arr.map_or(&[], |v| v);
+            let profile_data = profile_obj.unwrap();
+
+            let hist = financial_model::HistoricalSnapshot::from_api_json(
+                income_data, balance_data, cf_data, metrics_data, profile_data,
+            );
+
+            if hist.revenue.len() < 2 {
+                return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient historical data — need at least 2 years of revenue"}));
+            }
+
+            let mut assumptions = financial_model::ProjectionAssumptions::from_history(&hist);
+            let stage1 = req.stage1_years.unwrap_or(3);
+            let stage2 = req.stage2_years.unwrap_or(7);
+            assumptions.stage1_years = stage1;
+            assumptions.total_years = stage1 + stage2;
+            if let Some(dr) = req.discount_rate {
+                assumptions.discount_rate = dr;
+            }
+            if let Some(tg) = req.terminal_growth {
+                assumptions.terminal_growth = tg;
+            }
+            if let Some(rg) = req.revenue_growth {
+                assumptions.revenue_growth = rg;
+            }
+            if let Some(gm) = req.gross_margin {
+                assumptions.gross_margin = gm;
+            }
+            if let Some(da) = req.da_to_revenue {
+                assumptions.da_to_revenue = da;
+            }
+            if let Some(cx) = req.capex_to_revenue {
+                assumptions.capex_to_revenue = cx;
+            }
+            if let Some(nw) = req.nwc_to_revenue {
+                assumptions.nwc_to_revenue = nw;
+            }
+            if let Some(tr) = req.tax_rate {
+                assumptions.tax_rate = tr;
+            }
+
+            let current_price = profile_data.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+
+            let base_model = financial_model::project_model(&hist, &assumptions, current_price);
+            let base_intrinsic = base_model.intrinsic_per_share;
+
+            let sensitivity_results =
+                financial_model::sensitivity_analysis(&hist, &assumptions, req.range_pct);
+
+            let drivers: Vec<serde_json::Value> = sensitivity_results.iter().map(|r| {
+                serde_json::json!({
+                    "driver": r.driver,
+                    "label": r.label,
+                    "base_value": r.base_value,
+                    "low_value": r.low_value,
+                    "high_value": r.high_value,
+                    "intrinsic_low": r.intrinsic_low,
+                    "intrinsic_high": r.intrinsic_high,
+                    "delta_pct": r.delta_pct,
+                    "fibo": r.fibo_concept,
+                })
+            }).collect();
+
+            let mut fibo_map = serde_json::Map::new();
+            fibo_map.insert(
+                "sensitivity_analysis".to_string(),
+                serde_json::Value::String(fibo::SENSITIVITY_ANALYSIS.to_string()),
+            );
+            for r in &sensitivity_results {
+                fibo_map.insert(
+                    r.driver.clone(),
+                    serde_json::Value::String(r.fibo_concept.to_string()),
+                );
+            }
+
+            let output = serde_json::json!({
+                "symbol": req.symbol,
+                "base_intrinsic": base_intrinsic,
+                "current_price": current_price,
+                "range_pct": req.range_pct,
+                "drivers": drivers,
+                "fibo": fibo_map,
+                "framework": "Tornado chart sensitivity analysis. Varies each DCF driver by +/- range_pct while holding others constant. Drivers ranked by impact on intrinsic value per share. Identifies which assumptions most affect the valuation.",
+            });
+
+            self.record_experience("sensitivity_analysis", &format!("symbol={}", req.symbol), "success", output.clone());
+            Ok(output)
+        }).await
+    }
+
+    #[tool(
+        description = "Monte Carlo DCF simulation. Runs N simulations (default 1000, clamped 100-10000) with each DCF assumption randomized uniformly within its +/- configured range. Returns intrinsic value distribution (percentiles p10/p25/median/p75/p90, histogram), probability of undervaluation, and base case comparison. Quantifies valuation uncertainty from assumption ranges."
+    )]
+    pub async fn monte_carlo_dcf(
+        &self,
+        Parameters(req): Parameters<types::MonteCarloDcfRequest>,
+    ) -> String {
+        execute_tool(self, "monte_carlo_dcf", async {
+            validate_symbol(&req.symbol)?;
+
+            let income_result = self.fetch("income_statement", &req.symbol, &[("limit", "5")]).await;
+            let balance_result = self.fetch("balance_sheet", &req.symbol, &[("limit", "5")]).await;
+            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "5")]).await;
+            let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
+            let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
+
+            let (income, balance, cf, metrics, profile) =
+                match (income_result, balance_result, cf_result, metrics_result, profile_result) {
+                    (Ok(inc), Ok(bal), Ok(cf), Ok(m), Ok(p)) => (inc, bal, cf, m, p),
+                    (Err(e), _, _, _, _)
+                    | (_, Err(e), _, _, _)
+                    | (_, _, Err(e), _, _)
+                    | (_, _, _, Err(e), _)
+                    | (_, _, _, _, Err(e)) => {
+                        return Err(e);
+                    }
+                };
+
+            let income_arr = income.as_array();
+            let balance_arr = balance.as_array();
+            let cf_arr = cf.as_array();
+            let metrics_arr = metrics.as_array();
+            let profile_obj = profile.as_array().and_then(|a| a.first());
+
+            if income_arr.is_none_or(|a| a.is_empty())
+                || balance_arr.is_none_or(|a| a.is_empty())
+                || cf_arr.is_none_or(|a| a.is_empty())
+                || profile_obj.is_none()
+            {
+                return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient data"}));
+            }
+
+            let income_data = income_arr.unwrap();
+            let balance_data = balance_arr.unwrap();
+            let cf_data = cf_arr.unwrap();
+            let metrics_data: &[serde_json::Value] = metrics_arr.map_or(&[], |v| v);
+            let profile_data = profile_obj.unwrap();
+
+            let hist = financial_model::HistoricalSnapshot::from_api_json(
+                income_data, balance_data, cf_data, metrics_data, profile_data,
+            );
+
+            if hist.revenue.len() < 2 {
+                return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient historical data — need at least 2 years of revenue"}));
+            }
+
+            let mut assumptions = financial_model::ProjectionAssumptions::from_history(&hist);
+            let stage1 = req.stage1_years.unwrap_or(3);
+            let stage2 = req.stage2_years.unwrap_or(7);
+            assumptions.stage1_years = stage1;
+            assumptions.total_years = stage1 + stage2;
+            if let Some(dr) = req.discount_rate {
+                assumptions.discount_rate = dr;
+            }
+            if let Some(tg) = req.terminal_growth {
+                assumptions.terminal_growth = tg;
+            }
+            if let Some(rg) = req.revenue_growth {
+                assumptions.revenue_growth = rg;
+            }
+            if let Some(gm) = req.gross_margin {
+                assumptions.gross_margin = gm;
+            }
+            if let Some(da) = req.da_to_revenue {
+                assumptions.da_to_revenue = da;
+            }
+            if let Some(cx) = req.capex_to_revenue {
+                assumptions.capex_to_revenue = cx;
+            }
+            if let Some(nw) = req.nwc_to_revenue {
+                assumptions.nwc_to_revenue = nw;
+            }
+            if let Some(tr) = req.tax_rate {
+                assumptions.tax_rate = tr;
+            }
+
+            let current_price = profile_data.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+
+            let ranges = financial_model::McRange {
+                revenue_growth: req.range_revenue_growth,
+                gross_margin: req.range_gross_margin,
+                da_to_revenue: req.range_da,
+                capex_to_revenue: req.range_capex,
+                nwc_to_revenue: req.range_nwc,
+                discount_rate: req.range_discount_rate,
+            };
+
+            let mut rng = rand::rng();
+            let sims = req.simulations.clamp(100, 10_000) as usize;
+            let result = financial_model::monte_carlo_dcf(&hist, &assumptions, sims, &ranges, current_price, &mut rng);
+
+            let histogram: Vec<serde_json::Value> = result.histogram.iter().map(|(bucket, count)| {
+                serde_json::json!({"bucket": bucket, "count": count})
+            }).collect();
+
+            let output = serde_json::json!({
+                "symbol": req.symbol,
+                "current_price": current_price,
+                "simulations": result.simulations,
+                "distribution": {
+                    "base_intrinsic": result.base_intrinsic,
+                    "mean": result.mean_intrinsic,
+                    "std_dev": result.std_dev,
+                    "min": result.min_intrinsic,
+                    "p10": result.p10,
+                    "p25": result.p25,
+                    "median": result.median,
+                    "p75": result.p75,
+                    "p90": result.p90,
+                    "max": result.max_intrinsic,
+                    "prob_undervalued": result.prob_undervalued,
+                    "histogram": histogram,
+                },
+                "fibo": {
+                    "monte_carlo": fibo::MONTE_CARLO_DCF,
+                    "probability_undervalued": fibo::PROBABILITY_OF_UNDERVALUATION
+                },
+                "framework": "Monte Carlo DCF. Runs N simulations with each assumption sampled uniformly within +/- configured ranges. Produces intrinsic value distribution (percentiles), probability of undervaluation, and histogram. Quantifies valuation uncertainty from assumption ranges."
+            });
+
+            self.record_experience("monte_carlo_dcf", &format!("symbol={}", req.symbol), "success", output.clone());
             Ok(output)
         }).await
     }
@@ -2541,7 +3386,7 @@ impl CompaniesServer {
             // Brier scores on binary outcomes
             // Multiple: was actual multiple >= forecast? (binary direction)
             let multiple_higher = req.actual_multiple >= req.forecast_multiple;
-            let p_multiple_up = if req.forecast_multiple > 0.0 { 0.5 } else { 0.5 };
+            let p_multiple_up = 0.5;
             let multiple_brier = superforecast::brier_score(p_multiple_up, multiple_higher);
 
             // Price change: was actual return within 20% tolerance of forecast?
@@ -2686,6 +3531,7 @@ impl CompaniesServer {
                 let daemon_clone = daemon.clone();
                 let replicant = self.replicant.clone();
                 let symbol = req.symbol.clone();
+                #[allow(clippy::let_underscore_future)]
                 let _ = tokio::spawn(async move {
                     let _ = daemon_clone.store_experience(
                         &replicant, &format!("forecast_outcome:{symbol}"), "outcome_recorded",
@@ -2907,6 +3753,67 @@ fn cagr_from_series(yoy_growths: &[f64]) -> f64 {
     }
     let product: f64 = yoy_growths.iter().map(|g| 1.0 + g).product();
     product.powf(1.0 / yoy_growths.len() as f64) - 1.0
+}
+
+// ── Entry point ─────────────────────────────────────────────────────
+
+/// Run the companies MCP server (used by binary target).
+pub async fn run(
+    replicant: String,
+    daemon_client: Option<DaemonClient>,
+) -> Result<(), hkask_mcp::McpError> {
+    hkask_mcp::run_server(
+        "hkask-mcp-companies",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| {
+            let fmp_api_key = ctx
+                .credentials
+                .get("HKASK_FMP_API_KEY")
+                .expect("required credential checked by run_stdio_server")
+                .clone();
+            let eodhd_api_key = ctx
+                .credentials
+                .get("HKASK_EODHD_API_KEY")
+                .expect("required credential checked by run_stdio_server")
+                .clone();
+            let exa_api_key = ctx.credentials.get("HKASK_EXA_API_KEY").cloned();
+            let tavily_api_key = ctx.credentials.get("HKASK_TAVILY_API_KEY").cloned();
+            let brave_api_key = ctx.credentials.get("HKASK_BRAVE_API_KEY").cloned();
+            Ok(CompaniesServer::new(
+                ctx.webid,
+                replicant.clone(),
+                daemon_client.clone(),
+                fmp_api_key,
+                eodhd_api_key,
+                exa_api_key,
+                tavily_api_key,
+                brave_api_key,
+            )?)
+        },
+        vec![
+            hkask_mcp::CredentialRequirement::required(
+                "HKASK_FMP_API_KEY",
+                "Financial Modeling Prep API key",
+            ),
+            hkask_mcp::CredentialRequirement::required(
+                "HKASK_EODHD_API_KEY",
+                "EOD Historical Data (EODHD) API key",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_EXA_API_KEY",
+                "Exa API key for fundamental research search",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_TAVILY_API_KEY",
+                "Tavily API key for fundamental research search",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_BRAVE_API_KEY",
+                "Brave Search API key for fundamental research search",
+            ),
+        ],
+    )
+    .await
 }
 
 // ── Tracer-bullet contracts ───────────────────────────────────────
@@ -3144,47 +4051,4 @@ mod tests {
         );
         assert!(state.preferred_provider("AAPL").is_none());
     }
-}
-
-// ── Entry point ─────────────────────────────────────────────────────
-
-/// Run the companies MCP server (used by binary target).
-pub async fn run(
-    replicant: String,
-    daemon_client: Option<DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
-    hkask_mcp::run_server(
-        "hkask-mcp-companies",
-        env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::ServerContext| {
-            let fmp_api_key = ctx
-                .credentials
-                .get("HKASK_FMP_API_KEY")
-                .expect("required credential checked by run_stdio_server")
-                .clone();
-            let eodhd_api_key = ctx
-                .credentials
-                .get("HKASK_EODHD_API_KEY")
-                .expect("required credential checked by run_stdio_server")
-                .clone();
-            Ok(CompaniesServer::new(
-                ctx.webid,
-                replicant.clone(),
-                daemon_client.clone(),
-                fmp_api_key,
-                eodhd_api_key,
-            )?)
-        },
-        vec![
-            hkask_mcp::CredentialRequirement::required(
-                "HKASK_FMP_API_KEY",
-                "Financial Modeling Prep API key",
-            ),
-            hkask_mcp::CredentialRequirement::required(
-                "HKASK_EODHD_API_KEY",
-                "EOD Historical Data (EODHD) API key",
-            ),
-        ],
-    )
-    .await
 }

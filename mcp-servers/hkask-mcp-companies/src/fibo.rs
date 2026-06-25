@@ -78,10 +78,36 @@ pub const EBIT: FiboConcept = "fibo-fbc-fct-ra:EarningsBeforeInterestAndTaxes";
 pub const NOPAT: FiboConcept = "fibo-fbc-fct-ra:NetOperatingProfitAfterTax";
 pub const MARGIN_OF_SAFETY: FiboConcept = "fibo-fbc-fct-ra:MarginOfSafety";
 
+/// Portfolio concepts.
+pub const PORTFOLIO: FiboConcept = "fibo-sec-sec-ast:Portfolio";
+pub const SECURITY_HOLDING: FiboConcept = "fibo-sec-sec-ast:SecurityHolding";
+pub const HOLDING_WEIGHT: FiboConcept = "fibo-sec-sec-ast:holdingWeight";
+pub const WEIGHTED_AVERAGE: FiboConcept = "fibo-ind-ind-ind:WeightedAverage";
+pub const TRANSACTION_LEDGER: FiboConcept = "fibo-sec-sec-ast:TransactionLedger";
+pub const BUY_TRANSACTION: FiboConcept = "fibo-sec-sec-ast:BuyTransaction";
+pub const SELL_TRANSACTION: FiboConcept = "fibo-sec-sec-ast:SellTransaction";
+pub const DIVIDEND_TRANSACTION: FiboConcept = "fibo-sec-sec-ast:DividendTransaction";
+pub const DEPOSIT_TRANSACTION: FiboConcept = "fibo-sec-sec-ast:DepositTransaction";
+pub const WITHDRAWAL_TRANSACTION: FiboConcept = "fibo-sec-sec-ast:WithdrawalTransaction";
+pub const ATTRIBUTION_ANALYSIS: FiboConcept = "fibo-fbc-fct-ra:AttributionAnalysis";
+pub const TIME_WEIGHTED_RETURN: FiboConcept = "fibo-fbc-fct-ra:TimeWeightedReturn";
+pub const INTERNAL_RATE_OF_RETURN: FiboConcept = "fibo-fbc-fct-ra:InternalRateOfReturn";
+
+/// Comparable company analysis.
+pub const COMPARABLE_COMPANY_ANALYSIS: FiboConcept = "fibo-fbc-fct-ra:ComparableCompanyAnalysis";
+pub const ENTERPRISE_VALUE_MULTIPLE: FiboConcept = "fibo-fbc-fct-ra:EnterpriseValueMultiple";
+
 /// Superforecasting / Bayesian concepts.
 pub const FORECAST_ID: FiboConcept = "fibo-fbc-fct-ra:ForecastIdentifier";
 pub const BRIER_SCORE: FiboConcept = "fibo-fbc-fct-ra:BrierScore";
 pub const SCENARIO_PROBABILITY: FiboConcept = "fibo-fbc-fct-ra:ScenarioProbability";
+
+/// Screening / sensitivity / Monte Carlo concepts.
+pub const SENSITIVITY_ANALYSIS: FiboConcept = "fibo-fbc-fct-ra:SensitivityAnalysis";
+pub const MONTE_CARLO_DCF: FiboConcept = "fibo-fbc-fct-ra:MonteCarloDcf";
+pub const PROBABILITY_OF_UNDERVALUATION: FiboConcept =
+    "fibo-fbc-fct-ra:ProbabilityOfUndervaluation";
+pub const STOCK_SCREENER: FiboConcept = "fibo-fbc-fct-ra:StockScreener";
 
 // ── FMP/EODHD field → FIBO concept mapping ──────────────────────────────
 
@@ -252,5 +278,39 @@ mod tests {
         assert_eq!(FREE_CASH_FLOW, "fibo-fbc-fct-ra:FreeCashFlow");
         assert_eq!(NET_DEBT, "fibo-fbc-fct-ra:NetDebt");
         assert_eq!(MARGIN_OF_SAFETY, "fibo-fbc-fct-ra:MarginOfSafety");
+    }
+
+    #[test]
+    fn fibo_screening_concepts_exist() {
+        assert_eq!(SENSITIVITY_ANALYSIS, "fibo-fbc-fct-ra:SensitivityAnalysis");
+        assert_eq!(MONTE_CARLO_DCF, "fibo-fbc-fct-ra:MonteCarloDcf");
+        assert_eq!(
+            PROBABILITY_OF_UNDERVALUATION,
+            "fibo-fbc-fct-ra:ProbabilityOfUndervaluation"
+        );
+        assert_eq!(STOCK_SCREENER, "fibo-fbc-fct-ra:StockScreener");
+    }
+
+    #[test]
+    fn fibo_portfolio_concepts_exist() {
+        assert_eq!(PORTFOLIO, "fibo-sec-sec-ast:Portfolio");
+        assert_eq!(SECURITY_HOLDING, "fibo-sec-sec-ast:SecurityHolding");
+        assert_eq!(HOLDING_WEIGHT, "fibo-sec-sec-ast:holdingWeight");
+        assert_eq!(WEIGHTED_AVERAGE, "fibo-ind-ind-ind:WeightedAverage");
+        assert_eq!(TRANSACTION_LEDGER, "fibo-sec-sec-ast:TransactionLedger");
+        assert_eq!(BUY_TRANSACTION, "fibo-sec-sec-ast:BuyTransaction");
+        assert_eq!(SELL_TRANSACTION, "fibo-sec-sec-ast:SellTransaction");
+        assert_eq!(DIVIDEND_TRANSACTION, "fibo-sec-sec-ast:DividendTransaction");
+        assert_eq!(DEPOSIT_TRANSACTION, "fibo-sec-sec-ast:DepositTransaction");
+        assert_eq!(
+            WITHDRAWAL_TRANSACTION,
+            "fibo-sec-sec-ast:WithdrawalTransaction"
+        );
+        assert_eq!(ATTRIBUTION_ANALYSIS, "fibo-fbc-fct-ra:AttributionAnalysis");
+        assert_eq!(TIME_WEIGHTED_RETURN, "fibo-fbc-fct-ra:TimeWeightedReturn");
+        assert_eq!(
+            INTERNAL_RATE_OF_RETURN,
+            "fibo-fbc-fct-ra:InternalRateOfReturn"
+        );
     }
 }

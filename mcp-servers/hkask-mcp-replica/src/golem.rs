@@ -17,7 +17,6 @@
 //! (e.g., `dctypes:Text`, `bibo:Book`) and [`hkask_bridge_pko`] for
 //! narrative procedure classification.
 
-
 /// A GOLEM concept URI.
 pub type GolemConcept = &'static str;
 

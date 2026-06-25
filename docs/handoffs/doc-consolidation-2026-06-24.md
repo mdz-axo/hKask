@@ -31,7 +31,7 @@ Ontological anchoring sprint complete. Established dual-axis framework (PKO = pr
 - No server code actually imports the bridges yet — vocabulary is available, integration is unwritten
 
 ### Version + doc reconciliation
-- `Cargo.toml` workspace version: 0.30.0 → 0.31.0
+- `Cargo.toml` workspace version bumped from 0.30.0 to 0.31.0
 - All 61+ doc frontmatter versions aligned to 0.31.0
 - No stale crate/MCP references in docs
 - 3 undocumented components noted: `hkask-services-wallet`, `hkask-mcp-curator`, `hkask-mcp-skill` (last two are in P5.4 table by bare name, not crate name)

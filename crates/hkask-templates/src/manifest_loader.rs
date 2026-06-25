@@ -8,7 +8,8 @@
 
 use crate::bundle::{
     AuditConfig, BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep,
-    BundleSkill, CnsConfig, ConvergenceConfig, ErrorHandlingConfig, GasConfig, OcapConfig, RjouleConfig,
+    BundleSkill, CnsConfig, ConvergenceConfig, ErrorHandlingConfig, GasConfig, OcapConfig,
+    RjouleConfig,
 };
 use hkask_types::Visibility;
 use serde::Deserialize;

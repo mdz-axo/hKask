@@ -18,7 +18,6 @@
 //! (e.g., `dctypes:Dataset` for memory stores) and [`hkask_bridge_pko`]
 //! for process classification (e.g., `pko:Step` for memory operations).
 
-
 /// A Cognitive Atlas concept identifier.
 pub type CogatConcept = &'static str;
 

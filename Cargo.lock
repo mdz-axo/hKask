@@ -4312,6 +4312,8 @@ dependencies = [
  "hkask-ledger",
  "hkask-mcp",
  "hkask-types",
+ "rand 0.9.4",
+ "regex",
  "reqwest",
  "rmcp",
  "rusqlite",

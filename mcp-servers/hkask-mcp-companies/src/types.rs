@@ -293,3 +293,123 @@ pub struct ForecastRecordRequest {
     /// D&A, capex, NWC, multiple expansion, net debt).
     pub forecast_id: Option<String>,
 }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SensitivityAnalysisRequest {
+    pub symbol: String,
+    pub stage1_years: Option<u8>,
+    pub stage2_years: Option<u8>,
+    pub discount_rate: Option<f64>,
+    pub terminal_growth: Option<f64>,
+    pub revenue_growth: Option<f64>,
+    pub gross_margin: Option<f64>,
+    pub da_to_revenue: Option<f64>,
+    pub capex_to_revenue: Option<f64>,
+    pub nwc_to_revenue: Option<f64>,
+    pub tax_rate: Option<f64>,
+    #[serde(default = "default_sensitivity_range")]
+    pub range_pct: f64,
+}
+
+fn default_sensitivity_range() -> f64 {
+    0.10
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct MonteCarloDcfRequest {
+    pub symbol: String,
+    pub stage1_years: Option<u8>,
+    pub stage2_years: Option<u8>,
+    pub discount_rate: Option<f64>,
+    pub terminal_growth: Option<f64>,
+    pub revenue_growth: Option<f64>,
+    pub gross_margin: Option<f64>,
+    pub da_to_revenue: Option<f64>,
+    pub capex_to_revenue: Option<f64>,
+    pub nwc_to_revenue: Option<f64>,
+    pub tax_rate: Option<f64>,
+    #[serde(default = "default_mc_simulations")]
+    pub simulations: u32,
+    #[serde(default = "default_mc_range")]
+    pub range_revenue_growth: f64,
+    #[serde(default = "default_mc_range")]
+    pub range_gross_margin: f64,
+    #[serde(default = "default_mc_range_small")]
+    pub range_da: f64,
+    #[serde(default = "default_mc_range_small")]
+    pub range_capex: f64,
+    #[serde(default = "default_mc_range")]
+    pub range_nwc: f64,
+    #[serde(default = "default_mc_range_small")]
+    pub range_discount_rate: f64,
+}
+
+fn default_mc_simulations() -> u32 {
+    1000
+}
+fn default_mc_range() -> f64 {
+    0.03
+}
+fn default_mc_range_small() -> f64 {
+    0.01
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ComparableAnalysisRequest {
+    pub symbol: String,
+    pub peers: Option<String>,
+    pub discount_rate: Option<f64>,
+    pub terminal_growth: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ThesisTestRequest {
+    pub symbol: String,
+    /// The investment thesis to test (e.g., "services revenue will grow 15% annually")
+    pub thesis: String,
+    /// Forecast horizon for DCF impact ("1yr", "3yr", "5yr")
+    #[serde(default = "default_thesis_horizon")]
+    pub horizon: String,
+    /// Discount rate override
+    pub discount_rate: Option<f64>,
+    /// Terminal growth override
+    pub terminal_growth: Option<f64>,
+}
+
+fn default_thesis_horizon() -> String {
+    "3yr".to_string()
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ScenarioWeightRequest {
+    pub symbol: String,
+    /// Discount rate override
+    pub discount_rate: Option<f64>,
+    /// Terminal growth override
+    pub terminal_growth: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GuidanceCheckRequest {
+    pub symbol: String,
+    /// Discount rate override for DCF mapping
+    pub discount_rate: Option<f64>,
+    /// Terminal growth override
+    pub terminal_growth: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ScreenerRequest {
+    /// Natural language screening prompt (e.g., "large cap tech stocks with pe under 20 and dividend over 2%")
+    pub prompt: String,
+    /// Maximum results (default 20)
+    #[serde(default = "default_screener_limit")]
+    pub limit: u32,
+    /// Override specific criteria directly (bypasses prompt parsing for these fields)
+    #[serde(default)]
+    pub criteria_overrides: serde_json::Value,
+}
+
+fn default_screener_limit() -> u32 {
+    20
+}
