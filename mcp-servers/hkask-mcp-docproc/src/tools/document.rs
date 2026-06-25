@@ -193,9 +193,8 @@ impl DocProcServer {
                             "error_count": outcome.errors.len(),
                             "cross_validations": outcome.cross_validations.len(),
                         });
-                        self.record_experience("docproc_convert", &path_clone, "success", result.clone());
-                        return Ok(result);
-                    }
+                    self.record_experience("docproc_convert", &path_clone, "success", result.clone());
+                    return Ok(result);
                 }
 
                 // Pipeline unavailable or failed — reuse the cached extraction result
