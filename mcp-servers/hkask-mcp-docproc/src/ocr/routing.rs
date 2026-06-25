@@ -18,8 +18,6 @@ pub struct SamplingState {
     counter: usize,
     /// Sampling interval: dual-route every Nth Moderate page.
     sample_every_nth: usize,
-    /// Whether to force fallback on the next call.
-    force_fallback: bool,
 }
 
 impl SamplingState {
@@ -39,12 +37,6 @@ impl SamplingState {
             sample_every_nth: every_nth,
             ..Default::default()
         }
-    }
-
-    /// Set force-fallback flag. The next `route_page` call will exclude
-    /// the failed backend from the candidate set.
-    pub fn set_force_fallback(&mut self, force: bool) {
-        self.force_fallback = force;
     }
 
     /// Determine whether the current Moderate page should be dual-routed.

@@ -87,17 +87,25 @@ impl OcrExecutor for TesseractExecutor {
             .save(&input_path)
             .map_err(|e| format!("Failed to save page image: {}", e))?;
 
-        // Build tesseract command
+        // Build tesseract command with TSV confidence output.
+        // `-c tessedit_create_tsv=1` enables TSV output alongside normal
+        // text output — produces both output_base.txt and output_base.tsv.
+        // This is more portable than the `tsv` config file which may not
+        // exist on all tesseract installations.
         let mut cmd = Command::new("tesseract");
         cmd.arg(&input_path)
             .arg(&output_base)
             .arg("-l")
-            .arg(&self.language);
+            .arg(&self.language)
+            .arg("-c")
+            .arg("tessedit_create_tsv=1");
 
         if let Some(psm) = self.psm {
             cmd.arg("--psm").arg(psm.to_string());
         }
 
+        // Run tesseract with TSV output (tessedit_create_tsv=1).
+        // With this config, tesseract produces only .tsv, not .txt.
         let output = cmd.output().map_err(|e| tesseract_error(&e.to_string()))?;
 
         if !output.status.success() {
@@ -105,16 +113,14 @@ impl OcrExecutor for TesseractExecutor {
             return Err(format!("tesseract failed: {}", stderr.trim()));
         }
 
-        // Read output text (tesseract appends .txt to output base)
-        let txt_path = output_base.with_extension("txt");
-        let text = std::fs::read_to_string(&txt_path)
-            .map_err(|e| format!("Failed to read tesseract output: {}", e))?;
+        // Read TSV output — extract both text and confidence in one pass (GAP-1)
+        let tsv_path = output_base.with_extension("tsv");
+        let tsv_content = std::fs::read_to_string(&tsv_path)
+            .map_err(|e| format!("Failed to read tesseract TSV output: {}", e))?;
+
+        let (text, confidence) = parse_tesseract_tsv(&tsv_content);
 
         let duration_ms = start.elapsed().as_millis() as u64;
-
-        // Tesseract doesn't provide per-page confidence in CLI mode;
-        // we report a nominal value based on non-empty output.
-        let confidence = if text.trim().is_empty() { 0.0 } else { 0.85 };
 
         Ok(OcrResult {
             page_index,
@@ -134,6 +140,53 @@ fn tesseract_error(detail: &str) -> String {
     } else {
         format!("Failed to run tesseract: {}", detail)
     }
+}
+
+/// Parse Tesseract TSV output to extract text and per-word confidence.
+///
+/// The TSV format has columns:
+///   level page_num block_num par_num line_num word_num left top width height conf text
+///
+/// Word entries have level=5. We concatenate the `text` column for all word-level
+/// entries to reconstruct the text, and average the `conf` column (in [0, 100])
+/// normalized to [0.0, 1.0] for per-page confidence.
+///
+/// Returns ("", 0.0) if the TSV contains no word entries.
+fn parse_tesseract_tsv(tsv_content: &str) -> (String, f32) {
+    let mut text_parts: Vec<&str> = Vec::new();
+    let mut confidences: Vec<f32> = Vec::new();
+
+    for line in tsv_content.lines().skip(1) {
+        let fields: Vec<&str> = line.split('\t').collect();
+        if fields.len() < 12 {
+            continue;
+        }
+        // Only word-level entries (level == 5)
+        if fields[0] != "5" {
+            continue;
+        }
+        // Column 10: confidence, column 11: text
+        if let Ok(conf) = fields[10].parse::<f32>() {
+            if conf >= 0.0 {
+                confidences.push(conf);
+            }
+        }
+        let word_text = fields[11].trim();
+        if !word_text.is_empty() {
+            text_parts.push(word_text);
+        }
+    }
+
+    let text = text_parts.join(" ");
+
+    let confidence = if confidences.is_empty() {
+        if text.is_empty() { 0.0 } else { 0.0 }
+    } else {
+        let mean = confidences.iter().sum::<f32>() / confidences.len() as f32;
+        (mean / 100.0).clamp(0.0, 1.0)
+    };
+
+    (text, confidence)
 }
 
 #[cfg(test)]

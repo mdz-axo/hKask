@@ -205,10 +205,7 @@ pub async fn run_pipeline(
 
     let duration_ms = start.elapsed().as_millis() as u64;
 
-    // Step 5: Assembly — concatenate results with page markers
-    let _assembled = assemble_document(&results);
-
-    // Step 6: Verification checkpoint
+    // Step 5: Verification checkpoint
     let report = verify_output(expected_pages, &results, total_estimated_words, &errors);
 
     // CNS observability: emit tracing spans under cns.pipeline target.

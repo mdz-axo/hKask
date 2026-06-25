@@ -32,7 +32,8 @@ pub async fn enrich_with_semantic(
 }
 
 /// Cosine similarity between two embedding vectors.
-fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+/// Consolidated from duplicate in lib.rs (C4).
+pub(crate) fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     if a.len() != b.len() || a.is_empty() {
         return 0.0;
     }

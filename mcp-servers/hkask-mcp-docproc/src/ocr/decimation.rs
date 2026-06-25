@@ -70,8 +70,12 @@ pub async fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage
         )));
     }
 
-    // Collect output images in page order
+    // Collect output images in page order.
+    // Per-page fault tolerance: individual page load failures are logged and
+    // skipped rather than aborting the entire decimation (GAP-2). This prevents
+    // one corrupt page image from discarding valid pages.
     let mut images: Vec<DynamicImage> = Vec::new();
+    let mut failed_pages: Vec<usize> = Vec::new();
     let mut page = 1;
     loop {
         let page_path = format!("{}-{}.png", prefix.display(), page);
@@ -79,18 +83,38 @@ pub async fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage
         if !path.exists() {
             break;
         }
-        let mut img = image::open(&path).map_err(|e| {
-            PipelineError::DecimationFailed(format!("Failed to load page {} image: {}", page, e))
-        })?;
-        preprocess_via_fal(&mut img).await;
-        images.push(img);
+        match image::open(&path) {
+            Ok(mut img) => {
+                preprocess_via_fal(&mut img).await;
+                images.push(img);
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: "cns.pipeline.decimation",
+                    page = page,
+                    error = %e,
+                    "Failed to load page image — skipping"
+                );
+                failed_pages.push(page);
+            }
+        }
         page += 1;
     }
 
     if images.is_empty() {
         return Err(PipelineError::DecimationFailed(
-            "pdftoppm produced no output images — PDF may be empty or unrenderable".into(),
+            "pdftoppm produced no usable output images — PDF may be empty or unrenderable".into(),
         ));
+    }
+
+    if !failed_pages.is_empty() {
+        tracing::warn!(
+            target: "cns.pipeline.decimation",
+            failed_count = failed_pages.len(),
+            total_pages = images.len() + failed_pages.len(),
+            failed = ?failed_pages,
+            "Some pages failed to load — proceeding with partial results"
+        );
     }
 
     // temp_dir is dropped here, cleaning up page files

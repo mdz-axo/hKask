@@ -21,6 +21,7 @@ use crate::ocr::calibration::{analyze_threshold_drift, emit_drift_alert};
 use crate::ocr::decimation;
 use crate::ocr::llm_ocr::LlmOcrExecutor;
 use crate::ocr::pipeline::{self, OcrExecutor};
+use crate::ocr::semantic::cosine_similarity;
 use crate::ocr::tesseract::TesseractExecutor;
 use crate::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
@@ -481,6 +482,97 @@ impl DocProcServer {
 
 // ── Tool helpers ───────────────────────────────────────────────────────────
 
+/// Shared text extraction from a file path.
+///
+/// Detects format, reads the file, and extracts plain text. For PDFs,
+/// falls back to OCR if text extraction yields fewer than
+/// `OCR_FALLBACK_WORD_THRESHOLD` words and an OCR model is available.
+///
+/// Used by both `docproc_convert` and `docproc_chunk` to eliminate ~160
+/// lines of duplicated extraction logic (P5: surgical deduplication).
+async fn extract_text(_server: &DocProcServer, path: &str) -> Result<ExtractOutcome, McpToolError> {
+    let (format, supported, note) = convert::detect_format(path);
+
+    if !supported {
+        return Err(McpToolError::invalid_argument(format!(
+            "Format '{}' is not supported for text extraction. Supported formats: pdf, markdown, html, plain. {}",
+            format,
+            note.unwrap_or("")
+        )));
+    }
+
+    let file_bytes = std::fs::read(path)
+        .map_err(|e| McpToolError::internal(format!("Failed to read file '{}': {}", path, e)))?;
+
+    if file_bytes.is_empty() {
+        return Err(McpToolError::invalid_argument(format!(
+            "File '{}' is empty",
+            path
+        )));
+    }
+
+    let extract_result = match format {
+        "pdf" => match pdf_extract::extract_text(path) {
+            Ok(text) => {
+                let word_count = text.split_whitespace().count();
+                if word_count < OCR_FALLBACK_WORD_THRESHOLD {
+                    ExtractOutcome::NeedsOcr {
+                        partial_text: text,
+                        word_count,
+                    }
+                } else {
+                    ExtractOutcome::Success { text, word_count }
+                }
+            }
+            Err(_) => ExtractOutcome::NeedsOcr {
+                partial_text: String::new(),
+                word_count: 0,
+            },
+        },
+        "plain" => match std::str::from_utf8(&file_bytes) {
+            Ok(text) => ExtractOutcome::Success {
+                text: text.to_string(),
+                word_count: text.split_whitespace().count(),
+            },
+            Err(e) => {
+                return Err(McpToolError::internal(format!(
+                    "Failed to decode text file '{}': {}",
+                    path, e
+                )));
+            }
+        },
+        "markdown" => match std::str::from_utf8(&file_bytes) {
+            Ok(content) => {
+                let text = convert::strip_frontmatter(content);
+                let word_count = text.split_whitespace().count();
+                ExtractOutcome::Success { text, word_count }
+            }
+            Err(e) => {
+                return Err(McpToolError::internal(format!(
+                    "Failed to decode markdown file '{}': {}",
+                    path, e
+                )));
+            }
+        },
+        "html" | "htm" => match std::str::from_utf8(&file_bytes) {
+            Ok(content) => {
+                let text = convert::strip_html(content);
+                let word_count = text.split_whitespace().count();
+                ExtractOutcome::Success { text, word_count }
+            }
+            Err(e) => {
+                return Err(McpToolError::internal(format!(
+                    "Failed to decode HTML file '{}': {}",
+                    path, e
+                )));
+            }
+        },
+        _ => unreachable!("supported check above guards this branch"),
+    };
+
+    Ok(extract_result)
+}
+
 /// Approximate token-to-word conversion: 1 token ≈ 1.33 words.
 fn tokens_to_words(tokens: usize) -> usize {
     ((tokens as f64) * 1.33) as usize
@@ -652,7 +744,7 @@ pub struct QueryRequest {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ClearIndexRequest {
-    /// Optional index_id to clear a specific index. If absent, clears all.
+    /// Reserved for future multi-index support.
     #[serde(default)]
     pub index_id: Option<String>,
 }
@@ -851,132 +943,67 @@ impl DocProcServer {
             }
 
             // ── Text extraction path ──
-
-            let extract_result = match format {
-                "pdf" => {
-                    // Try typed pipeline with decimation first (if OCR model is configured)
-                    if let Ok(model) = self.resolve_ocr_model(None).await
-                        && let Ok(page_images) =
-                            decimation::pdf_to_images(std::path::Path::new(&path), 200).await
-                    {
-                        let expected = page_images.len();
-                        let emb = self.embedding_router.as_ref().map(|r| {
-                            (
-                                r,
-                                self.ocr_model
-                                    .as_deref()
-                                    .unwrap_or("DI/Qwen/Qwen3-Embedding-0.6B"),
-                            )
-                        });
-
-                        let outcome = pipeline::run_pipeline(
-                            page_images,
-                            expected,
-                            self,
-                            &self.ocr_thresholds,
-                            Some(&model),
-                            emb,
+            // Try typed pipeline with decimation first for PDFs (if OCR model is configured)
+            if format == "pdf" {
+                if let Ok(model) = self.resolve_ocr_model(None).await
+                    && let Ok(page_images) =
+                        decimation::pdf_to_images(std::path::Path::new(&path), 200).await
+                {
+                    let expected = page_images.len();
+                    let emb = self.embedding_router.as_ref().map(|r| {
+                        (
+                            r,
+                            self.ocr_model
+                                .as_deref()
+                                .unwrap_or("DI/Qwen/Qwen3-Embedding-0.6B"),
                         )
-                        .await;
+                    });
 
-                        self.persist_pipeline_outcome(&outcome).await;
+                    let outcome = pipeline::run_pipeline(
+                        page_images,
+                        expected,
+                        self,
+                        &self.ocr_thresholds,
+                        Some(&model),
+                        emb,
+                    )
+                    .await;
 
-                        let text = outcome
-                            .results
-                            .iter()
-                            .map(|r| r.text.as_str())
-                            .collect::<Vec<_>>()
-                            .join("\n\n");
-                        let word_count = text.split_whitespace().count();
+                    self.persist_pipeline_outcome(&outcome).await;
 
-                        let result = serde_json::json!({
-                            "format": format,
-                            "path": path,
-                            "method": "ocr_pipeline",
-                            "model": model,
-                            "text": text,
-                            "word_count": word_count,
-                            "pages": expected,
-                            "verification_passed": outcome.report.passed,
-                            "page_count_match": outcome.report.page_count_match,
-                            "empty_pages": outcome.report.empty_pages,
-                            "error_count": outcome.errors.len(),
-                            "cross_validations": outcome.cross_validations.len(),
-                        });
-                        self.record_experience(
-                            "docproc_convert",
-                            &path_clone,
-                            "success",
-                            result.clone(),
-                        );
-                        return Ok(result);
-                    }
+                    let text = outcome
+                        .results
+                        .iter()
+                        .map(|r| r.text.as_str())
+                        .collect::<Vec<_>>()
+                        .join("\n\n");
+                    let word_count = text.split_whitespace().count();
 
-                    // Try pdf-extract first; fall back to OCR if near-empty
-                    match pdf_extract::extract_text(&path) {
-                        Ok(text) => {
-                            let word_count = text.split_whitespace().count();
-                            if word_count < OCR_FALLBACK_WORD_THRESHOLD {
-                                ExtractOutcome::NeedsOcr {
-                                    partial_text: text,
-                                    word_count,
-                                }
-                            } else {
-                                ExtractOutcome::Success { text, word_count }
-                            }
-                        }
-                        Err(_) => ExtractOutcome::NeedsOcr {
-                            partial_text: String::new(),
-                            word_count: 0,
-                        },
-                    }
+                    let result = serde_json::json!({
+                        "format": format,
+                        "path": path,
+                        "method": "ocr_pipeline",
+                        "model": model,
+                        "text": text,
+                        "word_count": word_count,
+                        "pages": expected,
+                        "verification_passed": outcome.report.passed,
+                        "page_count_match": outcome.report.page_count_match,
+                        "empty_pages": outcome.report.empty_pages,
+                        "error_count": outcome.errors.len(),
+                        "cross_validations": outcome.cross_validations.len(),
+                    });
+                    self.record_experience(
+                        "docproc_convert",
+                        &path_clone,
+                        "success",
+                        result.clone(),
+                    );
+                    return Ok(result);
                 }
-                "plain" => match std::str::from_utf8(&file_bytes) {
-                    Ok(text) => ExtractOutcome::Success {
-                        text: text.to_string(),
-                        word_count: text.split_whitespace().count(),
-                    },
-                    Err(e) => {
-                        return Err(McpToolError::internal(format!(
-                            "Failed to decode text file '{}': {}",
-                            path, e
-                        )));
-                    }
-                },
-                "markdown" => match std::str::from_utf8(&file_bytes) {
-                    Ok(content) => {
-                        let text = convert::strip_frontmatter(content);
-                        let word_count = text.split_whitespace().count();
-                        ExtractOutcome::Success { text, word_count }
-                    }
-                    Err(e) => {
-                        return Err(McpToolError::internal(format!(
-                            "Failed to decode markdown file '{}': {}",
-                            path, e
-                        )));
-                    }
-                },
-                "html" | "htm" => match std::str::from_utf8(&file_bytes) {
-                    Ok(content) => {
-                        let text = convert::strip_html(content);
-                        let word_count = text.split_whitespace().count();
-                        ExtractOutcome::Success { text, word_count }
-                    }
-                    Err(e) => {
-                        return Err(McpToolError::internal(format!(
-                            "Failed to decode HTML file '{}': {}",
-                            path, e
-                        )));
-                    }
-                },
-                other => {
-                    return Err(McpToolError::invalid_argument(format!(
-                        "Format '{}' is not supported for text extraction. Supported formats: pdf, markdown, html, plain. \
-                         For DOCX/PPTX/XLSX/CSV/RTF, install the corresponding Rust crates. Path: '{}'",
-                        other, path
-                    )));
-                }
-            };
+            }
+
+            let extract_result = extract_text(self, &path).await?;
 
             match extract_result {
                 ExtractOutcome::Success { text, word_count } => {
@@ -994,7 +1021,10 @@ impl DocProcServer {
                     partial_text,
                     word_count,
                 } => {
-                    // Fall back to OCR
+                    // Fall back to OCR — re-read file bytes for do_ocr
+                    let file_bytes = std::fs::read(&path).map_err(|e| {
+                        McpToolError::internal(format!("Failed to read file '{}' for OCR: {}", path, e))
+                    })?;
                     match self.resolve_ocr_model(None).await {
                         Ok(model) => {
                             match self
@@ -1173,81 +1203,43 @@ impl DocProcServer {
             } else if let Some(ref file_path) = path
                 && !file_path.is_empty()
             {
-                let (format, supported, _) = convert::detect_format(file_path);
-                if !supported {
-                    return Err(McpToolError::invalid_argument(format!(
-                        "Unsupported document format '{}' for path '{}'. Supported formats: pdf, markdown, html, plain",
-                        format, file_path
-                    )));
-                }
-
-                source_text = match format {
-                    "pdf" => match pdf_extract::extract_text(file_path) {
-                        Ok(t) => {
-                            let wc = t.split_whitespace().count();
-                            if wc < OCR_FALLBACK_WORD_THRESHOLD {
-                                if let Ok(model) = self.resolve_ocr_model(None).await {
-                                    let file_bytes = match std::fs::read(file_path) {
-                                        Ok(b) => b,
-                                        Err(e) => {
-                                            return Err(McpToolError::internal(format!(
-                                                "Failed to read file '{}': {}",
-                                                file_path, e
-                                            )));
-                                        }
-                                    };
-                                    match self
-                                        .do_ocr(&file_bytes, &model, default_ocr_max_tokens())
-                                        .await
-                                    {
-                                        Ok(ocr_text) => ocr_text,
-                                        Err(_) => t,
-                                    }
-                                } else {
-                                    t
+                // Use shared extract_text for format detection + text extraction
+                match extract_text(self, file_path).await? {
+                    ExtractOutcome::Success {
+                        text: extracted, ..
+                    } => {
+                        source_text = extracted;
+                    }
+                    ExtractOutcome::NeedsOcr {
+                        partial_text,
+                        word_count: _,
+                    } => {
+                        // Try OCR fallback; use partial_text if OCR unavailable/fails
+                        if let Ok(model) = self.resolve_ocr_model(None).await {
+                            let file_bytes = std::fs::read(file_path).map_err(|e| {
+                                McpToolError::internal(format!(
+                                    "Failed to read '{}': {}",
+                                    file_path, e
+                                ))
+                            })?;
+                            match self
+                                .do_ocr(&file_bytes, &model, default_ocr_max_tokens())
+                                .await
+                            {
+                                Ok(ocr_text) if !ocr_text.is_empty() => {
+                                    source_text = ocr_text;
                                 }
-                            } else {
-                                t
+                                _ => {
+                                    source_text = partial_text;
+                                }
                             }
+                        } else {
+                            source_text = partial_text;
                         }
-                        Err(_) => {
-                            return Err(McpToolError::internal(format!(
-                                "Failed to extract text from PDF '{}'",
-                                file_path
-                            )));
-                        }
-                    },
-                    "markdown" => match std::fs::read_to_string(file_path) {
-                        Ok(content) => convert::strip_frontmatter(&content),
-                        Err(e) => {
-                            return Err(McpToolError::internal(format!(
-                                "Failed to read file '{}': {}",
-                                file_path, e
-                            )));
-                        }
-                    },
-                    "html" | "htm" => match std::fs::read_to_string(file_path) {
-                        Ok(content) => convert::strip_html(&content),
-                        Err(e) => {
-                            return Err(McpToolError::internal(format!(
-                                "Failed to read file '{}': {}",
-                                file_path, e
-                            )));
-                        }
-                    },
-                    _ => match std::fs::read_to_string(file_path) {
-                        Ok(content) => content,
-                        Err(e) => {
-                            return Err(McpToolError::internal(format!(
-                                "Failed to read file '{}': {}",
-                                file_path, e
-                            )));
-                        }
-                    },
-                };
+                    }
+                }
                 source_label = file_path.replace(['/', '\\', '.', ' '], "_");
             } else {
-                // Unreachable — validated above
                 return Err(McpToolError::invalid_argument("No text or path provided"));
             }
 

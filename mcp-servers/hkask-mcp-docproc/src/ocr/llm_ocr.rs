@@ -96,12 +96,14 @@ impl OcrExecutor for LlmOcrExecutor {
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
-        // Confidence heuristic: non-empty output = nominal confidence
-        let confidence = if result.text.trim().is_empty() {
-            0.0
-        } else {
-            0.85
-        };
+        // Compute real confidence via quality heuristic (GAP-1).
+        // Replaces the previous nominal 0.85 with a signal based on:
+        //   - Non-emptiness (base 0.25)
+        //   - Length ratio vs image dimensions (up to 0.40)
+        //   - Lexical quality: proportion of well-formed word tokens (up to 0.30)
+        // Results are clamped to [0.0, 0.95] — 0.95 cap acknowledges that
+        // heuristic confidence can never be fully certain.
+        let confidence = ocr_quality_heuristic(&result.text, image.width(), image.height());
 
         Ok(OcrResult {
             page_index,
@@ -112,6 +114,54 @@ impl OcrExecutor for LlmOcrExecutor {
             was_fallback: is_fallback,
         })
     }
+}
+
+/// Compute OCR quality confidence from output text characteristics.
+///
+/// Multi-factor heuristic replacing the previous fixed 0.85 nominal:
+/// - Base score (0.25): awarded if output is non-empty
+/// - Length ratio (up to 0.40): how well output length matches expected
+///   character count from image dimensions (~2000 px/char at 300 DPI)
+/// - Lexical quality (up to 0.30): proportion of word tokens that are
+///   well-formed (alphabetic, 2-20 chars)
+///
+/// Capped at 0.95 to acknowledge heuristic uncertainty.
+fn ocr_quality_heuristic(text: &str, image_width: u32, image_height: u32) -> f32 {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return 0.0;
+    }
+
+    // Base score for non-empty output
+    let base = 0.25;
+
+    // Length ratio: actual character count vs expected from image dimensions
+    let pixels = (image_width as f64) * (image_height as f64);
+    let expected_chars = (pixels / 2000.0).max(1.0);
+    let actual_chars = trimmed.chars().count() as f64;
+    let length_ratio = (actual_chars / expected_chars).clamp(0.0, 5.0);
+
+    // Score peaks at ratio ~1.0, penalizes very short or very long output
+    let length_score = if length_ratio > 0.05 && length_ratio < 4.0 {
+        let distance_from_ideal = (length_ratio - 1.0).abs();
+        (0.40 * (1.0 - distance_from_ideal / 3.0)).max(0.0)
+    } else {
+        0.0
+    };
+
+    // Lexical quality: proportion of well-formed word tokens
+    let words: Vec<&str> = trimmed.split_whitespace().collect();
+    let word_count = words.len().max(1);
+    let valid_words = words
+        .iter()
+        .filter(|w| {
+            let alpha = w.chars().filter(|c| c.is_alphabetic()).count();
+            w.len() >= 2 && w.len() <= 25 && alpha as f64 / w.len().max(1) as f64 > 0.5
+        })
+        .count();
+    let lexical_score = 0.30 * (valid_words as f32 / word_count as f32);
+
+    (base + length_score as f32 + lexical_score).clamp(0.0, 0.95)
 }
 
 #[cfg(test)]

@@ -56,6 +56,12 @@ pub fn analyze_threshold_drift(
     outcomes: &[PipelineOutcome],
     current_thresholds: &ThresholdConfig,
 ) -> Option<ThresholdDriftAlert> {
+    // P4: Respect the tuneable guardrail — if threshold tuning is disabled,
+    // don't even analyze. The field was previously defined but never enforced.
+    if !current_thresholds.tuneable {
+        return None;
+    }
+
     // Collect all cross-validations from Moderate-tier pages
     let moderate_cvs: Vec<&CrossValidation> = outcomes
         .iter()

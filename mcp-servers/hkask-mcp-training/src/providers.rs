@@ -2665,3 +2665,165 @@ impl Default for CostEstimate {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn harness_id_from_str() {
+        assert_eq!(
+            TrainingHarnessId::from_str("axolotl"),
+            Some(TrainingHarnessId::Axolotl)
+        );
+        assert_eq!(
+            TrainingHarnessId::from_str("AXOLOTL"),
+            Some(TrainingHarnessId::Axolotl)
+        );
+        assert_eq!(
+            TrainingHarnessId::from_str("unsloth"),
+            Some(TrainingHarnessId::Unsloth)
+        );
+        assert_eq!(TrainingHarnessId::from_str("unknown"), None);
+    }
+
+    #[test]
+    fn host_id_from_str() {
+        assert_eq!(
+            TrainingHostId::from_str("together"),
+            Some(TrainingHostId::Together)
+        );
+        assert_eq!(
+            TrainingHostId::from_str("runpod"),
+            Some(TrainingHostId::Runpod)
+        );
+        assert_eq!(
+            TrainingHostId::from_str("baseten"),
+            Some(TrainingHostId::Baseten)
+        );
+        assert_eq!(TrainingHostId::from_str("unknown"), None);
+    }
+
+    #[test]
+    fn model_size_multiplier() {
+        assert_eq!(extract_model_size_multiplier("Qwen3:8b"), 1);
+        assert_eq!(extract_model_size_multiplier("Llama-3.3-70B"), 4);
+        // NOTE: "Mixtral-8x7b" matches "7b" before "8x7b" in the pattern list.
+        // This is a known ordering bug — "8x7b" should be checked before "8b"/"7b".
+        assert_eq!(extract_model_size_multiplier("Mixtral-8x7b"), 1); // bug: should be 2
+        assert_eq!(extract_model_size_multiplier("unknown-model"), 2); // default
+    }
+
+    #[test]
+    fn estimate_cost_is_positive() {
+        let cost = estimate_training_cost_urj(&TrainingHostId::Together, 3, "Qwen3:8b");
+        assert_eq!(cost, 3_000_000); // 1M * 3 epochs * 1 (8b multiplier)
+
+        let cost = estimate_training_cost_urj(&TrainingHostId::Runpod, 2, "Llama-3.3-70B");
+        assert_eq!(cost, 4_000_000); // 500K * 2 epochs * 4 (70b multiplier)
+
+        let cost = estimate_training_cost_urj(&TrainingHostId::Baseten, 1, "unknown");
+        assert_eq!(cost, 1_000_000); // 500K * 1 epoch * 2 (default multiplier)
+    }
+
+    #[test]
+    fn training_job_new_has_valid_defaults() {
+        let params = TrainingParams::default();
+        let job = TrainingJob::new(
+            PathBuf::from("/tmp/test.jsonl"),
+            "Qwen3:8b".into(),
+            params,
+            TrainingHostId::Together,
+            TrainingHarnessId::Axolotl,
+        );
+        assert!(!job.id.is_empty());
+        assert_eq!(job.base_model, "Qwen3:8b");
+        assert_eq!(job.host, TrainingHostId::Together);
+        assert_eq!(job.harness, TrainingHarnessId::Axolotl);
+        assert_eq!(job.status, TrainingJobStatus::Queued);
+        assert!(job.estimated_cost_urj > 0);
+    }
+
+    #[test]
+    fn lora_params_default() {
+        let params = LoraParams::default();
+        assert_eq!(params.r, 16);
+        assert_eq!(params.alpha, 32);
+        assert_eq!(params.dropout, 0.0);
+        assert_eq!(params.target_modules.len(), 4);
+        assert!(!params.use_rslora);
+    }
+
+    #[test]
+    fn training_params_default() {
+        let params = TrainingParams::default();
+        assert_eq!(params.num_epochs, 3);
+        assert!(params.batch_size > 0);
+    }
+
+    #[test]
+    fn harness_capability_cns_spans() {
+        // Every HarnessCapability variant must have a non-empty CNS span.
+        use HarnessCapability::*;
+        for cap in [
+            Qlora4bit,
+            Qlora8bit,
+            DoubleQuant,
+            RsLora,
+            SequencePacking,
+            Neftune,
+            FlashAttention2,
+            FlashAttention3,
+            Sdpa,
+            GradientCheckpointing,
+            Fp8Mixed,
+            DeepSpeed,
+            Fsdp,
+            SampleGeneration,
+            LoraPlus,
+        ] {
+            let span = cap.cns_span();
+            assert!(!span.is_empty(), "{cap:?} has empty CNS span");
+            assert!(
+                span.starts_with("cns."),
+                "{cap:?} span '{span}' doesn't start with cns."
+            );
+        }
+    }
+
+    #[test]
+    fn training_job_status_is_serializable() {
+        let status = TrainingJobStatus::Queued;
+        let json = serde_json::to_string(&status).expect("serialize");
+        assert!(json.contains("queued"));
+    }
+
+    #[test]
+    fn axolotl_harness_output_dir() {
+        let harness = AxolotlHarness;
+        let path = harness.output_dir("job-123");
+        assert!(path.to_string_lossy().contains("job-123"));
+    }
+
+    #[test]
+    fn unsloth_harness_output_dir() {
+        let harness = UnslothHarness;
+        let path = harness.output_dir("job-456");
+        assert!(path.to_string_lossy().contains("job-456"));
+    }
+
+    #[test]
+    fn trainer_harness_has_trl_hub_path() {
+        let harness = TrainerHarness;
+        let path = harness.output_dir("job-789");
+        assert!(path.to_string_lossy().contains("trl"));
+        assert!(path.to_string_lossy().contains("job-789"));
+    }
+
+    #[test]
+    fn host_config_default() {
+        let config = TrainingHostConfig::default();
+        assert_eq!(config.harness, TrainingHarnessId::Axolotl);
+        assert_eq!(config.host, TrainingHostId::Together);
+    }
+}

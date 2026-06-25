@@ -4450,6 +4450,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-filesystem"
+version = "0.31.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dotenvy",
+ "hkask-mcp",
+ "hkask-test-harness",
+ "hkask-types",
+ "regex",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "walkdir",
+]
+
+[[package]]
 name = "hkask-mcp-fuzz"
 version = "0.0.0"
 dependencies = [
