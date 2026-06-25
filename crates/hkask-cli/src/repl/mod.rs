@@ -140,7 +140,7 @@ pub fn run(
         return;
     };
 
-    let helper = KaskHelper::new();
+    let helper = KaskHelper::new(state.thread_registry.clone());
 
     let rl_config = ReadlineConfig::builder()
         .history_ignore_space(true)

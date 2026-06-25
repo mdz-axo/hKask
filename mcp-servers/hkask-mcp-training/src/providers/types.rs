@@ -10,9 +10,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 // ── Training harness identifiers ─────────────────────────────────────────────
@@ -158,8 +156,8 @@ pub(crate) fn estimate_training_cost_urj(
 ) -> u64 {
     let base_per_epoch: u64 = match host {
         TrainingHostId::Together => 1_000_000, // ~$1.00/epoch
-        TrainingHostId::Runpod => 500_000,      // ~$0.50/epoch
-        TrainingHostId::Baseten => 500_000,     // ~$0.50/epoch
+        TrainingHostId::Runpod => 500_000,     // ~$0.50/epoch
+        TrainingHostId::Baseten => 500_000,    // ~$0.50/epoch
     };
     let size_mult = extract_model_size_multiplier(base_model);
     base_per_epoch * (num_epochs as u64) * size_mult

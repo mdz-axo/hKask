@@ -7,13 +7,15 @@ use rustyline::validate::Validator;
 use std::borrow::Cow;
 
 use super::commands::SLASH_COMMANDS;
+use super::threads::ThreadRegistry;
 
 pub(super) struct KaskHelper {
     slash_completions: Vec<String>,
+    thread_registry: ThreadRegistry,
 }
 
 impl KaskHelper {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(thread_registry: ThreadRegistry) -> Self {
         let mut slash_completions = Vec::new();
         for cmd in SLASH_COMMANDS {
             slash_completions.push(format!("/{}", cmd.primary));
@@ -21,7 +23,10 @@ impl KaskHelper {
                 slash_completions.push(format!("/{}", alias));
             }
         }
-        Self { slash_completions }
+        Self {
+            slash_completions,
+            thread_registry,
+        }
     }
 }
 
@@ -39,6 +44,52 @@ impl Completer for KaskHelper {
         }
 
         let partial = &line[..pos];
+
+        // Thread ID completion: /thread switch <prefix> or /thread archive <prefix>
+        if partial.starts_with("/thread switch ") || partial.starts_with("/th switch ") {
+            let prefix = partial.split_whitespace().nth(2).unwrap_or("");
+            let ids: Vec<String> = self
+                .thread_registry
+                .threads
+                .keys()
+                .filter(|id| id.starts_with(prefix))
+                .map(|id| {
+                    format!(
+                        "{} {}",
+                        partial
+                            .split_at(partial.rfind(' ').unwrap_or(partial.len()))
+                            .0,
+                        id
+                    )
+                })
+                .collect();
+            if !ids.is_empty() {
+                return Ok((0, ids));
+            }
+        }
+        if partial.starts_with("/thread archive ") || partial.starts_with("/th archive ") {
+            let prefix = partial.split_whitespace().nth(2).unwrap_or("");
+            let ids: Vec<String> = self
+                .thread_registry
+                .threads
+                .keys()
+                .filter(|id| id.starts_with(prefix))
+                .map(|id| {
+                    format!(
+                        "{} {}",
+                        partial
+                            .split_at(partial.rfind(' ').unwrap_or(partial.len()))
+                            .0,
+                        id
+                    )
+                })
+                .collect();
+            if !ids.is_empty() {
+                return Ok((0, ids));
+            }
+        }
+
+        // Slash command completion
         let matches: Vec<String> = self
             .slash_completions
             .iter()

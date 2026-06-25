@@ -29,6 +29,22 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+/// Strip a recognized 2-letter provider prefix from a model name.
+///
+/// "KC/qwen/qwen3-235b-a22b-2507" → "qwen/qwen3-235b-a22b-2507"
+/// "qwen/qwen3.5-35b-a3b"        → "qwen/qwen3.5-35b-a3b" (no recognized prefix)
+///
+/// Used before sending model IDs to classifier base URLs, which determine
+/// the provider independently of the model string.
+fn strip_provider_prefix(model: &str) -> &str {
+    for prefix in ["DI/", "KC/", "FA/", "TG/", "OR/", "RP/", "BT/"] {
+        if let Some(rest) = model.strip_prefix(prefix) {
+            return rest;
+        }
+    }
+    model
+}
+
 use hkask_services_core::ServiceError;
 
 // ── Re-exports ─────────────────────────────────────────────────────────────
@@ -165,13 +181,8 @@ pub struct CorpusConfig {
     pub classifier: String,
 
     /// Triple extractor classifier config name (references registry/classify/{name}.yaml).
-    /// Uses Qwen3-235B-A22B MoE (KiloCode) to extract semantic triples (topic, concepts,
-    /// entities, relationships, primary_dimension, quality_flags) from each passage.
     /// Defaults to "triple-extractor". Set to empty string to disable.
-    ///
-    /// Model choice backed by Martin et al. (arXiv:2603.29878): Qwen family at 99.22%
-    /// Few-Shot F1 vs Llama 99.35% — statistically indistinguishable, far cheaper.
-    /// Fallback: qwen/qwen3.5-35b-a3b (3B active MoE) if 235B becomes unavailable.
+    /// Model selection, Few-Shot strategy, and fallback are documented in the YAML config.
     #[serde(default = "default_triple_classifier")]
     pub triple_classifier: String,
 }
@@ -730,7 +741,7 @@ impl EmbedService {
             .unwrap_or_else(|| Path::new("registry"));
 
         // Load classifier config if specified in corpus.yaml
-        let classifier_config = if config.classifier.is_empty() {
+        let mut classifier_config = if config.classifier.is_empty() {
             tracing::info!("No classifier configured — all passages default to Statement");
             hkask_services_runtime::ClassifierConfig::from_def(&Default::default())
         } else {
@@ -738,6 +749,14 @@ impl EmbedService {
                 hkask_services_runtime::load_classifier_config(&config.classifier, registry_dir)?;
             hkask_services_runtime::ClassifierConfig::from_def(&def)
         };
+
+        // Override YAML model with the runtime classifier_model setting.
+        // Same pattern as triple extraction — keeps section_type in sync with
+        // HKASK_CLASSIFIER_MODEL and the /model REPL setting.
+        let settings_model = hkask_services_core::HkaskSettings::load().classifier_model();
+        if !settings_model.is_empty() {
+            classifier_config.model = strip_provider_prefix(&settings_model).to_string();
+        }
 
         let texts: Vec<String> = all_passages.iter().map(|p| p.text.clone()).collect();
 
@@ -780,13 +799,8 @@ impl EmbedService {
             // which the inference router needs; strip it for the classifier HTTP call.
             let settings_model = hkask_services_core::HkaskSettings::load().classifier_model();
             if !settings_model.is_empty() {
-                // Strip provider prefix (e.g., "KC/qwen/foo" → "qwen/foo").
-                // The base_url already determines the provider for classifier calls.
-                let bare_model = settings_model
-                    .split_once('/')
-                    .map(|(_, rest)| rest)
-                    .unwrap_or(&settings_model);
-                triple_config.model = bare_model.to_string();
+                // Strip provider prefix before sending to classifier base URL.
+                triple_config.model = strip_provider_prefix(&settings_model).to_string();
             }
 
             tracing::info!(

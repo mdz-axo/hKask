@@ -60,8 +60,9 @@ use crate::adapters::{
 };
 use crate::dataset::DatasetPipeline;
 use crate::providers::{
-    LoraParams, TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJob,
-    TrainingJobStatus, TrainingParams, create_host,
+    AxolotlHarness, HarnessAdapter, LoraParams, TrainingHarnessId, TrainingHost,
+    TrainingHostConfig, TrainingHostId, TrainingJob, TrainingJobStatus, TrainingParams,
+    UnslothHarness, create_host,
 };
 use crate::types::*;
 use hkask_adapter::AdapterPort;
@@ -375,7 +376,7 @@ impl TrainingServer {
                 harness: self.harness_id,
                 owner: None,
                 skill_name: None,
-                estimated_cost_urj: crate::providers::estimate_training_cost_urj(
+                estimated_cost_urj: crate::providers::types::estimate_training_cost_urj(
                     &self.host_id,
                     num_epochs,
                     &base_model,
@@ -2777,15 +2778,16 @@ pub async fn run(
         .and_then(|s| TrainingHarnessId::from_str(&s))
         .unwrap_or(TrainingHarnessId::Axolotl);
     let host_config = TrainingHostConfig {
-        harness: harness_id,
         host: host_id,
-        axolotl_path: std::env::var("HKASK_AXOLOTL_PATH").ok().map(PathBuf::from),
-        python_path: std::env::var("HKASK_PYTHON_PATH").ok().map(PathBuf::from),
         together_api_key: std::env::var("TOGETHER_API_KEY").unwrap_or_default(),
         runpod_api_key: std::env::var("RUNPOD_API_KEY").unwrap_or_default(),
         runpod_template_id: std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_default(),
         baseten_api_key: std::env::var("BASETEN_API_KEY").unwrap_or_default(),
         baseten_project_id: std::env::var("BASETEN_PROJECT_ID").unwrap_or_default(),
+    };
+    let harness: Box<dyn HarnessAdapter> = match harness_id {
+        TrainingHarnessId::Axolotl => Box::new(AxolotlHarness),
+        TrainingHarnessId::Unsloth => Box::new(UnslothHarness),
     };
 
     let cache_dir = PathBuf::from(
@@ -2865,19 +2867,19 @@ pub async fn run(
                     ),
                 };
 
-                let host = create_host(&host_config)
-                    .map_err(|e| anyhow::anyhow!("Failed to create training host: {}", e))?;
+                let host = create_host(&host_config, harness)
+                                    .map_err(|e| anyhow::anyhow!("Failed to create training host: {}", e))?;
 
                 let inference_config = InferenceConfig::from_env();
 
                 Ok(TrainingServer::new(
-                    ctx.webid,
-                    replicant.clone(),
-                    daemon_client.clone(),
-                    semantic,
-                    host,
-                    host_config.host,
-                    host_config.harness,
+                                    ctx.webid,
+                                    replicant.clone(),
+                                    daemon_client.clone(),
+                                    semantic,
+                                    host,
+                                    host_config.host,
+                                    harness_id,
                     pipeline.clone(),
                     adapter_store,
                     job_store,

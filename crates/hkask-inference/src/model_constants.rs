@@ -10,10 +10,8 @@
 //! - `TEST_*` — arbitrary strings for serialization/fixture tests
 
 /// Fast classifier model for summarization, classification, and non-thinking tasks.
-/// Uses the `KC/` (KiloCode) prefix for routing through Kilo Gateway.
-/// Current: Qwen3-235B-A22B MoE — 99.22% Few-Shot F1 for triple extraction
-/// (Martin et al., arXiv:2603.29878). $0.07/$0.10 per 1M tokens.
-/// Fallback: qwen/qwen3.5-35b-a3b (3B active MoE, $0.16/$1.00 per 1M).
+/// Model selection, Few-Shot strategy, and rationale are documented in
+/// `registry/classify/triple-extractor.yaml`.
 pub const CLASSIFIER_MODEL: &str = "KC/qwen/qwen3-235b-a22b-2507";
 
 /// Default embedding model.
