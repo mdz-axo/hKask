@@ -17,4 +17,4 @@ Multi-provider inference router for hKask — DeepInfra, Together AI, fal.ai, Op
 | `DI_API_KEY` | DeepInfra API key |
 | `TOGETHER_API_KEY` | Together AI API key |
 | `OR_API_KEY` | OpenRouter API key |
-| `INFERENCE_MODEL` | Default model (e.g., `google/gemma-4-26B-A4B-it`) |
+| `INFERENCE_MODEL` | Default model (e.g., `qwen/qwen3-235b-a22b-2507`) |

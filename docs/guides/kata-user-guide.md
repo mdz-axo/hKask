@@ -286,12 +286,12 @@ kask kata start improvement-kata --bot Alice --ctx "capability=span_emission"
 ```
 
 The engine walks the 4-step PDCA cycle:
-1. **Direction** — classification step, uses Gemma 4 26B classifier model
-2. **Current Condition** — classification step, uses Gemma 4 26B classifier model
+1. **Direction** — classification step, uses classifier model (Qwen3 MoE, configured via HKASK_CLASSIFIER_MODEL)
+2. **Current Condition** — classification step, uses classifier model
 3. **Target Condition** — reasoning step, uses the configured generation model
 4. **Experiment** — reasoning step, uses the configured generation model
 
-Steps marked `classifier: true` in the manifest use the system classifier model (`google/gemma-4-26B-A4B-it` via DeepInfra). Reasoning steps use the default generation model.
+Steps marked `classifier: true` in the manifest use the system classifier model (Qwen3-235B-A22B MoE on KiloCode). Reasoning steps use the default generation model.
 
 **Save and resume:**
 ```bash

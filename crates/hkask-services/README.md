@@ -20,7 +20,7 @@ Facade crate for all hKask service implementations. Provides the unified `Servic
 |-------|---------|
 | `hkask-services-core` | Core service traits and port definitions |
 | `hkask-services-backup` | Backup policy layer on Git CAS |
-| `hkask-services-classify` | Content classification (Gemma 4 via DeepInfra) |
+| `hkask-services-classify` | Content classification (Qwen3 MoE via KiloCode) |
 | `hkask-services-cloud` | Cloud deployment primitives |
 | `hkask-services-context` | Context window management |
 | `hkask-services-daemon` | Background daemon services |

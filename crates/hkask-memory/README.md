@@ -27,7 +27,8 @@ resets — t goes back to 0, R = 1.0.
 
 ## Template Pipeline
 
-Two separate Jinja2 templates for triple extraction from agent operations:
+Two separate Jinja2 templates for triple extraction from agent operations.
+Model configured via `HKASK_CLASSIFIER_MODEL` (default: Qwen3-235B-A22B MoE on KiloCode).
 
 | Template | Memory Type | Perspective | Extraction Focus |
 |----------|-------------|-------------|-----------------|
