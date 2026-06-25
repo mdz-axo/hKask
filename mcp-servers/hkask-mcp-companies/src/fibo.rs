@@ -20,7 +20,6 @@
 //! (e.g., `dctypes:Dataset` for financial data) and [`hkask_bridge_pko`]
 //! for financial procedure classification.
 
-
 /// A FIBO concept URI — the canonical identifier for a financial data concept.
 pub type FiboConcept = &'static str;
 
@@ -61,11 +60,28 @@ pub const DIVIDEND_YIELD: FiboConcept = "fibo-fbc-fct-ra:DividendYield";
 pub const REVENUE_GROWTH_RATE: FiboConcept = "fibo-fbc-fct-ra:RevenueGrowthRate";
 pub const EPS_GROWTH_RATE: FiboConcept = "fibo-fbc-fct-ra:EarningsPerShareGrowthRate";
 
-/// Portfolio concepts.
-pub const PORTFOLIO: FiboConcept = "fibo-sec-sec-ast:Portfolio";
-pub const SECURITY_HOLDING: FiboConcept = "fibo-sec-sec-ast:SecurityHolding";
-pub const HOLDING_WEIGHT: FiboConcept = "fibo-sec-sec-ast:holdingWeight";
-pub const WEIGHTED_AVERAGE: FiboConcept = "fibo-ind-ind-ind:WeightedAverage";
+/// DCF valuation concepts.
+pub const EFFECTIVE_TAX_RATE: FiboConcept = "fibo-fbc-fct-ra:EffectiveTaxRate";
+pub const DISCOUNT_RATE: FiboConcept = "fibo-fbc-fct-ra:DiscountRate";
+pub const TERMINAL_GROWTH_RATE: FiboConcept = "fibo-fbc-fct-ra:TerminalGrowthRate";
+pub const ENTERPRISE_VALUE: FiboConcept = "fibo-fbc-fct-ra:EnterpriseValue";
+pub const EQUITY_VALUE: FiboConcept = "fibo-fbc-fct-ra:EquityValue";
+pub const INTRINSIC_VALUE_PER_SHARE: FiboConcept = "fibo-fbc-fct-ra:IntrinsicValuePerShare";
+pub const FREE_CASH_FLOW: FiboConcept = "fibo-fbc-fct-ra:FreeCashFlow";
+pub const CAPITAL_EXPENDITURE: FiboConcept = "fibo-fbc-fct-ra:CapitalExpenditure";
+pub const DEPRECIATION_AND_AMORTIZATION: FiboConcept =
+    "fibo-fbc-fct-ra:DepreciationAndAmortization";
+pub const NET_WORKING_CAPITAL: FiboConcept = "fibo-fbc-fct-ra:NetWorkingCapital";
+pub const NET_DEBT: FiboConcept = "fibo-fbc-fct-ra:NetDebt";
+pub const COST_OF_GOODS_SOLD: FiboConcept = "fibo-fbc-fct-ra:CostOfGoodsSold";
+pub const EBIT: FiboConcept = "fibo-fbc-fct-ra:EarningsBeforeInterestAndTaxes";
+pub const NOPAT: FiboConcept = "fibo-fbc-fct-ra:NetOperatingProfitAfterTax";
+pub const MARGIN_OF_SAFETY: FiboConcept = "fibo-fbc-fct-ra:MarginOfSafety";
+
+/// Superforecasting / Bayesian concepts.
+pub const FORECAST_ID: FiboConcept = "fibo-fbc-fct-ra:ForecastIdentifier";
+pub const BRIER_SCORE: FiboConcept = "fibo-fbc-fct-ra:BrierScore";
+pub const SCENARIO_PROBABILITY: FiboConcept = "fibo-fbc-fct-ra:ScenarioProbability";
 
 // ── FMP/EODHD field → FIBO concept mapping ──────────────────────────────
 
@@ -104,6 +120,15 @@ pub fn fmp_field_to_fibo(field: &str) -> Option<FiboConcept> {
         "dividendYield" => Some(DIVIDEND_YIELD),
         "revenueGrowth" => Some(REVENUE_GROWTH_RATE),
         "epsGrowth" => Some(EPS_GROWTH_RATE),
+
+        // DCF valuation
+        "enterpriseValue" => Some(ENTERPRISE_VALUE),
+        "equityValue" => Some(EQUITY_VALUE),
+        "intrinsicValuePerShare" => Some(INTRINSIC_VALUE_PER_SHARE),
+        "freeCashFlow" => Some(FREE_CASH_FLOW),
+        "capitalExpenditure" => Some(CAPITAL_EXPENDITURE),
+        "netDebt" => Some(NET_DEBT),
+        "marginOfSafety" => Some(MARGIN_OF_SAFETY),
 
         // Not covered by FIBO (FMP/EODHD-specific metadata)
         _ => None,
@@ -215,5 +240,17 @@ mod tests {
         assert!((pe - 32.0).abs() < 0.01, "weighted P/E = 32.0");
         assert!((roe - 1.06).abs() < 0.01, "weighted ROE = 1.06");
         assert!((margin - 0.54).abs() < 0.01, "weighted margin = 0.54");
+    }
+
+    #[test]
+    fn fibo_dcf_concepts_exist() {
+        // Verify all DCF-specific concepts are defined
+        assert_eq!(EFFECTIVE_TAX_RATE, "fibo-fbc-fct-ra:EffectiveTaxRate");
+        assert_eq!(DISCOUNT_RATE, "fibo-fbc-fct-ra:DiscountRate");
+        assert_eq!(ENTERPRISE_VALUE, "fibo-fbc-fct-ra:EnterpriseValue");
+        assert_eq!(EQUITY_VALUE, "fibo-fbc-fct-ra:EquityValue");
+        assert_eq!(FREE_CASH_FLOW, "fibo-fbc-fct-ra:FreeCashFlow");
+        assert_eq!(NET_DEBT, "fibo-fbc-fct-ra:NetDebt");
+        assert_eq!(MARGIN_OF_SAFETY, "fibo-fbc-fct-ra:MarginOfSafety");
     }
 }

@@ -40,7 +40,7 @@ visibility: Public
     When CNS wiring is complete, this template will compare LLM-judged metric
     against objective CNS counter deltas for calibration.
 #}
-{# learner_bot: {{ learner_bot | default("unknown") }} #}
+{# learner_bot: {{ learner_bot }} (default: "unknown") #}
 
 [inference]
 temperature = 0.1

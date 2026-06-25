@@ -25,9 +25,9 @@ pub use hkask_ports::ToolInfo;
 pub use runtime::{McpRuntime, McpServer, McpTool, ServerStartError};
 pub use server::{
     CapabilityTier, CredentialRequirement, ExperienceCallback, McpError, ServerContext,
-    ToolContext, api_get, api_put, execute_tool, load_dotenv,
-    record_via_daemon, resolve_credential, run_stdio_server, run_stdio_server_with_preloaded,
-    tool_internal_error, validate_identifier,
+    ToolContext, api_get, api_put, execute_tool, load_dotenv, record_via_daemon,
+    resolve_credential, run_stdio_server, run_stdio_server_with_preloaded, tool_internal_error,
+    validate_identifier,
 };
 pub use startup::{StartupGateResult, verify_startup_gates};
 

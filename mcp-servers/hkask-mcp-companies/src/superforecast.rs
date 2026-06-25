@@ -349,7 +349,7 @@ pub fn distribute_scenario_probabilities(
         .enumerate()
         .map(|(i, r)| WeightedScenario {
             name: r.scenario.name,
-            intrinsic_per_share: r.dcf_result.intrinsic_per_share,
+            intrinsic_per_share: r.intrinsic_per_share,
             probability: probs[i],
         })
         .collect()

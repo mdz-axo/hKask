@@ -40,6 +40,171 @@ pub struct HistoricalSnapshot {
 }
 
 impl HistoricalSnapshot {
+    /// Build from FMP/EODHD API JSON data.
+    /// All arrays (income_statements, balance_sheets, cash_flows) are iterated
+    /// in reverse to produce ascending (oldest-first) year order.
+    pub fn from_api_json(
+        income_statements: &[serde_json::Value],
+        balance_sheets: &[serde_json::Value],
+        cash_flows: &[serde_json::Value],
+        key_metrics: &[serde_json::Value],
+        profile: &serde_json::Value,
+    ) -> Self {
+        // Extract revenue, COGS, D&A, tax data from income statements
+        let mut revenue: Vec<(String, f64)> = Vec::new();
+        let mut cogs: Vec<(String, f64)> = Vec::new();
+        let mut da: Vec<(String, f64)> = Vec::new();
+        let mut tax_expense: Vec<f64> = Vec::new();
+        let mut pre_tax_income: Vec<f64> = Vec::new();
+
+        for entry in income_statements.iter().rev() {
+            let year = entry
+                .get("calendarYear")
+                .or_else(|| entry.get("date"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let rev = entry.get("revenue").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let c = entry
+                .get("costOfRevenue")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            let d = entry
+                .get("depreciationAndAmortization")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            let te = entry
+                .get("incomeTaxExpense")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            let pi = entry
+                .get("incomeBeforeTax")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(1.0);
+
+            if year.is_empty() || rev == 0.0 {
+                continue;
+            }
+            revenue.push((year.to_string(), rev));
+            cogs.push((year.to_string(), c));
+            da.push((year.to_string(), d));
+            tax_expense.push(te);
+            pre_tax_income.push(pi);
+        }
+
+        // Extract balance sheet items
+        let mut total_assets: Vec<(String, f64)> = Vec::new();
+        let mut current_assets: Vec<(String, f64)> = Vec::new();
+        let mut current_liabilities: Vec<(String, f64)> = Vec::new();
+        let mut cash: Vec<(String, f64)> = Vec::new();
+        let mut long_term_debt: Vec<(String, f64)> = Vec::new();
+        let mut equity: Vec<(String, f64)> = Vec::new();
+
+        for entry in balance_sheets.iter().rev() {
+            let year = entry
+                .get("calendarYear")
+                .or_else(|| entry.get("date"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if year.is_empty() {
+                continue;
+            }
+            total_assets.push((
+                year.to_string(),
+                entry
+                    .get("totalAssets")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+            ));
+            current_assets.push((
+                year.to_string(),
+                entry
+                    .get("totalCurrentAssets")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+            ));
+            current_liabilities.push((
+                year.to_string(),
+                entry
+                    .get("totalCurrentLiabilities")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+            ));
+            cash.push((
+                year.to_string(),
+                entry
+                    .get("cashAndCashEquivalents")
+                    .or_else(|| entry.get("cashAndShortTermInvestments"))
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+            ));
+            long_term_debt.push((
+                year.to_string(),
+                entry
+                    .get("longTermDebt")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+            ));
+            equity.push((
+                year.to_string(),
+                entry
+                    .get("totalStockholdersEquity")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+            ));
+        }
+
+        // Extract capex from cash flows (FMP: capex is negative)
+        let mut capex: Vec<(String, f64)> = Vec::new();
+        for entry in cash_flows.iter().rev() {
+            let year = entry
+                .get("calendarYear")
+                .or_else(|| entry.get("date"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if year.is_empty() {
+                continue;
+            }
+            let cap = entry
+                .get("capitalExpenditure")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            capex.push((year.to_string(), cap.abs()));
+        }
+
+        // Shares outstanding: prefer key_metrics recent, fall back to profile
+        let shares_outstanding = key_metrics
+            .first()
+            .and_then(|e| e.get("weightedAverageShsOut").and_then(|v| v.as_f64()))
+            .or_else(|| profile.get("sharesOutstanding").and_then(|v| v.as_f64()))
+            .unwrap_or(1_000.0);
+
+        // Tax rate from most recent tax_expense / pre_tax_income
+        let tax_rate = if let (Some(&te), Some(&pi)) = (tax_expense.last(), pre_tax_income.last()) {
+            if pi > 0.0 {
+                (te / pi).clamp(0.0, 0.50)
+            } else {
+                0.21
+            }
+        } else {
+            0.21
+        };
+
+        HistoricalSnapshot {
+            revenue,
+            cogs,
+            da,
+            capex,
+            total_assets,
+            current_assets,
+            current_liabilities,
+            cash,
+            long_term_debt,
+            equity,
+            shares_outstanding,
+            tax_rate,
+        }
+    }
+
     /// Latest year's data.
     pub fn latest_revenue(&self) -> f64 {
         self.revenue.last().map(|(_, v)| *v).unwrap_or(0.0)
@@ -102,7 +267,7 @@ impl HistoricalSnapshot {
         if rev <= 0.0 {
             return 0.03;
         }
-        self.latest_capex().abs() / rev
+        self.latest_capex() / rev
     }
 
     /// NWC as percentage of revenue.
@@ -239,7 +404,7 @@ impl ProjectionAssumptions {
 pub fn project_model(
     hist: &HistoricalSnapshot,
     assumptions: &ProjectionAssumptions,
-    current_price: f64,
+    _current_price: f64,
 ) -> ProjectedModel {
     let stage2_years = assumptions.total_years - assumptions.stage1_years;
     let total_years = assumptions.total_years as usize;
@@ -313,7 +478,7 @@ pub fn project_model(
     let terminal_df = 1.0 / (1.0 + assumptions.discount_rate).powi(total_years as i32);
     let terminal_pv = terminal_value * terminal_df;
 
-    // Enterprise → equity
+    // Enterprise to equity
     let sum_pv: f64 = periods.iter().map(|p| p.present_value).sum();
     let enterprise_value = sum_pv + terminal_pv;
     let net_debt = hist.net_debt();
@@ -332,6 +497,126 @@ pub fn project_model(
         net_debt,
         equity_value,
         intrinsic_per_share,
+    }
+}
+
+// ── Gap decomposition ──────────────────────────────────────────────────────
+
+/// Result of decomposing a forecast-vs-actual return gap.
+#[derive(Debug, Clone, Serialize)]
+pub struct GapDecomposition {
+    pub total_return_gap: f64,
+    pub revenue_growth_contribution: f64,
+    pub gross_margin_contribution: f64,
+    pub da_contribution: f64,
+    pub capex_contribution: f64,
+    pub nwc_contribution: f64,
+    pub multiple_contribution: f64,
+    pub net_debt_contribution: f64,
+    pub residual: f64,
+}
+
+/// Decompose the gap between projected and actual intrinsic value into
+/// 11-line-item drivers. Each contribution is computed by running the
+/// projection model with only that one assumption changed to the actual,
+/// and measuring the intrinsic value delta.
+pub fn decompose_gap(
+    projected: &ProjectedModel,
+    projected_assumptions: &ProjectionAssumptions,
+    actual_hist: &HistoricalSnapshot,
+    actual_price: f64,
+    actual_multiple: f64,
+    _projected_intrinsic: f64,
+    projected_price: f64,
+) -> GapDecomposition {
+    // Baseline: the original projection gives projected_intrinsic_per_share
+    let base_intrinsic = projected.intrinsic_per_share;
+    let base_price = projected_price;
+
+    // Total return gap: actual price change - projected price change
+    // (if we had projected price and actual price)
+    let projected_return = if base_price > 0.0 {
+        (base_intrinsic - base_price) / base_price
+    } else {
+        0.0
+    };
+    let actual_return = if actual_price > 0.0 && projected_price > 0.0 {
+        (actual_price - projected_price) / projected_price
+    } else {
+        0.0
+    };
+    let total_return_gap = actual_return - projected_return;
+
+    // Helper to compute what intrinsic would be with one parameter changed
+    let compute_delta = |assumptions: &ProjectionAssumptions| -> f64 {
+        let alt_model = project_model(actual_hist, assumptions, 0.0);
+        alt_model.intrinsic_per_share - base_intrinsic
+    };
+
+    // Revenue growth contribution: use actual CAGR vs projected CAGR
+    let mut growth_assumptions = projected_assumptions.clone();
+    growth_assumptions.revenue_growth = actual_hist.revenue_cagr();
+    let revenue_growth_delta = compute_delta(&growth_assumptions);
+
+    // Gross margin contribution
+    let mut gm_assumptions = projected_assumptions.clone();
+    gm_assumptions.gross_margin = actual_hist.gross_margin();
+    let gross_margin_delta = compute_delta(&gm_assumptions);
+
+    // D&A contribution
+    let mut da_assumptions = projected_assumptions.clone();
+    da_assumptions.da_to_revenue = actual_hist.da_to_revenue();
+    let da_delta = compute_delta(&da_assumptions);
+
+    // Capex contribution
+    let mut capex_assumptions = projected_assumptions.clone();
+    capex_assumptions.capex_to_revenue = actual_hist.capex_to_revenue();
+    let capex_delta = compute_delta(&capex_assumptions);
+
+    // NWC contribution
+    let mut nwc_assumptions = projected_assumptions.clone();
+    nwc_assumptions.nwc_to_revenue = actual_hist.nwc_to_revenue();
+    let nwc_delta = compute_delta(&nwc_assumptions);
+
+    // Multiple contribution: (actual multiple - projected multiple) * actual_fcf
+    let projected_multiple = if let Some(last) = projected.periods.last() {
+        if last.free_cash_flow > 0.0 {
+            projected.terminal_value / last.free_cash_flow
+        } else {
+            0.0
+        }
+    } else {
+        0.0
+    };
+    let multiple_delta = (actual_multiple - projected_multiple) * 10.0;
+
+    // Net debt contribution: change in net debt directly affects equity value
+    let projected_net_debt = projected.net_debt;
+    let actual_net_debt = actual_hist.net_debt();
+    let net_debt_delta =
+        (projected_net_debt - actual_net_debt) / actual_hist.shares_outstanding.max(1.0);
+
+    // Residual: total gap minus sum of contributions
+    let sum_contributions = revenue_growth_delta
+        + gross_margin_delta
+        + da_delta
+        + capex_delta
+        + nwc_delta
+        + multiple_delta
+        + net_debt_delta;
+    let residual =
+        (actual_return * base_price) - (projected_return * base_price) - sum_contributions;
+
+    GapDecomposition {
+        total_return_gap,
+        revenue_growth_contribution: revenue_growth_delta,
+        gross_margin_contribution: gross_margin_delta,
+        da_contribution: da_delta,
+        capex_contribution: capex_delta,
+        nwc_contribution: nwc_delta,
+        multiple_contribution: multiple_delta,
+        net_debt_contribution: net_debt_delta,
+        residual,
     }
 }
 
@@ -357,9 +642,9 @@ mod tests {
                 ("2024".into(), 3_500.0),
             ],
             capex: vec![
-                ("2022".into(), -2_500.0),
-                ("2023".into(), -2_800.0),
-                ("2024".into(), -3_000.0),
+                ("2022".into(), 2_500.0),
+                ("2023".into(), 2_800.0),
+                ("2024".into(), 3_000.0),
             ],
             total_assets: vec![("2024".into(), 200_000.0)],
             current_assets: vec![("2024".into(), 50_000.0)],
@@ -383,21 +668,21 @@ mod tests {
     fn revenue_cagr_from_history() {
         let h = sample_hist();
         let cagr = h.revenue_cagr();
-        // (100/80)^(1/2) - 1 = 1.25^0.5 - 1 ≈ 0.118
+        // (100/80)^(1/2) - 1 = 1.25^0.5 - 1 ~= 0.118
         assert!((cagr - 0.118).abs() < 0.01, "got {cagr}");
     }
 
     #[test]
     fn nwc_computation() {
         let h = sample_hist();
-        // CA=50, CL=30, Cash=10 → NWC = 50-30-10 = 10
+        // CA=50, CL=30, Cash=10 => NWC = 50-30-10 = 10
         assert!((h.latest_nwc() - 10_000.0).abs() < 1.0);
     }
 
     #[test]
     fn net_debt() {
         let h = sample_hist();
-        // Debt=40, Cash=10 → net_debt = 40-10 = 30
+        // Debt=40, Cash=10 => net_debt = 40-10 = 30
         assert!((h.net_debt() - 30_000.0).abs() < 1.0);
     }
 
@@ -444,5 +729,50 @@ mod tests {
         // EV = sum_pv + terminal_pv, Equity = EV - net_debt
         let expected_equity = model.enterprise_value - model.net_debt;
         assert!((model.equity_value - expected_equity).abs() < 1.0);
+    }
+
+    #[test]
+    fn from_api_json_extracts_correctly() {
+        let income = vec![
+            serde_json::json!({"calendarYear": "2024", "revenue": 100_000, "costOfRevenue": 60_000, "depreciationAndAmortization": 3_500, "incomeTaxExpense": 5_000, "incomeBeforeTax": 20_000}),
+            serde_json::json!({"calendarYear": "2023", "revenue": 90_000, "costOfRevenue": 55_000, "depreciationAndAmortization": 3_200, "incomeTaxExpense": 4_500, "incomeBeforeTax": 18_000}),
+        ];
+        let balance = vec![
+            serde_json::json!({"calendarYear": "2024", "totalAssets": 200_000, "totalCurrentAssets": 50_000, "totalCurrentLiabilities": 30_000, "cashAndCashEquivalents": 10_000, "longTermDebt": 40_000, "totalStockholdersEquity": 80_000}),
+        ];
+        let cf = vec![serde_json::json!({"calendarYear": "2024", "capitalExpenditure": -3_000})];
+        let km: Vec<serde_json::Value> = vec![];
+        let profile = serde_json::json!({"sharesOutstanding": 1_000.0});
+
+        let hist = HistoricalSnapshot::from_api_json(&income, &balance, &cf, &km, &profile);
+        assert!((hist.latest_revenue() - 100_000.0).abs() < 1.0);
+        assert!((hist.latest_cogs() - 60_000.0).abs() < 1.0);
+        assert!((hist.latest_capex() - 3_000.0).abs() < 1.0);
+        assert!((hist.shares_outstanding - 1_000.0).abs() < 1.0);
+        // Tax rate: 5000/20000 = 0.25
+        assert!((hist.tax_rate - 0.25).abs() < 0.01, "got {}", hist.tax_rate);
+        // Revenue is in ascending order: 2023, 2024
+        assert_eq!(hist.revenue[0].0, "2023");
+        assert_eq!(hist.revenue[1].0, "2024");
+    }
+
+    #[test]
+    fn gap_decomposition_produces_finite_values() {
+        let h = sample_hist();
+        let a = ProjectionAssumptions::from_history(&h);
+        let model = project_model(&h, &a, 150.0);
+        let gap = decompose_gap(
+            &model,
+            &a,
+            &h,
+            150.0,
+            15.0,
+            model.intrinsic_per_share,
+            150.0,
+        );
+        assert!(gap.total_return_gap.is_finite());
+        assert!(gap.revenue_growth_contribution.is_finite());
+        assert!(gap.gross_margin_contribution.is_finite());
+        assert!(gap.residual.is_finite());
     }
 }

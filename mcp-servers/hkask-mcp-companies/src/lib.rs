@@ -43,11 +43,12 @@ use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_types::WebID;
 use hkask_types::time::now_rfc3339;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
+use std::collections::HashMap;
+use uuid::Uuid;
 
 mod analysis;
-mod financial_model;
-mod dcf;
 pub mod fibo;
+mod financial_model;
 mod portfolio;
 mod providers;
 mod scenarios;
@@ -57,6 +58,45 @@ pub mod types;
 use portfolio::PortfolioManager;
 
 use types::*;
+
+// ── Forecast store ───────────────────────────────────────────────────
+
+/// A stored forecast model for later decomposition during `forecast_record`.
+#[derive(Debug, Clone)]
+pub struct StoredForecast {
+    pub forecast_id: String,
+    pub symbol: String,
+    pub created_at: String,
+    pub model: financial_model::ProjectedModel,
+    pub assumptions: financial_model::ProjectionAssumptions,
+    pub hist: financial_model::HistoricalSnapshot,
+    pub current_price: f64,
+    pub intrinsic_per_share: f64,
+}
+
+/// Extract the terminal multiple implied by the projected model.
+fn projected_terminal_multiple(model: &financial_model::ProjectedModel) -> f64 {
+    if let Some(last) = model.periods.last() {
+        if last.free_cash_flow > 0.0 {
+            model.terminal_value / last.free_cash_flow
+        } else {
+            0.0
+        }
+    } else {
+        0.0
+    }
+}
+
+/// Approximate a current price from a valuation multiple and historical data.
+fn current_price_from_multiple(multiple: f64, hist: &financial_model::HistoricalSnapshot) -> f64 {
+    let latest_fcf =
+        hist.latest_revenue() * hist.gross_margin() - hist.latest_da() - hist.latest_capex();
+    if hist.shares_outstanding > 0.0 {
+        (latest_fcf * multiple) / hist.shares_outstanding
+    } else {
+        0.0
+    }
+}
 
 // ── Validation ──────────────────────────────────────────────────────
 
@@ -155,6 +195,10 @@ pub struct CompaniesServer {
     /// Server-level Fermi seed/bootstrap estimates. Overridable via
     /// HKASK_FERMI_DEFAULTS env var. Used by calibrate_forecast.
     pub fermi_defaults: superforecast::FermiDefaults,
+    /// In-memory forecast model store. dcf_valuation and calibrate_forecast
+    /// store their projected models here keyed by forecast_id. forecast_record
+    /// looks up stored models for 11-line-item gap decomposition.
+    pub forecast_store: std::sync::Arc<std::sync::Mutex<HashMap<String, StoredForecast>>>,
 }
 
 impl CompaniesServer {
@@ -176,6 +220,7 @@ impl CompaniesServer {
             portfolio: PortfolioManager::new(),
             learning: std::sync::Arc::new(std::sync::Mutex::new(LearningState::default())),
             fermi_defaults: superforecast::FermiDefaults::from_env(),
+            forecast_store: std::sync::Arc::new(std::sync::Mutex::new(HashMap::new())),
         })
     }
 
@@ -1875,7 +1920,7 @@ impl CompaniesServer {
     }
 
     #[tool(
-        description = "Two-stage DCF valuation. Projects free cash flow through explicit stage 1 (1-3yr) and convergence stage 2 (2-7yr), then applies a terminal value (perpetuity or exit multiple). Returns intrinsic value per share, margin of safety, and full projection table. Default: 10yr model, 3yr stage 1, 7yr stage 2, 10% WACC, 2.5% terminal growth, annual projections."
+        description = "Two-stage DCF valuation. Projects income statement, balance sheet, and cash flow line items to derive free cash flow, then discounts back to enterprise value and intrinsic equity per share. Projects 11 line items per period (revenue, COGS, gross profit, D&A, EBIT, tax, NOPAT, capex, change in NWC, FCF, PV). Returns a forecast_id for later decomposition via forecast_record. Default: 10yr model, 3yr stage 1, 7yr stage 2, 10% WACC, 2.5% terminal growth."
     )]
     pub async fn dcf_valuation(
         &self,
@@ -1884,98 +1929,135 @@ impl CompaniesServer {
         execute_tool(self, "dcf_valuation", async {
             validate_symbol(&req.symbol)?;
 
-            // Fetch fundamentals
+            // Fetch all required financial statements
+            let income_result = self.fetch("income_statement", &req.symbol, &[("limit", "5")]).await;
+            let balance_result = self.fetch("balance_sheet", &req.symbol, &[("limit", "5")]).await;
+            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "5")]).await;
             let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
             let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
-            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "1")]).await;
 
-            let (metrics, profile, cf) = match (metrics_result, profile_result, cf_result) {
-                (Ok(m), Ok(p), Ok(c)) => (m, p, c),
-                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
-                    self.record_experience("dcf_valuation", &format!("symbol={}", req.symbol), "error", serde_json::json!({"error": e.to_json_string()}));
-                    return Err(e);
-                }
-            };
+            let (income, balance, cf, metrics, profile) =
+                match (income_result, balance_result, cf_result, metrics_result, profile_result) {
+                    (Ok(inc), Ok(bal), Ok(cf), Ok(m), Ok(p)) => (inc, bal, cf, m, p),
+                    (Err(e), _, _, _, _)
+                    | (_, Err(e), _, _, _)
+                    | (_, _, Err(e), _, _)
+                    | (_, _, _, Err(e), _)
+                    | (_, _, _, _, Err(e)) => {
+                        self.record_experience("dcf_valuation", &format!("symbol={}", req.symbol), "error", serde_json::json!({"error": e.to_json_string()}));
+                        return Err(e);
+                    }
+                };
 
+            let income_arr = income.as_array();
+            let balance_arr = balance.as_array();
+            let cf_arr = cf.as_array();
             let metrics_arr = metrics.as_array();
             let profile_obj = profile.as_array().and_then(|a| a.first());
-            let cf_obj = cf.as_array().and_then(|a| a.first());
 
-            if metrics_arr.is_none_or(|m| m.is_empty()) || profile_obj.is_none() || cf_obj.is_none() {
+            if income_arr.is_none_or(|a| a.is_empty())
+                || balance_arr.is_none_or(|a| a.is_empty())
+                || cf_arr.is_none_or(|a| a.is_empty())
+                || profile_obj.is_none()
+            {
                 return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient data"}));
             }
 
-            let m = metrics_arr.as_ref().unwrap();
-            let p = profile_obj.unwrap();
-            let cf_ref = cf_obj.unwrap();
+            let income_data = income_arr.unwrap();
+            let balance_data = balance_arr.unwrap();
+            let cf_data = cf_arr.unwrap();
+            let metrics_data: &[serde_json::Value] = metrics_arr.map_or(&[], |v| v);
+            let profile_data = profile_obj.unwrap();
 
-            // Extract fundamentals
-            let revenue_values: Vec<f64> = m.iter()
-                .filter_map(|e| e.get("revenuePerShare").and_then(|v| v.as_f64()))
-                .collect();
-            let ttm_revenue = revenue_values.first().copied().unwrap_or(0.0);
-            let hist_revenue_growth = if revenue_values.len() >= 2 {
-                crate::cagr_from_series(
-                    &revenue_values.windows(2)
-                        .filter_map(|w| if w[0] > 0.0 { Some((w[1] - w[0]) / w[0]) } else { None })
-                        .collect::<Vec<_>>()
-                )
-            } else { 0.05 };
+            // Build historical snapshot from API data
+            let hist = financial_model::HistoricalSnapshot::from_api_json(
+                income_data, balance_data, cf_data, metrics_data, profile_data,
+            );
 
-            let fcf_margin = cf_ref
-                .get("freeCashFlow")
-                .and_then(|v| v.as_f64())
-                .map(|fcf| if ttm_revenue > 0.0 { fcf / ttm_revenue } else { 0.05 })
-                .unwrap_or(0.05);
+            if hist.revenue.len() < 2 {
+                return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient historical data — need at least 2 years of revenue"}));
+            }
 
-            let ttm_fcf = ttm_revenue * fcf_margin;
-            let shares = p.get("sharesOutstanding").and_then(|v| v.as_f64()).unwrap_or(1_000.0);
-            let current_price = p.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
-            let market_cap = p.get("mktCap").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            // Build projection assumptions from history
+            let mut assumptions = financial_model::ProjectionAssumptions::from_history(&hist);
 
-            // Build DCF config
+            // Apply user overrides
             let stage1 = req.stage1_years.unwrap_or(3);
             let stage2 = req.stage2_years.unwrap_or(7);
-            let discount = req.discount_rate.unwrap_or(0.10);
-            let term_g = req.terminal_growth.unwrap_or(0.025);
-            let term_method = match req.terminal_method.as_deref().unwrap_or("perpetuity") {
-                "multiple" => dcf::TerminalMethod::Multiple(req.terminal_multiple.unwrap_or(15.0)),
-                _ => dcf::TerminalMethod::Perpetuity,
-            };
-            let freq = match req.frequency.as_deref().unwrap_or("annual") {
-                "quarterly" => dcf::ProjectionFrequency::Quarterly,
-                _ => dcf::ProjectionFrequency::Annual,
+            assumptions.stage1_years = stage1;
+            assumptions.total_years = stage1 + stage2;
+            if let Some(dr) = req.discount_rate {
+                assumptions.discount_rate = dr;
+            }
+            if let Some(tg) = req.terminal_growth {
+                assumptions.terminal_growth = tg;
+            }
+            if let Some(rg) = req.revenue_growth {
+                assumptions.revenue_growth = rg;
+            }
+            if let Some(gm) = req.gross_margin {
+                assumptions.gross_margin = gm;
+            }
+            if let Some(da) = req.da_to_revenue {
+                assumptions.da_to_revenue = da;
+            }
+            if let Some(cx) = req.capex_to_revenue {
+                assumptions.capex_to_revenue = cx;
+            }
+            if let Some(nw) = req.nwc_to_revenue {
+                assumptions.nwc_to_revenue = nw;
+            }
+            if let Some(tr) = req.tax_rate {
+                assumptions.tax_rate = tr;
+            }
+
+            let current_price = profile_data.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let shares = hist.shares_outstanding;
+
+            // Run the projection engine
+            let model = financial_model::project_model(&hist, &assumptions, current_price);
+
+            // Generate forecast ID for later decomposition
+            let forecast_id = Uuid::new_v4().to_string();
+
+            // Store forecast model for later decomposition
+            {
+                let stored = StoredForecast {
+                    forecast_id: forecast_id.clone(),
+                    symbol: req.symbol.clone(),
+                    created_at: now_rfc3339(),
+                    model: model.clone(),
+                    assumptions: assumptions.clone(),
+                    hist: hist.clone(),
+                    current_price,
+                    intrinsic_per_share: model.intrinsic_per_share,
+                };
+                let mut store = self.forecast_store.lock().unwrap();
+                store.insert(forecast_id.clone(), stored);
+            }
+
+            // Margin of safety
+            let margin_of_safety = if current_price > 0.0 {
+                (model.intrinsic_per_share - current_price) / current_price
+            } else {
+                0.0
             };
 
-            let config = dcf::DcfConfig {
-                stage1_years: stage1,
-                stage2_years: stage2,
-                discount_rate: discount,
-                terminal_growth: term_g,
-                terminal_method: term_method,
-                frequency: freq,
-            };
-
-            let fundamentals = dcf::CompanyFundamentals {
-                ttm_revenue,
-                ttm_fcf,
-                fcf_margin,
-                hist_revenue_growth,
-                shares_outstanding: shares,
-                current_price,
-                market_cap,
-            };
-
-            let result = dcf::run_dcf(&fundamentals, &config)
-                .map_err(McpToolError::invalid_argument)?;
-
-            // Build period summary for JSON output
-            let period_summary: Vec<serde_json::Value> = result.periods.iter().map(|p| {
+            // Build period summary for JSON output (all 13 line items)
+            let period_summary: Vec<serde_json::Value> = model.periods.iter().map(|p| {
                 serde_json::json!({
+                    "period": p.period,
                     "year": p.year,
                     "revenue": p.revenue,
-                    "fcf": p.fcf,
-                    "growth_rate": p.growth_rate,
+                    "cogs": p.cogs,
+                    "gross_profit": p.gross_profit,
+                    "da": p.da,
+                    "ebit": p.ebit,
+                    "tax": p.tax,
+                    "nopat": p.nopat,
+                    "capex": p.capex,
+                    "change_in_nwc": p.change_in_nwc,
+                    "free_cash_flow": p.free_cash_flow,
                     "discount_factor": p.discount_factor,
                     "present_value": p.present_value,
                 })
@@ -1983,32 +2065,44 @@ impl CompaniesServer {
 
             let output = serde_json::json!({
                 "symbol": req.symbol,
+                "forecast_id": forecast_id,
                 "config": {
-                    "stage1_years": config.stage1_years,
-                    "stage2_years": config.stage2_years,
-                    "total_years": config.total_years(),
-                    "discount_rate": config.discount_rate,
-                    "terminal_growth": config.capped_terminal_growth(),
-                    "terminal_method": if matches!(config.terminal_method, dcf::TerminalMethod::Perpetuity) { "perpetuity" } else { "multiple" },
-                    "frequency": if matches!(config.frequency, dcf::ProjectionFrequency::Annual) { "annual" } else { "quarterly" },
+                    "stage1_years": assumptions.stage1_years,
+                    "stage2_years": assumptions.total_years - assumptions.stage1_years,
+                    "total_years": assumptions.total_years,
+                    "discount_rate": assumptions.discount_rate,
+                    "terminal_growth": assumptions.terminal_growth,
+                    "revenue_growth": assumptions.revenue_growth,
+                    "gross_margin": assumptions.gross_margin,
+                    "da_to_revenue": assumptions.da_to_revenue,
+                    "capex_to_revenue": assumptions.capex_to_revenue,
+                    "nwc_to_revenue": assumptions.nwc_to_revenue,
+                    "tax_rate": assumptions.tax_rate,
                 },
-                "fundamentals": {
-                    "ttm_revenue": ttm_revenue,
-                    "fcf_margin": fcf_margin,
-                    "hist_revenue_growth": hist_revenue_growth,
+                "history": {
+                    "revenue_cagr": hist.revenue_cagr(),
+                    "gross_margin": hist.gross_margin(),
+                    "da_to_revenue": hist.da_to_revenue(),
+                    "capex_to_revenue": hist.capex_to_revenue(),
+                    "nwc_to_revenue": hist.nwc_to_revenue(),
+                    "tax_rate": hist.tax_rate,
+                    "latest_revenue": hist.latest_revenue(),
                     "shares_outstanding": shares,
+                    "net_debt": hist.net_debt(),
                 },
                 "projections": period_summary,
                 "valuation": {
-                    "pv_cash_flows": result.sum_pv_cash_flows,
-                    "terminal_value": result.terminal_value,
-                    "terminal_pv": result.terminal_pv,
-                    "enterprise_value": result.enterprise_value,
-                    "intrinsic_per_share": result.intrinsic_per_share,
-                    "current_price": result.current_price,
-                    "margin_of_safety": result.margin_of_safety,
+                    "pv_cash_flows": model.periods.iter().map(|p| p.present_value).sum::<f64>(),
+                    "terminal_value": model.terminal_value,
+                    "terminal_pv": model.terminal_pv,
+                    "enterprise_value": model.enterprise_value,
+                    "net_debt": model.net_debt,
+                    "equity_value": model.equity_value,
+                    "intrinsic_per_share": model.intrinsic_per_share,
+                    "current_price": current_price,
+                    "margin_of_safety": margin_of_safety,
                 },
-                "framework": "Two-stage DCF: Stage 1 (explicit, growth tapers from historical toward midpoint), Stage 2 (convergence toward terminal rate), Terminal Value (Gordon Growth perpetuity capped at 10% or exit multiple). Damodaran (2012) Investment Valuation.",
+                "framework": "Two-stage 11-line-item DCF: History-calibrated projections through income statement (revenue, COGS, D&A) and balance sheet (NWC, capex) to FCF. Terminal value via Gordon Growth perpetuity (capped at r - 0.5%). Enterprise value to equity bridge via net debt. Damodaran (2012) Investment Valuation. Use forecast_record with the forecast_id to decompose actual outcomes against these projections.",
             });
 
             self.record_experience("dcf_valuation", &format!("symbol={}", req.symbol), "success", output.clone());
@@ -2026,82 +2120,111 @@ impl CompaniesServer {
         execute_tool(self, "reverse_dcf", async {
             validate_symbol(&req.symbol)?;
 
+            let income_result = self.fetch("income_statement", &req.symbol, &[("limit", "5")]).await;
+            let balance_result = self.fetch("balance_sheet", &req.symbol, &[("limit", "5")]).await;
+            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "5")]).await;
             let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
             let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
-            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "1")]).await;
 
-            let (metrics, profile, cf) = match (metrics_result, profile_result, cf_result) {
-                (Ok(m), Ok(p), Ok(c)) => (m, p, c),
-                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
-                    self.record_experience("reverse_dcf", &format!("symbol={}", req.symbol), "error", serde_json::json!({"error": e.to_json_string()}));
-                    return Err(e);
-                }
-            };
+            let (income, balance, cf, metrics, profile) =
+                match (income_result, balance_result, cf_result, metrics_result, profile_result) {
+                    (Ok(inc), Ok(bal), Ok(cf), Ok(m), Ok(p)) => (inc, bal, cf, m, p),
+                    (Err(e), _, _, _, _)
+                    | (_, Err(e), _, _, _)
+                    | (_, _, Err(e), _, _)
+                    | (_, _, _, Err(e), _)
+                    | (_, _, _, _, Err(e)) => {
+                        self.record_experience("reverse_dcf", &format!("symbol={}", req.symbol), "error", serde_json::json!({"error": e.to_json_string()}));
+                        return Err(e);
+                    }
+                };
 
+            let income_arr = income.as_array();
+            let balance_arr = balance.as_array();
+            let cf_arr = cf.as_array();
             let metrics_arr = metrics.as_array();
             let profile_obj = profile.as_array().and_then(|a| a.first());
-            let cf_obj = cf.as_array().and_then(|a| a.first());
 
-            if metrics_arr.is_none_or(|m| m.is_empty()) || profile_obj.is_none() || cf_obj.is_none() {
+            if income_arr.is_none_or(|a| a.is_empty())
+                || balance_arr.is_none_or(|a| a.is_empty())
+                || cf_arr.is_none_or(|a| a.is_empty())
+                || profile_obj.is_none()
+            {
                 return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient data"}));
             }
 
-            let m = metrics_arr.as_ref().unwrap();
-            let p = profile_obj.unwrap();
-            let cf_ref = cf_obj.unwrap();
+            let income_data = income_arr.unwrap();
+            let balance_data = balance_arr.unwrap();
+            let cf_data = cf_arr.unwrap();
+            let metrics_data: &[serde_json::Value] = metrics_arr.map_or(&[], |v| v);
+            let profile_data = profile_obj.unwrap();
 
-            let revenue_values: Vec<f64> = m.iter()
-                .filter_map(|e| e.get("revenuePerShare").and_then(|v| v.as_f64()))
-                .collect();
-            let ttm_revenue = revenue_values.first().copied().unwrap_or(0.0);
+            let hist = financial_model::HistoricalSnapshot::from_api_json(
+                income_data, balance_data, cf_data, metrics_data, profile_data,
+            );
 
-            let fcf_margin = cf_ref
-                .get("freeCashFlow")
-                .and_then(|v| v.as_f64())
-                .map(|fcf| if ttm_revenue > 0.0 { fcf / ttm_revenue } else { 0.05 })
-                .unwrap_or(0.05);
+            if hist.revenue.len() < 2 {
+                return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient historical data — need at least 2 years of revenue"}));
+            }
 
-            let ttm_fcf = ttm_revenue * fcf_margin;
-            let shares = p.get("sharesOutstanding").and_then(|v| v.as_f64()).unwrap_or(1_000.0);
-            let current_price = p.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
-            let market_cap = p.get("mktCap").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let mut assumptions = financial_model::ProjectionAssumptions::from_history(&hist);
+            let stage1 = req.stage1_years.unwrap_or(3);
+            let stage2 = req.stage2_years.unwrap_or(7);
+            assumptions.stage1_years = stage1;
+            assumptions.total_years = stage1 + stage2;
+            if let Some(dr) = req.discount_rate {
+                assumptions.discount_rate = dr;
+            }
+            if let Some(tg) = req.terminal_growth {
+                assumptions.terminal_growth = tg;
+            }
 
-            let config = dcf::DcfConfig {
-                stage1_years: req.stage1_years.unwrap_or(3),
-                stage2_years: req.stage2_years.unwrap_or(7),
-                discount_rate: req.discount_rate.unwrap_or(0.10),
-                terminal_growth: req.terminal_growth.unwrap_or(0.025),
-                terminal_method: dcf::TerminalMethod::Perpetuity,
-                frequency: match req.frequency.as_deref().unwrap_or("annual") {
-                    "quarterly" => dcf::ProjectionFrequency::Quarterly,
-                    _ => dcf::ProjectionFrequency::Annual,
-                },
-            };
+            let current_price = profile_data.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
 
-            let fundamentals = dcf::CompanyFundamentals {
-                ttm_revenue,
-                ttm_fcf,
-                fcf_margin,
-                hist_revenue_growth: 0.05, // placeholder — reverse DCF solves for this
-                shares_outstanding: shares,
-                current_price,
-                market_cap,
-            };
+            // Binary search for implied growth rate: lo=-0.50, hi=1.00, max 50 iterations
+            let mut lo = -0.50_f64;
+            let mut hi = 1.00_f64;
+            let mut implied_growth = 0.0_f64;
+            for _ in 0..50 {
+                let mid = (lo + hi) / 2.0;
+                let mut a = assumptions.clone();
+                a.revenue_growth = mid;
+                let model = financial_model::project_model(&hist, &a, current_price);
+                if (model.intrinsic_per_share - current_price).abs() < 0.0001 {
+                    implied_growth = mid;
+                    break;
+                }
+                if model.intrinsic_per_share > current_price {
+                    lo = mid;
+                } else {
+                    hi = mid;
+                }
+                implied_growth = mid;
+            }
 
-            let (implied_growth, result) = dcf::reverse_dcf(&fundamentals, &config)
-                .map_err(McpToolError::invalid_argument)?;
+            // Final model at implied growth
+            let mut final_a = assumptions.clone();
+            final_a.revenue_growth = implied_growth;
+            let result = financial_model::project_model(&hist, &final_a, current_price);
 
             let output = serde_json::json!({
                 "symbol": req.symbol,
                 "current_price": current_price,
                 "implied_growth_rate": implied_growth,
                 "intrinsic_at_implied": result.intrinsic_per_share,
-                "enterprise_value_at_implied": result.enterprise_value,
+                "enterprise_value": result.enterprise_value,
                 "config": {
-                    "stage1_years": config.stage1_years,
-                    "stage2_years": config.stage2_years,
-                    "discount_rate": config.discount_rate,
-                    "terminal_growth": config.capped_terminal_growth(),
+                    "stage1_years": assumptions.stage1_years,
+                    "stage2_years": assumptions.total_years - assumptions.stage1_years,
+                    "discount_rate": assumptions.discount_rate,
+                    "terminal_growth": assumptions.terminal_growth,
+                },
+                "fibo": {
+                    "implied_growth_rate": fibo::REVENUE_GROWTH_RATE,
+                    "discount_rate": fibo::DISCOUNT_RATE,
+                    "terminal_growth_rate": fibo::TERMINAL_GROWTH_RATE,
+                    "enterprise_value": fibo::ENTERPRISE_VALUE,
+                    "intrinsic_value_per_share": fibo::INTRINSIC_VALUE_PER_SHARE,
                 },
                 "interpretation": {
                     "implied_growth_pct": format!("{:.1}%", implied_growth * 100.0),
@@ -2125,75 +2248,64 @@ impl CompaniesServer {
         execute_tool(self, "scenario_analysis", async {
             validate_symbol(&req.symbol)?;
 
+            let income_result = self.fetch("income_statement", &req.symbol, &[("limit", "5")]).await;
+            let balance_result = self.fetch("balance_sheet", &req.symbol, &[("limit", "5")]).await;
+            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "5")]).await;
             let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
             let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
-            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "1")]).await;
 
-            let (metrics, profile, cf) = match (metrics_result, profile_result, cf_result) {
-                (Ok(m), Ok(p), Ok(c)) => (m, p, c),
-                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
-                    return Err(e);
-                }
-            };
+            let (income, balance, cf, metrics, profile) =
+                match (income_result, balance_result, cf_result, metrics_result, profile_result) {
+                    (Ok(inc), Ok(bal), Ok(cf), Ok(m), Ok(p)) => (inc, bal, cf, m, p),
+                    (Err(e), _, _, _, _)
+                    | (_, Err(e), _, _, _)
+                    | (_, _, Err(e), _, _)
+                    | (_, _, _, Err(e), _)
+                    | (_, _, _, _, Err(e)) => {
+                        return Err(e);
+                    }
+                };
 
+            let income_arr = income.as_array();
+            let balance_arr = balance.as_array();
+            let cf_arr = cf.as_array();
             let metrics_arr = metrics.as_array();
             let profile_obj = profile.as_array().and_then(|a| a.first());
-            let cf_obj = cf.as_array().and_then(|a| a.first());
 
-            if metrics_arr.is_none_or(|m| m.is_empty()) || profile_obj.is_none() || cf_obj.is_none() {
+            if income_arr.is_none_or(|a| a.is_empty())
+                || balance_arr.is_none_or(|a| a.is_empty())
+                || cf_arr.is_none_or(|a| a.is_empty())
+                || profile_obj.is_none()
+            {
                 return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient data"}));
             }
 
-            let m = metrics_arr.as_ref().unwrap();
-            let p = profile_obj.unwrap();
-            let cf_ref = cf_obj.unwrap();
+            let income_data = income_arr.unwrap();
+            let balance_data = balance_arr.unwrap();
+            let cf_data = cf_arr.unwrap();
+            let metrics_data: &[serde_json::Value] = metrics_arr.map_or(&[], |v| v);
+            let profile_data = profile_obj.unwrap();
 
-            let revenue_values: Vec<f64> = m.iter()
-                .filter_map(|e| e.get("revenuePerShare").and_then(|v| v.as_f64()))
-                .collect();
-            let ttm_revenue = revenue_values.first().copied().unwrap_or(0.0);
-            let hist_revenue_growth = if revenue_values.len() >= 2 {
-                crate::cagr_from_series(
-                    &revenue_values.windows(2)
-                        .filter_map(|w| if w[0] > 0.0 { Some((w[1] - w[0]) / w[0]) } else { None })
-                        .collect::<Vec<_>>()
-                )
-            } else { 0.05 };
+            let hist = financial_model::HistoricalSnapshot::from_api_json(
+                income_data, balance_data, cf_data, metrics_data, profile_data,
+            );
 
-            let fcf_margin = cf_ref
-                .get("freeCashFlow")
-                .and_then(|v| v.as_f64())
-                .map(|fcf| if ttm_revenue > 0.0 { fcf / ttm_revenue } else { 0.05 })
-                .unwrap_or(0.05);
+            if hist.revenue.len() < 2 {
+                return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient historical data — need at least 2 years of revenue"}));
+            }
 
-            let shares = p.get("sharesOutstanding").and_then(|v| v.as_f64()).unwrap_or(1_000.0);
-            let current_price = p.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
-            let market_cap = p.get("mktCap").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let mut assumptions = financial_model::ProjectionAssumptions::from_history(&hist);
+            if let Some(dr) = req.discount_rate {
+                assumptions.discount_rate = dr;
+            }
+            if let Some(tg) = req.terminal_growth {
+                assumptions.terminal_growth = tg;
+            }
 
-            let fundamentals = dcf::CompanyFundamentals {
-                ttm_revenue,
-                ttm_fcf: ttm_revenue * fcf_margin,
-                fcf_margin,
-                hist_revenue_growth,
-                shares_outstanding: shares,
-                current_price,
-                market_cap,
-            };
+            let current_price = profile_data.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
 
-            let matrix = scenarios::ScenarioMatrix::growth_x_margin(hist_revenue_growth, fcf_margin);
-            let discount = req.discount_rate.unwrap_or(0.10);
-            let term_g = req.terminal_growth.unwrap_or(0.025);
-
-            let dcf_config = dcf::DcfConfig {
-                stage1_years: 3, stage2_years: 7,
-                discount_rate: discount,
-                terminal_growth: term_g,
-                terminal_method: dcf::TerminalMethod::Perpetuity,
-                frequency: dcf::ProjectionFrequency::Annual,
-            };
-
-            let results = scenarios::run_scenario_analysis(&fundamentals, &matrix, &dcf_config)
-                .map_err(McpToolError::invalid_argument)?;
+            let matrix = scenarios::ScenarioMatrix::growth_x_margin(assumptions.revenue_growth, assumptions.gross_margin);
+            let results = scenarios::run_scenario_analysis(&hist, &assumptions, &matrix);
 
             let summary = scenarios::scenario_summary(&results);
 
@@ -2203,9 +2315,9 @@ impl CompaniesServer {
                     "description": r.scenario.description,
                     "applied_growth": r.applied_growth,
                     "applied_margin": r.applied_margin,
-                    "intrinsic_per_share": r.dcf_result.intrinsic_per_share,
-                    "enterprise_value": r.dcf_result.enterprise_value,
-                    "margin_of_safety": r.dcf_result.margin_of_safety,
+                    "intrinsic_per_share": r.intrinsic_per_share,
+                    "enterprise_value": r.model.enterprise_value,
+                    "margin_of_safety": if current_price > 0.0 { (r.intrinsic_per_share - current_price) / current_price } else { 0.0 },
                 })
             }).collect();
 
@@ -2219,12 +2331,20 @@ impl CompaniesServer {
                 "summary": {
                     "intrinsic_range": [summary.intrinsic_range.0, summary.intrinsic_range.1],
                     "intrinsic_average": summary.intrinsic_average,
-                    "current_price": summary.current_price,
+                    "current_price": current_price,
                     "upside_pct": summary.upside_pct,
                     "downside_pct": summary.downside_pct,
                     "range_spread_pct": summary.range_spread_pct,
                 },
-                "framework": "Schwartz 2x2 scenario matrix: revenue growth x profit margin. Four scenarios: Bull (high/high), Land Grab (high/low), Cash Cow (low/high), Bear (low/low). Each scenario runs through the two-stage DCF model. The range of intrinsic values represents the uncertainty around the single-point DCF estimate.",
+                "fibo": {
+                    "discount_rate": fibo::DISCOUNT_RATE,
+                    "terminal_growth_rate": fibo::TERMINAL_GROWTH_RATE,
+                    "enterprise_value": fibo::ENTERPRISE_VALUE,
+                    "intrinsic_value_per_share": fibo::INTRINSIC_VALUE_PER_SHARE,
+                    "margin_of_safety": fibo::MARGIN_OF_SAFETY,
+                    "scenario_probability": fibo::SCENARIO_PROBABILITY,
+                },
+                "framework": "Schwartz 2x2 scenario matrix: revenue growth x gross margin. Four scenarios: Bull (high/high), Land Grab (high/low), Cash Cow (low/high), Bear (low/low). Each scenario runs through the two-stage DCF model. The range of intrinsic values represents the uncertainty around the single-point DCF estimate.",
             });
 
             self.record_experience("scenario_analysis", &format!("symbol={}", req.symbol), "success", output.clone());
@@ -2242,47 +2362,69 @@ impl CompaniesServer {
         execute_tool(self, "calibrate_forecast", async {
             validate_symbol(&req.symbol)?;
 
+            let income_result = self.fetch("income_statement", &req.symbol, &[("limit", "5")]).await;
+            let balance_result = self.fetch("balance_sheet", &req.symbol, &[("limit", "5")]).await;
             let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
             let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
-            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "1")]).await;
+            let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "5")]).await;
 
-            let (metrics, profile, cf) = match (metrics_result, profile_result, cf_result) {
-                (Ok(m), Ok(p), Ok(c)) => (m, p, c),
-                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => { return Err(e); }
-            };
+            let (income, balance, metrics, profile, cf) =
+                match (income_result, balance_result, metrics_result, profile_result, cf_result) {
+                    (Ok(inc), Ok(bal), Ok(m), Ok(p), Ok(c)) => (inc, bal, m, p, c),
+                    (Err(e), _, _, _, _)
+                    | (_, Err(e), _, _, _)
+                    | (_, _, Err(e), _, _)
+                    | (_, _, _, Err(e), _)
+                    | (_, _, _, _, Err(e)) => { return Err(e); }
+                };
+
+            let income_arr = income.as_array();
+            let balance_arr = balance.as_array();
+            let cf_arr = cf.as_array();
             let metrics_arr = metrics.as_array();
             let profile_obj = profile.as_array().and_then(|a| a.first());
-            let cf_obj = cf.as_array().and_then(|a| a.first());
-            if metrics_arr.is_none_or(|m| m.is_empty()) || profile_obj.is_none() || cf_obj.is_none() {
+
+            if income_arr.is_none_or(|a| a.is_empty())
+                || balance_arr.is_none_or(|a| a.is_empty())
+                || cf_arr.is_none_or(|a| a.is_empty())
+                || profile_obj.is_none()
+            {
                 return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient data"}));
             }
-            let m = metrics_arr.as_ref().unwrap(); let p = profile_obj.unwrap(); let cf_ref = cf_obj.unwrap();
-            let revenue_values: Vec<f64> = m.iter().filter_map(|e| e.get("revenuePerShare").and_then(|v| v.as_f64())).collect();
-            let ttm_revenue = revenue_values.first().copied().unwrap_or(0.0);
-            let hist_revenue_growth = if revenue_values.len() >= 2 {
-                crate::cagr_from_series(&revenue_values.windows(2).filter_map(|w| if w[0] > 0.0 { Some((w[1] - w[0]) / w[0]) } else { None }).collect::<Vec<_>>())
-            } else { 0.05 };
-            let fcf_margin = cf_ref.get("freeCashFlow").and_then(|v| v.as_f64()).map(|fcf| if ttm_revenue > 0.0 { fcf / ttm_revenue } else { 0.05 }).unwrap_or(0.05);
-            let shares = p.get("sharesOutstanding").and_then(|v| v.as_f64()).unwrap_or(1_000.0);
-            let current_price = p.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
-            let market_cap = p.get("mktCap").and_then(|v| v.as_f64()).unwrap_or(0.0);
 
-            let fundamentals = dcf::CompanyFundamentals {
-                ttm_revenue, ttm_fcf: ttm_revenue * fcf_margin, fcf_margin,
-                hist_revenue_growth, shares_outstanding: shares, current_price, market_cap,
-            };
+            let income_data = income_arr.unwrap();
+            let balance_data = balance_arr.unwrap();
+            let cf_data = cf_arr.unwrap();
+            let metrics_data: &[serde_json::Value] = metrics_arr.map_or(&[], |v| v);
+            let profile_data = profile_obj.unwrap();
+
+            let hist = financial_model::HistoricalSnapshot::from_api_json(
+                income_data, balance_data, cf_data, metrics_data, profile_data,
+            );
+
+            if hist.revenue.len() < 2 {
+                return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient historical data — need at least 2 years of revenue"}));
+            }
+
+            let current_price = profile_data.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let hist_revenue_growth = hist.revenue_cagr();
+
+            // Build projection assumptions from history
+            let mut assumptions = financial_model::ProjectionAssumptions::from_history(&hist);
+            let stage1 = req.stage1_years.unwrap_or(3);
+            let stage2 = req.stage2_years.unwrap_or(7);
+            assumptions.stage1_years = stage1;
+            assumptions.total_years = stage1 + stage2;
+            if let Some(dr) = req.discount_rate {
+                assumptions.discount_rate = dr;
+            }
+            if let Some(tg) = req.terminal_growth {
+                assumptions.terminal_growth = tg;
+            }
 
             // Run scenarios
-            let matrix = scenarios::ScenarioMatrix::growth_x_margin(hist_revenue_growth, fcf_margin);
-            let dcf_config = dcf::DcfConfig {
-                stage1_years: req.stage1_years.unwrap_or(3),
-                stage2_years: req.stage2_years.unwrap_or(7),
-                discount_rate: req.discount_rate.unwrap_or(0.10),
-                terminal_growth: req.terminal_growth.unwrap_or(0.025),
-                ..dcf::DcfConfig::default()
-            };
-            let results = scenarios::run_scenario_analysis(&fundamentals, &matrix, &dcf_config)
-                .map_err(McpToolError::invalid_argument)?;
+            let matrix = scenarios::ScenarioMatrix::growth_x_margin(hist_revenue_growth, assumptions.gross_margin);
+            let results = scenarios::run_scenario_analysis(&hist, &assumptions, &matrix);
 
             // Build Fermi estimates from server-level defaults, apply user overrides
             let mut growth_fermi = self.fermi_defaults.growth_questions.clone();
@@ -2323,6 +2465,27 @@ impl CompaniesServer {
             let expected_value = superforecast::expected_intrinsic(&weighted);
             let market_gap = if current_price > 0.0 { (expected_value - current_price) / current_price } else { 0.0 };
 
+            // Generate forecast ID and store calibrated projection for later decomposition
+            let forecast_id = Uuid::new_v4().to_string();
+            {
+                // Apply calibrated estimates to assumptions for the stored model
+                assumptions.revenue_growth = growth_calibrated;
+                assumptions.gross_margin = margin_calibrated;
+                let model = financial_model::project_model(&hist, &assumptions, current_price);
+                let stored = StoredForecast {
+                    forecast_id: forecast_id.clone(),
+                    symbol: req.symbol.clone(),
+                    created_at: now_rfc3339(),
+                    model,
+                    assumptions: assumptions.clone(),
+                    hist: hist.clone(),
+                    current_price,
+                    intrinsic_per_share: expected_value,
+                };
+                let mut store = self.forecast_store.lock().unwrap();
+                store.insert(forecast_id.clone(), stored);
+            }
+
             let fermi_output: Vec<serde_json::Value> = growth_fermi.iter().zip(margin_fermi.iter()).map(|(g, m)| {
                 serde_json::json!({
                     "growth_sub_q": g.question, "growth_estimate": g.estimate, "growth_confidence": g.confidence,
@@ -2336,6 +2499,7 @@ impl CompaniesServer {
 
             let output = serde_json::json!({
                 "symbol": req.symbol,
+                "forecast_id": forecast_id,
                 "current_price": current_price,
                 "calibration": {
                     "growth": {"inside_estimate": growth_inside, "calibrated": growth_calibrated, "confidence": growth_conf},
@@ -2358,7 +2522,7 @@ impl CompaniesServer {
     }
 
     #[tool(
-        description = "Record a forecast outcome to close the superforecasting loop. Forecast a valuation multiple and price change over a horizon (3mo/6mo/1yr/2yr/3yr), then record what actually happened. Computes Brier scores on multiple direction and price return vs a tolerance band. Decompose the gap narratively — what drove the difference between forecast and actual?"
+        description = "Record a forecast outcome to close the superforecasting loop. Forecast a valuation multiple and price change over a horizon (3mo/6mo/1yr/2yr/3yr), then record what actually happened. Computes Brier scores on multiple direction and price return vs a tolerance band. When forecast_id is provided (from dcf_valuation or calibrate_forecast), looks up the stored 11-line-item projection model and decomposes the return gap into revenue growth, gross margin, D&A, capex, NWC, multiple expansion, and net debt contributions."
     )]
     pub async fn forecast_record(
         &self,
@@ -2388,10 +2552,106 @@ impl CompaniesServer {
 
             let combined = (multiple_brier + return_brier) / 2.0;
 
-            // Gap decomposition
+            // Gap decomposition: use stored forecast model if available
+            let mut decomposition: Option<serde_json::Value> = None;
+            if let Some(ref forecast_id) = req.forecast_id {
+                // Clone stored forecast out of lock scope before async fetches
+                let stored_opt = {
+                    let store = self.forecast_store.lock().unwrap();
+                    store.get(forecast_id).cloned()
+                };
+                if let Some(stored) = stored_opt {
+                    // Fetch actual financials at the outcome date for decomposition
+                    let actual_income = self.fetch("income_statement", &req.symbol, &[("limit", "5")]).await;
+                    let actual_balance = self.fetch("balance_sheet", &req.symbol, &[("limit", "5")]).await;
+                    let actual_cf = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "5")]).await;
+                    let actual_metrics = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
+                    let actual_profile = self.fetch("company_profile", &req.symbol, &[]).await;
+
+                    if let (Ok(inc), Ok(bal), Ok(cf), Ok(metrics), Ok(prof)) =
+                        (&actual_income, &actual_balance, &actual_cf, &actual_metrics, &actual_profile)
+                    {
+                        let inc_arr = inc.as_array();
+                        let bal_arr = bal.as_array();
+                        let cf_arr = cf.as_array();
+                        let met_arr = metrics.as_array();
+                        let prof_obj = prof.as_array().and_then(|a| a.first());
+
+                        if inc_arr.is_some_and(|a| !a.is_empty())
+                            && bal_arr.is_some_and(|a| !a.is_empty())
+                            && cf_arr.is_some_and(|a| !a.is_empty())
+                        {
+                            let actual_hist = financial_model::HistoricalSnapshot::from_api_json(
+                                inc_arr.unwrap(),
+                                bal_arr.unwrap(),
+                                cf_arr.unwrap(),
+                                met_arr.map_or(&[] as &[serde_json::Value], |v| v),
+                                prof_obj.unwrap_or(&serde_json::Value::Null),
+                            );
+
+                            // Run decomposition
+                            let gap = financial_model::decompose_gap(
+                                &stored.model,
+                                &stored.assumptions,
+                                &actual_hist,
+                                current_price_from_multiple(req.actual_multiple, &actual_hist),
+                                req.actual_multiple,
+                                stored.intrinsic_per_share,
+                                stored.current_price,
+                            );
+
+                            decomposition = Some(serde_json::json!({
+                                "total_return_gap": gap.total_return_gap,
+                                "components": {
+                                    "revenue_growth": {
+                                        "contribution": gap.revenue_growth_contribution,
+                                        "projected_growth": stored.assumptions.revenue_growth,
+                                        "actual_growth": actual_hist.revenue_cagr(),
+                                    },
+                                    "gross_margin": {
+                                        "contribution": gap.gross_margin_contribution,
+                                        "projected": stored.assumptions.gross_margin,
+                                        "actual": actual_hist.gross_margin(),
+                                    },
+                                    "da": {
+                                        "contribution": gap.da_contribution,
+                                        "projected": stored.assumptions.da_to_revenue,
+                                        "actual": actual_hist.da_to_revenue(),
+                                    },
+                                    "capex": {
+                                        "contribution": gap.capex_contribution,
+                                        "projected": stored.assumptions.capex_to_revenue,
+                                        "actual": actual_hist.capex_to_revenue(),
+                                    },
+                                    "nwc": {
+                                        "contribution": gap.nwc_contribution,
+                                        "projected": stored.assumptions.nwc_to_revenue,
+                                        "actual": actual_hist.nwc_to_revenue(),
+                                    },
+                                    "multiple": {
+                                        "contribution": gap.multiple_contribution,
+                                        "projected": projected_terminal_multiple(&stored.model),
+                                        "actual": req.actual_multiple,
+                                    },
+                                    "net_debt": {
+                                        "contribution": gap.net_debt_contribution,
+                                        "projected": stored.model.net_debt,
+                                        "actual": actual_hist.net_debt(),
+                                    },
+                                },
+                                "residual": gap.residual,
+                            }));
+                        }
+                    }
+                }
+            }
+
+            // Legacy gap narrative (used when no forecast_id or decomposition fails)
             let multiple_gap = req.actual_multiple - req.forecast_multiple;
             let return_gap = req.actual_price_change - req.forecast_price_change;
-            let gap_narrative = if multiple_gap.abs() > 2.0 && return_gap.abs() > 0.05 {
+            let gap_narrative = if decomposition.is_some() {
+                "full_decomposition"
+            } else if multiple_gap.abs() > 2.0 && return_gap.abs() > 0.05 {
                 "multiple_and_return_diverged"
             } else if multiple_gap.abs() > 2.0 {
                 "multiple_drove_gap"
@@ -2403,7 +2663,7 @@ impl CompaniesServer {
 
             // Store in daemon
             if let Some(ref daemon) = self.daemon {
-                let value = serde_json::json!({
+                let mut value = serde_json::json!({
                     "symbol": req.symbol,
                     "forecast_date": req.forecast_date,
                     "horizon": req.horizon,
@@ -2417,6 +2677,12 @@ impl CompaniesServer {
                     "combined_brier": combined,
                     "timestamp": now_rfc3339(),
                 });
+                if let Some(ref dec) = decomposition {
+                    value["decomposition"] = dec.clone();
+                }
+                if let Some(ref fid) = req.forecast_id {
+                    value["forecast_id"] = serde_json::Value::String(fid.clone());
+                }
                 let daemon_clone = daemon.clone();
                 let replicant = self.replicant.clone();
                 let symbol = req.symbol.clone();
@@ -2428,7 +2694,7 @@ impl CompaniesServer {
                 });
             }
 
-            let output = serde_json::json!({
+            let mut output = serde_json::json!({
                 "status": "recorded",
                 "symbol": req.symbol,
                 "horizon": req.horizon,
@@ -2451,8 +2717,15 @@ impl CompaniesServer {
                     "combined": combined,
                     "interpretation": superforecast::brier_interpretation(combined),
                 },
-                "framework": "Forecast → Record → Score (Tetlock GJP). Brier scores on binary outcomes: multiple direction (up/down) and return accuracy (within 20% tolerance). Gap decomposition identifies what diverged. Cumulative calibration tracked via daemon forecast_outcome records.",
+                "framework": "Forecast-Record-Score (Tetlock GJP). Brier scores on binary outcomes: multiple direction and return accuracy within 20% tolerance. When forecast_id is provided, runs full 11-line-item decomposition (revenue growth, gross margin, D&A, capex, NWC, multiple, net debt).",
             });
+
+            if let Some(dec) = decomposition {
+                output["decomposition"] = dec;
+            }
+            if let Some(ref fid) = req.forecast_id {
+                output["forecast_id"] = serde_json::Value::String(fid.clone());
+            }
 
             self.record_experience("forecast_record", &format!("symbol={}", req.symbol), "success", output.clone());
             Ok(output)

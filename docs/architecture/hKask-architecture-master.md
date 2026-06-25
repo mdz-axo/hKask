@@ -688,7 +688,7 @@ The REPL supports bidirectional voice interaction through the media MCP server (
 
 ### Fusion — Multi-Model Deliberation
 
-Fusion routes prompts through multiple models in parallel, then has a judge model synthesize their responses. Implemented via OpenRouter's Fusion plugin API (not a pre-created fusion group).
+Fusion is a **provider-agnostic, hKask-side orchestration engine**. It sends the user's prompt to a panel of models in parallel (each routing through its own provider via 2-letter prefix), collects their responses, then dispatches to a judge model operating in one of five deliberation modes.
 
 **Opt-in:** Fusion is disabled by default. Enable with `HKASK_FUSION_JUDGE` + `HKASK_FUSION_PANEL` env vars, or `/fusion on` in the REPL.
 
@@ -698,20 +698,57 @@ Fusion routes prompts through multiple models in parallel, then has a judge mode
 | Judge/Fuser | `deepseek-v4-pro` |
 | Panel | `Kimi2.7`, `Qwen3.7 Max`, `GLM5.2`, `Minimax3` |
 
-**Routing:** When fusion is active, the `effective_model()` router returns `openrouter/fusion`. The dispatch injects a `plugins` array into the chat completion request with the panel models and judge. Panel models run in parallel with `web_search` and `web_fetch` tools; the judge compares their responses and returns structured analysis.
+**Provider-agnostic routing:** Each panel model and the judge can route through different providers by prefixing the model name (`DI/`, `FA/`, `TG/`, `OR/`, `KC/`). Unprefixed names use the default provider. Example mixed-provider config:
+```bash
+HKASK_FUSION_JUDGE=DI/deepseek-v4-pro
+HKASK_FUSION_PANEL=OR/auto,KC/anthropic/claude-sonnet-4.5,DI/qwen/qwen3
+```
+
+#### Deliberation Modes
+
+The judge operates in one of five modes, configurable via `HKASK_FUSION_MODE`:
+
+| Mode | Rounds | Behavior |
+|------|--------|----------|
+| `synthesis` _(default)_ | 1 | Judge composes a unified response incorporating best elements from all panelists |
+| `best-of-n` | 1 | Judge evaluates all responses and picks the single best one |
+| `critique` | 2 | Judge drafts synthesis → panel critiques draft → judge revises final |
+| `deliberation` | ≤N | Multi-round: judge asks follow-ups, panel responds, converges or maxes out (configurable via `HKASK_FUSION_MAX_ROUNDS`, default 5) |
+| `pi` (Plan-Implement) | 2-phase | Phase 1: panel proposes strategies → judge synthesizes plan. Phase 2: plan sent to panel for implementation details → judge synthesizes execution plan |
+
+#### Skill Anchoring
+
+The judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSION_SKILLS` (comma-separated). Each skill injects a compact methodology prompt into the judge's system context:
+
+| Skill | Methodology |
+|-------|-------------|
+| `pragmatic-semantics` | IS vs OUGHT, certainty levels, provenance |
+| `pragmatic-cybernetics` | Feedback loops, variety engineering, homeostasis |
+| `pragmatic-laziness` | Path of least action, delete before adding |
+| `coding-guidelines` | Karpathy's 4 principles |
+| `deep-module` | Deletion test, interface minimalism |
+| `essentialist` | 3-gate challenge loop |
+| `constraint-forces` | Prohibition/Guardrail/Guideline/Evidence/Hypothesis |
+| `superforecasting` | Fermi decomposition, Bayesian updating |
+| `mcda` | Weighted scoring, sensitivity analysis |
+| `tdd` | Red-Green-Refactor, contract-first |
+| `rust-expertise` | Type-driven design, ownership as architecture |
 
 **Bypass:** Chat uses the user's chosen model directly (`bypass_fusion=true`). Skills and tool invocations route through fusion when active (`bypass_fusion=false`). The condenser, daemon narratives, and summarization always bypass fusion.
 
 **Configuration:**
 | Env Var | Purpose |
 |---------|---------|
-| `HKASK_FUSION_JUDGE` | Judge/fuser model |
-| `HKASK_FUSION_PANEL` | Comma-separated panel models (1-8) |
+| `HKASK_FUSION_JUDGE` | Judge/fuser model (supports provider prefix) |
+| `HKASK_FUSION_PANEL` | Comma-separated panel models, 1-8 (each supports provider prefix) |
+| `HKASK_FUSION_MODE` | Deliberation mode: `synthesis`, `best-of-n`, `critique`, `deliberation`, `pi` |
+| `HKASK_FUSION_SKILLS` | Comma-separated skill anchors for the judge |
+| `HKASK_FUSION_MAX_ROUNDS` | Max deliberation rounds (default: 5) |
 | `HKASK_FUSION_OFF=1` | Disable fusion |
 
 **REPL commands:** `/fusion` (status), `/fusion on`, `/fusion off`.
 
-**Crate:** `hkask-inference` (`config.rs`, `inference_router.rs`, `chat_protocol.rs`).
+**Crates:** `hkask-inference` (`config.rs`, `inference_router.rs`, `fusion_orchestrator.rs`).
 
 ---
 
@@ -1147,7 +1184,7 @@ The production deployment is a headless Ubuntu cloud server:
 
 1. **Single binary.** All crates compiled. No Cargo features for client/server.
 2. **Browser-first interaction.** Primary interface is xterm.js terminal via browser. Secondary: SSH (`kask repl`). MCP servers (for IDE integration) connect via the REST API or SSH-tunneled socket.
-3. **No local GPU inference.** The inference router (`hkask-inference`) routes all requests to cloud providers (DeepInfra, Together AI, fal.ai, OpenRouter).
+3. **No local GPU inference.** The inference router (`hkask-inference`) routes all requests to cloud providers (DeepInfra, Together AI, fal.ai, OpenRouter, KiloCode).
 4. **API keys in OS keychain.** Provider API keys are stored in the OS keychain (Linux Secret Service or flat-file fallback), not in environment variables or plaintext files.
 5. **Encrypted database at rest.** All persistent state uses SQLCipher with a passphrase-derived key.
 6. **Multi-tenant.** Multiple users per server. Data scoped by `owner_webid`. OAuth (GitHub/Google) sign-in.
@@ -1169,7 +1206,8 @@ Provider selection via `HKASK_DEFAULT_PROVIDER`:
 | `DI` | DeepInfra | Primary cloud provider |
 | `TG` | Together AI | Cloud inference + fine-tuning |
 | `FA` | fal.ai | Specialized vision/OCR/media models |
-| `OR` | OpenRouter | Multi-provider unified API (chat, embeddings, vision) |
+| `OR` | OpenRouter | Multi-provider unified API (200+ models) |
+| `KC` | KiloCode | Kilo Gateway unified API (500+ models) |
 
 ### Setup Flow
 

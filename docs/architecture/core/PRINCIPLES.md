@@ -154,7 +154,7 @@ CNS (Cybernetic Nervous System) spans are the primary observability primitive. E
 | Domain | Target | Spans | Status | CnsSpan Variant |
 |--------|--------|-------|--------|-----------------|
 | Tool dispatch (all MCP servers) | `cns.tool.*` | ~170 | ✅ `ToolSpanGuard` per-tool | `Tool { subsystem }` |
-| Inference (4 backends) | `cns.inference` | 18 | ✅ generate/generate_vision | `Inference` |
+| Inference (5 backends) | `cns.inference` | 18 | ✅ generate/generate_vision | `Inference` |
 | Keystore | `cns.keystore` | 25 | ✅ resolve, store, derive, sign | `Keystore` |
 | Adapter (LoRA) | `cns.adapter` | 23 | ✅ store/get_by_id/delete + router | `Adapter` |
 | Backup | `cns.backup` | 22 | ✅ snapshot/restore/verify/prune/delete_blob | `Backup` |

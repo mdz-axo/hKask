@@ -172,6 +172,18 @@ pub struct DcfValuationRequest {
     pub terminal_multiple: Option<f64>,
     /// Projection frequency: "annual" or "quarterly" (default "annual")
     pub frequency: Option<String>,
+    /// Override revenue growth rate (0.0–1.0). Calibrated from history if omitted.
+    pub revenue_growth: Option<f64>,
+    /// Override gross margin (0.0–1.0). Calibrated from history if omitted.
+    pub gross_margin: Option<f64>,
+    /// Override D&A as % of revenue (0.0–1.0). Calibrated from history if omitted.
+    pub da_to_revenue: Option<f64>,
+    /// Override capex as % of revenue (0.0–1.0). Calibrated from history if omitted.
+    pub capex_to_revenue: Option<f64>,
+    /// Override NWC as % of revenue (0.0–1.0). Calibrated from history if omitted.
+    pub nwc_to_revenue: Option<f64>,
+    /// Override effective tax rate (0.0–1.0). Calibrated from history if omitted.
+    pub tax_rate: Option<f64>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -275,4 +287,9 @@ pub struct ForecastRecordRequest {
     pub actual_multiple: f64,
     /// Actual price change from forecast date to outcome date
     pub actual_price_change: f64,
+    /// Forecast ID from dcf_valuation or calibrate_forecast.
+    /// When provided, looks up the stored projected model and decomposes
+    /// the return gap into 11-line-item drivers (revenue growth, gross margin,
+    /// D&A, capex, NWC, multiple expansion, net debt).
+    pub forecast_id: Option<String>,
 }
