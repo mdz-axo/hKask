@@ -125,7 +125,7 @@ cmd_status() {
     if curl -s "$HOMESERVER_URL/_matrix/client/versions" > /dev/null 2>&1; then
         log_info "Conduit is running and healthy at $HOMESERVER_URL"
         echo ""
-        curl -s "$HOMESERVER_URL/_matrix/client/versions" | python3 -m json.tool 2>/dev/null || true
+        if command -v python3 &>/dev/null; then curl -s "$HOMESERVER_URL/_matrix/client/versions" | python3 -m json.tool 2>/dev/null || true; else curl -s "$HOMESERVER_URL/_matrix/client/versions"; fi
     else
         log_warn "Conduit is not responding at $HOMESERVER_URL"
         if $DOCKER_COMPOSE -f "$COMPOSE_FILE" ps | grep -q "hkask-conduit"; then
@@ -164,6 +164,10 @@ cmd_register() {
     # Default credentials: curator / UserSovereignty
     local username="${1:-curator}"
     local password="${2:-UserSovereignty}"
+    # Warn if default password is being used (local dev only)
+    if [ "${2:-}" = "" ]; then
+        log_warn "Using default Curator password. Change it for production use."
+    fi
     local reg_token="${HKASK_MATRIX_REGISTRATION_TOKEN:-hkask-dev}"
 
     log_info "Registering Curator user '$username' on $HOMESERVER_URL..."
@@ -179,7 +183,7 @@ cmd_register() {
             \"auth\": {\"type\": \"m.login.registration_token\", \"token\": \"$reg_token\"}
         }")
 
-    if echo "$response" | grep -q "access_token"; then
+    if echo "$response" | grep -q "access_token" && ! echo "$response" | grep -q "errcode"; then
         log_info "Curator user '$username' registered successfully!"
         echo ""
         echo "  Username: @$username:localhost"
@@ -188,7 +192,7 @@ cmd_register() {
         echo "  Save these credentials. This user has admin privileges."
     else
         log_error "Registration failed. Response:"
-        echo "$response" | python3 -m json.tool 2>/dev/null || echo "$response"
+        if command -v python3 &>/dev/null; then echo "$response" | python3 -m json.tool 2>/dev/null || echo "$response"; else echo "$response"; fi
         log_warn "If the server already has users, the first user is the Curator."
         log_warn "Try logging in with existing credentials instead."
     fi

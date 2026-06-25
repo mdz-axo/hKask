@@ -1,6 +1,6 @@
 # Agent Operating Guide — hKask
 
-**hKask** (ℏKask) — A Minimal Viable Container for Agents | `kask` binary | `hkask-` crate prefix | v0.30.0
+**hKask** (ℏKask) — A Minimal Viable Container for Agents | `kask` binary | `hkask-` crate prefix | v0.31.0
 
 ---
 
@@ -52,7 +52,7 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 
 | Name | Type | When to Activate |
 |------|------|-----------------|
-| **kata** | Bundle | Toyota Kata system — composes starter, improvement, and coaching. [pending v0.30.0 upgrade] |
+| **kata** | Bundle | Toyota Kata system — composes starter, improvement, and coaching. [pending v0.31.0 upgrade] |
 | **kata-coaching** | **Skill** | The 5-question Coaching Kata dialogue for teaching scientific thinking. |
 | **kata-improvement** | **Skill** | The 4-step Improvement Kata: Understand Direction, Grasp Current Condition, Establish Target, PDCA iterate. |
 | **kata-starter** | **Skill** | Foundational kata practice routines: Five Questions Drill, PDCA Cycle, Observation Drill. |

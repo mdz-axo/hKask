@@ -89,7 +89,6 @@ jobs:
       - name: Prohibited visual-UI / monitoring infrastructure (P3 §5)
         run: |
           violations=$(grep -rPni '(?i)grafana|prometheus|dashboard|visual[\s.]*ui' crates/ --include='*.rs' 2>/dev/null || true)
-          violations=$(echo "$violations" | grep -v '/tests/' || true)
           if [ -n "$violations" ]; then
             echo "$violations"
             echo "::error::Visual UI/monitoring infrastructure prohibited — headless system only (P3 §5)"
@@ -98,7 +97,6 @@ jobs:
       - name: Hardcoded secrets (P3)
         run: |
           violations=$(grep -rPni '(?i)\b(api[_-]?key|api[_-]?secret|password|token|private[_-]?key)\b\s*=\s*"[^"]+"' crates/ --include='*.rs' 2>/dev/null || true)
-          violations=$(echo "$violations" | grep -v '/tests/' || true)
           if [ -n "$violations" ]; then
             echo "$violations"
             echo "::error::Hardcoded secrets found — use env vars or keystore"

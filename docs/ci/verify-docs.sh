@@ -191,7 +191,7 @@ if [ "$readme_skill_count" != "?" ] && [ "$readme_skill_count" != "$skill_count"
 fi
 
 # AGENTS.md skill count
-agents_skill_claim=$(grep -oP '\*\*\K[0-9]+(?= skills total\*\*)' AGENTS.md 2>/dev/null || echo "?")
+agents_skill_claim=$(grep -oP '\*\*\K[0-9]+(?= total\*\*)' AGENTS.md 2>/dev/null || echo "?")
 if [ "$agents_skill_claim" != "?" ] && [ "$agents_skill_claim" != "$skill_count" ]; then
   echo -e "  ${RED}MISMATCH:${NC} AGENTS.md claims $agents_skill_claim skills, actual: $skill_count"
   ERRORS=$((ERRORS + 1))
