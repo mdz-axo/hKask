@@ -4,12 +4,12 @@
 //! tool methods live in lib.rs for fuzz testability (P5 Testing Discipline).
 
 use hkask_mcp_filesystem::FileSystemServer;
+use std::path::PathBuf;
 
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp::McpError> {
     dotenvy::dotenv().ok();
-    let replicant =
-        std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
+    let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
 
     // P4 Gate 1/2/3: Authenticate + verify role + check WebID
     let daemon_client = hkask_mcp::DaemonClient::new();
@@ -49,6 +49,11 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         }
     };
 
+    let project_root = std::env::var("HKASK_PROJECT_ROOT")
+        .ok()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+
     hkask_mcp::run_server(
         "hkask-mcp-filesystem",
         env!("CARGO_PKG_VERSION"),
@@ -61,6 +66,8 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
                 } else {
                     None
                 },
+                project_root: project_root.clone(),
+                capability_tier: ctx.capability_tier,
             })
         },
         vec![], // No required credentials — filesystem access is inherent

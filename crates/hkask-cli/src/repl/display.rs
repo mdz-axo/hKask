@@ -100,13 +100,16 @@ pub(super) fn print_first_steps() {
 
 /// MCP consent prompt — shown on every session start.
 ///
-/// P2 (Affirmative Consent): No MCP servers are loaded by default.
-/// The user must explicitly opt-in via /mcp start all or /mcp start <server>.
+/// P2 (Affirmative Consent): The filesystem server auto-starts for essential
+/// agent capabilities (read, write, edit, search, shell). All other servers
+/// require explicit opt-in via /mcp start.
 pub(super) fn print_mcp_prompt() {
     println!();
-    println!("  \x1b[2;33mℹ  No MCP servers loaded — replicant runs with inference only.\x1b[0m");
     println!(
-        "  \x1b[2m   Type \x1b[36m/mcp list\x1b[0m\x1b[2m to browse, \x1b[36m/mcp start all\x1b[0m\x1b[2m to load everything.\x1b[0m"
+        "  \x1b[2;33mℹ  Filesystem MCP loaded — agents can read, write, and execute code.\x1b[0m"
+    );
+    println!(
+        "  \x1b[2m   Type \x1b[36m/mcp list\x1b[0m\x1b[2m to browse available servers, \x1b[36m/mcp start all\x1b[0m\x1b[2m to load the rest.\x1b[0m"
     );
 }
 

@@ -242,24 +242,6 @@ pub async fn run_pipeline(
     }
 }
 
-/// Assemble OCR results into a single document string with page markers.
-///
-/// Pure function of the result buffer. No side effects.
-fn assemble_document(results: &[OcrResult]) -> String {
-    let mut assembled = String::new();
-    for result in results {
-        if !assembled.is_empty() {
-            assembled.push('\n');
-        }
-        assembled.push_str(&format!(
-            "--- PAGE {} ---\n{}",
-            result.page_index + 1,
-            result.text
-        ));
-    }
-    assembled
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -347,19 +329,13 @@ mod tests {
         let outcome = run_pipeline(pages, expected, &executor, &t, None, None).await;
 
         assert_eq!(outcome.results.len(), 3);
-        // Results should be in page order
+        // Results should be in page order with correct content
         assert_eq!(outcome.results[0].page_index, 0);
         assert_eq!(outcome.results[1].page_index, 1);
         assert_eq!(outcome.results[2].page_index, 2);
-
-        // Assemble and check markers
-        let assembled = assemble_document(&outcome.results);
-        assert!(assembled.contains("--- PAGE 1 ---"));
-        assert!(assembled.contains("--- PAGE 2 ---"));
-        assert!(assembled.contains("--- PAGE 3 ---"));
-        assert!(assembled.contains("Page one"));
-        assert!(assembled.contains("Page two"));
-        assert!(assembled.contains("Page three"));
+        assert!(outcome.results[0].text.contains("Page one"));
+        assert!(outcome.results[1].text.contains("Page two"));
+        assert!(outcome.results[2].text.contains("Page three"));
     }
 
     #[tokio::test]
@@ -375,32 +351,5 @@ mod tests {
         assert_eq!(outcome.results.len(), 1, "only first page should succeed");
         assert_eq!(outcome.errors.len(), 1, "second page should produce error");
         assert!(!outcome.report.passed, "report should not pass with errors");
-    }
-
-    #[test]
-    fn assemble_document_pure() {
-        let results = vec![
-            OcrResult {
-                page_index: 0,
-                backend: OcrBackend::Tesseract,
-                text: "Alpha".into(),
-                confidence: 0.95,
-                duration_ms: 10,
-                was_fallback: false,
-            },
-            OcrResult {
-                page_index: 1,
-                backend: OcrBackend::Tesseract,
-                text: "Beta".into(),
-                confidence: 0.90,
-                duration_ms: 12,
-                was_fallback: false,
-            },
-        ];
-        let a = assemble_document(&results);
-        let b = assemble_document(&results);
-        assert_eq!(a, b);
-        assert!(a.contains("--- PAGE 1 ---"));
-        assert!(a.contains("--- PAGE 2 ---"));
     }
 }

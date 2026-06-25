@@ -9,13 +9,27 @@
 //!   fs.search  — Regex search across files
 //!   fs.delete  — Delete a file or empty directory
 //!   shell.exec — Execute a shell command with timeout + output guard
+//!
+//! # Security
+//!
+//! All file I/O is sandboxed to the project root. Paths are canonicalized and
+//! verified against the root before any read or write. Path traversal (`../`)
+//! is rejected at the sandbox boundary.
+//!
+//! # CNS Spans
+//!
+//! All spans use `CnsSpan::Tool { subsystem: ToolSubsystem::Filesystem }`.
+//! Operations: `file.read`, `file.written`, `file.deleted`,
+//! `command.completed`, `command.failed`, `path.rejected`.
 
 pub mod types;
 use types::*;
 
-use hkask_mcp::server::{McpToolError, ToolContext, execute_tool};
+use hkask_mcp::server::{CapabilityTier, McpToolError, ToolContext, execute_tool};
 use hkask_types::WebID;
+use hkask_types::cns::{CnsSpan, ToolSubsystem};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 // ── Server ───────────────────────────────────────────────────────────────
@@ -24,6 +38,44 @@ pub struct FileSystemServer {
     pub webid: WebID,
     pub replicant: String,
     pub daemon: Option<hkask_mcp::DaemonClient>,
+    /// Project root — all file I/O is sandboxed within this directory tree.
+    pub project_root: PathBuf,
+    pub capability_tier: CapabilityTier,
+}
+
+impl FileSystemServer {
+    /// Emit a CNS span for a filesystem operation.
+    fn emit_cns(&self, operation: &str) {
+        CnsSpan::Tool {
+            subsystem: ToolSubsystem::Filesystem,
+        }
+        .emit(operation);
+    }
+
+    /// Validate that `raw_path` is within `self.project_root` after canonicalization.
+    fn sandbox_path(&self, raw_path: &str) -> Result<PathBuf, McpToolError> {
+        let candidate = Path::new(raw_path);
+        let resolved = if candidate.is_relative() {
+            self.project_root.join(candidate)
+        } else {
+            candidate.to_path_buf()
+        };
+        let canonical = resolved.canonicalize().map_err(|e| {
+            McpToolError::invalid_argument(format!("Cannot resolve path '{raw_path}': {e}"))
+        })?;
+        let canonical_root = self
+            .project_root
+            .canonicalize()
+            .unwrap_or_else(|_| self.project_root.clone());
+        if !canonical.starts_with(&canonical_root) {
+            self.emit_cns("path.rejected");
+            return Err(McpToolError::invalid_argument(format!(
+                "Path '{raw_path}' is outside the project root '{}'",
+                self.project_root.display()
+            )));
+        }
+        Ok(canonical)
+    }
 }
 
 impl ToolContext for FileSystemServer {
@@ -45,11 +97,14 @@ impl FileSystemServer {
     )]
     async fn fs_read(&self, Parameters(req): Parameters<FsReadRequest>) -> String {
         execute_tool(self, "fs.read", async {
-            let meta = tokio::fs::metadata(&req.path).await.map_err(|e| {
+            let sandboxed = self.sandbox_path(&req.path)?;
+            let path_str = sandboxed.to_string_lossy().to_string();
+
+            let meta = tokio::fs::metadata(&sandboxed).await.map_err(|e| {
                 McpToolError::invalid_argument(format!("Cannot access {}: {e}", req.path))
             })?;
 
-            let content = tokio::fs::read_to_string(&req.path).await.map_err(|e| {
+            let content = tokio::fs::read_to_string(&sandboxed).await.map_err(|e| {
                 McpToolError::invalid_argument(format!("Cannot read {}: {e}", req.path))
             })?;
 
@@ -70,9 +125,10 @@ impl FileSystemServer {
                 dt.to_rfc3339()
             });
 
+            self.emit_cns("file.read");
             Ok(serde_json::json!({
                 "content": output,
-                "path": req.path,
+                "path": path_str,
                 "total_lines": total_lines,
                 "size_bytes": meta.len(),
                 "modified": modified,
@@ -85,19 +141,23 @@ impl FileSystemServer {
     #[tool(description = "Create or overwrite a file. Creates parent directories if needed.")]
     async fn fs_write(&self, Parameters(req): Parameters<FsWriteRequest>) -> String {
         execute_tool(self, "fs.write", async {
-            if let Some(parent) = std::path::Path::new(&req.path).parent() {
+            let sandboxed = self.sandbox_path(&req.path)?;
+            let path_str = sandboxed.to_string_lossy().to_string();
+
+            if let Some(parent) = sandboxed.parent() {
                 tokio::fs::create_dir_all(parent)
                     .await
                     .map_err(|e| McpToolError::internal(format!("Cannot create directory: {e}")))?;
             }
 
-            tokio::fs::write(&req.path, &req.content)
+            tokio::fs::write(&sandboxed, &req.content)
                 .await
                 .map_err(|e| McpToolError::internal(format!("Cannot write {}: {e}", req.path)))?;
 
+            self.emit_cns("file.written");
             Ok(serde_json::json!({
                 "written": true,
-                "path": req.path,
+                "path": path_str,
                 "bytes": req.content.len(),
             }))
         })
@@ -109,7 +169,10 @@ impl FileSystemServer {
     )]
     async fn fs_edit(&self, Parameters(req): Parameters<FsEditRequest>) -> String {
         execute_tool(self, "fs.edit", async {
-            let mut content = tokio::fs::read_to_string(&req.path).await.map_err(|e| {
+            let sandboxed = self.sandbox_path(&req.path)?;
+            let path_str = sandboxed.to_string_lossy().to_string();
+
+            let mut content = tokio::fs::read_to_string(&sandboxed).await.map_err(|e| {
                 McpToolError::invalid_argument(format!("Cannot read {}: {e}", req.path))
             })?;
 
@@ -122,14 +185,15 @@ impl FileSystemServer {
             }
 
             if applied > 0 {
-                tokio::fs::write(&req.path, &content).await.map_err(|e| {
+                tokio::fs::write(&sandboxed, &content).await.map_err(|e| {
                     McpToolError::internal(format!("Cannot write {}: {e}", req.path))
                 })?;
             }
 
+            self.emit_cns("file.written");
             Ok(serde_json::json!({
                 "edited": applied > 0,
-                "path": req.path,
+                "path": path_str,
                 "edits_applied": applied,
                 "total_edits": req.edits.len(),
             }))
@@ -140,8 +204,11 @@ impl FileSystemServer {
     #[tool(description = "List directory contents. Returns entry names, paths, types, and sizes.")]
     async fn fs_list(&self, Parameters(req): Parameters<FsListRequest>) -> String {
         execute_tool(self, "fs.list", async {
+            let sandboxed = self.sandbox_path(&req.path)?;
+            let path_str = sandboxed.to_string_lossy().to_string();
+
             let mut entries = Vec::new();
-            let mut read_dir = tokio::fs::read_dir(&req.path).await.map_err(|e| {
+            let mut read_dir = tokio::fs::read_dir(&sandboxed).await.map_err(|e| {
                 McpToolError::invalid_argument(format!("Cannot list {}: {e}", req.path))
             })?;
 
@@ -163,8 +230,9 @@ impl FileSystemServer {
                 }));
             }
 
+            self.emit_cns("file.read");
             Ok(serde_json::json!({
-                "path": req.path,
+                "path": path_str,
                 "entries": entries,
                 "count": entries.len(),
             }))
@@ -177,13 +245,15 @@ impl FileSystemServer {
     )]
     async fn fs_search(&self, Parameters(req): Parameters<FsSearchRequest>) -> String {
         execute_tool(self, "fs.search", async {
+            let sandboxed = self.sandbox_path(&req.path)?;
+
             let re = regex::Regex::new(&req.pattern)
                 .map_err(|e| McpToolError::invalid_argument(format!("Invalid regex: {e}")))?;
 
             let depth = req.max_depth.unwrap_or(3) as usize;
             let mut matches = Vec::new();
 
-            for entry in walkdir::WalkDir::new(&req.path)
+            for entry in walkdir::WalkDir::new(&sandboxed)
                 .max_depth(depth)
                 .into_iter()
                 .filter_map(|e| e.ok())
@@ -202,6 +272,7 @@ impl FileSystemServer {
                 }
             }
 
+            self.emit_cns("file.read");
             Ok(serde_json::json!({
                 "pattern": req.pattern,
                 "matches": matches,
@@ -214,9 +285,10 @@ impl FileSystemServer {
     #[tool(description = "Delete a file or empty directory. Returns whether deletion succeeded.")]
     async fn fs_delete(&self, Parameters(req): Parameters<FsDeleteRequest>) -> String {
         execute_tool(self, "fs.delete", async {
-            let path = std::path::Path::new(&req.path);
+            let sandboxed = self.sandbox_path(&req.path)?;
+            let path_str = sandboxed.to_string_lossy().to_string();
 
-            if !path
+            if !sandboxed
                 .try_exists()
                 .map_err(|e| McpToolError::internal(format!("Cannot check {}: {e}", req.path)))?
             {
@@ -226,10 +298,10 @@ impl FileSystemServer {
                 )));
             }
 
-            let deleted = if path.is_dir() {
-                tokio::fs::remove_dir(path).await.is_ok()
+            let deleted = if sandboxed.is_dir() {
+                tokio::fs::remove_dir(&sandboxed).await.is_ok()
             } else {
-                tokio::fs::remove_file(path).await.is_ok()
+                tokio::fs::remove_file(&sandboxed).await.is_ok()
             };
 
             if !deleted {
@@ -239,7 +311,8 @@ impl FileSystemServer {
                 )));
             }
 
-            Ok(serde_json::json!({"deleted": true, "path": req.path}))
+            self.emit_cns("file.deleted");
+            Ok(serde_json::json!({"deleted": true, "path": path_str}))
         })
         .await
     }
@@ -260,9 +333,13 @@ impl FileSystemServer {
                 .stderr(std::process::Stdio::piped())
                 .stdin(std::process::Stdio::null());
 
-            if let Some(ref cwd) = req.cwd {
-                cmd.current_dir(cwd);
-            }
+            // Sandbox cwd: if provided, canonicalize and verify within project_root.
+            // If not provided, default to project_root.
+            let cwd = match req.cwd {
+                Some(ref c) => self.sandbox_path(c)?.to_string_lossy().to_string(),
+                None => self.project_root.to_string_lossy().to_string(),
+            };
+            cmd.current_dir(&cwd);
 
             let child = cmd.spawn().map_err(|e| {
                 McpToolError::invalid_argument(format!("Cannot spawn command: {e}"))
@@ -287,18 +364,31 @@ impl FileSystemServer {
                         (stdout_lossy.to_string(), false)
                     };
 
+                    let exit_code = out.status.code().unwrap_or(-1);
+                    if exit_code != 0 {
+                        self.emit_cns("command.failed");
+                    } else {
+                        self.emit_cns("command.completed");
+                    }
+
                     Ok(serde_json::json!({
                         "stdout": stdout_str,
                         "stderr": stderr_lossy,
-                        "exit_code": out.status.code().unwrap_or(-1),
+                        "exit_code": exit_code,
                         "duration_ms": duration_ms,
                         "truncated": truncated,
                     }))
                 }
-                Ok(Err(e)) => Err(McpToolError::internal(format!("Command error: {e}"))),
-                Err(_) => Err(McpToolError::internal(format!(
-                    "Command timed out after {timeout_ms}ms"
-                ))),
+                Ok(Err(e)) => {
+                    self.emit_cns("command.failed");
+                    Err(McpToolError::internal(format!("Command error: {e}")))
+                }
+                Err(_) => {
+                    self.emit_cns("command.failed");
+                    Err(McpToolError::internal(format!(
+                        "Command timed out after {timeout_ms}ms"
+                    )))
+                }
             }
         })
         .await

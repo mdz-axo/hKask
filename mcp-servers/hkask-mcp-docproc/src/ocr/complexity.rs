@@ -22,7 +22,7 @@ use image::DynamicImage;
 /// Complexity scoring is a performance optimization (routing shortcut),
 /// not a correctness dependency. Delete it → pipeline degrades to
 /// single-backend; keep it small.
-pub fn score_page_complexity(
+pub(crate) fn score_page_complexity(
     image: &DynamicImage,
     thresholds: &ThresholdConfig,
 ) -> ComplexityScore {

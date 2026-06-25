@@ -28,6 +28,7 @@ pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
     ("replica", "hkask-mcp-replica"),
     ("kanban", "hkask-mcp-kanban"),
     ("skill", "hkask-mcp-skill"),
+    ("filesystem", "hkask-mcp-filesystem"),
 ];
 
 /// Start all built-in MCP servers and discover their tools.

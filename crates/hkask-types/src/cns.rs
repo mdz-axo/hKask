@@ -235,6 +235,7 @@ pub enum ToolSubsystem {
     Memory,
     Companies,
     Docproc,
+    Filesystem,
     /// Catch-all for unknown or future MCP servers.
     Other,
 }
@@ -282,6 +283,7 @@ impl ToolSubsystem {
             ToolSubsystem::Memory => "memory",
             ToolSubsystem::Companies => "companies",
             ToolSubsystem::Docproc => "docproc",
+            ToolSubsystem::Filesystem => "filesystem",
             ToolSubsystem::Other => "other",
         }
     }
@@ -339,6 +341,7 @@ impl CnsSpan {
                 ToolSubsystem::Memory => "cns.tool.memory",
                 ToolSubsystem::Companies => "cns.tool.companies",
                 ToolSubsystem::Docproc => "cns.tool.docproc",
+                ToolSubsystem::Filesystem => "cns.tool.filesystem",
                 ToolSubsystem::Other => "cns.tool",
             },
             CnsSpan::Inference => "cns.inference",

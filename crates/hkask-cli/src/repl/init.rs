@@ -171,10 +171,18 @@ pub(super) fn init_repl_state(
     // Register the CLI's inference loop on the shared loop system.
     rt.block_on(ctx.loop_system.register_loop(inference_loop.clone()));
 
-    // P2: Affirmative Consent — MCP servers are NOT auto-started at REPL boot.
-    // Users must explicitly consent via the post-sign-on prompt or the /mcp command.
-    // The MCP runtime is shared below but servers won't be live until opted in.
+    // P2: Affirmative Consent — most MCP servers are NOT auto-started at REPL boot.
+    // The filesystem server is the exception: it provides the sensory (read/search)
+    // and actuation (write/edit/exec) capabilities that agents need as their
+    // autonomous interface to the codebase. Without it, agents hallucinate code.
+    // All other servers require explicit opt-in via /mcp start <server>.
     let mcp_runtime = ctx.mcp_runtime().clone();
+    rt.block_on(async {
+        match mcp_runtime.start_server("filesystem", "hkask-mcp-filesystem").await {
+            Ok(()) => tracing::info!(target: "hkask.repl", "Filesystem server auto-started"),
+            Err(e) => tracing::warn!(target: "hkask.repl", error = %e, "Filesystem server failed to auto-start — agents will lack code access"),
+        }
+    });
 
     // Create the GovernedTool membrane for CLI tool discovery.
     // This wraps AgentService's MCP runtime with gas governance and CNS observability,

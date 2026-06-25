@@ -572,8 +572,12 @@ Started automatically at REPL boot via `builtin_servers::start_builtin_servers()
 | `replica` | `hkask-mcp-replica` | Style embedding and prose composition |
 | `training` | `hkask-mcp-training` | Model training data ingestion |
 | `kanban` | `hkask-mcp-kanban` | Kanban board coordination |
+| `filesystem` | `hkask-mcp-filesystem` | Filesystem read/write/search + shell command execution for agent code interaction |
 
 Servers that fail to start are logged and skipped — their tools simply won't be available.
+
+The `filesystem` server auto-starts at REPL boot as the essential sensory/actuation
+interface for agents. All other servers require explicit consent via `/mcp start`.
 
 ### 12.3 Direct Tool Invocation (`/invoke`)
 

@@ -15,7 +15,7 @@ use crate::ocr::{OcrResult, PageVerificationDetail, PipelineError, VerificationR
 /// 4. Error tally: count all pipeline errors.
 ///
 /// `passed = (error_count == 0 && all_checks_pass)`.
-pub fn verify_output(
+pub(crate) fn verify_output(
     expected_pages: usize,
     results: &[OcrResult],
     estimated_word_count: usize,
@@ -74,7 +74,7 @@ pub fn verify_output(
 /// Base: ~2000 pixels per word at 300 DPI. Multiplied by complexity
 /// factor: low edge density (blank pages) → fewer expected words;
 /// high edge density (dense text) → more expected words.
-pub fn estimate_word_count(width: u32, height: u32, edge_density: f32) -> usize {
+pub(crate) fn estimate_word_count(width: u32, height: u32, edge_density: f32) -> usize {
     let pixels = (width as u64) * (height as u64);
     let base = (pixels / 2000).max(1) as f32;
     // Complexity factor: edge_density × 10, clamped to [0.1, 3.0]

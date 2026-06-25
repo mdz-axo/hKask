@@ -1,4 +1,10 @@
 //! REPL /ask handler — force a specific agent to respond
+//!
+//! NOTE: /ask does NOT pass tool definitions (native function calling) to the
+//! inference request. The agent receives the tool prompt section (describing
+//! available tools) as system prompt text, but cannot return structured tool
+//! calls, and the response is not parsed for <<tool:...>> directives.
+//! For tool-augmented workflows, use the main REPL input prompt directly.
 
 pub(crate) fn handle_ask(
     arg1: &str,
