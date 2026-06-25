@@ -1,6 +1,6 @@
 ---
 title: "Bug Hunting Skill — Design, Theory, and Implementation"
-version: "0.30.0"
+version: "0.31.0"
 date: 2026-06-22
 status: "Active — Implemented"
 audience: [architects, QA practitioners, agents]

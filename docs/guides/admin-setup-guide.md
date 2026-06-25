@@ -2,7 +2,7 @@
 title: "Admin Setup Guide — hKask Cloud Deployment"
 audience: [administrators, devops]
 last_updated: 2026-06-20
-version: "0.30.0"
+version: "0.31.0"
 status: "Implementation Guide"
 domain: "Deployment"
 mds_categories: [lifecycle]

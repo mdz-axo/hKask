@@ -2,7 +2,7 @@
 title: "Replicant Onboarding Walkthrough"
 audience: [new users, replicant owners, project maintainers]
 last_updated: 2026-06-18
-version: "0.30.0"
+version: "0.31.0"
 status: "Draft"
 domain: "Cross-cutting"
 mds_categories: [domain, lifecycle]

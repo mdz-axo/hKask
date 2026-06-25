@@ -2,7 +2,7 @@
 title: "ADR-035: Replicant Server Mode — AgentMode, Daemon Transport, Dual Memory Encoding"
 audience: [architects, developers]
 last_updated: 2026-06-12
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [composition, trust, lifecycle]

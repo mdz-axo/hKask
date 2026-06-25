@@ -2,7 +2,7 @@
 title: "hKask TODO — Open Work"
 audience: [project maintainers, contributors]
 last_updated: 2026-06-20
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]

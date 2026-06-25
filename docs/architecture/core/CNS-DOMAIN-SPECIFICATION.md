@@ -2,7 +2,7 @@
 title: "CNS Domain Specification"
 audience: [architects, developers, agents]
 last_updated: 2026-06-18
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "cybernetics"
 mds_categories: [domain, composition, trust, lifecycle, curation]

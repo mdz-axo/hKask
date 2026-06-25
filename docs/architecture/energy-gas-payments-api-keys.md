@@ -2,7 +2,7 @@
 title: "Energy, Gas, Payments & API Key System"
 audience: [architects, developers, agents]
 last_updated: 2026-06-18
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "Trust"
 mds_categories: [domain, trust, lifecycle, curation]
@@ -102,7 +102,39 @@ key_allocation_remaining = initial_allocation - gas_consumed_by_key
 
 When `key_allocation_remaining ≤ 0`, requests return `402 Payment Required`. The funding replicant can replenish via `kask wallet encumber --key-id <id> --amount <rj>`.
 
-**Implementation status (v0.28.0):** Fully implemented. The `ApiKeyAuthService` middleware registers a `WalletBackedBudget` with the key's encumbrance after Bearer token authentication. `GovernedTool` and `GovernedInference` membranes check wallet budgets before gas budgets, and debit from encumbrance on settle. CNS spans `cns.gas.reserved`, `cns.gas.settled`, `cns.gas.depleted` provide observability.
+**Implementation status (v0.28.0):** Fully implemented.
+
+### 3.4 Manifest-Level Gas/rJoule Budgets (v0.30.0)
+
+Each skill manifest declares two independent energy budgets:
+
+| Budget | Unit | Purpose | Consumed By |
+|--------|------|---------|-------------|
+| `gas` | Compute cycles | Caps local PDCA loop iterations | Each cascade loop pass |
+| `rjoule` | rJ (inference energy) | Caps LLM inference spend | Each inference call (`select` action) |
+
+**System constant:** 1 rJoule = 250,000 gas cycles (`RJOULE_TO_GAS` in `hkask-templates::bundle::config`). This reflects the cost differential between local compute (cheap) and LLM inference (expensive).
+
+**Manifest structure:**
+```yaml
+gas:
+  cap: 100000           # Total compute gas budget
+  cost_per_iteration: 100  # Gas consumed per cascade loop pass
+  alert_threshold: 0.8
+  hard_limit: true
+
+rjoule:
+  cap: 18000            # Total inference energy budget in rJ
+  cost_per_token: 0.25  # rJ consumed per inference token
+  alert_threshold: 0.8
+  hard_limit: true
+```
+
+**Exhaustion behavior:** Either budget exhaustion terminates the cascade with `maxed_out`/`energy_spent` status. The convergence report includes both `gas_used`/`gas_cap` and `rjoule_used`/`rjoule_cap` for auditability. CNS spans `cns.skill.gas_alert`, `cns.skill.gas_exhausted`, `cns.skill.rjoule_alert`, `cns.skill.rjoule_exhausted` provide observability.
+
+**Templates receive both budgets** via `_gas` and `_rjoule` context objects, and the exit report via `_convergence` includes `gas_used`, `gas_cap`, `gas_remaining`, `rjoule_used`, `rjoule_cap`.
+
+**Implementation status (v0.30.0):** Fully implemented in `ManifestExecutor::execute_manifest`. All 47 skill manifests declare separate gas/rjoule budgets. The `ApiKeyAuthService` middleware registers a `WalletBackedBudget` with the key's encumbrance after Bearer token authentication. `GovernedTool` and `GovernedInference` membranes check wallet budgets before gas budgets, and debit from encumbrance on settle. CNS spans `cns.gas.reserved`, `cns.gas.settled`, `cns.gas.depleted` provide observability.
 
 ---
 

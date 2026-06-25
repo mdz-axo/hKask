@@ -2,7 +2,7 @@
 title: "Autopoietic Bug Hunting: A Unified Model for Self-Producing Testing Competence in the hKask Agent Substrate"
 authors: ["hKask Research Collective"]
 date: 2026-06-21
-version: "0.30.0"
+version: "0.31.0"
 status: "Draft — Synthesis"
 domain: "Research"
 mds_categories: [domain, composition, trust, lifecycle]

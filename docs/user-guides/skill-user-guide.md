@@ -2,7 +2,7 @@
 title: "hKask Skill User Guide — Discovering and Using Agent Skills"
 audience: [developers, operators, curators]
 last_updated: 2026-06-23
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [composition]

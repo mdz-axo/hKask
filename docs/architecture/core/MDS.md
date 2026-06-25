@@ -2,7 +2,7 @@
 title: "MDS — Minimal Domain Specification"
 audience: [architects, developers, agents]
 last_updated: 2026-06-18
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -258,12 +258,12 @@ The spec server handles capture → decompose → quality → coherence. Curatio
 
 ## 7. Template Manifests
 
-Each category has a minimal YAML template. All use `schema_version: "0.27.0"`.
+Each category has a minimal YAML template. All use `schema_version: "0.30.0"`.
 
 ### 7.1 Domain Spec Template
 
 ```yaml
-schema_version: "0.27.0"
+schema_version: "0.30.0"
 category: domain
 domain_anchor: hkask
 bounded_context: "..."
@@ -292,7 +292,7 @@ cross_references:
 ### 7.2 Composition Spec Template
 
 ```yaml
-schema_version: "0.27.0"
+schema_version: "0.30.0"
 category: composition
 domain_anchor: hkask
 
@@ -323,7 +323,7 @@ ocap_policy:
 ### 7.3 Trust Spec Template
 
 ```yaml
-schema_version: "0.27.0"
+schema_version: "0.30.0"
 category: trust
 domain_anchor: hkask
 
@@ -349,7 +349,7 @@ keystore:
 ### 7.4 Lifecycle Spec Template
 
 ```yaml
-schema_version: "0.27.0"
+schema_version: "0.30.0"
 category: lifecycle
 domain_anchor: hkask
 
@@ -392,7 +392,7 @@ persistence:
 ### 7.5 Curation Spec Template
 
 ```yaml
-schema_version: "0.27.0"
+schema_version: "0.30.0"
 category: curation
 domain_anchor: hkask
 

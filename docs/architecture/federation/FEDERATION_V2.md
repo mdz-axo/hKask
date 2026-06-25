@@ -2,7 +2,7 @@
 title: "hKask Federation v2 — Complete Design"
 audience: [architects, developers, agents]
 last_updated: 2026-06-22
-version: "0.30.0"
+version: "0.31.0"
 status: "Proposal — Supersedes FEDERATION_DESIGN.md §6"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]

@@ -2,7 +2,7 @@
 title: "Federation Design — Addendum E: PS-1 Resolution Walkthrough"
 audience: [architects, developers]
 last_updated: 2026-06-22
-version: "0.30.0+fed"
+version: "0.31.0+fed"
 status: "Design Decision — Resolved"
 domain: "Cross-cutting"
 ---

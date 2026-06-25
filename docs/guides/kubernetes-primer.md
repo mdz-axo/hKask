@@ -2,7 +2,7 @@
 title: "Kubernetes Primer for hKask — K3s on Hetzner"
 audience: [developers]
 last_updated: 2026-06-20
-version: "0.30.0"
+version: "0.31.0"
 status: "Reference Guide"
 domain: "Deployment"
 mds_categories: [lifecycle]

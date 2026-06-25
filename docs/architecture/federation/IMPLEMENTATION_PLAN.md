@@ -2,7 +2,7 @@
 title: "Federation v2 — Implementation Plan"
 audience: [developers]
 last_updated: 2026-06-22
-version: "0.30.0"
+version: "0.31.0"
 status: "Ready for implementation"
 domain: "Cross-cutting"
 ---

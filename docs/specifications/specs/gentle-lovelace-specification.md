@@ -2,7 +2,7 @@
 title: "Gentle Lovelace — Document Excellence Replica Specification"
 audience: [architects, documentation maintainers, agents]
 last_updated: 2026-06-18
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, curation]

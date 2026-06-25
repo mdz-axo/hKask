@@ -2,7 +2,7 @@
 title: "hKask Skill Composition Guide — Multi-Skill Workflow Chains"
 audience: [developers, agents, curators, architects]
 last_updated: 2026-06-23
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "Composition"
 mds_categories: [composition, curation]

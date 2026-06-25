@@ -2,7 +2,7 @@
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
 last_updated: 2026-06-22
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -38,6 +38,11 @@ hKask's architecture is governed by **four irreducible patterns** that compose i
 - Cascade is recursive — a FlowDef step can contain nested WordAct/KnowAct/FlowDef, bounded by matryoshka limit (7)
 - Specifications are FlowDef manifests — not a separate type (unification principle)
 - Energy-accounted and OCAP-gated: every execute step goes through `GovernedTool`
+- **PDCA convergence**: Skills declare `convergence.threshold` (quality gate) and iterate via `loop` actions until metric ≤ threshold or `max_iterations` exhausted
+- **Dual energy budget**: `gas` (compute cycles, caps loop iterations) and `rjoule` (inference energy, caps LLM spend). System constant: 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)
+- **Conditional steps**: Steps may declare `condition` expressions (`"var"`, `"NOT var"`, `"a AND b"`, `"a OR b"`) evaluated against context
+- **Compound convergence**: Bundle-delegated skills aggregate via `all_converged`, `min`, or `weighted_avg` methods
+- **Timeout enforcement**: Per-step `timeout_seconds` enforced via `tokio::time::timeout` on inference calls
 
 **Crates:** `hkask-templates`, `hkask-types` (lexicon, BundleManifest)
 

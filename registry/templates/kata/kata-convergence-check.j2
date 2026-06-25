@@ -56,9 +56,11 @@ You are a convergence evaluator for kata practice sessions. Measure whether the 
    - Was the kata executed successfully? → +0.25 if not
    - Was a capability delta observed? → +0.20 if not
    - Automaticity score improved? → +0.15 if not
-2. Check habit health from {{ intervention_result | tojson }}:
-   - Intervention needed (habit at risk)? → +0.20 if yes and not addressed
-   - Streak maintained or recovering? → +0.10 if broken
+2. Check habit health:
+   - If intervention_result is null/empty: no intervention was needed (step skipped). Habit is healthy → no penalty.
+   - If intervention_result is present: assess from {{ intervention_result | tojson }}:
+     - Intervention needed (habit at risk)? → +0.20 if yes and not addressed
+     - Streak maintained or recovering? → +0.10 if broken
 3. Start at 1.0, subtract for each positive signal. Clamp to [0,1].
 
 Return JSON only:

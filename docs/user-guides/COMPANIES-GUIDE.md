@@ -2,7 +2,7 @@
 title: "hKask Companies MCP Server — User Guide"
 audience: [users, agents, operators]
 last_updated: 2026-06-17
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "hkask-mcp-companies"
 mds_categories: [domain, composition]

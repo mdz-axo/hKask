@@ -2,7 +2,7 @@
 title: "hKask Federation — Semantic Map, RDF ERDs, and Curator-CRDT Federation Design"
 audience: [architects, developers, agents]
 last_updated: 2026-06-22
-version: "0.30.0+fed"
+version: "0.31.0+fed"
 status: "Proposal"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]

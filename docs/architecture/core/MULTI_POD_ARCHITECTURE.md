@@ -2,7 +2,7 @@
 title: "Multi-Pod Architecture — CuratorPod + TeamPod + ReplicantPod"
 audience: [architects, developers]
 last_updated: 2026-06-18
-version: "0.30.0"
+version: "0.31.0"
 status: "Design — Ready for Implementation"
 domain: "Agent Pod Lifecycle"
 principles: [P1, P4, P5, P6, P9, P11]

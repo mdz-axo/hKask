@@ -2,7 +2,7 @@
 title: "Project Status"
 audience: [architects, developers, agents]
 last_updated: 2026-06-23
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [lifecycle]

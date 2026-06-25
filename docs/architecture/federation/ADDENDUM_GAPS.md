@@ -2,7 +2,7 @@
 title: "Federation Design — Addendum D: Multi-Skill Gap Analysis"
 audience: [architects, developers]
 last_updated: 2026-06-22
-version: "0.30.0+fed"
+version: "0.31.0+fed"
 status: "Findings — Gaps Requiring Resolution"
 domain: "Cross-cutting"
 ---

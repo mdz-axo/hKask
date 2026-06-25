@@ -91,7 +91,7 @@ steps:
     input_mapping:
       kata_type: "{{ step_1_result.kata_type | default('unknown') }}"
       practice_result: "{{ step_3_result }}"
-      intervention_result: "{{ step_4_result }}"
+      intervention_result: "{{ step_4_result | default(null) }}"
 
   - ordinal: 6
     action: loop

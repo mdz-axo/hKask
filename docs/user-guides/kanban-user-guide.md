@@ -2,7 +2,7 @@
 title: "Kanban User Guide"
 audience: [users, replicants, agents]
 last_updated: 2026-06-17
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "Coordination"
 mds_categories: [domain, composition, lifecycle]

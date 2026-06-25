@@ -2,7 +2,7 @@
 title: "Federation Design — Addendum C: Link Lifecycle, Invitation Protocol, and Revocation Semantics"
 audience: [architects, developers]
 last_updated: 2026-06-22
-version: "0.30.0+fed"
+version: "0.31.0+fed"
 status: "Proposal"
 domain: "Cross-cutting"
 ---
@@ -118,7 +118,7 @@ The invitation is a structured JSON message sent over the existing Matrix transp
 ```json
 {
   "type": "federation.invite",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "invitation_id": "uuid-v4",
   "inviter": {
     "replica_id": "alpha",
@@ -147,7 +147,7 @@ The invitation is a structured JSON message sent over the existing Matrix transp
 ```json
 {
   "type": "federation.accept",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "invitation_id": "uuid-v4",
   "accepter": {
     "replica_id": "beta",
@@ -169,7 +169,7 @@ The invitation is a structured JSON message sent over the existing Matrix transp
 ```json
 {
   "type": "federation.reject",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "invitation_id": "uuid-v4",
   "rejected_at": "2026-06-22T12:03:00Z",
   "reason": "manual_review_required",
@@ -364,7 +364,7 @@ Curator A (initiator)             Curator B (target)          Curator C (other m
 ```json
 {
   "type": "federation.leave",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "leaver": {
     "replica_id": "beta",
     "server_domain": "b.example.com"

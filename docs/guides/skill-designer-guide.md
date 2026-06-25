@@ -2,7 +2,7 @@
 title: "hKask Skill Designer Guide — Creating and Maintaining Agent Skills"
 audience: [developers, architects, agents]
 last_updated: 2026-06-23
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [composition, lifecycle, curation]
