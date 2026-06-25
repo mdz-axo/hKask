@@ -363,39 +363,10 @@ pub struct ComparableAnalysisRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct ThesisTestRequest {
+pub struct ResearchSearchRequest {
     pub symbol: String,
-    /// The investment thesis to test (e.g., "services revenue will grow 15% annually")
-    pub thesis: String,
-    /// Forecast horizon for DCF impact ("1yr", "3yr", "5yr")
-    #[serde(default = "default_thesis_horizon")]
-    pub horizon: String,
-    /// Discount rate override
-    pub discount_rate: Option<f64>,
-    /// Terminal growth override
-    pub terminal_growth: Option<f64>,
-}
-
-fn default_thesis_horizon() -> String {
-    "3yr".to_string()
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct ScenarioWeightRequest {
-    pub symbol: String,
-    /// Discount rate override
-    pub discount_rate: Option<f64>,
-    /// Terminal growth override
-    pub terminal_growth: Option<f64>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GuidanceCheckRequest {
-    pub symbol: String,
-    /// Discount rate override for DCF mapping
-    pub discount_rate: Option<f64>,
-    /// Terminal growth override
-    pub terminal_growth: Option<f64>,
+    /// Research query (e.g., "management guidance 2025", "competition market share")
+    pub query: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

@@ -6,7 +6,7 @@
 
 ## Capability Catalog
 
-Activate via `skill` tool when conditions are met. **46 total** — **42 Skills** (PDCA FlowDef loops with quality threshold + energy budget), **2 Templates** (one-shot, no registry manifest), **1 Bundle** (composition-only, non-PDCA), **1 Legacy** (v0.21.4, pending upgrade).
+Activate via `skill` tool when conditions are met. **47 total** — **43 Skills** (PDCA FlowDef loops with quality threshold + energy budget), **2 Templates** (one-shot, no registry manifest), **1 Bundle** (composition-only, non-PDCA), **1 Legacy** (v0.21.4, pending upgrade).
 
 | Type | Invocation | Behavior | Exit |
 |------|-----------|----------|------|
@@ -79,6 +79,7 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 | **decision-journal** | **Skill** | Kahneman-style decision journal. Record decisions, schedule revisit. |
 | **mcda** | **Skill** | Multi-Criteria Decision Analysis. Weight, score, rank alternatives. |
 | **scenario-builder** | **Skill** | Schwartz scenario planning. Focal question → STEEP → 2×2 → narratives. |
+| **hypothesis-framer** | **Skill** | Research question framing and hypothesis formulation using FINER criteria and PICO process. Use when the user says 'help me frame my research idea', 'is my research question good', 'write a hypothesis', or 'develop study aims'. |
 | **adversarial-red-team** | **Skill** | Adversarial robustness testing. ATLAS/GARAK-aligned taxonomy. |
 | **goal-analysis** | **Skill** | Goal specification and verification. Extract goals, judge completion. |
 | **magna-carta-verifier** | **Skill** | Verify Magna Carta principles (P1–P4) are correctly implemented and enforced. |

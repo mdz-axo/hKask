@@ -1,0 +1,120 @@
+manifest:
+  id: thesis-test
+  name: thesis_test
+  description: "Test an investment thesis against multi-provider fundamental research"
+  functional_role: flowdef
+  version: 0.31.0
+  editor: curator-or-human-admin
+  visibility: Public
+
+convergence:
+  threshold: 0.20
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 2
+  min_iterations: 1
+
+gas:
+  cap: 50000
+  cost_per_iteration: 100
+
+rjoule:
+  cap: 16000
+  cost_per_token: 0.25
+
+inputs:
+  - name: symbol
+    type: string
+    required: true
+  - name: thesis
+    type: string
+    required: true
+
+steps:
+  - ordinal: 1
+    action: execute
+    description: Fetch company profile for name and context
+    tool: company_profile
+    mcp: hkask-mcp-companies
+    arguments:
+      symbol: "${input.symbol}"
+    gas_cap: 500
+
+  - ordinal: 2
+    action: execute
+    description: Search for research evidence across Exa, Tavily, Brave
+    tool: research_search
+    mcp: hkask-mcp-companies
+    arguments:
+      symbol: "${input.symbol}"
+      query: "${input.thesis}"
+    gas_cap: 2000
+
+  - ordinal: 3
+    action: execute
+    description: Fetch key metrics for historical context
+    tool: key_metrics
+    mcp: hkask-mcp-companies
+    arguments:
+      symbol: "${input.symbol}"
+      limit: 1
+    gas_cap: 500
+
+  - ordinal: 4
+    action: select
+    description: Analyze claims against thesis, extract assumption impacts
+    renderer: minijinja
+    template_ref: thesis-test/thesis-test
+    gas_cap: 4500
+    timeout_seconds: 60
+    arguments:
+      symbol: "${input.symbol}"
+      thesis: "${input.thesis}"
+      company_name: "${step_1_result.companyName | default(input.symbol)}"
+      claims: "${step_2_result.claims}"
+      historical_context: "${step_3_result | default({})}"
+
+  - ordinal: 5
+    action: execute
+    description: Run DCF valuation if assumptions were adjusted
+    tool: dcf_valuation
+    mcp: hkask-mcp-companies
+    condition: "step_4_result.dcf_recommendation.should_adjust"
+    arguments:
+      symbol: "${input.symbol}"
+      revenue_growth: "${step_4_result.assumption_impacts | selectattr('assumption', 'equalto', 'revenue_growth') | map(attribute='estimated_adjustment') | first | default(null)}"
+      gross_margin: "${step_4_result.assumption_impacts | selectattr('assumption', 'equalto', 'gross_margin') | map(attribute='estimated_adjustment') | first | default(null)}"
+    gas_cap: 2000
+
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout: retry
+  max_retries: 1
+
+ocap:
+  required_capabilities:
+    - resource: mcp
+      action: execute
+      mcp_server: hkask-mcp-companies
+      tool: company_profile
+      gas_budget: 500
+    - resource: mcp
+      action: execute
+      mcp_server: hkask-mcp-companies
+      tool: research_search
+      gas_budget: 2000
+    - resource: mcp
+      action: execute
+      mcp_server: hkask-mcp-companies
+      tool: key_metrics
+      gas_budget: 500
+    - resource: mcp
+      action: execute
+      mcp_server: hkask-mcp-companies
+      tool: dcf_valuation
+      gas_budget: 2000
+    - resource: template
+      action: render
+      template_id: thesis-test/thesis-test
+      gas_budget: 4500
+  delegation_chain_required: true

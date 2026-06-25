@@ -17,7 +17,7 @@
 //! - `management_scorecard` — MAIA CEO capital allocation scorecard
 //! - `working_capital_cycle` — MAIA CFO working capital analysis
 //! - `expectations_gap` — Gordon Growth Model: implied vs historical growth
-//! - `scenario_weight` — Adjust Schwartz 2x2 scenario probabilities from fundamental research
+//! - `research_search` — Multi-provider fundamental research search
 //!
 //! Portfolio tools:
 //! - `ledger_import` — Import CSV/JSON (auto-creates portfolio)
@@ -1168,174 +1168,60 @@ impl CompaniesServer {
     }
 
     #[tool(
-        description = "Adjust scenario probabilities based on current fundamental research. Runs the four Schwartz scenarios (Bull/Land Grab/Cash Cow/Bear), searches across Exa, Tavily, and Brave for competitive and macro signals affecting the company, and adjusts scenario probabilities with reasoning chains. Returns baseline vs adjusted probabilities and expected intrinsic value shift."
+        description = "Multi-provider fundamental research search. Searches across Exa, Tavily, and Brave for company-specific information and returns raw claims with source URLs. Use with thesis_test, scenario_weight, or guidance_check skills for structured financial analysis."
     )]
-    pub async fn scenario_weight(
+    pub async fn research_search(
         &self,
-        Parameters(req): Parameters<types::ScenarioWeightRequest>,
+        Parameters(req): Parameters<types::ResearchSearchRequest>,
     ) -> String {
-        execute_tool(self, "scenario_weight", async {
-                validate_symbol(&req.symbol)?;
+        execute_tool(self, "research_search", async {
+            // 1. Fetch company profile for name
+            let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
+            let profile = profile_result?;
+            let profile_obj = profile.as_array().and_then(|a| a.first());
+            let company_name = profile_obj
+                .and_then(|p| p.get("companyName").and_then(|v| v.as_str()))
+                .unwrap_or(&req.symbol);
 
-                // 1. Fetch all financial data
-                let income_result = self.fetch("income_statement", &req.symbol, &[("limit", "5")]).await;
-                let balance_result = self.fetch("balance_sheet", &req.symbol, &[("limit", "5")]).await;
-                let cf_result = self.fetch("cash_flow_statement", &req.symbol, &[("limit", "5")]).await;
-                let metrics_result = self.fetch("key_metrics", &req.symbol, &[("limit", "5")]).await;
-                let profile_result = self.fetch("company_profile", &req.symbol, &[]).await;
+            // 2. Run multi-provider search
+            let research = research::search_fundamental(
+                &self.client,
+                &req.symbol,
+                company_name,
+                &req.query,
+                self.exa_api_key.as_deref(),
+                self.tavily_api_key.as_deref(),
+                self.brave_api_key.as_deref(),
+            ).await;
 
-                let (income, balance, cf, metrics, profile) =
-                    match (income_result, balance_result, cf_result, metrics_result, profile_result) {
-                        (Ok(inc), Ok(bal), Ok(cf), Ok(m), Ok(p)) => (inc, bal, cf, m, p),
-                        (Err(e), _, _, _, _) | (_, Err(e), _, _, _) | (_, _, Err(e), _, _)
-                        | (_, _, _, Err(e), _) | (_, _, _, _, Err(e)) => { return Err(e); }
-                    };
+            // 3. Build output
+            let claims: Vec<serde_json::Value> = research.claims.iter().map(|c| {
+                serde_json::json!({
+                    "text": c.text,
+                    "source": c.source,
+                    "source_title": c.source_title,
+                    "date": c.date,
+                    "provider": c.provider,
+                })
+            }).collect();
 
-                let income_arr = income.as_array();
-                let balance_arr = balance.as_array();
-                let cf_arr = cf.as_array();
-                let metrics_arr = metrics.as_array();
-                let profile_obj = profile.as_array().and_then(|a| a.first());
+            let output = serde_json::json!({
+                "symbol": req.symbol,
+                "query": req.query,
+                "claims": claims,
+                "claims_count": claims.len(),
+                "providers": research.provider_summary.iter().map(|p| {
+                    serde_json::json!({"provider": p.provider, "claims": p.claims_found, "status": p.status})
+                }).collect::<Vec<_>>(),
+                "fibo": {
+                    "research_search": fibo::STOCK_SCREENER,
+                },
+                "framework": "Multi-provider fundamental research search (Exa, Tavily, Brave). Returns raw claims with source URLs. Use with thesis_test, scenario_weight, or guidance_check skills for structured financial analysis mapping claims to DCF assumptions."
+            });
 
-                if income_arr.is_none_or(|a| a.is_empty())
-                    || balance_arr.is_none_or(|a| a.is_empty())
-                    || cf_arr.is_none_or(|a| a.is_empty())
-                    || profile_obj.is_none()
-                {
-                    return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient data"}));
-                }
-
-                let income_data = income_arr.unwrap();
-                let balance_data = balance_arr.unwrap();
-                let cf_data = cf_arr.unwrap();
-                let metrics_data: &[serde_json::Value] = metrics_arr.map_or(&[], |v| v);
-                let profile_data = profile_obj.unwrap();
-                let company_name = profile_data.get("companyName").and_then(|v| v.as_str()).unwrap_or(&req.symbol);
-
-                let hist = financial_model::HistoricalSnapshot::from_api_json(
-                    income_data, balance_data, cf_data, metrics_data, profile_data,
-                );
-
-                if hist.revenue.len() < 2 {
-                    return Ok(serde_json::json!({"symbol": req.symbol, "error": "insufficient history"}));
-                }
-
-                let mut assumptions = financial_model::ProjectionAssumptions::from_history(&hist);
-                if let Some(dr) = req.discount_rate { assumptions.discount_rate = dr; }
-                if let Some(tg) = req.terminal_growth { assumptions.terminal_growth = tg; }
-
-                let current_price = profile_data.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
-
-                // 2. Run base scenarios
-                let matrix = scenarios::ScenarioMatrix::growth_x_margin(assumptions.revenue_growth, assumptions.gross_margin);
-                let results = scenarios::run_scenario_analysis(&hist, &assumptions, &matrix);
-
-                // Base probabilities: equal weight
-                let base_scenarios: Vec<serde_json::Value> = results.iter().map(|r| {
-                    serde_json::json!({
-                        "name": r.scenario.name,
-                        "intrinsic": r.intrinsic_per_share,
-                        "probability": 0.25,
-                    })
-                }).collect();
-                let base_expected = results.iter().map(|r| r.intrinsic_per_share * 0.25).sum::<f64>();
-
-                // 3. Search for competitive and macro signals
-                let research = research::search_fundamental(
-                    &self.client,
-                    &req.symbol,
-                    company_name,
-                    "competition market share industry trends regulatory macro outlook",
-                    self.exa_api_key.as_deref(),
-                    self.tavily_api_key.as_deref(),
-                    self.brave_api_key.as_deref(),
-                ).await;
-
-                // 4. Extract signals and map to probability shifts
-                let mut signals: Vec<serde_json::Value> = Vec::new();
-                let mut bull_adj = 0.0_f64;
-                let mut landgrab_adj = 0.0_f64;
-                let mut cashcow_adj = 0.0_f64;
-                let mut bear_adj = 0.0_f64;
-
-                for claim in &research.claims {
-                    let text_lower = claim.text.to_lowercase();
-                    let (label, bull_d, land_d, cash_d, bear_d) = if text_lower.contains("margin") && claim.direction == "positive" {
-                        ("margin tailwind", 0.02, 0.0, 0.02, -0.02)
-                    } else if text_lower.contains("margin") && claim.direction == "negative" {
-                        ("margin headwind", -0.02, 0.0, -0.02, 0.02)
-                    } else if (text_lower.contains("demand") || text_lower.contains("growth") || text_lower.contains("market share")) && claim.direction == "positive" {
-                        ("growth tailwind", 0.03, 0.02, 0.0, -0.02)
-                    } else if text_lower.contains("competitor") || text_lower.contains("competition") || text_lower.contains("disrupt") {
-                        ("competitive threat", -0.03, -0.01, 0.0, 0.04)
-                    } else if text_lower.contains("regulation") || text_lower.contains("regulatory") {
-                        ("regulatory signal", -0.02, -0.02, -0.01, 0.03)
-                    } else if text_lower.contains("macro") || text_lower.contains("economy") || text_lower.contains("recession") {
-                        ("macro headwind", -0.02, -0.03, -0.01, 0.04)
-                    } else {
-                        continue;
-                    };
-
-                    bull_adj += bull_d;
-                    landgrab_adj += land_d;
-                    cashcow_adj += cash_d;
-                    bear_adj += bear_d;
-
-                    signals.push(serde_json::json!({
-                        "claim": &claim.text[..claim.text.len().min(200)],
-                        "signal_type": label,
-                        "source": claim.source,
-                    }));
-                }
-
-                // 5. Compute adjusted probabilities (equal base + signal adjustments, clamped)
-                let bull_p = (0.25 + bull_adj).clamp(0.05, 0.60);
-                let land_p = (0.25 + landgrab_adj).clamp(0.05, 0.60);
-                let cash_p = (0.25 + cashcow_adj).clamp(0.05, 0.60);
-                let bear_p = (0.25 + bear_adj).clamp(0.05, 0.60);
-                // Normalize
-                let total = bull_p + land_p + cash_p + bear_p;
-                let adj_scenarios: Vec<serde_json::Value> = vec![
-                    serde_json::json!({"name": "Bull Case", "intrinsic": results[0].intrinsic_per_share, "probability": bull_p / total}),
-                    serde_json::json!({"name": "Land Grab", "intrinsic": results[1].intrinsic_per_share, "probability": land_p / total}),
-                    serde_json::json!({"name": "Cash Cow", "intrinsic": results[2].intrinsic_per_share, "probability": cash_p / total}),
-                    serde_json::json!({"name": "Bear Case", "intrinsic": results[3].intrinsic_per_share, "probability": bear_p / total}),
-                ];
-
-                let adj_expected = adj_scenarios.iter().map(|s| {
-                    s["intrinsic"].as_f64().unwrap_or(0.0) * s["probability"].as_f64().unwrap_or(0.0)
-                }).sum::<f64>();
-
-                let expected_shift = adj_expected - base_expected;
-
-                let output = serde_json::json!({
-                    "symbol": req.symbol,
-                    "current_price": current_price,
-                    "baseline": {
-                        "scenarios": base_scenarios,
-                        "expected_intrinsic": base_expected,
-                    },
-                    "signals": signals,
-                    "signals_count": signals.len(),
-                    "adjusted": {
-                        "scenarios": adj_scenarios,
-                        "expected_intrinsic": adj_expected,
-                        "expected_shift": expected_shift,
-                    },
-                    "providers": research.provider_summary.iter().map(|p| {
-                        serde_json::json!({"provider": p.provider, "claims": p.claims_found, "status": p.status})
-                    }).collect::<Vec<_>>(),
-                    "fibo": {
-                        "scenario_analysis": fibo::SCENARIO_PROBABILITY,
-                        "expected_intrinsic": fibo::INTRINSIC_VALUE_PER_SHARE,
-                        "probability_weighting": "fibo-fbc-fct-ra:ProbabilityWeightedAverage",
-                    },
-                    "framework": "Signal-driven scenario weighting. Baseline Schwartz 2x2 scenarios (equal 25% each) adjusted by multi-provider fundamental research signals. Each competitive/macro claim shifts probabilities toward the scenario it supports, with reasoning chains. Probabilities are normalized to sum to 1.0."
-                });
-
-                self.record_experience("scenario_weight", &format!("symbol={}", req.symbol), "success", output.clone());
-                Ok(output)
-            }).await
+            self.record_experience("research_search", &format!("symbol={}", req.symbol), "success", output.clone());
+            Ok(output)
+        }).await
     }
 
     // ── Portfolio tools ──

@@ -24,7 +24,7 @@ Poor study design leads to fatal flaws in research methodology. The most effecti
 
 The FINER criteria (Feasible, Interesting, Novel, Ethical, Relevant) provide a quality gate for research questions. The PICO framework (Population, Intervention, Comparison, Outcome) provides structure. Together they transform a broad topic into a testable hypothesis — moving from "I'm interested in X" to "In P, does I compared to C affect O? I predict that I will improve O."
 
-## The Process (Kata-Style PDCA)
+## The Process (4-Step Kata-Style PDCA)
 
 ### Step 1: Evaluate with FINER (Plan)
 Apply the five FINER criteria to a broad research topic:
@@ -45,22 +45,20 @@ Decompose the research question into four elements:
 
 Produce a structured question: "In [P], does [I] compared to [C] affect [O]?" Adapt the template for diagnostic, prognostic, or etiological studies. Assess each element's completeness — missing elements are blockers.
 
-### Step 3: Formulate Hypothesis (Do)
-Derive testable hypotheses from the structured question:
-- **Research hypothesis (H₁/Hₐ)**: A declarative statement predicting the expected outcome. Directional when appropriate ("will decrease" > "will differ"). Must be falsifiable.
-- **Null hypothesis (H₀)**: Restates to postulate no difference/no relationship. This is what the statistical test directly evaluates.
+### Step 3: Hypothesis + Operationalize (Do)
+A single cognitive act — "What do I predict, and how will I test it?" — in five parts:
 
-Classify the hypothesis type: difference, association, superiority, non-inferiority, equivalence, diagnostic accuracy, or prognostic. Select the appropriate statistical framework. Assess testability on six dimensions including measurability and sample size implications.
+**Formulate**: Derive the research hypothesis (H₁, a declarative prediction) and null hypothesis (H₀, postulating no difference). Classify hypothesis type (difference, association, superiority, non-inferiority, equivalence, diagnostic accuracy, or prognostic).
 
-### Step 4: Develop Aims & Objectives (Check)
-Operationalize the hypothesis into research aims and objectives:
-- **Primary aim**: Broad, overarching purpose — "to determine/evaluate/compare..."
-- **Primary objectives**: Specific, measurable steps to accomplish the aim (2–4 objectives)
-- **Secondary aims**: Related but distinct questions with rationale (not "fishing expeditions")
-- **Alignment check**: Five-link chain — question → hypothesis → aim → objectives → outcome → null
-- **Feasibility recheck**: Does the operational detail introduce new resource constraints?
+**Operationalize**: Write a primary aim (broad purpose), 2–4 primary objectives (specific, measurable steps), and optional secondary aims with rationale.
 
-### Step 5: Convergence Check (Act)
+**Assess testability**: Now that objectives are specified, evaluate whether the hypothesis is actually testable — measurable outcome, specified population, defined comparison, suggested statistical framework, clinically meaningful effect size, sample size feasibility.
+
+**Verify alignment**: Five-link chain — question → hypothesis → primary aim → objectives → PICO outcome → null hypothesis. Flag any misalignments.
+
+**Recheck feasibility**: Does the operational detail introduce new resource constraints not visible at the FINER stage?
+
+### Step 4: Convergence Check (Act)
 Weighted dimensional evaluation (0.25 each):
 1. FINER compliance — all scores ≥ 6?
 2. PICO completeness — all elements present and specified?
@@ -74,10 +72,10 @@ Convergence metric: 0 = decision-ready. Specific blockers enumerated for each di
 | Trigger | Action |
 |---------|--------|
 | "I have a research idea but don't know how to frame it" | Start with FINER evaluation to refine the broad topic |
-| "Is my research question any good?" | Run through FINER → PICO → hypothesis → aims flow |
-| "Help me write a hypothesis" | Provide the structured PICO question, use Step 3 |
-| "I need to develop study aims and objectives" | Run the full flow, focus on Step 4 |
-| "Does my hypothesis actually test my question?" | Run the alignment check in Step 4 |
+| "Is my research question any good?" | Run through FINER → PICO → Hypothesis → Convergence |
+| "Help me write a hypothesis" | Provide the structured PICO question, run from Step 3 |
+| "I need to develop study aims and objectives" | Same as above — hypothesis and aims are now one step |
+| "Does my hypothesis actually test my question?" | The alignment check in Step 3 catches this |
 | "My grant proposal needs a research plan section" | Run full flow for structured output |
 | "I'm stuck — my question keeps changing" | The iterative PDCA loop refines across cycles |
 
@@ -110,14 +108,22 @@ The convergence check closes the loop — if question, hypothesis, and aims are 
 7. **Aims as objectives**: "The aim is to measure X" — that's an objective. Aims are broader.
 8. **Post hoc FINER**: Using FINER to justify a question you've already committed to, rather than evaluating it honestly
 
+## Design Rationale: Why 4 Steps Not 5
+
+The original 5-step design had separate templates for hypothesis formulation and aims/objectives. This was refined to 4 steps because:
+
+- **Testability depends on objectives**: You cannot assess whether a hypothesis is testable until you know the objectives — so testability assessment belongs alongside objectives, not before them
+- **Alignment is a single concern**: The five-link alignment chain evaluates the relationship between hypothesis and aims — separating them into different inference calls fragments this evaluation
+- **Shared context**: Both hypothesis and aims reference the same PICO elements and FINER context — passing them across separate inference calls duplicates token cost for no analytical benefit
+- **Kata fit**: The 4-step structure maps cleanly to Plan (FINER + PICO) → Do (Hypothesis + Operationalize) → Check (Convergence) → Act (Loop)
+
 ## Registry Templates
 
 | Template | Type | Purpose |
 |----------|------|--------|
 | `finer-evaluate.j2` | KnowAct | Apply FINER criteria to evaluate and refine a broad research topic |
 | `pico-structure.j2` | KnowAct | Apply PICO framework to structure the research question |
-| `hypothesis-formulate.j2` | KnowAct | Derive testable hypothesis and null hypothesis from PICO question |
-| `aims-objectives.j2` | KnowAct | Develop research aims, objectives, alignment check, feasibility recheck |
+| `hypothesis-operationalize.j2` | KnowAct | Derive hypothesis, formulate null, operationalize into aims and objectives, verify alignment |
 | `hypothesis-framer-convergence-check.j2` | KnowAct | Compute weighted convergence metric across all four dimensions |
 
 ## Registry Manifest
@@ -133,5 +139,5 @@ The convergence check closes the loop — if question, hypothesis, and aims are 
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 28000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 24000 rJ, 0.25 rJ/token
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

@@ -10,7 +10,7 @@ mds_categories: [domain, composition]
 
 # hKask Companies MCP Server
 
-**Crate:** `hkask-mcp-companies` · **Tools:** 40 · **Tests:** 121
+**Crate:** `hkask-mcp-companies` · **Tools:** 38 · **Tests:** 107
 **Required credentials:** `HKASK_FMP_API_KEY`, `HKASK_EODHD_API_KEY`
 
 The companies server provides dual-provider company financial data and portfolio tracking. It wraps Financial Modeling Prep (FMP) and EOD Historical Data (EODHD) behind a unified interface, with MAIA-framework fundamental analysis, a full DCF valuation engine, superforecasting pipeline, and a complete transaction-ledger portfolio management system.
@@ -164,32 +164,25 @@ Fundamental research tools carry fibo annotations for assumption impacts (`fibo-
 
 ---
 
-### Fundamental Research (3 tools)
+### Fundamental Research (1 tool + 3 skills)
 
-Multi-provider research engine (Exa, Tavily, Brave) that searches for financially-relevant claims and maps them directly to DCF assumption adjustments and scenario probability shifts. No generic sentiment — every finding anchors to a valuation impact.
+Multi-provider research engine (Exa, Tavily, Brave) that searches for company-specific information. Structured financial analysis (thesis testing, scenario weighting, guidance calibration) is performed by LLM-driven skills using templates in the registry.
 
 | Tool | What it does |
 |------|-------------|
-| **`thesis_test`** | Test an investment thesis against fundamental research. Searches for evidence, separates pro/con claims, maps to DCF assumption adjustments, computes intrinsic value delta if the thesis holds |
-| **`scenario_weight`** | Adjust Schwartz scenario probabilities based on current competitive and macro signals. Searches for market share, competitor, regulatory, and macro claims, shifts scenario probabilities with reasoning chains |
-| **`guidance_check`** | Find management guidance statements, map to DCF assumption ranges. Extracts outlook statements from earnings calls and analyst days, produces low/mid/high assumption ranges for sensitivity analysis |
+| **`research_search`** | Multi-provider search across Exa, Tavily, and Brave. Returns raw claims with source URLs for downstream analysis |
 
-#### Research Architecture
+#### Research Skills (registry templates)
 
-```
-User thesis: "services revenue will accelerate"
-  → search_fundamental("AAPL services revenue accelerate")
-  → [Exa] → 5 claims  ─┐
-  → [Tavily] → 3 claims ─┤─ deduplicate → extract assumptions → map to DCF
-  → [Brave] → 4 claims  ─┘
-  → assumption_impacts: [{assumption: revenue_growth, adjustment: +0.03, confidence: 0.7}]
-  → project_model with adjusted assumptions → thesis_intrinsic vs base_intrinsic
-```
+These compose `research_search` with company data and financial models via FlowDef manifests:
 
-Each claim is classified by:
-- **Direction**: positive/negative/neutral (keyword-based)
-- **Affected assumption**: revenue_growth, gross_margin, capex_to_revenue, discount_rate
-- **Signal type**: margin tailwind/headwind, growth tailwind, competitive threat, regulatory signal, macro headwind
+| Skill | Manifest | KnowAct Template | Pipeline |
+|-------|----------|------------------|----------|
+| `thesis_test` | `registry/templates/thesis-test/manifest.yaml` | `thesis-test.j2` | profile → research_search → key_metrics → LLM extraction → conditional dcf_valuation |
+| `scenario_weight` | `registry/templates/scenario-weight/manifest.yaml` | `scenario-weight.j2` | profile → research_search → scenario_analysis → LLM probability shifts |
+| `guidance_check` | `registry/templates/guidance-check/manifest.yaml` | `guidance-check.j2` | profile → research_search → key_metrics → LLM calibration |
+
+Run them via: `kask run thesis_test --symbol AAPL --thesis "services revenue will accelerate"`
 
 #### Provider Configuration
 
@@ -199,7 +192,7 @@ Each claim is classified by:
 | `HKASK_TAVILY_API_KEY` | No | Tavily research API (deep web search) |
 | `HKASK_BRAVE_API_KEY` | No | Brave Search API (web + news) |
 
-Any combination works — the engine uses whichever keys are available. If none are configured, research tools return empty results gracefully.
+Any combination works — the engine uses whichever keys are available. If none are configured, `research_search` returns empty results gracefully.
 
 ---
 
@@ -307,7 +300,7 @@ EODHD's nested response format is normalized to match FMP's structure, so all an
 
 ```
 mcp-servers/hkask-mcp-companies/src/
-├── main.rs            Server entry point, 40 tools
+├── main.rs            Server entry point, 38 tools
 ├── providers.rs       Dual-provider abstraction (FMP + EODHD)
 ├── analysis.rs        MAIA framework (moat, management, WC, expectations)
 ├── research.rs        Multi-provider fundamental research engine (Exa, Tavily, Brave)
@@ -342,44 +335,44 @@ mcp-servers/hkask-mcp-companies/src/
 # 5. Compare with a friend's portfolio
 > portfolio_comparison my_portfolio their_portfolio
 
-# 6. Research an investment thesis before running DCF
-> thesis_test AAPL "services revenue will accelerate as installed base monetizes"
-# → returns evidence, assumption impacts, DCF delta
+# 6. Search for research across multiple providers
+> research_search AAPL "services revenue growth outlook 2025"
 
-# 7. Check what scenarios the market is currently pricing
-> scenario_weight AAPL
-# → baseline vs signal-adjusted probabilities, expected value shift
+# 7. Test an investment thesis (skill)
+> kask run thesis_test --symbol AAPL --thesis "services will accelerate"
 
-# 8. Find and calibrate against management guidance
-> guidance_check AAPL
-# → guidance statements, assumption ranges, calibrated DCF range
+# 8. Weight scenarios by current signals (skill)
+> kask run scenario_weight --symbol AAPL
 
-# 9. Run a DCF valuation on a holding
+# 9. Calibrate against management guidance (skill)
+> kask run guidance_check --symbol AAPL
+
+# 10. Run a DCF valuation on a holding
 > dcf_valuation my_portfolio AAPL
 # → returns forecast_id for later decomposition
 
-# 10. Check market-implied growth expectations
+# 11. Check market-implied growth expectations
 > reverse_dcf AAPL
 
-# 11. See which assumptions most affect your valuation
+# 12. See which assumptions most affect your valuation
 > sensitivity_analysis AAPL
 
-# 12. Quantify valuation uncertainty
+# 13. Quantify valuation uncertainty
 > monte_carlo_dcf AAPL
 
-# 13. Compare against industry peers
+# 14. Compare against industry peers
 > comparable_analysis AAPL
 
-# 14. Add research notes as you go
+# 15. Add research notes as you go
 > note_add my_portfolio AAPL 2024-06-15 "Earnings review" "Beat estimates by 5%, raised guidance" ["earnings","bullish"]
 
-# 15. Attach earnings reports
+# 16. Attach earnings reports
 > file_attach my_portfolio AAPL 2024-06-15 "q2-report.pdf" "application/pdf" "<base64>"
 
-# 16. Compute your returns accounting for deposits and withdrawals
+# 17. Compute your returns accounting for deposits and withdrawals
 > portfolio_returns my_portfolio 2024-01-01 2024-12-31
 
-# 17. Close the superforecasting loop when actuals arrive
+# 18. Close the superforecasting loop when actuals arrive
 > forecast_record dcf_abc123 "2024 Q4 actuals: rev=119.6B, eps=2.40"
 ```
 

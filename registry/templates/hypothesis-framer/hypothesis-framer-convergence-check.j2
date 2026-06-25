@@ -10,8 +10,7 @@ contract:
   input:
     finer_result: object
     pico_result: object
-    hypothesis_result: object
-    aims_result: object
+    operationalize_result: object
   output:
     convergence_metric: number
     rationale: string
@@ -38,8 +37,7 @@ Input:
 {
   "finer_result": {{ finer_result | tojson }},
   "pico_result": {{ pico_result | tojson }},
-  "hypothesis_result": {{ hypothesis_result | tojson }},
-  "aims_result": {{ aims_result | tojson }}
+  "operationalize_result": {{ operationalize_result | tojson }}
 }
 ```
 
@@ -61,11 +59,13 @@ Evaluate each dimension and compute a weighted convergence score:
 2. **PICO completeness (weight: 0.25)**: Are all four PICO elements present and sufficiently specified?
    - Score 0 if all complete, 0.5 if 1–2 partial, 1.0 if any missing or overall is blocked
 
-3. **Hypothesis coherence (weight: 0.25)**: Is the hypothesis testable? Directional? Does the null hypothesis correctly negate it?
+3. **Hypothesis coherence (weight: 0.25)**: Is the hypothesis testable? Directional? Does the null correctly negate it?
    - Score 0 if testable with no concerns, 0.5 if partially testable, 1.0 if not testable
+   - Source: operationalize_result.testability_assessment
 
 4. **Aims alignment (weight: 0.25)**: Are aims, objectives, hypothesis, and PICO elements aligned?
    - Score 0 if overall alignment is "aligned", 0.5 if "minor_gaps", 1.0 if "significant_gaps"
+   - Source: operationalize_result.alignment_check
 
 Compute the weighted sum as the convergence metric.
 

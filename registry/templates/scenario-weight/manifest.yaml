@@ -1,0 +1,96 @@
+manifest:
+  id: scenario-weight
+  name: scenario_weight
+  description: "Weight Schwartz scenarios by current fundamental research signals"
+  functional_role: flowdef
+  version: 0.31.0
+  editor: curator-or-human-admin
+  visibility: Public
+
+convergence:
+  threshold: 0.20
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 2
+  min_iterations: 1
+
+gas:
+  cap: 60000
+  cost_per_iteration: 100
+
+rjoule:
+  cap: 20000
+  cost_per_token: 0.25
+
+inputs:
+  - name: symbol
+    type: string
+    required: true
+
+steps:
+  - ordinal: 1
+    action: execute
+    description: Fetch company profile for name and industry
+    tool: company_profile
+    mcp: hkask-mcp-companies
+    arguments:
+      symbol: "${input.symbol}"
+
+  - ordinal: 2
+    action: execute
+    description: Search for competitive and macro signals
+    tool: research_search
+    mcp: hkask-mcp-companies
+    arguments:
+      symbol: "${input.symbol}"
+      query: "competition market share industry trends regulatory macro outlook"
+
+  - ordinal: 3
+    action: execute
+    description: Run baseline scenario analysis
+    tool: scenario_analysis
+    mcp: hkask-mcp-companies
+    arguments:
+      symbol: "${input.symbol}"
+
+  - ordinal: 4
+    action: select
+    description: Analyze signals and adjust scenario probabilities
+    renderer: minijinja
+    template_ref: scenario-weight/scenario-weight
+    gas_cap: 4500
+    timeout_seconds: 60
+    arguments:
+      symbol: "${input.symbol}"
+      company_name: "${step_1_result.companyName | default(input.symbol)}"
+      industry: "${step_1_result.industry | default('unknown')}"
+      claims: "${step_2_result.claims}"
+      base_scenarios: "${step_3_result.scenarios}"
+
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout: retry
+  max_retries: 1
+
+ocap:
+  required_capabilities:
+    - resource: mcp
+      action: execute
+      mcp_server: hkask-mcp-companies
+      tool: company_profile
+      gas_budget: 500
+    - resource: mcp
+      action: execute
+      mcp_server: hkask-mcp-companies
+      tool: research_search
+      gas_budget: 2000
+    - resource: mcp
+      action: execute
+      mcp_server: hkask-mcp-companies
+      tool: scenario_analysis
+      gas_budget: 2000
+    - resource: template
+      action: render
+      template_id: scenario-weight/scenario-weight
+      gas_budget: 4500
+  delegation_chain_required: true
