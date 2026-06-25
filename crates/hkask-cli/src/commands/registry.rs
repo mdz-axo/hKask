@@ -19,13 +19,9 @@ use std::sync::Arc;
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  rt is a valid tokio Runtime; template_registry is a valid SqliteRegistry; registry is "styles" or "templates"
 /// post: lists artifacts in the specified registry; prints results or error for unknown registries
-pub fn run_list(
-    rt: &tokio::runtime::Runtime,
-    template_registry: &SqliteRegistry,
-    registry: String,
-) {
+pub fn run_list(template_registry: &SqliteRegistry, registry: String) {
     match registry.as_str() {
-        "styles" => list_styles(rt),
+        "styles" => list_styles(),
         "templates" => list_templates(template_registry),
         other => {
             eprintln!("Unknown registry: '{other}'");
@@ -43,7 +39,6 @@ pub fn run_list(
 /// pre:  rt is a valid tokio Runtime; template_registry is a mutable SqliteRegistry; target is "registry-artifact" format
 /// post: removes the specified artifact from the registry; purges embeddings, triples, and disk artifacts
 pub fn run_rm(
-    rt: &tokio::runtime::Runtime,
     template_registry: &mut SqliteRegistry,
     target: String,
     db_path: Option<String>,
@@ -66,7 +61,7 @@ pub fn run_rm(
     }
 
     match registry {
-        "styles" => remove_style(rt, artifact, db_path, passphrase),
+        "styles" => remove_style(artifact, db_path, passphrase),
         "templates" => remove_template(template_registry, artifact),
         other => {
             eprintln!("Unknown registry: '{other}'");
@@ -78,7 +73,7 @@ pub fn run_rm(
 
 // ── Styles registry ──────────────────────────────────────────────────────────
 
-fn list_styles(_rt: &tokio::runtime::Runtime) {
+fn list_styles() {
     let config = crate::commands::helpers::or_exit(
         hkask_services::ServiceConfig::from_env(),
         "Failed to resolve config",
@@ -120,12 +115,7 @@ fn list_styles(_rt: &tokio::runtime::Runtime) {
     eprintln!("{} corpus(es) total.", refs.len());
 }
 
-fn remove_style(
-    _rt: &tokio::runtime::Runtime,
-    artifact: &str,
-    db_path: Option<String>,
-    passphrase: Option<String>,
-) {
+fn remove_style(artifact: &str, db_path: Option<String>, passphrase: Option<String>) {
     let config = crate::commands::helpers::or_exit(
         hkask_services::ServiceConfig::from_env(),
         "Failed to resolve config",

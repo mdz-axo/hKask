@@ -118,7 +118,7 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
     match action {
         SovereigntyAction::Verify { .. } => unreachable!(),
         SovereigntyAction::Status => {
-            let webid = hkask_types::WebID::from_persona(b"cli-user");
+            let webid = super::helpers::resolve_user_webid();
             let (svc_ctx, cm) = build_consent();
             let boundary = DataSovereigntyBoundary::hkask_default();
             let _granted: Vec<String> = cm

@@ -420,7 +420,7 @@ pub fn list_sessions(store: &Store, replicant_name: &str) -> Result<(), ServiceE
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  action is a valid ReplicantAction variant
 /// post: dispatches to the appropriate handler (register, login, show, list, sessions, logout, passphrase); prints results or errors
-pub fn run_replicant(action: crate::cli::ReplicantAction) {
+pub fn run_replicant(rt: &tokio::runtime::Runtime, action: crate::cli::ReplicantAction) {
     match action {
         ReplicantAction::Register { .. } => register_replicant(),
         ReplicantAction::Login { .. } => login_replicant(),
@@ -444,17 +444,16 @@ pub fn run_replicant(action: crate::cli::ReplicantAction) {
             change_passphrase(&replicant_name);
         }
         ReplicantAction::Rename { from, to } => {
-            replicant_rename(&from, &to);
+            replicant_rename(rt, &from, &to);
         }
         ReplicantAction::Delete { name } => {
-            replicant_delete(&name);
+            replicant_delete(rt, &name);
         }
     }
 }
 
 /// Rename a replicant via the API.
-fn replicant_rename(from: &str, to: &str) {
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+fn replicant_rename(rt: &tokio::runtime::Runtime, from: &str, to: &str) {
     rt.block_on(async {
         let client = reqwest::Client::new();
         let base_url =
@@ -482,8 +481,7 @@ fn replicant_rename(from: &str, to: &str) {
 }
 
 /// Delete a replicant via the API.
-fn replicant_delete(name: &str) {
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+fn replicant_delete(rt: &tokio::runtime::Runtime, name: &str) {
     rt.block_on(async {
         let client = reqwest::Client::new();
         let base_url =

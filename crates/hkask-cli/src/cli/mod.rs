@@ -21,6 +21,10 @@ pub struct Cli {
     #[arg(short, long)]
     pub verbose: bool,
 
+    /// Output logs as JSON (for OpenTelemetry / structured log ingestion)
+    #[arg(long)]
+    pub json_logs: bool,
+
     /// Registry database path (default: in-memory)
     #[arg(short, long)]
     pub registry: Option<PathBuf>,
@@ -291,10 +295,6 @@ pub enum Commands {
         /// Bind address
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
-
-        /// Output logs as JSON (for OpenTelemetry / structured log ingestion)
-        #[arg(long)]
-        json_logs: bool,
     },
 
     /// Wallet operations — balance, deposits, withdrawals, API keys

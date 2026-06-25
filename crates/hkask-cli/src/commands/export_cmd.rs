@@ -10,26 +10,25 @@ use std::path::PathBuf;
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  action is ExportAction::Create or ExportAction::Upload
 /// post: dispatches to create or upload handler
-pub fn run(action: ExportAction) {
+pub fn run(rt: &tokio::runtime::Runtime, action: ExportAction) {
     match action {
-        ExportAction::Create { passphrase } => run_create(&passphrase),
+        ExportAction::Create { passphrase } => run_create(rt, &passphrase),
         ExportAction::Upload {
             archive,
             passphrase,
-        } => run_upload(&archive, &passphrase),
+        } => run_upload(rt, &archive, &passphrase),
     }
 }
 
 /// Create a sovereignty backup archive.
 ///
 /// Calls POST /api/v1/export/create with the provided passphrase.
-fn run_create(passphrase: &str) {
+fn run_create(rt: &tokio::runtime::Runtime, passphrase: &str) {
     if passphrase.len() < 8 {
         eprintln!("Error: Passphrase must be at least 8 characters.");
         std::process::exit(1);
     }
 
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
     let result: Result<(), Box<dyn std::error::Error>> = rt.block_on(async {
         let client = reqwest::Client::new();
         let base_url =
@@ -74,7 +73,7 @@ fn run_create(passphrase: &str) {
 ///
 /// Reads the archive file, base64-encodes it, and sends it to
 /// POST /api/v1/export/upload.
-fn run_upload(archive_path: &PathBuf, passphrase: &str) {
+fn run_upload(rt: &tokio::runtime::Runtime, archive_path: &PathBuf, passphrase: &str) {
     if passphrase.len() < 8 {
         eprintln!("Error: Passphrase must be at least 8 characters.");
         std::process::exit(1);
@@ -95,7 +94,6 @@ fn run_upload(archive_path: &PathBuf, passphrase: &str) {
 
     let archive_base64 = base64::engine::general_purpose::STANDARD.encode(&archive_bytes);
 
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
     let result: Result<(), Box<dyn std::error::Error>> = rt.block_on(async {
         let client = reqwest::Client::new();
         let base_url =

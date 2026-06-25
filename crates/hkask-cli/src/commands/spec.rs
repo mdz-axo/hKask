@@ -66,9 +66,9 @@ pub fn run(action: SpecAction) {
             println!("Evaluating specification: {}", spec_id);
             println!("  Note: Evaluation requires hkask-mcp-spec server.");
         }
-        SpecAction::Validate { id } => {
+        SpecAction::Validate { spec_id } => {
             let ctx = super::helpers::build_service_context();
-            let record = SpecService::validate(&ctx, &id).unwrap_or_else(|e| {
+            let record = SpecService::validate(&ctx, &spec_id).unwrap_or_else(|e| {
                 eprintln!("Failed to evaluate specification: {e}");
                 std::process::exit(1);
             });
@@ -80,15 +80,18 @@ pub fn run(action: SpecAction) {
             println!("  Coherence: {:.2}", record.coherence_score);
             println!("  Curated at: {}", record.curated_at);
         }
-        SpecAction::Cultivate { id } => {
+        SpecAction::Cultivate { spec_id } => {
+            // NOTE: Cultivate currently delegates to validate — no dedicated
+            // SpecService::cultivate exists yet. validate + detail loading
+            // provides coherence scoring and category coverage inspection.
             let ctx = super::helpers::build_service_context();
-            let record = SpecService::validate(&ctx, &id).unwrap_or_else(|e| {
+            let record = SpecService::validate(&ctx, &spec_id).unwrap_or_else(|e| {
                 eprintln!("Failed to validate specification: {e}");
                 std::process::exit(1);
             });
 
             // Load the spec for completeness/coherence display
-            let detail = SpecService::get_by_id(&ctx, &id).unwrap_or_else(|e| {
+            let detail = SpecService::get_by_id(&ctx, &spec_id).unwrap_or_else(|e| {
                 eprintln!("Failed to load specification: {e}");
                 std::process::exit(1);
             });

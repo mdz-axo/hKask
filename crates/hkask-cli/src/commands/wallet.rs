@@ -18,7 +18,7 @@ use std::sync::Arc;
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  action is a valid WalletAction variant
 /// post: dispatches to balance, deposit, history, key, fee, withdraw, encumber, release, or report operations
-pub fn run(action: WalletAction) {
+pub fn run(rt: &tokio::runtime::Runtime, action: WalletAction) {
     // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "wallet", action = ?action, "CNS");
     let svc = build_wallet_service();
@@ -35,7 +35,7 @@ pub fn run(action: WalletAction) {
         }
         WalletAction::History { limit, wallet } => handle_history(&svc, limit, wallet),
         WalletAction::Key { action } => handle_key(&svc, action),
-        WalletAction::Fee { chain } => handle_fee(&svc, chain),
+        WalletAction::Fee { chain } => handle_fee(rt, &svc, chain),
         WalletAction::Withdraw {
             amount_rj,
             to,
@@ -43,7 +43,7 @@ pub fn run(action: WalletAction) {
             private,
             transparent,
             wallet,
-        } => handle_withdraw(&svc, amount_rj, to, chain, private, transparent, wallet),
+        } => handle_withdraw(rt, &svc, amount_rj, to, chain, private, transparent, wallet),
         WalletAction::Encumber {
             key_id,
             amount,
@@ -222,7 +222,7 @@ fn handle_history(svc: &WalletService, limit: Option<u32>, wallet: Option<String
 
 // ── Fee quote ───────────────────────────────────────────────────────────────
 
-fn handle_fee(svc: &WalletService, chain: Option<String>) {
+fn handle_fee(rt: &tokio::runtime::Runtime, svc: &WalletService, chain: Option<String>) {
     let chain = match parse_chain(chain.as_deref()) {
         Ok(c) => c,
         Err(e) => {
@@ -230,26 +230,21 @@ fn handle_fee(svc: &WalletService, chain: Option<String>) {
             return;
         }
     };
-    match tokio::runtime::Runtime::new() {
-        Ok(rt) => {
-            let webid = hkask_types::WebID::from_persona(b"cli-user");
-            match rt.block_on(svc.estimate_withdrawal_fee(&webid, chain)) {
-                Ok(fee) => {
-                    println!("Withdrawal Fee Estimate");
-                    println!("=======================");
-                    println!();
-                    println!("  Chain:        {chain}");
-                    println!("  rJoules:      {}", fee.rjoules);
-                    println!("  Native units: {:.8}", fee.native_units);
-                    println!(
-                        "  USDC:         ~{:.6}",
-                        fee.usdc_micro as f64 / 1_000_000.0
-                    );
-                }
-                Err(e) => eprintln!("Error estimating fee: {e}"),
-            }
+    let webid = hkask_types::WebID::from_persona(b"cli-user");
+    match rt.block_on(svc.estimate_withdrawal_fee(&webid, chain)) {
+        Ok(fee) => {
+            println!("Withdrawal Fee Estimate");
+            println!("=======================");
+            println!();
+            println!("  Chain:        {chain}");
+            println!("  rJoules:      {}", fee.rjoules);
+            println!("  Native units: {:.8}", fee.native_units);
+            println!(
+                "  USDC:         ~{:.6}",
+                fee.usdc_micro as f64 / 1_000_000.0
+            );
         }
-        Err(e) => eprintln!("Error initializing runtime: {e}"),
+        Err(e) => eprintln!("Error estimating fee: {e}"),
     }
 }
 
@@ -409,7 +404,9 @@ fn handle_key_revoke(svc: &WalletService, key_id_str: String) {
 
 // ── Withdrawal ───────────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 fn handle_withdraw(
+    rt: &tokio::runtime::Runtime,
     svc: &WalletService,
     amount_rj: u64,
     to: String,
@@ -434,7 +431,6 @@ fn handle_withdraw(
     };
     let privacy = resolve_privacy_mode(private, transparent);
 
-    let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
     // CLI user is the operator — use deterministic operator WebID for consent check
     let webid = hkask_types::WebID::from_persona(b"cli-user");
     match rt.block_on(svc.withdraw(

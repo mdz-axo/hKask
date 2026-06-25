@@ -618,7 +618,7 @@ pub enum SpecAction {
     },
     Cultivate {
         #[arg(short, long)]
-        id: String,
+        spec_id: String,
     },
     Render {
         #[arg()]

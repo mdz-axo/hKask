@@ -23,7 +23,7 @@ fn manifests_dir() -> PathBuf {
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  action is a valid KataAction variant; registry is a valid SqliteRegistry
 /// post: dispatches to list_manifests, show_manifest, or start_kata based on action variant
-pub fn run(action: KataAction, registry: &SqliteRegistry) {
+pub fn run(rt: &tokio::runtime::Runtime, action: KataAction, registry: &SqliteRegistry) {
     match action {
         KataAction::List => list_manifests(),
         KataAction::Show { name } => show_manifest(&name),
@@ -34,6 +34,7 @@ pub fn run(action: KataAction, registry: &SqliteRegistry) {
             save,
             resume,
         } => start_kata(
+            rt,
             &name,
             &bot,
             &context,
@@ -155,6 +156,7 @@ fn show_manifest(name: &str) {
 }
 
 fn start_kata(
+    rt: &tokio::runtime::Runtime,
     name: &str,
     bot: &str,
     context: &[String],
@@ -354,9 +356,7 @@ fn start_kata(
     }
     eprintln!();
 
-    // Execute
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-
+    // Execute (uses shared runtime from main)
     // Bundle manifests (no kata_type) use the bundle orchestrator
     let is_bundle = kata_type.is_empty()
         || (!matches!(kata_type, "improvement" | "coaching" | "starter")

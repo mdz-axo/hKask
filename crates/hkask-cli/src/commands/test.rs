@@ -6,15 +6,10 @@
 use std::time::Duration;
 
 /// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  rt is a valid tokio Runtime
+/// pre:  crate_name is a valid workspace crate name or None; format is "text" or "json"
 /// post: runs cargo test on the specified crate or all priority crates,
 ///       reports REQ-tagged failures to stdout
-pub fn run(
-    _rt: &tokio::runtime::Runtime,
-    crate_name: Option<String>,
-    format: &str,
-    watch: Option<u64>,
-) {
+pub fn run(crate_name: Option<String>, format: &str, watch: Option<u64>) {
     let workspace_root = std::env::current_dir()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|_| ".".to_string());

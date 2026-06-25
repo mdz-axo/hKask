@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-25
 **Session scope:** Refactor bloated MCP server lib.rs files + redesign training provider architecture
-**Status:** MCP splits complete (4 crates). Provider architecture clarified but implementation deferred.
+**Status:** ✅ Complete — Provider architecture refactored (7 files, cloud-only hosts, harness injection). MCP media tools split into 4 groups (gallery/processing/audio/generation).
 
 ---
 
@@ -53,7 +53,7 @@ impl rmcp::ServerHandler for ServerName {}
 |--------|-------:|------:|:---------:|:-----------:|:-----:|
 | `hkask-mcp-docproc` | 2,016 | 1,029 | -49% | 3 (document, semantic, storage) | 68 ✅ |
 | `hkask-mcp-companies` | 3,941 | 710 | -82% | 5 (financial_data, analysis, portfolio, analytics, valuation) | 107 ✅ |
-| `hkask-mcp-media` | 3,559 | 1,336 | -62% | 1 (all_tools — single module due to brace-tracking complexity) | 26 ✅ |
+| `hkask-mcp-media` | 3,559 | 2,259 | -37% | 4 (gallery, processing, audio, generation) | 26 ✅ |
 
 ### 2.3 Bug Hunt
 
@@ -168,3 +168,56 @@ cargo check  # full workspace
 5. **`#[tool_router]` + `#[tool_handler]` pattern for multi-file tools.** This replaces `#[tool_router(server_handler)]` across all MCP servers. Each tool group gets its own `impl` block with a named router; they're combined via `Self::router_a() + Self::router_b()`. Rationale: `server_handler` cannot see tools in sub-modules; the explicit pattern enables modular tool organization.
 
 6. **`use crate::*` in tool sub-modules.** This is the correct import pattern — it brings in all items (including private `use` declarations) from the crate root. Rationale: simpler than listing imports per tool file, and the tools were originally in the crate root so they naturally accessed everything there.
+
+---
+
+## 6. Completion (2026-06-25 follow-up session)
+
+Both remaining workstreams completed in a single follow-up session.
+
+### 6.1 Training Provider Architecture Refactor
+
+**File structure** (`mcp-servers/hkask-mcp-training/src/providers/`):
+
+| File | Lines | Contents |
+|------|------:|----------|
+| `mod.rs` | 360 | Module root: re-exports, `TrainingHostConfig` (no local paths), `create_host(harness)`, `TrainingHostRouter` (single-host), 12 tests |
+| `types.rs` | 528 | All types: enums, `TrainingJob`, params, `TrainingHost` trait, `ProviderError`, `CompletionMetadata`, `CostEstimate` |
+| `harness.rs` | 355 | `HarnessCapability`, `HarnessAdapter` trait, `AxolotlHarness`, `UnslothHarness` |
+| `together.rs` | 318 | `TogetherHost` (was `TogetherProvider`) with `harness: Box<dyn HarnessAdapter>` field |
+| `runpod.rs` | 293 | `RunpodHost` (was `RunpodProvider`) with `harness: Box<dyn HarnessAdapter>` field |
+| `baseten.rs` | 302 | `BasetenHost` (was `BasetenProvider`) — uses `render_config()` instead of `render_with_model()` |
+
+**Total:** 2,156 lines across 6 files (down from 2,829-line monolith).
+
+**Deleted:** `AxolotlProvider`, `UnslothProvider` (local subprocess hosts), `TrainerHarness` (rogue abstraction), `LocalTrainingConfig` + local helper functions, `TrainingHostConfig.harness`/`.axolotl_path`/`.python_path` fields.
+
+**`lib.rs` changes:** Imports updated for new types. `TrainingHostConfig` construction drops `harness`/`axolotl_path`/`python_path` fields. `create_host()` receives `harness: Box<dyn HarnessAdapter>` constructed from `harness_id`. `host_config.harness` reference replaced with standalone `harness_id`.
+
+**Tests:** 33 passed, 0 failed (1 deleted — `trainer_harness_has_trl_hub_path` for removed `TrainerHarness`).
+
+### 6.2 MCP Media Tool Split
+
+**File structure** (`mcp-servers/hkask-mcp-media/src/tools/`):
+
+| File | Lines | Tools | Router |
+|------|------:|-------|--------|
+| `gallery.rs` | 1,102 | 16 tools (organize, status, search, find-similar, refresh, describe, analyze, name-face, face-validate/register/list/remove, extract-object, timeline) | `gallery_router` |
+| `processing.rs` | 722 | 13 tools (remove-background, apply-style, create-collage, video-clip/to-gif/caption/concat/remix/meme, image-to-video, video-from-images, video-caption) | `processing_router` |
+| `audio.rs` | 339 | 6 tools (voice-design, generate-speech, transcribe, transcribe-bundle, audio-capture, record-and-transcribe) | `audio_router` |
+| `generation.rs` | 91 | 4 tools (generate-image, transform-image, upscale-image, generate-video) | `generation_router` |
+
+**`lib.rs` combined_router:** `Self::gallery_router() + Self::processing_router() + Self::audio_router() + Self::generation_router()`. Deleted: `tools/all_tools.rs` (2,239-line monolith).
+
+**Tests:** 26 passed, 0 failed (identical to baseline).
+
+### 6.3 Validation
+
+| Crate | Tests | Result |
+|-------|------:|--------|
+| `hkask-adapter` | 44 | ✅ Pass |
+| `hkask-mcp-media` | 26 | ✅ Pass |
+| `hkask-mcp-training` | 33 | ✅ Pass |
+| `cargo check` (affected crates) | — | ✅ Clean (0 errors, 0 warnings) |
+
+**Note:** `hkask-cli` has 7 pre-existing compile errors (missing types/fields in `repl/`) unrelated to these changes.

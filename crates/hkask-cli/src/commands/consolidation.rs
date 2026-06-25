@@ -31,11 +31,14 @@ pub fn run(
     let db_path_str = db_path.to_string_lossy().to_string();
     let db_passphrase = config.db_passphrase.clone();
 
-    // Resolve perspective WebID
+    // Resolve perspective WebID.
+    // When no --agent is specified, use the system CuratorHandle identity
+    // for proper OCAP-gated access to all agent memory stores.
     let handle = CuratorHandle::system();
-    let perspective = match agent {
-        Some(name) => WebID::from_persona(name.as_bytes()),
-        None => *handle.curator_id(),
+    let perspective = if agent.is_none() {
+        *handle.curator_id()
+    } else {
+        WebID::from_persona(agent_name.as_bytes())
     };
 
     // Passphrase verification using ConsolidationService.

@@ -15,14 +15,15 @@ pub fn parse_template_type(type_str: &str) -> Option<Type> {
     Type::parse_str(type_str)
 }
 
-/// Initialize tracing subscriber with optional verbose logging
+/// Initialize tracing subscriber with optional verbose and JSON logging.
 ///
 /// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  verbose is a boolean flag
+/// pre:  verbose and json_logs are boolean flags
 /// post: if verbose → EnvFilter::new("debug")
 /// post: if not verbose → EnvFilter::from_default_env()
+/// post: if json_logs → subscriber uses JSON format
 /// post: global tracing subscriber is set (panics if already set)
-pub fn init_logging(verbose: bool) {
+pub fn init_logging(verbose: bool, json_logs: bool) {
     use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
     let filter = if verbose {
@@ -30,6 +31,12 @@ pub fn init_logging(verbose: bool) {
     } else {
         EnvFilter::from_default_env()
     };
-    let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    let subscriber = FmtSubscriber::builder().with_env_filter(filter);
+    if json_logs {
+        tracing::subscriber::set_global_default(subscriber.json().finish())
+            .expect("setting default subscriber failed");
+    } else {
+        tracing::subscriber::set_global_default(subscriber.finish())
+            .expect("setting default subscriber failed");
+    }
 }

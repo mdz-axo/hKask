@@ -1,7 +1,7 @@
 ---
 title: "Project Status"
 audience: [architects, developers, agents]
-last_updated: 2026-06-23
+last_updated: 2026-06-25
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -12,16 +12,16 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** v0.30.0 — AgentService pub-field refactoring complete. 1460 tests pass. Document alignment sweep (2026-06-23).
+**Current session:** v0.31.0 — Training provider architecture refactor + MCP media tool split. 103 tests pass across affected crates.
 
-**This session (2026-06-23):**
-- AgentService getters → pub fields refactoring complete (28 of 34 getters deleted, ~200 lines removed).
-- TUI: 22 windows complete (Research, Docproc, Replica added), 14 domain bridge impls, 75 integration tests.
-- CLI bridge wiring: ResearchDataBridge, DocprocDataBridge, ReplicaDataBridge, SkillsDataBridge implemented on TuiReplBridge.
-- Document alignment sweep: README.md, PROJECT_STATUS.md, AGENTS.md updated against codebase ground truth.
-- Build: clean (0 errors, 0 warnings). Tests: 1,478/1,478 pass.
+**This session (2026-06-25):**
+- Training provider architecture refactored: 2,829-line monolith → 6 files (2,156 lines). `AxolotlProvider`/`UnslothProvider`/`TrainerHarness` deleted. Cloud-only hosts with harness injection. 33 tests pass.
+- MCP media tools split: 2,239-line monolith → 4 files (gallery/processing/audio/generation). All 36 tools preserved. 26 tests pass.
+- Build: clean (affected crates: 0 errors, 0 warnings). Tests: 103/103 pass (adapter 44, media 26, training 33).
 
-**Previous (2026-06-19):** v0.30.0 — Multi-Pod Architecture Complete: Three-tier Solid Pod isomorphism (CuratorPod/TeamPod/ReplicantPod).
+**Note:** `hkask-cli` has 7 pre-existing compile errors (missing types `ToolPrompt`, `ManifestState`, `TalkConfig`, field `tool_definitions` on `ReplState`).
+
+**Previous (2026-06-23):** v0.30.0 — AgentService pub-field refactoring complete. 1460 tests pass. Document alignment sweep.
 
 ---
 

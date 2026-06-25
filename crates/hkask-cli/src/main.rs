@@ -15,7 +15,7 @@ use std::time::Instant;
 ///
 /// Fusion is opt-in — only active when HKASK_FUSION_JUDGE,
 /// HKASK_FUSION_KILO_TIER, or legacy vars are explicitly set.
-fn check_fusion_startup(_rt: &tokio::runtime::Runtime) {
+fn check_fusion_startup() {
     let config = InferenceConfig::from_env();
     let fusion = match &config.fusion {
         Some(f) => f,
@@ -34,13 +34,13 @@ fn main() {
     dotenvy::dotenv().ok();
 
     let cli = hkask_cli::cli::Cli::parse();
-    hkask_cli::cli::init_logging(cli.verbose);
+    hkask_cli::cli::init_logging(cli.verbose, cli.json_logs);
 
     let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
     let handle = rt.handle().clone();
 
     // Verify fusion model if configured (P9: proactive cost-safety)
-    check_fusion_startup(&rt);
+    check_fusion_startup();
 
     let mut registry = commands::helpers::or_exit(
         match &cli.registry {
@@ -50,14 +50,8 @@ fn main() {
         "Failed to initialize registry",
     );
 
-    // Shared MCP runtime for chat and curator commands.
-    // CLI commands that need MCP servers (mcp, models, web-search, serve)
-    // create their own runtimes with servers started via start_server().
-    let runtime = McpRuntime::new();
-
     // P9: CNS span
     let cns_start = Instant::now();
-    tracing::info!(target: "cns.cli", operation = "command_invoked", command = ?cli.command, "CNS");
     tracing::info!(target: "cns.cli", operation = "command_dispatched", command = ?cli.command, "CNS");
 
     match cli.command {
@@ -67,17 +61,21 @@ fn main() {
             agent,
             model,
             tui,
-        } => commands::chat::run_chat(
-            &rt,
-            &mut registry,
-            &runtime,
-            &handle,
-            template,
-            input,
-            agent,
-            model,
-            tui,
-        ),
+        } => {
+            // McpRuntime created only when Chat needs it (P5: avoid waste)
+            let runtime = McpRuntime::new();
+            commands::chat::run_chat(
+                &rt,
+                &mut registry,
+                &runtime,
+                &handle,
+                template,
+                input,
+                agent,
+                model,
+                tui,
+            );
+        }
 
         Commands::Template { action } => commands::template::run_template(&mut registry, action),
 
@@ -104,6 +102,8 @@ fn main() {
         Commands::Agent { action } => commands::agent::run_agent(&rt, action),
 
         Commands::Curator { action } => {
+            // McpRuntime created only when Curator needs it (P5: avoid waste)
+            let runtime = McpRuntime::new();
             commands::curator::run_curator(&rt, &mut registry, &runtime, &handle, action)
         }
 
@@ -111,7 +111,7 @@ fn main() {
 
         Commands::Token { action } => commands::token::run_token(&rt, action),
 
-        Commands::Replicant { action } => commands::user::run_replicant(action),
+        Commands::Replicant { action } => commands::user::run_replicant(&rt, action),
 
         Commands::Keystore { action } => commands::keystore::run(action),
 
@@ -129,7 +129,7 @@ fn main() {
 
         Commands::Qa { action } => commands::qa::run(&rt, action),
 
-        Commands::Kata { action } => commands::kata::run(action, &registry),
+        Commands::Kata { action } => commands::kata::run(&rt, action, &registry),
 
         Commands::Models => commands::models::run(&rt),
 
@@ -170,7 +170,7 @@ fn main() {
             crate_name,
             format,
             watch,
-        } => commands::test::run(&rt, crate_name, &format, watch),
+        } => commands::test::run(crate_name, &format, watch),
 
         Commands::WebSearch { query, max_results } => {
             commands::web_search::run(&rt, query, max_results)
@@ -179,12 +179,10 @@ fn main() {
         Commands::Serve {
             port: _port,
             host: _host,
-            json_logs: _json_logs,
         } => {
             #[cfg(feature = "api")]
             {
-                if let Err(e) = rt.block_on(commands::serve::run_server(_port, &_host, _json_logs))
-                {
+                if let Err(e) = rt.block_on(commands::serve::run_server(_port, &_host)) {
                     eprintln!("Server error: {}", e);
                     std::process::exit(1);
                 }
@@ -204,24 +202,22 @@ fn main() {
         }
 
         Commands::Export { action } => {
-            commands::export_cmd::run(action);
+            commands::export_cmd::run(&rt, action);
         }
 
-        Commands::Wallet { action } => commands::wallet::run(action),
+        Commands::Wallet { action } => commands::wallet::run(&rt, action),
 
         Commands::List {
             registry: list_target,
-        } => commands::registry::run_list(&rt, &registry, list_target),
+        } => commands::registry::run_list(&registry, list_target),
 
         Commands::Rm {
             target,
             db,
             passphrase,
-        } => commands::registry::run_rm(&rt, &mut registry, target, db, passphrase),
+        } => commands::registry::run_rm(&mut registry, target, db, passphrase),
 
         Commands::Transcript { path } => {
-            #[cfg(not(feature = "tui"))]
-            let _ = &path;
             #[cfg(feature = "tui")]
             {
                 let mut viewer = hkask_cli::transcript_viewer::TranscriptViewer::from_file(&path)

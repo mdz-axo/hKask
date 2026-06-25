@@ -5,7 +5,6 @@
 use crate::cli::CnsAction;
 use hkask_cns::CnsRuntime;
 use hkask_cns::SetPointsConfig;
-use hkask_services::{AgentService, CnsService, ServiceConfig};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -15,7 +14,7 @@ use tokio::sync::RwLock;
 pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
     match action {
         CnsAction::Health => {
-            let rt_ref = build_cns_runtime(rt);
+            let rt_ref = standalone_cns_runtime();
             let health = rt.block_on(async { rt_ref.read().await.health().await });
             let alerts = rt.block_on(async { rt_ref.read().await.alerts().await });
             let variety = rt.block_on(async { rt_ref.read().await.variety().await });
@@ -54,12 +53,9 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
             println!("  • Model: Energy tracking (subsumes rate limiting)");
             println!("  • Status: OPERATIONAL");
             println!();
-            println!("Review Queue Depth:");
-            println!("  • Pending reviews: 0");
-            println!("  • Queue status: IDLE");
         }
         CnsAction::Alerts => {
-            let rt_ref = build_cns_runtime(rt);
+            let rt_ref = standalone_cns_runtime();
             let alerts = rt.block_on(async { rt_ref.read().await.alerts().await });
             println!("Algedonic alerts:");
             if alerts.is_empty() {
@@ -74,7 +70,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
             }
         }
         CnsAction::Variety => {
-            let rt_ref = build_cns_runtime(rt);
+            let rt_ref = standalone_cns_runtime();
             let variety = rt.block_on(async { rt_ref.read().await.variety().await });
             println!("Variety counters:");
             if variety.is_empty() {
@@ -106,7 +102,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
             communication_backpressure_threshold,
         } => {
             let rt_ref = build_cns_runtime(rt);
-            let cns_svc = CnsService::new(Arc::clone(&rt_ref));
+            let cns_svc = hkask_services::CnsService::new(Arc::clone(&rt_ref));
             let defaults = cns_svc.get_set_points();
             println!("CNS Set-Points");
             println!("==============");
@@ -171,16 +167,17 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
     }
 }
 
-/// Build a `CnsRuntime` — prefers `AgentService` when available,
-/// falls back to a standalone `CnsRuntime` for lightweight queries.
+/// Build a `CnsRuntime` via `AgentService` — used only for set-points
+/// (reads/writes persistent CNS config). Falls back to standalone if
+/// the service cannot be constructed.
 fn build_cns_runtime(rt: &tokio::runtime::Runtime) -> Arc<RwLock<CnsRuntime>> {
-    let config = match ServiceConfig::from_env() {
+    let config = match hkask_services::ServiceConfig::from_env() {
         Ok(c) => c,
         Err(_) => {
             return standalone_cns_runtime();
         }
     };
-    match rt.block_on(AgentService::build(config)) {
+    match rt.block_on(hkask_services::AgentService::build(config)) {
         Ok(ctx) => ctx.cns_runtime().clone(),
         Err(_) => standalone_cns_runtime(),
     }

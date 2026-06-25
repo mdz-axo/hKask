@@ -1,7 +1,7 @@
 ---
 title: "hKask REPL Specification"
 audience: [architects, developers, users]
-last_updated: 2026-06-18
+last_updated: 2026-06-25
 version: "0.31.0"
 status: "Active"
 domain: "Surface"
@@ -82,32 +82,38 @@ crates/hkask-cli/src/repl/
 
 ### 3.2 ReplState — Central State Object
 
+Three paired-field groups were extracted into sub-structs (v0.31.0) to reduce the God Object surface:
+
+- `TalkConfig { enabled: bool, voice_design: Option<String> }` — set together via `/talk`
+- `ManifestState { executor: Option<ManifestExecutor>, manifest: Option<BundleManifest> }` — both `Some` or both `None`
+- `ToolPrompt { section: String, definitions: Vec<ChatToolDefinition> }` — refreshed together during MCP discovery
+
 ```rust
 pub(crate) struct ReplState {
     pub(crate) inference_port: Arc<dyn InferencePort>,          // Shared Okapi inference port
     pub(crate) inference_loop: Arc<InferenceLoop>,              // CNS-observable energy budget + model tracking
     pub(crate) episodic_storage: Arc<dyn EpisodicStoragePort>,  // Private, agent-scoped memory
     pub(crate) semantic_storage: Arc<dyn SemanticStoragePort>,  // Public, shared memory
-    pub(crate) agent_webid: WebID,                              // Provided by server via --webid (from OAuth identity)
-    pub(crate) current_model: String,                           // Active Okapi model name
+    pub(crate) agent_webid: WebID,                              // From --webid (OAuth identity)
+    pub(crate) current_model: String,                           // Active model name
     pub(crate) current_agent: String,                           // Active agent name (from onboarding)
-    pub(crate) active_session: Option<String>,                  // Deferred (2026-06-14): Future multi-agent session ID (None = single-agent)
-    pub(crate) resolved_secrets: Option<ResolvedSecrets>,       // From onboarding (ACP + DB)
-    pub(crate) governed_tool: Arc<GovernedTool<RawMcpToolPort>>, // OCAP + CNS governance membrane
-    // ── private fields (only accessed within repl/ submodules) ──
-    consolidation_service: Option<ConsolidationService>,        // Episodic→semantic consolidation
-    persona_constraints: Option<PersonaConstraints>,            // Per-agent persona filter rules
-    manifest_executor: Option<ManifestExecutor>,                // Process manifest cascade runner
-    process_manifest: Option<BundleManifest>,                   // Agent's resolved process manifest
-    // ── public fields ──
-    pub(crate) tool_prompt_section: String,                     // Pre-formatted tool section of system prompt
+    pub(crate) active_session: Option<String>,                  // Future multi-agent session ID
+    pub(crate) resolved_secrets: Option<ResolvedSecrets>,       // From onboarding
+    pub(crate) governed_tool: Arc<GovernedTool<RawMcpToolPort>>, // OCAP + CNS membrane
+    pub(crate) tool_prompt: ToolPrompt,                         // MCP-discovered tool section + definitions
+    pub(crate) manifest_state: ManifestState,                   // Process manifest + executor (both Some or both None)
     pub(crate) service_context: Arc<AgentService>,              // Canonical infrastructure assembly
-    pub(crate) repl_settings: ReplSettings,                     // User-configurable inference parameters
-    pub(crate) is_first_run: bool,                              // true on first OAuth sign-in (onboarding triggered), false on returning sessions
+    pub(crate) repl_settings: ReplSettings,                     // User-configurable parameters (P3)
+    pub(crate) is_first_run: bool,                              // Onboarding gate
+    pub(crate) talk_config: TalkConfig,                         // /talk on|off|voice
+    pub(crate) improv_mode: Option<ImprovMode>,                 // /improv posture
+    pub(crate) kanban_service: Option<KanbanService>,           // Lazy /kanban
+    pub(crate) degraded_servers: Vec<(String, String)>,         // Failed auto-start servers
+    pub(crate) thread_registry: ThreadRegistry,                 // /thread management
 }
 ```
 
-**Design Intent:** `init::init_repl_state()` initializes `ReplState` once at REPL boot and mutates it in place across turns. Five fields remain private (only accessed within `repl/` submodules): `consolidation_service`, `persona_constraints`, `manifest_executor`, `process_manifest`. The system no longer stores session history in-memory — all history access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`. `is_first_run` is set when the user's OAuth sign-in triggers provisioning of a new WebID and default replicant; it gates the First Steps guide shown in the welcome banner.
+**Design Intent:** `init::init_repl_state()` initializes `ReplState` once at REPL boot and mutates it in place across turns. Three fields remain private: `consolidation_service`, `persona_constraints`. The paired-group sub-structs (`ToolPrompt`, `ManifestState`, `TalkConfig`) enforce invariants at the type level that were previously only conventions. History access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`. `is_first_run` gates the First Steps guide shown in the welcome banner.
 
 ### 3.3 Dependency Injection (init.rs)
 
@@ -117,11 +123,12 @@ The `init_repl_state()` function assembles the REPL's dependency graph in order:
 2. Run onboarding if `is_first_run` — replicant creation and model selection for first-time OAuth sign-ins. Sets `is_first_run`.
 3. Resolve effective model: onboarding selection > persisted `ReplSettings` > CLI `--model` arg > hardcoded default (`deepseek-v4-pro`)
 4. Load persisted `ReplSettings` from per-user config (`~/.config/hkask/settings.json`)
+4a. Propagate condensation settings (`condense_pressure_threshold`, `condense_saliency_window`) to the condenser MCP server via `HKASK_CONDENSE_*` env vars so both condensation paths (auto-condense in `ChatService` and agent-initiated condenser tools) share the same user-configured thresholds
 5. Resolve Okapi base URL from server environment (`OKAPI_BASE_URL`) or default
 6. Initialize shared `InferencePort` for selected model + wrap in `InferenceLoop`
 7. Build `AgentService::build()` — creates CNS, loop system, governed tool, pod manager, MCP runtime
 8. Register inference loop on loop system
-9. Start built-in MCP servers (10 servers)
+9. Start built-in MCP servers (9 core servers)
 10. Build `GovernedTool` membrane wrapped around MCP runtime
 11. Register agent energy budget with `CyberneticsLoop`
 12. Open per-agent SQLCipher-encrypted memory database (keyed by WebID)
@@ -412,6 +419,8 @@ Per Magna Carta P3 (Generative Space), every inference parameter is user-exposed
 | `gas_cap` | `gas_cap` | u64 | 10,000 | 1+ | Total session energy budget |
 | `auto_condense` | `auto_condense` | bool | true | on/off | Auto-condense when context pressure exceeds threshold |
 
+`condense_saliency_window` and `condense_pressure_threshold` also propagate to the condenser MCP server via `HKASK_CONDENSE_*` env vars, so agent-initiated condensation tools respect the same user-configured thresholds.
+
 ### 8.2 Model Metadata (Read-Only)
 
 Populated automatically when switching models via `/model`:
@@ -587,12 +596,12 @@ You may include multiple tool calls in a single response.
 
 ### 12.2 Built-in MCP Servers (11)
 
-Started automatically at REPL boot via `builtin_servers::start_builtin_servers()`:
+Available MCP servers (9 auto-start; 4 require `/mcp start` for opt-in):
 
 | Server ID | Binary | Purpose |
 |-----------|--------|---------|
 | `memory` | `hkask-mcp-memory` | Semantic + episodic memory operations |
-| `condenser` | `hkask-mcp-condenser` | Context condensation, reranking, compression |
+| `condenser` | `hkask-mcp-condenser` | Context condensation (compress, thread_summary). Respects `HKASK_CONDENSE_*` env vars for unified configuration with auto-condense path. |
 | `spec` | `hkask-mcp-spec` | Specification authoring, curation, validation |
 | `research` | `hkask-mcp-research` | Web search, extraction, and feed-based research |
 | `companies` | `hkask-mcp-companies` | Company financial data (FMP + EODHD dual-provider) |
@@ -616,6 +625,12 @@ full sensory (read/search/research), model (memory/condenser), regulatory
 (curator/kanban), and actuation (write/exec/skill/docproc/media) capabilities.
 Four specialized servers require explicit opt-in: `communication`, `companies`,
 `training`, `spec`.
+
+Condensation configuration (`condense_saliency_window`, `condense_pressure_threshold`)
+is set via `/repl` and propagated to the condenser MCP server at REPL init via
+`HKASK_CONDENSE_SALIENCY_WINDOW` and `HKASK_CONDENSE_PRESSURE_THRESHOLD` env vars.
+This ensures agent-initiated condenser tools and automatic context condensation
+share the same user-configured thresholds rather than diverging silently.
 
 ### 12.3 Direct Tool Invocation (`/invoke`)
 
@@ -734,9 +749,11 @@ already persisted in `EpisodicStoragePort`.
 
 ## 18. Auto-Condense
 
-Auto-condense triggers at 87.5% of the model's context window during `ChatService::execute_turn()`. After appending recent conversation history as a suffix via `recall_recent_turns()`, the pipeline checks if the approximate token count exceeds 87.5% of `context_window`. When triggered, it fetches raw episodes via `recall_raw_episodes()`, splits them in half, and calls `InferencePort::generate_with_model()` directly (bypassing the MCP tool for efficiency) to condense the oldest half into a structured summary. The history suffix is replaced with `[Condensed history]` + `[Recent conversation]` blocks. Graceful degradation: if the condenser call fails or returns empty, the full uncondensed context is used with no error surfaced to the user.
+Auto-condense triggers at configurable pressure threshold during `ChatService::execute_turn()`. After appending recent conversation history as a suffix via `recall_recent_turns()`, the pipeline checks if the approximate token count exceeds `condense_pressure_threshold` (default 87.5%) of `context_window`. When triggered, it fetches raw episodes via `recall_raw_episodes()`, splits them by `condense_saliency_window` (keep most recent N exchanges verbatim), and calls `InferencePort::generate_with_model()` directly to condense the oldest half into a structured summary. The history suffix is replaced with `[Condensed history]` + `[Recent conversation]` blocks. Graceful degradation: if the condenser call fails or returns empty, the full uncondensed context is used with no error surfaced to the user.
 
-Enabled by default (`auto_condense: on`). Toggle via `/repl auto_condense off` or the API settings endpoint.
+Enabled by default (`auto_condense: on`). Toggle via `/repl auto_condense off` or the API settings endpoint. Configure pressure threshold (`/repl pressure 0.9`) and saliency window (`/repl saliency 10`).
+
+**Path unification (v0.31.0):** The same `condense_saliency_window` and `condense_pressure_threshold` settings propagate to the condenser MCP server via `HKASK_CONDENSE_*` env vars at REPL init. This means agent-initiated `condenser_thread_summary` and `condenser_compress` tools use the same user-configured thresholds as automatic condensation, eliminating the silent divergence between the two condensation paths. The MCP condenser uses `condense_saliency_window` as a multiplier for its default `max_tokens` (clamped to [150, 2000]), so higher saliency → longer summaries → more verbatim context preserved.
 
 ## 19. Key Design Decisions
 
