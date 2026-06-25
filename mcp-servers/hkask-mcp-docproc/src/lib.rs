@@ -370,6 +370,44 @@ impl DocProcServer {
         .with_visibility("private");
 
         self.cns_observer.on_event(&event).await;
+
+        // GAP-3: CNS feedback closure — emit a verification-failure alert
+        // when the pipeline reports a quality issue. This closes the cybernetic
+        // loop: the CNS can now observe failures and Curator can respond.
+        if !outcome.report.passed {
+            let failure_detail = serde_json::json!({
+                "reason": {
+                    "page_count_match": outcome.report.page_count_match,
+                    "empty_pages": outcome.report.empty_pages,
+                    "word_count_delta_pct": outcome.report.word_count_delta_pct,
+                    "error_count": outcome.errors.len(),
+                },
+                "failures": outcome.errors.iter().map(|e| e.to_string()).collect::<Vec<_>>(),
+                "recommendation": "Consider re-running with a different OCR backend or adjusting thresholds.",
+            });
+
+            let failure_event = NuEvent::new(
+                self.webid,
+                Span::new(
+                    SpanNamespace::new("cns.pipeline"),
+                    "ocr.verification_failed",
+                ),
+                Phase::Act,
+                failure_detail,
+                1, // urgency: elevated
+            )
+            .with_visibility("private");
+
+            tracing::warn!(
+                target: "cns.pipeline.ocr",
+                empty_pages = ?outcome.report.empty_pages,
+                error_count = outcome.errors.len(),
+                page_count_match = outcome.report.page_count_match,
+                "OCR pipeline verification failed — emitting CNS alert for Curator review"
+            );
+
+            self.cns_observer.on_event(&failure_event).await;
+        }
     }
 
     /// Accumulate cross-validations and check for threshold drift.
@@ -626,6 +664,59 @@ fn strip_json_fences(text: &str) -> String {
     } else {
         trimmed.to_string()
     }
+}
+
+/// Load a docproc template from registry and render with variable substitution.
+///
+/// Templates live in `registry/templates/docproc/` as Jinja2 files with YAML frontmatter.
+/// This function strips the frontmatter, then replaces `{{ var }}` placeholders with
+/// values from the provided map. Simple string substitution — full Jinja2 rendering
+/// is deferred to the hkask-templates CNR engine (C10).
+fn render_docproc_template(
+    template_name: &str,
+    vars: &std::collections::HashMap<&str, String>,
+) -> String {
+    // Resolve template path relative to workspace root
+    let template_path =
+        std::path::Path::new("registry/templates/docproc").join(format!("{template_name}.j2"));
+
+    let content = match std::fs::read_to_string(&template_path) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!(target: "hkask.mcp.docproc.template", path = %template_path.display(), error = %e, "Template not found — using inline fallback");
+            return String::new();
+        }
+    };
+
+    // Strip YAML frontmatter (between --- markers)
+    let body = if content.starts_with("---") {
+        content
+            .splitn(3, "---")
+            .nth(2)
+            .unwrap_or(&content)
+            .trim()
+            .to_string()
+    } else {
+        content
+    };
+
+    // Strip [inference] blocks (non-Jinja2 metadata)
+    let prompt_body = body
+        .lines()
+        .skip_while(|l| l.starts_with('[') || l.trim().is_empty() || l.trim().starts_with('#'))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string();
+
+    // Simple {{ var }} substitution
+    let mut result = prompt_body;
+    for (key, value) in vars {
+        let placeholder = format!("{{{{ {} }}}}", key);
+        result = result.replace(&placeholder, value);
+    }
+
+    result
 }
 
 // ── Request structs ────────────────────────────────────────────────────────

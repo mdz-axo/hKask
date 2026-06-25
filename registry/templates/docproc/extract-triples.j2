@@ -1,0 +1,41 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- extract
+- triple
+- rdf
+- subject
+- predicate
+- object
+- knowledge
+contract:
+  input:
+    text: string
+    namespace: string
+    limit: number
+  output:
+    triples: array
+energy_cap: 4096
+visibility: Public
+---
+{# goal: Extract RDF triples from text with confidence scores. #}
+{# Template: docproc/extract-triples.j2 #}
+{# KnowAct — Extract structured knowledge triples from text #}
+
+[inference]
+temperature = 0.1
+max_tokens = 4096
+
+Extract up to {{ limit }} factual RDF triples from the following text.
+
+Each triple should be in the form (subject, predicate, object) where:
+- subject: an entity mentioned in the text (prefix with '{{ namespace }}:')
+- predicate: a relationship or property (use standard RDF predicates like rdf:type, schema:name, etc.)
+- object: another entity, a literal value, or a type
+
+For each triple, also provide a confidence score (0.0-1.0) based on how clearly the text supports it.
+
+Text:
+{{ text }}
+
+Respond in JSON format: {"triples": [{"subject": "...", "predicate": "...", "object": "...", "confidence": 0.95}]}

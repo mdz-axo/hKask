@@ -1,10 +1,8 @@
-//! REPL /ask handler — force a specific agent to respond
+//! REPL /ask handler — force a specific agent to respond.
 //!
-//! NOTE: /ask does NOT pass tool definitions (native function calling) to the
-//! inference request. The agent receives the tool prompt section (describing
-//! available tools) as system prompt text, but cannot return structured tool
-//! calls, and the response is not parsed for <<tool:...>> directives.
-//! For tool-augmented workflows, use the main REPL input prompt directly.
+//! Routes through the same `single_agent_turn` pipeline as direct REPL input,
+//! with the agent name overridden. This gives /ask full access to tool calls,
+//! governed tool invocation, and the tool-use loop (up to tool_loop_limit).
 
 pub(crate) fn handle_ask(
     arg1: &str,
@@ -17,47 +15,23 @@ pub(crate) fn handle_ask(
         return;
     }
 
-    match &state.active_session {
-        Some(_session) => {
-            // Dual-presence active — fall through to single-agent mode
-            let chat_response = rt.block_on(crate::commands::chat_with_agent(
-                arg2,
-                Some(arg1),
-                None,
-                Some(state.inference_port.clone()),
-                state.resolved_secrets.as_ref(),
-                Some(state.episodic_storage.clone()),
-                Some(state.semantic_storage.clone()),
-                Some(state.agent_webid),
-                Some(state.tool_prompt_section.as_str()),
-            ));
-            println!("\x1b[1m{}\x1b[0m: {}\n", arg1, chat_response.text);
-            if let Some(ref usage) = chat_response.usage {
-                println!(
-                    "  \x1b[2m{} tokens ({} prompt + {} completion)\x1b[0m",
-                    usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
-                );
-            }
+    // Resolve A2A secret for tool invocation signing.
+    let a2a_secret = match &state.resolved_secrets {
+        Some(secrets) => {
+            hkask_types::secret::ZeroizingSecret::new(secrets.a2a_secret.as_bytes().to_vec())
         }
         None => {
-            let chat_response = rt.block_on(crate::commands::chat_with_agent(
-                arg2,
-                Some(arg1),
-                None,
-                Some(state.inference_port.clone()),
-                state.resolved_secrets.as_ref(),
-                Some(state.episodic_storage.clone()),
-                Some(state.semantic_storage.clone()),
-                Some(state.agent_webid),
-                Some(state.tool_prompt_section.as_str()),
-            ));
-            println!("\x1b[1m{}\x1b[0m: {}\n", arg1, chat_response.text);
-            if let Some(ref usage) = chat_response.usage {
-                println!(
-                    "  \x1b[2m{} tokens ({} prompt + {} completion)\x1b[0m",
-                    usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
-                );
-            }
+            eprintln!("Error: No A2A secret resolved. Run `kask chat` to complete onboarding.");
+            return;
         }
+    };
+
+    // Route through the single-agent turn pipeline with the specified agent
+    // as override. This uses the full tool-augmented inference path: tool
+    // definitions in the request, <<tool:...>> parsing, GovernedTool invocation,
+    // and the tool-use loop for followup corrections.
+    if state.active_session.is_some() {
+        state.active_session = None;
     }
+    super::super::turn::single_agent_turn(arg2, state, rt, &a2a_secret, Some(arg1));
 }

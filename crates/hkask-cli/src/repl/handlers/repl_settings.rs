@@ -32,6 +32,20 @@ pub(crate) fn handle_repl_show(state: &ReplState) {
         "  \x1b[36mauto_condense\x1b[0m:     {}",
         if s.auto_condense { "on" } else { "off" }
     );
+    if s.auto_condense {
+        println!(
+            "  \x1b[36m  pressure_threshold\x1b[0m: {:.1}%",
+            s.condense_pressure_threshold * 100.0
+        );
+        println!(
+            "  \x1b[36m  saliency_window\x1b[0m:     {}",
+            s.condense_saliency_window
+        );
+    }
+    println!(
+        "  \x1b[36mshort_term_memory_life\x1b[0m: {} days",
+        s.short_term_memory_life
+    );
     if let Some(ref meta) = s.model_meta {
         println!("  \x1b[36m─ model info ─\x1b[0m");
         println!("  \x1b[36m  context_length\x1b[0m: {}", meta.context_length);
@@ -118,6 +132,22 @@ pub(crate) struct ReplSettings {
     /// When false, the user must condense manually.
     #[serde(alias = "auto_compact")]
     pub auto_condense: bool,
+    /// Context pressure threshold (0.0–1.0) — when the context window fill
+    /// exceeds this fraction, auto-condensation triggers. Default 0.875.
+    /// Lower values trigger condensation sooner; higher values risk overflow.
+    #[serde(default = "default_condense_threshold")]
+    pub condense_pressure_threshold: f32,
+    /// Number of recent messages to preserve during condensation (saliency
+    /// anchor). The most recent N exchanges are kept verbatim; older messages
+    /// are summarized. Default 5. Higher values preserve more context but
+    /// leave less room for condensation.
+    #[serde(default = "default_saliency_window")]
+    pub condense_saliency_window: usize,
+    /// Short-term memory lifespan in days. Chat threads inactive for longer
+    /// than this are auto-archived. Default 60 days. Set to 0 to disable
+    /// auto-archival (threads never expire).
+    #[serde(default = "default_stm_life")]
+    pub short_term_memory_life: u32,
     /// Read-only model metadata — populated by /model switch.
     /// None until the first model detail fetch succeeds.
     pub model_meta: Option<ModelMeta>,
@@ -187,6 +217,15 @@ fn default_ocr_moderate_max() -> f32 {
 fn default_ocr_sample_rate() -> f32 {
     0.10
 }
+fn default_condense_threshold() -> f32 {
+    0.875
+}
+fn default_saliency_window() -> usize {
+    5
+}
+fn default_stm_life() -> u32 {
+    60
+}
 
 impl Default for ReplSettings {
     fn default() -> Self {
@@ -203,6 +242,9 @@ impl Default for ReplSettings {
             gas_heuristic: 500,
             gas_cap: 10_000,
             auto_condense: true,
+            condense_pressure_threshold: default_condense_threshold(),
+            condense_saliency_window: default_saliency_window(),
+            short_term_memory_life: default_stm_life(),
             model_meta: None,
             generation_model: default_gen_model(),
             embedding_model: default_emb_model(),
@@ -280,6 +322,20 @@ impl ReplSettings {
                 "on" | "true" => self.auto_condense = true,
                 "off" | "false" => self.auto_condense = false,
                 _ => return Err("expected 'on' or 'off'".into()),
+            },
+            "condense_pressure_threshold" | "pressure" => match value.parse::<f32>() {
+                Ok(v) if (0.5..=0.99).contains(&v) => self.condense_pressure_threshold = v,
+                Ok(_) => return Err("pressure_threshold must be 0.5–0.99".into()),
+                _ => return Err("expected float".into()),
+            },
+            "condense_saliency_window" | "saliency" => match value.parse::<usize>() {
+                Ok(v) if v >= 1 && v <= 50 => self.condense_saliency_window = v,
+                Ok(_) => return Err("saliency_window must be 1–50".into()),
+                _ => return Err("expected positive integer".into()),
+            },
+            "short_term_memory_life" | "stm_life" => match value.parse::<u32>() {
+                Ok(v) => self.short_term_memory_life = v, // 0 = never archive
+                _ => return Err("expected non-negative integer".into()),
             },
             "generation_model" | "gen_model" => self.generation_model = value.to_string(),
             "embedding_model" | "emb_model" => self.embedding_model = value.to_string(),

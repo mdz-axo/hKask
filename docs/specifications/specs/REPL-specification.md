@@ -579,6 +579,14 @@ Servers that fail to start are logged and skipped — their tools simply won't b
 The `filesystem` server auto-starts at REPL boot as the essential sensory/actuation
 interface for agents. All other servers require explicit consent via `/mcp start`.
 
+**Auto-start policy (v0.31.0):** Nine core servers form the agent's autonomous
+nervous system and auto-start at REPL boot: `filesystem`, `memory`, `condenser`,
+`research`, `skill`, `curator`, `kanban`, `docproc`, `media`. These provide the
+full sensory (read/search/research), model (memory/condenser), regulatory
+(curator/kanban), and actuation (write/exec/skill/docproc/media) capabilities.
+Four specialized servers require explicit opt-in: `communication`, `companies`,
+`training`, `spec`.
+
 ### 12.3 Direct Tool Invocation (`/invoke`)
 
 Users can bypass agent-mediated tool calls and invoke tools directly:

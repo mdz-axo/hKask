@@ -23,11 +23,12 @@ fn build_turn_request(
     current_input: &str,
     iteration: usize,
     tool_results: Option<String>,
+    agent_override: Option<&str>,
 ) -> TurnRequest {
     let settings = &state.repl_settings;
     TurnRequest {
         input: current_input.to_string(),
-        agent_name: state.current_agent.clone(),
+        agent_name: agent_override.unwrap_or(&state.current_agent).to_string(),
         model: state.current_model.clone(),
         inference_port: state.inference_port.clone(),
         episodic_storage: state.episodic_storage.clone(),
@@ -50,6 +51,8 @@ fn build_turn_request(
                 .unwrap_or(&state.current_model)
                 .to_string(),
         ),
+        condense_pressure_threshold: settings.condense_pressure_threshold,
+        condense_saliency_window: settings.condense_saliency_window,
         improv_mode: state.improv_mode.clone(),
         source: None,
         tools: if state.tool_definitions.is_empty() {
@@ -75,6 +78,7 @@ pub(super) fn single_agent_turn(
     state: &mut ReplState,
     rt: &tokio::runtime::Handle,
     a2a_secret: &[u8],
+    agent_override: Option<&str>,
 ) -> bool {
     let settings = state.repl_settings.clone();
     let max_loops = settings.tool_loop_limit;
@@ -112,7 +116,13 @@ pub(super) fn single_agent_turn(
         };
 
         // Build TurnRequest for this iteration.
-        let turn_req = build_turn_request(state, &current_input, iteration, tool_results.take());
+        let turn_req = build_turn_request(
+            state,
+            &current_input,
+            iteration,
+            tool_results.take(),
+            agent_override,
+        );
 
         let chat_result = rt.block_on(ChatService::execute_turn(
             &state.service_context,
@@ -149,17 +159,18 @@ pub(super) fn single_agent_turn(
         let structured_calls = chat_response.structured_tool_calls;
 
         // Display the response on first iteration.
+        let display_name = agent_override.unwrap_or(&state.current_agent);
         if iteration == 1 && !structured_calls.is_empty() {
             // Tool calls requested — display raw text before tool execution.
             if !response.is_empty() {
-                println!("{}: {}", state.current_agent, response);
+                println!("{}: {}", display_name, response);
             }
         }
 
         // Execute tool calls through GovernedTool.
         let processed = rt.block_on(tool_augmented::process_response(
             &response,
-            &state.current_agent,
+            display_name,
             &state.governed_tool,
             &state.agent_webid,
             a2a_secret,
@@ -173,7 +184,7 @@ pub(super) fn single_agent_turn(
         // If no tool calls, this is the final response.
         if !processed.had_tool_calls {
             if iteration == 1 {
-                println!("{}: {}", state.current_agent, processed.text);
+                println!("{}: {}", display_name, processed.text);
             }
             // Talk mode: summarize and speak the response aloud
             if state.talk_enabled {
@@ -287,7 +298,8 @@ pub(crate) fn single_agent_turn_captured(
             };
         };
 
-        let turn_req = build_turn_request(state, &current_input, iteration, tool_results.take());
+        let turn_req =
+            build_turn_request(state, &current_input, iteration, tool_results.take(), None);
 
         let chat_result = rt.block_on(ChatService::execute_turn(
             &state.service_context,

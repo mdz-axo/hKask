@@ -310,6 +310,8 @@ pub struct ChatRequest {
     /// OpenAI-compatible tool definitions for native function calling.
     /// When present, tools are included in the inference request so the model
     /// can return structured tool calls via `finish_reason == "tool_calls"`.
+    /// The REPL passes these from `state.tool_definitions` during turn processing
+    /// including the `/ask` handler which routes through `single_agent_turn`.
     pub tools: Option<Vec<ChatToolDefinition>>,
 }
 
@@ -1008,9 +1010,13 @@ Agent: {}",
             return None; // too few messages to meaningfully condense
         }
 
-        let midpoint = episodes.len() / 2;
-        let old_half = &episodes[..midpoint];
-        let recent_half = &episodes[midpoint..];
+        // Saliency-based split: keep the most recent N exchanges verbatim
+        // (where N = condense_saliency_window, each exchange = 2 episodes).
+        // Older episodes are summarized. This preserves recent context as
+        // anchors while condensing stale history.
+        let keep_count = (req.condense_saliency_window * 2).min(episodes.len().saturating_sub(2));
+        let old_half = &episodes[..episodes.len() - keep_count];
+        let recent_half = &episodes[episodes.len() - keep_count..];
 
         let recent_text = hkask_condenser::inference::format_conversation_text(recent_half);
         let old_text = hkask_condenser::inference::format_conversation_text(old_half);
@@ -1136,12 +1142,14 @@ Agent: {}",
             (None, None) => base_input.clone(),
         };
 
-        // 2b. Auto-condense: if enabled and context exceeds 87.5% of window,
-        // condense the oldest half of history to free context space.
+        // 2b. Auto-condense: if enabled and context exceeds the configured
+        // pressure threshold (default 87.5%), condense older messages to
+        // free context space. The most recent `saliency_window` exchanges
+        // are preserved verbatim; older messages are summarized.
         if req.auto_condense
             && let Some(window) = req.context_window
         {
-            let threshold = (window as f64 * 0.875) as usize;
+            let threshold = (window as f64 * req.condense_pressure_threshold as f64) as usize;
             if hkask_condenser::inference::approx_token_count(&input_with_context) > threshold
                 && let Some(condensed) =
                     Self::condense_history(ctx, req, &history_token, &base_input).await
@@ -1253,6 +1261,12 @@ pub struct TurnRequest {
     pub context_window: Option<u32>,
     /// Model to use for condenser summarization (defaults to chat model if None).
     pub condenser_model: Option<String>,
+    /// Context pressure threshold (0.0–1.0). When context fill exceeds this
+    /// fraction of context_window, auto-condensation triggers. Default 0.875.
+    pub condense_pressure_threshold: f32,
+    /// Number of most recent exchanges to preserve verbatim during condensation.
+    /// Older messages are summarized; these N are kept as anchors. Default 5.
+    pub condense_saliency_window: usize,
     /// Active improv mode — when set, prepends mode-specific instructions
     /// to the system prompt so the model adopts the interaction posture.
     /// None means no improv posture (default agent behavior).

@@ -27,15 +27,26 @@ impl DocProcServer {
                 .unwrap_or_else(|| vec!["factual".to_string(), "conceptual".to_string()]);
 
             let levels_str = levels.join(", ");
-            let prompt = format!(
-                "Based on the following text, generate question-answer pairs at these Bloom's taxonomy levels: {levels_str}.\n\n\
-                 Text (chunk {chunk_id}):\n{text}\n\n\
-                 For each level, provide:\n\
-                 - A question that tests understanding at that level\n\
-                 - A concise, accurate answer derived from the text\n\
-                 - The bloom_level classification\n\n\
-                 Respond in JSON format: {{\"qa_pairs\": [{{\"question\": \"...\", \"answer\": \"...\", \"bloom_level\": \"...\"}}]}}"
-            );
+
+            // C10: Load prompt from registry template, fall back to inline if unavailable
+            let mut vars = std::collections::HashMap::new();
+            vars.insert("levels", levels_str.clone());
+            vars.insert("chunk_id", chunk_id.clone());
+            vars.insert("text", text.clone());
+            let prompt = render_docproc_template("generate-qa", &vars);
+            let prompt = if prompt.is_empty() {
+                format!(
+                    "Based on the following text, generate question-answer pairs at these Bloom's taxonomy levels: {levels_str}.\n\n\
+                     Text (chunk {chunk_id}):\n{text}\n\n\
+                     For each level, provide:\n\
+                     - A question that tests understanding at that level\n\
+                     - A concise, accurate answer derived from the text\n\
+                     - The bloom_level classification\n\n\
+                     Respond in JSON format: {{\"qa_pairs\": [{{\"question\": \"...\", \"answer\": \"...\", \"bloom_level\": \"...\"}}]}}"
+                )
+            } else {
+                prompt
+            };
 
             let router = InferenceRouter::new(self.inference_config.clone());
             let params = LLMParameters {
@@ -98,16 +109,26 @@ impl DocProcServer {
             let ns = namespace.unwrap_or_else(|| "doc".to_string());
             let limit = max_triples.unwrap_or(50);
 
-            let prompt = format!(
-                "Extract up to {limit} factual RDF triples from the following text.\n\n\
-                 Each triple should be in the form (subject, predicate, object) where:\n\
-                 - subject: an entity mentioned in the text (prefix with '{ns}:')\n\
-                 - predicate: a relationship or property (use standard RDF predicates like rdf:type, schema:name, etc.)\n\n\
-                 - object: another entity, a literal value, or a type\n\n\
-                 For each triple, also provide a confidence score (0.0-1.0) based on how clearly the text supports it.\n\n\
-                 Text:\n{text}\n\n\
-                 Respond in JSON format: {{\"triples\": [{{\"subject\": \"...\", \"predicate\": \"...\", \"object\": \"...\", \"confidence\": 0.95}}]}}"
-            );
+            // C10: Load prompt from registry template, fall back to inline if unavailable
+            let mut vars = std::collections::HashMap::new();
+            vars.insert("limit", limit.to_string());
+            vars.insert("namespace", ns.clone());
+            vars.insert("text", text.clone());
+            let prompt = render_docproc_template("extract-triples", &vars);
+            let prompt = if prompt.is_empty() {
+                format!(
+                    "Extract up to {limit} factual RDF triples from the following text.\n\n\
+                     Each triple should be in the form (subject, predicate, object) where:\n\
+                     - subject: an entity mentioned in the text (prefix with '{ns}:')\n\
+                     - predicate: a relationship or property (use standard RDF predicates like rdf:type, schema:name, etc.)\n\n\
+                     - object: another entity, a literal value, or a type\n\n\
+                     For each triple, also provide a confidence score (0.0-1.0) based on how clearly the text supports it.\n\n\
+                     Text:\n{text}\n\n\
+                     Respond in JSON format: {{\"triples\": [{{\"subject\": \"...\", \"predicate\": \"...\", \"object\": \"...\", \"confidence\": 0.95}}]}}"
+                )
+            } else {
+                prompt
+            };
 
             let router = InferenceRouter::new(self.inference_config.clone());
             let params = LLMParameters {
@@ -198,5 +219,4 @@ impl DocProcServer {
         })
         .await
     }
-
 }

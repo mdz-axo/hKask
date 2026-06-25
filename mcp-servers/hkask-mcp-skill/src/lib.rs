@@ -185,9 +185,17 @@ impl SkillServer {
             let rendered = render_skill_template(&def.template_content, &ctx)
                 .map_err(McpToolError::invalid_argument)?;
 
-            // Prepend system prompt
+            // Prepend system prompt with tool-awareness context.
+            // The calling agent has MCP tools available (auto-started servers).
+            // If the skill references tools that are unavailable, the agent
+            // should adapt or report the limitation rather than failing silently.
             let full_prompt = format!(
-                "You are executing a skill template. Follow its instructions precisely.\n\n{}",
+                "You are executing a skill template. Follow its instructions precisely. \
+                 The calling agent has access to MCP tools including filesystem \
+                 (fs.read, fs.write, fs.edit, fs.search, shell.exec), memory \
+                 (episodic/semantic recall), web search, and context condensation. \
+                 If the skill references tools outside this set, adapt the approach \
+                 or report the missing capability.\n\n{}",
                 rendered
             );
 

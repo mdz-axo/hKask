@@ -171,17 +171,74 @@ pub(super) fn init_repl_state(
     // Register the CLI's inference loop on the shared loop system.
     rt.block_on(ctx.loop_system.register_loop(inference_loop.clone()));
 
-    // P2: Affirmative Consent — most MCP servers are NOT auto-started at REPL boot.
-    // The filesystem server is the exception: it provides the sensory (read/search)
-    // and actuation (write/edit/exec) capabilities that agents need as their
-    // autonomous interface to the codebase. Without it, agents hallucinate code.
-    // All other servers require explicit opt-in via /mcp start <server>.
-    let mcp_runtime = ctx.mcp_runtime().clone();
-    rt.block_on(async {
-        match mcp_runtime.start_server("filesystem", "hkask-mcp-filesystem").await {
-            Ok(()) => tracing::info!(target: "hkask.repl", "Filesystem server auto-started"),
-            Err(e) => tracing::warn!(target: "hkask.repl", error = %e, "Filesystem server failed to auto-start — agents will lack code access"),
+    // Propagate the project root to the filesystem server via env var.
+    // The server resolves HKASK_PROJECT_ROOT at startup; if unset, it falls
+    // back to CWD which may be wrong when kask is launched from a subdirectory.
+    // SAFETY: REPL init runs single-threaded before tokio runtime starts.
+    {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        unsafe {
+            std::env::set_var("HKASK_PROJECT_ROOT", cwd.to_string_lossy().as_ref());
         }
+    }
+
+    // P2: Affirmative Consent — specialized servers require explicit opt-in.
+    // But the autonomous nervous system auto-starts: these 9 servers form the
+    // agent's sensory (read, search, research), model (memory, condenser),
+    // regulatory (curator, kanban), and actuation (filesystem write/exec,
+    // skill, docproc, media) capabilities. Without them, the agent is blind,
+    // amnesiac, and paralyzed — it hallucinates code it cannot read, forgets
+    // every session, and cannot execute workflows.
+    //
+    // Opt-in servers (communication, companies, training, spec) are domain-specific
+    // and not part of the reflexive capability set.
+    let mcp_runtime = ctx.mcp_runtime().clone();
+    let degraded = rt.block_on(async {
+        // Core servers — ordered by dependency: filesystem first (other servers
+        // may need filesystem access), then model/memory, then actuators.
+        let core_servers: &[(&str, &str)] = &[
+            ("filesystem", "hkask-mcp-filesystem"),
+            ("memory", "hkask-mcp-memory"),
+            ("condenser", "hkask-mcp-condenser"),
+            // Note: the condenser MCP server provides agent-initiated condensation
+            // (compress, thread_summary). Automatic context condensation during
+            // turns uses ChatService::condense_history which calls the
+            // hkask-condenser library directly — no MCP dependency. The MCP
+            // server is still auto-started for explicit agent-initiated use.
+            ("research", "hkask-mcp-research"),
+            ("skill", "hkask-mcp-skill"),
+            ("curator", "hkask-mcp-curator"),
+            ("kanban", "hkask-mcp-kanban"),
+            ("docproc", "hkask-mcp-docproc"),
+            ("media", "hkask-mcp-media"),
+        ];
+        let mut started = 0u32;
+        let mut failed = Vec::new();
+        for (server_id, binary) in core_servers {
+            match mcp_runtime.start_server(server_id, binary).await {
+                Ok(()) => started += 1,
+                Err(e) => {
+                    failed.push(((*server_id).to_string(), e.to_string()));
+                }
+            }
+        }
+        if started > 0 {
+            tracing::info!(
+                target: "hkask.repl",
+                started = started,
+                total = core_servers.len(),
+                "Core MCP servers auto-started"
+            );
+        }
+        for (id, err) in &failed {
+            tracing::warn!(
+                target: "hkask.repl",
+                server_id = %id,
+                error = %err,
+                "Core MCP server failed to auto-start"
+            );
+        }
+        failed
     });
 
     // Create the GovernedTool membrane for CLI tool discovery.
@@ -280,6 +337,7 @@ pub(super) fn init_repl_state(
         voice_design: None,
         improv_mode: None,
         kanban_service: None,
+        degraded_servers: degraded,
     };
 
     // Discover available MCP tools and format the system prompt section.

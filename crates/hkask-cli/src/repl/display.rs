@@ -21,7 +21,13 @@ pub fn print_onboarding_banner() {
     println!();
 }
 
-pub(super) fn print_banner(agent: &str, template: Option<&str>, model: &str, is_first_run: bool) {
+pub(super) fn print_banner(
+    agent: &str,
+    template: Option<&str>,
+    model: &str,
+    is_first_run: bool,
+    degraded_servers: &[(String, String)],
+) {
     let ghost = "\x1b[2;36m";
     let body = "\x1b[1;36m";
     let bright = "\x1b[1;37m";
@@ -76,6 +82,21 @@ pub(super) fn print_banner(agent: &str, template: Option<&str>, model: &str, is_
         );
         print_mcp_prompt();
     }
+
+    // Warn about degraded servers — capabilities the agent expects but doesn't have.
+    if !degraded_servers.is_empty() {
+        println!();
+        for (server_id, err) in degraded_servers {
+            println!(
+                "  \x1b[31m\u{26a0}  {} unavailable:\x1b[0m \x1b[2m{}\x1b[0m",
+                server_id, err
+            );
+        }
+        println!(
+            "  \x1b[2m   The agent may not function correctly. Check that MCP binaries are on PATH.\x1b[0m"
+        );
+    }
+
     println!();
 }
 
@@ -100,16 +121,17 @@ pub(super) fn print_first_steps() {
 
 /// MCP consent prompt — shown on every session start.
 ///
-/// P2 (Affirmative Consent): The filesystem server auto-starts for essential
-/// agent capabilities (read, write, edit, search, shell). All other servers
-/// require explicit opt-in via /mcp start.
+/// P2 (Affirmative Consent): The 9 core servers (filesystem, memory, condenser,
+/// research, skill, curator, kanban, docproc, media) auto-start to form the
+/// agent's autonomous nervous system. Specialized servers (communication,
+/// companies, training, spec) require explicit opt-in via /mcp start.
 pub(super) fn print_mcp_prompt() {
     println!();
     println!(
-        "  \x1b[2;33mℹ  Filesystem MCP loaded — agents can read, write, and execute code.\x1b[0m"
+        "  \x1b[2;33mℹ  Core MCP servers loaded — full sensory, memory, and actuation available.\x1b[0m"
     );
     println!(
-        "  \x1b[2m   Type \x1b[36m/mcp list\x1b[0m\x1b[2m to browse available servers, \x1b[36m/mcp start all\x1b[0m\x1b[2m to load the rest.\x1b[0m"
+        "  \x1b[2m   Type \x1b[36m/mcp list\x1b[0m\x1b[2m to browse, \x1b[36m/mcp start all\x1b[0m\x1b[2m to load communication/companies/training/spec.\x1b[0m"
     );
 }
 

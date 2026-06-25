@@ -32,7 +32,12 @@ pub struct ClassifyResult {
 }
 
 /// Semantic triple extraction result for a single passage.
-/// Produced by the triple-extractor classifier (Gemma 4).
+/// Produced by the triple-extractor classifier (Qwen3-235B-A22B MoE on KiloCode).
+///
+/// Model selection backed by Martin et al. (arXiv:2603.29878):
+/// Few-Shot F1 — Llama 99.35%, Qwen 99.22%, NuExtract 98.47%, Gemma 94.81%.
+/// Qwen3-235B-A22B-2507 chosen for best cost/quality at $0.07/$0.10 per 1M tokens.
+/// Fallback: qwen/qwen3.5-35b-a3b (3B active MoE, $0.16/$1.00 per 1M tokens).
 #[derive(Debug, Clone, Default)]
 pub struct TripleExtraction {
     /// One-sentence summary of what the passage is about.

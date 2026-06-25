@@ -165,9 +165,13 @@ pub struct CorpusConfig {
     pub classifier: String,
 
     /// Triple extractor classifier config name (references registry/classify/{name}.yaml).
-    /// Uses Gemma 4 to extract semantic triples (topic, concepts, entities,
-    /// relationships, primary_dimension, quality_flags) from each passage.
+    /// Uses Qwen3-235B-A22B MoE (KiloCode) to extract semantic triples (topic, concepts,
+    /// entities, relationships, primary_dimension, quality_flags) from each passage.
     /// Defaults to "triple-extractor". Set to empty string to disable.
+    ///
+    /// Model choice backed by Martin et al. (arXiv:2603.29878): Qwen family at 99.22%
+    /// Few-Shot F1 vs Llama 99.35% — statistically indistinguishable, far cheaper.
+    /// Fallback: qwen/qwen3.5-35b-a3b (3B active MoE) if 235B becomes unavailable.
     #[serde(default = "default_triple_classifier")]
     pub triple_classifier: String,
 }

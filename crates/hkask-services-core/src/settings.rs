@@ -61,7 +61,10 @@ fn default_embedding_model() -> String {
 }
 
 fn default_classifier_model() -> String {
-    "google/gemma-4-26B-A4B-it".to_string()
+    // Qwen3-235B-A22B MoE on KiloCode. 99.22% Few-Shot F1 for RDF triple
+    // extraction (Martin et al., arXiv:2603.29878). $0.07/$0.10 per 1M tokens.
+    // Fallback: qwen/qwen3.5-35b-a3b (3B active MoE, $0.16/$1.00 per 1M).
+    "qwen/qwen3-235b-a22b-2507".to_string()
 }
 
 fn default_ocr_model() -> String {

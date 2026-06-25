@@ -173,12 +173,21 @@ impl DocProcServer {
                     .collect::<Vec<_>>()
                     .join("\n\n");
 
-                let prompt = format!(
-                    "Answer the following question based on the provided context. If the context doesn't contain enough information, say so.\n\n\
-                     Context:\n{context}\n\n\
-                     Question: {query}\n\n\
-                     Answer:"
-                );
+                // C10: Load prompt from registry template, fall back to inline if unavailable
+                let mut vars = std::collections::HashMap::new();
+                vars.insert("context", context.clone());
+                vars.insert("question", query.clone());
+                let prompt = render_docproc_template("rag-answer", &vars);
+                let prompt = if prompt.is_empty() {
+                    format!(
+                        "Answer the following question based on the provided context. If the context doesn't contain enough information, say so.\n\n\
+                         Context:\n{context}\n\n\
+                         Question: {query}\n\n\
+                         Answer:"
+                    )
+                } else {
+                    prompt
+                };
 
                 let router = InferenceRouter::new(self.inference_config.clone());
                 let params = LLMParameters {

@@ -115,6 +115,10 @@ pub(crate) struct ReplState {
     pub(crate) improv_mode: Option<hkask_improv::ImprovMode>,
     /// Kanban service — lazily initialized for /kanban commands.
     pub(crate) kanban_service: Option<KanbanService>,
+    /// MCP servers that failed to auto-start (server_id → error message).
+    /// Populated during REPL init; surfaced in the session banner so the user
+    /// knows which capabilities are degraded before their first prompt.
+    pub(crate) degraded_servers: Vec<(String, String)>,
 }
 
 pub fn run(
@@ -157,6 +161,7 @@ pub fn run(
         template_id,
         &state.current_model,
         state.is_first_run,
+        &state.degraded_servers,
     );
 
     loop {
@@ -209,9 +214,9 @@ pub fn run(
                 if let Some(ref _session) = state.active_session.clone() {
                     // Dual-presence active. Fall back to single-agent mode.
                     state.active_session = None;
-                    turn::single_agent_turn(input, &mut state, &rt, &a2a_secret);
+                    turn::single_agent_turn(input, &mut state, &rt, &a2a_secret, None);
                 } else {
-                    turn::single_agent_turn(input, &mut state, &rt, &a2a_secret);
+                    turn::single_agent_turn(input, &mut state, &rt, &a2a_secret, None);
                 }
             }
             Err(ReadlineError::Interrupted) => {
