@@ -679,7 +679,7 @@ WARN  Orphaned endpoint — may need manual teardown via provider console
 ### 6.4 Systemd Service
 
 ```ini
-# /etc/systemd/system/hkask-training.service
+# /etc/systemd/system/hkask-mcp-training.service
 [Unit]
 Description=hKask Training MCP Server
 After=network.target
