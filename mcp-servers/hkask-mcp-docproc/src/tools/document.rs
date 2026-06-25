@@ -535,20 +535,4 @@ impl DocProcServer {
         })
         .await
     }
-
-    #[tool(
-        description = "Generate QA pairs from a text chunk by calling the inference engine. Returns structured question-answer pairs at specified Bloom's taxonomy levels."
-    )]
-    pub async fn docproc_generate_qa(
-        &self,
-        Parameters(GenerateQaRequest {
-            text,
-            chunk_id,
-            bloom_levels,
-        }): Parameters<GenerateQaRequest>,
-    ) -> String {
-        execute_tool(self, "docproc_generate_qa", async {
-            if text.is_empty() {
-                return Err(McpToolError::invalid_argument("text must not be empty"));
-            }
 }

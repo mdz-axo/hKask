@@ -166,10 +166,10 @@ fn parse_tesseract_tsv(tsv_content: &str) -> (String, f32) {
             continue;
         }
         // Column 10: confidence, column 11: text
-        if let Ok(conf) = fields[10].parse::<f32>() {
-            if conf >= 0.0 {
-                confidences.push(conf);
-            }
+        if let Ok(conf) = fields[10].parse::<f32>()
+            && conf >= 0.0
+        {
+            confidences.push(conf);
         }
         let word_text = fields[11].trim();
         if !word_text.is_empty() {

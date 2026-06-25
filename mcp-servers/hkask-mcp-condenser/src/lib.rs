@@ -341,7 +341,7 @@ impl CondenserServer {
                     .ok()
                     .and_then(|v| v.parse::<usize>().ok())
                     .unwrap_or(5);
-                (saliency * 100).max(150).min(2000) as u32
+                (saliency * 100).clamp(150, 2000) as u32
             });
 
             let summarization_prompt =

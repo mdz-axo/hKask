@@ -338,7 +338,7 @@ impl ReplSettings {
                 _ => return Err("expected float".into()),
             },
             "condense_saliency_window" | "saliency" => match value.parse::<usize>() {
-                Ok(v) if v >= 1 && v <= 50 => self.condense_saliency_window = v,
+                Ok(v) if (1..=50).contains(&v) => self.condense_saliency_window = v,
                 Ok(_) => return Err("saliency_window must be 1–50".into()),
                 _ => return Err("expected positive integer".into()),
             },

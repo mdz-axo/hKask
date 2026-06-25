@@ -118,12 +118,11 @@ impl ThreadRegistry {
                     active_id = std::fs::read_to_string(&path)
                         .ok()
                         .map(|s| s.trim().to_string());
-                } else if name.ends_with(".json") {
-                    if let Ok(contents) = std::fs::read_to_string(&path) {
-                        if let Ok(thread) = serde_json::from_str::<ChatThread>(&contents) {
-                            threads.insert(thread.id.clone(), thread);
-                        }
-                    }
+                } else if name.ends_with(".json")
+                    && let Ok(contents) = std::fs::read_to_string(&path)
+                    && let Ok(thread) = serde_json::from_str::<ChatThread>(&contents)
+                {
+                    threads.insert(thread.id.clone(), thread);
                 }
             }
         }
@@ -232,13 +231,12 @@ impl ThreadRegistry {
         let cutoff = chrono::Utc::now() - chrono::TimeDelta::days(max_age_days as i64);
         let mut to_save: Vec<ChatThread> = Vec::new();
         for thread in self.threads.values_mut() {
-            if thread.status == ThreadStatus::Active {
-                if let Ok(ts) = chrono::DateTime::parse_from_rfc3339(&thread.last_active_at) {
-                    if ts < cutoff {
-                        thread.status = ThreadStatus::Archived;
-                        to_save.push(thread.clone());
-                    }
-                }
+            if thread.status == ThreadStatus::Active
+                && let Ok(ts) = chrono::DateTime::parse_from_rfc3339(&thread.last_active_at)
+                && ts < cutoff
+            {
+                thread.status = ThreadStatus::Archived;
+                to_save.push(thread.clone());
             }
         }
         for thread in &to_save {
