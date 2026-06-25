@@ -1,28 +1,6 @@
-[inference]
-template_type: KnowAct
-lexicon_terms:
-- generate
-- question
-- answer
-- bloom
-- taxonomy
-contract:
-  input:
-    text: string
-    chunk_id: string
-    levels: string
-  output:
-    qa_pairs: array
-energy_cap: 4096
-visibility: Public
----
-{# goal: Generate Bloom's taxonomy QA pairs from a text chunk. #}
 {# Template: docproc/generate-qa.j2 #}
-{# KnowAct — Generate QA pairs at specified Bloom's taxonomy levels #}
-
-[inference]
-temperature = 0.3
-max_tokens = 4096
+{# Goal: Generate Bloom's taxonomy QA pairs from a text chunk. #}
+{# Type: KnowAct — rendered by hkask-mcp-docproc via minijinja #}
 
 Based on the following text, generate question-answer pairs at these Bloom's taxonomy levels: {{ levels }}.
 

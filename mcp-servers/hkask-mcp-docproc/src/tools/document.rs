@@ -45,39 +45,10 @@ impl DocProcServer {
                         }
                     };
 
-                    let emb = self.embedding_router.as_ref().map(|r| {
-                        (
-                            r,
-                            self.ocr_model
-                                .as_deref()
-                                .unwrap_or("DI/Qwen/Qwen3-Embedding-0.6B"),
-                        )
-                    });
-
-                    let outcome = pipeline::run_pipeline(
-                        vec![image],
-                        1,
-                        self,
-                        &self.ocr_thresholds,
-                        Some(&model),
-                        emb,
-                    )
-                    .await;
-
-                    self.persist_pipeline_outcome(&outcome).await;
-
-                    let text = outcome
-                        .results
-                        .first()
-                        .map(|r| r.text.clone())
-                        .unwrap_or_default();
+                    let (text, word_count, outcome) = self.run_ocr_pipeline(vec![image], &model).await;
                     let result = serde_json::json!({
-                        "format": format,
-                        "path": path,
-                        "method": "ocr_pipeline",
-                        "model": model,
-                        "text": text,
-                        "word_count": text.split_whitespace().count(),
+                        "format": format, "path": path, "method": "ocr_pipeline",
+                        "model": model, "text": text, "word_count": word_count,
                         "verification_passed": outcome.report.passed,
                         "page_count_match": outcome.report.page_count_match,
                         "empty_pages": outcome.report.empty_pages,
@@ -99,12 +70,7 @@ impl DocProcServer {
                             };
                             let expected = page_images.len();
                             let emb = self.embedding_router.as_ref().map(|r| {
-                                (
-                                    r,
-                                    self.ocr_model
-                                        .as_deref()
-                                        .unwrap_or("DI/Qwen/Qwen3-Embedding-0.6B"),
-                                )
+                                (r, default_embedding_model())
                             });
                             let outcome = pipeline::run_pipeline(
                                 page_images,
@@ -180,67 +146,67 @@ impl DocProcServer {
             }
 
             // ── Text extraction path ──
-            // Try typed pipeline with decimation first for PDFs (if OCR model is configured)
+            // GAP-10/C6: Try fast text extraction first for PDFs before the expensive
+            // typed OCR pipeline. For text-native PDFs (searchable, well-formed),
+            // this returns in ~50ms instead of ~45s for a 300-page document.
+            // Only fall back to the pipeline when text extraction is insufficient.
+            //
+            // `pdf_extract_result` caches the first extraction to avoid calling
+            // extract_text() twice on the slow path (B1 audit fix).
+            let mut pdf_extract_result: Option<ExtractOutcome> = None;
             if format == "pdf" {
-                if let Ok(model) = self.resolve_ocr_model(None).await
-                    && let Ok(page_images) =
-                        decimation::pdf_to_images(std::path::Path::new(&path), 200).await
+                let quick_result = extract_text(&path).await?;
+                if let ExtractOutcome::Success { ref text, word_count } = quick_result
+                    && word_count >= OCR_FALLBACK_WORD_THRESHOLD
                 {
-                    let expected = page_images.len();
-                    let emb = self.embedding_router.as_ref().map(|r| {
-                        (
-                            r,
-                            self.ocr_model
-                                .as_deref()
-                                .unwrap_or("DI/Qwen/Qwen3-Embedding-0.6B"),
-                        )
-                    });
-
-                    let outcome = pipeline::run_pipeline(
-                        page_images,
-                        expected,
-                        self,
-                        &self.ocr_thresholds,
-                        Some(&model),
-                        emb,
-                    )
-                    .await;
-
-                    self.persist_pipeline_outcome(&outcome).await;
-
-                    let text = outcome
-                        .results
-                        .iter()
-                        .map(|r| r.text.as_str())
-                        .collect::<Vec<_>>()
-                        .join("\n\n");
-                    let word_count = text.split_whitespace().count();
-
                     let result = serde_json::json!({
-                        "format": format,
-                        "path": path,
-                        "method": "ocr_pipeline",
-                        "model": model,
-                        "text": text,
-                        "word_count": word_count,
-                        "pages": expected,
-                        "verification_passed": outcome.report.passed,
-                        "page_count_match": outcome.report.page_count_match,
-                        "empty_pages": outcome.report.empty_pages,
-                        "error_count": outcome.errors.len(),
-                        "cross_validations": outcome.cross_validations.len(),
+                        "format": format, "path": path,
+                        "method": "text_extraction", "text": text, "word_count": word_count,
                     });
-                    self.record_experience(
-                        "docproc_convert",
-                        &path_clone,
-                        "success",
-                        result.clone(),
-                    );
+                    self.record_experience("docproc_convert", &path_clone, "success", result.clone());
                     return Ok(result);
                 }
+
+                // Insufficient text — try the typed OCR pipeline
+                if self.has_ocr() {
+                    if let Ok(model) = self.resolve_ocr_model(None).await
+                        && let Ok(page_images) =
+                            decimation::pdf_to_images(std::path::Path::new(&path), 200).await
+                    {
+                        let expected = page_images.len();
+                        let emb = self.embedding_router.as_ref().map(|r| {
+                            (r, default_embedding_model())
+                        });
+                        let outcome = pipeline::run_pipeline(
+                            page_images, expected, self, &self.ocr_thresholds, Some(&model), emb,
+                        ).await;
+                        self.persist_pipeline_outcome(&outcome).await;
+                        let text = outcome.results.iter().map(|r| r.text.as_str()).collect::<Vec<_>>().join("\n\n");
+                        let word_count = text.split_whitespace().count();
+                        let result = serde_json::json!({
+                            "format": format, "path": path, "method": "ocr_pipeline",
+                            "model": model, "text": text, "word_count": word_count,
+                            "pages": expected,
+                            "verification_passed": outcome.report.passed,
+                            "page_count_match": outcome.report.page_count_match,
+                            "empty_pages": outcome.report.empty_pages,
+                            "error_count": outcome.errors.len(),
+                            "cross_validations": outcome.cross_validations.len(),
+                        });
+                        self.record_experience("docproc_convert", &path_clone, "success", result.clone());
+                        return Ok(result);
+                    }
+                }
+
+                // Pipeline unavailable or failed — reuse the cached extraction result
+                pdf_extract_result = Some(quick_result);
             }
 
-            let extract_result = extract_text(self, &path).await?;
+            let extract_result = if let Some(cached) = pdf_extract_result {
+                cached
+            } else {
+                extract_text(&path).await?
+            };
 
             match extract_result {
                 ExtractOutcome::Success { text, word_count } => {
@@ -441,7 +407,7 @@ impl DocProcServer {
                 && !file_path.is_empty()
             {
                 // Use shared extract_text for format detection + text extraction
-                match extract_text(self, file_path).await? {
+                match extract_text(file_path).await? {
                     ExtractOutcome::Success {
                         text: extracted, ..
                     } => {
@@ -512,9 +478,9 @@ impl DocProcServer {
                     "coarse_max_tokens": coarse_max_tokens.unwrap_or(2048),
                     "medium_max_tokens": medium_max_tokens.unwrap_or(512),
                     "fine_max_tokens": fine_max_tokens.unwrap_or(128),
-                    "coarse": serialize_passages(coarse.clone()),
-                    "medium": serialize_passages(medium.clone()),
-                    "fine": serialize_passages(fine.clone()),
+                    "coarse": serialize_passages(&coarse),
+                    "medium": serialize_passages(&medium),
+                    "fine": serialize_passages(&fine),
                 });
 
                 // Auto-index if requested
@@ -542,7 +508,7 @@ impl DocProcServer {
                 );
 
                 let total_passages = passages.len();
-                let serialized = serialize_passages(passages.clone());
+                let serialized = serialize_passages(&passages);
 
                 // Auto-index if requested
                 let indexed = if index {
@@ -570,5 +536,4 @@ impl DocProcServer {
         })
         .await
     }
-
 }

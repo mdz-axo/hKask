@@ -97,6 +97,10 @@ pub enum ThreadStatus {
 pub struct ThreadRegistry {
     pub threads: BTreeMap<String, ChatThread>,
     pub active_thread_id: Option<String>,
+    /// Whether the active thread's history has been seeded into context.
+    /// False on session start and after thread switch — the next turn
+    /// injects thread_history to bootstrap cold context.
+    pub seeded: bool,
 }
 
 impl ThreadRegistry {
@@ -154,6 +158,7 @@ impl ThreadRegistry {
         self.threads.insert(id.clone(), thread);
         self.active_thread_id = Some(id.clone());
         write_active_file(agent_name, Some(&id));
+        self.seeded = false;
         emit_thread_cns("created", &id);
         self.threads.get(&id).expect("just inserted")
     }
@@ -272,6 +277,7 @@ impl ThreadRegistry {
         if self.threads.contains_key(thread_id) {
             self.active_thread_id = Some(thread_id.to_string());
             write_active_file(agent_name, Some(thread_id));
+            self.seeded = false;
             emit_thread_cns("switched", thread_id);
             if let Some(thread) = self.threads.get_mut(thread_id) {
                 thread.last_active_at = chrono::Utc::now().to_rfc3339();
@@ -281,6 +287,12 @@ impl ThreadRegistry {
         } else {
             false
         }
+    }
+
+    /// Mark the active thread as seeded — subsequent turns skip thread
+    /// history injection; episodic recall handles conversation context.
+    pub fn mark_seeded(&mut self) {
+        self.seeded = true;
     }
 
     /// Get a thread by ID.

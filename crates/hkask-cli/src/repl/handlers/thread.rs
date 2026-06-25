@@ -69,6 +69,7 @@ pub(crate) fn handle_thread(arg1: &str, arg2: &str, state: &mut ReplState) {
             match matched_id {
                 Some(id) => {
                     if state.thread_registry.switch_to(&id, &state.current_agent) {
+                        state.thread_seeded = false; // cold start — next turn seeds thread history
                         let t = state.thread_registry.get(&id).unwrap();
                         println!(
                             "  \x1b[32mSwitched to thread:\x1b[0m {} (\x1b[2m{} msgs\x1b[0m)",
@@ -92,6 +93,7 @@ pub(crate) fn handle_thread(arg1: &str, arg2: &str, state: &mut ReplState) {
             let t = state
                 .thread_registry
                 .create_thread(&state.current_agent, title);
+            state.thread_seeded = false; // cold start for the new thread
             println!(
                 "  \x1b[32mCreated thread:\x1b[0m {} (\x1b[2m{}\x1b[0m)",
                 &t.id[..8.min(t.id.len())],

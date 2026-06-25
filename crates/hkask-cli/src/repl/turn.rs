@@ -37,7 +37,6 @@ fn build_turn_request(
         persona_constraints: state.persona_constraints.clone(),
         tool_section: state.tool_prompt_section.clone(),
         llm_params: to_llm_params(settings),
-        context_turns: settings.context_turns,
         capability_checker: state.service_context.capability_checker.clone(),
         system_webid: *state.service_context.identity().0,
         iteration,
@@ -53,9 +52,17 @@ fn build_turn_request(
         ),
         condense_pressure_threshold: settings.condense_pressure_threshold,
         condense_saliency_window: settings.condense_saliency_window,
-        thread_history: state
-            .thread_registry
-            .thread_history(Some(settings.context_turns)),
+        // Thread history injection: only on cold starts (session restart or
+        // thread switch). After the first turn, episodic recall provides
+        // conversation context. This avoids redundant injection when the
+        // conversation is already in episodic memory.
+        thread_history: if state.thread_registry.seeded {
+            None
+        } else {
+            state
+                .thread_registry
+                .thread_history(Some(settings.condense_saliency_window))
+        },
         improv_mode: state.improv_mode.clone(),
         source: None,
         tools: if state.tool_definitions.is_empty() {
@@ -242,6 +249,10 @@ pub(super) fn single_agent_turn(
             .thread_registry
             .append_turn(&state.current_agent, input, resp);
     }
+
+    // Mark thread as seeded — subsequent turns won't re-inject thread
+    // history; episodic recall handles conversation context from here.
+    state.thread_registry.mark_seeded();
 
     cns_display::update_cns_and_display(state, rt);
 

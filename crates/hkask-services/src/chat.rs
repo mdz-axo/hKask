@@ -1004,7 +1004,10 @@ Agent: {}",
             &req.episodic_storage,
             &req.agent_webid,
             token,
-            req.context_turns * 2,
+            // Fetch enough episodes to cover the saliency window plus padding
+            // for condensation. We need at least saliency_window * 2 episodes
+            // to keep the anchor, plus the older ones to summarize.
+            (req.condense_saliency_window * 4).max(8),
         );
         if episodes.len() < 4 {
             return None; // too few messages to meaningfully condense
@@ -1124,7 +1127,7 @@ Agent: {}",
                 &req.episodic_storage,
                 &req.agent_webid,
                 &history_token,
-                req.context_turns,
+                req.condense_saliency_window,
             )
         } else {
             None
@@ -1252,8 +1255,6 @@ pub struct TurnRequest {
     pub tool_section: String,
     /// LLM parameters from user settings
     pub llm_params: LLMParameters,
-    /// Number of past turns to include in history suffix
-    pub context_turns: usize,
     /// Capability checker for minting memory access tokens
     pub capability_checker: Arc<hkask_capability::CapabilityChecker>,
     /// System WebID for token minting

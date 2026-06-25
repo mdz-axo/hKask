@@ -13,8 +13,8 @@ pub(crate) fn handle_repl_show(state: &ReplState) {
     println!();
     println!("  \x1b[36mtool_loop_limit\x1b[0m:  {}", s.tool_loop_limit);
     println!(
-        "  \x1b[36mcontext_turns\x1b[0m:   {} (0 = no history)",
-        s.context_turns
+        "  \x1b[36mcontext_turns\x1b[0m:   {} (→ aliases saliency_window)",
+        s.condense_saliency_window
     );
     println!("  \x1b[36mtemperature\x1b[0m:     {}", s.temperature);
     println!("  \x1b[36mtop_p\x1b[0m:           {}", s.top_p);
@@ -267,10 +267,19 @@ impl ReplSettings {
                 Ok(_) => return Err("tool_loop_limit must be > 0".into()),
                 _ => return Err("expected positive integer".into()),
             },
-            "context_turns" | "context" => match value.parse::<usize>() {
-                Ok(n) => self.context_turns = n,
-                _ => return Err("expected non-negative integer".into()),
-            },
+            "context_turns" | "context" => {
+                // Alias for condense_saliency_window — short-term memory recency.
+                // Kept for backward compatibility with existing settings files.
+                match value.parse::<usize>() {
+                    Ok(n) if n > 0 => self.condense_saliency_window = n,
+                    Ok(_) => {
+                        return Err(
+                            "context_turns must be > 0 (now aliases saliency_window)".into()
+                        );
+                    }
+                    _ => return Err("expected positive integer".into()),
+                }
+            }
             "temperature" | "temp" => match value.parse::<f32>() {
                 Ok(v) if (0.0..=2.0).contains(&v) => self.temperature = v,
                 Ok(_) => return Err("temperature must be 0.0–2.0".into()),

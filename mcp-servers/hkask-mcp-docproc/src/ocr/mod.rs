@@ -12,13 +12,11 @@
 pub mod calibration;
 pub mod complexity;
 pub mod config;
-pub mod cross_validation;
 pub mod decimation;
 pub mod document;
 pub mod llm_ocr;
 pub mod pipeline;
 pub mod routing;
-pub mod semantic;
 pub mod tesseract;
 pub mod verification;
 

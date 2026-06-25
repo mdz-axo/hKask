@@ -45,6 +45,10 @@ chrono.workspace = true
 dotenvy.workspace = true
 tempfile.workspace = true
 dirs = "6"
+minijinja.workspace = true
+
+# Service layer (shared settings, models, paths)
+hkask-services-core = { path = "../../crates/hkask-services-core" }
 
 [lib]
 name = "hkask_mcp_docproc"

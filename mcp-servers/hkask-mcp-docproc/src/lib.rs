@@ -4,7 +4,7 @@
 //! QA generation, caching, query, and Kindle book export (12 tools). Supersedes the former
 //! `hkask-mcp-markitdown` and `hkask-mcp-doc-knowledge` servers.
 //!
-//! Server struct, constructor, and tool methods are all inline in lib.rs
+//! Server struct in lib.rs, tool methods in tools/ module.
 //! (kanban pattern) for fuzz test construction and P5 Testing Discipline
 //! compliance.
 
@@ -20,7 +20,6 @@ use crate::ocr::calibration::{analyze_threshold_drift, emit_drift_alert};
 use crate::ocr::decimation;
 use crate::ocr::llm_ocr::LlmOcrExecutor;
 use crate::ocr::pipeline::{self, OcrExecutor};
-use crate::ocr::semantic::cosine_similarity;
 use crate::ocr::tesseract::TesseractExecutor;
 use crate::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
@@ -28,6 +27,7 @@ use hkask_mcp::DaemonClient;
 use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_memory::SemanticMemory;
 use hkask_ports::{CnsObserver, InferencePort};
+use hkask_services_core::settings::HkaskSettings;
 use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
@@ -41,15 +41,32 @@ use std::sync::Mutex;
 
 /// Minimum word count from pdf-extract to consider text extraction successful
 /// before falling back to OCR for scanned PDFs.
-pub const OCR_FALLBACK_WORD_THRESHOLD: usize = 100;
+pub(crate) const OCR_FALLBACK_WORD_THRESHOLD: usize = 100;
 
 /// System prompt for OCR vision requests.
 const OCR_SYSTEM_PROMPT: &str =
     "Extract all text from this image. Output only the extracted text, nothing else.";
 
 /// Default max tokens for OCR output.
-pub fn default_ocr_max_tokens() -> u32 {
+pub(crate) fn default_ocr_max_tokens() -> u32 {
     8192
+}
+
+/// Default embedding model — env var first, then HkaskSettings from disk.
+/// Consolidates 6 hardcoded "DI/Qwen/Qwen3-Embedding-0.6B" references (Q3).
+/// Settings are cached in a OnceLock to avoid repeated disk reads during
+/// pipeline execution (BUG-1 fix).
+fn default_embedding_model() -> &'static str {
+    use std::sync::OnceLock;
+    static CACHED: OnceLock<String> = OnceLock::new();
+
+    if let Ok(v) = std::env::var("HKASK_EMBEDDING_MODEL") {
+        // Env var takes priority — don't cache (allows runtime changes)
+        return String::leak(v);
+    }
+
+    let model = CACHED.get_or_init(|| HkaskSettings::load().embedding_model);
+    model.as_str()
 }
 
 // ── Server struct ──────────────────────────────────────────────────────────
@@ -69,18 +86,18 @@ pub struct DocProcServer {
     /// Embedding router for semantic cross-validation (None if unavailable).
     pub embedding_router: Option<EmbeddingRouter>,
     /// CNS observer for pipeline events → daemon → NuEventStore → CurationLoop.
-    pub cns_observer: DocProcCnsObserver,
+    pub(crate) cns_observer: DocProcCnsObserver,
     /// Accumulated cross-validations across pipeline runs for threshold self-tuning.
     /// Cleared after a drift alert is emitted to avoid redundant suggestions.
     pub cv_accumulator: Mutex<Vec<crate::ocr::CrossValidation>>,
     /// In-memory vector index for RAG query/retrieval. Passages indexed by `docproc_chunk`
     /// are stored here with their embeddings for cosine-similarity search via `docproc_query`.
-    pub index: Mutex<Vec<IndexedPassage>>,
+    pub(crate) index: Mutex<Vec<IndexedPassage>>,
 }
 
 /// A passage stored in the in-memory vector index with its embedding.
 #[derive(Debug, Clone)]
-pub struct IndexedPassage {
+pub(crate) struct IndexedPassage {
     pub text: String,
     pub metadata: serde_json::Value,
     pub embedding: Vec<f32>,
@@ -141,7 +158,7 @@ impl DocProcServer {
         }
 
         let model_name = std::env::var("HKASK_EMBEDDING_MODEL")
-            .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string());
+            .unwrap_or_else(|_| default_embedding_model().to_string());
 
         let vectors = match emb_router.embed_sentences(&model_name, &texts).await {
             Ok(v) => v,
@@ -170,6 +187,43 @@ impl DocProcServer {
         }
         passages.len()
     }
+
+    /// Run the OCR pipeline on page images and return joined text + outcome.
+    ///
+    /// Consolidates 3 duplicated invocation blocks in `docproc_convert`
+    /// (Candidate 1 — architectural deepening). Handles embedding router
+    /// construction, pipeline execution, persistence, and text joining.
+    pub async fn run_ocr_pipeline(
+        &self,
+        page_images: Vec<image::DynamicImage>,
+        model: &str,
+    ) -> (String, usize, crate::ocr::PipelineOutcome) {
+        let expected = page_images.len();
+        let emb_model = default_embedding_model();
+        let emb = self.embedding_router.as_ref().map(|r| (r, emb_model));
+
+        let outcome = pipeline::run_pipeline(
+            page_images,
+            expected,
+            self,
+            &self.ocr_thresholds,
+            Some(model),
+            emb,
+        )
+        .await;
+
+        self.persist_pipeline_outcome(&outcome).await;
+
+        let text = outcome
+            .results
+            .iter()
+            .map(|r| r.text.as_str())
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        let word_count = text.split_whitespace().count();
+
+        (text, word_count, outcome)
+    }
 }
 
 impl hkask_mcp::server::ToolContext for DocProcServer {
@@ -186,7 +240,7 @@ impl hkask_mcp::server::ToolContext for DocProcServer {
 
 /// CNS observer that implements the real `hkask_ports::CnsObserver` trait.
 /// Routes pipeline events through the daemon to NuEventStore → CurationLoop.
-pub struct DocProcCnsObserver {
+pub(crate) struct DocProcCnsObserver {
     daemon: Option<DaemonClient>,
     replicant: String,
 }
@@ -541,7 +595,7 @@ impl DocProcServer {
 ///
 /// Used by both `docproc_convert` and `docproc_chunk` to eliminate ~160
 /// lines of duplicated extraction logic (P5: surgical deduplication).
-async fn extract_text(_server: &DocProcServer, path: &str) -> Result<ExtractOutcome, McpToolError> {
+async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
     let (format, supported, note) = convert::detect_format(path);
 
     if !supported {
@@ -624,6 +678,21 @@ async fn extract_text(_server: &DocProcServer, path: &str) -> Result<ExtractOutc
     Ok(extract_result)
 }
 
+/// Cosine similarity between two vectors. Consolidated from ocr/semantic.rs (C4).
+/// Returns 0.0 if either vector is empty or dimensions mismatch.
+pub(crate) fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+    if a.is_empty() || b.is_empty() || a.len() != b.len() {
+        return 0.0;
+    }
+    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+    let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+    if norm_a == 0.0 || norm_b == 0.0 {
+        return 0.0;
+    }
+    (dot / (norm_a * norm_b)).clamp(0.0, 1.0)
+}
+
 /// Approximate token-to-word conversion: 1 token ≈ 1.33 words.
 fn tokens_to_words(tokens: usize) -> usize {
     ((tokens as f64) * 1.33) as usize
@@ -636,10 +705,10 @@ fn chunk_word_bounds(max_tokens: Option<usize>, overlap_tokens: Option<usize>) -
     (max_w, min_w)
 }
 
-/// Serialize (entity_ref, text) pair vec into json.
-fn serialize_passages(passages: Vec<(String, String)>) -> Vec<serde_json::Value> {
+/// Serialize (entity_ref, text) pair slice into json.
+fn serialize_passages(passages: &[(String, String)]) -> Vec<serde_json::Value> {
     passages
-        .into_iter()
+        .iter()
         .map(|(entity_ref, passage_text)| json!({"entity_ref": entity_ref, "text": passage_text}))
         .collect()
 }
@@ -666,69 +735,54 @@ fn strip_json_fences(text: &str) -> String {
     }
 }
 
-/// Load a docproc template from registry and render with variable substitution.
+/// Load a docproc template from registry and render with minijinja.
 ///
-/// Templates live in `registry/templates/docproc/` as Jinja2 files with YAML frontmatter.
-/// This function strips the frontmatter, then replaces `{{ var }}` placeholders with
-/// values from the provided map. Simple string substitution — full Jinja2 rendering
-/// is deferred to the hkask-templates CNR engine (C10).
+/// Templates live in `registry/templates/docproc/` as Jinja2 files.
+/// Uses the same minijinja rendering pattern as `self_heal.rs` and the
+/// hkask-templates ManifestExecutor. Falls back to empty string if the
+/// template file is missing or rendering fails — callers provide an
+/// inline fallback prompt.
+///
+/// Template base path is resolved relative to the workspace root. If the
+/// server is started from a different directory, set `HKASK_REGISTRY_PATH`
+/// to the absolute path of the `registry/` directory.
 fn render_docproc_template(
     template_name: &str,
     vars: &std::collections::HashMap<&str, String>,
 ) -> String {
-    // Resolve template path relative to workspace root
-    let template_path =
-        std::path::Path::new("registry/templates/docproc").join(format!("{template_name}.j2"));
+    let registry_root =
+        std::env::var("HKASK_REGISTRY_PATH").unwrap_or_else(|_| "registry".to_string());
+    let template_path = std::path::Path::new(&registry_root)
+        .join("templates/docproc")
+        .join(format!("{template_name}.j2"));
 
     let content = match std::fs::read_to_string(&template_path) {
         Ok(c) => c,
         Err(e) => {
-            tracing::warn!(target: "hkask.mcp.docproc.template", path = %template_path.display(), error = %e, "Template not found — using inline fallback");
+            tracing::warn!(target: "hkask.mcp.docproc.template", path = %template_path.display(), error = %e, "Template not found");
             return String::new();
         }
     };
 
-    // Strip YAML frontmatter (between --- markers)
-    let body = if content.starts_with("---") {
-        content
-            .splitn(3, "---")
-            .nth(2)
-            .unwrap_or(&content)
-            .trim()
-            .to_string()
-    } else {
-        content
-    };
-
-    // Strip [inference] blocks (non-Jinja2 metadata).
-    // Only skip the explicit [inference] header block, not arbitrary [bracketed] lines.
-    let prompt_body = body
-        .lines()
-        .skip_while(|l| {
-            let trimmed = l.trim();
-            trimmed.starts_with("[inference]") || trimmed.is_empty() || trimmed.starts_with('#')
-        })
-        .skip_while(|l| {
-            // Skip the inference config lines (key = value pairs under [inference])
-            let trimmed = l.trim();
-            !trimmed.is_empty()
-                && !trimmed.starts_with('#')
-                && trimmed.contains('=')
-                && !trimmed.starts_with('{')
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-        .trim()
-        .to_string();
-
-    // Simple {{ var }} substitution
-    let mut result = prompt_body;
-    for (key, value) in vars {
-        let placeholder = format!("{{{{ {} }}}}", key);
-        result = result.replace(&placeholder, value);
+    // Render with minijinja (same pattern as hkask-services-core::self_heal)
+    let mut env = minijinja::Environment::new();
+    env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
+    if let Err(e) = env.add_template("tpl", &content) {
+        tracing::warn!(target: "hkask.mcp.docproc.template", error = %e, "Invalid template syntax");
+        return String::new();
     }
 
-    result
+    let ctx = serde_json::to_value(vars).unwrap_or_default();
+    match env
+        .get_template("tpl")
+        .and_then(|t| t.render(minijinja::Value::from_serialize(&ctx)))
+    {
+        Ok(rendered) => rendered.trim().to_string(),
+        Err(e) => {
+            tracing::warn!(target: "hkask.mcp.docproc.template", error = %e, "Template render failed");
+            String::new()
+        }
+    }
 }
 
 // ── Request structs ────────────────────────────────────────────────────────
@@ -995,7 +1049,7 @@ mod tests {
             ("doc:chunk:0".to_string(), "Hello world".to_string()),
             ("doc:chunk:1".to_string(), "Goodbye".to_string()),
         ];
-        let result = serialize_passages(passages);
+        let result = serialize_passages(&passages);
         assert_eq!(result.len(), 2);
         assert_eq!(result[0]["entity_ref"], "doc:chunk:0");
         assert_eq!(result[0]["text"], "Hello world");
@@ -1005,7 +1059,7 @@ mod tests {
 
     #[test]
     fn serialize_passages_empty() {
-        let result = serialize_passages(vec![]);
+        let result = serialize_passages(&[]);
         assert!(result.is_empty());
     }
 

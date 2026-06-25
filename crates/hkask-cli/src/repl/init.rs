@@ -358,6 +358,7 @@ pub(super) fn init_repl_state(
             }
             reg
         },
+        thread_seeded: false,
     };
 
     // Discover available MCP tools and format the system prompt section.
