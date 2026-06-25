@@ -1102,19 +1102,25 @@ Agent: {}",
                 req.input.clone()
             };
 
-        // 2. Append recent conversation history from episodic memory,
-        // paired with relevant semantic facts about discussed topics.
-        // \[NORMATIVE\] Sovereignty gate (H3/P2): each memory category gated independently.
+        // 2. Build context: thread history (short-term) → episodic (long-term) → semantic.
+        // Thread history is the active thread's own conversation stream — it
+        // changes when the user switches threads. Episodic memory is the
+        // long-term pipeline (all sessions, independently processed).
+        //
+        // When thread history is present, episodic recall is skipped: the thread
+        // already provides the conversation context. Episodic recall is a
+        // fallback for when no active thread exists (pure long-term memory).
         let history_token = req.capability_checker.grant_registry(
             DelegationAction::Read,
             req.system_webid,
             req.agent_webid,
         );
-        let history_suffix = if MemoryService::has_memory_consent(
-            ctx,
-            &req.agent_webid,
-            &DataCategory::EpisodicMemory,
-        ) {
+        let history_suffix = if req.thread_history.is_none()
+            && MemoryService::has_memory_consent(
+                ctx,
+                &req.agent_webid,
+                &DataCategory::EpisodicMemory,
+            ) {
             MemoryService::recall_recent_turns(
                 &req.episodic_storage,
                 &req.agent_webid,
@@ -1135,11 +1141,13 @@ Agent: {}",
         } else {
             None
         };
-        let mut input_with_context = match (history_suffix, semantic_suffix) {
-            (Some(h), Some(s)) => format!("{}\n\n{}\n\n{}", base_input, s, h),
-            (Some(h), None) => format!("{}\n\n{}", base_input, h),
-            (None, Some(s)) => format!("{}\n\n{}", base_input, s),
-            (None, None) => base_input.clone(),
+        let mut input_with_context = match (&req.thread_history, &history_suffix, semantic_suffix) {
+            (Some(thread), _, Some(sem)) => format!("{}\n\n{}\n\n{}", base_input, thread, sem),
+            (Some(thread), _, None) => format!("{}\n\n{}", base_input, thread),
+            (None, Some(ep), Some(sem)) => format!("{}\n\n{}\n\n{}", base_input, sem, ep),
+            (None, Some(ep), None) => format!("{}\n\n{}", base_input, ep),
+            (None, None, Some(sem)) => format!("{}\n\n{}", base_input, sem),
+            (None, None, None) => base_input.clone(),
         };
 
         // 2b. Auto-condense: if enabled and context exceeds the configured
@@ -1267,6 +1275,11 @@ pub struct TurnRequest {
     /// Number of most recent exchanges to preserve verbatim during condensation.
     /// Older messages are summarized; these N are kept as anchors. Default 5.
     pub condense_saliency_window: usize,
+    /// Pre-formatted conversation history from the active short-term thread.
+    /// When set, prepended to context before episodic memory recall. This is
+    /// the thread's own stream — switching threads changes this context.
+    /// None if no active thread or thread has no turns.
+    pub thread_history: Option<String>,
     /// Active improv mode — when set, prepends mode-specific instructions
     /// to the system prompt so the model adopts the interaction posture.
     /// None means no improv posture (default agent behavior).

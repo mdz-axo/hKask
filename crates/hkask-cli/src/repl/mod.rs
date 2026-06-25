@@ -15,6 +15,7 @@ mod energy;
 pub(crate) mod handlers;
 mod helper;
 mod init;
+mod threads;
 mod tool_augmented;
 #[cfg(feature = "tui")]
 mod tui_bridges;
@@ -119,6 +120,11 @@ pub(crate) struct ReplState {
     /// Populated during REPL init; surfaced in the session banner so the user
     /// knows which capabilities are degraded before their first prompt.
     pub(crate) degraded_servers: Vec<(String, String)>,
+    /// Chat thread registry — persists conversation threads across sessions.
+    /// Loaded from `agents/{name}/threads.json` on REPL init. Supports
+    /// thread listing, switching, creation, and archival with configurable
+    /// short-term memory lifespan.
+    pub(crate) thread_registry: threads::ThreadRegistry,
 }
 
 pub fn run(

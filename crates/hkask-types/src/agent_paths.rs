@@ -29,6 +29,7 @@
 //!     documents/        Docproc parsed/extracted documents and metadata
 //!     library/          Research materials — downloaded papers, RSS feeds, search cache
 //!     sessions/         MCP session transcripts — one file per session, timestamped
+//!     threads/          Chat thread metadata — one JSON file per thread, _active marker
 //!     adapters/         LoRA adapter weight files (.safetensors, adapter_config.json)
 //!     portfolios/       Financial portfolio/watchlist data (FMP, EODHD responses)
 //!     artifacts/        Agent-specific artifacts — styles, bots, templates, bundles
@@ -49,6 +50,7 @@
 //! | documents/  | directory      | hkask-mcp-docproc (parsed documents)    | 🔧 dir exists, not wired |
 //! | library/    | directory      | hkask-mcp-research (papers, feeds)      | 🔧 dir exists, not wired |
 //! | sessions/   | directory      | DaemonHandler record_experience         | 🔧 dir exists, not wired |
+//! | threads/    | directory      | REPL thread registry (ChatThread JSON)  | ✅ wired |
 //! | adapters/   | directory      | hkask-mcp-training, hkask-adapter       | 🔧 dir exists, not wired |
 //! | portfolios/ | directory      | hkask-services-wallet (financial data)  | 🔧 dir exists, not wired |
 //! | artifacts/  | directory      | BundleService, StyleService, BotService | 🔧 dir exists, not wired |

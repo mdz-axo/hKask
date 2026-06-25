@@ -16,10 +16,13 @@ impl KataEngine {
         };
 
         let result = if step.classifier {
+            // Use the configured classifier model with its provider prefix.
+            // The model string from HkaskSettings includes a routing prefix
+            // (e.g., KC/qwen/...), so the inference router dispatches to
+            // the correct provider automatically — no hardcoded DI/ prefix.
             let cls_model = HkaskSettings::load().classifier_model();
-            let routed = format!("DI/{}", cls_model);
             self.inference
-                .generate_with_model(&prompt, &default_llm_params(), Some(&routed), None)
+                .generate_with_model(&prompt, &default_llm_params(), Some(&cls_model), None)
                 .await
                 .map_err(|e| KataError::InferenceFailed(format!("Step {}: {}", step.ordinal, e)))?
         } else {

@@ -600,7 +600,9 @@ pub async fn classify_batch(
 
 // ── Triple Extraction ──────────────────────────────────────────────────
 
-/// Extract semantic triples from a batch of passages using the Gemma 4 classifier.
+/// Extract semantic triples from a batch of passages.
+/// Model is determined by `HKASK_CLASSIFIER_MODEL` env var / settings, falling back
+/// to the model specified in registry/classify/{name}.yaml.
 ///
 /// Returns results in the same order as the input texts.
 /// Failed extractions default to empty TripleExtraction.

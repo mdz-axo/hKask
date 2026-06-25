@@ -206,6 +206,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         args: "list|board|task|move|accept|submit|decompose|spawn",
         about: "Kanban board and task coordination",
     },
+    SlashCommand {
+        primary: "thread",
+        aliases: &["th"],
+        args: "list|switch <id>|new [title]|archive <id>",
+        about: "Manage chat threads — short-term memory across sessions",
+    },
 ];
 
 // ── Lookup ─────────────────────────────────────────────────────────────
@@ -342,6 +348,7 @@ pub(super) fn handle_slash_command(
             let _ = cmd;
         }
         "kanban" | "kb" => handlers::handle_kanban(arg1, arg2, state, rt),
+        "thread" | "th" => handlers::handle_thread(arg1, arg2, state),
 
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);

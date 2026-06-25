@@ -20,6 +20,7 @@ pub(crate) mod status;
 
 pub(crate) mod kanban;
 pub(crate) mod talk;
+pub(crate) mod thread;
 
 pub(crate) use agent::{handle_agent, handle_agents};
 pub(crate) use ask::handle_ask;
@@ -40,3 +41,4 @@ pub(crate) use repl_settings::{ReplSettings, handle_repl_set, to_llm_params};
 pub(crate) use start::handle_start;
 pub(crate) use status::handle_status;
 pub(crate) use talk::{handle_talk, speak_response};
+pub(crate) use thread::handle_thread;

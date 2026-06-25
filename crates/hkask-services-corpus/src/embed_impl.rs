@@ -763,15 +763,31 @@ impl EmbedService {
             });
         tracing::info!(?classified_counts, "Section type classification complete");
 
-        // ── Extract semantic triples (Gemma 4 classifier) ───────────
+        // ── Extract semantic triples (uses HKASK_CLASSIFIER_MODEL) ───
         if !config.triple_classifier.is_empty() {
-            let triple_config = {
+            let mut triple_config = {
                 let def = hkask_services_runtime::load_classifier_config(
                     &config.triple_classifier,
                     registry_dir,
                 )?;
                 hkask_services_runtime::ClassifierConfig::from_def(&def)
             };
+
+            // Override YAML model with the runtime classifier_model setting.
+            // This keeps triple extraction in sync with HKASK_CLASSIFIER_MODEL
+            // and the /model REPL setting, avoiding a hardcoded YAML model.
+            // The settings model includes a provider prefix (e.g., KC/qwen/...)
+            // which the inference router needs; strip it for the classifier HTTP call.
+            let settings_model = hkask_services_core::HkaskSettings::load().classifier_model();
+            if !settings_model.is_empty() {
+                // Strip provider prefix (e.g., "KC/qwen/foo" → "qwen/foo").
+                // The base_url already determines the provider for classifier calls.
+                let bare_model = settings_model
+                    .split_once('/')
+                    .map(|(_, rest)| rest)
+                    .unwrap_or(&settings_model);
+                triple_config.model = bare_model.to_string();
+            }
 
             tracing::info!(
                 total_passages = passage_count,

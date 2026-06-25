@@ -53,6 +53,9 @@ fn build_turn_request(
         ),
         condense_pressure_threshold: settings.condense_pressure_threshold,
         condense_saliency_window: settings.condense_saliency_window,
+        thread_history: state
+            .thread_registry
+            .thread_history(Some(settings.context_turns)),
         improv_mode: state.improv_mode.clone(),
         source: None,
         tools: if state.tool_definitions.is_empty() {
@@ -87,6 +90,7 @@ pub(super) fn single_agent_turn(
     let mut tool_results: Option<String> = None;
     let mut iteration: usize = 0;
     let mut total_usage: Option<hkask_services::TokenUsage> = None;
+    let mut final_response: Option<String> = None;
 
     loop {
         iteration += 1;
@@ -186,6 +190,7 @@ pub(super) fn single_agent_turn(
             if iteration == 1 {
                 println!("{}: {}", display_name, processed.text);
             }
+            final_response = Some(processed.text.clone());
             // Talk mode: summarize and speak the response aloud
             if state.talk_enabled {
                 speak_response(&processed.text, state, rt);
@@ -227,6 +232,15 @@ pub(super) fn single_agent_turn(
         println!(
             "  \x1b[31m\u{2717} Gas budget exhausted \u{2014} some operations may be throttled\x1b[0m"
         );
+    }
+
+    // Append this exchange to the active thread's short-term memory stream.
+    // This is independent of long-term episodic memory — threads are the
+    // agent's immediate context; episodic/semantic processing runs in parallel.
+    if let Some(ref resp) = final_response {
+        state
+            .thread_registry
+            .append_turn(&state.current_agent, input, resp);
     }
 
     cns_display::update_cns_and_display(state, rt);

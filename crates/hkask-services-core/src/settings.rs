@@ -63,8 +63,11 @@ fn default_embedding_model() -> String {
 fn default_classifier_model() -> String {
     // Qwen3-235B-A22B MoE on KiloCode. 99.22% Few-Shot F1 for RDF triple
     // extraction (Martin et al., arXiv:2603.29878). $0.07/$0.10 per 1M tokens.
-    // Fallback: qwen/qwen3.5-35b-a3b (3B active MoE, $0.16/$1.00 per 1M).
-    "qwen/qwen3-235b-a22b-2507".to_string()
+    // Fallback: KC/qwen/qwen3.5-35b-a3b (3B active MoE, $0.16/$1.00 per 1M).
+    //
+    // Stored with KC/ prefix so the inference router can route by provider.
+    // Triple extraction strips the prefix before sending the model ID to Kilo Gateway.
+    "KC/qwen/qwen3-235b-a22b-2507".to_string()
 }
 
 fn default_ocr_model() -> String {

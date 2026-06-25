@@ -312,6 +312,10 @@ pub(super) fn init_repl_state(
 
     let ctx = Arc::new(ctx);
 
+    // Capture values before they're moved into ReplState.
+    let agent_name = onboarding_outcome.signed_in_agent.clone();
+    let stm_life = repl_settings.short_term_memory_life;
+
     let mut state = ReplState {
         inference_port,
         inference_loop,
@@ -338,6 +342,22 @@ pub(super) fn init_repl_state(
         improv_mode: None,
         kanban_service: None,
         degraded_servers: degraded,
+        thread_registry: {
+            let mut reg = crate::repl::threads::ThreadRegistry::load(&agent_name);
+            let archived = reg.archive_stale(&agent_name, stm_life);
+            if archived > 0 {
+                tracing::info!(
+                    target: "hkask.repl",
+                    archived = archived,
+                    "Auto-archived stale chat threads"
+                );
+            }
+            // Create an initial thread if this is a fresh registry.
+            if reg.list().is_empty() {
+                reg.create_thread(&agent_name, "Session started");
+            }
+            reg
+        },
     };
 
     // Discover available MCP tools and format the system prompt section.

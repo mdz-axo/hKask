@@ -110,27 +110,17 @@ pub fn format_tool_prompt_section(tools: &[ToolInfo]) -> String {
              ",
         );
 
-        // Error recovery strategies — encoded from the SelfHealer's default
-        // strategy registry. When shell.exec or fs operations fail, classify
-        // the error and apply the appropriate recovery before giving up.
+        // Error recovery strategies — abridged inline reference. For the full
+        // diagnostic pipeline, invoke `skill_execute("heal.self-heal", ...)`.
         section.push_str(
-            "## Error Recovery Strategies\n\
-             When a command or file operation fails, classify the error and apply \
-             the appropriate recovery before reporting failure:\n\
-             - **Missing API key / auth error** → Check .env files with fs.read. \
-               If missing, instruct the user to set the variable.\n\
-             - **Permission denied** → Check file permissions with shell.exec \
-               (`ls -la`). Suggest chmod or the appropriate fix.\n\
-             - **Command not found** → The required binary is not installed. \
-               Suggest the install command (apt-get, brew, cargo install).\n\
-             - **Config file not found** → Check expected paths. If a config \
-               template exists, create the default. Otherwise report the missing file.\n\
-             - **Network error / connection refused** → Retry up to 3 times with \
-               increasing delay (1s, 2s, 4s). If all fail, report the outage.\n\
-             - **Timeout / 5xx / rate limit** → Transient failure. Retry up to \
-               3 times. If persistent, wait and try once more before escalating.\n\
-             If no strategy matches, report the error clearly with the full \
-             command output and suggest next steps.\n\
+            "## Error Recovery\n\
+             When a command or file operation fails:\n\
+             - Classify the error (auth, permission, not-found, network, timeout).\n\
+             - Retry transient failures up to 3 times with increasing delay.\n\
+             - For persistent errors, invoke the self-heal skill: \
+               `skill_execute(\"heal.self-heal\", {error_message, operation})`.\n\
+             - If unhealable, report the error clearly with full output and \
+               suggest next steps.\n\
              ",
         );
     }

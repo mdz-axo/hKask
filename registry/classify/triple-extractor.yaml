@@ -1,14 +1,15 @@
 # Triple Extractor — Qwen3 MoE classifier for semantic triple generation
 # Used by: kask embed-corpus (triple extraction pass, after section_type)
-# Model: qwen/qwen3-235b-a22b-2507 (22B active, 235B total, MoE, non-reasoning)
+# Primary model: qwen/qwen3-235b-a22b-2507 (22B active, 235B total, MoE)
+#   — controlled by HKASK_CLASSIFIER_MODEL env var / settings, NOT this YAML.
+# Fallback model (this file): qwen/qwen3.5-35b-a3b (3B active MoE)
+#   — used only if HkaskSettings.classifier_model() returns empty.
 # Provider: KiloCode (cloud API via Kilo Gateway, OpenAI-compatible)
 #
 # Rationale: Martin et al. (arXiv:2603.29878) evaluated LLMs for RDF triple
 # extraction and found Few-Shot learning is the dominant strategy:
 #   Llama 99.35% | Qwen 99.22% | NuExtract 98.47% | Gemma 94.81%
-# Qwen is within 0.13 points of Llama at ~1/10th the cost on KiloCode.
-# Fallback: qwen/qwen3.5-35b-a3b (3B active MoE, $0.16/$1.00 per 1M tokens)
-# if Qwen3-235B-A22B becomes unavailable or cost exceeds budget.
+# Qwen3-235B-A22B: $0.07/$0.10 per 1M tokens, Qwen3.5-35B-A3B: $0.16/$1.00.
 #
 # Extracts structured semantic data from each passage:
 #   topic, concepts, entities, relationships, primary_dimension, quality_flags
@@ -17,7 +18,7 @@
 
 classifier:
   name: triple-extractor
-  model: qwen/qwen3-235b-a22b-2507
+  model: qwen/qwen3.5-35b-a3b
   provider: kilocode
   concurrency: 150
   timeout_secs: 30
