@@ -8,6 +8,10 @@ manifest:
     Convergent service-layer extraction process. Audits duplication,
     plans strangler migration per domain, verifies migration integrity,
     computes convergence, and iterates until extraction risks are reduced.
+    The SKILL.md documents practitioner-level composition with
+    improve-codebase-architecture, tdd, coding-guidelines, pragmatic-semantics,
+    zoom-out, strangler-fig, deep-module, and pragmatic-cybernetics as
+    methodological guidance (not machine-executable delegation).
   functional_role: flowdef
   version: 0.30.0
   editor: curator-or-human-admin
@@ -112,13 +116,13 @@ steps:
     action: select
     description: Compute normalized convergence metric for service extraction cycle.
     renderer: minijinja
-    template_ref: refactor-service-layer/rsl-convergence-check
+    template_ref: shared/convergence-check
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
-      audit_result: "{{ step_1_result }}"
-      strangle_result: "{{ step_2_result }}"
-      verify_result: "{{ step_3_result }}"
+      primary_result: "{{ step_3_result }}"
+      convergence_description: "extraction path is verified and remaining blockers are non-critical"
+      include_blockers: true
 
   - ordinal: 5
     action: loop
@@ -149,7 +153,7 @@ ocap:
       gas_budget: 5000
     - resource: template
       action: render
-      template_id: refactor-service-layer/rsl-convergence-check
+      template_id: shared/convergence-check
       gas_budget: 2000
     - resource: manifest
       action: execute

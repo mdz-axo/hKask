@@ -124,5 +124,5 @@ Option B wins on composite (72 > 67). But without masking detection, you might n
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 22000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 3 rJ, 0.25 rJ/token
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

@@ -107,7 +107,6 @@ This skill's runtime templates live in `registry/templates/kata-coaching/`:
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `coaching-overview.j2` | KnowAct | 5-question Coaching Kata dialogue overview — documentation-only (not in manifest flow) |
 | `coaching-q1-target.j2` | WordAct | Question 1: What is the target condition? |
 | `coaching-q2-actual.j2` | WordAct | Question 2: What is the actual condition now? |
 | `coaching-q3-obstacles.j2` | WordAct | Question 3: What obstacles? Which one now? |

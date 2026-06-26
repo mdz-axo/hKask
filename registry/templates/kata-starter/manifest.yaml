@@ -10,12 +10,6 @@ crate:
     Three drills: Five Questions, PDCA Cycle, Observation Drill.
 
 templates:
-  - id: kata-starter/starter-overview
-    path: starter-overview.j2
-    type: KnowAct
-    lexicon_terms: [sequence, iterate, exercise, reflect, write]
-    description: Starter Kata practice overview — select drill, exercise, reflect, write. Provides orientation and context; does not invoke sub-templates.
-
   - id: kata-starter/starter-selector
     path: starter-selector.j2
     type: KnowAct

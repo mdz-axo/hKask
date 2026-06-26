@@ -86,12 +86,13 @@ steps:
     action: select
     description: Compute normalized convergence metric for grill-me cycle.
     renderer: minijinja
-    template_ref: grill-me/grill-me-convergence-check
+    template_ref: shared/convergence-check
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
-      round_result: "{{ step_2_result }}"
-      assess_result: "{{ step_3_result }}"
+      primary_result: "{{ step_3_result }}"
+      convergence_description: "knowledge coverage is sufficient"
+      include_blockers: false
 
   - ordinal: 5
     action: loop
@@ -122,7 +123,7 @@ ocap:
       gas_budget: 4000
     - resource: template
       action: render
-      template_id: grill-me/grill-me-convergence-check
+      template_id: shared/convergence-check
       gas_budget: 2000
     - resource: manifest
       action: execute

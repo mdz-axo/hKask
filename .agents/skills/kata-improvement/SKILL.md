@@ -98,7 +98,6 @@ This skill's runtime templates live in `registry/templates/kata-improvement/`:
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `improvement-overview.j2` | KnowAct | 4-step Improvement Kata overview — documentation-only (not in manifest flow) |
 | `improvement-step1-direction.j2` | WordAct | Step 1: Understand the direction and challenge |
 | `improvement-step2-current.j2` | WordAct | Step 2: Grasp current condition with facts and data |
 | `improvement-step3-target.j2` | WordAct | Step 3: Establish next target condition with metrics and deadline |

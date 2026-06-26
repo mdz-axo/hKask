@@ -11,12 +11,6 @@ crate:
     Q4: Next Step/Experiment. Q5: Feedback loop closure.
 
 templates:
-  - id: kata-coaching/coaching-overview
-    path: coaching-overview.j2
-    type: KnowAct
-    lexicon_terms: [sequence, probe, query, reflect, iterate]
-    description: Full 5-question Coaching Kata dialogue overview (~20 minutes). Provides orientation and context; does not invoke sub-templates.
-
   - id: kata-coaching/coaching-q1-target
     path: coaching-q1-target.j2
     type: WordAct

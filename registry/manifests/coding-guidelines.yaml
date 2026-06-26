@@ -89,11 +89,13 @@ steps:
     action: select
     description: Compute normalized convergence metric for coding-guidelines cycle.
     renderer: minijinja
-    template_ref: coding-guidelines/guidelines-convergence-check
+    template_ref: shared/convergence-check
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
-      verify_result: "{{ step_3_result }}"
+      primary_result: "{{ step_3_result }}"
+      convergence_description: "code quality is verified and violations are resolved"
+      include_blockers: true
 
   - ordinal: 5
     action: loop
@@ -124,7 +126,7 @@ ocap:
       gas_budget: 5000
     - resource: template
       action: render
-      template_id: coding-guidelines/guidelines-convergence-check
+      template_id: shared/convergence-check
       gas_budget: 2000
     - resource: manifest
       action: execute

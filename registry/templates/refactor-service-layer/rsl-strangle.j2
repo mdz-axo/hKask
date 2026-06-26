@@ -94,13 +94,17 @@ Write one failing test per service operation in `hkask-services`. Each test must
 - Verify a domain behavior, not a surface presentation
 - Carry a contract annotation (`expect:` + `[P{N}]`) referencing a functional requirement
 
+**Pattern (not actual API — adapt to your service crate's conventions):**
+
 ```rust
-// expect: "I can list pending escalations through the curator service"
+// expect: "I can [domain operation] through the [service name]"
+// [P{N}] The test exercises a public seam with a stated behavioral property
 #[tokio::test]
-async fn curator_list_escalations_via_service() {
-    let ctx = ServiceContext::build(ServiceConfig::in_memory()).unwrap();
-    let result = CuratorService::list_escalations(&ctx).await;
-    assert!(result.is_ok());
+async fn service_operation_test() {
+    // Build test context using your service crate's test harness
+    // let ctx = your_crate::test_utils::build_test_context();
+    // let result = YourService::operation(&ctx).await;
+    // assert!(result.is_ok());
 }
 ```
 
@@ -112,13 +116,13 @@ Implement the minimal code to pass the test. The service calls domain crates dir
 
 Change the CLI command handler to call the service operation and format terminal output. Delete the duplicate business logic from the CLI command file.
 
-Verify: `cargo test -p hkask-cli`
+Verify: `cargo test -p <cli-crate>`
 
 ### Step 4 — Wire API Adapter
 
 Change the API route handler to call the same service operation and serialize to JSON. Delete the duplicate business logic from the API route file.
 
-Verify: `cargo test -p hkask-api`
+Verify: `cargo test -p <api-crate>`
 
 ### Step 5 — Delete Duplicated Logic
 
@@ -131,6 +135,8 @@ cargo check --workspace
 cargo test --workspace
 cargo clippy --workspace -- -D warnings
 ```
+
+**Note:** Replace `<cli-crate>`, `<api-crate>`, and `<service-crate>` above with your project's actual crate names (e.g., `hkask-cli`, `hkask-api`, `hkask-services`).
 
 ## Glossary
 
@@ -193,9 +199,9 @@ Respond with a JSON object:
       "api/routes/curator.rs: State.escalation_queue access in list_escalations handler"
     ],
     "verification_steps": [
-      "cargo test -p hkask-services",
-      "cargo test -p hkask-cli",
-      "cargo test -p hkask-api",
+      "cargo test -p <service-crate>",
+      "cargo test -p <cli-crate>",
+      "cargo test -p <api-crate>",
       "cargo check --workspace",
       "cargo test --workspace",
       "cargo clippy --workspace -- -D warnings"

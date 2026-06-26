@@ -8,8 +8,8 @@ lexicon_terms:
 - orient
 contract:
   input:
-    conflicting_statements: array
-    context: string
+    provenance_result: object
+    classification_result: object
   output:
     ranked_statements: array
     winner: string
@@ -71,16 +71,26 @@ You are a semantic conflict resolver. Resolve conflicts between statements using
 | 6 | Inference | Derived reasoning |
 | 7 | Unknown | Unverifiable |
 
-## Conflicting Statements
+## Provenance Result
 
 ```json
-{{ conflicting_statements | tojson }}
+{{ provenance_result | tojson }}
 ```
 
-{% if context %}
-## Context
+## Classification Result
 
-{{ context }}
+```json
+{{ classification_result | tojson }}
+```
+
+{% if provenance_result.conflicts_detected %}
+## Conflict Detected
+
+The provenance tracer flagged contradictions in the evidence chain. Resolve them using OT ranking.
+{% else %}
+## No Conflicts Detected
+
+If no conflicts are present in the provenance result, confirm this and return an empty resolution. Do not fabricate conflicts.
 {% endif %}
 
 ## Resolution Rules

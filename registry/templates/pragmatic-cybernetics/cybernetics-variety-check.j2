@@ -8,8 +8,8 @@ lexicon_terms:
 - regulate
 contract:
   input:
-    system_variety: string
-    regulator_variety: string
+    loop_analysis: object
+    system_context: string
   output:
     deficit_analysis: string
     attenuation_recommendations: array
@@ -50,13 +50,19 @@ If the system's disturbance variety exceeds the regulator's response variety, th
 | Override cooldown | Attenuation | `Dampener::override_cooldown` (120s) prevents override oscillation |
 | Persona filter | Attenuation | Strips persona-violating output variety |
 
-## System Variety (Disturbances)
+## Loop Analysis Result
 
-{{ system_variety }}
+```json
+{{ loop_analysis | tojson }}
+```
 
-## Regulator Variety (Responses)
+{% if system_context %}
+## System Context
 
-{{ regulator_variety }}
+{{ system_context }}
+{% endif %}
+
+From the loop analysis above, extract the system disturbances (what the system produces that must be regulated) and the regulator responses (what the regulator can produce to counter disturbances). Enumerate and compare them.
 
 ## Analysis Framework
 

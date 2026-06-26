@@ -85,8 +85,6 @@ This bundle's orchestration templates live in `registry/templates/kata/`:
 | `coaching-cycle.j2` | KnowAct | Bridge template: kata-pattern → kata-coaching delegation (v0.31.0) |
 | `outcome-and-habit.j2` | KnowAct | Synthesize kata outcome with habit assessment |
 | `habit-intervention.j2` | WordAct | Generate intervention when habit is at risk |
-| `iteration-check.j2` | KnowAct | Check if iteration is needed (variance or low confidence) |
-| `iteration-comparison.j2` | KnowAct | Compare iterations for variance and confidence |
 | `kata-switch-check.j2` | KnowAct | Validate kata switching against composition rules |
 | `kata-convergence-check.j2` | KnowAct | Compute normalized convergence for kata practice sessions |
 

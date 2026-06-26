@@ -11,12 +11,6 @@ crate:
     Each step references prior outputs. The cycle closes with before/after measurement.
 
 templates:
-  - id: kata-improvement/improvement-overview
-    path: improvement-overview.j2
-    type: KnowAct
-    lexicon_terms: [sequence, iterate, reflect, converge, evaluate]
-    description: Full 4-step Improvement Kata overview with cybernetic feedback loop. Provides orientation and context; does not invoke sub-templates.
-
   - id: kata-improvement/improvement-step1-direction
     path: improvement-step1-direction.j2
     type: WordAct

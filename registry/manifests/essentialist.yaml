@@ -64,11 +64,13 @@ steps:
     action: select
     description: Compute normalized convergence metric for essentialist cycle.
     renderer: minijinja
-    template_ref: essentialist/essentialist-convergence-check
+    template_ref: shared/convergence-check
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
       primary_result: "{{ step_1_result }}"
+      convergence_description: "eliminations are stable and no material reductions remain"
+      include_blockers: false
 
   - ordinal: 3
     action: loop
@@ -91,7 +93,7 @@ ocap:
       gas_budget: 9000
     - resource: template
       action: render
-      template_id: essentialist/essentialist-convergence-check
+      template_id: shared/convergence-check
       gas_budget: 2000
     - resource: manifest
       action: execute

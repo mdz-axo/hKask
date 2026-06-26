@@ -1,0 +1,96 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- verify
+- validate
+- check
+- confirm
+- audit
+contract:
+  input:
+    detection_result: object
+    evaluation_result: object
+    strip_result: object
+  output:
+    convergence_metric: number
+    rationale: string
+    remaining_artifacts: array
+    verification_checks: object
+energy_cap: 4096
+visibility: Public
+---
+{# hKask v0.31.0 — A Minimal Viable Container for Agents #}
+{# Ceremony Convergence Check — Verify that stripping was complete.
+   Confirms no ceremonial artifacts remain, all remaining references
+   resolve, OCAP coverage matches flow templates, and convergence
+   fields point to correct step ordinals. #}
+{# goal: Compute convergence metric for ceremonial code stripping — 0 means no ceremonial artifacts remain and all references are intact. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 1000
+thinking_budget = "off"
+
+You are a convergence evaluator for ceremonial code stripping. Verify that
+the stripping operation was complete and introduced no broken references.
+
+## Inputs
+
+Detection result:
+```json
+{{ detection_result | tojson }}
+```
+
+Evaluation result:
+```json
+{{ evaluation_result | tojson }}
+```
+
+Strip result:
+```json
+{{ strip_result | tojson }}
+```
+
+## Convergence Method
+
+Compute `convergence_metric` in [0,1]:
+- 0.00 = converged (no ceremonial artifacts remain, all references intact)
+- 1.00 = not converged (artifacts remain or broken references introduced)
+
+Scoring:
+1. Start at 1.0.
+2. If all strippable artifacts were removed, subtract 0.4.
+3. If no new broken references were introduced by stripping, subtract 0.3.
+4. If convergence_field and OCAP coverage remain correct for all manifests, subtract 0.2.
+5. If detection re-scan finds zero new ceremonial artifacts, subtract 0.1.
+6. Clamp to [0,1].
+
+## Verification Checks
+
+- [ ] All remaining template_refs resolve to existing .j2 files
+- [ ] All OCAP entries have matching flow step template_refs
+- [ ] All convergence_field ordinals point to select steps (not loop/choice)
+- [ ] No step has renderer: null + template_ref: null without functional branches
+- [ ] No orphaned template entries remain in crate manifests
+- [ ] No documentation-only template descriptions remain
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "convergence_method": "LLM-assessed ceremony stripping completion",
+  "rationale": "short explanation of why metric is at this value",
+  "verification_checks": {
+    "template_refs_resolve": true,
+    "ocap_coverage_exact": true,
+    "convergence_fields_correct": true,
+    "no_null_renderer_steps": true,
+    "no_orphaned_templates": true,
+    "no_documentation_templates": true
+  },
+  "remaining_artifacts": [],
+  "broken_references": []
+}
+```

@@ -492,35 +492,6 @@
   cascade_level: 0
   matroshka_limit: 7
 
-- id: kata/iteration-check
-  template_type: KnowAct
-  name: "Kata Iteration Check"
-  lexicon_terms:
-    - detect
-    - evaluate
-    - variance
-    - confidence
-  description: "Check if iteration is needed based on variance or low confidence"
-  source_path: registry/templates/kata/iteration-check.j2
-  required_capabilities: []
-  cascade_level: 0
-  matroshka_limit: 7
-
-- id: kata/iteration-comparison
-  template_type: KnowAct
-  name: "Kata Iteration Comparison"
-  lexicon_terms:
-    - compare
-    - evaluate
-    - variance
-    - confidence
-    - select
-  description: "Compare iterations for variance assessment and confidence building"
-  source_path: registry/templates/kata/iteration-comparison.j2
-  required_capabilities: []
-  cascade_level: 0
-  matroshka_limit: 7
-
 - id: kata/kata-switch-check
   template_type: KnowAct
   name: "Kata Switch Check"

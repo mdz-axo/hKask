@@ -8,7 +8,9 @@ lexicon_terms:
 - assess
 contract:
   input:
-    focus_area: string
+    loop_analysis: object
+    variety_result: object
+    system_context: string
   output:
     vsm_mapping: object
     viability_assessment: string
@@ -50,9 +52,23 @@ A viable system requires:
 5. **S5 policy** that maintains identity and resolves S3/S4 conflicts.
 6. **Algedonic channels** from S1 directly to S5 (bypassing S3/S4) for crisis escalation.
 
-## Focus Area
+## Loop Analysis
 
-{{ focus_area }}
+```json
+{{ loop_analysis | tojson }}
+```
+
+## Variety Assessment
+
+```json
+{{ variety_result | tojson }}
+```
+
+{% if system_context %}
+## System Context
+
+{{ system_context }}
+{% endif %}
 
 ## Mapping Method
 

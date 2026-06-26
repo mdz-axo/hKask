@@ -95,8 +95,7 @@ This skill's runtime templates live in `registry/templates/kata-starter/`:
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `starter-overview.j2` | KnowAct | Starter Kata practice overview — documentation-only (not in manifest flow) |
-| `starter-selector.j2` | KnowAct | Select appropriate starter routine based on learner state (v0.31.0: selector output now drives conditional drill routing) |
+| `starter-selector.j2` | KnowAct | Select appropriate starter routine based on learner state |
 | `starter-five-questions.j2` | KnowAct | Five Questions Drill — practice the 5 coaching questions |
 | `starter-pdca-cycle.j2` | KnowAct | PDCA Cycle — Plan-Do-Check-Act experimentation practice |
 | `starter-observation-drill.j2` | KnowAct | Observation Drill — distinguish facts from interpretations |

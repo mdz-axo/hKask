@@ -56,18 +56,6 @@ templates:
     lexicon_terms: [prompt, pledge, promise, commit, instruct]
     description: Generate encouraging intervention message when practice habit decays.
 
-  - id: kata/iteration-check
-    path: iteration-check.j2
-    type: KnowAct
-    lexicon_terms: [evaluate, compare, decide, converge, iterate]
-    description: Determine if kata cycle should be re-run (variance, confidence, budget).
-
-  - id: kata/iteration-comparison
-    path: iteration-comparison.j2
-    type: KnowAct
-    lexicon_terms: [compare, evaluate, classify, discriminate, select]
-    description: Compare iteration outputs for variance, consistency, and best run.
-
   - id: kata/kata-switch-check
     path: kata-switch-check.j2
     type: KnowAct

@@ -82,13 +82,13 @@ steps:
     action: select
     description: Compute normalized convergence metric for cybernetics cycle.
     renderer: minijinja
-    template_ref: pragmatic-cybernetics/cybernetics-convergence-check
+    template_ref: shared/convergence-check
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
       primary_result: "{{ step_1_result }}"
-      variety_result: "{{ step_2_result | default({}) }}"
-      vsm_result: "{{ step_3_result | default({}) }}"
+      convergence_description: "loop diagnostics are stable for intervention"
+      include_blockers: false
 
   - ordinal: 5
     action: loop
@@ -119,7 +119,7 @@ ocap:
       gas_budget: 4000
     - resource: template
       action: render
-      template_id: pragmatic-cybernetics/cybernetics-convergence-check
+      template_id: shared/convergence-check
       gas_budget: 2000
     - resource: manifest
       action: execute

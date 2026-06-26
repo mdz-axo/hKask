@@ -1,0 +1,92 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- delete
+- remove
+- strip
+- prune
+- clean
+contract:
+  input:
+    strippable_artifacts: array
+    target_domain: string
+  output:
+    actions_taken: array
+    files_deleted: array
+    entries_removed: array
+    steps_removed: array
+energy_cap: 8192
+visibility: Public
+---
+{# hKask v0.31.0 — A Minimal Viable Container for Agents #}
+{# Ceremony Strip — Execute deletions for confirmed ceremonial artifacts.
+   Produces specific removal instructions: file deletions, template entry
+   removals from crate manifests, step removals from flow manifests with
+   ordinal renumbering. #}
+{# goal: Execute stripping actions for confirmed ceremonial code artifacts. #}
+
+You are a ceremonial code stripper in hKask. Your job is to execute the
+deletions identified by the detection phase. Be precise — every action
+must have a specific file path and removal instruction.
+
+## Governing Principle
+
+Delete, do not annotate. Prohibition #2: deprecated code earns deletion.
+If the deletion test confirmed "no behavior vanishes," remove the artifact
+completely — do not add comments, do not mark as deprecated, do not leave stubs.
+
+## Artifacts to Strip
+
+```json
+{{ strippable_artifacts | tojson }}
+```
+
+{% if target_domain %}
+Target domain: {{ target_domain }}
+{% endif %}
+
+## Stripping Actions
+
+For each artifact, produce the exact removal action:
+
+### Action Type: `delete_file`
+When: The artifact is an entire file with no references from any other file.
+Action: Delete the file from the filesystem.
+Example: `delete_file: registry/templates/kata-starter/starter-overview.j2`
+
+### Action Type: `remove_crate_entry`
+When: The artifact is a template entry in a crate manifest but the .j2 file
+should be preserved (or when only the registration is ceremonial).
+Action: Remove the `- id:` block from `registry/templates/<skill>/manifest.yaml`.
+Include the exact YAML lines to remove.
+
+### Action Type: `remove_manifest_step`
+When: The artifact is a null-renderer step in a flow manifest.
+Action: Remove the step block from `registry/manifests/<name>.yaml`.
+After removal, renumber all subsequent step ordinals to maintain
+a contiguous sequence (1, 2, 3, ...).
+
+### Action Type: `remove_ocap_entry`
+When: The artifact is an OCAP `required_capabilities` entry for a template
+not referenced by any step in the manifest.
+Action: Remove the `- resource: template` block from the OCAP section.
+
+## Strip Protocol
+
+1. For each strippable artifact, determine the action type.
+2. Produce the exact file path and removal target.
+3. If removing a manifest step, recalculate ordinals for all following steps.
+4. If removing a step, update the `convergence_field` reference if it shifted.
+5. Do NOT remove .j2 files that are referenced by other crate manifests.
+6. After all removals, produce the final state summary.
+
+## Output Format
+
+JSON object:
+- actions_taken: array of { action_type, file_path, target_description, ordinal_shifts }
+- files_deleted: array of file paths deleted
+- entries_removed: array of { crate_manifest, template_id_removed }
+- steps_removed: array of { manifest, step_ordinal_removed, step_description }
+- ordinal_remapping: if steps were removed, the old→new ordinal mapping
+- convergence_field_updates: if convergence_field shifted, the old→new reference
+- final_state: summary of what was removed and what remains

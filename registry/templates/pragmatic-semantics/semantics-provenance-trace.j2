@@ -8,11 +8,13 @@ lexicon_terms:
 - evaluate
 contract:
   input:
-    claim: string
-    available_evidence: string
+    classification_result: object
+    statement: string
+    system_context: string
   output:
     provenance_chain: array
     confidence_level: string
+    conflicts_detected: boolean
     recommendations_for_verification: array
   energy_cap: 4096
   visibility: Public
@@ -51,14 +53,20 @@ Each link in the chain traces one derivation step:
 3. **Transform**: What changed between source and current claim (none, summarization, generalization, inference).
 4. **Confidence delta**: How much confidence is lost at this step.
 
-## Claim to Trace
+## Classification Result
 
-{{ claim }}
+```json
+{{ classification_result | tojson }}
+```
 
-{% if available_evidence %}
-## Available Evidence
+## Statement to Trace
 
-{{ available_evidence }}
+{{ statement }}
+
+{% if system_context %}
+## System Context
+
+{{ system_context }}
 {% endif %}
 
 ## Tracing Method
@@ -86,6 +94,7 @@ Respond with a JSON object:
     }
   ],
   "confidence_level": "high|medium|low|unverifiable",
+  "conflicts_detected": false,
   "recommendations_for_verification": [
     "Specific, actionable steps to strengthen the provenance chain"
   ]
@@ -97,6 +106,10 @@ Respond with a JSON object:
 - **medium**: Chain reaches implementation or runtime, but some derivation steps reduce confidence.
 - **low**: Chain relies on inference or memory with limited verification paths.
 - **unverifiable**: Chain has irrecoverable gaps or relies entirely on unknown sources.
+
+`conflicts_detected`:
+- **true**: The provenance chain reveals conflicting sources or contradictory evidence about the claim. Step 3 (conflict resolution) should be invoked.
+- **false**: The provenance chain is internally consistent; no conflicts were found.
 
 ## Constraints
 

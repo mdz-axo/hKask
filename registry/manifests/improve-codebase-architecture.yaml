@@ -126,13 +126,13 @@ steps:
     action: select
     description: Compute normalized convergence metric for architecture cycle.
     renderer: minijinja
-    template_ref: improve-codebase-architecture/arch-convergence-check
+    template_ref: shared/convergence-check
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
-      exploration_result: "{{ step_1_result }}"
-      candidate_result: "{{ step_2_result }}"
-      deepen_result: "{{ step_3_result | default({}) }}"
+      primary_result: "{{ step_3_result | default({}) }}"
+      convergence_description: "findings are coherent, actionable, and no high-severity ambiguity remains"
+      include_blockers: true
 
   - ordinal: 7
     action: loop
@@ -167,7 +167,7 @@ ocap:
       gas_budget: 4000
     - resource: template
       action: render
-      template_id: improve-codebase-architecture/arch-convergence-check
+      template_id: shared/convergence-check
       gas_budget: 2000
     - resource: manifest
       action: execute
