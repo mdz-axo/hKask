@@ -7,12 +7,12 @@ description: >
   Activate when the user says "refactor service layer", "extract shared logic",
   "deduplicate surfaces", or when architectural analysis reveals business logic
   embedded in presentation layers.
-composes_skills: [tdd, coding-guidelines, pragmatic-semantics, zoom-out, strangler-fig, deep-module]
+composes_skills: [tdd, coding-guidelines, pragmatic-semantics, zoom-out, strangler-fig, deep-module, essentialist]
 ---
 
 # Refactor Service Layer
 
-Extract duplicated business logic from surface layers (`hkask-cli`, `hkask-api`, MCP servers) into a shared `hkask-services` crate. This skill **orchestrates** six other skills in a specific hKask architecture sequence. It does not restate their methodologies — delegation is the point.
+Extract duplicated business logic from surface layers (`hkask-cli`, `hkask-api`, MCP servers) into a shared `hkask-services` crate. This skill **orchestrates** seven other skills in a specific hKask architecture sequence. It does not restate their methodologies — delegation is the point.
 
 ## When to Activate
 

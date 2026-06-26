@@ -32,7 +32,7 @@ proptest! {
     ) {
         let algo = RtkStyleAlgorithm;
         let result = std::panic::catch_unwind(|| {
-            algo.compress(&input, profile, category)
+            algo.compress(&input, profile, category, None)
         });
         prop_assert!(result.is_ok(),
             "condenser panicked on input len={} profile={:?} category={:?}",
@@ -46,7 +46,7 @@ proptest! {
         let input = "x".repeat(size);
         let algo = RtkStyleAlgorithm;
         let result = std::panic::catch_unwind(|| {
-            algo.compress(&input, Profile::Normal, ContextCategory::Unknown)
+            algo.compress(&input, Profile::Normal, ContextCategory::Unknown, None)
         });
         prop_assert!(result.is_ok(),
             "condenser panicked on {} byte input", size);

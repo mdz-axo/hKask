@@ -164,7 +164,9 @@ impl CondenserServer {
         .await
     }
 
-    #[tool(description = "Compress tool output using context-aware algorithms")]
+    #[tool(
+        description = "Compress tool output using context-aware algorithms with domain ontology anchoring (P8.1)"
+    )]
     pub async fn condenser_compress(
         &self,
         Parameters(CompressRequest {

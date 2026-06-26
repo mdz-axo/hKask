@@ -289,6 +289,7 @@ impl CondenserAlgorithm for SaliencyRankAlgorithm {
         input: &str,
         profile: Profile,
         _category: ContextCategory,
+        ontology_anchor: Option<&OntologyAnchor>,
     ) -> (String, Vec<CondenserHealthSignal>) {
         let lines: Vec<&str> = input.lines().collect();
         let (budget, passthrough) = compute_budget(lines.len(), profile);
@@ -301,7 +302,7 @@ impl CondenserAlgorithm for SaliencyRankAlgorithm {
         let mut scored: Vec<(usize, f64, &str)> = lines
             .iter()
             .enumerate()
-            .map(|(i, line)| (i, Self::line_score(line, &freq), *line))
+            .map(|(i, line)| (i, Self::line_score(line, &freq, ontology_anchor), *line))
             .collect();
 
         let zero_count = scored.iter().filter(|(_, s, _)| *s == 0.0).count();
@@ -400,6 +401,7 @@ impl CondenserAlgorithm for FlashrankAlgorithm {
         input: &str,
         profile: Profile,
         _category: ContextCategory,
+        _ontology_anchor: Option<&OntologyAnchor>,
     ) -> (String, Vec<CondenserHealthSignal>) {
         let lines: Vec<&str> = input.lines().collect();
         let (budget, passthrough) = compute_budget(lines.len(), profile);
@@ -571,6 +573,88 @@ pub fn classify_tool(tool_name: &str) -> ContextCategory {
     ContextCategory::Unknown
 }
 
+/// Derive the ontology anchor from the tool name alone.
+/// Every MCP server links against the same bridge crates — no wire-protocol fields needed.
+pub fn derive_ontology_anchor(tool_name: &str) -> OntologyAnchor {
+    let lower = tool_name.to_lowercase();
+    // FIBO: financial data
+    if lower.starts_with("company")
+        || lower.starts_with("stock")
+        || lower.starts_with("portfolio")
+        || lower.starts_with("dcf")
+        || lower.starts_with("screener")
+        || lower.starts_with("forecast")
+        || lower.starts_with("scenario")
+    {
+        return OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::Fibo,
+            concept: "fibo".into(),
+        };
+    }
+    // CogAT: cognitive/memory
+    if lower.starts_with("memory") || lower.starts_with("episodic") || lower.starts_with("semantic")
+    {
+        return OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::Cogat,
+            concept: "cogat".into(),
+        };
+    }
+    // GOLEM: narrative
+    if lower.starts_with("replica") || lower.starts_with("author") {
+        return OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::Golem,
+            concept: "golem".into(),
+        };
+    }
+    // ML-Schema: training
+    if lower.starts_with("training") || lower.starts_with("adapter") || lower.starts_with("sweep") {
+        return OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::MlSchema,
+            concept: "mls".into(),
+        };
+    }
+    // OMC: media
+    if lower.starts_with("generate")
+        || lower.starts_with("video")
+        || lower.starts_with("image")
+        || lower.starts_with("gallery")
+        || lower.starts_with("face")
+    {
+        return OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::Omc,
+            concept: "omc".into(),
+        };
+    }
+    // PKO dual-axis: process workflows
+    if lower.starts_with("kanban")
+        || lower.starts_with("board")
+        || lower.starts_with("task")
+        || lower.starts_with("research")
+        || lower.starts_with("spec")
+        || lower.starts_with("skill")
+        || lower.starts_with("docproc")
+        || lower.starts_with("curator")
+        || lower.starts_with("condenser")
+    {
+        return OntologyAnchor::DualAxis {
+            axis: OntologyAxis::Pko,
+            concept: "pko".into(),
+        };
+    }
+    // DC+BIBO dual-axis: entity metadata
+    if lower.starts_with("file")
+        || lower.starts_with("web")
+        || lower.starts_with("registry")
+        || lower.starts_with("wallet")
+    {
+        return OntologyAnchor::DualAxis {
+            axis: OntologyAxis::DcBibo,
+            concept: "dcterms".into(),
+        };
+    }
+    OntologyAnchor::Core
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -650,6 +734,119 @@ mod tests {
         assert_eq!(classify_tool("npm_build"), ContextCategory::ShellCommand);
     }
 
+    // ── Ontology derivation tests (P5.4/P8.1) ─────────────────────────────
+
+    #[test]
+    fn derive_ontology_fibo_for_financial_tools() {
+        assert_eq!(
+            derive_ontology_anchor("company_profile"),
+            OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Fibo,
+                concept: "fibo".into()
+            }
+        );
+        assert_eq!(
+            derive_ontology_anchor("stock_screener"),
+            OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Fibo,
+                concept: "fibo".into()
+            }
+        );
+        assert_eq!(
+            derive_ontology_anchor("dcf_valuation"),
+            OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Fibo,
+                concept: "fibo".into()
+            }
+        );
+    }
+
+    #[test]
+    fn derive_ontology_cogat_for_memory_tools() {
+        assert_eq!(
+            derive_ontology_anchor("memory_recall"),
+            OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Cogat,
+                concept: "cogat".into()
+            }
+        );
+        assert_eq!(
+            derive_ontology_anchor("episodic_store"),
+            OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Cogat,
+                concept: "cogat".into()
+            }
+        );
+    }
+
+    #[test]
+    fn derive_ontology_pko_for_kanban_tools() {
+        assert_eq!(
+            derive_ontology_anchor("kanban_task_create"),
+            OntologyAnchor::DualAxis {
+                axis: OntologyAxis::Pko,
+                concept: "pko".into()
+            }
+        );
+        assert_eq!(
+            derive_ontology_anchor("condenser_compress"),
+            OntologyAnchor::DualAxis {
+                axis: OntologyAxis::Pko,
+                concept: "pko".into()
+            }
+        );
+    }
+
+    #[test]
+    fn derive_ontology_golem_for_replica_tools() {
+        assert_eq!(
+            derive_ontology_anchor("replica_build"),
+            OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Golem,
+                concept: "golem".into()
+            }
+        );
+    }
+
+    #[test]
+    fn derive_ontology_mlschema_for_training_tools() {
+        assert_eq!(
+            derive_ontology_anchor("training_submit"),
+            OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::MlSchema,
+                concept: "mls".into()
+            }
+        );
+    }
+
+    #[test]
+    fn derive_ontology_omc_for_media_tools() {
+        assert_eq!(
+            derive_ontology_anchor("generate_image"),
+            OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Omc,
+                concept: "omc".into()
+            }
+        );
+    }
+
+    #[test]
+    fn derive_ontology_core_for_unknown_tools() {
+        assert_eq!(derive_ontology_anchor("unknown_tool"), OntologyAnchor::Core);
+        assert_eq!(derive_ontology_anchor(""), OntologyAnchor::Core);
+    }
+
+    #[test]
+    fn derive_ontology_dc_bibo_for_file_tools() {
+        assert_eq!(
+            derive_ontology_anchor("file_read"),
+            OntologyAnchor::DualAxis {
+                axis: OntologyAxis::DcBibo,
+                concept: "dcterms".into()
+            }
+        );
+    }
+
     #[test]
     fn rtk_style_compression_within_budget() {
         let input = (0..200)
@@ -658,7 +855,7 @@ mod tests {
             .join("\n");
         let algo = RtkStyleAlgorithm;
         let (result, health) =
-            algo.compress(&input, Profile::Normal, ContextCategory::ShellCommand);
+            algo.compress(&input, Profile::Normal, ContextCategory::ShellCommand, None);
         let result_lines = result.lines().count();
         assert!(
             result_lines <= 80,
@@ -679,7 +876,8 @@ mod tests {
     fn rtk_style_preserves_head_tail_structure() {
         let input = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10";
         let algo = RtkStyleAlgorithm;
-        let (result, _) = algo.compress(input, Profile::Normal, ContextCategory::ShellCommand);
+        let (result, _) =
+            algo.compress(input, Profile::Normal, ContextCategory::ShellCommand, None);
         assert!(result.contains("line1"));
         assert!(result.contains("line10"));
         assert!(result.contains("..."));
@@ -689,7 +887,8 @@ mod tests {
     fn rtk_style_passthrough_small_input() {
         let input = "line1\nline2\nline3";
         let algo = RtkStyleAlgorithm;
-        let (result, health) = algo.compress(input, Profile::Light, ContextCategory::ShellCommand);
+        let (result, health) =
+            algo.compress(input, Profile::Light, ContextCategory::ShellCommand, None);
         assert_eq!(result, input);
         assert!(health.is_empty());
     }
@@ -698,7 +897,7 @@ mod tests {
     fn saliency_rank_preserves_error_lines() {
         let input = "info: ok\ninfo: ok\ninfo: ok\nerror: critical failure\ninfo: ok\ninfo: ok";
         let algo = SaliencyRankAlgorithm;
-        let (result, _) = algo.compress(input, Profile::Heavy, ContextCategory::LogOutput);
+        let (result, _) = algo.compress(input, Profile::Heavy, ContextCategory::LogOutput, None);
         assert!(
             result.contains("error"),
             "error line not preserved: {}",
@@ -710,7 +909,7 @@ mod tests {
     fn saliency_rank_low_signal_when_no_content() {
         let input = "a\na\na\na\na\na\na\na\na\na";
         let algo = SaliencyRankAlgorithm;
-        let (_, health) = algo.compress(input, Profile::Heavy, ContextCategory::Unknown);
+        let (_, health) = algo.compress(input, Profile::Heavy, ContextCategory::Unknown, None);
         assert!(!health.is_empty(), "expected low_signal health signal");
         assert_eq!(health[0].signal_type, "low_signal");
     }
@@ -722,7 +921,8 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         let algo = FlashrankAlgorithm;
-        let (result, health) = algo.compress(&input, Profile::Heavy, ContextCategory::FileContents);
+        let (result, health) =
+            algo.compress(&input, Profile::Heavy, ContextCategory::FileContents, None);
         let result_lines = result.lines().count();
         assert!(
             result_lines <= 30,
@@ -739,7 +939,7 @@ mod tests {
     fn flashrank_budget_shortfall() {
         let input = "line1\nline2\nline3";
         let algo = FlashrankAlgorithm;
-        let (_, health) = algo.compress(input, Profile::Heavy, ContextCategory::FileContents);
+        let (_, health) = algo.compress(input, Profile::Heavy, ContextCategory::FileContents, None);
         // 3 lines → budget = min(ceil(3*0.10), 30) = 1 → fills 1 → no shortfall
         assert!(
             health.is_empty(),
@@ -810,8 +1010,8 @@ mod tests {
             ]),
         ) {
             let algo = RtkStyleAlgorithm;
-            let (first, _) = algo.compress(&input, profile, category);
-            let (second, _) = algo.compress(&first, profile, category);
+            let (first, _) = algo.compress(&input, profile, category, None);
+            let (second, _) = algo.compress(&first, profile, category, None);
             let first_len = first.len();
             let second_len = second.len();
             prop_assert_eq!(first, second,
@@ -838,7 +1038,7 @@ mod tests {
             ]),
         ) {
             let algo = RtkStyleAlgorithm;
-            let (compressed, _) = algo.compress(&input, profile, category);
+            let (compressed, _) = algo.compress(&input, profile, category, None);
             prop_assert!(compressed.len() <= input.len(),
                 "compressed {} > original {}", compressed.len(), input.len());
         }
@@ -853,7 +1053,8 @@ mod tests {
             profile in select(&[Profile::Heavy, Profile::Normal, Profile::Soft, Profile::Light]),
         ) {
             let algo = FlashrankAlgorithm;
-            let (compressed, _) = algo.compress(&input, profile, ContextCategory::Unknown);
+            let (compressed, _) =
+                algo.compress(&input, profile, ContextCategory::Unknown, None);
             prop_assert!(compressed.len() <= input.len(),
                 "flashrank fallback expanded: compressed {} > original {}", compressed.len(), input.len());
         }

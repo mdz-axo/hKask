@@ -6,7 +6,7 @@
 //! The `AlgorithmRegistry` is constructed once at startup and is immutable.
 //! `CondenserEngine` holds only mutable state: profile and stats.
 
-use crate::algorithms::{AlgorithmRegistry, classify_tool};
+use crate::algorithms::{AlgorithmRegistry, classify_tool, derive_ontology_anchor};
 use crate::types::*;
 use std::time::Instant;
 
@@ -15,9 +15,6 @@ pub struct CondenserEngine {
     pub registry: AlgorithmRegistry,
     profile: Profile,
     pub stats: CondenserStats,
-    /// Current ontology anchor — set by the most recent compress call.
-    /// Used for domain-aware saliency weighting (P8.1).
-    current_ontology_anchor: Option<OntologyAnchor>,
 }
 
 impl Default for CondenserEngine {
@@ -32,7 +29,6 @@ impl CondenserEngine {
             registry: AlgorithmRegistry::new(),
             profile: Profile::Normal,
             stats: CondenserStats::default(),
-            current_ontology_anchor: None,
         }
     }
 
@@ -53,26 +49,23 @@ impl CondenserEngine {
         tool_name: &str,
         output: &str,
         category: Option<ContextCategory>,
-        ontology_anchor: Option<OntologyAnchor>,
-        subsystem: Option<&str>,
     ) -> CompressedOutput {
         let cat = category.unwrap_or_else(|| classify_tool(tool_name));
         let algo = self.registry.select(cat);
         let algorithm_name = algo.name().to_string();
 
-        // Store ontology anchor for domain-aware saliency weighting (P8.1)
-        self.current_ontology_anchor = ontology_anchor.clone();
+        // Derive ontology anchor from tool name — every MCP server links
+        // against the same bridge crates; no wire-protocol fields needed.
+        let ontology_anchor = derive_ontology_anchor(tool_name);
+        let tier_label = ontology_anchor.tier_label();
 
         let start = Instant::now();
 
-        // P9: CNS span — now includes ontology context
-        let tier_label = ontology_anchor
-            .as_ref()
-            .map(|a| a.tier_label())
-            .unwrap_or("none");
-        tracing::info!(target: "cns.condenser", operation = "compress", algorithm = %algorithm_name, category = %cat.label(), tool_name = %tool_name, ontology_tier = %tier_label, subsystem = subsystem.unwrap_or(""), "CNS");
+        // P9: CNS span — includes ontology tier for domain-aware observability
+        tracing::info!(target: "cns.condenser", operation = "compress", algorithm = %algorithm_name, category = %cat.label(), tool_name = %tool_name, ontology_tier = %tier_label, "CNS");
 
-        let (compressed_content, health_signals) = algo.compress(output, self.profile, cat);
+        let (compressed_content, health_signals) =
+            algo.compress(output, self.profile, cat, Some(&ontology_anchor));
 
         let original_lines = output.lines().count();
         let compressed_lines = compressed_content.lines().count();
@@ -111,7 +104,6 @@ impl CondenserEngine {
             original_bytes,
             compressed_bytes,
             reduction_pct,
-            ontology_anchor,
             health_signals,
         }
     }

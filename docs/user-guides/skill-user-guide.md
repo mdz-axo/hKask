@@ -275,7 +275,6 @@ Skills that evaluate the agent's own thinking and process.
 | `review` | Self-critique reasoning outputs for contradictions and gaps | "review this" |
 | `self-critique-revision` | Iterative draft → critique → revise cycle | "self-critique this" |
 | `handoff` | Session handoff documentation for context preservation | "create handoff" |
-| `condenser-continuation` | Resume work after context reset | "condenser continuation" |
 | `goal-analysis` | Lightweight goal specification and completion verification | "create a goal to...", "goal analysis" |
 | `gentle-lovelace` | 4-dimension writing quality evaluation (Hopper/Lovelace/Schriver/Gentle) | "evaluate this document", "gentle lovelace" |
 
@@ -342,7 +341,6 @@ Don't know which skill you need? Find your problem:
 | Review my own reasoning for gaps | `review` |
 | Revise a draft through critique cycles | `self-critique-revision` |
 | Hand off work between sessions | `handoff` |
-| Resume work after context reset | `condenser-continuation` |
 | Red-team an agent's security | `adversarial-red-team` |
 | Improve agent capability through practice | `kata-starter` → `kata-improvement` → `kata-coaching` |
 | Update project documentation | `document-update` |

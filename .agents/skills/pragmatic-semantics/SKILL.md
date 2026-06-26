@@ -10,9 +10,9 @@ A discipline for making honest statements about the system. "Pragmatic" means: p
 
 See `pragmatic-semantics` §Constraint Hierarchy for the enforcement-level classification. This skill covers the full epistemic framework: how to classify what you know, how you know it, and how to communicate it honestly.
 
-## The Two Axes
+## The Three Axes
 
-Every statement about the system exists on two axes:
+Every statement about the system exists on three axes:
 
 ### Axis 1: Ontological Mode (IS vs. OUGHT)
 
@@ -165,7 +165,7 @@ This skill's runtime templates live in `registry/templates/pragmatic-semantics/`
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `semantics-classify-statement.j2` | KnowAct | Classify a statement on ontological and epistemic axes |
+| `semantics-classify-statement.j2` | KnowAct | Classify a statement on ontological, epistemic, and domain-anchoring axes |
 | `semantics-provenance-trace.j2` | KnowAct | Trace provenance of a claim through hKask's data layers |
 | `semantics-conflict-resolve.j2` | KnowAct | Resolve conflict between statements using OT ranking |
 

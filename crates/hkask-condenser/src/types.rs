@@ -161,15 +161,6 @@ pub struct CompressRequest {
     pub tool_name: String,
     pub output: String,
     pub category: Option<String>,
-    /// Domain ontology anchor for type-aware saliency weighting (P5.2/P5.4/P8.1).
-    /// Maps the tool's output to a specific concept in the 3-tier ontology architecture.
-    /// When set, the condenser applies domain-aware retention and scoring.
-    #[serde(default)]
-    pub ontology_anchor: Option<OntologyAnchor>,
-    /// Which MCP subsystem produced this output (e.g., "companies", "memory", "replica").
-    /// Provides subsystem-level context for ontology-aware categorization.
-    #[serde(default)]
-    pub subsystem: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -329,10 +320,6 @@ pub struct CompressedOutput {
     pub original_bytes: usize,
     pub compressed_bytes: usize,
     pub reduction_pct: f64,
-    /// Domain ontology anchor that informed saliency scoring (P8.1).
-    /// Present when the request included an ontology_anchor.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ontology_anchor: Option<OntologyAnchor>,
     /// Health signals — populated when algorithmic behavior is unexpected.
     /// Absent means the compression ran within expected bounds.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -775,38 +762,23 @@ mod tests {
     }
 
     #[test]
-    fn compress_request_defaults_ontology_to_none() {
+    fn compress_request_defaults_category_to_none() {
         let req: CompressRequest =
             serde_json::from_str(r#"{"tool_name": "test", "output": "hello"}"#).unwrap();
-        assert_eq!(req.ontology_anchor, None);
-        assert_eq!(req.subsystem, None);
+        assert_eq!(req.category, None);
     }
 
     #[test]
-    fn compress_request_parses_ontology_anchor() {
+    fn compress_request_parses_explicit_category() {
         let req: CompressRequest = serde_json::from_str(
             r#"{
                 "tool_name": "company_profile",
                 "output": "AAPL market cap 3.2T",
-                "category": "structured_data",
-                "ontology_anchor": {
-                    "domain_supplement": {
-                        "namespace": "fibo",
-                        "concept": "fibo:MarketCapitalization"
-                    }
-                },
-                "subsystem": "companies"
+                "category": "structured_data"
             }"#,
         )
         .unwrap();
         assert_eq!(req.category.as_deref(), Some("structured_data"));
-        assert_eq!(req.subsystem.as_deref(), Some("companies"));
-        assert_eq!(
-            req.ontology_anchor,
-            Some(OntologyAnchor::DomainSupplement {
-                namespace: OntologyNamespace::Fibo,
-                concept: "fibo:MarketCapitalization".into()
-            })
-        );
+        assert_eq!(req.tool_name, "company_profile");
     }
 }

@@ -48,6 +48,19 @@ The previous monolithic `bug-hunt-expedition.j2` is retained for backward compat
 
 JSON report with findings, classifications, confidence scores, and pattern signatures.
 
+## Boundary: Bug-Hunt vs Adversarial Red-Team
+
+| | `bug-hunt` | `adversarial-red-team` |
+|---|---|---|
+| **What it tests** | **Source code** for quality defects | Agent **runtime behavior** under adversarial input |
+| **Target** | Crates, modules, functions, data flows | Prompt defenses, instruction boundaries, tool access |
+| **Taxonomy** | Beizer (logic errors, boundary bugs, race conditions) | ATLAS/GARAK (injection, hijacking, exfiltration) |
+| **Method** | Read code → pattern-search → run tests | Generate adversarial inputs → classify agent responses |
+| **Output** | Structured bug reports with severity | Resistance rates per attack category |
+| **When to use** | "Does this code have bugs?" | "Is this agent exploitable?" |
+
+These skills **compose**, they do not merge. Bug-hunt embeds adversarial-red-team as a lens for boundary-value probing and unexpected state transitions — adversarial thinking applied to code, not agent prompts. If you need to test an agent's *runtime* resistance to prompt injection, use `adversarial-red-team` directly — not bug-hunt.
+
 ## Composition
 
 The expedition template embeds reasoning patterns from five skills as inline prompt instructions:

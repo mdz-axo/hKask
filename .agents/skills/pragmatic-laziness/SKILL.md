@@ -2,6 +2,7 @@
 name: pragmatic-laziness
 visibility: public
 description: Procedural composition skill. Finds the path of least action through meaning-space by describing the intersection of pragmatic-semantics, pragmatic-cybernetics, essentialist, and grill-me through a 3-phase lazy loop. Activate when the user says "be lazy about this", "find the lazy path", "least action", "decompose this", or "pragmatic laziness review".
+composes_skills: [pragmatic-semantics, pragmatic-cybernetics, essentialist, grill-me]
 ---
 
 # Pragmatic Laziness

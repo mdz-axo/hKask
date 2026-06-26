@@ -11,7 +11,7 @@ manifest:
     Typically invoked as the execution phase after improve-codebase-architecture
     has completed architectural analysis. The SKILL.md documents practitioner-level
     composition with tdd, coding-guidelines, pragmatic-semantics, zoom-out,
-    strangler-fig, deep-module, and pragmatic-cybernetics as methodological
+    strangler-fig, deep-module, and essentialist as methodological
     guidance (not machine-executable delegation).
   functional_role: flowdef
   version: 0.30.0

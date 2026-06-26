@@ -2,7 +2,7 @@
 name: strangler-fig
 visibility: public
 description: "Incremental architectural migration via Martin Fowler's Strangler Fig pattern. Introduce new implementation alongside old, migrate one domain at a time, both paths delegate before any deletion. System fully functional at every intermediate step. Use when migrating architecture, replacing legacy code, or extracting a service layer."
-composes_skills: [coding-guidelines, tdd, pragmatic-semantics]
+composes_skills: [coding-guidelines, pragmatic-semantics]
 ---
 
 # Strangler Fig Migration

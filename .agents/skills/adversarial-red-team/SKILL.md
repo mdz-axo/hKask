@@ -66,6 +66,19 @@ See the manifest at `registry/manifests/adversarial-red-team.yaml` for the canon
 
 **Critical failures** are attacks that fully bypass defenses — the agent complies with the adversarial instruction completely. These are the ones that must be fixed before deployment.
 
+## Boundary: Red-Team vs Bug-Hunt
+
+| | `adversarial-red-team` | `bug-hunt` |
+|---|---|---|
+| **What it tests** | Agent **runtime behavior** under adversarial input | **Source code** for quality defects |
+| **Target** | Prompt defenses, instruction boundaries, tool access | Crates, modules, functions, data flows |
+| **Taxonomy** | ATLAS/GARAK (injection, hijacking, exfiltration) | Beizer (logic errors, boundary bugs, race conditions) |
+| **Method** | Generate adversarial inputs → classify agent responses | Read code → pattern-search → run tests |
+| **Output** | Resistance rates per attack category | Structured bug reports with severity |
+| **When to use** | "Is this agent exploitable?" | "Does this code have bugs?" |
+
+These skills **compose**, they do not merge. Red-team provides an adversarial lens that bug-hunt borrows for boundary-value probing. Bug-hunt provides code-level depth that red-team does not reach. If you need to test whether an agent's *code* resists adversarial input, use `bug-hunt` with adversarial quality criteria — not red-team directly.
+
 ## Composition
 
 This skill is self-contained at runtime — no delegated inference calls to other skills.
@@ -73,6 +86,7 @@ The following are methodology references (not wired in templates or manifest):
 
 | Skill | Role | Status |
 |-------|------|--------|
+| bug-hunt | Code-level adversarial probing; hunting bugs in agent implementation that create security vulnerabilities | Methodology reference only |
 | diagnose | Trace failure path to root cause when vulnerability is found | Methodology reference only |
 | dokkodo-mindset | Precept 1 — accept vulnerabilities without defensiveness before hardening | Methodology reference only |
 | pragmatic-semantics | Verify Prohibitions/Guardrails hold under adversarial pressure | Methodology reference only |
