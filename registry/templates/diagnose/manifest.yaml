@@ -10,6 +10,15 @@ crate:
     instrument → fix → regression-test. Aligned with CNS sense→orient→decide→act.
 
 templates:
+  - id: diagnose/diagnose-spec-anchor
+    path: diagnose-spec-anchor.j2
+    type: KnowAct
+    lexicon_terms: [anchor, classify, map, verify, specify]
+    description: >
+      Anchor a bug diagnosis to functional requirements: classify by DDMVSS
+      category, map symptom to FR# references, flag spec gaps. Phase 0 of
+      the diagnosis pipeline. Every diagnosis traces to a spec or notes the gap.
+
   - id: diagnose/diagnose-loop
     path: diagnose-loop.j2
     type: KnowAct

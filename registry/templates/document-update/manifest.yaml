@@ -60,13 +60,6 @@ templates:
       reflect the reduced corpus. Remove entries for archived/deleted
       docs. Update document counts. Verify every listed path exists.
 
-  - id: document-update/doc-structured-pass
-    path: doc-structured-pass.j2
-    type: KnowAct
-    lexicon_terms: [audit, classify, consolidate, verify, plan]
-    description: >
-      Convert document-audit guidance into structured consolidation output.
-
   - id: document-update/doc-convergence-check
     path: doc-convergence-check.j2
     type: KnowAct
