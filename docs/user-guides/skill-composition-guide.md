@@ -300,13 +300,12 @@ diagnose → structured-extraction → refactor-service-layer → adversarial-re
 ### Chain 4: Explore → Summarize → Compress
 
 ```
-zoom-out → chain-of-density → caveman
+zoom-out → caveman
 ```
 
 | Stage | Skill | What happens |
 |-------|-------|-------------|
 | **Explore** | `zoom-out` | Get the bigger picture — how does this code fit into the architecture? |
-| **Densify** | `chain-of-density` | Iterative density-increase summarization — pack maximum entities into fixed word count |
 | **Compress** | `caveman` | Final stylistic compression — drop filler, articles, hedging, preserve substance |
 
 **Use when:** Understanding a large unfamiliar codebase and communicating it concisely
@@ -314,8 +313,8 @@ zoom-out → chain-of-density → caveman
 **Example session:**
 ```
 > zoom out on the condenser crate
-> chain-of-density: summarize the condenser architecture at 200 words
-> now caveman that summary
+> caveman dense: summarize the condenser architecture at 200 words
+> now caveman-compress that summary
 ```
 
 ---
@@ -394,7 +393,7 @@ pragmatic-semantics → pragmatic-cybernetics → bug-hunt
 ### Chain 8: Skill Lifecycle — Discover → Audit → Maintain → Manage → Translate → Bundle
 
 ```
-skill-discovery → skill-logic-audit → skill-maintenance → skill-manager → skill-translator → skill-bundler
+skill-discovery → skill-logic-audit → skill-maintenance → skill-translator → skill-bundler
 ```
 
 All stages are implemented as convergent FlowDef processes (PDCA loops)
@@ -405,7 +404,7 @@ that compose KnowAct/WordAct templates and exit with convergence rails
 |-------|-------|-------------|
 | **Discover** | `skill-discovery` | Find capability gaps and evaluate candidate skills |
 | **Audit** | `skill-logic-audit` | Check template/manifest logic against explicit goals |
-| **Maintain** | `skill-maintenance` | Detect staleness, drift, and coverage gaps across corpus |
+| **Maintain** | `skill-maintenance` | Detect staleness, drift, and coverage gaps across corpus; manage skill lifecycle |
 | **Manage** | `skill-manager` | Validate and operate lifecycle actions over registry crates |
 | **Translate** | `skill-translator` | Normalize external skill definitions into hKask-compatible form |
 | **Bundle** | `skill-bundler` | Compose validated skills into coherent bundle workflows |
@@ -454,7 +453,6 @@ diagnose -> improve-codebase-architecture
 |-------------|-------------|-----|
 | **Single-shot KnowAct skill** | Skill template is a KnowAct with no internal loop. Describes recursion in prose but cannot execute it — the template type lacks `choice`/`escalate`/`abort` machinery. Produces output and stops; quality is a single dice roll. | Redesign as FlowDef with nested KnowAct steps inside a convergence loop. Set explicit quality threshold and max iterations. Exit with status. |
 | MCDA without superforecasting criteria | "Cost" and "risk" become uncalibrated guesses | Run `superforecasting` first on risk-related criteria |
-| Caveman before chain-of-density | Caveman drops entities for style; chain-of-density preserves them | Always densify first, compress second |
 | Decision journal without revisit scheduling | The journal becomes a log, not a calibration tool | Always define time horizons and resolution criteria |
 | Red-team without diagnose | You know it's vulnerable but not why | Diagnose the vulnerability before hardening |
 | Hypothesis-framer without FINER re-evaluation | The PDCA loop produces a hypothesis but the FINER scores from the first pass are stale | Always pass Step 1 results through to the convergence check — don't skip the feasibility recheck in the merged operationalize step |

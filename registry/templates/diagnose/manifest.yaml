@@ -15,7 +15,7 @@ templates:
     type: KnowAct
     lexicon_terms: [anchor, classify, map, verify, specify]
     description: >
-      Anchor a bug diagnosis to functional requirements: classify by DDMVSS
+      Anchor a bug diagnosis to functional requirements: classify by MDS
       category, map symptom to FR# references, flag spec gaps. Phase 0 of
       the diagnosis pipeline. Every diagnosis traces to a spec or notes the gap.
 

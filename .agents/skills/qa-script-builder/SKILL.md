@@ -44,7 +44,7 @@ This skill's runtime templates live in `registry/templates/qa-script-builder/`:
 
 | Template | Type | Purpose |
 |----------|------|---------|
-| `qa-persona.j2` | KnowAct | Phase 0: Generate diverse QA testing scenarios from persona + goal using Falstaffian perspective rotation and grill-me adversarial probing |
+| `qa-persona.j2` | KnowAct | Phase 0: Generate diverse QA testing scenarios from persona + goal using scenario rotation and adversarial probing |
 | `qa-discover.j2` | KnowAct | Phase 1: Discover the test surface — crate/server, failure modes, existing coverage, what needs testing |
 | `qa-design.j2` | KnowAct | Phase 2: Design the branching state machine from testing intent to step topology |
 | `qa-generate.j2` | KnowAct | Phase 3: Generate the YAML manifest |
@@ -158,7 +158,7 @@ This means the manifest's `branching.failure` target on `run_command` steps is o
 
 ### Phase 0: Persona (Scenario Generation)
 
-Generate diverse testing scenarios from a user persona and goal. Use Falstaffian perspective rotation for diversity and grill-me adversarial probing for hardening.
+Generate diverse testing scenarios from a user persona and goal. Use scenario rotation for diversity and adversarial probing for hardening.
 
 **When to skip Phase 0:** When the user already has a specific testing intent.
 

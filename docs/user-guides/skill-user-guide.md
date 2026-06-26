@@ -222,8 +222,7 @@ Skills that support structured choice, prediction, and planning.
 | Skill | Purpose | Trigger |
 |-------|---------|---------|
 | `structured-extraction` | Schema-driven entity and relation extraction with coverage tracking | "extract structured data", "populate this schema" |
-| `chain-of-density` | Gao et al. iterative density-increase summarization | "summarize this densely", "CoD this" |
-| `caveman` | Ultra-compact style compression — drop filler, preserve substance | "caveman mode", "compress this" |
+| `caveman` | Multi-mode compression: caveman (stylistic) + dense (entity-preserving) | "caveman mode", "summarize densely"", "compress this" |
 | `zoom-out` | Broader context and higher-level perspective on unfamiliar code | "zoom out", "bigger picture" |
 
 ### 4.6 Executive — Behavioral Guardrails
@@ -313,7 +312,6 @@ Don't know which skill you need? Find your problem:
 | Frame a research question into a testable hypothesis | `hypothesis-framer` |
 | Track whether I achieved a specific goal | `goal-analysis` |
 | Extract structured data from prose | `structured-extraction` |
-| Summarize text densely without losing facts | `chain-of-density` |
 | Compress prose to bare essentials | `caveman` |
 | Get the bigger picture on unfamiliar code | `zoom-out` |
 | Debug a failure systematically | `diagnose` |
@@ -385,10 +383,10 @@ diagnose → structured-extraction → refactor-service-layer → adversarial-re
 ### Pattern 5: Explore → Summarize → Compress
 
 ```
-zoom-out → chain-of-density → caveman
+zoom-out → caveman (dense mode) → caveman (caveman mode)
 ```
 
-**When:** You need to understand a large unfamiliar codebase and communicate it concisely. Zoom out for context. Chain-of-density for maximum factual density. Caveman for final stylistic compression.
+**When:** You need to understand a large unfamiliar codebase and communicate it concisely. Zoom out for context. Caveman dense mode for entity density, then caveman mode for stylistic compression.
 
 ---
 
@@ -398,7 +396,6 @@ zoom-out → chain-of-density → caveman
 |---|-------|----------|------|-------------|
 | 1 | `adversarial-red-team` | Security | FlowDef | Red-team robustness via convergent adversarial probe loops |
 | 2 | `caveman` | Extraction/Summarization | FlowDef | Ultra-compact prose compression via convergent compression loops |
-| 3 | `chain-of-density` | Extraction/Summarization | FlowDef | Iterative density-increase summarization via convergent passes |
 | 4 | `coding-guidelines` | Behavioral Guardrails | FlowDef | Karpathy's four principles via convergent assess→apply→verify loops |
 | 5 | `pragmatic-semantics` | Regulative | FlowDef | Classify constraints by enforcement level via convergent PDCA loops |
 | 7 | `deep-module` | Structural Analysis | FlowDef | Ousterhout module depth with deletion test via convergent depth loops |

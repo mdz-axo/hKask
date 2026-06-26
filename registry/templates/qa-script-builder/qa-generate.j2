@@ -21,7 +21,7 @@ visibility: Public
 ---
 {# Template: qa-script-builder/qa-generate.j2 #}
 {# goal: Generate a complete YAML manifest from the designed step topology. #}
-{# KnowAct — Produce the YAML manifest for kask qa run --script #}
+{# KnowAct — Produce the YAML manifest for kask qa run-script --script #}
 {# ℏKask v0.30.0 — A Minimal Viable Container for Agents #}
 
 [inference]
@@ -40,7 +40,7 @@ Strip everything that isn't execution-critical:
 
 - **No descriptions.** Drop the `description` field on every step. The `command` or `classifier` name is self-documenting.
 - **No cns_span.** Unless a step is classified as alert-critical, omit `cns_span` entirely.
-- **No alert section on non-terminal steps.** Only terminal escalation steps get `alert` blocks.
+- **No cns_alert on non-terminal steps.** Only terminal escalation steps reference `cns.alert`.
 - **Minimal branching.** Use inline map syntax: `branching: {success: 2, failure: 5}` — no expanded blocks.
 - **Tight gas.** Cap gas at the minimum viable: `steps × 100 + classify_steps × 100`. Set `hard_limit: true`.
 - **No default_next unless needed.** If branching is exhaustive, skip `default_next`.
@@ -84,13 +84,6 @@ gas:                            # Cost controls (rJoule system)
   alert_threshold: 0.7          # Warn at this fraction of rJ budget
   hard_limit: true              # Abort when exceeded
   monthly_subscriptions_urj: 0  # Monthly recurring costs in µrJ
-
-alert:                          # Algedonic escalation (global only, NOT per-step)
-  enabled: true                 # Master switch
-  default_domain: qa.my-script  # Fallback alert domain
-  default_threshold: 5          # Escalate after N failures
-  default_cooldown_secs: 600    # Suppress repeat alerts
-  escalate_to_curator: true     # Route alerts to Curation Loop
 
 inputs:                         # Optional declared inputs
   - name: workspace_root
@@ -153,7 +146,6 @@ audit:                          # Audit trail
    - `classify` steps get `classifier` and `branching` (confidence levels).
    - `loop` steps get `command` or `classifier`, plus `max_iterations` (NOT `iteration_delay_secs` — unsupported).
    - Terminal steps don't need `branching`.
-6. **alert**: use discovery's `alert_requirements` for the GLOBAL `alert` section only. Per-step alert blocks are NOT supported and cause parse errors.
 7. **cns.span_namespace**: use `cns.qa.<manifest_id>` unless discovery specifies otherwise.
 8. **classifier names**: must match discovery's `available_classifiers`.
 9. **Indentation**: 2 spaces. No tabs.

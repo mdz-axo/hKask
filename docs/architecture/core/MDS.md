@@ -100,7 +100,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | Subcrate | Domain | Contract Prefix | Count | Status |
 |----------|--------|----------------|-------|--------|
-| `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, contacts, curator, experience, goals, pods, scheduler, skills | `P{N}-svc-{domain}-*` | 102 | ✅ Realigned |
+| `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, curator, experience, skills | `P{N}-svc-{domain}-*` | 102 | ✅ Realigned |
 | `hkask-services-backup` | GitCAS operational backup | `P{N}-svc-backup-*` | 39 | ✅ Realigned |
 | `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | ✅ Realigned |
 | `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | ✅ Realigned |
@@ -518,7 +518,7 @@ bash docs/ci/check-links.sh    # Zero broken cross-references
 
 ---
 
-*MDS v0.32.0 — five categories, SpecStore + QA. Spec server removed; prose rewriting moved to replica server; spec validation folded into QA.*
+*MDS v0.33.0 — five categories, SpecStore + QA. Five thin service passthroughs removed (contacts, scheduler, goal, pod, spec).*
 
 ---
 
@@ -569,7 +569,7 @@ All 28 fields are **private** and exposed through **individual named accessor me
 
 | Subcrate | Domain | Contract Prefix | Count | Status |
 |----------|--------|----------------|-------|--------|
-| `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, contacts, curator, experience, goals, pods, scheduler, skills | `P{N}-svc-{domain}-*` | 102 | Realigned |
+| `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, curator, experience, skills | `P{N}-svc-{domain}-*` | 102 | Realigned |
 | `hkask-services-backup` | GitCAS operational backup | `P{N}-svc-backup-*` | 39 | Realigned |
 | `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | Realigned |
 | `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | Realigned |

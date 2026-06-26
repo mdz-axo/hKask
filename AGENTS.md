@@ -6,7 +6,7 @@
 
 ## Capability Catalog
 
-**48 total** — **44 Skills** (PDCA FlowDef loops with quality threshold + energy budget), **2 Templates** (one-shot, no registry manifest), **1 Bundle** (composition-only, non-PDCA), **1 Legacy** (v0.21.4, pending upgrade).
+**48 total** — **43 Skills** (PDCA FlowDef loops with quality threshold + energy budget), **2 Templates** (one-shot, no registry manifest), **1 Bundle** (composition-only, non-PDCA), **1 Legacy** (v0.21.4, pending upgrade).
 
 | Type | Invocation | Behavior | Exit |
 |------|-----------|----------|------|
@@ -62,9 +62,8 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 
 | Name | Type | When to Activate |
 |------|------|-----------------|
-| **skill-maintenance** | **Skill** | Audit hKask's skill architecture for staleness, coverage gaps, and quality degradation. |
+| **skill-maintenance** | **Skill** | Audit hKask's skill architecture for staleness, coverage gaps, and quality degradation. Also: list, build, and install skills. |
 | **skill-discovery** | **Skill** | Find, evaluate, and install skills. Detect capability gaps and search for candidates. |
-| **skill-manager** | **Skill** | CRUD for the skill corpus. List, validate, build, install, and prune skills. |
 | **skill-logic-audit** | **Skill** | Adversarial audit of .j2 template logic against stated goals. |
 | **skill-bundler** | **Skill** | Orchestrate and compose multiple skills into a cohesive bundle. |
 | **handoff** | **Skill** | Session handoff protocol. Captures what was done, what remains, key decisions. |
@@ -81,8 +80,7 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 | **goal-analysis** | **Skill** | Goal specification and verification. Extract goals, judge completion. |
 | **magna-carta-verifier** | **Skill** | Verify Magna Carta principles (P1–P4) are correctly implemented and enforced. |
 | **structured-extraction** | **Skill** | Extract structured data from unstructured text. Entity identification, relation extraction. |
-| **chain-of-density** | **Skill** | Iterative density-increase summarization (Gao et al. 2024). |
-| **caveman** | **Skill** | Ultra-compact compression mode. Drop filler, preserve technical substance. |
+| **caveman** | **Skill** | Multi-mode compression: caveman (stylistic) + dense (entity-preserving, Gao et al. 2024). |
 | **self-critique-revision** | **Skill** | Iterative self-critique and revision cycle: draft → critique → revise. |
 | **logo-builder** | Template | Pragmatic logo design using LLM-assisted generation. 3-phase pipeline. [no registry manifest] |
 | **qa-script-builder** | Template | Design and generate autonomous QA pipeline manifests. 5-phase pipeline. [no registry manifest] |

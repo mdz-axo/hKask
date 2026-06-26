@@ -19,7 +19,6 @@ contract:
     existing_fuzz_targets: array
     available_classifiers: array
     gas_constraints: object
-    alert_requirements: object
     cns_requirements: object
     ambiguities: array
 energy_cap: 4096
@@ -72,7 +71,7 @@ The runner (`QaScriptRunner`) supports three step actions:
 | Action | What It Does | Branch Conditions |
 |--------|-------------|-------------------|
 | `run_command` | Execute `sh -c "<cmd>"` | `success` (exit 0), `failure` (exit ≠ 0) |
-| `classify` | Send passage to LLM classifier | `high_confidence` (≥0.95), `medium_confidence` (0.70–0.949), `low_confidence` (<0.70), `flake` (is_flake:true), `unparseable` |
+| `classify` | Send passage to LLM classifier | `high_confidence >=0.85, medium_confidence 0.50-0.849, low_confidence <0.50) | `flake` (is_flake:true), `unparseable` |
 | `loop` | Repeat action up to max_iterations | All of the above + `loop_exhausted` |
 
 Available classifiers:
@@ -83,7 +82,6 @@ Gas budget: every script has a `gas` section with `cap` (gas units), `gas_per_fu
 
 CNS: every script can emit spans with configurable `span_namespace`. Existing QA spans: `cns.qa.bolero_failure`, `cns.qa.repair_attempted`, `cns.qa.repair_verified`, `cns.qa.repair_exhausted`, `cns.qa.mutant_survived`.
 
-Alert: the GLOBAL `alert` section configures escalation — `enabled`, `default_domain`, `default_threshold`, `default_cooldown_secs`, `escalate_to_curator`. Per-step alert blocks are NOT supported.
 
 ## Discovery Requirements
 
@@ -95,11 +93,11 @@ Alert: the GLOBAL `alert` section configures escalation — `enabled`, `default_
 
 4. **What should happen on failure?** Infer the user's desired branching: auto-repair high-confidence? Escalate medium? Retry flakes? Log and move on?
 
-5. **What severity triggers escalation?** Which outcomes should raise alerts at the GLOBAL level? Alert routing to Curator is manifest-level, not per-step.
+5. **What severity triggers escalation?** Which outcomes should raise alerts? CNS alert namespace routing to Curator is set via `cns.alert`. Per-step alert blocks are NOT supported.
 
 6. **What gas constraints apply?** Is this CI (tight, ~5000 gas) or local (generous, ~15000 gas)?
 
-7. **What alert domain and thresholds?** Namespace for this script's alerts (e.g., `qa.hkask-types.fuzz`). How many failures before escalation? Cooldown between re-escalations?
+7. **What CNS alert namespace?** Set `cns.alert` to a namespace string (e.g., `qa.hkask-types.fuzz`).
 
 ## Output Requirements
 
@@ -118,13 +116,7 @@ Respond with a JSON object:
     "suggested_cap": 5000,
     "cost_sensitive": true
   },
-  "alert_requirements": {
-    "enabled": true,
-    "default_domain": "qa.hkask-types.fuzz",
-    "default_threshold": 5,
-    "default_cooldown_secs": 600,
-    "escalate_to_curator": true
-  },
+  "cns_alert": "qa.hkask-types.fuzz",
   "cns_requirements": {
     "emit_spans": true,
     "suggested_namespace": "cns.qa.my_script",
@@ -145,7 +137,7 @@ Respond with a JSON object:
 - Every ambiguity must have at least two possible interpretations and a concrete recommendation.
 - If the user didn't specify something, infer a reasonable default and note it as an assumption.
 - Classifier names must be valid: only `qa-triage` and `qa-feedback` exist unless the user explicitly mentions a custom one.
-- Alert configuration is GLOBAL only — do not suggest per-step alert blocks.
+- Alert configuration is via `cns.alert` namespace only — do not suggest per-step alert blocks.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

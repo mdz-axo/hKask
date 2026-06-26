@@ -1041,7 +1041,7 @@ Representative domains:
 - `CnsService` — CNS health, alerts, variety, budget queries
 - `KeystoreService` — key management and signing operations
 - `WalletService` — wallet operation orchestration
-- `BackupService`, `BundleService`, `ChatService`, `ComposeService`, `CuratorService`, `DiscoverService`, `EmbedService`, `GoalService`, `KataEngine`, `OnboardingService`, `PodService`, `SchedulerService`, `SkillService`, `SovereigntyService`, `VerificationService`
+- `BackupService`, `BundleService`, `ChatService`, `ComposeService`, `CuratorService`, `DiscoverService`, `EmbedService`, `KataEngine`, `OnboardingService`, `SkillService`, `SovereigntyService`, `VerificationService`
 - Service registration pattern: all services are discovered, not coupled
 
 ### 3.8 Agents (`hkask-agents`)

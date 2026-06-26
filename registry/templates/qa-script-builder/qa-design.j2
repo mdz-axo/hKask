@@ -14,7 +14,7 @@ contract:
     step_topology: array
     terminal_states: array
     loop_configs: array
-    alert_config: object
+    cns_alert: string
     design_rationale: string
     mermaid_diagram: string
 energy_cap: 5120
@@ -51,6 +51,7 @@ You are a QA pipeline designer. Given a discovered test surface and user intent,
 | Ordinal | Action | Branch On | Example |
 |---------|--------|-----------|---------|
 | N | `run_command` | exit code (0 = `success`, ≠0 = `failure`) | `cargo bolero test --timeout 30s` |
+| N | `mcp_tool` | tool call result (`success`, `failure`) | `gallery_status` on hkask-mcp-media |
 | N | `classify` | confidence (`high_confidence`, `medium_confidence`, `low_confidence`, `flake`, `unparseable`) | classifier: `qa-triage` |
 | N | `loop` | same as inner action + `loop_exhausted` when max_iterations hit | retry flakes up to 3 times |
 
@@ -82,13 +83,6 @@ You are a QA pipeline designer. Given a discovered test surface and user intent,
 3. **Define branching** for each step — what condition routes to what ordinal.
 4. **Identify terminal states** — steps with no outgoing branches.
 5. **Configure loops** with `max_iterations` (NOT `iteration_delay_secs` — unsupported).
-6. **Design alert configuration** — declare a global `alert` section with:
-   - `enabled`: master switch
-   - `default_domain`: alert namespace (e.g., `qa.<crate>.<tool>`)
-   - `default_threshold`: failures before escalation
-   - `default_cooldown_secs`: suppression window between re-escalations
-   - `escalate_to_curator`: route alerts to Curation Loop
-   Per-step alert blocks (escalate_on, severity_map on individual steps) are NOT supported.
 7. **Produce a mermaid diagram** visualizing the flow.
 
 ## Output Requirements
@@ -143,13 +137,7 @@ Respond with a JSON object:
       "command": "grep -c 'FAILED' /tmp/fuzz-output.txt || echo 0"
     }
   ],
-  "alert_config": {
-    "enabled": true,
-    "default_domain": "qa.hkask-types.fuzz",
-    "default_threshold": 5,
-    "default_cooldown_secs": 600,
-    "escalate_to_curator": true
-  },
+  "cns_alert": "qa.hkask-types.fuzz",
   "design_rationale": "Standard fuzz→classify→branch pattern. High-confidence failures get auto-repaired. Medium and low go to escalation. Flakes retry up to 3 times.",
   "mermaid_diagram": "flowchart TD\n    S1[Step 1: cargo bolero test] -->|success| S2[Step 2: classify]\n    S1 -->|failure| S6[Step 6: fuzz failure]\n    S2 -->|high_confidence| S3[Step 3: auto-repair]\n    S2 -->|medium_confidence| S4[Step 4: escalate]\n    S2 -->|low_confidence| S4\n    S2 -->|flake| S5[Step 5: retry loop]\n    S5 -->|success| S1\n    S5 -->|loop_exhausted| S4"
 }

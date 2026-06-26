@@ -13,7 +13,7 @@ contract:
     code_context: object
     spec_reference: string
   output:
-    ddmvss_category: string            # TODO: migrate to mds_category when diagnose flow consumers are updated
+    mds_category: string
     functional_requirements: array
     spec_gaps: array
     anchor_summary: string
@@ -56,32 +56,28 @@ You are a spec-anchoring agent for hKask diagnosis. Before building a feedback l
 {% else %}
 ## Specification Note
 
-No explicit spec reference was provided. Use the functional specification at `docs/architecture/core/FUNCTIONAL_SPECIFICATION.md` as the default reference. If you cannot access it, identify the DDMVSS category from the bug description and symptom alone, and note the spec gap.
+No explicit spec reference was provided. Use the functional specification at `docs/architecture/core/FUNCTIONAL_SPECIFICATION.md` as the default reference. If you cannot access it, identify the MDS category from the bug description and symptom alone, and note the spec gap.
 {% endif %}
 
 ## Process
 
-### Step 1: Classify by DDMVSS Category
+### Step 1: Classify by MDS Category
 
-hKask's functional specification uses DDMVSS categories:
+hKask's functional specification uses 5 MDS categories (consolidated from the original 9 DDMVSS categories — see `docs/architecture/core/MDS.md`):
 
-| Category | Scope | Example bugs |
-|----------|-------|-------------|
-| **Domain** | Core agent behavior, session lifecycle, skill execution | Agent hangs, wrong skill activated |
-| **Capability** | Tool access, OCAP delegation, permission boundaries | Tool call rejected, missing capability |
-| **Interface** | CLI, API, MCP protocol, REPL | Incorrect CLI output, MCP handshake failure |
-| **Composition** | Skill composition, bundle orchestration, PDCA convergence | Skill bundle fails, convergence loop infinite |
-| **Trust** | WebID, replicant host, CNS spans, algedonic alerts | Missing CNS span, incorrect owner |
-| **Observability** | Logging, tracing, metrics emission | Missing trace context, span not emitted |
-| **Persistence** | Wallet, database, session storage | Corrupted wallet, session lost |
-| **Lifecycle** | Bootstrap, shutdown, restart, upgrade | Bootstrap sequence fails, crash loop |
-| **Curation** | Documentation, skill registry, template validation | Template validation false positive |
+| Category | Scope | DDMVSS mapping | Example bugs |
+|----------|-------|---------------|-------------|
+| **Domain** | Core agent behavior, session lifecycle, skill execution | Domain | Agent hangs, wrong skill activated |
+| **Composition** | Skill composition, bundle orchestration, PDCA convergence, CLI/API/MCP protocol | Composition + Interface | Skill bundle fails, incorrect CLI output |
+| **Trust** | Tool access, OCAP delegation, permission boundaries, WebID, replicant host | Capability + Trust | Tool call rejected, missing CNS span |
+| **Lifecycle** | Bootstrap, shutdown, persistence, observability, logging, metrics | Lifecycle + Observability + Persistence | Bootstrap fails, corrupted wallet, missing trace |
+| **Curation** | Documentation, skill registry, template validation, spec coherence | Curation | Template validation false positive |
 
 A bug may span multiple categories. Identify the PRIMARY category and any secondary categories.
 
 ### Step 2: Map Symptom to Functional Requirements
 
-For the primary DDMVSS category, identify the functional requirement (FR#) from the specification that governs the misbehaving code. State:
+For the primary MDS category, identify the functional requirement (FR#) from the specification that governs the misbehaving code. State:
 - The FR# reference
 - The requirement text
 - Which criterion the bug violates
@@ -100,8 +96,8 @@ Respond with a JSON object:
 
 ```json
 {
-  "ddmvss_category": {
-    "primary": "Domain|Capability|Interface|Composition|Trust|Observability|Persistence|Lifecycle|Curation",
+  "mds_category": {
+    "primary": "Domain|Composition|Trust|Lifecycle|Curation",
     "secondary": ["optional secondary categories"]
   },
   "functional_requirements": [
@@ -128,7 +124,7 @@ If no functional requirements are identified and no spec covers the bug, set `fu
 
 - Every diagnosis must trace to a spec requirement or flag a spec gap.
 - Do not fabricate FR# references — derive from actual specification documents or explicitly note the gap.
-- If the spec is unavailable, classify by DDMVSS category from the bug description alone and flag the spec access gap.
+- If the spec is unavailable, classify by MDS category from the bug description alone and flag the spec access gap.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

@@ -108,8 +108,6 @@ Every finding must include a concrete `suggestion`. Do not flag what you can't f
 | W5 | Loop has escape | Every `loop` step should have a `loop_exhausted` branch or a reachable terminal condition |
 | W6 | Classify has all branches | `classify` steps should cover high/medium/low/flake/unparseable or have `default_next` |
 | W7 | Dry-run possible | Script should be testable without LLM (at least some `run_command` steps work standalone) |
-| W8 | Alert domain namespaced | Global alert `default_domain` should follow `qa.<crate>.<tool>` convention |
-| W9 | Alert cooldown reasonable | Global `default_cooldown_secs` should be > 60 to avoid alert storms |
 
 ## Output Requirements
 
@@ -194,7 +192,7 @@ Respond with a JSON object:
 - Validation is mechanical. If a rule is triggered, it's a finding. No judgment calls.
 - Do not modify the manifest; only report findings.
 - Classifier existence is checked against `available_classifiers`, not the file system.
-- Alert is GLOBAL only — per-step alert blocks cause parse errors (E12).
+- Alert is via `cns.alert` namespace only — per-step alert blocks cause parse errors (E12).
 - `iteration_delay_secs` is unsupported — its presence is an error (E11).
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.

@@ -69,7 +69,7 @@ Flag if a skill's manifest declares zero templates of a type that its descriptio
 "manifest.yaml template_type [domain] registry/templates"
 ```
 
-If no hKask-specific skill exists, search for the underlying capability, then adapt using `skill-manager-translate`.
+If no hKask-specific skill exists, search for the underlying capability, then adapt using `skill-maintenance/skill-maintenance-translate`.
 
 ## Evaluating a Candidate Skill
 
@@ -156,13 +156,13 @@ If no hKask-specific skill exists, search for the underlying capability, then ad
 
 ### SKILL.md-only source (needs registry)
 
-1. Use `skill-manager-translate` forward translation to create registry crate
+1. Use `skill-maintenance/skill-maintenance-translate` forward translation to create registry crate
 2. Copy registry crate to `registry/templates/<name>/`
 3. Validate both
 
 ### Install with translation (non-hKask format)
 
-Use `skill-manager-translate` to convert, then install registry crate.
+Use `skill-maintenance/skill-maintenance-translate` to convert, then install registry crate.
 
 ### Verify after installation
 
@@ -254,7 +254,7 @@ Run the evaluation checks from the "Evaluating a Candidate Skill" section.
 
 ### Step 7: Generate SKILL.md companion (optional)
 
-Use `skill-manager-reverse` reverse translation to generate a SKILL.md for the Zed coding agent.
+Use `skill-maintenance/skill-maintenance-reverse` reverse translation to generate a SKILL.md for the Zed coding agent.
 
 ## Skill Hygiene
 

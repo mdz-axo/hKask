@@ -1,7 +1,7 @@
 ---
 name: skill-maintenance
 visibility: public
-description: "Audit hKask's skill architecture for staleness, coverage gaps, and quality degradation. Registry crate (manifest.yaml + *.j2) is the canonical source of truth. Detect broken references, contract drift, invalid template types. Score health, recommend deprecation. Use when the user says 'audit skills', 'check skills', or periodically to maintain skill hygiene."
+description: "Audit hKask's skill architecture for staleness, coverage gaps, and quality degradation. Also: list, build, and install skills. Registry crate (manifest.yaml + *.j2) is the canonical source of truth. Detect broken references, contract drift, invalid template types. Score health, recommend deprecation. Use when the user says 'audit skills', 'check skills', 'list skills', 'create a skill', or periodically to maintain skill hygiene."
 ---
 
 # Skill Maintenance — Registry-First Audit
@@ -165,6 +165,34 @@ Coverage Gaps:
     [name] — registry crate present, SKILL.md absent (info only)
 ```
 
+## Skill Lifecycle Operations
+
+Beyond auditing, this skill supports the full skill lifecycle.
+
+### List
+
+Scan the registry for all skill names. Report which have registry crates and which have generated SKILL.md companions. Flag skills with SKILL.md but no registry as incomplete.
+
+### Build
+
+Build a skill from scratch. Registry crate first, then generate SKILL.md from it.
+
+1. **Name:** User confirms. Lowercase-hyphenated, 2–40 chars. No `hkask-`, `cns-`, `mcp-` prefixes.
+2. **Vocabulary:** Derive 3–8 terms from the description against the known vocabulary.
+3. **Registry crate:** Create `registry/templates/<name>/` with `manifest.yaml` and at least one `.j2` template. The `.j2` must have valid `[inference]` frontmatter (`template_type`, `visibility`, `contract`, `energy_cap`).
+4. **SKILL.md:** Generate `.agents/skills/<name>/SKILL.md` from the registry — frontmatter from manifest `crate.name` and `crate.description`, body derived from template descriptions and system prompts.
+5. **Validate:** Run a full audit on the new skill.
+6. **Confirm:** Show the registry crate to the user for review.
+
+### Install
+
+Install a skill from an external source:
+
+1. **Registry crate provided:** Copy `registry/templates/<name>/`, generate SKILL.md from it.
+2. **Dual-layer (old format):** Copy both, treat registry as authoritative, regenerate SKILL.md to eliminate drift.
+3. **SKILL.md only:** Create a registry crate from the SKILL.md content, then install.
+4. **Validate** after installation.
+
 ## Deprecation
 
 ### When to deprecate
@@ -227,6 +255,9 @@ During normal sessions, flag issues when noticed:
 
 - "Audit skills" / "Check skills": Full registry-first audit
 - "Is this skill stale?": Targeted audit of one registry crate
+- "List skills" / "Show skills": Report the skill corpus from the registry
+- "Create a skill" / "New skill" / "Build a skill": Scaffold a new registry crate from description
+- "Install a skill" / "Add a skill": Import a skill from an external source
 - Monthly: Full registry audit
 - After architecture changes: Audit affected registry crates
 
