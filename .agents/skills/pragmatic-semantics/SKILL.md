@@ -8,7 +8,7 @@ description: "Epistemic discipline for classifying statements by certainty level
 
 A discipline for making honest statements about the system. "Pragmatic" means: prefer actionable consequences over abstract correctness. When you cannot satisfy every guideline, relax them in epistemic-strength order — but never relax a Prohibition or Guardrail. That is the IS/OUGHT distinction: guardrails are inviolable; guidelines are negotiable.
 
-See `constraint-forces` for the enforcement-level classification. This skill covers the full epistemic framework: how to classify what you know, how you know it, and how to communicate it honestly.
+See `pragmatic-semantics` §Constraint Hierarchy for the enforcement-level classification. This skill covers the full epistemic framework: how to classify what you know, how you know it, and how to communicate it honestly.
 
 ## The Two Axes
 
@@ -35,7 +35,7 @@ Never present a subjunctive statement as declarative. If you are guessing, say y
 
 ### Cross-Axis Classification → Constraint Forces
 
-The two axes cross to produce the five constraint forces (see `constraint-forces` for enforcement detail):
+The two axes cross to produce the five constraint forces (see `pragmatic-semantics` §Constraint Hierarchy for enforcement detail):
 
 | Force | Ontology | Epistemic | Example |
 |-------|----------|-----------|---------|

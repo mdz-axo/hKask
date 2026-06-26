@@ -17,7 +17,7 @@ A procedural composition skill. Finds the path of least action through meaning-s
 | **Polarity** | Procedural (describes discipline intersection; backbone) |
 | **Phase** | Core (can span pre→core→post when used as primary process) |
 | **Draws on** | `pragmatic-semantics`, `pragmatic-cybernetics`, `essentialist`, `grill-me` |
-| **Regulative across phases** | `constraint-forces` |
+| **Regulative across phases** | `pragmatic-semantics` |
 | **Convergence** | δS = 0 — no further action reduction on repeat pass |
 | **Max iterations** | 3, then escalate |
 
@@ -77,7 +77,7 @@ A procedural composition skill. Finds the path of least action through meaning-s
                Done
 ```
 
-**Constraint-forces** runs across all phases: Prohibitions and Guardrails are never relaxed in pursuit of least action. Guidelines may be relaxed with reason stated.
+**Pragmatic-semantics** runs across all phases: Prohibitions and Guardrails are never relaxed in pursuit of least action. Guidelines may be relaxed with reason stated.
 
 ## The Brachistochrone Rule
 
@@ -107,7 +107,7 @@ Two templates. The skill is lazy.
 2. **Identify loops** (pragmatic-cybernetics): What OODA/cybernetic/REPL loops are operating? Where is effort spent?
 3. **Find stationary action** (essentialist + grill-me): Delete what doesn't earn existence. Verify what remains survives perturbation.
 4. **Repeat** until δS = 0. Max 3 iterations.
-5. **Never relax** Prohibitions or Guardrails (constraint-forces). Laziness respects boundaries.
+5. **Never relax** Prohibitions or Guardrails (`pragmatic-semantics`). Laziness respects boundaries.
 
 *"Don't just do something, stand there."* — PRINCIPLES.md §0
 

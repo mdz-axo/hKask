@@ -14,12 +14,12 @@ A metacognitive perceptual filter. Applies Miyamoto Musashi's 21 Dokkodo precept
 
 ## Architectural Role
 
-The Dokkodo mindset sits at the **perceptual layer** — before regulative (constraint-forces), analytic (pragmatic-laziness, essentialist), and executive (coding-guidelines) layers. It transforms the perceived action landscape so that downstream processes evaluate a clarified, distortion-free situation.
+The Dokkodo mindset sits at the **perceptual layer** — before regulative (`pragmatic-semantics`), analytic (`pragmatic-laziness`, `essentialist`), and executive (`coding-guidelines`) layers. It transforms the perceived action landscape so that downstream processes evaluate a clarified, distortion-free situation.
 
 ```
 Dokkodo Mindset (perceive) → Pragmatic Laziness (evaluate δS = 0) → Essentialist (delete)
          ↑                              ↑
-    constraint-forces runs across all layers
+    pragmatic-semantics runs across all layers
 ```
 
 **Key insight:** Mindset transforms what counts as "action." Attachment makes clinging look easier than releasing. Resentment makes complaint look easier than acceptance. Fear makes avoidance look easier than engagement. The Dokkodo removes these distortions so the true least-action path becomes visible.
@@ -30,7 +30,7 @@ Dokkodo Mindset (perceive) → Pragmatic Laziness (evaluate δS = 0) → Essenti
 |----------|-------|
 | **Polarity** | Perceptual (pre-filter; runs before analysis) |
 | **Type** | KnowAct — produces a judgment (clarified perception), not an artifact |
-| **Regulated by** | `constraint-forces` (Prohibitions/Guardrails never relaxed) |
+| **Regulated by** | `pragmatic-semantics` (Prohibitions/Guardrails never relaxed) |
 | **Conceptually downstream of** | `pragmatic-laziness`, `essentialist`, `coding-guidelines` (see Architectural Role) |
 | **Convergence** | δP = 0 — perception reaches stationary state; no further distortions found |
 | **Max iterations** | 3, then escalate |
@@ -134,7 +134,7 @@ New to the vocabulary: `detach`, `endure`, `perceive`, `relinquish`, `renounce`.
 - **When facing adversity:** The Dokkodo is fundamentally a resilience discipline — it's how the warrior maintains clarity when circumstances are hostile.
 - **When regret, resentment, or envy appear:** These are friction that produces nothing. Apply Cluster C.
 - **When "the obvious path" feels wrong:** Preference or custom may be masquerading as least action. Apply Cluster A.
-- **Invoked from other skills:** `pragmatic-laziness` is designed to be invocable by the Dokkodo as a pre-filter before Phase 1 (not currently implemented — see Composition Contract note). `constraint-forces` can invoke it when a constraint conflict feels emotionally loaded.
+- **Invoked from other skills:** `pragmatic-laziness` is designed to be invocable by the Dokkodo as a pre-filter before Phase 1 (not currently implemented — see Composition Contract note). `pragmatic-semantics` can invoke it when a constraint conflict feels emotionally loaded.
 
 ## Quick Reference
 

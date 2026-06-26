@@ -18,6 +18,7 @@ contract:
     rolled_back: boolean
     warnings: array
     next_step: object
+    constraint_classification: object
 energy_cap: 8192
 visibility: Public
 ---
@@ -144,6 +145,13 @@ Respond with a JSON object:
     "consumer": "hkask-api",
     "description": "Route API chat endpoint through CuratorService",
     "target": "hkask-api/src/routes/chat.rs"
+  },
+  "constraint_classification": {
+    "prohibitions": ["No OCAP gate violations detected"],
+    "guardrails": ["CNS threshold unchanged — no alert triggered"],
+    "guidelines": ["Consider extracting chat domain before ensemble to reduce cross-domain risk"],
+    "evidence": ["Step 2 verification: all 247 tests pass"],
+    "hypotheses": []
   }
 }
 ```

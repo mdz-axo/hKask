@@ -68,11 +68,16 @@ See the manifest at `registry/manifests/adversarial-red-team.yaml` for the canon
 
 ## Composition
 
-| Skill | Role |
-|-------|------|
-| diagnose | Trace failure path to root cause when vulnerability is found |
-| dokkodo-mindset | Precept 1 — accept vulnerabilities without defensiveness before hardening |
-| constraint-forces | Verify Prohibitions/Guardrails hold under adversarial pressure |
+This skill is self-contained at runtime — no delegated inference calls to other skills.
+The following are methodology references (not wired in templates or manifest):
+
+| Skill | Role | Status |
+|-------|------|--------|
+| diagnose | Trace failure path to root cause when vulnerability is found | Methodology reference only |
+| dokkodo-mindset | Precept 1 — accept vulnerabilities without defensiveness before hardening | Methodology reference only |
+| pragmatic-semantics | Verify Prohibitions/Guardrails hold under adversarial pressure | Methodology reference only |
+
+To wire these as delegated steps, add them to `registry/manifests/adversarial-red-team.yaml`.
 
 ## Responsibility
 
@@ -111,5 +116,5 @@ Red-teaming is a **testing tool**, not an attack tool. Generated adversarial inp
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 22000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 3 (manifest `rjoule.cap` — see `registry/manifests/adversarial-red-team.yaml` for canonical value)
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

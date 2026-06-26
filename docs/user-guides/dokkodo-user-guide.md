@@ -68,7 +68,7 @@ Invoke the Dokkodo mindset by saying any of these:
 This guide assumes familiarity with:
 - **hKask skill types:** KnowAct ("how to think"), FlowDef ("what to do"), WordAct ("what to say") — see [`hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) Pattern A
 - **Pragmatic laziness:** The skill that finds the path of least structural action (δS = 0) by decomposing, mapping loops, and applying the deletion test
-- **Constraint-forces:** The skill that classifies constraints as Prohibition, Guardrail, Guideline, Evidence, or Hypothesis
+- **pragmatic-semantics:** The skill that classifies constraints as Prohibition, Guardrail, Guideline, Evidence, or Hypothesis
 
 Terms defined on first use below.
 
@@ -202,11 +202,11 @@ This is the **American Ronin** pattern (see §7.3). When the agent encounters a 
 ### Invocation from Other Skills
 
 - `pragmatic-laziness` can invoke Dokkodo as a pre-filter before Phase 1 (Decompose)
-- `constraint-forces` can invoke it when a constraint conflict feels emotionally loaded
+- `pragmatic-semantics` can invoke it when a constraint conflict feels emotionally loaded
 - `coding-guidelines` can invoke it when "simplicity first" is distorted by attachment to elegant code
 - `essentialist` can invoke it when the deletion test produces resistance ("but we spent months on this module")
 
-`constraint-forces` runs across all layers and is **never relaxed** — the Dokkodo clarifies perception but does not override Prohibitions or Guardrails.
+`pragmatic-semantics` runs across all layers and is **never relaxed** — the Dokkodo clarifies perception but does not override Prohibitions or Guardrails.
 
 ---
 

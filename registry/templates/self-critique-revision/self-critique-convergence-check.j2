@@ -44,25 +44,31 @@ You are a convergence evaluator for self-critique-revision. Measure whether qual
 - Improvement target: {{ _convergence.improvement_target | default(0.10) }}
 - Baseline quality: {{ _convergence.baseline_quality | default("first pass") }}
 
-## Convergence Method: Saturation Detection (Gradient Descent Plateau)
-- 0.00 = all major critique issues resolved, incremental gains < improvement target → converged
-- 0.15 = minor issues remain, but quality is acceptable → converged at threshold
-- 0.50 = significant critique issues unresolved, quality can still improve materially
-- 1.00 = draft has not improved from initial state, all critique issues open
+## Convergence Method: Saturation Detection with Quality Scoring
+
+Convergence metric = (5 - normalized_quality_score) / 4, sourced from critique.per_criterion_scores.
+- ≤ 0.15: all criteria at or above target, no Prohibition or Guardrail findings → converged
+- 0.16–0.30: minor gaps, quality acceptable → near convergence
+- 0.31–0.60: significant gaps remain → iterate
+- > 0.60: draft has not improved materially
 
 ## Scoring Guidance
-1. Count unresolved critique issues by severity:
-   - Critical (renders output unusable) → +0.25 each
-   - High (significant quality gap) → +0.15 each
-   - Medium (minor quality gap) → +0.05 each
-2. Check improvement trajectory:
-   - Quality score decreased from previous iteration → improvement achieved
-   - Improvement < improvement_target → plateau detected → convergence bonus −0.10
-   - Quality score INCREASED (regression) → +0.20 penalty
-3. Check critique coverage:
-   - All quality criteria addressed in critique → no penalty
+1. Extract `normalized_quality_score` from `critique_result.per_criterion_scores`.
+   - If unavailable, compute from `overall_quality_score × 5`.
+   - `convergence_metric = (5 - normalized_quality_score) / 4`, clamped to [0,1].
+2. Count unresolved critique issues by force:
+   - Prohibition (must fix) → +0.20 each if unresolved
+   - Guardrail (should fix) → +0.10 each if unresolved
+   - Guideline (preferred) → +0.03 each if unresolved
+   - Evidence (info only) → no penalty
+3. Check improvement trajectory:
+   - Quality score improved from previous iteration → no penalty
+   - Improvement < improvement_target → plateau bonus: −0.05
+   - Any criterion regressed by ≥ 1 point (from per_criterion_delta) → +0.15 penalty
+4. Check critique coverage:
+   - All quality criteria addressed → no penalty
    - Unaddressed criteria → +0.10 per missing criterion
-4. Start at 1.0, subtract for resolved issues. Clamp to [0,1].
+5. Start from computed formula, add penalties, subtract bonuses. Clamp to [0,1].
 
 ## Input
 ```json
@@ -78,10 +84,13 @@ Return JSON only:
   "convergence_metric": 0.0,
   "convergence_method": "LLM-assessed saturation detection — severity-weighted unresolved critique issues + improvement trajectory",
   "metric_decomposition": {
-    "critical_unresolved": 0,
-    "high_unresolved": 0,
-    "medium_unresolved": 0,
+    "normalized_quality_score": 4.4,
+    "base_metric": 0.15,
+    "prohibition_unresolved": 0,
+    "guardrail_unresolved": 0,
+    "guideline_unresolved": 1,
     "quality_improved_from_previous": true,
+    "regression_detected": false,
     "plateau_detected": false,
     "criteria_coverage_pct": 100
   },

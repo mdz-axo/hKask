@@ -6,6 +6,8 @@ description: "Audit any .j2 template or manifest.yaml against its own stated goa
 
 # skill-logic-audit — Self-Applied Logic Audit
 
+**⚠️ Critical: SKILL.md ≠ Skill Runtime.** The actual skill behavior lives in the registry crate — `.j2` templates and `manifest.yaml` (or `registry/manifests/<skill>.yaml` for FlowDefs). The SKILL.md file (this file) is a generated companion for Zed coding agents. **Editing a SKILL.md file changes nothing at runtime.** To change a skill's behavior, edit the registry templates (`.j2`) and/or the manifest YAML. For FlowDef skills, the manifest YAML defines the step ordering, convergence parameters, OCAP rules, and template references — it IS the skill. The SKILL.md describes it.
+
 A meta-skill that audits hKask templates and manifests for logical correctness, minimality, and alignment with their own stated goal. It does not check style or formatting; it checks whether the artifact is the most efficient and correct way to achieve the goal it claims.
 
 ## When to Use
@@ -55,8 +57,7 @@ When this cascade is wired into a runtime FlowDef, the FlowDef must live in `reg
 
 ## Related Skills
 
-- `constraint-forces` — classify findings by Prohibition/Guardrail/Guideline/Evidence/Hypothesis.
-- `pragmatic-semantics` — distinguish IS from OUGHT in audit reports.
+- `pragmatic-semantics` — classify findings by Prohibition/Guardrail/Guideline/Evidence/Hypothesis, and distinguish IS from OUGHT in audit reports.
 - `essentialist` — challenge whether every line survives the deletion test.
 - `coding-guidelines` — constrain implementation to surgical, simple, goal-driven changes.
 - `semantic-graph-audit` — inter-skill dependency graph analysis (complementary: this skill audits within one artifact; `semantic-graph-audit` audits across artifacts).

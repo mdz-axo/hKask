@@ -40,7 +40,7 @@ A companion skill for any reasoning or synthesis task. It inspects derived knowl
 
 - `self-critique-revision` — iterative revision after critique.
 - `skill-logic-audit` — audit the critique template itself for logical flaws.
-- `constraint-forces` — classify findings by Prohibition/Guardrail/Guideline/Evidence/Hypothesis.
+- `pragmatic-semantics` — classify findings by Prohibition/Guardrail/Guideline/Evidence/Hypothesis.
 
 ## Registry Templates
 

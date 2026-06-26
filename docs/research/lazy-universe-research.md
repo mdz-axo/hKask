@@ -177,7 +177,7 @@ Every triple carries provenance per P8:
 
 ### 2.2 Constraint Force Classification
 
-Using the `constraint-forces` skill taxonomy, but with the governing-dynamic reframing:
+Using the `pragmatic-semantics` constraint hierarchy, but with the governing-dynamic reframing:
 
 | Classification | Assessment | Rationale |
 |---------------|------------|-----------|

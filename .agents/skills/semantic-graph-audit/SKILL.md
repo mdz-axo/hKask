@@ -33,7 +33,7 @@ Any directed graph of nodes and edges has structural properties — cycles, redu
 
 ### Edge Classification
 
-Every edge carries a **constraint force** (see `constraint-forces`):
+Every edge carries a **constraint force** (see `pragmatic-semantics`):
 
 | Force | Edge Type | Meaning |
 |-------|-----------|---------|
@@ -58,7 +58,7 @@ If the caller hasn't built the graph yet, see **Domain Adapters** below for how 
 
 ### Phase 1 — Force-Classify Every Edge
 
-Apply `constraint-forces` classification to every edge. For each edge, ask:
+Apply `pragmatic-semantics` classification to every edge. For each edge, ask:
 - Is this connection load-bearing (removing it breaks the system)? → Prohibition or Guardrail
 - Is this connection a preference or routing suggestion? → Guideline
 - Is this connection a cross-reference with no behavioral dependency? → Evidence
@@ -210,7 +210,7 @@ This skill composes four analytical skills as lenses. It does not restate their 
 Additionally references:
 | Skill | Role |
 |-------|------|
-| `constraint-forces` | Force-rank every edge and finding |
+| `pragmatic-semantics` | Force-rank every edge and finding |
 
 ## Paired Skills
 

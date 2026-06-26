@@ -8,6 +8,12 @@ manifest:
     Convergent adversarial robustness process. Selects target vulnerability
     surface, generates adversarial probes, evaluates resistance behavior,
     computes convergence, and iterates until critical gaps are reduced.
+    Design note: the loop re-enters at step 2 (Generate), preserving the
+    initial vulnerability surface from step 1 across all iterations. This
+    freezes the surface for stability — newly discovered vulnerability
+    categories during testing will not be added to the surface map within
+    the same cycle. To test emergent categories, restart the cycle with
+    updated adversarial_categories input.
   functional_role: flowdef
   version: 0.30.0
   editor: curator-or-human-admin
@@ -72,7 +78,7 @@ steps:
       target_output: "{{ step_1_result.selected_target | default(target_output) }}"
       domain: "{{ step_1_result.domain | default(target_domain | default('general')) }}"
       vulnerability_surface: "{{ step_1_result.vulnerability_surface | default([]) }}"
-      categories_to_test: "{{ step_1_result.categories_to_test | default(adversarial_categories | default([])) }}"
+      attack_categories: "{{ step_1_result.categories_to_test | default(adversarial_categories | default([])) }}"
       intensity_level: "{{ step_1_result.intensity_level | default(intensity | default('moderate')) }}"
 
   - ordinal: 3

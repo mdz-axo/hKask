@@ -27,11 +27,17 @@ A bug hunting skill that explores target crates for threats to user-defined qual
 
 ## How It Works
 
-1. **Charter:** Generates a focused exploration mission using Hendrickson format
-2. **Probe:** Reads code, searches for bug patterns, runs tests via MCP tools
-3. **Oracle:** Evaluates findings against user-defined quality criteria (Weinberg)
-4. **Taxonomize:** Classifies bugs into Beizer taxonomy with severity
-5. **Report:** Produces structured JSON bug report with fix suggestions
+The expedition runs as a phased PDCA pipeline — each phase is a separate KnowAct template with its own contract:
+
+1. **Charter** (`bug-hunt-charter.j2`): Generates a focused exploration mission using Hendrickson format and Bach's HTSM
+2. **Probe** (`bug-hunt-probe.j2`): Agent-coordinated MCP tool execution — reads code, searches for bug patterns, runs tests
+3. **Oracle** (`bug-hunt-oracle.j2`): Evaluates findings against user-defined quality criteria (Weinberg) with pragmatic-semantics IS/OUGHT classification
+4. **Taxonomize** (`bug-hunt-taxonomize.j2`): Classifies bugs into Beizer taxonomy with severity ratings
+5. **Report** (`bug-hunt-report.j2`): Produces structured JSON bug report with summary statistics
+6. **Convergence** (`bug-hunt-convergence-check.j2`): Saturation detection — severity-weighted unresolved findings + stability check
+7. **Loop**: Re-enters at charter if not converged
+
+The previous monolithic `bug-hunt-expedition.j2` is retained for backward compatibility.
 
 ## Input
 
@@ -61,7 +67,14 @@ Additionally referenced (not embedded): TDD (contract verification) and kata (PD
 ## Registry
 
 - **Canonical source:** `registry/manifests/bug-hunt.yaml`
-- **Template:** `registry/templates/bug-hunt/bug-hunt-expedition.j2`
+- **Templates:**
+  - `bug-hunt-charter.j2` — Phase 1: Charter generation
+  - `bug-hunt-probe.j2` — Phase 2: Agent-coordinated probe
+  - `bug-hunt-oracle.j2` — Phase 3: Weinberg oracle + pragmatic-semantics
+  - `bug-hunt-taxonomize.j2` — Phase 4: Beizer taxonomy classification
+  - `bug-hunt-report.j2` — Phase 5: Structured JSON report
+  - `bug-hunt-convergence-check.j2` — Phase 6: Saturation detection
+  - `bug-hunt-expedition.j2` — Legacy monolithic template (retained for compatibility)
 
 ### Convergence Calibration
 
@@ -81,5 +94,5 @@ The convergence threshold is 0.25 — the most permissive of all hKask skills. T
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 2 (manifest `rjoule.cap` — see `registry/manifests/bug-hunt.yaml` for canonical value)
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

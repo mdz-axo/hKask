@@ -22,6 +22,7 @@ contract:
     module_depth_assessment: object
     philosophical_alignment: object
     design_recommendations: array
+    certainty_classification: object
 energy_cap: 6144
 visibility: Public
 ---
@@ -182,7 +183,15 @@ Respond with a JSON object:
       "impact": "Why this matters",
       "effort": "low | medium | high"
     }
-  ]
+  ],
+  "certainty_classification": {
+    "core_invariant": {"certainty": "Declarative", "rationale": "Verified from requirements/spec"},
+    "invalid_states": {"certainty": "Declarative", "rationale": "Enumerated from the type domain"},
+    "ownership_dag": {"certainty": "Probabilistic", "rationale": "Inferred from current code structure — may shift during refactoring"},
+    "error_domain": {"certainty": "Probabilistic", "rationale": "Based on known failure modes — new modes may emerge"},
+    "safety_boundaries": {"certainty": "Declarative", "rationale": "Defined by unsafe blocks and FFI — explicit in code"},
+    "module_depth_assessment": {"certainty": "Subjunctive", "rationale": "Aspirational — depth changes as the interface evolves"}
+  }
 }
 ```
 

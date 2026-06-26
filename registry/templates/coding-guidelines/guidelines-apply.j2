@@ -100,15 +100,9 @@ Also produce:
 
 ## Anti-Patterns (Explicitly Forbidden)
 
-These are the most common violations. Flag them if they appear:
+{% include "coding-guidelines/anti-patterns.j2" %}
 
-- Adding docstrings, type hints, or formatting changes to code you weren't asked to change
-- Creating abstractions (traits, interfaces, generic functions) for code used in exactly one place
-- Adding "flexibility" via config parameters, feature flags, or pluggable strategies that nobody asked for
-- Refactoring adjacent code "while you're in the area"
-- Writing error handling for scenarios that can't happen
-- Adding logging, metrics, or telemetry that wasn't requested
-- Changing variable names or code style in files you're editing but not for the task's purpose
+These are the canonical anti-patterns defined in `anti-patterns.j2`. Flag them if they appear.
 
 ## Output Requirements
 

@@ -27,25 +27,19 @@ verbosity = "terse"
 max_tokens = 1200
 thinking_budget = "off"
 
-Compute convergence where 0 means scenarios are sufficiently divergent/coherent and implications+indicators are actionable.
-
-Input:
-```json
-{
-  "narratives_result": {{ narratives_result | tojson }},
-  "implications_result": {{ implications_result | tojson }}
-}
-```
-
-You are a convergence evaluator. Measure convergence on [0,1] where 0 means scenarios are sufficiently divergent/coherent and implications+indicators are actionable.
-
-## Context
-- Convergence threshold: {{ _convergence.threshold | default(0.15) }}
-- Iteration: {{ _convergence.iterations_completed | default(0) }} / {{ _convergence.max_iterations | default(3) }}
-- Improvement target: {{ _convergence.improvement_target | default(0.10) }}
+Compute convergence where 0 means scenarios pass the quality gate (divergent, consistent, exhaustive coverage) and implications+indicators are actionable.
 
 ## Convergence Method
-0 = fully converged (scenarios are sufficiently divergent/coherent and implications+indicators are actionable). 1 = not converged. Score how much work remains.
+
+Derive convergence from the quality gate:
+- Gate status: `narratives_result.gate_pass` — if false, add +0.50 penalty
+- Divergence findings: each failed check → +0.15
+- Consistency findings: each failed check → +0.10
+- Coverage gaps: missing blind spots → +0.10 per gap
+- Start at 0.0. Clamp to [0,1].
+
+0 = fully converged: gate passed, all implications actionable, indicators specific.
+1 = not converged: gate failed and/or implications/indicators missing.
 
 Return JSON only:
 ```json

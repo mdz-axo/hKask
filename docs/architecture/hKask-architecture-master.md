@@ -722,13 +722,12 @@ The judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSION_S
 
 | Skill | Methodology |
 |-------|-------------|
-| `pragmatic-semantics` | IS vs OUGHT, certainty levels, provenance |
+| `pragmatic-semantics` | IS vs OUGHT, certainty levels, provenance, constraint hierarchy (Prohibition—Hypothesis) |
 | `pragmatic-cybernetics` | Feedback loops, variety engineering, homeostasis |
 | `pragmatic-laziness` | Path of least action, delete before adding |
 | `coding-guidelines` | Karpathy's 4 principles |
 | `deep-module` | Deletion test, interface minimalism |
 | `essentialist` | 3-gate challenge loop |
-| `constraint-forces` | Prohibition/Guardrail/Guideline/Evidence/Hypothesis |
 | `superforecasting` | Fermi decomposition, Bayesian updating |
 | `mcda` | Weighted scoring, sensitivity analysis |
 | `hypothesis-framer` | FINER criteria, PICO framework, hypothesis/aims formulation |

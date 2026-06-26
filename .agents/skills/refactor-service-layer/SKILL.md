@@ -7,7 +7,7 @@ description: >
   Activate when the user says "refactor service layer", "extract shared logic",
   "deduplicate surfaces", or when architectural analysis reveals business logic
   embedded in presentation layers.
-composes_skills: [improve-codebase-architecture, tdd, coding-guidelines, constraint-forces, zoom-out, pragmatic-semantics, strangler-fig, deep-module]
+composes_skills: [improve-codebase-architecture, tdd, coding-guidelines, pragmatic-semantics, zoom-out, strangler-fig, deep-module]
 ---
 
 # Refactor Service Layer
@@ -44,7 +44,7 @@ hkask-api  ──→ hkask-services ──→ hkask-cns
 
 ### P2 — hKask Constraint Enforcement
 
-Use `constraint-forces` to classify every design decision. These are the hKask-specific rules:
+Use `pragmatic-semantics` to classify every design decision. These are the hKask-specific rules:
 
 | Decision | Force | Rationale |
 |----------|-------|-----------|
@@ -69,7 +69,7 @@ Delegate to `improve-codebase-architecture`. For each domain operation appearing
 
 ### Phase 2 — Classify Constraint Forces
 
-Delegate to `constraint-forces`. Classify every design decision by force type. Document in the plan using the `(Decision) → (Force) → (Rationale)` format. Use the table in P2 above as the starting point.
+Delegate to `pragmatic-semantics`. Classify every design decision by force type. Document in the plan using the `(Decision) → (Force) → (Rationale)` format. Use the table in P2 above as the starting point.
 
 ### Phase 3 — Design the Service Crate
 
