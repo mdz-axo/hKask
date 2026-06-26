@@ -27,7 +27,7 @@ disappear? If yes, merge that information into its parent target, then delete.
 - "audit documentation" / "fix docs"
 - Any task involving the document corpus
 
-## The 7-Task Workflow
+## The 6-Task Workflow
 
 ### Task 0 — Docs-vs-Code Reconciliation (NEW — run first, every sweep)
 

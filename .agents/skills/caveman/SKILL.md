@@ -28,6 +28,7 @@ Activate caveman mode when the user wants terse, token-efficient responses witho
 4. Use fragments in the pattern: `[thing] [action] [reason]. [next step].`
 5. Emit clarity exceptions for any section where caveman mode was suspended.
 6. Return the JSON object defined in `registry/templates/caveman/caveman-compress.j2`.
+7. Verify: re-read compressed output against original. Did any meaning change or disambiguating information get lost? If so, restore and re-compress.
 
 ## Constraints
 

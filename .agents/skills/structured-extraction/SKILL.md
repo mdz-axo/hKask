@@ -107,7 +107,7 @@ The pipeline extracts against this schema and reports coverage:
 
 - **Chain-of-Density:** CoD's entity identification feeds structured extraction — CoD identifies *that* entities exist; structured extraction maps them to schema fields.
 - **Decision-journal:** Structured extraction can populate decision records from narrative descriptions of decisions.
-- **RCA (root cause analysis):** Structured extraction maps incident narratives to root cause schema fields (cause, effect, timeline, contributing factors).
+- **RCA (root cause analysis) [Template]:** Structured extraction maps incident narratives to root cause schema fields (cause, effect, timeline, contributing factors). Feeds the `root-cause-analysis` template (v0.21.0) with structured incident data.
 - **Superforecasting:** Structured extraction populates forecast records from narrative forecasting sessions.
 
 ## Registry Templates

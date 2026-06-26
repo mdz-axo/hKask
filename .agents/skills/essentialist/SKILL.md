@@ -2,7 +2,7 @@
 name: essentialist
 visibility: public
 description: "General-purpose recursive eliminative interrogation. Enforces 'always take away, never add' through a 3-gate challenge loop (Exist → Surface → Contract) the actor must survive before any artifact can be committed. Use when the user says 'simplify this,' 'what can be deleted,' 'audit complexity,' 'strip this module,' 'is this necessary,' or 'essentialist review.'"
-composes_skills: [deep-module, coding-guidelines, constraint-forces]
+composes_skills: [deep-module, coding-guidelines, pragmatic-semantics]
 ---
 
 # Essentialist Skill — Eliminative Interrogation
@@ -127,7 +127,7 @@ Delegate to: `coding-guidelines/guidelines-verify` (hKask) with focus on single-
 
 ## Required vs Suggested — Constraint-Force Classification
 
-Every finding carries a **constraint force** from the `constraint-forces` taxonomy. This determines whether the recommendation is required or merely suggested:
+Every finding carries a **constraint force** from the `pragmatic-semantics` hierarchy. This determines whether the recommendation is required or merely suggested:
 
 | Force | Label | Meaning | Example |
 |-------|-------|---------|---------|
@@ -146,7 +146,7 @@ Every finding carries a **constraint force** from the `constraint-forces` taxono
 This skill pairs naturally with:
 - **deep-module** — For G1 (deletion test) and G2 (surface count, depth score)
 - **coding-guidelines** — For G3 (single-use abstraction audit, Simplicity First violations)
-- **constraint-forces** — For classifying findings by required vs suggested force
+- **pragmatic-semantics** — For classifying findings by required vs suggested force
 
 ## Output Format
 

@@ -2,7 +2,7 @@
 name: strangler-fig
 visibility: public
 description: "Incremental architectural migration via Martin Fowler's Strangler Fig pattern. Introduce new implementation alongside old, migrate one domain at a time, both paths delegate before any deletion. System fully functional at every intermediate step. Use when migrating architecture, replacing legacy code, or extracting a service layer."
-composes_skills: [coding-guidelines, tdd, constraint-forces]
+composes_skills: [coding-guidelines, tdd, pragmatic-semantics]
 ---
 
 # Strangler Fig Migration
@@ -83,12 +83,9 @@ Only then does the delete step execute.
 Every step must be independently reversible. If Step 3 (WIRE B) fails, you can revert to the end of Step 2 and the system still works. This requires:
 
 - No partial state between steps
-- Clean commit boundaries at each step
+- Clean commit boundaries at each step — each commit touches exactly one migration step
 - The old code path remains intact until explicitly deleted
-
-### P5 — Surgical Changes (via coding-guidelines)
-
-Each commit touches exactly one migration step. No "while we're in the area" refactors. No style changes in adjacent code. Every changed line traces directly to the domain being migrated.
+- No "while we're in the area" refactors. Every changed line traces directly to the domain being migrated (via `coding-guidelines`)
 
 ## Process
 
@@ -127,6 +124,11 @@ For each domain, in sequence:
     └─ verify: all consumer tests pass
 [ ] DELETE — Remove duplicated logic from all old surfaces
     └─ verify: workspace builds, all tests pass, no dead references
+[ ] CLASSIFY — Classify any migration deviations or risks by constraint force (via `pragmatic-semantics`):
+    └─ Prohibition: invariants that must hold (e.g., system must compile)
+    └─ Guardrail: defaults that can be overridden with explicit rationale
+    └─ Guideline: best-practice recommendations for future migration steps
+    └─ Record classification in the domain migration plan template
 [ ] LINT — cargo clippy --workspace -- -D warnings
 ```
 
@@ -170,6 +172,7 @@ Step 2 — WIRE A: <consumer A path + what changes>
 Step 3 — WIRE B: <consumer B path + what changes>
 Step 4 — DELETE: <old code paths to remove>
 Step 5 — VERIFY: <specific test commands>
+Step 6 — CLASSIFY: <constraint-force classification of deviations/risks via `pragmatic-semantics`>
 ```
 
 ## Anti-Patterns (Immediately Flag These)
@@ -194,6 +197,7 @@ Step 5 — VERIFY: <specific test commands>
 [ ] ...remaining consumers wired and verified
 [ ] DELETE: Old code removed, no dead references
 [ ] VERIFY: cargo check --workspace && cargo test --workspace
+[ ] CLASSIFY: Migration deviations/risks classified by constraint force (via `pragmatic-semantics`)
 [ ] LINT: cargo clippy --workspace -- -D warnings
 [ ] Step is independently reversible (git revert possible)
 [ ] No cross-domain changes in this step
@@ -219,6 +223,7 @@ The SKILL.md (this file) teaches the Zed coding agent the strangler fig methodol
 - [ ] Clippy clean across workspace
 - [ ] No consumers reference the old architecture
 - [ ] Each migration step is independently documented and reversible
+- [ ] All migration deviations and risks classified by constraint force (via `pragmatic-semantics`)
 
 
 ## Registry Manifest

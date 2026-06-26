@@ -78,12 +78,16 @@ Over time, a decision journal reveals patterns: which types of decisions you're 
 | "score my predictions" / "Brier score" / "how calibrated am I?" | Compute Brier scores across all recorded decisions |
 | "decision post-mortem" / "what went wrong with..." | Revisit + process quality evaluation |
 
-## Composition
+## Pipeline
 
-- **Superforecasting:** Superforecasting produces the calibrated probability; decision-journal records it with context, schedules the revisit, and scores it later. Natural pipeline.
-- **Pragmatic-laziness:** The decision journal is itself a brachistochrone — recording decisions takes time now but reduces total judgment error (action) across time.
-- **Dokkodo-mindset:** Precept 6 ("Do not regret anything you have done") pairs with the journal — don't regret past decisions, but DO learn from them systematically.
-- **Constraint-forces:** Decision context includes which constraints were considered and at what force level — Prohibitions that were respected, Guidelines that were relaxed with stated reasons.
+- **Superforecasting → decision-journal:** Superforecasting produces calibrated probabilities; decision-journal records them with context, schedules revisits, and computes Brier scores. Bidirectional pipeline confirmed by both skills.
+- **Structured-extraction → decision-journal:** Structured-extraction populates decision records from narrative descriptions — mapping unstructured decision narratives to schema fields (reasoning, assumptions, alternatives) that the decision journal records.
+
+## Conceptual Alignment
+
+- **Pragmatic-laziness:** The decision journal is itself a brachistochrone — recording decisions takes time now but reduces total judgment error across time. No runtime delegation.
+- **Dokkodo-mindset:** Precept 6 ("Do not regret anything you have done") pairs with the journal — don't regret past decisions, but DO learn from them systematically. No runtime delegation.
+- **pragmatic-semantics:** Decision context includes which constraints were considered and at what force level. No runtime delegation.
 
 ## Understanding Brier Scores
 
@@ -105,6 +109,7 @@ Overconfidence bias shows as a Brier score higher than expected given the foreca
 | `define-expected-outcomes.j2` | KnowAct | Define calibrated probability predictions with time horizons |
 | `revisit-evaluate.j2` | KnowAct | Revisit recorded decision, compare predicted vs. actual |
 | `compute-brier.j2` | KnowAct | Compute Brier scores and detect calibration bias patterns |
+| `decision-journal-convergence-check.j2` | KnowAct | Compute normalized convergence metric for the journal cycle |
 
 ## Quick Reference
 

@@ -117,17 +117,6 @@ The improv skill monitors 5 derived trace target strings for observability. Thes
 - **Coaching Kata:** Question 4 uses Yes But; Question 5 uses Plussing
 - **Skill bundler:** Compose with kata skills (`improv + kata-starter`, `improv + kata-coaching`)
 
-## Quick Reference
-
-| Mode | Action | Constraint | REPL |
-|------|--------|------------|------|
-| Plussing | Extract agreeable, build | Never negate | `/improv plussing` |
-| Yes And | Accept whole, extend | Additive only | `/improv yes-and` |
-| Yes But | Accept whole, constrain | Narrow, don't contradict | `/improv yes-but` |
-| Freestyling | Rapid group cycling | Time-bounded | `/improv freestyle [secs]` |
-| Riffing | Solo tangent exploration | Must resolve | `/improv riff [policy]` |
-| Cascade | Compose modes recursively | Max 7 total applications | `/improv cascade M1 M2...` |
-
 "Build on what works. Silently discard what doesn't. Never explicitly negate."
 
 ## Registry Templates

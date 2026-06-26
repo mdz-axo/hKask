@@ -1,7 +1,7 @@
 ---
 name: pragmatic-cybernetics
 visibility: public
-description: "Cybernetic reasoning framework for analyzing hKask's CNS, feedback loops, variety engineering, and system homeostasis. Use when diagnosing CNS alerts, analyzing feedback loop failures, evaluating variety deficits, or reasoning about the system's self-regulation architecture. Pairs with constraint-forces for enforcement-level decisions."
+description: "Cybernetic reasoning framework for analyzing hKask's CNS, feedback loops, variety engineering, and system homeostasis. Use when diagnosing CNS alerts, analyzing feedback loop failures, evaluating variety deficits, or reasoning about the system's self-regulation architecture. Pairs with pragmatic-semantics for enforcement-level decisions."
 ---
 
 # Pragmatic Cybernetics

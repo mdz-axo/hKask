@@ -3,6 +3,7 @@ name: scenario-builder
 visibility: public
 description: Scenario planning methodology following Schwartz's framework. Refines focal questions, maps key forces and macro-level driving forces through STEEP analysis, generates divergent 2x2 scenario narratives, and derives implications with early-warning indicators. Use when exploring strategic uncertainty, preparing for multiple futures, or stress-testing decisions against alternative worlds.
 activation: "build scenarios"
+composes_skills: [pragmatic-semantics]
 ---
 
 # Scenario Builder
@@ -87,6 +88,25 @@ Shell used scenario planning to navigate the 1973 oil embargo, the 1986 price co
 └──────────────────────────┬──────────────────────────────────┘
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
+│ QUALITY GATE: DIVERGENCE & CONSISTENCY                       │
+│                                                              │
+│ Before proceeding to implications, verify:                   │
+│  • Divergence — all 4 quadrants are genuinely distinct on   │
+│    both axes (no two scenarios describe essentially the      │
+│    same future)                                              │
+│  • Consistency — each narrative is internally coherent      │
+│    (no contradictory elements within a single scenario)      │
+│  • Coverage — the 4 scenarios collectively span the         │
+│    uncertainty space defined by the axes (no major blind     │
+│    spot in the 2×2)                                         │
+│                                                              │
+│ If the gate fails, return to Stage 4 and refine axes or      │
+│ narratives before proceeding.                                │
+│                                                              │
+│ Output: gate_pass (boolean), gate_findings[]                 │
+└──────────────────────────┬──────────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
 │ STAGE 5: IMPLICATIONS & INDICATORS                           │
 │                                                              │
 │ For each scenario:                                           │
@@ -97,6 +117,11 @@ Shell used scenario planning to navigate the 1973 oil embargo, the 1986 price co
 │                                                              │
 │ Output: robust_strategies[], contingent_strategies[],        │
 │         early_warning_indicators[]                           │
+│                                                              │
+│ Each strategy classified by constraint force:                │
+│  • Prohibition — must-do in all scenarios (existential)      │
+│  • Guardrail — should-do, overridable with rationale         │
+│  • Guideline — preferred approach, advisory                  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -113,18 +138,27 @@ Robust strategies are your no-regret moves. Contingent strategies are your hedge
 
 | User says | Action |
 |-----------|--------|
-| "scenario plan this" / "build scenarios" / "explore futures" | Full 5-stage pipeline |
+| "scenario plan this" / "build scenarios" / "explore futures" | Full 5-stage pipeline (includes quality gate) |
 | "what are the driving forces?" / "STEEP analysis" | Stage 3 only — macro force mapping |
 | "build a 2x2 matrix" / "scenario axes" | Stage 4 only — scenario construction |
+| "verify scenarios" / "are these divergent?" | Quality gate only — divergence and consistency check |
 | "what are the early signals?" / "tripwires" | Stage 5 only — implications and indicators |
 | "what's robust across scenarios?" | Robust strategy extraction |
 
-## Composition
+## Do NOT Activate For
 
-- **Superforecasting:** Scenario builder explores futures; superforecasting assigns calibrated probabilities to each.
-- **MCDA:** Evaluate strategies across scenarios — which strategy scores highest in the most futures?
-- **Decision-journal:** Record the strategic decision and which scenarios were considered. Revisit when indicators fire.
-- **Dokkodo-mindset:** Precept 1 — accept that you cannot predict the future. Prepare for what could happen, not what you hope will happen.
+- Short-term tactical decisions with a horizon of < 6 months
+- Fully deterministic domains where uncertainty is negligible
+- Decisions where the cost of scenario planning exceeds the cost of being wrong
+- When a simple SWOT or PEST analysis suffices
+
+## Downstream Skills
+
+These skills are not composed into the scenario-builder pipeline but are natural next steps after scenario construction. Activate each at the indicated stage.
+
+- **Superforecasting** (activate after Stage 5): Assign calibrated probabilities to each of the 4 scenarios using Tetlock's methodology. Scenario builder explores the futures; superforecasting quantifies their likelihood.
+- **MCDA** (activate after Stage 5): Evaluate robust and contingent strategies across all 4 scenarios. Which strategy scores highest in the most futures? Use multi-criteria decision analysis to rank alternatives.
+- **Decision-journal** (activate after final strategy selection): Record the strategic decision, which scenarios were considered, and the rationale. Schedule a revisit when early-warning indicators fire.
 
 ## Registry Templates
 
@@ -142,7 +176,9 @@ Robust strategies are your no-regret moves. Contingent strategies are your hedge
 2. **Key forces** — what proximate factors shape this domain?
 3. **Driving forces** — STEEP macro forces mapped by importance × uncertainty
 4. **2×2 matrix** — cross two critical uncertainties → four scenarios with narratives
-5. **Implications** — robust strategies (all scenarios), contingent (specific), tripwires (early signals)
+5. **Quality gate** — verify divergence, consistency, and coverage before proceeding
+6. **Implications** — robust strategies (all scenarios), contingent (specific), tripwires (early signals)
+7. **Classify** — each strategy carries a constraint-force label (Prohibition/Guardrail/Guideline)
 
 *"The goal of scenario planning is not to predict the future but to make better decisions in the face of uncertainty."* — Peter Schwartz, *The Art of the Long View*
 

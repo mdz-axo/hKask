@@ -22,15 +22,7 @@ This is a brachistochrone operation: each density pass looks like extra work, bu
 
 ## vs. Caveman
 
-| | Caveman | Chain-of-Density |
-|---|---|---|
-| **Compresses** | Tone — drops filler, articles, hedging, pleasantries | Information — increases entity count at fixed length |
-| **Preserves** | Technical substance, code, errors, URLs | Entities, facts, relationships between concepts |
-| **Method** | Single-pass stylistic compression | Iterative entity-density optimization |
-| **Use when** | You need ultra-compact, direct prose | You need maximum factual coverage at fixed length |
-| **Converges?** | No — single pass | Yes — δDensity < threshold between passes |
-
-They're complementary: caveman for style compression, chain-of-density for information compression.
+Caveman compresses tone (drops filler, articles, hedging). Chain-of-Density compresses information (increases entity count at fixed length). They're complementary: apply CoD first for content density, then caveman for stylistic density.
 
 ## How It Works
 
@@ -110,17 +102,9 @@ The `converged` flag in the output indicates whether further passes would help.
 ## Registry Templates
 
 | Template | Type | Purpose |
-|----------|------|---------|
+|----------|------|--------|
 | `initial-summary.j2` | KnowAct | Baseline summary with entity identification and density calculation |
 | `density-pass.j2` | KnowAct | Iterative density increase — merge missing entities, remove redundancies, maintain length |
-
-## Quick Reference
-
-1. **Identify** all entities in the source text
-2. **Summarize** at target length, noting which entities are missing
-3. **Densify** — merge missing entities while keeping length fixed
-4. **Repeat** until density improvement falls below threshold
-5. **Converge** — deliver the densest summary at the given length
 
 *"Chain-of-Density enables summaries with substantially higher entity density without increasing length."* — Gao et al., 2024
 

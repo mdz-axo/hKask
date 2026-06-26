@@ -1,7 +1,7 @@
 ---
 name: dokkodo-mindset
 visibility: public
-description: Metacognitive perceptual filter based on Miyamoto Musashi's 21 Dokkodo precepts. Applies the precepts as a lens to clarify perception by removing attachment, preference, resentment, fear, and customary bias. Composes with pragmatic-laziness — clears the perceptual field before the lazy loop evaluates the action landscape. Activate when the user says "apply the Dokkodo", "warrior mindset", "see this clearly", "perceptual reset", or when a decision feels distorted by attachment or preference.
+description: Metacognitive perceptual filter based on Miyamoto Musashi's 21 Dokkodo precepts. Applies the precepts as a lens to clarify perception by removing attachment, preference, resentment, fear, and customary bias. Conceptually downstream of pragmatic-laziness — clears the perceptual field before the lazy loop evaluates the action landscape. Activate when the user says "apply the Dokkodo", "warrior mindset", "see this clearly", "perceptual reset", or when a decision feels distorted by attachment or preference.
 activation: "apply the Dokkodo"
 ---
 
@@ -30,10 +30,12 @@ Dokkodo Mindset (perceive) → Pragmatic Laziness (evaluate δS = 0) → Essenti
 |----------|-------|
 | **Polarity** | Perceptual (pre-filter; runs before analysis) |
 | **Type** | KnowAct — produces a judgment (clarified perception), not an artifact |
-| **Composes with** | `pragmatic-laziness`, `essentialist`, `constraint-forces`, `coding-guidelines` |
 | **Regulated by** | `constraint-forces` (Prohibitions/Guardrails never relaxed) |
+| **Conceptually downstream of** | `pragmatic-laziness`, `essentialist`, `coding-guidelines` (see Architectural Role) |
 | **Convergence** | δP = 0 — perception reaches stationary state; no further distortions found |
 | **Max iterations** | 3, then escalate |
+
+> **Note:** The downstream pipeline (`dokkodo → pragmatic-laziness → essentialist`) describes conceptual flow in the Architectural Role diagram — the Dokkodo clears perception before analysis and deletion. However, `pragmatic-laziness` does not currently invoke dokkodo as a pre-filter. The pipeline is a human-orchestrated sequence, not an automated composition.
 
 ## Trigger Conditions
 
@@ -106,7 +108,7 @@ The template produces a JSON object with:
 - `precept_alignment` — per-precept alignment scores (0.0–1.0)
 - `action_landscape_shift` — how the perceived action landscape changed
 - `brachistochrone_candidates` — paths that look harder short-term but minimize long-term action
-- `stationary` / `should_continue` / `escalate` — convergence state
+- `stationary` / `should_continue` / `escalate` — convergence state (informational; authoritative convergence computed by `dokkodo-convergence-check.j2`)
 
 ## Registry Template
 
@@ -114,9 +116,10 @@ This skill's runtime template lives in `registry/templates/dokkodo-mindset/`:
 
 | Template | Type | Purpose |
 |----------|------|---------|
-| `dokkodo-perceive.j2` | KnowAct | Apply the 21 precepts as perceptual filter with embedded δP = 0 convergence |
+| `dokkodo-perceive.j2` | KnowAct | Apply the 21 precepts as perceptual filter — produces clarified perception with precept alignment scores, distortion map, and landscape shift metrics |
+| `dokkodo-convergence-check.j2` | KnowAct | Compute normalized convergence metric (δP = 0) for perceptual cycles |
 
-One template. The skill is lazy. The convergence logic is embedded, not separated — following the `pragmatic-laziness-flow.j2` pattern.
+Two templates. The skill is lazy. Convergence checking is delegated to `dokkodo-convergence-check.j2` — following the same pattern as other skills.
 
 ## Lexicon Terms
 
@@ -131,7 +134,7 @@ New to the vocabulary: `detach`, `endure`, `perceive`, `relinquish`, `renounce`.
 - **When facing adversity:** The Dokkodo is fundamentally a resilience discipline — it's how the warrior maintains clarity when circumstances are hostile.
 - **When regret, resentment, or envy appear:** These are friction that produces nothing. Apply Cluster C.
 - **When "the obvious path" feels wrong:** Preference or custom may be masquerading as least action. Apply Cluster A.
-- **Invoked from other skills:** `pragmatic-laziness` can invoke the Dokkodo as a pre-filter before Phase 1. `constraint-forces` can invoke it when a constraint conflict feels emotionally loaded.
+- **Invoked from other skills:** `pragmatic-laziness` is designed to be invocable by the Dokkodo as a pre-filter before Phase 1 (not currently implemented — see Composition Contract note). `constraint-forces` can invoke it when a constraint conflict feels emotionally loaded.
 
 ## Quick Reference
 

@@ -88,14 +88,7 @@ Convergence metric: 0 = decision-ready. Specific blockers enumerated for each di
 
 ## Cybernetic Perspective
 
-The process implements a cybernetic feedback loop:
-- **Sensor**: FINER evaluation detects weaknesses in the question
-- **Model**: PICO structures the question into testable components
-- **Regulator**: Hypothesis formulation makes a falsifiable prediction — the key regulatory mechanism of science
-- **Actuator**: Aims and objectives operationalize the prediction into measurable actions
-- **Variety engineering**: FINER attenuates the space of possible questions; PICO amplifies structure; the hypothesis is the Good Regulator's model of expected reality
-
-The convergence check closes the loop — if question, hypothesis, and aims are misaligned, the regulator's model doesn't match the system being regulated. Iterate until coherence.
+The process maps to a cybernetic feedback loop: FINER (sensor) → PICO (model) → Hypothesis (regulator) → Aims (actuator) → Convergence (closure). Variety engineering: FINER attenuates the question space; PICO amplifies structure. The convergence check ensures the regulator's model matches the system being regulated.
 
 ## Anti-Patterns
 

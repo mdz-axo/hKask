@@ -9,10 +9,6 @@ activation: "reframe this"
 
 A metacognitive instrument for perspective-taking through semantic rotation. Generates multiple independent perspectives on a situation by applying Falstaffian shape vectors — semantic transformations derived from Falstaff's speeches in Shakespeare's *Henry IV* — each with varied voice and temperature. The genius is the **tension** between calibrated experience (what you know, including failure) and affirmed spirit (what you love: life, play, hope). Shapes carry this tension without letting it break into bitterness or naivety.
 
-## Why Falstaff?
-
-Falstaff is Shakespeare's most subversive truth-teller. He doesn't oppose power with power — he transforms the semantic frame so that power's categories collapse under their own weight. "What is honor? A word. What is in that word? Air." This is not argument — it's a **predicate hollow**: the concept is emptied of substance by questioning its definition. Falstaff teaches us that the most powerful response to criticism is not defense but **semantic rotation** — seeing the criticism from an angle that reveals what it misses.
-
 ## The Three-Fold Structure
 
 ```
@@ -102,15 +98,6 @@ After generation, the skill checks:
 - No naivety detected (spirit without experience)
 - Iteration count is within bounds (3–5)
 
-## Composition
-
-The Falstaffian perspective composes naturally with:
-
-- **dokkodo-mindset** — The Dokkodo clears perception; Falstaff generates perspectives from the cleared field. Together: perceive clearly, then explore creatively.
-- **grill-me** — Falstaff generates diverse angles; grill-me interrogates each for robustness.
-- **self-critique-revision** — Falstaff generates alternative framings of a draft; the critique cycle evaluates which framing is strongest.
-- **improv** — Falstaff shapes are playful truth-telling; improv's Yes And builds on the truth revealed.
-
 ## Registry Templates
 
 This skill's runtime templates live in `registry/templates/falstaffian-perspective/`:
@@ -121,13 +108,18 @@ This skill's runtime templates live in `registry/templates/falstaffian-perspecti
 
 The manifest at `registry/templates/falstaffian-perspective/manifest.yaml` defines the skill's template crate. The single `.j2` template self-contains the full pipeline (calibrate+affirm → generate → validate → variance report).
 
-## Quick Reference
+## Background
 
-1. **Calibrate** experience — know what you know, including failure
-2. **Affirm** spirit — love what you love: life, play, hope
-3. **Select** shape — choose the rotation that expresses the tension
-4. **Execute** through play — deliver truth without triggering defense
-5. **Verify** tension carried — check for neither bitterness nor naivety
+### Why Falstaff?
+
+Falstaff is Shakespeare's most subversive truth-teller. He doesn't oppose power with power — he transforms the semantic frame so that power's categories collapse under their own weight. "What is honor? A word. What is in that word? Air." This is not argument — it's a **predicate hollow**: the concept is emptied of substance by questioning its definition. Falstaff teaches us that the most powerful response to criticism is not defense but **semantic rotation** — seeing the criticism from an angle that reveals what it misses.
+
+### Composes With
+
+- **dokkodo-mindset** — The Dokkodo clears perception; Falstaff generates perspectives from the cleared field. Together: perceive clearly, then explore creatively.
+- **grill-me** — Falstaff generates diverse angles; grill-me interrogates each for robustness.
+- **self-critique-revision** — Falstaff generates alternative framings of a draft; the critique cycle evaluates which framing is strongest.
+- **improv** — Falstaff shapes are playful truth-telling; improv's Yes And builds on the truth revealed.
 
 *"What is honor? A word. What is in that word? Air."* — Falstaff, *Henry IV Part 1*, 5.1
 *"A good wit will make use of any thing."* — Falstaff, *Henry IV Part 2*, 1.2

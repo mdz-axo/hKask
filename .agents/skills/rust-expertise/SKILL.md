@@ -194,6 +194,19 @@ foundations:
 5. **Locate the safety boundary.** Where does safe code meet unsafe? What invariants must hold at that boundary?
 6. **Assess module depth.** What is the interface? What is the implementation? Is the interface smaller than the implementation? (If not, the module is shallow — deepen it.)
 
+After assessment, classify each finding by certainty (via `pragmatic-semantics`):
+
+| Finding | Certainty | Rationale |
+|---------|-----------|-----------|
+| Core invariant | **Declarative** — verified from requirements/spec | The invariant is the contract |
+| Invalid states | **Declarative** — enumerated from the type domain | Each invalid state is a concrete counterexample |
+| Ownership DAG | **Probabilistic** — inferred from current code structure | Ownership may shift during refactoring |
+| Error domain | **Probabilistic** — based on known failure modes | New failure modes may emerge |
+| Safety boundary | **Declarative** — defined by `unsafe` blocks and FFI | The boundary is explicit in code |
+| Module depth | **Subjunctive** — aspirational, depends on design choices | Depth changes as the interface evolves |
+
+Findings classified as Declarative are facts — they anchor the design. Probabilistic findings are strong evidence but may shift. Subjunctive findings are goals, not current state. This classification prevents confusing design aspirations with verified ground truth.
+
 ### Phase 2: Type Design
 
 Design types that make invalid states unrepresentable:
@@ -258,32 +271,44 @@ Refactor toward deeper modules and stronger types:
 4. **Simplify ownership.** Remove unnecessary `Rc<T>` and `RefCell<T>`. Find the true owner.
 5. **Deepen shallow modules.** If a module's interface is larger than its implementation, extract a smaller interface or merge the module into its caller.
 
-## Constraints
+## Constraints (Force-Classified)
+
+Every constraint carries a constraint force per the `pragmatic-semantics` hierarchy. Prohibitions are inviolable. Guardrails are defaults that can be overridden with explicit rationale. Guidelines are best practices.
+
+### Prohibitions (Inviolable — Must Never Violate)
+
+These encode Rust's safety guarantees. Violating them produces undefined behavior or silent data corruption.
 
 - **Never** introduce `unsafe` without a `# Safety` doc section explaining the invariant.
-- **Never** discard a `Result` silently. If ignoring is intentional, use `let _ =` to signal it.
-- **Never** use `.unwrap()` or `.expect()` in library code. Libraries return `Result`, applications decide to crash.
-- **Never** use `Box<dyn Error>` in library public APIs. Libraries expose typed errors.
-- **Never** add a trait impl "just in case." Every impl is a commitment to the trait's contract.
-- **Never** use `Rc<RefCell<T>>` as the default pattern. It is a design smell — find the owner.
-- **Never** clone to satisfy the borrow checker without understanding *why* the borrow conflict exists.
 - **Never** use `unsafe` to "fix" a borrow checker error. The borrow checker is right; redesign the ownership.
 - **Never** implement `Copy` for types that manage resources (file handles, sockets, allocations).
-- **Never** implement `Default` for types that have no meaningful default state.
-- **Never** use `#[allow(clippy::...)]` without a comment explaining why the lint is wrong *in this specific case*.
 
-## Anti-Patterns (Immediately Flag These)
+### Guardrails (Default — Override with Explicit Rationale)
 
-1. **String-typed programming.** Using `String` for everything — paths, names, IDs, codes, keys. Each domain concept deserves its own type.
-2. **Boolean blindness.** `fn set_enabled(enabled: bool)` — what does `true` mean? `fn set_mode(mode: Mode)` with `enum Mode { Enabled, Disabled }` carries meaning.
-3. **`.unwrap()` in library code.** Libraries propagate errors; applications decide to crash.
-4. **`Rc<RefCell<T>>` as default interior mutability.** It's the "I give up on ownership design" pattern.
-5. **Clone-to-compile.** Adding `.clone()` to satisfy the borrow checker without understanding the conflict.
-6. **Trait object overuse.** `Box<dyn Trait>` when a generic `<T: Trait>` would work. Dynamic dispatch has a cost; static dispatch is zero-cost.
-7. **Error stringification.** `.map_err(|e| e.to_string())` — information destruction. Keep the type.
-8. **`unsafe` as performance hack.** "I'll just use unsafe to skip the bounds check." No. Measure first. Unsafe is for invariants the compiler can't verify, not for premature optimisation.
-9. **Newtype without validation.** `struct UserId(String)` with `impl From<String> for UserId` — the newtype adds ceremony without safety. Validation must happen at construction.
-10. **Derive-all-the-things.** `#[derive(Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]` on every struct. Each derive is a semantic commitment. Think before deriving.
+These are strong defaults. Legitimate overrides exist but must be documented.
+
+- **Do not** discard a `Result` silently. If ignoring is intentional, use `let _ =` to signal it.
+- **Do not** use `.unwrap()` or `.expect()` in library code. Libraries return `Result`; applications decide to crash. *Override:* acceptable in test code and examples.
+- **Do not** use `Box<dyn Error>` in library public APIs. Libraries expose typed errors. *Override:* acceptable at application boundaries where errors become opaque.
+- **Do not** use `Rc<RefCell<T>>` as the default interior mutability pattern. It's the "I give up on ownership design" pattern — find the true owner first. *Override:* legitimate in GUI frameworks, complex DAGs, or when ownership genuinely cannot be centralized.
+- **Do not** clone to satisfy the borrow checker without understanding *why* the borrow conflict exists. If you understand the conflict and `clone` is the right tradeoff, document the choice.
+
+### Guidelines (Best Practice — Prefer, Don't Mandate)
+
+- **Prefer** not to add a trait impl "just in case." Every impl is a commitment to the trait's contract.
+- **Prefer** not to implement `Default` for types that have no meaningful default state.
+- **Prefer** not to use `#[allow(clippy::...)]` without a comment explaining why the lint is wrong *in this specific case*.
+
+## Anti-Patterns (Code Smells — Not Separate Constraints)
+
+These are concrete manifestations of the constraints above or of the philosophical foundations. They are code-level signals, not independent rules.
+
+1. **String-typed programming.** Using `String` for everything — paths, names, IDs, codes, keys. Each domain concept deserves its own type. *(Violates Type-Driven Design — §1)*
+2. **Boolean blindness.** `fn set_enabled(enabled: bool)` — what does `true` mean? `fn set_mode(mode: Mode)` with `enum Mode { Enabled, Disabled }` carries meaning. *(Violates Type-Driven Design — §1)*
+3. **Trait object overuse.** `Box<dyn Trait>` when a generic `<T: Trait>` would work. Dynamic dispatch has a cost; static dispatch is zero-cost. *(Violates Zero-Cost Abstractions — §4)*
+4. **Error stringification.** `.map_err(|e| e.to_string())` — information destruction. Keep the type. *(Violates Guardrail: prefer typed errors in library code — §7)*
+5. **Newtype without validation.** `struct UserId(String)` with `impl From<String> for UserId` — the newtype adds ceremony without safety. Validation must happen at construction. *(Violates Type-Driven Design — §1)*
+6. **Derive-all-the-things.** `#[derive(Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]` on every struct. Each derive is a semantic commitment. Think before deriving. *(Violates Explicit Over Implicit — §5)*
 
 ## The Greats — Lessons Applied
 
@@ -305,12 +330,13 @@ the lens of Rust's design:
 
 ## Related Skills
 
-- **coding-guidelines** — Behavioral guardrails for implementation (pairs with rust-expertise for surgical Rust changes)
-- **deep-module** — Module depth evaluation (pairs with rust-expertise for Rust module design)
-- **essentialist** — Recursive eliminative simplification (pairs with rust-expertise for stripping non-idiomatic complexity)
-- **improve-codebase-architecture** — Finding deepening opportunities (pairs with rust-expertise for Rust-specific architecture)
-- **tdd** — Test-driven development (pairs with rust-expertise for type-first test design)
-- **diagnose** — Bug diagnosis (pairs with rust-expertise for ownership and lifetime debugging)
+- **pragmatic-semantics** — **integrated** into Constraints (force classification per constraint) and Phase 1 (certainty classification per design finding)
+- **coding-guidelines** — Behavioral guardrails for implementation (Evidence: pairs with rust-expertise for surgical Rust changes)
+- **deep-module** — Module depth evaluation (Evidence: pairs with rust-expertise for Rust module design)
+- **essentialist** — Recursive eliminative simplification (Evidence: pairs with rust-expertise for stripping non-idiomatic complexity)
+- **improve-codebase-architecture** — Finding deepening opportunities (Evidence: pairs with rust-expertise for Rust-specific architecture)
+- **tdd** — Test-driven development (Evidence: pairs with rust-expertise for type-first test design)
+- **diagnose** — Bug diagnosis (Evidence: pairs with rust-expertise for ownership and lifetime debugging)
 
 ## Registry Templates
 

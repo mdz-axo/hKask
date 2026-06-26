@@ -83,15 +83,9 @@ The SKILL.md (this file) teaches the Zed coding agent the coding guidelines meth
 - **During implementation:** Refer to the constrained plan. Check every change against the surgical changes rule.
 - **After implementation:** Run the verify step to audit the diff for violations.
 
-## Anti-Patterns (Immediately Flag These)
+## Anti-Patterns
 
-1. Adding docstrings, type hints, or formatting changes to code you weren't asked to change
-2. Creating abstractions (traits, interfaces, generic functions) for code used in exactly one place
-3. Adding "flexibility" via config parameters, feature flags, or pluggable strategies nobody asked for
-4. Refactoring adjacent code "while you're in the area"
-5. Writing error handling for scenarios that can't happen
-6. Adding logging, metrics, or telemetry that wasn't requested
-7. Changing variable names or code style in files you're editing but not for the task's purpose
+The canonical seven anti-patterns are enforced at runtime by `guidelines-assess.j2` and `guidelines-verify.j2`. See those templates for the full list with severity ratings. Summary: (1) unsolicited docstring/formatting changes, (2) single-use abstractions, (3) unrequested flexibility/config, (4) adjacent-code refactoring, (5) impossible-scenario error handling, (6) unrequested logging/telemetry, (7) style changes outside task scope.
 
 ## These Guidelines Are Working If
 

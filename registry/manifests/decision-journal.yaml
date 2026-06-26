@@ -9,7 +9,7 @@ manifest:
     measurable expected outcomes, revisits actual outcomes, computes Brier
     calibration metrics, and iterates until calibration quality is sufficient.
   functional_role: flowdef
-  version: 0.30.0
+  version: 0.31.0
   editor: curator-or-human-admin
   visibility: Public
 

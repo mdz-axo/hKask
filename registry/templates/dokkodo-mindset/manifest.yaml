@@ -3,13 +3,13 @@
 
 crate:
   name: dokkodo-mindset
-  version: "0.30.0"
+  version: "0.31.0"
   description: >
     Metacognitive perceptual filter based on Miyamoto Musashi's 21 Dokkodo
     precepts. Applies the precepts as a perceptual lens to transform how the
     agent sees a situation — removing attachment-distorted preferences,
-    resentment, fear, and customary bias — before downstream decision
-    processes (pragmatic-laziness, essentialist, constraint-forces) evaluate
+    resentment, fear, and customary bias — before conceptually downstream
+    processes (pragmatic-laziness, essentialist, coding-guidelines) evaluate
     the action landscape. Converges when δP = 0 (perceptual frame is
     stationary — no further distortions identified).
 
@@ -38,8 +38,8 @@ templates:
       where attachment, preference, resentment, fear, or customary belief
       distort the perceived action landscape. Produces a clarified perception
       with precept alignment scores, identified distortions, and action
-      landscape shift metrics. Self-converges: embedded δP = 0 check
-      determines whether perception has reached stationary state.
+      landscape shift metrics. Convergence verification is delegated to
+      `dokkodo-convergence-check.j2`.
 
   - id: dokkodo-mindset/dokkodo-convergence-check
     path: dokkodo-convergence-check.j2

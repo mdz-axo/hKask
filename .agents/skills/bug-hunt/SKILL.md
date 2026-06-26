@@ -44,12 +44,28 @@ JSON report with findings, classifications, confidence scores, and pattern signa
 
 ## Composition
 
-Reasoning patterns from pragmatic-semantics (IS/OUGHT classification + epistemic mode + provenance), pragmatic-cybernetics (feedback loop analysis + Good Regulator checks + variety engineering), TDD (contract verification), diagnose (systematic investigation), grill-me (verdict challenging), adversarial-red-team (attack probes), and kata (PDCA learning) are embedded as prompt instructions in the expedition template.
+The expedition template embeds reasoning patterns from five skills as inline prompt instructions:
+
+| Skill | Embedded in template | Role |
+|-------|---------------------|------|
+| pragmatic-semantics | ✓ (v0.30.0) | IS/OUGHT classification, epistemic mode, provenance tracing |
+| pragmatic-cybernetics | ✓ (v0.30.0) | Feedback loop analysis, Good Regulator checks, variety engineering |
+| diagnose | ✓ (v0.30.0) | Reproduce before diagnosing, single-variable isolation |
+| adversarial-red-team | ✓ (v0.30.0) | Boundary-value probes, unexpected state transitions |
+| grill-me | ✓ (v0.30.0) | Self-challenge verdicts, intentional-vs-bug discrimination |
+
+Additionally referenced (not embedded): TDD (contract verification) and kata (PDCA learning) inform the expedition methodology but are not inline in the template.
+
+**Note:** These are inline prompt instructions, not delegated inference calls. Versions are annotated above. If the referenced skills change methodology, the expedition template should be updated.
 
 ## Registry
 
-- **Canonical source:** `registry/templates/bug-hunt/manifest.yaml`
+- **Canonical source:** `registry/manifests/bug-hunt.yaml`
 - **Template:** `registry/templates/bug-hunt/bug-hunt-expedition.j2`
+
+### Convergence Calibration
+
+The convergence threshold is 0.25 — the most permissive of all hKask skills. This is intentional: bug hunting is **exploratory**, not exhaustive. A 0.25 threshold means findings are directionally stable and critical quality threats are identified, but not every bug class has been exhaustively searched. See Registry Manifest below for chaining guidance.
 
 
 ## Registry Manifest
@@ -57,11 +73,11 @@ Reasoning patterns from pragmatic-semantics (IS/OUGHT classification + epistemic
 **Type:** Skill | **Manifest:** `registry/manifests/bug-hunt.yaml`
 
 ### PDCA Convergence
-- **Threshold:** 0.25 (converged when metric ≤ this)
+- **Threshold:** 0.25 — highest of all skills; intentional for exploratory hunting (not exhaustive elimination)
 - **Improvement ratio:** 0.05 (min relative reduction per iteration)
 - **Improvement gate:** threshold_only
 - **Max iterations:** 3
-- **Convergence meaning:** 0 = findings stable, no critical bugs remain unresolved
+- **Convergence meaning:** 0 = findings stable, no critical bugs remain unresolved. For exhaustive elimination, chain with `diagnose` on specific findings.
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration

@@ -81,7 +81,15 @@ The eight-stage pipeline encodes this process. Each stage produces output that f
 │ expiration date, and confidence bounds for later Brier        │
 │ scoring and post-mortem analysis.                             │
 │ Output: forecast_record                                       │
-└─────────────────────────────────────────────────────────────┘
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           │  (Brier scoring triggers
+                           │   Bayesian update re-entry)
+                           ▼
+               ┌──────────────────────┐
+               │  STAGE 4 (re-entry)   │
+               │  via decision-journal  │
+               └──────────────────────┘
 ```
 
 ## Trigger Conditions
@@ -96,10 +104,11 @@ The eight-stage pipeline encodes this process. Each stage produces output that f
 
 ## Composition
 
-- **Decision-journal:** Superforecasting produces the forecast; decision-journal records it, schedules revisits, and computes Brier scores. Natural pipeline: forecast → record → revisit → calibrate.
-- **Pragmatic-laziness:** The outside view (Stage 2) is a lazy-universe operation — base rates are the "least action" probability before case-specific evidence adds complexity.
+- **Decision-journal [Guardrail]:** Superforecasting produces the forecast; decision-journal records it, schedules revisits, and computes Brier scores. Without decision-journal, the revisit and Brier-scoring loop collapses. **Natural pipeline: forecast → record → revisit → calibrate.**
+- **Pragmatic-laziness [Guardrail]:** The outside view (Stage 2) MUST use lazy-universe reasoning — base rates are the "least action" probability before case-specific evidence adds complexity. Skipping this stage produces unanchored forecasts.
 - **Grill-me:** Grill-me stress-tests the forecast's assumptions; superforecasting provides the structured probability to interrogate.
 - **Dokkodo-mindset:** Precept 3 ("Do not ever rely on a partial feeling") maps directly to Fermi decomposition — don't forecast from a gut feeling; decompose first.
+- **Structured-extraction:** Superforecasting's Stage 7 (record) receives populated forecast records from structured-extraction's schema-mapping pipeline — converting narrative forecasting sessions into structured, scorable forecast records.
 
 ## Registry Templates
 

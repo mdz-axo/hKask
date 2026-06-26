@@ -2,7 +2,7 @@
 name: deep-module
 visibility: public
 description: "Module design discipline based on John Ousterhout's 'A Philosophy of Software Design.' Apply the deletion test to evaluate whether a module deserves to exist: delete the callers — if complexity reappears, extract. Delete the module — if complexity vanishes, don't create it. Enforces depth (high benefit/cost ratio), interface minimalism (≤7 public functions), and dependency direction."
-composes_skills: [coding-guidelines, constraint-forces, zoom-out]
+composes_skills: [coding-guidelines, pragmatic-semantics, zoom-out]
 ---
 
 # Deep Module Design
@@ -22,7 +22,7 @@ Module design discipline from John Ousterhout's *A Philosophy of Software Design
 - Pure implementation within an existing module (use `coding-guidelines`)
 - Architectural migration decisions (use `strangler-fig`)
 - Module discovery/mapping (use `zoom-out`)
-- Constraint classification (use `constraint-forces`)
+- Constraint classification (use `pragmatic-semantics`)
 
 ## Core Concept
 

@@ -8,6 +8,17 @@ description: "Continuation skill for resuming hKask condenser implementation wor
 
 Resume condenser implementation work after a context reset. This skill distills prior session state into an actionable continuation plan — what was done, what remains, what to do next, and whether the codebase is still healthy.
 
+## Behavioral Dependencies
+
+| Dependency | Type | Why |
+|------------|------|-----|
+| `hkask-mcp-condenser` (MCP server) | Prohibition | Step 3 build verification (`cargo check/build/clippy`) fails without it |
+| `hkask-condenser` (crate) | Prohibition | Domain logic crate — build depends on `engine.rs`, `inference.rs`, `types.rs`, `algorithms.rs` |
+
+## Informational Context
+
+The skill describes the condenser's architecture (InferencePort trait, InferenceRouter, DeepInfra/Together/fal.ai/OpenRouter backends, CNS spans) for domain understanding. These are not behavioral dependencies — the skill functions as a continuation orchestrator regardless of which inference engine is configured.
+
 ## Registry Templates
 
 This skill's runtime templates live in `registry/templates/condenser-continuation/`:
@@ -18,6 +29,7 @@ This skill's runtime templates live in `registry/templates/condenser-continuatio
 | `condenser-continuation-prioritize.j2` | KnowAct | Rank remaining tasks by priority and identify immediate next action |
 | `condenser-continuation-verify.j2` | KnowAct | Produce a structured verification plan (commands, expected outcomes, success criteria) for the agent or runtime to execute |
 | `condenser-continuation-compose.j2` | WordAct | Assemble the final structured continuation document |
+| `condenser-convergence-check.j2` | KnowAct | Compute normalized convergence metric for the continuation cycle |
 
 The SKILL.md (this file) teaches the Zed coding agent the condenser domain and methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
 

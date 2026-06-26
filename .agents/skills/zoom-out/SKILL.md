@@ -30,6 +30,10 @@ The SKILL.md (this file) teaches the Zed coding agent the context-expansion meth
 
 5. **Key invariants** — Any important constraints that aren't obvious from the code.
 
+## Consumed By
+
+- **semantic-graph-audit [Evidence]:** Zoom-out produces module maps and caller graphs that feed directly into semantic-graph-audit's graph construction phase — providing the structural data needed for dependency analysis.
+
 ## Constraints
 
 - Use the project's own domain language, not generic terms.

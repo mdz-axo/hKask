@@ -81,13 +81,13 @@ contract:
       description: Paths that look harder in the short term but minimize long-term action
     stationary:
       type: boolean
-      description: Whether δP = 0 — perception has reached stationary state
+      description: Whether perception has reached stationary state. Computed by `dokkodo-convergence-check.j2`, not self-assessed by this template.
     should_continue:
       type: boolean
       description: Whether another iteration is warranted
     escalate:
       type: boolean
-      description: Whether to escalate to human after exhausting iterations
+      description: Whether to escalate to human after exhausting iterations. Computed by `dokkodo-convergence-check.j2`, not self-assessed.
     summary:
       type: string
       description: Narrative summary of perceptual transformation
@@ -95,8 +95,8 @@ contract:
   visibility: Public
 ---
 {# Template: dokkodo-mindset/dokkodo-perceive.j2 #}
-{# KnowAct — Apply Dokkodo precepts as perceptual filter with embedded δP = 0 convergence #}
-{# ℏKask v0.30.0 — A Minimal Viable Container for Agents #}
+{# KnowAct — Apply Dokkodo precepts as perceptual filter. Convergence verification delegated to dokkodo-convergence-check.j2. #}
+{# ℏKask v0.31.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.15

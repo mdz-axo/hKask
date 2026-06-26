@@ -9,7 +9,7 @@ manifest:
     Applies perceptual de-attachment, computes convergence, and iterates until
     the perceptual field is stable enough for downstream reasoning.
   functional_role: flowdef
-  version: 0.30.0
+  version: 0.31.0
   editor: curator-or-human-admin
   visibility: Public
 

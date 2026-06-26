@@ -304,6 +304,14 @@ The TDD cycle is a pre-commit development activity. Post-deployment, the CNS pro
 ```
 
 
+## Related Skills
+
+- **coding-guidelines [Guideline]:** Karpathy's four behavioral principles are enforced throughout the TDD workflow — Simplicity First drives minimal implementations, Surgical Changes governs the refactor phase, Goal-Driven Execution maps to contract-anchored tracer bullets, and Think Before Coding surfaces assumptions before contracts are written. The coding-guidelines skill's anti-pattern detection (single-use abstractions, speculative features, impossible-scenario error handling) directly constrains what TDD produces.
+- **pragmatic-semantics [Evidence]:** Probabilistic contracts (§7.6) require epistemic classification of contract satisfaction — pragmatic-semantics provides the IS/OUGHT distinction and provenance tracing needed to evaluate `(p, δ, k)`-satisfaction claims against actual execution traces.
+- **deep-module [Guideline]:** Used during the REFACTOR phase to deepen modules and apply the deletion test.
+- **essentialist [Evidence]:** Paired for eliminative review of contracts and test architectures.
+- **improve-codebase-architecture [Evidence]:** Paired for architectural exploration before refactoring — anchors refactors with behavioral contracts.
+
 ## Registry Manifest
 
 **Type:** Skill | **Manifest:** `registry/manifests/tdd.yaml`
