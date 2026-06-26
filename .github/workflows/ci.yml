@@ -82,6 +82,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
+      - name: Install linker (mold + clang)
+        run: sudo apt-get install -y --no-install-recommends mold clang
       - run: cargo doc --workspace --no-deps
 
   # ── Stage 4: Structural invariants (grep-only, depends on test) ─────────
