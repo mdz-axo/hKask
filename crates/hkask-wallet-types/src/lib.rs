@@ -110,6 +110,15 @@ impl fmt::Display for DepositReference {
     }
 }
 
+// ── Economic constants ─────────────────────────────────────────────────────────
+
+/// Gas cycles per 1 rJoule (250,000 gas = 1 rJ = $1.00).
+/// This is the authoritative conversion constant for the system.
+pub const GAS_PER_RJOULE: u64 = 250_000;
+
+/// rJoules per 1 USDC (1 rJ = 1 USDC = $1.00).
+pub const RJ_PER_USDC: u64 = 1;
+
 // ── RJoule — stable value unit ─────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -184,8 +193,8 @@ pub struct WalletConfig {
 impl Default for WalletConfig {
     fn default() -> Self {
         Self {
-            rj_per_usdc: 1000,
-            gas_per_rjoule: 1000,
+            rj_per_usdc: RJ_PER_USDC,
+            gas_per_rjoule: GAS_PER_RJOULE,
             min_deposit_usdc_micro: 1_000_000,
             enabled_chains: vec![ChainId::Hedera],
             price_feed: PriceFeedConfig::default(),

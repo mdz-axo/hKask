@@ -1,0 +1,105 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    primary_result: object
+    delegation_results: object
+  output:
+    convergence_metric: number
+    convergence_method: string
+    metric_decomposition: object
+    rationale: string
+    blockers: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: sequential-inquiry/sequential-inquiry-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for sequential inquiry cycles. #}
+{#
+  Group: A (Reasoning/Problem-Solving)
+  Convergence method: LLM-assessed hypothesis verification + chain stability + delegation resolution
+  Measures: Whether a verified hypothesis has been reached, the thinking chain
+    has stabilized, AND all delegation requests have been resolved.
+    Threshold 0.15 — tighter because delegation results should accelerate convergence.
+#}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 1400
+thinking_budget = "off"
+
+You are a convergence evaluator for sequential inquiry. Measure whether the inquiry has reached a verified, stable answer with all delegations resolved.
+
+## Context
+- Convergence threshold: {{ _convergence.threshold | default(0.15) }}
+- Iteration: {{ _convergence.iterations_completed | default(0) }} / {{ _convergence.max_iterations | default(3) }}
+- Improvement target: {{ _convergence.improvement_target | default(0.10) }}
+
+## Convergence Method: Hypothesis + Chain + Delegation
+- 0.00 = hypothesis verified, chain complete and stable, all delegations resolved, answer well-calibrated → fully converged
+- 0.15 = hypothesis mostly verified, minor delegation results pending, high confidence → converged at threshold
+- 0.35 = hypothesis exists, some delegations unresolved, moderate uncertainty
+- 0.60 = thinking in progress, delegations pending, no verified hypothesis
+- 1.00 = no hypothesis, no delegations, thinking incomplete
+
+## Scoring Guidance
+Start at 1.0. Subtract for each satisfied criterion:
+
+1. **Hypothesis exists** → -0.12
+2. **Hypothesis verified** → -0.20
+3. **Chain complete** (`needsMoreThoughts: false`) → -0.12
+4. **No unresolved branches** → -0.08
+5. **No pending revisions** → -0.08
+6. **Confidence calibrated** (≥ 0.7) → -0.08
+7. **Answer synthesized** → -0.08
+8. **All delegations resolved** (no pending request without result) → -0.12
+9. **Delegation results incorporated** (engine wove results into chain) → -0.07
+10. **Chain stable** between iterations → -0.05
+
+Clamp to [0, 1].
+
+## Delegation Resolution Check
+- Count `delegation_requests` in `primary_result` that lack matching results in `delegation_results`
+- Count `delegation_results` entries with `invoked: true` that the engine has not yet incorporated
+- Both must be zero for full delegation convergence
+
+## Input
+Engine result:
+```json
+{{ primary_result | tojson }}
+```
+
+Delegation results:
+```json
+{{ delegation_results | tojson }}
+```
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "convergence_method": "LLM-assessed hypothesis verification + chain stability + delegation resolution",
+  "metric_decomposition": {
+    "hypothesis_exists": true,
+    "hypothesis_verified": true,
+    "chain_complete": true,
+    "unresolved_branches": 0,
+    "pending_revisions": 0,
+    "confidence_calibrated": true,
+    "answer_synthesized": true,
+    "all_delegations_resolved": true,
+    "delegation_results_incorporated": true,
+    "chain_stable_between_iterations": true
+  },
+  "rationale": "short explanation",
+  "blockers": ["specific gap preventing convergence"]
+}
+```

@@ -17,7 +17,7 @@ use hkask_types::crypto::Ed25519PublicKey;
 use hkask_types::id::{ApiKeyId, WalletId};
 use hkask_wallet::WalletManager;
 use hkask_wallet::price_feed::StaticPriceFeed;
-use hkask_wallet::{ApiKeyCapability, PrivacyMode, RJoule, WalletConfig};
+use hkask_wallet::{ApiKeyCapability, GAS_PER_RJOULE, PrivacyMode, RJoule, WalletConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -96,21 +96,28 @@ fn make_wallet_budget_with_key(
 #[tokio::test]
 async fn manager_wallet_budget_reserve_settle_debits_encumbrance() {
     let (_wallet_id, key_id, manager, budget) =
-        make_wallet_budget_with_key(1000, 10_000, 2_000, 5_000);
+        make_wallet_budget_with_key(GAS_PER_RJOULE, 10_000, 2_000, 5_000);
 
     let agent = hkask_types::WebID::new();
     let mgr = EnergyBudgetManager::new();
     mgr.register_wallet_budget(agent, budget).await;
 
-    // gas_per_rjoule = 1000 → 1000 gas = 1 rJ. Encumbrance has 2000 rJ.
-    let reserved = mgr.reserve_gas(&agent, EnergyCost(1_000)).await.unwrap();
-    assert_eq!(reserved.0, 1_000);
-
-    let settled = mgr
-        .settle_gas(&agent, EnergyCost(1_000), EnergyCost(1_000))
+    // gas_per_rjoule = GAS_PER_RJOULE → GAS_PER_RJOULE gas = 1 rJ. Encumbrance has 2000 rJ.
+    let reserved = mgr
+        .reserve_gas(&agent, EnergyCost(GAS_PER_RJOULE))
         .await
         .unwrap();
-    assert_eq!(settled.0, 1_000);
+    assert_eq!(reserved.0, GAS_PER_RJOULE);
+
+    let settled = mgr
+        .settle_gas(
+            &agent,
+            EnergyCost(GAS_PER_RJOULE),
+            EnergyCost(GAS_PER_RJOULE),
+        )
+        .await
+        .unwrap();
+    assert_eq!(settled.0, GAS_PER_RJOULE);
 
     let enc = manager.get_encumbrance(key_id).unwrap().unwrap();
     assert_eq!(enc.remaining_rj(), 1_999, "1 rJ consumed from encumbrance");
@@ -119,11 +126,11 @@ async fn manager_wallet_budget_reserve_settle_debits_encumbrance() {
 // back into WalletBackedBudget via the configured gas_per_rjoule rate.
 #[tokio::test]
 async fn calibrated_gas_per_rjoule_changes_budget_cost() {
-    // Calibrate an estimator: initial 1000, observed ratio 2.0 → rate 2000.
-    let mut estimator = WalletEnergyEstimator::new(1000);
+    // Calibrate an estimator: initial GAS_PER_RJOULE, observed ratio 2.0 → rate doubled.
+    let mut estimator = WalletEnergyEstimator::new(GAS_PER_RJOULE);
     let adjusted = estimator.calibrate(2.0);
     assert!(adjusted, "ratio 2.0 should adjust gas_per_rjoule");
-    assert_eq!(estimator.gas_per_rjoule, 2000);
+    assert_eq!(estimator.gas_per_rjoule, GAS_PER_RJOULE * 2);
 
     // Build a wallet budget using the calibrated rate.
     let (_wallet_id, key_id, manager, budget) =
@@ -133,17 +140,23 @@ async fn calibrated_gas_per_rjoule_changes_budget_cost() {
     let mgr = EnergyBudgetManager::new();
     mgr.register_wallet_budget(agent, budget).await;
 
-    // At rate 2000, 2000 gas = 1 rJ. Settle 2000 gas.
-    mgr.reserve_gas(&agent, EnergyCost(2_000)).await.unwrap();
-    mgr.settle_gas(&agent, EnergyCost(2_000), EnergyCost(2_000))
+    // At doubled rate, GAS_PER_RJOULE*2 gas = 1 rJ.
+    mgr.reserve_gas(&agent, EnergyCost(GAS_PER_RJOULE * 2))
         .await
         .unwrap();
+    mgr.settle_gas(
+        &agent,
+        EnergyCost(GAS_PER_RJOULE * 2),
+        EnergyCost(GAS_PER_RJOULE * 2),
+    )
+    .await
+    .unwrap();
 
     let enc = manager.get_encumbrance(key_id).unwrap().unwrap();
     assert_eq!(
         enc.remaining_rj(),
         1_999,
-        "calibrated rate 2000 gas/rJ should consume 1 rJ for 2000 gas"
+        "doubled rate should consume 1 rJ for GAS_PER_RJOULE*2 gas"
     );
 }
 

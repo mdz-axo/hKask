@@ -94,6 +94,31 @@ pub enum ServerStartError {
     DiscoveryFailed(String),
 }
 
+/// Resolve the binary path for an MCP server.
+///
+/// 1. Check `HKASK_MCP_{SERVER_ID_UPPER}_BIN` environment variable.
+///    Example: `HKASK_MCP_FILESYSTEM_BIN` for server_id="filesystem".
+/// 2. Fall back to the provided command name (PATH-based resolution).
+///
+/// This is the implementation of the contract documented in
+/// `crates/hkask-cli/src/repl/builtin_servers.rs`.
+fn resolve_mcp_binary(server_id: &str, command: &str) -> String {
+    let env_var = format!("HKASK_MCP_{}_BIN", server_id.to_uppercase());
+    if let Ok(explicit_path) = std::env::var(&env_var) {
+        if !explicit_path.is_empty() {
+            tracing::info!(
+                target: "hkask.mcp",
+                server_id = %server_id,
+                env_var = %env_var,
+                binary = %explicit_path,
+                "MCP binary resolved via env var"
+            );
+            return explicit_path;
+        }
+    }
+    command.to_string()
+}
+
 /// MCP runtime manager
 #[derive(Clone)]
 pub struct McpRuntime {
@@ -179,7 +204,15 @@ impl McpRuntime {
             return Ok(());
         }
 
-        let mut cmd = Command::new(command);
+        // Resolve the binary path: check HKASK_MCP_{ID}_BIN first, then fall back
+        // to PATH-based resolution. The env var allows pointing at a specific build
+        // (e.g., target/debug/hkask-mcp-filesystem) without polluting PATH.
+        //
+        // P12 replicant-host-mandate: the binary path is not a secret — it's a
+        // deployment-time configuration, not an ambient authority.
+        let binary = resolve_mcp_binary(server_id, command);
+
+        let mut cmd = Command::new(&binary);
         for (key, value) in &extra_env {
             cmd.env(key, value);
         }

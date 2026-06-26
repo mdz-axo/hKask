@@ -42,6 +42,7 @@ pub use signing::{sign_capability, sign_withdrawal};
 
 pub use types::{
     ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Encumbrance,
-    EncumbranceStatus, PriceFeedConfig, PrivacyMode, RJoule, RateLimitConfig, TransactionType,
-    TxHash, WalletBalance, WalletConfig, WalletError, WalletTransaction,
+    EncumbranceStatus, GAS_PER_RJOULE, PriceFeedConfig, PrivacyMode, RJ_PER_USDC, RJoule,
+    RateLimitConfig, TransactionType, TxHash, WalletBalance, WalletConfig, WalletError,
+    WalletTransaction,
 };

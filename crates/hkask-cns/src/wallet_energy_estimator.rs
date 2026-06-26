@@ -23,7 +23,7 @@ pub struct WalletEnergyEstimator {
     /// The underlying composite estimator (inference → token-based, others → table).
     inner: CompositeEnergyEstimator,
     /// Conversion rate: how many gas units equal 1 rJoule.
-    /// Default: 1000 gas = 1 rJ.
+    /// Default: 250_000 gas = 1 rJ.
     pub gas_per_rjoule: u64,
     /// Exponential moving average (EMA) alpha for calibration smoothing.
     /// Default: 0.1 — each observation contributes 10% to the moving average.
@@ -118,38 +118,38 @@ impl EnergyEstimator for WalletEnergyEstimator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hkask_wallet::GAS_PER_RJOULE;
 
     #[test]
     fn calibrate_first_observation_initializes_ema() {
-        let mut estimator = WalletEnergyEstimator::new(1000);
+        let mut estimator = WalletEnergyEstimator::new(GAS_PER_RJOULE);
         assert_eq!(estimator.current_ratio(), 1.0);
 
-        // First observation: actual = 1500, estimated = 1000 → ratio = 1.5
+        // First observation: ratio = 1.5
         let adjusted = estimator.calibrate(1.5);
         assert!(adjusted, "ratio 1.5 exceeds 20% tolerance");
         assert_eq!(estimator.current_ratio(), 1.5);
-        // gas_per_rjoule should be scaled: 1000 * 1.5 = 1500
-        assert_eq!(estimator.gas_per_rjoule, 1500);
+        // gas_per_rjoule should be scaled: GAS_PER_RJOULE * 1.5
+        assert_eq!(estimator.gas_per_rjoule, GAS_PER_RJOULE * 3 / 2);
     }
 
     #[test]
     fn calibrate_within_tolerance_no_adjustment() {
-        let mut estimator = WalletEnergyEstimator::new(1000);
+        let mut estimator = WalletEnergyEstimator::new(GAS_PER_RJOULE);
         // Ratio 1.1 is within ±20% tolerance
         let adjusted = estimator.calibrate(1.1);
         assert!(!adjusted, "ratio 1.1 is within 20% tolerance");
-        assert_eq!(estimator.gas_per_rjoule, 1000, "rate unchanged");
+        assert_eq!(estimator.gas_per_rjoule, GAS_PER_RJOULE, "rate unchanged");
     }
 
     #[test]
     fn calibrate_ema_smooths_observations() {
-        let mut estimator = WalletEnergyEstimator::new(1000);
-        // First: ratio 2.0 → EMA = 2.0, rate = 2000
+        let mut estimator = WalletEnergyEstimator::new(GAS_PER_RJOULE);
+        // First: ratio 2.0 → EMA = 2.0, rate = GAS_PER_RJOULE * 2
         estimator.calibrate(2.0);
-        assert_eq!(estimator.gas_per_rjoule, 2000);
+        assert_eq!(estimator.gas_per_rjoule, GAS_PER_RJOULE * 2);
 
         // Second: ratio 1.0 → EMA = 0.1*1.0 + 0.9*2.0 = 1.9
-        // 1.9 still exceeds tolerance → rate = 2000 * 1.9 = 3800
         estimator.calibrate(1.0);
         let expected_ema = 0.1 * 1.0 + 0.9 * 2.0; // 1.9
         assert!((estimator.current_ratio() - expected_ema).abs() < 0.001);
@@ -157,13 +157,13 @@ mod tests {
 
     #[test]
     fn calibrate_clamps_extreme_ratios() {
-        let mut estimator = WalletEnergyEstimator::new(1000);
+        let mut estimator = WalletEnergyEstimator::new(GAS_PER_RJOULE);
         // Ratio 0.001 → clamped to 0.1
         estimator.calibrate(0.001);
         assert_eq!(estimator.current_ratio(), 0.1);
 
         // Ratio 100.0 → clamped to 10.0
-        let mut estimator2 = WalletEnergyEstimator::new(1000);
+        let mut estimator2 = WalletEnergyEstimator::new(GAS_PER_RJOULE);
         estimator2.calibrate(100.0);
         assert_eq!(estimator2.current_ratio(), 10.0);
     }

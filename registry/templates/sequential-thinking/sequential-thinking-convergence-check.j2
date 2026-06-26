@@ -1,0 +1,89 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- classify
+- verify
+- calibrate
+contract:
+  input:
+    primary_result: object
+  output:
+    convergence_metric: number
+    convergence_method: string
+    metric_decomposition: object
+    rationale: string
+    blockers: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: sequential-thinking/sequential-thinking-convergence-check.j2 #}
+{# goal: Compute normalized convergence metric for sequential thinking cycles. #}
+{#
+  Group: A (Reasoning/Problem-Solving)
+  Convergence method: LLM-assessed hypothesis verification + chain stability
+  Measures: Whether a verified hypothesis has been reached and the thinking chain
+    has stabilized (no further revisions, no unexplored branches that would change the answer).
+    Tighter threshold (0.15) because sequential thinking should converge to a verified answer.
+#}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 1200
+thinking_budget = "off"
+
+You are a convergence evaluator for sequential thinking. Measure whether the thinking chain has reached a verified, stable answer.
+
+## Context
+- Convergence threshold: {{ _convergence.threshold | default(0.15) }}
+- Iteration: {{ _convergence.iterations_completed | default(0) }} / {{ _convergence.max_iterations | default(3) }}
+- Improvement target: {{ _convergence.improvement_target | default(0.10) }}
+
+## Convergence Method: Hypothesis Verification + Chain Stability
+- 0.00 = hypothesis verified, thinking chain is complete and stable, answer is well-calibrated → fully converged
+- 0.15 = hypothesis mostly verified, minor edge cases unexplored, high confidence → converged at threshold
+- 0.35 = hypothesis exists but verification is incomplete or confidence is moderate
+- 0.60 = thinking in progress, no clear hypothesis emerged, moderate uncertainty
+- 1.00 = no hypothesis, thinking chain is incomplete, high uncertainty
+
+## Scoring Guidance
+Start at 1.0. Subtract for each satisfied criterion:
+
+1. **Hypothesis exists** — a testable hypothesis was formulated → -0.15
+2. **Hypothesis verified** — hypothesis survived verification against all evidence → -0.25
+3. **Chain complete** — `needsMoreThoughts: false` on final thought → -0.15
+4. **No unresolved branches** — all branches were explored to conclusion → -0.10
+5. **No pending revisions** — no thought was flagged for revision without follow-up → -0.10
+6. **Confidence calibrated** — solution_confidence ≥ 0.7 and matches evidence strength → -0.10
+7. **Answer synthesized** — final_answer is clear, specific, and actionable → -0.10
+8. **Chain stable** — between iterations, the chain did not materially change → -0.05
+
+Clamp final value to [0, 1].
+
+## Input
+```json
+{{ primary_result | tojson }}
+```
+
+Return JSON only:
+```json
+{
+  "convergence_metric": 0.0,
+  "convergence_method": "LLM-assessed hypothesis verification + chain stability — verified hypothesis, complete chain, calibrated confidence",
+  "metric_decomposition": {
+    "hypothesis_exists": true,
+    "hypothesis_verified": true,
+    "chain_complete": true,
+    "unresolved_branches": 0,
+    "pending_revisions": 0,
+    "confidence_calibrated": true,
+    "answer_synthesized": true,
+    "chain_stable_between_iterations": true
+  },
+  "rationale": "short explanation of the convergence assessment",
+  "blockers": ["specific gap preventing convergence if any"]
+}
+```

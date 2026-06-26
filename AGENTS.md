@@ -6,7 +6,7 @@
 
 ## Capability Catalog
 
-Activate via `skill` tool when conditions are met. **47 total** — **43 Skills** (PDCA FlowDef loops with quality threshold + energy budget), **2 Templates** (one-shot, no registry manifest), **1 Bundle** (composition-only, non-PDCA), **1 Legacy** (v0.21.4, pending upgrade).
+**48 total** — **44 Skills** (PDCA FlowDef loops with quality threshold + energy budget), **2 Templates** (one-shot, no registry manifest), **1 Bundle** (composition-only, non-PDCA), **1 Legacy** (v0.21.4, pending upgrade).
 
 | Type | Invocation | Behavior | Exit |
 |------|-----------|----------|------|
@@ -47,6 +47,7 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 | **review** | **Skill** | Self-critique output for contradictions, unsupported claims, logical gaps. |
 | **grill-me** | **Skill** | Socratic questioning to stress-test understanding. Probes knowledge gaps. |
 | **zoom-out** | **Skill** | Broader context or higher-level perspective on unfamiliar code. |
+| **sequential-thinking** | **Skill** | Dynamic, reflective chain-of-thought with branching, revision, hypothesis generation, and verification. Use when analyzing complex problems, debugging, or planning. |
 
 ### Kata & Coaching
 

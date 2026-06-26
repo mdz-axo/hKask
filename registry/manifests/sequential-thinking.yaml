@@ -1,0 +1,113 @@
+# Sequential Thinking Process Manifest
+# ℏKask v0.31.0 — Dynamic sequential reasoning as convergent PDCA
+
+manifest:
+  id: sequential-thinking
+  name: Sequential Thinking
+  description: >
+    Convergent sequential thinking process. Runs a dynamic, reflective
+    chain-of-thought loop with branching, revision, hypothesis generation,
+    and verification. Computes convergence and iterates until a verified
+    answer is reached.
+  functional_role: flowdef
+  version: 0.31.0
+  editor: curator-or-human-admin
+  visibility: Public
+
+convergence:
+  threshold: 0.15
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 3
+  min_iterations: 1
+  convergence_field: step_2_result.convergence_metric
+  on_not_reached: escalate
+
+gas:
+  cap: 100000
+  cost_per_iteration: 100
+  alert_threshold: 0.8
+  hard_limit: true
+
+rjoule:
+  cap: 1
+  cost_per_token: 0.000002
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: problem
+    type: string
+    required: true
+  - name: domain
+    type: string
+    required: false
+  - name: constraints
+    type: array
+    required: false
+  - name: max_thoughts
+    type: integer
+    required: false
+  - name: thinking_budget
+    type: string
+    required: false
+
+steps:
+  - ordinal: 1
+    action: select
+    description: >
+      Execute the sequential thinking engine: generate, branch, revise,
+      hypothesize, and verify thoughts until a verified answer emerges.
+    renderer: minijinja
+    template_ref: sequential-thinking/sequential-thinking-engine
+    gas_cap: 9000
+    timeout_seconds: 90
+    input_mapping:
+      problem: "{{ problem }}"
+      domain: "{{ domain | default('') }}"
+      constraints: "{{ constraints | default([]) }}"
+      max_thoughts: "{{ max_thoughts | default(12) }}"
+      thinking_budget: "{{ thinking_budget | default('full') }}"
+      prior_chain: "{{ step_1_result.thought_chain | default([]) }}"
+
+  - ordinal: 2
+    action: select
+    description: Compute normalized convergence metric for sequential thinking cycle.
+    renderer: minijinja
+    template_ref: sequential-thinking/sequential-thinking-convergence-check
+    gas_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      primary_result: "{{ step_1_result }}"
+
+  - ordinal: 3
+    action: loop
+    description: Re-enter sequential thinking cycle if convergence is not met.
+    input_mapping:
+      loop_target: 1
+
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout: retry
+  max_retries: 1
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: sequential-thinking/sequential-thinking-engine
+      gas_budget: 9000
+    - resource: template
+      action: render
+      template_id: sequential-thinking/sequential-thinking-convergence-check
+      gas_budget: 2000
+    - resource: manifest
+      action: execute
+      template_id: sequential-thinking
+      gas_budget: 1000
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true

@@ -201,6 +201,17 @@ pub(super) fn init_repl_state(
         }
     }
 
+    // P12: Replicant Host Mandate — propagate the signed-in replicant name
+    // globally so ALL MCP server paths (core auto-start, /mcp start, /mcp start
+    // all) inherit the correct owner identity. Child processes read
+    // HKASK_REPLICANT at startup; without this, every non-core MCP server
+    // defaults to "anonymous". Set globally alongside HKASK_PROJECT_ROOT
+    // so it covers both auto-start and user-initiated server launches.
+    // SAFETY: REPL init runs single-threaded before tokio runtime starts.
+    unsafe {
+        std::env::set_var("HKASK_REPLICANT", &onboarding_outcome.signed_in_agent);
+    }
+
     // P2: Affirmative Consent — specialized servers require explicit opt-in.
     // But the autonomous nervous system auto-starts: these 9 servers form the
     // agent's sensory (read, search, research), model (memory, condenser),
@@ -233,8 +244,20 @@ pub(super) fn init_repl_state(
         ];
         let mut started = 0u32;
         let mut failed = Vec::new();
+        // P12: Replicant Host Mandate — every action has an accountable host
+        // identity. Pass the signed-in replicant name to every MCP server so
+        // CNS spans, per-agent databases, and memory encoding carry the
+        // correct owner WebID rather than defaulting to "anonymous".
+        let mut core_env = std::collections::HashMap::new();
+        core_env.insert(
+            "HKASK_REPLICANT".to_string(),
+            onboarding_outcome.signed_in_agent.clone(),
+        );
         for (server_id, binary) in core_servers {
-            match mcp_runtime.start_server(server_id, binary).await {
+            match mcp_runtime
+                .start_server_with_env(server_id, binary, core_env.clone())
+                .await
+            {
                 Ok(()) => started += 1,
                 Err(e) => {
                     failed.push(((*server_id).to_string(), e.to_string()));

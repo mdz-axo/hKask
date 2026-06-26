@@ -281,6 +281,7 @@ fn hkdf_expand(seed: &[u8], info: &[u8]) -> Result<Vec<u8>, WalletError> {
 mod tests {
     use super::*;
     use crate::ApiKeyIssuer;
+    use crate::GAS_PER_RJOULE;
     use crate::chain::DepositEvent;
     use crate::price_feed::StaticPriceFeed;
     use hkask_storage::database::in_memory_db;
@@ -355,8 +356,8 @@ mod tests {
     #[test]
     fn gas_to_rjoules_conversion() {
         let mgr = make_manager();
-        assert_eq!(mgr.gas_to_rjoules(1000), RJoule::new(1));
-        assert_eq!(mgr.gas_to_rjoules(500), RJoule::new(1)); // rounds up
+        assert_eq!(mgr.gas_to_rjoules(GAS_PER_RJOULE), RJoule::new(1));
+        assert_eq!(mgr.gas_to_rjoules(GAS_PER_RJOULE / 2), RJoule::new(1)); // rounds up
         assert_eq!(mgr.gas_to_rjoules(0), RJoule::ZERO);
     }
 
@@ -364,8 +365,8 @@ mod tests {
     #[test]
     fn rjoules_to_gas_conversion() {
         let mgr = make_manager();
-        assert_eq!(mgr.rjoules_to_gas(RJoule::new(1)), 1000);
-        assert_eq!(mgr.rjoules_to_gas(RJoule::new(5)), 5000);
+        assert_eq!(mgr.rjoules_to_gas(RJoule::new(1)), GAS_PER_RJOULE);
+        assert_eq!(mgr.rjoules_to_gas(RJoule::new(5)), 5 * GAS_PER_RJOULE);
     }
 
     /// expect: "I can estimate withdrawal fees before initiating a withdrawal"

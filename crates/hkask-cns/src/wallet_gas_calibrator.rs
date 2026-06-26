@@ -233,6 +233,7 @@ mod tests {
     use hkask_types::NuEventSink;
     use hkask_types::WebID;
     use hkask_types::event::{NuEvent, Phase, Span, SpanKind};
+    use hkask_wallet::GAS_PER_RJOULE;
     use std::sync::Mutex;
 
     /// A test event sink that captures the last persisted event.
@@ -300,7 +301,7 @@ mod tests {
     async fn calibrate_updates_wallet_manager_rate() {
         let agent = WebID::new();
         let wallet_manager = make_wallet_manager();
-        assert_eq!(wallet_manager.gas_per_rjoule(), 1000);
+        assert_eq!(wallet_manager.gas_per_rjoule(), GAS_PER_RJOULE);
 
         let db = in_memory_db();
         let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
@@ -316,8 +317,8 @@ mod tests {
         assert!(adjusted, "ratio 2.0 should adjust rate");
         assert_eq!(
             wallet_manager.gas_per_rjoule(),
-            2000,
-            "rate should double from 1000 to 2000"
+            GAS_PER_RJOULE * 2,
+            "rate should double"
         );
     }
 
@@ -350,7 +351,7 @@ mod tests {
                 .observation
                 .get("gas_per_rjoule")
                 .and_then(|v| v.as_u64()),
-            Some(2000)
+            Some(GAS_PER_RJOULE * 2)
         );
     }
 
@@ -385,7 +386,7 @@ mod tests {
         ));
         let adjusted = calibrator.calibrate().await.unwrap();
         assert!(!adjusted);
-        assert_eq!(wallet_manager.gas_per_rjoule(), 1000);
+        assert_eq!(wallet_manager.gas_per_rjoule(), GAS_PER_RJOULE);
     }
 
     #[test]
@@ -397,6 +398,6 @@ mod tests {
         let _calibrator = WalletGasCalibrator::new(Arc::clone(&store), Arc::clone(&wallet_manager))
             .with_initial_lookback(ChronoDuration::minutes(30));
         // Construction succeeds; internal state is not directly observable.
-        assert_eq!(wallet_manager.gas_per_rjoule(), 1000);
+        assert_eq!(wallet_manager.gas_per_rjoule(), GAS_PER_RJOULE);
     }
 }

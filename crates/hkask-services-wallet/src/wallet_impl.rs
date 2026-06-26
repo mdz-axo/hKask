@@ -24,6 +24,8 @@ use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::id::{ApiKeyId, WalletId};
 #[cfg(test)]
+use hkask_wallet::GAS_PER_RJOULE;
+#[cfg(test)]
 use hkask_wallet::price_feed::StaticPriceFeed;
 use hkask_wallet::{
     ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, PrivacyMode,
@@ -854,17 +856,17 @@ mod tests {
     #[test]
     fn gas_to_rjoules_conversion() {
         let svc = make_service();
-        // Default gas_per_rjoule = 1000
+        // Default gas_per_rjoule = GAS_PER_RJOULE
         assert_eq!(svc.gas_to_rjoules(0).as_u64(), 0);
-        assert_eq!(svc.gas_to_rjoules(500).as_u64(), 1); // rounds up
-        assert_eq!(svc.gas_to_rjoules(2000).as_u64(), 2);
+        assert_eq!(svc.gas_to_rjoules(GAS_PER_RJOULE / 2).as_u64(), 1); // rounds up
+        assert_eq!(svc.gas_to_rjoules(GAS_PER_RJOULE * 2).as_u64(), 2);
     }
 
     #[test]
     fn rjoules_to_gas_conversion() {
         let svc = make_service();
         assert_eq!(svc.rjoules_to_gas(RJoule::new(0)), 0);
-        assert_eq!(svc.rjoules_to_gas(RJoule::new(5)), 5000);
+        assert_eq!(svc.rjoules_to_gas(RJoule::new(5)), 5 * GAS_PER_RJOULE);
     }
 
     #[tokio::test]

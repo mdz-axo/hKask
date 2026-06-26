@@ -21,6 +21,7 @@ use hkask_tui::bridges::{
     training::{AdapterSummary, DeploymentSummary, TrainingDataBridge},
     wallet::{WalletDataBridge, WalletTxSummary},
 };
+use hkask_wallet::GAS_PER_RJOULE;
 
 use crate::repl::TuiReplBridge;
 
@@ -175,7 +176,7 @@ impl WalletDataBridge for TuiReplBridge {
     }
 
     fn gas_per_rjoule(&self) -> u64 {
-        1000
+        GAS_PER_RJOULE
     }
 
     fn transaction_count(&self) -> u64 {
