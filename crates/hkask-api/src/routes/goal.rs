@@ -1,18 +1,22 @@
-//! Goal coordination routes — delegates to GoalService.
+//! Goal coordination routes — direct calls to goal repository.
+//! Formerly delegated to GoalService (removed v0.31.0 per P5).
 
 use axum::extract::Extension;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
 use axum::{Json, extract::Path, extract::Query, extract::State};
+use hkask_services_core::{Goal, GoalState};
+use hkask_types::visibility::Visibility;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiState;
-use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
 
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  none
-/// post: returns OpenApi`Router<ApiState>` with goal routes registered
+/// post: returns OpenApiRouter<ApiState> with goal routes registered
 pub fn goal_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_goals))
@@ -21,55 +25,31 @@ pub fn goal_router() -> OpenApiRouter<ApiState> {
 }
 
 /// Create goal request — P4 OCAP-gated goal creation.
-///
-/// Visibility defaults to "private" when omitted. See P11 (Digital Public/Private
-/// Sphere) for the visibility taxonomy.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct CreateGoalRequest {
-    /// Goal description text
     pub text: String,
     /// Visibility: "private" or "shared" (defaults to "private")
     pub visibility: Option<String>,
 }
 
 /// Set goal state request — state machine transition.
-///
-/// Legal states: "active", "completed", "abandoned".
-/// Legal transitions: active→completed, active→abandoned.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct SetGoalStateRequest {
-    /// Target state: "active", "completed", or "abandoned"
     pub state: String,
 }
 
 /// Goal response — reflects current goal state and visibility (P4, P11).
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct GoalResponse {
-    /// Unique goal identifier
     pub id: String,
-    /// Goal description text
     pub text: String,
-    /// Current state: "active", "completed", or "abandoned"
     pub state: String,
-    /// Visibility: "private" or "shared"
     pub visibility: String,
-}
-
-impl From<hkask_services::GoalResponse> for GoalResponse {
-    fn from(g: hkask_services::GoalResponse) -> Self {
-        Self {
-            id: g.id,
-            text: g.text,
-            state: g.state,
-            visibility: g.visibility,
-        }
-    }
 }
 
 /// Goal list response.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct GoalListResponse {
-    /// Goals for the authenticated agent
     pub goals: Vec<GoalResponse>,
 }
 
@@ -88,14 +68,32 @@ pub(crate) async fn create_goal(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreateGoalRequest>,
-) -> Result<Json<GoalResponse>, ServiceErrorResponse> {
-    let svc_req = hkask_services::CreateGoalRequest {
-        text: req.text,
-        visibility: req.visibility.unwrap_or_else(|| "private".into()),
-        owner: auth.webid,
+) -> impl IntoResponse {
+    let vis = match Visibility::parse_str(&req.visibility.unwrap_or_else(|| "private".into())) {
+        Some(v) => v,
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "Invalid visibility"})),
+            )
+                .into_response();
+        }
     };
-    let goal = hkask_services::GoalService::create_goal(&state.agent_service, svc_req)?;
-    Ok(Json(goal.into()))
+    let repo = state.agent_service.goal_repo();
+    match repo.create_goal(&auth.webid, &req.text, vis) {
+        Ok(goal) => Json(GoalResponse {
+            id: goal.id.to_string(),
+            text: goal.text,
+            state: goal.state.as_str().to_string(),
+            visibility: goal.visibility.as_str().to_string(),
+        })
+        .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        )
+            .into_response(),
+    }
 }
 
 /// List all goals for the authenticated agent, optionally filtered by state.
@@ -113,13 +111,41 @@ pub(crate) async fn list_goals(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
-) -> Result<Json<GoalListResponse>, ServiceErrorResponse> {
+) -> impl IntoResponse {
     let state_filter = params.get("state").map(|s| s.as_str());
-    let goals =
-        hkask_services::GoalService::list_goals(&state.agent_service, &auth.webid, state_filter)?;
-    Ok(Json(GoalListResponse {
-        goals: goals.into_iter().map(|g| g.into()).collect(),
-    }))
+    let filter = match state_filter {
+        Some(s) => match GoalState::parse_str(s) {
+            Some(gs) => Some(gs),
+            None => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({"error": format!("Invalid state filter: {s}")})),
+                )
+                    .into_response();
+            }
+        },
+        None => None,
+    };
+    let repo = state.agent_service.goal_repo();
+    match repo.list_goals(&auth.webid, filter) {
+        Ok(goals) => Json(GoalListResponse {
+            goals: goals
+                .into_iter()
+                .map(|g| GoalResponse {
+                    id: g.id.to_string(),
+                    text: g.text,
+                    state: g.state.as_str().to_string(),
+                    visibility: g.visibility.as_str().to_string(),
+                })
+                .collect(),
+        })
+        .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        )
+            .into_response(),
+    }
 }
 
 /// Transition a goal to a new state (legal transitions only).
@@ -140,12 +166,82 @@ pub(crate) async fn set_goal_state(
     Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(req): Json<SetGoalStateRequest>,
-) -> Result<Json<GoalResponse>, ServiceErrorResponse> {
-    let goal = hkask_services::GoalService::set_goal_state(
-        &state.agent_service,
-        &id,
-        &req.state,
-        &auth.webid,
-    )?;
-    Ok(Json(goal.into()))
+) -> impl IntoResponse {
+    let goal_id: hkask_types::id::GoalID = match id.parse() {
+        Ok(gid) => gid,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": format!("Invalid goal ID: {id}")})),
+            )
+                .into_response();
+        }
+    };
+    let new_state = match GoalState::parse_str(&req.state) {
+        Some(s) => s,
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": format!("Invalid state: {}", req.state)})),
+            )
+                .into_response();
+        }
+    };
+    let repo = state.agent_service.goal_repo();
+
+    let goal = match repo.get_goal(goal_id) {
+        Ok(Some(g)) => g,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({"error": format!("Goal not found: {id}")})),
+            )
+                .into_response();
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response();
+        }
+    };
+
+    // Ownership check
+    if goal.webid != auth.webid {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Not authorized to transition this goal"})),
+        )
+            .into_response();
+    }
+
+    match repo.update_goal_state(goal_id, new_state) {
+        Ok(()) => {
+            // Curation inbox notification
+            if let Some(tx) = state.agent_service.curation_inbox_tx() {
+                let event = hkask_cns::types::loops::CurationInput::GoalTransition(
+                    hkask_cns::types::loops::GoalTransitionEvent {
+                        goal_id: goal_id.to_string(),
+                        from_state: goal.state.as_str().to_string(),
+                        to_state: new_state.as_str().to_string(),
+                        agent: auth.webid.clone(),
+                    },
+                );
+                let _ = tx.send(event);
+            }
+            Json(GoalResponse {
+                id: goal_id.to_string(),
+                text: goal.text,
+                state: new_state.as_str().to_string(),
+                visibility: goal.visibility.as_str().to_string(),
+            })
+            .into_response()
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        )
+            .into_response(),
+    }
 }

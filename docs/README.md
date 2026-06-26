@@ -145,7 +145,6 @@ Documents are classified by **verification regime**, reflecting different audien
 | [`skill-composition-guide.md`](user-guides/skill-composition-guide.md) | Skill composition — bundling and cascade ordering |
 | [`lora-adapter-store-guide.md`](user-guides/lora-adapter-store-guide.md) | LoRA adapter store — lifecycle, routing, deployment |
 | [`COMPANIES-GUIDE.md`](user-guides/COMPANIES-GUIDE.md) | Company research and portfolio management |
-| [`dokkodo-user-guide.md`](user-guides/dokkodo-user-guide.md) | Dokkodo mindset — perceptual filter application |
 | [`ACP-ZED-CONFIGURATION.md`](user-guides/ACP-ZED-CONFIGURATION.md) | ACP IDE agent configuration |
 
 ---

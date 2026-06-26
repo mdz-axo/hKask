@@ -3,12 +3,14 @@
 
 crate:
   name: pragmatic-semantics
-  version: "0.30.0"
+  version: "0.31.0"
   description: >
-    Epistemic discipline for classifying statements by certainty level
-    and constraint force. Distinguish IS from OUGHT, declarative from
-    probabilistic from subjunctive. Classify provenance of facts.
-    Resolve conflicts using OT ranking.
+    Epistemic discipline for classifying statements by certainty level,
+    constraint force, and domain ontology anchoring. Distinguish IS from
+    OUGHT, declarative from probabilistic from subjunctive. Classify
+    provenance of facts and their ontology tier (Core / Dual-Axis /
+    Domain Supplement). Resolve conflicts using OT ranking with
+    ontology anchoring.
 
 templates:
   - id: pragmatic-semantics/semantics-classify-statement
@@ -16,24 +18,27 @@ templates:
     type: KnowAct
     lexicon_terms: [classify, discriminate, evaluate, orient, specify]
     description: >
-      Classify a statement on both ontological (IS/OUGHT) and epistemic
-      (declarative/probabilistic/subjunctive) axes. Determine its
-      constraint force and provenance.
+      Classify a statement on three axes: ontological (IS/OUGHT),
+      epistemic (declarative/probabilistic/subjunctive), and domain
+      ontology anchoring (core/dual_axis/domain_supplement). Determine
+      its constraint force, provenance, and confidence with tier-specific
+      modifiers.
 
   - id: pragmatic-semantics/semantics-provenance-trace
     path: semantics-provenance-trace.j2
     type: KnowAct
     lexicon_terms: [trace, detect, assess, verify, evaluate]
     description: >
-      Trace the provenance of a claim through hKask's data layers.
-      Identify evidence sources, confidence level, and verification
-      recommendations.
+      Trace the provenance of a claim through hKask's data layers
+      including ontology tier confidence modifiers. Identify evidence
+      sources, confidence level, and verification recommendations.
 
   - id: pragmatic-semantics/semantics-conflict-resolve
     path: semantics-conflict-resolve.j2
     type: KnowAct
     lexicon_terms: [discriminate, rank, resolve, regulate, orient]
     description: >
-      Resolve a conflict between statements using OT ranking.
+      Resolve a conflict between statements using 5-tier OT ranking.
       Rank by ontological type, epistemic mode, constraint force,
-      and evidence provenance.
+      evidence provenance, and ontology anchoring (FIBO > CogAT >
+      unanchored).

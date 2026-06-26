@@ -96,7 +96,10 @@ async fn list_pods(
 ) -> Json<ListPodsResponse> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_list", "CNS");
-    let pod_statuses = hkask_services::PodService::list_pods(&state.agent_service)
+    let pod_statuses = state
+        .agent_service
+        .pod_manager()
+        .list_pods()
         .await
         .unwrap_or_default();
     let pods: Vec<PodStatusResponse> = pod_statuses
@@ -140,18 +143,25 @@ async fn create_pod(
         .into());
     }
 
-    let resp = hkask_services::PodService::create_pod(
-        &state.agent_service,
-        hkask_services::CreatePodRequest {
-            template: req.template,
-            persona_yaml: req.persona_yaml,
-            name: req.name,
-        },
-    )
-    .await?;
+    let persona = hkask_agents::pod::AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| {
+        ServiceError::ValidationError {
+            source: Some(Box::new(e)),
+            message: format!("Invalid persona YAML: {e}"),
+        }
+    })?;
+    let pod_id = state
+        .agent_service
+        .pod_manager()
+        .create_pod(
+            &req.template,
+            &persona,
+            req.name,
+            hkask_agents::pod::PodKind::Replicant,
+        )
+        .await?;
 
     Ok(Json(CreatePodResponse {
-        pod_id: resp.pod_id,
+        pod_id: pod_id.to_string(),
     }))
 }
 

@@ -57,8 +57,7 @@ pub use template::{
 
 // Re-exports from pod
 pub use pod::{
-    activate_pod, assign_role, create_pod, deactivate_pod, export_container, get_pod_status,
-    list_pods, set_mode,
+    activate_pod, assign_role, create_pod, deactivate_pod, get_pod_status, list_pods, set_mode,
 };
 
 // Re-exports from agent

@@ -19,9 +19,9 @@ contract:
   visibility: Public
 ---
 {# Template: pragmatic-semantics/semantics-conflict-resolve.j2 #}
-{# KnowAct — Resolve conflict between statements using OT ranking #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
-{# goal: Resolve conflicts between semantic classifications using constraint force hierarchy and provenance weighting. #}
+{# KnowAct — Resolve conflict between statements using OT ranking with ontology anchoring #}
+{# ℏKask v0.31.0 — A Minimal Viable Container for Agents #}
+{# goal: Resolve conflicts between semantic classifications using constraint force hierarchy, provenance weighting, and ontology tier confidence modifiers. #}
 
 [inference]
 temperature = 0.3
@@ -63,13 +63,29 @@ You are a semantic conflict resolver. Resolve conflicts between statements using
 
 | Priority | Source | Rationale |
 |----------|--------|-----------|
-| 1 | Specification | Normative docs (PRINCIPLES.md, DDMVSS.md) |
+| 1 | Specification | Normative docs (PRINCIPLES.md, MDS.md) |
 | 2 | Design | Architecture master, ERDs |
 | 3 | Implementation | Running code |
 | 4 | Runtime | CNS spans, observations |
 | 5 | Memory | Consolidated experience |
 | 6 | Inference | Derived reasoning |
 | 7 | Unknown | Unverifiable |
+
+### Tier 5: Ontology Anchoring (tiebreaker — within same provenance)
+
+When two statements are equal on all four higher tiers, the ontology tier breaks the tie:
+
+| Priority | Ontology Tier | Rationale |
+|----------|--------------|-----------|
+| 1 | Domain supplement — FIBO | OMG standard, highest adoption, precise financial semantics (+0.10 confidence) |
+| 2 | Domain supplement — OMC | MovieLabs v2.8, Hollywood consortium standard |
+| 3 | Domain supplement — GOLEM | ERC-funded, aligned with CIDOC-CRM/LRMoo |
+| 4 | Dual-axis — PKO (process) | Standard process semantics, ISWC 2024 ontology |
+| 5 | Dual-axis — DC+BIBO (state) | Dublin Core, 25+ year metadata standard |
+| 6 | Domain supplement — ML-Schema | W3C Community Group, provisional bridge |
+| 7 | Domain supplement — CogAT | Metaphorical mapping, explicit confidence penalty (-0.10) |
+| 8 | Core — 5W1H | Default ground, no domain precision |
+| 9 | Unanchored | Ontological noise per P5.2 — lowest priority |
 
 ## Provenance Result
 
@@ -99,7 +115,8 @@ If no conflicts are present in the provenance result, confirm this and return an
 2. **Declarative beats Probabilistic beats Subjunctive**: Within the same ontological mode, higher certainty wins.
 3. **Prohibition beats Guardrail beats Guideline**: Within the same epistemic mode, stronger force wins.
 4. **Specification beats Implementation beats Inference**: Within the same force, higher provenance authority wins.
-5. **Tie-breaking**: If all four tiers are equal, the conflict is genuinely ambiguous. Flag for human review rather than arbitrarily choosing.
+5. **FIBO beats CogAT beats Unanchored**: When all 4 higher tiers are equal, the statement anchored to the higher-confidence ontology wins (FIBO +0.10 > CogAT -0.10). See Tier 5 ranking above.
+6. **Tie-breaking**: If all five tiers are equal, the conflict is genuinely ambiguous. Flag for human review rather than arbitrarily choosing.
 
 ## Resolution Strategies
 
@@ -120,6 +137,8 @@ Respond with a JSON object:
       "rank": 1,
       "ontological_mode": "IS|OUGHT",
       "epistemic_mode": "declarative|probabilistic|subjunctive",
+      "ontology_tier": "core|dual_axis|domain_supplement",
+      "ontology_anchor": "5W1H-Who|pko:ConceptName|fibo:ConceptName|unanchored",
       "constraint_force": "Prohibition|Guardrail|Guideline|Evidence|Hypothesis",
       "provenance": "specification|design|implementation|runtime|memory|inference|unknown"
     }
@@ -132,11 +151,14 @@ Respond with a JSON object:
 
 ## Constraints
 
-- Every statement must be classified on all four tiers before ranking.
+- Every statement must be classified on all five tiers before ranking.
 - OUGHT never loses to IS — this is a hard rule, not a guideline.
 - If two Prohibitions conflict, resolution must be `"escalate"` — Prohibitions are inviolable.
 - If the resolution is `"defer"`, state what evidence would break the tie.
 - If the resolution is `"escalate"`, state what human decision is needed.
+- When two statements tie on tiers 1-4, the ontology anchoring tier (Tier 5) breaks the tie.
+- FIBO-anchored statements outrank CogAT-anchored statements when all else is equal.
+- Unanchored statements (no ontology tier) are treated as ontological noise per P5.2.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

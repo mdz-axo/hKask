@@ -39,7 +39,7 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 
 | Name | Type | When to Activate |
 |------|------|-----------------|
-| **pragmatic-semantics** | **Skill** | Classifying statements by certainty level and constraint force. Distinguish IS from OUGHT. Trace provenance, resolve conflicts via Optimality Theory ranking. |
+| **pragmatic-semantics** | **Skill** | Classifying statements by certainty level, constraint force, and domain ontology anchoring. Distinguish IS from OUGHT, apply tier-specific confidence modifiers (FIBO +0.10, CogAT -0.10). Trace provenance, resolve conflicts via 5-tier OT ranking. |
 | **pragmatic-cybernetics** | **Skill** | Cybernetic reasoning: feedback loops, variety engineering, system homeostasis. |
 | **pragmatic-laziness** | **Skill** | Procedural composition. Finds the path of least action through meaning-space. |
 | **essentialist** | **Skill** | Recursive eliminative interrogation. 3-gate challenge loop (Exist → Surface → Contract). |

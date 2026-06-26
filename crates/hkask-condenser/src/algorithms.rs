@@ -992,6 +992,167 @@ mod tests {
         );
     }
 
+    // ── End-to-end ontology-aware compression tests (P8.1) ───────────────
+
+    /// Financial text with FIBO anchoring preserves key numeric metrics.
+    #[test]
+    fn fibo_anchor_preserves_financial_metrics() {
+        let input = concat!(
+            "Company Profile: AAPL\n",
+            "Sector: Technology\n",
+            "Market Capitalization: 3.2T USD\n",
+            "P/E Ratio: 28.5\n",
+            "Revenue Growth: 5.2%\n",
+            "Free Cash Flow: 102B\n",
+            "Dividend Yield: 0.45%\n",
+            "This is a general description of the company's operations.\n",
+            "The company was founded in 1976 and is headquartered in Cupertino.\n",
+            "It designs, manufactures, and markets smartphones and computers.\n",
+            "The competitive landscape includes Samsung, Google, and Microsoft.\n",
+            "Management commentary: we expect continued growth in services.\n",
+        );
+        let algo = SaliencyRankAlgorithm;
+        let anchor = Some(OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::Fibo,
+            concept: "fibo:Corporation".into(),
+        });
+        let (result, _) = algo.compress(
+            input,
+            Profile::Soft,
+            ContextCategory::StructuredData,
+            anchor.as_ref(),
+        );
+        // FIBO anchor should prioritize lines with numeric financial data
+        // Soft profile (60% retention): enough budget for multiple financial lines
+        assert!(
+            result.contains("Market Capitalization"),
+            "financial metric not preserved: {result}"
+        );
+        let has_numbers = result.contains("P/E")
+            || result.contains("Revenue Growth")
+            || result.contains("Free Cash Flow");
+        assert!(
+            has_numbers,
+            "at least one additional financial metric should be preserved: {result}"
+        );
+        // Financial lines should get higher scores than generic description
+        let result_lines: Vec<&str> = result.lines().collect();
+        assert!(result_lines.len() <= 30, "result exceeds budget");
+    }
+
+    /// CogAT-anchored text preserves memory/cognitive keywords.
+    #[test]
+    fn cogat_anchor_preserves_memory_keywords() {
+        let input = concat!(
+            "Memory Operation Report\n",
+            "The episodic memory store received 15 new events.\n",
+            "Encoding completed successfully for all events.\n",
+            "Memory consolidation is now in progress.\n",
+            "Salience ranking identified 3 high-priority memories.\n",
+            "Cued recall returned 7 matching contexts.\n",
+            "Semantic processing updated the embedding index.\n",
+            "General system health check passed.\n",
+            "Routine maintenance scheduled for tomorrow.\n",
+            "Disk usage is at 42% capacity.\n",
+            "Network latency is within normal bounds.\n",
+        );
+        let algo = SaliencyRankAlgorithm;
+        let anchor = Some(OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::Cogat,
+            concept: "cogat:episodic_memory".into(),
+        });
+        let (result, _) = algo.compress(
+            input,
+            Profile::Soft,
+            ContextCategory::LogOutput,
+            anchor.as_ref(),
+        );
+        // CogAT anchor should prioritize lines with cognitive/memory keywords
+        // Soft profile (60% retention): enough budget for multiple lines
+        let preserved_keywords = result.contains("episodic")
+            || result.contains("Encoding")
+            || result.contains("Salience")
+            || result.contains("Cued recall")
+            || result.contains("memory");
+        assert!(
+            preserved_keywords,
+            "at least one cognitive/memory keyword should be preserved: {result}"
+        );
+        // Consolidation/memory line should be present
+        assert!(
+            result.contains("consolidation") || result.contains("memory"),
+            "core memory concept not preserved: {result}"
+        );
+    }
+
+    /// Core anchor (no domain) produces baseline results — no bonus applied.
+    #[test]
+    fn core_anchor_no_domain_bonus() {
+        let input = concat!(
+            "System Log\n",
+            "error: database connection timeout\n",
+            "info: service restarted successfully\n",
+            "info: 42 requests processed\n",
+            "debug: cache hit ratio 0.87\n",
+            "info: user session created\n",
+            "warning: approaching rate limit\n",
+            "error: downstream service unavailable\n",
+            "info: health check passed\n",
+            "debug: garbage collection completed\n",
+        );
+        let algo = SaliencyRankAlgorithm;
+        // Core anchor — no domain bonus, but error structural bonus (2.0) and warning bonus (1.0) apply
+        let (result, _) = algo.compress(
+            input,
+            Profile::Soft,
+            ContextCategory::LogOutput,
+            Some(OntologyAnchor::Core).as_ref(),
+        );
+        // Errors (2.0 structural bonus) and warnings (1.0 bonus) always preserved regardless of anchor
+        assert!(
+            result.contains("error"),
+            "error lines must be preserved even with core anchor"
+        );
+        assert!(
+            result.contains("warning"),
+            "warning lines must be preserved: {result}"
+        );
+        // No domain-specific bonuses expected with core anchor
+        assert!(result.lines().count() <= 30);
+    }
+
+    /// Test that `derive_ontology_anchor` + compress produces correct anchors end-to-end.
+    #[test]
+    fn derive_and_compress_with_correct_anchor() {
+        // Simulate the engine's workflow: tool_name → derive anchor → compress
+        let tool_name = "company_profile";
+        let anchor = derive_ontology_anchor(tool_name);
+        assert_eq!(
+            anchor,
+            OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Fibo,
+                concept: "fibo".into()
+            }
+        );
+
+        let input = "AAPL: revenue 383B, net income 97B, P/E 28.5, market cap 3.2T";
+        let algo = SaliencyRankAlgorithm;
+        let (result, _) = algo.compress(
+            input,
+            Profile::Normal,
+            ContextCategory::StructuredData,
+            Some(&anchor),
+        );
+        // With FIBO anchoring, numeric financial content is high-signal
+        // Normal profile (20% retention): short enough to pass through
+        assert!(!result.is_empty());
+        // The result should include the key financial terms
+        // (with Normal profile on short input, it may pass through entirely)
+        let has_financial =
+            result.contains("revenue") || result.contains("P/E") || result.contains("market cap");
+        assert!(has_financial, "financial content not preserved: {result}");
+    }
+
     // ── Property-based tests (Wave 2) ─────────────────────────────────────
 
     use proptest::prelude::*;

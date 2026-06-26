@@ -1332,7 +1332,7 @@ mod tests {
             "omc:Image",
         ];
 
-        let mut guard = ToolSpanGuard::new("test_tool", &hkask_types::WebID::anonymous());
+        let mut guard = ToolSpanGuard::new("test_tool", &hkask_types::WebID::new());
         for concept in pko_concepts
             .iter()
             .chain(dc_concepts.iter())

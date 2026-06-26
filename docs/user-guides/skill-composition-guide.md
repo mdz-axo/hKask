@@ -219,7 +219,7 @@ Practical effect: chains are structurally PDCA-convergent with per-domain calibr
 
 When Fusion is enabled, every inference call in a skill chain benefits from multi-model deliberation. This is particularly valuable for composed workflows:
 
-- **Perception skills** (dokkodo, pragmatic-laziness) → each panel model sees different aspects of the problem
+- **Analytic skills** (pragmatic-laziness, essentialist) -> each panel model sees different aspects of the problem
 - **Analysis skills** (mcda, superforecasting, grill-me) → consensus across models produces more calibrated outputs
 - **Executive skills** (coding-guidelines, tdd, bug-hunt) → multiple models catch issues a single model would miss
 
@@ -450,7 +450,7 @@ diagnose -> improve-codebase-architecture
 | Understand and explain code | Chain 4: Explore → Summarize → Compress |
 | Write a strategy document | Chain 5: Plan → Critique → Revise → Evaluate |
 | Frame a research question and develop a research program | Chain 6: Frame → Plan → Decide |
-| Respond to an error | Chain 9: Resilience — Accept → Stabilize → Diagnose |
+| Respond to an error | Chain 9: Resilience -- Diagnose -> Improve |
 | Manage the skill corpus | Chain 8: Skill Lifecycle |
 | Improve agent capability | `kata-starter` → `kata-improvement` → `kata-coaching` |
 | Create a logo | `logo-builder` |

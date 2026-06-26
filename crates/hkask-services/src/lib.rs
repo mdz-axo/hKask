@@ -64,6 +64,7 @@ pub use hkask_services_runtime::{
     generate_raw, load_classifier_config,
 };
 pub use hkask_services_skill::resolve_replicant_name;
+pub mod skill;
 pub use hkask_services_wallet::WalletService;
 
 // ── Remaining inline modules ───────────────────────────────────────────
@@ -77,7 +78,6 @@ pub use memory::MemoryService;
 
 pub mod cns;
 pub mod compose;
-pub mod contacts;
 pub mod curator;
 pub mod federation;
 pub mod verification;
@@ -86,10 +86,6 @@ pub use crate::verification::{
 };
 
 pub mod experience;
-pub mod goal;
-pub mod pods;
-pub mod scheduler;
-pub mod skill;
 pub mod skills;
 
 // ── Internal modules ───────────────────────────────────────────────────
@@ -107,14 +103,10 @@ pub use compose::{
     CentroidValidation, CognitionConfig, ComposeRequest, ComposeResult, ComposeService,
     EmbeddingSection, RetrievalSection, ValidationSection, cosine_distance,
 };
-pub use contacts::ContactService;
 pub use curator::{CuratorService, EscalationResponse};
 pub use federation::FederationService;
 
 pub use experience::CliExperienceRecorder;
-pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
-pub use pods::{CreatePodRequest, PodResponse, PodService, PodStatusResponse};
-pub use scheduler::SchedulerService;
 pub use skills::{
     SkillAuditError, SkillAuditReport, SkillAuditor, SkillHealthScore, SkillStatus, TemplateSummary,
 };

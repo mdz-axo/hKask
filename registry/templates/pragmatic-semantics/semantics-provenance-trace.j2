@@ -20,9 +20,9 @@ contract:
   visibility: Public
 ---
 {# Template: pragmatic-semantics/semantics-provenance-trace.j2 #}
-{# KnowAct — Trace provenance of a claim through hKask data layers #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
-{# goal: Trace the origin and evidentiary chain of a factual claim to its authoritative source. #}
+{# KnowAct — Trace provenance of a claim through hKask data layers including ontology anchoring #}
+{# ℏKask v0.31.0 — A Minimal Viable Container for Agents #}
+{# goal: Trace the origin and evidentiary chain of a factual claim to its authoritative source, including ontology tier confidence modifiers. #}
 
 [inference]
 temperature = 0.2
@@ -37,7 +37,8 @@ You are a provenance tracer. Trace a claim back through hKask's data layers to d
 
 | Layer | What Lives Here | Authority |
 |-------|-----------------|-----------|
-| **Specification** | `docs/architecture/PRINCIPLES.md`, `DDMVSS.md`, `TESTING_STANDARDS.md`, `test-program.md` | Highest — normative |
+| **Specification** | `docs/architecture/PRINCIPLES.md`, `MDS.md`, `TESTING_STANDARDS.md` | Highest — normative |
+| **Ontology tier** | Domain anchoring — FIBO (+0.10), CogAT (-0.10), GOLEM/ML-Schema/OMC (±0.00) | Confidence modifier — adjusts claim precision based on ontology adoption and mapping fidelity |
 | **Design** | `docs/architecture/hKask-architecture-master.md`, ERDs, interface specs | High — authoritative for structure |
 | **Implementation** | `crates/*/src/**/*.rs`, `Cargo.toml`, `build.rs` | Direct — what actually runs |
 | **Runtime observation** | CNS spans (`cns.*`), variety counters, algedonic alerts | Empirical — what actually happens |
