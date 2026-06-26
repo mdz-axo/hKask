@@ -155,6 +155,22 @@ Respond with a JSON object:
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).
 
+## PROHIBITION: SKILL.md ≠ Skill Invariant
+
+The canonical artifact of a skill is its FlowDef manifest (.yaml) and its executable templates (.j2).
+The SKILL.md file is a derived companion document — it teaches methodology but is NOT what the
+hKask runtime executes. Editing a SKILL.md does not change the skill's behavior.
+
+Every finding or recommendation you produce MUST cite its source from one of:
+  1. A FlowDef manifest (.yaml) field
+  2. A .j2 template's contract or inference metadata
+  3. A Rust crate's code path (grep-verifiable)
+
+Recommendations based solely on SKILL.md content without manifest/template verification
+MUST be marked with confidence: Hypothesis (Speculative) at maximum.
+Never recommend retirement based on a missing SKILL.md alone — a missing manifest or
+broken template reference is required for retirement recommendation.
+
 {% if context.safety_mode %}
 ## Safety Mode
 

@@ -462,7 +462,12 @@ documents:
     staleness_signal: none
     drift_verdict: aligned
     code_artifacts:
-      [crates/hkask-types/, crates/hkask-services/, crates/hkask-storage/, crates/hkask-adapter/]
+      [
+        crates/hkask-types/,
+        crates/hkask-services/,
+        crates/hkask-storage/,
+        crates/hkask-adapter/,
+      ]
     gaps:
       - "None — kanban, kata, and adapter domain entities added 2026-06-18 (§1.2-1.5)"
     governing_principles: [P5, P7, P8]
@@ -501,7 +506,8 @@ documents:
     mds_categories: [domain, composition, trust, lifecycle, curation]
     staleness_signal: none
     drift_verdict: aligned
-    code_artifacts: [crates/hkask-services/, crates/hkask-api/, crates/hkask-cns/]
+    code_artifacts:
+      [crates/hkask-services/, crates/hkask-api/, crates/hkask-cns/]
     governing_principles: [P3, P4, P5, P9]
     notes: "Updated 2026-06-18 with deployment domain (§3.18), ERDs (§4), goal-principle contract anchoring (§5), principle role matrix, v0.28.0."
     disposition: keep
@@ -1050,7 +1056,7 @@ documents:
     mds_categories: [lifecycle, curation]
     staleness_signal: none
     drift_verdict: na
-    notes: "THIS FILE — living inventory, updated by document-update skill."
+    notes: "THIS FILE — living inventory."
     code_artifacts: [docs/]
     disposition: keep
 

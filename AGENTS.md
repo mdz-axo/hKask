@@ -67,7 +67,6 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 | **skill-manager** | **Skill** | CRUD for the skill corpus. List, validate, build, install, and prune skills. |
 | **skill-logic-audit** | **Skill** | Adversarial audit of .j2 template logic against stated goals. |
 | **skill-bundler** | **Skill** | Orchestrate and compose multiple skills into a cohesive bundle. |
-| **document-update** | **Skill** | Documentation corpus maintenance. 7-task workflow: audit, merge, archive, portal refresh. |
 | **handoff** | **Skill** | Session handoff protocol. Captures what was done, what remains, key decisions. |
 | **condenser-continuation** | **Skill** | Resuming condenser implementation after context reset. |
 

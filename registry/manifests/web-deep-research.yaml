@@ -18,6 +18,11 @@ gas:
   alert_threshold: 0.8
   hard_limit: true
 
+rjoule:
+  cap: 1
+  alert_threshold: 0.8
+  hard_limit: true
+
 steps:
   - ordinal: 1
     action: execute
@@ -117,7 +122,7 @@ steps:
       Emit research outcome to CNS. Track variety and coverage metrics.
     renderer: null
     template_ref: null
-    mcp: null  # CNS is ambient (CnsRuntime)
+    mcp: null # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:

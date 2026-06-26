@@ -2,8 +2,8 @@
 # ℏKask v0.31.0 — Schwartz scenario planning as convergent PDCA
 
 manifest:
-  id: scenario-planning
-  name: Scenario Planning
+  id: scenario-builder
+  name: Scenario Builder
   description: >
     Convergent scenario planning process. Refines focal questions, maps forces,
     constructs scenario narratives, runs independent quality gate, extracts
@@ -172,7 +172,7 @@ ocap:
       gas_budget: 3000
     - resource: manifest
       action: execute
-      template_id: scenario-planning
+      template_id: scenario-builder
       gas_budget: 1000
   delegation_chain_required: true
   signature_algorithm: ed25519

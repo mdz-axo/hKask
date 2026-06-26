@@ -449,7 +449,6 @@ fn run_script(script_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
             ("replica", "hkask-mcp-replica"),
             ("research", "hkask-mcp-research"),
             ("skill", "hkask-mcp-skill"),
-            ("spec", "hkask-mcp-spec"),
             ("training", "hkask-mcp-training"),
         ]);
 

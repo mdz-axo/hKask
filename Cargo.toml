@@ -59,7 +59,6 @@ members = [
     "mcp-servers/hkask-mcp-companies",
     "mcp-servers/hkask-mcp-communication",
     "mcp-servers/hkask-mcp-media",
-    "mcp-servers/hkask-mcp-spec",
     "mcp-servers/hkask-mcp-memory",
     "mcp-servers/hkask-mcp-docproc",
     "mcp-servers/hkask-mcp-training",
@@ -78,7 +77,6 @@ members = [
     "mcp-servers/hkask-mcp-memory/fuzz",
     "mcp-servers/hkask-mcp-replica/fuzz",
     "mcp-servers/hkask-mcp-research/fuzz",
-    "mcp-servers/hkask-mcp-spec/fuzz",
     "mcp-servers/hkask-mcp-training/fuzz",
 ]
 

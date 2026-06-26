@@ -15,7 +15,6 @@ use hkask_mcp::runtime::McpRuntime;
 const API_SERVERS: &[(&str, &str)] = &[
     ("memory", "hkask-mcp-memory"),
     ("condenser", "hkask-mcp-condenser"),
-    ("spec", "hkask-mcp-spec"),
     ("research", "hkask-mcp-research"),
     ("companies", "hkask-mcp-companies"),
     ("communication", "hkask-mcp-communication"),

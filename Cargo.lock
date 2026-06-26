@@ -4727,49 +4727,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-spec"
-version = "0.31.0"
-dependencies = [
- "anyhow",
- "chrono",
- "dotenvy",
- "ed25519-dalek",
- "hex",
- "hkask-bridge-dublincore",
- "hkask-bridge-pko",
- "hkask-capability",
- "hkask-cns",
- "hkask-inference",
- "hkask-mcp",
- "hkask-services",
- "hkask-services-core",
- "hkask-storage",
- "hkask-test-harness",
- "hkask-types",
- "proptest",
- "rmcp",
- "rusqlite",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
- "tokio-util",
- "tracing",
-]
-
-[[package]]
-name = "hkask-mcp-spec-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-mcp",
- "hkask-mcp-spec",
- "hkask-types",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "hkask-mcp-training"
 version = "0.31.0"
 dependencies = [

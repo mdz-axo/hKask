@@ -5,7 +5,6 @@ use crate::cli::McpAction;
 const BUILTIN_SERVERS: &[(&str, &str)] = &[
     ("memory", "hkask-mcp-memory"),
     ("condenser", "hkask-mcp-condenser"),
-    ("spec", "hkask-mcp-spec"),
     ("docproc", "hkask-mcp-docproc"),
     ("training", "hkask-mcp-training"),
     ("media", "hkask-mcp-media"),

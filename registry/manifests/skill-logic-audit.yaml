@@ -1,5 +1,5 @@
 manifest:
-  id: skill-logic-audit/audit-flow
+  id: skill-logic-audit
   name: skill-logic-audit
   description: >
     Bounded dual-layer logic audit cascade for hKask templates and manifests.
@@ -7,7 +7,7 @@ manifest:
     the critique for soundness, composes a concrete revised artifact and diff,
     computes convergence, and iterates until no material flaws remain or
     the loop budget is exhausted.
-  version: "0.30.0"
+  version: "0.31.0"
   editor: hkask
   visibility: Public
   functional_role: flowdef
@@ -28,7 +28,7 @@ inputs:
     required: true
   - name: target_content
     type: string
-    description: Full content of the target artifact.
+    description: Full content of the target artifact (.j2 template or .yaml manifest). SKILL.md files are NOT valid audit targets.
     required: true
   - name: template_type
     type: string
@@ -54,7 +54,7 @@ gas:
   hard_limit: true
 
 rjoule:
-  cap: 12000
+  cap: 2
   alert_threshold: 0.8
   hard_limit: true
 

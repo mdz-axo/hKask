@@ -16,7 +16,6 @@ description: >
 delegation_level: minimal
 skills:
   - kanban
-  - document-update
 memory_scope: episodic
 
 tool_servers:

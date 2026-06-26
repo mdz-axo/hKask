@@ -25,7 +25,7 @@ pub fn settings_path() -> std::path::PathBuf {
 /// Priority: env var > settings.json > hardcoded default.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HkaskSettings {
-    /// Default generation model for prose composition (replica_compose, spec_replica_rewrite).
+    /// Default generation model for prose composition (replica_compose, replica_rewrite).
     /// Override: `HKASK_REPLICA_MODEL` env var.
     #[serde(default = "default_generation_model")]
     pub generation_model: String,

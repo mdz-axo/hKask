@@ -4,10 +4,21 @@
 manifest:
   id: inference-dispatch
   name: inference-dispatch
-  version: "0.1.0"
+  version: "0.2.0"
   description: Inference orchestration with model tier balancing
   functional_role: flowdef
   visibility: Public
+
+gas:
+  cap: 100000
+  cost_per_iteration: 100
+  alert_threshold: 0.8
+  hard_limit: true
+
+rjoule:
+  cap: 2
+  alert_threshold: 0.8
+  hard_limit: true
 
 steps:
   - ordinal: 1

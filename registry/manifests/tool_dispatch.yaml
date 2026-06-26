@@ -6,9 +6,20 @@ manifest:
   name: Tool Dispatch
   description: Dispatches tool calls via ACP/MCP with capability resolution
   functional_role: flowdef
-  version: 0.27.0
+  version: 0.28.0
   editor: curator-or-human-admin
   visibility: Public
+
+gas:
+  cap: 50000
+  cost_per_iteration: 100
+  alert_threshold: 0.8
+  hard_limit: true
+
+rjoule:
+  cap: 1
+  alert_threshold: 0.8
+  hard_limit: true
 
 steps:
   - ordinal: 1
@@ -28,3 +39,18 @@ steps:
     description: Invoke tool via MCP runtime
     template_ref: ""
     mcp: from_template_contract
+
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.tool_dispatch
+  variety_monitoring: true
+  algedonic_threshold: 100
+  spans:
+    - cns.tool.invocation
+    - cns.prompt.outcome
+    - cns.prompt.tool_dispatch.resolved_template
+  instrumentation:
+    log_dynamic_template_id: true
+    rationale: >
+      Enabled because tool_dispatch.yaml step 2 uses {{selected_template_id}}
+      for dynamic template resolution.

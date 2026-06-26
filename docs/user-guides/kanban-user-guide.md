@@ -140,8 +140,8 @@ Reusable OCAP delegation bundles for spawning:
 
 | Package | Skills | Tools | Use |
 |---------|--------|-------|-----|
-| `backend-dev` | coding-guidelines, tdd, kanban | kanban, spec, research | Backend development |
-| `docs-writer` | kanban, document-update | kanban, docproc, research | Documentation/writing |
+| `backend-dev` | coding-guidelines, tdd, kanban | kanban, research | Backend development |
+| `docs-writer` | kanban | kanban, docproc, research | Documentation/writing |
 
 ```bash
 /kanban spawn <task-id> backend-dev
