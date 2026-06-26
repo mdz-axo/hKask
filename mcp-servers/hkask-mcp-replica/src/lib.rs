@@ -343,6 +343,89 @@ impl ReplicaServer {
     }
 
     #[tool(
+        description = "Rewrite a passage or code snippet in an author's style, optimized for a specific quality dimension (gentle/schriver/hopper/lovelace/composite). Delegates to replica_compose with dimension-specific guidance."
+    )]
+    pub async fn replica_rewrite(&self, Parameters(params): Parameters<RewriteRequest>) -> String {
+        execute_tool(self, "replica_rewrite", async {
+            let dimension_guidance = match params.dimension.to_lowercase().as_str() {
+                "gentle" => {
+                    "Rewrite this text to maximize agent-correctness. Docs ARE code — ensure every statement is actionable and unambiguous. Remove any stale references or outdated information."
+                }
+                "schriver" => {
+                    "Rewrite this text for maximum findability. Use scannable headings, descriptive hyperlinks, and front-load key concepts. A reader must find their answer within 30 seconds."
+                }
+                "hopper" => {
+                    "Rewrite this text for maximum accessibility. Make it comprehensible on first reading with zero prior context. Use plain language, active voice, and short sentences."
+                }
+                "lovelace" => {
+                    "Rewrite this text for maximum precision. Make every specification independently verifiable — a reader must be able to write a test from this text alone."
+                }
+                _ => {
+                    "Rewrite this text for all four dimensions of documentation excellence: agent-correctness (Gentle), findability (Schriver), accessibility (Hopper), and precision (Lovelace)."
+                }
+            };
+
+            let prompt = format!("{dimension_guidance}\n\n=== TEXT TO REWRITE ===\n\n{}", params.content);
+
+            let centroid_ref = if params.dimension.to_lowercase() == "composite" {
+                format!("style:{}:centroid", params.author)
+            } else {
+                format!(
+                    "style:{}:{}-centroid",
+                    params.author,
+                    params.dimension.to_lowercase()
+                )
+            };
+
+            let model = embedding_model();
+            let gen_model = generation_model();
+            let inf_cfg = inference_config();
+            let config = hkask_services::CognitionConfig {
+                author: params.author.clone(),
+                jinja2_template: None,
+                embedding: hkask_services::EmbeddingSection {
+                    model: model.clone(),
+                    dim: 1024,
+                    centroid_entity_ref: centroid_ref,
+                    retrieval: Default::default(),
+                },
+                validation: hkask_services::ValidationSection {
+                    centroid_distance_max: 0.40,
+                },
+            };
+
+            let inference_ctx = InferenceContext::from_parts(None, &gen_model, inf_cfg);
+
+            let request = hkask_services::ComposeRequest {
+                prompt,
+                db_path: PathBuf::from(&params.db_path),
+                db_passphrase: params.passphrase,
+                cognition: config,
+                inference_ctx,
+                no_validate: params.no_validate,
+            };
+
+            let result = hkask_services::ComposeService::compose(request)
+                .await
+                .map_err(|e| McpToolError::internal(e.to_string()))?;
+
+            let json_str = serde_json::to_string(&serde_json::json!({
+                "rewritten": result.generated_prose,
+                "dimension": params.dimension,
+                "author": params.author,
+                "exemplar_count": result.exemplar_count,
+                "centroid_distance": result.validation.as_ref().map(|v| v.distance),
+                "style_passed": result.validation.map(|v| v.passed),
+            }))
+            .map_err(|e| McpToolError::internal(e.to_string()))?;
+
+            let parsed: Value = serde_json::from_str(&json_str).unwrap_or(json!({"error": "serialization failed"}));
+            Ok(parsed)
+        })
+        .await
+    }
+
+    #[tool(
         description = "Compare all built author replicas, or evaluate a document against a persona's centroids."
     )]
     pub async fn replica_compare(&self, Parameters(params): Parameters<CompareRequest>) -> String {

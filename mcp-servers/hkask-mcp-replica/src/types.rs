@@ -122,6 +122,38 @@ fn default_true() -> bool {
     true
 }
 
+// ── Rewrite types ──────────────────────────────────────────────────────────
+
+/// Request to rewrite a passage or code snippet in an author's style,
+/// optimized for a specific Gentle Lovelace quality dimension.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RewriteRequest {
+    /// The passage or code snippet to rewrite.
+    pub content: String,
+    /// The target author/persona for style (e.g., "gentle-lovelace").
+    #[serde(default = "default_rewrite_author")]
+    pub author: String,
+    /// Which Gentle Lovelace dimension to optimize for:
+    /// "composite", "gentle", "schriver", "hopper", or "lovelace".
+    #[serde(default = "default_rewrite_dimension")]
+    pub dimension: String,
+    /// Path to the per-agent semantic database.
+    pub db_path: String,
+    /// Passphrase for opening the database.
+    pub passphrase: String,
+    /// Whether to skip centroid-distance validation.
+    #[serde(default = "default_false")]
+    pub no_validate: bool,
+}
+
+fn default_rewrite_author() -> String {
+    "gentle-lovelace".to_string()
+}
+
+fn default_rewrite_dimension() -> String {
+    "composite".to_string()
+}
+
 // ── Cache Work types ──────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]

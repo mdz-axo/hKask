@@ -2,12 +2,13 @@
 
 Style replica MCP server — embed author corpora, compose prose, and manage style registries.
 
-## Tools (8)
+## Tools (9)
 
 | Tool | Description |
 |------|-------------|
 | `replica_build` | Embed a style corpus and create an authorial replica. Downloads public domain texts, chunks them, generates embeddings, and computes a style centroid. |
 | `replica_compose` | Generate prose in an author's style |
+| `replica_rewrite` | Rewrite a passage or code snippet in an author's style, optimized for a specific Gentle Lovelace quality dimension (gentle/schriver/hopper/lovelace/composite) |
 | `replica_compare` | Compare all built author replicas, or evaluate a document against a persona's centroids |
 | `replica_discover` | Discover an academic author's body of work and generate a corpus.yaml for replica_build. Delegates to the replica-discovery skill manifest which orchestrates multi-source search (Semantic Scholar, arXiv, web, YouTube transcripts), content extraction, and corpus generation. Supports agentic (fully automated) and curated (human-in-the-loop) modes. |
 | `replica_explain` | Explain what style centroids are and how the metadata layer works |
