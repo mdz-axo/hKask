@@ -127,7 +127,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
       - name: Install bolero system deps
-        run: sudo apt-get install -y --no-install-recommends binutils-dev libunwind-dev
+        run: sudo apt-get install -y --no-install-recommends mold clang binutils-dev libunwind-dev
       - name: Fuzz group ${{ matrix.group }}
         id: fuzz
         run: |
