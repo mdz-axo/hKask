@@ -1,6 +1,6 @@
 //! MDS specification types — domain specifications, completeness predicates, curation.
 //! Relocated from `hkask-types` per P1: consumed by `hkask-storage`,
-//! `hkask-services::SpecService`, and `hkask-mcp-spec` (via `spec_ops`).
+//! `hkask-services::SpecService` (via `spec_ops`).
 //!
 //! Five categories per MDS §1: Domain, Composition, Trust, Lifecycle, Curation.
 use chrono::{DateTime, Utc};
@@ -121,7 +121,7 @@ impl SpecCategory {
 ///
 /// Single source of truth for context-keyword → MDS category mapping.
 /// Used by `hkask-services::SpecService`, `hkask-storage::spec_ops`,
-/// and (indirectly) `hkask-mcp-spec` — all three surfaces.
+/// and (indirectly) `hkask-services::SpecService` — the canonical surface.
 ///
 /// Defaults to [`SpecCategory::Domain`] when context is `None` or unrecognized.
 /// pre:  arguments are valid

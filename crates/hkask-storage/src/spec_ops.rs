@@ -3,7 +3,7 @@
 //!
 //! These functions are shared by:
 //! - `hkask-services::SpecService` (CLI/API surface)
-//! - `hkask-mcp-spec` (MCP tool surface)
+//!
 //!
 //! All functions are pure — no I/O, no async, no side effects.
 //! Storage access, CNS spanning, and inference are handled by callers.
@@ -488,8 +488,7 @@ mod tests {
 
     #[test]
     fn decompose_description_multiple_sentences() {
-        let (subs, deps) =
-            decompose_description("First step. Second step. Third step.");
+        let (subs, deps) = decompose_description("First step. Second step. Third step.");
         assert_eq!(subs.len(), 3);
         assert_eq!(deps.len(), 2);
         assert_eq!(deps[0].from, "First step");
@@ -526,7 +525,8 @@ mod tests {
 
     #[test]
     fn heuristic_named_spec_with_goals_passes_some() {
-        let spec = make_spec_with_goals("Test Spec", SpecCategory::Domain, &["Goal one", "Goal two"]);
+        let spec =
+            make_spec_with_goals("Test Spec", SpecCategory::Domain, &["Goal one", "Goal two"]);
         let q = assess_writing_quality_heuristic(&spec);
         // has_description=true, has_goals=true, has_criteria=false, has_verbs=false
         assert!(!q.hopper); // needs criteria
@@ -579,7 +579,10 @@ mod tests {
 
     #[test]
     fn centroid_ref_composite() {
-        assert_eq!(build_centroid_ref("composite"), "style:gentle-lovelace:centroid");
+        assert_eq!(
+            build_centroid_ref("composite"),
+            "style:gentle-lovelace:centroid"
+        );
     }
 
     #[test]
@@ -664,8 +667,7 @@ mod tests {
 
     #[test]
     fn decompose_goal_creates_sub_goals() {
-        let mut spec =
-            make_spec_with_goals("S", SpecCategory::Domain, &["First. Second. Third."]);
+        let mut spec = make_spec_with_goals("S", SpecCategory::Domain, &["First. Second. Third."]);
         decompose_spec_goals(&mut spec);
         assert_eq!(spec.goals[0].sub_goals.len(), 3);
         assert_eq!(spec.goals[0].sub_goals[0].text, "First");

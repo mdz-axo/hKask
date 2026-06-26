@@ -482,7 +482,7 @@ cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz \
            -p hkask-mcp-condenser-fuzz -p hkask-mcp-docproc-fuzz \
            -p hkask-mcp-media-fuzz -p hkask-mcp-memory-fuzz \
            -p hkask-mcp-replica-fuzz -p hkask-mcp-research-fuzz \
-           -p hkask-mcp-spec-fuzz -p hkask-mcp-training-fuzz
+           -p hkask-mcp-training-fuzz
 
 # Coverage-guided (nightly, CI deep fuzz — with seed corpora)
 cargo +nightly bolero test -p hkask-mcp-kanban-fuzz fuzz_kanban_dispatch_board_create \

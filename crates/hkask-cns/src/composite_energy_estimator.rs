@@ -92,7 +92,8 @@ mod tests {
     fn from_dynamic_table_retains_default_for_unobserved_servers() {
         let table = DynamicGasTable::new();
         let estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
-        let cost = estimator.estimate_cost("hkask-mcp-spec", "spec_query", &serde_json::json!({}));
+        let cost =
+            estimator.estimate_cost("hkask-mcp-memory", "memory_query", &serde_json::json!({}));
         assert_eq!(cost, 5, "unobserved server should retain default cost");
     }
 

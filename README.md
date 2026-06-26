@@ -112,10 +112,9 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-wallet-types` | Wallet value types and data structures |
 | `hkask-ledger` | Triple-entry accounting ledger |
 
-### MCP Servers (13 crates)
+### MCP Servers (12 crates)
 - `hkask-mcp-condenser` — Context condensation (thin wrapper around hkask-condenser)
 - `hkask-mcp-research` — Web search, extraction, and feed-based research
-- `hkask-mcp-spec` — Specification authoring, curation, and validation
 - `hkask-mcp-skill` — Skill registry and discovery MCP interface
 - `hkask-mcp-curator` — Curator daemon tools (algedonic log, escalations, memory recall, semantic search)
 - `hkask-mcp-companies` — Company financial data (FMP + EODHD dual-provider)

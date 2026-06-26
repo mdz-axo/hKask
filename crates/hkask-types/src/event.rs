@@ -135,7 +135,6 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.tool.registry",
     "cns.tool.replica",
     "cns.tool.research",
-    "cns.tool.spec_server",
     "cns.tool.training",
     "cns.tool.wallet",
     "cns.tool.web_search",

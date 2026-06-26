@@ -124,14 +124,14 @@ pub(super) fn print_first_steps() {
 /// P2 (Affirmative Consent): The 9 core servers (filesystem, memory, condenser,
 /// research, skill, curator, kanban, docproc, media) auto-start to form the
 /// agent's autonomous nervous system. Specialized servers (communication,
-/// companies, training, spec) require explicit opt-in via /mcp start.
+/// companies, training) require explicit opt-in via /mcp start.
 pub(super) fn print_mcp_prompt() {
     println!();
     println!(
         "  \x1b[2;33mℹ  Core MCP servers loaded — full sensory, memory, and actuation available.\x1b[0m"
     );
     println!(
-        "  \x1b[2m   Type \x1b[36m/mcp list\x1b[0m\x1b[2m to browse, \x1b[36m/mcp start all\x1b[0m\x1b[2m to load communication/companies/training/spec.\x1b[0m"
+        "  \x1b[2m   Type \x1b[36m/mcp list\x1b[0m\x1b[2m to browse, \x1b[36m/mcp start all\x1b[0m\x1b[2m to load communication/companies/training.\x1b[0m"
     );
 }
 

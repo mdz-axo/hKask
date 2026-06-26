@@ -31,6 +31,11 @@ gas:
   alert_threshold: 0.7
   hard_limit: true
 
+rjoule:
+  cap: 1
+  alert_threshold: 0.8
+  hard_limit: true
+
 steps:
   - ordinal: 1
     action: populate

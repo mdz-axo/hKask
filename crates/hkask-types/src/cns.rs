@@ -222,7 +222,6 @@ pub enum CnsSpan {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ToolSubsystem {
     WebSearch,
-    SpecServer,
     Condenser,
     Training,
     Replica,
@@ -241,7 +240,7 @@ pub enum ToolSubsystem {
 }
 
 impl ToolSubsystem {
-    /// Map an MCP server name (e.g., "memory", "hkask-mcp-spec") to a ToolSubsystem.
+    /// Map an MCP server name (e.g., "memory", "hkask-mcp-replica") to a ToolSubsystem.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  server_name is a non-empty string
@@ -253,7 +252,6 @@ impl ToolSubsystem {
         match name {
             "memory" => ToolSubsystem::Memory,
             "condenser" => ToolSubsystem::Condenser,
-            "spec" => ToolSubsystem::SpecServer,
             "research" => ToolSubsystem::Research,
             "companies" => ToolSubsystem::Companies,
             "communication" => ToolSubsystem::Communication,
@@ -270,7 +268,6 @@ impl ToolSubsystem {
     pub fn as_str(self) -> &'static str {
         match self {
             ToolSubsystem::WebSearch => "web_search",
-            ToolSubsystem::SpecServer => "spec_server",
             ToolSubsystem::Condenser => "condenser",
             ToolSubsystem::Training => "training",
             ToolSubsystem::Replica => "replica",
@@ -328,7 +325,6 @@ impl CnsSpan {
         match self {
             CnsSpan::Tool { subsystem } => match subsystem {
                 ToolSubsystem::WebSearch => "cns.tool.web_search",
-                ToolSubsystem::SpecServer => "cns.tool.spec_server",
                 ToolSubsystem::Condenser => "cns.tool.condenser",
                 ToolSubsystem::Training => "cns.tool.training",
                 ToolSubsystem::Replica => "cns.tool.replica",
@@ -440,9 +436,6 @@ impl std::str::FromStr for CnsSpan {
             "cns.tool.web_search" => Ok(CnsSpan::Tool {
                 subsystem: ToolSubsystem::WebSearch,
             }),
-            "cns.tool.spec_server" => Ok(CnsSpan::Tool {
-                subsystem: ToolSubsystem::SpecServer,
-            }),
             "cns.tool.condenser" => Ok(CnsSpan::Tool {
                 subsystem: ToolSubsystem::Condenser,
             }),
@@ -469,6 +462,18 @@ impl std::str::FromStr for CnsSpan {
             }),
             "cns.tool.media" => Ok(CnsSpan::Tool {
                 subsystem: ToolSubsystem::Media,
+            }),
+            "cns.tool.memory" => Ok(CnsSpan::Tool {
+                subsystem: ToolSubsystem::Memory,
+            }),
+            "cns.tool.companies" => Ok(CnsSpan::Tool {
+                subsystem: ToolSubsystem::Companies,
+            }),
+            "cns.tool.docproc" => Ok(CnsSpan::Tool {
+                subsystem: ToolSubsystem::Docproc,
+            }),
+            "cns.tool.filesystem" => Ok(CnsSpan::Tool {
+                subsystem: ToolSubsystem::Filesystem,
             }),
             "cns.inference" => Ok(CnsSpan::Inference),
             "cns.agent_pod" => Ok(CnsSpan::AgentPod),
@@ -602,13 +607,6 @@ mod cns_span_tests {
         );
         assert_eq!(
             CnsSpan::Tool {
-                subsystem: ToolSubsystem::SpecServer
-            }
-            .to_string(),
-            "cns.tool.spec_server"
-        );
-        assert_eq!(
-            CnsSpan::Tool {
                 subsystem: ToolSubsystem::Other
             }
             .to_string(),
@@ -710,7 +708,6 @@ mod cns_span_tests {
     #[test]
     fn tool_subsystem_display_produces_valid_suffix() {
         assert_eq!(ToolSubsystem::WebSearch.as_str(), "web_search");
-        assert_eq!(ToolSubsystem::SpecServer.as_str(), "spec_server");
         assert_eq!(ToolSubsystem::Other.as_str(), "other");
     }
 }

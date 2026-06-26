@@ -5,11 +5,21 @@
 manifest:
   id: spec-elicit
   name: spec-elicit
-  version: "0.1.0"
+  version: "0.2.0"
   description: Elicit user goals through structured questioning and refinement
   functional_role: flowdef
   lexicon_terms: [elicit, specify, require, recognize, contextualise]
   visibility: Public
+
+gas:
+  cap: 5000
+  alert_threshold: 0.8
+  hard_limit: true
+
+rjoule:
+  cap: 1
+  alert_threshold: 0.8
+  hard_limit: true
 
 matroshka:
   max_depth: 7

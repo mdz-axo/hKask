@@ -19,6 +19,11 @@ gas:
   alert_threshold: 0.8
   hard_limit: true
 
+rjoule:
+  cap: 2
+  alert_threshold: 0.8
+  hard_limit: true
+
 inputs:
   - name: query
     type: string
@@ -189,7 +194,7 @@ steps:
       Emit CNS feedback for variety monitoring and retrieval quality tracking.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5
     feedback:

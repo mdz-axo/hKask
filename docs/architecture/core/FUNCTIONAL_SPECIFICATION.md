@@ -133,7 +133,7 @@ graph TD
     SVC --> STORAGE[hkask-storage]
 ```
 
-Domain crates **never** depend on `hkask-services`. MCP servers **never** depend on `hkask-services` for orchestration (P1 Prohibition — out-of-process isolation). Tri-surface exception: `hkask-mcp-replica` and `hkask-mcp-spec` import for delegation only.
+Domain crates **never** depend on `hkask-services`. MCP servers **never** depend on `hkask-services` for orchestration (P1 Prohibition — out-of-process isolation). Tri-surface exception: `hkask-mcp-replica` imports for delegation only.
 
 ### 1.5.3 Loop Architecture Membrane
 
@@ -1027,7 +1027,6 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 
 **18 contracts** — P5 (Essentialism)
 - `hkask-mcp-research` — web research agent (P5)
-- `hkask-mcp-spec` — specification document server (P5)
 - `hkask-mcp-condenser` — context compression agent (P5)
 - Tool registration, capability declaration, resource serving
 

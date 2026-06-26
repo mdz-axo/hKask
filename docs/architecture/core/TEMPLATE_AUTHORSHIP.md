@@ -90,3 +90,49 @@ done
 grep -c "gas:" registry/manifests/<name>.yaml
 grep -c "rjoule:" registry/manifests/<name>.yaml
 ```
+
+## rJoule/Gas Budget Calibration
+
+All manifest budgets are currently **uncalibrated** — they are placeholder values set during
+authorship without runtime measurement. The `WalletGasCalibrator` in `hkask-cns` provides
+the infrastructure for calibration.
+
+### Calibration Procedure
+
+```bash
+# 1. Run a representative execution of the skill with CNS span logging enabled
+kask run <skill-name> --cns-spans
+
+# 2. Extract the actual gas and rjoule consumption from CNS spans
+kask cns query --span-namespace cns.prompt.<skill-name> --fields gas_consumed,rjoule_consumed
+
+# 3. Compare against the manifest's declared budget
+#    If actual > declared: the manifest budget is too low (will cause aborts)
+#    If actual < 50% of declared: the manifest budget is too loose (wasteful)
+
+# 4. Update the manifest with calibrated values
+#    rjoule.cap = ceil(actual_rjoule * 1.2)    # 20% headroom
+#    gas.cap   = ceil(actual_gas * 1.2)
+```
+
+### System Constants
+
+| Constant | Value | Location |
+|----------|-------|----------|
+| `GAS_PER_RJOULE` | 250000 | `crates/hkask-wallet/src/lib.rs` |
+| `RJOULE_TO_GAS` | 250000 | Used in CSkill files, reverse of above |
+
+### Known Uncalibrated Budgets
+
+All skill manifests currently use uncalibrated placeholder values:
+
+| Budget | Standard Value | Calibrated? |
+|--------|---------------|-------------|
+| `gas.cap` for skills | 100000 | No — placeholder |
+| `gas.cap` for sequential-inquiry | 120000 | No — 20% above standard, not measured |
+| `rjoule.cap` for skills | 2 | No — placeholder |
+| `rjoule.cap` for superforecasting | 5 | No — justified by complexity but unmeasured |
+| `rjoule.cap` for coding-guidelines, tdd | 3 | No — placeholder |
+
+Calibration should be run as part of the v0.32.0 release cycle after the CNS
+`WalletGasCalibrator` has been validated against production inference workloads.

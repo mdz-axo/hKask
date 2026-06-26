@@ -596,13 +596,12 @@ You may include multiple tool calls in a single response.
 
 ### 12.2 Built-in MCP Servers (11)
 
-Available MCP servers (9 auto-start; 4 require `/mcp start` for opt-in):
+Available MCP servers (9 auto-start; 3 require `/mcp start` for opt-in):
 
 | Server ID | Binary | Purpose |
 |-----------|--------|---------|
 | `memory` | `hkask-mcp-memory` | Semantic + episodic memory operations |
 | `condenser` | `hkask-mcp-condenser` | Context condensation (compress, thread_summary). Respects `HKASK_CONDENSE_*` env vars for unified configuration with auto-condense path. |
-| `spec` | `hkask-mcp-spec` | Specification authoring, curation, validation |
 | `research` | `hkask-mcp-research` | Web search, extraction, and feed-based research |
 | `companies` | `hkask-mcp-companies` | Company financial data (FMP + EODHD dual-provider) |
 | `communication` | `hkask-mcp-communication` | Thin MCP wrapper over core communication crate |

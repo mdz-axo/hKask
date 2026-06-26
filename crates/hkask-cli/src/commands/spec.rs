@@ -63,8 +63,17 @@ pub fn run(action: SpecAction) {
             }
         }
         SpecAction::Evaluate { spec_id } => {
-            println!("Evaluating specification: {}", spec_id);
-            println!("  Note: Evaluation requires hkask-mcp-spec server.");
+            let ctx = super::helpers::build_service_context();
+            let record = SpecService::validate(&ctx, &spec_id).unwrap_or_else(|e| {
+                eprintln!("Failed to evaluate specification: {e}");
+                std::process::exit(1);
+            });
+
+            println!("Specification evaluation:");
+            println!("  ID: {}", record.spec_id);
+            println!("  Decision: {:?}", record.decision);
+            println!("  Rationale: {}", record.rationale);
+            println!("  Coherence: {:.2}", record.coherence_score);
         }
         SpecAction::Validate { spec_id } => {
             let ctx = super::helpers::build_service_context();
@@ -173,7 +182,7 @@ pub fn run(action: SpecAction) {
             );
             println!("  Status: recorded");
             println!();
-            println!("  Note: Persistent traceability requires hkask-mcp-spec server.");
+            println!("  Note: Persistent traceability requires SpecStore persisted to disk.");
         }
         SpecAction::TestVerify { seam, category } => {
             println!("Test coverage verification:");
@@ -184,7 +193,7 @@ pub fn run(action: SpecAction) {
                 println!("  Filtered by category: {}", c);
             }
             println!();
-            println!("  Note: Full verification requires hkask-mcp-spec server.");
+            println!("  Note: Full verification requires SpecStore with test contracts enabled.");
         }
     }
 }

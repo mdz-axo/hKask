@@ -1,10 +1,20 @@
 manifest:
   id: mvss-compose
   name: mvss-compose
-  version: "0.1.0"
+  version: "0.2.0"
   description: Compose minimum viable specification set from user goals
   functional_role: flowdef
   visibility: Public
+
+gas:
+  cap: 10000
+  alert_threshold: 0.8
+  hard_limit: true
+
+rjoule:
+  cap: 1
+  alert_threshold: 0.8
+  hard_limit: true
 
 steps:
   - ordinal: 1

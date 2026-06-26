@@ -64,7 +64,7 @@ fn gas_report_calibrates_dynamic_table_from_settled_events() {
 #[test]
 fn calibrated_table_flows_into_composite_estimator() {
     let agent = WebID::new();
-    let server = "hkask-mcp-spec";
+    let server = "hkask-mcp-memory";
 
     let db = in_memory_db();
     let conn = db.conn_arc();

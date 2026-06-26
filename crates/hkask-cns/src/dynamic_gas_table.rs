@@ -238,7 +238,7 @@ mod tests {
     fn within_tolerance_no_adjustment() {
         let mut table = DynamicGasTable::new();
         // Ratio 1.1 is within ±20% tolerance
-        table.record_observation("hkask-mcp-spec", 100, 110);
+        table.record_observation("hkask-mcp-memory", 100, 110);
         let adjusted = table.calibrate();
         assert_eq!(adjusted, 0, "ratio 1.1 is within 20% tolerance");
     }
@@ -271,8 +271,8 @@ mod tests {
     fn unobserved_servers_retain_initial() {
         let table = DynamicGasTable::new();
         let reports = table.report_table();
-        // hkask-mcp-spec should still have its default cost of 5
-        assert_eq!(reports["hkask-mcp-spec"], 5);
+        // hkask-mcp-memory should still have its default cost of 5
+        assert_eq!(reports["hkask-mcp-memory"], 5);
     }
 
     #[test]

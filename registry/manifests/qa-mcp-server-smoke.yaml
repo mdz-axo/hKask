@@ -35,6 +35,11 @@ gas:
   alert_threshold: 0.8
   hard_limit: true
 
+rjoule:
+  cap: 1
+  alert_threshold: 0.8
+  hard_limit: true
+
 steps:
   # Step 1: Verify server binary exists and is executable
   - ordinal: 1

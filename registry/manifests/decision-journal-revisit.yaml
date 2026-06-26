@@ -24,6 +24,11 @@ gas:
   alert_threshold: 0.8
   hard_limit: true
 
+rjoule:
+  cap: 1
+  alert_threshold: 0.8
+  hard_limit: true
+
 inputs:
   - name: decision_id
     type: string
@@ -157,7 +162,7 @@ steps:
       Report Brier scores, calibration points, and bias patterns.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5
     feedback:

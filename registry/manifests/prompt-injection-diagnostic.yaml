@@ -24,6 +24,11 @@ gas:
   alert_threshold: 0.8
   hard_limit: true
 
+rjoule:
+  cap: 2
+  alert_threshold: 0.8
+  hard_limit: true
+
 inputs:
   - name: input_text
     type: string
@@ -165,7 +170,7 @@ steps:
       and no contradictions exist between classification and recommendations.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-memory  # was hkask-mcp-storage
+    mcp: hkask-mcp-memory # was hkask-mcp-storage
     gas_cap: 1000
     timeout_seconds: 15
     validation_rules:
@@ -193,7 +198,7 @@ steps:
       layers recommended, and critical threats for CNS algedonic monitoring.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5
     feedback:

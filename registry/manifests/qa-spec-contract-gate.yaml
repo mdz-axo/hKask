@@ -34,6 +34,11 @@ gas:
   alert_threshold: 0.8
   hard_limit: true
 
+rjoule:
+  cap: 2
+  alert_threshold: 0.8
+  hard_limit: true
+
 steps:
   # Step 1: Run MCP protocol integration tests
   # These tests exercise the full MCP path (JSON-RPC framing, rmcp transport,

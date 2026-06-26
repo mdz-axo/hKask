@@ -28,9 +28,6 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
     // Memory — internal storage read
     table.insert("hkask-mcp-memory", 5);
 
-    // Local I/O — no network
-    table.insert("hkask-mcp-spec", 5);
-
     // Moderate — compute + local I/O
     table.insert("hkask-mcp-condenser", 10);
     table.insert("hkask-mcp-docproc", 15);

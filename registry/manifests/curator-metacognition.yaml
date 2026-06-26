@@ -25,6 +25,11 @@ gas:
     max_adjustment_percent: 10
     requires_cns_justification: true
 
+rjoule:
+  cap: 1
+  alert_threshold: 0.8
+  hard_limit: true
+
 # Process Steps
 steps:
   - ordinal: 1
