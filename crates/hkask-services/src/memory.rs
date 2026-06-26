@@ -19,7 +19,7 @@ pub struct MemoryService;
 impl MemoryService {
     /// Check whether the owner has consent for a specific data category.
     ///
-    /// [NORMATIVE] P1 User Sovereignty / P2 Affirmative Consent.
+    /// \[NORMATIVE\] P1 User Sovereignty / P2 Affirmative Consent.
     /// Fails closed: no consent => no sovereign memory access.
     pub fn has_memory_consent(ctx: &AgentService, owner: &WebID, category: &DataCategory) -> bool {
         ctx.sovereignty()
@@ -29,7 +29,7 @@ impl MemoryService {
 
     /// Recall semantic memory triples relevant to the input.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence.
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence.
     pub fn recall_semantic(
         semantic_port: &Arc<dyn SemanticStoragePort>,
         input: &str,

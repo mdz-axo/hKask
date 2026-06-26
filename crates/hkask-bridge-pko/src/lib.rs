@@ -6,7 +6,7 @@
 //!
 //! Reference: Carriero et al. (2025, arXiv:2503.20634)
 //! PKO reuses: PROV-O (Activity, Agent), P-Plan (Step, Plan), DCAT (Resource), DCMI
-//! Canonical namespace: https://w3id.org/pko
+//! Canonical namespace: <https://w3id.org/pko>
 //!
 //! Pattern: thin mapping layer — canonical URI constants, field mapping
 //! functions, no dependencies, no reasoners, no overhead ≤150 lines.

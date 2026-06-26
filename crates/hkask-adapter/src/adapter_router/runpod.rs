@@ -1,6 +1,6 @@
 //! Runpod adapter backend — serverless vLLM endpoint provisioning.
 //!
-//! Docs: https://docs.runpod.io/serverless/endpoints/manage-endpoints
+//! Docs: <https://docs.runpod.io/serverless/endpoints/manage-endpoints>
 
 use super::AdapterProviderBackend;
 use super::openai::openai_compatible_infer;

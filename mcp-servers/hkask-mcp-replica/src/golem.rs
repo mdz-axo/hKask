@@ -5,8 +5,8 @@
 //! and narrative functions — extending CIDOC-CRM and LRMoo, aligned with DOLCE.
 //!
 //! Reference: Pianzola et al. (2024), GOLEM Ontology for Narrative and Fiction
-//! Repository: https://github.com/GOLEM-lab/golem-ontology
-//! Project: https://golemlab.eu/ (ERC StG, 2023–2027)
+//! Repository: <https://github.com/GOLEM-lab/golem-ontology>
+//! Project: <https://golemlab.eu/> (ERC StG, 2023–2027)
 //!
 //! Pattern: thin mapping layer — canonical URI constants, mapping functions,
 //! no dependencies, no reasoners, no overhead ≤100 lines.

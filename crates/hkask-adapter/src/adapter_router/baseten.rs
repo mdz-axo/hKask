@@ -1,6 +1,6 @@
 //! Baseten adapter backend — REST endpoint provisioning + OpenAI-compatible inference.
 //!
-//! Docs: https://docs.baseten.co/api-reference
+//! Docs: <https://docs.baseten.co/api-reference>
 
 use super::AdapterProviderBackend;
 use super::openai::openai_compatible_infer;

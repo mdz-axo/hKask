@@ -56,7 +56,7 @@ pub struct PruneReport {
 
 /// Report from a pod revert operation.
 ///
-/// Returned by [`super::BackupService::revert`]. Records the safety
+/// Returned by `super::BackupService::revert`. Records the safety
 /// snapshot taken before the revert and the restored target commit.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RevertReport {
@@ -75,7 +75,7 @@ pub struct RevertReport {
 
 /// Report from a spawn_agent operation.
 ///
-/// Returned by [`super::BackupService::spawn_agent`]. Records the new
+/// Returned by `super::BackupService::spawn_agent`. Records the new
 /// pod created from a prior state snapshot.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpawnAgentReport {

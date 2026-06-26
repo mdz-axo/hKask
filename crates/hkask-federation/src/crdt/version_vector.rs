@@ -34,7 +34,7 @@ impl VersionVector {
         next
     }
 
-    /// Does `self` dominate `other`? ∀r: self[r] ≥ other[r] and ∃r: self[r] > other[r].
+    /// Does `self` dominate `other`? ∀r: self\[r\] ≥ other\[r\] and ∃r: self\[r\] > other\[r\].
     pub fn dominates(&self, other: &VersionVector) -> bool {
         if self.entries.is_empty() {
             return false;

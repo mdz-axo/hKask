@@ -16,7 +16,7 @@ use crate::middleware::AuthContext;
 
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  none
-/// post: returns OpenApiRouter<ApiState> with goal routes registered
+/// post: returns `OpenApiRouter<ApiState>` with goal routes registered
 pub fn goal_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_goals))
@@ -225,7 +225,7 @@ pub(crate) async fn set_goal_state(
                         goal_id: goal_id.to_string(),
                         from_state: goal.state.as_str().to_string(),
                         to_state: new_state.as_str().to_string(),
-                        agent: auth.webid.clone(),
+                        agent: auth.webid,
                     },
                 );
                 let _ = tx.send(event);

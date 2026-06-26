@@ -4,8 +4,8 @@
 //! OMC is built by the Hollywood studios consortium (Disney, Warner Bros,
 //! Paramount, Universal, Sony) for media production workflows.
 //!
-//! Reference: https://mc.movielabs.com/docs/ontology/
-//! Reference: https://github.com/MovieLabs/OMC
+//! Reference: <https://mc.movielabs.com/docs/ontology/>
+//! Reference: <https://github.com/MovieLabs/OMC>
 //!
 //! Pattern: thin mapping layer — canonical URI constants, mapping functions,
 //! no dependencies, no reasoners, no overhead ≤120 lines.

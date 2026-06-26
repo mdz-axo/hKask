@@ -329,7 +329,7 @@ impl A2ARuntime {
 
     /// The public key of this runtime's root authority.
     ///
-    /// Registration tokens minted by [`register_agent`] are signed by the A2A
+    /// Registration tokens minted by `register_agent` are signed by the A2A
     /// root key (derived from the A2A secret), distinct from the system OCAP key.
     /// A `CapabilityChecker` must trust this key to accept A2A-issued tokens.
     ///

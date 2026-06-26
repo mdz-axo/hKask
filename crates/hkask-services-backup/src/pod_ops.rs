@@ -23,7 +23,7 @@ use crate::service::{BackupError, decrypt_blob, encrypt_blob};
 
 /// Pod-level backup operations — revert and spawn_agent.
 ///
-/// Wraps a [`GitCASPort`] directly (not through [`BackupService`])
+/// Wraps a [`GitCASPort`] directly (not through `BackupService`)
 /// because pod operations need CAS primitives but not artifact-level
 /// scoping, retention, or verification.
 pub struct PodBackupOps {
@@ -369,7 +369,7 @@ impl PodBackupCap {
 
     /// Snapshot this pod's current state to the Pods repo.
     ///
-    /// Delegates to [`PodBackupOps::snapshot_pod`] with this pod's identity
+    /// Delegates to `PodBackupOps::snapshot_pod` with this pod's identity
     /// and database path. The commit hash can be used later for revert or
     /// spawn_agent.
     ///

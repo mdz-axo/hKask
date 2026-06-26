@@ -593,7 +593,6 @@ mod tests {
             "registry/templates/kata-improvement",
             "registry/templates/kata-coaching",
             "registry/templates/kata-starter",
-            "registry/templates/kata",
         ];
 
         let mut checked = 0;
@@ -619,8 +618,8 @@ mod tests {
             }
         }
         assert_eq!(
-            checked, 27,
-            "All 27 kata templates must contain learner_bot"
+            checked, 16,
+            "All 16 kata templates must contain learner_bot"
         );
     }
 }

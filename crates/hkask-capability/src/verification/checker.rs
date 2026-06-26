@@ -59,7 +59,7 @@ impl CapabilityChecker {
     ///
     /// The signing key's own public key is added to the trusted roots and root
     /// enforcement is enabled, so this checker accepts only tokens it issued (or
-    /// those from roots added via [`trust_root`]).
+    /// those from roots added via `trust_root`).
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  signing_key is a valid Ed25519 [`SigningKey`]

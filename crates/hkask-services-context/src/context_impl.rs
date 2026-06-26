@@ -430,7 +430,7 @@ impl AgentService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns Arc<ConsentManager> wrapping the consent manager
+    /// post: returns `Arc<ConsentManager>` wrapping the consent manager
     /// # REQ: P1 (User Sovereignty), P2 (Affirmative Consent)
     /// # expect: "My service operations flow through sovereignty-verifying boundaries"
     pub fn sovereignty(&self) -> Arc<ConsentManager> {
@@ -512,7 +512,7 @@ impl AgentService {
     ///
     /// Returns None if federation is not configured or disabled.
     ///
-    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence
+    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence
     pub fn federation_dispatch(&self) -> Option<&Arc<dyn FederationDispatch>> {
         self.federation_link_manager.as_ref()
     }

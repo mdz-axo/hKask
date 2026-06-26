@@ -1,7 +1,7 @@
 //! Artifact producers — push current subsystem state into CAS for backup.
 //!
 //! Each producer knows how to collect state for specific [`ArtifactType`]s
-//! and push blobs to a [`GitCASPort`]. Called by [`BackupLoop`] before
+//! and push blobs to a [`GitCASPort`]. Called by `BackupLoop` before
 //! the daily snapshot to ensure the CAS repos contain current data.
 
 use async_trait::async_trait;

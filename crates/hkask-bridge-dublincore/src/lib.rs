@@ -5,9 +5,9 @@
 //! No dependencies, no reasoners, no overhead. Used by research, docproc,
 //! media, training, and replica servers as a cross-cutting vocabulary resource.
 //!
-//! Reference: https://www.dublincore.org/specifications/dublin-core/dcmi-terms/
-//! Reference: https://www.dublincore.org/specifications/bibo/
-//! Reference: https://sparontologies.github.io/cito/current/cito.html
+//! Reference: <https://www.dublincore.org/specifications/dublin-core/dcmi-terms/>
+//! Reference: <https://www.dublincore.org/specifications/bibo/>
+//! Reference: <https://sparontologies.github.io/cito/current/cito.html>
 
 /// A Dublin Core / BIBO / CiTO concept URI.
 pub type DcConcept = &'static str;

@@ -5,8 +5,8 @@
 //! closest thing to a FIBO-equivalent for ML training, though it has less
 //! adoption than FIBO — this bridge is provisional and may be upgraded.
 //!
-//! Reference: https://www.w3.org/community/ml-schema/
-//! Reference: https://ml-schema.github.io/documentation/ML%20Schema.html
+//! Reference: <https://www.w3.org/community/ml-schema/>
+//! Reference: <https://ml-schema.github.io/documentation/ML%20Schema.html>
 //!
 //! Pattern: thin mapping layer — canonical URI constants, mapping functions,
 //! no dependencies, no reasoners, no overhead ≤100 lines.

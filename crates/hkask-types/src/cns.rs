@@ -296,7 +296,7 @@ impl CnsSpan {
     /// - message = `"CNS"` (required for downstream ν-event parsing)
     ///
     /// Callers that need additional structured fields can attach them by
-    /// entering a child [`tracing::span`] before calling `emit()`.
+    /// entering a child [`mod@tracing::span`] before calling `emit()`.
     ///
     /// # Example
     ///

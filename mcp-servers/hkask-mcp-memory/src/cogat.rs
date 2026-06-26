@@ -4,8 +4,8 @@
 //! concepts. CogAT characterizes the state of current thought in cognitive
 //! science with 918 concepts, 857 tasks, and 242 phenotypes.
 //!
-//! Reference: https://www.cognitiveatlas.org
-//! Reference: https://github.com/CognitiveAtlas/cogat-ontology
+//! Reference: <https://www.cognitiveatlas.org>
+//! Reference: <https://github.com/CognitiveAtlas/cogat-ontology>
 //! PI: Russell Poldrack, Stanford University (NIMH Grant RO1MH082795)
 //!
 //! Note: This is a metaphorical mapping. hKask's "episodic memory" is a

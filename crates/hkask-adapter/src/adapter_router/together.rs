@@ -1,6 +1,6 @@
 //! Together AI adapter backend — upload, provision, infer, teardown.
 //!
-//! Docs: https://docs.together.ai/docs/dedicated-endpoints/adapter
+//! Docs: <https://docs.together.ai/docs/dedicated-endpoints/adapter>
 
 use super::AdapterProviderBackend;
 use super::openai::openai_compatible_infer;

@@ -5,7 +5,7 @@
 //! Goldman Sachs, Citigroup, Bloomberg, the Fed, and others. We anchor to FIBO
 //! rather than inventing our own taxonomy.
 //!
-//! Reference: https://spec.edmcouncil.org/fibo/
+//! Reference: <https://spec.edmcouncil.org/fibo/>
 //!
 //! Key FIBO modules used:
 //! - fibo-fbc-fct-ra  — Financial Concepts: Financial Ratios (Release)
