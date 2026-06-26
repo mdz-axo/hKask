@@ -39,7 +39,7 @@ pub struct LoRAAdapter {
     pub created_at: i64,
     /// Size of adapter weights in bytes.
     pub size_bytes: u64,
-    /// Skill name this adapter was trained for (e.g., "constraint-forces").
+    /// Skill name this adapter was trained for (e.g., "pragmatic-semantics").
     /// Enables adapter-to-skill mapping for the registry and auto-selection router.
     pub skill_name: String,
     /// Version number for this adapter (incremented on retraining).
@@ -790,14 +790,14 @@ mod tests {
 
         let adapter = LoRAAdapter {
             id: "test-adapter-1".to_string(),
-            name: "constraint-forces-v3".to_string(),
+            name: "pragmatic-semantics-v1".to_string(),
             base_model: "Qwen3.5-9B".to_string(),
             dataset_hash: "abc123".to_string(),
             training_job_id: "job-1".to_string(),
             created_at: 1000,
             size_bytes: 200_000_000,
-            skill_name: "constraint-forces".to_string(),
-            version: 3,
+            skill_name: "pragmatic-semantics".to_string(),
+            version: 1,
             metrics: Some(AdapterMetrics {
                 loss: Some(0.12),
                 perplexity: Some(1.5),
@@ -814,9 +814,9 @@ mod tests {
             .expect("get")
             .expect("found");
 
-        assert_eq!(retrieved.skill_name, "constraint-forces");
-        assert_eq!(retrieved.version, 3);
-        assert_eq!(retrieved.name, "constraint-forces-v3");
+        assert_eq!(retrieved.skill_name, "pragmatic-semantics");
+        assert_eq!(retrieved.version, 1);
+        assert_eq!(retrieved.name, "pragmatic-semantics-v1");
         assert!(retrieved.metrics.is_some());
         assert_eq!(retrieved.metrics.unwrap().loss, Some(0.12));
     }

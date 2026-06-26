@@ -98,7 +98,7 @@ This skill's runtime templates live in `registry/templates/kata-improvement/`:
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `improvement-overview.j2` | KnowAct | 4-step Improvement Kata overview — provides orientation/context, does not invoke sub-templates |
+| `improvement-overview.j2` | KnowAct | 4-step Improvement Kata overview — documentation-only (not in manifest flow) |
 | `improvement-step1-direction.j2` | WordAct | Step 1: Understand the direction and challenge |
 | `improvement-step2-current.j2` | WordAct | Step 2: Grasp current condition with facts and data |
 | `improvement-step3-target.j2` | WordAct | Step 3: Establish next target condition with metrics and deadline |
@@ -145,5 +145,5 @@ Process manifest: `registry/manifests/kata-improvement.yaml` — 4-step scientif
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 3 rJ (absolute)
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

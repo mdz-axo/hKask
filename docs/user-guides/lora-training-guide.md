@@ -40,7 +40,7 @@ The recommended format for hKask skill training is ChatML — each record is a f
   "messages": [
     {
       "role": "system",
-      "content": "You are an hKask agent trained in constraint-forces classification..."
+      "content": "You are an hKask agent trained in pragmatic-semantics classification..."
     },
     {
       "role": "user",
@@ -66,7 +66,7 @@ use hkask_mcp_training::dataset::{DatasetPipeline, DatasetFormat};
 let pipeline = DatasetPipeline::new("/cache/training")?;
 
 // Ingest auto-detects the format
-let (records, format) = pipeline.ingest("/data/traces/constraint-forces.jsonl").await?;
+let (records, format) = pipeline.ingest("/data/traces/pragmatic-semantics.jsonl").await?;
 
 println!("Ingested {} records in {:?} format", records.len(), format);
 // Output: Ingested 150 records in ChatML format
@@ -179,7 +179,7 @@ use hkask_mcp_training::providers::{
 };
 
 let job = TrainingJob::new(
-    PathBuf::from("/data/traces/constraint-forces.jsonl"),
+    PathBuf::from("/data/traces/pragmatic-semantics.jsonl"),
     "OM/qwen3:8b".into(),              // Base model (provider-prefixed)
     training_params,
     TrainingHostId::Together,           // Where to run
@@ -230,7 +230,7 @@ pub struct LoRAAdapter {
     pub base_model: String,     // Provider-prefixed (e.g. "OM/qwen3:8b")
     pub dataset_hash: String,   // Content hash of training data
     pub training_job_id: String, // Links back to the TrainingJob
-    pub skill_name: String,     // e.g. "constraint-forces"
+    pub skill_name: String,     // e.g. "pragmatic-semantics"
     pub version: u32,           // Incremented on retrain
     pub size_bytes: u64,        // Weight file size
     pub metrics: Option<AdapterMetrics>,  // loss, perplexity, etc.
@@ -360,8 +360,8 @@ store.migrate()?;
 // Convert training MCP adapter to canonical form
 let canonical = lora_adapter.to_canonical(
     "https://my-domain.org/profile#me".into(),  // owner WebID (P12)
-    "/data/adapters/constraint-forces-v1",
-    "mdz-axolotl/constraint-forces-v1",          // HF repo
+    "/data/adapters/pragmatic-semantics-v1",
+    "mdz-axolotl/pragmatic-semantics-v1",          // HF repo
 )?;
 
 store.store(&canonical)?;
@@ -552,7 +552,7 @@ Missing keys result in authentication errors at the `AdapterProviderBackend` lev
 ```rust
 // 1. PREPARE DATASET
 let pipeline = DatasetPipeline::new("/cache/training")?;
-let (records, _format) = pipeline.ingest("traces/constraint-forces.jsonl").await?;
+let (records, _format) = pipeline.ingest("traces/pragmatic-semantics.jsonl").await?;
 let axolotl_path = to_axolotl_format(&records, "/output/axolotl")?;
 
 // 2. SUBMIT TRAINING JOB
@@ -571,7 +571,7 @@ job_store.store(&job)?;
 adapter_registry.publish_adapter(
     &adapter.id,
     &weight_path,
-    "mdz-axolotl/constraint-forces-v1",
+    "mdz-axolotl/pragmatic-semantics-v1",
 ).await?;
 
 // 4. STORE IN ADAPTERSTORE
@@ -579,8 +579,8 @@ let store = AdapterStore::open("hkask.db")?;
 store.migrate()?;
 let canonical = adapter.to_canonical(
     owner_webid,
-    "/data/adapters/constraint-forces-v1",
-    "mdz-axolotl/constraint-forces-v1",
+    "/data/adapters/pragmatic-semantics-v1",
+    "mdz-axolotl/pragmatic-semantics-v1",
 )?;
 store.store(&canonical)?;
 // ✅ CNS: AdapterStored

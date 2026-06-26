@@ -18,7 +18,8 @@ This skill's runtime templates live in `registry/templates/improve-codebase-arch
 |----------|------|--------|
 | `arch-explore.j2` | KnowAct | Explore codebase for architectural friction: shallow modules, tight coupling |
 | `arch-candidates.j2` | KnowAct | Present deepening candidates with recommendation strength |
-| `arch-deepen.j2` | KnowAct | Walk the design tree for a selected candidate, define deepened module shape |
+| `arch-deepen.j2` | KnowAct | Walk the design tree for a selected candidate, define deepened module shape (wired into flow v0.31.0; was orphaned) |
+| `arch-convergence-check.j2` | KnowAct | Compute normalized convergence metric for architecture deepening cycles |
 
 The SKILL.md (this file) teaches the Zed coding agent the architecture-improvement methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
 
@@ -111,5 +112,5 @@ After the grilling loop, one of three outcomes:
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 2 rJ (absolute)
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

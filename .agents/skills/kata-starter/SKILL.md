@@ -95,8 +95,8 @@ This skill's runtime templates live in `registry/templates/kata-starter/`:
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `starter-overview.j2` | KnowAct | Starter Kata practice overview — provides orientation/context, does not invoke sub-templates |
-| `starter-selector.j2` | KnowAct | Select appropriate starter routine based on learner state |
+| `starter-overview.j2` | KnowAct | Starter Kata practice overview — documentation-only (not in manifest flow) |
+| `starter-selector.j2` | KnowAct | Select appropriate starter routine based on learner state (v0.31.0: selector output now drives conditional drill routing) |
 | `starter-five-questions.j2` | KnowAct | Five Questions Drill — practice the 5 coaching questions |
 | `starter-pdca-cycle.j2` | KnowAct | PDCA Cycle — Plan-Do-Check-Act experimentation practice |
 | `starter-observation-drill.j2` | KnowAct | Observation Drill — distinguish facts from interpretations |
@@ -127,5 +127,5 @@ Process manifest: `registry/manifests/kata-starter.yaml` — 3-step practice flo
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 16000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 3 rJ (absolute)
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

@@ -1,7 +1,9 @@
-# Falstaffian Variance Analysis — Three Independent Passes
-# A calibration instrument for confidence in shape identification
-# Owner: The Curator (hKask)
-# License: CC-BY-4.0
+# ⚠️ CANONICAL SOURCE: falstaffian-perspective.j2
+# The template at registry/templates/falstaffian-perspective/falstaffian-perspective.j2
+# is the canonical, executable source of truth for Falstaffian shape definitions.
+# This cognition file is a reference analysis — if it conflicts with the template,
+# the template wins. This file is retained for design documentation and variance
+# analysis purposes.
 
 meta:
   type: "variance-calibration-instrument"
@@ -232,8 +234,8 @@ variance_matrix:
     # Shapes identified by 2/3 passes
     - core_pattern: "Direction/Evaluation Reversal"
       pass_1_name: "Direction Reversal"
-      pass_2_name: 'null (not identified as distinct rhetorical form)'
-      pass_3_name: 'null (implicit in tension, not distinct shape)'
+      pass_2_name: "null (not identified as distinct rhetorical form)"
+      pass_3_name: "null (implicit in tension, not distinct shape)"
       confidence: "medium"
       rationale: "Pass 1 identifies clearly; Pass 2/3 see it as secondary to other moves"
       unified_name: "Direction Reversal Vector"
@@ -241,13 +243,13 @@ variance_matrix:
     - core_pattern: "Causal Chain Mediation"
       pass_1_name: "Causal Chain Insertion"
       pass_2_name: '"Physiological Joy" (related — physiological elaboration)'
-      pass_3_name: 'null (seen as self-justification, not core shape)'
+      pass_3_name: "null (seen as self-justification, not core shape)"
       confidence: "medium"
       rationale: "Pass 1/2 identify; Pass 3 questions whether it's core Falstaffian"
       unified_name: "Physiological Causal Chain Vector"
 
     - core_pattern: "Liability-to-Asset Transmutation"
-      pass_1_name: 'null (seen as value redefinition variant)'
+      pass_1_name: "null (seen as value redefinition variant)"
       pass_2_name: "Commodity Transmutation"
       pass_3_name: "Alchemical Reframe"
       confidence: "medium"
@@ -255,17 +257,17 @@ variance_matrix:
       unified_name: "Liability-to-Asset Transmutation Vector"
 
     - core_pattern: "Cultural/Biblical Authority Invoke"
-      pass_1_name: 'null (seen as value redefinition variant)'
+      pass_1_name: "null (seen as value redefinition variant)"
       pass_2_name: "Biblical/Cultural Invoke"
-      pass_3_name: 'null (not identified as distinct tension form)'
+      pass_3_name: "null (not identified as distinct tension form)"
       confidence: "medium"
       rationale: "Pass 2 identifies clearly; Pass 1/3 see as instance of larger pattern"
       unified_name: "Cultural Authority Invoke Vector"
 
     - core_pattern: "Linguistic/Homophone Precision"
-      pass_1_name: 'null (seen as predicate hollowing variant)'
+      pass_1_name: "null (seen as predicate hollowing variant)"
       pass_2_name: "Homophone Precision"
-      pass_3_name: 'null (not identified as distinct tension form)'
+      pass_3_name: "null (not identified as distinct tension form)"
       confidence: "medium"
       rationale: "Pass 2 identifies clearly; may be instance of larger pattern"
       unified_name: "Linguistic Precision Vector"
@@ -274,16 +276,16 @@ variance_matrix:
     # Shapes identified by 1/3 passes only
     - core_pattern: "Frame Persistence Through Denial"
       pass_1_name: "Frame Persistence"
-      pass_2_name: 'null (not identified as rhetorical form)'
+      pass_2_name: "null (not identified as rhetorical form)"
       pass_3_name: '"Tragic Hope" (related but different emphasis)'
       confidence: "low"
       rationale: "Only Pass 1 identifies as distinct shape; may be denial rather than rotation"
       status: "candidate_for_removal"
 
     - core_pattern: "Exaggeration with Mythic Escape"
-      pass_1_name: 'null (seen as direction reversal variant)'
+      pass_1_name: "null (seen as direction reversal variant)"
       pass_2_name: "Exaggeration Escalation"
-      pass_3_name: 'null (not identified as tension form)'
+      pass_3_name: "null (not identified as tension form)"
       confidence: "low"
       rationale: "Only Pass 2 identifies; may be rhetorical flourish rather than core shape"
       status: "keep_as_rhetorical_variant"

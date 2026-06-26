@@ -9,7 +9,7 @@ manifest:
     rotations with configurable enrichment, computes convergence on diversity
     and tension quality, and iterates until perspective set is robust.
   functional_role: flowdef
-  version: 0.30.0
+  version: 0.31.0
   editor: curator-or-human-admin
   visibility: Public
 
@@ -55,11 +55,10 @@ steps:
     action: select
     description: Configure perspective vectors and enrichment settings.
     renderer: minijinja
-    template_ref: falstaffian-perspective/falstaffian-perspective
-    gas_cap: 5000
-    timeout_seconds: 60
+    template_ref: falstaffian-perspective/falstaffian-configure
+    gas_cap: 2000
+    timeout_seconds: 30
     input_mapping:
-      input_criticism: "{{ text }}"
       text: "{{ text }}"
       context: "{{ context | default({}) }}"
       perspective_vectors: "{{ perspective_vectors | default([]) }}"
@@ -68,18 +67,20 @@ steps:
 
   - ordinal: 2
     action: select
-    description: Generate enriched Falstaffian perspective set.
+    description: Generate enriched Falstaffian perspective set using configured shapes.
     renderer: minijinja
     template_ref: falstaffian-perspective/falstaffian-perspective
     gas_cap: 9000
     timeout_seconds: 120
     input_mapping:
-      input_criticism: "{{ text }}"
       text: "{{ text }}"
       context: "{{ context | default({}) }}"
-      perspective_vectors: "{{ step_1_result.active_shapes | default(perspective_vectors | default([])) }}"
-      enrichment_depth: "{{ step_1_result.enrichment_depth | default(enrichment_depth | default('medium')) }}"
-      base_seed: "{{ base_seed | default(42) }}"
+      active_shapes: "{{ step_1_result.active_shapes }}"
+      enrichment_depth: "{{ step_1_result.enrichment_depth }}"
+      base_seed: "{{ step_1_result.base_seed }}"
+      voice_emphasis: "{{ step_1_result.voice_emphasis }}"
+      temperatures: "{{ step_1_result.temperatures }}"
+      skip_config: true
 
   - ordinal: 3
     action: select
@@ -106,6 +107,10 @@ error_handling:
 
 ocap:
   required_capabilities:
+    - resource: template
+      action: render
+      template_id: falstaffian-perspective/falstaffian-configure
+      gas_budget: 2000
     - resource: template
       action: render
       template_id: falstaffian-perspective/falstaffian-perspective

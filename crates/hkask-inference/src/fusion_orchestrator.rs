@@ -51,12 +51,6 @@ fn skill_prompt(skill: &FusionSkill) -> &'static str {
              earn its existence? (2) Surface — is its interface minimal? (3) Contract — \
              are its behavioral contracts explicit and verified?"
         }
-        FusionSkill::ConstraintForces => {
-            "Constraint Forces: Classify every constraint by force type: Prohibition \
-             (inviolable), Guardrail (bounding), Guideline (advisory), Evidence (empirical), \
-             Hypothesis (tentative). Never relax a Prohibition. Never treat a Hypothesis \
-             as a Guardrail."
-        }
         FusionSkill::Superforecasting => {
             "Superforecasting (Tetlock): Use Fermi decomposition for estimates. Apply \
              outside/inside views. Update probabilities with Bayesian evidence. Express \

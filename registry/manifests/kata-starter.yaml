@@ -1,15 +1,18 @@
 # Starter Kata Process Manifest
-# ℏKask v0.30.0 — Habit drills as convergent PDCA
+# ℏKask v0.31.0 — Habit drills as convergent PDCA
+# FIXED: Selector output now drives conditional routing to exactly ONE drill per iteration.
+# Previously all three drills ran unconditionally, ignoring the selector's selected_drill output.
 
 manifest:
   id: kata-starter
   name: Kata Starter
   description: >
-    Convergent starter-kata process. Selects an appropriate foundational drill,
-    runs practice routines, computes convergence on habit signal quality, and
-    iterates until starter automaticity reaches threshold.
+    Convergent starter-kata process. Selects an appropriate foundational drill
+    based on learner state, routes to exactly ONE drill per iteration, computes
+    convergence on habit signal quality, and iterates until starter automaticity
+    reaches threshold.
   functional_role: flowdef
-  version: 0.30.0
+  version: 0.31.0
   editor: curator-or-human-admin
   visibility: Public
 
@@ -44,7 +47,7 @@ inputs:
 steps:
   - ordinal: 1
     action: select
-    description: Select starter drill based on learner profile.
+    description: Select starter drill based on learner profile and practice history.
     renderer: minijinja
     template_ref: kata-starter/starter-selector
     gas_cap: 2500
@@ -53,35 +56,41 @@ steps:
       learner_profile: "{{ learner_profile | default({}) }}"
       practice_goal: "{{ practice_goal | default('foundational scientific thinking') }}"
 
+  # Drill execution — conditional routing to exactly ONE drill per iteration.
+  # Only one of Steps 2-4 executes, based on step_1_result.selected_drill.
+
   - ordinal: 2
     action: select
-    description: Run five-questions starter drill.
+    description: Run Five Questions drill — practice asking the 5 coaching questions in order.
     renderer: minijinja
     template_ref: kata-starter/starter-five-questions
     gas_cap: 3000
     timeout_seconds: 45
+    condition: "step_1_result.selected_drill == 'five-questions'"
     input_mapping:
       learner_profile: "{{ learner_profile | default({}) }}"
       selector_result: "{{ step_1_result }}"
 
   - ordinal: 3
     action: select
-    description: Run PDCA-cycle starter drill.
+    description: Run PDCA Cycle drill — practice Plan-Do-Check-Act on a trivial process.
     renderer: minijinja
     template_ref: kata-starter/starter-pdca-cycle
     gas_cap: 3000
     timeout_seconds: 45
+    condition: "step_1_result.selected_drill == 'pdca-cycle'"
     input_mapping:
       learner_profile: "{{ learner_profile | default({}) }}"
       selector_result: "{{ step_1_result }}"
 
   - ordinal: 4
     action: select
-    description: Run observation-drill starter exercise.
+    description: Run Observation drill — practice separating facts from interpretations.
     renderer: minijinja
     template_ref: kata-starter/starter-observation-drill
     gas_cap: 3000
     timeout_seconds: 45
+    condition: "step_1_result.selected_drill == 'observation-drill'"
     input_mapping:
       learner_profile: "{{ learner_profile | default({}) }}"
       selector_result: "{{ step_1_result }}"
@@ -95,7 +104,7 @@ steps:
     timeout_seconds: 30
     input_mapping:
       selector_result: "{{ step_1_result }}"
-      drill_results: "{{ [step_2_result, step_3_result, step_4_result] }}"
+      drill_result: "{{ step_2_result | default(step_3_result | default(step_4_result | default({}))) }}"
 
   - ordinal: 6
     action: loop
@@ -140,3 +149,26 @@ ocap:
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
   template_scoped: true
+
+# Recommends: improv skill for constructive interaction postures during drill practice.
+# - Observation Drill → Plussing
+# - Five Questions Drill → Yes And
+# - PDCA Cycle → Yes But
+
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.kata.starter
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+  spans:
+    - cns.kata.starter.automaticity
+    - cns.kata.starter.drill.completed
+
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_gas_cost: true
+  include_cns_events: true

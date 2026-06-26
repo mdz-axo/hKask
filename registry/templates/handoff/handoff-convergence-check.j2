@@ -31,6 +31,16 @@ thinking_budget = "off"
 
 Compute handoff convergence where 0 means handoff packet is complete, actionable, and redaction-safe.
 
+Additionally, perform **structural redaction verification**:
+1. Scan the compose_result.handoff_document for known sensitive patterns:
+   - API key patterns (e.g., `sk-...`, `API_KEY=`, `token:`, `Bearer ...`)
+   - PEM blocks (e.g., `-----BEGIN ... PRIVATE KEY-----`)
+   - Connection strings (e.g., `postgres://user:pass@`, `mongodb+srv://`)
+   - Email addresses (user@domain)
+2. Verify that all flagged redactions from artifacts_result.redacted_fields appear as `[REDACTED]` in the document
+3. If any sensitive pattern is found unredacted → add to `blockers` with description
+4. If any flagged field is missing `[REDACTED]` marker → add to `blockers`
+
 Input:
 ```json
 {

@@ -79,6 +79,13 @@ steps:
       searches for bug patterns, runs cargo check/test/clippy. The charter
       from step 1 provides probe_instructions. Collect structured findings
       as text to feed the oracle phase.
+
+      Design note: This phase requires the agent to execute MCP tools between
+      template calls. In pure FlowDef execution (kask run), the probe_findings
+      input should be pre-populated before invoking the flow. In Zed sessions,
+      the agent orchestrates the probe manually between charter and oracle.
+      If probe_findings is not provided, the template outputs probe guidance
+      instructions and the flow should be re-invoked with populated findings.
     renderer: minijinja
     template_ref: bug-hunt/bug-hunt-probe
     gas_cap: 2048

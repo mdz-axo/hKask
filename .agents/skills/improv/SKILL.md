@@ -123,11 +123,14 @@ The improv skill monitors 5 derived trace target strings for observability. Thes
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `improv-cycle.j2` | KnowAct | Orchestrate improv mode cycles |
-| `improv-plussing.j2` | WordAct | Extract agreeable components and build constructively |
-| `improv-yes-and.j2` | WordAct | Accept and extend contributions additively |
-| `improv-yes-but.j2` | WordAct | Accept and constrain contributions |
-| `improv-freestyling.j2` | WordAct | Rapid collaborative short-response cycling |
+| `improv-select.j2` | KnowAct | Select best-fit improv mode from conversation context (v0.31.0: split from improv-cycle) |
+| `improv-cycle.j2` | KnowAct | Apply selected improv mode to produce constructive response (v0.31.0: application-only; selection moved to improv-select) |
+| `improv-plussing.j2` | WordAct | Extract agreeable components and build constructively (wired via conditional routing in v0.31.0) |
+| `improv-yes-and.j2` | WordAct | Accept and extend contributions additively (wired via conditional routing in v0.31.0) |
+| `improv-yes-but.j2` | WordAct | Accept and constrain contributions (wired via conditional routing in v0.31.0) |
+| `improv-freestyling.j2` | WordAct | Rapid collaborative short-response cycling (wired via conditional routing in v0.31.0) |
+| `improv-riffing.j2` | WordAct | Solo divergent exploration from a seed contribution (wired via conditional routing in v0.31.0) |
+| `improv-convergence-check.j2` | KnowAct | Compute normalized convergence for improv PDCA cycles |
 
 
 ## Registry Manifest
@@ -143,5 +146,5 @@ The improv skill monitors 5 derived trace target strings for observability. Thes
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 12000 rJ, 0.2 rJ/token
+- **rJoule (inference energy):** cap 2 rJ (absolute)
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

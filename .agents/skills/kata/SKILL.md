@@ -79,13 +79,16 @@ This bundle's orchestration templates live in `registry/templates/kata/`:
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `kata-selector.j2` | KnowAct | Route agent to appropriate kata based on context |
-| `consent-and-select.j2` | KnowAct | Verify consent before executing any kata |
+| `consent-and-select.j2` | KnowAct | Verify P2 consent and select kata type (subsumes former kata-selector, removed v0.31.0) |
+| `starter-cycle.j2` | KnowAct | Bridge template: kata-pattern → kata-starter delegation (v0.31.0) |
+| `improvement-cycle.j2` | KnowAct | Bridge template: kata-pattern → kata-improvement delegation (v0.31.0) |
+| `coaching-cycle.j2` | KnowAct | Bridge template: kata-pattern → kata-coaching delegation (v0.31.0) |
 | `outcome-and-habit.j2` | KnowAct | Synthesize kata outcome with habit assessment |
-| `habit-intervention.j2` | KnowAct | Generate intervention when habit is at risk |
+| `habit-intervention.j2` | WordAct | Generate intervention when habit is at risk |
 | `iteration-check.j2` | KnowAct | Check if iteration is needed (variance or low confidence) |
 | `iteration-comparison.j2` | KnowAct | Compare iterations for variance and confidence |
 | `kata-switch-check.j2` | KnowAct | Validate kata switching against composition rules |
+| `kata-convergence-check.j2` | KnowAct | Compute normalized convergence for kata practice sessions |
 
 ## Bundle Manifests
 
@@ -139,5 +142,5 @@ For detailed instructions on each practice, see the individual skill files:
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 120000 rJ, 0.0008 rJ/token
-- **System constant:** 1 rJ = 250,000 gas cycles ()
+- **rJoule (inference energy):** cap 5 rJ (absolute)
+- **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

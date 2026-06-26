@@ -1,3 +1,8 @@
+# ⚠️ DEPRECATED — Superseded by goal-analysis.yaml (v0.31.0)
+# This manifest is retained for reference only. All CNS spans, storage
+# integration, and matryoshka tracking have been merged into the canonical
+# goal-analysis.yaml. Do not add new features here.
+#
 # Goal Lifecycle Manifest — Complete goal primitive flow
 # Shared language + Shared goals = productive cooperation
 # Per Scott Page's "The Difference": high-performance groups need both

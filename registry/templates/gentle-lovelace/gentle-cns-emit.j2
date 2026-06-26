@@ -1,0 +1,62 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- emit
+- track
+- observe
+contract:
+  input:
+    diagnostic_output: object
+    convergence_metric: number
+  output:
+    cns_span: object
+    emission_status: string
+energy_cap: 1024
+visibility: Public
+---
+{# Template: gentle-lovelace/gentle-cns-emit.j2 #}
+{# goal: Emit CNS span with per-dimension writing quality scores and convergence state for variety tracking. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "low"
+verbosity = "terse"
+max_tokens = 512
+thinking_budget = "off"
+
+Emit a CNS span for gentle-lovelace variety tracking. Package the diagnostic output dimensions and convergence metric.
+
+Input:
+```json
+{
+  "diagnostic_output": {{ diagnostic_output | tojson }},
+  "convergence_metric": {{ convergence_metric }}
+}
+```
+
+Extract and return a CNS span observation with:
+- Per-dimension scores (accessibility, precision, findability, agent_correctness)
+- Overall composite score
+- Convergence metric
+- Recommendation count
+
+Return JSON only:
+```json
+{
+  "cns_span": {
+    "namespace": "cns.gentle_lovelace",
+    "observation": {
+      "dimension_scores": {
+        "accessibility": 0.0,
+        "precision": 0.0,
+        "findability": 0.0,
+        "agent_correctness": 0.0
+      },
+      "overall_score": 0.0,
+      "convergence_metric": 0.0,
+      "recommendation_count": 0
+    }
+  },
+  "emission_status": "emitted"
+}
+```

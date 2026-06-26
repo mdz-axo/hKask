@@ -9,7 +9,7 @@ manifest:
     current condition, sets target condition, defines next experiment, then
     computes convergence and iterates.
   functional_role: flowdef
-  version: 0.30.0
+  version: 0.31.0
   editor: curator-or-human-admin
   visibility: Public
 
@@ -142,3 +142,27 @@ ocap:
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
   template_scoped: true
+
+# Recommends: improv skill for self-directed coaching posture during Step 4.
+# - Plan (design experiment) → Yes But
+# - Check (compare prediction to actual) → Plussing
+
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.kata.improvement
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+  spans:
+    - cns.kata.improvement.direction
+    - cns.kata.improvement.current_condition
+    - cns.kata.improvement.target_set
+    - cns.kata.improvement.experiment_run
+
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_gas_cost: true
+  include_cns_events: true

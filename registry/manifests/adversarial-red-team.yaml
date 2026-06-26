@@ -52,6 +52,28 @@ inputs:
   - name: intensity
     type: string
     required: false
+  - name: persistence_level
+    type: string
+    required: false
+    description: >
+      Attack persistence: single (one batch), iterative (multi-turn escalating),
+      or persistent (adaptive attack scripts with response-driven rules).
+      Default: single
+  - name: injection_vector
+    type: string
+    required: false
+    description: >
+      Attack delivery: direct (user-submitted), indirect_data (embedded in
+      external data), or indirect_tool_output (embedded in tool/API output).
+      Default: direct
+  - name: adversarial_intensity
+    type: string
+    required: false
+    description: >
+      Attack sophistication: basic (2-3 inputs/category), advanced (3-5 with
+      creative vectors), or extreme (5+ with recursive payloads, cross-category
+      blending, evasion techniques).
+      Default: basic
 
 steps:
   - ordinal: 1
@@ -80,6 +102,9 @@ steps:
       vulnerability_surface: "{{ step_1_result.vulnerability_surface | default([]) }}"
       attack_categories: "{{ step_1_result.categories_to_test | default(adversarial_categories | default([])) }}"
       intensity_level: "{{ step_1_result.intensity_level | default(intensity | default('moderate')) }}"
+      persistence_level: "{{ persistence_level | default('single') }}"
+      injection_vector: "{{ injection_vector | default('direct') }}"
+      adversarial_intensity: "{{ adversarial_intensity | default('basic') }}"
 
   - ordinal: 3
     action: select

@@ -191,7 +191,7 @@ The two exit rails — quality threshold and energy budget — form the ratchet.
 
 ### Shared Infrastructure
 
-`constraint-forces` runs across **all** layers and all compositions. Prohibitions and Guardrails are never relaxed.
+`pragmatic-semantics` runs across **all** layers and all compositions. Prohibitions and Guardrails are never relaxed.
 
 ### Applied Migration Assumptions (Current State — v0.30.0)
 
@@ -234,7 +234,7 @@ No composition-level configuration needed — enable Fusion once and all downstr
 ```
 dokkodo-mindset → pragmatic-laziness → essentialist → coding-guidelines
      ↑                                                    ↑
-constraint-forces (runs across all, never relaxed)
+pragmatic-semantics (runs across all, never relaxed)
 ```
 
 | Stage | Skill | What happens |
@@ -243,7 +243,7 @@ constraint-forces (runs across all, never relaxed)
 | **Analyze** | `pragmatic-laziness` | Decompose the situation, map feedback loops, find δS = 0 path |
 | **Delete** | `essentialist` | Apply 3-gate eliminative interrogation — Exist → Surface → Contract |
 | **Execute** | `coding-guidelines` | Enforce Karpathy principles: think first, simplicity, surgical, goal-driven |
-| **Enforce** | `constraint-forces` | Running across all stages, classify every boundary |
+| **Enforce** | `pragmatic-semantics` | Running across all stages, classify every boundary |
 
 **Use when:** Design decisions, architecture reviews, code simplification, "what should I delete?"
 

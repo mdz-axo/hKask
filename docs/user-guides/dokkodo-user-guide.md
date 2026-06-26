@@ -276,7 +276,7 @@ The Dokkodo introduces a **perceptual layer** that sits before hKask's existing 
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ REGULATIVE LAYER                                             │
-│ constraint-forces — classifies and enforces boundaries.      │
+│ pragmatic-semantics — classifies and enforces boundaries.    │
 │ Runs across ALL layers. Prohibitions and Guardrails are      │
 │ never relaxed by perceptual transformation.                  │
 └──────────────────────────┬──────────────────────────────────┘
@@ -406,7 +406,7 @@ The American Ronin pattern suggests automatic Dokkodo activation on CNS error es
 
 ### 9.4 Precept Conflict Resolution
 
-When precepts appear to conflict, the current template flags the conflict. A resolution protocol could apply Precept 21 as tiebreaker, use constraint-forces ranking, and weight clusters by domain.
+When precepts appear to conflict, the current template flags the conflict. A resolution protocol could apply Precept 21 as tiebreaker, use pragmatic-semantics constraint hierarchy, and weight clusters by domain.
 
 **Stance:** Flag and escalate to human. Automated resolution is v0.31+.
 

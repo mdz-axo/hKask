@@ -79,15 +79,6 @@ contract:
           appears_harder_because: { type: string }
           reduces_long_term_action_by: { type: string }
       description: Paths that look harder in the short term but minimize long-term action
-    stationary:
-      type: boolean
-      description: Whether perception has reached stationary state. Computed by `dokkodo-convergence-check.j2`, not self-assessed by this template.
-    should_continue:
-      type: boolean
-      description: Whether another iteration is warranted
-    escalate:
-      type: boolean
-      description: Whether to escalate to human after exhausting iterations. Computed by `dokkodo-convergence-check.j2`, not self-assessed.
     summary:
       type: string
       description: Narrative summary of perceptual transformation
@@ -205,20 +196,7 @@ Describe how the action landscape changes when distortions are removed:
 - Which paths now appear longer than they did before?
 - Are there brachistochrone candidates — paths that look harder in the short term but reduce total system action?
 
-### Step 4: CONVERGENCE CHECK (δP = 0)
-
-{% if previous_perception %}
-Compare the current clarified perception to the previous iteration:
-
-| Condition | Verdict |
-|-----------|---------|
-| No new distortions identified AND shift_magnitude ≈ 0 | **δP = 0 — STATIONARY.** Perception is clear. Done. |
-| New distortions identified OR shift_magnitude > 0 | **δP ≠ 0 — PROGRESS.** Continue if iterations remain. |
-| More distortions than previous iteration | **REGRESSION.** Escalate — the lens is introducing noise, not clarity. |
-| Max iterations ({{ max_iterations | default(3) }}) reached without δP = 0 | **ESCALATE.** Report clearest perception found and what remains contested. |
-{% else %}
-First iteration — no previous perception to compare. Always continue if distortions were found.
-{% endif %}
+Convergence assessment (δP = 0) is the responsibility of `dokkodo-convergence-check.j2` — this template produces raw perception data only. Do not self-assess convergence.
 
 ## Output Requirements
 
@@ -257,38 +235,7 @@ Respond with a JSON object:
       "reduces_long_term_action_by": "How it minimizes total system action over time"
     }
   ],
-  "stationary": false,
-  "should_continue": true,
-  "escalate": false,
   "summary": "Narrative summary of what the Dokkodo lens revealed and how perception shifted."
-}
-```
-
-Example of stationary (converged) output:
-
-```json
-{
-  "clarified_perception": {
-    "original_situation": "...",
-    "view_through_lens": "..."
-  },
-  "filters_applied": ["perceptual_reset"],
-  "distortions_removed": [],
-  "precept_alignment": {
-    "1": 0.95,
-    "4": 0.9,
-    "11": 0.9
-  },
-  "action_landscape_shift": {
-    "before_summary": "Same as after — no further distortions found.",
-    "after_summary": "Perception is clear. No attachment, preference, or custom distorting the view.",
-    "shift_magnitude": 0.0
-  },
-  "brachistochrone_candidates": [],
-  "stationary": true,
-  "should_continue": false,
-  "escalate": false,
-  "summary": "δP = 0. No new distortions identified. Perception has reached stationary state. The Dokkodo lens is fully applied."
 }
 ```
 

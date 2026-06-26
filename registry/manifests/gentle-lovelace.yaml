@@ -1,15 +1,19 @@
 # Gentle Lovelace Process Manifest
-# ℏKask v0.30.0 — Writing-quality evaluation as convergent PDCA
+# ℏKask v0.31.0 — Writing-quality evaluation as convergent PDCA
 
 manifest:
   id: gentle-lovelace
   name: Gentle Lovelace
   description: >
-    Convergent writing-quality evaluation process. Produces dimension diagnostics,
-    computes convergence of quality assessment, and iterates until confidence in
-    weakest-dimension recommendations is stable.
+    Convergent writing-quality diagnostic report generator. Consumes pre-computed
+    per-dimension cosine distance scores (from an upstream embedding comparison
+    step such as replica_compare), produces structured diagnostics with actionable
+    recommendations, computes convergence until weakest-dimension recommendations
+    are clear, and emits CNS spans for variety tracking. This skill is a downstream
+    report formatter — it does NOT compute dimension scores internally. Input
+    dimension_scores must be produced by an upstream step or composed skill.
   functional_role: flowdef
-  version: 0.30.0
+  version: 0.31.0
   editor: curator-or-human-admin
   visibility: Public
 
@@ -40,6 +44,12 @@ inputs:
   - name: dimension_scores
     type: object
     required: true
+    description: >
+      Pre-computed per-dimension cosine distance scores from an upstream embedding
+      comparison step. Expected keys: gentle (agent-correctness), schriver (findability),
+      hopper (accessibility), lovelace (precision), composite (weighted). This skill
+      does NOT compute these scores — they must be provided by the caller or a
+      composed upstream skill.
   - name: document_type
     type: string
     required: false
@@ -72,6 +82,17 @@ steps:
       primary_result: "{{ step_1_result }}"
 
   - ordinal: 3
+    action: select
+    description: Emit CNS span with per-dimension scores and composite for variety tracking.
+    renderer: minijinja
+    template_ref: gentle-lovelace/gentle-cns-emit
+    gas_cap: 1000
+    timeout_seconds: 15
+    input_mapping:
+      diagnostic_output: "{{ step_1_result }}"
+      convergence_metric: "{{ step_2_result.convergence_metric }}"
+
+  - ordinal: 4
     action: loop
     description: Re-enter quality-evaluation cycle if convergence is not met.
     input_mapping:
@@ -94,6 +115,10 @@ ocap:
       action: render
       template_id: gentle-lovelace/gentle-convergence-check
       gas_budget: 2000
+    - resource: template
+      action: render
+      template_id: gentle-lovelace/gentle-cns-emit
+      gas_budget: 1000
     - resource: manifest
       action: execute
       template_id: gentle-lovelace

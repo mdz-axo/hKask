@@ -208,9 +208,6 @@ pub enum FusionSkill {
     /// Essentialist — recursive eliminative interrogation, 3-gate challenge loop.
     #[serde(rename = "essentialist")]
     Essentialist,
-    /// Constraint Forces — classify constraints as Prohibition/Guardrail/Guideline/Evidence/Hypothesis.
-    #[serde(rename = "constraint-forces")]
-    ConstraintForces,
     /// Superforecasting — calibrated probability, Fermi decomposition, Bayesian updating.
     #[serde(rename = "superforecasting")]
     Superforecasting,
@@ -236,7 +233,6 @@ impl std::str::FromStr for FusionSkill {
             "coding-guidelines" => Ok(FusionSkill::CodingGuidelines),
             "deep-module" => Ok(FusionSkill::DeepModule),
             "essentialist" => Ok(FusionSkill::Essentialist),
-            "constraint-forces" => Ok(FusionSkill::ConstraintForces),
             "superforecasting" => Ok(FusionSkill::Superforecasting),
             "mcda" => Ok(FusionSkill::MCDA),
             "tdd" => Ok(FusionSkill::TestDrivenDevelopment),
@@ -313,7 +309,6 @@ impl FusionConfig {
                     FusionSkill::CodingGuidelines => "coding-guidelines",
                     FusionSkill::DeepModule => "deep-module",
                     FusionSkill::Essentialist => "essentialist",
-                    FusionSkill::ConstraintForces => "constraint-forces",
                     FusionSkill::Superforecasting => "superforecasting",
                     FusionSkill::MCDA => "mcda",
                     FusionSkill::TestDrivenDevelopment => "tdd",

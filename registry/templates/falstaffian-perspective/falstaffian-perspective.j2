@@ -35,6 +35,18 @@ visibility: Public
 {% set text = text | default("You lack honor") %}
 {% set context = context | default("Business meeting where abstract values are invoked") %}
 
+{% set skip_config = skip_config | default(false) %}
+
+{% if skip_config %}
+{# Configuration supplied by upstream configure step — use pre-selected shapes and settings. #}
+{% set active_shapes = active_shapes | default(['predicate_hollow', 'subject_expansion', 'counterfeit_inversion', 'object_inversion', 'direction_reversal']) %}
+{% set enrichment_depth = enrichment_depth | default("medium") %}
+{% set base_seed = base_seed | default(42) %}
+{% set voice_emphasis = voice_emphasis | default(['playful', 'pragmatic', 'imaginative', 'worldly', 'generous']) %}
+{% set temperatures = temperatures | default([0.7, 0.8, 0.9]) %}
+{% set iteration_count = active_shapes | length %}
+{% else %}
+{# Standalone mode — compute configuration locally. #}
 {% set enrichment_depth = enrichment_depth | default("medium") %}
 {% set valid_depths = ["light", "medium", "deep"] %}
 {% if enrichment_depth not in valid_depths %}
@@ -61,6 +73,9 @@ visibility: Public
 {% endif %}
 
 {% set iteration_count = active_shapes | length %}
+{% set voice_emphasis = ['playful', 'pragmatic', 'imaginative', 'worldly', 'generous'] %}
+{% set temperatures = [0.7, 0.8, 0.9] %}
+{% endif %}
 
 {# Shape lookup tables #}
 {% set shape_sources = {
@@ -84,9 +99,6 @@ visibility: Public
     'liability_transmutation': 'I will turn diseases to commodity.',
     'linguistic_precision': 'Waste (moral) → waist (physical).'
 } %}
-
-{% set voice_emphasis = ['playful', 'pragmatic', 'imaginative', 'worldly', 'generous'] %}
-{% set temperatures = [0.7, 0.8, 0.9] %}
 
 {# =============================================================================
    ENRICHMENT DEPTH CONFIGURATION
@@ -121,121 +133,10 @@ visibility: Public
 #}
 
 {# =============================================================================
-   FALSTAFFIAN SHAPE MACROS — DETERMINISTIC CORE (Phase 1)
-   These macros remain unchanged from v2.2 — they are the deterministic engine.
+   FALSTAFFIAN SHAPE MACROS — imported from _shapes-macros.j2
    ============================================================================= #}
 
-{% macro apply_predicate_hollow(criticism, voice) %}
-**Shape:** Predicate Hollow Vector ({{ shape_sources['predicate_hollow'] }})
-**Voice:** {{ voice }}
-
-What is the predicate? A word. What is in that word? Air.
-Can it set to a leg? No. Can it heal a wound? No.
-
-"{{ criticism }}" becomes irrelevant when its key term is recognized as air.
-The catechism: question → answer → conclusion. The term cannot bear the weight placed upon it.
-{% endmacro %}
-
-{% macro apply_subject_expansion(criticism, ctx, voice) %}
-**Shape:** Subject Expansion Vector ({{ shape_sources['subject_expansion'] }})
-**Voice:** {{ voice }}
-
-Not just the subject, but the world itself.
-To criticize one is to criticize all.
-
-{{ ctx }} expanded: the individual contains the universal.
-The criticism cannot be contained — it radiates outward until it consumes its own source.
-{% endmacro %}
-
-{% macro apply_counterfeit_inversion(criticism, ctx, voice) %}
-**Shape:** Counterfeit Inversion Vector ({{ shape_sources['counterfeit_inversion'] }})
-**Voice:** {{ voice }}
-
-To die is to be a counterfeit.
-To live is the true image of life indeed.
-
-{{ ctx }} inverted: dead heroes are counterfeit, living cowards are true.
-The paradox reveals life as the meta-value — all other values are subordinate to it.
-{% endmacro %}
-
-{% macro apply_object_inversion(criticism, ctx, voice) %}
-**Shape:** Object Inversion Vector ({{ shape_sources['object_inversion'] }})
-**Voice:** {{ voice }}
-
-Care I for great men? No.
-Give me the spare men.
-
-{{ ctx }} pragmatically: great ones are marks for the enemy, spare ones survive.
-The inversion: what is devalued is revalued. Liability becomes asset.
-{% endmacro %}
-
-{% macro apply_direction_reversal(criticism, ctx, voice) %}
-**Shape:** Direction Reversal Vector ({{ shape_sources['direction_reversal'] }})
-**Voice:** {{ voice }}
-
-Not 'you should have better X' but 'X should get better you'.
-The evaluator becomes evaluated.
-
-{{ ctx }} reversed: who evaluates whom? The frame itself is the target.
-What if the criteria are the problem, not the subject?
-{% endmacro %}
-
-{% macro apply_physiological_causal(criticism, ctx, voice) %}
-**Shape:** Physiological Causal Chain Vector ({{ shape_sources['physiological_causal'] }})
-**Voice:** {{ voice }}
-
-Not morality but physiology: stimulus → processing → response.
-The chain: sack → brain → vapors → wit → valor.
-
-{{ ctx }} mediated: insert physiological chain between judgment and response.
-Every accusation has a body. Follow the chain back to its physical root.
-{% endmacro %}
-
-{% macro apply_liability_transmutation(criticism, ctx, voice) %}
-**Shape:** Liability-to-Asset Transmutation Vector ({{ shape_sources['liability_transmutation'] }})
-**Voice:** {{ voice }}
-
-The gout becomes pension justification.
-A good wit will make use of any thing.
-
-{{ ctx }} transmuted: limitation in one context is resource in another.
-Alchemy: turn the disease to commodity, the flaw to feature.
-{% endmacro %}
-
-{% macro apply_linguistic_precision(criticism, ctx, voice) %}
-**Shape:** Linguistic Precision Vector ({{ shape_sources['linguistic_precision'] }})
-**Voice:** {{ voice }}
-
-Waste (moral) → waist (physical).
-The category error revealed.
-
-{{ ctx }} precisely: moral criticism rotated to physical fact.
-The word carries two meanings. Choosing the other one changes everything.
-{% endmacro %}
-
-{# =============================================================================
-   SHAPE DISPATCH MACRO
-   ============================================================================= #}
-
-{% macro apply_shape(shape, criticism, ctx, voice) %}
-{% if shape == 'predicate_hollow' %}
-{{ apply_predicate_hollow(criticism, voice) }}
-{% elif shape == 'subject_expansion' %}
-{{ apply_subject_expansion(criticism, ctx, voice) }}
-{% elif shape == 'counterfeit_inversion' %}
-{{ apply_counterfeit_inversion(criticism, ctx, voice) }}
-{% elif shape == 'object_inversion' %}
-{{ apply_object_inversion(criticism, ctx, voice) }}
-{% elif shape == 'direction_reversal' %}
-{{ apply_direction_reversal(criticism, ctx, voice) }}
-{% elif shape == 'physiological_causal' %}
-{{ apply_physiological_causal(criticism, ctx, voice) }}
-{% elif shape == 'liability_transmutation' %}
-{{ apply_liability_transmutation(criticism, ctx, voice) }}
-{% elif shape == 'linguistic_precision' %}
-{{ apply_linguistic_precision(criticism, ctx, voice) }}
-{% endif %}
-{% endmacro %}
+{% include "falstaffian-perspective/_shapes-macros.j2" %}
 
 {# =============================================================================
    PHASE 1: DETERMINISTIC PERSPECTIVE GENERATION

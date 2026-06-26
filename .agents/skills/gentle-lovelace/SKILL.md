@@ -33,12 +33,18 @@ Named for the two women who bookend the field: **Ada Lovelace** (1815–1852), w
 
 ## How It Works
 
-The evaluation pipeline has 4 steps:
+The skill is a **downstream report generator** — it consumes pre-computed dimension scores from an upstream embedding comparison step (e.g., `replica_compare`). It does NOT compute scores internally.
 
-1. **Retrieve exemplars** — Embed the document and KNN-search against the Gentle Lovelace corpus for closest-matching passages from each exemplar's canonical works
-2. **Per-dimension comparison** — Compare the document against each of the 4 dimension-specific centroids using cosine distance. Lower distance = stronger alignment
-3. **Aggregate** — Weighted composite: Gentle 50% + Schriver 30% + Hopper 10% + Lovelace 10%. Produce diagnostic summary
-4. **CNS feedback** — Emit span for variety tracking: per-dimension distances, composite score, document metadata
+The execution pipeline has 3 steps:
+
+1. **Produce diagnostic report** — Consume pre-computed per-dimension cosine distance scores, generate structured diagnostic with rated dimensions and actionable recommendations for the weakest areas
+2. **Convergence check** — Compute normalized convergence metric via `gentle-convergence-check.j2`. Converges when weakest-dimension recommendations are clear and actionable
+3. **CNS emission** — Emit CNS span (`cns.gentle_lovelace`) with per-dimension scores, composite, convergence state, and recommendation count for variety tracking
+
+Upstream responsibilities (not performed by this skill):
+- **Retrieve exemplars** — Embed document and KNN-search against the Gentle Lovelace corpus
+- **Per-dimension comparison** — Compare document against dimension-specific centroids using cosine distance
+- **Aggregate** — Compute weighted composite (Gentle 50% + Schriver 30% + Hopper 10% + Lovelace 10%)
 
 ## Understanding the Scores
 

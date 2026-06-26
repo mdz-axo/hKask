@@ -65,7 +65,7 @@ pub struct LLMParameters {
     /// identifier including the base model. The adapter was trained on a specific
     /// base model and cannot be applied to a different one.
     ///
-    /// Format: `"Qwen3.5-9B#constraint-forces-v3"` (Baseten multi-LoRA)
+    /// Format: `"Qwen3.5-9B#pragmatic-semantics-v1"` (Baseten multi-LoRA)
     ///         `"accounts/together/models/my-model"` (Together AI fine-tuned)
     ///
     /// The caller is responsible for resolving which base model the adapter

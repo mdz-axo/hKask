@@ -1,3 +1,7 @@
+# ⚠️ DEPRECATED — Superseded by goal-analysis.yaml (v0.31.0)
+# Error handling improvements (confidence_low threshold, fallback exhaustion
+# escalation) merged into canonical goal-analysis.yaml. Retained for reference.
+
 manifest:
   id: goal-verification
   name: goal-verification

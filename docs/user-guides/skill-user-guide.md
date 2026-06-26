@@ -42,13 +42,13 @@ Skills are organized into five composition layers, running top-to-bottom:
 
 ```
 Perceptual  →  dokkodo-mindset (clears attachment, preference, fear)
-Regulative  →  constraint-forces (enforces boundaries across all layers)
+Regulative  →  pragmatic-semantics (enforces boundaries across all layers)
 Analytic    →  pragmatic-laziness, essentialist, grill-me, mcda
 Executive   →  coding-guidelines, domain skills, task-specific skills
 Governance  →  magna-carta-verifier, pragmatic-semantics/cybernetics
 ```
 
-Skills at higher layers feed clarified perception to lower layers. `constraint-forces` runs across all layers — Prohibitions and Guardrails are never relaxed.
+Skills at higher layers feed clarified perception to lower layers. `pragmatic-semantics` runs across all layers — Prohibitions and Guardrails are never relaxed.
 
 ### 1.2 The Essential Five — Skills Every Agent Should Know
 
@@ -60,9 +60,9 @@ Start here. These five skills compose together into the most common workflow and
 | 2 | `pragmatic-laziness` | Finds the path of least action through any design or decision | "be lazy about this" |
 | 3 | `essentialist` | Deletes what doesn't earn its existence — the deletion test | "simplify this" |
 | 4 | `coding-guidelines` | Constrains HOW you code — think first, keep it simple, touch only what you must | "use coding-guidelines" |
-| 5 | `constraint-forces` | Classifies every constraint so you know what's inviolable and what's negotiable | "what force is this constraint?" |
+| 5 | `pragmatic-semantics` | Classifies every constraint so you know what's inviolable and what's negotiable | "how do you know that?" |
 
-**The primary chain:** `dokkodo-mindset` → `pragmatic-laziness` → `essentialist` → `coding-guidelines`, with `constraint-forces` running across all stages. Learn these five and you can navigate any hKask task.
+**The primary chain:** `dokkodo-mindset` → `pragmatic-laziness` → `essentialist` → `coding-guidelines`, with `pragmatic-semantics` running across all stages. Learn these five and you can navigate any hKask task.
 
 ### 1.3 Why Some Skills Lack SKILL.md
 
@@ -197,7 +197,7 @@ Skills that enforce boundaries and classify constraints.
 
 | Skill | Purpose | Trigger |
 |-------|---------|---------|
-| `constraint-forces` | Classify constraints as Prohibition/Guardrail/Guideline/Evidence/Hypothesis | "what force is this constraint?" |
+| `pragmatic-semantics` | Classify constraints as Prohibition/Guardrail/Guideline/Evidence/Hypothesis | "classify this constraint" |
 | `magna-carta-verifier` | Verify Magna Carta principle compliance | "verify sovereignty" |
 
 ### 4.3 Analytic — Structural
@@ -318,7 +318,7 @@ Don't know which skill you need? Find your problem:
 | Find the simplest path through a design | `pragmatic-laziness` |
 | Know what can be deleted | `essentialist` |
 | Stress-test my understanding | `grill-me` |
-| Know which rules are inviolable | `constraint-forces` |
+| Know which rules are inviolable | `pragmatic-semantics` |
 | Choose between multiple options | `mcda` |
 | Predict a future outcome with calibration | `superforecasting` |
 | Plan for multiple possible futures | `scenario-builder` |
@@ -361,7 +361,7 @@ Skills don't work in isolation. Here are the three most common chains:
 ```
 dokkodo-mindset → pragmatic-laziness → essentialist → coding-guidelines
      ↑                                                    ↑
-constraint-forces runs across all stages, never relaxed
+pragmatic-semantics runs across all stages, never relaxed
 ```
 
 **When:** You face a design decision, architecture problem, or code review. The Dokkodo clears your perceptual field. Pragmatic laziness finds the least-action path. Essentialist deletes what doesn't earn existence. Coding guidelines enforce discipline throughout.
@@ -417,7 +417,7 @@ zoom-out → chain-of-density → caveman
 | 3 | `chain-of-density` | Extraction/Summarization | FlowDef | Iterative density-increase summarization via convergent passes |
 | 4 | `coding-guidelines` | Behavioral Guardrails | FlowDef | Karpathy's four principles via convergent assess→apply→verify loops |
 | 5 | `condenser-continuation` | Meta-Cognition | FlowDef | Resume work after context reset via convergent continuation loops |
-| 6 | `constraint-forces` | Regulative | FlowDef | Classify constraints by enforcement level via convergent force loops |
+| 6 | `pragmatic-semantics` | Regulative | FlowDef | Classify constraints by enforcement level via convergent PDCA loops |
 | 7 | `decision-journal` | Decision & Strategy | FlowDef | Kahneman decision journal with convergent calibration loops |
 | 8 | `deep-module` | Structural Analysis | FlowDef | Ousterhout module depth with deletion test via convergent depth loops |
 | 9 | `diagnose` | Diagnostics | FlowDef | Disciplined diagnosis loop with convergent PDCA exits |

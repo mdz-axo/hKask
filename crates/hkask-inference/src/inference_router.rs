@@ -727,7 +727,7 @@ impl InferencePort for InferenceRouter {
         }
 
         // LoRA adapter overrides the model entirely (includes base model).
-        // Format: "Qwen3.5-9B#constraint-forces-v3" — adapter IS the full model identifier.
+        // Format: "Qwen3.5-9B#pragmatic-semantics-v1" — adapter IS the full model identifier.
         if let Some(ref adapter) = parameters.adapter {
             let (provider, model) = match self.resolve(adapter) {
                 Ok(r) => r,

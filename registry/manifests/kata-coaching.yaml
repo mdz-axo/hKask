@@ -9,7 +9,7 @@ manifest:
     dialogue, computes coaching-cycle convergence, and iterates until
     target/current/obstacle/next-step clarity is sufficient.
   functional_role: flowdef
-  version: 0.30.0
+  version: 0.31.0
   editor: curator-or-human-admin
   visibility: Public
 
@@ -164,3 +164,28 @@ ocap:
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
   template_scoped: true
+
+# Recommends: improv skill for constructive coaching postures.
+# - Q4 (Next step? What do you expect?) → Yes But
+# - Q5 (How quickly can we go and see?) → Plussing
+
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.kata.coaching
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+  spans:
+    - cns.kata.coaching.q1.target
+    - cns.kata.coaching.q2.actual
+    - cns.kata.coaching.q3.obstacles
+    - cns.kata.coaching.q4.experiment
+    - cns.kata.coaching.q5.learn
+
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_gas_cost: true
+  include_cns_events: true

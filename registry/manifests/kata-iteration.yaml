@@ -1,15 +1,16 @@
 # Kata Iteration Manifest
-# ℏKask v0.27.0 — PDCA iteration with variance assessment and confidence building
+# ℏKask v0.31.0 — PDCA iteration with variance assessment and confidence building
 #
-# Invoked by the kata-pattern bundle when a PDCA cycle produces high variance
-# or low confidence. Runs the same kata cycle again with higher temperature
-# (0.8 vs 0.3) to assess variance, then compares results across iterations.
-# Maximum 2 iterations, separate budget from primary execution.
+# Companion manifest to kata-pattern. When a PDCA cycle produces high variance
+# or low confidence, kata-pattern's iteration_tracking configuration enforces
+# inline thresholds that mirror this manifest. This standalone manifest exists
+# for independent iteration testing and variance assessment experiments.
+# See registry/manifests/kata-pattern.yaml iteration_tracking for bundle-level config.
 
 manifest:
   id: kata-iteration
   name: Kata Iteration
-  version: "0.30.0"
+  version: "0.31.0"
   description: >
     Iterate on a completed PDCA cycle to assess variance and build confidence.
     Re-executes the kata template with higher temperature, then compares

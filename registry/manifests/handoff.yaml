@@ -9,7 +9,7 @@ manifest:
     recommends skills, composes handoff document, computes convergence, and
     iterates until transfer quality is stable for continuation.
   functional_role: flowdef
-  version: 0.30.0
+  version: 0.31.0
   editor: curator-or-human-admin
   visibility: Public
 

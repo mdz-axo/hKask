@@ -1,15 +1,20 @@
 # Goal Analysis Process Manifest
-# ℏKask v0.30.0 — Goal lifecycle as convergent PDCA
+# ℏKask v0.31.0 — Goal lifecycle as convergent PDCA
+# Consolidates: goal_lifecycle.yaml (CNS, storage, matryoshka)
+#               goal_verification.yaml (error handling, human review)
+# Both superseded manifests are now deprecated — this is canonical.
 
 manifest:
   id: goal-analysis
   name: Goal Analysis
   description: >
-    Convergent goal lifecycle process. Extracts structured goals,
-    judges completion, computes convergence, and iterates until
-    goal status is confidently resolved (done, continue, or blocked).
+    Convergent goal lifecycle process. Extracts structured goals from user intent,
+    activates them with CNS tracking, judges completion against explicit criteria,
+    computes convergence, and iterates until goal status is confidently resolved
+    (done, continue, or blocked). Includes storage integration, CNS variety tracking,
+    matryoshka depth enforcement, and human-review escalation on low confidence.
   functional_role: flowdef
-  version: 0.30.0
+  version: 0.31.0
   editor: curator-or-human-admin
   visibility: Public
 
@@ -19,7 +24,7 @@ convergence:
   improvement_gate: threshold_only
   max_iterations: 3
   min_iterations: 1
-  convergence_field: step_3_result.convergence_metric
+  convergence_field: step_4_result.convergence_metric
   on_not_reached: escalate
 
 gas:
@@ -47,10 +52,35 @@ inputs:
     type: array
     required: false
 
+matryoshka:
+  max_depth: 7
+  enforce: true
+  depth_counter:
+    enabled: true
+    inherit_from_parent: true
+    default: 0
+    increment_on_dispatch: true
+  cns_monitoring:
+    span_namespace: cns.goal
+    alert_if_exceeds: 6
+    rationale: "Warning before hard limit at 7"
+
+cns:
+  spans:
+    - cns.goal.create
+    - cns.goal.transition
+    - cns.goal.verify
+    - cns.goal.complete
+    - cns.goal.block
+  variety_monitoring:
+    metric: active_goals_per_user
+    threshold: 10
+    alert: "User has >10 concurrent active goals — consider delegation or abandonment"
+
 steps:
   - ordinal: 1
     action: select
-    description: Extract structured goal from user intent.
+    description: Extract structured goal from user intent with explicit completion criteria.
     renderer: minijinja
     template_ref: goal-analysis/create
     gas_cap: 5000
@@ -61,17 +91,30 @@ steps:
 
   - ordinal: 2
     action: select
-    description: Judge completion against extracted goal and outcomes.
+    description: Emit CNS span for goal creation and attach criteria. Tracks goal in storage.
+    renderer: minijinja
+    template_ref: goal-analysis/goal-activate
+    gas_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      goal: "{{ step_1_result }}"
+    cns_spans:
+      - cns.goal.create
+
+  - ordinal: 3
+    action: select
+    description: Judge goal completion against explicit criteria, outcome summary, and artifacts.
     renderer: minijinja
     template_ref: goal-analysis/judge
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
       goal_text: "{{ step_1_result.goal_text | default(user_intent) }}"
+      criteria: "{{ step_1_result.criteria | default([]) }}"
       outcome_summary: "{{ outcome_summary | default('') }}"
       artifacts: "{{ artifacts | default([]) }}"
 
-  - ordinal: 3
+  - ordinal: 4
     action: select
     description: Compute normalized convergence metric for goal cycle.
     renderer: minijinja
@@ -80,20 +123,57 @@ steps:
     timeout_seconds: 30
     input_mapping:
       created_goal: "{{ step_1_result }}"
-      judge_result: "{{ step_2_result }}"
+      judge_result: "{{ step_3_result }}"
 
-  - ordinal: 4
+  - ordinal: 5
+    action: select
+    description: Resolve goal state and emit CNS spans based on verdict.
+    renderer: minijinja
+    template_ref: goal-analysis/goal-resolve
+    gas_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      verdict: "{{ step_3_result.verdict }}"
+      confidence: "{{ step_3_result.confidence }}"
+      reason: "{{ step_3_result.reason }}"
+      goal: "{{ step_1_result }}"
+    cns_spans:
+      - cns.goal.verify
+      - cns.goal.complete
+      - cns.goal.block
+      - cns.goal.transition
+
+  - ordinal: 6
     action: loop
-    description: Re-enter goal cycle if convergence is not met.
+    description: Re-enter goal cycle if convergence is not met or verdict is continue.
     input_mapping:
       loop_target: 1
 
 error_handling:
   on_gas_exceeded: abort
   on_timeout: retry
-  max_retries: 1
+  max_retries: 2
   retry_backoff_seconds: 1
   on_validation_failure: abort
+  on_confidence_low:
+    threshold: 0.7
+    action: escalate
+    span: cns.goal.alert.escalate
+    description: "Confidence below 0.7 — escalate to human review regardless of verdict"
+  fallback:
+    - error_type: template_error
+      fallback_template: goal-analysis/create
+      action: retry_with_simpler_template
+    - error_type: llm_timeout
+      fallback_template: goal-analysis/judge_simple
+      action: use_simple_verification
+      max_fallback_retries: 2
+      on_fallback_exhausted: escalate
+      escalate_span: cns.goal.alert.storage_failure
+      description: "After 2 fallback retries with judge_simple, escalate to human rather than looping indefinitely"
+    - error_type: storage_error
+      action: emit_cns_alert
+      span: cns.goal.alert.storage_failure
 
 ocap:
   required_capabilities:
@@ -103,11 +183,19 @@ ocap:
       gas_budget: 5000
     - resource: template
       action: render
+      template_id: goal-analysis/goal-activate
+      gas_budget: 2000
+    - resource: template
+      action: render
       template_id: goal-analysis/judge
       gas_budget: 5000
     - resource: template
       action: render
       template_id: goal-analysis/goal-convergence-check
+      gas_budget: 2000
+    - resource: template
+      action: render
+      template_id: goal-analysis/goal-resolve
       gas_budget: 2000
     - resource: manifest
       action: execute

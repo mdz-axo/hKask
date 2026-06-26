@@ -49,24 +49,15 @@ impl MockTrainingBridge {
 
     pub fn with_sample_data() -> Self {
         Self {
-            adapters: vec![
-                AdapterSummary {
-                    name: "constraint-forces".into(),
-                    base_model: "llama-3.1-8b".into(),
-                    version: "v3".into(),
-                    size_bytes: 45_000_000,
-                    expertise: "Constraint classification".into(),
-                },
-                AdapterSummary {
-                    name: "pragmatic-semantics".into(),
-                    base_model: "llama-3.1-8b".into(),
-                    version: "v1".into(),
-                    size_bytes: 38_000_000,
-                    expertise: "Epistemic classification".into(),
-                },
-            ],
+            adapters: vec![AdapterSummary {
+                name: "pragmatic-semantics".into(),
+                base_model: "llama-3.1-8b".into(),
+                version: "v1".into(),
+                size_bytes: 38_000_000,
+                expertise: "Epistemic classification".into(),
+            }],
             deployments: vec![DeploymentSummary {
-                adapter_name: "constraint-forces".into(),
+                adapter_name: "pragmatic-semantics".into(),
                 provider: "together".into(),
                 status: "active".into(),
             }],
