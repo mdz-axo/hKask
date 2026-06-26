@@ -102,13 +102,13 @@ Mode switching mid-conversation is supported via the REPL `/improv` command. The
 
 The improv skill monitors 5 derived trace target strings for observability. These are **not** canonical `CnsSpan` enum variants — the CNS registry has no `Improv` variant. The canonical span is `cns.kata` (the only enum variant relevant to improv). These strings are derived trace targets monitored by the improv runtime and surfaced through `cns.kata` instrumentation:
 
-| Span | What it measures |
+| Trace Target | What it measures |
 |------|-----------------|
-| `cns.improv.mode.active` | Which improv mode is currently active |
-| `cns.improv.plussing.ratio` | Constructive ratio (agreeable / total components) |
-| `cns.improv.freestyle.coherence` | Freestyling session coherence |
-| `cns.kata.improv.effectiveness` | Kata automaticity score delta with/without improv |
-| `cns.improv.cascade.depth` | Current cascade recursion depth |
+| `improv.mode.active` | Which improv mode is currently active |
+| `improv.plussing.ratio` | Constructive ratio (agreeable / total components) |
+| `improv.freestyle.coherence` | Freestyling session coherence |
+| `improv.kata.effectiveness` | Kata automaticity score delta with/without improv |
+| `improv.cascade.depth` | Current cascade recursion depth |
 
 ## Integration Points
 

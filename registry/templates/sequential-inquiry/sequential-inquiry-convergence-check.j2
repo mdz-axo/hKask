@@ -38,48 +38,25 @@ visibility: Public
 {# DEPENDS-ON-EXECUTOR: `_convergence.improvement_target` is mapped from manifest `convergence.improvement_ratio`. #}
 
 [inference]
-temperature = 0.1
-reasoning_effort = "medium"
-verbosity = "standard"
-max_tokens = 4096
-thinking_budget = "low"
+temperature = 0.0
+verbosity = "terse"
+max_tokens = 500
 
-You are a convergence evaluator for sequential inquiry. Measure whether the inquiry has reached a verified, stable answer with all delegations resolved.
+Score convergence. Start at 1.0, subtract for each SATISFIED criterion.
 
-## Context
-- Convergence threshold: {{ _convergence.threshold | default(0.15) }}
-- Iteration: {{ _convergence.iterations_completed | default(0) }} / {{ _convergence.max_iterations | default(3) }}
-- Improvement target: {{ _convergence.improvement_target | default(0.10) }}
-
-## Convergence Method: Hypothesis + Chain + Delegation
-- 0.00 = hypothesis verified, chain complete and stable, all delegations resolved, answer well-calibrated → fully converged
-- 0.15 = hypothesis mostly verified, minor delegation results pending, high confidence → converged at threshold
-- 0.35 = hypothesis exists, some delegations unresolved, moderate uncertainty
-- 0.60 = thinking in progress, delegations pending, no verified hypothesis
-- 1.00 = no hypothesis, no delegations, thinking incomplete
-
-## Scoring Guidance
-Start at 1.0. Subtract for each satisfied criterion:
-
-1. **Hypothesis exists** → -0.12
-2. **Hypothesis verified** → -0.20
-3. **Chain complete** (`needsMoreThoughts: false`) → -0.12
-4. **No unresolved branches** → -0.08
-5. **No pending revisions** → -0.08
-6. **Confidence calibrated** (≥ 0.7) → -0.08
-7. **Answer synthesized** → -0.08
-8. **All delegations resolved** (no pending request without a delegate result) → -0.12
-9. **Delegation results incorporated** — CRITICAL: This criterion is NEVER satisfied on cycle 1 because delegation results arrive at the engine in the NEXT cycle. Only evaluate this on cycle 2+. To check: scan the engine's thought_chain for explicit references to delegate results (e.g., "hypothesis-framer refined", "MCDA ranked", "diagnose found"). If the engine delegated but hasn't incorporated prior-cycle results, this criterion FAILS. If the engine did not delegate at all, this criterion is trivially satisfied (nothing to incorporate). → -0.07
-10. **Chain stable** — Skip on cycle 1 (no prior to compare). On cycles 2+: the chain did not materially change between iterations → -0.05
+1. Hypothesis exists → -0.12
+2. Hypothesis verified → -0.20
+3. Chain complete (needsMoreThoughts: false on final thought) → -0.12
+4. No unresolved branches → -0.08
+5. No pending revisions → -0.08
+6. Confidence calibrated (solution_confidence ≥ 0.7) → -0.08
+7. Answer synthesized (final_answer clear, specific, actionable) → -0.08
+8. All delegations resolved (no pending request without delegate result) → -0.12
+9. Delegation results incorporated (ONLY cycle 2+; skip cycle 1) → -0.07
+10. Chain stable (ONLY cycle 2+; skip cycle 1) → -0.05
 
 Clamp to [0, 1].
 
-## Delegation Resolution Check
-- Count `delegation_requests` in `primary_result` that lack matching results in `delegation_results`
-- Count `delegation_results` entries with `invoked: true` that the engine has not yet incorporated
-- Both must be zero for full delegation convergence
-
-## Input
 Engine result:
 ```json
 {{ primary_result | tojson }}
@@ -108,6 +85,6 @@ Return JSON only:
     "chain_stable_between_iterations": true
   },
   "rationale": "short explanation",
-  "blockers": ["specific gap preventing convergence"]
+  "blockers": []
 }
 ```

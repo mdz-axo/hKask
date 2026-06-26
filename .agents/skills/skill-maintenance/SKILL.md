@@ -151,6 +151,7 @@ Skill Audit — [date]:
 | **Cascade depth** | Do FlowDef templates exist for multi-step workflows? Missing FlowDef = no cascade wiring. |
 | **FlowDef tool coverage** | Do FlowDef steps reference tools that exist? Unmapped `tool:` entries = dead execution paths. |
 | **FlowDef template coverage** | Do FlowDef `template:` references resolve to existing templates? Stale refs = broken cascades. |
+| **Dependency graph health** | Are cross-skill references well-formed? Build the skill dependency graph, then delegate to `semantic-graph-audit` for cycles, redundancies, missing edges, condensation candidates. |
 
 ### Gap Report Format
 
@@ -203,7 +204,7 @@ When skill A supersedes skill B:
 | Architecture changes | All registry crates — crate names, spans, contracts |
 | Magna Carta updates | All skills — P1–P4 references |
 | Workspace version bump | All manifests — version freshness |
-| New skill installed | Coverage gaps, template_type validity |
+| New skill installed | Coverage gaps, template_type validity, dependency graph health |
 | Monthly | Full registry audit |
 | Skill seems broken | Targeted audit of that registry crate |
 
@@ -220,6 +221,7 @@ During normal sessions, flag issues when noticed:
 - SKILL.md description mentions a tool by wrong name → agent will call wrong tool
 - Manifest `path:` uses `../` that doesn't resolve → cross-directory path broken
 - Template file deleted but references remain in manifests/FlowDefs → stale references
+- Cross-skill reference looks circular or redundant → build the skill dependency graph and delegate to `semantic-graph-audit` for system-level analysis
 
 ## When to Use This Skill
 

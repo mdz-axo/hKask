@@ -37,28 +37,15 @@ description: "Structured chain-of-thought reasoning with branching, revision, hy
 └──────────────────────────────────────────────────────┘
 ```
 
-## vs. Sequential Thinking
-
-| Dimension | sequential-thinking | sequential-inquiry |
-|-----------|--------------------|--------------------|
-| **Role** | Decomposition + sorting | Decomposition + sorting + deep-dive delegation |
-| **Sub-skills** | None | hypothesis-framer, mcda, diagnose |
-| **Delegation** | N/A | Engine emits `delegation_requests`, flowdef dispatches |
-| **Convergence criteria** | 8 (hypothesis + chain) | 10 (+ delegation resolution) |
-| **Gas cap** | 100,000 | 150,000 |
-| **rJoule cap** | 24,000 | 32,000 |
-| **Steps** | 3 | 6 |
-
 ## When to Use
 
-Use **sequential-thinking** when the problem can be solved through pure reasoning — no structured methodology beyond CoT is needed.
+Use sequential-inquiry for ANY structured reasoning task. The engine provides:
+- **Decomposition + sorting** — break problems into ordered thought chains
+- **Branching + revision** — explore alternatives, correct earlier reasoning
+- **Hypothesis testing** — formulate, verify, and calibrate
+- **Automatic deep-dive** — when a thought needs FINER+PICO, MCDA, or diagnosis, the engine delegates automatically
 
-Use **sequential-inquiry** when the problem likely requires:
-- Formal hypothesis validation (hypothesis-framer)
-- Weighted comparison of alternatives (mcda)
-- Structured root-cause diagnosis (diagnose)
-
-The engine decides which to invoke at runtime based on the thought content. You don't pre-select — the flowdef handles it.
+There is no separate "sequential-thinking" skill — sequential-inquiry handles both simple and complex reasoning. If no delegation is needed, the delegate steps return `invoked: false` and the skill behaves as pure chain-of-thought.
 
 ## Delegation Flow
 

@@ -67,7 +67,7 @@ steps:
     timeout_seconds: 45
     input_mapping:
       current_config: "{{ step_1_result }}"
-      previous_config: null
+      previous_config: "{{ step_2_result | default(None) }}"
       iteration: 1
       max_iterations: "{{ convergence.max_iterations | default(3) }}"
 

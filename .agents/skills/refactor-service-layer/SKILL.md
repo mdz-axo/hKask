@@ -139,7 +139,7 @@ cargo test --workspace
 cargo clippy --workspace -- -D warnings
 ```
 
-Verify dependency direction (P1 above). Apply `deep-module` deletion test to every module in `hkask-services`. Verify P6/P7/P8 compliance: no `todo!()`, no `unimplemented!()`, every function carries `expect:` + `[P{N}]` contract annotations.
+Verify dependency direction (P1 above). Delegate to `essentialist` for full 3-gate eliminative review of every module in `hkask-services` (Exist → Surface → Contract). Verify P6/P7/P8 compliance: no `todo!()`, no `unimplemented!()`, every function carries `expect:` + `[P{N}]` contract annotations.
 
 ### Phase 8 — Document Open Questions
 
@@ -193,7 +193,7 @@ These go beyond what `strangler-fig` and `deep-module` already cover:
 [ ] cargo check --workspace passes
 [ ] cargo test --workspace passes
 [ ] cargo clippy --workspace -- -D warnings passes
-[ ] Deletion test applied to every module in hkask-services
+[ ] Full 3-gate essentialist review applied to every module in hkask-services (→ essentialist)
 [ ] Every contract carries `expect:` + `[P{N}]` annotations
 [ ] docs/status/corpus_inventory.yaml updated if new test surface was added
 [ ] OPEN_QUESTIONS.md updated with F1–F8

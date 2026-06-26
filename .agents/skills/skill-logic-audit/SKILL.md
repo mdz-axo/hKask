@@ -59,6 +59,7 @@ When this cascade is wired into a runtime FlowDef, the FlowDef must live in `reg
 - `pragmatic-semantics` — distinguish IS from OUGHT in audit reports.
 - `essentialist` — challenge whether every line survives the deletion test.
 - `coding-guidelines` — constrain implementation to surgical, simple, goal-driven changes.
+- `semantic-graph-audit` — inter-skill dependency graph analysis (complementary: this skill audits within one artifact; `semantic-graph-audit` audits across artifacts).
 
 ## Registry Templates
 

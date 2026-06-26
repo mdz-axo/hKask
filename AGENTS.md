@@ -39,11 +39,10 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 
 | Name | Type | When to Activate |
 |------|------|-----------------|
-| **pragmatic-semantics** | **Skill** | Classifying statements by certainty level and constraint force. Distinguish IS from OUGHT. |
+| **pragmatic-semantics** | **Skill** | Classifying statements by certainty level and constraint force. Distinguish IS from OUGHT. Trace provenance, resolve conflicts via Optimality Theory ranking. Subsumes the deprecated constraint-forces skill. |
 | **pragmatic-cybernetics** | **Skill** | Cybernetic reasoning: feedback loops, variety engineering, system homeostasis. |
 | **pragmatic-laziness** | **Skill** | Procedural composition. Finds the path of least action through meaning-space. |
 | **essentialist** | **Skill** | Recursive eliminative interrogation. 3-gate challenge loop (Exist → Surface → Contract). |
-| **constraint-forces** | **Skill** | Classify constraints by force type (Prohibition, Guardrail, Guideline, Evidence, Hypothesis). |
 | **review** | **Skill** | Self-critique output for contradictions, unsupported claims, logical gaps. |
 | **grill-me** | **Skill** | Socratic questioning to stress-test understanding. Probes knowledge gaps. |
 | **zoom-out** | **Skill** | Broader context or higher-level perspective on unfamiliar code. |

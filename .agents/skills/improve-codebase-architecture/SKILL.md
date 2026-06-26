@@ -96,8 +96,6 @@ After the grilling loop, one of three outcomes:
 
 - `deep-module` — deletion-test discipline for individual modules
 - `essentialist` — eliminative review of the proposed design
-- `strangler-fig` — incremental migration once the target shape is known
-- `refactor-service-layer` — extracting shared business logic from CLI/API/MCP surfaces
 - `tdd` — anchoring the refactor with behavioral contracts and regression tests
 
 ## Registry Manifest

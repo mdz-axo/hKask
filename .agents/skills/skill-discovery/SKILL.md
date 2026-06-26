@@ -19,19 +19,27 @@ A skill is complete when its registry crate exists. The SKILL.md is optional for
 
 ## Detecting Capability Gaps
 
-| Trigger | Layer | Gap Type | Detection Method |
-|---------|-------|----------|-------------------|
-| Task pattern has no matching registry crate | Registry | Coverage gap | Scan `registry/templates/` manifest `type` fields |
-| No WordAct/KnowAct/FlowDef template for a task pattern | Registry | Template coverage gap | Scan manifests for template_type coverage |
-| Template uses vocabulary terms not in known vocabulary | Registry | Vocabulary gap | Cross-reference `lexicon_terms` against vocabulary |
-| Registry crate exists but no SKILL.md companion | Companion | Documentation gap | Pair-check: `registry/templates/<name>/` exists but `.agents/skills/<name>/` absent |
-| Too few .j2 templates for cascade to select from | Registry | Cascade gap | Count `.j2` files per skill; flag <2 templates |
-| User says "I wish the agent could do X" | Either | Feature gap | Is X within hKask scope? |
-| Repeated manual steps across sessions | Either | Automation gap | Can steps be codified into a registry crate? |
-| A constraint is repeatedly violated | Either | Governance gap | A skill enforcing that constraint may help |
-| SKILL.md exists without registry crate | Registry | Critical gap | SKILL.md is not executable — needs registry crate |
+Discovery focuses on gaps that indicate a **new or missing skill is needed**. For registry-level structural health (coverage, vocabulary, cascade depth, template-type distribution, dependency graph health), delegate to `skill-maintenance`'s Coverage Gap Analysis.
+
+| Trigger | Gap Type | Detection Method |
+|---------|----------|-------------------|
+| User says "I wish the agent could do X" | Feature gap | Is X within hKask scope? If yes, search or build. |
+| Repeated manual steps across sessions | Automation gap | Can steps be codified into a registry crate? |
+| A constraint is repeatedly violated | Governance gap | A skill enforcing that constraint may help. |
+| Registry crate exists but no SKILL.md companion | Documentation gap | Pair-check: registry exists but `.agents/skills/<name>/` absent. |
 
 When you spot a gap, say so explicitly: "No registry crate covers X. Want me to search for one, or should I help build one?"
+
+### Routing to skill-maintenance
+
+When discovery encounters registry-level structural issues (coverage gaps, vocabulary gaps, template-type imbalances, missing registry crates, dependency graph concerns), hand off to `skill-maintenance`'s Coverage Gap Analysis rather than duplicating the analysis:
+
+| Discovery finds | Route to |
+|-----------------|----------|
+| Missing or incomplete registry crate | `skill-maintenance` — Health Score + staleness audit |
+| Template-type distribution looks off | `skill-maintenance` — Coverage Gap Analysis → template_type distribution |
+| Vocabulary terms missing | `skill-maintenance` — Coverage Gap Analysis → Vocabulary term coverage |
+| Cross-skill references look suspicious | `skill-maintenance` → `semantic-graph-audit` |
 
 ### Template-Type Coverage Audit
 
@@ -41,7 +49,7 @@ When you spot a gap, say so explicitly: "No registry crate covers X. Want me to 
 | KnowAct | Analyze, classify, evaluate | >=1 per skill |
 | FlowDef | Orchestrate multi-step process | If skill has procedural flow |
 
-Flag if a skill's manifest declares zero templates of a type that its description implies.
+Flag if a skill's manifest declares zero templates of a type that its description implies. For systemic template-type distribution analysis, delegate to `skill-maintenance`.
 
 ## Searching for Skills
 

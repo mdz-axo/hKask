@@ -110,6 +110,10 @@ When spec drift exceeds threshold:
 2. The Curator cannot regulate based on accurate information
 3. The correct response is to revise the spec, not to suppress the alert
 
+## Composes With
+
+- **pragmatic-laziness** — Phase 2 (Identify Loops) of the 3-phase lazy loop. Activates pragmatic-cybernetics to map feedback loops and locate effort hotspots after semantic classification.
+
 ## Registry Templates
 
 This skill's runtime templates live in `registry/templates/pragmatic-cybernetics/`:

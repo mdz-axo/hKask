@@ -114,6 +114,10 @@ hKask's internal semantic paths:
 
 The semantic contract: each path carries a specific payload. If the Curator receives raw ν-events but no variety counters, the model is incomplete. If CNS fires but the Curator doesn't report it, the feedback loop is broken.
 
+## Composes With
+
+- **pragmatic-laziness** — Phase 1 (Decompose) of the 3-phase lazy loop. Activates pragmatic-semantics to classify statements by ontological/epistemic mode.
+
 ## Registry Templates
 
 This skill's runtime templates live in `registry/templates/pragmatic-semantics/`:

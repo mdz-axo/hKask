@@ -77,6 +77,20 @@ Each experiment moves your knowledge threshold forward. The path won't be straig
 - Trace events are emitted under the `hkask.kata` target by the Kata runtime (`crates/hkask-services-kata/src/lib.rs`).
 - The only canonical CNS span that crosses into kata territory is `cns.kata`, emitted by `hkask-improv` when improv modes are active.
 - Do not reference `cns.prompt.kata.improvement` or counters like `kata.improvement.cycles`; they are not canonical CNS span names.
+- When improv modes are active, `cns.kata` carries derived sub-metrics from the improv runtime (mode active, plussing ratio, freestyle coherence, kata effectiveness delta, cascade depth). These are trace targets, not independent CNS spans.
+
+## Improv Integration (Self-Directed)
+
+When practicing Improvement Kata without a coach, use the **improv** skill for self-coaching posture during Step 4 experimentation:
+
+| PDCA Phase | Improv Mode | Why |
+|------------|-------------|-----|
+| Plan (design experiment) | **Yes But** | Constrain experiment scope — "yes, try that direction, but limit to one variable at a time." Narrows without contradicting your own ideas. |
+| Check (compare prediction to actual) | **Plussing** | Extract what the experiment got right before focusing on the gap. Build on correct predictions rather than dwelling on misses. |
+
+**Activation:** Use `/improv cascade` to compose the recommended sequence for your self-directed session.
+
+**CNS span:** `cns.kata` — tracks automaticity score delta when improv is active vs. baseline.
 
 ## Registry Templates
 

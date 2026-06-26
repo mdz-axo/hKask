@@ -87,7 +87,7 @@ Starter Kata pairs with the **improv** skill for constructive coaching postures:
 
 **Activation:** Use `/improv cascade` to compose the recommended sequence for your kata session.
 
-**CNS span:** `cns.kata` — tracks automaticity score delta when improv is active vs. baseline.
+**CNS span:** `cns.kata` — tracks automaticity score delta when improv is active vs. baseline. When improv modes are active, `cns.kata` carries derived sub-metrics from the improv runtime (mode active, plussing ratio, freestyle coherence, kata effectiveness delta, cascade depth). These are trace targets, not independent CNS spans.
 
 ## Registry Templates
 

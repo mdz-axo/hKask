@@ -128,8 +128,10 @@ steps:
     description: >
       Compute normalized convergence metric. Scores whether the thought
       chain is verified AND all delegation requests have been resolved.
+      Routed through classifier model (cheaper, tuned for structured evaluation).
     renderer: minijinja
     template_ref: sequential-inquiry/sequential-inquiry-convergence-check
+    classifier: true
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
