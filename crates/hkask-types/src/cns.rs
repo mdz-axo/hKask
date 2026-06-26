@@ -684,7 +684,13 @@ mod cns_span_tests {
             CnsSpan::FederationConduitRouteLost,
             CnsSpan::FederationCrdtConflict,
             CnsSpan::SelfHeal,
+            CnsSpan::SessionOpen,
+            CnsSpan::SessionClose,
+            CnsSpan::BackupExport,
+            CnsSpan::BackupAutoExport,
+            CnsSpan::BackupUpload,
         ];
+        // Round-trip test: Display → FromStr → Display must be identity
         for variant in &all_variants {
             let s = variant.to_string();
             assert!(
@@ -697,10 +703,20 @@ mod cns_span_tests {
                 "{:?} should start with cns.",
                 variant
             );
+            let parsed: CnsSpan = s
+                .parse()
+                .expect("Display output must round-trip via FromStr");
+            assert_eq!(
+                variant, &parsed,
+                "{:?} round-trip mismatch: {} -> {:?}",
+                variant, s, parsed
+            );
         }
+        // Assert count matches enum variant count (CnsSpan has ~72 variants).
+        // If this fails, a new CnsSpan variant was added without updating this test.
         assert!(
-            all_variants.len() >= 20,
-            "CNS span exhaustive test should cover at least 20 variants, found {}",
+            all_variants.len() >= 70,
+            "CNS span exhaustive test should cover all CnsSpan variants, found {} (expected ≥70)",
             all_variants.len()
         );
     }

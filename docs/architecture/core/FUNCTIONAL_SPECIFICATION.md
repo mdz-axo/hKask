@@ -1,7 +1,7 @@
 ---
 title: "hKask Functional Specification"
 audience: "hKask developers and architects"
-last_updated: "2026-06-18"
+last_updated: "2026-06-26"
 version: "0.31.0"
 status: "Active"
 domain: "architecture"
@@ -11,10 +11,10 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 
 # hKask Functional Specification
 
-**Version:** v0.28.0
+**Version:** v0.31.0
 **Created:** 2026-06-16
 **Status:** Active — anchor for the Testing Discipline. Contracts use `expect:` + `[P{N}]` annotations with CNS-observed behavioral contracts.
-**Last Updated:** 2026-06-21  
+**Last Updated:** 2026-06-26  
 **Decision:** 2026-06-21 — Contract system simplified. REQ tags and contract IDs removed. Contracts use `expect:` + `[P{N}]` annotations directly on functions. Enforcement is through CNS span observation and property-based testing.
 
 > This document maps the complete system to its motivating principles and enumerates functional requirements per domain. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the other principles that constrain how the goal is achieved). See [`CONTRACT_GUIDE.md`](../../../guides/CONTRACT_GUIDE.md) for the definitive contract standard — this document defines the *domain-to-contract mapping*, not the contract format itself.
@@ -52,7 +52,7 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 23 | Web Interface | `web` | hkask-api (hkask-web deferred) | 19 | User signs in via OAuth and gets a browser terminal | P1 + P4 ⚠️ DEFERRED — hkask-web crate not yet implemented |
 | 24 | Multi-User | `multi-user` | hkask-api + hkask-storage | 12 | Users share a server with scoped data and admin-managed membership | P1 (User Sovereignty) + P2 (Affirmative Consent) |
 | 25 | Backup & Migration | `backup` | hkask-storage + hkask-api | 14 | User exports and migrates their data as a portable encrypted archive | P1 (User Sovereignty) + P3 (Generative Space) |
-| 26 | Deployment | `deploy` | hkask-api + kask | 16 | User deploys hKask with a single binary and one command | P5 (Essentialism) + P3 (Generative Space) |
+| 26 | Deployment | `deploy` | hkask-cli + hkask-agents | 20 | User deploys pods with a single binary and one command | P5 (Essentialism) + P3 (Generative Space) |
 
 ### Domain Anchoring Rules
 
@@ -178,7 +178,25 @@ The service layer was extracted from duplicated surface logic using the strangle
 | `AgentService` (28-field consolidation) | CLI + API duplicate chains | v0.28.0 | P7 (Evolutionary Architecture — seam emerged from real usage) |
 | Named accessor pattern (individual methods) | 8-group-method tuple pattern | v0.28.0 | P5 (Essentialism — callers typically need one field, not a group) |
 
----
+### 1.5.5 Pod Export & K8s Deployment (v0.31.0)
+
+The CLI provides two pod export paths for cloud deployment. Both are implemented in `hkask-cli::commands::pod`:
+
+| Command | Source | Output | Validates |
+|---------|--------|--------|-----------|
+| `kask pod export-container <pod_id>` | `ActivePods::export_container()` → `PodFactory` | Containerfile + pod files (DB, WebID, salt) | Pod existence |
+| `kask pod export-k8s <pod_id>` | Direct manifest generation in `export_k8s()` | 4 K8s YAML manifests (namespace, deployment, service, PVC) | Pod existence via `pod_manager().get_pod_status()` |
+
+**K8s manifests generated:**
+- `namespace.yaml` — pod-scoped `Namespace` with `app.kubernetes.io` labels
+- `deployment.yaml` — `Deployment` with `max_replicas`, pod anti-affinity, resource limits (256Mi/1Gi memory), liveness/readiness probes
+- `service.yaml` — `ClusterIP` `Service` on port 3000
+- `pvc.yaml` — `PersistentVolumeClaim` with configurable `volume_size_gb`
+
+**CNS spans:** `CnsSpan::SessionOpen`, `CnsSpan::SessionClose`, `CnsSpan::BackupExport`, `CnsSpan::BackupAutoExport`, `CnsSpan::BackupUpload` — deployment lifecycle observability.
+
+**Curator init flow:** `kask curator init` calls `export_k8s("curator", 10, 3, ...)` → `kubectl apply -f <manifests_dir>`. The `PodService` abstraction was removed in v0.31.0 per P5 (Essentialism) — pod management is now direct calls to `ActivePods` + `PodFactory`.
+
 
 ## CNS Domain Specification
 
@@ -225,10 +243,19 @@ hkask-cns/src/
 
 ### CNS Spans
 
+The `CnsSpan` enum (`crates/hkask-types/src/cns.rs`) defines the canonical CNS span registry with ~72 variants. Exhaustive test in `cns_span_tests` verifies Display → FromStr round-trip for all variants.
+
+Key deployment-related spans added in v0.31.0:
+
 | Span | Sub-Domain | Trigger |
 |------|-----------|---------|
 | `cns.gas.calibrated` | Gas Cost Calibration | `CalibratedEnergyEstimator` adjusts per-server costs |
 | `cns.wallet.conversion.calibrated` | Wallet-Backed Energy | `WalletGasCalibrator` adjusts gas→rJoule rate |
+| `cns.deploy.session_open` | Deployment | User OAuth sign-in session created |
+| `cns.deploy.session_close` | Deployment | User session closed (logout or expiry) |
+| `cns.deploy.backup_export` | Backup | Sovereignty backup export created |
+| `cns.deploy.backup_auto_export` | Backup | Scheduled auto-export triggered |
+| `cns.deploy.backup_upload` | Backup | Sovereignty backup uploaded to server |
 
 ### Memory Verb Contracts
 

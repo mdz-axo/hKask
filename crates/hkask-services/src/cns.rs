@@ -15,7 +15,9 @@ use hkask_types::event::SpanNamespace;
 /// Service for CNS health checks, algedonic alerts, and variety counters.
 ///
 /// Wraps the shared `CnsRuntime` behind a clean async interface.
-/// Constructed during `AgentService::build()` — never created directly.
+/// Lightweight and freely cloneable — wraps an `Arc<RwLock<CnsRuntime>>`.
+/// Constructed during `AgentService::build()` and also usable standalone
+/// via `CnsService::new(runtime)`.
 #[derive(Clone)]
 pub struct CnsService {
     runtime: Arc<RwLock<CnsRuntime>>,

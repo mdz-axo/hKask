@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-22
+last_updated: 2026-06-26
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Index to the authoritative architecture documents and the four essential architectural patterns that constitute hKask's irreducible core.
 
-**Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.30.0
+**Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.31.0
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
@@ -1176,6 +1176,12 @@ The replicant streams inference output as `session/update` notifications while t
 ## Deployment
 
 **Authoritative model:** See Deployment Model section above. hKask deploys as a single cloud server. There is no client binary. Users access hKask through a browser terminal (xterm.js + WebSocket). SSH is optional for power users.
+
+**Pod export commands** (`kask pod export-container` / `kask pod export-k8s`):
+- `export-container` generates a Containerfile + pod files (SQLCipher DB, WebID, salt) for Docker builds
+- `export-k8s` generates 4 K8s manifests (namespace, deployment, service, PVC) for Hetzner K3s deployment
+- Both commands delegate to `ActivePods` (container) or generate manifests directly (K8s)
+- The Curator init flow (`kask curator init`) uses `export-k8s` to deploy the Curator pod
 
 ### Cloud Server Deployment
 

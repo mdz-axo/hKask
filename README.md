@@ -3,7 +3,7 @@
 </p>
 # ℏKask - A Minimal Viable Container for Agents
 
-**Version:** v0.30.0 | 
+**Version:** v0.31.0 |
 
 ---
 
@@ -39,24 +39,29 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, A2A, Episodic and Semantic Memory and kask services |
-| 2 | **Essential Tools** | 14 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter) |
+| 2 | **Essential Tools** | 13 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter) |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, keystore, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
-| 5 | **Composition** | Unified registry with template_type discriminator, 47 composable skills, 299 Jinja2 templates |
+| 5 | **Composition** | Templates + manifests compose into iterative PDCA Skill loops (47 skills, 267 templates, 63 manifests) |
 
 ---
 
 ## Skills & Composition
 
-hKask's behavioral surface is defined by **47 skills** — composable agent instructions stored as YAML manifests with Jinja2 templates. Skills are not code. They are declarative, user-editable, and versioned in a unified registry.
+hKask distinguishes two layers that other systems conflate:
 
-| Layer | Format | Count | Purpose |
-|-------|--------|-------|--------|
-| **Skill manifests** | `manifest.yaml` | 46 registry crates | Skill metadata, contracts, constraints |
-| **Templates** | `*.j2` (Jinja2) | 239 | Executable process steps (KnowAct, KnowCheck, etc.) |
-| **Skills** | `.agents/skills/` | 46 | Categorized: coding, reasoning, kata, meta, specialized |
+- **Templates** (`.j2` Jinja2 files, 267 total) — One-shot prompt executions. These are what Claude, ChatGPT, and most agent platforms call "skills." In hKask, they are raw material: a template runs once, returns output, and exits.
+- **Skills** (47 total) — Iterative PDCA (Plan-Do-Check-Act) loops that compose multiple templates into autonomous search, learning, and implementation cycles. A Skill has a FlowDef manifest with `convergence.threshold > 0`, a `gas.cap`, and a `loop` action. It runs until it converges on a quality threshold, exhausts its energy budget, or escalates to the Curator.
 
-Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa triage`, `kask qa run-script`). The skill system includes discovery, bundling, translation, lifecycle management, and adversarial logic auditing.
+Where other systems give you a prompt, hKask gives you a process.
+
+| Layer | Format | Count | Behavior |
+|-------|--------|-------|----------|
+| **Templates** | `*.j2` (Jinja2) | 267 | One-shot: execute → return output |
+| **Skill manifests** | `manifest.yaml` | 63 | FlowDef: contracts, convergence criteria, gas budget |
+| **Skills** | `.agents/skills/` | 47 | PDCA loops: compose templates → iterate → converge \| max_out \| escalate |
+
+Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa triage`, `kask qa run-script`). The skill system includes discovery, bundling, translation, lifecycle management, and adversarial logic auditing. A Bundle composes multiple Skills but is not itself a PDCA loop.
 
 ---
 
@@ -112,7 +117,15 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-wallet-types` | Wallet value types and data structures |
 | `hkask-ledger` | Triple-entry accounting ledger |
 
-### MCP Servers (12 crates)
+### Ontology & Interface (4 crates)
+| Crate | Purpose |
+|-------|--------|
+| `hkask-bridge-dublincore` | Dublin Core ontology bridge (metadata interoperability) |
+| `hkask-bridge-pko` | Process Knowledge Ontology bridge (workflow semantics) |
+| `hkask-federation` | Cross-instance agent federation protocol |
+| `hkask-tui` | Terminal UI (ratatui-based interactive console) |
+
+### MCP Servers (13 crates)
 - `hkask-mcp-condenser` — Context condensation (thin wrapper around hkask-condenser)
 - `hkask-mcp-research` — Web search, extraction, and feed-based research
 - `hkask-mcp-skill` — Skill registry and discovery MCP interface
@@ -125,6 +138,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 - `hkask-mcp-memory` — Unified episodic + semantic memory with cloud backup
 - `hkask-mcp-training` — Model training (QA pairs and training data for fine-tuning pipelines)
 - `hkask-mcp-kanban` — Kanban board coordination
+- `hkask-mcp-filesystem` — Secure filesystem operations with path allowlisting
 
 ---
 
@@ -132,20 +146,21 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 
 | Metric | Value |
 |--------|-------|
-| **Foundation LOC** | ~82,600 |
-| **Infrastructure LOC** | ~18,100 |
-| **Services LOC** | ~27,500 |
+| **Foundation LOC** | ~87,600 |
+| **Infrastructure LOC** | ~22,900 |
+| **Services LOC** | ~27,900 |
 | **Wallet & Identity LOC** | ~5,300 |
-| **Core Total (src/)** | ~133,500 |
-| **MCP Server LOC (src/)** | ~35,700 |
-| **Total LOC** | ~191,700 |
-| **Core Crates** | 34 (12 foundation + 8 infra + 11 services + 3 wallet/identity) |
+| **Ontology & Interface LOC** | ~14,700 |
+| **Core Total (src/)** | ~158,500 |
+| **MCP Server LOC (src/)** | ~43,200 |
+| **Total LOC** | ~201,600 |
+| **Core Crates** | 38 (12 foundation + 8 infra + 11 services + 3 wallet/identity + 2 bridges + 1 federation + 1 TUI) |
 | **MCP Servers** | 13 |
-| **Tests** | 1,460 (workspace) |
+| **Tests** | ~1,580 (workspace) |
 | **CLI Subcommands** | 39 |
 | **API Route Groups** | 26 |
 | **Build/Clippy/Fmt/Test** | All passing |
-| **Skills** | 46 (75 registry crates, 297 Jinja2 templates) |
+| **Skills** | 47 (63 registry manifests, 267 Jinja2 templates) |
 | **QA Pipeline** | Fuzz triage, mutation analysis, autonomous script runner |
 
 ---
@@ -191,6 +206,6 @@ cargo fmt --check
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.30.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.31.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*
-*CI green. 34 crates. 13 MCP servers. 47 skills.*
+*CI green. 38 crates. 13 MCP servers. 47 PDCA skill loops. 267 templates.*

@@ -14,10 +14,23 @@ pub enum ToolPortError {
 }
 
 /// Governance membrane for MCP tool invocation.
+///
 /// GovernedTool checks: OCAP authority → budget → emit span → delegate → account cost → emit outcome.
 /// Impl: `McpDispatcher` (hkask-mcp)
+///
+/// # Authentication asymmetry
+///
+/// `invoke()` requires a [`DelegationToken`] — every tool execution is OCAP-gated (P4).
+/// `discover_tools()` and `get_tool_info()` are **intentionally unauthenticated** — tool
+/// schemas are public metadata (the agent must know what tools exist before it can request
+/// a token to use them). This follows the MCP protocol's own design: `tools/list` is an
+/// unauthenticated handshake. OCAP enforcement applies at the actuator boundary
+/// (`invoke`), not the sensor boundary (`discover`).
 pub trait ToolPort: Send + Sync {
-    /// Token proves agent authorization for this invocation.
+    /// Invoke a tool. Requires a [`DelegationToken`] proving OCAP authorization.
+    ///
+    /// pre:  token must be valid and not expired
+    /// post: returns tool output or `ToolPortError::CapabilityDenied` if token is insufficient
     fn invoke(
         &self,
         server: &str,
@@ -26,8 +39,14 @@ pub trait ToolPort: Send + Sync {
         token: &DelegationToken,
     ) -> impl std::future::Future<Output = Result<serde_json::Value, ToolPortError>> + Send;
 
+    /// Discover available tools. Public metadata — no token required.
+    ///
+    /// Tool schemas are public per the MCP protocol design:
+    /// `tools/list` is an unauthenticated handshake. OCAP enforcement
+    /// applies at the actuator boundary (`invoke`), not here.
     fn discover_tools(&self) -> impl std::future::Future<Output = Vec<String>> + Send;
 
+    /// Get metadata for a specific tool. Public metadata — no token required.
     fn get_tool_info(
         &self,
         tool_name: &str,

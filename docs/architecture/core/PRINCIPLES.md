@@ -147,7 +147,7 @@ The architectural invariant: **hKask never requires knowledge of a full domain o
 #### P9 — Homeostatic Self-Regulation
 The system must remain observable and self-correcting through cybernetic feedback loops.
 
-**§9.1 — CNS Span Coverage (v0.30.0)**
+**§9.1 — CNS Span Coverage (v0.31.0)**
 
 CNS (Cybernetic Nervous System) spans are the primary observability primitive. Every subsystem must emit canonical `cns.*` spans for every security-sensitive, resource-sensitive, and correctness-sensitive operation. Essential domains carry typed `CnsSpan` enum variants (P8 — Semantic Grounding); performative spans (CLI, API middleware) use stringly-typed tracing targets.
 
@@ -168,6 +168,8 @@ CNS (Cybernetic Nervous System) spans are the primary observability primitive. E
 | Wallet | `cns.wallet.*` | — | ✅ pre-existing | `WalletBalance` etc. |
 | Memory | `cns.memory.*` | — | ✅ pre-existing | `MemoryEncode` |
 | Curation | `cns.curation` | — | ✅ pre-existing | `Curation` |
+| Deployment sessions | `cns.deploy` | 2 | ✅ session_open/close | `SessionOpen`, `SessionClose` |
+| Backup export lifecycle | `cns.deploy` | 3 | ✅ backup_export/auto_export/upload | `BackupExport`, `BackupAutoExport`, `BackupUpload` |
 
 **§9.2 — Span Emission Pattern**
 
