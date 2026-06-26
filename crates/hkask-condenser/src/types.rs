@@ -18,12 +18,13 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// architecture. The condenser uses this to apply domain-aware saliency
 /// weighting — different ontologies carry different confidence baselines
 /// and information density expectations.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum OntologyAnchor {
     /// Universal 5W1H core — no domain supplement (P5.2 default ground).
     /// Content anchored only to Who/What/When/Where/Why/How.
     #[serde(rename = "core")]
+    #[default]
     Core,
     /// Process axis (PKO) or state axis (DC+BIBO) — dual-axis framework (P5.4).
     /// `concept` is the canonical concept URI, e.g. "pko:StepExecution" or "bibo:Article".
@@ -91,12 +92,6 @@ impl OntologyAnchor {
             OntologyAnchor::DualAxis { .. } => "dual_axis",
             OntologyAnchor::DomainSupplement { .. } => "domain_supplement",
         }
-    }
-}
-
-impl Default for OntologyAnchor {
-    fn default() -> Self {
-        OntologyAnchor::Core
     }
 }
 

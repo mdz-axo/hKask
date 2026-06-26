@@ -6,7 +6,7 @@
 
 ## Capability Catalog
 
-**48 total** — **43 Skills** (PDCA FlowDef loops with quality threshold + energy budget), **2 Templates** (one-shot, no registry manifest), **1 Bundle** (composition-only, non-PDCA), **1 Legacy** (v0.21.4, pending upgrade).
+**47 total** — **42 Skills** (PDCA FlowDef loops with quality threshold + energy budget), **2 Templates** (one-shot, no registry manifest), **1 Bundle** (composition-only, non-PDCA), **1 Legacy** (v0.21.4, pending upgrade).
 
 | Type | Invocation | Behavior | Exit |
 |------|-----------|----------|------|
@@ -33,7 +33,7 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 | **refactor-service-layer** | **Skill** | Extracting duplicated business logic from CLI/API/MCP surfaces into `hkask-services`. |
 | **improve-codebase-architecture** | **Skill** | Finding deepening opportunities. Walk codebase for shallow modules, tight coupling, untested seams. |
 | **strangler-fig** | **Skill** | Incremental architectural migration. Introduce new alongside old, migrate one domain at a time. |
-| **rust-expertise** | **Skill** | Idiomatic Rust design: type-driven design, ownership as architecture, fearless refactoring. |
+| **idiomatic-rust** | **Skill** | Idiomatic Rust design: type-driven design, ownership as architecture, fearless refactoring. |
 
 ### Reasoning & Analysis
 
@@ -62,8 +62,7 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 
 | Name | Type | When to Activate |
 |------|------|-----------------|
-| **skill-maintenance** | **Skill** | Audit hKask's skill architecture for staleness, coverage gaps, and quality degradation. Also: list, build, and install skills. |
-| **skill-discovery** | **Skill** | Find, evaluate, and install skills. Detect capability gaps and search for candidates. |
+| **skill-maintenance** | **Skill** | Audit hKask's skill architecture for staleness, coverage gaps, and quality degradation. Also: list, build, install, and discover skills. |
 | **skill-logic-audit** | **Skill** | Adversarial audit of .j2 template logic against stated goals. |
 | **skill-bundler** | **Skill** | Orchestrate and compose multiple skills into a cohesive bundle. |
 | **handoff** | **Skill** | Session handoff protocol. Captures what was done, what remains, key decisions. |

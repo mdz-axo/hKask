@@ -126,7 +126,7 @@ jobs:
           case ${{ matrix.group }} in
             1) cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz -p hkask-wallet-fuzz -p hkask-storage-fuzz -p hkask-templates-fuzz -p hkask-memory-fuzz 2>&1 | tee bolero-output-group-${{ matrix.group }}.txt ;;
             2) cargo test -p hkask-services-core-fuzz -p hkask-improv-fuzz -p hkask-mcp-fuzz -p hkask-mcp-kanban-fuzz -p hkask-mcp-communication-fuzz -p hkask-mcp-companies-fuzz -p hkask-mcp-condenser-fuzz 2>&1 | tee bolero-output-group-${{ matrix.group }}.txt ;;
-            3) cargo test -p hkask-mcp-docproc-fuzz -p hkask-mcp-media-fuzz -p hkask-mcp-memory-fuzz -p hkask-mcp-replica-fuzz -p hkask-mcp-research-fuzz -p hkask-mcp-spec-fuzz -p hkask-mcp-training-fuzz 2>&1 | tee bolero-output-group-${{ matrix.group }}.txt ;;
+            3) cargo test -p hkask-mcp-docproc-fuzz -p hkask-mcp-media-fuzz -p hkask-mcp-memory-fuzz -p hkask-mcp-replica-fuzz -p hkask-mcp-research-fuzz -p hkask-mcp-training-fuzz 2>&1 | tee bolero-output-group-${{ matrix.group }}.txt ;;
           esac
         continue-on-error: true
       - name: Triage fuzz failures (group ${{ matrix.group }})

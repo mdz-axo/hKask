@@ -1338,7 +1338,7 @@ mod tests {
             .chain(dc_concepts.iter())
             .chain(domain_concepts.iter())
         {
-            guard = guard.with_ontology(*concept);
+            guard = guard.with_ontology(concept);
         }
         let _ = guard; // suppress unused warning
     }
