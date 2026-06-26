@@ -122,6 +122,7 @@ For every finding, classify:
 | **Fan-in anomaly** | A leaf node referenced by 5+ sources but not documented as a shared foundation | Medium — undocumented dependency |
 | **Fan-out anomaly** | A node with > 7 out-edges (essentialist G2 violation) | Medium — interface explosion |
 | **Isolated node** | A node with zero edges in either direction | Low — unused or disconnected |
+| **Orphaned template** | A template declared in the template manifest but not referenced by any step in the FlowDef manifest | **Critical** — dead code in the skill runtime; encodes zero behavior in the actual PDCA loop |
 
 ### Phase 4 — Produce Graph Health Report
 
@@ -164,10 +165,23 @@ The skill itself is graph-agnostic. Use these patterns to construct graphs from 
 
 ### Skills Domain
 
-Load target skills + transitive dependencies via the `skill` tool. Parse edges from SKILL.md:
-- **Delegation edges** (Prohibition/Guardrail): Phase/section text matching "Delegate to `X`", "Activate `X`"
-- **Reference edges** (Evidence): "Related Skills" sections, "see also", "paired with"
-- **Conditional edges** (Guideline): "If condition, activate `X`" routing decisions
+**CRITICAL: The canonical source of a skill's behavior is its YAML FlowDef manifest and Jinja2 templates, NOT its SKILL.md.** The SKILL.md is a pedagogical companion. When building a skill dependency graph, always parse the runtime artifacts first; use SKILL.md only as a cross-reference for undocumented intent.
+
+Load target skills via the `skill` tool for domain knowledge, then parse the runtime artifacts:
+
+**Step 1 — Parse the YAML FlowDef manifest** (`registry/manifests/<skill>.yaml`):
+- **Template invocation edges** (Prohibition): Every `steps[].template_ref` creates a Prohibition edge from the skill to the template. The skill cannot execute without rendering that template.
+- **Data flow edges** (Prohibition): `steps[].input_mapping` references like `step_N_result.field` create directed edges between steps.
+- **Loop edges** (Prohibition): The loop step's `loop_target` creates a feedback edge from the convergence check back to the target step.
+- **Delegation edges** (Prohibition): `ocap.required_capabilities` entries with `resource: template` and `template_id: <other-skill>/<template>` represent runtime delegation to other skills' templates.
+
+**Step 2 — Parse the template manifest** (`registry/templates/<skill>/manifest.yaml`):
+- **Declared template nodes** (Evidence): Every entry in `templates[]` is a declared template node. Cross-reference with the manifest's `steps[].template_ref` to detect **orphaned templates** — templates declared but never wired.
+- **Contract edges** (Guide): Each template's `contract.input`/`contract.output` defines its typed interface.
+
+**Step 3 — Cross-reference with SKILL.md (Evidence only):**
+- **Reference edges** (Evidence): "Related Skills" sections, "see also", "paired with", "delegates to" — these are informational, not load-bearing.
+- **Gap detection**: If the SKILL.md describes behaviors not reflected in the manifest steps, flag as a contract gap (OUGHT vs IS).
 
 ### Crate/Module Domain
 

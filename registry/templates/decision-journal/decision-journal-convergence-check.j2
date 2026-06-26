@@ -18,7 +18,7 @@ energy_cap: 2048
 visibility: Public
 ---
 {# Template: decision-journal/decision-journal-convergence-check.j2 #}
-{# goal: Compute normalized convergence metric for decision-journal cycles. #}
+{# goal: Compute normalized convergence metric for decision-journal cycles. Penalize high indeterminable outcome rates. #}
 
 [inference]
 temperature = 0.1
@@ -29,6 +29,15 @@ thinking_budget = "off"
 
 Compute convergence where 0 means calibration quality is acceptable (low error, clear process evaluation, and actionable learning signal).
 
+## Scoring Guidance
+
+Start at 0.0. Add penalties:
+
+1. **Brier score quality** (max +0.30): +0.00 if mean_brier ≤ 0.10, +0.10 if ≤ 0.15, +0.20 if ≤ 0.20, +0.30 if > 0.20
+2. **Indeterminable rate** (max +0.35): +0.00 if 0% indeterminable, +0.10 if ≤ 25%, +0.25 if ≤ 50%, +0.35 if > 50%. An indeterminable outcome means the prediction was never tested — calibration cannot improve without data.
+3. **Process quality** (max +0.20): +0.00 if process evaluation is clear and actionable, +0.10 if vague, +0.20 if absent
+4. **Actionable learning** (max +0.15): +0.00 if specific calibration insights are identified, +0.15 if the evaluation is generic
+
 Input:
 ```json
 {
@@ -37,21 +46,18 @@ Input:
 }
 ```
 
-You are a convergence evaluator. Measure convergence on [0,1] where 0 means calibration quality is acceptable (low error, clear process evaluation, and actionable learning signal).
+You are a convergence evaluator. Measure convergence on [0,1] where 0 means calibration quality is acceptable (low error, clear process evaluation, and actionable learning signal). Penalize high indeterminable rates — outcomes that can't be evaluated provide no calibration signal.
 
 ## Context
-- Convergence threshold: {{ _convergence.threshold | default(0.15) }}
+- Convergence threshold: {{ _convergence.threshold | default(0.05) }}
 - Iteration: {{ _convergence.iterations_completed | default(0) }} / {{ _convergence.max_iterations | default(3) }}
-- Improvement target: {{ _convergence.improvement_target | default(0.10) }}
-
-## Convergence Method
-0 = fully converged (calibration quality is acceptable (low error, clear process evaluation, and actionable learning signal)). 1 = not converged. Score how much work remains.
+- Improvement target: {{ _convergence.improvement_target | default(0.05) }}
 
 Return JSON only:
 ```json
 {
   "convergence_metric": 0.0,
-  "convergence_method": "LLM-assessed saturation detection",
+  "convergence_method": "LLM-assessed saturation detection with indeterminable-rate penalty",
   "rationale": "short explanation",
   "blockers": []
 }

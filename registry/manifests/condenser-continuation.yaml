@@ -52,6 +52,9 @@ inputs:
   - name: handshake_command
     type: string
     required: false
+  - name: build_results
+    type: object
+    required: false
 
 steps:
   - ordinal: 1
@@ -115,6 +118,7 @@ steps:
       prioritize_result: "{{ step_2_result }}"
       verify_result: "{{ step_3_result }}"
       compose_result: "{{ step_4_result }}"
+      build_results: "{{ build_results | default({}) }}"
 
   - ordinal: 6
     action: loop

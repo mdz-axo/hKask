@@ -37,7 +37,9 @@ Input:
 {
   "triage_result": {{ triage_result | tojson }},
   "calibration_result": {{ calibration_result | tojson }},
-  "record_result": {{ record_result | tojson }}
+  "record_result": {{ record_result | tojson }},
+  "prior_probability": {{ prior_probability | default("null") }},
+  "new_evidence": {{ new_evidence | default([]) | tojson }}
 }
 ```
 

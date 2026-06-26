@@ -15,6 +15,7 @@ contract:
     resolution: string
     cns_spans: array
     escalate_to_human: boolean
+    escalate_reason: string
 energy_cap: 2048
 visibility: Public
 ---
@@ -28,7 +29,7 @@ verbosity = "terse"
 max_tokens = 512
 thinking_budget = "off"
 
-Resolve the goal based on the judge's verdict. Low confidence (< 0.7) escalates to human regardless of verdict.
+Resolve the goal based on the judge's verdict. Low confidence (&lt; 0.7) escalates to human regardless of verdict.
 
 Input:
 ```json
@@ -41,17 +42,23 @@ Input:
 ```
 
 Resolution rules:
-- verdict "done" + confidence >= 0.7 → complete
-- verdict "done" + confidence < 0.7 → escalate to human review
-- verdict "continue" → continue loop
-- verdict "blocked" → escalate to human
-- Any verdict with confidence < 0.7 → escalate (low confidence may still be wrong)
+- verdict "done" + confidence >= 0.7 → complete (emit cns.goal.complete)
+- verdict "done" + confidence &lt; 0.7 → escalate to human (emit cns.goal.alert.escalate)
+- verdict "continue" → continue loop (emit cns.goal.transition)
+- verdict "blocked" → escalate to human (emit cns.goal.block)
+- Any verdict with confidence &lt; 0.7 → escalate (low confidence may still be wrong)
 
-Return JSON only:
+Emit appropriate CNS spans based on resolution:
+- complete → ["cns.goal.verify", "cns.goal.complete"]
+- continue → ["cns.goal.verify", "cns.goal.transition"]
+- escalate (blocked) → ["cns.goal.verify", "cns.goal.block", "cns.goal.alert.escalate"]
+- escalate (low confidence) → ["cns.goal.verify", "cns.goal.alert.escalate"]
+
+Return JSON only — select the correct cns_spans for the resolution:
 ```json
 {
-  "resolution": "complete|continue|escalate",
-  "cns_spans": ["cns.goal.verify"],
+  "resolution": "complete",
+  "cns_spans": ["cns.goal.verify", "cns.goal.complete"],
   "escalate_to_human": false,
   "escalate_reason": ""
 }

@@ -37,6 +37,14 @@ templates:
       deepened module shape, identify seams and adapters, confirm test surface.
       Update glossary and ADRs inline as decisions crystallize.
 
+  - id: improve-codebase-architecture/arch-route
+    path: arch-route.j2
+    type: KnowAct
+    lexicon_terms: [route, decide, recommend, delegate, classify]
+    description: >
+      Route a deepened architecture design to the appropriate follow-up action
+      (proceed_to_refactor, need_more_data, defer_or_reject).
+
   - id: improve-codebase-architecture/arch-convergence-check
     path: arch-convergence-check.j2
     type: KnowAct

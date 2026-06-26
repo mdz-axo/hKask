@@ -376,5 +376,6 @@ A documentation sweep is successful when:
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 14000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 2 rJ (manifest `rjoule.cap` — see `registry/manifests/document-update.yaml` for canonical value)
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)
+```

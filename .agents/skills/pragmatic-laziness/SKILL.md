@@ -21,6 +21,8 @@ A procedural composition skill. Finds the path of least action through meaning-s
 | **Convergence** | δS = 0 — no further action reduction on repeat pass |
 | **Max iterations** | 3, then escalate |
 
+**Note on composition edges:** The "Draws on" skills describe the *methodology* applied within the lazy-loop phases. The `pragmatic-laziness-flow.j2` template is self-contained — it inlines the phase methodology descriptions rather than delegating to other skill templates at runtime. This is by design for template sandboxing. The composition edges are guidance for the human/agent practitioner applying the methodology, not machine-executable template dispatch.
+
 ## Trigger Conditions
 
 | User says | Action |
@@ -125,5 +127,5 @@ Two templates. The skill is lazy.
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 16000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 2 rJ (manifest `rjoule.cap` — see `registry/manifests/pragmatic-laziness.yaml` for canonical value)
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

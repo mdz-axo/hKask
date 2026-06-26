@@ -109,6 +109,7 @@ After the grilling loop, one of three outcomes:
 - **Improvement gate:** threshold_only
 - **Max iterations:** 5
 - **Convergence meaning:** 0 = output is stable and complete
+- **State accumulation:** The PDCA loop does not carry prior-iteration state (e.g., previously-identified friction points) into the next iteration's exploration step. Each loop iteration is a fresh exploration of the focus area. Convergence relies on LLM saturation detection rather than structural progress tracking. If the same candidates repeatedly surface across iterations without resolution, escalate manually.
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration

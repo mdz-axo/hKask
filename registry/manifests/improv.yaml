@@ -22,7 +22,7 @@ convergence:
   improvement_gate: threshold_only
   max_iterations: 3
   min_iterations: 1
-  convergence_field: step_7_result.convergence_metric
+  convergence_field: step_8_result.convergence_metric
   on_not_reached: escalate
 
 gas:
@@ -139,7 +139,22 @@ steps:
       context: "{{ context | default({}) }}"
       contribution: "{{ contribution | default('') }}"
 
+  # Fallback: if no mode condition matched, default to Plussing.
+  # Prevents silent no-op loop when mode is unrecognized or null.
+
   - ordinal: 7
+    action: select
+    description: Fallback — default to Plussing when no specific mode was selected.
+    renderer: minijinja
+    template_ref: improv/improv-plussing
+    gas_cap: 5000
+    timeout_seconds: 60
+    condition: "step_2_result == null and step_3_result == null and step_4_result == null and step_5_result == null and step_6_result == null"
+    input_mapping:
+      context: "{{ context | default({}) }}"
+      contribution: "{{ contribution | default('') }}"
+
+  - ordinal: 8
     action: select
     description: Compute normalized convergence metric for improv PDCA cycle.
     renderer: minijinja
@@ -148,9 +163,9 @@ steps:
     timeout_seconds: 30
     input_mapping:
       mode_selection_result: "{{ step_1_result }}"
-      mode_application_result: "{{ step_2_result | default(step_3_result | default(step_4_result | default(step_5_result | default(step_6_result | default({}))))) }}"
+      mode_application_result: "{{ step_2_result | default(step_3_result | default(step_4_result | default(step_5_result | default(step_6_result | default(step_7_result | default({}))))) }}"
 
-  - ordinal: 8
+  - ordinal: 9
     action: loop
     description: Re-enter improv cycle if convergence threshold is not met.
     input_mapping:

@@ -146,12 +146,9 @@ steps:
     timeout_seconds: 30
     condition: composition_enabled
 
-  - ordinal: 10
-    action: choice
-    description: Execute Kata switch if requested (save state, invoke new kata type).
-    renderer: null
-    template_ref: null
-    condition: switch_requested
+  # Note: manifest-level kata switching (invoking a different sub-skill manifest
+  # mid-cascade) requires engine support not yet implemented. The switch-check
+  # step produces a recommendation; actual switching must be handled externally.
 
 error_handling:
   on_gas_exceeded: abort

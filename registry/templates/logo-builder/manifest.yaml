@@ -1,5 +1,5 @@
 # Template crate manifest for logo-builder skill
-# hKask v0.30.0
+# hKask v0.31.0
 # References templates in registry/templates/media/ for actual generation.
 # This skill is an orchestration layer — no own .j2 or .yaml templates.
 # Logo generation templates live under media/ because they use media server tools.

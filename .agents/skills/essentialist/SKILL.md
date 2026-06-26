@@ -189,10 +189,12 @@ In **advisory mode**, the report also includes:
 
 When running within hKask, use the `essentialist/essentialist-flow` KnowAct template, which orchestrates:
 - Iteration over `[G1, G2, G3]` gates
-- Delegation to `deep-module/deep-module-delete` (G1), `deep-module/deep-module-assess` (G2), `coding-guidelines/guidelines-verify` (G3)
+- Gate methodology inlined from `deep-module` (G1 deletion test, G2 surface assessment) and `coding-guidelines` (G3 abstraction audit)
 - `choice` on pass/fail with gate-specific branching
 - `escalate` on retry exhaustion (3 max)
 - `abort` on zero-delta completion
+
+**Note on delegation:** The template states "Delegate: `deep-module/deep-module-delete`" etc., but the J2 template is self-contained — it inlines the gate methodology rather than dispatching to other skill templates at runtime. This is by design for template sandboxing. The delegation annotations are guidance for the practitioner: they identify which skill's methodology to apply at each gate.
 
 Outside hKask, follow the same 3-gate process manually with the same recursion rules.
 
@@ -246,5 +248,5 @@ Before committing any artifact, ask:
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 16000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 2 rJ (manifest `rjoule.cap` — see `registry/manifests/essentialist.yaml` for canonical value)
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

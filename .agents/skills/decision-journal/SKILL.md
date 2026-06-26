@@ -136,5 +136,5 @@ Overconfidence bias shows as a Brier score higher than expected given the foreca
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 3 rJ (manifest `rjoule.cap` — see `registry/manifests/decision-journal.yaml` for canonical value)
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

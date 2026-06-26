@@ -20,16 +20,6 @@ templates:
       to select the best-fit improv mode. Does NOT apply the mode —
       routing to individual WordActs is handled by the manifest flow.
 
-  - id: improv/improv-cycle
-    path: improv-cycle.j2
-    type: KnowAct
-    lexicon_terms: [select, compose, route, improvise, adapt]
-    description: >
-      Apply the selected improv mode to produce constructive response output.
-      Receives a mode from the selector and produces mode-aligned output.
-      DEPRECATED dual role (was both selector and applicator); now used only
-      for mode application. Prefer improv-select for mode selection.
-
   - id: improv/improv-plussing
     path: improv-plussing.j2
     type: WordAct

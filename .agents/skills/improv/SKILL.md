@@ -123,9 +123,8 @@ The improv skill monitors 5 derived trace target strings for observability. Thes
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `improv-select.j2` | KnowAct | Select best-fit improv mode from conversation context (v0.31.0: split from improv-cycle) |
-| `improv-cycle.j2` | KnowAct | Apply selected improv mode to produce constructive response (v0.31.0: application-only; selection moved to improv-select) |
-| `improv-plussing.j2` | WordAct | Extract agreeable components and build constructively (wired via conditional routing in v0.31.0) |
+| `improv-select.j2` | KnowAct | Select best-fit improv mode from conversation context |
+| `improv-plussing.j2` | WordAct | Extract agreeable components and build constructively |
 | `improv-yes-and.j2` | WordAct | Accept and extend contributions additively (wired via conditional routing in v0.31.0) |
 | `improv-yes-but.j2` | WordAct | Accept and constrain contributions (wired via conditional routing in v0.31.0) |
 | `improv-freestyling.j2` | WordAct | Rapid collaborative short-response cycling (wired via conditional routing in v0.31.0) |

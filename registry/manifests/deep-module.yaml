@@ -1,14 +1,15 @@
 # Deep Module Process Manifest
-# ℏKask v0.30.0 — Module depth evaluation as convergent PDCA
+# ℏKask v0.31.0 — Module depth evaluation as convergent PDCA
 
 manifest:
   id: deep-module
   name: Deep Module
   description: >
-    Convergent module-depth process. Assesses module depth, computes convergence,
-    and iterates until depth recommendations are stable for action.
+    Convergent module-depth process. Assesses module depth, applies Ousterhout's
+    deletion test in both directions, designs a deepened interface from results,
+    computes convergence, and iterates until depth recommendations are stable.
   functional_role: flowdef
-  version: 0.30.0
+  version: 0.31.0
   editor: curator-or-human-admin
   visibility: Public
 
@@ -18,7 +19,7 @@ convergence:
   improvement_gate: threshold_only
   max_iterations: 5
   min_iterations: 1
-  convergence_field: step_2_result.convergence_metric
+  convergence_field: step_4_result.convergence_metric
   on_not_reached: escalate
 
 gas:
@@ -42,7 +43,22 @@ inputs:
   - name: caller_paths
     type: array
     required: false
+  - name: caller_code
+    type: object
+    required: false
+  - name: dependency_code
+    type: object
+    required: false
   - name: codebase_context
+    type: object
+    required: false
+  - name: domain_requirements
+    type: object
+    required: false
+  - name: dependency_interfaces
+    type: object
+    required: false
+  - name: constraint_classification
     type: object
     required: false
 
@@ -62,15 +78,41 @@ steps:
 
   - ordinal: 2
     action: select
+    description: Execute Ousterhout's deletion test in both directions.
+    renderer: minijinja
+    template_ref: deep-module/deep-module-delete
+    gas_cap: 6000
+    timeout_seconds: 60
+    input_mapping:
+      module_assessment: "{{ step_1_result }}"
+      caller_code: "{{ caller_code | default({}) }}"
+      dependency_code: "{{ dependency_code | default({}) }}"
+      codebase_context: "{{ codebase_context | default({}) }}"
+
+  - ordinal: 3
+    action: select
+    description: Design a deep module interface from deletion test results.
+    renderer: minijinja
+    template_ref: deep-module/deep-module-design
+    gas_cap: 6000
+    timeout_seconds: 60
+    input_mapping:
+      deletion_test_result: "{{ step_2_result }}"
+      domain_requirements: "{{ domain_requirements | default({}) }}"
+      dependency_interfaces: "{{ dependency_interfaces | default({}) }}"
+      constraint_classification: "{{ constraint_classification | default({}) }}"
+
+  - ordinal: 4
+    action: select
     description: Compute normalized convergence metric for depth cycle.
     renderer: minijinja
     template_ref: deep-module/deep-module-convergence-check
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
-      primary_result: "{{ step_1_result }}"
+      primary_result: "{{ step_3_result }}"
 
-  - ordinal: 3
+  - ordinal: 5
     action: loop
     description: Re-enter depth cycle if convergence is not met.
     input_mapping:
@@ -88,6 +130,14 @@ ocap:
     - resource: template
       action: render
       template_id: deep-module/deep-module-assess
+      gas_budget: 6000
+    - resource: template
+      action: render
+      template_id: deep-module/deep-module-delete
+      gas_budget: 6000
+    - resource: template
+      action: render
+      template_id: deep-module/deep-module-design
       gas_budget: 6000
     - resource: template
       action: render

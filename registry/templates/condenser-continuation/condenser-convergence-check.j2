@@ -12,6 +12,7 @@ contract:
     prioritize_result: object
     verify_result: object
     compose_result: object
+    build_results: object
   output:
     convergence_metric: number
     rationale: string
@@ -20,7 +21,7 @@ energy_cap: 2048
 visibility: Public
 ---
 {# Template: condenser-continuation/condenser-convergence-check.j2 #}
-{# goal: Compute normalized convergence metric for condenser continuation cycles. #}
+{# goal: Compute normalized convergence metric for condenser continuation cycles. Penalize unexecuted verification plans and build failures. #}
 
 [inference]
 temperature = 0.1
@@ -31,31 +32,42 @@ thinking_budget = "off"
 
 Compute continuation convergence where 0 means continuation packet is coherent, actionable, and free of critical blockers.
 
+## Scoring Guidance
+
+Start at 0.0. Add penalties for each unresolved concern:
+
+1. **Restoration coherence** (max +0.25): Are accomplishments, key files, and decisions clear and non-conflicting?
+2. **Task prioritization** (max +0.20): Are remaining tasks properly ranked? Are blockers identified?
+3. **Verification gap** (max +0.30): Has the verification plan been EXECUTED?
+   - +0.30 if build_results are absent (plan was never run)
+   - +0.20 if build_results show failures
+   - +0.05 if build_results are present and all pass
+4. **Composition quality** (max +0.15): Is the continuation document well-structured and actionable?
+5. **Critical blockers** (max +0.10): Are there any unresolved blockers in the prioritized tasks?
+
 Input:
 ```json
 {
   "restore_result": {{ restore_result | tojson }},
   "prioritize_result": {{ prioritize_result | tojson }},
   "verify_result": {{ verify_result | tojson }},
-  "compose_result": {{ compose_result | tojson }}
+  "compose_result": {{ compose_result | tojson }},
+  "build_results": {{ build_results | default({}) | tojson }}
 }
 ```
 
-You are a convergence evaluator. Measure convergence on [0,1] where 0 means continuation packet is coherent, actionable, and free of critical blockers.
+You are a convergence evaluator. Measure convergence on [0,1] where 0 means continuation packet is coherent, actionable, and free of critical blockers. Penalize unexecuted verification plans.
 
 ## Context
-- Convergence threshold: {{ _convergence.threshold | default(0.15) }}
+- Convergence threshold: {{ _convergence.threshold | default(0.05) }}
 - Iteration: {{ _convergence.iterations_completed | default(0) }} / {{ _convergence.max_iterations | default(3) }}
-- Improvement target: {{ _convergence.improvement_target | default(0.10) }}
-
-## Convergence Method
-0 = fully converged (continuation packet is coherent, actionable, and free of critical blockers). 1 = not converged. Score how much work remains.
+- Improvement target: {{ _convergence.improvement_target | default(0.05) }}
 
 Return JSON only:
 ```json
 {
   "convergence_metric": 0.0,
-  "convergence_method": "LLM-assessed saturation detection",
+  "convergence_method": "LLM-assessed saturation detection with verification-gap penalty",
   "rationale": "short explanation",
   "blockers": []
 }

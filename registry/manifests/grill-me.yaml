@@ -52,7 +52,7 @@ steps:
     input_mapping:
       topic: "{{ topic }}"
       current_level: "{{ start_level | default(1) }}"
-      solid_ratio: 1.0
+      solid_ratio: 0.0
       total_questions: 0
 
   - ordinal: 2
@@ -95,9 +95,9 @@ steps:
 
   - ordinal: 5
     action: loop
-    description: Re-enter interrogation cycle if convergence is not met.
+    description: Re-enter interrogation cycle if convergence is not met, recalibrating difficulty from assessment.
     input_mapping:
-      loop_target: 2
+      loop_target: 1
 
 error_handling:
   on_gas_exceeded: abort

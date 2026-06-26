@@ -57,6 +57,8 @@ Use `pragmatic-semantics` to classify every design decision. These are the hKask
 
 When constraints conflict, state the conflict and resolution explicitly. Never silently relax a Prohibition or Guardrail.
 
+**Note on process phases vs. manifest steps:** This SKILL.md describes 8 process phases (0–7) as human/agent practitioner guidance. The executable flow manifest (`registry/manifests/refactor-service-layer.yaml`) implements 3 operational steps (audit → strangle → verify) plus convergence check and loop. The remaining phases (zoom-out, crate design, per-domain migration, cross-cutting extraction) are performed by the practitioner following the guidance here, delegating to the referenced skills as needed. Phases are not separate machine-executable template dispatch steps.
+
 ## Process
 
 ### Phase 0 — Zoom Out
@@ -221,5 +223,5 @@ These go beyond what `strangler-fig` and `deep-module` already cover:
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 22000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 3 rJ (manifest `rjoule.cap` — see `registry/manifests/refactor-service-layer.yaml` for canonical value)
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)
