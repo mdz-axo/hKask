@@ -108,7 +108,7 @@ The template produces a JSON object with:
 - `precept_alignment` — per-precept alignment scores (0.0–1.0)
 - `action_landscape_shift` — how the perceived action landscape changed
 - `brachistochrone_candidates` — paths that look harder short-term but minimize long-term action
-- `stationary` / `should_continue` / `escalate` — convergence state (informational; authoritative convergence computed by `dokkodo-convergence-check.j2`)
+- Convergence assessment (δP = 0) delegated exclusively to `dokkodo-convergence-check.j2` — perceive template produces raw perception data only
 
 ## Registry Template
 
@@ -116,10 +116,10 @@ This skill's runtime template lives in `registry/templates/dokkodo-mindset/`:
 
 | Template | Type | Purpose |
 |----------|------|---------|
-| `dokkodo-perceive.j2` | KnowAct | Apply the 21 precepts as perceptual filter — produces clarified perception with precept alignment scores, distortion map, and landscape shift metrics |
-| `dokkodo-convergence-check.j2` | KnowAct | Compute normalized convergence metric (δP = 0) for perceptual cycles |
+| `dokkodo-perceive.j2` | KnowAct | Apply the 21 precepts as perceptual filter — produces clarified perception with precept alignment scores, distortion map, and landscape shift metrics. Precepts defined canonically in `dokkodo-precepts.yaml`. |
+| `dokkodo-convergence-check.j2` | KnowAct | Compute normalized convergence metric (δP = 0) for perceptual cycles — sole arbiter of convergence |
 
-Two templates. The skill is lazy. Convergence checking is delegated to `dokkodo-convergence-check.j2` — following the same pattern as other skills.
+Canonical precept definitions live in `dokkodo-precepts.yaml` — shared across any skill that needs the 21 Dokkodo precepts (e.g., pragmatic-laziness pre-filter).
 
 ## Lexicon Terms
 
@@ -161,5 +161,5 @@ New to the vocabulary: `detach`, `endure`, `perceive`, `relinquish`, `renounce`.
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 14000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 2 rJ, 0.25 rJ/token
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

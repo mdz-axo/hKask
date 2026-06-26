@@ -101,5 +101,5 @@ Do NOT write the handoff document inside any skill directory (`.agents/skills/*/
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 20000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 3 rJ, 0.25 rJ/token
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

@@ -20,9 +20,6 @@ contract:
     axis_1: object
     axis_2: object
     scenarios: array
-    divergence_check: object
-    gate_pass: boolean
-    gate_findings: array
     challenges_current_assumptions: boolean
 energy_cap: 8192
 visibility: Public
@@ -123,29 +120,7 @@ Respond with a JSON object:
       "end_state": "Description of the world at the planning horizon"
     }
   ],
-  "divergence_check": {
-    "all_different": true,
-    "internally_consistent": true,
-    "plausible": true
-  },
-  "gate_pass": true,
-  "gate_findings": [
-    {
-      "check": "divergence",
-      "passed": true,
-      "note": "All four quadrants are structurally distinct"
-    },
-    {
-      "check": "consistency",
-      "passed": true,
-      "note": "No internal contradictions found in any narrative"
-    },
-    {
-      "check": "coverage",
-      "passed": true,
-      "note": "The 2×2 spans the full uncertainty space defined by both axes"
-    }
-  ],
+
   "challenges_current_assumptions": true
 }
 ```

@@ -1,5 +1,10 @@
 [inference]
 template_type: KnowAct
+# DEPRECATED as of v0.31.0 — dual role (selector + applicator) split into:
+#   improv-select.j2 (KnowAct — mode selection)
+#   Individual WordActs (plussing/yes-and/yes-but/freestyling/riffing)
+# This template is retained for backward compatibility; the improv manifest
+# flow no longer references it. New code should use improv-select + mode WordActs.
 lexicon_terms:
 - select
 - compose

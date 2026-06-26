@@ -1365,7 +1365,7 @@ impl TrainingServer {
                 "procedural" => vec![
                     json!({
                         "rank": 1, "model": "Qwen3.5-9B", "provider_prefix": "TOGETHER",
-                        "rationale": "Best cost/capability balance for procedural skill training. Apache 2.0. Proven with hKask constraint-forces and essentialist adapters.",
+                        "rationale": "Best cost/capability balance for procedural skill training. Apache 2.0. Proven with hKask pragmatic-semantics and essentialist adapters.",
                         "license": "apache2", "size": "9B", "cost_per_run": "~$0.005"
                     }),
                     json!({
@@ -1458,7 +1458,7 @@ impl TrainingServer {
                     "provider": provider_filter,
                 },
                 "recommendations": filtered,
-                "guidance": "For hKask skill adapters, Qwen3.5-9B on Together AI is the recommended default: Apache 2.0 license, ~$0.005 per LoRA run, 4-7 minute training time, and proven with constraint-forces (100% accuracy). Use DeepSeek-V3-7B for reasoning-heavy skills (pragmatic-semantics, essentialist). Use Qwen3.5-14B for generation-heavy skills (trace generation).",
+                "guidance": "For hKask skill adapters, Qwen3.5-9B on Together AI is the recommended default: Apache 2.0 license, ~$0.005 per LoRA run, 4-7 minute training time, and proven with pragmatic-semantics (100% accuracy). Use DeepSeek-V3-7B for reasoning-heavy skills (pragmatic-semantics, essentialist). Use Qwen3.5-14B for generation-heavy skills (trace generation).",
             }))
         })
         .await

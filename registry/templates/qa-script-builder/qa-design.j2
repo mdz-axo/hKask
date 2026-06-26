@@ -12,9 +12,9 @@ contract:
     user_intent: string
   output:
     step_topology: array
-    alert_topology: array
     terminal_states: array
     loop_configs: array
+    alert_config: object
     design_rationale: string
     mermaid_diagram: string
 energy_cap: 5120
@@ -23,7 +23,7 @@ visibility: Public
 {# Template: qa-script-builder/qa-design.j2 #}
 {# goal: Design the branching state machine from the discovered test surface. #}
 {# KnowAct — Design the step topology for a QA script manifest #}
-{# ℏKask v0.30.0 — A Minimal Viable Container for Agents #}
+{# hKask v0.31.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2
@@ -63,10 +63,10 @@ You are a QA pipeline designer. Given a discovered test surface and user intent,
 
 ### Loop Configuration
 
-- `max_iterations`: how many times to retry (default: 5)
-- `iteration_delay_secs`: seconds between retries (default: 1)
+- `max_iterations`: how many times to retry (default: 3)
 - Loops can contain `command` (shell) or `classifier` (LLM call)
 - Always include a `loop_exhausted` branch or ensure a terminal condition
+- NOTE: `iteration_delay_secs` is NOT supported by the runner
 
 ### Design Constraints
 
@@ -81,13 +81,14 @@ You are a QA pipeline designer. Given a discovered test surface and user intent,
 2. **Choose actions** per step: `run_command`, `classify`, or `loop`.
 3. **Define branching** for each step — what condition routes to what ordinal.
 4. **Identify terminal states** — steps with no outgoing branches.
-5. **Configure loops** with `max_iterations` and `iteration_delay_secs`.
-6. **Design alert topology** — for each classify or terminal step, declare:
-   - `escalate_on`: which outcomes trigger alerts
-   - `severity_map`: outcome → severity (critical, warning, info)
-   - `domain`: alert domain for correlation
-   - `threshold`: failures before escalation
-   - `cooldown_secs`: suppression window between re-escalations
+5. **Configure loops** with `max_iterations` (NOT `iteration_delay_secs` — unsupported).
+6. **Design alert configuration** — declare a global `alert` section with:
+   - `enabled`: master switch
+   - `default_domain`: alert namespace (e.g., `qa.<crate>.<tool>`)
+   - `default_threshold`: failures before escalation
+   - `default_cooldown_secs`: suppression window between re-escalations
+   - `escalate_to_curator`: route alerts to Curation Loop
+   Per-step alert blocks (escalate_on, severity_map on individual steps) are NOT supported.
 7. **Produce a mermaid diagram** visualizing the flow.
 
 ## Output Requirements
@@ -128,36 +129,7 @@ Respond with a JSON object:
       "command": "echo '[QA] High-confidence failure — auto-repair attempted'",
       "branching": {},
       "terminal": true,
-      "cns_span": "cns.qa.custom.auto_repair",
-      "alert": {
-        "escalate_on": ["high_confidence"],
-        "severity_map": {"high_confidence": "critical"},
-        "domain": "qa.hkask-types.fuzz",
-        "threshold": 3,
-        "cooldown_secs": 300
-      }
-    }
-  ],
-  "alert_topology": [
-    {
-      "step_ordinal": 2,
-      "escalate_on": ["high_confidence", "medium_confidence"],
-      "severity_map": {
-        "high_confidence": "critical",
-        "medium_confidence": "warning",
-        "flake": "info"
-      },
-      "domain": "qa.hkask-types.fuzz",
-      "threshold": 3,
-      "cooldown_secs": 300
-    },
-    {
-      "step_ordinal": 5,
-      "escalate_on": ["loop_exhausted"],
-      "severity_map": {"loop_exhausted": "critical"},
-      "domain": "qa.hkask-types.fuzz",
-      "threshold": 2,
-      "cooldown_secs": 600
+      "cns_span": "cns.qa.custom.auto_repair"
     }
   ],
   "terminal_states": [
@@ -168,11 +140,17 @@ Respond with a JSON object:
     {
       "ordinal": 5,
       "max_iterations": 3,
-      "iteration_delay_secs": 10,
       "command": "grep -c 'FAILED' /tmp/fuzz-output.txt || echo 0"
     }
   ],
-  "design_rationale": "Standard fuzz→classify→branch pattern. High-confidence failures get auto-repaired. Medium and low go to escalation. Flakes retry up to 3 times. Infrastructure failures (non-zero bolero exit) are terminal.",
+  "alert_config": {
+    "enabled": true,
+    "default_domain": "qa.hkask-types.fuzz",
+    "default_threshold": 5,
+    "default_cooldown_secs": 600,
+    "escalate_to_curator": true
+  },
+  "design_rationale": "Standard fuzz→classify→branch pattern. High-confidence failures get auto-repaired. Medium and low go to escalation. Flakes retry up to 3 times.",
   "mermaid_diagram": "flowchart TD\n    S1[Step 1: cargo bolero test] -->|success| S2[Step 2: classify]\n    S1 -->|failure| S6[Step 6: fuzz failure]\n    S2 -->|high_confidence| S3[Step 3: auto-repair]\n    S2 -->|medium_confidence| S4[Step 4: escalate]\n    S2 -->|low_confidence| S4\n    S2 -->|flake| S5[Step 5: retry loop]\n    S5 -->|success| S1\n    S5 -->|loop_exhausted| S4"
 }
 ```

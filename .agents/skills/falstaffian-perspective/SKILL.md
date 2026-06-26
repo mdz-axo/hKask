@@ -104,9 +104,10 @@ This skill's runtime templates live in `registry/templates/falstaffian-perspecti
 
 | Template | Type | Purpose |
 |----------|------|---------|
-| `falstaffian-perspective.j2` | KnowAct | Generate multi-iteration perspectives with shape dispatch, variance analysis, and tension verification |
-
-The manifest at `registry/templates/falstaffian-perspective/manifest.yaml` defines the skill's template crate. The single `.j2` template self-contains the full pipeline (calibrate+affirm → generate → validate → variance report).
+| `falstaffian-configure.j2` | KnowAct | Lightweight shape configuration — selects active vectors, enrichment depth, and generation parameters (gas: 2000) |
+| `falstaffian-perspective.j2` | KnowAct | Generate enriched multi-iteration perspectives with shape dispatch, variance analysis, and tension verification (gas: 9000). Shape macros extracted to `_shapes-macros.j2`. |
+| `falstaffian-convergence-check.j2` | KnowAct | Compute normalized convergence metric for perspective cycles |
+| `_shapes-macros.j2` | (include) | Deterministic shape engine — 8 macro definitions with dispatch. Included by `falstaffian-perspective.j2`. |
 
 ## Background
 
@@ -138,5 +139,5 @@ Falstaff is Shakespeare's most subversive truth-teller. He doesn't oppose power 
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 2 rJ, 0.25 rJ/token
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

@@ -13,7 +13,7 @@ description: >
   Activate when user says "design a logo", "create a logo", "generate a
   logo", "make a brand mark", or provides a business name with visual
   identity intent.
-composes_skills: [coding-guidelines, essentialist]
+references_skills: [coding-guidelines, essentialist]
 ---
 
 # Pragmatic and Principled Logo Design for LLM-Assisted Generation
@@ -210,6 +210,7 @@ User provides { name, industry, audience?, values? }
 - Discovery phase uses inference router for text LLM classification (not a media tool)
 - FlowDef templates are agent-coordinated — they describe what to do; the agent executes the steps
 - Vision critique costs extra inference credits — `refine_rounds: 0` skips it
+- `references_skills` [coding-guidelines, essentialist] are aspirational integrations for future upgrades — they are declared but have zero call sites in any template; they will be wired when the Bokhua gate scoring logic is implemented in the media server
 
 ## References
 
@@ -223,5 +224,7 @@ User provides { name, industry, audience?, values? }
 ## Registry Manifest
 
 **Type:** Template (one-shot) | **Manifest:** none (no registry crate — SKILL.md only)
+
 This is a Template, not a Skill. Templates are one-shot prompt executions without PDCA convergence.
-To upgrade to a Skill, create a registry crate at  +  templates.
+
+**Upgrade path:** to convert from Template to Skill, create a PDCA orchestrator at `registry/manifests/logo-builder.yaml` that wraps the existing FlowDefs (logo-discovery.yaml → logo-iterative-refine.yaml → logo-presentation.yaml) with convergence criteria based on the Bokhua gate scores.

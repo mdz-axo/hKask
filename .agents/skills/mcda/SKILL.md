@@ -87,7 +87,7 @@ Option B wins on composite (72 > 67). But without masking detection, you might n
 
 - **Pragmatic-laziness:** Laziness narrows the alternative set (δS = 0 elimination); MCDA ranks the survivors on weighted criteria. Together: reduce, then decide.
 - **Scenario-builder:** Evaluate strategies across scenarios — which strategy scores highest in the most futures?
-- **Decision-journal:** MCDA produces the weighted rationale; the journal records it with context for later revisit and Brier scoring.
+- **Decision-journal:** MCDA produces the weighted rationale; the journal records it with context for later revisit and Brier scoring. After convergence, the user should be offered to activate `decision-journal` to record the weighted decision rationale with sensitivity classification for later revisit.
 - **Dokkodo-mindset:** Precept 11 ("have no preferences") — MCDA makes preferences explicit as weighted criteria so you can check whether preference is distorting the ranking.
 
 ## Registry Templates

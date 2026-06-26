@@ -85,7 +85,7 @@ gas:                            # Cost controls (rJoule system)
   hard_limit: true              # Abort when exceeded
   monthly_subscriptions_urj: 0  # Monthly recurring costs in µrJ
 
-alert:                          # Algedonic escalation (direct to Curator)
+alert:                          # Algedonic escalation (global only, NOT per-step)
   enabled: true                 # Master switch
   default_domain: qa.my-script  # Fallback alert domain
   default_threshold: 5          # Escalate after N failures
@@ -106,18 +106,6 @@ steps:                          # Ordered steps (required)
       success: 2
       failure: 5
     default_next: 2             # Fallback if no branch matches
-    cns_span: cns.qa.custom.X   # Optional CNS span target
-    alert:                      # Optional algedonic escalation
-      escalate_on:              # Outcomes that trigger alerts
-        - high_confidence
-        - medium_confidence
-      severity_map:             # Outcome → severity
-        high_confidence: critical
-        medium_confidence: warning
-        flake: info
-      domain: qa.my-crate.fuzz  # Alert domain for correlation
-      threshold: 3              # Escalate after N failures
-      cooldown_secs: 300        # Don't re-escalate within window
 
   - ordinal: 2
     action: classify
@@ -129,18 +117,15 @@ steps:                          # Ordered steps (required)
       low_confidence: 4
       flake: 5
       unparseable: 4
-    cns_span: cns.qa.custom.classify
 
   - ordinal: 5
     action: loop
     command: "echo retry"       # Or classifier: qa-triage
     description: "Retry loop"
     max_iterations: 3
-    iteration_delay_secs: 10
     branching:
       success: 1
       loop_exhausted: 4
-    cns_span: cns.qa.custom.retry
 
 error_handling:                 # Error behavior
   on_gas_exceeded: abort        # abort | retry | continue
@@ -165,10 +150,10 @@ audit:                          # Audit trail
 4. **gas**: use discovery's `gas_constraints.suggested_cap`. Set `gas_per_function` to 100 (SCI-derived default). Set `monthly_subscriptions_urj` if applicable. CI scripts should have `hard_limit: true`.
 5. **steps**: generate from the step topology. Map each topology entry to the correct YAML structure.
    - `run_command` steps get `command` and `branching` (success/failure).
-   - `classify` steps get `classifier`, `branching` (confidence levels), and optional `alert` config.
-   - `loop` steps get `command` or `classifier`, plus `max_iterations` and `iteration_delay_secs`. Loops can also declare `alert` on `loop_exhausted`.
-   - Terminal steps don't need `branching` but should declare `alert` if they represent escalation endpoints.
-6. **alert**: use discovery's `alert_requirements`. The global `alert` section sets defaults; per-step `alert` overrides per-outcome.
+   - `classify` steps get `classifier` and `branching` (confidence levels).
+   - `loop` steps get `command` or `classifier`, plus `max_iterations` (NOT `iteration_delay_secs` — unsupported).
+   - Terminal steps don't need `branching`.
+6. **alert**: use discovery's `alert_requirements` for the GLOBAL `alert` section only. Per-step alert blocks are NOT supported and cause parse errors.
 7. **cns.span_namespace**: use `cns.qa.<manifest_id>` unless discovery specifies otherwise.
 8. **classifier names**: must match discovery's `available_classifiers`.
 9. **Indentation**: 2 spaces. No tabs.

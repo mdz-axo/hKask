@@ -154,7 +154,7 @@ For each candidate reduction:
 4. **If something becomes harder but something else becomes much easier** → this may be the brachistochrone. Measure total action change.
 5. **If deletion increases total system action** → retain. It earns its existence.
 
-**Constraint-forces boundary:** Prohibitions and Guardrails are never relaxed in pursuit of least action. Guidelines may be relaxed with reason stated.
+**Constraint force boundary:** Prohibitions and Guardrails are never relaxed in pursuit of least action. Guidelines may be relaxed with reason stated.
 
 **Output: Minimal configuration** — the reduced set of elements that minimizes total system action, with justifications for what was retained.
 
@@ -206,7 +206,7 @@ Respond with a JSON object:
 
 - Phase order is FIXED: Decompose → Identify Loops → Find Stationary Action. Never skip phases.
 - Every elimination must be justified by the deletion test or brachistochrone rule.
-- Prohibitions and Guardrails (constraint-forces ranks 1-2) are never relaxed. State explicitly if a reduction would violate one.
+- Prohibitions and Guardrails (pragmatic-semantics ranks 1-2) are never relaxed. State explicitly if a reduction would violate one.
 - The brachistochrone rule is not an excuse to keep complexity — it must be demonstrated that the complexity reduces total action elsewhere.
 - Max {{ max_iterations | default(3) }} iterations. Escalate, don't loop indefinitely.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).

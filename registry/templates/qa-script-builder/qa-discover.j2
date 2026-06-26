@@ -15,6 +15,7 @@ contract:
     crate_name: string
     failure_modes: array
     test_tool: string
+    test_command: string
     existing_fuzz_targets: array
     available_classifiers: array
     gas_constraints: object
@@ -27,7 +28,7 @@ visibility: Public
 {# Template: qa-script-builder/qa-discover.j2 #}
 {# goal: Discover the test surface from user intent — what crate, what failure modes, what tools, what constraints. #}
 {# KnowAct — Map testing intent to QA system capabilities #}
-{# ℏKask v0.30.0 — A Minimal Viable Container for Agents #}
+{# hKask v0.31.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2
@@ -78,9 +79,11 @@ Available classifiers:
 - `qa-triage`: Diagnose Rust test failures — returns `{confidence, is_flake, root_cause, proposed_fix, suggested_fuzz_target, affected_file, affected_line, failure_type}`
 - `qa-feedback`: Suggest fuzz targets from surviving mutants — returns `{action, summary, confidence}`
 
-Gas budget: every script has a `gas` section with `cap` (gas units), `gas_per_function` (SCI-derived, default 100), `alert_threshold` (fraction of rJ budget for warning), `hard_limit`, and `monthly_subscriptions_urj`. 1 gas = 4 µrJ = $0.000004. API costs are tracked by the classify service, not the manifest.
+Gas budget: every script has a `gas` section with `cap` (gas units), `gas_per_function` (SCI-derived, default 100), `alert_threshold` (fraction of rJ budget for warning), `hard_limit`, and `monthly_subscriptions_urj`. 1 gas = 4 µrJ = $0.000004.
 
 CNS: every script can emit spans with configurable `span_namespace`. Existing QA spans: `cns.qa.bolero_failure`, `cns.qa.repair_attempted`, `cns.qa.repair_verified`, `cns.qa.repair_exhausted`, `cns.qa.mutant_survived`.
+
+Alert: the GLOBAL `alert` section configures escalation — `enabled`, `default_domain`, `default_threshold`, `default_cooldown_secs`, `escalate_to_curator`. Per-step alert blocks are NOT supported.
 
 ## Discovery Requirements
 
@@ -92,9 +95,9 @@ CNS: every script can emit spans with configurable `span_namespace`. Existing QA
 
 4. **What should happen on failure?** Infer the user's desired branching: auto-repair high-confidence? Escalate medium? Retry flakes? Log and move on?
 
-5. **What severity triggers escalation?** Which classification outcomes should raise alerts? Map confidence levels to severity: high_confidence → critical? medium → warning? flake → info? Should the Curator be notified immediately or only after threshold failures accumulate?
+5. **What severity triggers escalation?** Which outcomes should raise alerts at the GLOBAL level? Alert routing to Curator is manifest-level, not per-step.
 
-6. **What gas constraints apply?** Is this CI (tight, ~7500 gas) or local (generous, ~15000 gas)? At 100 gas per function, 15,000 gas = 0.06 rJ = 6 cents. What monthly subscription costs (in µrJ)?
+6. **What gas constraints apply?** Is this CI (tight, ~5000 gas) or local (generous, ~15000 gas)?
 
 7. **What alert domain and thresholds?** Namespace for this script's alerts (e.g., `qa.hkask-types.fuzz`). How many failures before escalation? Cooldown between re-escalations?
 
@@ -118,13 +121,9 @@ Respond with a JSON object:
   "alert_requirements": {
     "enabled": true,
     "default_domain": "qa.hkask-types.fuzz",
-    "default_threshold": 3,
-    "default_cooldown_secs": 300,
-    "escalate_on": {
-      "high_confidence": "critical",
-      "medium_confidence": "warning",
-      "flake": "info"
-    }
+    "default_threshold": 5,
+    "default_cooldown_secs": 600,
+    "escalate_to_curator": true
   },
   "cns_requirements": {
     "emit_spans": true,
@@ -146,6 +145,7 @@ Respond with a JSON object:
 - Every ambiguity must have at least two possible interpretations and a concrete recommendation.
 - If the user didn't specify something, infer a reasonable default and note it as an assumption.
 - Classifier names must be valid: only `qa-triage` and `qa-feedback` exist unless the user explicitly mentions a custom one.
+- Alert configuration is GLOBAL only — do not suggest per-step alert blocks.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

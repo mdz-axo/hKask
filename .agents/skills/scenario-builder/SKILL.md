@@ -3,7 +3,6 @@ name: scenario-builder
 visibility: public
 description: Scenario planning methodology following Schwartz's framework. Refines focal questions, maps key forces and macro-level driving forces through STEEP analysis, generates divergent 2x2 scenario narratives, and derives implications with early-warning indicators. Use when exploring strategic uncertainty, preparing for multiple futures, or stress-testing decisions against alternative worlds.
 activation: "build scenarios"
-composes_skills: [pragmatic-semantics]
 ---
 
 # Scenario Builder
@@ -18,7 +17,7 @@ The key output is not a prediction. It's **robust strategies** — actions that 
 
 Shell used scenario planning to navigate the 1973 oil embargo, the 1986 price collapse, and the collapse of the Soviet Union — not by predicting any of them, but by having strategies ready for worlds where they could happen.
 
-## The Five Stages
+## The Stages
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -88,26 +87,30 @@ Shell used scenario planning to navigate the 1973 oil embargo, the 1986 price co
 └──────────────────────────┬──────────────────────────────────┘
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ QUALITY GATE: DIVERGENCE & CONSISTENCY                       │
+│ STAGE 5: INDEPENDENT QUALITY GATE                            │
 │                                                              │
-│ Before proceeding to implications, verify:                   │
-│  • Divergence — all 4 quadrants are genuinely distinct on   │
-│    both axes (no two scenarios describe essentially the      │
-│    same future)                                              │
-│  • Consistency — each narrative is internally coherent      │
-│    (no contradictory elements within a single scenario)      │
-│  • Coverage — the 4 scenarios collectively span the         │
-│    uncertainty space defined by the axes (no major blind     │
-│    spot in the 2×2)                                         │
+│ An independent evaluator (separate from the narrative        │
+│ generator) assesses the scenario set across three dimensions:│
 │                                                              │
+│  • Divergence (0–1) — are all 4 quadrants genuinely          │
+│    distinct? Flags parametric variation (dial-level          │
+│    differences masquerading as different worlds).            │
+│  • Consistency (0–1) — is each narrative internally          │
+│    coherent with no contradictory elements?                  │
+│  • Coverage (0–1) — do the 4 scenarios collectively span    │
+│    the full uncertainty space? No major blind spots?         │
+│                                                              │
+│ Gate passes when all three scores ≥ 0.60.                   │
 │ If the gate fails, return to Stage 4 and refine axes or      │
 │ narratives before proceeding.                                │
 │                                                              │
-│ Output: gate_pass (boolean), gate_findings[]                 │
+│ Output: gate_pass, divergence_score, consistency_score,      │
+│         coverage_score, parametric_variation_flag,           │
+│         gate_findings[]                                      │
 └──────────────────────────┬──────────────────────────────────┘
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ STAGE 5: IMPLICATIONS & INDICATORS                           │
+│ STAGE 6: IMPLICATIONS & INDICATORS                           │
 │                                                              │
 │ For each scenario:                                           │
 │  • What would we need to do? (contingent strategies)         │
@@ -122,6 +125,12 @@ Shell used scenario planning to navigate the 1973 oil embargo, the 1986 price co
 │  • Prohibition — must-do in all scenarios (existential)      │
 │  • Guardrail — should-do, overridable with rationale         │
 │  • Guideline — preferred approach, advisory                  │
+│                                                              │
+│ Note: Constraint-force labels (Prohibition/Guardrail/        │
+│ Guideline) follow the pragmatic-semantics methodology —      │
+│ OUGHT-classified by constraint force, not IS-declarative.    │
+│ This ensures strategies carry enforceable prescriptive       │
+│ weight consistent with the Magna Carta principle hierarchy.  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -138,11 +147,11 @@ Robust strategies are your no-regret moves. Contingent strategies are your hedge
 
 | User says | Action |
 |-----------|--------|
-| "scenario plan this" / "build scenarios" / "explore futures" | Full 5-stage pipeline (includes quality gate) |
+| "scenario plan this" / "build scenarios" / "explore futures" | Full 7-stage pipeline (includes quality gate) |
 | "what are the driving forces?" / "STEEP analysis" | Stage 3 only — macro force mapping |
 | "build a 2x2 matrix" / "scenario axes" | Stage 4 only — scenario construction |
-| "verify scenarios" / "are these divergent?" | Quality gate only — divergence and consistency check |
-| "what are the early signals?" / "tripwires" | Stage 5 only — implications and indicators |
+| "verify scenarios" / "are these divergent?" | Stage 5 only — independent quality gate |
+| "what are the early signals?" / "tripwires" | Stage 6 only — implications and indicators |
 | "what's robust across scenarios?" | Robust strategy extraction |
 
 ## Do NOT Activate For
@@ -156,9 +165,9 @@ Robust strategies are your no-regret moves. Contingent strategies are your hedge
 
 These skills are not composed into the scenario-builder pipeline but are natural next steps after scenario construction. Activate each at the indicated stage.
 
-- **Superforecasting** (activate after Stage 5): Assign calibrated probabilities to each of the 4 scenarios using Tetlock's methodology. Scenario builder explores the futures; superforecasting quantifies their likelihood.
-- **MCDA** (activate after Stage 5): Evaluate robust and contingent strategies across all 4 scenarios. Which strategy scores highest in the most futures? Use multi-criteria decision analysis to rank alternatives.
-- **Decision-journal** (activate after final strategy selection): Record the strategic decision, which scenarios were considered, and the rationale. Schedule a revisit when early-warning indicators fire.
+- **Superforecasting** (activate after Stage 6): Assign calibrated probabilities to each of the 4 scenarios using Tetlock's methodology. Scenario builder explores the futures; superforecasting quantifies their likelihood.
+- **MCDA** (activate after Stage 6): Evaluate robust and contingent strategies across all 4 scenarios. Which strategy scores highest in the most futures? Use multi-criteria decision analysis to rank alternatives.
+- **Decision-journal** (activate on convergence): When the scenario planning cycle converges, offer the user activation of `decision-journal` to record the strategic decision with full context — which scenarios were considered, which strategies were selected, and the rationale. Schedule a revisit when early-warning indicators fire. This closes the loop from exploration to committed action.
 
 ## Registry Templates
 
@@ -168,7 +177,9 @@ These skills are not composed into the scenario-builder pipeline but are natural
 | `key-forces.j2` | KnowAct | 2 | Identify micro-level proximate forces |
 | `driving-forces.j2` | KnowAct | 3 | STEEP macro force mapping with importance-uncertainty matrix |
 | `axes-and-narratives.j2` | KnowAct | 4 | Construct 2×2 matrix with scenario narratives |
-| `implications-indicators.j2` | KnowAct | 5 | Derive strategies and early-warning indicators |
+| `scenario-quality-gate.j2` | KnowAct | 5 | Independent quality gate — divergence, consistency, coverage |
+| `implications-indicators.j2` | KnowAct | 6 | Derive strategies and early-warning indicators |
+| `scenario-convergence-check.j2` | KnowAct | 7 | Compute convergence from quality gate + heuristic checks |
 
 ## Quick Reference
 
@@ -176,9 +187,10 @@ These skills are not composed into the scenario-builder pipeline but are natural
 2. **Key forces** — what proximate factors shape this domain?
 3. **Driving forces** — STEEP macro forces mapped by importance × uncertainty
 4. **2×2 matrix** — cross two critical uncertainties → four scenarios with narratives
-5. **Quality gate** — verify divergence, consistency, and coverage before proceeding
+5. **Quality gate** — independent evaluation of divergence, consistency, and coverage
 6. **Implications** — robust strategies (all scenarios), contingent (specific), tripwires (early signals)
-7. **Classify** — each strategy carries a constraint-force label (Prohibition/Guardrail/Guideline)
+7. **Classify** — each strategy carries a constraint-force label (Prohibition/Guardrail/Guideline), applied using pragmatic-semantics methodology
+8. **Converge** — heuristic divergence check + quality gate scores → normalized metric. On convergence, offer decision-journal to record the strategic decision.
 
 *"The goal of scenario planning is not to predict the future but to make better decisions in the face of uncertainty."* — Peter Schwartz, *The Art of the Long View*
 

@@ -1,14 +1,14 @@
 # Template crate manifest for scenario-builder skill
-# hKask v0.30.0
+# hKask v0.31.0
 
 crate:
   name: scenario-builder
-  version: "0.30.0"
+  version: "0.31.0"
   description: >
     Scenario planning methodology following Schwartz's framework. Refines
     focal questions, maps key forces and macro-level driving forces, generates
-    divergent 2x2 scenario narratives, and derives implications with
-    early-warning indicators.
+    divergent 2x2 scenario narratives, runs independent quality gate, and
+    derives implications with early-warning indicators.
 
 templates:
   - id: scenario-builder/axes-and-narratives
@@ -61,4 +61,25 @@ templates:
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]
     description: >
       Compute normalized convergence metric for scenario-planning PDCA cycles.
-      Returns convergence_metric plus rationale and blockers.
+      Uses independent quality gate output plus heuristic divergence checks.
+      Returns convergence_metric plus rationale, blockers, and heuristic results.
+
+  - id: scenario-builder/scenario-quality-gate
+    path: scenario-quality-gate.j2
+    type: KnowAct
+    lexicon_terms:
+      [
+        evaluate,
+        verify,
+        gate,
+        divergence,
+        consistency,
+        coverage,
+        quality,
+        calibrate,
+      ]
+    description: >
+      Independent quality gate that evaluates scenario divergence, consistency,
+      and coverage without self-assessment bias. Receives scenarios from the
+      narrative generator and produces calibrated 0–1 scores plus a gate_pass
+      determination with actionable fix notes.

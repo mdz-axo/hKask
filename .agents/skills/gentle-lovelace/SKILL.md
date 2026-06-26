@@ -81,8 +81,10 @@ This skill's runtime templates live in `registry/templates/gentle-lovelace/`:
 | Template | Type | Purpose |
 |----------|------|---------|
 | `replica-report.j2` | KnowAct | Produce structured diagnostic report from per-dimension scores with summary and recommendations |
+| `gentle-convergence-check.j2` | KnowAct | Compute normalized convergence metric; gate iteration |
+| `gentle-cns-emit.j2` | KnowAct | Emit CNS span (`cns.gentle_lovelace`) for variety tracking of writing quality scores |
 
-The 4-step pipeline (retrieve exemplars → compare → aggregate → CNS feedback) is orchestrated internally by the template logic in `registry/templates/gentle-lovelace/`; no separate FlowDef manifest exists.
+The execution pipeline is orchestrated by the FlowDef manifest at `registry/manifests/gentle-lovelace.yaml`. The skill consumes pre-computed scores from an upstream `replica_compare` step; it does not perform embedding comparisons internally.
 
 ## Quick Reference
 
@@ -109,5 +111,5 @@ The 4-step pipeline (retrieve exemplars → compare → aggregate → CNS feedba
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 12000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 2 rJ, 0.25 rJ/token
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

@@ -15,16 +15,19 @@ energy_cap: 1024
 visibility: Public
 ---
 {# Template: gentle-lovelace/gentle-cns-emit.j2 #}
-{# goal: Emit CNS span with per-dimension writing quality scores and convergence state for variety tracking. #}
+{# goal: Deterministically emit CNS span with per-dimension writing quality scores and convergence state for variety tracking. #}
 
 [inference]
 temperature = 0.1
 reasoning_effort = "low"
 verbosity = "terse"
-max_tokens = 512
+max_tokens = 256
 thinking_budget = "off"
 
-Emit a CNS span for gentle-lovelace variety tracking. Package the diagnostic output dimensions and convergence metric.
+{% set scores = diagnostic_output.dimension_scores | default({}) %}
+{% set recs = diagnostic_output.recommendations | default([]) %}
+
+Emit a CNS span for gentle-lovelace variety tracking. Return the observation deterministically from the provided diagnostic output.
 
 Input:
 ```json
@@ -34,27 +37,21 @@ Input:
 }
 ```
 
-Extract and return a CNS span observation with:
-- Per-dimension scores (accessibility, precision, findability, agent_correctness)
-- Overall composite score
-- Convergence metric
-- Recommendation count
-
-Return JSON only:
+Return JSON only — use the actual values from diagnostic_output, do not fabricate:
 ```json
 {
   "cns_span": {
     "namespace": "cns.gentle_lovelace",
     "observation": {
       "dimension_scores": {
-        "accessibility": 0.0,
-        "precision": 0.0,
-        "findability": 0.0,
-        "agent_correctness": 0.0
+        "accessibility": {{ scores.accessibility | default(0.0) }},
+        "precision": {{ scores.precision | default(0.0) }},
+        "findability": {{ scores.findability | default(0.0) }},
+        "agent_correctness": {{ scores.agent_correctness | default(0.0) }}
       },
-      "overall_score": 0.0,
-      "convergence_metric": 0.0,
-      "recommendation_count": 0
+      "overall_score": {{ diagnostic_output.overall_score | default(0.0) }},
+      "convergence_metric": {{ convergence_metric }},
+      "recommendation_count": {{ recs | length }}
     }
   },
   "emission_status": "emitted"

@@ -37,6 +37,13 @@ rjoule:
   alert_threshold: 0.8
   hard_limit: true
 
+cns:
+  spans:
+    - cns.gentle_lovelace
+  variety_monitoring:
+    metric: writing_quality_scores
+    description: "Per-dimension writing quality scores tracked for document corpus health"
+
 inputs:
   - name: document_content
     type: string

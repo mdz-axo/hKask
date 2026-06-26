@@ -8,45 +8,68 @@ lexicon_terms:
 - calibrate
 contract:
   input:
+    quality_gate_result: object
     narratives_result: object
     implications_result: object
   output:
     convergence_metric: number
     rationale: string
     blockers: array
-energy_cap: 2048
+    heuristic_divergence_check: object
+energy_cap: 3072
 visibility: Public
 ---
 {# Template: scenario-builder/scenario-convergence-check.j2 #}
-{# goal: Compute normalized convergence metric for scenario-planning cycles. #}
+{# goal: Compute normalized convergence metric for scenario-planning cycles. Uses independent quality gate output (not self-assessment) plus heuristic divergence verification. #}
 
 [inference]
 temperature = 0.1
 reasoning_effort = "medium"
 verbosity = "terse"
-max_tokens = 1200
+max_tokens = 1500
 thinking_budget = "off"
 
-Compute convergence where 0 means scenarios pass the quality gate (divergent, consistent, exhaustive coverage) and implications+indicators are actionable.
+Compute convergence where 0 means scenarios pass the independent quality gate (divergent, consistent, exhaustive coverage) and implications+indicators are actionable.
 
 ## Convergence Method
 
-Derive convergence from the quality gate:
-- Gate status: `narratives_result.gate_pass` — if false, add +0.50 penalty
-- Divergence findings: each failed check → +0.15
-- Consistency findings: each failed check → +0.10
-- Coverage gaps: missing blind spots → +0.10 per gap
-- Start at 0.0. Clamp to [0,1].
+Derive convergence from the independent quality gate and heuristic checks:
 
-0 = fully converged: gate passed, all implications actionable, indicators specific.
-1 = not converged: gate failed and/or implications/indicators missing.
+- Gate status: `quality_gate_result.gate_pass` — if false, add +0.50 penalty
+- Divergence score: `(1.0 - quality_gate_result.divergence_score) * 0.30` penalty
+- Consistency score: `(1.0 - quality_gate_result.consistency_score) * 0.15` penalty
+- Coverage score: `(1.0 - quality_gate_result.coverage_score) * 0.15` penalty
+- Implications actionability: if `implications_result.robust_strategies` is empty or has < 2 entries → +0.10 penalty
+- Early indicators: if `implications_result.early_indicators` is empty or has < 2 entries → +0.10 penalty
+- Start at 0.0. Clamp to [0, 1].
+
+### Heuristic Divergence Check (Independent of Quality Gate)
+
+As an additional safeguard against parametric variation, perform a word-overlap analysis on the scenario end_state descriptions:
+
+1. Extract the `end_state` string from each scenario in `narratives_result.scenarios`.
+2. For every pair of scenarios (6 pairwise comparisons across 4 scenarios), compute a simple word-overlap ratio:
+   - Tokenize both end_state strings into lowercase words (split on whitespace, strip punctuation).
+   - Compute: `overlap_ratio = |A ∩ B| / min(|A|, |B|)` where A and B are the word sets.
+3. If any pair exceeds **0.70 overlap**, flag as potential parametric variation:
+   - Set `heuristic_divergence_check.parametric_variation_detected` to `true`.
+   - List the scenario pair and overlap ratio in `heuristic_divergence_check.flagged_pairs`.
+   - Add +0.20 penalty to the convergence metric.
+4. If no pair exceeds 0.70, set `heuristic_divergence_check.parametric_variation_detected` to `false` with an empty `flagged_pairs` array.
+
+0 = fully converged: gate passed, high scores on all quality dimensions, implications actionable, indicators specific, no parametric variation detected.
+1 = not converged: gate failed and/or implications/indicators missing and/or parametric variation detected.
 
 Return JSON only:
 ```json
 {
   "convergence_metric": 0.0,
-  "convergence_method": "LLM-assessed saturation detection",
+  "convergence_method": "LLM-assessed saturation detection with independent quality gate and heuristic divergence check",
   "rationale": "short explanation",
-  "blockers": []
+  "blockers": [],
+  "heuristic_divergence_check": {
+    "parametric_variation_detected": false,
+    "flagged_pairs": []
+  }
 }
 ```

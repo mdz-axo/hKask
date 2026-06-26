@@ -2,6 +2,7 @@
 name: magna-carta-verifier
 visibility: public
 description: "Verifies that hKask's four Magna Carta principles (User Sovereignty, Affirmative Consent, Generative Space, Clear Boundaries) are correctly implemented and enforced. Uses YAML manifests to declare assertions per principle and Jinja2 templates to render verification procedures, reports, and test cases. Use when auditing sovereignty compliance, onboarding new resources, or verifying consent structures."
+composes_skills: [pragmatic-semantics]
 ---
 
 # Magna Carta Verifier
@@ -81,7 +82,7 @@ assertions:
 Runtime templates are in `registry/templates/magna-carta-verifier/` (see Registry Templates section above). Legacy template references preserved for documentation:
 
 - `mc-verify-procedure.j2` — Renders the verification procedure for each assertion
-- `mc-verify-report.j2` — Renders findings, gaps, and status
+- `mc-verify-report.j2` — Renders findings, gaps, and status. Verification findings should carry constraint-force labels (Prohibition / Guardrail / Guideline / Evidence / Hypothesis) from pragmatic-semantics for proper severity classification.
 - `mc-verify-testcase.j2` — Renders Rust test cases as code blocks in the report
 
 ## Resolution Process
@@ -112,5 +113,5 @@ There is no dedicated MCP tool for Magna Carta verification. The CLI command is 
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 3 rJ, 0.25 rJ/token
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

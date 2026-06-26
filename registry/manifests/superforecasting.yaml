@@ -52,6 +52,10 @@ inputs:
   - name: new_evidence
     type: array
     required: false
+  - name: prior_probability
+    type: number
+    required: false
+    description: Prior iteration's final probability for materiality delta check
 
 steps:
   - ordinal: 1
@@ -167,10 +171,16 @@ steps:
       triage_result: "{{ step_1_result }}"
       calibration_result: "{{ step_7_result }}"
       record_result: "{{ step_8_result }}"
+      prior_probability: "{{ prior_probability | default(null) }}"
+      new_evidence: "{{ new_evidence | default([]) }}"
 
   - ordinal: 10
     action: loop
-    description: Re-enter forecasting refinement cycle if convergence is not met.
+    description: >
+      Re-enter forecasting refinement cycle if convergence is not met.
+      NOTE: Triage (step 1) is skipped on re-entry because the question
+      has already been classified as Goldilocks on the first pass. The
+      loop restarts at Fermi decomposition (step 2).
     input_mapping:
       loop_target: 2
 

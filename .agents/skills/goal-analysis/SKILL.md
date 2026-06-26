@@ -96,9 +96,12 @@ A goal is not a task. A task is something you do. A goal is something you achiev
 | Template | Type | Purpose |
 |----------|------|---------|
 | `create.j2` | WordAct | Extract structured goal from user intent |
-| `judge.j2` | KnowAct | Semantic completion verification with confidence scoring |
+| `goal-activate.j2` | KnowAct | Emit CNS create span and record goal activation |
+| `judge.j2` | KnowAct | Semantic completion verification against explicit criteria |
 | `judge_command.j2` | KnowAct | Command-based completion verification |
 | `judge_simple.j2` | KnowAct | Fallback minimal verification |
+| `goal-convergence-check.j2` | KnowAct | Compute normalized convergence metric; gate iteration |
+| `goal-resolve.j2` | KnowAct | Route verdict to resolution action with human escalation gate |
 
 ## Quick Reference
 
@@ -124,5 +127,5 @@ A goal is not a task. A task is something you do. A goal is something you achiev
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 14000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 2 rJ, 0.25 rJ/token
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

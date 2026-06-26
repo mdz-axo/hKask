@@ -439,7 +439,7 @@ mod tests {
         let cache = dir.path().join("cache");
         std::fs::create_dir_all(&cache).expect("create cache dir");
 
-        // Write a minimal ChatML dataset (simulating constraint-forces traces)
+        // Write a minimal ChatML dataset (simulating pragmatic-semantics traces)
         let records = vec![
             serde_json::json!({"messages": [
                 {"role": "system", "content": "You classify constraints."},

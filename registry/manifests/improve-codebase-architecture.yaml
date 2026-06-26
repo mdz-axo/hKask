@@ -92,7 +92,11 @@ steps:
       known_adrs: "{{ known_adrs | default([]) }}"
 
   # Phase 4: Decision routing — one of three outcomes.
-  # Proceed to refactor, need more data (diagnose), or defer/reject (record ADR).
+  # Reuses arch-deepen.j2 with hardcoded decision values as bridge templates.
+  # Each conditional step passes a different `decision` input to route behavior:
+  # proceed_to_refactor → delegate to strangler-fig or refactor-service-layer
+  # need_more_data → delegate to diagnose for feedback-loop measurement
+  # (defer/reject is implicit — the grilling loop surfaces it at Step 3)
 
   - ordinal: 4
     action: select

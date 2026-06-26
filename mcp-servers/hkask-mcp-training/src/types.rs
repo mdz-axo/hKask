@@ -391,9 +391,9 @@ pub struct TrainEvaluateRequest {
 pub struct TrainRegisterAdapterRequest {
     /// Adapter ID (from training job completion).
     pub adapter_id: String,
-    /// Human-readable name for the adapter (e.g., "constraint-forces-v3").
+    /// Human-readable name for the adapter (e.g., "pragmatic-semantics-v1").
     pub name: String,
-    /// Skill name this adapter serves (e.g., "constraint-forces").
+    /// Skill name this adapter serves (e.g., "pragmatic-semantics").
     /// Enables adapter-to-skill mapping for the registry.
     pub skill_name: String,
     /// Base model the adapter was trained on (provider-prefixed).
@@ -452,7 +452,7 @@ pub struct TrainRecordInvocationRequest {
     pub input_summary: String,
     /// Summary of the adapter's output/response.
     pub output_summary: String,
-    /// CNS span identifier for correlation (e.g., "cns.training.invoke.constraint-forces").
+    /// CNS span identifier for correlation (e.g., "cns.training.invoke.pragmatic-semantics").
     #[serde(default)]
     pub cns_span: Option<String>,
     /// Confidence score for the invocation (0.0–1.0).
@@ -490,7 +490,7 @@ pub struct TrainRetrainRequest {
     pub feedback_path: String,
     /// Base model to fine-tune (provider-prefixed).
     pub base_model: String,
-    /// Adapter name for the new version (e.g., "constraint-forces-v4").
+    /// Adapter name for the new version (e.g., "pragmatic-semantics-v2").
     pub adapter_name: String,
     /// Skill name for the adapter registry.
     pub skill_name: String,
@@ -544,7 +544,7 @@ pub struct GenerateChainOfThoughtRequest {
 pub struct MergeAdaptersRequest {
     /// List of adapter IDs to merge (first is base, rest are addends).
     pub adapter_ids: Vec<String>,
-    /// Name for the merged adapter (e.g., "constraint-forces+pragmatic-semantics").
+    /// Name for the merged adapter (e.g., "pragmatic-semantics+essentialist").
     pub merged_name: String,
     /// Skill name for the adapter registry.
     pub skill_name: String,
@@ -571,14 +571,14 @@ pub struct TrainSweepRequest {
     /// Maximum concurrent training jobs (default: 2).
     #[serde(default)]
     pub max_concurrent: Option<usize>,
-    /// Skill name for adapter naming (e.g., "constraint-forces").
+    /// Skill name for adapter naming (e.g., "pragmatic-semantics").
     #[serde(default)]
     pub skill_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TrainDeployRequest {
-    /// Adapter ID or skill/expertise name to deploy (e.g., "constraint-forces-v3").
+    /// Adapter ID or skill/expertise name to deploy (e.g., "pragmatic-semantics-v1").
     pub adapter_name: String,
     /// Cloud inference provider for deployment.
     pub provider: DeploymentProvider,

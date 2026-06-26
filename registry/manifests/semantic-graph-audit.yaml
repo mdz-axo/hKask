@@ -58,7 +58,7 @@ inputs:
 steps:
   - ordinal: 1
     action: select
-    description: Force-classify every edge using constraint-forces taxonomy.
+    description: Force-classify every edge using pragmatic-semantics constraint hierarchy.
     renderer: minijinja
     template_ref: semantic-graph-audit/semantic-graph-audit-classify
     gas_cap: 4096

@@ -72,6 +72,8 @@ cns:
     - cns.goal.verify
     - cns.goal.complete
     - cns.goal.block
+    - cns.goal.alert.escalate
+    - cns.goal.alert.storage_failure
   variety_monitoring:
     metric: active_goals_per_user
     threshold: 10

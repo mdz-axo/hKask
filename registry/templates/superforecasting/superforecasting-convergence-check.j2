@@ -11,6 +11,8 @@ contract:
     triage_result: object
     calibration_result: object
     record_result: object
+    prior_probability: number|null
+    new_evidence: array
   output:
     convergence_metric: number
     rationale: string
@@ -45,6 +47,19 @@ You are a convergence evaluator. Measure convergence on [0,1] where 0 means the 
 - Convergence threshold: {{ _convergence.threshold | default(0.15) }}
 - Iteration: {{ _convergence.iterations_completed | default(0) }} / {{ _convergence.max_iterations | default(3) }}
 - Improvement target: {{ _convergence.improvement_target | default(0.10) }}
+- Prior probability: {{ prior_probability | default("none") }}
+- New evidence count: {{ new_evidence | default([]) | length }}
+
+## Materiality Guard
+Before evaluating convergence via LLM self-assessment, first check for vacuous iterations:
+
+1. Compute the absolute delta: |calibration_result.final_probability - prior_probability| (if prior_probability is not null).
+2. If delta < 0.02 AND new_evidence is empty (length == 0), the iteration is vacuous.
+3. In that case, immediately return:
+   - convergence_metric: 0.0
+   - blockers: ["Vacuous iteration: no material change in probability (delta = <computed_delta>) and no new evidence introduced"]
+   - rationale: "Forced convergence — materiality guard triggered (delta = <computed_delta> < 0.02, no new evidence)"
+4. Only proceed to LLM self-assessment if the materiality guard does not trigger.
 
 ## Convergence Method
 0 = fully converged (the forecast is sufficiently calibrated, confidence is justified, and record quality is adequate for later scoring). 1 = not converged. Score how much work remains.

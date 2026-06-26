@@ -190,6 +190,10 @@ ocap:
       action: render
       template_id: kata/kata-convergence-check
       gas_budget: 2000
+    - resource: template
+      action: render
+      template_id: kata/kata-switch-check
+      gas_budget: 3000
     - resource: manifest
       action: execute
       template_id: kata-pattern
