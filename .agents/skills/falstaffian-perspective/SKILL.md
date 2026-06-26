@@ -117,7 +117,6 @@ Falstaff is Shakespeare's most subversive truth-teller. He doesn't oppose power 
 
 ### Composes With
 
-- **dokkodo-mindset** — The Dokkodo clears perception; Falstaff generates perspectives from the cleared field. Together: perceive clearly, then explore creatively.
 - **grill-me** — Falstaff generates diverse angles; grill-me interrogates each for robustness.
 - **self-critique-revision** — Falstaff generates alternative framings of a draft; the critique cycle evaluates which framing is strongest.
 - **improv** — Falstaff shapes are playful truth-telling; improv's Yes And builds on the truth revealed.

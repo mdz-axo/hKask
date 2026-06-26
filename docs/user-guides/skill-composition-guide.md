@@ -24,7 +24,7 @@ hKask has three composition levels, distinguished by PDCA loop count:
 
 | Level | What It Is | PDCA Loops | Output | Example |
 |-------|-----------|-----------|--------|---------|
-| **Template Chain** | Templates invoked in sequence — a recipe | 0 | Raw output from the last template | dokkodo → pragmatic-laziness → essentialist → coding-guidelines |
+| **Template Chain** | Templates invoked in sequence -- a recipe | 0 | Raw output from the last template | pragmatic-laziness -> essentialist -> coding-guidelines |
 | **Skill** | A single PDCA loop wrapping templates | 1 | Convergence report | gentle-lovelace-converge: score → check → rewrite → loop → converge |
 | **Compound Skill** | A PDCA loop that composes other Skills (each with their own loop) | 2+, nested | Compound convergence report | document-update: audit → gentle-lovelace-loop → check → rewrite-loop → loop → converge |
 
@@ -229,19 +229,18 @@ No composition-level configuration needed — enable Fusion once and all downstr
 
 ## 2. Primary Composition Chains
 
-### Chain 1: Perception → Analysis → Action
+### Chain 1: Analysis -> Elimination -> Action
 
 ```
-dokkodo-mindset → pragmatic-laziness → essentialist → coding-guidelines
+pragmatic-laziness -> essentialist -> coding-guidelines
      ↑                                                    ↑
 pragmatic-semantics (runs across all, never relaxed)
 ```
 
 | Stage | Skill | What happens |
 |-------|-------|-------------|
-| **Perceive** | `dokkodo-mindset` | Clear attachment, preference, resentment, and fear from the perceptual field |
-| **Analyze** | `pragmatic-laziness` | Decompose the situation, map feedback loops, find δS = 0 path |
-| **Delete** | `essentialist` | Apply 3-gate eliminative interrogation — Exist → Surface → Contract |
+| **Analyze** | `pragmatic-laziness` | Decompose the situation, map feedback loops, find deltaS = 0 path |
+| **Delete** | `essentialist` | Apply 3-gate eliminative interrogation -- Exist -> Surface -> Contract |
 | **Execute** | `coding-guidelines` | Enforce Karpathy principles: think first, simplicity, surgical, goal-driven |
 | **Enforce** | `pragmatic-semantics` | Running across all stages, classify every boundary |
 
@@ -249,8 +248,7 @@ pragmatic-semantics (runs across all, never relaxed)
 
 **Example session:**
 ```
-> apply the Dokkodo — I'm attached to this module we built
-> now be lazy about this module
+> be lazy about this module
 > simplify what remains
 > use coding-guidelines for the implementation
 ```
@@ -426,19 +424,18 @@ that compose KnowAct/WordAct templates and exit with convergence rails
 
 ---
 
-### Chain 9: Resilience — Accept → Stabilize → Diagnose
+### Chain 9: Resilience -- Diagnose -> Improve
 
 ```
-dokkodo-mindset → diagnose → improve-codebase-architecture
+diagnose -> improve-codebase-architecture
 ```
 
 | Stage | Skill | What happens |
 |-------|-------|-------------|
-| **Accept** | `dokkodo-mindset` | Accept things exactly as they are — the error happened, the system failed |
-| **Diagnose** | `diagnose` | Systematic diagnosis without panic or resentment distorting the process |
-| **Improve** | `improve-codebase-architecture` | Find deepening opportunities — was this failure caused by shallow architecture? |
+| **Diagnose** | `diagnose` | Systematic diagnosis -- reproduce, anchor, hypothesise, instrument, fix, verify |
+| **Improve** | `improve-codebase-architecture` | Find deepening opportunities -- was this failure caused by shallow architecture? |
 
-**Use when:** Error states, constraint violations, adversarial input — the American Ronin resilience pattern
+**Use when:** Error states, constraint violations, adversarial input -- the Ronin resilience pattern
 
 ---
 
@@ -466,7 +463,6 @@ dokkodo-mindset → diagnose → improve-codebase-architecture
 | Anti-pattern | Why it fails | Fix |
 |-------------|-------------|-----|
 | **Single-shot KnowAct skill** | Skill template is a KnowAct with no internal loop. Describes recursion in prose but cannot execute it — the template type lacks `choice`/`escalate`/`abort` machinery. Produces output and stops; quality is a single dice roll. | Redesign as FlowDef with nested KnowAct steps inside a convergence loop. Set explicit quality threshold and max iterations. Exit with status. |
-| Skipping perception before analysis | Pragmatic-laziness evaluates a distorted landscape | Always run `dokkodo-mindset` first for consequential decisions |
 | MCDA without superforecasting criteria | "Cost" and "risk" become uncalibrated guesses | Run `superforecasting` first on risk-related criteria |
 | Caveman before chain-of-density | Caveman drops entities for style; chain-of-density preserves them | Always densify first, compress second |
 | Decision journal without revisit scheduling | The journal becomes a log, not a calibration tool | Always define time horizons and resolution criteria |
@@ -509,4 +505,3 @@ The "Essential Five" in `skill-user-guide.md` should be derived from composition
 - [`skill-user-guide.md`](skill-user-guide.md) — Skill catalog and activation
 - [`skill-designer-guide.md`](../guides/skill-designer-guide.md) — Creating and maintaining skills
 - [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) — P1–P12 architecture principles
-- [`dokkodo-user-guide.md`](dokkodo-user-guide.md) — Perceptual layer deep dive

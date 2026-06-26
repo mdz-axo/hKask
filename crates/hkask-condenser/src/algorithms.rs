@@ -136,13 +136,9 @@ impl SaliencyRankAlgorithm {
     }
 
     /// Compute a domain-aware structural bonus based on ontology anchoring (P8.1).
-    /// Different ontologies prioritize different signal types:
-    /// - FIBO financial: numeric precision, ratios, percentages
-    /// - CogAT cognitive: memory processes, recall, encoding, consolidation keywords
-    /// - PKO process: status transitions, verification steps, error handling
-    /// - GOLEM narrative: character names, dialogue markers, scene descriptors
+    /// Incorporates graph adjacency scoring from the ontology concept graph (P5.4).
     fn ontology_bonus(line: &str, anchor: Option<&OntologyAnchor>) -> f64 {
-        match anchor {
+        let direct = match anchor {
             Some(OntologyAnchor::DomainSupplement {
                 namespace: OntologyNamespace::Fibo,
                 ..
@@ -233,8 +229,24 @@ impl SaliencyRankAlgorithm {
                     0.0
                 }
             }
-            _ => 0.0, // Core, OMC, or DualAxis::DcBibo: no domain-specific bonus
-        }
+            _ => 0.0, // Core, OMC, or DualAxis::DcBibo: no domain-specific direct bonus
+        };
+
+        // Graph adjacency bonus (P5.4): lines containing concepts related to
+        // the anchor get extra weight — structural knowledge about what matters.
+        let graph_bonus = match anchor {
+            Some(a) => {
+                let kws = crate::ontology_graph::anchor_keywords(a);
+                if kws.is_empty() {
+                    0.0
+                } else {
+                    crate::ontology_graph::graph().graph_adjacency_bonus(line, &kws)
+                }
+            }
+            None => 0.0,
+        };
+
+        direct + graph_bonus
     }
 
     fn line_score(

@@ -86,7 +86,6 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 | **gentle-lovelace** | **Skill** | 4-dimensional technical documentation quality evaluator. |
 | **caveman** | **Skill** | Ultra-compact compression mode. Drop filler, preserve technical substance. |
 | **self-critique-revision** | **Skill** | Iterative self-critique and revision cycle: draft → critique → revise. |
-| **dokkodo-mindset** | **Skill** | Perceptual filter based on Musashi's 21 Dokkodo precepts. |
 | **falstaffian-perspective** | **Skill** | Multi-iteration perspective generation through semantic shape transforms. |
 | **logo-builder** | Template | Pragmatic logo design using LLM-assisted generation. 3-phase pipeline. [no registry manifest] |
 | **qa-script-builder** | Template | Design and generate autonomous QA pipeline manifests. 5-phase pipeline. [no registry manifest] |

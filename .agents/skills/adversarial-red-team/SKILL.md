@@ -88,7 +88,6 @@ The following are methodology references (not wired in templates or manifest):
 |-------|------|--------|
 | bug-hunt | Code-level adversarial probing; hunting bugs in agent implementation that create security vulnerabilities | Methodology reference only |
 | diagnose | Trace failure path to root cause when vulnerability is found | Methodology reference only |
-| dokkodo-mindset | Precept 1 — accept vulnerabilities without defensiveness before hardening | Methodology reference only |
 | pragmatic-semantics | Verify Prohibitions/Guardrails hold under adversarial pressure | Methodology reference only |
 
 To wire these as delegated steps, add them to `registry/manifests/adversarial-red-team.yaml`.

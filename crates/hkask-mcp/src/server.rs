@@ -272,6 +272,19 @@ impl ToolSpanGuard {
 
     /// Tag this span with a domain ontology concept (e.g. "pko:ChangeOfStatus").
     /// The concept flows into the CNS span for type-aware feedback routing.
+    ///
+    /// All hKask bridge crate constants (`hkask-bridge-pko`, `hkask-bridge-dublincore`,
+    /// and domain-specific bridges like `hkask-mcp-companies/src/fibo.rs`) are valid
+    /// `&'static str` concepts. This function documents the intent: `with_ontology`
+    /// accepts ontology concepts, not arbitrary debug strings.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use hkask_bridge_pko::STEP_EXECUTION;
+    /// ToolSpanGuard::new("my_tool", &caller)
+    ///     .with_ontology(STEP_EXECUTION);
+    /// ```
     pub fn with_ontology(mut self, concept: &'static str) -> Self {
         self.ontology = Some(concept);
         self
@@ -1282,5 +1295,51 @@ mod tests {
     fn validate_tool_url_rejects_invalid_urls() {
         assert!(validate_tool_url("not-a-url").is_err());
         assert!(validate_tool_url("").is_err());
+    }
+
+    // ── Ontology Concept Contract Tests (P8.1) ───────────────────────────
+
+    /// Verify that common bridge crate constants are valid `&'static str`
+    /// for use with `ToolSpanGuard::with_ontology`.
+    #[test]
+    fn ontology_concepts_are_static_str() {
+        // PKO process axis
+        let pko_concepts: &[&str] = &[
+            "pko:Procedure",
+            "pko:Step",
+            "pko:StepExecution",
+            "pko:ChangeOfStatus",
+            "pko:StepVerification",
+            "pko:IssueOccurrence",
+            "pko:UserFeedbackOccurrence",
+            "pko:UserQuestionOccurrence",
+        ];
+        // DC+BIBO state axis
+        let dc_concepts: &[&str] = &[
+            "dcterms:title",
+            "dcterms:creator",
+            "dcterms:Dataset",
+            "bibo:Article",
+            "bibo:Book",
+            "cito:cites",
+        ];
+        // Domain supplements
+        let domain_concepts: &[&str] = &[
+            "fibo:Corporation",
+            "golem:Character",
+            "cogat:episodic_memory",
+            "mls:Model",
+            "omc:Image",
+        ];
+
+        let mut guard = ToolSpanGuard::new("test_tool", &hkask_types::WebID::anonymous());
+        for concept in pko_concepts
+            .iter()
+            .chain(dc_concepts.iter())
+            .chain(domain_concepts.iter())
+        {
+            guard = guard.with_ontology(*concept);
+        }
+        let _ = guard; // suppress unused warning
     }
 }

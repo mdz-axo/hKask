@@ -41,7 +41,6 @@ For user-facing skills, the FlowDef process is authoritative. `SKILL.md` is the 
 Skills are organized into five composition layers, running top-to-bottom:
 
 ```
-Perceptual  →  dokkodo-mindset (clears attachment, preference, fear)
 Regulative  →  pragmatic-semantics (enforces boundaries across all layers)
 Analytic    →  pragmatic-laziness, essentialist, grill-me, mcda
 Executive   →  coding-guidelines, domain skills, task-specific skills
@@ -56,13 +55,12 @@ Start here. These five skills compose together into the most common workflow and
 
 | # | Skill | Why it matters | First trigger to try |
 |---|-------|---------------|---------------------|
-| 1 | `dokkodo-mindset` | Clears attachment, preference, and fear before analysis — transforms how you see the problem | "apply the Dokkodo" |
-| 2 | `pragmatic-laziness` | Finds the path of least action through any design or decision | "be lazy about this" |
-| 3 | `essentialist` | Deletes what doesn't earn its existence — the deletion test | "simplify this" |
-| 4 | `coding-guidelines` | Constrains HOW you code — think first, keep it simple, touch only what you must | "use coding-guidelines" |
-| 5 | `pragmatic-semantics` | Classifies every constraint so you know what's inviolable and what's negotiable | "how do you know that?" |
+| 1 | `pragmatic-laziness` | Finds the path of least action through any design or decision | "be lazy about this" |
+| 2 | `essentialist` | Deletes what doesn't earn its existence — the deletion test | "simplify this" |
+| 3 | `coding-guidelines` | Constrains HOW you code — think first, keep it simple, touch only what you must | "use coding-guidelines" |
+| 4 | `pragmatic-semantics` | Classifies every constraint so you know what's inviolable and what's negotiable | "how do you know that?" |
 
-**The primary chain:** `dokkodo-mindset` → `pragmatic-laziness` → `essentialist` → `coding-guidelines`, with `pragmatic-semantics` running across all stages. Learn these five and you can navigate any hKask task.
+**The primary chain:** `pragmatic-laziness` → `essentialist` → `coding-guidelines`, with `pragmatic-semantics` running across all stages. Learn these four and you can navigate any hKask task.
 
 ### 1.3 Why Some Skills Lack SKILL.md
 
@@ -188,7 +186,6 @@ Skills that transform *how the agent sees* — run before analysis.
 
 | Skill | Purpose | Trigger |
 |-------|---------|---------|
-| `dokkodo-mindset` | Musashi's 21 precepts as perceptual filter — clears attachment, preference, resentment, fear | "apply the Dokkodo", "warrior mindset" |
 | `falstaffian-perspective` | Multi-iteration perspective generation through semantic shape transforms | "reframe this", "falstaffian take" |
 
 ### 4.2 Regulative
@@ -312,7 +309,6 @@ Don't know which skill you need? Find your problem:
 
 | I need to... | Use |
 |-------------|-----|
-| Clear my head before making a decision | `dokkodo-mindset` |
 | See a problem from multiple angles | `falstaffian-perspective` |
 | Find the simplest path through a design | `pragmatic-laziness` |
 | Know what can be deleted | `essentialist` |
@@ -357,12 +353,12 @@ Skills don't work in isolation. Here are the three most common chains:
 ### Pattern 1: Perception → Analysis → Action
 
 ```
-dokkodo-mindset → pragmatic-laziness → essentialist → coding-guidelines
+pragmatic-laziness → essentialist → coding-guidelines
      ↑                                                    ↑
 pragmatic-semantics runs across all stages, never relaxed
 ```
 
-**When:** You face a design decision, architecture problem, or code review. The Dokkodo clears your perceptual field. Pragmatic laziness finds the least-action path. Essentialist deletes what doesn't earn existence. Coding guidelines enforce discipline throughout.
+**When:** You face a design decision, architecture problem, or code review. Pragmatic laziness finds the least-action path. Essentialist deletes what doesn't earn existence. Coding guidelines enforce discipline throughout.
 
 ### Pattern 2: Frame → Plan → Decide
 
@@ -414,48 +410,46 @@ zoom-out → chain-of-density → caveman
 | 2 | `caveman` | Extraction/Summarization | FlowDef | Ultra-compact prose compression via convergent compression loops |
 | 3 | `chain-of-density` | Extraction/Summarization | FlowDef | Iterative density-increase summarization via convergent passes |
 | 4 | `coding-guidelines` | Behavioral Guardrails | FlowDef | Karpathy's four principles via convergent assess→apply→verify loops |
-| 5 | `condenser-continuation` | Meta-Cognition | FlowDef | Resume work after context reset via convergent continuation loops |
-| 6 | `pragmatic-semantics` | Regulative | FlowDef | Classify constraints by enforcement level via convergent PDCA loops |
-| 7 | `decision-journal` | Decision & Strategy | FlowDef | Kahneman decision journal with convergent calibration loops |
-| 8 | `deep-module` | Structural Analysis | FlowDef | Ousterhout module depth with deletion test via convergent depth loops |
-| 9 | `diagnose` | Diagnostics | FlowDef | Disciplined diagnosis loop with convergent PDCA exits |
-| 10 | `document-update` | Documentation | FlowDef | 7-task doc maintenance workflow with convergent PDCA exits |
-| 11 | `dokkodo-mindset` | Perceptual | FlowDef | Musashi's 21 precepts as convergent perceptual filter |
-| 12 | `essentialist` | Structural Analysis | FlowDef | 3-gate eliminative interrogation as convergent elimination loop |
-| 13 | `falstaffian-perspective` | Perceptual | FlowDef | Perspective-taking via convergent Falstaffian rotation loops |
-| 14 | `gentle-lovelace` | Meta-Cognition | FlowDef | 4D writing-quality evaluation via convergent diagnostic loops |
-| 15 | `goal-analysis` | Meta-Cognition | FlowDef | Goal lifecycle analysis with convergent completion loops |
-| 16 | `grill-me` | Structural Analysis | FlowDef | Socratic interrogation via convergent challenge/assessment loops |
-| 17 | `handoff` | Meta-Cognition | FlowDef | Session handoff documentation via convergent transfer loops |
-| 18 | `improv` | Creativity | FlowDef | Agent interaction grammar |
-| 19 | `improve-codebase-architecture` | Diagnostics | FlowDef | Find deepening opportunities via convergent architecture loops |
-| 20 | `kata` | Kata System | Bundle | Full Toyota Kata orchestration |
-| 21 | `kata-coaching` | Kata System | FlowDef | 5-question coaching dialogue via convergent coaching loops |
-| 22 | `kata-improvement` | Kata System | FlowDef | 4-step improvement kata via convergent experiment loops |
-| 23 | `kata-starter` | Kata System | FlowDef | Foundational scientific thinking drills via convergent starter loops |
-| 24 | `logo-builder` | Creativity | FlowDef | Logo design with Bokhua's five gates |
-| 25 | `magna-carta-verifier` | Regulative | FlowDef | Verify Magna Carta compliance via convergent verification loops |
-| 26 | `mcda` | Decision & Strategy | FlowDef | Multi-criteria decision analysis via convergent robustness loops |
-| 27 | `pragmatic-cybernetics` | Structural Analysis | FlowDef | CNS feedback loop analysis via convergent diagnostics loops |
-| 28 | `pragmatic-laziness` | Structural Analysis | FlowDef | 3-phase lazy loop for least-action pathfinding with PDCA convergence |
-| 29 | `pragmatic-semantics` | Structural Analysis | FlowDef | Epistemic statement classification via convergent semantics loops |
-| 30 | `refactor-service-layer` | Diagnostics | FlowDef | Strangler fig service extraction via convergent verify loops |
-| 31 | `review` | Meta-Cognition | FlowDef | Self-critique reasoning outputs via convergent review loops |
-| 32 | `rust-expertise` | Behavioral Guardrails | FlowDef | Idiomatic Rust design principles via convergent audit/refactor loops |
-| 33 | `scenario-builder` | Decision & Strategy | FlowDef | Schwartz method scenario planning via convergent scenario loops |
-| 34 | `hypothesis-framer` | Decision & Strategy | FlowDef | FINER + PICO research framing via convergent PDCA — question → hypothesis → aims |
-| 35 | `self-critique-revision` | Meta-Cognition | FlowDef | Iterative draft → critique → revise via convergent loops |
-| 36 | `skill-bundler` | Skill Management | FlowDef | Orchestrate skills into bundles via convergent compose→validate loops |
-| 37 | `skill-discovery` | Skill Management | FlowDef | Find and install skills via convergent gap→evaluate loops |
-| 38 | `skill-logic-audit` | Skill Management | FlowDef | Audit template logic via bounded critique→proposal loops |
-| 39 | `skill-maintenance` | Skill Management | FlowDef | Audit skills for staleness/coverage via convergent maintenance loops |
-| 40 | `skill-manager` | Skill Management | FlowDef | Registry-first skill lifecycle management via convergent validation loops |
-| 41 | `skill-translator` | Skill Management | FlowDef | Convert skills between formats via convergent translation loops |
-| 42 | `strangler-fig` | Diagnostics | FlowDef | Incremental architectural migration with convergent step verification |
-| 43 | `structured-extraction` | Extraction/Summarization | FlowDef | Schema-driven extraction via convergent entity/relation/map loops |
-| 44 | `superforecasting` | Decision & Strategy | FlowDef | Tetlock 8-stage calibrated forecasting via convergent pipeline loops |
-| 45 | `tdd` | Behavioral Guardrails | FlowDef | Contract-anchored red-green-refactor via convergent TDD loops |
-| 46 | `zoom-out` | Extraction/Summarization | FlowDef | Broader context on unfamiliar code via convergent context loops |
+| 5 | `pragmatic-semantics` | Regulative | FlowDef | Classify constraints by enforcement level via convergent PDCA loops |
+| 6 | `decision-journal` | Decision & Strategy | FlowDef | Kahneman decision journal with convergent calibration loops |
+| 7 | `deep-module` | Structural Analysis | FlowDef | Ousterhout module depth with deletion test via convergent depth loops |
+| 8 | `diagnose` | Diagnostics | FlowDef | Disciplined diagnosis loop with convergent PDCA exits |
+| 9 | `document-update` | Documentation | FlowDef | 7-task doc maintenance workflow with convergent PDCA exits |
+| 10 | `essentialist` | Structural Analysis | FlowDef | 3-gate eliminative interrogation as convergent elimination loop |
+| 11 | `falstaffian-perspective` | Perceptual | FlowDef | Perspective-taking via convergent Falstaffian rotation loops |
+| 12 | `gentle-lovelace` | Meta-Cognition | FlowDef | 4D writing-quality evaluation via convergent diagnostic loops |
+| 13 | `goal-analysis` | Meta-Cognition | FlowDef | Goal lifecycle analysis with convergent completion loops |
+| 14 | `grill-me` | Structural Analysis | FlowDef | Socratic interrogation via convergent challenge/assessment loops |
+| 15 | `handoff` | Meta-Cognition | FlowDef | Session handoff documentation via convergent transfer loops |
+| 16 | `improv` | Creativity | FlowDef | Agent interaction grammar |
+| 17 | `improve-codebase-architecture` | Diagnostics | FlowDef | Find deepening opportunities via convergent architecture loops |
+| 18 | `kata` | Kata System | Bundle | Full Toyota Kata orchestration |
+| 19 | `kata-coaching` | Kata System | FlowDef | 5-question coaching dialogue via convergent coaching loops |
+| 20 | `kata-improvement` | Kata System | FlowDef | 4-step improvement kata via convergent experiment loops |
+| 21 | `kata-starter` | Kata System | FlowDef | Foundational scientific thinking drills via convergent starter loops |
+| 22 | `logo-builder` | Creativity | FlowDef | Logo design with Bokhua's five gates |
+| 23 | `magna-carta-verifier` | Regulative | FlowDef | Verify Magna Carta compliance via convergent verification loops |
+| 24 | `mcda` | Decision & Strategy | FlowDef | Multi-criteria decision analysis via convergent robustness loops |
+| 25 | `pragmatic-cybernetics` | Structural Analysis | FlowDef | CNS feedback loop analysis via convergent diagnostics loops |
+| 26 | `pragmatic-laziness` | Structural Analysis | FlowDef | 3-phase lazy loop for least-action pathfinding with PDCA convergence |
+| 27 | `pragmatic-semantics` | Structural Analysis | FlowDef | Epistemic statement classification via convergent semantics loops |
+| 28 | `refactor-service-layer` | Diagnostics | FlowDef | Strangler fig service extraction via convergent verify loops |
+| 29 | `review` | Meta-Cognition | FlowDef | Self-critique reasoning outputs via convergent review loops |
+| 30 | `rust-expertise` | Behavioral Guardrails | FlowDef | Idiomatic Rust design principles via convergent audit/refactor loops |
+| 31 | `scenario-builder` | Decision & Strategy | FlowDef | Schwartz method scenario planning via convergent scenario loops |
+| 32 | `hypothesis-framer` | Decision & Strategy | FlowDef | FINER + PICO research framing via convergent PDCA — question → hypothesis → aims |
+| 33 | `self-critique-revision` | Meta-Cognition | FlowDef | Iterative draft → critique → revise via convergent loops |
+| 34 | `skill-bundler` | Skill Management | FlowDef | Orchestrate skills into bundles via convergent compose→validate loops |
+| 35 | `skill-discovery` | Skill Management | FlowDef | Find and install skills via convergent gap→evaluate loops |
+| 36 | `skill-logic-audit` | Skill Management | FlowDef | Audit template logic via bounded critique→proposal loops |
+| 37 | `skill-maintenance` | Skill Management | FlowDef | Audit skills for staleness/coverage via convergent maintenance loops |
+| 38 | `skill-manager` | Skill Management | FlowDef | Registry-first skill lifecycle management via convergent validation loops |
+| 39 | `skill-translator` | Skill Management | FlowDef | Convert skills between formats via convergent translation loops |
+| 40 | `strangler-fig` | Diagnostics | FlowDef | Incremental architectural migration with convergent step verification |
+| 41 | `structured-extraction` | Extraction/Summarization | FlowDef | Schema-driven extraction via convergent entity/relation/map loops |
+| 42 | `superforecasting` | Decision & Strategy | FlowDef | Tetlock 8-stage calibrated forecasting via convergent pipeline loops |
+| 43 | `tdd` | Behavioral Guardrails | FlowDef | Contract-anchored red-green-refactor via convergent TDD loops |
+| 44 | `zoom-out` | Extraction/Summarization | FlowDef | Broader context on unfamiliar code via convergent context loops |
 
 ---
 
@@ -466,7 +460,7 @@ When a skill has registry templates, each `.j2` file is typed:
 | Type | What It Does | Example |
 |------|-------------|---------|
 | **WordAct** | Produces text or structured output | `superforecasting/stage_7_record.j2` — creates forecast record |
-| **KnowAct** | Reasons, classifies, evaluates, decides | `dokkodo-mindset/dokkodo-perceive.j2` — applies perceptual filter |
+| **KnowAct** | Reasons, classifies, evaluates, decides | `essentialist/essentialist-flow.j2` — runs the 3-gate eliminative interrogation loop |
 | **FlowDef** | Orchestrates WordAct/KnowAct in a convergent PDCA process | `registry/manifests/essentialist.yaml` — iterates gates via convergence + `loop` |
 
 You rarely need to know the template type — the runtime dispatches correctly. But when debugging: WordAct = "what to say", KnowAct = "how to think", FlowDef = "what to do".
@@ -571,4 +565,4 @@ Known model exceptions/tensions that still require explicit policy decisions:
 - [Skill Designer Guide](../../docs/guides/skill-designer-guide.md) — Creating and maintaining skills
 - [PRINCIPLES.md](../architecture/core/PRINCIPLES.md) — P1–P12 principles
 - [AGENTS.md](../../AGENTS.md) — Agent operating guide
-- [dokkodo-user-guide.md](dokkodo-user-guide.md) — Using the Dokkodo mindset skill
+

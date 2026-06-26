@@ -86,7 +86,6 @@ Over time, a decision journal reveals patterns: which types of decisions you're 
 ## Conceptual Alignment
 
 - **Pragmatic-laziness:** The decision journal is itself a brachistochrone — recording decisions takes time now but reduces total judgment error across time. No runtime delegation.
-- **Dokkodo-mindset:** Precept 6 ("Do not regret anything you have done") pairs with the journal — don't regret past decisions, but DO learn from them systematically. No runtime delegation.
 - **pragmatic-semantics:** Decision context includes which constraints were considered and at what force level. No runtime delegation.
 
 ## Understanding Brier Scores

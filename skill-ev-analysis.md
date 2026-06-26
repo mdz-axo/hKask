@@ -73,15 +73,13 @@
 | 39 | improv | Kata | 0.55 | 3.30 |
 | 40 | falstaffian-perspective | Specialized | 0.65 | 3.25 |
 | 41 | kata-coaching | Kata | 0.55 | 2.89 |
-| 42 | condenser-continuation | Meta | 0.75 | 2.63 |
-| **43** | **dokkodo-mindset** | Specialized | 0.65 | **2.44** |
-| **44** | **kata-starter** | Kata | 0.55 | **2.09** |
+| **42** | **kata-starter** | Kata | 0.55 | **2.09** |
 
 ---
 
 ## The 5 Lowest-Value Skills
 
-### #44 — `kata-starter` (EV: 2.09)
+### #42 — `kata-starter` (EV: 2.09)
 
 | Dimension | Score | Reason |
 |-----------|-------|--------|
@@ -95,40 +93,6 @@
 | **Category** | **0.55×** | Lowest multiplier. |
 
 **Root cause:** Training wheels for non-existent new agents. The kata system is a theoretical practice framework that never activates in real sessions.
-
----
-
-### #43 — `dokkodo-mindset` (EV: 2.44)
-
-| Dimension | Score | Reason |
-|-----------|-------|--------|
-| Frequency | **1/10** | Activation: "apply the Dokkodo", "perceptual reset", "warrior mindset". Essentially never triggered. |
-| Impact | 3/10 | Perceptual clarity has philosophical value, but ambiguous operational impact. |
-| Network | 3/10 | Conceptually downstream of pragmatic-laziness, but not actually invoked. "Human-orchestrated sequence, not automated." |
-| Depth | 2/10 | 2 KnowAct templates — very thin. |
-| Clarity | 3/10 | "Metacognitive perceptual filter based on Musashi's 21 precepts" — highly abstract, minimal actionable instruction. |
-| Trust | 1/10 | 2 rJ cap — lowest system trust allocation. |
-| Rigor | 5/10 | 0.15 threshold. |
-| **Category** | **0.65×** | Specialized. |
-
-**Root cause:** Philosophical ornamentation. The skill describes a pre-filter for perception that downstream skills (`pragmatic-laziness`, `essentialist`) do not actually invoke. Its own SKILL.md admits: "pragmatic-laziness does not currently invoke dokkodo as a pre-filter."
-
----
-
-### #42 — `condenser-continuation` (EV: 2.63)
-
-| Dimension | Score | Reason |
-|-----------|-------|--------|
-| Frequency | **1/10** | Only activates when resuming *condenser MCP server implementation work* after a context reset. |
-| Impact | 3/10 | Restores context for a single narrow development task — no broader applicability. |
-| Network | 1/10 | Zero cross-references from other skills. Completely isolated. |
-| Depth | 5/10 | 5 templates (restore, prioritize, verify, compose, convergence-check) — decent depth. |
-| Clarity | 8/10 | Very well-defined procedures for its narrow domain. |
-| Trust | 2/10 | 3 rJ cap. |
-| Rigor | 8/10 | 0.05 threshold — tight convergence. |
-| **Category** | **0.75×** | Meta. |
-
-**Root cause:** A skill for resuming *one specific development task*. It has the narrowest scope in the entire registry — only useful to someone implementing the condenser MCP server. High specificity, zero general applicability.
 
 ---
 
@@ -155,14 +119,48 @@
 |-----------|-------|--------|
 | Frequency | 1/10 | Activation: "reframe this", "falstaff this", "give me a falstaffian perspective". Rarely triggered. |
 | Impact | 4/10 | Perspective-taking can reveal blind spots, but output is exploratory, not decisive. |
-| Network | 3/10 | Composes with dokkodo, grill-me, self-critique-revision, improv — but none are heavy hitters. |
+| Network | 3/10 | Composes with grill-me, self-critique-revision, improv — but none are heavy hitters. |
 | Depth | 5/10 | 4 templates (configure, perspective, convergence-check, shapes-macros) — decent structure. |
 | Clarity | 4/10 | "Multi-iteration perspective generation through Falstaffian semantic shape transforms" — creative but esoteric. |
 | Trust | 1/10 | 2 rJ cap — minimal trust. |
 | Rigor | 5/10 | 0.15 threshold. |
 | **Category** | **0.65×** | Specialized. |
 
-**Root cause:** Creative/exploratory skill with the hardest-to-justify activation criteria in the registry. "Apply Falstaff's predicate hollow to this PR review" — when was the last time anyone said that? The SKILL.md itself frames divergence as the goal ("low agreement = good exploration"), which means it produces optional perspectives, not actionable outputs.
+**Root cause:** Creative/exploratory skill with the hardest-to-justify activation criteria in the registry. "Apply Falstaff's predicate hollow to this PR review" — when was the last time anyone said that?
+
+---
+
+### #39 — `improv` (EV: 3.30)
+
+| Dimension | Score | Reason |
+|-----------|-------|--------|
+| Frequency | 3/10 | Multi-agent interaction grammar — single-agent sessions never activate it. |
+| Impact | 3/10 | Improv modes structure agent-to-agent communication, which rarely occurs. |
+| Network | 4/10 | Referenced by falstaffian-perspective. |
+| Depth | 8/10 | 7 diverse templates (select, plussing, yes-and, yes-but, freestyling, riffing, convergence-check) — impressive design. |
+| Clarity | 5/10 | Abstract grammar; modes are clear but context is narrow. |
+| Trust | 1/10 | 2 rJ cap. |
+| Rigor | 5/10 | 0.12 threshold — slightly tighter than standard. |
+| **Category** | **0.55×** | Lowest multiplier. |
+
+**Root cause:** Well-designed but for a scenario that doesn't exist. Seven templates for agent-to-agent improv — but hKask sessions are single-agent.
+
+---
+
+### #38 — `gentle-lovelace` (EV: 3.41)
+
+| Dimension | Score | Reason |
+|-----------|-------|--------|
+| Frequency | 2/10 | Only when evaluating documentation quality. |
+| Impact | 4/10 | Structured 4-dimensional scoring, but output is diagnostic, not prescriptive. |
+| Network | 1/10 | Zero cross-references. Isolated. |
+| Depth | 3/10 | 3 templates (replica-report, convergence-check, cns-emit). |
+| Clarity | 6/10 | Clear methodology but narrow application. |
+| Trust | 1/10 | 2 rJ cap. |
+| Rigor | 5/10 | 0.15 threshold. |
+| **Category** | **0.65×** | Specialized. |
+
+**Root cause:** Documentation quality scoring is a niche task. The skill evaluates writing but doesn't fix it — making it a measurement tool rather than an action tool.
 
 ---
 
@@ -170,35 +168,26 @@
 
 | Rank | Skill | EV | Weakness |
 |------|-------|-----|----------|
-| 39 | **improv** | 3.30 | Multi-agent grammar; single-agent sessions never activate it |
-| 38 | **gentle-lovelace** | 3.41 | Doc quality scoring — only useful when evaluating documentation |
 | 37 | **kata-improvement** | 3.58 | The "improvement" half of a kata system with no practitioners |
-| 36 | **decision-journal** | 3.77 | Consequential decisions only; most sessions don't trigger it |
+| 36 | **decision-journal** | 3.77 | Consequential decisions only; most sessions do not trigger it |
+| 35 | **scenario-builder** | 3.90 | Schwartz scenario planning -- strategic, rarely triggered |
 
 ---
 
 ## Sensitivity Analysis
 
 ### If we weight frequency more heavily (35%), the bottom 5 shifts:
-
-kata-starter, dokkodo-mindset, condenser-continuation, falstaffian-perspective, **improv** replaces kata-coaching.
+kata-starter, kata-coaching, falstaffian-perspective, improv -- stable top 4; 5th spot rotates between gentle-lovelace and decision-journal.
 
 ### If we remove the category multiplier entirely (equal footing):
 
-condenser-continuation (3.50), kata-starter (3.80), improv (4.13), dokkodo-mindset (3.75), falstaffian-perspective (5.00) — the rank order shifts but the same names appear.
+kata-starter (3.80), improv (4.13), gentle-lovelace (4.55), falstaffian-perspective (5.00), kata-coaching (5.25) -- the rank order shifts but the same names dominate.
 
 ### Stable bottom-5 across all sensitivity runs:
 
-**kata-starter, dokkodo-mindset, condenser-continuation** are always bottom 3. The 4th and 5th spots rotate among kata-coaching, falstaffian-perspective, and improv.
-
+**kata-starter** is always #42. **kata-coaching** and **falstaffian-perspective** are always bottom 5. **improv** appears in most runs. The 5th spot is the most variable.
 ---
 
 ## Key Insights
 
 1. **Category is destiny.** All 4 kata skills rank bottom-7 because of the 0.55× multiplier. The kata system is the lowest-value category by design — it's a meta-framework for agent self-improvement that has no runtime activation path.
-
-2. **Network isolation kills value.** `condenser-continuation` (network: 1/10) and `gentle-lovelace` (network: 1/10) have no peer references. Skills that nothing depends on are skills nothing needs.
-
-3. **Niche-philosophical skills underperform.** `dokkodo-mindset` and `falstaffian-perspective` bring literary/philosophical depth but zero practical activation frequency. They are conceptual architecture, not operational tools.
-
-4. **The top 5 are all frequently-activated, high-impact, well-connected skills.** `coding-guidelines` (guardrail, always-on), `tdd` (core dev loop), `diagnose` (debug hero), `pragmatic-semantics` (epistemic backbone), `sequential-inquiry` (reasoning engine).

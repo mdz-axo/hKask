@@ -119,7 +119,7 @@ impl SpecCategory {
 /// Infer MDS spec category from natural-language context keywords.
 ///
 /// Single source of truth for context-keyword → MDS category mapping.
-/// Used by `hkask-storage::spec_ops` — the canonical surface.
+/// Used by `hkask-storage::spec_store` — the canonical surface.
 ///
 /// Defaults to [`SpecCategory::Domain`] when context is `None` or unrecognized.
 /// pre:  arguments are valid
