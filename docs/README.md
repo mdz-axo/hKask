@@ -90,7 +90,6 @@ Documents are classified by **verification regime**, reflecting different audien
 | [`REPL-specification.md`](specifications/specs/REPL-specification.md) | domain, composition, lifecycle | REPL specification — `kask chat` |
 | [`wallet-specification.md`](specifications/specs/wallet-specification.md) | domain, composition, trust, lifecycle | Wallet crate specification |
 | [`salience-specification.md`](specifications/specs/salience-specification.md) | domain, composition | Passage salience algorithm |
-| [`gentle-lovelace-specification.md`](specifications/specs/gentle-lovelace-specification.md) | domain, composition, curation | Gentle Lovelace replica specification |
 
 ### Plans
 

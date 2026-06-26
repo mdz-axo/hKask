@@ -1,6 +1,6 @@
 # Spec Curate Manifest — Collection curation evaluation
 # Evaluate and cultivate specification collections over time
-# Per DDMVSS §6.3: Curation as ongoing coherence maintenance
+# Per MDS §5: Curation as ongoing coherence maintenance
 
 manifest:
   id: spec-curate

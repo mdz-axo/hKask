@@ -1,5 +1,7 @@
 # hKask Skill Expected Value Analysis
 
+> **POST-DELETION NOTE:** This analysis was generated before the deletion of `condenser-continuation`, `dokkodo-mindset`, `kata` (bundle), `gentle-lovelace`, `falstaffian-perspective`, and `decision-journal`. Rankings below reflect pre-deletion state. Current registry: **36 Skills** (down from 44).
+
 ## Metric Design
 
 **7-dimension Multi-Attribute Value model** with category modifier. Each skill scored 0–10 per dimension, then weighted:

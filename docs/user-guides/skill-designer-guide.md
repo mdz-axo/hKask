@@ -142,7 +142,6 @@ Each entry describes the problem the skill solves in user-facing language:
 ### Which Skill for What?
 
 - **I need to find the simplest path through a design** → use this skill before `essentialist`
-- **I need to make a calibrated prediction** → use this skill, then feed output to `decision-journal`
 ```
 
 When creating or updating a skill, add its entries to:
@@ -381,7 +380,6 @@ A **bundle** is a curated composition of already-active primary skills. It is NO
 
 Bundles live in `registry/manifests/`, NOT in `registry/templates/`. They are `BundleManifest` structs, not `RegistryEntry` structs.
 
-Example: `registry/manifests/kata-pattern.yaml` bundles `kata-starter`, `kata-improvement`, and `kata-coaching`.
 
 ---
 

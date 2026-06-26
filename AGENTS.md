@@ -74,7 +74,6 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 | Name | Type | When to Activate |
 |------|------|-----------------|
 | **superforecasting** | **Skill** | Calibrated probability forecasting (Tetlock). 8-stage pipeline. |
-| **decision-journal** | **Skill** | Kahneman-style decision journal. Record decisions, schedule revisit. |
 | **mcda** | **Skill** | Multi-Criteria Decision Analysis. Weight, score, rank alternatives. |
 | **scenario-builder** | **Skill** | Schwartz scenario planning. Focal question → STEEP → 2×2 → narratives. |
 | **hypothesis-framer** | **Skill** | Research question framing and hypothesis formulation using FINER criteria and PICO process. Use when the user says 'help me frame my research idea', 'is my research question good', 'write a hypothesis', or 'develop study aims'. |
@@ -83,10 +82,8 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 | **magna-carta-verifier** | **Skill** | Verify Magna Carta principles (P1–P4) are correctly implemented and enforced. |
 | **structured-extraction** | **Skill** | Extract structured data from unstructured text. Entity identification, relation extraction. |
 | **chain-of-density** | **Skill** | Iterative density-increase summarization (Gao et al. 2024). |
-| **gentle-lovelace** | **Skill** | 4-dimensional technical documentation quality evaluator. |
 | **caveman** | **Skill** | Ultra-compact compression mode. Drop filler, preserve technical substance. |
 | **self-critique-revision** | **Skill** | Iterative self-critique and revision cycle: draft → critique → revise. |
-| **falstaffian-perspective** | **Skill** | Multi-iteration perspective generation through semantic shape transforms. |
 | **logo-builder** | Template | Pragmatic logo design using LLM-assisted generation. 3-phase pipeline. [no registry manifest] |
 | **qa-script-builder** | Template | Design and generate autonomous QA pipeline manifests. 5-phase pipeline. [no registry manifest] |
 

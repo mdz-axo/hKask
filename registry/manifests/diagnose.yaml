@@ -6,7 +6,7 @@ manifest:
   name: Diagnose
   description: >
     Convergent diagnosis process. Anchors the bug to functional requirements
-    (DDMVSS categories, FR# references), builds a deterministic feedback loop
+    (MDS categories, FR# references), builds a deterministic feedback loop
     to reproduce the bug, generates ranked falsifiable hypotheses, instruments
     code with targeted probes, applies the fix with regression test, computes
     convergence, and iterates until root cause is confirmed and fix is validated.
@@ -62,7 +62,7 @@ steps:
   - ordinal: 1
     action: select
     description: >
-      Anchor the bug to functional requirements: classify by DDMVSS category,
+      Anchor the bug to functional requirements: classify by MDS category,
       map symptom to FR# references, flag spec gaps.
     renderer: minijinja
     template_ref: diagnose/diagnose-spec-anchor

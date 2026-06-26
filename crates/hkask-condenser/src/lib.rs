@@ -1,7 +1,28 @@
 //! hKask Condenser — Domain logic for context condensation
 //!
-//! Pure domain crate: compression algorithms, engine state management,
-//! prompt formatting, and output construction. No MCP, no HTTP, no async.
+//! Pure domain crate: compression algorithms, ontology-aware saliency
+//! weighting (P5.4/P8.1), engine state management, prompt formatting, and
+//! output construction. No MCP, no HTTP, no async.
+//!
+//! ## Architecture
+//!
+//! - **`algorithms`** — Three compression algorithms (rtk_style, saliency_rank,
+//!   flashrank) with domain-aware scoring. The `derive_ontology_anchor` function
+//!   maps tool names to the 3-tier ontology hierarchy without wire-protocol
+//!   overhead — every MCP server links against the same bridge crates.
+//! - **`ontology_graph`** — A lightweight cross-domain concept relationship
+//!   index (FIBO, CogAT, GOLEM, ML-Schema, OMC, PKO, DC+BIBO). Built once
+//!   at startup via `OnceLock`, zero dependencies, no reasoners. Used as a
+//!   saliency multiplier — lines containing concepts adjacent to the anchor
+//!   concept (e.g., "market_capitalization" when anchored to a FIBO corporation)
+//!   receive bonus scores.
+//! - **`types`** — Domain types: `OntologyAnchor` (3-tier classification),
+//!   `OntologyAxis` (Pko/DcBibo), `OntologyNamespace` (Fibo/Golem/Cogat/
+//!   MlSchema/Omc), compression profiles, health signals.
+//! - **`engine`** — `CondenserEngine` owns profile state and compression
+//!   dispatch. Derives ontology anchors from tool names internally.
+//! - **`inference`** — Prompt formatting and token estimation for
+//!   LLM-assisted thread summarization.
 //!
 //! This crate provides the domain primitives consumed by:
 //! - `hkask-services` (ChatService::condense_history — auto-condense)

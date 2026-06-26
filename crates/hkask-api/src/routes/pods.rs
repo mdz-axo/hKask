@@ -144,9 +144,10 @@ async fn create_pod(
     }
 
     let persona = hkask_agents::pod::AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| {
+        let msg = format!("Invalid persona YAML: {e}");
         ServiceError::ValidationError {
             source: Some(Box::new(e)),
-            message: format!("Invalid persona YAML: {e}"),
+            message: msg,
         }
     })?;
     let pod_id = state

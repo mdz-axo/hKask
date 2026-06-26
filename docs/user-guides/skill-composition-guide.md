@@ -25,8 +25,6 @@ hKask has three composition levels, distinguished by PDCA loop count:
 | Level | What It Is | PDCA Loops | Output | Example |
 |-------|-----------|-----------|--------|---------|
 | **Template Chain** | Templates invoked in sequence -- a recipe | 0 | Raw output from the last template | pragmatic-laziness -> essentialist -> coding-guidelines |
-| **Skill** | A single PDCA loop wrapping templates | 1 | Convergence report | gentle-lovelace-converge: score → check → rewrite → loop → converge |
-| **Compound Skill** | A PDCA loop that composes other Skills (each with their own loop) | 2+, nested | Compound convergence report | document-update: audit → gentle-lovelace-loop → check → rewrite-loop → loop → converge |
 
 Template chains are recipes. Skills practice toward excellence through a single improvement kata. Compound skills orchestrate multiple katas — each inner skill converges independently toward its own target, and the outer loop checks whether the compound target has been met.
 
@@ -59,7 +57,6 @@ Every skill template must answer:
 
 | Template Type | Can It Loop? | Use For |
 |--------------|-------------|---------|
-| **FlowDef** | ✅ `choice` → branch → `escalate` → `abort` | Convergent quality loops (essentialist G1→G2→G3, gentle-lovelace score→rewrite→re-score) |
 | **KnowAct** | ❌ Single-pass prompt | Metacognitive analysis within a FlowDef step ("evaluate this gate"), not the loop itself |
 | **WordAct** | ❌ Single-pass prompt | Persona rendering, system prompts |
 
@@ -156,7 +153,6 @@ Convergence can use up to three independent termination conditions:
 
 The `improvement_gate` field controls how threshold and improvement combine:
 - `threshold_only` (default for all 43 skills): only check threshold.
-- `both` (used by kata bundle): must satisfy threshold AND improvement.
 - `either`: must satisfy threshold OR improvement.
 
 The dual energy budget (gas + rJoule) is a third independent gate — the cascade cannot run forever because both budgets are finite and hard-limited.
@@ -198,7 +194,6 @@ The two exit rails — quality threshold and energy budget — form the ratchet.
 As of v0.30.0, 43 skills have been upgraded to full PDCA FlowDef manifests with calibrated convergence policies:
 
 1. **Convergence metric**: Normalized [0,1] where 0 = fully converged. LLM-assessed saturation detection with structured scoring guidance per skill.
-2. **Improvement gate**: `threshold_only` for all skills (only absolute quality threshold matters). The `improvement_ratio` tracks progress but is not a hard gate by default. The kata bundle uses `improvement_gate: both`.
 3. **Per-group thresholds** calibrated by skill domain:
    - Group A (Output Quality): threshold 0.15, improvement 0.10, max 3 iterations
    - Group B (Analysis/Diagnosis): threshold 0.25, improvement 0.05, max 3 iterations (looser — can't improve past evidence)
@@ -255,17 +250,15 @@ pragmatic-semantics (runs across all, never relaxed)
 
 ---
 
-### Chain 2: Forecast → Decide → Record → Verify
+### Chain 2: Forecast -> Decide -> Verify
 
-```
-superforecasting → mcda → decision-journal → goal-analysis
-```
+
+superforecasting -> mcda -> goal-analysis
 
 | Stage | Skill | What happens |
 |-------|-------|-------------|
 | **Forecast** | `superforecasting` | 8-stage calibrated probability pipeline — triage, Fermi, outside/inside view, Bayesian, dragonfly-eye |
 | **Decide** | `mcda` | Identify criteria, weight and score alternatives, detect compensation masking, sensitivity analysis |
-| **Record** | `decision-journal` | Record reasoning, assumptions, alternatives, emotional state. Define expected outcomes with time horizons. |
 | **Verify** | `goal-analysis` | Track whether the outcome matches the prediction. Judge completion with confidence scoring. |
 
 **Use when:** Consequential decisions under uncertainty, strategic choices with multiple criteria, decisions you need to learn from
@@ -274,7 +267,6 @@ superforecasting → mcda → decision-journal → goal-analysis
 ```
 > superforecast: will switching to Rust reduce our bug rate by 50% within 6 months?
 > MCDA: compare staying on Python vs. partial Rust rewrite vs. full Rust rewrite
-> journal this decision — record the reasoning and schedule a 6-month revisit
 > create a goal: complete Rust migration with bug rate tracked weekly
 ```
 
@@ -328,18 +320,16 @@ zoom-out → chain-of-density → caveman
 
 ---
 
-### Chain 5: Plan → Critique → Revise → Evaluate
+### Chain 5: Plan -> Critique -> Revise
 
-```
-scenario-builder → grill-me → self-critique-revision → gentle-lovelace
-```
+
+scenario-builder -> grill-me -> self-critique-revision
 
 | Stage | Skill | What happens |
 |-------|-------|-------------|
 | **Plan** | `scenario-builder` | Schwartz method — focal question, STEEP, 2×2 matrix, robust strategies |
 | **Stress-test** | `grill-me` | Socratic interrogation of each scenario's assumptions and strategies |
 | **Revise** | `self-critique-revision` | Iterative draft → critique → revise cycle on the strategy document |
-| **Evaluate** | `gentle-lovelace` | Score the final strategy document against 4 dimensions of writing quality |
 
 **Use when:** Strategic planning, futures work, decision documents that must withstand scrutiny
 
@@ -444,11 +434,11 @@ diagnose -> improve-codebase-architecture
 | I need to... | Chain |
 |-------------|-------|
 | Simplify a design | Chain 1: Perception → Analysis → Action |
-| Make a strategic decision | Chain 2: Forecast → Decide → Record → Verify |
+| Make a strategic decision | Chain 2: Forecast -> Decide -> Verify |
 | Fix a bug properly | Chain 3: Diagnose → Extract → Fix → Harden |
 | Hunt bugs in code — semantic errors, interaction bugs | Chain 7: Hunt Bugs — Perceive Semantics → Analyze Loops → Probe → Report |
 | Understand and explain code | Chain 4: Explore → Summarize → Compress |
-| Write a strategy document | Chain 5: Plan → Critique → Revise → Evaluate |
+| Write a strategy document | Chain 5: Plan -> Critique -> Revise |
 | Frame a research question and develop a research program | Chain 6: Frame → Plan → Decide |
 | Respond to an error | Chain 9: Resilience -- Diagnose -> Improve |
 | Manage the skill corpus | Chain 8: Skill Lifecycle |

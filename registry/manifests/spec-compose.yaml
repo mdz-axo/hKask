@@ -1,6 +1,6 @@
 # Spec Compose Manifest — Goal → Spec pipeline
 # Select → Populate → Execute flow for specification authoring
-# Per DDMVSS §6.3: Declarative Manifest-Driven Multi-Stage Specification System
+# Per MDS §7.1: Declarative Manifest-Driven Multi-Stage Specification System
 
 manifest:
   id: spec-compose

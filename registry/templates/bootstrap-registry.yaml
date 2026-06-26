@@ -101,24 +101,6 @@
   cascade_level: 0
   matroshka_limit: 7
 
-- id: falstaffian-perspective/falstaffian-perspective
-  template_type: KnowAct
-  name: "Falstaffian Perspective"
-  lexicon_terms:
-    - calibrate
-    - affirm
-    - select
-    - execute
-    - verify
-    - compose
-    - transform
-    - discriminate
-    - evaluate
-  description: "Multi-iteration perspective generation through Falstaffian shape vectors"
-  source_path: registry/templates/falstaffian-perspective/falstaffian-perspective.j2
-  required_capabilities: []
-  cascade_level: 0
-  matroshka_limit: 7
 
 - id: gml/recognize-ensemble
   template_type: KnowAct
@@ -431,77 +413,6 @@
     - evaluate
   description: "Re-compose a bundle when skills have evolved, preserving unchanged configuration and updating what has changed"
   source_path: registry/templates/skill-bundler/evolve-bundle.j2
-  required_capabilities: []
-  cascade_level: 0
-  matroshka_limit: 7
-
-# ── Kata Bundle (orchestration) ───────────────────────────────────────
-- id: kata/kata-selector
-  template_type: KnowAct
-  name: "Kata Selector"
-  lexicon_terms:
-    - select
-    - classify
-    - match
-    - discriminate
-  description: "Route agent to appropriate kata based on context"
-  source_path: registry/templates/kata/kata-selector.j2
-  required_capabilities: []
-  cascade_level: 0
-  matroshka_limit: 7
-
-- id: kata/consent-and-select
-  template_type: KnowAct
-  name: "Kata Consent and Select"
-  lexicon_terms:
-    - consent
-    - select
-    - verify
-    - discriminate
-  description: "Verify consent before executing any kata"
-  source_path: registry/templates/kata/consent-and-select.j2
-  required_capabilities: []
-  cascade_level: 0
-  matroshka_limit: 7
-
-- id: kata/outcome-and-habit
-  template_type: KnowAct
-  name: "Kata Outcome and Habit"
-  lexicon_terms:
-    - synthesize
-    - assess
-    - evaluate
-    - habit
-  description: "Synthesize kata outcome with habit assessment"
-  source_path: registry/templates/kata/outcome-and-habit.j2
-  required_capabilities: []
-  cascade_level: 0
-  matroshka_limit: 7
-
-- id: kata/habit-intervention
-  template_type: WordAct
-  name: "Kata Habit Intervention"
-  lexicon_terms:
-    - intervene
-    - encourage
-    - remind
-    - habit
-  description: "Generate intervention message when habit is at risk"
-  source_path: registry/templates/kata/habit-intervention.j2
-  required_capabilities: []
-  cascade_level: 0
-  matroshka_limit: 7
-
-- id: kata/kata-switch-check
-  template_type: KnowAct
-  name: "Kata Switch Check"
-  lexicon_terms:
-    - switch
-    - compose
-    - evaluate
-    - consent
-  description: "Check if kata switching is requested and validate composition rules"
-  source_path: registry/templates/kata/kata-switch-check.j2
   required_capabilities: []
   cascade_level: 0
   matroshka_limit: 7

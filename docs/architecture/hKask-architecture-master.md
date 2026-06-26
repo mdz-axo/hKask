@@ -859,7 +859,6 @@ Kata implements the Toyota Kata methodology (Rother, 2009) as a cybernetic capab
 | **kata-starter** | Build foundational scientific thinking habits | 5 | 5 (4 FlowDef, 1 KnowAct) | `starter-kata.yaml` |
 | **kata-improvement** | 4-step PDCA scientific pattern for capability gaps | 4 | 5 (1 FlowDef, 4 WordAct) | `improvement-kata.yaml` |
 | **kata-coaching** | 5-question dialogue for teaching scientific thinking | 5 | 6 (1 FlowDef, 5 WordAct) | `coaching-kata.yaml` |
-| **kata** (bundle) | Full orchestration: routing, habit monitoring, iteration | 7 | 7 (6 KnowAct, 1 WordAct) | `kata-pattern.yaml` |
 
 ### Key Features
 

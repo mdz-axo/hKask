@@ -1,6 +1,6 @@
 # Spec Reconcile Manifest — Conflict resolution pipeline
 # Resolve goal tensions without collapsing them
-# Per DDMVSS §6.3: Reconciliation as tension preservation
+# Per MDS §5: Reconciliation as tension preservation
 
 manifest:
   id: spec-reconcile

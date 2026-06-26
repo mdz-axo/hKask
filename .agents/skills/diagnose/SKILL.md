@@ -27,7 +27,7 @@ The SKILL.md (this file) teaches the Zed coding agent the diagnosis methodology.
 
 Before building a feedback loop, anchor the diagnosis to functional requirements:
 
-1. **Identify DDMVSS categories** — which category does the bug fall under? (Domain, Capability, Interface, Composition, Trust, Observability, Persistence, Lifecycle, Curation). A bug may span multiple categories.
+1. **Identify MDS categories** — which category does the bug fall under? (Domain, Composition, Trust, Lifecycle, Curation — see `docs/architecture/core/MDS.md`). A bug may span multiple categories.
 2. **Read the functional specification** — consult `docs/architecture/core/FUNCTIONAL_SPECIFICATION.md` for the relevant domain. Identify the functional requirement (FR#) that the misbehaving code should satisfy.
 3. **Map symptom to requirement** — for each relevant spec, identify which criterion the bug violates. Record the functional requirement reference.
 4. **Flag spec gaps** — if no spec covers the misbehavior, call it out: **"Spec gap: no requirement governs [behavior]."** This is a finding, not a failure. Document it in `OPEN_QUESTIONS.md`.

@@ -86,7 +86,6 @@ A goal is not a task. A task is something you do. A goal is something you achiev
 
 ## Composition
 
-- **Decision-journal:** Record the decision to pursue a goal — what was the reasoning, what alternatives were considered? Goal analysis tracks the outcome; the journal tracks the judgment quality.
 - **Essentialist:** Before creating a goal, ask: does this goal earn its existence against the deletion test? Will achieving it reduce total system action?
 - **Structured-extraction:** Extract structured goal definitions from narrative descriptions of desired outcomes.
 - **MCDA:** When choosing between competing goals, MCDA ranks them on weighted criteria (impact, feasibility, urgency).

@@ -167,7 +167,6 @@ These skills are not composed into the scenario-builder pipeline but are natural
 
 - **Superforecasting** (activate after Stage 6): Assign calibrated probabilities to each of the 4 scenarios using Tetlock's methodology. Scenario builder explores the futures; superforecasting quantifies their likelihood.
 - **MCDA** (activate after Stage 6): Evaluate robust and contingent strategies across all 4 scenarios. Which strategy scores highest in the most futures? Use multi-criteria decision analysis to rank alternatives.
-- **Decision-journal** (activate on convergence): When the scenario planning cycle converges, offer the user activation of `decision-journal` to record the strategic decision with full context — which scenarios were considered, which strategies were selected, and the rationale. Schedule a revisit when early-warning indicators fire. This closes the loop from exploration to committed action.
 
 ## Registry Templates
 
@@ -190,7 +189,6 @@ These skills are not composed into the scenario-builder pipeline but are natural
 5. **Quality gate** — independent evaluation of divergence, consistency, and coverage
 6. **Implications** — robust strategies (all scenarios), contingent (specific), tripwires (early signals)
 7. **Classify** — each strategy carries a constraint-force label (Prohibition/Guardrail/Guideline), applied using pragmatic-semantics methodology
-8. **Converge** — heuristic divergence check + quality gate scores → normalized metric. On convergence, offer decision-journal to record the strategic decision.
 
 *"The goal of scenario planning is not to predict the future but to make better decisions in the face of uncertainty."* — Peter Schwartz, *The Art of the Long View*
 

@@ -2,7 +2,6 @@
 name: qa-script-builder
 visibility: public
 description: "Design and generate autonomous QA pipeline manifests for the hKask QA system. Walks through a structured persona→discover→design→generate→validate pipeline: generates diverse testing scenarios from persona + goal, maps testing intent to the QA system's capabilities (run_command, mcp_tool, classify, loop), designs the branching state machine, and produces a valid YAML manifest for `kask qa run-script`. Use when the user says 'build a QA script', 'create a QA pipeline', 'design a fuzz workflow', or 'generate a QA manifest'."
-references_skills: [falstaffian-perspective, grill-me, essentialist, caveman]
 ---
 
 # QA Script Builder
@@ -366,4 +365,3 @@ steps:
 This is a Template, not a Skill. Templates are one-shot prompt executions without PDCA convergence.
 Upgrade path: to convert from Template to Skill, create a PDCA orchestrator at registry/manifests/qa-script-builder.yaml that wraps the 5-phase pipeline (persona → discover → design → generate → validate) with convergence criteria based on validation error count. The qa-validate.j2 essentialist mode provides a natural convergence metric: converge when errors=0 and essentialist findings ≤ N.
 
-Reference note (these skills are referenced as embedded prompt directives, not formally composed — they will become PDCA delegation steps on Template→Skill upgrade): falstaffian-perspective (perspective rotation for persona generation), grill-me (adversarial probing of scenarios), essentialist (3-gate deletion test in validation), and caveman (ultra-minimal CI output) are composed into the template pipeline as embedded prompt directives. On upgrade to Skill, these should become formal FlowDef delegation steps.

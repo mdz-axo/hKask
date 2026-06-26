@@ -26,7 +26,6 @@ Skills are composable agent capabilities with explicit PDCA convergence loops. h
 | **Skill** | Iterative PDCA cascade with quality threshold + energy budget | Returns `converged` \| `maxed_out` \| `escalated` |
 | **Bundle** | Composition orchestration — delegates to sub-skills | Depends on aggregation method |
 
-In the current hKask model (v0.30.0), **42 Skills** have FlowDef process manifests with `convergence.threshold > 0`, `gas.cap > 0`, `rjoule.cap > 0`, and a `loop` action. **2 Templates** (logo-builder, qa-script-builder) are one-shot without registry manifests. **1 Bundle** (kata) composes skills but is not itself a PDCA loop. **1 Legacy** (kata-pattern pre-upgrade) remains at v0.21.4.
 
 | Layer | You interact with it via... | Purpose |
 |-------|---------------------------|---------|
@@ -120,10 +119,8 @@ Renders the `.j2` template with your input, executes through the inference route
 Bundles compose multiple skills into workflows:
 
 ```bash
-kask bundle run kata-pattern --bot Alice
 ```
 
-The `kata-pattern` bundle routes to `kata-starter`, `kata-improvement`, or `kata-coaching` based on the bot's automaticity score.
 
 ---
 
@@ -186,7 +183,6 @@ Skills that transform *how the agent sees* — run before analysis.
 
 | Skill | Purpose | Trigger |
 |-------|---------|---------|
-| `falstaffian-perspective` | Multi-iteration perspective generation through semantic shape transforms | "reframe this", "falstaffian take" |
 
 ### 4.2 Regulative
 
@@ -217,7 +213,6 @@ Skills that support structured choice, prediction, and planning.
 | Skill | Purpose | Trigger |
 |-------|---------|---------|
 | `mcda` | Multi-criteria decision analysis with compensation masking detection | "compare these options", "MCDA" |
-| `decision-journal` | Kahneman-style decision recording with Brier score calibration | "journal this decision" |
 | `superforecasting` | Tetlock 8-stage calibrated probability forecasting | "forecast this", "superforecast" |
 | `scenario-builder` | Schwartz method scenario planning — STEEP, 2×2 matrix, robust strategies | "build scenarios", "explore futures" |
 | `hypothesis-framer` | Research framing with FINER criteria + PICO process — question → hypothesis → aims | "frame my research", "write a hypothesis" |
@@ -273,7 +268,6 @@ Skills that evaluate the agent's own thinking and process.
 | `self-critique-revision` | Iterative draft → critique → revise cycle | "self-critique this" |
 | `handoff` | Session handoff documentation for context preservation | "create handoff" |
 | `goal-analysis` | Lightweight goal specification and completion verification | "create a goal to...", "goal analysis" |
-| `gentle-lovelace` | 4-dimension writing quality evaluation (Hopper/Lovelace/Schriver/Gentle) | "evaluate this document", "gentle lovelace" |
 
 ### 4.11 Kata System (Capability Development)
 
@@ -309,7 +303,6 @@ Don't know which skill you need? Find your problem:
 
 | I need to... | Use |
 |-------------|-----|
-| See a problem from multiple angles | `falstaffian-perspective` |
 | Find the simplest path through a design | `pragmatic-laziness` |
 | Know what can be deleted | `essentialist` |
 | Stress-test my understanding | `grill-me` |
@@ -318,7 +311,6 @@ Don't know which skill you need? Find your problem:
 | Predict a future outcome with calibration | `superforecasting` |
 | Plan for multiple possible futures | `scenario-builder` |
 | Frame a research question into a testable hypothesis | `hypothesis-framer` |
-| Record a decision and check if I was right later | `decision-journal` |
 | Track whether I achieved a specific goal | `goal-analysis` |
 | Extract structured data from prose | `structured-extraction` |
 | Summarize text densely without losing facts | `chain-of-density` |
@@ -333,7 +325,6 @@ Don't know which skill you need? Find your problem:
 | Write idiomatic Rust | `rust-expertise` |
 | Enforce coding discipline | `coding-guidelines` |
 | Design a logo | `logo-builder` |
-| Evaluate document quality | `gentle-lovelace` |
 | Review my own reasoning for gaps | `review` |
 | Revise a draft through critique cycles | `self-critique-revision` |
 | Hand off work between sessions | `handoff` |
@@ -379,7 +370,6 @@ hypothesis-framer → scenario-builder → mcda
 ### Pattern 3: Forecast → Decide → Record → Verify
 
 ```
-superforecasting → mcda → decision-journal → goal-analysis
 ```
 
 **When:** You're making a consequential decision under uncertainty. Superforecasting produces calibrated probabilities. MCDA ranks alternatives on weighted criteria. The decision journal records the reasoning and schedules a revisit. Goal analysis tracks whether the outcome matches the prediction.
@@ -411,13 +401,10 @@ zoom-out → chain-of-density → caveman
 | 3 | `chain-of-density` | Extraction/Summarization | FlowDef | Iterative density-increase summarization via convergent passes |
 | 4 | `coding-guidelines` | Behavioral Guardrails | FlowDef | Karpathy's four principles via convergent assess→apply→verify loops |
 | 5 | `pragmatic-semantics` | Regulative | FlowDef | Classify constraints by enforcement level via convergent PDCA loops |
-| 6 | `decision-journal` | Decision & Strategy | FlowDef | Kahneman decision journal with convergent calibration loops |
 | 7 | `deep-module` | Structural Analysis | FlowDef | Ousterhout module depth with deletion test via convergent depth loops |
 | 8 | `diagnose` | Diagnostics | FlowDef | Disciplined diagnosis loop with convergent PDCA exits |
 | 9 | `document-update` | Documentation | FlowDef | 7-task doc maintenance workflow with convergent PDCA exits |
 | 10 | `essentialist` | Structural Analysis | FlowDef | 3-gate eliminative interrogation as convergent elimination loop |
-| 11 | `falstaffian-perspective` | Perceptual | FlowDef | Perspective-taking via convergent Falstaffian rotation loops |
-| 12 | `gentle-lovelace` | Meta-Cognition | FlowDef | 4D writing-quality evaluation via convergent diagnostic loops |
 | 13 | `goal-analysis` | Meta-Cognition | FlowDef | Goal lifecycle analysis with convergent completion loops |
 | 14 | `grill-me` | Structural Analysis | FlowDef | Socratic interrogation via convergent challenge/assessment loops |
 | 15 | `handoff` | Meta-Cognition | FlowDef | Session handoff documentation via convergent transfer loops |

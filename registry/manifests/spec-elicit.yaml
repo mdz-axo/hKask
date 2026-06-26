@@ -1,6 +1,6 @@
 # Spec Elicit Manifest — Participatory goal elicitation flow
 # Draw out latent goals or requirements through structured dialogue
-# Per DDMVSS §6.3: Elicitation as collaborative specification
+# Per MDS §1: Elicitation as collaborative specification
 
 manifest:
   id: spec-elicit
