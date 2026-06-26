@@ -92,8 +92,8 @@ sequenceDiagram
 
 | Resource | Cap | Per Iteration |
 |----------|-----|---------------|
-| Gas | 150,000 | 100 |
-| rJoule | 32,000 | 0.25/token |
+| Gas | 120,000 | 100 |
+| rJoule | 2 |
 | Max iterations | 3 | — |
 | Engine timeout | 90s | — |
 | Delegate timeout | 60s each | — |

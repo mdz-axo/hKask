@@ -29,7 +29,6 @@ manifest:
 
 gas:
   cap: 30000
-  cost_per_token: 0.000002
   alert_threshold: 0.7
   hard_limit: true
 

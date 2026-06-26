@@ -109,7 +109,7 @@ Convergence threshold: **0.15** — achieved when hypothesis is verified AND cha
 | Resource | Cap | Per Iteration |
 |----------|-----|---------------|
 | Gas | 100,000 | 100 |
-| rJoule | 24,000 | 0.25/token |
+| rJoule | 1 |
 | Max iterations | 3 | — |
 | Engine timeout | 90s | — |
 | Check timeout | 30s | — |

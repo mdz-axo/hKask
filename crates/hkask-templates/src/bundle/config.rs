@@ -116,15 +116,12 @@ impl Default for GasConfig {
 }
 
 /// rJoule (inference energy budget) configuration — caps LLM inference cost.
-/// rJoule is expensive. 1 rJ ≈ 1 inference token at default model.
-/// 1 rJ = 250,000 gas cycles (system constant `RJOULE_TO_GAS`).
+/// Cost per token is set by the inference provider/model, not the manifest.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RjouleConfig {
     /// Total rJoule budget for inference in this cascade.
     pub cap: u32,
-    /// rJoule cost per inference token.
-    pub cost_per_token: f64,
     pub alert_threshold: f64,
     pub hard_limit: bool,
 }
@@ -132,7 +129,6 @@ impl Default for RjouleConfig {
     fn default() -> Self {
         Self {
             cap: 0, // 0 = no rJoule budget (backward compat)
-            cost_per_token: 1.0,
             alert_threshold: 0.8,
             hard_limit: true,
         }

@@ -34,7 +34,6 @@ gas:
 
 rjoule:
   cap: 3
-  cost_per_token: 0.000002
   alert_threshold: 0.8
   hard_limit: true
 

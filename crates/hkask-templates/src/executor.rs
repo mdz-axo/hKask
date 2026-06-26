@@ -152,8 +152,8 @@ impl ManifestExecutor {
         let mut gas_used: u64 = 0;
         let mut gas_alerted: bool = false;
         // rJoule tracking — hard parent allocation for inference energy
+        // Cost per token is set by the inference provider/model config, not the manifest.
         let rjoule_cap = manifest.rjoule.cap as f64;
-        let rjoule_cost_per_token = manifest.rjoule.cost_per_token;
         let rjoule_alert_threshold = manifest.rjoule.alert_threshold;
         let rjoule_hard_limit = manifest.rjoule.hard_limit;
         let rjoule_enabled = rjoule_cap > 0.0;
@@ -401,7 +401,6 @@ impl ManifestExecutor {
                                 gas_cost_per_iter,
                                 &mut rjoule_used,
                                 rjoule_cap,
-                                rjoule_cost_per_token,
                                 rjoule_enabled,
                                 rjoule_hard_limit,
                             )
@@ -797,7 +796,6 @@ impl ManifestExecutor {
         gas_cost_per_iter: u64,
         rjoule_used: &mut f64,
         rjoule_cap: f64,
-        rjoule_cost_per_token: f64,
         rjoule_enabled: bool,
         _rjoule_hard_limit: bool,
     ) -> Result<HashMap<String, Value>> {
@@ -823,10 +821,11 @@ impl ManifestExecutor {
             }
         };
 
-        // rJoule tracking — deduct inference tokens from rJoule budget
+        // rJoule tracking — cost per token comes from inference provider, not manifest.
+        // Token count is tracked; rJoule deduction will be wired when provider reports cost.
         if rjoule_enabled {
-            let tokens = result.usage.total_tokens as f64;
-            *rjoule_used += tokens * rjoule_cost_per_token;
+            let _tokens = result.usage.total_tokens as f64;
+            // TODO: get cost_per_token from inference provider config
         }
 
         // Gas tracking — deduct one iteration of compute
