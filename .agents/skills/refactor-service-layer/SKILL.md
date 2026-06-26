@@ -7,12 +7,12 @@ description: >
   Activate when the user says "refactor service layer", "extract shared logic",
   "deduplicate surfaces", or when architectural analysis reveals business logic
   embedded in presentation layers.
-composes_skills: [improve-codebase-architecture, tdd, coding-guidelines, pragmatic-semantics, zoom-out, strangler-fig, deep-module]
+composes_skills: [tdd, coding-guidelines, pragmatic-semantics, zoom-out, strangler-fig, deep-module]
 ---
 
 # Refactor Service Layer
 
-Extract duplicated business logic from surface layers (`hkask-cli`, `hkask-api`, MCP servers) into a shared `hkask-services` crate. This skill **orchestrates** eight other skills in a specific hKask architecture sequence. It does not restate their methodologies — delegation is the point.
+Extract duplicated business logic from surface layers (`hkask-cli`, `hkask-api`, MCP servers) into a shared `hkask-services` crate. This skill **orchestrates** six other skills in a specific hKask architecture sequence. It does not restate their methodologies — delegation is the point.
 
 ## When to Activate
 
@@ -67,7 +67,7 @@ Delegate to `zoom-out`. Produce a map of crates involved, their ownership, calle
 
 ### Phase 1 — Audit and Classify
 
-Delegate to `improve-codebase-architecture`. For each domain operation appearing in multiple surfaces, classify as Identical, Divergent, Surface-only, or Pass-through. Apply the `deep-module` deletion test to each candidate before extraction.
+RSL is typically invoked as the execution phase after `improve-codebase-architecture` has already performed architectural analysis. Begin directly: for each domain operation appearing in multiple surfaces, classify as Identical, Divergent, Surface-only, or Pass-through. Apply the `deep-module` deletion test to each candidate before extraction. No further architectural discovery is needed — the audit here is scoped to extraction viability, not architecture-wide friction hunting.
 
 ### Phase 2 — Classify Constraint Forces
 

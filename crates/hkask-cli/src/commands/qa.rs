@@ -37,6 +37,9 @@ pub fn run(rt: &tokio::runtime::Runtime, action: QaAction) {
                 std::process::exit(1);
             }
         }
+        QaAction::SpecCheck { spec_id } => {
+            spec_check(spec_id);
+        }
     }
 }
 
@@ -692,4 +695,135 @@ fn cost_ledger_path() -> Option<std::path::PathBuf> {
     let ledger_dir = config_dir.join("hkask");
     let _ = std::fs::create_dir_all(&ledger_dir);
     Some(ledger_dir.join("ledger-cost.db"))
+}
+
+fn spec_check(spec_id: Option<String>) {
+    use hkask_agents::DefaultSpecCurator;
+    use hkask_storage::SpecStore;
+    use hkask_storage::spec_types::{SpecCategory, SpecCurator};
+
+    let ctx = super::helpers::build_service_context();
+    let store = ctx.spec_store();
+
+    match spec_id {
+        Some(id) => {
+            let parsed = uuid::Uuid::parse_str(&id)
+                .map(hkask_storage::spec_types::SpecId)
+                .unwrap_or_else(|_| {
+                    eprintln!("[QA] Invalid spec ID: {}", id);
+                    std::process::exit(1);
+                });
+            let spec = match store.load(parsed) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("[QA] Failed to load spec {}: {}", id, e);
+                    std::process::exit(1);
+                }
+            };
+            let curator = DefaultSpecCurator::default();
+            match curator.evaluate(&spec, &[]) {
+                Ok(record) => {
+                    println!("[QA] Spec check — {}:", spec.name);
+                    println!("  ID: {}", record.spec_id);
+                    println!("  Decision: {:?}", record.decision);
+                    println!("  Rationale: {}", record.rationale);
+                    println!("  Coherence: {:.2}", record.coherence_score);
+                    println!("  Complete: {}", spec.is_complete());
+
+                    // Structural quality
+                    let dims = [
+                        ("name", !spec.name.is_empty()),
+                        ("category", true),
+                        (
+                            "criteria",
+                            !spec.goals.iter().all(|g| g.criteria.is_empty()),
+                        ),
+                        ("complete", spec.is_complete()),
+                    ];
+                    println!("  Quality dimensions:");
+                    for (dim, pass) in &dims {
+                        let mark = if *pass { "✓" } else { "✗" };
+                        println!("    {} {}", mark, dim);
+                    }
+                    let passing = dims.iter().filter(|(_, p)| *p).count();
+                    println!(
+                        "  Quality: {}/{} ({})",
+                        passing,
+                        dims.len(),
+                        if passing == dims.len() {
+                            "PUBLISHABLE"
+                        } else {
+                            "needs work"
+                        }
+                    );
+                }
+                Err(e) => {
+                    eprintln!("[QA] Curation error for {}: {}", id, e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        None => {
+            // Full collection check
+            let specs = match store.list_all() {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("[QA] Failed to list specs: {}", e);
+                    std::process::exit(1);
+                }
+            };
+
+            if specs.is_empty() {
+                println!("[QA] No specifications in collection.");
+                println!(
+                    "  All {} MDS categories uncovered.",
+                    SpecCategory::all().len()
+                );
+                return;
+            }
+
+            println!("[QA] Spec collection check — {} specs:", specs.len());
+
+            // Category coverage
+            let covered: std::collections::HashSet<SpecCategory> =
+                specs.iter().map(|s| s.category).collect();
+            let all = SpecCategory::all();
+            let missing: Vec<_> = all.iter().filter(|c| !covered.contains(c)).collect();
+            let coverage = (all.len() - missing.len()) as f64 / all.len() as f64;
+            println!(
+                "  Category coverage: {:.0}% ({}/{})",
+                coverage * 100.0,
+                all.len() - missing.len(),
+                all.len()
+            );
+            if !missing.is_empty() {
+                println!("  Missing categories:");
+                for c in &missing {
+                    println!("    - {}", c.as_str());
+                }
+            }
+
+            // Per-spec quality
+            println!();
+            for spec in &specs {
+                let dims = [
+                    !spec.name.is_empty(),
+                    true, // has_category
+                    !spec.goals.iter().all(|g| g.criteria.is_empty()),
+                    spec.is_complete(),
+                ];
+                let passing = dims.iter().filter(|&&p| p).count();
+                let status = if passing == dims.len() { "✓" } else { "✗" };
+                println!(
+                    "  {} {} [{}] — quality {}/{}, complete: {}",
+                    status,
+                    spec.name,
+                    spec.category.as_str(),
+                    passing,
+                    dims.len(),
+                    spec.is_complete()
+                );
+            }
+        }
+    }
 }

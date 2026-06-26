@@ -70,7 +70,7 @@ steps:
 
   - ordinal: 2
     action: select
-    description: Analyze through four lenses: cybernetics, essentialist, grill-me, pragmatic-semantics.
+    description: "Analyze through four lenses: cybernetics, essentialist, grill-me, pragmatic-semantics."
     renderer: minijinja
     template_ref: semantic-graph-audit/semantic-graph-audit-analyze
     gas_cap: 8192

@@ -1265,6 +1265,8 @@ API documentation is auto-generated at build time from type annotations via utoi
 
 **60 registered endpoints** across templates, bots, pods, MCP, CNS, chat, models, curator, ACP, bundles, specs, episodic, sovereignty, consolidation, git, goals, settings, wallet. All endpoints are registered via `OpenApiRouter::new().route()` and appear in the generated spec via utoipa-axum auto-discovery. MCP tools are discovered dynamically at runtime and are not part of the OpenAPI spec.
 
+Spec CRUD routes (`GET/POST /api/specs`) call `SpecStore` directly through `AgentService::spec_store()` — no intermediate service layer. Spec validation and quality checks run through `kask qa spec-check`.
+
 ## Reference Artifacts
 
 Detailed lookup tables and diagrams in `reference/`:

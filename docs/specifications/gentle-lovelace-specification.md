@@ -12,7 +12,7 @@ mds_categories: [domain, composition, curation]
 
 **Purpose:** Specification for the Gentle Lovelace mashup replica persona — a composite embedding space that evaluates technical documentation against four dimensions of excellence, each grounded in the work of a woman who shaped the field.
 
-**Related:** [`WRITING_EXCELLENCE.md`](../standards/WRITING_EXCELLENCE.md), [`MDS.md`](../../architecture/core/MDS.md), [`document-update` SKILL.md](../../../.agents/skills/document-update/SKILL.md)
+**Related:** [`WRITING_EXCELLENCE.md`](../standards/WRITING_EXCELLENCE.md), [`MDS.md`](../../architecture/core/MDS.md)
 
 ---
 
@@ -167,33 +167,37 @@ flowchart LR
     O --> P["Hopper: 0.3 (good), Lovelace: 0.7 (flagged)"]
 ```
 
-### 3.3 Integration with document-update Skill
+### 3.3 Integration with QA and Replica
+
+The Gentle Lovelace persona integrates with the QA system for document quality assessment and with the replica server for prose rewriting:
 
 ```mermaid
 flowchart TD
-    A[document-update Task 3: Writing Quality Gate] --> B[Structural checks]
+    A[QA spec-check or writing-quality API] --> B[Structural checks]
     A --> C[Manual rubric: Hopper/Lovelace/Schriver/Gentle]
     A --> D[NEW: Semantic layer]
     B --> E[Metadata, links, section types]
     C --> F[4-dimension boolean pass/fail]
     D --> G[Gentle Lovelace replica]
     G --> H[replica_compare per section]
-    G --> I[replica_compose revision suggestions]
+    G --> I[replica_rewrite dimension-optimized revision]
     H --> J[Per-dimension distance scores]
     I --> K[Revision prose]
-    E --> L[writing_quality_report.yaml]
+    E --> L[writing_quality_report]
     F --> L
     J --> L
-    K --> L
+    K --> M[Revised document]
 ```
 
-### 3.4 Integration with spec/require/writing-quality
+### 3.4 Replica Rewrite Tool
+
+The `replica_rewrite` tool on `hkask-mcp-replica` accepts a passage + quality dimension and generates dimension-optimized prose. This replaces the former `spec_replica_rewrite` tool that was coupled to the (now-removed) `hkask-mcp-spec` server.
 
 ```mermaid
 flowchart LR
-    A[spec/require/writing-quality] --> B{doc_id}
+    A[QA / API writing-quality endpoint] --> B{doc_id}
     B --> C[Existing 4-dimension rubric]
-    B --> D[NEW: replica_persona param]
+    B --> D[replica_compare against gentle-lovelace centroids]
     C --> E[{hopper, lovelace, schriver, gentle} booleans]
     D --> F[replica_compare against gentle-lovelace centroids]
     F --> G[Per-dimension distances]
@@ -201,7 +205,7 @@ flowchart LR
     E --> I[Response]
     G --> I
     H --> I
-    I --> J["{dimensions_passing, meets_publication_standard, semantic_scores: {composite, hopper, lovelace, schriver, gentle}}"]
+    I --> J["{dimensions_passing, meets_publication_standard, dimension_scores}"]
 ```
 
 ### 3.5 Orthogonal Tag Sets
@@ -228,29 +232,26 @@ These enable multi-axis queries: "show me all Evidence sections from Trust-categ
 
 ## 4. Implications — What This Enables
 
-### 4.1 For the document-update Skill
+### 4.1 For the QA System
 
-The Gentle Lovelace replica adds a **semantic layer** to Task 3 (Writing Quality Gate) that currently only performs structural checks and manual rubric assessment. Specifically:
+The Gentle Lovelace replica adds a **semantic layer** to `kask qa spec-check` and the API writing-quality endpoint. Currently these perform structural checks and manual rubric assessment. Specifically:
 
 1. **Per-section centroid distance** — every `##` section of every hKask document can be compared against the Gentle Lovelace centroids. Sections with distance > 0.5 from their expected dimension centroid are flagged.
 
 2. **Missing section-type detection** — if a document has Statement and Evidence sections but no Implications, the replica can retrieve the nearest Implications exemplars from the corpus and suggest structural additions.
 
-3. **Revision prose generation** — `replica_compose` with the Gentle Lovelace persona can generate revision suggestions in a voice that blends all four dimensions: precise enough to be independently verifiable (Lovelace), accessible on first reading (Hopper), findable in 30 seconds (Schriver), and correct for agent consumption (Gentle).
+3. **Revision prose generation** — `replica_rewrite` (on `hkask-mcp-replica`) generates revision suggestions in a voice that blends all four dimensions: precise enough to be independently verifiable (Lovelace), accessible on first reading (Hopper), findable in 30 seconds (Schriver), and correct for agent consumption (Gentle).
 
-4. **Per-dimension diagnostics** — instead of a single pass/fail, the skill can report: "This ADR scores 0.3 from Hopper (good accessibility), 0.7 from Lovelace (flagged — missing code-path verification), 0.4 from Schriver (acceptable findability), 0.2 from Gentle (excellent agent-correctness)."
+4. **Per-dimension diagnostics** — instead of a single pass/fail, the QA system can report: "This ADR scores 0.3 from Hopper (good accessibility), 0.7 from Lovelace (flagged — missing code-path verification), 0.4 from Schriver (acceptable findability), 0.2 from Gentle (excellent agent-correctness)."
 
-### 4.2 For the spec Server
+### 4.2 For the Replica Server
 
-The `spec/require/writing-quality` tool gains an optional `replica_persona` parameter. When `replica_persona: "gentle-lovelace"` is passed:
-
-- The response includes `semantic_scores` alongside the existing `dimensions_passing` booleans
-- The `meets_publication_standard` threshold can incorporate semantic distance
-- The server can invoke `replica_compose` to generate revision suggestions for flagged documents
+The `replica_rewrite` tool on `hkask-mcp-replica` is the canonical surface for Gentle-Lovelace-guided prose rewriting. It takes a passage + target dimension and delegates to `ComposeService::compose()` with dimension-specific centroid targeting. The `replica_compare` tool provides per-dimension scoring against persona centroids. Together they form a complete assess → rewrite pipeline.
 
 ### 4.3 For the Curation Loop
 
-The Gentle Lovelace centroid becomes a **curation anchor** — a stable reference point against which the entire document corpus can be measured over time. As documents evolve, their distance from the centroid can be tracked, detecting drift before it becomes spec-code misalignment. This closes the MDS self-application loop: the spec server can use the replica to evaluate the spec corpus itself.
+The Gentle Lovelace centroid becomes a **curation anchor** — a stable reference point against which the entire document corpus can be measured over time. As documents evolve, their distance from the centroid can be tracked, detecting drift before it becomes spec-code misalignment. The QA system (`kask qa spec-check`) can use `replica_compare` to evaluate the document corpus against dimension centroids.
+
 
 ### 4.4 For Future Replicas
 
@@ -271,8 +272,8 @@ The orthogonal tag set architecture (section_type × mds_category × document_ty
 | Embedding pipeline | 🔧 Needs extension | `CorpusConfig`, `Work`, `FoundationalRule` structs need new fields |
 | Per-dimension centroids | 🔧 Needs implementation | `EmbedService` needs multi-centroid computation |
 | replica_compare integration | 🔧 Needs implementation | Weighted comparison with document type parameter |
-| spec server integration | 🔧 Needs implementation | `replica_persona` parameter on `spec/require/writing-quality` |
-| document-update integration | 🔧 Needs implementation | 5th quality dimension in Task 3 |
+| replica_rewrite tool | ✅ Implemented | `hkask-mcp-replica::replica_rewrite` — dimension-optimized prose rewriting |
+| QA spec-check integration | 🔧 Needs implementation | `kask qa spec-check` semantic scoring via replica_compare |
 
 ---
 
@@ -296,7 +297,7 @@ The Microsoft Style Guide welcome page is accessible, but the Top 10 Tips, bias-
 
 ### GENTLE-5 — Replica Persona Registration
 
-Should Gentle Lovelace be registered as a formal persona in the replica registry alongside Jane Wilde, Ulysses S. Twain, and Agatha Eliot, or should it remain a corpus configuration used exclusively by the document-update skill and spec server?
+Should Gentle Lovelace be registered as a formal persona in the replica registry alongside Jane Wilde, Ulysses S. Twain, and Agatha Eliot, or should it remain a corpus configuration used exclusively by the replica server and QA system?
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: pragmatic-semantics
 visibility: public
-description: "Epistemic discipline for classifying statements by certainty level and constraint force. Distinguish IS from OUGHT, declarative from probabilistic from subjunctive. Classify provenance of facts. Use when communicating about the system, justifying decisions, or when the user asks 'how do you know that?' or 'how certain are you?'"
+description: "Epistemic discipline for classifying statements by certainty level, constraint force, and domain ontology anchoring. Distinguish IS from OUGHT, declarative from probabilistic from subjunctive. Classify provenance of facts and their ontology tier (Core / Dual-Axis / Domain Supplement). Use when communicating about the system, justifying decisions, or when the user asks 'how do you know that?' or 'how certain are you?'"
 ---
 
 # Pragmatic Semantics
@@ -44,6 +44,47 @@ The two axes cross to produce the five constraint forces (see `pragmatic-semanti
 | **Guideline** | OUGHT | Probabilistic | "Prefer local models for sovereign data" |
 | **Evidence** | IS | Probabilistic | "Three sessions show rising queue depth" |
 | **Hypothesis** | IS | Subjunctive | "Queue growth may be due to embedding cache expansion" |
+
+## Axis 3: Domain Ontology Anchoring
+
+Every statement in hKask exists within the 3-tier ontology architecture (P5.2/P5.4/P8.1). The ontology tier a statement anchors to determines its precision baseline — different ontologies carry different confidence expectations.
+
+### The Three Tiers
+
+| Tier | Ontology | Scope | Confidence Baseline |
+|------|----------|-------|--------------------|
+| **Core** | 5W1H (Who, What, When, Where, Why, How) | Universal — every artifact must answer at least one | Default ground — no domain precision assumed |
+| **Dual-Axis** | PKO (process) + DC+BIBO (state) | Cross-cutting — every MCP server depends on both axes | Standard — process/entity semantics are well-defined |
+| **Domain Supplement** | FIBO, GOLEM, CogAT, ML-Schema, OMC | Server-local — layered where DC+BIBO is insufficient | Variable — depends on the supplement's adoption and mapping fidelity |
+
+### Tier-Specific Confidence Modifiers
+
+| Domain Supplement | Confidence Modifier | Rationale |
+|-----------------|--------------------|-----------|
+| **FIBO** (financial) | +0.1 confidence bonus | OMG standard, built by Goldman Sachs/Citigroup/Bloomberg/Fed — high adoption, precise semantics |
+| **GOLEM** (narrative) | ±0.0 (standard) | ERC-funded academic ontology, aligned with CIDOC-CRM and LRMoo — well-defined but domain-narrow |
+| **CogAT** (cognitive) | -0.1 confidence penalty | Explicitly metaphorical mapping ("This is a metaphorical mapping. hKask's 'episodic memory' is a software system inspired by but not identical to cognitive episodic memory") |
+| **ML-Schema** (ML experiments) | ±0.0 (standard) | W3C Community Group — less adoption than FIBO, provisional bridge |
+| **OMC** (media creation) | ±0.0 (standard) | MovieLabs v2.8 standard, Hollywood consortium — domain-specific but well-adopted |
+
+### Dual-Axis Awareness
+
+Every statement has both a process identity (PKO) and a state identity (DC+BIBO) — it is simultaneously a noun AND a verb (P5.4). When classifying provenance, identify BOTH axes:
+
+- **Process axis:** What procedure/step/execution/status-transition does this belong to? (e.g., `pko:StepExecution`, `pko:ChangeOfStatus`)
+- **State axis:** What entity/resource/type does this describe? (e.g., `bibo:Article`, `dcterms:Dataset`, `dcterms:creator`)
+
+A statement anchored only to one axis is incomplete — it has noun without verb, or verb without noun. The Heisenberg principle applies: the more precisely you measure state (DC typing), the less you can know about process position (PKO flow), and vice versa. You are always sampling, never arriving at truth.
+
+### Anchoring Quality Gate
+
+Before stating any fact about the system, ask the anchoring question:
+
+1. **Which ontology tier** does this concept belong to? (Core / Dual-Axis / Domain Supplement)
+2. **Which specific concept** in that tier? (e.g., `pko:StepVerification`, `fibo:PriceEarningsRatio`)
+3. **What confidence baseline** does this tier carry? (Check the tier-specific modifiers)
+4. **Is the dual-axis anchor complete?** Do I have both PKO (process) and DC (state) perspectives?
+5. **If unanchored:** Is this ontological noise per P5.2? Should it be anchored or deleted?
 
 ## Provenance of Facts
 
@@ -133,11 +174,13 @@ The SKILL.md (this file) teaches the Zed coding agent the epistemic discipline. 
 ## When to Use This Skill
 
 - **"How do you know that?":** Trace provenance. Is it Directly Stated, Implicit, Inherited, or LLM-Assessed?
+- **"What ontology does this anchor to?":** Identify the domain ontology tier and specific concept. Is it FIBO, CogAT, GOLEM, ML-Schema, OMC, or Core-only?
 - **A constraint is violated:** Which rank? Is it a Prohibition (must fix) or a Guideline (should fix)?
 - **ν-events and semantic memory disagree:** ν-events are canonical. Regenerate the semantic memory.
 - **A baseline seems wrong:** Check temporal freshness. Stale data is worse than no data.
 - **"What should I do?":** Distinguish Prohibition from Guideline. Prohibitions demand action; guidelines suggest action.
-- **About to state something as fact:** Check epistemic mode. Are you measuring, inferring, or projecting? Say which.
+- **About to state something as fact:** Check epistemic mode AND ontology anchoring. Are you measuring, inferring, or projecting? Which ontology tier? Say which.
+- **Cross-domain reasoning:** Two statements from different ontologies (e.g., FIBO financial data + CogAT memory pattern) carry different confidence baselines. Adjust accordingly.
 
 ## Quick Reference
 
@@ -150,13 +193,23 @@ Statement about the system?
 ├── Trend extrapolation → Subjunctive + Descriptive → Hypothesis
 ├── Magna Carta principle application → Declarative + Prescriptive → Prohibition
 └── Best practice suggestion → Probabilistic + Prescriptive → Guideline
+
+After force classification, apply anchoring gate:
+├── FIBO-anchored → Apply +0.1 confidence bonus
+├── CogAT-anchored → Apply -0.1 confidence penalty (metaphorical mapping)
+├── Dual-axis complete (PKO + DC) → Standard confidence
+├── Single-axis or core-only → Reduced confidence, note anchor gap
+└── Unanchored → Ontological noise per P5.2; flag for anchoring or deletion
 ```
 
 ### Provenance Check (before stating a fact)
 1. Where did this fact come from?
 2. Is the source direct measurement, inference, or inherited?
-3. How confident should I be?
-4. Am I stating it at the right epistemic level?
+3. Which ontology tier does this concept anchor to? (Core / Dual-Axis / Domain Supplement)
+4. Is the dual-axis anchor complete? (Both PKO process AND DC state identities?)
+5. What confidence baseline does this tier carry? (Check tier-specific modifiers)
+6. How confident should I be?
+7. Am I stating it at the right epistemic level?
 
 ### Constraint Conflict Resolution
 1. Identify the conflicting constraints

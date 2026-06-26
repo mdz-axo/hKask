@@ -1,7 +1,8 @@
-//! Specification management routes — MDS-aligned HTTP API, delegates to SpecService.
+//! Specification management routes — thin passthrough to SpecStore.
 //!
-//! Provides REST endpoints for spec capture, listing, query, coherence assessment,
-//! and writing-quality checking. All business logic moved to `hkask-services::SpecService`.
+//! All business logic lives in `hkask-storage::spec_types` and `SpecStore`.
+//! These routes read/write specs directly; spec validation is handled by
+//! the QA system (`kask qa spec-check`).
 
 use axum::{
     Json,
@@ -9,8 +10,8 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use hkask_services::SpecCaptureRequest;
-use hkask_services::SpecService;
+use hkask_storage::SpecStore;
+use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, infer_spec_category};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiState;
@@ -25,37 +26,21 @@ pub struct SpecCaptureRequestDto {
 }
 
 /// Spec list response — summary of a single MDS specification.
-///
-/// `category` is one of the five MDS categories: domain, composition, trust,
-/// lifecycle, curation. `complete` indicates whether the spec satisfies its
-/// category completeness predicate (MDS §2).
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SpecListResponse {
-    /// Unique specification ID
     pub spec_id: String,
-    /// Specification name
     pub name: String,
-    /// MDS category: domain, composition, trust, lifecycle, or curation
     pub category: String,
-    /// Whether the spec satisfies its category completeness predicate
     pub complete: bool,
 }
 
 /// Spec detail response — full details for a single MDS specification.
-///
-/// `domain_anchor` identifies the bounded context (always "hkask" for this system).
-/// `requirements` lists the spec's captured requirements as plain-text statements.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SpecDetailResponse {
-    /// Unique specification ID
     pub spec_id: String,
-    /// Specification name
     pub name: String,
-    /// MDS category: domain, composition, trust, lifecycle, or curation
     pub category: String,
-    /// Bounded context anchor (always "hkask")
     pub domain_anchor: String,
-    /// Captured requirement statements
     pub requirements: Vec<String>,
 }
 
@@ -65,7 +50,7 @@ pub struct SpecListQuery {
     pub category: Option<String>,
 }
 
-/// Spec coherence response — MDS §3: spec/graph/coherence
+/// Spec coherence response
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SpecCoherenceResponse {
     pub coherence_score: f64,
@@ -73,7 +58,7 @@ pub struct SpecCoherenceResponse {
     pub suggestions: Vec<String>,
 }
 
-/// Spec writing quality response — MDS §3: spec/require/writing-quality
+/// Spec writing quality response
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SpecWritingQualityResponse {
     pub dimensions_passing: usize,
@@ -81,10 +66,6 @@ pub struct SpecWritingQualityResponse {
 }
 
 /// Create spec router
-///
-/// expect: "API endpoints enforce OCAP boundaries"
-/// pre:  none
-/// post: returns OpenApi`Router<ApiState>` with spec routes registered
 pub fn spec_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_specs))
@@ -107,15 +88,26 @@ pub(crate) async fn list_specs(
     State(state): State<ApiState>,
     Query(query): Query<SpecListQuery>,
 ) -> impl IntoResponse {
-    match SpecService::list(&state.agent_service, query.category.as_deref()) {
-        Ok(entries) => {
-            let response: Vec<SpecListResponse> = entries
+    let store = state.agent_service.spec_store();
+    let result = match query.category.as_deref() {
+        Some(cat_str) => {
+            let cat = SpecCategory::parse_str(cat_str).unwrap_or(SpecCategory::Domain);
+            store.list_by_category(cat)
+        }
+        None => store.list_all(),
+    };
+    match result {
+        Ok(specs) => {
+            let response: Vec<SpecListResponse> = specs
                 .into_iter()
-                .map(|e| SpecListResponse {
-                    spec_id: e.spec_id,
-                    name: e.name,
-                    category: e.category,
-                    complete: e.complete,
+                .map(|s| {
+                    let complete = s.is_complete();
+                    SpecListResponse {
+                        spec_id: s.id.to_string(),
+                        name: s.name,
+                        category: s.category.as_str().to_string(),
+                        complete,
+                    }
                 })
                 .collect();
             Json(response).into_response()
@@ -145,29 +137,41 @@ pub(crate) async fn get_spec(
     State(state): State<ApiState>,
     Path(spec_id): Path<String>,
 ) -> impl IntoResponse {
-    match SpecService::get_by_id(&state.agent_service, &spec_id) {
-        Ok(detail) => Json(SpecDetailResponse {
-            spec_id: detail.spec_id,
-            name: detail.name,
-            category: detail.category,
-            domain_anchor: detail.domain_anchor,
-            requirements: detail.requirements,
-        })
-        .into_response(),
-        Err(hkask_services::ServiceError::ValidationError { .. }) => (
+    match parse_spec_id(&spec_id) {
+        Ok(id) => {
+            let store = state.agent_service.spec_store();
+            match store.load(id) {
+                Ok(spec) => {
+                    let requirements: Vec<String> = spec
+                        .goals
+                        .iter()
+                        .flat_map(|g| g.criteria.iter().map(|c| c.description.clone()))
+                        .collect();
+                    Json(SpecDetailResponse {
+                        spec_id: spec.id.to_string(),
+                        name: spec.name,
+                        category: spec.category.as_str().to_string(),
+                        domain_anchor: spec.domain_anchor.as_str().to_string(),
+                        requirements,
+                    })
+                    .into_response()
+                }
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "error": e.to_string() })),
+                )
+                    .into_response(),
+            }
+        }
+        Err(msg) => (
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": format!("Invalid spec ID: {spec_id}") })),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": e.to_string() })),
+            Json(serde_json::json!({ "error": msg })),
         )
             .into_response(),
     }
 }
 
-/// Capture a new specification (MDS §3: spec/goal/capture)
+/// Capture a new specification
 #[utoipa::path(
     post,
     path = "/api/specs/capture",
@@ -181,18 +185,23 @@ pub(crate) async fn capture_spec(
     State(state): State<ApiState>,
     Json(req): Json<SpecCaptureRequestDto>,
 ) -> impl IntoResponse {
-    let svc_req = SpecCaptureRequest {
-        name_or_description: req.description,
-        category: None,
-        domain: None,
-        criteria: None,
-        context: req.context,
-    };
-    match SpecService::capture(&state.agent_service, svc_req) {
-        Ok(resp) => Json(serde_json::json!({
-            "goal_id": resp.spec_id,
-            "category": resp.category,
-            "domain_anchor": resp.domain_anchor,
+    let cat = infer_spec_category(req.context.as_deref());
+
+    let mut goal = GoalSpec::new(&req.description);
+    for sentence in req.description.split('.') {
+        let trimmed = sentence.trim();
+        if !trimmed.is_empty() && trimmed.len() < 200 {
+            goal = goal.with_criterion(trimmed);
+        }
+    }
+
+    let spec = Spec::new(&req.description, cat, DomainAnchor::Hkask).with_goal(goal);
+    let store = state.agent_service.spec_store();
+    match store.save(&spec) {
+        Ok(()) => Json(serde_json::json!({
+            "goal_id": spec.id.to_string(),
+            "category": spec.category.as_str(),
+            "domain_anchor": spec.domain_anchor.as_str(),
             "requirements": Vec::<String>::new(),
         }))
         .into_response(),
@@ -204,7 +213,7 @@ pub(crate) async fn capture_spec(
     }
 }
 
-/// Get specification collection coherence (MDS §3: spec/graph/coherence)
+/// Get specification collection coherence
 #[utoipa::path(
     get,
     path = "/api/specs/coherence",
@@ -214,22 +223,53 @@ pub(crate) async fn capture_spec(
     ),
 )]
 pub(crate) async fn get_coherence(State(state): State<ApiState>) -> impl IntoResponse {
-    match SpecService::category_coverage(&state.agent_service) {
-        Ok(r) => Json(SpecCoherenceResponse {
-            coherence_score: r.coherence_score,
-            violations: r.violations,
-            suggestions: r.suggestions,
+    let store = state.agent_service.spec_store();
+    let specs = match store.list_all() {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": e.to_string() })),
+            )
+                .into_response();
+        }
+    };
+
+    if specs.is_empty() {
+        return Json(SpecCoherenceResponse {
+            coherence_score: 0.0,
+            violations: vec!["No specifications in collection".to_string()],
+            suggestions: SpecCategory::all()
+                .iter()
+                .map(|c| format!("Missing category: {}", c.as_str()))
+                .collect(),
         })
-        .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": e.to_string() })),
-        )
-            .into_response(),
+        .into_response();
     }
+
+    let covered: std::collections::HashSet<SpecCategory> =
+        specs.iter().map(|s| s.category).collect();
+    let missing: Vec<String> = SpecCategory::all()
+        .iter()
+        .filter(|c| !covered.contains(c))
+        .map(|c| format!("Missing category: {}", c.as_str()))
+        .collect();
+    let covered_count = SpecCategory::all().len() - missing.len();
+    let coherence_score = covered_count as f64 / SpecCategory::all().len() as f64;
+
+    Json(SpecCoherenceResponse {
+        coherence_score,
+        violations: missing,
+        suggestions: if coherence_score < 1.0 {
+            vec!["Add at least one specification per MDS category".to_string()]
+        } else {
+            vec![]
+        },
+    })
+    .into_response()
 }
 
-/// Get writing quality assessment for a spec (MDS §3: spec/require/writing-quality)
+/// Get writing quality assessment for a spec
 #[utoipa::path(
     get,
     path = "/api/specs/{spec_id}/writing-quality",
@@ -245,21 +285,45 @@ pub(crate) async fn get_writing_quality(
     State(state): State<ApiState>,
     Path(spec_id): Path<String>,
 ) -> impl IntoResponse {
-    match SpecService::structural_quality_check(&state.agent_service, &spec_id) {
-        Ok(q) => Json(SpecWritingQualityResponse {
-            dimensions_passing: q.dimensions_passing,
-            meets_publication_standard: q.meets_publication_standard,
-        })
-        .into_response(),
-        Err(hkask_services::ServiceError::ValidationError { .. }) => (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": format!("Invalid spec ID: {spec_id}") })),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+    let id = match parse_spec_id(&spec_id) {
+        Ok(id) => id,
+        Err(msg) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": msg })),
+            )
+                .into_response();
+        }
+    };
+    let store = state.agent_service.spec_store();
+    let spec = match store.load(id) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": e.to_string() })),
+            )
+                .into_response();
+        }
+    };
+
+    let dimensions = [
+        !spec.name.is_empty(),
+        true, // has_category
+        !spec.goals.iter().all(|g| g.criteria.is_empty()),
+        spec.is_complete(),
+    ];
+    let dimensions_passing = dimensions.iter().filter(|&&p| p).count();
+
+    Json(SpecWritingQualityResponse {
+        dimensions_passing,
+        meets_publication_standard: dimensions_passing == dimensions.len(),
+    })
+    .into_response()
+}
+
+fn parse_spec_id(s: &str) -> Result<hkask_storage::spec_types::SpecId, String> {
+    uuid::Uuid::parse_str(s)
+        .map(hkask_storage::spec_types::SpecId)
+        .map_err(|_| format!("Invalid spec ID '{}'", s))
 }

@@ -1041,7 +1041,7 @@ Representative domains:
 - `CnsService` — CNS health, alerts, variety, budget queries
 - `KeystoreService` — key management and signing operations
 - `WalletService` — wallet operation orchestration
-- `BackupService`, `BundleService`, `ChatService`, `ComposeService`, `CuratorService`, `DiscoverService`, `EmbedService`, `GoalService`, `KataEngine`, `OnboardingService`, `PodService`, `SchedulerService`, `SkillService`, `SovereigntyService`, `SpecService`, `VerificationService`
+- `BackupService`, `BundleService`, `ChatService`, `ComposeService`, `CuratorService`, `DiscoverService`, `EmbedService`, `GoalService`, `KataEngine`, `OnboardingService`, `PodService`, `SchedulerService`, `SkillService`, `SovereigntyService`, `VerificationService`
 - Service registration pattern: all services are discovered, not coupled
 
 ### 3.8 Agents (`hkask-agents`)
@@ -1466,7 +1466,7 @@ The following items are identified but deferred. They are documented here to pre
 
 ### 3. ER Diagram → Code Synchronization
 
-ER diagrams in `FUNCTIONAL_SPECIFICATION.md` §2–§4 are documentation artifacts; they can drift from the actual type definitions in `hkask-types`. A future `spec/graph/query` tool extension could verify diagram-to-code alignment automatically. This requires the MDS spec server to parse Rust type definitions.
+ER diagrams in `FUNCTIONAL_SPECIFICATION.md` §2–§4 are documentation artifacts; they can drift from the actual type definitions in `hkask-types`. A future graph query tool could verify diagram-to-code alignment automatically by parsing Rust type definitions.
 
 ### 4. Deployment Domain Implementation
 

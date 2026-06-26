@@ -8,11 +8,168 @@ use serde::{Deserialize, Serialize};
 
 pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Ontology Anchoring (P5.2 / P5.4 / P8.1)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Domain ontology tier for content produced by an MCP tool.
+///
+/// Every piece of content in hKask exists within the 3-tier ontology
+/// architecture. The condenser uses this to apply domain-aware saliency
+/// weighting — different ontologies carry different confidence baselines
+/// and information density expectations.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OntologyAnchor {
+    /// Universal 5W1H core — no domain supplement (P5.2 default ground).
+    /// Content anchored only to Who/What/When/Where/Why/How.
+    #[serde(rename = "core")]
+    Core,
+    /// Process axis (PKO) or state axis (DC+BIBO) — dual-axis framework (P5.4).
+    /// `concept` is the canonical concept URI, e.g. "pko:StepExecution" or "bibo:Article".
+    DualAxis { axis: OntologyAxis, concept: String },
+    /// Domain supplement — FIBO, GOLEM, CogAT, ML-Schema, or OMC (P8.1).
+    /// Layered on top of the dual-axis core for domain-specific precision.
+    DomainSupplement {
+        namespace: OntologyNamespace,
+        concept: String,
+    },
+}
+
+impl OntologyAnchor {
+    /// Return the confidence modifier for this ontology tier (per pragmatic-semantics §Domain Ontology Anchoring).
+    /// FIBO: +0.10 (OMG standard, high adoption)
+    /// CogAT: -0.10 (metaphorical mapping)
+    /// Others: ±0.00 (standard baseline)
+    pub fn confidence_modifier(&self) -> f64 {
+        match self {
+            OntologyAnchor::Core => 0.0,
+            OntologyAnchor::DualAxis { .. } => 0.0,
+            OntologyAnchor::DomainSupplement { namespace, .. } => match namespace {
+                OntologyNamespace::Fibo => 0.10,
+                OntologyNamespace::Cogat => -0.10,
+                _ => 0.0,
+            },
+        }
+    }
+
+    /// Return the information density expectation for this ontology tier.
+    /// Higher values = more information per token; condenser should be more conservative.
+    /// FIBO financial data: dense numerical content, high precision needed → higher retention
+    /// CogAT metaphorical: semantic meaning over exact wording → standard retention
+    /// PKO process: status transitions matter → standard retention
+    pub fn density_factor(&self) -> f64 {
+        match self {
+            OntologyAnchor::Core => 1.0,
+            OntologyAnchor::DualAxis { axis, .. } => match axis {
+                OntologyAxis::Pko => 1.0,    // process steps: standard density
+                OntologyAxis::DcBibo => 1.0, // entity metadata: standard density
+            },
+            OntologyAnchor::DomainSupplement { namespace, .. } => match namespace {
+                OntologyNamespace::Fibo => 1.3, // financial data: higher information density
+                OntologyNamespace::Cogat => 0.9, // metaphorical: preserve semantic meaning
+                OntologyNamespace::Golem => 1.0, // narrative: standard density
+                OntologyNamespace::MlSchema => 1.1, // ML experiments: structured data
+                OntologyNamespace::Omc => 1.0,  // media metadata: standard density
+            },
+        }
+    }
+
+    /// Which axis of the dual-axis framework this anchor belongs to (P5.4).
+    pub fn axis(&self) -> Option<OntologyAxis> {
+        match self {
+            OntologyAnchor::Core => None,
+            OntologyAnchor::DualAxis { axis, .. } => Some(*axis),
+            OntologyAnchor::DomainSupplement { .. } => None, // domain supplements are beyond dual-axis
+        }
+    }
+
+    /// Human-readable label for the ontology tier.
+    pub fn tier_label(&self) -> &str {
+        match self {
+            OntologyAnchor::Core => "5w1h_core",
+            OntologyAnchor::DualAxis { .. } => "dual_axis",
+            OntologyAnchor::DomainSupplement { .. } => "domain_supplement",
+        }
+    }
+}
+
+impl Default for OntologyAnchor {
+    fn default() -> Self {
+        OntologyAnchor::Core
+    }
+}
+
+/// Which axis of the dual-axis ontological framework (P5.4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OntologyAxis {
+    /// Process (flow) axis — PKO: how did this come to be?
+    Pko,
+    /// State (entity) axis — Dublin Core + BIBO: what is this?
+    DcBibo,
+}
+
+/// Domain supplement namespace — which domain-specific ontology bridge (P8.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OntologyNamespace {
+    /// Financial Industry Business Ontology (companies server)
+    Fibo,
+    /// GOLEM narrative ontology (replica server)
+    Golem,
+    /// Cognitive Atlas (memory server)
+    Cogat,
+    /// ML-Schema (training server)
+    MlSchema,
+    /// MovieLabs Ontology for Media Creation (media server)
+    Omc,
+}
+
+impl std::str::FromStr for OntologyNamespace {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "fibo" => Ok(OntologyNamespace::Fibo),
+            "golem" => Ok(OntologyNamespace::Golem),
+            "cogat" => Ok(OntologyNamespace::Cogat),
+            "mlschema" | "ml_schema" | "ml-schema" => Ok(OntologyNamespace::MlSchema),
+            "omc" => Ok(OntologyNamespace::Omc),
+            _ => Err(format!("Unknown ontology namespace: {s}")),
+        }
+    }
+}
+
+impl std::fmt::Display for OntologyNamespace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OntologyNamespace::Fibo => write!(f, "fibo"),
+            OntologyNamespace::Golem => write!(f, "golem"),
+            OntologyNamespace::Cogat => write!(f, "cogat"),
+            OntologyNamespace::MlSchema => write!(f, "mlschema"),
+            OntologyNamespace::Omc => write!(f, "omc"),
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Request Types
+// ═══════════════════════════════════════════════════════════════════════════
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CompressRequest {
     pub tool_name: String,
     pub output: String,
     pub category: Option<String>,
+    /// Domain ontology anchor for type-aware saliency weighting (P5.2/P5.4/P8.1).
+    /// Maps the tool's output to a specific concept in the 3-tier ontology architecture.
+    /// When set, the condenser applies domain-aware retention and scoring.
+    #[serde(default)]
+    pub ontology_anchor: Option<OntologyAnchor>,
+    /// Which MCP subsystem produced this output (e.g., "companies", "memory", "replica").
+    /// Provides subsystem-level context for ontology-aware categorization.
+    #[serde(default)]
+    pub subsystem: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -172,6 +329,10 @@ pub struct CompressedOutput {
     pub original_bytes: usize,
     pub compressed_bytes: usize,
     pub reduction_pct: f64,
+    /// Domain ontology anchor that informed saliency scoring (P8.1).
+    /// Present when the request included an ontology_anchor.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ontology_anchor: Option<OntologyAnchor>,
     /// Health signals — populated when algorithmic behavior is unexpected.
     /// Absent means the compression ran within expected bounds.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -428,5 +589,224 @@ mod tests {
             let parsed: ContextCategory = label.parse().unwrap();
             assert_eq!(parsed, *cat, "round-trip failed for {cat:?}");
         }
+    }
+
+    // ── Ontology Anchor Tests (P5.2/P5.4/P8.1) ───────────────────────────
+
+    #[test]
+    fn ontology_anchor_confidence_modifiers() {
+        // Core and DualAxis have no modifier
+        assert!((OntologyAnchor::Core.confidence_modifier() - 0.0).abs() < 0.001);
+        assert!(
+            (OntologyAnchor::DualAxis {
+                axis: OntologyAxis::Pko,
+                concept: "pko:StepExecution".into()
+            }
+            .confidence_modifier()
+                - 0.0)
+                .abs()
+                < 0.001
+        );
+
+        // FIBO: +0.10 (OMG standard, high adoption)
+        assert!(
+            (OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Fibo,
+                concept: "fibo:Corporation".into()
+            }
+            .confidence_modifier()
+                - 0.10)
+                .abs()
+                < 0.001
+        );
+
+        // CogAT: -0.10 (metaphorical mapping)
+        assert!(
+            (OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Cogat,
+                concept: "cogat:episodic_memory".into()
+            }
+            .confidence_modifier()
+                - (-0.10))
+                .abs()
+                < 0.001
+        );
+
+        // GOLEM, ML-Schema, OMC: ±0.00 (standard)
+        assert!(
+            (OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Golem,
+                concept: "golem:Character".into()
+            }
+            .confidence_modifier()
+                - 0.0)
+                .abs()
+                < 0.001
+        );
+    }
+
+    #[test]
+    fn ontology_anchor_density_factors() {
+        // FIBO financial data: densest (1.3x retention)
+        assert!(
+            (OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Fibo,
+                concept: "fibo:Corporation".into()
+            }
+            .density_factor()
+                - 1.3)
+                .abs()
+                < 0.001
+        );
+
+        // CogAT metaphorical: lowest density (0.9x — preserve semantic meaning)
+        assert!(
+            (OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Cogat,
+                concept: "cogat:salience".into()
+            }
+            .density_factor()
+                - 0.9)
+                .abs()
+                < 0.001
+        );
+
+        // PKO/DC: standard (1.0x)
+        assert!(
+            (OntologyAnchor::DualAxis {
+                axis: OntologyAxis::Pko,
+                concept: "pko:StepExecution".into()
+            }
+            .density_factor()
+                - 1.0)
+                .abs()
+                < 0.001
+        );
+
+        // Core: standard (1.0x)
+        assert!((OntologyAnchor::Core.density_factor() - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn ontology_anchor_tier_labels() {
+        assert_eq!(OntologyAnchor::Core.tier_label(), "5w1h_core");
+        assert_eq!(
+            OntologyAnchor::DualAxis {
+                axis: OntologyAxis::Pko,
+                concept: "pko:Step".into()
+            }
+            .tier_label(),
+            "dual_axis"
+        );
+        assert_eq!(
+            OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Fibo,
+                concept: "fibo:Corporation".into()
+            }
+            .tier_label(),
+            "domain_supplement"
+        );
+    }
+
+    #[test]
+    fn ontology_anchor_axis_detection() {
+        assert_eq!(OntologyAnchor::Core.axis(), None);
+        assert_eq!(
+            OntologyAnchor::DualAxis {
+                axis: OntologyAxis::Pko,
+                concept: "pko:Step".into()
+            }
+            .axis(),
+            Some(OntologyAxis::Pko)
+        );
+        assert_eq!(
+            OntologyAnchor::DualAxis {
+                axis: OntologyAxis::DcBibo,
+                concept: "bibo:Article".into()
+            }
+            .axis(),
+            Some(OntologyAxis::DcBibo)
+        );
+    }
+
+    #[test]
+    fn ontology_namespace_parsing() {
+        assert_eq!(
+            "fibo".parse::<OntologyNamespace>().unwrap(),
+            OntologyNamespace::Fibo
+        );
+        assert_eq!(
+            "golem".parse::<OntologyNamespace>().unwrap(),
+            OntologyNamespace::Golem
+        );
+        assert_eq!(
+            "cogat".parse::<OntologyNamespace>().unwrap(),
+            OntologyNamespace::Cogat
+        );
+        assert_eq!(
+            "mlschema".parse::<OntologyNamespace>().unwrap(),
+            OntologyNamespace::MlSchema
+        );
+        assert_eq!(
+            "ml_schema".parse::<OntologyNamespace>().unwrap(),
+            OntologyNamespace::MlSchema
+        );
+        assert_eq!(
+            "omc".parse::<OntologyNamespace>().unwrap(),
+            OntologyNamespace::Omc
+        );
+        assert!("unknown".parse::<OntologyNamespace>().is_err());
+    }
+
+    #[test]
+    fn ontology_namespace_display_roundtrip() {
+        let namespaces = [
+            OntologyNamespace::Fibo,
+            OntologyNamespace::Golem,
+            OntologyNamespace::Cogat,
+            OntologyNamespace::MlSchema,
+            OntologyNamespace::Omc,
+        ];
+        for ns in &namespaces {
+            let s = ns.to_string();
+            let parsed: OntologyNamespace = s.parse().unwrap();
+            assert_eq!(parsed, *ns, "round-trip failed for {ns:?}");
+        }
+    }
+
+    #[test]
+    fn compress_request_defaults_ontology_to_none() {
+        let req: CompressRequest =
+            serde_json::from_str(r#"{"tool_name": "test", "output": "hello"}"#).unwrap();
+        assert_eq!(req.ontology_anchor, None);
+        assert_eq!(req.subsystem, None);
+    }
+
+    #[test]
+    fn compress_request_parses_ontology_anchor() {
+        let req: CompressRequest = serde_json::from_str(
+            r#"{
+                "tool_name": "company_profile",
+                "output": "AAPL market cap 3.2T",
+                "category": "structured_data",
+                "ontology_anchor": {
+                    "domain_supplement": {
+                        "namespace": "fibo",
+                        "concept": "fibo:MarketCapitalization"
+                    }
+                },
+                "subsystem": "companies"
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(req.category.as_deref(), Some("structured_data"));
+        assert_eq!(req.subsystem.as_deref(), Some("companies"));
+        assert_eq!(
+            req.ontology_anchor,
+            Some(OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Fibo,
+                concept: "fibo:MarketCapitalization".into()
+            })
+        );
     }
 }

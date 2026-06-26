@@ -21,7 +21,7 @@ A procedural composition skill. Finds the path of least action through meaning-s
 | **Convergence** | δS = 0 — no further action reduction on repeat pass |
 | **Max iterations** | 3, then escalate |
 
-**Note on composition edges:** The "Draws on" skills describe the *methodology* applied within the lazy-loop phases. The `pragmatic-laziness-flow.j2` template is self-contained — it inlines the phase methodology descriptions rather than delegating to other skill templates at runtime. This is by design for template sandboxing. The composition edges are guidance for the human/agent practitioner applying the methodology, not machine-executable template dispatch.
+**Note on composition edges:** The "Draws on" skills describe the *methodology* applied within the lazy-loop phases. As of v0.31.0, the monolithic `pragmatic-laziness-flow.j2` has been decomposed into three phase-level KnowAct templates (`lazy-decompose.j2`, `lazy-identify-loops.j2`, `lazy-stationary-action.j2`) wired as separate PDCA steps in the manifest. Each phase receives structured outputs from the prior phase, giving the PDCA engine per-phase observability. The composition with pragmatic-semantics, pragmatic-cybernetics, essentialist, and grill-me remains methodological guidance (not machine-executable template delegation).
 
 ## Trigger Conditions
 
@@ -89,11 +89,13 @@ The laziest path is not always the most obvious one. The curve of fastest descen
 This skill's runtime templates live in `registry/templates/pragmatic-laziness/`:
 
 | Template | Type | Purpose |
-|----------|------|---------|
-| `pragmatic-laziness-flow.j2` | KnowAct | Cover the 3-phase cascade through semantics → cybernetics → essentialist + grill-me territory, loop until δS = 0 |
-| `pragmatic-laziness-converge.j2` | KnowAct | δS = 0 check: compare current configuration to previous; has action reached stationary point? |
+|----------|------|--------|
+| `lazy-decompose.j2` | KnowAct | Phase 1: Decompose into syntax/semantics/pragmatics via Morris's Triad |
+| `lazy-identify-loops.j2` | KnowAct | Phase 2: Identify feedback loops and effort hotspots |
+| `lazy-stationary-action.j2` | KnowAct | Phase 3: Apply deletion test + brachistochrone rule to find least-action configuration |
+| `pragmatic-laziness-converge.j2` | KnowAct | δS = 0 stationarity check between iterations |
 
-Two templates. The skill is lazy.
+Convergence metering delegates to `shared/convergence-check.j2`.
 
 ## When to Use This Skill
 
@@ -127,5 +129,5 @@ Two templates. The skill is lazy.
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 2 rJ (manifest `rjoule.cap` — see `registry/manifests/pragmatic-laziness.yaml` for canonical value)
+- **rJoule (inference energy):** cap 3 rJ (manifest `rjoule.cap` — see `registry/manifests/pragmatic-laziness.yaml` for canonical value)
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

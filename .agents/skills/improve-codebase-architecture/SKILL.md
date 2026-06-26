@@ -18,8 +18,10 @@ This skill's runtime templates live in `registry/templates/improve-codebase-arch
 |----------|------|--------|
 | `arch-explore.j2` | KnowAct | Explore codebase for architectural friction: shallow modules, tight coupling |
 | `arch-candidates.j2` | KnowAct | Present deepening candidates with recommendation strength |
-| `arch-deepen.j2` | KnowAct | Walk the design tree for a selected candidate, define deepened module shape (wired into flow v0.31.0; was orphaned) |
-| `arch-convergence-check.j2` | KnowAct | Compute normalized convergence metric for architecture deepening cycles |
+| `arch-deepen.j2` | KnowAct | Walk the design tree for a selected candidate, define deepened module shape |
+| `arch-route.j2` | KnowAct | Route deepened design to refactoring execution (strangler-fig / refactor-service-layer / diagnose) |
+
+Convergence metering delegates to `shared/convergence-check.j2`.
 
 The SKILL.md (this file) teaches the Zed coding agent the architecture-improvement methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
 

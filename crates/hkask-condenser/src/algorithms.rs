@@ -35,12 +35,14 @@ pub trait CondenserAlgorithm: Send + Sync {
     fn description(&self) -> &str;
     fn default_for(&self) -> &[ContextCategory];
     /// Compress the input and return (compressed_content, health_signals).
+    /// `ontology_anchor` provides domain context for saliency weighting (P8.1).
     /// Health signals are empty when the algorithm performed within expected bounds.
     fn compress(
         &self,
         input: &str,
         profile: Profile,
         category: ContextCategory,
+        ontology_anchor: Option<&OntologyAnchor>,
     ) -> (String, Vec<CondenserHealthSignal>);
 }
 
@@ -65,6 +67,7 @@ impl CondenserAlgorithm for RtkStyleAlgorithm {
         input: &str,
         profile: Profile,
         _category: ContextCategory,
+        _ontology_anchor: Option<&OntologyAnchor>,
     ) -> (String, Vec<CondenserHealthSignal>) {
         let lines: Vec<&str> = input.lines().collect();
         let (budget, passthrough) = compute_budget(lines.len(), profile);
@@ -72,7 +75,11 @@ impl CondenserAlgorithm for RtkStyleAlgorithm {
             return (input.to_string(), vec![]);
         }
 
-        let head_count = (budget as f64 * 0.3) as usize;
+        // Ontology-aware head/tail split: FIBO financial data gets more tail
+        // (summary/conclusion often carries key financial ratios)
+        let density_factor = _ontology_anchor.map(|a| a.density_factor()).unwrap_or(1.0);
+        let head_ratio = (0.3 / density_factor).clamp(0.15, 0.5);
+        let head_count = (budget as f64 * head_ratio) as usize;
         let tail_count = budget.saturating_sub(head_count);
 
         let mut filtered: Vec<&str> = Vec::new();
@@ -128,7 +135,113 @@ impl SaliencyRankAlgorithm {
         freq.into_iter().map(|(k, v)| (k, v as f64 / t)).collect()
     }
 
-    fn line_score(line: &str, freq: &std::collections::HashMap<String, f64>) -> f64 {
+    /// Compute a domain-aware structural bonus based on ontology anchoring (P8.1).
+    /// Different ontologies prioritize different signal types:
+    /// - FIBO financial: numeric precision, ratios, percentages
+    /// - CogAT cognitive: memory processes, recall, encoding, consolidation keywords
+    /// - PKO process: status transitions, verification steps, error handling
+    /// - GOLEM narrative: character names, dialogue markers, scene descriptors
+    fn ontology_bonus(line: &str, anchor: Option<&OntologyAnchor>) -> f64 {
+        match anchor {
+            Some(OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Fibo,
+                ..
+            }) => {
+                // FIBO: prioritize financial precision — numbers, ratios, percentages
+                if line.contains('%')
+                    || line.contains('$')
+                    || line.chars().any(|c| c.is_ascii_digit())
+                {
+                    0.5
+                } else if line.contains("ratio")
+                    || line.contains("margin")
+                    || line.contains("growth")
+                    || line.contains("value")
+                {
+                    0.3
+                } else {
+                    0.0
+                }
+            }
+            Some(OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Cogat,
+                ..
+            }) => {
+                // CogAT: preserve semantic meaning over exact wording
+                if line.contains("memory")
+                    || line.contains("recall")
+                    || line.contains("encoding")
+                    || line.contains("salience")
+                    || line.contains("consolidation")
+                    || line.contains("forgetting")
+                    || line.contains("chunking")
+                {
+                    0.4
+                } else if line.contains("episodic") || line.contains("semantic") {
+                    0.3
+                } else {
+                    0.0
+                }
+            }
+            Some(OntologyAnchor::DualAxis {
+                axis: OntologyAxis::Pko,
+                ..
+            }) => {
+                // PKO process: prioritize status transitions and verification
+                if line.contains("status")
+                    || line.contains("verify")
+                    || line.contains("execution")
+                    || line.contains("step")
+                {
+                    0.3
+                } else if line.contains("error") || line.contains("issue") {
+                    0.4
+                } else {
+                    0.0
+                }
+            }
+            Some(OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::Golem,
+                ..
+            }) => {
+                // GOLEM: narrative structure — characters, events, settings
+                if line.contains("character")
+                    || line.contains("narrative")
+                    || line.contains("scene")
+                    || line.contains("event")
+                {
+                    0.3
+                } else {
+                    0.0
+                }
+            }
+            Some(OntologyAnchor::DomainSupplement {
+                namespace: OntologyNamespace::MlSchema,
+                ..
+            }) => {
+                // ML-Schema: structured data — metrics, hyperparameters
+                if line.contains("accuracy")
+                    || line.contains("loss")
+                    || line.contains("epoch")
+                    || line.contains("learning_rate")
+                    || line.contains("batch")
+                    || line.contains("evaluation")
+                    || line.chars().any(|c| c.is_ascii_digit())
+                {
+                    0.3
+                } else {
+                    0.0
+                }
+            }
+            _ => 0.0, // Core, OMC, or DualAxis::DcBibo: no domain-specific bonus
+        }
+    }
+
+    fn line_score(
+        line: &str,
+        freq: &std::collections::HashMap<String, f64>,
+        anchor: Option<&OntologyAnchor>,
+    ) -> f64 {
         let words: Vec<&str> = line.split_whitespace().filter(|w| w.len() > 2).collect();
         if words.is_empty() {
             return 0.0;
@@ -151,7 +264,10 @@ impl SaliencyRankAlgorithm {
                 0.0
             };
 
-        tf_sum / words.len() as f64 + structural_bonus
+        // Domain-aware ontology bonus (P8.1) — stacked on top of structural bonus
+        let ontology_bonus = Self::ontology_bonus(line, anchor);
+
+        tf_sum / words.len() as f64 + structural_bonus + ontology_bonus
     }
 }
 

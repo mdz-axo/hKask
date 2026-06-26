@@ -626,24 +626,6 @@ pub enum SpecAction {
         #[arg(short, long)]
         spec_id: Option<String>,
     },
-    TestInvariant {
-        #[arg(short, long)]
-        spec_id: String,
-        #[arg(short, long)]
-        seam: String,
-        #[arg(short, long)]
-        invariant: String,
-        #[arg(short, long, default_value = "PublicInterface")]
-        category: String,
-        #[arg(short, long)]
-        cycle: Option<String>,
-    },
-    TestVerify {
-        #[arg(short, long)]
-        seam: Option<String>,
-        #[arg(short, long)]
-        category: Option<String>,
-    },
 }
 
 /// Style subcommands — compose prose or embed corpora
@@ -1105,5 +1087,11 @@ pub enum QaAction {
         /// Path to QA script manifest YAML
         #[arg(short, long)]
         script: PathBuf,
+    },
+    /// Validate specifications against MDS curator criteria
+    SpecCheck {
+        /// Optional spec ID to check a single spec; omit for full collection check
+        #[arg(short, long)]
+        spec_id: Option<String>,
     },
 }

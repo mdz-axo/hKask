@@ -100,7 +100,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | Subcrate | Domain | Contract Prefix | Count | Status |
 |----------|--------|----------------|-------|--------|
-| `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, contacts, curator, experience, goals, pods, scheduler, skills, spec | `P{N}-svc-{domain}-*` | 102 | ✅ Realigned |
+| `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, contacts, curator, experience, goals, pods, scheduler, skills | `P{N}-svc-{domain}-*` | 102 | ✅ Realigned |
 | `hkask-services-backup` | GitCAS operational backup | `P{N}-svc-backup-*` | 39 | ✅ Realigned |
 | `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | ✅ Realigned |
 | `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | ✅ Realigned |
@@ -144,49 +144,81 @@ curated?(G) :=
 
 A goal-set G is **MDS-complete** iff `complete?(G, c)` holds for all 5 categories **and** `curated?(G)` holds.
 
-Curation decisions (Accept/Revise/Reject) are made by the Curator or human — not by a tool in the spec server. The spec server validates coherence; the Curator makes decisions.
+Curation decisions (Accept/Revise/Reject) are made by the Curator or human — not by any automated tool. The QA system validates coherence; the Curator makes decisions.
 
 [^hoare-triple]: Hoare, C.A.R. "An Axiomatic Basis for Computer Programming." *Communications of the ACM*, 1969. — The {P} C {Q} Hoare triple that inspires MDS's completeness predicate: precondition → command → postcondition.
 
 ---
 
-## 4. Spec Tool Surface (`hkask-mcp-spec`)
+## 4. Spec Operations & QA Integration
 
-Five MDS core tools (capture, decompose, writing-quality, graph/query, graph/coherence) plus seven contract/infrastructure tools (replica-rewrite, contract-audit, contract-propose, contract-accept, contract-reject, contract-list, test-run) — 12 total. Implemented in `hkask-mcp-spec` as a thin MCP wrapper; all business logic delegated to `hkask_services::SpecService` and `hkask_storage::spec_ops`. OCAP-gated. Curation decisions remain external to the spec server.
+Specifications are managed through three surfaces, following the MCP≡CLI≡API equivalence axiom:
 
-### Core MDS Tools (5)
+### 4.1 CLI Surface (`kask spec`)
 
-| # | Tool | Input | Output | Status |
-|---|------|-------|--------|----------------|--------|
-| 1 | `spec/goal/capture` | `{description, context}` | `{goal_id, requirements[], ocap_boundaries}` | ✅ Implemented |
-| 2 | `spec/goal/decompose` | `{goal_id}` | `{sub_goals[], dependencies[]}` | ✅ Implemented |
-| 3 | `spec/require/writing-quality` | `{spec_id}` | `{dimensions_passing, meets_publication_standard}` | ✅ Implemented |
-| 4 | `spec/graph/query` | `{query, depth}` | `{nodes[], edges[], paths[]}` | ✅ Implemented |
-| 5 | `spec/graph/coherence` | `{collection_id}` | `{coherence_score, violations[], suggestions[]}` | ✅ Implemented |
+Thin passthrough to `SpecStore` in `hkask-storage`. No intermediate service layer — the CLI builds `Spec` domain objects and persists them directly.
 
-### Additional Tool Surfaces
+| Command | Operation | Delegate |
+|---------|-----------|----------|
+| `kask spec capture` | Create a spec with name, category, domain, criteria | `SpecStore::save()` |
+| `kask spec list` | List specs, optionally filtered by MDS category | `SpecStore::list_all()` / `list_by_category()` |
+| `kask spec validate` | Evaluate a single spec via `DefaultSpecCurator::evaluate()` | Curator agent |
+| `kask spec cultivate` | Validate + display per-category coherence requirements | Curator agent |
+| `kask spec render` | Render a spec through a Jinja2 template | `minijinja` + `SpecStore::load()` |
 
-#### Extended Spec Tools (7)
+### 4.2 API Surface
 
-| Tool | Domain | Status |
-|------|--------|--------|
-| `spec/replica/rewrite` | Gentle-Lovelace replica-guided prose rewriting | ✅ Implemented |
-| `contract/audit` | Discover uncontracted public functions per crate | ✅ Implemented |
-| `contract/propose` | Submit behavioral contract for Curator review | ✅ Implemented |
-| `contract/accept` | Human consent gate — accept proposed contract | ✅ Implemented |
-| `contract/reject` | Reject proposed contract with rationale | ✅ Implemented |
-| `contract/list` | List contract proposals and review status | ✅ Implemented |
-| `test/run` | Run cargo test with REQ-tagged contract violation reporting | ✅ Implemented |
+REST endpoints in `hkask-api` read and write specs directly through `AgentService::spec_store()`. Same `SpecStore` backend, same domain types, no service-layer intermediary.
 
-These 7 tools extend the 5 MDS core tools to a total of 12. All delegate to `hkask_services::SpecService`.
+| Endpoint | Operation |
+|----------|----------|
+| `GET /api/specs` | List specs with optional category filter |
+| `GET /api/specs/{id}` | Get spec detail with requirements |
+| `POST /api/specs/capture` | Capture a spec from description + context |
+| `GET /api/specs/coherence` | Category coverage ratio across all specs |
+| `GET /api/specs/{id}/writing-quality` | Structural quality check (name, criteria, completeness) |
+
+### 4.3 QA Integration (`kask qa spec-check`)
+
+Spec validation, coherence checking, and quality assessment moved from the former MCP spec server into the QA system. The QA system's classifier + self-heal pipeline naturally extends to spec health.
+
+| Command | Operation |
+|---------|----------|
+| `kask qa spec-check` | Full collection check: category coverage + per-spec quality |
+| `kask qa spec-check --spec-id <uuid>` | Single-spec validation via `DefaultSpecCurator::evaluate()` |
+
+### 4.4 Replica Integration (`replica_rewrite`)
+
+The Gentle-Lovelace prose rewriting capability moved to `hkask-mcp-replica` as the `replica_rewrite` tool. It takes a passage/code snippet + quality dimension (gentle/schriver/hopper/lovelace/composite) and delegates to `ComposeService::compose()` with dimension-specific prompts.
+
+| Tool | Server | Description |
+|------|--------|-------------|
+| `replica_rewrite` | `hkask-mcp-replica` | Rewrite prose optimized for a Gentle Lovelace quality dimension |
+| `replica_compose` | `hkask-mcp-replica` | Generate prose in any author's style (underlying engine) |
+| `replica_compare` | `hkask-mcp-replica` | Evaluate document against persona centroids (per-dimension scoring) |
+
+### 4.5 The Spec Store
+
+The canonical persistence surface is `hkask_storage::SpecStore` (implemented by `SqliteSpecStore`). All spec operations — CLI, API, and QA — read and write through this single interface. Domain types (`Spec`, `GoalSpec`, `SpecCategory`, `SpecId`) live in `hkask-storage::spec_types`.
+
+```
+CLI ──→ SpecStore ──→ SQLite
+API ──→ SpecStore ──→ SQLite
+QA  ──→ SpecStore ──→ SQLite  (spec-check)
+     ──→ DefaultSpecCurator  (validation)
+```
+
+---
+
+### 4.6 Replica Server Tools
+
+The replica server provides 9 tools for style corpus management, prose generation, and author comparison:
 
 | Server | Tools | Domain | Status |
 |--------|-------|--------|--------|
-| `hkask-mcp-replica` | `replica_build`, `replica_compose`, `replica_mashup`, `replica_compare`, `replica_registry`, `replica_explain` | Style replication | ✅ Implemented |
+| `hkask-mcp-replica` | `replica_build`, `replica_compose`, `replica_rewrite`, `replica_mashup`, `replica_compare`, `replica_registry`, `replica_explain`, `replica_discover`, `replica_cache_work` | Style replication + prose rewriting | ✅ Implemented |
 
-Replica tools compose `EmbedService` and `ComposeService` from `hkask-services` as a third surface (tri-surface pattern: CLI, API, MCP). They enable agent-driven style corpus management, prose generation, centroid-based author comparison, and centroid-interpolated style blending.
-
-### Replicant Architecture
+### 4.7 Replicant Architecture
 
 The replica system models a **human exemplar** — a named individual whose body of work constitutes a representational corpus. The logical validity of the replica derives from the relationship between the human and their work: the corpus *is* the evidence of their voice, style, and intellectual framework. Each passage is a sample of that relationship.
 
@@ -217,7 +249,6 @@ The planned `replica_discover` tool would orchestrate this pipeline:
 4. **Corpus config generation**: Produce a `corpus.yaml` with the discovered works, ready for `replica_build`.
 5. **Embedding and replication**: Standard pipeline from this point forward — chunk, tag, embed, store triples, compute centroid.
 
-[^mcp-spec]: Anthropic. "Model Context Protocol Specification." 2024. https://modelcontextprotocol.io/ — the MCP tool surface model that hkask-mcp-spec implements.
 
 ---
 
@@ -242,15 +273,15 @@ MDS is capability-driven, not constraint-driven:
 
 ```
 MDS_cycle(S, D) :=
-  let G = capture(D)              // Extract goals from domain D (incl. OCAP boundaries)
-  let C = decompose(G)            // Break into sub-goals with dependencies
-  validate writing_quality(S)     // Gate: spec must be readable
-  validate coherence(S)           // Gate: collection must be coherent
-  human_or_curator decides:       // External to spec server
+  let spec = capture(D)            // Build Spec from domain description
+  store.save(spec)                 // Persist via SpecStore
+  curate(spec)                     // Validate via DefaultSpecCurator
+  qa spec-check                    // Category coverage + quality gate
+  human_or_curator decides:        // External governance
     Accept | Revise | Reject
 ```
 
-The spec server handles capture → decompose → quality → coherence. Curation is external.
+Spec capture and listing go through `SpecStore` directly. Validation and curation delegate to `DefaultSpecCurator`. Collection-wide health checks run through `kask qa spec-check`. Curation decisions remain external.
 
 [^beck-tdd]: Beck, Kent. *Test-Driven Development: By Example.* Addison-Wesley, 2003. — The red-green-refactor cycle that MDS's capture→decompose→validate→curate cycle parallels.
 
@@ -487,7 +518,7 @@ bash docs/ci/check-links.sh    # Zero broken cross-references
 
 ---
 
-*MDS v0.28.0 — five categories, five tools, one predicate. Includes documentation structure (absorbed from MDS_SCAFFOLD.md).*
+*MDS v0.32.0 — five categories, SpecStore + QA. Spec server removed; prose rewriting moved to replica server; spec validation folded into QA.*
 
 ---
 
@@ -538,7 +569,7 @@ All 28 fields are **private** and exposed through **individual named accessor me
 
 | Subcrate | Domain | Contract Prefix | Count | Status |
 |----------|--------|----------------|-------|--------|
-| `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, contacts, curator, experience, goals, pods, scheduler, skills, spec | `P{N}-svc-{domain}-*` | 102 | Realigned |
+| `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, contacts, curator, experience, goals, pods, scheduler, skills | `P{N}-svc-{domain}-*` | 102 | Realigned |
 | `hkask-services-backup` | GitCAS operational backup | `P{N}-svc-backup-*` | 39 | Realigned |
 | `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | Realigned |
 | `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | Realigned |

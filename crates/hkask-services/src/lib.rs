@@ -91,7 +91,6 @@ pub mod pods;
 pub mod scheduler;
 pub mod skill;
 pub mod skills;
-pub mod spec;
 
 // ── Internal modules ───────────────────────────────────────────────────
 
@@ -118,10 +117,6 @@ pub use pods::{CreatePodRequest, PodResponse, PodService, PodStatusResponse};
 pub use scheduler::SchedulerService;
 pub use skills::{
     SkillAuditError, SkillAuditReport, SkillAuditor, SkillHealthScore, SkillStatus, TemplateSummary,
-};
-pub use spec::{
-    CoherenceResult, SpecCaptureRequest, SpecCaptureResponse, SpecDetail, SpecListEntry,
-    SpecService, WritingQualityResult,
 };
 
 #[cfg(test)]

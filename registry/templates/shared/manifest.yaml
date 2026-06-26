@@ -21,4 +21,5 @@ templates:
       flag adds a `blockers` array to the output for skills that need it (e.g.,
       refactor-service-layer).
       Used by: pragmatic-semantics, pragmatic-cybernetics, pragmatic-laziness,
-      refactor-service-layer, coding-guidelines, grill-me, improve-codebase-architecture.
+      refactor-service-layer, coding-guidelines, grill-me,
+      improve-codebase-architecture, essentialist.

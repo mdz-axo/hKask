@@ -51,7 +51,7 @@ steps:
     timeout_seconds: 60
     input_mapping:
       task_prompt: "{{ task_prompt }}"
-      quality_criteria: "{{ quality_criteria | default(['accuracy', 'completeness', 'clarity']) }}"
+      quality_criteria: "{{ quality_criteria | default(['accuracy', 'clarity', 'completeness', 'calibration']) }}"
 
   - ordinal: 2
     action: select
@@ -63,7 +63,7 @@ steps:
     input_mapping:
       task_prompt: "{{ task_prompt }}"
       current_output: "{{ step_1_result.output | default('') }}"
-      quality_criteria: "{{ quality_criteria | default(['accuracy', 'completeness', 'clarity']) }}"
+      quality_criteria: "{{ quality_criteria | default(['accuracy', 'clarity', 'completeness', 'calibration']) }}"
       draft_number: "{{ step_1_result.draft_number | default(1) }}"
 
   - ordinal: 3
@@ -77,7 +77,7 @@ steps:
       task_prompt: "{{ task_prompt }}"
       current_output: "{{ step_1_result.output | default('') }}"
       critique: "{{ step_2_result.critique | default([]) }}"
-      quality_criteria: "{{ quality_criteria | default(['accuracy', 'completeness', 'clarity']) }}"
+      quality_criteria: "{{ quality_criteria | default(['accuracy', 'clarity', 'completeness', 'calibration']) }}"
       previous_quality_score: "{{ step_2_result.overall_quality_score | default(step_1_result.initial_quality_score | default(0.0)) }}"
       draft_number: "{{ step_1_result.draft_number | default(1) + 1 }}"
 

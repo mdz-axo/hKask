@@ -354,17 +354,20 @@ Curation: Merge | Revise | Defer | Discard
 
 ## 10. Curation Requirements
 
-### REQ-CUR-001: MDS Specification Tools
+### REQ-CUR-001: MDS Specification Persistence
 
 - **Category:** Curation
-- **Text:** When authoring specifications, I want MCP tools for capture/decompose/curate/validate, so I can follow the MVSDD cycle.
+- **Text:** When authoring specifications, I want CLI/API/QA surfaces to capture, list, validate, and check specs against MDS categories.
 - **Criteria:**
-  - [x] 5 MCP tools in `hkask-mcp-spec`
+  - [x] `kask spec {capture,list,validate,cultivate,render}` CLI commands
+  - [x] `GET/POST /api/specs` REST endpoints
+  - [x] `kask qa spec-check` for collection-wide validation
   - [x] `SpecStore`, `SpecCurator`, `SpecObserver` traits
   - [x] `SqliteSpecStore` implementation
   - [x] `DefaultSpecCurator` implementation
-- **Implementation:** `hkask-mcp-spec` (607 LOC in main.rs), `hkask-storage::spec_types` (trait), `hkask-agents::curator_agent::spec_curator` (impl)
+- **Implementation:** `hkask-storage::spec_types` (domain types), `hkask-storage::spec_store` (persistence), `hkask-agents::curator_agent::spec_curator` (validation), `hkask-cli::commands::qa` (spec-check)
 - **Status:** Implemented
+- **Note:** Former `hkask-mcp-spec` MCP server (12 tools) and `SpecService` service layer removed v0.31.0. Spec operations now call `SpecStore` directly; validation folded into QA; prose rewriting moved to `hkask-mcp-replica::replica_rewrite`.
 - **Curation:** Merge
 
 ### REQ-CUR-002: Curation Decision Gradient

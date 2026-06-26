@@ -1,10 +1,6 @@
 //! Spec operations — pure business logic for spec capture, decomposition,
 //! writing-quality assessment, graph query, and coherence analysis.
 //!
-//! These functions are shared by:
-//! - `hkask-services::SpecService` (CLI/API surface)
-//!
-//!
 //! All functions are pure — no I/O, no async, no side effects.
 //! Storage access, CNS spanning, and inference are handled by callers.
 

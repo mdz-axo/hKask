@@ -208,7 +208,7 @@ rights:
 ```yaml
 depends_on:
   - hkask-inference
-  - hkask-mcp-spec
+  - hkask-storage  # spec types
   - cns-curator-bot
   - memory-curator-bot
 ```
@@ -315,7 +315,7 @@ process_manifest: registry/manifests/my-bot-dispatch.yaml
 # Optional: Dependencies
 depends_on:
   - hkask-inference
-  - hkask-mcp-spec
+  - hkask-storage  # spec types
 
 # Required: Readiness probe
 readiness_probe:
@@ -514,7 +514,7 @@ steps:
     action: execute
     target: memory
     contract:
-       mcp: hkask-mcp-spec
+       mcp: hkask-mcp-replica  # spec operations now in replica + QA
 
   - ordinal: 3
     action: populate
@@ -1092,7 +1092,7 @@ responsibilities:
 depends_on:
   - external-workspace-adapter
   - hkask-inference
-  - hkask-mcp-spec
+  - hkask-storage  # spec types
 
 process_manifest: registry/manifests/bridge-dispatch.yaml
 
