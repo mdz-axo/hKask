@@ -100,7 +100,7 @@ Brief domain context the agent needs.
 | `name` | Yes | kebab-case, matches directory name | Must match `.agents/skills/<name>/` |
 | `visibility` | Yes | `Public` or `Private` | P11 — governs who can discover and load the skill |
 | `description` | Yes | Single line, ~80 chars | Shown in `kask skill list`; must include activation trigger |
-| `activation` | **Yes** | Trigger phrase the user says | The exact words that activate this skill. Must be unique across the corpus. Validated by `skill-manager`. |
+| `activation` | **Yes** | Trigger phrase the user says | The exact words that activate this skill. Must be unique across the corpus. Validated by `skill-maintenance`. |
 
 **No other frontmatter fields are required.** The SKILL.md body is freeform Markdown.
 

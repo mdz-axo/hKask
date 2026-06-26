@@ -39,7 +39,7 @@
 | 3 | **diagnose** | Core Dev | 1.10 | **7.98** |
 | 4 | **pragmatic-semantics** | Reasoning | 0.95 | **7.85** |
 | 5 | **sequential-inquiry** | Reasoning | 0.95 | **7.70** |
-| 6 | rust-expertise | Core Dev | 1.10 | 7.43 |
+| 6 | idiomatic-rust | Core Dev | 1.10 | 7.43 |
 | 7 | deep-module | Core Dev | 1.10 | 7.15 |
 | 8 | essentialist | Reasoning | 0.95 | 7.03 |
 | 9 | pragmatic-laziness | Reasoning | 0.95 | 6.84 |
@@ -58,13 +58,11 @@
 | 22 | structured-extraction | Specialized | 0.65 | 5.20 |
 | 23 | hypothesis-framer | Specialized | 0.65 | 5.07 |
 | 24 | mcda | Specialized | 0.65 | 4.88 |
-| 25 | skill-manager | Meta | 0.75 | 4.80 |
-| 26 | adversarial-red-team | Specialized | 0.65 | 4.78 |
+| 25 | adversarial-red-team | Specialized | 0.65 | 4.78 |
 | 27 | goal-analysis | Specialized | 0.65 | 4.68 |
 | 28 | skill-maintenance | Meta | 0.75 | 4.65 |
-| 29 | skill-discovery | Meta | 0.75 | 4.58 |
-| 30 | skill-bundler | Meta | 0.75 | 4.43 |
-| 31 | skill-logic-audit | Meta | 0.75 | 4.35 |
+| 29 | skill-bundler | Meta | 0.75 | 4.43 |
+| 30 | skill-logic-audit | Meta | 0.75 | 4.35 |
 | 32 | chain-of-density | Specialized | 0.65 | 4.23 |
 | 33 | superforecasting | Specialized | 0.65 | 4.10 |
 | 34 | caveman | Specialized | 0.65 | 4.03 |

@@ -390,10 +390,10 @@ pragmatic-semantics → pragmatic-cybernetics → bug-hunt
 
 ---
 
-### Chain 8: Skill Lifecycle — Discover → Audit → Maintain → Manage → Translate → Bundle
+### Chain 8: Skill Lifecycle — Discover → Audit → Maintain → Translate → Bundle
 
 ```
-skill-discovery → skill-logic-audit → skill-maintenance → skill-translator → skill-bundler
+skill-maintenance → skill-logic-audit → skill-translator → skill-bundler
 ```
 
 All stages are implemented as convergent FlowDef processes (PDCA loops)
@@ -402,10 +402,9 @@ that compose KnowAct/WordAct templates and exit with convergence rails
 
 | Stage | Skill | What happens |
 |-------|-------|-------------|
-| **Discover** | `skill-discovery` | Find capability gaps and evaluate candidate skills |
+| **Discover** | `skill-maintenance` | Find capability gaps and evaluate candidate skills via coverage analysis |
 | **Audit** | `skill-logic-audit` | Check template/manifest logic against explicit goals |
 | **Maintain** | `skill-maintenance` | Detect staleness, drift, and coverage gaps across corpus; manage skill lifecycle |
-| **Manage** | `skill-manager` | Validate and operate lifecycle actions over registry crates |
 | **Translate** | `skill-translator` | Normalize external skill definitions into hKask-compatible form |
 | **Bundle** | `skill-bundler` | Compose validated skills into coherent bundle workflows |
 

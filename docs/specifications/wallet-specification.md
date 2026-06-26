@@ -13,7 +13,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 **Date:** 2026-06-12
 **Project:** hKask v0.28.0
 **Status:** Phases 1–8 complete ✅ — Full wallet subsystem (types, storage, keystore, wallet crate, CNS, services, CLI, API) built and tested
-**Skills applied:** rust-expertise, essentialist, pragmatic-semantics, pragmatic-cybernetics, coding-guidelines
+**Skills applied:** idiomatic-rust, essentialist, pragmatic-semantics, pragmatic-cybernetics, coding-guidelines
 
 ---
 

@@ -233,7 +233,7 @@ Skills that constrain HOW an agent works.
 |-------|---------|---------|
 | `coding-guidelines` | Karpathy's four principles — think first, simplicity, surgical, goal-driven | "use coding-guidelines" |
 | `tdd` | Red-green-refactor with contract grounding | "write tests first", "red-green-refactor" |
-| `rust-expertise` | Idiomatic Rust via Graydon Hoare's design philosophy | "rust expertise", "idiomatic Rust" |
+| `idiomatic-rust` | Idiomatic Rust via Graydon Hoare's design philosophy | "idiomatic rust", "rust expertise" |
 
 ### 4.7 Executive — Diagnostics & Repair
 
@@ -283,9 +283,7 @@ Toyota Kata scientific thinking for agent improvement.
 
 | Skill | Purpose | Trigger |
 |-------|---------|---------|
-| `skill-discovery` | Find and install skills | "find a skill for X" |
-| `skill-manager` | CRUD for the skill corpus | "manage skills" |
-| `skill-maintenance` | Audit skills for staleness, drift, and quality | "audit skills" |
+| `skill-maintenance` | Audit, list, build, install, discover, and manage skills | "audit skills", "manage skills", "find a skill for X" |
 | `skill-translator` | Convert skills between formats | "translate this skill" |
 | `skill-logic-audit` | Audit template logic against stated goals | "audit template logic" |
 | `skill-bundler` | Orchestrate multiple skills into a cohesive bundle | "bundle skills" |
@@ -320,7 +318,7 @@ Don't know which skill you need? Find your problem:
 | Refactor a messy codebase | `improve-codebase-architecture` → `refactor-service-layer` |
 | Migrate from old code to new incrementally | `strangler-fig` |
 | Write tests before code | `tdd` |
-| Write idiomatic Rust | `rust-expertise` |
+| Write idiomatic Rust | `idiomatic-rust` |
 | Enforce coding discipline | `coding-guidelines` |
 | Design a logo | `logo-builder` |
 | Review my own reasoning for gaps | `review` |
@@ -330,7 +328,7 @@ Don't know which skill you need? Find your problem:
 | Improve agent capability through practice | `kata-starter` → `kata-improvement` → `kata-coaching` |
 | Update project documentation | `document-update` |
 | Verify Magna Carta compliance | `magna-carta-verifier` |
-| Audit or manage skills | `skill-maintenance`, `skill-manager`, `skill-discovery` |
+| Audit or manage skills | `skill-maintenance` |
 | Verify sovereignty or consent boundaries | `magna-carta-verifier` |
 
 ---
@@ -390,7 +388,7 @@ zoom-out → caveman (dense mode) → caveman (caveman mode)
 
 ---
 
-## 6. Skill Summary — All 46 Skills
+## 6. Skill Summary — All 45 Skills
 
 | # | Skill | Category | Type | What it does |
 |---|-------|----------|------|-------------|
@@ -419,17 +417,15 @@ zoom-out → caveman (dense mode) → caveman (caveman mode)
 | 27 | `pragmatic-semantics` | Structural Analysis | FlowDef | Epistemic statement classification via convergent semantics loops |
 | 28 | `refactor-service-layer` | Diagnostics | FlowDef | Strangler fig service extraction via convergent verify loops |
 | 29 | `review` | Meta-Cognition | FlowDef | Self-critique reasoning outputs via convergent review loops |
-| 30 | `rust-expertise` | Behavioral Guardrails | FlowDef | Idiomatic Rust design principles via convergent audit/refactor loops |
+| 30 | `idiomatic-rust` | Behavioral Guardrails | FlowDef | Idiomatic Rust design principles via convergent audit/refactor loops |
 | 31 | `scenario-builder` | Decision & Strategy | FlowDef | Schwartz method scenario planning via convergent scenario loops |
 | 32 | `hypothesis-framer` | Decision & Strategy | FlowDef | FINER + PICO research framing via convergent PDCA — question → hypothesis → aims |
 | 33 | `self-critique-revision` | Meta-Cognition | FlowDef | Iterative draft → critique → revise via convergent loops |
 | 34 | `skill-bundler` | Skill Management | FlowDef | Orchestrate skills into bundles via convergent compose→validate loops |
-| 35 | `skill-discovery` | Skill Management | FlowDef | Find and install skills via convergent gap→evaluate loops |
-| 36 | `skill-logic-audit` | Skill Management | FlowDef | Audit template logic via bounded critique→proposal loops |
-| 37 | `skill-maintenance` | Skill Management | FlowDef | Audit skills for staleness/coverage via convergent maintenance loops |
-| 38 | `skill-manager` | Skill Management | FlowDef | Registry-first skill lifecycle management via convergent validation loops |
-| 39 | `skill-translator` | Skill Management | FlowDef | Convert skills between formats via convergent translation loops |
-| 40 | `strangler-fig` | Diagnostics | FlowDef | Incremental architectural migration with convergent step verification |
+| 35 | `skill-logic-audit` | Skill Management | FlowDef | Audit template logic via bounded critique→proposal loops |
+| 36 | `skill-maintenance` | Skill Management | FlowDef | Audit skills for staleness/coverage via convergent maintenance loops |
+| 37 | `skill-translator` | Skill Management | FlowDef | Convert skills between formats via convergent translation loops |
+| 38 | `strangler-fig` | Diagnostics | FlowDef | Incremental architectural migration with convergent step verification |
 | 41 | `structured-extraction` | Extraction/Summarization | FlowDef | Schema-driven extraction via convergent entity/relation/map loops |
 | 42 | `superforecasting` | Decision & Strategy | FlowDef | Tetlock 8-stage calibrated forecasting via convergent pipeline loops |
 | 43 | `tdd` | Behavioral Guardrails | FlowDef | Contract-anchored red-green-refactor via convergent TDD loops |
@@ -529,13 +525,12 @@ Concrete rails currently visible in core meta-skill manifests:
 
 | Skill | Threshold | Improvement ratio | Gas cap |
 |------|----------:|------------------:|--------:|
-| `skill-manager` | `0.15` | `0.10` | `18000` |
 | `skill-maintenance` | `0.15` | `0.10` | `16000` |
-| `skill-discovery` | `0.15` | `0.10` | `16000` |
 | `skill-bundler` | `0.10` | `0.10` | `16000` |
 | `skill-translator` (`skill-translation` manifest) | `0.15` | `0.10` | `14000` |
 | `skill-logic-audit` | `0.10` | `0.10` | `12000` |
 | `improv` | `0.12` | `0.10` | `12000` |
+| `idiomatic-rust` | `0.15` | `0.05` | `120000` |
 
 Known model exceptions/tensions that still require explicit policy decisions:
 

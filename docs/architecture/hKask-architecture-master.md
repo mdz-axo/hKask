@@ -732,7 +732,7 @@ The judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSION_S
 | `mcda` | Weighted scoring, sensitivity analysis |
 | `hypothesis-framer` | FINER criteria, PICO framework, hypothesis/aims formulation |
 | `tdd` | Red-Green-Refactor, contract-first |
-| `rust-expertise` | Type-driven design, ownership as architecture |
+| `idiomatic-rust` | Type-driven design, ownership as architecture |
 
 **Bypass:** Chat uses the user's chosen model directly (`bypass_fusion=true`). Skills and tool invocations route through fusion when active (`bypass_fusion=false`). The condenser, daemon narratives, and summarization always bypass fusion.
 
