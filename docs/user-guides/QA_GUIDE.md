@@ -217,7 +217,6 @@ manifest:           # Required: metadata
 
 gas:                # Optional: cost controls
   cap: 50000        #   Max gas units (default: 15000)
-  cost_per_token: 0.25  # Cost per token (default: 0.25)
   alert_threshold: 0.8  # Alert at this fraction (default: 0.7)
   hard_limit: true  #   Abort when exceeded (default: true)
 

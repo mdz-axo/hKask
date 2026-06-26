@@ -852,7 +852,6 @@ impl ManifestExecutor {
                 "used": *rjoule_used,
                 "cap": rjoule_cap,
                 "remaining": rjoule_remaining,
-                "cost_per_token": rjoule_cost_per_token,
                 "enabled": rjoule_enabled,
             }),
         );

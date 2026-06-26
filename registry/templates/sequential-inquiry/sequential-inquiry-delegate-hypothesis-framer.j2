@@ -12,7 +12,7 @@ contract:
   output:
     invoked: boolean
     skill: string
-    result: object
+    result: object|null
     rationale: string
 energy_cap: 4096
 visibility: Public
@@ -35,11 +35,11 @@ thinking_budget = "full"
 {{ delegation_requests | tojson }}
 ```
 
-Examine the array. Find any request where `skill` equals `"hypothesis-framer"`.
+Examine the array. Find ALL requests where `skill` equals `"hypothesis-framer"`. Process every matching request.
 
 **If none:** Return `{"invoked": false, "skill": "hypothesis-framer", "result": null, "rationale": "No hypothesis-framer request."}`
 
-**If found:** Apply FINER + PICO to the candidate hypothesis in `params.hypothesis`:
+**If found:** For EACH matching request, apply FINER + PICO to the candidate hypothesis in `params.hypothesis`. If multiple requests, return results as an array under `result`.
 
 ### FINER Gate
 - **F**easible — testable with available evidence?

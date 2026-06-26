@@ -47,7 +47,7 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 | **review** | **Skill** | Self-critique output for contradictions, unsupported claims, logical gaps. |
 | **grill-me** | **Skill** | Socratic questioning to stress-test understanding. Probes knowledge gaps. |
 | **zoom-out** | **Skill** | Broader context or higher-level perspective on unfamiliar code. |
-| **sequential-thinking** | **Skill** | Dynamic, reflective chain-of-thought with branching, revision, hypothesis generation, and verification. Use when analyzing complex problems, debugging, or planning. |
+| **sequential-inquiry** | **Skill** | Dynamic chain-of-thought with branching, revision, hypothesis testing, and automatic deep-dive delegation to hypothesis-framer/mcda/diagnose. The engine decides at runtime whether delegation is needed — no pre-selection. Use for any structured reasoning task. |
 
 ### Kata & Coaching
 

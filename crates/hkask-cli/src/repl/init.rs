@@ -207,9 +207,14 @@ pub(super) fn init_repl_state(
     // HKASK_REPLICANT at startup; without this, every non-core MCP server
     // defaults to "anonymous". Set globally alongside HKASK_PROJECT_ROOT
     // so it covers both auto-start and user-initiated server launches.
+    //
+    // Also set HKASK_AGENT_PERSONA so the server-side WebID resolution
+    // (HKASK_WEBID → HKASK_AGENT_PERSONA → anonymous) resolves to the
+    // correct persona instead of falling through to `from_persona(b"anonymous")`.
     // SAFETY: REPL init runs single-threaded before tokio runtime starts.
     unsafe {
         std::env::set_var("HKASK_REPLICANT", &onboarding_outcome.signed_in_agent);
+        std::env::set_var("HKASK_AGENT_PERSONA", &onboarding_outcome.signed_in_agent);
     }
 
     // P2: Affirmative Consent — specialized servers require explicit opt-in.

@@ -12,7 +12,7 @@ contract:
   output:
     invoked: boolean
     skill: string
-    result: object
+    result: object|null
     rationale: string
 energy_cap: 4096
 visibility: Public
@@ -35,11 +35,11 @@ thinking_budget = "full"
 {{ delegation_requests | tojson }}
 ```
 
-Examine the array. Find any request where `skill` equals `"mcda"`.
+Examine the array. Find ALL requests where `skill` equals `"mcda"`. Process every matching request.
 
 **If none:** Return `{"invoked": false, "skill": "mcda", "result": null, "rationale": "No MCDA request."}`
 
-**If found:** Apply MCDA to `params.alternatives`:
+**If found:** For EACH matching request, apply MCDA to `params.alternatives`. If multiple requests, return results as an array under `result`.
 
 1. Identify criteria from the problem domain
 2. Weight criteria (total = 1.0)

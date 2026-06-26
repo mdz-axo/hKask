@@ -77,7 +77,7 @@ steps:
       max_thoughts: "{{ max_thoughts | default(12) }}"
       thinking_budget: "{{ thinking_budget | default('full') }}"
       prior_chain: "{{ step_1_result.thought_chain | default([]) }}"
-      prior_delegation_results: "{{ step_1_delegation_results | default({}) }}"
+      prior_delegation_results: "{{ {'hypothesis_framer': step_2_result | default(None), 'mcda': step_3_result | default(None), 'diagnose': step_4_result | default(None)} }}"
 
   # ── Phase 2: Deep-dive delegation ────────────────────────────────
   # Each step receives delegation_requests from the engine. If no

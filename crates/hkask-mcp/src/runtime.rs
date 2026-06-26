@@ -104,17 +104,17 @@ pub enum ServerStartError {
 /// `crates/hkask-cli/src/repl/builtin_servers.rs`.
 fn resolve_mcp_binary(server_id: &str, command: &str) -> String {
     let env_var = format!("HKASK_MCP_{}_BIN", server_id.to_uppercase());
-    if let Ok(explicit_path) = std::env::var(&env_var) {
-        if !explicit_path.is_empty() {
-            tracing::info!(
-                target: "hkask.mcp",
-                server_id = %server_id,
-                env_var = %env_var,
-                binary = %explicit_path,
-                "MCP binary resolved via env var"
-            );
-            return explicit_path;
-        }
+    if let Ok(explicit_path) = std::env::var(&env_var)
+        && !explicit_path.is_empty()
+    {
+        tracing::info!(
+            target: "hkask.mcp",
+            server_id = %server_id,
+            env_var = %env_var,
+            binary = %explicit_path,
+            "MCP binary resolved via env var"
+        );
+        return explicit_path;
     }
     command.to_string()
 }

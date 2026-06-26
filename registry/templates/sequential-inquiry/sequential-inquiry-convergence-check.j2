@@ -21,20 +21,28 @@ visibility: Public
 ---
 {# Template: sequential-inquiry/sequential-inquiry-convergence-check.j2 #}
 {# goal: Compute normalized convergence metric for sequential inquiry cycles. #}
-{#
+{##
   Group: A (Reasoning/Problem-Solving)
   Convergence method: LLM-assessed hypothesis verification + chain stability + delegation resolution
   Measures: Whether a verified hypothesis has been reached, the thinking chain
     has stabilized, AND all delegation requests have been resolved.
-    Threshold 0.15 — tighter because delegation results should accelerate convergence.
+    Threshold 0.15 — delegation results should accelerate convergence.
+  DELEGATION TIMING: The engine emits requests in cycle N, delegates resolve them in cycle N,
+    and the engine incorporates results in cycle N+1 via prior_delegation_results.
+    On cycle 1, criterion 9 (results incorporated) is NEVER satisfied because
+    the engine cannot have seen delegation results yet.
+    On cycles 2+, criterion 9 is evaluated by checking whether the engine's
+    thought_chain explicitly references insights from delegation results.
 #}
+
+{# DEPENDS-ON-EXECUTOR: `_convergence.improvement_target` is mapped from manifest `convergence.improvement_ratio`. #}
 
 [inference]
 temperature = 0.1
 reasoning_effort = "medium"
-verbosity = "terse"
-max_tokens = 1400
-thinking_budget = "off"
+verbosity = "standard"
+max_tokens = 4096
+thinking_budget = "low"
 
 You are a convergence evaluator for sequential inquiry. Measure whether the inquiry has reached a verified, stable answer with all delegations resolved.
 
@@ -60,9 +68,9 @@ Start at 1.0. Subtract for each satisfied criterion:
 5. **No pending revisions** → -0.08
 6. **Confidence calibrated** (≥ 0.7) → -0.08
 7. **Answer synthesized** → -0.08
-8. **All delegations resolved** (no pending request without result) → -0.12
-9. **Delegation results incorporated** (engine wove results into chain) → -0.07
-10. **Chain stable** between iterations → -0.05
+8. **All delegations resolved** (no pending request without a delegate result) → -0.12
+9. **Delegation results incorporated** — CRITICAL: This criterion is NEVER satisfied on cycle 1 because delegation results arrive at the engine in the NEXT cycle. Only evaluate this on cycle 2+. To check: scan the engine's thought_chain for explicit references to delegate results (e.g., "hypothesis-framer refined", "MCDA ranked", "diagnose found"). If the engine delegated but hasn't incorporated prior-cycle results, this criterion FAILS. If the engine did not delegate at all, this criterion is trivially satisfied (nothing to incorporate). → -0.07
+10. **Chain stable** — Skip on cycle 1 (no prior to compare). On cycles 2+: the chain did not materially change between iterations → -0.05
 
 Clamp to [0, 1].
 

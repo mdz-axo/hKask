@@ -1,12 +1,14 @@
 ---
 name: sequential-inquiry
 visibility: public
-description: "Compound inquiry process that composes sequential-thinking with hypothesis-framer, mcda, and diagnose as delegated deep-dive sub-skills. The engine identifies when a thought needs deeper analysis and dispatches to the appropriate sub-skill, weaving results back into the thought chain over convergent PDCA cycles."
+description: "Structured chain-of-thought reasoning with branching, revision, hypothesis testing, and automatic deep-dive delegation to hypothesis-framer, mcda, and diagnose. The engine decides at runtime whether delegation is needed — no pre-selection. Subsumes the deprecated sequential-thinking skill."
 ---
 
 # Sequential Inquiry Skill
 
-**Compound skill.** Wraps the sequential-thinking decomposition-and-sorting engine in a flowdef that also composes three deep-dive skills as delegation targets. When the engine identifies a thought that needs analysis beyond reasoning alone, it emits a delegation request; the flowdef dispatches to the requested sub-skill; results feed back into the engine on the next PDCA cycle.
+**The primary structured reasoning skill for hKask.** Provides dynamic chain-of-thought with branching, revision, and hypothesis verification. When the engine identifies a thought needing deeper analysis, it emits delegation requests; the flowdef dispatches to hypothesis-framer (FINER+PICO), mcda (weighted comparison), or diagnose (root-cause analysis). Results feed back into the next PDCA cycle.
+
+**No pre-selection needed.** The engine decides at runtime whether to delegate. If no delegation requests are emitted, the delegate steps return `invoked: false` and the skill functions as pure sequential thinking. Use for any reasoning task — from simple decomposition to compound inquiry.
 
 ## Architecture
 

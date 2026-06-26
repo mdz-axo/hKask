@@ -97,8 +97,7 @@ gas:
   cost_per_iteration: 100
 
 rjoule:
-  cap: 18000
-  cost_per_token: 0.25
+  cap: 2
 ```
 
 The `ManifestExecutor` drives the cascade: select→select→select→select→loop. At the loop step, it checks whether `convergence_metric ≤ threshold`. If yes, exits with `converged`. If no and `max_iterations` reached, exits with `maxed_out`. If gas or rJoule exhausted, exits with `maxed_out`/`energy_spent`.

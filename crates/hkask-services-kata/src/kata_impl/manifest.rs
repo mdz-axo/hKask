@@ -45,8 +45,6 @@ pub struct ManifestMeta {
 pub struct GasConfig {
     #[serde(default = "default_gas_cap")]
     pub cap: u64,
-    #[serde(default = "default_cost_per_token")]
-    pub cost_per_token: f64,
     #[serde(default = "default_alert_threshold")]
     pub alert_threshold: f64,
     #[serde(default = "default_hard_limit")]
@@ -57,9 +55,6 @@ fn default_gas_cap() -> u64 {
     15000
 }
 
-fn default_cost_per_token() -> f64 {
-    0.25
-}
 fn default_alert_threshold() -> f64 {
     0.7
 }
