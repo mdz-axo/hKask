@@ -6,7 +6,7 @@
 
 ## Capability Catalog
 
-**47 total** — **42 Skills** (PDCA FlowDef loops with quality threshold + energy budget), **2 Templates** (one-shot, no registry manifest), **1 Bundle** (composition-only, non-PDCA), **1 Legacy** (v0.21.4, pending upgrade).
+**39 Skills** (PDCA FlowDef loops with quality threshold + energy budget), **2 Templates** (one-shot, no registry manifest), **1 Bundle** (composition-only, non-PDCA), **1 Legacy** (v0.21.4, pending upgrade). **43 capabilities in all.**
 
 | Type | Invocation | Behavior | Exit |
 |------|-----------|----------|------|

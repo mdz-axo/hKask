@@ -367,7 +367,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `DefaultSpecCurator` implementation
 - **Implementation:** `hkask-storage::spec_types` (domain types), `hkask-storage::spec_store` (persistence), `hkask-agents::curator_agent::spec_curator` (validation), `hkask-cli::commands::qa` (spec-check)
 - **Status:** Implemented
-- **Note:** Former `hkask-mcp-spec` MCP server (12 tools) and `SpecService` service layer removed v0.31.0. Spec operations now call `SpecStore` directly; validation folded into QA; prose rewriting moved to `hkask-mcp-replica::replica_rewrite`.
+- **Note:** Former `mcp-spec` MCP server (12 tools) and `SpecService` service layer removed v0.31.0. Spec operations now call `SpecStore` directly; validation folded into QA; prose rewriting moved to `hkask-mcp-replica::replica_rewrite`.
 - **Curation:** Merge
 
 ### REQ-CUR-002: Curation Decision Gradient
