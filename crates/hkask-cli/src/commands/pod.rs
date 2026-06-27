@@ -132,7 +132,7 @@ async fn run_pod_inner(action: PodAction) {
                     std::process::exit(1);
                 }
             }
-        },
+        }
     }
 }
 
@@ -245,7 +245,11 @@ pub async fn export_container(pod_id: &str, output_dir: &std::path::Path) -> Res
 pub fn export_k8s(output_dir: &std::path::Path) -> Result<usize, String> {
     let source_dir = if let Ok(d) = std::env::var("HKASK_DEPLOY_DIR") {
         let p = std::path::PathBuf::from(&d);
-        if p.is_dir() { p } else { return Err(format!("HKASK_DEPLOY_DIR set but not a directory: {d}")); }
+        if p.is_dir() {
+            p
+        } else {
+            return Err(format!("HKASK_DEPLOY_DIR set but not a directory: {d}"));
+        }
     } else {
         let cwd = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
         let candidate = cwd.join("deploy").join("k8s");
