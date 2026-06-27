@@ -38,6 +38,7 @@ pub mod algorithms;
 pub mod engine;
 pub mod inference;
 pub mod ontology_graph;
+pub mod saliency;
 pub mod types;
 
 pub use inference::{

@@ -54,7 +54,6 @@ use hkask_memory::{
 };
 use hkask_ports::InferencePort;
 use hkask_ports::federation::{FederationDispatch, FederationSyncPort};
-use hkask_ports::git_cas::GitCASPort;
 use hkask_storage::EscalationQueue;
 use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::nu_event_store::NuEventStore;
@@ -117,8 +116,8 @@ pub struct AgentService {
     /// Loop system for 6-loop regulation.
     pub loop_system: Arc<LoopSystem>,
 
-    /// Backup loop for scheduled snapshot management (TUI, status queries).
-    backup_loop: Arc<hkask_services_backup::BackupLoop>,
+    /// Concrete GixCasAdapter for pod-directory backup operations.
+    pod_backup_adapter: Arc<hkask_mcp::GixCasAdapter>,
 
     /// Inference port for model invocation.
     inference_port: Option<Arc<dyn InferencePort>>,
@@ -327,10 +326,12 @@ impl AgentService {
         &self.loop_system
     }
 
-    /// Access the backup loop for snapshot state queries (TUI, CLI status).
-    pub fn backup_loop(&self) -> &Arc<hkask_services_backup::BackupLoop> {
-        &self.backup_loop
+    /// Access the concrete GixCasAdapter for pod-directory backup operations.
+    pub fn pod_backup_adapter(&self) -> &Arc<hkask_mcp::GixCasAdapter> {
+        &self.pod_backup_adapter
     }
+
+    /// Access the concrete GixCasAdapter for pod-directory backup operations.
     /// CNS event sink for the audit trail.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
@@ -648,6 +649,12 @@ impl AgentService {
         // from the NuEventStore query_algedonic results — no separate watcher needed.
         // See curator/curation_loop.rs for the integrated push.
 
+        // ── 7R7 CNS-observing receptors (r7-2 through r7-7) ────────────
+        self::matrix::build_and_start_receptors(
+            Arc::clone(&foundation.gas_event_store),
+            Arc::clone(&foundation.cns_event_sink),
+        );
+
         // Spawn Matrix registration retry loop — retries pending pod Matrix
         // registrations with exponential backoff for self-healing.
         if let Some(url) = mcp_pods
@@ -671,7 +678,7 @@ impl AgentService {
             cns_runtime: foundation.cns_runtime,
             cybernetics_loop: loops.cybernetics_loop,
             loop_system: loops.loop_system,
-            backup_loop: loops.backup_loop.clone(),
+            pod_backup_adapter: loops.pod_backup_adapter.clone(),
             inference_port: loops.inference_port,
             episodic_storage: loops.episodic_storage,
             semantic_storage: loops.semantic_storage,
@@ -850,7 +857,6 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
 /// Loops: cybernetics, inference, episodic, semantic, curation, snapshot, backup.
 struct Loops {
     loop_system: Arc<LoopSystem>,
-    backup_loop: Arc<hkask_services_backup::BackupLoop>,
     /// Concrete GixCasAdapter for pod-directory backup operations.
     pod_backup_adapter: Arc<hkask_mcp::GixCasAdapter>,
     cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
@@ -1058,19 +1064,11 @@ async fn build_loops(
             )
         }
     };
-    let git_cas_port: Arc<dyn GitCASPort> = gix_adapter.clone();
-    // SnapshotLoop removed — pod_backup_daemon handles all pod snapshots now.
-    let backup_service = Arc::new(hkask_services_backup::BackupService::new(
-        Arc::clone(&git_cas_port),
-        hkask_services_backup::load_backup_config(),
-    ));
-    // BackupLoop kept for TUI bridge backward compat (list/config/verify).
-    // Not registered as active loop — pod_backup_daemon handles scheduling.
-    let backup_loop = Arc::new(hkask_services_backup::BackupLoop::new(backup_service));
+    // pod_backup_daemon handles all pod snapshots now.
+    // GixCasAdapter is held in Loops for TUI/CLI access.
 
     Ok(Loops {
         loop_system,
-        backup_loop,
         pod_backup_adapter: gix_adapter,
         cybernetics_loop,
         inference_port,

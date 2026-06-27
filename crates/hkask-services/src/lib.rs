@@ -21,18 +21,6 @@ pub use hkask_inference::model_constants;
 pub use hkask_inference::{
     FusionConfig, FusionMode, FusionSkill, InferenceConfig, InferenceRouter, ProviderId,
 };
-pub use hkask_services_backup::config::{
-    BackupConfig, EncryptionConfig, RetentionPolicy, backup_config_path, load_backup_config,
-};
-pub use hkask_services_backup::r#loop::BackupLoop;
-pub use hkask_services_backup::metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
-pub use hkask_services_backup::pod_ops::{PodBackupCap, PodBackupOps};
-pub use hkask_services_backup::scope::ArtifactType;
-pub use hkask_services_backup::scope::{BackupScope, ListFilter, RestoreScope};
-pub use hkask_services_backup::serialization::{
-    ArtifactEnvelopeValue, artifact_git_path, deserialize_artifact, serialize_artifact,
-};
-pub use hkask_services_backup::{BackupError, BackupService};
 pub use hkask_services_context::{AgentService, PerAgentMemory};
 pub use hkask_services_core::config::{DEFAULT_DB_PATH, ServiceConfig};
 pub use hkask_services_core::error::ServiceError;

@@ -321,15 +321,6 @@ pub enum ServiceError {
     #[error("Consent denied for wallet operation: {message}")]
     ConsentDenied { message: String },
 
-    // ── Backup domain ──────────────────────────────────────────────────
-    /// Backup operation failed (CAS, serialization, config, CNS).
-    #[error("Backup failed: {message}")]
-    Backup {
-        #[source]
-        source: Option<Box<dyn std::error::Error + Send + Sync>>,
-        message: String,
-    },
-
     // ── Rate limiting ──────────────────────────────────────────────────────
     /// Operation rate limited (too soon after previous invocation).
     #[error("{message}")]
@@ -491,8 +482,7 @@ impl ServiceError {
             | ServiceError::Verification { .. }
             | ServiceError::Wallet { .. }
             | ServiceError::Cns { .. }
-            | ServiceError::Consolidation { .. }
-            | ServiceError::Backup { .. } => false,
+            | ServiceError::Consolidation { .. } => false,
 
             // ── Delegate to inner error for transparent wrappers ──────
             // Domain errors may have their own retryability semantics.
@@ -598,9 +588,6 @@ impl ServiceError {
             ServiceError::Verification { .. } => "error.pipeline.verification",
             ServiceError::Wallet { .. } => "error.pipeline.wallet",
             ServiceError::ConsentDenied { .. } => "error.pipeline.wallet.consent_denied",
-
-            // ── Backup domain ──────────────────────────────────────
-            ServiceError::Backup { .. } => "error.backup",
 
             // ── Rate limiting / config / communication ──────────────
             ServiceError::RateLimited { .. } => "error.rate_limited",
@@ -819,13 +806,6 @@ impl ServiceError {
             ServiceError::Matrix { message: msg, .. } => (
                 "cns.cybernetics",
                 "error.matrix",
-                serde_json::json!({ "message": msg }),
-            ),
-
-            // ── Backup domain ─────────────────────────────────────
-            ServiceError::Backup { message: msg, .. } => (
-                "cns.cybernetics",
-                "error.backup",
                 serde_json::json!({ "message": msg }),
             ),
 

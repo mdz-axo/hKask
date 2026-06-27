@@ -304,7 +304,7 @@ pub enum GitAction {
 /// Backup actions — snapshot, restore, list, prune, verify, config
 #[derive(Debug, Subcommand)]
 pub enum BackupAction {
-    /// Create a backup snapshot
+    /// Create a backup snapshot of all pod directories
     Snapshot {
         /// Scope: "full", or artifact type label (e.g., "template", "goal")
         #[arg(short, long, default_value = "full")]
@@ -328,39 +328,10 @@ pub enum BackupAction {
         #[arg(short, long, default_value = "5")]
         limit: usize,
     },
-    /// Prune expired snapshots (dry-run by default)
-    Prune {
-        /// Actually remove (default is dry-run)
-        #[arg(long)]
-        execute: bool,
-    },
-    /// Verify backup integrity
+    /// Verify backup integrity (old CAS repos)
     Verify,
-    /// Show backup health and daemon status
+    /// Show per-pod snapshot status
     Status,
-    /// View or update backup configuration
-    Config {
-        #[command(subcommand)]
-        action: ConfigAction,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-pub enum ConfigAction {
-    /// Show current backup configuration
-    Show,
-    /// Set tracked artifact types
-    Set {
-        /// Comma-separated artifact types to track (e.g., "template,goal")
-        #[arg(short, long)]
-        types: String,
-        /// Retention duration (e.g., "30d", "24h", "60m")
-        #[arg(short, long)]
-        retention: Option<String>,
-        /// Disable auto-snapshot
-        #[arg(long)]
-        no_auto: bool,
-    },
 }
 
 /// Curator governance actions

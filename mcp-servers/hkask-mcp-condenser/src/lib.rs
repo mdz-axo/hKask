@@ -22,7 +22,6 @@
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
-use hkask_condenser::algorithms::{domain_saliency, persona_to_anchor};
 use hkask_condenser::engine::CondenserEngine;
 use hkask_condenser::inference;
 use hkask_condenser::types::*;
@@ -36,6 +35,7 @@ use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
+use serde::Deserialize;
 use std::sync::{Arc, Mutex};
 
 /// System prompt for the thread-summary inference request.
@@ -100,6 +100,26 @@ impl CondenserServer {
     pub fn with_semantic(mut self, semantic: SemanticMemory) -> Self {
         self.semantic = Some(Arc::new(semantic));
         self
+    }
+
+    /// Return persona keywords for word-frequency saliency scoring.
+    /// These are charter-like terms that define what the agent cares about.
+    fn persona_keywords(&self) -> Vec<String> {
+        vec![
+            "curator".into(),
+            "monitor".into(),
+            "alert".into(),
+            "escalation".into(),
+            "diagnose".into(),
+            "calibrate".into(),
+            "threshold".into(),
+            "variety".into(),
+            "deficit".into(),
+            "backpressure".into(),
+            "consolidation".into(),
+            "semantic".into(),
+            "episodic".into(),
+        ]
     }
 
     pub fn has_persistence(&self) -> bool {
@@ -290,126 +310,6 @@ impl CondenserServer {
         .await
     }
 
-    #[tool(
-        description = "Score text saliency against persona domain, episodic memory (PKO-anchored), or semantic memory (DC+BIBO-anchored) using ontology graph proximity (P5.4). Returns 0.0–1.0 — informs CAT communication posture decisions."
-    )]
-    pub async fn condenser_score_saliency(
-        &self,
-        Parameters(SaliencyScoreRequest { text, against }): Parameters<SaliencyScoreRequest>,
-    ) -> String {
-        execute_tool(self, "condenser_score_saliency", async {
-            match against.as_str() {
-                "persona" => {
-                    let description = &self.persona_description;
-                    let capabilities = &self.persona_capabilities;
-                    if description.is_empty() && capabilities.is_empty() {
-                        return Err(McpToolError::internal(
-                            "Persona not configured — set persona_description and persona_capabilities",
-                        ));
-                    }
-                    let anchor = persona_to_anchor(description, capabilities);
-                    let score = domain_saliency(&text, anchor.as_ref());
-                    Ok(serde_json::json!({
-                        "score": score,
-                        "against": "persona",
-                        "method": "graph_proximity",
-                    }))
-                }
-                "episodic" => {
-                    let episodic = match &self.episodic {
-                        Some(e) => e,
-                        None => {
-                            return Err(McpToolError::permission_denied(
-                                "Episodic memory not available",
-                            ));
-                        }
-                    };
-                    // Episodic memory = first-person experiences → PKO process domain
-                    let anchor = OntologyAnchor::DualAxis {
-                        axis: OntologyAxis::Pko,
-                        concept: "pko".into(),
-                    };
-                    let query_words: Vec<&str> = text
-                        .split_whitespace()
-                        .filter(|w| w.len() > 3)
-                        .take(8)
-                        .collect();
-                    let mut best_score: f64 = 0.0;
-                    let mut recall_count: usize = 0;
-                    for word in &query_words {
-                        if let Ok(triples) = episodic.query_for_deduped(word, self.webid) {
-                            for t in &triples {
-                                let triple_text = match &t.value {
-                                    serde_json::Value::String(s) => s.as_str(),
-                                    v => &v.to_string(),
-                                };
-                                let s = domain_saliency(triple_text, Some(&anchor));
-                                best_score = best_score.max(s);
-                                recall_count += 1;
-                            }
-                        }
-                    }
-                    let score = if recall_count > 0 { best_score } else { 0.0 };
-                    Ok(serde_json::json!({
-                        "score": score,
-                        "against": "episodic",
-                        "method": "graph_proximity",
-                        "anchor": "pko",
-                        "recall_count": recall_count,
-                    }))
-                }
-                "semantic" => {
-                    let semantic = match &self.semantic {
-                        Some(s) => s,
-                        None => {
-                            return Err(McpToolError::permission_denied(
-                                "Semantic memory not available",
-                            ));
-                        }
-                    };
-                    // Semantic memory = shared knowledge → DC+BIBO document/metadata domain
-                    let anchor = OntologyAnchor::DualAxis {
-                        axis: OntologyAxis::DcBibo,
-                        concept: "dcterms".into(),
-                    };
-                    let query_words: Vec<&str> = text
-                        .split_whitespace()
-                        .filter(|w| w.len() > 3)
-                        .take(8)
-                        .collect();
-                    let mut best_score: f64 = 0.0;
-                    let mut recall_count: usize = 0;
-                    for word in &query_words {
-                        if let Ok(triples) = semantic.query_deduped(word) {
-                            for t in &triples {
-                                let triple_text = match &t.value {
-                                    serde_json::Value::String(s) => s.as_str(),
-                                    v => &v.to_string(),
-                                };
-                                let s = domain_saliency(triple_text, Some(&anchor));
-                                best_score = best_score.max(s);
-                                recall_count += 1;
-                            }
-                        }
-                    }
-                    let score = if recall_count > 0 { best_score } else { 0.0 };
-                    Ok(serde_json::json!({
-                        "score": score,
-                        "against": "semantic",
-                        "method": "graph_proximity",
-                        "anchor": "dc_bibo",
-                        "recall_count": recall_count,
-                    }))
-                }
-                other => Err(McpToolError::invalid_argument(format!(
-                    "Unknown against target '{}' — expected 'persona', 'episodic', or 'semantic'",
-                    other
-                ))),
-            }
-        })
-        .await
-    }
-
     #[tool(description = "Persist a compressed output to episodic memory")]
     pub async fn condenser_persist(
         &self,
@@ -549,6 +449,80 @@ impl CondenserServer {
             Ok(serde_json::to_value(&output).expect("ThreadSummaryOutput serialization is infallible"))
         }).await
     }
+
+    #[tool(
+        description = "Score text saliency against persona or memory. Returns 0.0-1.0 where higher = more relevant."
+    )]
+    pub async fn condenser_score_saliency(
+        &self,
+        Parameters(req): Parameters<SaliencyRequest>,
+    ) -> String {
+        execute_tool(self, "condenser_score_saliency", async {
+            let score = match req.against.as_deref() {
+                Some("memory") => {
+                    // If semantic memory is available, query it word-by-word
+                    if let Some(ref semantic) = self.semantic {
+                        let query_words: Vec<&str> = req.text
+                            .split_whitespace()
+                            .filter(|w| w.len() > 3)
+                            .take(5)
+                            .collect();
+                        let mut total_results: usize = 0;
+                        for word in &query_words {
+                            if let Ok(triples) = semantic.query_deduped(word) {
+                                total_results += triples.len();
+                            }
+                        }
+                        if total_results > 0 {
+                            (0.5 + total_results as f64 * 0.15).min(1.0)
+                        } else {
+                            0.2
+                        }
+                    } else if let Some(ref episodic) = self.episodic {
+                        // Fall back to episodic memory
+                        let query_words: Vec<&str> = req.text
+                            .split_whitespace()
+                            .filter(|w| w.len() > 3)
+                            .take(5)
+                            .collect();
+                        let mut total_results: usize = 0;
+                        for word in &query_words {
+                            if let Ok(triples) = episodic.query_for_deduped(word, self.webid) {
+                                total_results += triples.len();
+                            }
+                        }
+                        if total_results > 0 {
+                            (0.5 + total_results as f64 * 0.15).min(1.0)
+                        } else {
+                            0.2
+                        }
+                    } else {
+                        0.5 // No memory store — neutral
+                    }
+                }
+                _ => {
+                    // Score against persona keywords
+                    let persona_keywords = self.persona_keywords();
+                    hkask_condenser::saliency::score_against_persona(
+                        &req.text,
+                        &persona_keywords.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    )
+                }
+            };
+            Ok(serde_json::json!({
+                "score": score,
+                "against": req.against.as_deref().unwrap_or("persona"),
+                "method": if req.against.as_deref() == Some("memory") { "semantic_search" } else { "word_frequency" },
+            }))
+        }).await
+    }
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SaliencyRequest {
+    pub text: String,
+    #[serde(default)]
+    pub against: Option<String>, // "persona" or "memory"
 }
 
 /// Run the condenser MCP server (used by binary target).

@@ -158,16 +158,6 @@ impl From<hkask_ports::RegistryError> for ServiceErrorResponse {
     }
 }
 
-impl From<hkask_services_backup::BackupError> for ServiceErrorResponse {
-    fn from(e: hkask_services_backup::BackupError) -> Self {
-        let msg = e.to_string();
-        ServiceErrorResponse(hkask_services::ServiceError::Backup {
-            source: Some(Box::new(e)),
-            message: msg,
-        })
-    }
-}
-
 // ── Service layer adapter ────────────────────────────────────────────
 
 impl From<hkask_services::ServiceError> for ApiError {
