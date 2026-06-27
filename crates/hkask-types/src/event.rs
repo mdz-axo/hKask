@@ -110,6 +110,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.architecture.seam.coverage",
     "cns.architecture.seam.drift",
     "cns.chat",
+    "cns.composer",
     "cns.consolidation",
     "cns.contract.accepted",
     "cns.contract.coverage",

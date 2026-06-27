@@ -681,7 +681,14 @@ impl MetacognitionLoop {
                     .await
                 {
                     Ok(resp) => resp.get("score").and_then(|v| v.as_f64()).unwrap_or(0.5),
-                    Err(_) => 0.5,
+                    Err(e) => {
+                        tracing::debug!(
+                            target: MC_TARGET,
+                            error = %e,
+                            "Condenser saliency unavailable, using default 0.5"
+                        );
+                        0.5
+                    }
                 };
                 let effective_bias = (bias + persona_score * (1.0 - bias)).min(1.0);
 

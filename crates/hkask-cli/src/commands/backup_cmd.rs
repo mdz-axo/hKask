@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use hkask_ports::git_cas::GitCASPort;
 use hkask_services::RetentionPolicy;
-use hkask_services::{ArtifactType, BackupScope, BackupService, ListFilter};
+use hkask_services::{ArtifactType, BackupService, ListFilter};
 use std::str::FromStr;
 
 use crate::block_on;
@@ -27,22 +27,83 @@ fn resolve_git_cas_port() -> Arc<dyn GitCASPort> {
     Arc::new(resolve_gix_adapter()) as Arc<dyn GitCASPort>
 }
 
-/// Parse a date string like "2026-06-27" or "2026-06-27T08:00:00" to Unix seconds.
+/// Parse a date string "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM:SS" to Unix seconds.
 fn parse_date(s: &str) -> u64 {
-    // Try ISO 8601 with time first
-    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
-        return dt.timestamp() as u64;
+    // Split date from optional time
+    let (date_part, time_part) = if let Some(t_idx) = s.find('T') {
+        (&s[..t_idx], Some(&s[t_idx + 1..]))
+    } else {
+        (s, None)
+    };
+
+    let parts: Vec<&str> = date_part.split('-').collect();
+    if parts.len() != 3 {
+        eprintln!("Invalid date '{}'. Use YYYY-MM-DD.", s);
+        std::process::exit(1);
     }
-    // Try date-only: append T00:00:00Z
-    let with_time = format!("{}T00:00:00Z", s);
-    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&with_time) {
-        return dt.timestamp() as u64;
+    let year: i32 = parts[0].parse().unwrap_or(0);
+    let month: u32 = parts[1].parse().unwrap_or(1);
+    let day: u32 = parts[2].parse().unwrap_or(1);
+
+    let (hour, min, sec) = if let Some(t) = time_part {
+        let tp: Vec<&str> = t.split(':').collect();
+        (
+            tp.first().and_then(|v| v.parse().ok()).unwrap_or(0),
+            tp.get(1).and_then(|v| v.parse().ok()).unwrap_or(0),
+            tp.get(2).and_then(|v| v.parse().ok()).unwrap_or(0),
+        )
+    } else {
+        (0, 0, 0)
+    };
+
+    // Days since Unix epoch for the given date (approximate, good enough for backup lookup)
+    let mut days = 0i64;
+    for y in 1970..year as i64 {
+        days += if is_leap(y) { 366 } else { 365 };
     }
-    eprintln!(
-        "Invalid date '{}'. Use YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS",
-        s
-    );
-    std::process::exit(1);
+    let month_days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    for m in 1..month as usize {
+        days += month_days[m - 1] as i64;
+        if m == 2 && is_leap(year as i64) {
+            days += 1;
+        }
+    }
+    days += (day as i64) - 1;
+
+    (days * 86400 + hour as i64 * 3600 + min as i64 * 60 + sec as i64) as u64
+}
+
+fn is_leap(y: i64) -> bool {
+    y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)
+}
+
+/// Convert days since Unix epoch to "YYYY-MM-DD" string.
+fn unix_days_to_date(days: i64) -> String {
+    let mut remaining = days;
+    let mut year = 1970i64;
+    loop {
+        let days_in_year = if is_leap(year) { 366 } else { 365 };
+        if remaining < days_in_year {
+            break;
+        }
+        remaining -= days_in_year;
+        year += 1;
+    }
+    let month_days = if is_leap(year) {
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    } else {
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    };
+    let mut month = 1usize;
+    for md in &month_days {
+        if remaining < *md as i64 {
+            break;
+        }
+        remaining -= *md as i64;
+        month += 1;
+    }
+    let day = remaining + 1;
+    format!("{:04}-{:02}-{:02}", year, month, day)
 }
 
 /// Parse a comma-separated list of artifact types.
@@ -53,22 +114,7 @@ fn parse_artifact_types(s: &str) -> Vec<ArtifactType> {
         .collect()
 }
 
-/// Parse a backup scope from a CLI string.
-fn parse_scope(s: &str) -> BackupScope {
-    match s {
-        "full" | "" => BackupScope::Full,
-        other => {
-            if let Ok(at) = ArtifactType::from_str(other) {
-                BackupScope::ByType(at)
-            } else {
-                eprintln!("Unknown scope '{}', defaulting to full", other);
-                BackupScope::Full
-            }
-        }
-    }
-}
-
-/// Parse a backup scope from a CLI string.
+/// Parse a date string
 /// Run a backup operation.
 ///
 /// expect: "I can access all hKask functionality through the kask CLI"
@@ -79,27 +125,44 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
     // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "backup", action = ?action, "CNS");
     match action {
-        BackupAction::Snapshot { scope } => {
-            let port = resolve_git_cas_port();
-            let svc = BackupService::new(port, load_backup_config());
-            let _backup_scope = parse_scope(&scope);
+        BackupAction::Snapshot { scope: _ } => {
+            let adapter = resolve_gix_adapter();
 
-            // Manual snapshots commit whatever blobs are already in CAS repos
-            // (populated by the daemon's BackupLoop artifact producers).
-            // If no blobs exist yet, run `kask backup status` to check daemon health.
-            let result = block_on!(rt, svc.run_daily_snapshot(), "Snapshot failed");
-            if result.commits.is_empty() {
-                println!("No tracked repos configured or no blobs to snapshot.");
-                println!("Configure tracking with: kask backup config set --types TYPE,...");
-                println!("Check daemon status with: kask backup status");
+            // Manual snapshot: snapshot all pod directories immediately.
+            // ActivePods isn't available in CLI context, so we scan the agents dir.
+            let base = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+            let agents_dir = base.join("hkask").join("agents");
+            if !agents_dir.exists() {
+                println!(
+                    "No agents directory found at {}. Nothing to snapshot.",
+                    agents_dir.display()
+                );
                 return;
             }
-            println!("Snapshot created:");
-            for (repo, commit) in &result.commits {
-                println!("  {}: {}", repo.dir_name(), commit);
+
+            let mut count = 0usize;
+            if let Ok(entries) = std::fs::read_dir(&agents_dir) {
+                for entry in entries.flatten() {
+                    let pod_dir = entry.path();
+                    if !pod_dir.is_dir() || !pod_dir.join("pod.db").exists() {
+                        continue;
+                    }
+                    let pod_name = pod_dir
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_default();
+
+                    let commit = block_on!(
+                        rt,
+                        adapter.snapshot_pod_dir(&pod_dir, &format!("manual: {}", pod_name)),
+                        "Snapshot failed"
+                    );
+                    println!("  {} → {}", pod_name, commit);
+                    count += 1;
+                }
             }
-            println!("  Artifacts: {}", result.artifact_count.unwrap_or(0));
-            println!("  Timestamp: {}", result.timestamp);
+
+            println!("Snapshot {} pods.", count);
         }
 
         BackupAction::Restore { pod, date, commit } => {
@@ -157,30 +220,56 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
             println!("  kask pod deactivate {} && kask pod activate {}", pod, pod);
         }
 
-        BackupAction::List { r#type, limit } => {
-            let port = resolve_git_cas_port();
-            let svc = BackupService::new(port, load_backup_config());
+        BackupAction::List { limit } => {
+            let adapter = resolve_gix_adapter();
+            let base = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+            let agents_dir = base.join("hkask").join("agents");
 
-            let filter = ListFilter {
-                artifact_type: r#type
-                    .as_deref()
-                    .and_then(|s| ArtifactType::from_str(s).ok()),
-                limit: Some(limit),
-            };
+            if !agents_dir.exists() {
+                println!("No agents directory found.");
+                return;
+            }
 
-            let snapshots = block_on!(rt, svc.list(filter), "List failed");
+            println!("Pod backup snapshots:");
+            let mut found = false;
+            if let Ok(entries) = std::fs::read_dir(&agents_dir) {
+                for entry in entries.flatten() {
+                    let pod_dir = entry.path();
+                    if !pod_dir.is_dir() || !pod_dir.join(".git").exists() {
+                        continue;
+                    }
+                    let pod_name = pod_dir
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_default();
 
-            println!("Backup snapshots:");
-            for (i, snap) in snapshots.iter().enumerate() {
-                println!(
-                    "  {}. {} — {}",
-                    i + 1,
-                    snap.timestamp.format("%Y-%m-%d %H:%M:%S"),
-                    snap.commits
-                        .first()
-                        .map(|(_, c)| c.to_string())
-                        .unwrap_or_default()
-                );
+                    let commits = block_on!(rt, adapter.log_pod(&pod_dir, limit), "List failed");
+                    if commits.is_empty() {
+                        continue;
+                    }
+                    found = true;
+                    println!("\n  {}:", pod_name);
+                    for (i, entry) in commits.iter().enumerate() {
+                        let ts = entry.timestamp_secs;
+                        let days = ts / 86400;
+                        let time = ts % 86400;
+                        let h = time / 3600;
+                        let m = (time % 3600) / 60;
+                        // Days since epoch → approximate date
+                        let date = unix_days_to_date(days as i64);
+                        println!(
+                            "    {}. {} {:02}:{:02}  {}",
+                            i + 1,
+                            date,
+                            h,
+                            m,
+                            entry.commit
+                        );
+                    }
+                }
+            }
+            if !found {
+                println!("  (no snapshots found)");
             }
         }
 

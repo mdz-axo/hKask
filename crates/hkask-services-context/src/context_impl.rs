@@ -41,7 +41,7 @@ use hkask_cns::types::loops::HkaskLoop;
 use hkask_cns::types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
 use hkask_cns::{
     CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, GovernedTool,
-    SeamWatcher, SnapshotLoop, load_set_points,
+    SeamWatcher, load_set_points,
 };
 use hkask_federation::sync::FederationLinkManager;
 use hkask_federation::sync::FederationSync;
@@ -73,7 +73,6 @@ use hkask_services_core::ServiceError;
 
 use hkask_services_wallet::WalletService;
 
-mod communication_watcher;
 mod matrix;
 mod seam_monitor;
 
@@ -645,12 +644,9 @@ impl AgentService {
         let matrix_transport =
             self::matrix::build_matrix(Some(Arc::clone(&foundation.cns_event_sink))).await;
 
-        // Spawn communication watcher — forwards Matrix CNS events to curation inbox.
-        // If Matrix is unavailable, the watcher is harmless (polls an empty store).
-        self::communication_watcher::spawn_communication_watcher(
-            Arc::clone(&foundation.gas_event_store),
-            foundation.curation_inbox_tx.clone(),
-        );
+        // Communication events are now pushed directly in CurationLoop.sense()
+        // from the NuEventStore query_algedonic results — no separate watcher needed.
+        // See curator/curation_loop.rs for the integrated push.
 
         // Spawn Matrix registration retry loop — retries pending pod Matrix
         // registrations with exponential backoff for self-healing.
@@ -1063,16 +1059,14 @@ async fn build_loops(
         }
     };
     let git_cas_port: Arc<dyn GitCASPort> = gix_adapter.clone();
-    let snapshot_loop = SnapshotLoop::new(Arc::clone(&git_cas_port));
-    loop_system.register_loop(Arc::new(snapshot_loop)).await;
+    // SnapshotLoop removed — pod_backup_daemon handles all pod snapshots now.
     let backup_service = Arc::new(hkask_services_backup::BackupService::new(
         Arc::clone(&git_cas_port),
         hkask_services_backup::load_backup_config(),
     ));
+    // BackupLoop kept for TUI bridge backward compat (list/config/verify).
+    // Not registered as active loop — pod_backup_daemon handles scheduling.
     let backup_loop = Arc::new(hkask_services_backup::BackupLoop::new(backup_service));
-    loop_system
-        .register_loop(backup_loop.clone() as Arc<dyn HkaskLoop>)
-        .await;
 
     Ok(Loops {
         loop_system,
@@ -1205,9 +1199,8 @@ async fn build_mcp_and_pods(
     {
         let adapter = Arc::clone(&l.pod_backup_adapter);
         let pm = Arc::clone(&pod_manager);
-        let loop_sys = Arc::clone(&l.loop_system);
         tokio::spawn(async move {
-            pod_backup_daemon(adapter, pm, loop_sys).await;
+            pod_backup_daemon(adapter, pm).await;
         });
     }
 
@@ -1565,7 +1558,6 @@ async fn spawn_matrix_retry_loop(
 async fn pod_backup_daemon(
     adapter: Arc<hkask_mcp::GixCasAdapter>,
     pod_manager: Arc<hkask_agents::pod::ActivePods>,
-    _loop_system: Arc<hkask_agents::loop_system::LoopSystem>,
 ) {
     const INTERVAL: std::time::Duration = std::time::Duration::from_secs(86400); // 24h
 

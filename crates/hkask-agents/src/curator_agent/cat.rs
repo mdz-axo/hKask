@@ -3,7 +3,7 @@
 //! Pure functions for evaluating whether an agent should respond to
 //! a Matrix communication event. The `convergence_bias` IS the decision.
 
-use hkask_cns::types::loops::channels::CommunicationEvent;
+use hkask_cns::types::loops::CommunicationEvent;
 
 /// Outcome of the engagement evaluation.
 #[derive(Debug, PartialEq)]

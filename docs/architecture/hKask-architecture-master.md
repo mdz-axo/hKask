@@ -132,7 +132,12 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, Ener
 | Component | Role | Authority |
 |-----------|------|-----------|
 | **7R7 Listener** | Passive observer — polls Matrix rooms, emits CNS spans | **Zero.** Does not classify, escalate, moderate, or judge. |
-| **R7.3 Seam Watcher** | Public API contract observer — loads seam inventory, tracks per-crate test coverage as CNS variety dimensions, detects drift, emits algedonic alerts on degradation | **Zero.** Observes and reports. Does not write tests, modify code, or block builds. |
+| **R7.2 Variety** | System variety observer — tracks alert counts, queue depth, variety EMA for Ashby regulation | **Zero.** Observes and reports. |
+| **R7.3 Algedonic** | Algedonic signal observer — tracks severity distributions, resolution rates, pain/pleasure patterns | **Zero.** Observes and reports. |
+| **R7.4 Composer** | Composition observer — tracks skill/template activations, contract violations, composition drift | **Zero.** Observes and reports. |
+| **R7.5 Consolidator** | Memory consolidation observer — tracks episodic (PKO) vs semantic (DC+BIBO) encoding rates, dual-axis balance | **Zero.** Observes and reports. |
+| **R7.6 Cybernetics** | CNS meta-observer — tracks circuit breaker states, self-heal ops, energy budget balance (regulator of regulators) | **Zero.** Observes and reports. |
+| **R7.7 Curator** | Curator activity observer — tracks metacognition cycles, CAT decisions, directives issued (observer of the decider) | **Zero.** Observes and reports. |
 | **CurationLoop** | Pure regulatory — sense/compute/act cycle | **Regulatory.** Compares variety, emits directives. |
 | **CuratorAgent** | Persona layer — template-driven metacognition (KnowAct templates via `execute_knowact()`), spec curation, human-facing reporting, bot orchestration, Matrix standing-session posting | **Decisional.** Invokes LLM for calibrated decisions; formats directives; pursues goals; escalates to human. |
 
@@ -147,7 +152,7 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, Ener
 - **Matrix standing session.** `CuratorService::metacognition()` posts the generated summary to the Curator's Matrix room via `MatrixTransport::send_message()` when `HKASK_CURATOR_ROOM_ID` is configured.
 - **Spec drift is a cybernetic signal.** `DefaultSpecCurator` detects when specs diverge from implementation → `SpecDriftAlert` → Conant-Ashby violation → revise spec, not suppress alert.
 - **7R7 is a dumb pipe by design.** Transport moves messages; agents decide what they mean. Authority resides in agent layer, not transport layer.
-- **R7.3 watches the public seam.** `SeamWatcher` loads the machine-readable public seam inventory (embedded JSON at compile time, file path override for development), registers per-crate coverage as CNS variety domains (`seam:{crate_name}`), runs periodic drift checks (default: 30 min), and emits algedonic alerts when coverage degrades. Coverage improvements emit positive `Notify` signals. The watcher is non-fatal — if no inventory is available, seam watching is silently disabled.
+- **All 7R7 receptors are dumb pipes by design.** Each receptor observes a specific domain, emits CNS spans, and stops. Zero receptors classify, escalate, moderate, or judge. Authority resides entirely in the agent layer (Curator + skills + templates). See `crates/hkask-communication/src/listener.rs` for implementations. Former r7-3 (Seam Watcher) is now r7-4 (Composer), observing skill/template contract violations and composition drift.
 
 **Crates:** `hkask-agents` (curator, curator_agent), `hkask-communication` (Matrix transport, agent registry, 7R7 listener, CNS bridge, response dispatch), `hkask-cns` (seam_watcher), `hkask-mcp-cloud-gateway` (cloud transport adapter), `hkask-cli` (token issuance)
 
@@ -339,7 +344,7 @@ graph TD
     end
 
     subgraph Curator["Pattern C: Agentic AI Mediation"]
-        CU["CuratorAgent + 7R7 + R7.3 Seam Watcher<br/>observe → assess → intervene → escalate"]
+        CU["CuratorAgent + 7R7 receptors<br/>observe → assess → intervene → escalate"]
     end
 
     subgraph Agents["Pattern D: Agent Creation + Sovereign Memory"]

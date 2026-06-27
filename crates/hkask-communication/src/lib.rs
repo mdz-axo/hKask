@@ -11,3 +11,6 @@
 pub mod agent_registration;
 pub mod listener;
 pub mod matrix;
+
+// Re-export the ReceptorStore trait for service-layer implementations.
+pub use listener::ReceptorStore;

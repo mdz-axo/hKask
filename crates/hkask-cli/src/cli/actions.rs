@@ -322,13 +322,10 @@ pub enum BackupAction {
         #[arg(short, long)]
         commit: Option<String>,
     },
-    /// List backup snapshots
+    /// List backup snapshots for all pods
     List {
-        /// Filter by artifact type
-        #[arg(short, long)]
-        r#type: Option<String>,
-        /// Maximum snapshots to show
-        #[arg(short, long, default_value = "20")]
+        /// Maximum snapshots per pod
+        #[arg(short, long, default_value = "5")]
         limit: usize,
     },
     /// Prune expired snapshots (dry-run by default)

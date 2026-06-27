@@ -33,11 +33,37 @@ The former `mcp-servers/hkask-mcp-communication/src/matrix.rs` (303 lines of zer
 | `lib.rs` | 13 | Crate root — public module declarations |
 | `tests/` | 652 | Integration tests (marked `#[ignore]`, require running Conduit) + unit tests for MXID derivation |
 
-**Implemented pipeline:** Matrix message arrives → 7R7 Listener polls → CNS bridge persists NuEvent → `CommunicationWatcher` polls NuEventStore → `CurationInput::Communication` enters curation inbox → `MetacognitionLoop` evaluates via CAT engagement gate → response dispatched back via `MatrixTransport::send_message()`.
+**Implemented pipeline:** Matrix message arrives → 7R7 Listener polls → CNS bridge persists NuEvent → CurationLoop.sense() filters communication events from NuEventStore and pushes directly to curation context → MetacognitionLoop evaluates via CAT engagement gate → response dispatched back via `MatrixTransport::send_message()`.
 
 **Deferred:** E2EE (SQLCipher/SQLite linking conflict with matrix-sdk-sqlite), continuous sync (v1 uses on-demand polling via `get_messages()`).
 
 The original stub design declared intent to embed Conduit as a library dependency. The replacement follows the Docker sidecar + SDK integration architecture recommended in §8.3.
+
+### 0.1 Implementation Status Checklist
+
+| Capability | Status | Notes |
+|-----------|--------|-------|
+| `MatrixTransport::new()` / `health_check()` / `login()` | ✅ Implemented | matrix-sdk client lifecycle, homeserver reachability |
+| `MatrixTransport::send_message()` | ✅ Implemented | Plain text + structured JSON payloads |
+| `MatrixTransport::get_messages()` | ✅ Implemented | On-demand room poll with `/sync` |
+| `MatrixTransport::create_room()` / `invite_user()` / `list_rooms()` | ✅ Implemented | Room lifecycle operations |
+| `MatrixTransport::upload_file()` / `send_file()` | ✅ Implemented | File attachment support (deferred in original spec) |
+| `SevenR7Listener` (passive room observer) | ✅ Implemented | Configurable poll interval, CNS NuEvent persistence |
+| `AgentRegistry` (WebID↔UserId mapping, watchlists) | ✅ Implemented | record, deregister, resolve, watchlist operations |
+| CNS bridge (NuEvent persistence) | ✅ Implemented | Messages flow from listener → NuEventStore → curation inbox |
+| CAT engagement gate | ✅ Implemented | `convergence_bias` scalar in agent config |
+| Response dispatch (agent → Matrix room) | ✅ Implemented | `MatrixTransport::send_message()` via daemon |
+| `kask matrix deploy-sidecar` | ✅ Implemented | Docker Compose + Caddyfile + conduit.toml generation |
+| `kask matrix register --agent` | ✅ Implemented | Agent registration on Conduit, credential check, QR code |
+| `kask matrix register --user` | ✅ Implemented | Human account creation on Conduit |
+| `kask matrix listen` | ✅ Implemented | Starts 7R7 listener for an agent |
+| `kask matrix status-sidecar` | ✅ Implemented | Docker health + HTTP poll + SQLite integrity |
+| `kask matrix verify-device` | ⬜ Deferred | SAS/QR verification for human onboarding |
+| Daemon periodic sidecar health task | ⬜ Deferred | 60s container poll → CNS span emission |
+| E2EE (end-to-end encryption) | ⬜ Deferred | Blocked on SQLCipher/SQLite linking conflict |
+| Continuous sync (event-driven listener) | ⬜ Deferred | v1 uses on-demand polling; continuous sync deferred until VOIP/real-time use case |
+| Integration tests (Conduit-dependent) | ✅ Written (ignored) | 652 LOC in `tests/`; require running Conduit sidecar |
+| Unit tests (MXID derivation) | ✅ Implemented | Name transformation edge cases |
 
 ---
 
@@ -1773,9 +1799,9 @@ kask matrix register --agent Alice-Smith
 
 **Purpose:** Define every `cns.communication.matrix.*` span emitted by the Matrix integration. Each span specifies its namespace, phase, payload schema, and algedonic thresholds.
 
-### Implemented Spans (v1)
+**Status: Implemented.** Spans are emitted via `tracing` macros in the current implementation. Additionally, the 7R7 Listener persists observed messages as `NuEvent` records into the `NuEventStore` via the CNS bridge, making communication events visible to the Curation Loop. Formal CNS registry registration (`CnsSpan` enum variants) is deferred.
 
-These spans are emitted via `tracing` macros in the current implementation. Formal CNS registry registration is deferred.
+### Implemented Spans (v1 — Operational)
 
 | Span | Phase | Payload | Emitted By |
 |------|-------|---------|------------|
@@ -1787,6 +1813,8 @@ These spans are emitted via `tracing` macros in the current implementation. Form
 | `cns.communication.agent.invited` | Act | `{ room_id, user }` | `MatrixTransport::invite_user()` |
 | `cns.communication.agent.registered` | Act | `{ webid, matrix_user }` | `AgentRegistry::record_mapping()` |
 | `cns.communication.server.started` | Act | `{ url, agent? }` | `main.rs` entry point |
+
+| `cns.communication.message.observed` | Observe | `{ room_id, sender, body, timestamp }` | `SevenR7Listener::poll()` — persisted as NuEvent |
 
 ### Deferred Spans (v2 — requires continuous sync)
 
@@ -1803,9 +1831,9 @@ These spans are specified but not implemented. They require the continuous sync 
 | `cns.communication.matrix.throttled` | Observe | `{ agent, reason, message_rate }` | — |
 | `cns.sovereignty.credential_check` | Act | `{ operation, method, ai_invoked }` | — |
 
-### Algedonic Thresholds (v1 — sidecar health only)
+### Algedonic Thresholds (v1 — sidecar health + message observation)
 
-The only automated health check in v1 is `kask matrix status-sidecar` (on-demand CLI). The daemon periodic health task is deferred. When implemented, thresholds are:
+The 7R7 Listener emits `cns.communication.message.observed` spans for every message, persisting them as NuEvents. CurationLoop.sense() filters communication.* events from its own query_algedonic() call and pushes them to the curation context. Sidecar health is checked on-demand via `kask matrix status-sidecar`. The daemon periodic health task is deferred. When implemented, thresholds are:
 
 | Condition | Warning | Critical |
 |-----------|---------|----------|

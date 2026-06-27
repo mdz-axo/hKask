@@ -1,7 +1,7 @@
 ---
 title: "hKask Requirements Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-19
+last_updated: 2026-06-27
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -411,6 +411,29 @@ Curation: Merge | Revise | Defer | Discard
 - **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge — promoted from deferred REQ-CAP-D03
+
+---
+
+### REQ-COM-004: Matrix Communication Transport
+
+- **Category:** Curation, Composition
+- **Text:** When agents need to communicate with humans or other agents, I want Matrix-based transport with CNS-observable message flow, so I can interact with my agents from mobile devices and federate across hKask instances.
+- **Criteria:**
+  - [x] `hkask-communication` core infrastructure crate (952 LOC)
+  - [x] `MatrixTransport` — matrix-sdk wrapper: login, send/receive, rooms, files
+  - [x] `SevenR7Listener` — passive room observer, polls Matrix rooms, persists CNS NuEvents
+  - [x] `AgentRegistry` — WebID↔Matrix UserId mapping, thread watchlists
+  - [x] CNS bridge — communication events flow to `NuEventStore` → curation inbox
+  - [x] CAT engagement gate — `convergence_bias` scalar per agent
+  - [x] Response dispatch — agent responses routed back via Matrix rooms
+  - [x] CLI: `kask matrix deploy-sidecar`, `register`, `listen`, `status-sidecar`
+  - [x] Integration tests (652 LOC, Conduit-dependent, `#[ignore]`d)
+  - [ ] E2EE (deferred — SQLCipher/SQLite linking conflict)
+  - [ ] Continuous sync (deferred — v1 uses on-demand polling)
+- **Implementation:** `crates/hkask-communication` (matrix.rs, listener.rs, agent_registration.rs)
+- **Tests:** `crates/hkask-communication/tests/` (integration_test.rs, matrix_transport_tests.rs)
+- **Status:** Implemented
+- **Curation:** Merge — promoted from deferred
 
 [^mds]: hKask Team. (2026). *MDS — Minimal Domain Specification.* `docs/architecture/MDS.md` — The 5-category curation model that grounds curation requirements.
 

@@ -2,7 +2,7 @@
 
 use crate::a2a::A2ARuntime;
 use hkask_cns::CnsRuntime;
-use hkask_cns::types::loops::channels::CommunicationEvent;
+use hkask_cns::types::loops::CommunicationEvent;
 use hkask_storage::EscalationQueue;
 use hkask_storage::NuEventStore;
 use hkask_templates::ManifestExecutor;
@@ -32,6 +32,10 @@ pub struct CuratorContext {
     /// exist before them. Set via `set_manifest_executor()`.
     manifest_executor: RwLock<Option<Arc<ManifestExecutor>>>,
     /// Pending communication events from Matrix, drained by metacognition.
+    /// Events arrive here from CurationLoop.sense() on each loop tick (~10s).
+    /// Metacognition drains them on CLI-triggered cycles — there may be a
+    /// one-cycle delay between push and drain. This is eventual consistency;
+    /// no events are lost.
     pub(crate) pending_communication: Arc<RwLock<Vec<CommunicationEvent>>>,
 }
 

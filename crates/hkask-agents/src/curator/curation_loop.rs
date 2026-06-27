@@ -17,7 +17,8 @@
 
 use chrono::Utc;
 use hkask_cns::types::loops::{
-    CurationInput, Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
+    CommunicationEvent, CurationInput, Deviation, HkaskLoop, LoopAction, LoopId, Signal,
+    SignalMetric,
 };
 use hkask_memory::ConsolidationBridge;
 use hkask_ports::ConsolidationRequest;
@@ -186,6 +187,25 @@ impl HkaskLoop for CurationLoop {
             match store.query_algedonic(since, 1000) {
                 Ok(events) => {
                     let count = events.len() as u64;
+
+                    // Push communication events to shared context for metacognition processing.
+                    // This replaces the CommunicationWatcher — no duplicate polling, no data-loss bug.
+                    {
+                        let mut comm_events = self.context.pending_communication.write().await;
+                        for event in &events {
+                            let cat = event.span.namespace.short_name();
+                            if cat.starts_with("communication.") {
+                                let ce = CommunicationEvent {
+                                    span_category: cat.to_string(),
+                                    span_path: event.span.as_str().to_string(),
+                                    observation: event.observation.clone(),
+                                    observed_at: event.timestamp.to_rfc3339(),
+                                };
+                                comm_events.push(ce);
+                            }
+                        }
+                    }
+
                     if let Some(latest) = events.last() {
                         let new_cursor = latest.timestamp.timestamp_millis() as u64;
                         self.last_review_ms.store(new_cursor, Ordering::Relaxed);
@@ -271,14 +291,11 @@ impl HkaskLoop for CurationLoop {
                         );
                     }
                     CurationInput::Communication(event) => {
-                        tracing::info!(
+                        tracing::debug!(
                             target: CUR_TARGET,
                             span_category = %event.span_category,
-                            span_path = %event.span_path,
-                            "Communication event observed — Matrix activity detected"
+                            "Communication event received via inbox (legacy path)"
                         );
-                        // Push to shared context for metacognition processing.
-                        self.context.pending_communication.write().await.push(event);
                     }
                 }
             }

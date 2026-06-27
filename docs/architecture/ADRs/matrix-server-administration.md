@@ -8,7 +8,7 @@
 - ✅ Onboarding: human + replicant + 7 system bot accounts
 - ✅ Pod auto-registration on activation
 - ✅ 7R7 listener → CNS bridge → NuEventStore
-- ✅ CommunicationWatcher → CurationLoop
+- ✅ CurationLoop.sense() filters communication events from NuEventStore.
 - ✅ CAT engagement gate (Communication Accommodation Theory)
 - ✅ CAT respond template (metacognition-respond.j2)
 - ✅ MCP: 12 communication tools (send_message, create_thread, etc.)
@@ -84,6 +84,8 @@ Pod Activation
 
 ### 6. CNS Spans for Matrix Administration
 
+#### Matrix Infrastructure Spans
+
 | Span | Event | Purpose |
 |------|-------|---------|
 | `cns.communication.matrix.pod_registered` | Pod successfully registered on Conduit | Observability |
@@ -93,6 +95,18 @@ Pod Activation
 | `cns.communication.matrix.federation_invite` | Federation peer invited | Federation audit |
 | `cns.communication.matrix.message_sent` | Message delivered to room | Communication health |
 | `cns.communication.matrix.daemon` | Daemon Matrix connection status | System health |
+
+#### 7R7 Receptor Observation Spans (v0.31.0)
+
+| Span | Receptor | Observed Domain | Purpose |
+|------|----------|-----------------|---------|
+| `cns.communication.message.observed` | r7-1 Observer | Matrix room messages | Communication observability |
+| `cns.variety.observed` | r7-2 Variety | Alert counts, queue depth, variety EMA | Ashby regulation |
+| `cns.algedonic.observed` | r7-3 Algedonic | Severity distributions, resolution rates | Pain/pleasure signalling |
+| `cns.composer.observed` | r7-4 Composer | Skill/template activations, contract violations | Composition health |
+| `cns.consolidation.observed` | r7-5 Consolidator | Episodic (PKO) vs semantic (DC+BIBO) encoding rates | Memory balance |
+| `cns.cybernetics.observed` | r7-6 Cybernetics | Circuit breakers, self-heal, energy budgets | CNS meta-health |
+| `cns.curation.observed` | r7-7 Curator | Metacognition cycles, CAT decisions, directives | Curation observability |
 
 ### 7. Design Gaps
 
@@ -119,10 +133,7 @@ Matrix message (Conduit)
        └──► NuEvent::persist() → NuEventStore
                │
                ▼
-       CommunicationWatcher (30s poll)
-               │
-               ▼
-       CurationInput::Communication → CurationLoop
+       CurationLoop.sense() (filters communication.* events)
                │
                ▼
        MetacognitionLoop

@@ -1,7 +1,7 @@
 ---
 title: "hKask Open Questions and Underspecified Aspects"
 audience: [architects, developers, decision-makers]
-last_updated: 2026-06-22
+last_updated: 2026-06-27
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -1096,6 +1096,52 @@ Questions raised by the Solid Pod isomorphism that require future design work.
 | **Containerized pods** | `kask pod export-container` generates Dockerfile | **DELETE** — replace with CLI |
 
 **Question:** Is PodFactory a necessary intermediate step, or skip directly to container-native deployment?
+
+
+## hKask Communication — Implementation Status & Open Questions
+
+> **MDS Category:** Composition, Curation
+> **Last Updated:** 2026-06-27
+
+The `hkask-communication` crate was originally classified as RESOLVED (stubs replaced with tests). It now has a full operational pipeline beyond tests: the 7R7 Listener polls Matrix rooms, the CNS bridge persists NuEvents, CurationLoop.sense() filters communication events from NuEventStore and pushes directly to curation context, and the CAT engagement gate gates agent activation.
+
+### COMM-001: hKask-Communication Pipeline Operational ✅ RESOLVED
+
+**Original status (2026-06-14):** RESOLVED — stubs replaced with tests.
+
+**Current status (2026-06-27):** RESOLVED — full pipeline operational. The crate provides:
+- `MatrixTransport` (596 LOC) — matrix-sdk client lifecycle, messaging, rooms, files
+- `SevenR7Listener` (191 LOC) — passive room observer, polls on configurable interval, persists CNS NuEvents
+- `AgentRegistry` (152 LOC) — WebID↔UserId mapping, thread watchlists
+- CNS bridge — NuEvent persistence → CurationLoop.sense() filters communication events from NuEventStore and pushes directly to curation context
+- CAT engagement gate — `convergence_bias` scalar per agent
+- Response dispatch — agent → Matrix room via `MatrixTransport::send_message()`
+- 652 LOC of tests (Conduit-dependent integration + MXID derivation unit tests)
+
+**Deferred:** E2EE (SQLCipher/SQLite conflict), continuous sync (v1 uses on-demand polling).
+
+### COMM-002: Condenser Saliency Refactoring
+
+**MDS Category:** Curation
+**Status:** Open
+
+**Context:** The `hkask-condenser` crate (761 LOC) provides context window condensation with `classify`, `compress`, `persist`, `thread_summary`, and related tools. Messages arriving via the Matrix transport pipeline follow the same condensation path as REPL/CLI messages, but the condensation strategy is uniform — it does not consider message saliency (priority, urgency, or relevance weighting).
+
+**Question:** Should the condenser apply saliency-based weighting to messages based on their provenance (Matrix room context, sender identity, CAT convergence bias, or explicit priority markers), rather than treating all messages as equally important for condensation?
+
+**Options:**
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A — Uniform (current)** | All messages condensed equally | Simple, predictable | May discard high-value content during window pressure |
+| **B — Room-weighted** | Weight by Matrix room priority (Curator room > agent room > general) | Room-level priority, easy to implement | Doesn't consider message content |
+| **C — Sender-weighted** | Weight by sender identity (human owner > replicant > bot > unknown) | Respects sovereignty hierarchy | Requires sender identity verification |
+| **D — CAT-informed** | Weight by `convergence_bias` scalar from CAT engagement gate | Integrates with existing engagement model | Adds coupling between communication and condenser crates |
+| **E — Hybrid (B + C + D)** | Weighted fusion with configurable coefficients | Most adaptive, user-configurable | Highest complexity |
+
+**Key constraint:** Any saliency model must remain user-visible (P3 — Generative Space). Weights cannot be hidden parameters (P3 Prohibition #4).
+
+**Recommended decision:** Defer. Implement Option A (uniform) as the stable baseline. Gather telemetry on condensation quality under realistic Matrix message volume before committing to a weighting strategy. Revisit when continuous sync is implemented and message volume increases.
 
 
 ## References
