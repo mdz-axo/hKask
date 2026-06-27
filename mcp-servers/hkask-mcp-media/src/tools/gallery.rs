@@ -458,60 +458,9 @@ impl MediaServer {
                 };
                 registry_count = registry.len();
 
-                let onnx_used = if self.face_analyzer.is_some() && !registry.is_empty() {
-                    let (_onnx_faces, onnx_embeddings, onnx_errors) =
-                        self.run_onnx_face_pipeline(&all_indices).await;
-                    match_errors.extend(onnx_errors);
-
-                    if !onnx_embeddings.is_empty() {
-                        for (image_id, query_blob, bbox) in &onnx_embeddings {
-                            let query_embedding = match blob_to_embedding(query_blob) {
-                                Some(e) => e,
-                                None => continue,
-                            };
-
-                            for reg_entry in &registry {
-                                let ref_embedding = match &reg_entry.embedding {
-                                    Some(blob) => match blob_to_embedding(blob) {
-                                        Some(e) => e,
-                                        None => continue,
-                                    },
-                                    None => continue,
-                                };
-
-                                let similarity =
-                                    cosine_similarity(&query_embedding, &ref_embedding);
-                                if similarity >= 0.6 {
-                                    let name =
-                                        format!("{} {}", reg_entry.first_name, reg_entry.last_name);
-                                    let new_value = serde_json::json!({
-                                        "name": name,
-                                        "match_confidence": similarity,
-                                        "registry_id": reg_entry.id,
-                                        "method": "onnx",
-                                        "bbox": bbox,
-                                    });
-                                    self.persist_tag(
-                                        image_id,
-                                        "face",
-                                        &new_value.to_string(),
-                                        similarity as f64,
-                                        "arcface-onnx",
-                                    );
-                                    faces_matched += 1;
-                                    break;
-                                }
-                            }
-                        }
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                };
-
-                if !onnx_used && !registry.is_empty() {
+                // Face matching: always use vision LLM (open-weight Qwen2.5-VL via fal).
+                // The ONNX embedding path is optional behind the `face-recognition` feature.
+                if !registry.is_empty() {
                     let all_tags = match self.gallery_store.get_all_tags(&ga.gallery_id) {
                         Ok(t) => t,
                         Err(e) => {
@@ -905,25 +854,34 @@ impl MediaServer {
                 (status, notes, Some(v))
             };
 
-            let embedding_blob = if let Some(ref analyzer) = self.face_analyzer {
-                match self.resolve_image_path(image_index) {
-                    Ok(path) => match image::open(&path) {
-                        Ok(img) => match analyzer.analyze(&img) {
-                            Ok(faces) => faces.first().map(|f| embedding_to_blob(&f.embedding)),
-                            Err(e) => {
-                                tracing::warn!(target: "cns.mcp.media.face", error = %e, "ONNX face analysis failed during registration");
-                                None
-                            }
-                        },
-                        Err(e) => {
-                            tracing::warn!(target: "cns.mcp.media.face", error = %e, "Failed to open image for embedding");
-                            None
+            let embedding_blob: Option<Vec<u8>> = {
+                #[cfg(feature = "face-recognition")]
+                {
+                    if let Some(ref analyzer) = self.face_analyzer {
+                        match self.resolve_image_path(image_index) {
+                            Ok(path) => match image::open(&path) {
+                                Ok(img) => match analyzer.analyze(&img) {
+                                    Ok(faces) => faces.first().map(|f| embedding_to_blob(&f.embedding)),
+                                    Err(e) => {
+                                        tracing::warn!(target: "cns.mcp.media.face", error = %e, "ONNX face analysis failed during registration");
+                                        None
+                                    }
+                                },
+                                Err(e) => {
+                                    tracing::warn!(target: "cns.mcp.media.face", error = %e, "Failed to open image for embedding");
+                                    None
+                                }
+                            },
+                            Err(_) => None,
                         }
-                    },
-                    Err(_) => None,
+                    } else {
+                        None
+                    }
                 }
-            } else {
-                None
+                #[cfg(not(feature = "face-recognition"))]
+                {
+                    None
+                }
             };
 
             let record = self

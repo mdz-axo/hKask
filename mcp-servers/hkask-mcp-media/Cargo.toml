@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 description = "Media generation MCP server (image, video, audio, 3D via fal.ai and other providers)"
 
+[features]
+default = []
+face-recognition = ["dep:face_id"]
+
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
@@ -32,7 +36,7 @@ imageproc.workspace = true
 ab_glyph.workspace = true
 uuid.workspace = true
 nom-exif.workspace = true
-face_id = "0.4"
+face_id = { version = "0.4", optional = true }
 hkask-bridge-pko = { path = "../../crates/hkask-bridge-pko" }
 hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }
 

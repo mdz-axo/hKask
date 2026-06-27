@@ -38,7 +38,12 @@ use std::sync::{Arc, Mutex};
 use video::FfmpegRunner;
 
 use ab_glyph::Font;
+#[cfg(feature = "face-recognition")]
 use face_id::analyzer::FaceAnalyzer;
+#[cfg(not(feature = "face-recognition"))]
+/// Stub type when face-recognition feature is disabled.
+#[allow(dead_code)]
+pub struct FaceAnalyzer;
 
 // ── Model configuration ───────────────────────────────────────────────
 
@@ -423,13 +428,17 @@ impl MediaServer {
     }
 
     /// Resolve the best available vision model with fallback chain.
-    /// Tries: DeepInfra → OpenRouter → Together AI.
+    /// Tries: fal.ai → DeepInfra → OpenRouter → Together AI.
     /// Returns (model_name, label) or None if no vision provider is configured.
     async fn resolve_vision_model(&self) -> Option<(&'static str, &'static str)> {
         let models = self.inference.list_vision_models().await;
 
         for model in &models {
             match model.provider {
+                hkask_inference::ProviderId::Fal => {
+                    // Qwen2.5-VL 72B — Apache 2.0 open-weight, served by fal.ai
+                    return Some(("FA/Qwen/Qwen2.5-VL-72B-Instruct", "qwen2.5-vl-72b"));
+                }
                 hkask_inference::ProviderId::DeepInfra => {
                     return Some((
                         "DI/meta-llama/Llama-3.2-11B-Vision-Instruct",
@@ -437,7 +446,7 @@ impl MediaServer {
                     ));
                 }
                 hkask_inference::ProviderId::OpenRouter => {
-                    return Some(("OR/openai/gpt-4o", "gpt-4o-vision"));
+                    return Some(("OR/qwen/qwen-2.5-vl-72b-instruct", "qwen2.5-vl-72b"));
                 }
                 hkask_inference::ProviderId::Together => {
                     return Some(("TG/Qwen/Qwen2.5-VL-72B-Instruct", "qwen-vl"));
@@ -666,6 +675,7 @@ impl MediaServer {
         (analyzed, errors)
     }
 
+    #[cfg(feature = "face-recognition")]
     /// Run ONNX-based face detection + embedding extraction on gallery images.
     /// Returns (faces_found, embeddings_by_image, errors).
     /// Each embedding is paired with its image_id and bbox for cropping.
@@ -712,6 +722,7 @@ impl MediaServer {
                 }
             };
 
+            #[cfg(feature = "face-recognition")]
             match analyzer.analyze(&img) {
                 Ok(faces) => {
                     for face in &faces {
@@ -726,9 +737,12 @@ impl MediaServer {
                         faces_found += 1;
                     }
                 }
+                #[cfg(feature = "face-recognition")]
                 Err(e) => {
                     errors.push(format!("image {} analysis: {}", idx, e));
                 }
+                #[cfg(not(feature = "face-recognition"))]
+                _ => {}
             }
         }
 
@@ -861,12 +875,15 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     }
 }
 
+#[cfg(feature = "face-recognition")]
 /// Convert a 512-dim f32 embedding to raw bytes for BLOB storage.
 fn embedding_to_blob(embedding: &[f32]) -> Vec<u8> {
     embedding.iter().flat_map(|f| f.to_le_bytes()).collect()
 }
 
+#[cfg(feature = "face-recognition")]
 /// Convert raw BLOB bytes back to a 512-dim f32 embedding.
+#[allow(dead_code)]
 fn blob_to_embedding(blob: &[u8]) -> Option<Vec<f32>> {
     if !blob.len().is_multiple_of(4) {
         return None;
@@ -943,7 +960,10 @@ pub async fn run(
         }
     };
 
-    // Initialize ONNX face analyzer (downloads ~250MB models on first run)
+    // Initialize ONNX face analyzer (downloads ~250MB models on first run).
+    // Gated behind the `face-recognition` feature — without it, all face
+    // tools fall back to vision LLM comparison.
+    #[cfg(feature = "face-recognition")]
     let face_analyzer = match FaceAnalyzer::from_hf().build().await {
         Ok(a) => {
             tracing::info!(target: "cns.mcp.media", "ONNX face analyzer ready");
@@ -954,6 +974,8 @@ pub async fn run(
             None
         }
     };
+    #[cfg(not(feature = "face-recognition"))]
+    let face_analyzer: Option<Arc<FaceAnalyzer>> = None;
 
     hkask_mcp::run_server(
         "hkask-mcp-media",
