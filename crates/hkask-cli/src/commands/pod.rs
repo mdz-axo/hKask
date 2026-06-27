@@ -107,19 +107,19 @@ async fn run_pod_inner(action: PodAction) {
         }
         PodAction::ExportK8s {
             pod_id,
-            volume_size_gb,
-            max_replicas,
+            volume_size_gb: _,
+            max_replicas: _,
             output,
         } => {
-            // Validate pod exists before generating manifests
+            // Validate pod exists before copying manifests
             match get_pod_status(&pod_id).await {
-                Ok(_) => match export_k8s(&pod_id, volume_size_gb, max_replicas, &output) {
-                    Ok(manifests) => {
+                Ok(_) => match export_k8s(&output) {
+                    Ok(count) => {
                         println!(
                             "K8s manifests for '{}' exported to {} ({} files)",
                             pod_id,
                             output.display(),
-                            manifests
+                            count
                         );
                     }
                     Err(e) => {
@@ -132,7 +132,7 @@ async fn run_pod_inner(action: PodAction) {
                     std::process::exit(1);
                 }
             }
-        }
+        },
     }
 }
 
@@ -220,7 +220,7 @@ pub async fn set_mode(name: &str, mode: &str, role: Option<&str>) -> Result<(), 
         .map_err(|e| format!("Failed to set mode: {e}"))
 }
 
-/// Export a pod as a container build context (preserved for curator.rs compatibility).
+/// Export a pod as a container build context (delegates to PodFactory).
 pub async fn export_container(pod_id: &str, output_dir: &std::path::Path) -> Result<(), String> {
     let ctx = build_ctx();
     let pm = ctx.pod_manager();
@@ -229,186 +229,55 @@ pub async fn export_container(pod_id: &str, output_dir: &std::path::Path) -> Res
         .map_err(|e| format!("Failed to export container: {e}"))
 }
 
-/// Export K8s manifests for Hetzner K3s deployment.
+/// Export K8s manifests from the canonical `deploy/k8s/` directory.
 ///
-/// Pure manifest generation — no pod validation. During initial deployment
-/// (curator init), no pod exists yet in the database. Callers that need
-/// pod existence validation should check before calling (see `run_pod_inner`).
+/// Copies all files from the repo's `deploy/k8s/` into `output_dir`.
+/// The canonical manifests include namespace, deployment (kask + Conduit +
+/// Litestream via supervisord), service, PVC, configmap, secret, ingress,
+/// kustomization, and template files. No inline generation — single source
+/// of truth in `deploy/k8s/`.
 ///
-/// Generates 4 standard Kubernetes resources in `output_dir`:
-/// - `namespace.yaml` — pod-scoped namespace
-/// - `deployment.yaml` — Deployment with `max_replicas`, resource limits, and pod anti-affinity
-/// - `service.yaml` — ClusterIP Service
-/// - `pvc.yaml` — PersistentVolumeClaim with requested volume size
+/// Source directory resolution (tried in order):
+/// 1. `HKASK_DEPLOY_DIR` env var
+/// 2. `deploy/k8s/` relative to current working directory (dev/CI)
 ///
-/// Returns the count of generated manifest files.
-pub fn export_k8s(
-    pod_id: &str,
-    volume_size_gb: u32,
-    max_replicas: u32,
-    output_dir: &std::path::Path,
-) -> Result<usize, String> {
+/// Returns the count of copied files.
+pub fn export_k8s(output_dir: &std::path::Path) -> Result<usize, String> {
+    let source_dir = if let Ok(d) = std::env::var("HKASK_DEPLOY_DIR") {
+        let p = std::path::PathBuf::from(&d);
+        if p.is_dir() { p } else { return Err(format!("HKASK_DEPLOY_DIR set but not a directory: {d}")); }
+    } else {
+        let cwd = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
+        let candidate = cwd.join("deploy").join("k8s");
+        if candidate.is_dir() {
+            candidate
+        } else {
+            return Err(format!(
+                "Cannot find deploy/k8s/. Set HKASK_DEPLOY_DIR or run from repo root."
+            ));
+        }
+    };
+
     std::fs::create_dir_all(output_dir)
-        .map_err(|e| format!("Failed to create output directory: {}", e))?;
+        .map_err(|e| format!("Failed to create output directory: {e}"))?;
 
-    let ns_name = format!("hkask-pod-{}", pod_id);
-    let app_label = format!("hkask-pod-{}", pod_id);
+    let mut copied = 0usize;
+    for entry in std::fs::read_dir(&source_dir)
+        .map_err(|e| format!("Cannot read deploy/k8s/ ({source_dir:?}): {e}"))?
+    {
+        let entry = entry.map_err(|e| format!("read_dir entry: {e}"))?;
+        let path = entry.path();
+        if path.is_file() {
+            let name = path.file_name().ok_or("missing filename")?;
+            std::fs::copy(&path, output_dir.join(name))
+                .map_err(|e| format!("Failed to copy {name:?}: {e}"))?;
+            copied += 1;
+        }
+    }
 
-    // ── namespace.yaml ────────────────────────────────────────────────
-    let namespace_yaml = format!(
-        "# K8s Namespace — hKask pod '{}'\n\
-         # Generated by hKask v0.31.0\n\
-         apiVersion: v1\n\
-         kind: Namespace\n\
-         metadata:\n\
-           name: {}\n\
-           labels:\n\
-             app.kubernetes.io/name: hkask\n\
-             app.kubernetes.io/instance: pod-{}\n",
-        pod_id, ns_name, pod_id
-    );
-    std::fs::write(output_dir.join("namespace.yaml"), &namespace_yaml)
-        .map_err(|e| format!("Failed to write namespace.yaml: {}", e))?;
+    if copied == 0 {
+        return Err(format!("No files found in {source_dir:?}"));
+    }
 
-    // ── deployment.yaml ───────────────────────────────────────────────
-    let deployment_yaml = format!(
-        "# K8s Deployment — hKask pod '{}'\n\
-         # Generated by hKask v0.31.0\n\
-         apiVersion: apps/v1\n\
-         kind: Deployment\n\
-         metadata:\n\
-           name: {}\n\
-           namespace: {}\n\
-           labels:\n\
-             app: {}\n\
-         spec:\n\
-           replicas: {}\n\
-           selector:\n\
-             matchLabels:\n\
-               app: {}\n\
-           template:\n\
-             metadata:\n\
-               labels:\n\
-                 app: {}\n\
-             spec:\n\
-               affinity:\n\
-                 podAntiAffinity:\n\
-                   preferredDuringSchedulingIgnoredDuringExecution:\n\
-                     - weight: 100\n\
-                       podAffinityTerm:\n\
-                         labelSelector:\n\
-                           matchExpressions:\n\
-                             - key: app\n\
-                               operator: In\n\
-                               values:\n\
-                                 - {}\n\
-                         topologyKey: kubernetes.io/hostname\n\
-               containers:\n\
-                 - name: hkask\n\
-                   image: hkask-runtime:0.31.0\n\
-                   imagePullPolicy: IfNotPresent\n\
-                   args:\n\
-                     - pod\n\
-                     - serve\n\
-                     - --pod-id\n\
-                     - {}\n\
-                   env:\n\
-                     - name: HKASK_POD_ID\n\
-                       value: \"{}\"\n\
-                     - name: HKASK_POD_MODE\n\
-                       value: \"server\"\n\
-                     - name: RUST_LOG\n\
-                       value: \"info,hkask=debug\"\n\
-                   ports:\n\
-                     - containerPort: 3000\n\
-                       name: http\n\
-                   resources:\n\
-                     requests:\n\
-                       memory: \"256Mi\"\n\
-                       cpu: \"250m\"\n\
-                     limits:\n\
-                       memory: \"1Gi\"\n\
-                       cpu: \"1000m\"\n\
-                   volumeMounts:\n\
-                     - name: data\n\
-                       mountPath: /data\n\
-                   livenessProbe:\n\
-                     httpGet:\n\
-                       path: /health\n\
-                       port: 3000\n\
-                     initialDelaySeconds: 30\n\
-                     periodSeconds: 30\n\
-                   readinessProbe:\n\
-                     httpGet:\n\
-                       path: /health\n\
-                       port: 3000\n\
-                     initialDelaySeconds: 5\n\
-                     periodSeconds: 10\n\
-               volumes:\n\
-                 - name: data\n\
-                   persistentVolumeClaim:\n\
-                     claimName: {}-data\n",
-        pod_id,
-        app_label,
-        ns_name,
-        app_label,
-        max_replicas,
-        app_label,
-        app_label,
-        app_label,
-        pod_id,
-        pod_id,
-        app_label
-    );
-    std::fs::write(output_dir.join("deployment.yaml"), &deployment_yaml)
-        .map_err(|e| format!("Failed to write deployment.yaml: {}", e))?;
-
-    // ── service.yaml ──────────────────────────────────────────────────
-    let service_yaml = format!(
-        "# K8s Service — hKask pod '{}'\n\
-         # Generated by hKask v0.31.0\n\
-         apiVersion: v1\n\
-         kind: Service\n\
-         metadata:\n\
-           name: {}\n\
-           namespace: {}\n\
-           labels:\n\
-             app: {}\n\
-         spec:\n\
-           type: ClusterIP\n\
-           selector:\n\
-             app: {}\n\
-           ports:\n\
-             - name: http\n\
-               port: 3000\n\
-               targetPort: 3000\n\
-               protocol: TCP\n",
-        pod_id, app_label, ns_name, app_label, app_label
-    );
-    std::fs::write(output_dir.join("service.yaml"), &service_yaml)
-        .map_err(|e| format!("Failed to write service.yaml: {}", e))?;
-
-    // ── pvc.yaml ──────────────────────────────────────────────────────
-    let pvc_yaml = format!(
-        "# K8s PersistentVolumeClaim — hKask pod '{}'\n\
-         # Generated by hKask v0.31.0\n\
-         apiVersion: v1\n\
-         kind: PersistentVolumeClaim\n\
-         metadata:\n\
-           name: {}-data\n\
-           namespace: {}\n\
-           labels:\n\
-             app: {}\n\
-         spec:\n\
-           accessModes:\n\
-             - ReadWriteOnce\n\
-           resources:\n\
-             requests:\n\
-               storage: {}Gi\n",
-        pod_id, app_label, ns_name, app_label, volume_size_gb
-    );
-    std::fs::write(output_dir.join("pvc.yaml"), &pvc_yaml)
-        .map_err(|e| format!("Failed to write pvc.yaml: {}", e))?;
-
-    Ok(4)
+    Ok(copied)
 }

@@ -185,8 +185,8 @@ spec:
     let curator_dir = std::env::temp_dir().join("hkask-curator-init");
     let _ = std::fs::create_dir_all(&curator_dir);
 
-    crate::commands::pod::export_k8s("curator", 10, 3, &curator_dir)
-        .map_err(|e| format!("Failed to generate Curator manifests: {e}"))?;
+    crate::commands::pod::export_k8s(&curator_dir)
+        .map_err(|e| format!("Failed to export K8s manifests: {e}"))?;
 
     // Run kubectl apply on the generated manifests
     let apply_output = std::process::Command::new("kubectl")

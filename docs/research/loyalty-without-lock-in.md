@@ -2,7 +2,7 @@
 title: "Loyalty Without Lock-In — The hKask Strategy for Distributed Agent Networks"
 audience: [architects, developers, agents, curator]
 last_updated: 2026-06-26
-version: "0.1.0-draft"
+version: "0.31.0-draft"
 status: "Draft — for review and refinement"
 domain: "Strategy / Architecture"
 mds_categories: [domain, composition, trust, curation]

@@ -1178,10 +1178,10 @@ The replicant streams inference output as `session/update` notifications while t
 **Authoritative model:** See Deployment Model section above. hKask deploys as a single cloud server. There is no client binary. Users access hKask through a browser terminal (xterm.js + WebSocket). SSH is optional for power users.
 
 **Pod export commands** (`kask pod export-container` / `kask pod export-k8s`):
-- `export-container` generates a Containerfile + pod files (SQLCipher DB, WebID, salt) for Docker builds
-- `export-k8s` generates 4 K8s manifests (namespace, deployment, service, PVC) for Hetzner K3s deployment
-- Both commands delegate to `ActivePods` (container) or generate manifests directly (K8s)
-- The Curator init flow (`kask curator init`) uses `export-k8s` to deploy the Curator pod
+- `export-container` generates a Containerfile + pod files (SQLCipher DB, WebID, salt) for Docker builds via `PodFactory::export_container()`
+- `export-k8s` copies the canonical manifests from `deploy/k8s/` into the output directory — single source of truth for K8s deployment
+- The canonical `deploy/k8s/` includes: single-container pod (kask + Conduit + Litestream via supervisord), ConfigMap, Secret, PVC, Service, Ingress with cert-manager TLS, Kustomization
+- The Curator init flow (`kask curator init`) calls `export_k8s` to deploy the full system stack
 
 ### Cloud Server Deployment
 

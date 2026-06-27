@@ -185,17 +185,13 @@ The CLI provides two pod export paths for cloud deployment. Both are implemented
 | Command | Source | Output | Validates |
 |---------|--------|--------|-----------|
 | `kask pod export-container <pod_id>` | `ActivePods::export_container()` → `PodFactory` | Containerfile + pod files (DB, WebID, salt) | Pod existence |
-| `kask pod export-k8s <pod_id>` | Direct manifest generation in `export_k8s()` | 4 K8s YAML manifests (namespace, deployment, service, PVC) | Pod existence via `pod_manager().get_pod_status()` |
+| `kask pod export-k8s <pod_id>` | Copies canonical manifests from `deploy/k8s/` | All files from `deploy/k8s/` directory | Pod existence via `pod_manager().get_pod_status()` |
 
-**K8s manifests generated:**
-- `namespace.yaml` — pod-scoped `Namespace` with `app.kubernetes.io` labels
-- `deployment.yaml` — `Deployment` with `max_replicas`, pod anti-affinity, resource limits (256Mi/1Gi memory), liveness/readiness probes
-- `service.yaml` — `ClusterIP` `Service` on port 3000
-- `pvc.yaml` — `PersistentVolumeClaim` with configurable `volume_size_gb`
+**Canonical deployment manifests** live in `deploy/k8s/` -- single source of truth. The directory contains a complete K8s deployment: single-container pod (kask + Conduit + Litestream via supervisord), ConfigMap, Secret, PVC, Service, Ingress with cert-manager TLS, Kustomization, entrypoint script, and templated config files. See `deploy/k8s/README.md` for the full deployment guide.
 
 **CNS spans:** `CnsSpan::SessionOpen`, `CnsSpan::SessionClose`, `CnsSpan::BackupExport`, `CnsSpan::BackupAutoExport`, `CnsSpan::BackupUpload` — deployment lifecycle observability.
 
-**Curator init flow:** `kask curator init` calls `export_k8s("curator", 10, 3, ...)` → `kubectl apply -f <manifests_dir>`. The `PodService` abstraction was removed in v0.31.0 per P5 (Essentialism) — pod management is now direct calls to `ActivePods` + `PodFactory`.
+**Curator init flow:** `kask curator init` calls `export_k8s(&curator_dir)` → `kubectl apply -f <manifests_dir>`. The `PodService` abstraction was removed in v0.31.0 per P5 (Essentialism) — pod management is now direct calls to `ActivePods` + `PodFactory`.
 
 
 ## CNS Domain Specification
