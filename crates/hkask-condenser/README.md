@@ -8,7 +8,7 @@ no HTTP, no async.
 
 | Module | Role |
 |--------|------|
-| `algorithms` | Three compression algorithms (`rtk_style`, `saliency_rank`, `flashrank`) with domain-aware scoring |
+| `algorithms` | Three compression algorithms (`rtk_style`, `word_rank`, `flashrank`) with domain-aware scoring |
 | `ontology_graph` | Cross-domain concept relationship index (FIBO, CogAT, GOLEM, ML-Schema, OMC, PKO, DC+BIBO) |
 | `types` | `OntologyAnchor`, `Profile`, `ContextCategory`, `CompressedOutput`, health signals |
 | `engine` | `CondenserEngine` — stateful compression dispatch, profile management, CNS observability |
@@ -30,18 +30,19 @@ Head/tail ellipsis truncation. Keeps the first N% and last M% of lines with
 a `...` separator. Default for ShellCommand, TestOutput, BuildOutput.
 Uses ontology density factor to adjust head/tail ratio (FIBO gets more tail).
 
-### saliency_rank
-TF-IDF + structural bonus + ontology-aware scoring. Scores every line, keeps
-the highest-scoring budget lines. Default for ConversationHistory, LogOutput.
+### word_rank
+TF-IDF bag-of-words compression with structural bonus and ontology anchoring.
+Scores every line, keeps the highest-scoring budget lines. Default for
+ConversationHistory, LogOutput.
 
 Scoring formula:
 ```
-score = TF-IDF_average + structural_bonus + domain_bonus + graph_adjacency_bonus
+score = TF-IDF_average + structural_bonus + domain_saliency
 ```
 
+- **TF-IDF_average:** mean word frequency across the input — rare words score higher
 - **structural_bonus:** error=2.0, warning=1.0, heading=0.5, list=0.2
-- **domain_bonus:** 0.3–0.5 for domain-specific keywords (e.g., FIBO numeric precision)
-- **graph_adjacency_bonus:** 0.15 per related concept from the ontology graph, capped at 0.5
+- **domain_saliency:** direct domain keyword match (0.3–0.5) + graph adjacency bonus (up to 0.5)
 
 ### flashrank
 Greedy marginal-utility selection under token budget. Balances relevance,

@@ -116,9 +116,9 @@ impl CondenserAlgorithm for RtkStyleAlgorithm {
     }
 }
 
-pub struct SaliencyRankAlgorithm;
+pub struct WordRankAlgorithm;
 
-impl SaliencyRankAlgorithm {
+impl WordRankAlgorithm {
     fn compute_word_frequencies(lines: &[&str]) -> std::collections::HashMap<String, f64> {
         let mut freq: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
         let mut total = 0usize;
@@ -135,13 +135,7 @@ impl SaliencyRankAlgorithm {
         freq.into_iter().map(|(k, v)| (k, v as f64 / t)).collect()
     }
 
-    /// Compute a domain-aware structural bonus based on ontology anchoring (P8.1).
-    /// Incorporates graph adjacency scoring from the ontology concept graph (P5.4).
-    /// Delegates to the public `domain_saliency` free function.
-    fn ontology_bonus(line: &str, anchor: Option<&OntologyAnchor>) -> f64 {
-        domain_saliency(line, anchor)
-    }
-
+    /// Score a single line: TF-IDF average + structural bonus + ontology anchoring.
     fn line_score(
         line: &str,
         freq: &std::collections::HashMap<String, f64>,
@@ -169,19 +163,17 @@ impl SaliencyRankAlgorithm {
                 0.0
             };
 
-        // Domain-aware ontology bonus (P8.1) — stacked on top of structural bonus
-        let ontology_bonus = Self::ontology_bonus(line, anchor);
-
-        tf_sum / words.len() as f64 + structural_bonus + ontology_bonus
+        // Domain-aware ontology bonus (P8.1) — layered on top of TF-IDF
+        tf_sum / words.len() as f64 + structural_bonus + domain_saliency(line, anchor)
     }
 }
 
-impl CondenserAlgorithm for SaliencyRankAlgorithm {
+impl CondenserAlgorithm for WordRankAlgorithm {
     fn name(&self) -> &str {
-        "saliency_rank"
+        "word_rank"
     }
     fn description(&self) -> &str {
-        "TF-IDF + entropy scoring with structural bonus"
+        "TF-IDF bag-of-words compression with structural bonus and ontology anchoring"
     }
     fn default_for(&self) -> &[ContextCategory] {
         &[
@@ -221,7 +213,7 @@ impl CondenserAlgorithm for SaliencyRankAlgorithm {
         let result = join_with_ellipsis(&lines, &selected_indices);
         let health = if zero_count > lines.len() / 2 {
             vec![CondenserHealthSignal {
-                algorithm: "saliency_rank".into(),
+                algorithm: "word_rank".into(),
                 signal_type: "low_signal".into(),
                 detail: format!(
                     "{} of {} lines scored 0.0 — content had no usable signal to rank by",
@@ -244,8 +236,9 @@ impl CondenserAlgorithm for SaliencyRankAlgorithm {
 /// Returns 0.0 (unrelated) up to ~1.0 (strong domain match). Combines direct
 /// keyword recognition with graph adjacency from the ontology concept graph (P5.4).
 ///
-/// Extracted from `SaliencyRankAlgorithm::ontology_bonus` for reuse by the
+/// Extracted from the condenser's ontology bonus logic for reuse by the
 /// communication gate and other callers that need domain relevance without the
+/// full compression pipeline.
 /// full compression pipeline.
 pub fn domain_saliency(line: &str, anchor: Option<&OntologyAnchor>) -> f64 {
     let direct = match anchor {
@@ -614,7 +607,7 @@ impl AlgorithmRegistry {
     pub fn new() -> Self {
         let algorithms: Vec<Box<dyn CondenserAlgorithm>> = vec![
             Box::new(RtkStyleAlgorithm),
-            Box::new(SaliencyRankAlgorithm),
+            Box::new(WordRankAlgorithm),
             Box::new(FlashrankAlgorithm),
         ];
         Self { algorithms }
@@ -1013,9 +1006,9 @@ mod tests {
     }
 
     #[test]
-    fn saliency_rank_preserves_error_lines() {
+    fn word_rank_preserves_error_lines() {
         let input = "info: ok\ninfo: ok\ninfo: ok\nerror: critical failure\ninfo: ok\ninfo: ok";
-        let algo = SaliencyRankAlgorithm;
+        let algo = WordRankAlgorithm;
         let (result, _) = algo.compress(input, Profile::Heavy, ContextCategory::LogOutput, None);
         assert!(
             result.contains("error"),
@@ -1025,9 +1018,9 @@ mod tests {
     }
 
     #[test]
-    fn saliency_rank_low_signal_when_no_content() {
+    fn word_rank_low_signal_when_no_content() {
         let input = "a\na\na\na\na\na\na\na\na\na";
-        let algo = SaliencyRankAlgorithm;
+        let algo = WordRankAlgorithm;
         let (_, health) = algo.compress(input, Profile::Heavy, ContextCategory::Unknown, None);
         assert!(!health.is_empty(), "expected low_signal health signal");
         assert_eq!(health[0].signal_type, "low_signal");
@@ -1075,16 +1068,16 @@ mod tests {
         );
         assert_eq!(
             registry.select(ContextCategory::ConversationHistory).name(),
-            "saliency_rank"
+            "word_rank"
         );
         assert_eq!(
             registry.select(ContextCategory::FileContents).name(),
             "flashrank"
         );
-        // LogOutput → saliency_rank
+        // LogOutput → word_rank
         assert_eq!(
             registry.select(ContextCategory::LogOutput).name(),
-            "saliency_rank"
+            "word_rank"
         );
     }
 
@@ -1118,7 +1111,7 @@ mod tests {
             "The competitive landscape includes Samsung, Google, and Microsoft.\n",
             "Management commentary: we expect continued growth in services.\n",
         );
-        let algo = SaliencyRankAlgorithm;
+        let algo = WordRankAlgorithm;
         let anchor = Some(OntologyAnchor::DomainSupplement {
             namespace: OntologyNamespace::Fibo,
             concept: "fibo:Corporation".into(),
@@ -1163,7 +1156,7 @@ mod tests {
             "Disk usage is at 42% capacity.\n",
             "Network latency is within normal bounds.\n",
         );
-        let algo = SaliencyRankAlgorithm;
+        let algo = WordRankAlgorithm;
         let anchor = Some(OntologyAnchor::DomainSupplement {
             namespace: OntologyNamespace::Cogat,
             concept: "cogat:episodic_memory".into(),
@@ -1207,7 +1200,7 @@ mod tests {
             "info: health check passed\n",
             "debug: garbage collection completed\n",
         );
-        let algo = SaliencyRankAlgorithm;
+        let algo = WordRankAlgorithm;
         // Core anchor — no domain bonus, but error structural bonus (2.0) and warning bonus (1.0) apply
         let (result, _) = algo.compress(
             input,
@@ -1243,7 +1236,7 @@ mod tests {
         );
 
         let input = "AAPL: revenue 383B, net income 97B, P/E 28.5, market cap 3.2T";
-        let algo = SaliencyRankAlgorithm;
+        let algo = WordRankAlgorithm;
         let (result, _) = algo.compress(
             input,
             Profile::Normal,

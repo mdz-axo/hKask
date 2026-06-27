@@ -7,20 +7,42 @@ use std::sync::Arc;
 
 use hkask_ports::git_cas::GitCASPort;
 use hkask_services::RetentionPolicy;
-use hkask_services::{ArtifactType, BackupScope, BackupService, ListFilter, RestoreScope};
+use hkask_services::{ArtifactType, BackupScope, BackupService, ListFilter};
 use std::str::FromStr;
 
 use crate::block_on;
 use crate::cli::BackupAction;
 use hkask_services::load_backup_config;
 
-/// Resolve the hexagonal `GitCASPort` from the environment.
-fn resolve_git_cas_port() -> Arc<dyn GitCASPort> {
-    let adapter = super::helpers::or_exit(
+/// Resolve the concrete `GixCasAdapter` for pod-directory backup operations.
+fn resolve_gix_adapter() -> hkask_mcp::GixCasAdapter {
+    super::helpers::or_exit(
         hkask_mcp::GixCasAdapter::from_env(),
         "Failed to initialize CAS adapter",
+    )
+}
+
+/// Resolve the hexagonal `GitCASPort` from the environment (for old BackupService ops).
+fn resolve_git_cas_port() -> Arc<dyn GitCASPort> {
+    Arc::new(resolve_gix_adapter()) as Arc<dyn GitCASPort>
+}
+
+/// Parse a date string like "2026-06-27" or "2026-06-27T08:00:00" to Unix seconds.
+fn parse_date(s: &str) -> u64 {
+    // Try ISO 8601 with time first
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
+        return dt.timestamp() as u64;
+    }
+    // Try date-only: append T00:00:00Z
+    let with_time = format!("{}T00:00:00Z", s);
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&with_time) {
+        return dt.timestamp() as u64;
+    }
+    eprintln!(
+        "Invalid date '{}'. Use YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS",
+        s
     );
-    Arc::new(adapter) as Arc<dyn GitCASPort>
+    std::process::exit(1);
 }
 
 /// Parse a comma-separated list of artifact types.
@@ -46,21 +68,7 @@ fn parse_scope(s: &str) -> BackupScope {
     }
 }
 
-/// Parse a restore scope from a CLI string.
-fn parse_restore_scope(s: &str) -> RestoreScope {
-    match s {
-        "full" | "" => RestoreScope::Full,
-        other => {
-            if let Ok(at) = ArtifactType::from_str(other) {
-                RestoreScope::ByType(at)
-            } else {
-                eprintln!("Unknown scope '{}', defaulting to full", other);
-                RestoreScope::Full
-            }
-        }
-    }
-}
-
+/// Parse a backup scope from a CLI string.
 /// Run a backup operation.
 ///
 /// expect: "I can access all hKask functionality through the kask CLI"
@@ -94,55 +102,59 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
             println!("  Timestamp: {}", result.timestamp);
         }
 
-        BackupAction::Restore {
-            commit,
-            scope,
-            output,
-        } => {
-            let port = resolve_git_cas_port();
-            let svc = BackupService::new(port, load_backup_config());
-            let restore_scope = parse_restore_scope(&scope);
+        BackupAction::Restore { pod, date, commit } => {
+            let adapter = resolve_gix_adapter();
 
-            let commit_hash: hkask_ports::git_cas::CommitHash =
-                commit
+            // Resolve pod directory
+            let sanitized = hkask_types::agent_paths::sanitize_name(&pod);
+            let base = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+            let pod_dir = base.join("hkask").join("agents").join(&sanitized);
+            if !pod_dir.join("pod.db").exists() {
+                eprintln!("Pod '{}' not found at {}", pod, pod_dir.display());
+                std::process::exit(1);
+            }
+
+            // Resolve commit from date or hash
+            let commit_hash = if let Some(ref date_str) = date {
+                let target = parse_date(date_str);
+                match block_on!(
+                    rt,
+                    adapter.resolve_date(&pod_dir, target),
+                    "Date lookup failed"
+                ) {
+                    Some(hash) => hash,
+                    None => {
+                        eprintln!("No snapshots found before {}", date_str);
+                        std::process::exit(1);
+                    }
+                }
+            } else if let Some(ref hash_str) = commit {
+                hash_str
                     .parse()
                     .unwrap_or_else(|e: hkask_ports::git_cas::ParseHashError| {
-                        eprintln!("Invalid commit hash '{}': {}", commit, e);
+                        eprintln!("Invalid commit hash '{}': {}", hash_str, e);
                         std::process::exit(1);
-                    });
+                    })
+            } else {
+                eprintln!("Specify --date YYYY-MM-DD or --commit HASH");
+                std::process::exit(1);
+            };
 
-            let artifacts = block_on!(
+            // Restore pod.db from the commit
+            block_on!(
                 rt,
-                svc.scoped_restore(&commit_hash, restore_scope),
+                adapter.restore_file_from_commit(
+                    &pod_dir,
+                    &commit_hash,
+                    "pod.db",
+                    &pod_dir.join("pod.db")
+                ),
                 "Restore failed"
             );
 
-            println!("Restored {} artifacts:", artifacts.len());
-            for (at, id, bytes) in &artifacts {
-                println!("  {}/{} ({} bytes)", at.label(), id, bytes.len());
-            }
-
-            // Write artifacts to output directory if specified
-            if let Some(ref out_dir) = output {
-                std::fs::create_dir_all(out_dir).unwrap_or_else(|e| {
-                    eprintln!("Failed to create output directory '{}': {}", out_dir, e);
-                    std::process::exit(1);
-                });
-                for (at, id, bytes) in &artifacts {
-                    let filename = format!("{}-{}.json", at.label(), id);
-                    let path = std::path::Path::new(out_dir).join(&filename);
-                    std::fs::write(&path, bytes).unwrap_or_else(|e| {
-                        eprintln!("Failed to write '{}': {}", path.display(), e);
-                    });
-                    println!("  → wrote {}", path.display());
-                }
-                println!("\nArtifacts written to: {}", out_dir);
-                println!(
-                    "Each file is a JSON envelope. Restore to stores requires store-specific logic."
-                );
-            } else {
-                println!("\nUse --output <dir> to write restored artifacts to disk.");
-            }
+            println!("Pod '{}' restored to commit {}", pod, commit_hash);
+            println!("Restart the pod to apply the restored state:");
+            println!("  kask pod deactivate {} && kask pod activate {}", pod, pod);
         }
 
         BackupAction::List { r#type, limit } => {

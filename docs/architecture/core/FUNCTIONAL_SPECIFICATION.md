@@ -1050,7 +1050,7 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 
 **18 contracts** — P5 (Essentialism)
 - `hkask-mcp-research` — web research agent (P5)
-- `hkask-mcp-condenser` — context compression agent (P5)
+- `hkask-mcp-condenser` — context compression and saliency scoring (P5, P5.4). Provides three compression algorithms (`rtk_style`, `word_rank`, `flashrank`) and `condenser_score_saliency`: ontology graph proximity scoring for CAT communication posture — persona (charter-anchored), episodic memory (PKO process domain), and semantic memory (DC+BIBO document domain).
 - Tool registration, capability declaration, resource serving
 
 ### 3.7 Service Layer (`hkask-services`)
@@ -1107,6 +1107,9 @@ Representative domains:
 **25 contracts** — P1 (User Sovereignty)
 - `Channel` — message passing between agents (P1)
 - `Broadcast` — pub/sub event distribution (P1)
+- `MatrixTransport` — Matrix/Conduit messaging, 7R7 listener, CNS bridge
+- `CommunicationEvent` → `CurationInput::Communication` → `MetacognitionLoop`
+- **CAT engagement gate**: `cat::evaluate()` pure-function speak/silent decision driven by `convergence_bias` modulated by `condenser/condenser_score_saliency` (ontology graph proximity, P5.4)
 - Message serialization, delivery guarantees
 
 ### 3.10 Keystore (`hkask-keystore`)
@@ -1252,9 +1255,11 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 | FR-BK-T2 | upload_merge_idempotent_converges |
 | FR-BK-T3 | replicant_collision_auto_renames |
 
-#### 3.17a Git CAS Operational Backup
+#### 3.17a Pod-Directory Git Backup
 
-The git content-addressed storage (CAS) subsystem provides operational backup with content-addressed artifact versioning via `GixCasAdapter` and `BackupService`. This is distinct from the sovereignty export (SQLCipher archive) described above: where §3.17 handles user-mediated portability of the full triple set, the git CAS system provides continuous, automated operational snapshots of individual artifact domains with git-commit changelogs, tier-based retention, and CNS-monitored homeostatic regulation. See [`docs/architecture/hKask-architecture-master.md`](../hKask-architecture-master.md) §Backup Subsystem for the full specification, component architecture, and dependency direction.
+The operational backup system tracks pod directories via `GixCasAdapter`. One git repo per pod — the pod directory IS the unit. `snapshot_pod_dir()` walks the directory tree recursively, creates git blobs and trees, and commits. `restore_file_from_commit()` checks out individual files (e.g. `pod.db`) from prior commits. Date-based restore via `resolve_date()` finds the nearest commit to a target date. A 24h daemon loop (`pod_backup_daemon`) in `hkask-services-context` snapshots all pods automatically.
+
+This is distinct from the sovereignty export (SQLCipher archive) described in §3.17: the sovereignty export handles user-mediated portability of the full triple set, while the git backup provides continuous automated operational snapshots of pod directories with git-commit changelogs and CNS-monitored health. See [`docs/architecture/hKask-architecture-master.md`](../hKask-architecture-master.md) §Backup Subsystem for full details.
 
 ---
 

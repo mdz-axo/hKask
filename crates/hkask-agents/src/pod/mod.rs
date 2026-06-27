@@ -90,7 +90,9 @@ pub use deployment::{
     PodRegistry,
 };
 pub use hkask_types::template::{TemplateCrate, TemplateFile};
-pub use types::{AgentKind, AgentMode, AgentPersona, PodID, PodKind, PodLifecycleState};
+pub use types::{
+    AgentKind, AgentMode, AgentPersona, CommunicationPosture, PodID, PodKind, PodLifecycleState,
+};
 
 /// Agent Pod — Runtime container for A2A agents
 pub struct AgentPod {

@@ -125,7 +125,14 @@ Matrix message (Conduit)
        CurationInput::Communication → CurationLoop
                │
                ▼
-       MetacognitionLoop (CAT evaluate → respond template)
+       MetacognitionLoop
+         │
+         ├──► condenser_score_saliency(against: "persona")
+         │      domain_saliency(message, persona_anchor) → graph proximity score
+         │
+         ├──► CAT evaluate(effective_bias, name, event) → Speak/Silent
+         │
+         └──► respond template (metacognition-respond.j2)
                │
                ▼
        MCP: communication.send_message() → Conduit
@@ -137,7 +144,27 @@ Each agent has a `CommunicationPosture` with:
 - `convergence_bias: f64` — 0.0 (silent) to 1.0 (fully convergent)
 - `invariant_traits: Vec<String>` — core traits never compromised
 
-The engagement gate (`cat::evaluate()`) decides speak/silent based on bias alone:
-- > 0.0 + @mentioned → speak
-- ≥ 0.7 → speak to any message
-- = 0.0 → always silent
+The engagement gate (`cat::evaluate()`) decides speak/silent based on effective bias:
+- effective_bias = (base_bias + persona_score × (1.0 − base_bias)).min(1.0)
+- effective_bias > 0.0 + @mentioned → speak
+- effective_bias ≥ 0.7 → speak to any message
+- effective_bias = 0.0 → always silent
+
+### Saliency Scoring (P5.4 Graph Proximity)
+
+Before the engagement gate, `MetacognitionLoop` calls `condenser/condenser_score_saliency`
+to compute how domain-relevant the message is. Three anchoring modes:
+
+| `against` | Memory | Domain Anchor | What It Scores |
+|-----------|--------|---------------|----------------|
+| `persona` | — | Charter-derived (e.g., PKO for curator) | Message relevance to agent's purpose |
+| `episodic` | First-person experiences | **PKO** (Process) | Graph proximity of recalled experience triples |
+| `semantic` | Shared knowledge/facts | **DC+BIBO** (Dublin Core) | Graph proximity of recalled fact triples |
+
+All paths use `domain_saliency()` — a pure graph-proximity function that combines
+direct domain keyword matching with `graph_adjacency_bonus` from the ontology
+concept graph. No word-frequency heuristics.
+
+The persona score pulls convergence bias upward — domain-relevant messages trigger
+stronger engagement. Memory paths (episodic/semantic) are available for future
+memory-informed posture decisions.

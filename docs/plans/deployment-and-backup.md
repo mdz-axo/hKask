@@ -416,7 +416,7 @@ hKask maintains **two independent backup systems** with distinct purposes:
 | System | Storage | Encryption | Purpose | CLI Namespace |
 |--------|---------|-----------|---------|---------------|
 | **Sovereignty Export** (this plan) | SQLCipher SQLite file | User passphrase at export time | P1 data portability — download and migrate to another server | `kask export` |
-| **Operational Backup** (existing) | Git CAS via `GixCasAdapter` (pure Rust gix) | Server-side AES-256-GCM | Server disaster recovery — artifact versioning, retention, integrity verification, agent revert/spawn | `kask backup`, `kask agent revert`, `kask agent spawn-agent` |
+| **Operational Backup** | Git via `GixCasAdapter` (one repo per pod, directory tracking) | pod.db is SQLCipher-encrypted | Server disaster recovery — pod directory versioning, agent revert by date, automated 24h snapshots | `kask backup`, `kask backup restore <pod> --date` |
 
 The operational backup is implemented in `hkask-services-backup`:
 

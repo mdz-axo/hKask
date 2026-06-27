@@ -1,5 +1,10 @@
 //! Backup API routes — snapshot, restore, list, prune, verify, config.
 //!
+//! **Note:** These routes currently delegate to the legacy `BackupService`
+//! (8-repo CAS model). The CLI has been migrated to the pod-directory backup
+//! model (`GixCasAdapter::snapshot_pod_dir` et al). The API routes will follow
+//! once all consumers have migrated. See `docs/architecture/hKask-architecture-master.md` §Backup Subsystem.
+//!
 //! All backup operations delegate to `hkask_services::BackupService`,
 //! constructed from the `GitCASPort` in `ApiState`.
 //!

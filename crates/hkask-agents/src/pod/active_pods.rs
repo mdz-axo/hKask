@@ -231,6 +231,15 @@ impl ActivePods {
         self.find_by_name(name).await
     }
 
+    /// Get the persona for a pod by ID.
+    pub async fn persona(&self, pod_id: &PodID) -> Option<AgentPersona> {
+        self.deployments
+            .read()
+            .await
+            .get(pod_id)
+            .map(|d| d.pod.persona.clone())
+    }
+
     /// Get a pod's WebID — matches old PodManager::get_pod_webid.
     pub async fn get_pod_webid(&self, pod_id: &PodID) -> Option<WebID> {
         self.deployments

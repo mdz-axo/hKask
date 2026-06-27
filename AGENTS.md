@@ -88,7 +88,7 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 
 | Crate | Capabilities |
 |-------|-------------|
-| `hkask-communication` | Matrix transport, agent registry, 7R7 listener, CNS bridge (communication events flow to curation), CAT engagement gate |
+| `hkask-communication` | Matrix transport, agent registry, 7R7 listener, CNS bridge (communication events flow to curation), CAT engagement gate, response dispatch (agent responses routed back via Matrix rooms) |
 
 ---
 

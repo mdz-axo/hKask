@@ -36,3 +36,8 @@ responsibilities:
 visibility:
   default: private
   episodic_override: private
+
+# Communication posture — CAT framework: speak/silent + accommodation
+communication_posture:
+  convergence_bias: 0.5
+  invariant_traits: []

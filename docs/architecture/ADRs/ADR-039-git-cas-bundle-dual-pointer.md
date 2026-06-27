@@ -11,7 +11,7 @@ mds_categories: [composition]
 # ADR-039: GitCasBundle Dual-Pointer Pattern
 
 **Date:** 2026-06-27
-**Status:** Active
+**Status:** Superseded (2026-06-27).
 **Related:** [ADR-036: gix Migration](ADR-036-gix-migration.md), [ADR-038: Eight-Repo CAS Design](ADR-038-eight-repo-cas-design.md)
 
 ## Context

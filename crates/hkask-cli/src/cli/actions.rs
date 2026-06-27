@@ -310,17 +310,17 @@ pub enum BackupAction {
         #[arg(short, long, default_value = "full")]
         scope: String,
     },
-    /// Restore from a backup snapshot
+    /// Restore a pod from a backup snapshot
     Restore {
-        /// Commit hash to restore from
+        /// Pod name to restore
         #[arg()]
-        commit: String,
-        /// Scope: "full", or artifact type label
-        #[arg(short, long, default_value = "full")]
-        scope: String,
-        /// Output directory to write restored artifacts (omit for list-only)
+        pod: String,
+        /// Date to restore from (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
         #[arg(short, long)]
-        output: Option<String>,
+        date: Option<String>,
+        /// Commit hash to restore from (alternative to --date)
+        #[arg(short, long)]
+        commit: Option<String>,
     },
     /// List backup snapshots
     List {

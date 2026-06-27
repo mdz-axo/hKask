@@ -11,7 +11,7 @@ mds_categories: [composition, lifecycle]
 # ADR-038: Eight-Repo CAS Design
 
 **Date:** 2026-06-27
-**Status:** Active
+**Status:** Superseded by pod-directory backup model (2026-06-27).
 **Related:** [ADR-036: gix Migration](ADR-036-gix-migration.md), [ADR-037: BLAKE3 Content Addressing](ADR-037-blake3-content-addressing.md)
 
 ## Context

@@ -1,9 +1,9 @@
 ---
 title: "Matrix Integration Architecture for hKask"
 audience: [architects, developers]
-last_updated: 2026-06-14
+last_updated: 2026-06-27
 version: "0.31.0"
-status: "Active"
+status: "Active — Implemented"
 domain: "Communication"
 mds_categories: [composition, trust]
 ---
@@ -21,11 +21,23 @@ mds_categories: [composition, trust]
 
 ## 0. Current State (Evidence — Directly Stated)
 
-`mcp-servers/hkask-mcp-communication/src/matrix.rs` already exists as **entirely stubs** — 303 lines of zero-behavior code. The comments declare an intent to embed Conduit as a library dependency within the hKask process:
+**Status: The stubs have been deleted and replaced with a real implementation.**
 
-> *"Conduit is embedded as a library dependency providing a lightweight, Rust-native Matrix homeserver."* (L3–4)
+The former `mcp-servers/hkask-mcp-communication/src/matrix.rs` (303 lines of zero-behavior code) has been replaced by the `hkask-communication` core infrastructure crate with 952 LOC of behavior-encoding code plus 652 LOC of tests:
 
-The requirements that follow challenge this design. The stubs must resolve: either implement or delete them. Per P5 (Essentialism), "a stub is a debt against the Generative Space (P3) — it denies users the full behavior they consented to use."
+| Module | Lines | Purpose |
+|--------|-------|---------|
+| `matrix.rs` | 596 | `MatrixTransport` — matrix-sdk wrapper: login, send/receive messages, create rooms, invite users, list rooms, upload/send files |
+| `listener.rs` | 191 | `SevenR7Listener` — passive room observer, polls rooms on configurable interval, persists CNS NuEvents for curation awareness |
+| `agent_registration.rs` | 152 | `AgentRegistry` — WebID↔UserId mapping, thread watchlists, deregistration |
+| `lib.rs` | 13 | Crate root — public module declarations |
+| `tests/` | 652 | Integration tests (marked `#[ignore]`, require running Conduit) + unit tests for MXID derivation |
+
+**Implemented pipeline:** Matrix message arrives → 7R7 Listener polls → CNS bridge persists NuEvent → `CommunicationWatcher` polls NuEventStore → `CurationInput::Communication` enters curation inbox → `MetacognitionLoop` evaluates via CAT engagement gate → response dispatched back via `MatrixTransport::send_message()`.
+
+**Deferred:** E2EE (SQLCipher/SQLite linking conflict with matrix-sdk-sqlite), continuous sync (v1 uses on-demand polling via `get_messages()`).
+
+The original stub design declared intent to embed Conduit as a library dependency. The replacement follows the Docker sidecar + SDK integration architecture recommended in §8.3.
 
 ---
 

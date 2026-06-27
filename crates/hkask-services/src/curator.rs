@@ -185,6 +185,20 @@ impl CuratorService {
             queue.clone(),
         ));
         let agent = CuratorAgent::new(agents_ctx);
+        // Override posture from the curator persona's CommunicationPosture
+        let agent = if let Some(curator_id) = ctx.pod_manager().find_by_name("curator").await {
+            if let Some(persona) = ctx.pod_manager().persona(&curator_id).await {
+                if let Some(posture) = persona.communication_posture {
+                    agent.with_communication_posture(posture)
+                } else {
+                    agent
+                }
+            } else {
+                agent
+            }
+        } else {
+            agent
+        };
         let snapshot =
             agent
                 .metacognition()

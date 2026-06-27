@@ -141,6 +141,7 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, Ener
 - **Dual-presence in CLI/REPL.** Human replicant + Curator daemon co-present in the interaction loop. User speaks; Curator observes, surfaces CNS alerts, provides memory summaries.
 - **Curator never bypasses OCAP.** Can recommend actions, cannot execute without capability tokens. No `sudo`.
 - **Template-driven metacognition (P3).** `MetacognitionLoop::compute_with_templates()` invokes `curator/metacognition-diagnose.j2` via `ManifestExecutor::execute_knowact()`. The LLM produces a `diagnosis` + `remediation_plan` with calibrated actions (`adjust_budget`, `restart`, `rebalance`, `calibrate`, `escalate`). Falls back to Rust threshold logic (`compute_with_thresholds()`) when no `ManifestExecutor` is configured (standalone CLI). Circuit breaker: 3 consecutive failures → skip template for 5 cycles.
+- **CAT communication posture.** `MetacognitionLoop` evaluates Matrix messages through `cat::evaluate()` — a pure-function engagement gate based on Communication Accommodation Theory. Before the gate, `condenser/condenser_score_saliency` scores message relevance via ontology graph proximity (P5.4): persona (charter-anchored), episodic memory (PKO process domain), or semantic memory (DC+BIBO document domain). The score modulates `convergence_bias` — domain-relevant messages pull the agent toward stronger engagement.
 - **OCAP-gated directives.** `CuratorContext::issue_directive()` verifies `handle.can_write(&DataCategory::Public)` before every directive issuance (Magna Carta Curator Responsibility #1).
 - **Bot orchestration.** When the LLM produces `restart`/`rebalance` actions, `MetacognitionLoop::act()` calls `direct_bot()` via A2A before posting escalation entries.
 - **Matrix standing session.** `CuratorService::metacognition()` posts the generated summary to the Curator's Matrix room via `MatrixTransport::send_message()` when `HKASK_CURATOR_ROOM_ID` is configured.
@@ -148,7 +149,7 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, Ener
 - **7R7 is a dumb pipe by design.** Transport moves messages; agents decide what they mean. Authority resides in agent layer, not transport layer.
 - **R7.3 watches the public seam.** `SeamWatcher` loads the machine-readable public seam inventory (embedded JSON at compile time, file path override for development), registers per-crate coverage as CNS variety domains (`seam:{crate_name}`), runs periodic drift checks (default: 30 min), and emits algedonic alerts when coverage degrades. Coverage improvements emit positive `Notify` signals. The watcher is non-fatal — if no inventory is available, seam watching is silently disabled.
 
-**Crates:** `hkask-agents` (curator, curator_agent), `hkask-communication` (listener), `hkask-cns` (seam_watcher), `hkask-mcp-cloud-gateway` (cloud transport adapter), `hkask-cli` (token issuance)
+**Crates:** `hkask-agents` (curator, curator_agent), `hkask-communication` (Matrix transport, agent registry, 7R7 listener, CNS bridge, response dispatch), `hkask-cns` (seam_watcher), `hkask-mcp-cloud-gateway` (cloud transport adapter), `hkask-cli` (token issuance)
 
 **If removed:** System becomes a headless automaton — runs, monitors itself, but nobody reads the monitors. CNS fires alerts into a void. P12 partially violated.
 
@@ -520,6 +521,7 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 | `hkask-capability` | Cybernetics | OCAP enforcement, membranes |
 | `hkask-mcp-cloud-gateway` | Cybernetics | Transport regulation |
 | `hkask-templates` | Curation | Skill registry, FlowDef execution |
+| `hkask-communication` | Transport | Matrix transport, 7R7 listener, CNS bridge, response dispatch |
 
 **Shared substrate (no loop ownership):** `hkask-storage` (storage backend), `hkask-types` (shared types). Every loop imports them; neither loop owns them.
 
@@ -799,54 +801,58 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 
 ## Backup Subsystem
 
-**Crates:** `hkask-services-backup` (BackupService, BackupLoop), `hkask-ports::git_cas` (GitCASPort hexagonal boundary), `hkask-mcp::GixCasAdapter` (gix-based CAS adapter)
+**Crates:** `hkask-mcp::GixCasAdapter` (pod-directory git operations), `hkask-services-context` (daemon loop)
 
-**Tri-surface pattern:** CLI (`kask backup`), API (`/backup/*` routes), CNS (`BackupLoop` + `SnapshotLoop`)
+**Tri-surface pattern:** CLI (`kask backup`), API, CNS daemon loop
 
 ### Summary
 
-The gix-based backup system provides content-addressed artifact storage with git-backed versioning. Artifacts (templates, goals, memory triples, pod state, CNS audit, sovereignty manifests, sessions, vault data) are serialized to deterministic JSON envelopes, content-addressed via BLAKE3, stored in per-domain git repositories, and snapshotted as git commits. The system supports encrypted at-rest storage via AES-256-GCM with Argon2 key derivation.
+One git repo per pod. The pod directory IS the backup unit. `GixCasAdapter` tracks the directory via `gix` (pure Rust, no CLI subprocess), walking the file tree recursively and committing as git objects. No BLAKE3 CAS layer, no JSON envelopes, no artifact type routing, no 8 repos — the directory structure naturally encodes identity.
 
 **Key components:**
-- `GixCasAdapter` — production `GitCASPort` implementation using the `gix` crate (pure Rust, no CLI subprocess)
-- `BackupService` — policy layer: scoped snapshot/restore, retention pruning, integrity verification
-- `BackupLoop` — cybernetic loop: sense→compare→compute→act for daily automatic snapshots with 1h failure dampening
-- `SnapshotLoop` — CAS-level scheduled snapshots with tier-based retention (30min/3h, daily/3d, weekly/3w, monthly)
-- `PodBackupOps` — pod-level revert and spawn_agent from prior snapshots with safety snapshot protocol
-- `PodBackupCap` — unforgeable OCAP capability scoped to a specific pod
+- `GixCasAdapter::snapshot_pod_dir(dir, msg)` — walk tree → git blobs → tree → commit
+- `GixCasAdapter::log_pod(dir, n)` — commit history with timestamps, newest first
+- `GixCasAdapter::resolve_date(dir, target_secs)` — find commit nearest to a date
+- `GixCasAdapter::restore_file_from_commit(dir, commit, file, dest)` — checkout file from commit
+- `pod_backup_daemon` — 24h loop in `context_impl.rs`: iterate `ActivePods::pod_db_paths()`, snapshot each
 
-**Artifact type → repository mapping:**
-| Artifact Type | Repository |
-|---------------|------------|
-| Template, Style, RegistryEntry, Settings, AgentArtifact* | Registry |
-| Goal, Spec | GoalsSpecs |
-| MemoryTriple, Embedding | Memory |
-| CnsAudit | CnsAudit |
-| SovereigntyManifest | Sovereignty |
-| Session | Sessions |
-| WalletState | Vault |
-| PodState | Pods |
+**Pod directory structure (what gets tracked):**
+```
+agents/{name}/
+├── .git/           ← one repo per pod, git init on first snapshot
+├── pod.db          ← SQLCipher (all memory, triples, embeddings, episodic, semantic)
+├── pod.webid       ← sidecar
+├── pod.kind        ← sidecar (curator/team/replicant)
+├── artifacts/      ← public content
+├── sessions/       ← private content
+├── gallery/        ← media
+├── library/        ← research
+├── documents/      ← parsed docs
+├── adapters/       ← LoRA weights
+└── threads/        ← conversations
+```
 
-### Dependency Direction
+**Pod types (PodKind):** Curator pod, Team pod, Replicant pod — all backed up identically.
 
-```mermaid
-graph TD
-    CLI["hkask-cli"] --> BS["BackupService"]
-    API["hkask-api"] --> BS
-    BS --> GCP["GitCASPort"]
-    GCP --> GIX["GixCasAdapter"]
-    CNS["hkask-cns"] --> SL["SnapshotLoop"]
-    SL --> GCP
-    BL["BackupLoop"] --> BS
+### User Commands
+
+```bash
+kask backup snapshot                    # snapshot all pods (manual trigger)
+kask backup restore <pod> --date 2026-06-27  # restore pod.db by date
+kask backup restore <pod> --commit HASH      # restore by commit hash
+kask backup list                        # list snapshots with dates
+kask backup status                      # config + last snapshot time
+kask backup verify                      # integrity check
+kask backup prune                       # retention cleanup
 ```
 
 ### Key Constraints
 
-1. Snapshots are git commits — the commit DAG IS the changelog.
-2. Encryption uses AES-256-GCM with a version-prefixed format [version: u8 || nonce: [u8; 12] || ciphertext+tag].
-3. Mutual exclusion via AtomicBool gate prevents concurrent mutations across BackupService and PodBackupOps.
-4. Retention policy is calendar-based (daily_days + weekly_weeks) for artifact pruning; tier-based (CasRetentionPolicy) for CAS-level snapshot frequency.
-5. CNS variety counter (cns.backup.variety) tracks artifact_count, repo_count, and corrupt_count for homeostatic regulation.
+1. One git repo per pod — the pod IS the deployment unit (Solid Pod isomorphism).
+2. `pod.db` is SQLCipher-encrypted — encryption at rest is handled by the database layer, not the backup layer.
+3. Restore writes `pod.db` directly via `restore_file_from_commit`; the pod must be restarted to apply the change.
+4. Date-based restore via `resolve_date`: walks commit log, finds nearest commit with timestamp ≤ target date.
+5. The daemon loop (`pod_backup_daemon`) snapshots all pods every 24 hours, logging CNS spans per pod.
 
 ---
 

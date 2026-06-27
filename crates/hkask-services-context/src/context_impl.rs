@@ -855,6 +855,8 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
 struct Loops {
     loop_system: Arc<LoopSystem>,
     backup_loop: Arc<hkask_services_backup::BackupLoop>,
+    /// Concrete GixCasAdapter for pod-directory backup operations.
+    pod_backup_adapter: Arc<hkask_mcp::GixCasAdapter>,
     cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
     inference_port: Option<Arc<dyn InferencePort>>,
     episodic_storage: Arc<dyn EpisodicStoragePort>,
@@ -994,19 +996,6 @@ async fn build_loops(
         ),
         Some(f.curation_inbox_tx.clone()),
     );
-    let convergence_bias: f64 = std::env::var("HKASK_CURATOR_CONVERGENCE_BIAS")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(0.5);
-    let invariant_traits: Vec<String> = std::env::var("HKASK_CURATOR_INVARIANT_TRAITS")
-        .ok()
-        .map(|v| v.split(',').map(|s| s.trim().to_string()).collect())
-        .unwrap_or_default();
-    let curator_agent = curator_agent.with_communication_posture(
-        config.agent_name.clone(),
-        convergence_bias,
-        invariant_traits,
-    );
     let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
     loop_system.register_loop(curation_loop).await;
 
@@ -1061,8 +1050,8 @@ async fn build_loops(
         let _ = curator_agent.with_federation(Arc::clone(lm));
     }
 
-    // Snapshot + Backup loops
-    let git_cas_port: Arc<dyn GitCASPort> = match hkask_mcp::GixCasAdapter::from_env() {
+    // Snapshot + Backup loops — keep concrete GixCasAdapter for pod-directory ops
+    let gix_adapter: Arc<hkask_mcp::GixCasAdapter> = match hkask_mcp::GixCasAdapter::from_env() {
         Ok(adapter) => Arc::new(adapter),
         Err(e) => {
             tracing::warn!(target: "hkask.services", error = %e, "Git CAS port from env failed — using fallback");
@@ -1073,6 +1062,7 @@ async fn build_loops(
             )
         }
     };
+    let git_cas_port: Arc<dyn GitCASPort> = gix_adapter.clone();
     let snapshot_loop = SnapshotLoop::new(Arc::clone(&git_cas_port));
     loop_system.register_loop(Arc::new(snapshot_loop)).await;
     let backup_service = Arc::new(hkask_services_backup::BackupService::new(
@@ -1087,6 +1077,7 @@ async fn build_loops(
     Ok(Loops {
         loop_system,
         backup_loop,
+        pod_backup_adapter: gix_adapter,
         cybernetics_loop,
         inference_port,
         episodic_storage,
@@ -1209,11 +1200,16 @@ async fn build_mcp_and_pods(
     );
     let pod_manager: Arc<hkask_agents::pod::ActivePods> = Arc::new(pods);
 
-    // Register pod state producer — snapshots each pod's db before daily backup.
-    l.backup_loop.add_producer(Arc::new(PodBackupProducer {
-        pod_manager: Arc::clone(&pod_manager),
-    }));
-    l.backup_loop.add_producer(Arc::new(ConfigProducer));
+    // Thin pod backup: iterate pods, snapshot each directory via GixCasAdapter.
+    // Replaces the old BackupService/BackupConfig/ArtifactProducer/BackupLoop stack.
+    {
+        let adapter = Arc::clone(&l.pod_backup_adapter);
+        let pm = Arc::clone(&pod_manager);
+        let loop_sys = Arc::clone(&l.loop_system);
+        tokio::spawn(async move {
+            pod_backup_daemon(adapter, pm, loop_sys).await;
+        });
+    }
 
     // Start CuratorPod + CuratorSync (semantic aggregation loop).
     // Runs as a background task for the lifetime of the service.
@@ -1287,91 +1283,6 @@ async fn build_mcp_and_pods(
         _curator_cancel: curator_cancel_tx,
         curator_ready: curator_ready_rx,
     })
-}
-
-// ── Artifact producers (backup integration) ────────────────────────────
-
-use async_trait::async_trait;
-use hkask_services_backup::BackupError;
-use hkask_services_backup::producers::ArtifactProducer;
-use hkask_services_backup::scope::ArtifactType;
-
-/// Produces PodState artifacts by querying ActivePods for all activated pods.
-struct PodBackupProducer {
-    pod_manager: Arc<hkask_agents::pod::ActivePods>,
-}
-
-#[async_trait]
-impl ArtifactProducer for PodBackupProducer {
-    fn artifact_types(&self) -> &[ArtifactType] {
-        &[ArtifactType::PodState]
-    }
-
-    async fn produce(
-        &self,
-        cas: &dyn hkask_ports::git_cas::GitCASPort,
-    ) -> Result<usize, BackupError> {
-        let pods = self.pod_manager.pod_db_paths().await;
-        let repo_id = ArtifactType::PodState.repo_id();
-        let mut count = 0usize;
-
-        for (pod_id, db_path) in pods {
-            let pod_data = match std::fs::read(&db_path) {
-                Ok(d) => d,
-                Err(e) => {
-                    tracing::warn!(
-                        target: "cns.backup", pod_id = %pod_id, error = %e,
-                        "Failed to read pod.db — skipping"
-                    );
-                    continue;
-                }
-            };
-
-            let artifact = hkask_services_backup::serialization::serialize_artifact(
-                &ArtifactType::PodState,
-                &pod_id,
-                &serde_json::json!({"pod_id": &pod_id}),
-            )
-            .map_err(|e| BackupError::Serialization(format!("PodState {pod_id}: {e}")))?;
-
-            cas.put_blob(&repo_id, &artifact).await?;
-            cas.put_blob(&repo_id, &pod_data).await?;
-            count += 1;
-        }
-
-        Ok(count)
-    }
-}
-
-/// Produces backup configuration as a Settings artifact — self-backup.
-struct ConfigProducer;
-
-#[async_trait]
-impl ArtifactProducer for ConfigProducer {
-    fn artifact_types(&self) -> &[ArtifactType] {
-        &[ArtifactType::Settings]
-    }
-
-    async fn produce(
-        &self,
-        cas: &dyn hkask_ports::git_cas::GitCASPort,
-    ) -> Result<usize, BackupError> {
-        let config_path = hkask_services_backup::config::backup_config_path();
-        if !config_path.exists() {
-            return Ok(0);
-        }
-        let data = std::fs::read_to_string(&config_path)
-            .map_err(|e| BackupError::Config(format!("Failed to read backup config: {e}")))?;
-        let artifact = hkask_services_backup::serialization::serialize_artifact(
-            &ArtifactType::Settings,
-            "backup-config",
-            &serde_json::json!({"path": config_path.to_string_lossy(), "content": data}),
-        )
-        .map_err(|e| BackupError::Serialization(format!("Config: {e}")))?;
-        cas.put_blob(&ArtifactType::Settings.repo_id(), &artifact)
-            .await?;
-        Ok(1)
-    }
 }
 
 /// Registry + wallet: agent records, A2A restore, rJoule payments.
@@ -1646,5 +1557,60 @@ async fn spawn_matrix_retry_loop(
         let _ = (&keychain, prefix, &homeserver_url, MAX_RETRIES);
         // TODO: iterate pod registry, check keychain for pending markers,
         // call register_pod_matrix, clear on success, escalate on max retries.
+    }
+}
+
+/// Thin pod backup daemon: wake every 24h, snapshot all pod directories via gix.
+/// One git repo per pod. The pod directory IS the unit.
+async fn pod_backup_daemon(
+    adapter: Arc<hkask_mcp::GixCasAdapter>,
+    pod_manager: Arc<hkask_agents::pod::ActivePods>,
+    _loop_system: Arc<hkask_agents::loop_system::LoopSystem>,
+) {
+    const INTERVAL: std::time::Duration = std::time::Duration::from_secs(86400); // 24h
+
+    loop {
+        tokio::time::sleep(INTERVAL).await;
+
+        let pod_dirs = pod_manager.pod_db_paths().await;
+        if pod_dirs.is_empty() {
+            continue;
+        }
+
+        tracing::info!(
+            target: "cns.backup",
+            pod_count = pod_dirs.len(),
+            "Pod backup: snapshotting {} pods",
+            pod_dirs.len()
+        );
+
+        for (pod_name, db_path) in &pod_dirs {
+            let pod_dir = match db_path.parent() {
+                Some(d) => d.to_path_buf(),
+                None => continue,
+            };
+
+            match adapter
+                .snapshot_pod_dir(&pod_dir, &format!("auto: {}", pod_name))
+                .await
+            {
+                Ok(commit) => {
+                    tracing::info!(
+                        target: "cns.backup",
+                        pod = %pod_name,
+                        commit = %commit,
+                        "Pod backup: snapshot complete"
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "cns.backup",
+                        pod = %pod_name,
+                        error = %e,
+                        "Pod backup: snapshot failed"
+                    );
+                }
+            }
+        }
     }
 }

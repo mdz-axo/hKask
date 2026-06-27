@@ -6,10 +6,16 @@
 //!
 //! ## Architecture
 //!
-//! - **`algorithms`** — Three compression algorithms (rtk_style, saliency_rank,
-//!   flashrank) with domain-aware scoring. The `derive_ontology_anchor` function
-//!   maps tool names to the 3-tier ontology hierarchy without wire-protocol
-//!   overhead — every MCP server links against the same bridge crates.
+//! - **`algorithms`** — Three compression algorithms:
+//!   - `rtk_style` — head/tail preservation with ontology-aware split ratios
+//!   - `word_rank` — TF-IDF bag-of-words compression with structural bonus and ontology anchoring
+//!   - `flashrank` — greedy marginal-utility selection under token budget
+//!   The `derive_ontology_anchor` function maps tool names to the 3-tier ontology
+//!   hierarchy without wire-protocol overhead — every MCP server links against the
+//!   same bridge crates.
+//!   `domain_saliency` is a public free function for scoring text relevance against
+//!   an ontology anchor using graph proximity — reusable by communication gates
+//!   and other callers independent of the compression pipeline.
 //! - **`ontology_graph`** — A lightweight cross-domain concept relationship
 //!   index (FIBO, CogAT, GOLEM, ML-Schema, OMC, PKO, DC+BIBO). Built once
 //!   at startup via `OnceLock`, zero dependencies, no reasoners. Used as a

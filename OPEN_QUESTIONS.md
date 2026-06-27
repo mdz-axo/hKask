@@ -57,7 +57,7 @@ Updated 2026-06-10 after allosteric deletion, consent instrumentation, and Gover
 
 **Status:** ✅ DONE. Defined per-algorithm SLA violations in `hkask-mcp-condenser`:
 - `rtk_style`: `negative_compression` signal when `compressed_bytes > original_bytes` (bounds violation)
-- `saliency_rank`: `low_signal` signal when >50% of lines score 0.0 (no usable signal)
+- `word_rank`: `low_signal` signal when >50% of lines score 0.0 (no usable signal)
 - `flashrank`: `budget_shortfall` signal when `filled < budget` (couldn't find enough signal)
 - Global: `low_compression_ratio` when overall ratio < 2:1 after 10+ compressions
 

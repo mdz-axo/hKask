@@ -299,6 +299,21 @@ impl GixCasAdapter {
         .await
     }
 
+    /// Find the commit closest to (but not after) a target date.
+    /// Walks the log newest-first, returns the first commit with timestamp <= target_secs.
+    pub async fn resolve_date(
+        &self,
+        pod_dir: &Path,
+        target_secs: u64,
+    ) -> Result<Option<CommitHash>, GitCasError> {
+        let entries = self.log_pod(pod_dir, 1000).await?;
+        // Entries are newest-first. Find first that's on or before target.
+        Ok(entries
+            .into_iter()
+            .find(|e| e.timestamp_secs <= target_secs)
+            .map(|e| e.commit))
+    }
+
     /// Restore a file from a prior commit to a destination path.
     pub async fn restore_file_from_commit(
         &self,
@@ -353,59 +368,68 @@ impl GixCasAdapter {
     }
 }
 
-// ── Index helper ─────────────────────────────────────────────────────────
+// ── Directory tree helper ────────────────────────────────────────────────
 
-fn add_dir_to_index(
+/// Walk a directory recursively and write it as a git tree object.
+/// Skips .git directory. Returns the tree OID.
+fn write_dir_as_tree(
     repo: &gix::Repository,
     root: &Path,
     dir: &Path,
-    index: &mut gix::index::State,
-) -> Result<(), GitCasError> {
+) -> Result<gix::ObjectId, GitCasError> {
+    let mut entries: Vec<(String, gix::ObjectId)> = Vec::new();
+
     for entry in std::fs::read_dir(dir).map_err(|e| GitCasError::Io(format!("read_dir: {e}")))? {
         let entry = entry.map_err(|e| GitCasError::Io(format!("dir entry: {e}")))?;
         let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+
+        if name == ".git" {
+            continue;
+        }
+
         let file_type = entry
             .file_type()
             .map_err(|e| GitCasError::Io(format!("file_type: {e}")))?;
 
-        // Skip .git directory
-        if path.file_name().map(|n| n == ".git").unwrap_or(false) {
-            continue;
-        }
-
         if file_type.is_dir() {
-            add_dir_to_index(repo, root, &path, index)?;
+            let subtree_oid = write_dir_as_tree(repo, root, &path)?;
+            entries.push((name, subtree_oid));
         } else if file_type.is_file() {
-            let rel = path
-                .strip_prefix(root)
-                .map_err(|e| GitCasError::Io(format!("strip_prefix: {e}")))?;
-            let content =
-                std::fs::read(&path).map_err(|e| GitCasError::Io(format!("read file: {e}")))?;
+            let content = std::fs::read(&path)
+                .map_err(|e| GitCasError::Io(format!("read file '{}': {e}", path.display())))?;
             let oid = repo
                 .write_object(gix::objs::BlobRef { data: &content })
-                .map_err(|e| GitCasError::Git(format!("write_object: {e}")))?;
-            let mode = if is_executable(&path) {
-                gix::objs::tree::EntryMode::BlobExecutable
-            } else {
-                gix::objs::tree::EntryMode::Blob
-            };
-            index.dangerously_push_entry(rel.to_string_lossy().into_owned(), oid, mode);
+                .map_err(|e| GitCasError::Git(format!("write_object '{}': {e}", path.display())))?;
+            entries.push((name, oid.detach()));
         }
     }
-    Ok(())
-}
 
-#[cfg(unix)]
-fn is_executable(path: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::metadata(path)
-        .map(|m| m.permissions().mode() & 0o111 != 0)
-        .unwrap_or(false)
-}
+    if entries.is_empty() {
+        let empty: Vec<gix::objs::tree::EntryRef<'_>> = Vec::new();
+        return Ok(repo
+            .write_object(gix::objs::TreeRef { entries: empty })
+            .map_err(|e| GitCasError::Git(format!("gix write empty tree: {e}")))?
+            .detach());
+    }
 
-#[cfg(not(unix))]
-fn is_executable(_path: &Path) -> bool {
-    false
+    // Sort by filename
+    entries.sort_by(|(a, _), (b, _)| a.cmp(b));
+    let entries_refs: Vec<gix::objs::tree::EntryRef<'_>> = entries
+        .iter()
+        .map(|(name, oid)| gix::objs::tree::EntryRef {
+            mode: gix::objs::tree::EntryMode::from(gix::objs::tree::EntryKind::Blob),
+            oid: oid.as_ref(),
+            filename: name.as_str().into(),
+        })
+        .collect();
+
+    Ok(repo
+        .write_object(gix::objs::TreeRef {
+            entries: entries_refs,
+        })
+        .map_err(|e| GitCasError::Git(format!("gix write tree: {e}")))?
+        .detach())
 }
 
 #[async_trait::async_trait]
@@ -1022,5 +1046,129 @@ mod tests {
             .unwrap();
 
         unsafe { std::env::remove_var("HKASK_CAS_HOME") };
+    }
+
+    // ── Pod-directory backup tests ────────────────────────────────────
+
+    #[tokio::test]
+    async fn snapshot_pod_dir_commits_all_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let adapter = GixCasAdapter::new(dir.path()).unwrap();
+
+        // Create a simulated pod directory
+        let pod_dir = dir.path().join("test-pod");
+        std::fs::create_dir_all(pod_dir.join("artifacts")).unwrap();
+        std::fs::create_dir_all(pod_dir.join("sessions")).unwrap();
+        std::fs::write(pod_dir.join("pod.db"), b"sqlcipher-data").unwrap();
+        std::fs::write(pod_dir.join("pod.webid"), b"webid:user").unwrap();
+        std::fs::write(pod_dir.join("artifacts/manifest.json"), b"{}").unwrap();
+        std::fs::write(pod_dir.join("sessions/chat.log"), b"hello world").unwrap();
+
+        let commit = adapter
+            .snapshot_pod_dir(&pod_dir, "initial pod snapshot")
+            .await
+            .unwrap();
+        assert!(!commit.to_string().is_empty());
+
+        // Log should show the commit
+        let entries = adapter.log_pod(&pod_dir, 10).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].commit, commit);
+        assert!(entries[0].message.contains("initial pod snapshot"));
+    }
+
+    #[tokio::test]
+    async fn snapshot_pod_dir_handles_subdirectories() {
+        let dir = tempfile::tempdir().unwrap();
+        let adapter = GixCasAdapter::new(dir.path()).unwrap();
+
+        let pod_dir = dir.path().join("nested-pod");
+        std::fs::create_dir_all(pod_dir.join("deep/nested/path")).unwrap();
+        std::fs::write(pod_dir.join("deep/nested/path/data.txt"), b"deep data").unwrap();
+        std::fs::write(pod_dir.join("root.txt"), b"root").unwrap();
+
+        let commit = adapter
+            .snapshot_pod_dir(&pod_dir, "nested dirs")
+            .await
+            .unwrap();
+
+        // Should have entries for root.txt and the nested tree
+        let entries = adapter.log_pod(&pod_dir, 10).await.unwrap();
+        assert_eq!(entries.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn snapshot_pod_dir_missing_dir_returns_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let adapter = GixCasAdapter::new(dir.path()).unwrap();
+
+        let result = adapter
+            .snapshot_pod_dir(&dir.path().join("does-not-exist"), "nope")
+            .await;
+        assert!(matches!(result, Err(GitCasError::NotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn log_pod_empty_repo_returns_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let adapter = GixCasAdapter::new(dir.path()).unwrap();
+        let pod_dir = dir.path().join("empty-pod");
+        std::fs::create_dir_all(&pod_dir).unwrap();
+
+        let entries = adapter.log_pod(&pod_dir, 10).await.unwrap();
+        assert!(entries.is_empty());
+    }
+
+    #[tokio::test]
+    async fn restore_file_from_commit_recovers_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let adapter = GixCasAdapter::new(dir.path()).unwrap();
+
+        let pod_dir = dir.path().join("restore-pod");
+        std::fs::create_dir_all(&pod_dir).unwrap();
+        let original = b"pod-state-v1";
+        std::fs::write(pod_dir.join("pod.db"), original).unwrap();
+
+        let commit = adapter.snapshot_pod_dir(&pod_dir, "v1").await.unwrap();
+
+        // Mutate pod.db
+        std::fs::write(pod_dir.join("pod.db"), b"pod-state-v2-mutated").unwrap();
+
+        // Restore pod.db from commit
+        let restored_path = dir.path().join("restored.db");
+        adapter
+            .restore_file_from_commit(&pod_dir, &commit, "pod.db", &restored_path)
+            .await
+            .unwrap();
+
+        let restored = std::fs::read(&restored_path).unwrap();
+        assert_eq!(restored, original);
+    }
+
+    #[tokio::test]
+    async fn multiple_snapshots_produce_history() {
+        let dir = tempfile::tempdir().unwrap();
+        let adapter = GixCasAdapter::new(dir.path()).unwrap();
+
+        let pod_dir = dir.path().join("history-pod");
+        std::fs::create_dir_all(&pod_dir).unwrap();
+
+        std::fs::write(pod_dir.join("pod.db"), b"v1").unwrap();
+        let c1 = adapter
+            .snapshot_pod_dir(&pod_dir, "snapshot 1")
+            .await
+            .unwrap();
+
+        std::fs::write(pod_dir.join("pod.db"), b"v2").unwrap();
+        std::fs::write(pod_dir.join("new-file.txt"), b"hello").unwrap();
+        let c2 = adapter
+            .snapshot_pod_dir(&pod_dir, "snapshot 2")
+            .await
+            .unwrap();
+
+        let entries = adapter.log_pod(&pod_dir, 10).await.unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].commit, c2); // newest first
+        assert_eq!(entries[1].commit, c1);
     }
 }

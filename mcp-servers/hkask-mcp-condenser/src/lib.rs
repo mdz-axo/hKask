@@ -4,8 +4,9 @@
 //! conversation window, which is episodic in nature. The condenser compresses and persists
 //! tool outputs within the episodic memory boundary.
 //!
-//! Provides compression algorithms (rtk_style, saliency_rank, flashrank) for reducing
-//! tool output size while preserving essential information. Phase 1 implements local
+//! Provides compression algorithms (rtk_style, word_rank, flashrank) for reducing
+//! tool output size while preserving essential information. `word_rank` uses
+//! TF-IDF bag-of-words compression with ontology anchoring.
 //! CPU-only algorithms with no LLM dependency. Phase 2 adds LLM-assisted
 //! thread summarization via the centralized hKask inference router.
 //!
@@ -28,6 +29,7 @@ use hkask_condenser::types::*;
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
 use hkask_memory::EpisodicMemory;
+use hkask_memory::SemanticMemory;
 use hkask_ports::InferencePort;
 use hkask_storage::{Database, Triple};
 use hkask_types::template::LLMParameters;
@@ -49,6 +51,8 @@ pub struct CondenserServer {
     pub daemon: Option<hkask_mcp::DaemonClient>,
     pub engine: Mutex<CondenserEngine>,
     pub episodic: Option<Arc<EpisodicMemory>>,
+    /// Semantic memory for shared knowledge recall (Dublin Core domain anchoring)
+    pub semantic: Option<Arc<SemanticMemory>>,
     /// Centralized inference port (hkask-inference router)
     pub inference_port: Arc<dyn InferencePort>,
     /// Default model for thread summarization (e.g., "qwen3:8b")
@@ -76,6 +80,7 @@ impl CondenserServer {
             daemon,
             engine: Mutex::new(CondenserEngine::new()),
             episodic: episodic.map(Arc::new),
+            semantic: None,
             inference_port,
             default_model,
             capability_tier,
@@ -88,6 +93,12 @@ impl CondenserServer {
     pub fn with_persona(mut self, description: String, capabilities: Vec<String>) -> Self {
         self.persona_description = description;
         self.persona_capabilities = capabilities;
+        self
+    }
+
+    /// Wire semantic memory for DC+BIBO-anchored saliency scoring.
+    pub fn with_semantic(mut self, semantic: SemanticMemory) -> Self {
+        self.semantic = Some(Arc::new(semantic));
         self
     }
 
@@ -280,7 +291,7 @@ impl CondenserServer {
     }
 
     #[tool(
-        description = "Score text saliency against persona domain or episodic memory using ontology graph proximity (P5.4). Returns 0.0–1.0 — informs CAT communication posture decisions."
+        description = "Score text saliency against persona domain, episodic memory (PKO-anchored), or semantic memory (DC+BIBO-anchored) using ontology graph proximity (P5.4). Returns 0.0–1.0 — informs CAT communication posture decisions."
     )]
     pub async fn condenser_score_saliency(
         &self,
@@ -293,7 +304,7 @@ impl CondenserServer {
                     let capabilities = &self.persona_capabilities;
                     if description.is_empty() && capabilities.is_empty() {
                         return Err(McpToolError::internal(
-                            "Persona not configured — set persona_description and persona_capabilities on the condenser server",
+                            "Persona not configured — set persona_description and persona_capabilities",
                         ));
                     }
                     let anchor = persona_to_anchor(description, capabilities);
@@ -304,58 +315,94 @@ impl CondenserServer {
                         "method": "graph_proximity",
                     }))
                 }
-                "memory" => {
+                "episodic" => {
                     let episodic = match &self.episodic {
                         Some(e) => e,
                         None => {
                             return Err(McpToolError::permission_denied(
-                                "Episodic memory not available — set HKASK_DB_PATH and HKASK_DB_PASSPHRASE",
+                                "Episodic memory not available",
                             ));
                         }
                     };
-                    // Extract keywords from input text for episodic query
+                    // Episodic memory = first-person experiences → PKO process domain
+                    let anchor = OntologyAnchor::DualAxis {
+                        axis: OntologyAxis::Pko,
+                        concept: "pko".into(),
+                    };
                     let query_words: Vec<&str> = text
                         .split_whitespace()
                         .filter(|w| w.len() > 3)
                         .take(8)
                         .collect();
-                    let mut memory_texts: Vec<String> = Vec::new();
+                    let mut best_score: f64 = 0.0;
+                    let mut recall_count: usize = 0;
                     for word in &query_words {
-                        if let Ok(triples) =
-                            episodic.query_for_deduped(&format!("condenser:{}", word), self.webid)
-                        {
-                            for t in &triples {
-                                if let serde_json::Value::String(ref s) = t.value {
-                                    memory_texts.push(s.clone());
-                                }
-                            }
-                        }
-                        // Also try direct entity queries on the word itself
                         if let Ok(triples) = episodic.query_for_deduped(word, self.webid) {
                             for t in &triples {
-                                if let serde_json::Value::String(ref s) = t.value {
-                                    memory_texts.push(s.clone());
-                                }
+                                let triple_text = match &t.value {
+                                    serde_json::Value::String(s) => s.as_str(),
+                                    v => &v.to_string(),
+                                };
+                                let s = domain_saliency(triple_text, Some(&anchor));
+                                best_score = best_score.max(s);
+                                recall_count += 1;
                             }
                         }
                     }
-                    let texts: Vec<&str> = memory_texts.iter().map(|s| s.as_str()).collect();
-                    let score = if texts.is_empty() {
-                        0.0
-                    } else {
-                        hkask_condenser::algorithms::domain_saliency(
-                            &text,
-                            None, // memory scoring uses keyword scan, not anchor
-                        )
-                    };
+                    let score = if recall_count > 0 { best_score } else { 0.0 };
                     Ok(serde_json::json!({
                         "score": score,
-                        "against": "memory",
+                        "against": "episodic",
                         "method": "graph_proximity",
+                        "anchor": "pko",
+                        "recall_count": recall_count,
+                    }))
+                }
+                "semantic" => {
+                    let semantic = match &self.semantic {
+                        Some(s) => s,
+                        None => {
+                            return Err(McpToolError::permission_denied(
+                                "Semantic memory not available",
+                            ));
+                        }
+                    };
+                    // Semantic memory = shared knowledge → DC+BIBO document/metadata domain
+                    let anchor = OntologyAnchor::DualAxis {
+                        axis: OntologyAxis::DcBibo,
+                        concept: "dcterms".into(),
+                    };
+                    let query_words: Vec<&str> = text
+                        .split_whitespace()
+                        .filter(|w| w.len() > 3)
+                        .take(8)
+                        .collect();
+                    let mut best_score: f64 = 0.0;
+                    let mut recall_count: usize = 0;
+                    for word in &query_words {
+                        if let Ok(triples) = semantic.query_deduped(word) {
+                            for t in &triples {
+                                let triple_text = match &t.value {
+                                    serde_json::Value::String(s) => s.as_str(),
+                                    v => &v.to_string(),
+                                };
+                                let s = domain_saliency(triple_text, Some(&anchor));
+                                best_score = best_score.max(s);
+                                recall_count += 1;
+                            }
+                        }
+                    }
+                    let score = if recall_count > 0 { best_score } else { 0.0 };
+                    Ok(serde_json::json!({
+                        "score": score,
+                        "against": "semantic",
+                        "method": "graph_proximity",
+                        "anchor": "dc_bibo",
+                        "recall_count": recall_count,
                     }))
                 }
                 other => Err(McpToolError::invalid_argument(format!(
-                    "Unknown against target '{}' — expected 'persona' or 'memory'",
+                    "Unknown against target '{}' — expected 'persona', 'episodic', or 'semantic'",
                     other
                 ))),
             }

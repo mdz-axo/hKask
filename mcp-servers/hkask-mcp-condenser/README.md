@@ -4,7 +4,7 @@ Context condensation MCP server — compress tool outputs, manage profiles, clas
 
 Part of hKask's Episodic loop (L2). The condenser operates on the active conversation window, compressing tool outputs to fit within token budgets.
 
-## Tools (7)
+## Tools (8)
 
 | Tool | Description | Requires Config |
 |------|-------------|-----------------|
@@ -13,6 +13,7 @@ Part of hKask's Episodic loop (L2). The condenser operates on the active convers
 | `condenser_classify` | Classify tool name to context category | — |
 | `condenser_set_profile` | Set compression profile (heavy/normal/soft/light) | — |
 | `condenser_stats` | Cumulative compression statistics | — |
+| `condenser_score_saliency` | Score text relevance against persona (charter-anchored), episodic memory (PKO-anchored), or semantic memory (DC+BIBO-anchored) via ontology graph proximity (P5.4). Returns 0.0–1.0. | Persona fields for "persona"; DB for "episodic"/"semantic" |
 | `condenser_persist` | Persist compressed output to episodic memory | `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` |
 | `condenser_thread_summary` | LLM-powered conversation summarization via centralized inference router. Disables model thinking/reasoning mode to ensure output tokens are used for the summary, not internal reasoning. Returns `original_tokens_approx` and `summary_tokens_approx` for context-window budgeting. | — |
 
@@ -30,8 +31,8 @@ Part of hKask's Episodic loop (L2). The condenser operates on the active convers
 | Algorithm | Categories | Strategy |
 |-----------|-----------|----------|
 | `rtk_style` | ShellCommand, TestOutput, BuildOutput | Head/tail preservation with ellipsis |
-| `saliency_rank` | ConversationHistory, LogOutput, Unknown | TF-IDF scoring + structural bonus for errors/warnings |
-| `flashrank` | FileContents, StructuredData | Greedy marginal-utility selection (relevance + novelty + brevity) |
+| `word_rank` | ConversationHistory, LogOutput | TF-IDF bag-of-words compression + structural bonus + ontology anchoring |
+| `flashrank` | FileContents, StructuredData, Unknown | Greedy marginal-utility selection (relevance + novelty + brevity) |
 
 ## Configuration
 
@@ -53,10 +54,10 @@ Without `HKASK_DB_PATH`, `condenser_persist` returns a permission-denied error. 
 | `test_output` | test, pytest, spec | rtk_style |
 | `build_output` | build, compile, make | rtk_style |
 | `file_contents` | file, read, cat | flashrank |
-| `conversation_history` | chat, conversation, message | saliency_rank |
+| `conversation_history` | chat, conversation, message | word_rank |
 | `structured_data` | json, api, query | flashrank |
-| `log_output` | log, journal, trace | saliency_rank |
-| `unknown` | (fallback) | saliency_rank |
+| `log_output` | log, journal, trace | word_rank |
+| `unknown` | (fallback) | flashrank |
 
 More-specific categories are checked first — `test` matches before `run`, so `pytest_run` classifies as `test_output`.
 

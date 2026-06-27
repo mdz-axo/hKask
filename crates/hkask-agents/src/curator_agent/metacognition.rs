@@ -6,6 +6,7 @@ use crate::curator::context::CuratorContext;
 use crate::curator_agent::bot_health::BotHealthEvaluator;
 use crate::curator_agent::bot_metrics::BotHealthStatus;
 use crate::curator_agent::cat;
+use crate::pod::CommunicationPosture;
 use hkask_cns::types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
@@ -225,12 +226,9 @@ pub struct MetacognitionLoop {
     /// After 3 consecutive failures, skip template for 5 cycles.
     consecutive_template_failures: std::sync::atomic::AtomicU64,
     template_skip_remaining: std::sync::atomic::AtomicU64,
-    /// Persona name for communication posture evaluation.
-    curator_name: String,
-    /// Convergence bias for CAT decision evaluation.
-    convergence_bias: f64,
-    /// Core traits never compromised by accommodation.
-    invariant_traits: Vec<String>,
+    /// Communication posture — loaded from the agent's persona.
+    /// Governs speak/silent decisions and accommodation level.
+    communication_posture: CommunicationPosture,
 }
 
 impl MetacognitionLoop {
@@ -244,6 +242,17 @@ impl MetacognitionLoop {
     ///       derived from `config.thresholds`, empty bot reports, and a
     ///       fresh watch channel for health snapshots.
     pub fn new(context: Arc<CuratorContext>, config: MetacognitionConfig) -> Self {
+        Self::with_posture(context, config, CommunicationPosture::default())
+    }
+
+    /// Create a new metacognition loop with a specific communication posture.
+    ///
+    /// This is the canonical constructor — `new()` delegates to it with defaults.
+    pub fn with_posture(
+        context: Arc<CuratorContext>,
+        config: MetacognitionConfig,
+        posture: CommunicationPosture,
+    ) -> Self {
         let escalation_policy = EscalationPolicy::new(config.thresholds.clone());
         let (last_snapshot_tx, _) = tokio::sync::watch::channel(None);
         Self {
@@ -256,9 +265,7 @@ impl MetacognitionLoop {
             last_template_output: RwLock::new(None),
             consecutive_template_failures: std::sync::atomic::AtomicU64::new(0),
             template_skip_remaining: std::sync::atomic::AtomicU64::new(0),
-            curator_name: "curator".to_string(),
-            convergence_bias: 0.5,
-            invariant_traits: Vec::new(),
+            communication_posture: posture,
         }
     }
 
@@ -279,30 +286,9 @@ impl MetacognitionLoop {
         config: MetacognitionConfig,
         evaluator: Arc<BotHealthEvaluator>,
     ) -> Self {
-        let escalation_policy = EscalationPolicy::new(config.thresholds.clone());
-        let (last_snapshot_tx, _) = tokio::sync::watch::channel(None);
-        Self {
-            context,
-            escalation_policy,
-            config,
-            bot_reports: Arc::new(RwLock::new(Vec::new())),
-            last_snapshot_tx,
-            bot_health_evaluator: Some(evaluator),
-            last_template_output: RwLock::new(None),
-            consecutive_template_failures: std::sync::atomic::AtomicU64::new(0),
-            template_skip_remaining: std::sync::atomic::AtomicU64::new(0),
-            curator_name: "curator".to_string(),
-            convergence_bias: 0.5,
-            invariant_traits: Vec::new(),
-        }
-    }
-
-    /// Builder: set the communication posture (persona name, convergence bias, and invariant traits).
-    pub fn with_communication_posture(mut self, name: String, bias: f64, traits: Vec<String>) -> Self {
-        self.curator_name = name;
-        self.convergence_bias = bias;
-        self.invariant_traits = traits;
-        self
+        let mut mc = Self::with_posture(context, config, CommunicationPosture::default());
+        mc.bot_health_evaluator = Some(evaluator);
+        mc
     }
 
     /// Access the metacognition configuration.
@@ -675,10 +661,31 @@ impl MetacognitionLoop {
         let mut actions = Vec::new();
         let comm_events = self.context.drain_communication_events().await;
         if !comm_events.is_empty() {
-            let curator_name = &self.curator_name;
+            let agent_name = "curator"; // TODO: derive from persona when available as field on MetacognitionLoop
             for event in &comm_events {
-                let bias = self.convergence_bias;
-                let decision = cat::evaluate(bias, curator_name, event);
+                let bias = self.communication_posture.convergence_bias;
+
+                // Score message saliency against persona via condenser MCP tool.
+                // Saliency pulls effective bias upward — domain-relevant messages
+                // trigger stronger convergence. Graceful degradation: default 0.5 on error.
+                let body = event
+                    .observation
+                    .get("body")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let persona_score = match executor
+                    .call_tool(
+                        "condenser/condenser_score_saliency",
+                        serde_json::json!({"text": body, "against": "persona"}),
+                    )
+                    .await
+                {
+                    Ok(resp) => resp.get("score").and_then(|v| v.as_f64()).unwrap_or(0.5),
+                    Err(_) => 0.5,
+                };
+                let effective_bias = (bias + persona_score * (1.0 - bias)).min(1.0);
+
+                let decision = cat::evaluate(effective_bias, agent_name, event);
                 if let cat::Decision::Speak { convergence_level } = decision {
                     let sender = event
                         .observation
@@ -706,7 +713,7 @@ impl MetacognitionLoop {
                     );
                     resp_ctx.insert(
                         "invariant_traits".into(),
-                        serde_json::json!(self.invariant_traits),
+                        serde_json::json!(self.communication_posture.invariant_traits),
                     );
 
                     match executor
