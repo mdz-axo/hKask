@@ -12,9 +12,6 @@ on:
       - "v*"
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
 jobs:
   mutants:
     name: cargo-mutants
@@ -33,17 +30,6 @@ jobs:
         id: mutants
         run: cargo mutants --workspace --timeout 10 2>&1 | tee mutants-output.txt
         continue-on-error: true
-
-      - name: Suggest fuzz targets from surviving mutants
-        if: always() && steps.mutants.outcome != 'skipped'
-        env:
-          DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
-        run: |
-          if grep -q 'Uncaught' mutants-output.txt; then
-            grep 'Uncaught' mutants-output.txt | cargo run --bin kask -- qa suggest-fuzz
-          else
-            echo "No uncaught mutants — all mutations killed."
-          fi
 
   deep-fuzz:
     name: Deep Fuzz (libfuzzer)
@@ -87,20 +73,6 @@ jobs:
           cargo bolero test -p hkask-mcp-kanban-fuzz fuzz_kanban_roundtrip_task_create_list -T 300s -e honggfuzz --seed-dir mcp-servers/hkask-mcp-kanban/fuzz/seeds 2>&1 | tee -a bolero-deep-output.txt
           cargo bolero test -p hkask-mcp-replica-fuzz fuzz_replica_deserialize_never_panics -T 300s -e honggfuzz 2>&1 | tee -a bolero-deep-output.txt
         continue-on-error: true
-
-      - name: Triage libfuzzer failures
-        if: failure()
-        env:
-          DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: cat bolero-deep-output.txt | cargo run --bin kask -- qa triage
-
-      - name: Triage honggfuzz failures
-        if: steps.hongg.outcome == 'failure'
-        env:
-          DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: cat bolero-deep-output.txt | cargo run --bin kask -- qa triage
 
       - name: Upload fuzz artifacts
         if: always()
@@ -164,13 +136,6 @@ jobs:
             cargo bolero test -p "${target%%::*}" "${target##*::}" -T 300s -e afl 2>&1 | tee -a bolero-exhaustive-output.txt
           done
         continue-on-error: true
-
-      - name: Triage exhaustive fuzz failures
-        if: steps.exhaustive.outcome == 'failure'
-        env:
-          DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: cat bolero-exhaustive-output.txt | cargo run --bin kask -- qa triage
 
       - name: Upload fuzz artifacts
         if: always()
