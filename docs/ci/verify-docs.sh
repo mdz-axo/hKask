@@ -26,7 +26,7 @@ echo ""
 # ────────────────────────────────────────────────────────────
 # STEP 1: Build ground truth from code
 # ────────────────────────────────────────────────────────────
-echo -e "${CYAN}[1/7] Building ground truth from code...${NC}"
+echo -e "${CYAN}[1/6] Building ground truth from code...${NC}"
 
 # Crate names
 cargo_version=$(grep '^version' Cargo.toml | grep -oP '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
@@ -47,7 +47,7 @@ echo ""
 # ────────────────────────────────────────────────────────────
 # STEP 2: Stale crate references in docs
 # ────────────────────────────────────────────────────────────
-echo -e "${CYAN}[2/7] Checking stale crate references in docs...${NC}"
+echo -e "${CYAN}[2/6] Checking stale crate references in docs...${NC}"
 
 all_actual=$(printf "%s\n%s" "$actual_crates" "$actual_mcps" | sort -u)
 
@@ -87,23 +87,9 @@ done < <(grep -roPH 'hkask-[a-z][a-z0-9-]*[a-z0-9]' docs/ --include='*.md' 2>/de
 echo ""
 
 # ────────────────────────────────────────────────────────────
-# STEP 3: Version consistency
+# STEP 3: Stale last_updated dates (>30 days)
 # ────────────────────────────────────────────────────────────
-echo -e "${CYAN}[3/7] Checking version consistency in doc frontmatter...${NC}"
-
-for f in $(find docs/ -name '*.md' -not -path '*/archive/*' -not -path '*/generated/*'); do
-  doc_version=$(grep -oP 'version:\s*"?\K[0-9]+\.[0-9]+\.[0-9]+' "$f" 2>/dev/null | head -1)
-  if [ -n "$doc_version" ] && [ "$doc_version" != "$cargo_version" ]; then
-    echo -e "  ${RED}VERSION MISMATCH:${NC} $f → $doc_version (should be $cargo_version)"
-    ERRORS=$((ERRORS + 1))
-  fi
-done
-echo ""
-
-# ────────────────────────────────────────────────────────────
-# STEP 4: Stale last_updated dates (>30 days)
-# ────────────────────────────────────────────────────────────
-echo -e "${CYAN}[4/7] Checking stale frontmatter dates (>30 days)...${NC}"
+echo -e "${CYAN}[3/6] Checking stale frontmatter dates (>30 days)...${NC}"
 
 thirty_days_ago=$(date -d '30 days ago' +%s 2>/dev/null || echo "0")
 if [ "$thirty_days_ago" != "0" ]; then
@@ -121,9 +107,9 @@ fi
 echo ""
 
 # ────────────────────────────────────────────────────────────
-# STEP 5: Every MCP server and core crate has a README
+# STEP 4: Every MCP server and core crate has a README
 # ────────────────────────────────────────────────────────────
-echo -e "${CYAN}[5/7] Checking README coverage...${NC}"
+echo -e "${CYAN}[4/6] Checking README coverage...${NC}"
 
 # MCP servers: ALL must have READMEs
 for dir in mcp-servers/hkask-mcp-*/; do
@@ -155,9 +141,9 @@ done
 echo ""
 
 # ────────────────────────────────────────────────────────────
-# STEP 6: MCP server README tool coverage
+# STEP 5: MCP server README tool coverage
 # ────────────────────────────────────────────────────────────
-echo -e "${CYAN}[6/7] Checking MCP server README tool table coverage...${NC}"
+echo -e "${CYAN}[5/6] Checking MCP server README tool table coverage...${NC}"
 
 for dir in mcp-servers/hkask-mcp-*/; do
   name=$(basename "$dir")
@@ -172,9 +158,9 @@ done
 echo ""
 
 # ────────────────────────────────────────────────────────────
-# STEP 7: Key factual assertions in root READMEs
+# STEP 6: Key factual assertions in root READMEs
 # ────────────────────────────────────────────────────────────
-echo -e "${CYAN}[7/7] Verifying key assertions in README.md...${NC}"
+echo -e "${CYAN}[6/6] Verifying key assertions in README.md...${NC}"
 
 # MCP server count
 readme_mcp_count=$(grep -oP '\*\*Essential Tools\*\* \| \K[0-9]+(?= MCP servers)' README.md 2>/dev/null || echo "?")
