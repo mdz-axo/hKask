@@ -20,9 +20,9 @@ energy_cap: 4096
 visibility: Public
 ---
 {# Template: diagnose/diagnose-hypothesise.j2 #}
-{# goal: Generate 3-5 ranked, falsifiable hypotheses for the bug's root cause, each with a testable prediction. #}
-{# KnowAct — Generate ranked falsifiable hypotheses #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# Functional Role: KnowAct — Generate ranked falsifiable hypotheses #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: hypotheses, ranked_hypotheses, user_review_requested #}
 
 [inference]
 temperature = 0.4

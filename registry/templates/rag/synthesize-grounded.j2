@@ -23,8 +23,9 @@ energy_cap: 8192
 visibility: Public
 ---
 {# Template: rag/synthesize-grounded.j2 #}
-{# Process — Grounded answer synthesis from retrieved context #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# Functional Role: KnowAct — Grounded answer synthesis from retrieved context #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: answer, citations, unsupported_claims, confidence #}
 
 [inference]
 temperature = 0.2

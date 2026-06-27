@@ -1,10 +1,7 @@
-{# spec/contextualise.j2 — Situate artifact within meaningful environment #}
-{# functional_role: knowact #}
-{# implementation_type: jinja2 #}
-{# lexicon_terms: [contextualise] #}
-{# contract: #}
-{#   input: {artifact_name: string, collection_id: string, coherence_score: float, environment: object} #}
-{#   output: {context_spec: object} #}
+{# Template: spec/contextualise.j2 #}
+{# Functional Role: KnowAct — Situate artifact within meaningful environment #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: context_spec #}
 ## Contextualisation: {{ artifact_name }}
 
 **Collection:** {{ collection_id }}

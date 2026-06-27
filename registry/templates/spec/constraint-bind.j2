@@ -1,10 +1,7 @@
-{# spec/constraint-bind.j2 — Attach OCAP boundaries to goals #}
-{# functional_role: knowact #}
-{# implementation_type: jinja2 #}
-{# lexicon_terms: [constrain, require] #}
-{# contract: #}
-{#   input: {goal_name: string, capability: string, authority: string, enforced: boolean, resource: string, action: string, attenuation_max: number, token_ttl_seconds: number, goal_text: string} #}
-{#   output: {constraint_spec: object} #}
+{# Template: spec/constraint-bind.j2 #}
+{# Functional Role: KnowAct — Attach OCAP boundaries to goals #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: constraint_spec #}
 ## Constraint Binding: {{ goal_name }}
 
 **Capability:** {{ capability }}

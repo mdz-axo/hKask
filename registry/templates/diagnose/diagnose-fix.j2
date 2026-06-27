@@ -25,9 +25,9 @@ energy_cap: 6144
 visibility: Public
 ---
 {# Template: diagnose/diagnose-fix.j2 #}
-{# goal: Apply a fix with a regression test written before the fix, verify reproduction stops, clean up instrumentation, and write a post-mortem. #}
-{# KnowAct — Fix with regression test, cleanup, post-mortem #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# Functional Role: KnowAct — Fix with regression test, cleanup, post-mortem #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: regression_test_code, test_file_path, fix_applied, original_repro_fixed, diagnostic_tags_removed, postmortem, architecture_note #}
 
 [inference]
 temperature = 0.1

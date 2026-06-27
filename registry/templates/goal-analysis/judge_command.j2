@@ -1,8 +1,3 @@
-{# goal: Verify goal completion via executed command results against acceptance criteria. Produces a done/continue/blocked verdict with reasoning. #}
-{# goal_judge_command.j2 — Verify goal via command execution #}
-{# functional_role: knowact #}
-{# implementation_type: jinja2 #}
-{# lexicon_terms: [assert, command] #}
 [inference]
 template_type: KnowAct
 functional_role: KnowAct
@@ -20,9 +15,10 @@ contract:
     failed_criteria: array
 
 ---
-{# hKask v0.28.0 — A Minimal Viable Container for Agents #}
-# Goal Judge — Command-Based Verification
-# KnowAct: assertion via command execution
+{# Template: goal-analysis/judge_command.j2 #}
+{# Functional Role: KnowAct — assertion via command execution #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: verdict, reason, failed_criteria #}
 
 {% set all_passed = true %}
 {% set failed = [] %}

@@ -19,13 +19,9 @@ energy_cap: 2048
 visibility: Public
 ---
 {# Template: deep-module/deep-module-convergence-check.j2 #}
-{# goal: Compute normalized convergence metric for deep-module cycles. #}
-{#
-  Group: C (Design/Architecture)
-  Convergence method: LLM-assessed saturation detection
-  Measures: Whether module-depth recommendations are stable and actionable.
-    Extended max_iterations (5) because design work needs more passes.
-#}
+{# Functional Role: KnowAct — Compute normalized convergence metric for deep-module cycles #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: convergence_metric, convergence_method, metric_decomposition, rationale, blockers #}
 
 [inference]
 temperature = 0.1

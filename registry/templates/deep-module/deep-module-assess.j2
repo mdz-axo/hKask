@@ -23,9 +23,9 @@ contract:
   visibility: Public
 ---
 {# Template: deep-module/deep-module-assess.j2 #}
-{# goal: Assess module depth by enumerating public interface, evaluating behavior complexity, computing depth score, and classifying as Deep, Adequate, Shallow, or Very Shallow. #}
-{# KnowAct — Assess module depth: enumerate public interface, evaluate behavior, compute depth score #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# Functional Role: KnowAct — Assess module depth: enumerate public interface, evaluate behavior, compute depth score #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: interface_inventory, behavior_estimate, depth_score, classification, red_flags, recommendations #}
 
 [inference]
 temperature = 0.2

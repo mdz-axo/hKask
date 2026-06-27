@@ -21,8 +21,9 @@ energy_cap: 2048
 visibility: Public
 ---
 {# Template: rag/reformulate-query.j2 #}
-{# Process — Query reformulation for improved retrieval #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# Functional Role: KnowAct — Query reformulation for improved retrieval #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: original_query, reformulated_queries, sub_queries, query_intent, expansion_terms #}
 
 [inference]
 temperature = 0.3

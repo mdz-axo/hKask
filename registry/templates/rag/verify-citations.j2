@@ -23,8 +23,9 @@ energy_cap: 4096
 visibility: Public
 ---
 {# Template: rag/verify-citations.j2 #}
-{# Process — Citation verification and hallucination detection #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# Functional Role: KnowAct — Citation verification and hallucination detection #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: verified_citations, hallucination_flags, citation_coverage, overall_reliability #}
 
 [inference]
 temperature = 0.1

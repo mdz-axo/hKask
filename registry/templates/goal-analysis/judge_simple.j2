@@ -1,8 +1,3 @@
-{# goal: Fallback goal verification with minimal evaluation. Produces a continue verdict and default confidence for lightweight judgment. #}
-{# goal_judge_simple.j2 — Fallback goal verification #}
-{# functional_role: knowact #}
-{# implementation_type: jinja2 #}
-{# lexicon_terms: [assert, acknowledge] #}
 [inference]
 template_type: KnowAct
 functional_role: KnowAct
@@ -20,9 +15,10 @@ contract:
     confidence: 0.5
 
 ---
-{# hKask v0.28.0 — A Minimal Viable Container for Agents #}
-# Goal Judge — Simple Fallback
-# Used when LLM judge unavailable or times out
+{# Template: goal-analysis/judge_simple.j2 #}
+{# Functional Role: KnowAct — Fallback goal verification with minimal evaluation #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: verdict, confidence #}
 
 **Goal:** {{ goal_text }}
 

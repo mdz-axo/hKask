@@ -17,8 +17,9 @@ energy_cap: 4096
 visibility: Public
 ---
 {# Template: kanban-task-decomposition/gather-context.j2 #}
-{# KnowAct — Extract structured context from project description #}
-{# ℏKask v0.28.0 — Agent coordination via kanban boards #}
+{# Functional Role: KnowAct — Extract structured context from project description #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: project_name, goals, constraints, resources, target_task_hours #}
 
 [inference]
 temperature = 0.2

@@ -1,10 +1,7 @@
-{# spec/curate-collection.j2 — Evaluate collection coherence and completeness #}
-{# functional_role: knowact #}
-{# implementation_type: jinja2 #}
-{# lexicon_terms: [curate, cultivate] #}
-{# contract: #}
-{#   input: {collection_id: string, decision: string, coherence_score: float, threshold: float, categories: array, categories_missing: array, rationale: string} #}
-{#   output: {curation_spec: object} #}
+{# Template: spec/curate-collection.j2 #}
+{# Functional Role: KnowAct — Evaluate collection coherence and completeness #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: curation_spec #}
 ## Curation Report
 
 **Collection:** {{ collection_id | default("default") }}

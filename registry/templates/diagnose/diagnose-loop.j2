@@ -22,9 +22,9 @@ energy_cap: 6144
 visibility: Public
 ---
 {# Template: diagnose/diagnose-loop.j2 #}
-{# goal: Build a feedback loop to reproduce a bug by selecting the fastest deterministic signal before hypothesising. #}
-{# KnowAct — Build feedback loop, reproduce the bug #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# Functional Role: KnowAct — Build feedback loop, reproduce the bug #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: feedback_loop_strategy, loop_type, repro_command, repro_confidence, can_reproduce #}
 
 [inference]
 temperature = 0.2

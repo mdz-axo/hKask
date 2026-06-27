@@ -25,10 +25,9 @@ energy_cap: 3072
 visibility: Public
 ---
 {# Template: scenario-builder/scenario-quality-gate.j2 #}
-{# functional_role: knowact #}
-{# implementation_type: jinja2 #}
-{# produces: independent_scenario_quality_assessment #}
-{# ℏKask v0.31.0 — A Minimal Viable Container for Agents #}
+{# Functional Role: KnowAct — Independent quality gate for scenario divergence, consistency, and coverage #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: gate_pass, gate_findings, divergence_score, consistency_score, coverage_score, parametric_variation_flag #}
 
 [inference]
 temperature = 0.5
