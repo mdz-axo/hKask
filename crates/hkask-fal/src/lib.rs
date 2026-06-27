@@ -150,6 +150,7 @@ impl FalClient {
     }
 
     /// Set per-request timeout in seconds.
+    #[allow(dead_code)]
     pub(crate) fn with_timeout(mut self, secs: u64) -> Self {
         self.request_timeout_secs = secs;
         self
@@ -650,5 +651,13 @@ mod tests {
         });
         let nodes = parse_workflow_nodes(&workflow).unwrap();
         assert!(validate_workflow_structure(&nodes).is_ok());
+    }
+
+    #[test]
+    fn test_client_builder_methods() {
+        // Verify builder methods don't panic and chain correctly
+        let _client = FalClient::new("k".into())
+            .with_base_url("https://test.example.com".into())
+            .with_timeout(30);
     }
 }
