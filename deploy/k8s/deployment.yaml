@@ -15,8 +15,38 @@ spec:
       labels:
         app: hkask
     spec:
+      # Init container: restore database from S3 before kask starts.
+      # Runs once, must complete before main containers start. This
+      # prevents the race where kask opens /data/kask.db before the
+      # litestream sidecar has restored it on a fresh pod.
+      initContainers:
+        - name: litestream-restore
+          image: litestream/litestream:0.5.0
+          args:
+            - restore
+            - -if-replica-exists
+            - -config
+            - /etc/litestream.yml
+            - /data/kask.db
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: litestream-config
+              mountPath: /etc/litestream.yml
+              subPath: litestream.yml
+          env:
+            - name: LITESTREAM_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: litestream-access-key-id
+            - name: LITESTREAM_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: litestream-secret-access-key
       containers:
-        # ── kask (main application) ──────────────────────────────────
+        # kask (main application)
         - name: kask
           image: ghcr.io/mdz-axo/hkask:kask-main
           imagePullPolicy: Always
@@ -73,16 +103,6 @@ spec:
                 secretKeyRef:
                   name: hkask-secrets
                   key: oauth-github-client-secret
-            - name: LITESTREAM_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: hkask-secrets
-                  key: litestream-access-key-id
-            - name: LITESTREAM_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: hkask-secrets
-                  key: litestream-secret-access-key
           volumeMounts:
             - name: data
               mountPath: /data
@@ -106,11 +126,7 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
 
-        # ── litestream (WAL replication sidecar) ─────────────────────
-        # Sidecar pattern: shares /data volume with kask to replicate
-        # SQLite WAL to S3-compatible object storage. Legitimate
-        # multi-container use case per Hightower/Burns/Beda guidance:
-        # containers share lifecycle and volume.
+        # litestream sidecar: continuous WAL replication to S3
         - name: litestream
           image: litestream/litestream:0.5.0
           args:

@@ -94,7 +94,7 @@ impl Database {
         }
 
         let salt_path = format!("{}.salt", path);
-        let salt = if let Ok(salt_bytes) = std::fs::read(&salt_path) {
+        let (salt, salt_existed) = if let Ok(salt_bytes) = std::fs::read(&salt_path) {
             if salt_bytes.len() != SQLCIPHER_SALT_SIZE {
                 return Err(DatabaseError::SqlCipher(
                     "Invalid salt file size".to_string(),
@@ -102,15 +102,24 @@ impl Database {
             }
             let mut salt = [0u8; SQLCIPHER_SALT_SIZE];
             salt.copy_from_slice(&salt_bytes);
-            salt
+            (salt, true)
         } else {
             let salt = generate_salt();
             std::fs::write(&salt_path, salt)
                 .map_err(|e| DatabaseError::SqlCipher(format!("Failed to write salt: {}", e)))?;
-            salt
+            (salt, false)
         };
         let conn = Connection::open(path)?;
+        // New databases: Connection::open writes unencrypted page 1.
+        // SQLCipher rejects this when PRAGMA key is set. Temporarily
+        // allow plaintext headers during initial encryption setup.
+        if !salt_existed {
+            conn.execute_batch("PRAGMA cipher_plaintext_header_size = 32;")?;
+        }
         Self::configure_encryption(&conn, passphrase, &salt)?;
+        if !salt_existed {
+            conn.execute_batch("PRAGMA cipher_plaintext_header_size = 0;")?;
+        }
         Self::initialize_schema(&conn)?;
         if let Some(ext) = extensions {
             conn.execute_batch(ext)?;

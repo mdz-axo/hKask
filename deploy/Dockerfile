@@ -15,12 +15,6 @@ RUN apt-get update && apt-get install -y \
     libsqlite3-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Litestream (pre-built binary)
-ADD https://github.com/benbjohnson/litestream/releases/download/v0.5.0/litestream-v0.5.0-linux-amd64.tar.gz /tmp/litestream.tar.gz
-RUN tar -xzf /tmp/litestream.tar.gz -C /usr/local/bin litestream && \
-    chmod +x /usr/local/bin/litestream && \
-    rm /tmp/litestream.tar.gz
-
 COPY --from=kask-builder /app/target/release/kask /usr/local/bin/kask
 
 COPY deploy/k8s/entrypoint.sh /usr/local/bin/entrypoint.sh

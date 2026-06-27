@@ -1,19 +1,19 @@
 # Skill Bundler Process Manifest
-# ℏKask v0.31.0 — Goal-anchored bundle composition as PKO-grounded PDCA
-# Template type: FlowDef — goal extraction → compose → validate → converge → evolve → loop
+# ℏKask v0.32.0 — PKO RDF graph synthesis: decimate + fuse + recompose PDCA loops
+# Template type: FlowDef — goal → compose → synthesize → validate → converge → evolve → loop
 # Dual-axis ontological anchoring per P5.4 (PKO + DC+BIBO)
 
 manifest:
   id: skill-bundler
   name: Skill Bundler
   description: >
-    Goal-anchored, PKO-grounded bundle-composition process. Extracts a structured
-    goal from user intent, composes a bundle manifest from selected skills with
-    ontological anchoring (PKO + DC + PROV-O), validates structural and semantic
-    rules, computes convergence (structural + goal), evolves the bundle on goal
-    delta, and iterates until the bundle is optimally formed to achieve its goal.
+    PKO RDF graph synthesis engine. Extracts a structured goal from user intent,
+    composes skills into a candidate set, synthesizes them into a single optimized
+    composite PKO Procedure through RDF graph decimation and recomposition,
+    validates structural and ontological rules, computes convergence, evolves on
+    goal delta, and iterates until the composite is optimally formed.
   functional_role: flowdef
-  version: 0.31.0
+  version: 0.32.0
   editor: curator-or-human-admin
   visibility: Public
 
@@ -23,7 +23,7 @@ convergence:
   improvement_gate: threshold_only
   max_iterations: 3
   min_iterations: 1
-  convergence_field: step_4_result.convergence_metric
+  convergence_field: step_5_result.convergence_metric
   on_not_reached: escalate
 
 gas:
@@ -50,6 +50,10 @@ inputs:
     type: array
     description: "Existing bundle manifests for smart matching"
     required: false
+  - name: skill_manifests
+    type: array
+    description: "Pre-loaded skill FlowDef manifests for RDF graph synthesis. Absent when manifests are unavailable (graceful degradation)."
+    required: false
   - name: goal_verdict
     type: object
     description: "Previous goal verdict from bundle execution (for recomposition). Absent on initial composition."
@@ -68,7 +72,7 @@ steps:
 
   - ordinal: 2
     action: select
-    description: Compose a PKO-anchored candidate bundle manifest from provided skills and goal context. On recomposition iterations, uses the evolved manifest as a base.
+    description: Compose a candidate skill set with PKO-anchored ordering from provided skills and goal context. On recomposition iterations, uses the evolved manifest as a base.
     renderer: minijinja
     template_ref: skill-bundler/bundler-compose
     gas_cap: 6000
@@ -77,19 +81,31 @@ steps:
       skill_names: "{{ skill_names }}"
       existing_bundles: "{{ existing_bundles | default([]) }}"
       goal: "{{ step_1_result }}"
-      previous_manifest: "{{ step_5_result.evolved_manifest | default(none) }}"
+      previous_manifest: "{{ step_7_result.evolved_manifest | default(none) }}"
 
   - ordinal: 3
     action: select
-    description: Validate candidate bundle against composition rules and ontological anchoring requirements.
+    description: Synthesize the composed skills into a single optimized composite PKO Procedure. Parse each skill's PDCA graph into RDF triples, detect isomorphic substructures, decimate redundant nodes, fuse shared patterns, and generate novel loop structures.
+    renderer: minijinja
+    template_ref: skill-bundler/bundler-synthesize
+    gas_cap: 8192
+    timeout_seconds: 90
+    input_mapping:
+      composed_skills: "{{ step_2_result.bundle_manifest.skills }}"
+      goal: "{{ step_1_result }}"
+      skill_manifests: "{{ skill_manifests | default([]) }}"
+
+  - ordinal: 4
+    action: select
+    description: Validate the synthesized composite manifest against composition rules and ontological anchoring requirements.
     renderer: minijinja
     template_ref: skill-bundler/bundler-validate
     gas_cap: 6000
     timeout_seconds: 60
     input_mapping:
-      bundle_manifest: "{{ step_2_result.bundle_manifest }}"
+      bundle_manifest: "{{ step_3_result.candidates[0].composite_manifest }}"
 
-  - ordinal: 4
+  - ordinal: 5
     action: select
     description: Compute normalized convergence metric accounting for structural validity AND goal achievement.
     renderer: minijinja
@@ -97,26 +113,26 @@ steps:
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
-      compose_result: "{{ step_2_result }}"
-      validate_result: "{{ step_3_result }}"
+      compose_result: "{{ step_3_result }}"
+      validate_result: "{{ step_4_result }}"
       goal_verdict: "{{ goal_verdict | default({}) }}"
 
-  - ordinal: 5
+  - ordinal: 6
     action: select
-    description: Evolve the bundle via goal-delta-driven recomposition when convergence has not been met.
+    description: Evolve the composite via goal-delta-driven recomposition when convergence has not been met.
     renderer: minijinja
     template_ref: skill-bundler/bundler-evolve
     gas_cap: 6000
     timeout_seconds: 60
     input_mapping:
-      bundle_name: "{{ step_2_result.bundle_manifest.name | default('composed-bundle') }}"
-      current_manifest: "{{ step_2_result.bundle_manifest }}"
+      bundle_name: "{{ step_3_result.candidates[0].name | default('composite-skill') }}"
+      current_manifest: "{{ step_3_result.candidates[0].composite_manifest }}"
       changed_skills: "{{ step_2_result.bundle_manifest.skills }}"
       goal_context: "{{ step_1_result }}"
-      goal_delta: "{{ step_4_result.goal_delta | default(1.0) }}"
-      convergence_failure_reason: "{{ step_4_result.rationale }}"
+      goal_delta: "{{ step_5_result.goal_delta | default(1.0) }}"
+      convergence_failure_reason: "{{ step_5_result.rationale }}"
 
-  - ordinal: 6
+  - ordinal: 7
     action: loop
     description: Re-enter composition cycle if convergence threshold was not met after evolution.
     input_mapping:
@@ -139,6 +155,10 @@ ocap:
       action: render
       template_id: skill-bundler/bundler-compose
       gas_budget: 6000
+    - resource: template
+      action: render
+      template_id: skill-bundler/bundler-synthesize
+      gas_budget: 8192
     - resource: template
       action: render
       template_id: skill-bundler/bundler-validate
