@@ -1,0 +1,193 @@
+# Fal Workflow Composer Process Manifest
+# hKask v0.32.0 — Strategy D: bi-directional template ↔ workflow generation
+# PDCA loop: compose → execute → critique → converge → evolve → loop
+# OMC-anchored (media creation domain supplement)
+# Dual-axis: PKO (process) + DC (Fal Workflow JSON artifact + generated image URLs)
+#
+# P3-aligned: workflow topology decisions live in KnowAct .j2 templates.
+# P5-aligned: zero new step action types — reuses select + execute + loop.
+# P4-aligned: Fal access is OCAP-gated with delegation tokens per call.
+
+manifest:
+  id: fal-workflow-composer
+  name: "Fal Workflow Composer"
+  description: >
+    Bi-directional Fal.ai workflow composition Skill. Given a high-level
+    media intent, generates a Fal-compatible workflow plan JSON,
+    dispatches execution to Fal GPU infrastructure, critiques the output
+    against formal quality gates, and iteratively evolves the workflow
+    until PDCA convergence. Workflow topology decisions live in KnowAct
+    templates, not Rust code — the executor only orchestrates.
+  functional_role: flowdef
+  version: 0.32.0
+  editor: curator-or-human-admin
+  visibility: Public
+
+convergence:
+  threshold: 0.15
+  improvement_ratio: 0.10
+  improvement_gate: threshold_only
+  max_iterations: 5
+  min_iterations: 1
+  convergence_field: step_3_result.convergence_metric
+  on_not_reached: escalate
+
+gas:
+  cap: 200000
+  cost_per_iteration: 200
+  alert_threshold: 0.8
+  hard_limit: true
+
+rjoule:
+  cap: 3
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: intent
+    type: object
+    required: true
+    description: >
+      High-level media intent. Must include at minimum a description field.
+      May include: name (for logos), tagline, style, palette, industry,
+      audience, media_type (image | logo | collage | video_frame),
+      size preference, output count.
+  - name: constraints
+    type: object
+    required: false
+    description: >
+      Optional generation constraints: max_cost_cents, preferred_models
+      (array of model IDs), output_count, aspect_ratio, must_include
+      (required processing steps like background_removal).
+  - name: media_type
+    type: string
+    required: false
+    default: "image"
+    description: "Type of media to generate. Determines critique dimensions."
+
+steps:
+  - ordinal: 1
+    action: select
+    description: >
+      Compose a Fal-compatible workflow plan JSON from the media intent.
+      Selects models, defines node topology, wires $reference data flow,
+      and estimates iteration cost. On re-entry (iteration > 1), receives
+      the evolved workflow and critique feedback for refinement.
+    renderer: minijinja
+    template_ref: fal/workflow-composer
+    gas_cap: 6000
+    timeout_seconds: 60
+    input_mapping:
+      intent: "{{ intent }}"
+      constraints: "{{ constraints | default({}) }}"
+      media_type: "{{ media_type | default('image') }}"
+      previous_workflow: "{{ step_5_result.evolved_workflow | default(none) }}"
+      critique_feedback: "{{ step_3_result | default(none) }}"
+
+  - ordinal: 2
+    action: execute
+    description: >
+      Submit the workflow plan JSON to Fal GPU infrastructure.
+      Executes nodes in dependency order, resolves $references,
+      collects output URLs. This is the only step that incurs
+      real-world GPU cost.
+    tool: fal-workflow.execute_workflow
+    gas_cap: 30000
+    timeout_seconds: 300
+    input_mapping:
+      workflow: "{{ step_1_result.workflow | tojson }}"
+
+  - ordinal: 3
+    action: select
+    description: >
+      Critique the generated media against formal quality dimensions.
+      For logos: Bokhua's five gates (simplicity, monochrome viability,
+      grid discipline, negative space, scalability) plus brand fit and
+      distinctiveness. Returns normalized convergence_metric where 0 = perfect.
+    renderer: minijinja
+    template_ref: fal/workflow-critique
+    gas_cap: 6000
+    timeout_seconds: 60
+    input_mapping:
+      image_urls: "{{ step_2_result.output_urls }}"
+      intent: "{{ intent }}"
+      media_type: "{{ media_type | default('image') }}"
+      workflow: "{{ step_1_result.workflow }}"
+
+  - ordinal: 4
+    action: loop
+    description: >
+      Convergence gate. If convergence_metric ≤ threshold (0.15), the
+      cascade exits with 'converged'. Otherwise proceeds to evolution
+      step for refinement.
+    input_mapping:
+      loop_target: 5
+
+  - ordinal: 5
+    action: select
+    description: >
+      Evolve the workflow plan based on critique feedback. Applies
+      strategies in least-action order: prompt refinement → parameter
+      tuning → model swap → node insertion → topology change.
+      More aggressive strategies unlocked at higher iterations.
+    renderer: minijinja
+    template_ref: fal/workflow-evolve
+    gas_cap: 6000
+    timeout_seconds: 60
+    input_mapping:
+      current_workflow: "{{ step_1_result.workflow }}"
+      critique: "{{ step_3_result }}"
+      intent: "{{ intent }}"
+      iteration: "{{ _convergence.iterations_completed | default(0) }}"
+      max_iterations: 5
+
+  - ordinal: 6
+    action: loop
+    description: >
+      Re-enter cascade at step 1 with the evolved workflow.
+      Step 1 will receive previous_workflow and critique_feedback
+      for refinement context.
+    input_mapping:
+      loop_target: 1
+
+error_handling:
+  on_gas_exceeded: escalate
+  on_timeout: retry
+  max_retries: 1
+  retry_backoff_seconds: 5
+  on_validation_failure: abort
+
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: fal/workflow-composer
+      gas_budget: 6000
+    - resource: template
+      action: render
+      template_id: fal/workflow-critique
+      gas_budget: 6000
+    - resource: template
+      action: render
+      template_id: fal/workflow-evolve
+      gas_budget: 6000
+    - resource: tool
+      action: execute
+      template_id: fal-workflow.execute_workflow
+      gas_budget: 30000
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+cns:
+  emit_spans: true
+  span_namespace: cns.execute.fal
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+
+audit:
+  enabled: true
+  log_level: info
+  include_input: false

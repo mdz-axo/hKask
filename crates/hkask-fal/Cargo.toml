@@ -1,0 +1,17 @@
+[package]
+name = "hkask-fal"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Fal.ai API client for hKask — workflow execution, model dispatch, response parsing"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+reqwest = { workspace = true, features = ["json", "stream"] }
+tokio = { workspace = true, features = ["sync"] }
+tracing.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+url.workspace = true
+futures-util.workspace = true

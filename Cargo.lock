@@ -3991,6 +3991,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-fal"
+version = "0.30.0"
+dependencies = [
+ "anyhow",
+ "futures-util",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
 name = "hkask-federation"
 version = "0.30.0"
 dependencies = [
@@ -4277,6 +4292,23 @@ dependencies = [
  "tracing",
  "uuid",
  "zip",
+]
+
+[[package]]
+name = "hkask-mcp-fal"
+version = "0.30.0"
+dependencies = [
+ "anyhow",
+ "dotenvy",
+ "hkask-fal",
+ "hkask-mcp",
+ "hkask-types",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

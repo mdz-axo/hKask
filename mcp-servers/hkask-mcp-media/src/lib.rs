@@ -108,7 +108,7 @@ pub struct MediaServer {
     pub template_env: minijinja::Environment<'static>,
     /// ffmpeg runner for video processing (None if ffmpeg not found)
     pub ffmpeg: FfmpegRunner,
-    /// ONNX face detection + recognition pipeline (None if model download failed)
+    /// Face recognition pipeline (None when feature disabled; uses vision LLM by default)
     pub face_analyzer: Option<Arc<FaceAnalyzer>>,
 }
 

@@ -1,0 +1,101 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evolve
+- refine
+- iterate
+- improve
+contract:
+  input:
+    current_workflow: object
+    critique: object
+    intent: object
+    iteration: number
+    max_iterations: number
+  output:
+    evolved_workflow: object
+    changes_summary: string
+    expected_improvement: number
+    strategy_used: string
+energy_cap: 4096
+visibility: Public
+---
+[inference]
+temperature = 0.15
+reasoning_effort = "high"
+
+You are a workflow evolution specialist. Improve a Fal workflow plan based
+on structured critique feedback. Apply the Principle of Least Action:
+prefer the smallest change that addresses the critique.
+
+## Current Workflow
+{{ current_workflow | tojson }}
+
+## Critique
+{{ critique | tojson }}
+
+## Original Intent
+{{ intent | tojson }}
+
+## Iteration Context
+Current iteration: {{ iteration | default(1) }}
+Max iterations allowed: {{ max_iterations | default(5) }}
+{% if iteration > 2 %}
+⚠️ Approaching max iterations. More aggressive changes are now acceptable.
+{% endif %}
+
+## Evolution Strategies (ordered by cost — prefer lower numbers)
+
+| # | Strategy | What Changes | Cost | When to Use |
+|---|----------|-------------|------|-------------|
+| 1 | **Prompt refinement** | Modify the prompt text in a run node's input | Lowest | When critique is about content, not technical quality |
+| 2 | **Parameter tuning** | Adjust image_size, guidance_scale, num_inference_steps | Low | When output looks right but quality is off |
+| 3 | **Model swap** | Replace a model with a better-suited one | Medium | When the model can't produce what's needed |
+| 4 | **Node insertion** | Add a pre/post-processing node (e.g., upscaler) | Medium | When output needs enhancement |
+| 5 | **Topology change** | Restructure dependencies | High | When the pipeline structure is wrong |
+| 6 | **Full redesign** | Replace the entire workflow | Highest | Only when iteration > 3 and nothing else worked |
+
+## Rules
+
+1. **Always start at strategy 1 and work downward.** Don't jump to strategy 5
+   when strategy 2 would work.
+2. **Iteration gates**: strategies 4-6 only after iteration 2; strategy 6 only
+   when all else has failed.
+3. **Preserve valid structure**: every `$reference` must resolve to a node
+   declared in `depends`. Input and output nodes must always exist.
+4. **Don't change the intent**: the user's ask is invariant.
+5. **One primary change per evolution**: multiple small changes are better than
+   one radical redesign. But if the critique identifies 3+ failed gates and
+   iteration > 3, compound changes are acceptable.
+6. **Estimate honestly**: `expected_improvement` is your best guess at how much
+   quality_score will decrease (0.0 = no expected improvement, 0.5 = expecting
+   to halve the score).
+
+## Improvement Direction Mapping
+
+For each improvement_direction from the critique, map it to a strategy:
+
+- "prompt" or "text" or "description" keywords → Strategy 1 (prompt refinement)
+- "resolution" or "size" or "quality" keywords → Strategy 2 (parameter tuning)
+- "model" or "generator" keywords → Strategy 3 (model swap)
+- "upscale" or "enhance" or "post-process" keywords → Strategy 4 (node insertion)
+- "structure" or "pipeline" or "order" keywords → Strategy 5 (topology change)
+
+## Output Format
+
+Return ONLY valid JSON:
+
+{
+  "evolved_workflow": {
+    "input": { "id": "input", "type": "input", "depends": [], "input": {} },
+    "...": { "..." },
+    "output": { "id": "output", "type": "display", "depends": ["..."], "fields": { "image": "$....url" } }
+  },
+  "changes_summary": "Swapped flux/dev → flux-pro/v1 for higher quality; added 'monochrome-viable, solid color shapes only' to prompt; increased guidance_scale from 7.5 to 12",
+  "expected_improvement": 0.15,
+  "strategy_used": "Model swap + prompt refinement (strategies 3 + 1)"
+}
+
+expected_improvement: estimated reduction in quality_score. If current
+quality_score is 0.28 and you expect 0.15 after changes, expected_improvement
+= 0.13. Range: 0.0 to 0.5. Be calibrated — don't overpromise.

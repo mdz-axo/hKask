@@ -101,7 +101,6 @@
   cascade_level: 0
   matroshka_limit: 7
 
-
 - id: gml/recognize-ensemble
   template_type: KnowAct
   name: "GML Recognize Ensemble"
@@ -649,6 +648,52 @@
     - charter
   description: "Run a bug hunting expedition against a target crate using Weinberg quality criteria, Beizer taxonomy, Bach HTSM, and Hendrickson charters"
   source_path: registry/templates/bug-hunt/bug-hunt-expedition.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+# ── Fal ─────────────────────────────────────────────────────────────────
+- id: fal/workflow-composer
+  template_type: KnowAct
+  name: "Fal Workflow Composer"
+  lexicon_terms:
+    - compose
+    - generate
+    - design
+    - structure
+    - select
+  description: "Generate a Fal-compatible workflow plan JSON from high-level media intent. Selects models, defines node topology, wires data flow."
+  source_path: registry/templates/fal/workflow-composer.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: fal/workflow-critique
+  template_type: KnowAct
+  name: "Fal Workflow Critique"
+  lexicon_terms:
+    - evaluate
+    - critique
+    - score
+    - analyze
+    - compare
+  description: "Critique generated media against formal quality gates. Bokhua for logos, general aesthetic dimensions for images. Returns normalized convergence metric."
+  source_path: registry/templates/fal/workflow-critique.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: fal/workflow-evolve
+  template_type: KnowAct
+  name: "Fal Workflow Evolve"
+  lexicon_terms:
+    - evolve
+    - refine
+    - iterate
+    - improve
+    - adapt
+  description: "Evolve a workflow plan based on critique feedback. Applies strategies in least-action order: prompt → params → model swap → nodes → topology."
+  source_path: registry/templates/fal/workflow-evolve.j2
   required_capabilities: []
   cascade_level: 0
   matroshka_limit: 7

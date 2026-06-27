@@ -2,7 +2,7 @@
 
 PKO (Procedural Knowledge Ontology) bridge — shared vocabulary constants for hKask's process (flow) ontological axis.
 
-Part of the dual-axis ontological framework (P5.4): every MCP server uses this crate alongside `hkask-bridge-dublincore` (state axis). Shared by all 13 MCP servers.
+Part of the dual-axis ontological framework (P5.4): every MCP server uses this crate alongside `hkask-bridge-dublincore` (state axis). Shared by all 14 MCP servers.
 
 Reference: Carriero et al. (2025, arXiv:2503.20634) — https://w3id.org/pko
 

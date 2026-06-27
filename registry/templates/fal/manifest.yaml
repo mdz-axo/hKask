@@ -1,0 +1,49 @@
+# Template crate manifest for fal skill
+# hKask v0.32.0 — Strategy D: bi-directional template ↔ workflow generation
+# OMC-anchored (media creation domain supplement)
+# Complements the media crate by providing GPU execution backend awareness
+# and workflow topology design intelligence.
+
+crate:
+  name: fal
+  version: "0.32.0"
+  description: >
+    Fal.ai workflow composer. KnowAct templates that generate, critique,
+    and evolve Fal Workflow JSON DAGs from high-level media intents.
+    OMC-anchored (media creation domain). Complements the media crate
+    by providing GPU execution backend awareness and workflow topology
+    design. P3-aligned: workflow design intelligence lives in Jinja2/LLM,
+    not in Rust code.
+
+templates:
+  - id: fal/workflow-composer
+    path: workflow-composer.j2
+    type: KnowAct
+    lexicon_terms: [compose, generate, design, structure, select]
+    description: >
+      Generate a Fal-compatible workflow plan JSON from high-level media
+      intent. Selects models, defines node topology, wires $references
+      for data flow between nodes. Outputs valid workflow plan plus
+      rationale and cost estimate.
+
+  - id: fal/workflow-critique
+    path: workflow-critique.j2
+    type: KnowAct
+    lexicon_terms: [evaluate, critique, score, analyze, compare]
+    description: >
+      Critique generated media against formal quality dimensions.
+      For logos: Bokhua's five gates (simplicity, monochrome viability,
+      grid discipline, negative space, scalability) plus brand fit and
+      distinctiveness. For general images: technical quality, composition,
+      aesthetic appeal, intent alignment, coherence. Returns normalized
+      quality score 0-1 where 0 = perfect (convergence-field compatible).
+
+  - id: fal/workflow-evolve
+    path: workflow-evolve.j2
+    type: KnowAct
+    lexicon_terms: [evolve, refine, iterate, improve, adapt]
+    description: >
+      Evolve a workflow plan based on critique feedback. Applies
+      strategies in least-action order: prompt refinement → parameter
+      tuning → model swap → node insertion → topology change.
+      Maintains valid workflow structure and $reference integrity.

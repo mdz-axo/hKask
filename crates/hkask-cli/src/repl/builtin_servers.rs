@@ -21,6 +21,7 @@ pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
     ("companies", "hkask-mcp-companies"),
     ("communication", "hkask-mcp-communication"),
     ("fal", "hkask-mcp-media"),
+    ("fal-workflow", "hkask-mcp-fal"),
     ("media", "hkask-mcp-media"),
     ("docproc", "hkask-mcp-docproc"),
     ("training", "hkask-mcp-training"),

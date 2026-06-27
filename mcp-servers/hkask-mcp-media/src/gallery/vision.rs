@@ -70,18 +70,45 @@ pub async fn detect_faces(
 
     let params = LLMParameters::default();
 
+    let model_label = vision_model.unwrap_or("default");
+    tracing::info!(
+        target: "cns.mcp.media.face",
+        operation = "detect",
+        provider = model_label,
+        "Vision LLM face detection"
+    );
+
     let result = inference
         .generate_vision(&prompt, &[image_url.to_string()], &params, vision_model)
         .await
-        .map_err(|e| format!("Vision LLM call failed: {}", e))?;
+        .map_err(|e| {
+            tracing::warn!(
+                target: "cns.mcp.media.face",
+                operation = "detect",
+                provider = model_label,
+                error = %e,
+                "Vision LLM face detection failed"
+            );
+            format!("Vision LLM call failed: {}", e)
+        })?;
 
     // Try parsing as JSON array first
-    if let Ok(faces) = serde_json::from_str::<Vec<serde_json::Value>>(&result.text) {
-        Ok(faces)
+    let faces = if let Ok(faces) = serde_json::from_str::<Vec<serde_json::Value>>(&result.text) {
+        faces
     } else {
         // Fallback: wrap raw text as a single face entry
-        Ok(vec![serde_json::json!({"raw": result.text.trim()})])
-    }
+        vec![serde_json::json!({"raw": result.text.trim()})]
+    };
+
+    tracing::info!(
+        target: "cns.mcp.media.face",
+        operation = "detect",
+        provider = model_label,
+        face_count = faces.len(),
+        "Vision LLM face detection complete"
+    );
+
+    Ok(faces)
 }
 
 /// Validate a reference image for use in facial recognition.
@@ -107,10 +134,27 @@ pub async fn validate_face_reference(
         ..Default::default()
     };
 
+    let model_label = vision_model.unwrap_or("default");
+    tracing::info!(
+        target: "cns.mcp.media.face",
+        operation = "validate",
+        provider = model_label,
+        "Vision LLM face reference validation"
+    );
+
     let result = inference
         .generate_vision(&prompt, &[image_url.to_string()], &params, vision_model)
         .await
-        .map_err(|e| format!("Vision LLM call failed: {}", e))?;
+        .map_err(|e| {
+            tracing::warn!(
+                target: "cns.mcp.media.face",
+                operation = "validate",
+                provider = model_label,
+                error = %e,
+                "Vision LLM face validation failed"
+            );
+            format!("Vision LLM call failed: {}", e)
+        })?;
 
     let parsed: FaceValidationResult = serde_json::from_str(&result.text).map_err(|e| {
         format!(
@@ -119,6 +163,15 @@ pub async fn validate_face_reference(
             &result.text[..200.min(result.text.len())]
         )
     })?;
+
+    tracing::info!(
+        target: "cns.mcp.media.face",
+        operation = "validate",
+        provider = model_label,
+        valid = parsed.valid,
+        face_count = parsed.face_count,
+        "Vision LLM face validation complete"
+    );
 
     Ok(parsed)
 }
@@ -147,6 +200,14 @@ pub async fn match_faces(
         ..Default::default()
     };
 
+    let model_label = vision_model.unwrap_or("default");
+    tracing::info!(
+        target: "cns.mcp.media.face",
+        operation = "match",
+        provider = model_label,
+        "Vision LLM face match"
+    );
+
     let result = inference
         .generate_vision(
             &prompt,
@@ -155,7 +216,16 @@ pub async fn match_faces(
             vision_model,
         )
         .await
-        .map_err(|e| format!("Vision LLM call failed: {}", e))?;
+        .map_err(|e| {
+            tracing::warn!(
+                target: "cns.mcp.media.face",
+                operation = "match",
+                provider = model_label,
+                error = %e,
+                "Vision LLM face match failed"
+            );
+            format!("Vision LLM call failed: {}", e)
+        })?;
 
     let parsed: FaceMatchResult = serde_json::from_str(&result.text).map_err(|e| {
         format!(
@@ -164,6 +234,15 @@ pub async fn match_faces(
             &result.text[..200.min(result.text.len())]
         )
     })?;
+
+    tracing::info!(
+        target: "cns.mcp.media.face",
+        operation = "match",
+        provider = model_label,
+        is_match = parsed.is_match,
+        confidence = parsed.confidence,
+        "Vision LLM face match complete"
+    );
 
     Ok(parsed)
 }

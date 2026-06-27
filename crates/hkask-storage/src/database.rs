@@ -117,12 +117,42 @@ impl Database {
         //
         // Fix: bump plaintext header size to 32 BEFORE setting the key, and keep it
         // at 32 permanently. This is a valid SQLCipher configuration used by many
-        // deployments. If the header ever drifts, an sqlcipher_export() + VACUUM
-        // re-encrypts everything with the correct header size.
-        if !salt_existed {
+        // deployments. Existing databases retain their stored header_size — no
+        // migration needed since the broken old code never successfully created a DB.
+        let header_size = if !salt_existed {
             conn.execute_batch("PRAGMA cipher_plaintext_header_size = 32;")?;
-        }
+            32u8
+        } else {
+            0u8 // stored in database file, read automatically by SQLCipher
+        };
         Self::configure_encryption(&conn, passphrase, &salt)?;
+        if salt_existed {
+            // Verify the database is readable with the derived key.
+            // A wrong passphrase or corrupted salt produces an HMAC error here
+            // rather than silently returning an unreadable database.
+            conn.query_row(
+                "SELECT count(*) FROM sqlite_master",
+                rusqlite::params![],
+                |row| {
+                    let _count: i64 = row.get(0)?;
+                    Ok(())
+                },
+            )
+            .map_err(|e| {
+                DatabaseError::SqlCipher(format!(
+                    "Database unreadable — wrong passphrase or corrupted file: {}",
+                    e
+                ))
+            })?;
+        }
+        tracing::info!(
+            target: "cns.storage",
+            operation = "open",
+            path = %path,
+            is_new = !salt_existed,
+            cipher_plaintext_header_size = header_size,
+            "Database opened"
+        );
         Self::initialize_schema(&conn)?;
         if let Some(ext) = extensions {
             conn.execute_batch(ext)?;

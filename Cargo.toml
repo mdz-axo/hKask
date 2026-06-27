@@ -42,6 +42,7 @@ members = [
     "crates/hkask-acp",
     "crates/hkask-federation",
     "crates/hkask-mcp-cloud-gateway",
+    "crates/hkask-fal",
     # MCP servers
     "mcp-servers/hkask-mcp-condenser",
     "mcp-servers/hkask-mcp-research",
@@ -56,6 +57,7 @@ members = [
     "mcp-servers/hkask-mcp-skill",
     "mcp-servers/hkask-mcp-curator",
     "mcp-servers/hkask-mcp-filesystem",
+    "mcp-servers/hkask-mcp-fal",
 ]
 
 [workspace.package]

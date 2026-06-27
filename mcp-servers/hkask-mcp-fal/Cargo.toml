@@ -1,0 +1,27 @@
+[package]
+name = "hkask-mcp-fal"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Fal workflow execution MCP server — exposes fal.execute_workflow tool for Strategy D PDCA loops"
+
+[dependencies]
+hkask-fal = { path = "../../crates/hkask-fal" }
+hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-types = { path = "../../crates/hkask-types" }
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+dotenvy.workspace = true
+
+[lib]
+name = "hkask_mcp_fal"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hkask-mcp-fal"
+path = "src/main.rs"

@@ -39,7 +39,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, A2A, Episodic and Semantic Memory and kask services |
-| 2 | **Essential Tools** | 13 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter) |
+| 2 | **Essential Tools** | 14 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter) |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, keystore, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Templates + manifests compose into iterative PDCA Skill loops (47 skills, 267 templates, 63 manifests) |
@@ -125,7 +125,8 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-federation` | Cross-instance agent federation protocol |
 | `hkask-tui` | Terminal UI (ratatui-based interactive console) |
 
-### MCP Servers (13 crates)
+### MCP Servers (14 crates)
+- `hkask-mcp-fal` — Fal workflow execution (Strategy D PDCA loops)
 - `hkask-mcp-condenser` — Context condensation (thin wrapper around hkask-condenser)
 - `hkask-mcp-research` — Web search, extraction, and feed-based research
 - `hkask-mcp-skill` — Skill registry and discovery MCP interface
@@ -155,7 +156,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | **MCP Server LOC (src/)** | ~43,200 |
 | **Total LOC** | ~201,600 |
 | **Core Crates** | 38 (12 foundation + 8 infra + 11 services + 3 wallet/identity + 2 bridges + 1 federation + 1 TUI) |
-| **MCP Servers** | 13 |
+| **MCP Servers** | 14 |
 | **Tests** | ~1,580 (workspace) |
 | **CLI Subcommands** | 39 |
 | **API Route Groups** | 26 |
@@ -208,4 +209,4 @@ cargo fmt --check
 
 *ℏKask - A Minimal Viable Container for Agents — v0.31.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*
-*CI green. 38 crates. 13 MCP servers. 47 PDCA skill loops. 267 templates.*
+*CI green. 38 crates. 14 MCP servers. 47 PDCA skill loops. 267 templates.*

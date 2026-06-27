@@ -118,6 +118,8 @@ impl RouterModelEntry {
             "florence",
             "paligemma",
             "qwen2-vl",
+            "qwen2.5-vl",
+            "qwen-vl",
             "internvl",
             "phi-3-vision",
             "lighton",
