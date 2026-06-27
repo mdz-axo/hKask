@@ -325,5 +325,5 @@ The TDD cycle is a pre-commit development activity. Post-deployment, the CNS pro
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 26000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 26000 rJ
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

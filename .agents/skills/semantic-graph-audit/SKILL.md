@@ -258,5 +258,5 @@ Before concluding a graph is malformed, ask:
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 22000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 22000 rJ
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

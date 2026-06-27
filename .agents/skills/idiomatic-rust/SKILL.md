@@ -137,5 +137,5 @@ This skill's reasoning draws from:
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 120000, 100 per iteration
-- **rJoule (inference energy):** cap 3 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 3 rJ
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

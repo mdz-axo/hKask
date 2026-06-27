@@ -68,7 +68,7 @@ steps:
 
   - ordinal: 2
     action: select
-    description: Compose a PKO-anchored candidate bundle manifest from provided skills and goal context.
+    description: Compose a PKO-anchored candidate bundle manifest from provided skills and goal context. On recomposition iterations, uses the evolved manifest as a base.
     renderer: minijinja
     template_ref: skill-bundler/bundler-compose
     gas_cap: 6000
@@ -77,6 +77,7 @@ steps:
       skill_names: "{{ skill_names }}"
       existing_bundles: "{{ existing_bundles | default([]) }}"
       goal: "{{ step_1_result }}"
+      previous_manifest: "{{ step_5_result.evolved_manifest | default(none) }}"
 
   - ordinal: 3
     action: select

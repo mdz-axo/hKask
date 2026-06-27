@@ -113,5 +113,5 @@ There is no dedicated MCP tool for Magna Carta verification. The CLI command is 
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 3 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 3 rJ
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)

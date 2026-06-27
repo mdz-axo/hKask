@@ -105,5 +105,5 @@ The PDCA convergence threshold of 0.15 is operationalized as:
 
 ### Energy Budgets
 - **Gas (compute cycles):** cap 100000, 100 per iteration
-- **rJoule (inference energy):** cap 18000 rJ, 0.25 rJ/token
+- **rJoule (inference energy):** cap 18000 rJ
 - **System constant:** 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)
