@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    # Core crates (13 — ≤35k lines total)
+    # Core crates
     "crates/hkask-services-core",
 
     # Ontology bridge crates (v0.31.0)
@@ -158,4 +158,3 @@ matrix-sdk = { version = "0.16", default-features = false, features = ["native-t
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(feature, values("hedera"))'] }
-

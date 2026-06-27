@@ -70,7 +70,3 @@ dotenvy.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 proptest = "1"
-
-[[test]]
-name = "cli_fuzz"
-path = "tests/cli_fuzz.rs"

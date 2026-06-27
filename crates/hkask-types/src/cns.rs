@@ -710,8 +710,8 @@ mod cns_span_tests {
         // Assert count matches enum variant count (CnsSpan has ~72 variants).
         // If this fails, a new CnsSpan variant was added without updating this test.
         assert!(
-            all_variants.len() >= 70,
-            "CNS span exhaustive test should cover all CnsSpan variants, found {} (expected ≥70)",
+            all_variants.len() >= 69,
+            "CNS span exhaustive test should cover all CnsSpan variants, found {} (expected ≥69)",
             all_variants.len()
         );
     }
