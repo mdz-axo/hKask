@@ -220,6 +220,10 @@ pub struct MetacognitionLoop {
     /// `sense()` wipes the snapshot each cycle but template output must
     /// survive across cycles for `generate_summary()` and `act()`.
     last_template_output: RwLock<Option<serde_json::Value>>,
+    /// Circuit breaker: consecutive template invocation failures.
+    /// After 3 consecutive failures, skip template for 5 cycles.
+    consecutive_template_failures: std::sync::atomic::AtomicU64,
+    template_skip_remaining: std::sync::atomic::AtomicU64,
 }
 
 impl MetacognitionLoop {
@@ -243,6 +247,8 @@ impl MetacognitionLoop {
             last_snapshot_tx,
             bot_health_evaluator: None,
             last_template_output: RwLock::new(None),
+            consecutive_template_failures: std::sync::atomic::AtomicU64::new(0),
+            template_skip_remaining: std::sync::atomic::AtomicU64::new(0),
         }
     }
 
@@ -273,6 +279,8 @@ impl MetacognitionLoop {
             last_snapshot_tx,
             bot_health_evaluator: Some(evaluator),
             last_template_output: RwLock::new(None),
+            consecutive_template_failures: std::sync::atomic::AtomicU64::new(0),
+            template_skip_remaining: std::sync::atomic::AtomicU64::new(0),
         }
     }
 
@@ -350,6 +358,7 @@ impl MetacognitionLoop {
             snapshot.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
         );
         let _ = writeln!(s, "**CNS Health:** {}", snapshot.cns_health);
+        let _ = writeln!(s, "**Variety Deficit:** {}", snapshot.variety_deficit);
         let _ = writeln!(s, "**Critical Alerts:** {}", snapshot.critical_alerts);
         let _ = writeln!(s, "**Total Alerts:** {}\n", snapshot.total_alerts);
         if !snapshot.variety_counters.is_empty() {
@@ -635,14 +644,37 @@ impl MetacognitionLoop {
             })
             .collect();
         ctx.insert("issues".into(), serde_json::json!(issues));
+        // Circuit breaker: skip template after 3 consecutive failures,
+        // retry after 5 skip cycles.
+        let skip = self
+            .template_skip_remaining
+            .load(std::sync::atomic::Ordering::Relaxed);
+        if skip > 0 {
+            self.template_skip_remaining
+                .store(skip - 1, std::sync::atomic::Ordering::Relaxed);
+            return self.compute_with_thresholds(deviations);
+        }
 
         let result = match executor
             .execute_knowact("curator/metacognition-diagnose.j2", &ctx)
             .await
         {
-            Ok(r) => r,
+            Ok(r) => {
+                self.consecutive_template_failures
+                    .store(0, std::sync::atomic::Ordering::Relaxed);
+                r
+            }
             Err(e) => {
-                tracing::warn!(target: MC_TARGET, error = %e, "Template failed; fallback to thresholds");
+                let failures = self
+                    .consecutive_template_failures
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                    + 1;
+                tracing::warn!(target: MC_TARGET, error = %e, consecutive_failures = failures, "Template failed");
+                if failures >= 3 {
+                    self.template_skip_remaining
+                        .store(5, std::sync::atomic::Ordering::Relaxed);
+                    tracing::warn!(target: MC_TARGET, "Circuit breaker tripped — skipping template for 5 cycles");
+                }
                 return self.compute_with_thresholds(deviations);
             }
         };
@@ -663,6 +695,15 @@ impl MetacognitionLoop {
                         LoopId::Curation, ActionType::Calibrate,
                         serde_json::json!({"domain": target, "template": "metacognition-diagnose"}),
                     )),
+                    "adjust_budget" => {
+                        let new_budget = step.get("new_budget").and_then(|v| v.as_u64()).unwrap_or(0);
+                        if new_budget > 0 && !target.is_empty() {
+                            actions.push(LoopAction::new(
+                                LoopId::Curation, ActionType::OverrideEnergyBudget,
+                                serde_json::json!({"metric": "adjust_budget", "target": target, "new_budget": new_budget, "template": "metacognition-diagnose"}),
+                            ));
+                        }
+                    }
                     "escalate" | "restart" | "rebalance" => actions.push(LoopAction::new(
                         LoopId::Curation, ActionType::Escalate,
                         serde_json::json!({"metric": action_type, "target": target, "diagnosis": result.get("diagnosis"), "template": "metacognition-diagnose"}),
@@ -880,6 +921,18 @@ impl HkaskLoop for MetacognitionLoop {
                 }
             }
 
+            // OverrideEnergyBudget from template (LLM-computed, replaces hardcoded 5000)
+            if matches!(metric, "adjust_budget") {
+                let new_budget = action.parameters.get("new_budget").and_then(|v| v.as_u64()).unwrap_or(0);
+                if new_budget > 0 && !target.is_empty() {
+                    let directive = CuratorDirective::OverrideEnergyBudget {
+                        agent: hkask_types::WebID::from_persona(target.as_bytes()),
+                        new_budget,
+                    };
+                    self.context.issue_directive(directive).await;
+                }
+            }
+
             match action.action_type {
                 ActionType::Calibrate => {
                     if let Some(entry) = self.act_on_throttle(action).await {
@@ -900,6 +953,23 @@ impl HkaskLoop for MetacognitionLoop {
         if escalation_entries.len() >= threshold {
             let batch = EscalationBatch::new(escalation_entries, "consolidated", threshold);
             let summary = batch.summary();
+            // Invoke escalate template for LLM-formatted notification when executor available
+            let summary = if let Some(executor) = self.context.manifest_executor().await {
+                let mut ctx = std::collections::HashMap::new();
+                ctx.insert("critical_issues".into(), serde_json::json!([]));
+                ctx.insert("system_health".into(), serde_json::json!("degraded"));
+                ctx.insert("variety_deficit".into(), serde_json::json!(0));
+                ctx.insert("active_alerts".into(), serde_json::json!([]));
+                ctx.insert("bot_failures".into(), serde_json::json!([]));
+                ctx.insert("energy_budget_status".into(), serde_json::json!("unknown"));
+                ctx.insert("required_actions".into(), serde_json::json!([]));
+                match executor.execute_knowact("curator/metacognition-escalate.j2", &ctx).await {
+                    Ok(output) => output.get("notification").and_then(|v| v.as_str()).unwrap_or(&summary).to_string(),
+                    Err(_) => summary,
+                }
+            } else {
+                summary
+            };
             info!(target: MC_TARGET, batch_id = %batch.id, entry_count = batch.entries.len(), threshold, "Consolidating escalations into batch");
             if let Err(e) = self.context.escalation_queue().add(
                 hkask_types::TemplateID::new(),

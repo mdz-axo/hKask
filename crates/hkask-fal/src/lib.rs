@@ -464,10 +464,10 @@ fn resolve_single_reference(
     Ok(current.clone())
 }
 
-/// Extract image URLs from a resolved output value.
+/// Extract media URLs from a resolved output value.
 ///
 /// Walks the value tree and collects any string values that look like
-/// image URLs (contain typical image extensions or are from fal's CDN).
+/// media URLs (contain typical media extensions or are from fal's CDN).
 fn extract_urls(value: &Value) -> Vec<String> {
     let mut urls = Vec::new();
     extract_urls_recursive(value, &mut urls);

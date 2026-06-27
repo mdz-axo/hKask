@@ -193,7 +193,50 @@ impl CuratorService {
                 .map_err(|e| ServiceError::Metacognition {
                     message: e.to_string(),
                 })?;
-        Ok(agent.metacognition().generate_summary(&snapshot))
+        let summary = agent.metacognition().generate_summary(&snapshot);
+
+        // Post to Matrix standing session if transport is configured
+        Self::post_to_matrix_if_configured(ctx, &summary).await;
+
+        Ok(summary)
+    }
+
+    /// Post the metacognition summary to the Curator's Matrix room.
+    ///
+    /// Requires `HKASK_CURATOR_ROOM_ID` env var and Matrix transport
+    /// to be connected. Silently skips if unavailable.
+    async fn post_to_matrix_if_configured(ctx: &AgentService, summary: &str) {
+        let room_id = match std::env::var("HKASK_CURATOR_ROOM_ID") {
+            Ok(id) if !id.is_empty() => id,
+            _ => return,
+        };
+
+        let transport = match ctx.matrix_transport() {
+            Some(t) => t,
+            None => return,
+        };
+
+        use hkask_communication::matrix::RoomId;
+        let room = RoomId(room_id);
+        if let Err(e) = transport
+            .lock()
+            .await
+            .send_message(&room, summary, None)
+            .await
+        {
+            tracing::warn!(
+                target: "cns.curation.matrix",
+                room_id = %room.0,
+                error = %e,
+                "Failed to post metacognition summary to Matrix"
+            );
+        } else {
+            tracing::info!(
+                target: "cns.curation.matrix",
+                room_id = %room.0,
+                "Metacognition summary posted to Matrix standing session"
+            );
+        }
     }
 }
 

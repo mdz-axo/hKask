@@ -76,7 +76,30 @@ impl BotHealthEvaluator {
         for summary in &summaries {
             let budget = self.cns.agent_gas_status(&summary.agent).await;
             let status = self.classify_health(summary, budget.as_ref())?;
-            let issues = Vec::new();
+            let mut issues = Vec::new();
+            match status {
+                BotHealthStatus::Critical => {
+                    issues.push(format!(
+                        "Gas consumption at {:.0}% of budget ({} / {} cycles)",
+                        (summary.total_consumed as f64
+                            / budget
+                                .as_ref()
+                                .map(|b| b.cap.as_raw() as f64)
+                                .unwrap_or(1.0)
+                            * 100.0)
+                            .min(100.0),
+                        summary.total_consumed,
+                        budget.map(|b| b.cap.as_raw()).unwrap_or(0),
+                    ));
+                }
+                BotHealthStatus::Degraded => {
+                    issues.push(format!(
+                        "Elevated gas usage: {} cycles consumed in past hour",
+                        summary.total_consumed
+                    ));
+                }
+                BotHealthStatus::Healthy => {}
+            }
             reports.push(super::metacognition::BotStatusReport {
                 bot_name: format!("{}", summary.agent),
                 status,

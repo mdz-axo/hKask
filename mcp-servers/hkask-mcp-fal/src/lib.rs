@@ -1,11 +1,11 @@
 //! hkask-mcp-fal — Fal workflow execution MCP server.
 //!
-//! Exposes `fal.execute_workflow` as an MCP tool for Strategy D PDCA loops.
+//! Exposes `execute_workflow` as an MCP tool for Strategy D PDCA loops.
 //! Thin wrapper around `hkask_fal::FalClient`.
 //!
 //! # Tool
 //!
-//! - `fal.execute_workflow` — Execute a workflow plan JSON against Fal GPU
+//! - `execute_workflow` — Execute a workflow plan JSON against Fal GPU
 //!   infrastructure. Parses the DAG, topologically sorts nodes, executes each
 //!   model call, resolves `$references`, and returns output URLs + metadata.
 
@@ -60,7 +60,7 @@ impl FalServer {
         &self,
         Parameters(ExecuteWorkflowRequest { workflow }): Parameters<ExecuteWorkflowRequest>,
     ) -> String {
-        execute_tool(self, "fal.execute_workflow", async {
+        execute_tool(self, "execute_workflow", async {
             let workflow_json: serde_json::Value = serde_json::from_str(&workflow)
                 .map_err(|e| McpToolError::invalid_argument(format!("Invalid JSON: {e}")))?;
 

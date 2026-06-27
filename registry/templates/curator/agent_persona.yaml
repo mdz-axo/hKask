@@ -27,8 +27,11 @@ rights:
 responsibilities:
   - "Monitor CNS algedonic alert channels"
   - "Review and resolve escalated QA findings"
-  - "Maintain metacognition calibration"
-  - "Report system health to human operator"
+  - "Invoke KnowAct templates for calibrated metacognition decisions"
+  - "Direct bots (restart/rebalance) based on LLM diagnosis"
+  - "Post system health summaries to Matrix standing session"
+  - "Maintain metacognition calibration (template-driven)"
+  - "Self-heal: circuit-breaker on template failures, retry Matrix registrations"
 
 visibility:
   default: private

@@ -145,6 +145,7 @@ async fn authenticated_transport(username: &str, password: &str) -> MatrixTransp
 
 // ── Health check ────────────────────────────────────────────────────────────
 
+#[ignore = "requires running Conduit at HKASK_MATRIX_URL"]
 #[tokio::test]
 async fn health_check_responds() {
     require_conduit().await;
@@ -155,6 +156,7 @@ async fn health_check_responds() {
 
 // ── Authentication ──────────────────────────────────────────────────────────
 
+#[ignore = "requires running Conduit at HKASK_MATRIX_URL"]
 #[tokio::test]
 async fn login_succeeds_with_valid_credentials() {
     require_conduit().await;
@@ -164,6 +166,7 @@ async fn login_succeeds_with_valid_credentials() {
     assert!(result.is_ok(), "login should succeed: {:?}", result);
 }
 
+#[ignore = "requires running Conduit at HKASK_MATRIX_URL"]
 #[tokio::test]
 async fn login_fails_with_invalid_credentials() {
     require_conduit().await;
@@ -176,6 +179,7 @@ async fn login_fails_with_invalid_credentials() {
 
 // ── Rooms ───────────────────────────────────────────────────────────────────
 
+#[ignore = "requires running Conduit at HKASK_MATRIX_URL"]
 #[tokio::test]
 async fn create_room_returns_valid_room_id() {
     require_conduit().await;
@@ -194,6 +198,7 @@ async fn create_room_returns_valid_room_id() {
     );
 }
 
+#[ignore = "requires running Conduit at HKASK_MATRIX_URL"]
 #[tokio::test]
 async fn list_rooms_includes_created_room() {
     require_conduit().await;
@@ -217,6 +222,7 @@ async fn list_rooms_includes_created_room() {
 
 // ── Messaging ───────────────────────────────────────────────────────────────
 
+#[ignore = "requires running Conduit at HKASK_MATRIX_URL"]
 #[tokio::test]
 async fn send_and_receive_message() {
     require_conduit().await;
@@ -251,6 +257,7 @@ async fn send_and_receive_message() {
     }
 }
 
+#[ignore = "requires running Conduit at HKASK_MATRIX_URL"]
 #[tokio::test]
 async fn send_message_with_structured_payload() {
     require_conduit().await;
@@ -271,6 +278,7 @@ async fn send_message_with_structured_payload() {
 
 // ── Invites ─────────────────────────────────────────────────────────────────
 
+#[ignore = "requires running Conduit at HKASK_MATRIX_URL"]
 #[tokio::test]
 async fn invite_user_to_room() {
     require_conduit().await;
@@ -292,6 +300,7 @@ async fn invite_user_to_room() {
 
 // ── Room lifecycle ──────────────────────────────────────────────────────────
 
+#[ignore = "requires running Conduit at HKASK_MATRIX_URL"]
 #[tokio::test]
 async fn full_room_lifecycle() {
     require_conduit().await;

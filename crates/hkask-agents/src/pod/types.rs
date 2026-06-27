@@ -121,8 +121,12 @@ pub struct AgentPersona {
     pub responsibilities: Vec<String>,
     /// Default visibility for artifacts
     pub(crate) visibility: VisibilitySettings,
+    /// Communication posture — when to speak, how to accommodate (CAT framework).
+    /// None means the agent uses the default moderate-engagement posture.
+    #[serde(default)]
+    pub communication_posture: Option<CommunicationPosture>,
     /// Cached WebID (derived deterministically from persona)
-    #[serde(skip)]
+    #[serde(skip, default)]
     cached_webid: Option<WebID>,
 }
 
@@ -143,6 +147,49 @@ fn default_version() -> String {
 pub(crate) struct AgentCharter {
     pub description: String,
     pub editor: String,
+}
+
+// ── Communication Accommodation Theory (CAT) — convergence posture ─────────
+
+/// Communication posture — governs whether and how an agent engages via Matrix.
+///
+/// Grounded in Communication Accommodation Theory (Giles): convergence is the
+/// single dimension along which agents decide to speak or remain silent.
+///
+/// - High convergence (≥ 0.7): agent accommodates strongly — adopts the
+///   interlocutor's style, vocabulary, and pace. Speaks readily.
+/// - Moderate convergence (0.3–0.7): balanced accommodation. Speaks when
+///   addressed or when the topic touches charter domain.
+/// - Low convergence (< 0.3): divergent posture — maintains distance.
+///   Speaks rarely, and only to direct explicit requests.
+///
+/// The `convergence_bias` IS the "speak or remain silent" decision.
+/// The `invariant_traits` anchor consistency — no accommodation compromises
+/// these core identity traits.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommunicationPosture {
+    /// Convergence bias: 0.0 (silent, divergent) to 1.0 (fully convergent).
+    /// Default: 0.5 — balanced, responds to direct engagement.
+    #[serde(default = "default_convergence_bias")]
+    pub convergence_bias: f64,
+
+    /// Core traits never compromised by accommodation (consistency anchor).
+    /// E.g., ["precise"] means the agent stays precise even when converging.
+    #[serde(default)]
+    pub invariant_traits: Vec<String>,
+}
+
+fn default_convergence_bias() -> f64 {
+    0.5
+}
+
+impl Default for CommunicationPosture {
+    fn default() -> Self {
+        Self {
+            convergence_bias: 0.5,
+            invariant_traits: vec![],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -199,6 +246,7 @@ impl AgentPersona {
                 episodic_override: hkask_types::Visibility::Private,
             },
             cached_webid: Some(WebID::from_persona(canonical.as_bytes())),
+            communication_posture: None,
         }
     }
 
@@ -236,6 +284,11 @@ impl AgentPersona {
             });
             WebID::from_persona(canonical.as_bytes())
         })
+    }
+
+    /// Public accessor for the agent's name.
+    pub fn name(&self) -> &str {
+        &self.agent.name
     }
 
     /// Get capabilities as DelegationResource enums

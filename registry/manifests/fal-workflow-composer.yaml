@@ -91,7 +91,7 @@ steps:
       Executes nodes in dependency order, resolves $references,
       collects output URLs. This is the only step that incurs
       real-world GPU cost.
-    tool: fal-workflow.execute_workflow
+    mcp: execute_workflow
     gas_cap: 30000
     timeout_seconds: 300
     input_mapping:
@@ -173,7 +173,7 @@ ocap:
       gas_budget: 6000
     - resource: tool
       action: execute
-      template_id: fal-workflow.execute_workflow
+      template_id: execute_workflow
       gas_budget: 30000
   delegation_chain_required: true
   signature_algorithm: ed25519

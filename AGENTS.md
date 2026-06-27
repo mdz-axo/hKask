@@ -126,6 +126,10 @@ Preferred auxiliary tooling:
 | OCAP delegation tokens | `crates/hkask-capability/src/lib.rs` |
 | Hexagonal port traits | `crates/hkask-ports/src/lib.rs` |
 | Wallet value types | `crates/hkask-wallet-types/src/lib.rs` |
+| Curator metacognition | `crates/hkask-agents/src/curator_agent/metacognition.rs` |
+| KnowAct templates (wired) | `registry/templates/curator/metacognition-diagnose.j2`, `metacognition-escalate.j2` |
+| Template self-healing (design) | `docs/architecture/ADRs/template-self-healing.md` |
+| Matrix administration (design) | `docs/architecture/ADRs/matrix-server-administration.md` |
 
 ---
 

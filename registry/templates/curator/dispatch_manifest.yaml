@@ -22,6 +22,11 @@ dispatch:
     route: curator/metacognition-escalate
     description: "Escalate unresolved alerts to human operator"
 
+  - id: metacognition_respond
+    type: template
+    route: curator/metacognition-respond
+    description: "Evaluate and respond to Matrix communication events using CAT"
+
   - id: system_state_gather
     type: template
     route: curator/system_state_gather

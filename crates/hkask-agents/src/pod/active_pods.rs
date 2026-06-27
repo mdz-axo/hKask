@@ -61,6 +61,11 @@ impl ActivePods {
         self
     }
 
+    /// Access the Matrix homeserver URL (for daemon retry loop).
+    pub fn matrix_homeserver_url(&self) -> Option<&str> {
+        self.matrix_homeserver_url.as_deref()
+    }
+
     /// Create a mock ActivePods for testing — matches old PodManager::new_mock().
     /// Wires in-memory adapters and a test factory so create_pod/activate_pod work.
     /// Full test harness with in-memory adapters, AllowAllConsent,
@@ -427,8 +432,10 @@ impl ActivePods {
             d.pod.capability_token = token;
             d.pod.state = PodLifecycleState::Registered;
 
-            // Matrix registration — auto-register pod on Conduit if configured.
-            // Non-blocking: if Matrix is unavailable, store pending marker for retry.
+            // Matrix registration — register pod on Conduit synchronously.
+            // Must complete before activation so the pod can authenticate
+            // immediately when it starts. Failed registrations are retried
+            // on the next activation attempt.
             if let Some(ref homeserver_url) = self.matrix_homeserver_url {
                 let pod_name = d.pod.persona.agent.name.clone();
 
@@ -449,33 +456,33 @@ impl ActivePods {
                     homeserver_url.clone()
                 };
 
-                tokio::spawn(async move {
-                    match register_pod_matrix(&url, &pod_name).await {
-                        Ok(()) => {
-                            let _ = hkask_keystore::Keychain::default().delete_by_key(&format!(
+                match register_pod_matrix(&url, &pod_name).await {
+                    Ok(()) => {
+                        let _ = hkask_keystore::Keychain::default().delete_by_key(&format!(
+                            "{}-{}",
+                            hkask_types::keychain_keys::KEY_MATRIX_POD_PENDING_PREFIX,
+                            pod_name
+                        ));
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "cns.communication.matrix.pod_registration",
+                            pod = %pod_name,
+                            error = %e,
+                            "Failed to register pod on Matrix — storing for retry"
+                        );
+                        let _ = hkask_keystore::Keychain::default().store_by_key(
+                            &format!(
                                 "{}-{}",
                                 hkask_types::keychain_keys::KEY_MATRIX_POD_PENDING_PREFIX,
                                 pod_name
-                            ));
-                        }
-                        Err(e) => {
-                            tracing::warn!(
-                                target: "cns.communication.matrix.pod_registration",
-                                pod = %pod_name,
-                                error = %e,
-                                "Failed to auto-register pod on Matrix — will retry"
-                            );
-                            let _ = hkask_keystore::Keychain::default().store_by_key(
-                                &format!(
-                                    "{}-{}",
-                                    hkask_types::keychain_keys::KEY_MATRIX_POD_PENDING_PREFIX,
-                                    pod_name
-                                ),
-                                &url,
-                            );
-                        }
+                            ),
+                            &url,
+                        );
+                        // Continue activation — pod can operate without Matrix.
+                        // The daemon's self-healing loop will retry registration.
                     }
-                });
+                }
             }
         }
         d.pod.activate(mcp.as_ref())

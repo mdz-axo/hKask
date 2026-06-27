@@ -1,6 +1,6 @@
 # hkask-mcp-fal
 
-Fal workflow execution MCP server — exposes `fal.execute_workflow` tool for
+Fal workflow execution MCP server — exposes `execute_workflow` tool for
 Strategy D PDCA loops.
 
 ## Architecture
@@ -13,7 +13,7 @@ Strategy D PDCA loops.
 │   ├── webid, replicant, daemon (standard MCP)     │
 │   └── fal: Arc<FalClient>  ──────┐               │
 │                                   │               │
-│ Tool: fal.execute_workflow        │               │
+│ Tool: execute_workflow              │               │
 │   ├── Parse workflow JSON string  │               │
 │   └── Delegate ──────────────────►│ hkask-fal     │
 │                                   │ (library)     │
@@ -32,7 +32,7 @@ while the library handles the actual Fal API interaction.
 
 | Tool | Description |
 |------|-------------|
-| `fal.execute_workflow` | Execute a workflow plan JSON string. Parses the DAG, topologically sorts nodes by dependency order, resolves `$references` between nodes, calls each Fal model sequentially, and returns output URLs with metadata. |
+| `execute_workflow` | Execute a workflow plan JSON string. Parses the DAG, topologically sorts nodes by dependency order, resolves `$references` between nodes, calls each Fal model sequentially, and returns output URLs with metadata. |
 
 ### Tool Input
 
