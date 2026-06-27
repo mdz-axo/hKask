@@ -1,23 +1,14 @@
-//! Engagement gate — the CAT "speak or remain silent" decision point.
+//! Communication Accommodation Theory (CAT) engagement logic.
 //!
-//! Evaluates a Matrix communication event against an agent's convergence bias.
-//! The `convergence_bias` IS the decision: high → speak readily, low → stay silent.
-//!
-//! This is a pure function — no state, no I/O, no crate coupling. Callers
-//! pass in the bias and agent name extracted from their persona.
-//!
-//! Architecture:
-//!   CommunicationWatcher → CurationInput::Communication
-//!   → per-agent evaluation via evaluate()
-//!   → Speak: route to LLM response | Silent: drop
+//! Pure functions for evaluating whether an agent should respond to
+//! a Matrix communication event. The `convergence_bias` IS the decision.
 
 use hkask_cns::types::loops::channels::CommunicationEvent;
 
 /// Outcome of the engagement evaluation.
 #[derive(Debug, PartialEq)]
 pub enum Decision {
-    /// Agent should respond. `convergence_level` mirrors the bias —
-    /// it governs how much the agent accommodates the interlocutor.
+    /// Agent should respond with this accommodation level (0.0–1.0).
     Speak { convergence_level: f64 },
     /// Agent should remain silent.
     Silent,
@@ -26,11 +17,9 @@ pub enum Decision {
 /// Evaluate whether an agent should engage with a communication event.
 ///
 /// Convergence bias thresholds:
-/// - > 0.0: speaks to direct @mentions (divergent-to-balanced posture)
-/// - ≥ 0.7: speaks to any message in a monitored room (convergent posture)
-///
-/// `invariant_traits` don't affect the speak/silent decision — they govern
-/// HOW the agent responds, not WHETHER. Pass them to the response composer.
+/// - > 0.0: speaks when addressed by name (mentions in body)
+/// - ≥ 0.7: speaks to any message (convergent posture)
+/// - = 0.0: always silent (divergent posture)
 pub fn evaluate(convergence_bias: f64, agent_name: &str, event: &CommunicationEvent) -> Decision {
     let addressed = body_mentions(event, agent_name);
 
@@ -43,7 +32,6 @@ pub fn evaluate(convergence_bias: f64, agent_name: &str, event: &CommunicationEv
     }
 }
 
-/// Check whether the event's message body mentions the agent by name.
 fn body_mentions(event: &CommunicationEvent, agent_name: &str) -> bool {
     event
         .observation
@@ -57,7 +45,7 @@ fn body_mentions(event: &CommunicationEvent, agent_name: &str) -> bool {
 mod tests {
     use super::*;
 
-    fn event_with_body(body: &str) -> CommunicationEvent {
+    fn event(body: &str) -> CommunicationEvent {
         CommunicationEvent {
             span_category: "communication.message".into(),
             span_path: "observed".into(),
@@ -72,22 +60,27 @@ mod tests {
     }
 
     #[test]
-    fn low_bias_speaks_only_when_mentioned() {
-        let event = event_with_body("Hey @curator, what's the status?");
+    fn low_bias_speaks_when_mentioned() {
         assert_eq!(
-            evaluate(0.1, "curator", &event),
+            evaluate(0.1, "curator", &event("Hey @curator, status?")),
             Decision::Speak {
                 convergence_level: 0.1
             }
         );
-        assert_eq!(evaluate(0.1, "other-agent", &event), Decision::Silent);
+    }
+
+    #[test]
+    fn low_bias_silent_when_not_mentioned() {
+        assert_eq!(
+            evaluate(0.1, "curator", &event("General discussion")),
+            Decision::Silent
+        );
     }
 
     #[test]
     fn moderate_bias_speaks_when_mentioned() {
-        let event = event_with_body("Hey @helper, can you check this?");
         assert_eq!(
-            evaluate(0.5, "helper", &event),
+            evaluate(0.5, "helper", &event("@helper can you check?")),
             Decision::Speak {
                 convergence_level: 0.5
             }
@@ -96,15 +89,16 @@ mod tests {
 
     #[test]
     fn moderate_bias_silent_when_not_mentioned() {
-        let event = event_with_body("General discussion about the project");
-        assert_eq!(evaluate(0.5, "helper", &event), Decision::Silent);
+        assert_eq!(
+            evaluate(0.5, "helper", &event("General discussion")),
+            Decision::Silent
+        );
     }
 
     #[test]
-    fn high_bias_speaks_even_without_mention() {
-        let event = event_with_body("General discussion about the project");
+    fn high_bias_speaks_without_mention() {
         assert_eq!(
-            evaluate(0.9, "helper", &event),
+            evaluate(0.9, "helper", &event("General discussion")),
             Decision::Speak {
                 convergence_level: 0.9
             }
@@ -113,7 +107,9 @@ mod tests {
 
     #[test]
     fn zero_bias_always_silent() {
-        let event = event_with_body("@agent urgent help needed!");
-        assert_eq!(evaluate(0.0, "agent", &event), Decision::Silent);
+        assert_eq!(
+            evaluate(0.0, "agent", &event("@agent urgent!")),
+            Decision::Silent
+        );
     }
 }

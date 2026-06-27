@@ -48,7 +48,7 @@ async fn require_conduit() {
 async fn register_test_user() -> Result<(String, String, String), String> {
     let username = format!(
         "hkask-test-{}",
-        Uuid::new_v4().to_string().replace('-', "")[..8].to_string()
+        Uuid::new_v4().to_string().replace('-', "")[..8].to_owned()
     );
     let password = "test-password-42";
     let client = Client::new();

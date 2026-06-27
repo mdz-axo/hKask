@@ -74,7 +74,6 @@ use hkask_services_core::ServiceError;
 use hkask_services_wallet::WalletService;
 
 mod communication_watcher;
-mod engagement_gate;
 mod matrix;
 mod seam_monitor;
 

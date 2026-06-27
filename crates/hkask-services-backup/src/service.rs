@@ -30,6 +30,7 @@ use std::time::Instant;
 use crate::config::{BackupConfig, EncryptionConfig, RetentionPolicy};
 use crate::metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
 use crate::scope::{ArtifactType, BackupScope, ListFilter, RestoreScope};
+use aes_gcm::aead;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 use argon2::Argon2;
 use chrono::Utc;
@@ -249,9 +250,10 @@ impl BackupService {
             }
             let repo_id = artifact_type.repo_id();
 
-            // Encrypt if configured.
+            // Encrypt if configured. AAD binds blob to artifact identity.
             let encrypted = if self.encryption_key.is_some() {
-                encrypt_blob(&self.encryption_key, bytes)?
+                let aad = format!("{}/{}", artifact_type.label(), artifact_id).into_bytes();
+                encrypt_blob(&self.encryption_key, bytes, &aad)?
             } else {
                 bytes.clone()
             };
@@ -327,9 +329,9 @@ impl BackupService {
             for entry in entries {
                 let raw = self.cas.get_blob(repo_id, &entry.content_hash).await?;
 
-                // Decrypt if encrypted.
+                // Decrypt if encrypted. Empty AAD — trusted read-back from our own CAS.
                 let blob = if self.encryption_key.is_some() {
-                    decrypt_blob(&self.encryption_key, &raw)?
+                    decrypt_blob(&self.encryption_key, &raw, &[])
                 } else {
                     raw
                 };
@@ -775,14 +777,27 @@ impl BackupService {
     }
 }
 
+/// Blob encryption format version byte.
+const ENCRYPTION_VERSION: u8 = 0x01;
+
+/// Encrypt blob content with AES-256-GCM.
+///
+/// Format: [version: u8 || nonce: [u8; 12] || ciphertext+tag]
+///
+/// `aad` (additional authenticated data) binds the ciphertext to a specific
+/// artifact identity - prevents cross-artifact blob swapping.
 /// Encrypt blob content with AES-256-GCM.
 /// Returns (nonce_bytes || ciphertext).
-pub(crate) fn encrypt_blob(key: &Option<[u8; 32]>, data: &[u8]) -> Result<Vec<u8>, BackupError> {
+pub(crate) fn encrypt_blob(
+    key: &Option<[u8; 32]>,
+    data: &[u8],
+    aad: &[u8],
+) -> Result<Vec<u8>, BackupError> {
     let key = key.as_ref().ok_or_else(|| {
         warn!(
             target: "cns.backup",
             operation = "encryption.encrypt_failed",
-            "Encryption not configured — storing blob unencrypted"
+            "Encryption not configured"
         );
         BackupError::Encryption("Encryption not configured".into())
     })?;
@@ -791,34 +806,62 @@ pub(crate) fn encrypt_blob(key: &Option<[u8; 32]>, data: &[u8]) -> Result<Vec<u8
     let mut nonce_bytes = [0u8; 12];
     rng().fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
+    let payload = aead::Payload { msg: data, aad };
     let ciphertext = cipher
-        .encrypt(nonce, data)
+        .encrypt(nonce, payload)
         .map_err(|e| BackupError::Encryption(format!("AES encrypt: {e}")))?;
-    let mut result = nonce_bytes.to_vec();
+    let mut result = vec![ENCRYPTION_VERSION];
+    result.extend_from_slice(&nonce_bytes);
     result.extend_from_slice(&ciphertext);
     Ok(result)
 }
 
 /// Decrypt blob content.
+///
+/// Expects format: [version: u8 || nonce: [u8; 12] || ciphertext+tag]
+///
+/// `aad` must match the value passed to encrypt_blob - if it differs,
+/// AES-GCM authentication will fail and this function returns an error.
+/// Decrypt blob content.
 /// Expects (nonce_bytes || ciphertext).
-pub(crate) fn decrypt_blob(key: &Option<[u8; 32]>, data: &[u8]) -> Result<Vec<u8>, BackupError> {
+pub(crate) fn decrypt_blob(
+    key: &Option<[u8; 32]>,
+    data: &[u8],
+    aad: &[u8],
+) -> Result<Vec<u8>, BackupError> {
     let key = key.as_ref().ok_or_else(|| {
         warn!(
             target: "cns.backup",
             operation = "encryption.decrypt_failed",
-            "Encryption not configured — cannot decrypt blob"
+            "Encryption not configured"
         );
         BackupError::Encryption("Encryption not configured".into())
     })?;
-    if data.len() < 12 {
-        return Err(BackupError::Encryption("Data too short for nonce".into()));
+    const HEADER_LEN: usize = 1 + 12; // version + nonce
+    if data.len() < HEADER_LEN {
+        return Err(BackupError::Encryption(format!(
+            "Data too short for version+nonce header (need >= {}, got {})",
+            HEADER_LEN,
+            data.len()
+        )));
     }
-    let (nonce_bytes, ciphertext) = data.split_at(12);
+    let version = data[0];
+    if version != ENCRYPTION_VERSION {
+        return Err(BackupError::Encryption(format!(
+            "Unsupported encryption version {} (expected {})",
+            version, ENCRYPTION_VERSION
+        )));
+    }
+    let (nonce_bytes, ciphertext) = data[1..].split_at(12);
     let cipher = Aes256Gcm::new_from_slice(key)
         .map_err(|e| BackupError::Encryption(format!("AES init: {e}")))?;
     let nonce = Nonce::from_slice(nonce_bytes);
+    let payload = aead::Payload {
+        msg: ciphertext,
+        aad,
+    };
     cipher
-        .decrypt(nonce, ciphertext)
+        .decrypt(nonce, payload)
         .map_err(|e| BackupError::Encryption(format!("AES decrypt: {e}")))
 }
 

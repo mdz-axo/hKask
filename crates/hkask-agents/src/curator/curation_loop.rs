@@ -277,6 +277,8 @@ impl HkaskLoop for CurationLoop {
                             span_path = %event.span_path,
                             "Communication event observed — Matrix activity detected"
                         );
+                        // Push to shared context for metacognition processing.
+                        self.context.pending_communication.write().await.push(event);
                     }
                 }
             }

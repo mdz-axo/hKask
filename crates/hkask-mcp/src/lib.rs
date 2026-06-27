@@ -7,7 +7,6 @@
 //! - Adapter container for shared adapter lifecycle
 //! - Server scaffolding (McpToolError, McpToolOutput, CredentialRequirement, ServerContext, run_stdio_server)
 
-pub mod adapter_container;
 pub mod daemon; // Unix socket transport for MCP binary ↔ hKask daemon
 pub mod dispatch; // Tool dispatch through GovernedTool membrane (includes RawMcpToolPort)
 pub mod git_cas;
@@ -16,7 +15,6 @@ pub(crate) mod security;
 pub mod server;
 pub mod startup; // P4 Gate 1/2/3 startup verification for MCP server binaries
 
-pub(crate) use adapter_container::AdapterContainer;
 pub use daemon::{DaemonClient, DaemonHandler, DaemonListener, DaemonRequest, DaemonResponse};
 pub use dispatch::McpDispatcher;
 pub use dispatch::RawMcpToolPort;

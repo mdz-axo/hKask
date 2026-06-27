@@ -16,7 +16,7 @@ use crate::types::loops::{
     ActionType, Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 use hkask_ports::git_cas::{
-    CommitHash, GitCASPort, RepoId, RepoSnapshotPolicy, RetentionPolicy, RetentionTier,
+    CasRetentionPolicy, CasRetentionTier, CommitHash, GitCASPort, RepoId, RepoSnapshotPolicy,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -27,8 +27,8 @@ use std::time::Instant;
 pub struct SnapshotLoopConfig {
     /// Per-repo snapshot policies. Defaults are used for repos not listed.
     pub repo_policies: Vec<RepoSnapshotPolicy>,
-    /// Global default retention policy.
-    pub default_policy: RetentionPolicy,
+    /// Global default CAS retention policy.
+    pub default_policy: CasRetentionPolicy,
 }
 
 impl Default for SnapshotLoopConfig {
@@ -38,7 +38,7 @@ impl Default for SnapshotLoopConfig {
                 .iter()
                 .map(|id| RepoSnapshotPolicy::default_for(id.clone()))
                 .collect(),
-            default_policy: RetentionPolicy::default(),
+            default_policy: CasRetentionPolicy::default(),
         }
     }
 }
@@ -56,7 +56,7 @@ struct SnapshotState {
 ///
 /// Implements the sense → compare → compute → act cycle:
 /// - **Sense**: Check time elapsed since last snapshot per repo
-/// - **Compare**: Detect deviations from RetentionPolicy intervals
+/// - **Compare**: Detect deviations from CasRetentionPolicy intervals
 /// - **Compute**: Produce snapshot actions for repos that need them
 /// - **Act**: Call `snapshot()` on the GitCASPort for each due repo
 ///
@@ -101,7 +101,10 @@ impl SnapshotLoop {
     }
 
     /// Determine which retention tier applies given the elapsed seconds.
-    fn applicable_tier(policy: &RetentionPolicy, elapsed_secs: u64) -> Option<&RetentionTier> {
+    fn applicable_tier(
+        policy: &CasRetentionPolicy,
+        elapsed_secs: u64,
+    ) -> Option<&CasRetentionTier> {
         for tier in &policy.tiers {
             if elapsed_secs <= tier.max_age_secs {
                 return Some(tier);
@@ -145,7 +148,7 @@ impl SnapshotLoop {
 #[async_trait::async_trait]
 impl HkaskLoop for SnapshotLoop {
     fn id(&self) -> LoopId {
-        LoopId::Cybernetics
+        LoopId::Snapshot
     }
 
     /// Sense: measure time since last snapshot per repo.
@@ -175,7 +178,7 @@ impl HkaskLoop for SnapshotLoop {
             // Signal: elapsed time vs. expected interval
             // If elapsed >= interval, we're "above set-point" (snapshot is due)
             signals.push(Signal::new(
-                LoopId::Cybernetics,
+                LoopId::Snapshot,
                 SignalMetric::SnapshotInterval,
                 elapsed_secs as f64,
                 interval,
@@ -207,7 +210,7 @@ impl HkaskLoop for SnapshotLoop {
         }
         // One action covers all due repos — act() iterates them
         vec![LoopAction::new(
-            LoopId::Cybernetics,
+            LoopId::Snapshot,
             ActionType::Calibrate,
             serde_json::json!({"action": "snapshot", "repos": "all_due"}),
         )]

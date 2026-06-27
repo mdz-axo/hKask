@@ -169,8 +169,6 @@ impl CapabilityTier {
 pub struct ServerContext {
     pub credentials: HashMap<String, String>,
 
-    pub adapters: crate::AdapterContainer,
-
     /// Resolved from HKASK_WEBID → HKASK_AGENT_PERSONA → anonymous.
     pub webid: hkask_types::WebID,
 
@@ -1022,7 +1020,6 @@ where
     );
     let ctx = ServerContext {
         credentials: resolved,
-        adapters: crate::AdapterContainer::new(),
         webid,
         capability_tier,
     };

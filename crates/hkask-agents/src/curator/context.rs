@@ -2,6 +2,7 @@
 
 use crate::a2a::A2ARuntime;
 use hkask_cns::CnsRuntime;
+use hkask_cns::types::loops::channels::CommunicationEvent;
 use hkask_storage::EscalationQueue;
 use hkask_storage::NuEventStore;
 use hkask_templates::ManifestExecutor;
@@ -30,6 +31,8 @@ pub struct CuratorContext {
     /// executor is constructed after MCP pods, but CuratorContext must
     /// exist before them. Set via `set_manifest_executor()`.
     manifest_executor: RwLock<Option<Arc<ManifestExecutor>>>,
+    /// Pending communication events from Matrix, drained by metacognition.
+    pub(crate) pending_communication: Arc<RwLock<Vec<CommunicationEvent>>>,
 }
 
 impl CuratorContext {
@@ -54,6 +57,7 @@ impl CuratorContext {
             nu_event_store: None,
             a2a_port: None,
             manifest_executor: RwLock::new(None),
+            pending_communication: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -80,6 +84,7 @@ impl CuratorContext {
             nu_event_store: Some(nu_event_store),
             a2a_port: None,
             manifest_executor: RwLock::new(None),
+            pending_communication: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -121,6 +126,12 @@ impl CuratorContext {
     /// Access the CNS runtime for health checks and variety queries.
     pub(crate) fn cns(&self) -> &Arc<CnsRuntime> {
         &self.cns
+    }
+
+    /// Drain pending communication events for processing.
+    pub async fn drain_communication_events(&self) -> Vec<CommunicationEvent> {
+        let mut events = self.pending_communication.write().await;
+        std::mem::take(&mut *events)
     }
 
     /// Access the NuEvent store for algedonic review queries.

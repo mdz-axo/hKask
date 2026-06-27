@@ -187,8 +187,27 @@ pub fn backup_config_path() -> std::path::PathBuf {
 pub fn load_backup_config() -> BackupConfig {
     let path = backup_config_path();
     match std::fs::read_to_string(&path) {
-        Ok(contents) => serde_json::from_str(&contents).unwrap_or_default(),
-        Err(_) => BackupConfig::default(),
+        Ok(contents) => match serde_json::from_str(&contents) {
+            Ok(config) => config,
+            Err(e) => {
+                tracing::warn!(
+                    target: "cns.backup",
+                    path = %path.display(),
+                    error = %e,
+                    "Corrupt backup config — falling back to defaults. All tracking and retention settings lost."
+                );
+                BackupConfig::default()
+            }
+        },
+        Err(e) => {
+            tracing::debug!(
+                target: "cns.backup",
+                path = %path.display(),
+                error = %e,
+                "No backup config found — using defaults"
+            );
+            BackupConfig::default()
+        }
     }
 }
 

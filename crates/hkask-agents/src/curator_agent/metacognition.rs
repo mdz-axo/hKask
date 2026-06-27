@@ -5,6 +5,7 @@ use crate::a2a::A2AMessage;
 use crate::curator::context::CuratorContext;
 use crate::curator_agent::bot_health::BotHealthEvaluator;
 use crate::curator_agent::bot_metrics::BotHealthStatus;
+use crate::curator_agent::cat;
 use hkask_cns::types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
@@ -644,6 +645,87 @@ impl MetacognitionLoop {
             })
             .collect();
         ctx.insert("issues".into(), serde_json::json!(issues));
+
+        // ── Communication events: drain and process via respond template ──
+        let mut actions = Vec::new();
+        let comm_events = self.context.drain_communication_events().await;
+        if !comm_events.is_empty() {
+            let curator_name = "curator";
+            for event in &comm_events {
+                let bias: f64 = 0.5; // default curator bias
+                let decision = cat::evaluate(bias, curator_name, event);
+                if let cat::Decision::Speak { convergence_level } = decision {
+                    let sender = event
+                        .observation
+                        .get("sender")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
+                    let body = event
+                        .observation
+                        .get("body")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let room_id = event
+                        .observation
+                        .get("room_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+
+                    let mut resp_ctx = std::collections::HashMap::new();
+                    resp_ctx.insert("message_body".into(), serde_json::json!(body));
+                    resp_ctx.insert("sender".into(), serde_json::json!(sender));
+                    resp_ctx.insert("room_id".into(), serde_json::json!(room_id));
+                    resp_ctx.insert(
+                        "convergence_bias".into(),
+                        serde_json::json!(convergence_level),
+                    );
+                    resp_ctx.insert(
+                        "invariant_traits".into(),
+                        serde_json::json!([] as [&str; 0]),
+                    );
+
+                    match executor
+                        .execute_knowact("curator/metacognition-respond.j2", &resp_ctx)
+                        .await
+                    {
+                        Ok(output) => {
+                            if output
+                                .get("should_respond")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false)
+                            {
+                                let response_body = output
+                                    .get("response_body")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("");
+                                if !response_body.is_empty() {
+                                    actions.push(LoopAction::new(
+                                        hkask_cns::types::loops::LoopId::Curation,
+                                        hkask_cns::types::loops::ActionType::Notify,
+                                        serde_json::json!({
+                                            "action": "communication_respond",
+                                            "room_id": room_id,
+                                            "response_body": response_body,
+                                            "template": "metacognition-respond",
+                                        }),
+                                    ));
+                                    tracing::info!(
+                                        target: MC_TARGET,
+                                        sender = %sender,
+                                        room_id = %room_id,
+                                        "Communication response composed via CAT template"
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!(target: MC_TARGET, error = %e, "Communication respond template failed");
+                        }
+                    }
+                }
+            }
+        }
+
         // Circuit breaker: skip template after 3 consecutive failures,
         // retry after 5 skip cycles.
         let skip = self
@@ -679,7 +761,7 @@ impl MetacognitionLoop {
             }
         };
 
-        let mut actions = Vec::new();
+        // actions declared above for communication events; continued here
         if let Some(plan) = result.get("remediation_plan").and_then(|v| v.as_array()) {
             if plan.is_empty() {
                 tracing::info!(target: MC_TARGET, "LLM returned empty remediation_plan — no actions");
@@ -915,15 +997,20 @@ impl HkaskLoop for MetacognitionLoop {
                 .get("target")
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
-            if matches!(metric, "restart" | "rebalance") && !target.is_empty() {
-                if let Err(e) = self.direct_bot(target, metric).await {
-                    tracing::warn!(target: MC_TARGET, bot = %target, error = %e, "Failed to direct bot");
-                }
+            if matches!(metric, "restart" | "rebalance")
+                && !target.is_empty()
+                && let Err(e) = self.direct_bot(target, metric).await
+            {
+                tracing::warn!(target: MC_TARGET, bot = %target, error = %e, "Failed to direct bot");
             }
 
             // OverrideEnergyBudget from template (LLM-computed, replaces hardcoded 5000)
             if matches!(metric, "adjust_budget") {
-                let new_budget = action.parameters.get("new_budget").and_then(|v| v.as_u64()).unwrap_or(0);
+                let new_budget = action
+                    .parameters
+                    .get("new_budget")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
                 if new_budget > 0 && !target.is_empty() {
                     let directive = CuratorDirective::OverrideEnergyBudget {
                         agent: hkask_types::WebID::from_persona(target.as_bytes()),
@@ -963,8 +1050,15 @@ impl HkaskLoop for MetacognitionLoop {
                 ctx.insert("bot_failures".into(), serde_json::json!([]));
                 ctx.insert("energy_budget_status".into(), serde_json::json!("unknown"));
                 ctx.insert("required_actions".into(), serde_json::json!([]));
-                match executor.execute_knowact("curator/metacognition-escalate.j2", &ctx).await {
-                    Ok(output) => output.get("notification").and_then(|v| v.as_str()).unwrap_or(&summary).to_string(),
+                match executor
+                    .execute_knowact("curator/metacognition-escalate.j2", &ctx)
+                    .await
+                {
+                    Ok(output) => output
+                        .get("notification")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or(&summary)
+                        .to_string(),
                     Err(_) => summary,
                 }
             } else {

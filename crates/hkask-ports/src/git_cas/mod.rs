@@ -14,7 +14,7 @@ pub mod types;
 pub use error::GitCasError;
 pub use port::{GitCASPort, LogEntry, MockGitCas, VerificationReport};
 pub use snapshot::{
-    RepoSnapshotPolicy, RetentionPolicy, RetentionTier, SnapshotMetadata, SnapshotTrigger,
+    CasRetentionPolicy, CasRetentionTier, RepoSnapshotPolicy, SnapshotMetadata, SnapshotTrigger,
     TripleEntry,
 };
 pub use types::{CommitHash, ContentHash, DiffKind, FileDiff, RepoId, TreeEntry, TreeEntryKind};

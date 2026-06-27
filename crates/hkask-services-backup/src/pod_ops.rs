@@ -90,12 +90,14 @@ impl PodBackupOps {
 
         let repo_id = ArtifactType::PodState.repo_id();
         let envelope_blob = if self.encryption_key.is_some() {
-            encrypt_blob(&self.encryption_key, &artifact)?
+            let aad = format!("pod_state/{}", pod_id).into_bytes();
+            encrypt_blob(&self.encryption_key, &artifact, &aad)?
         } else {
             artifact
         };
         let raw_blob = if self.encryption_key.is_some() {
-            encrypt_blob(&self.encryption_key, &pod_data)?
+            let aad = format!("pod_state/{}-raw", pod_id).into_bytes();
+            encrypt_blob(&self.encryption_key, &pod_data, &aad)?
         } else {
             pod_data
         };
@@ -182,7 +184,8 @@ impl PodBackupOps {
         .map_err(|e| BackupError::Serialization(format!("Safety snapshot: {e}")))?;
 
         let safety_blob = if self.encryption_key.is_some() {
-            encrypt_blob(&self.encryption_key, &safety_artifact)?
+            let aad = format!("pod_state/{}-safety", pod_id).into_bytes();
+            encrypt_blob(&self.encryption_key, &safety_artifact, &aad)?
         } else {
             safety_artifact
         };
@@ -190,7 +193,8 @@ impl PodBackupOps {
         let repo_id = ArtifactType::PodState.repo_id();
         self.cas.put_blob(&repo_id, &safety_blob).await?;
         let pod_blob = if self.encryption_key.is_some() {
-            encrypt_blob(&self.encryption_key, &current_state)?
+            let aad = format!("pod_state/{}-safety-raw", pod_id).into_bytes();
+            encrypt_blob(&self.encryption_key, &current_state, &aad)?
         } else {
             current_state
         };
@@ -311,7 +315,7 @@ async fn find_raw_pod_blob(
     for entry in entries {
         let raw = cas.get_blob(repo_id, &entry.content_hash).await?;
         let blob = if encryption_key.is_some() {
-            decrypt_blob(encryption_key, &raw)?
+            decrypt_blob(encryption_key, &raw, &[])?
         } else {
             raw
         };
