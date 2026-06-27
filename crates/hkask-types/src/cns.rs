@@ -153,7 +153,6 @@ pub enum CnsSpan {
     SemanticPublished,
     /// CI invariant gate violation — a pattern match failed with a principle anchor.
     CiInvariantViolation,
-    /// A cargo-bolero fuzz target caught a failure.
     /// An autonomous repair was attempted (branch created, diff applied).
     QaRepairAttempted,
     /// A repair passed verification (all tests green).
