@@ -110,18 +110,27 @@ async fn run_pod_inner(action: PodAction) {
             volume_size_gb,
             max_replicas,
             output,
-        } => match export_k8s(&pod_id, volume_size_gb, max_replicas, &output).await {
-            Ok(manifests) => {
-                println!(
-                    "K8s manifests for '{}' exported to {} ({} files)",
-                    pod_id,
-                    output.display(),
-                    manifests
-                );
-            }
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
+        } => {
+            // Validate pod exists before generating manifests
+            match get_pod_status(&pod_id).await {
+                Ok(_) => match export_k8s(&pod_id, volume_size_gb, max_replicas, &output) {
+                    Ok(manifests) => {
+                        println!(
+                            "K8s manifests for '{}' exported to {} ({} files)",
+                            pod_id,
+                            output.display(),
+                            manifests
+                        );
+                    }
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        std::process::exit(1);
+                    }
+                },
+                Err(e) => {
+                    eprintln!("{}", e);
+                    std::process::exit(1);
+                }
             }
         },
     }
@@ -222,27 +231,23 @@ pub async fn export_container(pod_id: &str, output_dir: &std::path::Path) -> Res
 
 /// Export K8s manifests for Hetzner K3s deployment.
 ///
-/// Generates standard Kubernetes resources in `output_dir`:
+/// Pure manifest generation — no pod validation. During initial deployment
+/// (curator init), no pod exists yet in the database. Callers that need
+/// pod existence validation should check before calling (see `run_pod_inner`).
+///
+/// Generates 4 standard Kubernetes resources in `output_dir`:
 /// - `namespace.yaml` — pod-scoped namespace
 /// - `deployment.yaml` — Deployment with `max_replicas`, resource limits, and pod anti-affinity
 /// - `service.yaml` — ClusterIP Service
 /// - `pvc.yaml` — PersistentVolumeClaim with requested volume size
 ///
 /// Returns the count of generated manifest files.
-pub async fn export_k8s(
+pub fn export_k8s(
     pod_id: &str,
     volume_size_gb: u32,
     max_replicas: u32,
     output_dir: &std::path::Path,
 ) -> Result<usize, String> {
-    // Validate pod exists before generating manifests
-    let ctx = build_ctx();
-    let pid = parse_pod_id(pod_id)?;
-    ctx.pod_manager()
-        .get_pod_status(&pid)
-        .await
-        .map_err(|e| format!("Pod '{}' not found: {}", pod_id, e))?;
-
     std::fs::create_dir_all(output_dir)
         .map_err(|e| format!("Failed to create output directory: {}", e))?;
 

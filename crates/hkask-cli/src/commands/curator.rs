@@ -186,7 +186,6 @@ spec:
     let _ = std::fs::create_dir_all(&curator_dir);
 
     crate::commands::pod::export_k8s("curator", 10, 3, &curator_dir)
-        .await
         .map_err(|e| format!("Failed to generate Curator manifests: {e}"))?;
 
     // Run kubectl apply on the generated manifests
