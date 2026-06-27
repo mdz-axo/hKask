@@ -1069,29 +1069,3 @@ pub enum AdapterAction {
 
 /// QA actions — fuzz triage, mutation analysis, and autonomous interactive scripts
 #[derive(Debug, Subcommand)]
-pub enum QaAction {
-    /// Triage bolero fuzz failures from stdin
-    Triage {
-        /// Path to bolero output file (default: stdin)
-        #[arg(short, long)]
-        input: Option<PathBuf>,
-    },
-    /// Suggest fuzz targets from cargo-mutants output on stdin
-    SuggestFuzz {
-        /// Path to cargo-mutants output file (default: stdin)
-        #[arg(short, long)]
-        input: Option<PathBuf>,
-    },
-    /// Run an autonomous QA script from a manifest YAML
-    RunScript {
-        /// Path to QA script manifest YAML
-        #[arg(short, long)]
-        script: PathBuf,
-    },
-    /// Validate specifications against MDS curator criteria
-    SpecCheck {
-        /// Optional spec ID to check a single spec; omit for full collection check
-        #[arg(short, long)]
-        spec_id: Option<String>,
-    },
-}

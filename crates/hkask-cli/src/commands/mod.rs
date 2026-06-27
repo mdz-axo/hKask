@@ -33,7 +33,6 @@ pub mod mcp;
 
 pub mod models;
 pub mod pod;
-pub mod qa;
 pub mod registry;
 pub mod serve;
 pub mod settings;

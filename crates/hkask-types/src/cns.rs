@@ -154,7 +154,6 @@ pub enum CnsSpan {
     /// CI invariant gate violation — a pattern match failed with a principle anchor.
     CiInvariantViolation,
     /// A cargo-bolero fuzz target caught a failure.
-    QaBoleroFailure,
     /// An autonomous repair was attempted (branch created, diff applied).
     QaRepairAttempted,
     /// A repair passed verification (all tests green).
@@ -379,7 +378,6 @@ impl CnsSpan {
             CnsSpan::InviteAccepted => "cns.multi.invite.accepted",
             CnsSpan::SemanticPublished => "cns.semantic.published",
             CnsSpan::CiInvariantViolation => "cns.ci.invariant.violation",
-            CnsSpan::QaBoleroFailure => "cns.qa.bolero_failure",
             CnsSpan::QaRepairAttempted => "cns.qa.repair_attempted",
             CnsSpan::QaRepairVerified => "cns.qa.repair_verified",
             CnsSpan::QaRepairExhausted => "cns.qa.repair_exhausted",
@@ -514,7 +512,6 @@ impl std::str::FromStr for CnsSpan {
             "cns.multi.invite.accepted" => Ok(CnsSpan::InviteAccepted),
             "cns.semantic.published" => Ok(CnsSpan::SemanticPublished),
             "cns.ci.invariant.violation" => Ok(CnsSpan::CiInvariantViolation),
-            "cns.qa.bolero_failure" => Ok(CnsSpan::QaBoleroFailure),
             "cns.qa.repair_attempted" => Ok(CnsSpan::QaRepairAttempted),
             "cns.qa.repair_verified" => Ok(CnsSpan::QaRepairVerified),
             "cns.qa.repair_exhausted" => Ok(CnsSpan::QaRepairExhausted),
@@ -659,7 +656,6 @@ mod cns_span_tests {
             CnsSpan::InviteAccepted,
             CnsSpan::SemanticPublished,
             CnsSpan::CiInvariantViolation,
-            CnsSpan::QaBoleroFailure,
             CnsSpan::QaRepairAttempted,
             CnsSpan::QaRepairVerified,
             CnsSpan::QaRepairExhausted,

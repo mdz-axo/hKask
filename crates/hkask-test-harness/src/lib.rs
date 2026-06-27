@@ -17,16 +17,13 @@
 //! - P8 (Semantic Grounding): every test using these fixtures carries REQ tags
 //! - P12 (Replicant Host Mandate): all test identities use TestWebId (authenticated)
 
-pub mod feedback;
 pub mod fuzz;
 pub mod mocks;
 pub mod prob_contract;
-pub mod qa_script;
 mod schema;
 pub mod self_heal;
 pub mod strategies;
 pub mod test_runner;
-pub mod triage;
 
 pub use prob_contract::{ProbContractResult, ProbContractRunner};
 pub use schema::SCHEMA_SQL;
