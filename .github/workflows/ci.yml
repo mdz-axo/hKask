@@ -45,8 +45,8 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           components: clippy
-      - name: Install linker (mold + clang)
-        run: sudo apt-get install -y --no-install-recommends mold clang
+      - name: Install linker + system deps
+        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
   build:
@@ -57,8 +57,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
-      - name: Install linker (mold + clang)
-        run: sudo apt-get install -y --no-install-recommends mold clang
+      - name: Install linker + system deps
+        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
       - run: cargo build --workspace --lib
 
   # ── Stage 3: Test + doc (depends on clippy + build) ──────────────────────
@@ -70,8 +70,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
-      - name: Install linker (mold + clang)
-        run: sudo apt-get install -y --no-install-recommends mold clang
+      - name: Install linker + system deps
+        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
       - run: cargo test --workspace
 
   doc:
@@ -82,8 +82,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
-      - name: Install linker (mold + clang)
-        run: sudo apt-get install -y --no-install-recommends mold clang
+      - name: Install linker + system deps
+        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
       - run: cargo doc --workspace --no-deps
 
   # ── Stage 4: Structural invariants (grep-only, depends on test) ─────────

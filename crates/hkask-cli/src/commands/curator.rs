@@ -164,25 +164,10 @@ fn copy_conduit_manifests(
     signing_key: &str,
     output_dir: &std::path::Path,
 ) -> Result<(), String> {
-    let source_dir = if let Ok(d) = std::env::var("HKASK_DEPLOY_DIR") {
-        let p = std::path::PathBuf::from(&d).join("conduit");
-        if p.is_dir() {
-            p
-        } else {
-            return Err("HKASK_DEPLOY_DIR/conduit not found".to_string());
-        }
-    } else {
-        let cwd = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
-        let candidate = cwd.join("deploy").join("k8s").join("conduit");
-        if candidate.is_dir() {
-            candidate
-        } else {
-            return Err(
-                "Cannot find deploy/k8s/conduit/. Set HKASK_DEPLOY_DIR or run from repo root."
-                    .into(),
-            );
-        }
-    };
+    let source_dir = crate::commands::helpers::resolve_deploy_dir()?.join("conduit");
+    if !source_dir.is_dir() {
+        return Err(format!("Cannot find deploy/k8s/conduit at {source_dir:?}"));
+    }
 
     for entry in
         std::fs::read_dir(&source_dir).map_err(|e| format!("Cannot read {source_dir:?}: {e}"))?

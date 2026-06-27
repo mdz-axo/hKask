@@ -10,17 +10,19 @@ contract:
   input:
     skill_names: array
     existing_bundles: array
+    goal: object
   output:
     bundle_manifest: object
     conflicts: array
     complementarities: array
+    ontology_anchors: object
 energy_cap: 6144
 visibility: Public
 ---
 {# Template: skill-bundler/bundler-compose.j2 #}
-{# goal: Analyze a set of skills for conflicts, complementarities, and optimal cascade ordering; produce a bundle manifest. #}
-{# KnowAct — Compose multiple skills into a structured bundle manifest #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# goal: Analyze a set of skills for conflicts, complementarities, and optimal cascade ordering; produce a PKO-anchored bundle manifest with DC provenance and PROV-O artifact linkage. #}
+{# KnowAct — Compose multiple skills into a PKO/DC-grounded bundle manifest #}
+{# ℏKask v0.31.0 — Dual-axis ontological anchoring per P5.4 #}
 
 [inference]
 temperature = 0.2
@@ -29,7 +31,15 @@ verbosity = "standard"
 max_tokens = 6144
 thinking_budget = "full"
 
-You are a skill composition orchestrator. Given a set of skills, analyze them for conflicts, complementarities, and optimal ordering, then produce a structured bundle manifest.
+You are a skill composition orchestrator operating within hKask's dual-axis ontological framework (P5.4). Given a set of skills AND an explicit goal context, analyze them for conflicts, complementarities, and optimal ordering, then produce a PKO-anchored bundle manifest with DC provenance and PROV-O artifact linkage.
+
+## Goal Context
+
+```json
+{{ goal | tojson }}
+```
+
+The goal defines WHAT the bundle must achieve. Every skill in the bundle is a pko:Procedure whose convergence target contributes to this goal. Skills are linked via prov:wasDerivedFrom (output of skill N → input of skill N+1) and pko:precedes (sequential dependency).
 
 ## Skills to Compose
 
@@ -83,12 +93,26 @@ Respond with a JSON object:
   "bundle_manifest": {
     "name": "<descriptive-name>",
     "version": "1.0.0",
+    "goal": {
+      "text": "<goal text from goal context>",
+      "criteria": ["<completion criterion>"]
+    },
     "skills": [
       {
         "name": "<skill-name>",
         "polarity": "generative|evaluative|regulative|procedural",
         "phase": "pre-core|core|post-core|cross-phase",
-        "cascade_order": 1
+        "cascade_order": 1,
+        "pko_anchor": {
+          "procedure": "pko:Procedure",
+          "step": "pko:Step",
+          "convergence_target": "<skill convergence threshold mapped to pko:StepVerification>"
+        },
+        "artifact_contract": {
+          "input_from": "<skill-name>|goal:user-intent",
+          "output_to": "<skill-name>|goal:verification",
+          "provenance": "prov:wasDerivedFrom"
+        }
       }
     ],
     "conflicts": [
@@ -110,9 +134,35 @@ Respond with a JSON object:
     }
   },
   "conflicts": [],
-  "complementarities": []
+  "complementarities": [],
+  "ontology_anchors": {
+    "pko": {
+      "bundle": "pko:CompositeProcedure",
+      "skill_procedures": ["pko:Procedure <skill-name>", "..."],
+      "step_sequence": ["pko:Step <skill-name>:Plan", "pko:Step <skill-name>:Do", "pko:Step <skill-name>:Check", "pko:Step <skill-name>:Act"],
+      "execution": "pko:ProcedureExecution"
+    },
+    "dc": {
+      "creator": "dcterms:creator",
+      "created": "dcterms:created",
+      "type": "bibo:Document"
+    },
+    "prov": {
+      "derivation_chain": ["prov:wasDerivedFrom <skill-A output> → <skill-B input>", "..."],
+      "generation": "prov:wasGeneratedBy <output-artifact> → <skill-name>"
+    }
+  }
 }
 ```
+
+## Ontological Anchoring Requirements (P5.4 dual-axis mandate)
+
+Every bundle must carry both PKO (process/verb) and DC (state/noun) anchors:
+- **PKO axis:** The bundle IS a `pko:CompositeProcedure`. Each composed skill IS a `pko:Procedure` with `pko:Step` substeps (Plan, Do, Check, Act). The execution IS a `pko:ProcedureExecution`.
+- **DC axis:** The bundle manifest IS a `bibo:Document` with `dcterms:creator` and `dcterms:created`.
+- **PROV-O axis:** Skill-to-skill edges carry `prov:wasDerivedFrom` provenance. Each output artifact carries `prov:wasGeneratedBy`.
+
+Failure to anchor a bundle in both axes is a P5.4 violation.
 
 ## Constraints
 

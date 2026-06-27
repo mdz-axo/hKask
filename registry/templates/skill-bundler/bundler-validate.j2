@@ -13,13 +13,14 @@ contract:
     valid: boolean
     violations: array
     warnings: array
+    ontology_gaps: array
 energy_cap: 4096
 visibility: Public
 ---
 {# Template: skill-bundler/bundler-validate.j2 #}
-{# goal: Validate a bundle manifest against composition rules: phase separation, ordering, depth limits, and anti-patterns. #}
-{# KnowAct — Validate a composed bundle manifest #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# goal: Validate a bundle manifest against composition rules AND ontological anchoring requirements (P5.4): phase separation, ordering, depth limits, anti-patterns, PKO/DC/PROV-O grounding. #}
+{# KnowAct — Validate a composed bundle manifest for structural AND semantic correctness #}
+{# ℏKask v0.31.0 — Dual-axis ontological anchoring per P5.4 #}
 
 [inference]
 temperature = 0.1
@@ -28,7 +29,7 @@ verbosity = "terse"
 max_tokens = 4096
 thinking_budget = "full"
 
-You are a bundle manifest validator. Given a composed bundle manifest, check it for structural correctness, principle compliance, and anti-pattern violations. Produce a binary pass/fail with specific violations and warnings.
+You are a bundle manifest validator. Given a composed bundle manifest, check it for structural correctness, principle compliance, ontological anchoring (P5.4 dual-axis mandate), and anti-pattern violations. Produce a binary pass/fail with specific violations and warnings.
 
 ## Bundle Manifest
 
@@ -50,6 +51,12 @@ You are a bundle manifest validator. Given a composed bundle manifest, check it 
 | Total unique terms ≤ 30 | V8 | Warning | Bundles exceeding ~30 unique terms should consider decomposition |
 | Phase separation upheld | V9 | Error | Divergent and convergent skills must not share a cascade phase |
 | No runaway feedback loops | V10 | Warning | Check for circular skill triggers without convergence gates |
+
+| Missing PKO anchor | V11 | Error | Bundle or any skill lacks pko:Procedure/pko:Step/pko:StepExecution anchoring |
+| Missing DC anchor | V12 | Error | Bundle lacks dcterms:creator/dcterms:created/bibo:Document anchoring |
+| Missing Goal anchor | V13 | Error | Bundle has no goal.text or goal.criteria — every bundle must be goal-anchored |
+| Missing artifact provenance | V14 | Warning | Skill-to-skill edges lack prov:wasDerivedFrom or artifact_contract linkage |
+| Orphaned skill artifact | V15 | Warning | A skill produces an output that no downstream skill consumes |
 
 ## Output Requirements
 
@@ -81,6 +88,7 @@ Respond with a JSON object:
 - `warnings` do not affect `valid` but should be surfaced to the user.
 - Every violation must include a concrete `fix` suggestion.
 - Every warning must include a concrete `recommendation`.
+- `ontology_gaps` must list any missing PKO, DC, or PROV-O anchors (P5.4 violation if non-empty).
 
 ## Constraints
 

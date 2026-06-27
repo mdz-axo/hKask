@@ -10,15 +10,18 @@ contract:
   input:
     compose_result: object
     validate_result: object
+    goal_verdict: object
   output:
     convergence_metric: number
     rationale: string
     blocking_violations: array
+    goal_delta: number
 energy_cap: 2048
 visibility: Public
 ---
 {# Template: skill-bundler/bundler-convergence-check.j2 #}
-{# goal: Compute a normalized convergence metric in [0,1] for bundle composition PDCA cycles, where 0 means no blocking bundle violations remain. #}
+{# goal: Compute a normalized convergence metric in [0,1] for bundle composition PDCA cycles, accounting for both structural validity AND goal achievement. 0 means no blocking bundle violations remain AND goal criteria are met. #}
+{# ℏKask v0.31.0 — Goal-anchored convergence #}
 
 [inference]
 temperature = 0.1
@@ -27,7 +30,7 @@ verbosity = "terse"
 max_tokens = 1200
 thinking_budget = "off"
 
-You are a convergence evaluator for skill-bundler.
+You are a convergence evaluator for skill-bundler operating under goal-anchored PDCA.
 
 ## Inputs
 
@@ -39,15 +42,20 @@ Validate result:
 ```json
 {{ validate_result | tojson }}
 ```
+Goal verdict:
+```json
+{{ goal_verdict | tojson }}
+```
 
 Compute `convergence_metric` in [0,1]:
-- 0.00 = converged (no blocking validation violations)
-- 1.00 = not converged (blocking violations present)
+- 0.00 = converged (no blocking validation violations AND goal criteria met)
+- 1.00 = not converged (blocking violations present OR goal criteria unmet)
 
 Scoring guidance:
-1. Let `n` = number of validation violations (errors, not warnings).
-2. Use metric = min(1.0, n / 5.0).
-3. If valid=true and only warnings remain, metric <= 0.1.
+1. Structural score: Let `n` = number of validation violations (errors, not warnings). Score_s = min(1.0, n / 5.0).
+2. Goal score: If goal_verdict.verdict is "done", Score_g = 0.0. If "blocked", Score_g = 1.0. If "continue", Score_g = 0.5.
+3. Final metric = max(Score_s, Score_g). Stronger weight on goal failure — a valid bundle that doesn't achieve its goal is not converged.
+4. `goal_delta` = 1.0 - goal_verdict.confidence (how far the bundle is from goal achievement).
 
 You are a convergence evaluator. Measure convergence on [0,1] where 0 means no blocking bundle violations remain.
 

@@ -232,35 +232,16 @@ pub async fn export_container(pod_id: &str, output_dir: &std::path::Path) -> Res
 /// Export K8s manifests from the canonical `deploy/k8s/` directory.
 ///
 /// Copies all files from the repo's `deploy/k8s/` into `output_dir`.
-/// The canonical manifests include namespace, deployment (kask + Conduit +
-/// Litestream via supervisord), service, PVC, configmap, secret, ingress,
-/// kustomization, and template files. No inline generation — single source
-/// of truth in `deploy/k8s/`.
+/// The canonical manifests include namespace, deployment (kask + Litestream
+/// sidecar), service, PVC, configmap, secret, ingress, and the conduit/
+/// subdirectory for the standalone Conduit Matrix homeserver.
+/// No inline generation — single source of truth in `deploy/k8s/`.
 ///
-/// Source directory resolution (tried in order):
-/// 1. `HKASK_DEPLOY_DIR` env var
-/// 2. `deploy/k8s/` relative to current working directory (dev/CI)
+/// Source directory resolution via `helpers::resolve_deploy_dir()`.
 ///
 /// Returns the count of copied files.
 pub fn export_k8s(output_dir: &std::path::Path) -> Result<usize, String> {
-    let source_dir = if let Ok(d) = std::env::var("HKASK_DEPLOY_DIR") {
-        let p = std::path::PathBuf::from(&d);
-        if p.is_dir() {
-            p
-        } else {
-            return Err(format!("HKASK_DEPLOY_DIR set but not a directory: {d}"));
-        }
-    } else {
-        let cwd = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
-        let candidate = cwd.join("deploy").join("k8s");
-        if candidate.is_dir() {
-            candidate
-        } else {
-            return Err(
-                "Cannot find deploy/k8s/. Set HKASK_DEPLOY_DIR or run from repo root.".to_string(),
-            );
-        }
-    };
+    let source_dir = crate::commands::helpers::resolve_deploy_dir()?;
 
     std::fs::create_dir_all(output_dir)
         .map_err(|e| format!("Failed to create output directory: {e}"))?;

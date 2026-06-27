@@ -1,6 +1,6 @@
 # hKask Kubernetes Deployment
 
-Single-container pod running kask + Conduit + Litestream via supervisord.
+Two Deployments: **kask** (with Litestream sidecar) and **conduit** (Matrix homeserver).
 
 ## Prerequisites
 
@@ -9,21 +9,29 @@ Single-container pod running kask + Conduit + Litestream via supervisord.
 - `cert-manager` installed (for Let's Encrypt TLS)
 - A `ClusterIssuer` named `letsencrypt-prod`
 - S3-compatible object storage (Hetzner Object Storage, Backblaze B2, Cloudflare R2, etc.)
-- Container registry access to `ghcr.io/mdz-axo/hkask`
+- Container registry with your hKask image pushed
 
 ## Quick Start
 
 ```bash
-# Edit the secrets and config first
-vim deploy/k8s/secret.yaml    # OAuth credentials, S3 keys, passphrase
-vim deploy/k8s/configmap.yaml  # Domain, S3 endpoint, bucket name
+# Edit secrets and config with your real values
+vim deploy/k8s/secret.yaml      # OAuth credentials, S3 keys, passphrase
+vim deploy/k8s/configmap.yaml    # Domain, S3 endpoint, bucket name
+vim deploy/k8s/ingress.yaml      # Your domain name
 
-# Deploy
-kubectl apply -k deploy/k8s/
+# Deploy Conduit first (kask depends on it)
+kubectl apply -f deploy/k8s/conduit/
+
+# Wait for Conduit
+kubectl -n hkask-conduit wait --for=condition=ready pod --selector=app=conduit --timeout=120s
+
+# Deploy kask
+kubectl apply -f deploy/k8s/
 
 # Verify
 kubectl -n hkask get pods
-kubectl -n hkask logs deployment/hkask
+kubectl -n hkask logs deploy/hkask -c kask
+kubectl -n hkask logs deploy/hkask -c litestream
 ```
 
 ## Configuration
@@ -62,13 +70,15 @@ and the `tls` section. You can add TLS later with `kubectl create secret tls`.
 ### Litestream backup
 
 Litestream continuously replicates the SQLite WAL to S3. On pod restart with no
-local database, it restores from the latest replica. This provides:
+local database, the entrypoint script restores from the latest replica. This provides:
 
 - Disaster recovery (database survives node loss)
 - Pod migration (new pod restores from S3)
 
-The `POD_ID` env var (from downward API) scopes backups per-pod:
-`s3://bucket/pods/<pod-name>/kask.db`
+The kask Deployment includes Litestream as a **sidecar container** — it shares
+the `/data` volume with kask so it can replicate the SQLite WAL in real time.
+This is the legitimate multi-container use case per the Kubernetes maintainers'
+guidance: containers that must share a lifecycle and volume.
 
 ## Architecture
 
@@ -77,24 +87,44 @@ The `POD_ID` env var (from downward API) scopes backups per-pod:
                     │         Ingress (nginx)       │
                     │    TLS via cert-manager        │
                     │    / → kask:3000              │
-                    │    /_matrix → kask:8008       │
+                    │    /_matrix → conduit:8008    │
                     └──────────────┬───────────────┘
                                    │
-                    ┌──────────────▼───────────────┐
-                    │       Service (ClusterIP)     │
-                    │    port 3000, 8008            │
-                    └──────────────┬───────────────┘
-                                   │
-                    ┌──────────────▼───────────────┐
-                    │       Pod (single container)  │
-                    │                               │
-                    │  supervisord                  │
-                    │  ├── kask serve  (port 3000)  │
-                    │  ├── conduit     (port 8008)  │
-                    │  └── litestream  (WAL → S3)   │
-                    │                               │
-                    │  /data (PVC)                  │
-                    │  ├── kask.db                  │
-                    │  └── conduit.db               │
-                    └───────────────────────────────┘
+                    ┌──────────────┼───────────────┐
+                    │              │               │
+                    ▼              ▼               │
+          ┌──────────────┐  ┌──────────────┐      │
+          │  kask Service │  │conduit Service│     │
+          │  (port 3000)  │  │ (port 8008)  │      │
+          └──────┬───────┘  └──────┬───────┘      │
+                 │                 │               │
+                 ▼                 ▼               │
+    ┌─────────────────┐  ┌──────────────┐         │
+    │   kask Pod       │  │conduit Pod   │         │
+    │                  │  │              │         │
+    │ [kask container] │  │[conduit]     │         │
+    │ [litestream     ]│  │              │         │
+    │  sidecar        ]│  │              │         │
+    │                  │  │              │         │
+    │ /data (PVC)      │  │/data (PVC)   │         │
+    │  └── kask.db     │  │ └──conduit.db│         │
+    └────────┬────────┘  └──────────────┘         │
+             │                                     │
+             ▼                                     │
+    ┌────────────────────┐                        │
+    │  S3 Object Storage │                        │
+    │  (Litestream WAL)  │                        │
+    └────────────────────┘                        │
+                                                  │
+    Namespace: hkask       Namespace: hkask-conduit
 ```
+
+### Design Decisions
+
+**Why separate Deployments?** Kubernetes co-creators Hightower, Burns, and Beda advise one container per pod by default. kask and Conduit have independent lifecycles, scaling needs, and failure modes. Coupling them in one pod would mean a Conduit crash restarts kask too.
+
+**Why is Litestream a sidecar?** Litestream needs to share the `/data` volume with kask to replicate the SQLite WAL to S3. The sidecar pattern is the legitimate multi-container use case — containers that share a lifecycle and storage.
+
+**Why separate namespaces?** `hkask` for kask, `hkask-conduit` for Conduit. Provides NetworkPolicy isolation and independent ResourceQuotas. A compromised Conduit can't access kask's secrets.
+
+**Why no Helm chart?** The deployment is intentionally simple — 15 YAML files with no templating. Helm adds complexity for a single-service deployment. The `kask curator init` command handles dynamic configuration (signing keys, domain) at deploy time.

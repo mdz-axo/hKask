@@ -11,16 +11,20 @@ contract:
     bundle_name: string
     current_manifest: object
     changed_skills: array
+    goal_context: object
+    goal_delta: number
+    convergence_failure_reason: string
   output:
     evolved_manifest: object
     changes: array
+    recomposition_rationale: string
 energy_cap: 6144
 visibility: Public
 ---
 {# Template: skill-bundler/bundler-evolve.j2 #}
-{# goal: Re-compose a bundle manifest when one or more member skills change, preserving unchanged portions and updating affected ones. #}
-{# KnowAct — Re-compose a bundle manifest when skills evolve #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# goal: Re-compose a bundle manifest when one or more member skills change OR when goal convergence fails, using goal delta to drive recomposition decisions. Preserves unchanged portions and updates affected ones. #}
+{# KnowAct — Goal-delta-driven bundle recomposition #}
+{# ℏKask v0.31.0 — Self-improvement loop via goal-delta recomposition #}
 
 [inference]
 temperature = 0.2
@@ -29,7 +33,7 @@ verbosity = "standard"
 max_tokens = 6144
 thinking_budget = "full"
 
-You are a bundle evolution agent. When one or more skills in a bundle have changed, re-assess the bundle and produce an updated manifest that preserves what hasn't changed and updates what has.
+You are a bundle evolution agent operating within hKask's self-improvement loop. When one or more skills in a bundle have changed, OR when the bundle failed to converge on its goal (goal_delta > 0), re-assess the bundle and produce an updated manifest. Goal delta drives recomposition — the bundle evolves toward its target condition.
 
 ## Bundle Name
 
@@ -41,6 +45,20 @@ You are a bundle evolution agent. When one or more skills in a bundle have chang
 {{ current_manifest | tojson }}
 ```
 
+## Goal Context
+
+```json
+{{ goal_context | tojson }}
+```
+
+## Goal Delta: {{ goal_delta }}
+
+Goal delta is the distance from goal achievement (0 = goal met, 1 = goal completely unmet). This is the PRIMARY driver for recomposition. A high goal delta signals that the current skill ordering or selection is insufficient.
+
+## Convergence Failure Reason
+
+{{ convergence_failure_reason }}
+
 ## Changed Skills
 
 ```json
@@ -49,12 +67,14 @@ You are a bundle evolution agent. When one or more skills in a bundle have chang
 
 ## Evolution Rules
 
-1. **Preserve stability.** Skills that have NOT changed retain their existing polarity, phase, and cascade_order unless the changes force a re-ordering.
-2. **Re-assess changed skills.** For each changed skill, re-classify polarity and re-evaluate phase assignment. If the new classification conflicts with existing assignments, apply the conflict resolution hierarchy.
-3. **Re-check conflicts.** Changed skills may introduce new conflicts or resolve existing ones. Re-run conflict detection across the entire bundle.
-4. **Re-check complementarities.** Changed skills may create new complementarities or invalidate old ones.
-5. **Preserve convergence.** The convergence criterion persists unless the changes invalidate it (e.g., a convergence-governing skill was removed).
-6. **Detect drift.** Flag any changes that violate the original composition principles (phase separation, ordering, depth limits).
+1. **Goal-delta first.** If goal_delta > 0, prioritize recomposition decisions by what reduces goal delta. Add skills that address unfulfilled criteria. Remove or reorder skills that don't contribute to goal achievement.
+2. **Preserve stability.** Skills that have NOT changed AND are contributing to goal achievement retain their existing polarity, phase, and cascade_order unless goal-delta-driven reordering forces a change.
+3. **Re-assess changed skills.** For each changed skill, re-classify polarity and re-evaluate phase assignment. If the new classification conflicts with existing assignments, apply the conflict resolution hierarchy.
+4. **Re-check conflicts.** Changed skills may introduce new conflicts or resolve existing ones. Re-run conflict detection across the entire bundle.
+5. **Re-check complementarities.** Changed skills may create new complementarities or invalidate old ones.
+6. **Preserve convergence.** The convergence criterion persists unless the changes invalidate it. If goal_delta drove the recomposition, tighten the convergence criterion.
+7. **Detect drift.** Flag any changes that violate the original composition principles (phase separation, ordering, depth limits).
+8. **Self-improvement loop.** If goal_delta is decreasing across recomposition cycles, the bundle IS improving. If goal_delta is flat or increasing after 2 cycles, escalate — the current skill set may be insufficient for the goal.
 
 ## Output Requirements
 
@@ -81,22 +101,35 @@ Respond with a JSON object:
       "threshold": 0.7
     }
   },
+  "recomposition_rationale": "Why this recomposition was performed and how it addresses goal delta or skill changes",
   "changes": [
     {
       "skill": "<skill-name>",
-      "change_type": "polarity_reclassification|phase_reassignment|cascade_reorder|new_conflict|resolved_conflict|new_complementarity|lost_complementarity",
+      "change_type": "goal_delta_driven|polarity_reclassification|phase_reassignment|cascade_reorder|new_conflict|resolved_conflict|new_complementarity|lost_complementarity|skill_added|skill_removed",
+      "goal_criterion_affected": "<which goal criterion this change addresses>",
       "description": "What changed and why"
     }
   ]
 }
 ```
 
+## Self-Improvement Loop Semantics
+
+This template is the "Act → Plan" bridge in the bundle's improvement kata:
+- **Act** (previous cycle): Evaluate convergence — discover goal_delta > 0
+- **Plan** (this cycle): Re-compose the bundle to reduce goal_delta
+- **Do** (next cycle): Execute the re-composed bundle
+- **Check** (next cycle): Re-evaluate convergence against goal
+
+This IS the PDCA loop at the composition level.
+
 ## Constraints
 
 - Version must be incremented from the current manifest version.
 - The `changed` flag on each skill must be `true` only for skills that actually changed.
+- Goal-delta-driven changes must cite the specific unfulfilled criterion.
 - Every change must have a human-readable `description`.
-- Do not remove skills from the bundle unless explicitly asked.
+- Do not remove skills from the bundle unless explicitly asked OR they demonstrably don't contribute to goal achievement after 2 cycles.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

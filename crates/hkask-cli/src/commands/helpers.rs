@@ -3,7 +3,7 @@
 //! Utility functions used across multiple command modules for error handling,
 //! output, and common setup.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Unwrap a `Result` or print an error message and exit.
 /// expect: "I can access all hKask functionality through the kask CLI"
@@ -61,9 +61,6 @@ fn build_service_context_inner(
         None => hkask_services::ServiceConfig::from_env()
             .map_err(|e| format!("Failed to resolve service config: {}", e))?,
     };
-    // Use current runtime if available, otherwise create a fresh one.
-    // This avoids "Cannot start a runtime from within a runtime" panics
-    // when called from inside an existing tokio context.
     match tokio::runtime::Handle::try_current() {
         Ok(handle) => {
             let (tx, rx) = std::sync::mpsc::channel();
@@ -84,9 +81,6 @@ fn build_service_context_inner(
 }
 
 /// Write content to a file or print to stdout.
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  content is a non-empty string; output is an optional file path; label is a human-readable description
-/// post: writes content to the file path if provided, or prints to stdout; exits on write failure
 pub fn write_or_print(content: &str, output: Option<&Path>, label: &str) {
     match output {
         Some(path) => {
@@ -110,11 +104,6 @@ pub fn write_or_print(content: &str, output: Option<&Path>, label: &str) {
     }
 }
 
-/// Run an async future on the tokio runtime and exit on error.
-///
-/// Shorthand for `or_exit(rt.block_on($fut), $label)`.
-/// Eliminates the repeated `or_exit(rt.block_on(...), "...")` boilerplate
-/// across command handlers.
 #[macro_export]
 macro_rules! block_on {
     ($rt:expr, $fut:expr, $label:literal) => {
@@ -131,7 +120,6 @@ pub fn resolve_user_webid() -> hkask_types::WebID {
     hkask_types::WebID::from_persona(b"cli-user")
 }
 
-/// Start a single MCP server and trace the result. Returns true on success.
 pub fn start_mcp_server(
     rt: &tokio::runtime::Runtime,
     ctx: &hkask_services::AgentService,
@@ -150,10 +138,6 @@ pub fn start_mcp_server(
     }
 }
 
-/// Print a list of items with a standardized header/row/footer format.
-///
-/// Pattern: empty-check → "Label (N):" → indented rows → "N total."
-/// If the list is empty, prints the `empty_label` and returns.
 pub fn print_item_list<T>(
     items: &[T],
     empty_label: &str,
@@ -171,7 +155,6 @@ pub fn print_item_list<T>(
     println!("{} total.", items.len());
 }
 
-/// Start MCP servers with extra environment overrides. Returns count of successfully started servers.
 pub fn start_mcp_servers_with_env(
     rt: &tokio::runtime::Runtime,
     ctx: &hkask_services::AgentService,
@@ -197,4 +180,28 @@ pub fn start_mcp_servers_with_env(
         }
     }
     started
+}
+
+/// Resolve the `deploy/k8s/` source directory for manifest operations.
+///
+/// Tries in order:
+/// 1. `HKASK_DEPLOY_DIR` env var (for installed or custom paths)
+/// 2. `deploy/k8s/` relative to current working directory (dev / repo root)
+///
+/// Used by both `pod::export_k8s` and `curator::copy_conduit_manifests`.
+/// Single source of truth for deploy directory resolution.
+pub fn resolve_deploy_dir() -> Result<PathBuf, String> {
+    if let Ok(d) = std::env::var("HKASK_DEPLOY_DIR") {
+        let p = PathBuf::from(&d);
+        if p.is_dir() {
+            return Ok(p);
+        }
+        return Err(format!("HKASK_DEPLOY_DIR set but not a directory: {d}"));
+    }
+    let cwd = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
+    let candidate = cwd.join("deploy").join("k8s");
+    if candidate.is_dir() {
+        return Ok(candidate);
+    }
+    Err("Cannot find deploy/k8s/. Set HKASK_DEPLOY_DIR or run from repo root.".into())
 }

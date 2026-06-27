@@ -37,8 +37,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
 
-      - name: Install linker (mold + clang)
-        run: sudo apt-get install -y --no-install-recommends mold clang
+      - name: Install linker + system deps
+        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
 
       - name: Generate documentation
         run: cargo doc --workspace --no-deps
