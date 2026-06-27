@@ -94,6 +94,8 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v4
+      - name: Stamp version from VERSION into all files
+        run: bash scripts/ci/stamp-version.sh
       - name: Prohibited visual-UI / monitoring infrastructure (P3 §5)
         run: |
           violations=$(grep -rPni '(?i)grafana|prometheus|dashboard|visual[\s.]*ui' crates/ --include='*.rs' 2>/dev/null || true)
