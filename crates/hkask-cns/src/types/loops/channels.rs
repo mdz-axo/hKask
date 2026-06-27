@@ -53,12 +53,31 @@ pub struct GoalTransitionEvent {
     pub agent: WebID,
 }
 
+// ── Communication channel: CommunicationWatcher → Curation ──────────────────
+
+/// Communication event forwarded from the 7R7 listener through NuEventStore.
+///
+/// Sent via the curation inbox so the Curator can sense and respond to
+/// agent-to-agent or human-to-agent Matrix activity.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CommunicationEvent {
+    /// Span category (e.g., "communication.message", "communication.thread").
+    pub span_category: String,
+    /// Span path within the category (e.g., "observed", "created").
+    pub span_path: String,
+    /// The observation payload from the NuEvent.
+    pub observation: serde_json::Value,
+    /// ISO 8601 timestamp of the original NuEvent.
+    pub observed_at: String,
+}
+
 // ── Curation input enum — what CurationLoop reads from its inbox ─────────────
 
 /// Messages CurationLoop receives from multiple producers via a single channel.
 ///
 /// Cybernetics sends `Alert`, SpecCurator sends `SpecDrift`, GoalStore sends
-/// `GoalTransition`. Human resolves spec drift → `SpecDriftResolved`.
+/// `GoalTransition`, CommunicationWatcher sends `Communication`.
+/// Human resolves spec drift via `SpecDriftResolved`.
 /// All flow through one `mpsc::Sender<CurationInput>` channel.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum CurationInput {
@@ -68,6 +87,8 @@ pub enum CurationInput {
     SpecDrift(SpecEvent),
     /// Goal state transition from GoalStore
     GoalTransition(GoalTransitionEvent),
+    /// Communication event from the Matrix transport (message, thread, agent lifecycle)
+    Communication(CommunicationEvent),
     /// Spec drift resolved by human (P1: User Sovereignty — human resolves, not machine)
     SpecDriftResolved {
         /// The spec whose drift was resolved.

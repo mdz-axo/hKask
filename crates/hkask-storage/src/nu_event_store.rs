@@ -1,8 +1,10 @@
 //! NuEventStore — Persistent storage for CNS ν-events
+
 use crate::{Store, now_rfc3339};
 use hkask_types::event::{Phase, Span, SpanCategory, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::{InfrastructureError, NuEvent, NuEventSink, Visibility};
+
 /// Per-domain decay constants for weighted replay.
 ///
 /// Each loop domain has its own `λ` (lambda) for exponential decay.
@@ -21,6 +23,7 @@ pub struct DecayConfig {
     /// Minimum weight threshold — events below this are not replayed. Default: 0.001
     pub weight_threshold: f64,
 }
+
 impl Default for DecayConfig {
     fn default() -> Self {
         Self {
@@ -32,17 +35,20 @@ impl Default for DecayConfig {
         }
     }
 }
+
 /// A NuEvent with its computed replay weight.
 #[derive(Debug, Clone)]
 pub struct WeightedEvent {
     pub event: NuEvent,
     pub weight: f64,
 }
+
 /// Algedonic-significant span categories for Curation review.
 ///
 /// These are the CNS span namespaces that produce events requiring
 /// Curation (Loop 5) attention: energy deficits, variety imbalances,
-/// agent pod failures, and wallet key lifecycle events (exhaustion, expiry).
+/// agent pod failures, wallet key lifecycle events, and communication
+/// activity (Matrix messages, thread lifecycle).
 ///
 /// Matched against the stored `span_category` column (which holds the
 /// full `short_name()` — e.g., `"wallet.key_expired"`).
@@ -55,7 +61,9 @@ const ALGEDONIC_SPAN_CATEGORIES: &[&str] = &[
     "communication.message",
     "communication.thread",
 ];
+
 define_store!(NuEventStore);
+
 impl NuEventStore {
     /// Replay events with exponentially decaying weights.
     ///
@@ -100,6 +108,7 @@ impl NuEventStore {
             .collect();
         Ok(weighted)
     }
+
     /// Returns the decay constant `λ` for a `SpanCategory`.
     ///
     /// Unknown categories fall back to `cybernetics_lambda`.
@@ -120,6 +129,7 @@ impl NuEventStore {
             SpanCategory::Unknown => config.cybernetics_lambda, // safe default
         }
     }
+
     pub(crate) fn insert(&self, event: &NuEvent) -> Result<(), InfrastructureError> {
         let conn = self.lock_conn()?;
         let (span_category, span_path) = span_to_columns(&event.span);
@@ -143,21 +153,12 @@ impl NuEventStore {
         )?;
         Ok(())
     }
-    /// Query algedonic-significant events since a given timestamp.
-    ///
-    /// Returns NuEvents from algedonic span categories (energy, variety,
-    /// agent_pod) with `phase = Act` and severity exceeding
-    /// threshold, ordered by timestamp ascending. This is the canonical
-    /// alerts log that Curation reads via cursor — one fact in one place.
-    ///
-    /// Per Fowler's Gateway pattern: the NuEvent store is the gateway;
-    /// Curation queries it with a cursor, not live CNS state.
+
     /// Persist a loop cursor value for crash recovery.
     ///
     /// Loop cursors (e.g., `curation_last_review_ms`) track the last-processed
     /// event timestamp. Persisting them ensures the system doesn't re-process
     /// all historical events after a restart.
-    /// Persist a cursor value for event replay.
     ///
     /// expect: "The system provides durable storage for event data"
     /// \[P3\] Motivating: Generative Space — persist replay cursor
@@ -171,11 +172,11 @@ impl NuEventStore {
         )?;
         Ok(())
     }
+
     /// Load a persisted loop cursor value.
     ///
     /// Returns `Ok(None)` if no cursor has been persisted for the given key
     /// (e.g., first run after schema creation).
-    /// Load a persisted cursor value.
     ///
     /// expect: "The system provides durable storage for event data"
     /// \[P3\] Motivating: Generative Space — load replay cursor
@@ -190,6 +191,7 @@ impl NuEventStore {
             None => Ok(None),
         }
     }
+
     /// Query algedonic signals from the event store.
     ///
     /// expect: "The system provides durable storage for event data"
@@ -228,6 +230,7 @@ impl NuEventStore {
         Ok(events)
     }
 }
+
 /// Reconstruct a NuEvent from a database row.
 fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> {
     let id: EventID = row.get(0)?;
@@ -291,28 +294,26 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
         visibility: visibility_str,
     })
 }
+
 fn span_to_columns(span: &Span) -> (&str, &str) {
     (span.namespace.short_name(), span.path.as_str())
 }
+
 impl NuEventSink for NuEventStore {
     fn persist(&self, event: &NuEvent) -> Result<(), InfrastructureError> {
         self.insert(event)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use hkask_types::event::{Span, SpanNamespace};
-    //
-    // Before fix, `span_path[namespace.as_str().len() + 1..]` was an unconditional
-    // slice that panicked when span_path did not start with the namespace prefix
-    // (e.g., when the fallback namespace "cns.gas" was used but span_path is just
-    // "depleted").
+
     #[test]
     fn local_path_extraction_does_not_panic_on_short_span_path() {
-        // Simulate a span_path that is shorter than the namespace prefix.
         let namespace = SpanNamespace::new("cns.gas");
         let ns_str = namespace.as_str();
-        let span_path = "depleted"; // does NOT start with "cns.gas"
+        let span_path = "depleted";
         let local_path = if span_path.starts_with(ns_str)
             && span_path.len() > ns_str.len()
             && span_path.as_bytes().get(ns_str.len()) == Some(&b'.')
@@ -326,11 +327,12 @@ mod tests {
             "fallback should return raw path when prefix doesn't match"
         );
     }
+
     #[test]
     fn local_path_extraction_does_not_panic_on_exact_namespace_match() {
         let namespace = SpanNamespace::new("cns.gas");
         let ns_str = namespace.as_str();
-        let span_path = "cns.gas"; // exactly the namespace, no local component
+        let span_path = "cns.gas";
         let local_path = if span_path.starts_with(ns_str)
             && span_path.len() > ns_str.len()
             && span_path.as_bytes().get(ns_str.len()) == Some(&b'.')
@@ -344,6 +346,7 @@ mod tests {
             "fallback should return raw path when no dot follows namespace"
         );
     }
+
     #[test]
     fn local_path_extraction_succeeds_on_well_formed_path() {
         let namespace = SpanNamespace::new("cns.gas");
@@ -359,5 +362,41 @@ mod tests {
         };
         assert_eq!(local_path, "depleted");
         let _ = Span::new(namespace, local_path);
+    }
+
+    // ── Communication CNS namespace registration ───────────────────
+
+    /// Verify communication namespaces are canonical (accepted by SpanNamespace).
+    #[test]
+    fn communication_message_namespace_is_canonical() {
+        let ns = SpanNamespace::new("cns.communication.message");
+        assert_eq!(ns.short_name(), "communication.message");
+    }
+
+    #[test]
+    fn communication_thread_namespace_is_canonical() {
+        let ns = SpanNamespace::new("cns.communication.thread");
+        assert_eq!(ns.short_name(), "communication.thread");
+    }
+
+    #[test]
+    fn communication_agent_namespace_is_canonical() {
+        let ns = SpanNamespace::new("cns.communication.agent");
+        assert_eq!(ns.short_name(), "communication.agent");
+    }
+
+    #[test]
+    fn communication_listener_namespace_is_canonical() {
+        let ns = SpanNamespace::new("cns.communication.listener");
+        assert_eq!(ns.short_name(), "communication.listener");
+    }
+
+    /// Verify short_name maps correctly for the algedonic SQL filter.
+    /// query_algedonic matches on span_category = short_name(),
+    /// so communication.message must produce exactly "communication.message".
+    #[test]
+    fn communication_span_short_name_matches_algedonic_category() {
+        let span = Span::new(SpanNamespace::new("cns.communication.message"), "observed");
+        assert_eq!(span.namespace.short_name(), "communication.message");
     }
 }

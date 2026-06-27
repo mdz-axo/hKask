@@ -3968,6 +3968,7 @@ dependencies = [
  "hkask-types",
  "matrix-sdk",
  "mime",
+ "reqwest",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

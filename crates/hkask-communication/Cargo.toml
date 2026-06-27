@@ -21,3 +21,6 @@ tracing.workspace = true
 chrono.workspace = true
 uuid.workspace = true
 url.workspace = true
+
+[dev-dependencies]
+reqwest.workspace = true

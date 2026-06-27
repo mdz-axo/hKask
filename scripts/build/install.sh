@@ -261,6 +261,25 @@ clone_repo() {
     log_success "Repository cloned to $HKASK_SOURCE_DIR"
 }
 
+# MCP server binaries that kask spawns as child processes.
+# Must stay in sync with crates/hkask-cli/src/repl/builtin_servers.rs.
+MCP_SERVERS=(
+    "hkask-mcp-memory"
+    "hkask-mcp-condenser"
+    "hkask-mcp-research"
+    "hkask-mcp-companies"
+    "hkask-mcp-communication"
+    "hkask-mcp-fal"
+    "hkask-mcp-media"
+    "hkask-mcp-docproc"
+    "hkask-mcp-training"
+    "hkask-mcp-replica"
+    "hkask-mcp-kanban"
+    "hkask-mcp-skill"
+    "hkask-mcp-filesystem"
+    "hkask-mcp-curator"
+)
+
 build_hkask() {
     clone_repo
     local workspace_root="$HKASK_SOURCE_DIR"
@@ -268,13 +287,23 @@ build_hkask() {
     log "Building hKask in $workspace_root..."
     cd "$workspace_root"
 
+    local build_args
     if [ "${HKASK_BUILD_TYPE:-release}" = "release" ]; then
+        build_args="--release"
         log "Building in release mode..."
-        cargo build --release --package hkask-cli
     else
+        build_args=""
         log "Building in debug mode..."
-        cargo build --package hkask-cli
     fi
+
+    # Build CLI binary
+    cargo build $build_args --package hkask-cli
+
+    # Build all MCP server binaries
+    log "Building MCP server binaries..."
+    for server in "${MCP_SERVERS[@]}"; do
+        cargo build $build_args --package "$server"
+    done
 
     log_success "Build complete"
 }
@@ -282,27 +311,44 @@ build_hkask() {
 install_binary() {
     local workspace_root="$HKASK_SOURCE_DIR"
 
-    log "Installing hKask binary..."
+    log "Installing hKask binaries..."
 
     # Create bin directory if it doesn't exist
     mkdir -p "$BIN_DIR"
 
-    # Copy binary
+    local profile_dir
     if [ "${HKASK_BUILD_TYPE:-release}" = "release" ]; then
-        cp "$workspace_root/target/release/kask" "$BIN_DIR/kask"
+        profile_dir="$workspace_root/target/release"
     else
-        cp "$workspace_root/target/debug/kask" "$BIN_DIR/kask"
+        profile_dir="$workspace_root/target/debug"
     fi
 
+    # Install CLI binary
+    cp "$profile_dir/kask" "$BIN_DIR/kask"
     chmod +x "$BIN_DIR/kask"
 
     # Strip debug symbols (reduces binary size ~60%, non-fatal if missing)
     if command -v strip &> /dev/null; then
         strip "$BIN_DIR/kask" 2>/dev/null || true
-        log "Stripped debug symbols from binary"
+        log "Stripped debug symbols from kask"
     fi
 
-    log_success "Binary installed to $BIN_DIR/kask"
+    # Install MCP server binaries
+    local installed_servers=0
+    for server in "${MCP_SERVERS[@]}"; do
+        if [ -f "$profile_dir/$server" ]; then
+            cp "$profile_dir/$server" "$BIN_DIR/$server"
+            chmod +x "$BIN_DIR/$server"
+            if command -v strip &> /dev/null; then
+                strip "$BIN_DIR/$server" 2>/dev/null || true
+            fi
+            installed_servers=$((installed_servers + 1))
+        else
+            log_warning "MCP server binary not found: $server"
+        fi
+    done
+
+    log_success "Installed kask + $installed_servers MCP server(s) to $BIN_DIR"
 }
 
 # Add kask to PATH. Tries symlink to /usr/local/bin first (system-wide),
@@ -530,7 +576,18 @@ verify_installation() {
 
     local version
     version=$("$BIN_DIR/kask" --version 2>&1 || echo "unknown")
-    log "Binary: $BIN_DIR/kask ($version)"
+    log "CLI: $BIN_DIR/kask ($version)"
+
+    # Check MCP server binaries
+    local mcp_count=0
+    for server in "${MCP_SERVERS[@]}"; do
+        if [ -f "$BIN_DIR/$server" ]; then
+            mcp_count=$((mcp_count + 1))
+        else
+            log_warning "MCP server missing: $server"
+        fi
+    done
+    log "MCP servers: $mcp_count/${#MCP_SERVERS[@]} available"
 
     # Check symlink in /usr/local/bin
     if [ -L "$SYSTEM_BIN/kask" ]; then
@@ -571,11 +628,17 @@ uninstall_hkask() {
         log "Removed symlink: $SYSTEM_BIN/kask"
     fi
 
-    # Remove user binary
+    # Remove CLI binary and MCP server binaries
     if [ -f "$BIN_DIR/kask" ]; then
         rm -f "$BIN_DIR/kask"
         log "Removed $BIN_DIR/kask"
     fi
+    for server in "${MCP_SERVERS[@]}"; do
+        if [ -f "$BIN_DIR/$server" ]; then
+            rm -f "$BIN_DIR/$server"
+        fi
+    done
+    log "Removed MCP server binaries"
 
     # Remove PATH entries from shell configs
     for cfg in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do

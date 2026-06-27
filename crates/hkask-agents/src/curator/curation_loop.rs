@@ -270,6 +270,14 @@ impl HkaskLoop for CurationLoop {
                             "SpecDriftResolved — human resolved spec drift (P1)"
                         );
                     }
+                    CurationInput::Communication(event) => {
+                        tracing::info!(
+                            target: CUR_TARGET,
+                            span_category = %event.span_category,
+                            span_path = %event.span_path,
+                            "Communication event observed — Matrix activity detected"
+                        );
+                    }
                 }
             }
         }

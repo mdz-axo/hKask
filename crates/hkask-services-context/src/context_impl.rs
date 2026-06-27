@@ -73,6 +73,7 @@ use hkask_services_core::ServiceError;
 
 use hkask_services_wallet::WalletService;
 
+mod communication_watcher;
 mod matrix;
 mod seam_monitor;
 
@@ -643,6 +644,13 @@ impl AgentService {
         // ── Matrix transport + 7R7 listener ──────────────────────────────
         let matrix_transport =
             self::matrix::build_matrix(Some(Arc::clone(&foundation.cns_event_sink))).await;
+
+        // Spawn communication watcher — forwards Matrix CNS events to curation inbox.
+        // If Matrix is unavailable, the watcher is harmless (polls an empty store).
+        self::communication_watcher::spawn_communication_watcher(
+            Arc::clone(&foundation.gas_event_store),
+            foundation.curation_inbox_tx.clone(),
+        );
 
         // ── Registry + wallet: agent records, A2A restore, rJoule ───────
         let reg_wallet = build_registry_and_wallet(&config, &foundation, &loops, &mcp_pods).await?;

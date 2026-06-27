@@ -168,6 +168,7 @@ pub struct HealthSnapshot {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub cns_health: String,
     pub variety_counters: HashMap<SpanNamespace, u64>,
+    pub variety_deficit: u64,
     pub critical_alerts: usize,
     pub total_alerts: usize,
     pub(crate) bot_status_reports: Vec<BotStatusReport>,
@@ -214,6 +215,11 @@ pub struct MetacognitionLoop {
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
     last_snapshot_tx: tokio::sync::watch::Sender<Option<HealthSnapshot>>,
     bot_health_evaluator: Option<Arc<BotHealthEvaluator>>,
+    /// Template output from the most recent template-driven compute cycle.
+    /// Stored separately from HealthSnapshot to avoid race conditions —
+    /// `sense()` wipes the snapshot each cycle but template output must
+    /// survive across cycles for `generate_summary()` and `act()`.
+    last_template_output: RwLock<Option<serde_json::Value>>,
 }
 
 impl MetacognitionLoop {
@@ -236,6 +242,7 @@ impl MetacognitionLoop {
             bot_reports: Arc::new(RwLock::new(Vec::new())),
             last_snapshot_tx,
             bot_health_evaluator: None,
+            last_template_output: RwLock::new(None),
         }
     }
 
@@ -265,6 +272,7 @@ impl MetacognitionLoop {
             bot_reports: Arc::new(RwLock::new(Vec::new())),
             last_snapshot_tx,
             bot_health_evaluator: Some(evaluator),
+            last_template_output: RwLock::new(None),
         }
     }
 
@@ -310,6 +318,30 @@ impl MetacognitionLoop {
     ///       counters, and bot status reports.
     pub fn generate_summary(&self, snapshot: &HealthSnapshot) -> String {
         use std::fmt::Write;
+        if let Some(ref output) = *self.last_template_output.blocking_read() {
+            let mut s = String::new();
+            let _ = writeln!(s, "## Metacognition Update (LLM)");
+            let _ = writeln!(
+                s,
+                "**Timestamp:** {}",
+                snapshot.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
+            );
+            if let Some(diag) = output.get("diagnosis").and_then(|v| v.as_str()) {
+                let _ = writeln!(s, "**Diagnosis:** {}", diag);
+            }
+            if let Some(plan) = output.get("remediation_plan").and_then(|v| v.as_array()) {
+                for step in plan {
+                    let action = step.get("action").and_then(|v| v.as_str()).unwrap_or("?");
+                    let target = step
+                        .get("target")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("system");
+                    let _ = writeln!(s, "- {} -> {}", action, target);
+                }
+            }
+            return s;
+        }
+
         let mut s = String::new();
         let _ = writeln!(s, "## Metacognition Update\n");
         let _ = writeln!(
@@ -465,6 +497,7 @@ impl MetacognitionLoop {
     // the queue is not a loop-to-loop message channel.
     async fn act_on_escalate(&self, action: &LoopAction) -> Option<EscalationEntry> {
         let metric = Self::param_str(action, "metric", "");
+        let target = Self::param_str(action, "target", "");
         match metric {
             "critical_alerts" => {
                 let count = Self::param_u64(action, "count", 0) as usize;
@@ -507,6 +540,30 @@ impl MetacognitionLoop {
                     format!("{} bots in critical state: {}", count, bot_names.join(", ")),
                 ))
             }
+            "restart" | "rebalance" => {
+                let diagnosis = action
+                    .parameters
+                    .get("diagnosis")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("template-diagnosed");
+                warn!(target: MC_TARGET, bot = %target, metric, diagnosis, "Template-directed bot action");
+                Some(EscalationEntry::pending(
+                    format!("{} bot {} ({})", metric, target, diagnosis),
+                    0.7,
+                    format!(
+                        "Template {} directed {} on {}: {}",
+                        action
+                            .parameters
+                            .get("template")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown"),
+                        metric,
+                        target,
+                        diagnosis
+                    ),
+                ))
+            }
+
             _ => {
                 warn!(target: MC_TARGET, metric = %metric, "Unknown escalation metric");
                 None
@@ -525,6 +582,147 @@ impl MetacognitionLoop {
 
     // Explicit 4-stage cycle: sense → compare → compute → act
     // Delegation methods removed — HkaskLoop trait impl provides tick().
+
+    /// Template-driven compute: invoke KnowAct templates for calibrated decisions.
+    async fn compute_with_templates(
+        &self,
+        executor: &Arc<hkask_templates::ManifestExecutor>,
+        deviations: &[Deviation],
+    ) -> Vec<LoopAction> {
+        let snapshot = self.last_snapshot_tx.borrow().clone();
+        let mut ctx = std::collections::HashMap::new();
+
+        if let Some(ref snap) = snapshot {
+            ctx.insert("system_health".into(), serde_json::json!(snap.cns_health));
+            ctx.insert(
+                "critical_alerts".into(),
+                serde_json::json!(snap.critical_alerts),
+            );
+            ctx.insert("total_alerts".into(), serde_json::json!(snap.total_alerts));
+            ctx.insert(
+                "variety_deficit".into(),
+                serde_json::json!(snap.variety_deficit),
+            );
+            // Build bot_status for template context
+            let bot_status: Vec<serde_json::Value> = snap
+                .bot_status_reports
+                .iter()
+                .map(|r| {
+                    serde_json::json!({
+                        "name": r.bot_name,
+                        "status": r.status.to_string(),
+                        "issues": r.issues,
+                    })
+                })
+                .collect();
+            ctx.insert("bot_status".into(), serde_json::json!(bot_status));
+        }
+
+        let issues: Vec<serde_json::Value> = deviations
+            .iter()
+            .filter(|d| d.direction == DeviationDirection::AboveSetPoint)
+            .map(|d| {
+                serde_json::json!({
+                    "id": d.signal.metric.as_str(),
+                    "source_bot": "cns",
+                    "type": d.signal.metric.as_str(),
+                    "severity": if d.magnitude > 2.0 { "critical" } else { "warning" },
+                    "first_observed": d.signal.timestamp.to_rfc3339(),
+                    "occurrence_count": 1,
+                    "current_impact": format!("value {} > set-point {}", d.signal.value, d.signal.set_point),
+                    "resolution_attempts": [],
+                })
+            })
+            .collect();
+        ctx.insert("issues".into(), serde_json::json!(issues));
+
+        let result = match executor
+            .execute_knowact("curator/metacognition-diagnose.j2", &ctx)
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::warn!(target: MC_TARGET, error = %e, "Template failed; fallback to thresholds");
+                return self.compute_with_thresholds(deviations);
+            }
+        };
+
+        let mut actions = Vec::new();
+        if let Some(plan) = result.get("remediation_plan").and_then(|v| v.as_array()) {
+            if plan.is_empty() {
+                tracing::info!(target: MC_TARGET, "LLM returned empty remediation_plan — no actions");
+            }
+            for step in plan {
+                let action_type = step.get("action").and_then(|v| v.as_str()).unwrap_or("");
+                let target = step.get("target").and_then(|v| v.as_str()).unwrap_or("");
+                if action_type.is_empty() {
+                    tracing::warn!(target: MC_TARGET, ?step, "LLM produced malformed remediation step — missing 'action' field");
+                }
+                match action_type {
+                    "calibrate" | "adjust_threshold" => actions.push(LoopAction::new(
+                        LoopId::Curation, ActionType::Calibrate,
+                        serde_json::json!({"domain": target, "template": "metacognition-diagnose"}),
+                    )),
+                    "escalate" | "restart" | "rebalance" => actions.push(LoopAction::new(
+                        LoopId::Curation, ActionType::Escalate,
+                        serde_json::json!({"metric": action_type, "target": target, "diagnosis": result.get("diagnosis"), "template": "metacognition-diagnose"}),
+                    )),
+                    _ => actions.push(LoopAction::new(
+                        LoopId::Curation, ActionType::Notify,
+                        serde_json::json!({"action": action_type, "target": target}),
+                    )),
+                }
+            }
+        }
+
+        // Store template output for act phase and generate_summary.
+        // Uses a dedicated RwLock to avoid the race condition where
+        // sense() would wipe template_output from HealthSnapshot.
+        *self.last_template_output.write().await = Some(result.clone());
+
+        actions
+    }
+
+    /// Fallback: Rust threshold comparison (standalone CLI, no executor).
+    fn compute_with_thresholds(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+        let mut actions = Vec::new();
+        for dev in deviations {
+            match dev.signal.metric {
+                SignalMetric::MetacognitionVarietyDeficit
+                    if dev.direction == DeviationDirection::AboveSetPoint =>
+                {
+                    let deficit = dev.signal.value as u64;
+                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Calibrate, serde_json::json!({"domain": "variety", "deficit": deficit, "threshold": dev.signal.set_point as u64, "new_threshold": deficit.saturating_add(self.config.thresholds.variety_deficit)})));
+                }
+                SignalMetric::MetacognitionCriticalAlerts
+                    if dev.direction == DeviationDirection::AboveSetPoint =>
+                {
+                    let count = dev.signal.value as u64;
+                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Escalate, serde_json::json!({"metric": "critical_alerts", "count": count, "threshold": self.config.thresholds.critical_alerts})));
+                }
+                SignalMetric::MetacognitionBotFailures
+                    if dev.direction == DeviationDirection::AboveSetPoint =>
+                {
+                    let count = dev.signal.value as u64;
+                    let bot_names: Vec<String> = self
+                        .last_snapshot_tx
+                        .borrow()
+                        .as_ref()
+                        .map(|s| {
+                            s.bot_status_reports
+                                .iter()
+                                .filter(|r| r.status == BotHealthStatus::Critical)
+                                .map(|r| r.bot_name.clone())
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Escalate, serde_json::json!({"metric": "bot_failures", "failed_count": count, "threshold": self.config.thresholds.bot_failures, "bot_names": bot_names})));
+                }
+                _ => {}
+            }
+        }
+        actions
+    }
 }
 
 // HkaskLoop — sense → compare → compute → act
@@ -607,6 +805,7 @@ impl HkaskLoop for MetacognitionLoop {
             timestamp: chrono::Utc::now(),
             cns_health: cns_health_str,
             variety_counters: variety_counters.clone(),
+            variety_deficit: total_variety_deficit,
             critical_alerts: critical_alerts.len(),
             total_alerts: all_alerts.len(),
             bot_status_reports: bot_reports.clone(),
@@ -642,51 +841,45 @@ impl HkaskLoop for MetacognitionLoop {
     }
 
     /// Compute: map deviations to regulatory actions.
+    ///
+    /// Per P3 (Generative Space), when a ManifestExecutor is available,
+    /// calibrated decisions are produced by KnowAct templates, not Rust
+    /// threshold comparison. Falls back to Rust logic when no executor
+    /// is configured (standalone CLI).
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
-        let mut actions = Vec::new();
-        for dev in deviations {
-            match dev.signal.metric {
-                SignalMetric::MetacognitionVarietyDeficit
-                    if dev.direction == DeviationDirection::AboveSetPoint =>
-                {
-                    let deficit = dev.signal.value as u64;
-                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Calibrate, serde_json::json!({"domain": "variety", "deficit": deficit, "threshold": dev.signal.set_point as u64, "new_threshold": deficit.saturating_add(self.config.thresholds.variety_deficit)})));
-                }
-                SignalMetric::MetacognitionCriticalAlerts
-                    if dev.direction == DeviationDirection::AboveSetPoint =>
-                {
-                    let count = dev.signal.value as u64;
-                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Escalate, serde_json::json!({"metric": "critical_alerts", "count": count, "threshold": self.config.thresholds.critical_alerts})));
-                }
-                SignalMetric::MetacognitionBotFailures
-                    if dev.direction == DeviationDirection::AboveSetPoint =>
-                {
-                    let count = dev.signal.value as u64;
-                    let bot_names: Vec<String> = self
-                        .last_snapshot_tx
-                        .borrow()
-                        .as_ref()
-                        .map(|s| {
-                            s.bot_status_reports
-                                .iter()
-                                .filter(|r| r.status == BotHealthStatus::Critical)
-                                .map(|r| r.bot_name.clone())
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Escalate, serde_json::json!({"metric": "bot_failures", "failed_count": count, "threshold": self.config.thresholds.bot_failures, "bot_names": bot_names})));
-                }
-                _ => {}
-            }
+        if let Some(executor) = self.context.manifest_executor().await {
+            return self.compute_with_templates(&executor, deviations).await;
         }
-        actions
+        self.compute_with_thresholds(deviations)
     }
 
-    /// Act: issue CuratorDirectives and post escalations (batched if above threshold).
+    /// Act: issue CuratorDirectives, direct bots, and post escalations.
+    ///
+    /// When a template output is available (from compute_with_templates),
+    /// "restart" and "rebalance" actions trigger bot direction via A2A
+    /// in addition to escalation queue audit entries.
     async fn act(&self, actions: &[LoopAction]) {
         let mut escalation_entries: Vec<EscalationEntry> = Vec::new();
 
         for action in actions {
+            // Template-driven bot direction: when the LLM says restart/rebalance,
+            // send an A2A directive to the target bot before posting the escalation.
+            let metric = action
+                .parameters
+                .get("metric")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let target = action
+                .parameters
+                .get("target")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if matches!(metric, "restart" | "rebalance") && !target.is_empty() {
+                if let Err(e) = self.direct_bot(target, metric).await {
+                    tracing::warn!(target: MC_TARGET, bot = %target, error = %e, "Failed to direct bot");
+                }
+            }
+
             match action.action_type {
                 ActionType::Calibrate => {
                     if let Some(entry) = self.act_on_throttle(action).await {
