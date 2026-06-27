@@ -621,6 +621,8 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
         vec![
             ("cns.tool".into(), alerts < 5),
             ("cns.inference".into(), alerts < 3),
+            ("cns.mcp.media.face".into(), true),
+            ("cns.storage".into(), true),
             ("cns.keystore".into(), true),
             ("cns.tui".into(), true),
         ]

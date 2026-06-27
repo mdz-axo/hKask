@@ -59,6 +59,9 @@ pub struct CnsHealth {
     pub critical_count: usize,
     pub warning_count: usize,
     pub healthy: bool,
+    /// Session-level EMA of domain variety (survives window resets).
+    /// 0.0 when no domains have been tracked.
+    pub variety_ema: f64,
 }
 
 // ── CnsSpan — Typed CNS Span Identifiers ──────────────────────────────────
@@ -211,6 +214,10 @@ pub enum CnsSpan {
     BackupAutoExport,
     /// Sovereignty backup uploaded to server (migration).
     BackupUpload,
+    /// Storage operations — database open, encryption setup, schema init.
+    Storage,
+    /// Media face detection, matching, and validation via vision LLM.
+    MediaFaceDetection,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -406,6 +413,8 @@ impl CnsSpan {
             CnsSpan::BackupExport => "cns.deploy.backup_export",
             CnsSpan::BackupAutoExport => "cns.deploy.backup_auto_export",
             CnsSpan::BackupUpload => "cns.deploy.backup_upload",
+            CnsSpan::Storage => "cns.storage",
+            CnsSpan::MediaFaceDetection => "cns.mcp.media.face",
         }
     }
 }
@@ -540,6 +549,8 @@ impl std::str::FromStr for CnsSpan {
             "cns.deploy.backup_export" => Ok(CnsSpan::BackupExport),
             "cns.deploy.backup_auto_export" => Ok(CnsSpan::BackupAutoExport),
             "cns.deploy.backup_upload" => Ok(CnsSpan::BackupUpload),
+            "cns.storage" => Ok(CnsSpan::Storage),
+            "cns.mcp.media.face" => Ok(CnsSpan::MediaFaceDetection),
             _ => Err(()),
         }
     }
@@ -684,6 +695,8 @@ mod cns_span_tests {
             CnsSpan::BackupExport,
             CnsSpan::BackupAutoExport,
             CnsSpan::BackupUpload,
+            CnsSpan::Storage,
+            CnsSpan::MediaFaceDetection,
         ];
         // Round-trip test: Display → FromStr → Display must be identity
         for variant in &all_variants {
@@ -710,8 +723,8 @@ mod cns_span_tests {
         // Assert count matches enum variant count (CnsSpan has ~72 variants).
         // If this fails, a new CnsSpan variant was added without updating this test.
         assert!(
-            all_variants.len() >= 69,
-            "CNS span exhaustive test should cover all CnsSpan variants, found {} (expected ≥69)",
+            all_variants.len() >= 71,
+            "CNS span exhaustive test should cover all CnsSpan variants, found {} (expected ≥71)",
             all_variants.len()
         );
     }

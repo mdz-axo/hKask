@@ -296,12 +296,13 @@ impl AlgedonicManager {
 }
 
 /// Construct CnsHealth from the algedonic manager's current state.
-pub(crate) fn cns_health_check(manager: &AlgedonicManager) -> CnsHealth {
+pub(crate) fn cns_health_check(manager: &AlgedonicManager, variety_ema: f64) -> CnsHealth {
     CnsHealth {
         overall_deficit: manager.total_deficit(),
         critical_count: manager.critical_alerts().len(),
         warning_count: manager.alerts().iter().filter(|a| a.is_warning()).count(),
         healthy: manager.critical_alerts().is_empty(),
+        variety_ema,
     }
 }
 

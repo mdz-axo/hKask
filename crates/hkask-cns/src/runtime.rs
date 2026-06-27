@@ -52,6 +52,10 @@ pub(crate) struct VarietyTracker {
     counts: HashMap<String, u64>,
     window_start: Instant,
     window_duration: Duration,
+    /// Exponential moving average of variety over the session.
+    /// Decay factor α = 0.1 per window-reset. Survives the 60s hard-reset
+    /// so the health check can distinguish "spiked and died" from sustained low variety.
+    ema: f64,
 }
 
 impl VarietyTracker {
@@ -60,6 +64,7 @@ impl VarietyTracker {
             counts: HashMap::new(),
             window_start: Instant::now(),
             window_duration: Duration::from_secs(DEFAULT_VARIETY_WINDOW_SECS),
+            ema: 0.0,
         }
     }
 
@@ -70,6 +75,12 @@ impl VarietyTracker {
 
     pub(crate) fn variety(&self) -> u64 {
         self.counts.len() as u64
+    }
+
+    /// Session-level exponential moving average of variety.
+    /// Survives window resets — decays slowly (α = 0.1 per reset).
+    pub(crate) fn variety_ema(&self) -> f64 {
+        self.ema
     }
 
     pub(crate) fn deficit(&self, expected_variety: u64) -> u64 {
@@ -83,6 +94,11 @@ impl VarietyTracker {
     }
 
     pub(crate) fn reset(&mut self) {
+        // Blend current raw variety into the EMA before clearing.
+        // α = 0.1: new EMA = 0.9 × old EMA + 0.1 × current variety.
+        let current = self.counts.len() as f64;
+        const ALPHA: f64 = 0.1;
+        self.ema = (1.0 - ALPHA) * self.ema + ALPHA * current;
         self.counts.clear();
         self.window_start = Instant::now();
     }
@@ -319,9 +335,16 @@ impl CnsRuntime {
     /// post: returns CnsHealth with current state
     pub async fn health(&self) -> CnsHealth {
         let state = self.state.read().await;
+        // Compute sum of EMA variety across all tracked domains.
+        let ema_sum: f64 = state
+            .tracker
+            .counters()
+            .values()
+            .map(|t| t.variety_ema())
+            .sum();
         {
             let mgr = state.algedonic.read();
-            cns_health_check(&mgr)
+            cns_health_check(&mgr, ema_sum)
         }
     }
 

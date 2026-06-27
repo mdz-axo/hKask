@@ -44,11 +44,11 @@ pub enum FalError {
     #[error("Circular dependency detected at node: {0}")]
     CircularDependency(String),
 
-    #[error("Node execution timed out after {0}s")]
-    Timeout(u64),
-
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
+
+    #[error("Workflow must contain at least one run node and one output node")]
+    MissingRequiredNodes,
 }
 
 // ── Workflow types ──────────────────────────────────────────────────────
@@ -102,6 +102,7 @@ impl WorkflowNode {
 
 /// Result of executing a full workflow.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[must_use = "WorkflowResult contains output URLs that should not be discarded"]
 pub struct WorkflowResult {
     /// URLs of generated outputs from the display node.
     pub output_urls: Vec<String>,
@@ -142,13 +143,14 @@ impl FalClient {
     }
 
     /// Override the base URL (for testing or proxies).
+    #[doc(hidden)]
     pub fn with_base_url(mut self, url: String) -> Self {
         self.base_url = url;
         self
     }
 
     /// Set per-request timeout in seconds.
-    pub fn with_timeout(mut self, secs: u64) -> Self {
+    pub(crate) fn with_timeout(mut self, secs: u64) -> Self {
         self.request_timeout_secs = secs;
         self
     }
@@ -165,10 +167,16 @@ impl FalClient {
         // Parse nodes from the flat JSON object
         let nodes = parse_workflow_nodes(workflow)?;
 
+        // Validate required node types
+        validate_workflow_structure(&nodes)?;
+
+        // Build index for O(1) lookup during execution
+        let node_map: HashMap<&str, &WorkflowNode> = nodes.iter().map(|n| (n.id(), n)).collect();
+
         // Topological sort
         let order = topological_sort(&nodes)?;
 
-        tracing::info!(
+        tracing::debug!(
             target: "hkask.fal",
             node_count = nodes.len(),
             execution_order = ?order.iter().map(|id| id.as_str()).collect::<Vec<_>>(),
@@ -181,7 +189,7 @@ impl FalClient {
         let mut output_urls: Vec<String> = Vec::new();
 
         for node_id in &order {
-            let node = nodes.iter().find(|n| n.id() == node_id).ok_or_else(|| {
+            let node = node_map.get(node_id.as_str()).ok_or_else(|| {
                 FalError::InvalidWorkflow(format!("Node '{node_id}' not found in workflow"))
             })?;
 
@@ -216,7 +224,7 @@ impl FalClient {
 
         let elapsed = start.elapsed().as_secs_f64();
 
-        tracing::info!(
+        tracing::debug!(
             target: "hkask.fal",
             output_count = output_urls.len(),
             elapsed_seconds = elapsed,
@@ -259,7 +267,14 @@ impl FalClient {
         let status = response.status();
 
         if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
+            let body = response.text().await.unwrap_or_else(|e| {
+                tracing::warn!(
+                    target: "hkask.fal",
+                    error = %e,
+                    "Failed to read error response body"
+                );
+                format!("(could not read error body: {e})")
+            });
             return Err(FalError::Api {
                 status: status.as_u16(),
                 message: body,
@@ -287,6 +302,27 @@ fn parse_workflow_nodes(workflow: &Value) -> Result<Vec<WorkflowNode>, FalError>
         .collect();
 
     nodes
+}
+
+/// Validate that a workflow has the required node types.
+///
+/// Every workflow must have: at least one input node that declares what the
+/// caller provides, at least one run node that performs work, and at least
+/// one output/display node that collects results. Returns
+/// `MissingRequiredNodes` if any of these are absent.
+fn validate_workflow_structure(nodes: &[WorkflowNode]) -> Result<(), FalError> {
+    let has_input = nodes
+        .iter()
+        .any(|n| matches!(n, WorkflowNode::Input { .. }));
+    let has_run = nodes.iter().any(|n| matches!(n, WorkflowNode::Run { .. }));
+    let has_output = nodes
+        .iter()
+        .any(|n| matches!(n, WorkflowNode::Display { .. }));
+
+    if !has_input || !has_run || !has_output {
+        return Err(FalError::MissingRequiredNodes);
+    }
+    Ok(())
 }
 
 /// Topological sort of workflow nodes by dependency order.
@@ -440,14 +476,18 @@ fn extract_urls(value: &Value) -> Vec<String> {
 fn extract_urls_recursive(value: &Value, urls: &mut Vec<String>) {
     match value {
         Value::String(s) => {
-            let is_image_url = s.starts_with("https://")
+            let is_media_url = s.starts_with("https://")
                 && (s.contains("fal.media")
                     || s.contains(".png")
                     || s.contains(".jpg")
                     || s.contains(".jpeg")
                     || s.contains(".webp")
-                    || s.contains(".gif"));
-            if is_image_url {
+                    || s.contains(".gif")
+                    || s.contains(".mp4")
+                    || s.contains(".mp3")
+                    || s.contains(".svg")
+                    || s.contains(".wav"));
+            if is_media_url {
                 urls.push(s.clone());
             }
         }
@@ -521,19 +561,54 @@ mod tests {
     }
 
     #[test]
-    fn test_reference_resolution() {
+    fn test_reference_resolution_simple_field() {
         let mut results = HashMap::new();
         results.insert(
             "generate".to_string(),
-            serde_json::json!({
-                "images": [{"url": "https://fal.media/output.png", "width": 1024}],
-                "seed": 42
-            }),
+            serde_json::json!({"seed": 42, "model": "flux"}),
         );
-
-        let input = serde_json::json!("$generate.images.0.url");
+        let input = serde_json::json!("$generate.seed");
         let resolved = resolve_references(&input, &results, &["generate".to_string()]).unwrap();
-        assert_eq!(resolved, serde_json::json!("https://fal.media/output.png"));
+        assert_eq!(resolved, serde_json::json!(42));
+    }
+
+    #[test]
+    fn test_reference_resolution_missing_field() {
+        let mut results = HashMap::new();
+        results.insert("generate".to_string(), serde_json::json!({"seed": 42}));
+        let input = serde_json::json!("$generate.nonexistent");
+        let result = resolve_references(&input, &results, &["generate".to_string()]);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("'nonexistent' not found")
+        );
+    }
+
+    #[test]
+    fn test_reference_resolution_nested_object() {
+        let mut results = HashMap::new();
+        results.insert(
+            "gen".to_string(),
+            serde_json::json!({"outer": {"inner": "value"}}),
+        );
+        let input = serde_json::json!("$gen.outer.inner");
+        let resolved = resolve_references(&input, &results, &["gen".to_string()]).unwrap();
+        assert_eq!(resolved, serde_json::json!("value"));
+    }
+
+    #[test]
+    fn test_reference_resolution_in_object_value() {
+        let mut results = HashMap::new();
+        results.insert("input".to_string(), serde_json::json!({"text": "a cat"}));
+        let input = serde_json::json!({"prompt": "$input.text", "size": "square_hd"});
+        let resolved = resolve_references(&input, &results, &["input".to_string()]).unwrap();
+        assert_eq!(
+            resolved,
+            serde_json::json!({"prompt": "a cat", "size": "square_hd"})
+        );
     }
 
     #[test]
@@ -548,5 +623,32 @@ mod tests {
         });
         let urls = extract_urls(&value);
         assert_eq!(urls.len(), 2);
+    }
+
+    #[test]
+    fn test_missing_required_nodes_rejected() {
+        // Workflow with no run node — should fail validation
+        let workflow = serde_json::json!({
+            "input": { "id": "input", "type": "input", "depends": [], "input": {} },
+            "output": { "id": "output", "type": "display", "depends": ["input"], "fields": {} }
+        });
+        let nodes = parse_workflow_nodes(&workflow).unwrap();
+        let result = validate_workflow_structure(&nodes);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            FalError::MissingRequiredNodes
+        ));
+    }
+
+    #[test]
+    fn test_valid_workflow_passes_validation() {
+        let workflow = serde_json::json!({
+            "input": { "id": "input", "type": "input", "depends": [], "input": {} },
+            "generate": { "id": "generate", "type": "run", "depends": ["input"], "app": "test", "input": {} },
+            "output": { "id": "output", "type": "display", "depends": ["generate"], "fields": {} }
+        });
+        let nodes = parse_workflow_nodes(&workflow).unwrap();
+        assert!(validate_workflow_structure(&nodes).is_ok());
     }
 }
