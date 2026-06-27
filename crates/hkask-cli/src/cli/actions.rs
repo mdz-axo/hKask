@@ -1067,5 +1067,3 @@ pub enum AdapterAction {
     },
 }
 
-/// QA actions — fuzz triage, mutation analysis, and autonomous interactive scripts
-#[derive(Debug, Subcommand)]
