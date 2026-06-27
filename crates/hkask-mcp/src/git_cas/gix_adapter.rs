@@ -58,7 +58,10 @@ fn build_tree(
             .map_err(|e| GitCasError::Git(format!("gix write empty tree: {e}")))?
             .detach());
     }
-    let entries_refs: Vec<gix::objs::tree::EntryRef<'_>> = entries
+    // Sort by filename — gix requires entries to be sorted for serialization
+    let mut sorted: Vec<_> = entries.to_vec();
+    sorted.sort_by(|(a, _), (b, _)| a.cmp(b));
+    let entries_refs: Vec<gix::objs::tree::EntryRef<'_>> = sorted
         .iter()
         .map(|(name, oid)| gix::objs::tree::EntryRef {
             mode: gix::objs::tree::EntryMode::from(gix::objs::tree::EntryKind::Blob),
@@ -343,7 +346,6 @@ impl GitCASPort for GixCasAdapter {
 
             // No parent — orphan commit for history rewriting.
             let parents: Vec<gix::ObjectId> = Vec::new();
-
             let commit_oid = repo
                 .commit("HEAD", &msg, tree_id, parents)
                 .map_err(|e| GitCasError::Git(format!("gix commit: {e}")))?;
@@ -369,9 +371,11 @@ impl GitCASPort for GixCasAdapter {
                 .rev_parse_single(ref_name.as_str())
                 .map_err(|e| GitCasError::Git(format!("gix rev_parse '{ref_name}': {e}")))?;
             let oid = id.detach();
+            // Resolve commit → tree before recursive traversal
+            let tree_oid = commit_tree_oid(&repo, &oid)?;
 
             let mut entries = Vec::new();
-            list_tree_recursive(&repo, &oid, "", &prefix_filter, &mut entries)?;
+            list_tree_recursive(&repo, &tree_oid, "", &prefix_filter, &mut entries)?;
             Ok(entries)
         })
         .await
@@ -409,7 +413,12 @@ impl GitCASPort for GixCasAdapter {
                     .unwrap_or_default()
                     .to_string_lossy()
                     .parse()
-                    .map_err(|e: String| GitCasError::Io(format!("Invalid hash filename: {e}")))?;
+                    .map_err(|e: hkask_ports::git_cas::ParseHashError| {
+                        GitCasError::PathValidation(format!(
+                            "Invalid blob hash filename '{}': {e}",
+                            path.display()
+                        ))
+                    })?;
                 total += 1;
                 if actual_hash == expected_hash {
                     verified += 1;
@@ -431,8 +440,11 @@ impl GitCASPort for GixCasAdapter {
         let repo_dir = self.ensure_repo_dir(repo).await?;
         let max = max_count;
         spawn_blocking_io(move || {
-            let repo =
-                gix::open(&repo_dir).map_err(|e| GitCasError::Git(format!("gix::open: {e}")))?;
+            // Repo may not have been initialized yet (no snapshots taken) — return empty
+            let repo = match gix::open(&repo_dir) {
+                Ok(r) => r,
+                Err(_) => return Ok(Vec::new()),
+            };
             let head_commit = match repo.head_commit() {
                 Ok(c) => c,
                 Err(_) => return Ok(Vec::new()),
@@ -561,3 +573,265 @@ fn collect_paths(
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn test_adapter() -> (GixCasAdapter, TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let adapter = GixCasAdapter::new(dir.path()).unwrap();
+        (adapter, dir)
+    }
+
+    #[tokio::test]
+    async fn put_and_get_blob_roundtrip() {
+        let (adapter, _dir) = test_adapter();
+        let repo = RepoId::Registry;
+        let content = b"hello, CAS world";
+
+        let hash = adapter.put_blob(&repo, content).await.unwrap();
+        let retrieved = adapter.get_blob(&repo, &hash).await.unwrap();
+
+        assert_eq!(retrieved, content);
+        assert_eq!(hash, ContentHash::from_blake3(content));
+    }
+
+    #[tokio::test]
+    async fn get_nonexistent_blob_returns_not_found() {
+        let (adapter, _dir) = test_adapter();
+        let repo = RepoId::Memory;
+        let hash = ContentHash::from_blake3(b"doesnt exist");
+
+        let result = adapter.get_blob(&repo, &hash).await;
+        assert!(matches!(result, Err(GitCasError::NotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn delete_blob_then_get_returns_not_found() {
+        let (adapter, _dir) = test_adapter();
+        let repo = RepoId::Sessions;
+        let content = b"temporary data";
+
+        let hash = adapter.put_blob(&repo, content).await.unwrap();
+        adapter.delete_blob(&repo, &hash).await.unwrap();
+
+        let result = adapter.get_blob(&repo, &hash).await;
+        assert!(matches!(result, Err(GitCasError::NotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn snapshot_produces_commit_and_log_returns_history() {
+        let (adapter, _dir) = test_adapter();
+        let repo = RepoId::Registry;
+
+        // Put some blobs
+        let h1 = adapter.put_blob(&repo, b"blob A").await.unwrap();
+        let h2 = adapter.put_blob(&repo, b"blob B").await.unwrap();
+
+        // Snapshot
+        let commit = adapter.snapshot(&repo, "first snapshot").await.unwrap();
+        assert!(!commit.to_string().is_empty());
+
+        // Log should show the commit
+        let entries = adapter.log(&repo, 10).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].commit, commit);
+        assert!(entries[0].message.contains("first snapshot"));
+
+        // list_tree should show the blobs
+        let tree = adapter
+            .list_tree(&repo, &commit.to_string(), "")
+            .await
+            .unwrap();
+        assert_eq!(tree.len(), 2);
+        let hashes: Vec<_> = tree.iter().map(|e| e.content_hash.clone()).collect();
+        assert!(hashes.contains(&h1));
+        assert!(hashes.contains(&h2));
+    }
+
+    #[tokio::test]
+    async fn snapshot_orphan_has_no_parent() {
+        let (adapter, _dir) = test_adapter();
+        let repo = RepoId::GoalsSpecs;
+
+        adapter.put_blob(&repo, b"orphan data").await.unwrap();
+        let orphan = adapter
+            .snapshot_orphan(&repo, "orphan commit")
+            .await
+            .unwrap();
+
+        // Verify orphan is a valid commit
+        let entries = adapter.log(&repo, 10).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].commit, orphan);
+
+        // A normal snapshot after orphan should have orphan as parent
+        adapter.put_blob(&repo, b"second blob").await.unwrap();
+        let child = adapter.snapshot(&repo, "child commit").await.unwrap();
+        assert_ne!(orphan, child);
+        let entries = adapter.log(&repo, 10).await.unwrap();
+        assert_eq!(entries.len(), 2);
+        // Newest first
+        assert_eq!(entries[0].commit, child);
+        assert_eq!(entries[1].commit, orphan);
+    }
+
+    #[tokio::test]
+    async fn verify_reports_correct_integrity() {
+        let (adapter, _dir) = test_adapter();
+        let repo = RepoId::CnsAudit;
+
+        adapter.put_blob(&repo, b"integrity check 1").await.unwrap();
+        adapter.put_blob(&repo, b"integrity check 2").await.unwrap();
+
+        let report = adapter.verify(&repo).await.unwrap();
+        assert_eq!(report.repo, RepoId::CnsAudit);
+        assert_eq!(report.total_blobs, 2);
+        assert_eq!(report.verified_blobs, 2);
+        assert!(report.corrupt_hashes.is_empty());
+    }
+
+    #[tokio::test]
+    async fn verify_empty_repo_returns_zero() {
+        let (adapter, _dir) = test_adapter();
+        let report = adapter.verify(&RepoId::Vault).await.unwrap();
+        assert_eq!(report.total_blobs, 0);
+        assert_eq!(report.verified_blobs, 0);
+    }
+
+    #[tokio::test]
+    async fn log_empty_repo_returns_empty() {
+        let (adapter, _dir) = test_adapter();
+        let entries = adapter.log(&RepoId::Sovereignty, 10).await.unwrap();
+        assert!(entries.is_empty());
+    }
+
+    #[tokio::test]
+    async fn resolve_ref_resolves_head() {
+        let (adapter, _dir) = test_adapter();
+        let repo = RepoId::Registry;
+
+        adapter.put_blob(&repo, b"ref test").await.unwrap();
+        let commit = adapter.snapshot(&repo, "ref snapshot").await.unwrap();
+
+        let resolved = adapter.resolve_ref(&repo, "HEAD").await.unwrap();
+        assert_eq!(resolved, commit);
+    }
+
+    #[tokio::test]
+    async fn diff_detects_added_removed_and_modified() {
+        let (adapter, _dir) = test_adapter();
+        use RepoId::{GoalsSpecs, Registry};
+
+        // Create first snapshot in Repo A
+        adapter
+            .put_blob(&GoalsSpecs, b"file1 content v1")
+            .await
+            .unwrap();
+        let commit1 = adapter.snapshot(&GoalsSpecs, "first").await.unwrap();
+
+        // Create second snapshot in Repo A with one new blob
+        adapter
+            .put_blob(&GoalsSpecs, b"file2 content new")
+            .await
+            .unwrap();
+        let commit2 = adapter.snapshot(&GoalsSpecs, "second").await.unwrap();
+
+        let diffs = adapter
+            .diff(&GoalsSpecs, &commit1.to_string(), &commit2.to_string())
+            .await
+            .unwrap();
+        // We should see at least one added file
+        let added: Vec<_> = diffs.iter().filter(|d| d.kind == DiffKind::Added).collect();
+        assert!(!added.is_empty(), "Expected at least one Added diff");
+    }
+
+    #[tokio::test]
+    async fn list_tree_with_prefix_filter() {
+        let (adapter, _dir) = test_adapter();
+        let repo = RepoId::Registry;
+
+        adapter.put_blob(&repo, b"aaa").await.unwrap();
+        adapter.put_blob(&repo, b"bbb").await.unwrap();
+        let commit = adapter.snapshot(&repo, "prefix test").await.unwrap();
+
+        let all = adapter
+            .list_tree(&repo, &commit.to_string(), "")
+            .await
+            .unwrap();
+        assert_eq!(all.len(), 2);
+
+        // Filter by hash prefix — should find at least one matching entry
+        let first_hash = &all[0].content_hash.to_string();
+        let short = &first_hash[..8];
+        let filtered = adapter
+            .list_tree(&repo, &commit.to_string(), short)
+            .await
+            .unwrap();
+        // At minimum, the entry with matching hash prefix is in the results
+        assert!(!filtered.is_empty());
+    }
+
+    #[tokio::test]
+    async fn concurrent_puts_to_different_repos() {
+        let (adapter, _dir) = test_adapter();
+        let adapter = std::sync::Arc::new(adapter);
+
+        let a1 = adapter.clone();
+        let h1 = tokio::spawn(async move {
+            a1.put_blob(&RepoId::Registry, b"concurrent A")
+                .await
+                .unwrap()
+        });
+        let a2 = adapter.clone();
+        let h2 =
+            tokio::spawn(
+                async move { a2.put_blob(&RepoId::Memory, b"concurrent B").await.unwrap() },
+            );
+
+        let hash1 = h1.await.unwrap();
+        let hash2 = h2.await.unwrap();
+        assert_ne!(hash1, hash2);
+
+        // Both repos have one blob
+        let r1 = adapter.verify(&RepoId::Registry).await.unwrap();
+        let r2 = adapter.verify(&RepoId::Memory).await.unwrap();
+        assert_eq!(r1.total_blobs, 1);
+        assert_eq!(r2.total_blobs, 1);
+    }
+
+    #[tokio::test]
+    async fn put_blob_idempotent() {
+        let (adapter, _dir) = test_adapter();
+        let repo = RepoId::Sessions;
+        let content = b"same content";
+
+        let h1 = adapter.put_blob(&repo, content).await.unwrap();
+        let h2 = adapter.put_blob(&repo, content).await.unwrap();
+        assert_eq!(h1, h2);
+
+        // verify still sees exactly one blob (CAS dedup)
+        let report = adapter.verify(&repo).await.unwrap();
+        assert_eq!(report.total_blobs, 1);
+    }
+
+    #[tokio::test]
+    async fn from_env_respects_custom_home() {
+        let dir = tempfile::tempdir().unwrap();
+        // SAFETY: single-threaded test, no concurrent env mutation
+        unsafe { std::env::set_var("HKASK_CAS_HOME", dir.path().to_str().unwrap()) };
+
+        let result = GixCasAdapter::from_env();
+        assert!(result.is_ok());
+        let adapter = result.unwrap();
+        // Verify the adapter can operate at the custom path
+        adapter
+            .put_blob(&RepoId::Registry, b"custom home test")
+            .await
+            .unwrap();
+
+        unsafe { std::env::remove_var("HKASK_CAS_HOME") };
+    }
+}

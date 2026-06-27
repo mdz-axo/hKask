@@ -225,6 +225,10 @@ pub struct MetacognitionLoop {
     /// After 3 consecutive failures, skip template for 5 cycles.
     consecutive_template_failures: std::sync::atomic::AtomicU64,
     template_skip_remaining: std::sync::atomic::AtomicU64,
+    /// Persona name for communication posture evaluation.
+    curator_name: String,
+    /// Convergence bias for CAT decision evaluation.
+    convergence_bias: f64,
 }
 
 impl MetacognitionLoop {
@@ -250,6 +254,8 @@ impl MetacognitionLoop {
             last_template_output: RwLock::new(None),
             consecutive_template_failures: std::sync::atomic::AtomicU64::new(0),
             template_skip_remaining: std::sync::atomic::AtomicU64::new(0),
+            curator_name: "curator".to_string(),
+            convergence_bias: 0.5,
         }
     }
 
@@ -282,7 +288,21 @@ impl MetacognitionLoop {
             last_template_output: RwLock::new(None),
             consecutive_template_failures: std::sync::atomic::AtomicU64::new(0),
             template_skip_remaining: std::sync::atomic::AtomicU64::new(0),
+            curator_name: "curator".to_string(),
+            convergence_bias: 0.5,
         }
+    }
+
+    /// Builder: set the communication posture (persona name and convergence bias).
+    pub fn with_communication_posture(mut self, name: String, bias: f64) -> Self {
+        self.curator_name = name;
+        self.convergence_bias = bias;
+        self
+    }
+
+    /// Access the metacognition configuration.
+    pub fn config(&self) -> &MetacognitionConfig {
+        &self.config
     }
 
     /// Get current bot status reports.
@@ -650,9 +670,9 @@ impl MetacognitionLoop {
         let mut actions = Vec::new();
         let comm_events = self.context.drain_communication_events().await;
         if !comm_events.is_empty() {
-            let curator_name = "curator";
+            let curator_name = &self.curator_name;
             for event in &comm_events {
-                let bias: f64 = 0.5; // default curator bias
+                let bias = self.convergence_bias;
                 let decision = cat::evaluate(bias, curator_name, event);
                 if let cat::Decision::Speak { convergence_level } = decision {
                     let sender = event
@@ -699,22 +719,30 @@ impl MetacognitionLoop {
                                     .and_then(|v| v.as_str())
                                     .unwrap_or("");
                                 if !response_body.is_empty() {
-                                    actions.push(LoopAction::new(
-                                        hkask_cns::types::loops::LoopId::Curation,
-                                        hkask_cns::types::loops::ActionType::Notify,
-                                        serde_json::json!({
-                                            "action": "communication_respond",
-                                            "room_id": room_id,
-                                            "response_body": response_body,
-                                            "template": "metacognition-respond",
-                                        }),
-                                    ));
-                                    tracing::info!(
-                                        target: MC_TARGET,
-                                        sender = %sender,
-                                        room_id = %room_id,
-                                        "Communication response composed via CAT template"
-                                    );
+                                    let tool_input = serde_json::json!({
+                                        "room_id": room_id,
+                                        "body": response_body,
+                                    });
+                                    match executor
+                                        .call_tool("communication/send_message", tool_input)
+                                        .await
+                                    {
+                                        Ok(_) => {
+                                            tracing::info!(
+                                                target: MC_TARGET,
+                                                sender = %sender,
+                                                room_id = %room_id,
+                                                "Communication response sent via MCP"
+                                            );
+                                        }
+                                        Err(e) => {
+                                            tracing::warn!(
+                                                target: MC_TARGET,
+                                                error = %e,
+                                                "Failed to send communication response via MCP"
+                                            );
+                                        }
+                                    }
                                 }
                             }
                         }

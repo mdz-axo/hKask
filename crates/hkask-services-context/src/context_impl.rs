@@ -993,7 +993,8 @@ async fn build_loops(
                 .expect("curation_inbox_rx consumed once"),
         ),
         Some(f.curation_inbox_tx.clone()),
-    );
+    )
+    .with_communication_posture(config.agent_name.clone(), 0.5);
     let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
     loop_system.register_loop(curation_loop).await;
 

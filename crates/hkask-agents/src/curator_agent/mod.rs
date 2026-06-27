@@ -69,10 +69,13 @@ impl CuratorAgent {
     /// post: Returns a `CuratorAgent` with default `MetacognitionConfig`,
     ///       a new `CurationLoop`, and a default `DefaultSpecCurator`.
     pub fn new(context: Arc<CuratorContext>) -> Self {
-        let metacognition = Arc::new(metacognition::MetacognitionLoop::new(
-            Arc::clone(&context),
-            metacognition::MetacognitionConfig::default(),
-        ));
+        let metacognition = Arc::new(
+            metacognition::MetacognitionLoop::new(
+                Arc::clone(&context),
+                metacognition::MetacognitionConfig::default(),
+            )
+            .with_communication_posture("curator".into(), 0.5),
+        );
         let curator_handle = context.handle().clone();
         let curation_loop = Arc::new(CurationLoop::new(curator_handle, Arc::clone(&context)));
 
@@ -98,10 +101,10 @@ impl CuratorAgent {
         context: Arc<CuratorContext>,
         config: metacognition::MetacognitionConfig,
     ) -> Self {
-        let metacognition = Arc::new(metacognition::MetacognitionLoop::new(
-            Arc::clone(&context),
-            config,
-        ));
+        let metacognition = Arc::new(
+            metacognition::MetacognitionLoop::new(Arc::clone(&context), config)
+                .with_communication_posture("curator".into(), 0.5),
+        );
         let curator_handle = context.handle().clone();
         let curation_loop = Arc::new(CurationLoop::new(curator_handle, Arc::clone(&context)));
 
@@ -138,10 +141,10 @@ impl CuratorAgent {
         inbox_rx: Option<tokio::sync::mpsc::UnboundedReceiver<CurationInput>>,
         inbox_tx: Option<tokio::sync::mpsc::UnboundedSender<CurationInput>>,
     ) -> Self {
-        let metacognition = Arc::new(metacognition::MetacognitionLoop::new(
-            Arc::clone(&context),
-            config,
-        ));
+        let metacognition = Arc::new(
+            metacognition::MetacognitionLoop::new(Arc::clone(&context), config)
+                .with_communication_posture("curator".into(), 0.5),
+        );
         let curator_handle = context.handle().clone();
         let mut curation_loop =
             CurationLoop::with_consolidation(curator_handle, Arc::clone(&context), consolidation);
@@ -212,6 +215,21 @@ impl CuratorAgent {
         link_manager: Arc<dyn hkask_ports::federation::FederationDispatch>,
     ) -> Self {
         self.link_manager = Some(link_manager);
+        self
+    }
+
+    /// Set communication posture for the metacognition loop (CAT framework).
+    ///
+    /// Creates a new `MetacognitionLoop` with the given persona name and
+    /// convergence bias, using the existing config and context.
+    pub fn with_communication_posture(mut self, name: String, bias: f64) -> Self {
+        self.metacognition = Arc::new(
+            metacognition::MetacognitionLoop::new(
+                Arc::clone(&self.context),
+                self.metacognition.config().clone(),
+            )
+            .with_communication_posture(name, bias),
+        );
         self
     }
 

@@ -84,6 +84,12 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 | **logo-builder** | Template | Pragmatic logo design using LLM-assisted generation. 3-phase pipeline. [no registry manifest] |
 | **qa-script-builder** | Template | Design and generate autonomous QA pipeline manifests. 5-phase pipeline. [no registry manifest] |
 
+### Infrastructure
+
+| Crate | Capabilities |
+|-------|-------------|
+| `hkask-communication` | Matrix transport, agent registry, 7R7 listener, CNS bridge (communication events flow to curation), CAT engagement gate |
+
 ---
 
 ## Prohibitions
@@ -129,7 +135,7 @@ Preferred auxiliary tooling:
 | Curator metacognition | `crates/hkask-agents/src/curator_agent/metacognition.rs` |
 | KnowAct templates (wired) | `registry/templates/curator/metacognition-diagnose.j2`, `metacognition-escalate.j2` |
 | Template self-healing (design) | `docs/architecture/ADRs/template-self-healing.md` |
-| Matrix administration (design) | `docs/architecture/ADRs/matrix-server-administration.md` |
+| Matrix administration (self-healing registration, CNS spans, design gaps) | `docs/architecture/ADRs/matrix-server-administration.md` |
 
 ---
 

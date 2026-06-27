@@ -133,7 +133,12 @@ impl HkaskLoop for BackupLoop {
     }
 
     /// Compare: detect if snapshot is overdue.
+    /// Dampener: skip if last attempt failed within the past hour.
     async fn compare(&self, signals: &[Signal]) -> Vec<Deviation> {
+        // Dampener: don't produce deviations after a recent failure
+        if !self.is_snapshot_due() {
+            return Vec::new();
+        }
         signals
             .iter()
             .filter(|s| {
@@ -158,16 +163,16 @@ impl HkaskLoop for BackupLoop {
     }
 
     /// Act: run daily snapshot, then optionally verify and prune.
+    /// Dampener is applied in compare() — actions produced by compute() are always executed.
     async fn act(&self, actions: &[LoopAction]) {
         if actions.is_empty() || !self.auto_snapshot_enabled() {
             return;
         }
 
-        if !self.is_snapshot_due() {
-            return;
-        }
-
-        info!(target: "cns.backup", "CNS");
+        info!(
+            target: "cns.backup",
+            "Daily backup: starting snapshot + optional verify/prune"
+        );
 
         // 1. Produce: push current subsystem state into CAS
         // Clone Arc'd producers to avoid holding RwLockReadGuard across .await
@@ -182,7 +187,9 @@ impl HkaskLoop for BackupLoop {
                             target: "cns.backup",
                             produced = count,
                             types = ?producer.artifact_types(),
-                            "CNS"
+                            "Backup produce: {} artifacts of types {:?}",
+                            count,
+                            producer.artifact_types()
                         );
                     }
                     total_produced += count;
@@ -192,7 +199,9 @@ impl HkaskLoop for BackupLoop {
                         target: "cns.backup",
                         error = %e,
                         types = ?producer.artifact_types(),
-                        "CNS"
+                        "Backup produce failed for {:?}: {}",
+                        producer.artifact_types(),
+                        e
                     );
                 }
             }
@@ -201,7 +210,8 @@ impl HkaskLoop for BackupLoop {
             info!(
                 target: "cns.backup",
                 total_produced = total_produced,
-                "CNS"
+                "Backup produce: {} total artifacts produced",
+                total_produced
             );
         }
 
@@ -212,7 +222,8 @@ impl HkaskLoop for BackupLoop {
                     target: "cns.backup",
                     artifact_count = metadata.artifact_count.unwrap_or(0),
                     repos = metadata.commits.len(),
-                    "CNS"
+                    "Backup snapshot completed: {} repos",
+                    metadata.commits.len()
                 );
                 self.record_snapshot();
 
@@ -226,7 +237,8 @@ impl HkaskLoop for BackupLoop {
                                 warn!(
                                     target: "cns.backup",
                                     corrupt_blobs = corrupt,
-                                    "CNS"
+                                    "Backup verify: {} corrupt blobs detected",
+                                    corrupt
                                 );
                             }
                         }
@@ -257,7 +269,8 @@ impl HkaskLoop for BackupLoop {
                             warn!(
                                 target: "cns.backup",
                                 error = %e,
-                                "CNS"
+                                "Backup prune failed: {}",
+                                e
                             );
                         }
                     }
@@ -267,7 +280,8 @@ impl HkaskLoop for BackupLoop {
                 warn!(
                     target: "cns.backup",
                     error = %e,
-                    "CNS"
+                    "Backup snapshot failed: {}",
+                    e
                 );
                 self.record_failure();
             }

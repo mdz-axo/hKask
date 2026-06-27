@@ -8,7 +8,7 @@
 //! retention pruning, CNS alerting) on top of the content-addressed git storage
 //! provided by [`hkask_ports::git_cas::GitCASPort`].
 //!
-//! Public API (7 operations, per essentialist G2):
+//! Public API (7 core operations + pod ops + lifecycle, per essentialist G2):
 //! 1. `snapshot` — capture artifact state to git
 //! 2. `restore` — restore artifacts from a prior snapshot
 //! 3. `list` — list snapshot history
@@ -16,6 +16,10 @@
 //! 5. `verify` — integrity check with CNS alerting
 //! 6. `config` — get current backup configuration
 //! 7. `update_config` — update backup configuration
+//! + `enable_encryption` — enable at-rest encryption
+//! + `run_daily_snapshot` — automated daily snapshot (called by BackupLoop)
+//! + `scoped_restore` — scoped restore with CNS context logging
+//! + `pod_ops` — factory for PodBackupOps (revert, spawn_agent)
 //!
 //! Pod-level operations (`revert`, `spawn_agent`) live in [`super::pod_ops::PodBackupOps`];
 //! construct via [`BackupService::pod_ops`].
@@ -42,7 +46,7 @@ use tracing::{info, instrument, warn};
 /// Errors specific to backup operations.
 ///
 /// Composes with [`GitCasError`] for CAS-level failures and adds
-/// backup-specific error states (config, serialization, CNS).
+/// backup-specific error states (config, serialization, CNS, IO).
 #[derive(Debug, thiserror::Error)]
 pub enum BackupError {
     /// Underlying CAS operation failed.
@@ -56,6 +60,10 @@ pub enum BackupError {
     /// Configuration is invalid or missing.
     #[error("Configuration error: {0}")]
     Config(String),
+
+    /// Filesystem I/O error during backup operations.
+    #[error("I/O error: {0}")]
+    Io(String),
 
     /// CNS alerting failed (non-fatal — backup succeeded but alert didn't fire).
     #[error("CNS alert error: {0}")]
@@ -250,10 +258,9 @@ impl BackupService {
             }
             let repo_id = artifact_type.repo_id();
 
-            // Encrypt if configured. AAD binds blob to artifact identity.
-            let encrypted = if self.encryption_key.is_some() {
-                let aad = format!("{}/{}", artifact_type.label(), artifact_id).into_bytes();
-                encrypt_blob(&self.encryption_key, bytes, &aad)?
+            // Encrypt if configured
+            let encrypted = if let Some(ref key) = self.encryption_key {
+                encrypt_blob(key, bytes, &[])?
             } else {
                 bytes.clone()
             };
@@ -292,7 +299,9 @@ impl BackupService {
             artifact_count = artifact_count,
             repo_count = by_repo.len(),
             duration_ms = duration_ms,
-            "CNS"
+            "Backup snapshot: {} artifacts across {} repos",
+            artifact_count,
+            by_repo.len()
         );
 
         Ok(SnapshotMetadata {
@@ -330,11 +339,11 @@ impl BackupService {
                 let raw = self.cas.get_blob(repo_id, &entry.content_hash).await?;
 
                 // Decrypt if encrypted. Empty AAD — trusted read-back from our own CAS.
-                let blob = if self.encryption_key.is_some() {
-                    decrypt_blob(&self.encryption_key, &raw, &[])
+                let blob = if let Some(ref key) = self.encryption_key {
+                    decrypt_blob(key, &raw, &[])
                 } else {
-                    raw
-                };
+                    Ok(raw)
+                }?;
 
                 // Parse the envelope to extract artifact type and ID
                 let envelope: crate::serialization::ArtifactEnvelopeValue =
@@ -526,7 +535,9 @@ impl BackupService {
             repo = %repo_id.dir_name(),
             new_head = %new_commit,
             deleted = pruned_hashes.len() - retained_hashes.intersection(&pruned_hashes).count(),
-            "CNS"
+            "Backup prune: history rewritten for {}, {} blobs removed",
+            repo_id.dir_name(),
+            pruned_hashes.len().saturating_sub(retained_hashes.intersection(&pruned_hashes).count())
         );
 
         Ok(())
@@ -562,7 +573,10 @@ impl BackupService {
                     repo = %repo_id.dir_name(),
                     corrupt = report.corrupt_hashes.len(),
                     total = report.total_blobs,
-                    "CNS"
+                    "Backup verify repo '{}': {}/{} corrupt",
+                    repo_id.dir_name(),
+                    report.corrupt_hashes.len(),
+                    report.total_blobs
                 );
             }
             reports.push(report);
@@ -578,14 +592,18 @@ impl BackupService {
                 repo_count = repos.len(),
                 total_blobs = total_blobs,
                 corrupt_count = corrupt_count,
-                "CNS"
+                "Backup verify: {} corrupt blobs across {} repos",
+                corrupt_count,
+                repos.len()
             );
         } else {
             info!(
                 target: "cns.backup",
                 repo_count = repos.len(),
                 total_blobs = total_blobs,
-                "CNS"
+                "Backup verify: all {} blobs intact across {} repos",
+                total_blobs,
+                repos.len()
             );
         }
 
@@ -642,25 +660,37 @@ impl BackupService {
         Ok(())
     }
 
-    /// Run a daily backup snapshot of all tracked artifact types.
+    /// Run a daily backup snapshot of all tracked artifact repos.
     /// Called by the backup scheduler (daemon loop).
     ///
-    /// Snapshots ALL repos (not just tracked types) because artifact
-    /// producers may push blobs to any repo. The tracking config controls
-    /// which types are collected, not which repos are committed.
+    /// Only snapshots repos that have currently-tracked artifact types —
+    /// untracked repos are skipped to respect the user's backup config.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  auto_snapshot must be enabled in config
-    /// post: returns SnapshotMetadata from full snapshot of all repos;
+    /// post: returns SnapshotMetadata from snapshot of tracked repos;
     ///       Err on CAS failure
     pub async fn run_daily_snapshot(&self) -> Result<SnapshotMetadata, BackupError> {
         self.acquire_gate()?;
         let _guard = GateGuard { service: self };
-        info!(target: "cns.backup", "CNS");
+        let repos = self.tracked_repos();
+        if repos.is_empty() {
+            return Ok(SnapshotMetadata {
+                commits: Vec::new(),
+                artifact_count: Some(0),
+                trigger: Some(SnapshotTrigger::Auto),
+                timestamp: Utc::now(),
+            });
+        }
+        info!(
+            target: "cns.backup",
+            repo_count = repos.len(),
+            "Daily snapshot: starting for {} tracked repos",
+            repos.len()
+        );
 
-        let repos = hkask_ports::git_cas::RepoId::all();
         let mut commits = Vec::new();
-        for repo_id in repos {
+        for repo_id in &repos {
             let message = format!(
                 "backup: daily snapshot — {}",
                 Utc::now().format("%Y-%m-%d %H:%M:%S")
@@ -673,7 +703,8 @@ impl BackupService {
             target: "cns.backup",
             repo_count = repos.len(),
             operation = "daily_snapshot",
-            "CNS"
+            "Daily snapshot: completed for {} repos",
+            repos.len()
         );
 
         Ok(SnapshotMetadata {
@@ -700,13 +731,13 @@ impl BackupService {
     ) -> Result<Vec<(ArtifactType, String, Vec<u8>)>, BackupError> {
         match &scope {
             RestoreScope::Full => {
-                info!(target: "cns.backup", commit=%target, "CNS");
+                info!(target: "cns.backup", commit=%target, "Backup restore: full system restore");
             }
             RestoreScope::ByType(at) => {
-                info!(target: "cns.backup", commit=%target, artifact_type=%at.label(), "CNS");
+                info!(target: "cns.backup", commit=%target, artifact_type=%at.label(), "Backup restore: type={}", at.label());
             }
             RestoreScope::ByIds { artifact_type, ids } => {
-                info!(target: "cns.backup", commit=%target, artifact_type=%artifact_type.label(), ids=?ids, "CNS");
+                info!(target: "cns.backup", commit=%target, artifact_type=%artifact_type.label(), ids=?ids, "Backup restore: type={} ids={:?}", artifact_type.label(), ids);
             }
         }
         self.restore(target, scope).await
@@ -785,22 +816,12 @@ const ENCRYPTION_VERSION: u8 = 0x01;
 /// Format: [version: u8 || nonce: [u8; 12] || ciphertext+tag]
 ///
 /// `aad` (additional authenticated data) binds the ciphertext to a specific
-/// artifact identity - prevents cross-artifact blob swapping.
-/// Encrypt blob content with AES-256-GCM.
-/// Returns (nonce_bytes || ciphertext).
+/// artifact identity — prevents cross-artifact blob swapping.
 pub(crate) fn encrypt_blob(
-    key: &Option<[u8; 32]>,
+    key: &[u8; 32],
     data: &[u8],
     aad: &[u8],
 ) -> Result<Vec<u8>, BackupError> {
-    let key = key.as_ref().ok_or_else(|| {
-        warn!(
-            target: "cns.backup",
-            operation = "encryption.encrypt_failed",
-            "Encryption not configured"
-        );
-        BackupError::Encryption("Encryption not configured".into())
-    })?;
     let cipher = Aes256Gcm::new_from_slice(key)
         .map_err(|e| BackupError::Encryption(format!("AES init: {e}")))?;
     let mut nonce_bytes = [0u8; 12];
@@ -825,18 +846,10 @@ pub(crate) fn encrypt_blob(
 /// Decrypt blob content.
 /// Expects (nonce_bytes || ciphertext).
 pub(crate) fn decrypt_blob(
-    key: &Option<[u8; 32]>,
+    key: &[u8; 32],
     data: &[u8],
     aad: &[u8],
 ) -> Result<Vec<u8>, BackupError> {
-    let key = key.as_ref().ok_or_else(|| {
-        warn!(
-            target: "cns.backup",
-            operation = "encryption.decrypt_failed",
-            "Encryption not configured"
-        );
-        BackupError::Encryption("Encryption not configured".into())
-    })?;
     const HEADER_LEN: usize = 1 + 12; // version + nonce
     if data.len() < HEADER_LEN {
         return Err(BackupError::Encryption(format!(
@@ -1103,6 +1116,46 @@ mod tests {
         assert_eq!(spawned_state, source_state);
         assert_eq!(report.source_pod_id, "source-pod");
         assert_eq!(report.new_pod_id, "spawned-pod");
+    }
+
+    #[tokio::test]
+    async fn encryption_roundtrip_snapshot_to_restore() {
+        // Set env var BEFORE construction so derive_key runs on new()
+        unsafe { std::env::set_var("HKASK_BACKUP_PASSPHRASE", "test-passphrase-for-roundtrip") };
+        let mock = Arc::new(MockGitCas::new());
+        let mut config = test_config();
+        config.encryption = Some(crate::config::EncryptionConfig {
+            salt_hex: hex::encode(b"fixed-salt-for-testing-12345678"),
+            memory_kb: 19456,
+            iterations: 2,
+        });
+        let svc = BackupService::new(mock.clone(), config);
+
+        let payload = serde_json::json!({"name": "encrypted-template"});
+        let data = serialize_artifact(&ArtifactType::Template, "enc-tpl-1", &payload).unwrap();
+        let artifacts = vec![(ArtifactType::Template, "enc-tpl-1".to_string(), data)];
+
+        let snap = svc
+            .snapshot(BackupScope::ByType(ArtifactType::Template), &artifacts)
+            .await
+            .unwrap();
+        let commit = &snap.commits[0].1;
+
+        let restored = svc
+            .restore(commit, RestoreScope::ByType(ArtifactType::Template))
+            .await
+            .unwrap();
+        assert_eq!(restored.len(), 1);
+        assert_eq!(restored[0].0, ArtifactType::Template);
+        assert_eq!(restored[0].1, "enc-tpl-1");
+
+        let envelope: crate::serialization::ArtifactEnvelopeValue =
+            serde_json::from_slice(&restored[0].2).unwrap();
+        assert_eq!(envelope.artifact_type, "template");
+        assert_eq!(envelope.artifact_id, "enc-tpl-1");
+        assert_eq!(envelope.payload, payload);
+
+        unsafe { std::env::remove_var("HKASK_BACKUP_PASSPHRASE") };
     }
 }
 

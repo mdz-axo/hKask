@@ -7,6 +7,28 @@ use std::fmt;
 
 // ── Value Types ──────────────────────────────────────────────────────────────
 
+/// Error parsing a content or commit hash from a hex string.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParseHashError {
+    /// Hex decoding failed (invalid characters).
+    InvalidHex(String),
+    /// Wrong byte length (expected N, got M).
+    WrongLength { expected: usize, got: usize },
+}
+
+impl fmt::Display for ParseHashError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidHex(e) => write!(f, "invalid hex: {e}"),
+            Self::WrongLength { expected, got } => {
+                write!(f, "expected {expected} bytes, got {got}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ParseHashError {}
+
 /// BLAKE3 content hash — 32 bytes, displayed as hex.
 ///
 /// Addresses blob content within a CAS repository. Produced by
@@ -48,12 +70,15 @@ impl fmt::Display for ContentHash {
 }
 
 impl std::str::FromStr for ContentHash {
-    type Err = String;
+    type Err = ParseHashError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let bytes = hex::decode(s).map_err(|e| format!("invalid hex: {e}"))?;
+        let bytes = hex::decode(s).map_err(|e| ParseHashError::InvalidHex(e.to_string()))?;
         if bytes.len() != 32 {
-            return Err(format!("expected 32 bytes, got {}", bytes.len()));
+            return Err(ParseHashError::WrongLength {
+                expected: 32,
+                got: bytes.len(),
+            });
         }
         let mut arr = [0u8; 32];
         arr.copy_from_slice(&bytes);
@@ -109,12 +134,15 @@ impl fmt::Display for CommitHash {
 }
 
 impl std::str::FromStr for CommitHash {
-    type Err = String;
+    type Err = ParseHashError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let bytes = hex::decode(s).map_err(|e| format!("invalid hex: {e}"))?;
+        let bytes = hex::decode(s).map_err(|e| ParseHashError::InvalidHex(e.to_string()))?;
         if bytes.len() != 20 {
-            return Err(format!("expected 20 bytes, got {}", bytes.len()));
+            return Err(ParseHashError::WrongLength {
+                expected: 20,
+                got: bytes.len(),
+            });
         }
         let mut arr = [0u8; 20];
         arr.copy_from_slice(&bytes);
@@ -122,7 +150,7 @@ impl std::str::FromStr for CommitHash {
     }
 }
 
-/// Repository identifier — one of the 7 snapshot repos.
+/// Repository identifier — one of the 8 snapshot repos.
 ///
 /// Each variant names a distinct git repository that stores a specific
 /// category of hKask state. Repos are isolated from each other.
@@ -166,11 +194,11 @@ impl RepoId {
         }
     }
 
-    /// Iterate all 7 repo variants.
+    /// Iterate all 8 repo variants.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  (no inputs)
-    /// post: returns a static slice containing all 7 [`RepoId`] variants exactly once;
+    /// post: returns a static slice containing all 8 [`RepoId`] variants exactly once;
     ///       order is stable across calls
     pub fn all() -> &'static [RepoId] {
         &[

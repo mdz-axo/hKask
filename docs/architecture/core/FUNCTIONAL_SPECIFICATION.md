@@ -1252,6 +1252,10 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 | FR-BK-T2 | upload_merge_idempotent_converges |
 | FR-BK-T3 | replicant_collision_auto_renames |
 
+#### 3.17a Git CAS Operational Backup
+
+The git content-addressed storage (CAS) subsystem provides operational backup with content-addressed artifact versioning via `GixCasAdapter` and `BackupService`. This is distinct from the sovereignty export (SQLCipher archive) described above: where §3.17 handles user-mediated portability of the full triple set, the git CAS system provides continuous, automated operational snapshots of individual artifact domains with git-commit changelogs, tier-based retention, and CNS-monitored homeostatic regulation. See [`docs/architecture/hKask-architecture-master.md`](../hKask-architecture-master.md) §Backup Subsystem for the full specification, component architecture, and dependency direction.
+
 ---
 
 ### 3.18 Deployment (`deploy`)

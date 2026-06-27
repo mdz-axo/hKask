@@ -79,7 +79,7 @@ impl PodBackupOps {
             return Err(BackupError::PodNotFound(pod_id.to_string()));
         }
         let pod_data = std::fs::read(pod_db_path)
-            .map_err(|e| BackupError::Config(format!("Failed to read pod.db: {e}")))?;
+            .map_err(|e| BackupError::Io(format!("Failed to read pod.db for {pod_id}: {e}")))?;
 
         let artifact = crate::serialization::serialize_artifact(
             &ArtifactType::PodState,
@@ -89,15 +89,13 @@ impl PodBackupOps {
         .map_err(|e| BackupError::Serialization(format!("Pod snapshot: {e}")))?;
 
         let repo_id = ArtifactType::PodState.repo_id();
-        let envelope_blob = if self.encryption_key.is_some() {
-            let aad = format!("pod_state/{}", pod_id).into_bytes();
-            encrypt_blob(&self.encryption_key, &artifact, &aad)?
+        let envelope_blob = if let Some(ref key) = self.encryption_key {
+            encrypt_blob(key, &artifact, &[])?
         } else {
             artifact
         };
-        let raw_blob = if self.encryption_key.is_some() {
-            let aad = format!("pod_state/{}-raw", pod_id).into_bytes();
-            encrypt_blob(&self.encryption_key, &pod_data, &aad)?
+        let raw_blob = if let Some(ref key) = self.encryption_key {
+            encrypt_blob(key, &pod_data, &[])?
         } else {
             pod_data
         };
@@ -173,8 +171,9 @@ impl PodBackupOps {
         if !pod_db_path.exists() {
             return Err(BackupError::PodNotFound(pod_id.to_string()));
         }
-        let current_state = std::fs::read(pod_db_path)
-            .map_err(|e| BackupError::Config(format!("Failed to read pod.db: {e}")))?;
+        let current_state = std::fs::read(pod_db_path).map_err(|e| {
+            BackupError::Io(format!("Failed to read pod.db for safety snapshot: {e}"))
+        })?;
 
         let safety_artifact = crate::serialization::serialize_artifact(
             &ArtifactType::PodState,
@@ -183,18 +182,16 @@ impl PodBackupOps {
         )
         .map_err(|e| BackupError::Serialization(format!("Safety snapshot: {e}")))?;
 
-        let safety_blob = if self.encryption_key.is_some() {
-            let aad = format!("pod_state/{}-safety", pod_id).into_bytes();
-            encrypt_blob(&self.encryption_key, &safety_artifact, &aad)?
+        let safety_blob = if let Some(ref key) = self.encryption_key {
+            encrypt_blob(key, &safety_artifact, &[])?
         } else {
             safety_artifact
         };
 
         let repo_id = ArtifactType::PodState.repo_id();
         self.cas.put_blob(&repo_id, &safety_blob).await?;
-        let pod_blob = if self.encryption_key.is_some() {
-            let aad = format!("pod_state/{}-safety-raw", pod_id).into_bytes();
-            encrypt_blob(&self.encryption_key, &current_state, &aad)?
+        let pod_blob = if let Some(ref key) = self.encryption_key {
+            encrypt_blob(key, &current_state, &[])?
         } else {
             current_state
         };
@@ -226,9 +223,9 @@ impl PodBackupOps {
         let blob = find_raw_pod_blob(&self.cas, &self.encryption_key, &repo_id, &entries).await?;
         let tmp = pod_db_path.with_extension("pod.db.tmp");
         std::fs::write(&tmp, &blob)
-            .map_err(|e| BackupError::Config(format!("Failed to write pod.db: {e}")))?;
+            .map_err(|e| BackupError::Io(format!("Failed to write pod.db: {e}")))?;
         std::fs::rename(&tmp, pod_db_path)
-            .map_err(|e| BackupError::Config(format!("Failed to commit pod.db: {e}")))?;
+            .map_err(|e| BackupError::Io(format!("Failed to commit pod.db: {e}")))?;
 
         let duration_ms = start.elapsed().as_millis() as u64;
         tracing::Span::current().record("target_commit", target_str);
@@ -277,9 +274,9 @@ impl PodBackupOps {
         let blob = find_raw_pod_blob(&self.cas, &self.encryption_key, &repo_id, &entries).await?;
         let tmp = output_db_path.with_extension("pod.db.tmp");
         std::fs::write(&tmp, &blob)
-            .map_err(|e| BackupError::Config(format!("Failed to write new pod.db: {e}")))?;
+            .map_err(|e| BackupError::Io(format!("Failed to write new pod.db: {e}")))?;
         std::fs::rename(&tmp, output_db_path)
-            .map_err(|e| BackupError::Config(format!("Failed to commit new pod.db: {e}")))?;
+            .map_err(|e| BackupError::Io(format!("Failed to commit new pod.db: {e}")))?;
 
         let duration_ms = start.elapsed().as_millis() as u64;
         tracing::Span::current().record("source_pod_id", source_pod_id);
@@ -314,8 +311,8 @@ async fn find_raw_pod_blob(
 ) -> Result<Vec<u8>, BackupError> {
     for entry in entries {
         let raw = cas.get_blob(repo_id, &entry.content_hash).await?;
-        let blob = if encryption_key.is_some() {
-            decrypt_blob(encryption_key, &raw, &[])?
+        let blob = if let Some(ref key) = *encryption_key {
+            decrypt_blob(key, &raw, &[])?
         } else {
             raw
         };

@@ -94,10 +94,12 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
             let restore_scope = parse_restore_scope(&scope);
 
             let commit_hash: hkask_ports::git_cas::CommitHash =
-                commit.parse().unwrap_or_else(|e: String| {
-                    eprintln!("Invalid commit hash '{}': {}", commit, e);
-                    std::process::exit(1);
-                });
+                commit
+                    .parse()
+                    .unwrap_or_else(|e: hkask_ports::git_cas::ParseHashError| {
+                        eprintln!("Invalid commit hash '{}': {}", commit, e);
+                        std::process::exit(1);
+                    });
 
             let artifacts = block_on!(
                 rt,

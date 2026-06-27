@@ -94,6 +94,8 @@ pub enum CnsSpan {
     Adapter,
     /// Backup operations — snapshot, restore, verify, prune (P1 data integrity).
     Backup,
+    /// Backup variety health counter — artifact_count, repo_count, corrupt_count (Ashby regulation).
+    BackupVariety,
     /// Condenser operations — compression ratio, health (P9 resource management).
     Condenser,
     /// Kata coaching operations — PDCA cycles, automaticity tracking (P3/P9).
@@ -353,6 +355,7 @@ impl CnsSpan {
             CnsSpan::Keystore => "cns.keystore",
             CnsSpan::Adapter => "cns.adapter",
             CnsSpan::Backup => "cns.backup",
+            CnsSpan::BackupVariety => "cns.backup.variety",
             CnsSpan::Condenser => "cns.condenser",
             CnsSpan::Kata => "cns.kata",
             CnsSpan::Skill => "cns.skill",
@@ -489,6 +492,7 @@ impl std::str::FromStr for CnsSpan {
             "cns.keystore" => Ok(CnsSpan::Keystore),
             "cns.adapter" => Ok(CnsSpan::Adapter),
             "cns.backup" => Ok(CnsSpan::Backup),
+            "cns.backup.variety" => Ok(CnsSpan::BackupVariety),
             "cns.condenser" => Ok(CnsSpan::Condenser),
             "cns.kata" => Ok(CnsSpan::Kata),
             "cns.skill" => Ok(CnsSpan::Skill),
@@ -635,6 +639,7 @@ mod cns_span_tests {
             CnsSpan::Keystore,
             CnsSpan::Adapter,
             CnsSpan::Backup,
+            CnsSpan::BackupVariety,
             CnsSpan::Condenser,
             CnsSpan::Kata,
             CnsSpan::Skill,

@@ -276,10 +276,12 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
             })) as Arc<dyn GitCASPort>;
             let svc = BackupService::new(port, hkask_services::load_backup_config());
             let commit_hash: hkask_ports::git_cas::CommitHash =
-                commit.parse().unwrap_or_else(|e: String| {
-                    eprintln!("Invalid commit hash '{}': {}", commit, e);
-                    std::process::exit(1);
-                });
+                commit
+                    .parse()
+                    .unwrap_or_else(|e: hkask_ports::git_cas::ParseHashError| {
+                        eprintln!("Invalid commit hash '{}': {}", commit, e);
+                        std::process::exit(1);
+                    });
             let sanitized = agent_paths::sanitize_name(&name);
             let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
             let pod_db_path = base
@@ -327,10 +329,12 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
             })) as Arc<dyn GitCASPort>;
             let svc = BackupService::new(port, hkask_services::load_backup_config());
             let commit_hash: hkask_ports::git_cas::CommitHash =
-                commit.parse().unwrap_or_else(|e: String| {
-                    eprintln!("Invalid commit hash '{}': {}", commit, e);
-                    std::process::exit(1);
-                });
+                commit
+                    .parse()
+                    .unwrap_or_else(|e: hkask_ports::git_cas::ParseHashError| {
+                        eprintln!("Invalid commit hash '{}': {}", commit, e);
+                        std::process::exit(1);
+                    });
             let sanitized = agent_paths::sanitize_name(&new_name);
             let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
             let agent_dir = base.join("hkask").join("agents").join(&sanitized);

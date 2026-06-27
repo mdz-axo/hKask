@@ -359,10 +359,12 @@ pub(crate) async fn restore(
     let commit_hash: CommitHash =
         req.commit_hash
             .parse()
-            .map_err(|e: String| ServiceError::ValidationError {
-                source: None,
-                message: format!("Invalid commit hash: {e}"),
-            })?;
+            .map_err(
+                |e: hkask_ports::git_cas::ParseHashError| ServiceError::ValidationError {
+                    source: None,
+                    message: format!("Invalid commit hash: {e}"),
+                },
+            )?;
 
     let artifacts = svc.restore(&commit_hash, scope).await?;
 

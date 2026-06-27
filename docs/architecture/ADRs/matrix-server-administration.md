@@ -1,6 +1,19 @@
-# Matrix Server Administration — hKask Principles Adaptation
+# ADR: Matrix Server Administration
 
-**Status:** Design | **Version:** 0.1.0 | **Date:** 2026-06-27
+**Status:** Implemented (v0.31.0) — Conduit Docker sidecar, self-healing registration, CNS bridge, CAT engagement gate
+
+**Implementation status:**
+- ✅ Conduit Docker sidecar (scripts/conduit/conduit-docker.sh)
+- ✅ CLI: `kask matrix deploy-sidecar`, `register-agent`, `register-user`
+- ✅ Onboarding: human + replicant + 7 system bot accounts
+- ✅ Pod auto-registration on activation
+- ✅ 7R7 listener → CNS bridge → NuEventStore
+- ✅ CommunicationWatcher → CurationLoop
+- ✅ CAT engagement gate (Communication Accommodation Theory)
+- ✅ CAT respond template (metacognition-respond.j2)
+- ✅ MCP: 12 communication tools (send_message, create_thread, etc.)
+- ⏳ E2EE (deferred to v2 — SQLCipher/SQLite linking conflict)
+- ⏳ Continuous sync (uses polling, not WebSocket sync)
 
 ## Matrix Best Practices → hKask Principles Mapping
 
@@ -92,3 +105,39 @@ Pod Activation
 | Pod deactivation cleanup | Medium | When pod is torn down, deactivate its Matrix account (API call to Conduit) |
 | Ephemeral room support | Low | Pod-requested rooms with TTL; Curator creates + destroys |
 | Federation hardening | Low | Room version enforcement, peer capability verification |
+
+## Architecture (v0.31.0)
+
+```
+Matrix message (Conduit)
+       │
+       ▼
+  7R7 Listener (30s poll)
+       │
+       ├──► tracing log
+       │
+       └──► NuEvent::persist() → NuEventStore
+               │
+               ▼
+       CommunicationWatcher (30s poll)
+               │
+               ▼
+       CurationInput::Communication → CurationLoop
+               │
+               ▼
+       MetacognitionLoop (CAT evaluate → respond template)
+               │
+               ▼
+       MCP: communication.send_message() → Conduit
+```
+
+## CAT Engagement Model
+
+Each agent has a `CommunicationPosture` with:
+- `convergence_bias: f64` — 0.0 (silent) to 1.0 (fully convergent)
+- `invariant_traits: Vec<String>` — core traits never compromised
+
+The engagement gate (`cat::evaluate()`) decides speak/silent based on bias alone:
+- > 0.0 + @mentioned → speak
+- ≥ 0.7 → speak to any message
+- = 0.0 → always silent

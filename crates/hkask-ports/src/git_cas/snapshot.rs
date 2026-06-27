@@ -3,7 +3,7 @@
 //! Includes retention tiers, per-repo snapshot policies, snapshot metadata,
 //! and the TripleEntry DTO for CAS write-through.
 
-use super::types::{CommitHash, RepoId};
+use super::types::RepoId;
 use serde::{Deserialize, Serialize};
 
 // ── Retention Policy ───────────────────────────────────────────────────────────
@@ -137,34 +137,6 @@ impl RepoSnapshotPolicy {
     pub fn effective_policy(&self) -> CasRetentionPolicy {
         self.policy.clone().unwrap_or_default()
     }
-}
-
-/// Snapshot metadata — recorded for each snapshot taken.
-///
-/// Stored alongside the git commit to enable pruning and rollback.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SnapshotMetadata {
-    /// The commit hash of this snapshot.
-    pub commit: CommitHash,
-    /// Which repo was snapshotted.
-    pub repo: RepoId,
-    /// Commit message.
-    pub message: String,
-    /// Timestamp (Unix epoch seconds) when the snapshot was taken.
-    pub timestamp_secs: u64,
-    /// What triggered this snapshot (manual, scheduled, cns-triggered).
-    pub trigger: SnapshotTrigger,
-}
-
-/// What triggered a snapshot.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SnapshotTrigger {
-    /// Manually triggered via `kask git snapshot`.
-    Manual,
-    /// Scheduled by the SnapshotLoop based on CasRetentionPolicy interval.
-    Scheduled,
-    /// Triggered by CNS variety deficit or algedonic alert.
-    CnsTriggered,
 }
 
 // ── Triple Entry DTO ────────────────────────────────────────────────────────

@@ -172,6 +172,31 @@ impl ManifestExecutor {
         parse_json_response(&result.text, 0)
     }
 
+    /// Invoke an MCP tool directly by server/tool name.
+    ///
+    /// Creates a delegation token internally. Used by callers that need
+    /// to call MCP tools outside of template manifest execution.
+    pub async fn call_tool(
+        &self,
+        tool_ref: &str,
+        input: serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        // Create a delegation token for tool invocation.
+        let secret_bytes: [u8; 32] = self.a2a_secret[..32].try_into().map_err(|_| {
+            crate::ports::TemplateError::Manifest("A2A secret must be at least 32 bytes".into())
+        })?;
+        let signing_key = ed25519_dalek::SigningKey::from_bytes(&secret_bytes);
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            tool_ref.to_string(),
+            DelegationAction::Execute,
+            WebID::from_persona(b"manifest-executor"),
+            WebID::from_persona(b"manifest-executor"),
+            &signing_key,
+        );
+        self.mcp.invoke(tool_ref, input, &token).await
+    }
+
     /// Execute the full manifest cascade with iterative PDCA convergence.
     ///
     /// Steps are sorted by ordinal and executed in sequence. The cascade loops

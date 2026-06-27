@@ -797,6 +797,59 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 
 ---
 
+## Backup Subsystem
+
+**Crates:** `hkask-services-backup` (BackupService, BackupLoop), `hkask-ports::git_cas` (GitCASPort hexagonal boundary), `hkask-mcp::GixCasAdapter` (gix-based CAS adapter)
+
+**Tri-surface pattern:** CLI (`kask backup`), API (`/backup/*` routes), CNS (`BackupLoop` + `SnapshotLoop`)
+
+### Summary
+
+The gix-based backup system provides content-addressed artifact storage with git-backed versioning. Artifacts (templates, goals, memory triples, pod state, CNS audit, sovereignty manifests, sessions, vault data) are serialized to deterministic JSON envelopes, content-addressed via BLAKE3, stored in per-domain git repositories, and snapshotted as git commits. The system supports encrypted at-rest storage via AES-256-GCM with Argon2 key derivation.
+
+**Key components:**
+- `GixCasAdapter` — production `GitCASPort` implementation using the `gix` crate (pure Rust, no CLI subprocess)
+- `BackupService` — policy layer: scoped snapshot/restore, retention pruning, integrity verification
+- `BackupLoop` — cybernetic loop: sense→compare→compute→act for daily automatic snapshots with 1h failure dampening
+- `SnapshotLoop` — CAS-level scheduled snapshots with tier-based retention (30min/3h, daily/3d, weekly/3w, monthly)
+- `PodBackupOps` — pod-level revert and spawn_agent from prior snapshots with safety snapshot protocol
+- `PodBackupCap` — unforgeable OCAP capability scoped to a specific pod
+
+**Artifact type → repository mapping:**
+| Artifact Type | Repository |
+|---------------|------------|
+| Template, Style, RegistryEntry, Settings, AgentArtifact* | Registry |
+| Goal, Spec | GoalsSpecs |
+| MemoryTriple, Embedding | Memory |
+| CnsAudit | CnsAudit |
+| SovereigntyManifest | Sovereignty |
+| Session | Sessions |
+| WalletState | Vault |
+| PodState | Pods |
+
+### Dependency Direction
+
+```mermaid
+graph TD
+    CLI["hkask-cli"] --> BS["BackupService"]
+    API["hkask-api"] --> BS
+    BS --> GCP["GitCASPort"]
+    GCP --> GIX["GixCasAdapter"]
+    CNS["hkask-cns"] --> SL["SnapshotLoop"]
+    SL --> GCP
+    BL["BackupLoop"] --> BS
+```
+
+### Key Constraints
+
+1. Snapshots are git commits — the commit DAG IS the changelog.
+2. Encryption uses AES-256-GCM with a version-prefixed format [version: u8 || nonce: [u8; 12] || ciphertext+tag].
+3. Mutual exclusion via AtomicBool gate prevents concurrent mutations across BackupService and PodBackupOps.
+4. Retention policy is calendar-based (daily_days + weekly_weeks) for artifact pruning; tier-based (CasRetentionPolicy) for CAS-level snapshot frequency.
+5. CNS variety counter (cns.backup.variety) tracks artifact_count, repo_count, and corrupt_count for homeostatic regulation.
+
+---
+
 ## Kanban Agent Coordination
 
 **Crates:** `hkask-services-kanban` (types + service), `mcp-servers/hkask-mcp-kanban` (MCP surface)
