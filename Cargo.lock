@@ -826,99 +826,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bolero"
-version = "0.13.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ff44d278fc0062c95327087ed96b3d256906d1d8f579e534a3de8d6b386913a"
-dependencies = [
- "bolero-afl",
- "bolero-engine",
- "bolero-generator",
- "bolero-honggfuzz",
- "bolero-kani",
- "bolero-libfuzzer",
- "cfg-if",
- "rand 0.9.4",
-]
-
-[[package]]
-name = "bolero-afl"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9bf4cbd0bacf9356d3c7e5d9d088480f2076ba3c595c15ee9a6a378cdd7b297"
-dependencies = [
- "bolero-engine",
- "cc",
-]
-
-[[package]]
-name = "bolero-engine"
-version = "0.13.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dca199170a7c92c669c1019f9219a316b66bcdcfa4b36cac5a460a4c1a851aba"
-dependencies = [
- "anyhow",
- "bolero-generator",
- "lazy_static",
- "pretty-hex",
- "rand 0.9.4",
- "rand_xoshiro",
-]
-
-[[package]]
-name = "bolero-generator"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98a5782f2650f80d533f58ec339c6dce4cc5428f9c2755894f98156f52af81f2"
-dependencies = [
- "bolero-generator-derive",
- "either",
- "getrandom 0.3.4",
- "rand_core 0.9.5",
- "rand_xoshiro",
-]
-
-[[package]]
-name = "bolero-generator-derive"
-version = "0.13.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a21a3b022507b9edd2050caf370d945e398c1a7c8455531220fa3968c45d29e"
-dependencies = [
- "proc-macro-crate 2.0.2",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "bolero-honggfuzz"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a118ef27295eddefadc6a99728ee698d1b18d2e80dc4777d21bee3385096ffd"
-dependencies = [
- "bolero-engine",
-]
-
-[[package]]
-name = "bolero-kani"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "852ea5784a9f3e68bfd302ca80b8b863bce140593eb5770fee6ab110899c28fc"
-dependencies = [
- "bolero-engine",
-]
-
-[[package]]
-name = "bolero-libfuzzer"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "858dc57c11725c52662501fa79fdbc6f7050339a05ca1bf1e587add0fed40d62"
-dependencies = [
- "bolero-engine",
- "cc",
-]
-
-[[package]]
 name = "bon"
 version = "3.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4053,15 +3960,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-cns-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-cns",
- "hkask-types",
-]
-
-[[package]]
 name = "hkask-communication"
 version = "0.30.0"
 dependencies = [
@@ -4129,14 +4027,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-improv-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-improv",
-]
-
-[[package]]
 name = "hkask-inference"
 version = "0.30.0"
 dependencies = [
@@ -4154,15 +4044,6 @@ dependencies = [
  "tokio",
  "tracing",
  "wiremock",
-]
-
-[[package]]
-name = "hkask-inference-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-inference",
- "hkask-types",
 ]
 
 [[package]]
@@ -4287,18 +4168,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-communication-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-mcp",
- "hkask-mcp-communication",
- "hkask-types",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "hkask-mcp-companies"
 version = "0.30.0"
 dependencies = [
@@ -4327,22 +4196,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-companies-fuzz"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "bolero",
- "hkask-mcp",
- "hkask-mcp-companies",
- "hkask-test-harness",
- "hkask-types",
- "rmcp",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "hkask-mcp-condenser"
 version = "0.30.0"
 dependencies = [
@@ -4366,19 +4219,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "hkask-mcp-condenser-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-condenser",
- "hkask-mcp",
- "hkask-mcp-condenser",
- "hkask-types",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -4440,18 +4280,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-docproc-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-mcp",
- "hkask-mcp-docproc",
- "hkask-types",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "hkask-mcp-filesystem"
 version = "0.30.0"
 dependencies = [
@@ -4470,16 +4298,6 @@ dependencies = [
  "tokio",
  "tracing",
  "walkdir",
-]
-
-[[package]]
-name = "hkask-mcp-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-mcp",
- "hkask-types",
- "reqwest",
 ]
 
 [[package]]
@@ -4505,25 +4323,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "hkask-mcp-kanban-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-mcp",
- "hkask-mcp-kanban",
- "hkask-services",
- "hkask-services-kanban",
- "hkask-storage",
- "hkask-test-harness",
- "hkask-types",
- "rmcp",
- "rusqlite",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -4564,18 +4363,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-media-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-mcp",
- "hkask-mcp-media",
- "hkask-types",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "hkask-mcp-memory"
 version = "0.30.0"
 dependencies = [
@@ -4598,24 +4385,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "hkask-mcp-memory-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-mcp",
- "hkask-mcp-memory",
- "hkask-memory",
- "hkask-storage",
- "hkask-test-harness",
- "hkask-types",
- "rmcp",
- "rusqlite",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -4647,21 +4416,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-replica-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-mcp",
- "hkask-mcp-replica",
- "hkask-test-harness",
- "hkask-types",
- "rmcp",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "hkask-mcp-research"
 version = "0.30.0"
 dependencies = [
@@ -4690,18 +4444,6 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
-]
-
-[[package]]
-name = "hkask-mcp-research-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-mcp",
- "hkask-mcp-research",
- "hkask-types",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -4760,18 +4502,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-training-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-mcp",
- "hkask-mcp-training",
- "hkask-types",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "hkask-memory"
 version = "0.30.0"
 dependencies = [
@@ -4789,14 +4519,6 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tracing",
-]
-
-[[package]]
-name = "hkask-memory-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-memory",
 ]
 
 [[package]]
@@ -4958,14 +4680,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "uuid",
-]
-
-[[package]]
-name = "hkask-services-core-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-services-core",
 ]
 
 [[package]]
@@ -5155,16 +4869,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-storage-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-storage",
- "hkask-types",
- "serde_json",
-]
-
-[[package]]
 name = "hkask-templates"
 version = "0.30.0"
 dependencies = [
@@ -5186,14 +4890,6 @@ dependencies = [
  "tracing",
  "uuid",
  "walkdir",
-]
-
-[[package]]
-name = "hkask-templates-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-templates",
 ]
 
 [[package]]
@@ -5267,14 +4963,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-types-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-types",
-]
-
-[[package]]
 name = "hkask-wallet"
 version = "0.30.0"
 dependencies = [
@@ -5303,15 +4991,6 @@ dependencies = [
  "tracing",
  "wiremock",
  "zeroize",
-]
-
-[[package]]
-name = "hkask-wallet-fuzz"
-version = "0.0.0"
-dependencies = [
- "bolero",
- "hkask-types",
- "hkask-wallet",
 ]
 
 [[package]]
@@ -6364,7 +6043,7 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a962fc9981f823f6555416dcb2ae9ae67ca412d767ee21ecab5150113ee6285b"
 dependencies = [
- "proc-macro-crate 3.5.0",
+ "proc-macro-crate",
  "proc-macro-error2",
  "proc-macro2",
  "quote",
@@ -7507,12 +7186,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
 
 [[package]]
-name = "pretty-hex"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a65843dfefbafd3c879c683306959a6de478443ffe9c9adf02f5976432402d7"
-
-[[package]]
 name = "prettyplease"
 version = "0.2.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7524,21 +7197,11 @@ dependencies = [
 
 [[package]]
 name = "proc-macro-crate"
-version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b00f26d3400549137f92511a46ac1cd8ce37cb5598a96d382381458b992a5d24"
-dependencies = [
- "toml_datetime 0.6.3",
- "toml_edit 0.20.2",
-]
-
-[[package]]
-name = "proc-macro-crate"
 version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e67ba7e9b2b56446f1d419b1d807906278ffa1a658a8a5d8a39dcb1f5a78614f"
 dependencies = [
- "toml_edit 0.25.12+spec-1.1.0",
+ "toml_edit",
 ]
 
 [[package]]
@@ -8475,7 +8138,7 @@ checksum = "0a0753312ad577ac462de1742bf2e326b6ba9856ff6f13343aeb17d423fd5426"
 dependencies = [
  "as_variant",
  "cfg-if",
- "proc-macro-crate 3.5.0",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "ruma-identifiers-validation",
@@ -9615,12 +9278,6 @@ dependencies = [
 
 [[package]]
 name = "toml_datetime"
-version = "0.6.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cda73e2f1397b1262d6dfdcef8aafae14d1de7748d66822d3bfeeb6d03e5e4b"
-
-[[package]]
-name = "toml_datetime"
 version = "0.7.5+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92e1cfed4a3038bc5a127e35a2d360f145e1f4b971b551a2ba5fd7aedf7e1347"
@@ -9635,17 +9292,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3165f65f62e28e0115a00b2ebdd37eb6f3b641855f9d636d3cd4103767159ad7"
 dependencies = [
  "serde_core",
-]
-
-[[package]]
-name = "toml_edit"
-version = "0.20.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "396e4d48bbb2b7554c944bde63101b5ae446cff6ec4a24227428f15eb72ef338"
-dependencies = [
- "indexmap 2.14.0",
- "toml_datetime 0.6.3",
- "winnow 0.5.40",
 ]
 
 [[package]]
@@ -10832,15 +10478,6 @@ checksum = "d6bbff5f0aada427a1e5a6da5f1f98158182f26556f345ac9e04d36d0ebed650"
 
 [[package]]
 name = "winnow"
-version = "0.5.40"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f593a95398737aeed53e489c785df13f3618e41dbcd6718c6addbf1395aa6876"
-dependencies = [
- "memchr",
-]
-
-[[package]]
-name = "winnow"
 version = "0.7.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df79d97927682d2fd8adb29682d1140b343be4ac0f08fd68b7765d9c059d3945"
@@ -11041,7 +10678,7 @@ version = "4.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "267db9407081e90bbfa46d841d3cbc60f59c0351838c4bc65199ecd79ab1983e"
 dependencies = [
- "proc-macro-crate 3.5.0",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn",
@@ -11278,7 +10915,7 @@ version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73e2ba546bda683a90652bac4a279bc146adad1386f25379cf73200d2002c449"
 dependencies = [
- "proc-macro-crate 3.5.0",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn",

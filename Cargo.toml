@@ -42,17 +42,6 @@ members = [
     "crates/hkask-acp",
     "crates/hkask-federation",
     "crates/hkask-mcp-cloud-gateway",
-    # Fuzz targets
-    "crates/hkask-types/fuzz",
-    "crates/hkask-cns/fuzz",
-    "crates/hkask-inference/fuzz",
-    "crates/hkask-wallet/fuzz",
-    "crates/hkask-storage/fuzz",
-    "crates/hkask-templates/fuzz",
-    "crates/hkask-memory/fuzz",
-    "crates/hkask-services-core/fuzz",
-    "crates/hkask-improv/fuzz",
-    "crates/hkask-mcp/fuzz",
     # MCP servers
     "mcp-servers/hkask-mcp-condenser",
     "mcp-servers/hkask-mcp-research",
@@ -67,17 +56,6 @@ members = [
     "mcp-servers/hkask-mcp-skill",
     "mcp-servers/hkask-mcp-curator",
     "mcp-servers/hkask-mcp-filesystem",
-    # MCP server fuzz targets
-    "mcp-servers/hkask-mcp-kanban/fuzz",
-    "mcp-servers/hkask-mcp-communication/fuzz",
-    "mcp-servers/hkask-mcp-companies/fuzz",
-    "mcp-servers/hkask-mcp-condenser/fuzz",
-    "mcp-servers/hkask-mcp-docproc/fuzz",
-    "mcp-servers/hkask-mcp-media/fuzz",
-    "mcp-servers/hkask-mcp-memory/fuzz",
-    "mcp-servers/hkask-mcp-replica/fuzz",
-    "mcp-servers/hkask-mcp-research/fuzz",
-    "mcp-servers/hkask-mcp-training/fuzz",
 ]
 
 [workspace.package]
@@ -161,9 +139,6 @@ async-trait = "0.1"
 # TUI
 ratatui = "0.28"
 crossterm = "0.28"
-
-# Fuzzing
-bolero = "0.13"
 
 # Pattern matching (for migration)
 regex = "1"
