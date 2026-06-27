@@ -21,7 +21,7 @@ pub mod types; // Loop 6 → Inference energy estimation
 pub mod dynamic_gas_table;
 pub mod gas_report;
 pub mod runtime; // Loop 6 — runtime
-pub mod seam_watcher; // R7.3 public seam watcher — inventory, drift, CNS spans
+pub mod seam_watcher; // Public seam watcher — inventory, drift, CNS spans
 pub mod set_points; // Loop 6 — set-points config & loaders
 pub(crate) mod snapshot_loop; // Loop 6 — scheduled CAS snapshots
 pub(crate) mod table_energy_estimator; // Per-server energy cost table

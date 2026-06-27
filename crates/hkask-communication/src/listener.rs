@@ -58,6 +58,27 @@ pub trait ReceptorStore: Send + Sync {
     ) -> Result<Vec<NuEvent>, Box<dyn std::error::Error + Send + Sync>>;
 }
 
+// ── Receptor lifecycle trait ─────────────────────────────────────────────────
+
+/// Common interface for all 7R7 receptors — enables uniform lifecycle
+/// management (start, stop, restart) by the `ReceptorSupervisor`.
+///
+/// Each receptor is a passive observer with zero authority. The supervisor
+/// detects failures (task panic, hang) and restarts silently. After
+/// MAX_RESTART_ATTEMPTS, the supervisor degrades gracefully — logs permanently
+/// and stops retrying.
+#[async_trait::async_trait]
+pub trait Receptor: Send + Sync {
+    /// Human-readable receptor name (e.g., "r7-2-variety").
+    fn name(&self) -> &'static str;
+
+    /// Start the background observation loop. Must be idempotent.
+    async fn start(&self);
+
+    /// Stop the background observation loop. Must be idempotent.
+    async fn stop(&self);
+}
+
 // ── 7R7 Listener (r7-1: Observer) ───────────────────────────────────────────
 
 /// 7R7 communication listener — polls Matrix for messages, emits CNS spans.
@@ -219,6 +240,14 @@ impl SevenR7Listener {
 }
 
 // ── r7-2: Variety Receptor ──────────────────────────────────────────────────
+
+#[async_trait::async_trait]
+impl Receptor for SevenR7Listener {
+    fn name(&self) -> &'static str { "r7-1-observer" }
+    async fn start(&self) { SevenR7Listener::start(self).await; }
+    async fn stop(&self) { SevenR7Listener::stop(self).await; }
+}
+
 
 /// Variety receptor — observes system variety balance (Ashby's Law).
 ///
@@ -398,6 +427,14 @@ impl VarietyReceptor {
 }
 
 // ── r7-3: Algedonic Receptor ────────────────────────────────────────────────
+
+#[async_trait::async_trait]
+impl Receptor for VarietyReceptor {
+    fn name(&self) -> &'static str { "r7-2-variety" }
+    async fn start(&self) { VarietyReceptor::start(self).await; }
+    async fn stop(&self) { VarietyReceptor::stop(self).await; }
+}
+
 
 /// Algedonic receptor — observes pain/pleasure signal patterns.
 ///
@@ -583,6 +620,14 @@ impl AlgedonicReceptor {
 
 // ── r7-4: Composer Receptor ─────────────────────────────────────────────────
 
+#[async_trait::async_trait]
+impl Receptor for AlgedonicReceptor {
+    fn name(&self) -> &'static str { "r7-3-algedonic" }
+    async fn start(&self) { AlgedonicReceptor::start(self).await; }
+    async fn stop(&self) { AlgedonicReceptor::stop(self).await; }
+}
+
+
 /// Composer receptor — observes skill/template/bundle composition health.
 ///
 /// Tracks skill activations, template execution outcomes, contract violations,
@@ -754,6 +799,14 @@ impl ComposerReceptor {
 }
 
 // ── r7-5: Consolidator Receptor ─────────────────────────────────────────────
+
+#[async_trait::async_trait]
+impl Receptor for ComposerReceptor {
+    fn name(&self) -> &'static str { "r7-4-composer" }
+    async fn start(&self) { ComposerReceptor::start(self).await; }
+    async fn stop(&self) { ComposerReceptor::stop(self).await; }
+}
+
 
 /// Consolidator receptor — observes memory consolidation patterns.
 ///
@@ -930,6 +983,14 @@ impl ConsolidatorReceptor {
 
 // ── r7-6: Cybernetics Receptor ──────────────────────────────────────────────
 
+#[async_trait::async_trait]
+impl Receptor for ConsolidatorReceptor {
+    fn name(&self) -> &'static str { "r7-5-consolidator" }
+    async fn start(&self) { ConsolidatorReceptor::start(self).await; }
+    async fn stop(&self) { ConsolidatorReceptor::stop(self).await; }
+}
+
+
 /// Cybernetics receptor — meta-observer of the CNS itself.
 ///
 /// The regulator's regulator. Observes whether the CNS is healthy: circuit
@@ -1102,6 +1163,14 @@ impl CyberneticsReceptor {
 }
 
 // ── r7-7: Curator Receptor ──────────────────────────────────────────────────
+
+#[async_trait::async_trait]
+impl Receptor for CyberneticsReceptor {
+    fn name(&self) -> &'static str { "r7-6-cybernetics" }
+    async fn start(&self) { CyberneticsReceptor::start(self).await; }
+    async fn stop(&self) { CyberneticsReceptor::stop(self).await; }
+}
+
 
 /// Curator receptor — observes Curator activity.
 ///
@@ -1281,7 +1350,242 @@ impl CuratorReceptor {
     }
 }
 
+// ── Receptor Supervisor ──────────────────────────────────────────────────────
+
+/// Self-healing supervisor for 7R7 receptors.
+///
+/// Spawns each receptor as a background task, monitors for failures
+/// (task panic or premature completion), and restarts silently.
+/// After MAX_RESTART_ATTEMPTS per receptor, degrades gracefully —
+/// logs permanently and stops retrying that receptor.
+///
+/// The supervisor emits CNS spans for:
+/// - `cns.receptor.restarted` — single receptor restarted after failure
+/// - `cns.receptor.degraded` — receptor permanently failed after max retries
+/// - `cns.receptor.supervisor` — periodic health check report
+pub struct ReceptorSupervisor {
+    /// Configured receptors, each with restart tracking (Arc-wrap for shared access).
+    entries: Vec<Arc<SupervisorEntry>>,
+    /// CNS event sink for supervisor spans.
+    event_sink: Option<Arc<dyn NuEventSink>>,
+    /// Poll interval for checking task health (seconds).
+    poll_interval_secs: u64,
+}
+
+struct SupervisorEntry {
+    receptor: Arc<dyn Receptor>,
+    join_handle: tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
+    restart_count: tokio::sync::Mutex<u32>,
+    permanently_failed: tokio::sync::RwLock<bool>,
+}
+
+/// Maximum restart attempts per receptor before permanent degradation.
+const MAX_RESTART_ATTEMPTS: u32 = 3;
+
+impl ReceptorSupervisor {
+    /// Create a supervisor with the given receptors.
+    ///
+    /// expect: "The system provides cybernetic observability through CNS spans"
+    /// pre:  receptors is non-empty
+    /// pre:  poll_interval_secs > 0
+    /// post: returns ReceptorSupervisor with all receptors stopped
+    pub fn new(
+        receptors: Vec<Arc<dyn Receptor>>,
+        poll_interval_secs: u64,
+    ) -> Self {
+        let entries = receptors
+            .into_iter()
+            .map(|r| Arc::new(SupervisorEntry {
+                receptor: r,
+                join_handle: tokio::sync::Mutex::new(None),
+                restart_count: tokio::sync::Mutex::new(0),
+                permanently_failed: tokio::sync::RwLock::new(false),
+            }))
+            .collect();
+        Self {
+            entries,
+            event_sink: None,
+            poll_interval_secs,
+        }
+    }
+
+    /// Attach a CNS event sink for supervisor spans.
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
+        self
+    }
+
+    /// Start all receptors and the health-check loop.
+    ///
+    /// Spawns each receptor as a `tokio::task`, stores the JoinHandle,
+    /// and spawns a background supervisor task that checks for failures.
+    ///
+    /// expect: "The system provides cybernetic observability through CNS spans"
+    /// pre:  supervisor is not already running
+    /// post: all receptors started; health-check loop spawned
+    pub async fn start_all(&self) {
+        // Start each receptor
+        for entry in &self.entries {
+            let receptor = Arc::clone(&entry.receptor);
+            let handle = tokio::spawn(async move {
+                receptor.start().await;
+            });
+            *entry.join_handle.lock().await = Some(handle);
+            tracing::info!(
+                target: "cns.receptor.started",
+                receptor = %entry.receptor.name(),
+                "Receptor spawned"
+            );
+        }
+
+        // Spawn the health-check loop — clone Arc'd entries, not borrow
+        let entries: Vec<Arc<SupervisorEntry>> = self.entries.iter().map(Arc::clone).collect();
+        let event_sink = self.event_sink.clone();
+        let interval = self.poll_interval_secs;
+
+        tokio::spawn(async move {
+            let mut timer = tokio::time::interval(std::time::Duration::from_secs(interval));
+            loop {
+                timer.tick().await;
+
+                let mut healthy = 0u32;
+                let mut degraded = 0u32;
+                let mut restarted_this_cycle = 0u32;
+
+                for entry in &entries {
+                    if *entry.permanently_failed.read().await {
+                        degraded += 1;
+                        continue;
+                    }
+
+                    let needs_restart = {
+                        let handle = entry.join_handle.lock().await;
+                        handle.as_ref().map_or(true, |h| h.is_finished())
+                    };
+
+                    if needs_restart {
+                        let mut count = entry.restart_count.lock().await;
+                        *count += 1;
+
+                        if *count > MAX_RESTART_ATTEMPTS {
+                            *entry.permanently_failed.write().await = true;
+                            degraded += 1;
+
+                            tracing::warn!(
+                                target: "cns.receptor.degraded",
+                                receptor = %entry.receptor.name(),
+                                restart_count = *count,
+                                "Receptor degraded — max restart attempts exceeded"
+                            );
+
+                            if let Some(ref sink) = event_sink {
+                                let span = Span::new(
+                                    hkask_types::event::SpanNamespace::new("cns.receptor"),
+                                    "degraded",
+                                );
+                                let event = NuEvent::new(
+                                    WebID::from_persona(b"receptor-supervisor"),
+                                    span,
+                                    Phase::Act,
+                                    serde_json::json!({
+                                        "receptor": entry.receptor.name(),
+                                        "restart_count": *count,
+                                        "permanently_failed": true,
+                                    }),
+                                    0,
+                                );
+                                let _ = sink.persist(&event);
+                            }
+                        } else {
+                            restarted_this_cycle += 1;
+
+                            tracing::warn!(
+                                target: "cns.receptor.restarted",
+                                receptor = %entry.receptor.name(),
+                                restart_count = *count,
+                                "Receptor restarted — task completed unexpectedly"
+                            );
+
+                            if let Some(ref sink) = event_sink {
+                                let span = Span::new(
+                                    hkask_types::event::SpanNamespace::new("cns.receptor"),
+                                    "restarted",
+                                );
+                                let event = NuEvent::new(
+                                    WebID::from_persona(b"receptor-supervisor"),
+                                    span,
+                                    Phase::Act,
+                                    serde_json::json!({
+                                        "receptor": entry.receptor.name(),
+                                        "restart_count": *count,
+                                    }),
+                                    0,
+                                );
+                                let _ = sink.persist(&event);
+                            }
+
+                            // Restart
+                            let receptor = Arc::clone(&entry.receptor);
+                            let handle = tokio::spawn(async move {
+                                receptor.start().await;
+                            });
+                            *entry.join_handle.lock().await = Some(handle);
+                        }
+                    } else {
+                        healthy += 1;
+                    }
+                }
+
+                tracing::info!(
+                    target: "cns.receptor.supervisor",
+                    healthy = healthy,
+                    degraded = degraded,
+                    restarted = restarted_this_cycle,
+                    "Receptor supervisor health check"
+                );
+            }
+        });
+
+        tracing::info!(
+            target: "cns.receptor.supervisor.started",
+            receptor_count = self.entries.len(),
+            poll_interval_secs = self.poll_interval_secs,
+            "Receptor supervisor started"
+        );
+    }
+
+    /// Stop all receptors gracefully.
+    ///
+    /// Calls `stop()` on each receptor, then aborts any remaining tasks.
+    ///
+    /// expect: "The system provides cybernetic observability through CNS spans"
+    /// post: all receptor background tasks stopped
+    /// post: idempotent — safe to call multiple times
+    pub async fn stop_all(&self) {
+        for entry in &self.entries {
+            entry.receptor.stop().await;
+            let mut handle = entry.join_handle.lock().await;
+            if let Some(h) = handle.take() {
+                h.abort();
+            }
+        }
+        tracing::info!(
+            target: "cns.receptor.supervisor.stopped",
+            receptor_count = self.entries.len(),
+            "Receptor supervisor stopped — all receptors shut down"
+        );
+    }
+}
+
 // ── Module tests ────────────────────────────────────────────────────────────
+
+#[async_trait::async_trait]
+impl Receptor for CuratorReceptor {
+    fn name(&self) -> &'static str { "r7-7-curator" }
+    async fn start(&self) { CuratorReceptor::start(self).await; }
+    async fn stop(&self) { CuratorReceptor::stop(self).await; }
+}
+
 
 #[cfg(test)]
 mod tests {

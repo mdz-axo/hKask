@@ -3961,6 +3961,7 @@ dependencies = [
 name = "hkask-communication"
 version = "0.30.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "hkask-keystore",
  "hkask-types",

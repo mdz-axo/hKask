@@ -506,7 +506,7 @@ impl HkaskLoop for CyberneticsLoop {
                 SignalMetric::SeamCoverage
                     if dev.direction == DeviationDirection::BelowSetPoint =>
                 {
-                    // Public seam coverage dropped — R7.3 watcher alert.
+                    // Public seam coverage dropped — seam watcher alert.
                     // Severity based on magnitude of drop:
                     //   >5pp drop → critical (escalate to human)
                     //   1–5pp drop → warning (escalate to Curator)
@@ -522,7 +522,7 @@ impl HkaskLoop for CyberneticsLoop {
                         set_point = dev.signal.set_point,
                         drop_magnitude = drop_magnitude,
                         severity = severity,
-                        "Public seam coverage degraded — R7.3 alert"
+                        "Public seam coverage degraded — seam watcher alert"
                     );
                     Some(LoopAction::new(
                         LoopId::Curation,
@@ -547,7 +547,7 @@ impl HkaskLoop for CyberneticsLoop {
                         coverage_pct = dev.signal.value,
                         set_point = dev.signal.set_point,
                         improvement = improvement,
-                        "Public seam coverage improved — R7.3 positive signal"
+                        "Public seam coverage improved — seam watcher positive signal"
                     );
                     Some(LoopAction::new(
                         LoopId::Curation,

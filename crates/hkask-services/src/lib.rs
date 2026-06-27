@@ -5,8 +5,8 @@
 //! # Module visibility
 //!
 //! Modules marked **Public API** are the stable surface. Prefer the re-exported
-//! paths at crate root (e.g. `hkask_services::BackupService`) over the full
-//! module path (`hkask_services::backup::BackupService`).
+//! paths at crate root (e.g. `hkask_services::AgentService`) over the full
+//! module path (`hkask_services::context::AgentService`).
 //!
 //! Modules marked **Internal** are accessible via their full path but are not
 //! part of the committed public API. They may change without semver notice.

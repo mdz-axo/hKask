@@ -210,9 +210,7 @@ impl From<hkask_services::ServiceError> for ApiError {
             SE::Infra(err) => ApiError::Internal {
                 message: err.to_string(),
             },
-            SE::Backup { message: msg, .. } => ApiError::Internal {
-                message: format!("Backup failed: {}", msg),
-            },
+
             other => ApiError::Internal {
                 message: other.to_string(),
             },

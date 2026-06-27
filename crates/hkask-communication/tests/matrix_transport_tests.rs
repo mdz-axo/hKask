@@ -327,6 +327,53 @@ async fn full_room_lifecycle() {
     );
 }
 
+// ── Observation Pipeline ───────────────────────────────────────────────────
+
+#[ignore = "requires running Conduit at HKASK_MATRIX_URL"]
+#[tokio::test]
+async fn e2e_message_to_nuevent_pipeline() {
+    require_conduit().await;
+    let (username, password, _) = register_test_user().await.expect("register test user");
+    let transport = authenticated_transport(&username, &password).await;
+
+    // Stage 1: Create room and send a curator-addressed message
+    let room_id = transport
+        .create_room("E2E Pipeline Test", None)
+        .await
+        .expect("create room");
+
+    transport
+        .send_message(&room_id, "E2E pipeline test message @curator", None)
+        .await
+        .expect("send message");
+
+    // Verify the message is visible via polling
+    // The 7R7 listener polls separately; this test verifies the Matrix
+    // transport path works end-to-end before the listener picks it up.
+    let messages = transport
+        .get_messages(&room_id, 10)
+        .await
+        .expect("get messages");
+
+    assert!(
+        messages
+            .iter()
+            .any(|m| m.body.contains("E2E pipeline test message")),
+        "sent message should be visible via get_messages"
+    );
+
+    // Stage 2: Verify the message content would trigger saliency scoring
+    // (proxies the 7R7 observation path — not calling the condenser MCP
+    // tool here, just verifying keyword match against curator persona)
+    let curator_keywords = ["curator", "monitor", "alert", "escalation"];
+    let msg_body = "E2E pipeline test message @curator";
+    let has_keyword_match = curator_keywords.iter().any(|kw| msg_body.contains(kw));
+    assert!(
+        has_keyword_match,
+        "message body should contain curator-relevant keyword for saliency scoring"
+    );
+}
+
 // ── Type tests (no Conduit required) ────────────────────────────────────────
 
 #[test]

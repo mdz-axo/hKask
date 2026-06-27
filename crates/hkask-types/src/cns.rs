@@ -741,12 +741,12 @@ mod cns_span_tests {
     }
 }
 
-// ── Public Seam Inventory (R7.3 watcher) ──
+// ── Public Seam Inventory (seam watcher) ──
 
 /// Per-crate public seam coverage snapshot.
 ///
 /// Loaded from the machine-readable JSON inventory at startup.
-/// R7.3 (CNS bot) tracks these as variety dimensions.
+/// Tracked as variety dimensions by the public seam watcher.
 ///
 /// Field names match the JSON output from `scripts/audit/public-seam-inventory.sh`.
 #[derive(Debug, Clone, Serialize, Deserialize)]

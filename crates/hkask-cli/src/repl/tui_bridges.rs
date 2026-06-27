@@ -466,87 +466,31 @@ impl MatrixDataBridge for TuiReplBridge {
 
 impl BackupDataBridge for TuiReplBridge {
     fn last_snapshot(&self) -> Option<SnapshotInfo> {
-        let state = self.state.lock().expect("lock");
-        let backups = state.service_context.backup_loop().service();
-        self.rt_handle.block_on(async {
-            let filter = hkask_services_backup::ListFilter {
-                artifact_type: None,
-                limit: Some(1),
-            };
-            match backups.list(filter).await {
-                Ok(entries) => entries.first().map(|s| SnapshotInfo {
-                    timestamp: s.timestamp.to_rfc3339(),
-                    artifact_count: s.artifact_count.unwrap_or(0),
-                    trigger: s
-                        .trigger
-                        .as_ref()
-                        .map(|t| format!("{:?}", t))
-                        .unwrap_or_else(|| "Unknown".into()),
-                    commit_count: s.commits.len(),
-                }),
-                Err(_) => None,
-            }
-        })
+        // Pod-directory backup replaced the old CAS-based system.
+        // Use `kask backup status` for per-pod snapshot info.
+        None
     }
 
     fn snapshot_count(&self) -> usize {
-        let state = self.state.lock().expect("lock");
-        let backups = state.service_context.backup_loop().service();
-        self.rt_handle.block_on(async {
-            match backups
-                .list(hkask_services_backup::ListFilter {
-                    artifact_type: None,
-                    limit: None,
-                })
-                .await
-            {
-                Ok(entries) => entries.len(),
-                Err(_) => 0,
-            }
-        })
+        0
     }
 
     fn config(&self) -> BackupConfigSummary {
-        let state = self.state.lock().expect("lock");
-        let backups = state.service_context.backup_loop().service();
-        let cfg = backups.config();
         BackupConfigSummary {
-            auto_snapshot: cfg.auto_snapshot,
-            verify_after_snapshot: cfg.verify_after_snapshot,
-            encryption_enabled: cfg.encryption.is_some(),
-            tracked_types_count: cfg.tracked_types.len(),
-            retention_daily_days: cfg.retention.as_ref().map(|r| r.daily_days).unwrap_or(0),
-            retention_weekly_weeks: cfg.retention.as_ref().map(|r| r.weekly_weeks).unwrap_or(0),
+            auto_snapshot: false,
+            verify_after_snapshot: false,
+            encryption_enabled: false,
+            tracked_types_count: 0,
+            retention_daily_days: 0,
+            retention_weekly_weeks: 0,
         }
     }
 
     fn verify_status(&self) -> (bool, String) {
-        let state = self.state.lock().expect("lock");
-        let backups = state.service_context.backup_loop().service();
-        let result = self.rt_handle.block_on(async {
-            match backups.verify().await {
-                Ok(reports) => {
-                    let total_blobs: usize = reports.iter().map(|r| r.total_blobs).sum();
-                    let corrupt: usize = reports.iter().map(|r| r.corrupt_hashes.len()).sum();
-                    if corrupt > 0 {
-                        format!(
-                            "{} repos, {} blobs — {} corrupt",
-                            reports.len(),
-                            total_blobs,
-                            corrupt
-                        )
-                    } else {
-                        format!(
-                            "{} repos, {} blobs — all verified",
-                            reports.len(),
-                            total_blobs
-                        )
-                    }
-                }
-                Err(e) => format!("Verify error: {}", e),
-            }
-        });
-        (true, result)
+        (
+            true,
+            "Pod-directory backup active — run `kask backup verify` for CAS integrity".into(),
+        )
     }
 }
 

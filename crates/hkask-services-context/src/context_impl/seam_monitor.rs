@@ -1,4 +1,4 @@
-//! Seam drift monitor — periodic public-seam drift detection via R7.3 SeamWatcher.
+//! Seam drift monitor — periodic public-seam drift detection.
 
 use hkask_cns::{CnsRuntime, SeamWatcher};
 use hkask_types::event::NuEventSink;
@@ -23,7 +23,7 @@ pub(crate) fn spawn_seam_drift_check(
         tracing::info!(
             target: "cns.architecture.seam",
             interval_secs = %interval_secs,
-            "Seam periodic drift check started — R7.3 watching every {}s",
+            "Seam periodic drift check started — watching every {}s",
             interval_secs
         );
         {

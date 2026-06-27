@@ -48,7 +48,7 @@ pub(crate) fn handle_status(
     };
     println!("  CNS:        {}", cns_status);
 
-    // ── R7.3 Seam Watcher status ──
+    // ── Seam Watcher status ──
     let seam_lock = state.service_context.seam_watcher.clone();
     let seam_guard = rt.block_on(seam_lock.read());
     match seam_guard.as_ref() {
@@ -62,7 +62,7 @@ pub(crate) fn handle_status(
                 "\x1b[31m■\x1b[0m" // red
             };
             println!(
-                "  R7.3 Seam:  {} watching {} crates | {}/{} covered ({:.0}%) | {} REQ tests",
+                "  Seam:     {} watching {} crates | {}/{} covered ({:.0}%) | {} REQ tests",
                 coverage_bar,
                 summary.crate_count,
                 summary.covered_items,
@@ -72,7 +72,7 @@ pub(crate) fn handle_status(
             );
         }
         None => {
-            println!("  R7.3 Seam:  \x1b[2mdisabled\x1b[0m (no inventory available)");
+            println!("  Seam:     \x1b[2mdisabled\x1b[0m (no inventory available)");
         }
     }
     drop(seam_guard);

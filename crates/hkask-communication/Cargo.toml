@@ -11,6 +11,7 @@ path = "src/lib.rs"
 [dependencies]
 hkask-types = { path = "../hkask-types" }
 hkask-keystore = { path = "../hkask-keystore" }
+async-trait.workspace = true
 matrix-sdk.workspace = true
 tokio.workspace = true
 serde.workspace = true

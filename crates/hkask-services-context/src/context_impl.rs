@@ -182,11 +182,16 @@ pub struct AgentService {
     /// Wrapped in Mutex because login/reconnect take &mut self.
     matrix_transport: Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>>,
 
+    /// 7R7 receptor supervisor — self-healing lifecycle manager for r7-2 through r7-7.
+    /// Detects receptor task failure, restarts up to 3 times, then degrades gracefully.
+    /// None if receptors couldn't start (missing NuEventStore).
+    pub receptor_supervisor: Option<hkask_communication::listener::ReceptorSupervisor>,
+
     /// Signals CuratorPod activation. Consumed by callers that need to
     /// await curator readiness before accepting requests.
     curator_ready: Option<tokio::sync::oneshot::Receiver<()>>,
 
-    /// R7.3 public seam watcher — loaded at startup, checked periodically.
+    /// Public seam watcher — loaded at startup, checked periodically.
     /// Wrapped in RwLock for shared mutable access between the periodic
     /// background task (which calls `check_drift(&mut self)`) and the
     /// Curator (which reads summary data).
@@ -351,7 +356,7 @@ impl AgentService {
         &self.energy_estimator
     }
 
-    /// R7.3 public seam watcher — None if inventory unavailable at startup.
+    /// Public seam watcher — None if inventory unavailable at startup.
     /// Returns a read lock on the watcher. For summary data, call
     /// `.read().await` and then `.as_ref().map(|w| w.summary())`.
     ///
@@ -650,10 +655,11 @@ impl AgentService {
         // See curator/curation_loop.rs for the integrated push.
 
         // ── 7R7 CNS-observing receptors (r7-2 through r7-7) ────────────
-        self::matrix::build_and_start_receptors(
+        let receptor_supervisor = self::matrix::build_and_start_receptors(
             Arc::clone(&foundation.gas_event_store),
             Arc::clone(&foundation.cns_event_sink),
-        );
+        )
+        .await;
 
         // Spawn Matrix registration retry loop — retries pending pod Matrix
         // registrations with exponential backoff for self-healing.
@@ -697,6 +703,7 @@ impl AgentService {
             agent_registry_store: reg_wallet.agent_registry_store,
             user_store: foundation.user_store,
             daemon_handler: mcp_pods.daemon_handler,
+            receptor_supervisor: Some(receptor_supervisor),
             matrix_transport,
             curator_ready: Some(mcp_pods.curator_ready),
             seam_watcher: foundation.seam_watcher,
@@ -803,7 +810,7 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
         config.cns_threshold,
     )));
 
-    // Seam watcher (R7.3) — non-fatal if inventory unavailable.
+    // Seam watcher — non-fatal if inventory unavailable.
     let seam_watcher: Arc<RwLock<Option<SeamWatcher>>> = {
         let cns = cns_runtime.read().await;
         if let Some(watcher) = SeamWatcher::load() {
@@ -814,7 +821,7 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
                 crates = %summary.crate_count,
                 coverage_pct = %summary.coverage_pct,
                 total_items = %summary.total_items,
-                "Seam watcher initialized — R7.3 watching the public seam"
+                "Seam watcher initialized — watching the public seam"
             );
             Arc::new(RwLock::new(Some(watcher)))
         } else {
@@ -833,7 +840,7 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     // Triple store for kanban task bridge — contract violations create tasks here.
     let _triple_store = Arc::new(TripleStore::new(Arc::clone(&primary_conn)));
 
-    // Spawn periodic seam drift check (R7.3 background watcher).
+    // Spawn periodic seam drift check (background watcher).
     self::seam_monitor::spawn_seam_drift_check(&seam_watcher, &cns_runtime, &cns_event_sink);
 
     Ok(Foundation {

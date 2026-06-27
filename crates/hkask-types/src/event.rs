@@ -112,6 +112,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.chat",
     "cns.composer",
     "cns.consolidation",
+    "cns.receptor",
     "cns.contract.accepted",
     "cns.contract.coverage",
     "cns.contract.proposed",

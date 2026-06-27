@@ -70,7 +70,7 @@ pub enum SignalMetric {
     WalletTreasuryRatio,
     /// Wallet API key health (1.0 = exhausted/expired, 0.0 = healthy)
     WalletKeyHealth,
-    /// Public seam coverage ratio per crate (R7.3 watcher, 0.0–100.0)
+    /// Public seam coverage ratio per crate (seam watcher, 0.0–100.0)
     SeamCoverage,
 }
 

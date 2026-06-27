@@ -39,7 +39,7 @@ pub const DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD: QueueDepth =
 /// Default minimum seam coverage ratio before alert.
 ///
 /// When per-crate coverage drops below its previous snapshot value,
-/// R7.3 fires an algedonic alert. Default: 0.0 (alert on ANY regression —
+/// Fires an algedonic alert. Default: 0.0 (alert on ANY regression —
 /// \[NORMATIVE\] coverage should never go down). (P9 — Homeostatic Self-Regulation).
 pub const DEFAULT_SEAM_COVERAGE_MIN: f64 = 0.0;
 
@@ -94,7 +94,7 @@ pub struct SetPoints {
     /// CyberneticsLoop produces a Throttle(Communication) action.
     /// Default: 100 messages
     pub communication_backpressure_threshold: QueueDepth,
-    /// Minimum seam coverage ratio per crate before R7.3 alert.
+    /// Minimum seam coverage ratio per crate before seam alert.
     /// When per-crate coverage drops below its previous snapshot,
     /// an algedonic alert fires. Default: 0.0 (any regression alerts).
     pub seam_coverage_min: f64,

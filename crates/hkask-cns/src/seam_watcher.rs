@@ -1,4 +1,4 @@
-//! Public Seam Watcher — R7.3's "watcher on the wall" for API contract health.
+//! Public Seam Watcher — "watcher on the wall" for API contract health.
 //!
 //! Loads the machine-readable public seam inventory at startup (embedded JSON
 //! at compile time, file path as development override), registers per-crate
@@ -83,7 +83,7 @@ pub struct SeamSummary {
 
 /// Watches the public seam — loads inventory, tracks coverage, emits CNS spans.
 ///
-/// R7.3 (the CNS bot) owns this concern. The watcher is initialized during
+/// The watcher is initialized during
 /// bootstrap Phase 7 (CNS Active) and runs for the lifetime of the daemon.
 ///
 /// # Public API (≤7 items — deep module discipline)
@@ -165,7 +165,7 @@ impl SeamWatcher {
                     crates = %inv.crates.len(),
                     total_items = %inv.totals.total_items,
                     coverage_pct = %inv.totals.coverage_pct,
-                    "Seam inventory loaded from embedded JSON — R7.3 watching the public seam"
+                    "Seam inventory loaded from embedded JSON — watching the public seam"
                 );
                 Some(Self {
                     inventory: inv,

@@ -1,28 +1,27 @@
-//! Backup command handlers for `kask backup`
+//! Pod-directory backup command handlers for `kask backup`
 //!
-//! Implements CLI display logic for backup operations. All business logic
-//! delegates to `hkask_services::BackupService`.
+//! Each pod directory under `agents/` is a self-contained git repository.
+//! Snapshots, restores, and history all operate directly on these per-pod repos
+//! via `hkask_mcp::GixCasAdapter`.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use hkask_ports::git_cas::GitCASPort;
-use hkask_services::RetentionPolicy;
-use hkask_services::{ArtifactType, BackupService, ListFilter};
-use std::str::FromStr;
+use hkask_mcp::GixCasAdapter;
+use hkask_ports::git_cas::{CommitHash, GitCASPort};
 
 use crate::block_on;
 use crate::cli::BackupAction;
-use hkask_services::load_backup_config;
 
 /// Resolve the concrete `GixCasAdapter` for pod-directory backup operations.
-fn resolve_gix_adapter() -> hkask_mcp::GixCasAdapter {
+fn resolve_gix_adapter() -> GixCasAdapter {
     super::helpers::or_exit(
-        hkask_mcp::GixCasAdapter::from_env(),
+        GixCasAdapter::from_env(),
         "Failed to initialize CAS adapter",
     )
 }
 
-/// Resolve the hexagonal `GitCASPort` from the environment (for old BackupService ops).
+/// Resolve the hexagonal `GitCASPort` from the environment (for old CAS repo ops like verify).
 fn resolve_git_cas_port() -> Arc<dyn GitCASPort> {
     Arc::new(resolve_gix_adapter()) as Arc<dyn GitCASPort>
 }
@@ -106,31 +105,20 @@ fn unix_days_to_date(days: i64) -> String {
     format!("{:04}-{:02}-{:02}", year, month, day)
 }
 
-/// Parse a comma-separated list of artifact types.
-fn parse_artifact_types(s: &str) -> Vec<ArtifactType> {
-    s.split(',')
-        .map(|s| s.trim())
-        .filter_map(|s| ArtifactType::from_str(s).ok())
-        .collect()
-}
-
-/// Parse a date string
 /// Run a backup operation.
 ///
-/// expect: "I can access all hKask functionality through the kask CLI"
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  rt is valid, action is valid
 /// post: backup operation executed
 pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
     // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "backup", action = ?action, "CNS");
+
     match action {
         BackupAction::Snapshot { scope: _ } => {
             let adapter = resolve_gix_adapter();
 
-            // Manual snapshot: snapshot all pod directories immediately.
-            // ActivePods isn't available in CLI context, so we scan the agents dir.
-            let base = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+            let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
             let agents_dir = base.join("hkask").join("agents");
             if !agents_dir.exists() {
                 println!(
@@ -168,9 +156,8 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
         BackupAction::Restore { pod, date, commit } => {
             let adapter = resolve_gix_adapter();
 
-            // Resolve pod directory
             let sanitized = hkask_types::agent_paths::sanitize_name(&pod);
-            let base = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+            let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
             let pod_dir = base.join("hkask").join("agents").join(&sanitized);
             if !pod_dir.join("pod.db").exists() {
                 eprintln!("Pod '{}' not found at {}", pod, pod_dir.display());
@@ -178,7 +165,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
             }
 
             // Resolve commit from date or hash
-            let commit_hash = if let Some(ref date_str) = date {
+            let commit_hash: CommitHash = if let Some(ref date_str) = date {
                 let target = parse_date(date_str);
                 match block_on!(
                     rt,
@@ -222,7 +209,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
 
         BackupAction::List { limit } => {
             let adapter = resolve_gix_adapter();
-            let base = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+            let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
             let agents_dir = base.join("hkask").join("agents");
 
             if !agents_dir.exists() {
@@ -255,7 +242,6 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
                         let time = ts % 86400;
                         let h = time / 3600;
                         let m = (time % 3600) / 60;
-                        // Days since epoch → approximate date
                         let date = unix_days_to_date(days as i64);
                         println!(
                             "    {}. {} {:02}:{:02}  {}",
@@ -273,103 +259,63 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
             }
         }
 
-        BackupAction::Prune { execute } => {
-            let port = resolve_git_cas_port();
-            let svc = BackupService::new(port, load_backup_config());
+        BackupAction::Status => {
+            let adapter = resolve_gix_adapter();
+            let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
+            let agents_dir = base.join("hkask").join("agents");
 
-            let dry_run = !execute;
-            let report = block_on!(rt, svc.prune(dry_run), "Prune failed");
-
-            if report.evaluated == 0 {
-                println!("No retention policy configured — nothing to prune.");
+            println!("Pod-directory backup status:");
+            if !agents_dir.exists() {
+                println!("  No agents directory found at {}", agents_dir.display());
                 return;
             }
 
-            if dry_run {
-                println!("Prune dry-run report:");
-            } else {
-                println!("Prune report:");
+            let mut found = false;
+            if let Ok(entries) = std::fs::read_dir(&agents_dir) {
+                for entry in entries.flatten() {
+                    let pod_dir = entry.path();
+                    if !pod_dir.is_dir() || !pod_dir.join("pod.db").exists() {
+                        continue;
+                    }
+                    let pod_name = pod_dir
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_default();
+
+                    found = true;
+                    print!("  {}: ", pod_name);
+
+                    if pod_dir.join(".git").exists() {
+                        let commits =
+                            block_on!(rt, adapter.log_pod(&pod_dir, 1), "Status check failed");
+                        if let Some(last) = commits.first() {
+                            let ts = last.timestamp_secs;
+                            let days = ts / 86400;
+                            let time = ts % 86400;
+                            let h = time / 3600;
+                            let m = (time % 3600) / 60;
+                            let date = unix_days_to_date(days as i64);
+                            println!("last snapshot {} {:02}:{:02}  {}", date, h, m, last.commit);
+                        } else {
+                            println!("git repo exists, 0 commits");
+                        }
+                    } else {
+                        println!("no snapshots (run `kask backup snapshot`)");
+                    }
+                }
             }
-            println!("  Evaluated: {}", report.evaluated);
-            println!("  Retained:  {}", report.retained);
-            println!("  Removed:   {}", report.removed.len());
-            for (repo, commit) in &report.removed {
-                println!("    {}: {}", repo.dir_name(), commit);
-            }
-        }
-
-        BackupAction::Status => {
-            let port = resolve_git_cas_port();
-            let svc = BackupService::new(port, load_backup_config());
-            let config = svc.config();
-
-            println!("Backup health:");
-            println!(
-                "  Auto-snapshot: {}",
-                if config.auto_snapshot {
-                    "enabled"
-                } else {
-                    "disabled"
-                }
-            );
-            println!(
-                "  Tracked types: {}",
-                if config.tracked_types.is_empty() {
-                    "(none — configure with 'kask backup config set')".to_string()
-                } else {
-                    config
-                        .tracked_types
-                        .iter()
-                        .map(|t| t.label())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                }
-            );
-            println!(
-                "  Retention: {}",
-                match &config.retention {
-                    Some(rp) => format!("{}d daily, {}w weekly", rp.daily_days, rp.weekly_weeks),
-                    None => "forever".to_string(),
-                }
-            );
-            println!(
-                "  Encryption: {}",
-                if config.encryption.is_some() {
-                    "enabled"
-                } else {
-                    "disabled"
-                }
-            );
-            println!("  Verify after snapshot: {}", config.verify_after_snapshot);
-
-            // Show most recent snapshot
-            let filter = ListFilter {
-                artifact_type: None,
-                limit: Some(1),
-            };
-            let snapshots = block_on!(rt, svc.list(filter), "Status check failed");
-            if !snapshots.is_empty() {
-                let last = &snapshots[0];
-                println!(
-                    "\n  Last snapshot: {}",
-                    last.timestamp.format("%Y-%m-%d %H:%M:%S")
-                );
-                for (repo, commit) in &last.commits {
-                    println!("    {}: {}", repo.dir_name(), commit);
-                }
-            } else {
-                println!("\n  Last snapshot: (none — daemon may not have run yet)");
+            if !found {
+                println!("  (no pods found)");
             }
         }
 
         BackupAction::Verify => {
             let port = resolve_git_cas_port();
-            let svc = BackupService::new(port, load_backup_config());
 
-            let reports = block_on!(rt, svc.verify(), "Verify failed");
+            println!("Backup integrity report (old CAS repos):");
+            for repo in hkask_ports::git_cas::RepoId::all() {
+                let report = block_on!(rt, port.verify(repo), "Verify failed");
 
-            println!("Backup integrity report:");
-            for report in &reports {
                 let status = if report.corrupt_hashes.is_empty() {
                     "✓ OK"
                 } else {
@@ -387,67 +333,5 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
                 }
             }
         }
-
-        BackupAction::Config { action } => match action {
-            crate::cli::ConfigAction::Show => {
-                let port = resolve_git_cas_port();
-                let svc = BackupService::new(port, load_backup_config());
-                let config = svc.config();
-
-                println!("Backup configuration:");
-                println!("  Tracked types:");
-                if config.tracked_types.is_empty() {
-                    println!("    (none)");
-                } else {
-                    for at in &config.tracked_types {
-                        println!("    - {}", at.label());
-                    }
-                }
-                println!("  Auto-snapshot: {}", config.auto_snapshot);
-                println!("  Verify after snapshot: {}", config.verify_after_snapshot);
-                match &config.retention {
-                    Some(rp) => {
-                        println!(
-                            "  Retention: {}d daily, {}w weekly",
-                            rp.daily_days, rp.weekly_weeks
-                        );
-                    }
-                    None => println!("  Retention: forever"),
-                }
-            }
-
-            crate::cli::ConfigAction::Set {
-                types,
-                retention: _retention,
-                no_auto,
-            } => {
-                let port = resolve_git_cas_port();
-                let mut svc = BackupService::new(port, load_backup_config());
-
-                let mut config = svc.config().clone();
-                config.tracked_types = parse_artifact_types(&types);
-
-                if let Some(dur_str) = _retention {
-                    config.retention = Some(
-                        RetentionPolicy::from_duration_str(&dur_str).unwrap_or_else(|e| {
-                            eprintln!("Invalid retention duration '{}': {}", dur_str, e);
-                            std::process::exit(1);
-                        }),
-                    );
-                }
-
-                if no_auto {
-                    config.auto_snapshot = false;
-                }
-
-                svc.update_config(config)
-                    .map_err(|e| {
-                        eprintln!("Config update failed: {}", e);
-                        std::process::exit(1);
-                    })
-                    .ok();
-                println!("Backup configuration updated.");
-            }
-        },
     }
 }
