@@ -31,6 +31,8 @@ pub enum DataCategory {
     TemplateInvocations,
     /// Template registry (public template metadata)
     TemplateRegistry,
+    /// Public data (always accessible, no consent required)
+    Public,
     /// Custom category (application-specific)
     Custom(String),
 }
@@ -50,6 +52,7 @@ impl DataCategory {
             DataCategory::OcapBoundaries => "ocap_boundaries",
             DataCategory::TemplateInvocations => "template_invocations",
             DataCategory::TemplateRegistry => "template_registry",
+            DataCategory::Public => "public",
             DataCategory::Custom(s) => s.as_str(),
         }
     }
@@ -72,6 +75,7 @@ impl DataCategory {
             "ocap_boundaries" => DataCategory::OcapBoundaries,
             "template_invocations" => DataCategory::TemplateInvocations,
             "template_registry" => DataCategory::TemplateRegistry,
+            "public" => DataCategory::Public,
             _ => DataCategory::Custom(s.to_string()),
         }
     }
@@ -110,7 +114,7 @@ impl DataCategory {
             | Self::CapabilityTokens
             | Self::OcapBoundaries => Visibility::Private,
             Self::SemanticMemory | Self::TemplateInvocations => Visibility::Public,
-            Self::TemplateRegistry => Visibility::Public,
+            Self::TemplateRegistry | Self::Public => Visibility::Public,
             Self::Custom(_) => Visibility::Private, // conservative default
         }
     }

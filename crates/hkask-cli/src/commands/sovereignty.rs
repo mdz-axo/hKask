@@ -139,6 +139,7 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
                 ("ocap_boundaries", &DataCategory::OcapBoundaries),
                 ("template_invocations", &DataCategory::TemplateInvocations),
                 ("template_registry", &DataCategory::TemplateRegistry),
+                ("public", &DataCategory::Public),
             ];
             for (label, cat) in &categories {
                 match cm.has_consent(&webid.to_string(), cat) {

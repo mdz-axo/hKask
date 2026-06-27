@@ -52,6 +52,8 @@ const ALGEDONIC_SPAN_CATEGORIES: &[&str] = &[
     "agent_pod",
     "wallet.key_expired",
     "wallet.key_exhausted",
+    "communication.message",
+    "communication.thread",
 ];
 define_store!(NuEventStore);
 impl NuEventStore {

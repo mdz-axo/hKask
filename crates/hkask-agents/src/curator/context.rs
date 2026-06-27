@@ -4,9 +4,11 @@ use crate::a2a::A2ARuntime;
 use hkask_cns::CnsRuntime;
 use hkask_storage::EscalationQueue;
 use hkask_storage::NuEventStore;
+use hkask_templates::ManifestExecutor;
+use hkask_types::DataCategory;
 use hkask_types::curator::{CuratorDirective, CuratorHandle};
 use std::sync::Arc;
-use tokio::sync::mpsc;
+use tokio::sync::{RwLock, mpsc};
 
 /// CuratorContext — aggregates the runtime references the Curator needs.
 pub struct CuratorContext {
@@ -21,8 +23,13 @@ pub struct CuratorContext {
     /// Curation reads from the persistent log, not live CNS state.
     nu_event_store: Option<Arc<NuEventStore>>,
     /// A2A port for A2A messaging (e.g. directing bots).
-    /// Optional so existing construction sites don't break.
     a2a_port: Option<Arc<A2ARuntime>>,
+    /// Manifest executor for invoking KnowAct templates.
+    /// Per P3 (Generative Space), selection intelligence lives in the
+    /// template system. Uses `RwLock<Option<>>` for late binding — the
+    /// executor is constructed after MCP pods, but CuratorContext must
+    /// exist before them. Set via `set_manifest_executor()`.
+    manifest_executor: RwLock<Option<Arc<ManifestExecutor>>>,
 }
 
 impl CuratorContext {
@@ -31,8 +38,8 @@ impl CuratorContext {
     /// pre:  `handle` is a valid `CuratorHandle`; `cns` is a valid
     ///       `Arc<CnsRuntime>`; `curator_directive_tx` is `Some` or `None`;
     ///       `escalation_queue` is a valid `Arc<EscalationQueue>`.
-    /// post: Returns a `CuratorContext` with no NuEvent store and no A2A
-    ///       port.
+    /// post: Returns a `CuratorContext` with no NuEvent store, no A2A
+    ///       port, and no manifest executor.
     pub fn new(
         handle: CuratorHandle,
         cns: Arc<CnsRuntime>,
@@ -46,6 +53,7 @@ impl CuratorContext {
             escalation_queue,
             nu_event_store: None,
             a2a_port: None,
+            manifest_executor: RwLock::new(None),
         }
     }
 
@@ -55,8 +63,8 @@ impl CuratorContext {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — NuEvent store enables algedonic review
     /// pre:  All arguments are valid (same as `new`); `nu_event_store` is
     ///       a valid `Arc<NuEventStore>`.
-    /// post: Returns a `CuratorContext` with `nu_event_store` set and no
-    ///       A2A port.
+    /// post: Returns a `CuratorContext` with `nu_event_store` set, no
+    ///       A2A port, and no manifest executor.
     pub fn with_nu_event_store(
         handle: CuratorHandle,
         cns: Arc<CnsRuntime>,
@@ -71,6 +79,7 @@ impl CuratorContext {
             escalation_queue,
             nu_event_store: Some(nu_event_store),
             a2a_port: None,
+            manifest_executor: RwLock::new(None),
         }
     }
 
@@ -83,6 +92,20 @@ impl CuratorContext {
     pub fn with_a2a(mut self, a2a_runtime: Arc<A2ARuntime>) -> Self {
         self.a2a_port = Some(a2a_runtime);
         self
+    }
+
+    /// Late-binding setter: attach a ManifestExecutor after construction.
+    ///
+    /// The ManifestExecutor depends on McpDispatcher, which is built after
+    /// CuratorContext. This setter allows the executor to be wired in later
+    /// without changing the construction order.
+    ///
+    /// expect: "The system regulates agent behavior through cybernetic feedback"
+    /// \[P3\] Motivating: Generative Space — late-binding template executor
+    /// pre:  `executor` is a valid `Arc<ManifestExecutor>`.
+    /// post: `manifest_executor` is set to `Some(executor)`.
+    pub async fn set_manifest_executor(&self, executor: Arc<ManifestExecutor>) {
+        *self.manifest_executor.write().await = Some(executor);
     }
 
     /// Access the CuratorHandle (capability handle).
@@ -120,20 +143,50 @@ impl CuratorContext {
         self.a2a_port.as_ref()
     }
 
-    /// Issue a CuratorDirective unconditionally on the direct channel.
+    /// Access the ManifestExecutor for template invocations.
+    ///
+    /// Returns None if no executor has been set yet (late binding —
+    /// set via `set_manifest_executor()` after MCP pods are built).
+    pub(crate) async fn manifest_executor(&self) -> Option<Arc<ManifestExecutor>> {
+        self.manifest_executor.read().await.clone()
+    }
+
+    /// Issue a CuratorDirective through the OCAP-gated channel.
     ///
     /// Curation (Loop 5) governs Cybernetics (Loop 6) per the authority DAG,
     /// so Curator directives MUST NOT be dampened by a Cybernetics dampener.
     /// Dampening is applied at the Cybernetics receipt boundary instead.
     ///
+    /// **OCAP Verification (Magna Carta Curator Responsibility #1):**
+    /// Every directive issuance verifies the CuratorHandle's write capability
+    /// before sending. Directives that fail OCAP verification are refused —
+    /// this is the Magna Carta enforcement gate at the directive boundary.
+    ///
     /// When no channel is configured (e.g., standalone CLI), this is a no-op.
     ///
     /// expect: "The system regulates agent behavior through cybernetic feedback"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — issue directives to the Curation Loop
-    /// pre:  `directive` is a valid `CuratorDirective`.
-    /// post: If `curator_directive_tx` is `Some`, the directive is sent;
-    ///       logs a warning if the send fails. If `None`, this is a no-op.
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — OCAP-gated directive issuance
+    /// \[P4\] Constraining: Clear Boundaries — directives require write capability
+    /// pre:  `directive` is a valid `CuratorDirective`; `self.handle` is a
+    ///       valid `CuratorHandle`.
+    /// post: If the handle lacks write capability, the directive is refused
+    ///       and an error is logged. Otherwise, if `curator_directive_tx` is
+    ///       `Some`, the directive is sent; logs a warning if the send fails.
+    ///       If `curator_directive_tx` is `None`, this is a no-op.
     pub async fn issue_directive(&self, directive: CuratorDirective) {
+        // Magna Carta Curator Responsibility #1: OCAP verification.
+        // The CuratorHandle must prove write capability before any directive
+        // issuance. This is a structural gate — the singleton handle is always
+        // authorized — but the check exists as a contract boundary.
+        if !self.handle.can_write(&DataCategory::Public) {
+            tracing::error!(
+                target: "curator.context",
+                directive = directive.variant_name(),
+                "OCAP verification failed: CuratorHandle lacks write capability. Directive refused."
+            );
+            return;
+        }
+
         if let Some(ref tx) = self.curator_directive_tx
             && let Err(e) = tx.send(directive)
         {

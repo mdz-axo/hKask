@@ -292,13 +292,18 @@ impl HkaskLoop for CurationLoop {
     }
 
     /// Compute: produce CuratorDirectives as LoopActions.
+    ///
+    /// Processes all six signal types the sense phase produces.
+    /// Previously only AlgedonicEvents and PendingEscalations were
+    /// acted upon; ConsolidationCandidates, GoalStaleCount,
+    /// GoalExpiredCount, and SpecDriftAlertCount were counted in
+    /// `sense()` but silently dropped here (broken feedback closure).
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
 
         for dev in deviations {
             match dev.signal.metric {
                 SignalMetric::AlgedonicEvents if dev.signal.value > 0.0 => {
-                    // Algedonic events from NuEvent store require Curation review
                     actions.push(LoopAction::new(
                         LoopId::Cybernetics,
                         hkask_cns::types::loops::ActionType::Escalate,
@@ -309,13 +314,55 @@ impl HkaskLoop for CurationLoop {
                     ));
                 }
                 SignalMetric::PendingEscalations if dev.signal.value > 0.0 => {
-                    // Pending escalations require Curator attention
                     actions.push(LoopAction::new(
                         LoopId::Curation,
                         hkask_cns::types::loops::ActionType::Escalate,
                         serde_json::json!({
                             "reason": "pending_escalations_exist",
                             "count": dev.signal.value,
+                        }),
+                    ));
+                }
+                SignalMetric::ConsolidationCandidates if dev.signal.value > 0.0 => {
+                    // Episodic budget pressure — fire consolidation bridge in act()
+                    actions.push(LoopAction::new(
+                        LoopId::Curation,
+                        hkask_cns::types::loops::ActionType::Escalate,
+                        serde_json::json!({
+                            "reason": "consolidation_candidates_exist",
+                            "count": dev.signal.value,
+                        }),
+                    ));
+                }
+                SignalMetric::GoalStaleCount if dev.signal.value > 0.0 => {
+                    actions.push(LoopAction::new(
+                        LoopId::Curation,
+                        hkask_cns::types::loops::ActionType::Escalate,
+                        serde_json::json!({
+                            "reason": "goals_stale",
+                            "count": dev.signal.value,
+                        }),
+                    ));
+                }
+                SignalMetric::GoalExpiredCount if dev.signal.value > 0.0 => {
+                    actions.push(LoopAction::new(
+                        LoopId::Curation,
+                        hkask_cns::types::loops::ActionType::Escalate,
+                        serde_json::json!({
+                            "reason": "goals_expired",
+                            "count": dev.signal.value,
+                        }),
+                    ));
+                }
+                SignalMetric::SpecDriftAlertCount if dev.signal.value > 0.0 => {
+                    // Spec drift: Curator requests additional evidence (IP-3)
+                    actions.push(LoopAction::new(
+                        LoopId::Cybernetics,
+                        hkask_cns::types::loops::ActionType::Escalate,
+                        serde_json::json!({
+                            "reason": "spec_drift_detected",
+                            "count": dev.signal.value,
+                            "channel": "spec_curator",
                         }),
                     ));
                 }

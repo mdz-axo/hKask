@@ -113,6 +113,65 @@ impl ManifestExecutor {
         self
     }
 
+    /// Execute a single KnowAct template — render, infer, parse, return.
+    ///
+    /// This is the minimal template invocation path: no manifest cascade,
+    /// no PDCA loop, no gas/rJoule tracking. Designed for programmatic
+    /// invocation by the persona layer (MetacognitionLoop) when it needs
+    /// LLM-driven decisions from a KnowAct template.
+    ///
+    /// `template_ref` is a path relative to `template_base_path`
+    /// (e.g. `curator/metacognition-diagnose.j2`).
+    /// `context` provides the template variables.
+    ///
+    /// Returns the parsed JSON response as a `serde_json::Value`,
+    /// or a `TemplateError` if rendering, inference, or parsing fails.
+    ///
+    /// expect: "The system resolves and executes template manifest cascades"
+    /// \[P3\] Motivating: Generative Space — single-template KnowAct invocation
+    /// pre:  `template_ref` is a valid relative path within `template_base_path`;
+    ///       `context` contains the variables referenced by the template.
+    /// post: Returns the parsed JSON response from the LLM on success;
+    ///       returns `TemplateError` on rendering, inference, or parse failure.
+    pub async fn execute_knowact(
+        &self,
+        template_ref: &str,
+        context: &HashMap<String, Value>,
+    ) -> Result<Value> {
+        let template_path = self.template_base_path.join(template_ref);
+        let template_content = std::fs::read_to_string(&template_path).map_err(|e| {
+            TemplateError::NotFound(format!(
+                "KnowAct template not found at {}: {}",
+                template_path.display(),
+                e
+            ))
+        })?;
+
+        let prompt = render_minijinja(&template_content, context)?;
+
+        let params = self.default_params.clone();
+        const DEFAULT_TIMEOUT_SECS: u64 = 120;
+        let timeout_dur = std::time::Duration::from_secs(DEFAULT_TIMEOUT_SECS);
+
+        let result: InferenceResult = match tokio::time::timeout(
+            timeout_dur,
+            self.inference.generate(&prompt, &params, None),
+        )
+        .await
+        {
+            Ok(Ok(r)) => r,
+            Ok(Err(e)) => return Err(TemplateError::Inference(e)),
+            Err(_elapsed) => {
+                return Err(TemplateError::Manifest(format!(
+                    "KnowAct template {} timed out after {}s",
+                    template_ref, DEFAULT_TIMEOUT_SECS
+                )));
+            }
+        };
+
+        parse_json_response(&result.text, 0)
+    }
+
     /// Execute the full manifest cascade with iterative PDCA convergence.
     ///
     /// Steps are sorted by ordinal and executed in sequence. The cascade loops

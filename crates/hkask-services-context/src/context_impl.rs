@@ -641,7 +641,8 @@ impl AgentService {
         let mcp_pods = build_mcp_and_pods(&config, &loops, &foundation, system_webid).await?;
 
         // ── Matrix transport + 7R7 listener ──────────────────────────────
-        let matrix_transport = self::matrix::build_matrix().await;
+        let matrix_transport =
+            self::matrix::build_matrix(Some(Arc::clone(&foundation.cns_event_sink))).await;
 
         // ── Registry + wallet: agent records, A2A restore, rJoule ───────
         let reg_wallet = build_registry_and_wallet(&config, &foundation, &loops, &mcp_pods).await?;
@@ -839,6 +840,8 @@ struct Loops {
     semantic_storage: Arc<dyn SemanticStoragePort>,
     tool_consumption_tx: tokio::sync::mpsc::UnboundedSender<ToolConsumptionEvent>,
     a2a_runtime: Arc<hkask_agents::A2ARuntime>,
+    /// CuratorContext — late-bound ManifestExecutor set after MCP pods built.
+    curator_context: Arc<hkask_agents::CuratorContext>,
     /// Federation link manager — set when federation is enabled.
     federation_link_manager: Option<Arc<dyn FederationDispatch>>,
 }
@@ -952,6 +955,9 @@ async fn build_loops(
         )
         .with_a2a(a2a_runtime.clone()),
     );
+    // Clone before move into CuratorAgent — stored in Loops for late-binding
+    // ManifestExecutor wiring after MCP pods are built.
+    let curator_context_for_loops = Arc::clone(&curator_context);
     let consolidation_bridge = Arc::new(ConsolidationBridge::new(
         Arc::clone(&episodic_memory),
         Arc::clone(&semantic_memory),
@@ -1053,6 +1059,7 @@ async fn build_loops(
         semantic_storage,
         tool_consumption_tx,
         a2a_runtime,
+        curator_context: curator_context_for_loops,
         federation_link_manager,
     })
 }
@@ -1105,6 +1112,21 @@ async fn build_mcp_and_pods(
         governed_tool.clone(),
     ));
     let mcp_runtime = Arc::new(mcp_runtime);
+
+    // Wire ManifestExecutor into CuratorContext for template-driven metacognition.
+    // Per P3 (Generative Space), the Curator's calibrated decisions are produced
+    // by KnowAct templates, not Rust code. The executor is late-bound because
+    // McpDispatcher depends on GovernedTool which depends on CyberneticsLoop.
+    if let Some(inference_port) = l.inference_port.clone() {
+        let executor = Arc::new(hkask_templates::ManifestExecutor::new(
+            inference_port,
+            mcp_dispatcher.clone() as Arc<dyn hkask_templates::McpPort>,
+            hkask_types::LLMParameters::default(),
+            config.a2a_secret.clone(),
+        ));
+        l.curator_context.set_manifest_executor(executor).await;
+        tracing::info!(target: "hkask.startup", "ManifestExecutor wired into CuratorContext — template-driven metacognition enabled");
+    }
 
     // Pod manager — anchor the capability checker to BOTH the system OCAP
     // authority (pre-registration pod tokens) and the A2A root (post-registration

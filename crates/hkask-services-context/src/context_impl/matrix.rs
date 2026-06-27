@@ -2,8 +2,9 @@
 
 use std::sync::Arc;
 
-pub(crate) async fn build_matrix()
--> Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>> {
+pub(crate) async fn build_matrix(
+    event_sink: Option<Arc<dyn hkask_types::event::NuEventSink>>,
+) -> Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>> {
     let homeserver_url =
         std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
     let keychain = hkask_keystore::Keychain::default();
@@ -34,8 +35,11 @@ pub(crate) async fn build_matrix()
             match transport.login(&username, &password).await {
                 Ok(()) => {
                     let transport = Arc::new(tokio::sync::Mutex::new(transport));
-                    let listener =
+                    let mut listener =
                         hkask_communication::listener::SevenR7Listener::new(transport.clone(), 30);
+                    if let Some(sink) = event_sink {
+                        listener = listener.with_event_sink(sink);
+                    }
                     listener.start().await;
                     tracing::info!(
                         target: "cns.communication.matrix.daemon",

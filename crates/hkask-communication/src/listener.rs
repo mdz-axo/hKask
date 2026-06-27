@@ -11,6 +11,8 @@
 //! The communication server is a dumb pipe. CNS observes. Agents decide.
 
 use crate::matrix::MatrixTransport;
+use hkask_types::WebID;
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock, watch};
 
@@ -25,6 +27,10 @@ pub struct SevenR7Listener {
     matrix: Arc<Mutex<MatrixTransport>>,
     /// Polling interval in seconds.
     poll_interval_secs: u64,
+    /// CNS event sink for persisting observed messages as NuEvents.
+    /// When set, the listener joins the CNS observability fabric;
+    /// the curation loop can then sense Matrix activity.
+    event_sink: Option<Arc<dyn NuEventSink>>,
     /// Whether the listener is active.
     active: RwLock<bool>,
     /// Cancellation channel — dropping the sender (via stop) signals the loop to exit.
@@ -42,9 +48,20 @@ impl SevenR7Listener {
         Self {
             matrix,
             poll_interval_secs,
+            event_sink: None,
             active: RwLock::new(false),
             cancel_tx: RwLock::new(None),
         }
+    }
+
+    /// Attach a CNS event sink for persisting observed messages.
+    ///
+    /// Without this, the listener only emits tracing events.
+    /// With it, observed messages flow into the NuEvent store
+    /// where the curation loop can sense them.
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
+        self
     }
 
     /// Start the polling loop.
@@ -70,6 +87,7 @@ impl SevenR7Listener {
 
         let matrix = Arc::clone(&self.matrix);
         let interval = self.poll_interval_secs;
+        let event_sink = self.event_sink.clone();
 
         tokio::spawn(async move {
             let mut timer = tokio::time::interval(std::time::Duration::from_secs(interval));
@@ -105,6 +123,32 @@ impl SevenR7Listener {
                                             body_len = %msg.body.len(),
                                             "7R7 observed message"
                                         );
+                                        // Persist NuEvent so the curation loop can sense it.
+                                        if let Some(ref sink) = event_sink {
+                                            let span = Span::new(
+                                                hkask_types::event::SpanNamespace::new("cns.communication.message"),
+                                                "observed",
+                                            );
+                                            let event = NuEvent::new(
+                                                WebID::from_persona(b"7r7-listener"),
+                                                span,
+                                                Phase::Act,
+                                                serde_json::json!({
+                                                    "room_id": room_id,
+                                                    "sender": msg.sender.as_str(),
+                                                    "body": msg.body,
+                                                    "timestamp": msg.timestamp,
+                                                }),
+                                                0,
+                                            );
+                                            if let Err(e) = sink.persist(&event) {
+                                                tracing::warn!(
+                                                    target: "cns.communication.listener",
+                                                    error = %e,
+                                                    "7R7 failed to persist NuEvent"
+                                                );
+                                            }
+                                        }
                                     }
                                 }
                                 Err(e) => {
