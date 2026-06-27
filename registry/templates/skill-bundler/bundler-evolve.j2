@@ -16,15 +16,17 @@ contract:
     convergence_failure_reason: string
   output:
     evolved_manifest: object
+    ontology_anchors: object
     changes: array
     recomposition_rationale: string
 energy_cap: 6144
 visibility: Public
 ---
 {# Template: skill-bundler/bundler-evolve.j2 #}
-{# goal: Re-compose a bundle manifest when one or more member skills change OR when goal convergence fails, using goal delta to drive recomposition decisions. Preserves unchanged portions and updates affected ones. #}
-{# KnowAct — Goal-delta-driven bundle recomposition #}
-{# ℏKask v0.31.0 — Self-improvement loop via goal-delta recomposition #}
+{# Functional Role: KnowAct — goal-delta-driven bundle recomposition. The "Act → Plan" bridge in the bundle's improvement kata: re-compose when convergence fails, guided by goal delta. #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: evolved_manifest, ontology_anchors, changes, recomposition_rationale #}
+{# Skill Bundler — Evolve Bundle via Goal-Delta Recomposition #}
 
 [inference]
 temperature = 0.2
@@ -85,13 +87,27 @@ Respond with a JSON object:
   "evolved_manifest": {
     "name": "<bundle-name>",
     "version": "<incremented-version>",
+    "goal": {
+      "text": "<goal text>",
+      "criteria": ["<criterion>"]
+    },
     "skills": [
       {
         "name": "<skill-name>",
         "polarity": "generative|evaluative|regulative|procedural",
         "phase": "pre-core|core|post-core|cross-phase",
         "cascade_order": 1,
-        "changed": true
+        "changed": true,
+        "pko_anchor": {
+          "procedure": "pko:Procedure",
+          "step": "pko:Step",
+          "convergence_target": "<threshold>"
+        },
+        "artifact_contract": {
+          "input_from": "<skill-name>|goal:user-intent",
+          "output_to": "<skill-name>|goal:verification",
+          "provenance": "prov:wasDerivedFrom"
+        }
       }
     ],
     "conflicts": [],
@@ -100,6 +116,11 @@ Respond with a JSON object:
       "criterion": "...",
       "threshold": 0.7
     }
+  },
+  "ontology_anchors": {
+    "pko": {"bundle": "pko:CompositeProcedure", "execution": "pko:ProcedureExecution"},
+    "dc": {"creator": "dcterms:creator", "created": "dcterms:created", "type": "bibo:Document"},
+    "prov": {"derivation_chain": [], "generation": []}
   },
   "recomposition_rationale": "Why this recomposition was performed and how it addresses goal delta or skill changes",
   "changes": [

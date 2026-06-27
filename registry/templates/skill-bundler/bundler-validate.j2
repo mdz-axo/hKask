@@ -18,9 +18,10 @@ energy_cap: 4096
 visibility: Public
 ---
 {# Template: skill-bundler/bundler-validate.j2 #}
-{# goal: Validate a bundle manifest against composition rules AND ontological anchoring requirements (P5.4): phase separation, ordering, depth limits, anti-patterns, PKO/DC/PROV-O grounding. #}
-{# KnowAct — Validate a composed bundle manifest for structural AND semantic correctness #}
-{# ℏKask v0.31.0 — Dual-axis ontological anchoring per P5.4 #}
+{# Functional Role: KnowAct — validate a bundle manifest against composition rules (V1-V10) and ontological anchoring requirements (V11-V15, P5.4 dual-axis mandate). #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: valid, violations, warnings, ontology_gaps #}
+{# Skill Bundler — Validate Composite Manifest #}
 
 [inference]
 temperature = 0.1
@@ -51,7 +52,6 @@ You are a bundle manifest validator. Given a composed bundle manifest, check it 
 | Total unique terms ≤ 30 | V8 | Warning | Bundles exceeding ~30 unique terms should consider decomposition |
 | Phase separation upheld | V9 | Error | Divergent and convergent skills must not share a cascade phase |
 | No runaway feedback loops | V10 | Warning | Check for circular skill triggers without convergence gates |
-
 | Missing PKO anchor | V11 | Error | Bundle or any skill lacks pko:Procedure/pko:Step/pko:StepExecution anchoring |
 | Missing DC anchor | V12 | Error | Bundle lacks dcterms:creator/dcterms:created/bibo:Document anchoring |
 | Missing Goal anchor | V13 | Error | Bundle has no goal.text or goal.criteria — every bundle must be goal-anchored |
@@ -79,6 +79,14 @@ Respond with a JSON object:
       "description": "What triggered the warning",
       "location": "Where in the manifest",
       "recommendation": "Suggested improvement"
+    }
+  ],
+  "ontology_gaps": [
+    {
+      "axis": "pko|dc|prov",
+      "missing": "What anchor is absent",
+      "location": "Where in the manifest",
+      "fix": "How to add the missing anchor"
     }
   ]
 }

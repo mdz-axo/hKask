@@ -20,8 +20,10 @@ energy_cap: 2048
 visibility: Public
 ---
 {# Template: skill-bundler/bundler-convergence-check.j2 #}
-{# goal: Compute a normalized convergence metric in [0,1] for bundle composition PDCA cycles, accounting for both structural validity AND goal achievement. 0 means no blocking bundle violations remain AND goal criteria are met. #}
-{# ℏKask v0.31.0 — Goal-anchored convergence #}
+{# Functional Role: KnowAct — compute normalized convergence metric [0,1] accounting for structural validity AND goal achievement. 0 = no blocking violations AND goal criteria met. #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: convergence_metric, rationale, blocking_violations, goal_delta #}
+{# Skill Bundler — Convergence Check #}
 
 [inference]
 temperature = 0.1
@@ -57,15 +59,13 @@ Scoring guidance:
 3. Final metric = max(Score_s, Score_g). Stronger weight on goal failure — a valid bundle that doesn't achieve its goal is not converged.
 4. `goal_delta` = 1.0 - goal_verdict.confidence (how far the bundle is from goal achievement).
 
-You are a convergence evaluator. Measure convergence on [0,1] where 0 means no blocking bundle violations remain.
-
 ## Context
 - Convergence threshold: {{ _convergence.threshold | default(0.15) }}
 - Iteration: {{ _convergence.iterations_completed | default(0) }} / {{ _convergence.max_iterations | default(3) }}
 - Improvement target: {{ _convergence.improvement_target | default(0.10) }}
 
 ## Convergence Method
-0 = fully converged (no blocking bundle violations remain). 1 = not converged. Score how much work remains.
+0 = fully converged (no blocking violations AND goal criteria met). 1 = not converged.
 
 Return JSON only:
 ```json
@@ -74,6 +74,7 @@ Return JSON only:
   "convergence_method": "LLM-assessed saturation detection",
   "rationale": "short explanation",
   "blockers": [],
-  "blocking_violations": ["..."]
+  "blocking_violations": ["..."],
+  "goal_delta": 0.0
 }
 ```

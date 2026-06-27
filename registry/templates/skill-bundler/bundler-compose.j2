@@ -21,9 +21,10 @@ energy_cap: 6144
 visibility: Public
 ---
 {# Template: skill-bundler/bundler-compose.j2 #}
-{# goal: Analyze a set of skills for conflicts, complementarities, and optimal cascade ordering; produce a PKO-anchored bundle manifest with DC provenance and PROV-O artifact linkage. #}
-{# KnowAct — Compose multiple skills into a PKO/DC-grounded bundle manifest #}
-{# ℏKask v0.31.0 — Dual-axis ontological anchoring per P5.4 #}
+{# Functional Role: KnowAct — classify skills by polarity, detect conflicts/complementarities, produce PKO-anchored bundle manifest with DC provenance and PROV-O artifact linkage. #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: bundle_manifest, conflicts, complementarities, ontology_anchors #}
+{# Skill Bundler — Compose Candidate Skill Set #}
 
 [inference]
 temperature = 0.2

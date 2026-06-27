@@ -28,9 +28,10 @@ energy_cap: 8192
 visibility: Public
 ---
 {# Template: skill-bundler/bundler-synthesize.j2 #}
-{# goal: Execute the synthesis pipeline per docs/architecture/specs/WHEN_A_BUNDLE_IS_MORE_THAN_A_BUNDLE.md. Decompose → Anchor → Compare → Apply DPO rules D1-D3 (decimate) + R1-R2 (recompose) → Generate candidates. Present options in functional terms — each candidate describes the integrated multi-loop structure, what was decimated/fused, and why it is optimal. #}
-{# KnowAct — PKO graph synthesis engine implementing the formal specification #}
-{# ℏKask v0.32.0 #}
+{# Functional Role: KnowAct — PKO graph synthesis engine. Decompose skill FlowDefs into PKO RDF, anchor subgraphs, detect overlaps/collisions, apply DPO rewriting rules D1-D3 (decimate) + R1-R2 (recompose), generate candidate composite designs. Per spec: docs/architecture/specs/WHEN_A_BUNDLE_IS_MORE_THAN_A_BUNDLE.md #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: output_type, candidates[], pko_graph, decimations, fusions, novel_edges, collision_resolutions #}
+{# Skill Bundler — Synthesize Composite Skill Candidates #}
 
 [inference]
 temperature = 0.1
