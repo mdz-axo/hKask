@@ -256,9 +256,9 @@ pub fn export_k8s(output_dir: &std::path::Path) -> Result<usize, String> {
         if candidate.is_dir() {
             candidate
         } else {
-            return Err(format!(
-                "Cannot find deploy/k8s/. Set HKASK_DEPLOY_DIR or run from repo root."
-            ));
+            return Err(
+                "Cannot find deploy/k8s/. Set HKASK_DEPLOY_DIR or run from repo root.".to_string(),
+            );
         }
     };
 

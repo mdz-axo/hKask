@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conduit
+  namespace: hkask-conduit
+  labels:
+    app: conduit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: conduit
+  template:
+    metadata:
+      labels:
+        app: conduit
+    spec:
+      containers:
+        - name: conduit
+          image: registry.gitlab.com/famedly/conduit:latest
+          ports:
+            - containerPort: 8008
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: conduit-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            tcpSocket:
+              port: 8008
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: 8008
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: conduit-data

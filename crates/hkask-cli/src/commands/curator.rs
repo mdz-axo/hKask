@@ -13,11 +13,11 @@ use crate::cli::CuratorAction;
 ///   2. Confirms kubectl access to the K3s cluster
 ///   3. Validates the Hetzner API token and object storage credentials
 ///   4. Generates a Conduit Matrix signing key (Ed25519)
-///   5. Deploys the shared Conduit Matrix homeserver to the cluster
-///   6. Creates the Curator pod and deploys it
+///   5. Deploys the shared Conduit Matrix homeserver from deploy/k8s/conduit/
+///   6. Deploys the hKask pod from deploy/k8s/
 ///   7. Prints the Matrix URL and Curator URL
 pub async fn curator_init(domain: &str) -> Result<(), String> {
-    // ── 1. Validate environment ──────────────────────────────────────────
+    // 1. Validate environment
     let hcloud_token = std::env::var("HCLOUD_TOKEN")
         .map_err(|_| "HCLOUD_TOKEN not set. Set your Hetzner Cloud API token.".to_string())?;
     if hcloud_token.is_empty() {
@@ -42,7 +42,7 @@ pub async fn curator_init(domain: &str) -> Result<(), String> {
 
     let _keystore_passphrase = std::env::var("HKASK_KEYSTORE_PASSPHRASE").unwrap_or_default();
 
-    // ── 2. Check kubectl availability ────────────────────────────────────
+    // 2. Check kubectl availability
     let kubectl_ok = std::process::Command::new("kubectl")
         .arg("version")
         .arg("--client")
@@ -57,7 +57,7 @@ pub async fn curator_init(domain: &str) -> Result<(), String> {
         );
     }
 
-    // ── 3. Validate cloud provider access ─────────────────────────────────
+    // 3. Validate cloud provider access
     println!("=== hKask Curator Init ===");
     println!("Domain: {domain}");
     println!();
@@ -83,7 +83,7 @@ pub async fn curator_init(domain: &str) -> Result<(), String> {
     println!("  Object storage: OK");
     println!();
 
-    // ── 4. Generate Conduit signing key ──────────────────────────────────
+    // 4. Generate Conduit signing key
     println!("Generating Conduit signing key...");
     use rand::RngCore;
     let mut key_bytes = [0u8; 32];
@@ -94,101 +94,44 @@ pub async fn curator_init(domain: &str) -> Result<(), String> {
     };
     println!("  Signing key generated.");
 
-    // ── 5. Deploy shared Conduit ─────────────────────────────────────────
-    let conduit_ns = "hkask-conduit";
-    println!("Deploying shared Conduit (namespace: {conduit_ns})...");
+    // 5. Deploy shared Conduit from deploy/k8s/conduit/
+    println!("Deploying shared Conduit...");
 
-    // Create namespace
-    let ns_yaml = format!(
-        "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: {conduit_ns}\n  labels:\n    app: hkask\n    component: conduit\n"
-    );
-    kubectl_apply_stdin(&ns_yaml)
-        .map_err(|e| format!("Failed to create Conduit namespace: {e}"))?;
+    let conduit_dir = std::env::temp_dir().join("hkask-conduit-init");
+    let _ = std::fs::create_dir_all(&conduit_dir);
 
-    // Create PVC for conduit.db
-    let pvc_yaml = format!(
-        "apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: conduit-data\n  namespace: {conduit_ns}\nspec:\n  storageClassName: hcloud-volumes\n  accessModes: [ReadWriteOnce]\n  resources:\n    requests:\n      storage: 10Gi\n"
-    );
-    kubectl_apply_stdin(&pvc_yaml).map_err(|e| format!("Failed to create Conduit PVC: {e}"))?;
+    copy_conduit_manifests(domain, &signing_key, &conduit_dir)?;
 
-    // Create Secret for signing key
-    let conduit_server_name = domain.to_string();
-    let secret_yaml = format!(
-        "apiVersion: v1\nkind: Secret\nmetadata:\n  name: conduit-secrets\n  namespace: {conduit_ns}\nstringData:\n  CONDUIT_SERVER_NAME: \"{conduit_server_name}\"\n  CONDUIT_SIGNING_KEY: \"{signing_key}\"\n  CONDUIT_PORT: \"8008\"\n  CONDUIT_DATABASE_PATH: \"/data/conduit.db\"\n  CONDUIT_ALLOW_REGISTRATION: \"false\"\n"
-    );
-    kubectl_apply_stdin(&secret_yaml)
-        .map_err(|e| format!("Failed to create Conduit secret: {e}"))?;
+    let apply_output = std::process::Command::new("kubectl")
+        .arg("apply")
+        .arg("-f")
+        .arg(&conduit_dir)
+        .output()
+        .map_err(|e| format!("Failed to run kubectl apply for Conduit: {e}"))?;
 
-    // Create Service
-    let svc_yaml = format!(
-        "apiVersion: v1\nkind: Service\nmetadata:\n  name: conduit\n  namespace: {conduit_ns}\nspec:\n  selector:\n    app: conduit\n  ports:\n    - name: matrix\n      port: 8008\n      targetPort: 8008\n      protocol: TCP\n"
-    );
-    kubectl_apply_stdin(&svc_yaml).map_err(|e| format!("Failed to create Conduit service: {e}"))?;
+    if !apply_output.status.success() {
+        let stderr = String::from_utf8_lossy(&apply_output.stderr);
+        return Err(format!("kubectl apply for Conduit failed:\n{stderr}"));
+    }
 
-    // Create Deployment
-    let deployment_yaml = format!(
-        r#"apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: conduit
-  namespace: {conduit_ns}
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: conduit
-  template:
-    metadata:
-      labels:
-        app: conduit
-    spec:
-      containers:
-        - name: conduit
-          image: registry.gitlab.com/famedly/conduit:latest
-          ports:
-            - containerPort: 8008
-              protocol: TCP
-          envFrom:
-            - secretRef:
-                name: conduit-secrets
-          volumeMounts:
-            - name: data
-              mountPath: /data
-          resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
-              cpu: 200m
-              memory: 256Mi
-      volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: conduit-data
-"#
-    );
-    kubectl_apply_stdin(&deployment_yaml)
-        .map_err(|e| format!("Failed to create Conduit deployment: {e}"))?;
+    let _ = std::fs::remove_dir_all(&conduit_dir);
 
-    let matrix_url = format!("http://conduit.{conduit_ns}.svc.cluster.local:8008");
+    let matrix_url = "http://conduit.hkask-conduit.svc.cluster.local:8008";
     println!("  Conduit deployed. Matrix URL: {matrix_url}");
     println!();
 
-    // ── 6. Store signing key in Curator keystore ─────────────────────────
-    // TODO: wire to hkask-keystore when keystore API is available
+    // 6. Store signing key (pending keystore integration)
     println!("  Signing key stored in memory (keystore integration pending).");
 
-    // ── 7. Deploy Curator pod ────────────────────────────────────────────
-    println!("Deploying Curator pod...");
+    // 7. Deploy hKask pod from deploy/k8s/
+    println!("Deploying hKask pod...");
 
-    // Generate Curator K8s manifests using export_k8s
     let curator_dir = std::env::temp_dir().join("hkask-curator-init");
     let _ = std::fs::create_dir_all(&curator_dir);
 
     crate::commands::pod::export_k8s(&curator_dir)
         .map_err(|e| format!("Failed to export K8s manifests: {e}"))?;
 
-    // Run kubectl apply on the generated manifests
     let apply_output = std::process::Command::new("kubectl")
         .arg("apply")
         .arg("-f")
@@ -201,58 +144,78 @@ spec:
         return Err(format!("kubectl apply failed:\n{stderr}"));
     }
 
-    // Clean up temp manifests
     let _ = std::fs::remove_dir_all(&curator_dir);
 
     let curator_url = format!("https://{domain}");
 
     println!();
     println!("=== hKask system initialized ===");
-    println!("Curator pod:    {curator_url}");
-    println!("Conduit server:  {matrix_url}");
-    println!();
-    println!("Create a user pod:");
-    println!("  kask pod create alice");
+    println!("  Curator URL:  {curator_url}");
+    println!("  Matrix URL:   {matrix_url}");
     println!();
 
     Ok(())
 }
 
-/// Apply a YAML string via `kubectl apply -f -` (stdin).
-fn kubectl_apply_stdin(yaml: &str) -> Result<(), String> {
-    use std::io::Write;
-    let mut child = std::process::Command::new("kubectl")
-        .arg("apply")
-        .arg("-f")
-        .arg("-")
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to spawn kubectl: {e}"))?;
+/// Copy conduit manifests from deploy/k8s/conduit/ and populate the
+/// secret with the generated signing key and domain.
+fn copy_conduit_manifests(
+    domain: &str,
+    signing_key: &str,
+    output_dir: &std::path::Path,
+) -> Result<(), String> {
+    let source_dir = if let Ok(d) = std::env::var("HKASK_DEPLOY_DIR") {
+        let p = std::path::PathBuf::from(&d).join("conduit");
+        if p.is_dir() {
+            p
+        } else {
+            return Err("HKASK_DEPLOY_DIR/conduit not found".to_string());
+        }
+    } else {
+        let cwd = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
+        let candidate = cwd.join("deploy").join("k8s").join("conduit");
+        if candidate.is_dir() {
+            candidate
+        } else {
+            return Err(
+                "Cannot find deploy/k8s/conduit/. Set HKASK_DEPLOY_DIR or run from repo root."
+                    .into(),
+            );
+        }
+    };
 
-    if let Some(stdin) = child.stdin.as_mut() {
-        stdin
-            .write_all(yaml.as_bytes())
-            .map_err(|e| format!("Failed to write to kubectl stdin: {e}"))?;
+    for entry in
+        std::fs::read_dir(&source_dir).map_err(|e| format!("Cannot read {source_dir:?}: {e}"))?
+    {
+        let entry = entry.map_err(|e| format!("read_dir entry: {e}"))?;
+        let path = entry.path();
+        let name = path.file_name().ok_or("missing filename")?;
+        if name == "secret.yaml" {
+            let content = format!(
+                "apiVersion: v1\n\
+                 kind: Secret\n\
+                 metadata:\n\
+                   name: conduit-secrets\n\
+                   namespace: hkask-conduit\n\
+                 type: Opaque\n\
+                 stringData:\n\
+                   CONDUIT_SERVER_NAME: \"{domain}\"\n\
+                   CONDUIT_SIGNING_KEY: \"{signing_key}\"\n\
+                   CONDUIT_PORT: \"8008\"\n\
+                   CONDUIT_DATABASE_PATH: \"/data/conduit.db\"\n\
+                   CONDUIT_ALLOW_REGISTRATION: \"false\"\n"
+            );
+            std::fs::write(output_dir.join(name), &content)
+                .map_err(|e| format!("Failed to write conduit secret: {e}"))?;
+        } else if path.is_file() {
+            std::fs::copy(&path, output_dir.join(name))
+                .map_err(|e| format!("Failed to copy conduit manifest {name:?}: {e}"))?;
+        }
     }
-
-    let output = child
-        .wait_with_output()
-        .map_err(|e| format!("Failed to wait on kubectl: {e}"))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("kubectl apply failed:\n{stderr}"));
-    }
-
     Ok(())
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  none
-/// post: returns Ok(`Vec<EscalationEntry>`) with all pending escalations
-/// post: delegates to escalation_queue.list_pending()
+/// List pending escalations — delegates to CuratorService.
 pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     let queue = ctx.escalation_queue();
@@ -267,33 +230,27 @@ pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError>
 /// post: delegates to CuratorService::resolve
 pub async fn curator_resolve(id: &str) -> Result<(), ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
-    CuratorService::resolve(&ctx, id, "cli-administrator")
+    CuratorService::resolve(&ctx, id, "cli-user")
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  id is a valid escalation identifier
-/// post: returns Ok(()) if dismissal dismissed successfully
-/// post: delegates to CuratorService::dismiss
+/// Dismiss an escalation — delegates to CuratorService.
 pub async fn curator_dismiss(id: &str) -> Result<(), ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
-    CuratorService::dismiss(&ctx, id, "cli-administrator")
+    CuratorService::dismiss(&ctx, id, "cli-user")
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  none
-/// post: returns Ok(String) with metacognition report
-/// post: delegates to CuratorService::metacognition
+/// Run metacognition cycle — delegates to CuratorService.
 pub async fn curator_metacognition() -> Result<String, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     CuratorService::metacognition(&ctx).await
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// expect: "I can access all hKask functionality through the kask CLI"
+/// Run a curator command — delegates to appropriate handler.
+///
 /// pre:  rt is a valid tokio runtime
 /// pre:  registry, runtime, handle are valid
 /// pre:  action is a valid CuratorAction variant
-/// post: dispatches to chat/escalations/resolve/dismiss/metacognition
+/// post: dispatches to chat/escalations/resolve/dismiss/metacognition/init
 /// post: prints result or error to stdout
 pub fn run_curator(
     rt: &tokio::runtime::Runtime,
@@ -302,7 +259,6 @@ pub fn run_curator(
     handle: &tokio::runtime::Handle,
     action: crate::cli::CuratorAction,
 ) {
-    // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "curator", action = ?action, "CNS");
     use crate::commands;
 

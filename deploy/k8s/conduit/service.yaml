@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: conduit
+  namespace: hkask-conduit
+spec:
+  selector:
+    app: conduit
+  ports:
+    - name: matrix
+      port: 8008
+      targetPort: 8008
+      protocol: TCP

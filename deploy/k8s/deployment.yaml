@@ -16,32 +16,28 @@ spec:
         app: hkask
     spec:
       containers:
-        - name: hkask
+        # ── kask (main application) ──────────────────────────────────
+        - name: kask
           image: ghcr.io/mdz-axo/hkask:kask-main
           imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 3000
               protocol: TCP
-            - name: matrix
-              containerPort: 8008
-              protocol: TCP
           env:
-            # Pod identity from downward API
             - name: POD_ID
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            # Domain must come before HKASK_BASE_URL (env var interpolation)
             - name: HKASK_DOMAIN
               valueFrom:
                 configMapKeyRef:
                   name: hkask-config
                   key: domain
-            # Base URL for OAuth redirects
             - name: HKASK_BASE_URL
               value: "https://$(HKASK_DOMAIN)"
-            # Non-secret config from ConfigMap
+            - name: HKASK_MATRIX_URL
+              value: "http://conduit.hkask-conduit.svc.cluster.local:8008"
             - name: CONDUIT_SERVER_NAME
               valueFrom:
                 configMapKeyRef:
@@ -67,7 +63,6 @@ spec:
                 configMapKeyRef:
                   name: hkask-config
                   key: litestream-force-path-style
-            # Secrets
             - name: HKASK_OAUTH_GITHUB_CLIENT_ID
               valueFrom:
                 secretKeyRef:
@@ -110,7 +105,50 @@ spec:
               port: 3000
             initialDelaySeconds: 10
             periodSeconds: 10
+
+        # ── litestream (WAL replication sidecar) ─────────────────────
+        # Sidecar pattern: shares /data volume with kask to replicate
+        # SQLite WAL to S3-compatible object storage. Legitimate
+        # multi-container use case per Hightower/Burns/Beda guidance:
+        # containers share lifecycle and volume.
+        - name: litestream
+          image: litestream/litestream:0.5.0
+          args:
+            - replicate
+            - -config
+            - /etc/litestream.yml
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: litestream-config
+              mountPath: /etc/litestream.yml
+              subPath: litestream.yml
+          env:
+            - name: LITESTREAM_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: litestream-access-key-id
+            - name: LITESTREAM_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: litestream-secret-access-key
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+
       volumes:
         - name: data
           persistentVolumeClaim:
             claimName: hkask-data
+        - name: litestream-config
+          configMap:
+            name: hkask-config
+            items:
+              - key: litestream.yml
+                path: litestream.yml

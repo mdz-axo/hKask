@@ -10,8 +10,8 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
+  - conduit/
 
-# Override image tag per environment
 images:
   - name: ghcr.io/mdz-axo/hkask
     newTag: kask-main

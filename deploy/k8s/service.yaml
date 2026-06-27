@@ -13,7 +13,3 @@ spec:
       port: 3000
       targetPort: 3000
       protocol: TCP
-    - name: matrix
-      port: 8008
-      targetPort: 8008
-      protocol: TCP

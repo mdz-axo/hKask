@@ -28,13 +28,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: hkask
-                port:
-                  number: 8008
-          - path: /_well-known
-            pathType: Prefix
-            backend:
-              service:
-                name: hkask
+                name: conduit
                 port:
                   number: 8008
