@@ -132,7 +132,7 @@ async fn run_pod_inner(action: PodAction) {
                     std::process::exit(1);
                 }
             }
-        },
+        }
     }
 }
 
