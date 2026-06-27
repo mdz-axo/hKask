@@ -127,7 +127,6 @@ fn main() {
         }
         Commands::Adapter { action } => commands::adapter::run(action),
 
-
         Commands::Kata { action } => commands::kata::run(&rt, action, &registry),
 
         Commands::Models => commands::models::run(&rt),

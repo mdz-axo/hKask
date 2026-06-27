@@ -1066,4 +1066,3 @@ pub enum AdapterAction {
         deployment_id: String,
     },
 }
-
