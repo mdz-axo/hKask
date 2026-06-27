@@ -25,11 +25,10 @@ contract:
   visibility: Public
 
 ---
-{# goal: Plan the bounded audit cascade routing and decide the next action based on the user's choice and loop depth. Does not execute the flow itself. #}
-{# goal: Plan the bounded audit cascade routing at both entry (post-critique) and exit (post-user-choice) positions, enforcing max depth. #}
 {# Template: skill-logic-audit/user-review-loop.j2 #}
-{# KnowAct — Plan the bounded accept/reject/counter-proposal routing #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# Functional Role: KnowAct — Plan the bounded accept/reject/counter-proposal routing #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: next_action, route_to_template, loop_decision, rationale #}
 
 [inference]
 temperature = 0.2

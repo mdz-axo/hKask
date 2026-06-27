@@ -23,11 +23,10 @@ contract:
   visibility: Public
 
 ---
-{# goal: Present a proposed revision to the user and capture a discrete choice: accept, reject, or counter-proposal. Enforce the bounded-loop depth limit. #}
-{# goal: Present the audit proposal and unified diff to the user and capture their accept/reject/counter-proposal decision. #}
 {# Template: skill-logic-audit/user-choice.j2 #}
-{# WordAct — Present proposal and capture accept / reject / counter-proposal choice #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# Functional Role: WordAct — Present proposal and capture accept / reject / counter-proposal choice #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: user_choice, reason, next_action #}
 
 [inference]
 temperature = 0.1

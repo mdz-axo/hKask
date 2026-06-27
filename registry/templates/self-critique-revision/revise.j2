@@ -25,10 +25,10 @@ contract:
 energy_cap: 8192
 visibility: Public
 ---
-{# goal: Given a draft and a structured critique, produce a revised draft that addresses every valid concern, preserves strengths, and reports honest quality improvement. #}
 {# Template: self-critique-revision/revise.j2 #}
-{# KnowAct — Revision from structured critique #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# Functional Role: KnowAct — Revision from structured critique #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: revised_output, critique_addressed, revised_quality_score, quality_improvement, draft_number, regression_flags, per_criterion_delta #}
 
 [inference]
 temperature = 0.3

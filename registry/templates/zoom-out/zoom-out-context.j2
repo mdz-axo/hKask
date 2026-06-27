@@ -21,10 +21,10 @@ contract:
 energy_cap: 8192
 visibility: Public
 ---
-{# goal: Generate a module map, caller graph, data flow summary, boundary summary, and key invariants for the current code region. #}
 {# Template: zoom-out/zoom-out-context.j2 #}
-{# KnowAct — Context expansion: module map, callers, flows, boundaries #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# Functional Role: KnowAct — Context expansion: module map, callers, flows, boundaries #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: module_map, caller_graph, data_flow, boundary_summary, key_invariants, uncertainty_flags #}
 
 [inference]
 temperature = 0.3

@@ -21,11 +21,10 @@ contract:
   visibility: Public
 
 ---
-{# goal: Given a goal and a template body, list concrete flaws, redundancies, ambiguities, or missing cases that make the body less than the most efficient, correct, and minimal way to achieve the goal. #}
-{# goal: Perform adversarial critique of a template against its stated goal: detect redundancy, ambiguity, inefficiency, incompleteness, and contract drift. #}
 {# Template: skill-logic-audit/critique-template.j2 #}
-{# KnowAct — Critique a template body against its annotated goal #}
-{# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
+{# Functional Role: KnowAct — Critique a template body against its annotated goal #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: flaws, valid_concerns, spurious_concerns, verdict #}
 
 [inference]
 temperature = 0.2
