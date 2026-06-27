@@ -110,16 +110,19 @@ impl Database {
             (salt, false)
         };
         let conn = Connection::open(path)?;
-        // New databases: Connection::open writes unencrypted page 1.
-        // SQLCipher rejects this when PRAGMA key is set. Temporarily
-        // allow plaintext headers during initial encryption setup.
+        // New databases: Connection::open writes page 1 before any PRAGMAs.
+        // SQLCipher defaults to cipher_plaintext_header_size=0, so page 1 has no
+        // reserved plaintext region. After PRAGMA key is set, SQLCipher tries to
+        // decrypt page 1 and the HMAC fails.
+        //
+        // Fix: bump plaintext header size to 32 BEFORE setting the key, and keep it
+        // at 32 permanently. This is a valid SQLCipher configuration used by many
+        // deployments. If the header ever drifts, an sqlcipher_export() + VACUUM
+        // re-encrypts everything with the correct header size.
         if !salt_existed {
             conn.execute_batch("PRAGMA cipher_plaintext_header_size = 32;")?;
         }
         Self::configure_encryption(&conn, passphrase, &salt)?;
-        if !salt_existed {
-            conn.execute_batch("PRAGMA cipher_plaintext_header_size = 0;")?;
-        }
         Self::initialize_schema(&conn)?;
         if let Some(ext) = extensions {
             conn.execute_batch(ext)?;
