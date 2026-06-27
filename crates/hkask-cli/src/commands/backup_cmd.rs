@@ -74,12 +74,18 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
         BackupAction::Snapshot { scope } => {
             let port = resolve_git_cas_port();
             let svc = BackupService::new(port, load_backup_config());
-            let backup_scope = parse_scope(&scope);
+            let _backup_scope = parse_scope(&scope);
 
-            // Manual snapshots require the caller to provide artifact data.
-            // For now, manual snapshots snapshot whatever is already in the CAS repos.
-            // Full auto-snapshot on mutation is deferred to F4.
-            let result = block_on!(rt, svc.snapshot(backup_scope, &[]), "Snapshot failed");
+            // Manual snapshots commit whatever blobs are already in CAS repos
+            // (populated by the daemon's BackupLoop artifact producers).
+            // If no blobs exist yet, run `kask backup status` to check daemon health.
+            let result = block_on!(rt, svc.run_daily_snapshot(), "Snapshot failed");
+            if result.commits.is_empty() {
+                println!("No tracked repos configured or no blobs to snapshot.");
+                println!("Configure tracking with: kask backup config set --types TYPE,...");
+                println!("Check daemon status with: kask backup status");
+                return;
+            }
             println!("Snapshot created:");
             for (repo, commit) in &result.commits {
                 println!("  {}: {}", repo.dir_name(), commit);
@@ -88,7 +94,11 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
             println!("  Timestamp: {}", result.timestamp);
         }
 
-        BackupAction::Restore { commit, scope } => {
+        BackupAction::Restore {
+            commit,
+            scope,
+            output,
+        } => {
             let port = resolve_git_cas_port();
             let svc = BackupService::new(port, load_backup_config());
             let restore_scope = parse_restore_scope(&scope);
@@ -103,13 +113,35 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
 
             let artifacts = block_on!(
                 rt,
-                svc.restore(&commit_hash, restore_scope),
+                svc.scoped_restore(&commit_hash, restore_scope),
                 "Restore failed"
             );
 
             println!("Restored {} artifacts:", artifacts.len());
-            for (at, id, _bytes) in &artifacts {
-                println!("  {}: {}", at.label(), id);
+            for (at, id, bytes) in &artifacts {
+                println!("  {}/{} ({} bytes)", at.label(), id, bytes.len());
+            }
+
+            // Write artifacts to output directory if specified
+            if let Some(ref out_dir) = output {
+                std::fs::create_dir_all(out_dir).unwrap_or_else(|e| {
+                    eprintln!("Failed to create output directory '{}': {}", out_dir, e);
+                    std::process::exit(1);
+                });
+                for (at, id, bytes) in &artifacts {
+                    let filename = format!("{}-{}.json", at.label(), id);
+                    let path = std::path::Path::new(out_dir).join(&filename);
+                    std::fs::write(&path, bytes).unwrap_or_else(|e| {
+                        eprintln!("Failed to write '{}': {}", path.display(), e);
+                    });
+                    println!("  → wrote {}", path.display());
+                }
+                println!("\nArtifacts written to: {}", out_dir);
+                println!(
+                    "Each file is a JSON envelope. Restore to stores requires store-specific logic."
+                );
+            } else {
+                println!("\nUse --output <dir> to write restored artifacts to disk.");
             }
         }
 
@@ -162,6 +194,70 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
             println!("  Removed:   {}", report.removed.len());
             for (repo, commit) in &report.removed {
                 println!("    {}: {}", repo.dir_name(), commit);
+            }
+        }
+
+        BackupAction::Status => {
+            let port = resolve_git_cas_port();
+            let svc = BackupService::new(port, load_backup_config());
+            let config = svc.config();
+
+            println!("Backup health:");
+            println!(
+                "  Auto-snapshot: {}",
+                if config.auto_snapshot {
+                    "enabled"
+                } else {
+                    "disabled"
+                }
+            );
+            println!(
+                "  Tracked types: {}",
+                if config.tracked_types.is_empty() {
+                    "(none — configure with 'kask backup config set')".to_string()
+                } else {
+                    config
+                        .tracked_types
+                        .iter()
+                        .map(|t| t.label())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                }
+            );
+            println!(
+                "  Retention: {}",
+                match &config.retention {
+                    Some(rp) => format!("{}d daily, {}w weekly", rp.daily_days, rp.weekly_weeks),
+                    None => "forever".to_string(),
+                }
+            );
+            println!(
+                "  Encryption: {}",
+                if config.encryption.is_some() {
+                    "enabled"
+                } else {
+                    "disabled"
+                }
+            );
+            println!("  Verify after snapshot: {}", config.verify_after_snapshot);
+
+            // Show most recent snapshot
+            let filter = ListFilter {
+                artifact_type: None,
+                limit: Some(1),
+            };
+            let snapshots = block_on!(rt, svc.list(filter), "Status check failed");
+            if !snapshots.is_empty() {
+                let last = &snapshots[0];
+                println!(
+                    "\n  Last snapshot: {}",
+                    last.timestamp.format("%Y-%m-%d %H:%M:%S")
+                );
+                for (repo, commit) in &last.commits {
+                    println!("    {}: {}", repo.dir_name(), commit);
+                }
+            } else {
+                println!("\n  Last snapshot: (none — daemon may not have run yet)");
             }
         }
 

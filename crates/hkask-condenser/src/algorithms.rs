@@ -137,116 +137,9 @@ impl SaliencyRankAlgorithm {
 
     /// Compute a domain-aware structural bonus based on ontology anchoring (P8.1).
     /// Incorporates graph adjacency scoring from the ontology concept graph (P5.4).
+    /// Delegates to the public `domain_saliency` free function.
     fn ontology_bonus(line: &str, anchor: Option<&OntologyAnchor>) -> f64 {
-        let direct = match anchor {
-            Some(OntologyAnchor::DomainSupplement {
-                namespace: OntologyNamespace::Fibo,
-                ..
-            }) => {
-                // FIBO: prioritize financial precision — numbers, ratios, percentages
-                if line.contains('%')
-                    || line.contains('$')
-                    || line.chars().any(|c| c.is_ascii_digit())
-                {
-                    0.5
-                } else if line.contains("ratio")
-                    || line.contains("margin")
-                    || line.contains("growth")
-                    || line.contains("value")
-                {
-                    0.3
-                } else {
-                    0.0
-                }
-            }
-            Some(OntologyAnchor::DomainSupplement {
-                namespace: OntologyNamespace::Cogat,
-                ..
-            }) => {
-                // CogAT: preserve semantic meaning over exact wording
-                if line.contains("memory")
-                    || line.contains("recall")
-                    || line.contains("encoding")
-                    || line.contains("salience")
-                    || line.contains("consolidation")
-                    || line.contains("forgetting")
-                    || line.contains("chunking")
-                {
-                    0.4
-                } else if line.contains("episodic") || line.contains("semantic") {
-                    0.3
-                } else {
-                    0.0
-                }
-            }
-            Some(OntologyAnchor::DualAxis {
-                axis: OntologyAxis::Pko,
-                ..
-            }) => {
-                // PKO process: prioritize status transitions and verification
-                if line.contains("status")
-                    || line.contains("verify")
-                    || line.contains("execution")
-                    || line.contains("step")
-                {
-                    0.3
-                } else if line.contains("error") || line.contains("issue") {
-                    0.4
-                } else {
-                    0.0
-                }
-            }
-            Some(OntologyAnchor::DomainSupplement {
-                namespace: OntologyNamespace::Golem,
-                ..
-            }) => {
-                // GOLEM: narrative structure — characters, events, settings
-                if line.contains("character")
-                    || line.contains("narrative")
-                    || line.contains("scene")
-                    || line.contains("event")
-                {
-                    0.3
-                } else {
-                    0.0
-                }
-            }
-            Some(OntologyAnchor::DomainSupplement {
-                namespace: OntologyNamespace::MlSchema,
-                ..
-            }) => {
-                // ML-Schema: structured data — metrics, hyperparameters
-                if line.contains("accuracy")
-                    || line.contains("loss")
-                    || line.contains("epoch")
-                    || line.contains("learning_rate")
-                    || line.contains("batch")
-                    || line.contains("evaluation")
-                    || line.chars().any(|c| c.is_ascii_digit())
-                {
-                    0.3
-                } else {
-                    0.0
-                }
-            }
-            _ => 0.0, // Core, OMC, or DualAxis::DcBibo: no domain-specific direct bonus
-        };
-
-        // Graph adjacency bonus (P5.4): lines containing concepts related to
-        // the anchor get extra weight — structural knowledge about what matters.
-        let graph_bonus = match anchor {
-            Some(a) => {
-                let kws = crate::ontology_graph::anchor_keywords(a);
-                if kws.is_empty() {
-                    0.0
-                } else {
-                    crate::ontology_graph::graph().graph_adjacency_bonus(line, &kws)
-                }
-            }
-            None => 0.0,
-        };
-
-        direct + graph_bonus
+        domain_saliency(line, anchor)
     }
 
     fn line_score(
@@ -344,6 +237,220 @@ impl CondenserAlgorithm for SaliencyRankAlgorithm {
         };
         (result, health)
     }
+}
+
+/// Domain saliency: score a line against an ontology anchor using graph proximity.
+///
+/// Returns 0.0 (unrelated) up to ~1.0 (strong domain match). Combines direct
+/// keyword recognition with graph adjacency from the ontology concept graph (P5.4).
+///
+/// Extracted from `SaliencyRankAlgorithm::ontology_bonus` for reuse by the
+/// communication gate and other callers that need domain relevance without the
+/// full compression pipeline.
+pub fn domain_saliency(line: &str, anchor: Option<&OntologyAnchor>) -> f64 {
+    let direct = match anchor {
+        Some(OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::Fibo,
+            ..
+        }) => {
+            if line.contains('%') || line.contains('$') || line.chars().any(|c| c.is_ascii_digit())
+            {
+                0.5
+            } else if line.contains("ratio")
+                || line.contains("margin")
+                || line.contains("growth")
+                || line.contains("value")
+            {
+                0.3
+            } else {
+                0.0
+            }
+        }
+        Some(OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::Cogat,
+            ..
+        }) => {
+            if line.contains("memory")
+                || line.contains("recall")
+                || line.contains("encoding")
+                || line.contains("salience")
+                || line.contains("consolidation")
+                || line.contains("forgetting")
+                || line.contains("chunking")
+            {
+                0.4
+            } else if line.contains("episodic") || line.contains("semantic") {
+                0.3
+            } else {
+                0.0
+            }
+        }
+        Some(OntologyAnchor::DualAxis {
+            axis: OntologyAxis::Pko,
+            ..
+        }) => {
+            if line.contains("status")
+                || line.contains("verify")
+                || line.contains("execution")
+                || line.contains("step")
+            {
+                0.3
+            } else if line.contains("error") || line.contains("issue") {
+                0.4
+            } else {
+                0.0
+            }
+        }
+        Some(OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::Golem,
+            ..
+        }) => {
+            if line.contains("character")
+                || line.contains("narrative")
+                || line.contains("scene")
+                || line.contains("event")
+            {
+                0.3
+            } else {
+                0.0
+            }
+        }
+        Some(OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::MlSchema,
+            ..
+        }) => {
+            if line.contains("accuracy")
+                || line.contains("loss")
+                || line.contains("epoch")
+                || line.contains("learning_rate")
+                || line.contains("batch")
+                || line.contains("evaluation")
+                || line.chars().any(|c| c.is_ascii_digit())
+            {
+                0.3
+            } else {
+                0.0
+            }
+        }
+        _ => 0.0,
+    };
+
+    let graph_bonus = match anchor {
+        Some(a) => {
+            let kws = crate::ontology_graph::anchor_keywords(a);
+            if kws.is_empty() {
+                0.0
+            } else {
+                crate::ontology_graph::graph().graph_adjacency_bonus(line, &kws)
+            }
+        }
+        None => 0.0,
+    };
+
+    direct + graph_bonus
+}
+
+/// Derive an ontology anchor from persona description text.
+///
+/// Uses the same domain-signaling pattern as `derive_ontology_anchor` but
+/// applied to natural-language persona text (description + capabilities).
+/// Returns `None` if no domain signals are detected (caller treats as Core).
+pub fn persona_to_anchor(description: &str, capabilities: &[String]) -> Option<OntologyAnchor> {
+    let lower = description.to_lowercase();
+    let cap_lower: Vec<String> = capabilities.iter().map(|c| c.to_lowercase()).collect();
+    let combined: Vec<&str> = lower
+        .split_whitespace()
+        .chain(cap_lower.iter().flat_map(|c| c.split('_')))
+        .collect();
+
+    // CogAT: cognitive / memory domain
+    if combined.iter().any(|w| {
+        *w == "memory"
+            || *w == "cognition"
+            || *w == "recall"
+            || *w == "consolidation"
+            || *w == "encoding"
+            || *w == "episodic"
+    }) {
+        return Some(OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::Cogat,
+            concept: "cogat".into(),
+        });
+    }
+    // FIBO: financial domain
+    if combined.iter().any(|w| {
+        *w == "financial"
+            || *w == "finance"
+            || *w == "portfolio"
+            || *w == "stock"
+            || *w == "trading"
+            || *w == "dcf"
+            || *w == "screener"
+    }) {
+        return Some(OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::Fibo,
+            concept: "fibo".into(),
+        });
+    }
+    // GOLEM: narrative domain
+    if combined.iter().any(|w| {
+        *w == "narrative" || *w == "character" || *w == "story" || *w == "replica" || *w == "author"
+    }) {
+        return Some(OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::Golem,
+            concept: "golem".into(),
+        });
+    }
+    // ML-Schema: training / ML domain
+    if combined.iter().any(|w| {
+        *w == "training"
+            || *w == "model"
+            || *w == "adapter"
+            || *w == "sweep"
+            || *w == "learning"
+            || *w == "ml"
+    }) {
+        return Some(OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::MlSchema,
+            concept: "mls".into(),
+        });
+    }
+    // OMC: media domain
+    if combined.iter().any(|w| {
+        *w == "media" || *w == "video" || *w == "image" || *w == "gallery" || *w == "generate"
+    }) {
+        return Some(OntologyAnchor::DomainSupplement {
+            namespace: OntologyNamespace::Omc,
+            concept: "omc".into(),
+        });
+    }
+    // PKO: process / workflow domain (broadest — catches curator, task, spec, etc.)
+    if combined.iter().any(|w| {
+        *w == "curator"
+            || *w == "process"
+            || *w == "workflow"
+            || *w == "task"
+            || *w == "kanban"
+            || *w == "spec"
+            || *w == "skill"
+            || *w == "pipeline"
+            || *w == "cns"
+    }) {
+        return Some(OntologyAnchor::DualAxis {
+            axis: OntologyAxis::Pko,
+            concept: "pko".into(),
+        });
+    }
+    // DC+BIBO: document / metadata domain
+    if combined.iter().any(|w| {
+        *w == "document" || *w == "file" || *w == "registry" || *w == "metadata" || *w == "archive"
+    }) {
+        return Some(OntologyAnchor::DualAxis {
+            axis: OntologyAxis::DcBibo,
+            concept: "dcterms".into(),
+        });
+    }
+    None
 }
 
 pub struct FlashrankAlgorithm;

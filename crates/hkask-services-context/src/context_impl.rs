@@ -993,8 +993,20 @@ async fn build_loops(
                 .expect("curation_inbox_rx consumed once"),
         ),
         Some(f.curation_inbox_tx.clone()),
-    )
-    .with_communication_posture(config.agent_name.clone(), 0.5);
+    );
+    let convergence_bias: f64 = std::env::var("HKASK_CURATOR_CONVERGENCE_BIAS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0.5);
+    let invariant_traits: Vec<String> = std::env::var("HKASK_CURATOR_INVARIANT_TRAITS")
+        .ok()
+        .map(|v| v.split(',').map(|s| s.trim().to_string()).collect())
+        .unwrap_or_default();
+    let curator_agent = curator_agent.with_communication_posture(
+        config.agent_name.clone(),
+        convergence_bias,
+        invariant_traits,
+    );
     let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
     loop_system.register_loop(curation_loop).await;
 

@@ -21,6 +21,7 @@
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
+use hkask_condenser::algorithms::{domain_saliency, persona_to_anchor};
 use hkask_condenser::engine::CondenserEngine;
 use hkask_condenser::inference;
 use hkask_condenser::types::*;
@@ -53,6 +54,10 @@ pub struct CondenserServer {
     /// Default model for thread summarization (e.g., "qwen3:8b")
     pub default_model: String,
     pub capability_tier: CapabilityTier,
+    /// Persona description for saliency scoring (charter description text)
+    pub persona_description: String,
+    /// Persona capability names for saliency scoring
+    pub persona_capabilities: Vec<String>,
 }
 
 impl CondenserServer {
@@ -74,7 +79,16 @@ impl CondenserServer {
             inference_port,
             default_model,
             capability_tier,
+            persona_description: String::new(),
+            persona_capabilities: Vec::new(),
         }
+    }
+
+    /// Set persona fields for domain-aware saliency scoring.
+    pub fn with_persona(mut self, description: String, capabilities: Vec<String>) -> Self {
+        self.persona_description = description;
+        self.persona_capabilities = capabilities;
+        self
     }
 
     pub fn has_persistence(&self) -> bool {
@@ -261,6 +275,90 @@ impl CondenserServer {
                 "category": category.label(),
                 "algorithm": algorithm,
             }))
+        })
+        .await
+    }
+
+    #[tool(
+        description = "Score text saliency against persona domain or episodic memory using ontology graph proximity (P5.4). Returns 0.0–1.0 — informs CAT communication posture decisions."
+    )]
+    pub async fn condenser_score_saliency(
+        &self,
+        Parameters(SaliencyScoreRequest { text, against }): Parameters<SaliencyScoreRequest>,
+    ) -> String {
+        execute_tool(self, "condenser_score_saliency", async {
+            match against.as_str() {
+                "persona" => {
+                    let description = &self.persona_description;
+                    let capabilities = &self.persona_capabilities;
+                    if description.is_empty() && capabilities.is_empty() {
+                        return Err(McpToolError::internal(
+                            "Persona not configured — set persona_description and persona_capabilities on the condenser server",
+                        ));
+                    }
+                    let anchor = persona_to_anchor(description, capabilities);
+                    let score = domain_saliency(&text, anchor.as_ref());
+                    Ok(serde_json::json!({
+                        "score": score,
+                        "against": "persona",
+                        "method": "graph_proximity",
+                    }))
+                }
+                "memory" => {
+                    let episodic = match &self.episodic {
+                        Some(e) => e,
+                        None => {
+                            return Err(McpToolError::permission_denied(
+                                "Episodic memory not available — set HKASK_DB_PATH and HKASK_DB_PASSPHRASE",
+                            ));
+                        }
+                    };
+                    // Extract keywords from input text for episodic query
+                    let query_words: Vec<&str> = text
+                        .split_whitespace()
+                        .filter(|w| w.len() > 3)
+                        .take(8)
+                        .collect();
+                    let mut memory_texts: Vec<String> = Vec::new();
+                    for word in &query_words {
+                        if let Ok(triples) =
+                            episodic.query_for_deduped(&format!("condenser:{}", word), self.webid)
+                        {
+                            for t in &triples {
+                                if let serde_json::Value::String(ref s) = t.value {
+                                    memory_texts.push(s.clone());
+                                }
+                            }
+                        }
+                        // Also try direct entity queries on the word itself
+                        if let Ok(triples) = episodic.query_for_deduped(word, self.webid) {
+                            for t in &triples {
+                                if let serde_json::Value::String(ref s) = t.value {
+                                    memory_texts.push(s.clone());
+                                }
+                            }
+                        }
+                    }
+                    let texts: Vec<&str> = memory_texts.iter().map(|s| s.as_str()).collect();
+                    let score = if texts.is_empty() {
+                        0.0
+                    } else {
+                        hkask_condenser::algorithms::domain_saliency(
+                            &text,
+                            None, // memory scoring uses keyword scan, not anchor
+                        )
+                    };
+                    Ok(serde_json::json!({
+                        "score": score,
+                        "against": "memory",
+                        "method": "graph_proximity",
+                    }))
+                }
+                other => Err(McpToolError::invalid_argument(format!(
+                    "Unknown against target '{}' — expected 'persona' or 'memory'",
+                    other
+                ))),
+            }
         })
         .await
     }

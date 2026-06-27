@@ -26,7 +26,7 @@ pub use metadata::{
     PruneReport, RevertReport, SnapshotMetadata, SnapshotTrigger, SpawnAgentReport,
 };
 pub use pod_ops::{PodBackupCap, PodBackupOps};
-pub use producers::{ArtifactProducer, PodStateProducer};
+pub use producers::ArtifactProducer;
 pub use scope::ArtifactType;
 pub use scope::{BackupScope, ListFilter, RestoreScope};
 pub use serialization::{

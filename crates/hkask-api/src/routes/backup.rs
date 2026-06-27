@@ -366,7 +366,7 @@ pub(crate) async fn restore(
                 },
             )?;
 
-    let artifacts = svc.restore(&commit_hash, scope).await?;
+    let artifacts = svc.scoped_restore(&commit_hash, scope).await?;
 
     Ok(Json(RestoreResponse {
         artifacts: artifacts

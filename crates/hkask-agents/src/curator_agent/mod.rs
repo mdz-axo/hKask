@@ -74,7 +74,7 @@ impl CuratorAgent {
                 Arc::clone(&context),
                 metacognition::MetacognitionConfig::default(),
             )
-            .with_communication_posture("curator".into(), 0.5),
+            .with_communication_posture("curator".into(), 0.5, Vec::new()),
         );
         let curator_handle = context.handle().clone();
         let curation_loop = Arc::new(CurationLoop::new(curator_handle, Arc::clone(&context)));
@@ -103,7 +103,7 @@ impl CuratorAgent {
     ) -> Self {
         let metacognition = Arc::new(
             metacognition::MetacognitionLoop::new(Arc::clone(&context), config)
-                .with_communication_posture("curator".into(), 0.5),
+                .with_communication_posture("curator".into(), 0.5, Vec::new()),
         );
         let curator_handle = context.handle().clone();
         let curation_loop = Arc::new(CurationLoop::new(curator_handle, Arc::clone(&context)));
@@ -143,7 +143,7 @@ impl CuratorAgent {
     ) -> Self {
         let metacognition = Arc::new(
             metacognition::MetacognitionLoop::new(Arc::clone(&context), config)
-                .with_communication_posture("curator".into(), 0.5),
+                .with_communication_posture("curator".into(), 0.5, Vec::new()),
         );
         let curator_handle = context.handle().clone();
         let mut curation_loop =
@@ -222,13 +222,13 @@ impl CuratorAgent {
     ///
     /// Creates a new `MetacognitionLoop` with the given persona name and
     /// convergence bias, using the existing config and context.
-    pub fn with_communication_posture(mut self, name: String, bias: f64) -> Self {
+    pub fn with_communication_posture(mut self, name: String, bias: f64, traits: Vec<String>) -> Self {
         self.metacognition = Arc::new(
             metacognition::MetacognitionLoop::new(
                 Arc::clone(&self.context),
                 self.metacognition.config().clone(),
             )
-            .with_communication_posture(name, bias),
+            .with_communication_posture(name, bias, traits),
         );
         self
     }

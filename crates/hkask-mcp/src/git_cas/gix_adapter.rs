@@ -217,6 +217,195 @@ impl GixCasAdapter {
         })
         .await
     }
+
+    // ── Pod-directory-based backup ───────────────────────────────────────
+
+    /// Snapshot a pod directory: walk the tree, create git blobs for all files,
+    /// build a nested tree, commit. Skips .git directory.
+    pub async fn snapshot_pod_dir(
+        &self,
+        pod_dir: &Path,
+        message: &str,
+    ) -> Result<CommitHash, GitCasError> {
+        let dir = pod_dir.to_path_buf();
+        let msg = message.to_string();
+        spawn_blocking_io(move || {
+            if !dir.exists() {
+                return Err(GitCasError::NotFound(format!(
+                    "Pod directory does not exist: {}",
+                    dir.display()
+                )));
+            }
+            let repo = open_or_init_repo(&dir)?;
+            let tree_oid = write_dir_as_tree(&repo, &dir, &dir)?;
+
+            let parent = repo.head_commit().ok().map(|c| c.id().detach());
+            let parents: Vec<gix::ObjectId> = parent.into_iter().collect();
+
+            let commit_oid = repo
+                .commit("HEAD", &msg, tree_oid, parents)
+                .map_err(|e| GitCasError::Git(format!("gix commit: {e}")))?;
+
+            Ok(oid_to_commit_hash(&commit_oid.detach()))
+        })
+        .await
+    }
+
+    /// List commit history for a pod directory, newest first.
+    pub async fn log_pod(
+        &self,
+        pod_dir: &Path,
+        max_count: usize,
+    ) -> Result<Vec<LogEntry>, GitCasError> {
+        let dir = pod_dir.to_path_buf();
+        let max = max_count;
+        spawn_blocking_io(move || {
+            let repo = match gix::open(&dir) {
+                Ok(r) => r,
+                Err(_) => return Ok(Vec::new()),
+            };
+            let head_commit = match repo.head_commit() {
+                Ok(c) => c,
+                Err(_) => return Ok(Vec::new()),
+            };
+            let platform = repo.rev_walk(Some(head_commit.id().detach()));
+            let mut entries = Vec::new();
+            let walk = match platform.all() {
+                Ok(w) => w,
+                Err(_) => return Ok(Vec::new()),
+            };
+            for (count, item) in walk.enumerate() {
+                if count >= max {
+                    break;
+                }
+                let Ok(info) = item else { continue };
+                let commit = match info.object().ok() {
+                    Some(c) => c,
+                    None => continue,
+                };
+                let message = commit
+                    .message_raw()
+                    .map(|m| m.to_string())
+                    .unwrap_or_default();
+                let timestamp_secs = commit.time().map(|t| t.seconds as u64).unwrap_or(0);
+                entries.push(LogEntry {
+                    commit: oid_to_commit_hash(&info.id),
+                    message,
+                    timestamp_secs,
+                });
+            }
+            Ok(entries)
+        })
+        .await
+    }
+
+    /// Restore a file from a prior commit to a destination path.
+    pub async fn restore_file_from_commit(
+        &self,
+        pod_dir: &Path,
+        commit: &CommitHash,
+        file_path: &str,
+        dest: &Path,
+    ) -> Result<(), GitCasError> {
+        let dir = pod_dir.to_path_buf();
+        let commit_str = commit.to_string();
+        let fp = file_path.to_string();
+        let d = dest.to_path_buf();
+        spawn_blocking_io(move || {
+            let repo = gix::open(&dir).map_err(|e| GitCasError::Git(format!("gix::open: {e}")))?;
+            let id = repo
+                .rev_parse_single(commit_str.as_str())
+                .map_err(|e| GitCasError::Git(format!("gix rev_parse '{commit_str}': {e}")))?;
+            let tree_oid = commit_tree_oid(&repo, &id.detach())?;
+            let obj = repo
+                .find_object(tree_oid)
+                .map_err(|e| GitCasError::Git(format!("find_object tree: {e}")))?;
+            let tree = obj
+                .try_into_tree()
+                .map_err(|e| GitCasError::Git(format!("try_into_tree: {e}")))?;
+
+            let mut found = None;
+            for entry in tree.iter() {
+                let entry = entry.map_err(|e| GitCasError::Git(format!("tree entry: {e}")))?;
+                if entry.filename().to_string() == fp {
+                    if entry.mode().is_tree() {
+                        return Err(GitCasError::NotFound(format!(
+                            "'{fp}' is a directory, not a file"
+                        )));
+                    }
+                    let blob = repo
+                        .find_object(entry.oid().to_owned())
+                        .map_err(|e| GitCasError::Git(format!("find_object blob: {e}")))?;
+                    found = Some(blob.data.to_vec());
+                    break;
+                }
+            }
+
+            let data = found.ok_or_else(|| {
+                GitCasError::NotFound(format!("File '{fp}' not found in commit {commit_str}"))
+            })?;
+
+            std::fs::write(&d, &data)
+                .map_err(|e| GitCasError::Io(format!("Failed to write restored file: {e}")))?;
+            Ok(())
+        })
+        .await
+    }
+}
+
+// ── Index helper ─────────────────────────────────────────────────────────
+
+fn add_dir_to_index(
+    repo: &gix::Repository,
+    root: &Path,
+    dir: &Path,
+    index: &mut gix::index::State,
+) -> Result<(), GitCasError> {
+    for entry in std::fs::read_dir(dir).map_err(|e| GitCasError::Io(format!("read_dir: {e}")))? {
+        let entry = entry.map_err(|e| GitCasError::Io(format!("dir entry: {e}")))?;
+        let path = entry.path();
+        let file_type = entry
+            .file_type()
+            .map_err(|e| GitCasError::Io(format!("file_type: {e}")))?;
+
+        // Skip .git directory
+        if path.file_name().map(|n| n == ".git").unwrap_or(false) {
+            continue;
+        }
+
+        if file_type.is_dir() {
+            add_dir_to_index(repo, root, &path, index)?;
+        } else if file_type.is_file() {
+            let rel = path
+                .strip_prefix(root)
+                .map_err(|e| GitCasError::Io(format!("strip_prefix: {e}")))?;
+            let content =
+                std::fs::read(&path).map_err(|e| GitCasError::Io(format!("read file: {e}")))?;
+            let oid = repo
+                .write_object(gix::objs::BlobRef { data: &content })
+                .map_err(|e| GitCasError::Git(format!("write_object: {e}")))?;
+            let mode = if is_executable(&path) {
+                gix::objs::tree::EntryMode::BlobExecutable
+            } else {
+                gix::objs::tree::EntryMode::Blob
+            };
+            index.dangerously_push_entry(rel.to_string_lossy().into_owned(), oid, mode);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn is_executable(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::metadata(path)
+        .map(|m| m.permissions().mode() & 0o111 != 0)
+        .unwrap_or(false)
+}
+
+#[cfg(not(unix))]
+fn is_executable(_path: &Path) -> bool {
+    false
 }
 
 #[async_trait::async_trait]

@@ -318,6 +318,9 @@ pub enum BackupAction {
         /// Scope: "full", or artifact type label
         #[arg(short, long, default_value = "full")]
         scope: String,
+        /// Output directory to write restored artifacts (omit for list-only)
+        #[arg(short, long)]
+        output: Option<String>,
     },
     /// List backup snapshots
     List {
@@ -336,6 +339,8 @@ pub enum BackupAction {
     },
     /// Verify backup integrity
     Verify,
+    /// Show backup health and daemon status
+    Status,
     /// View or update backup configuration
     Config {
         #[command(subcommand)]

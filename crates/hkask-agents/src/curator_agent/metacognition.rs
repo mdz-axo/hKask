@@ -229,6 +229,8 @@ pub struct MetacognitionLoop {
     curator_name: String,
     /// Convergence bias for CAT decision evaluation.
     convergence_bias: f64,
+    /// Core traits never compromised by accommodation.
+    invariant_traits: Vec<String>,
 }
 
 impl MetacognitionLoop {
@@ -256,6 +258,7 @@ impl MetacognitionLoop {
             template_skip_remaining: std::sync::atomic::AtomicU64::new(0),
             curator_name: "curator".to_string(),
             convergence_bias: 0.5,
+            invariant_traits: Vec::new(),
         }
     }
 
@@ -290,13 +293,15 @@ impl MetacognitionLoop {
             template_skip_remaining: std::sync::atomic::AtomicU64::new(0),
             curator_name: "curator".to_string(),
             convergence_bias: 0.5,
+            invariant_traits: Vec::new(),
         }
     }
 
-    /// Builder: set the communication posture (persona name and convergence bias).
-    pub fn with_communication_posture(mut self, name: String, bias: f64) -> Self {
+    /// Builder: set the communication posture (persona name, convergence bias, and invariant traits).
+    pub fn with_communication_posture(mut self, name: String, bias: f64, traits: Vec<String>) -> Self {
         self.curator_name = name;
         self.convergence_bias = bias;
+        self.invariant_traits = traits;
         self
     }
 
@@ -701,7 +706,7 @@ impl MetacognitionLoop {
                     );
                     resp_ctx.insert(
                         "invariant_traits".into(),
-                        serde_json::json!([] as [&str; 0]),
+                        serde_json::json!(self.invariant_traits),
                     );
 
                     match executor
