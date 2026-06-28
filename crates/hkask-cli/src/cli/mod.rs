@@ -338,3 +338,53 @@ pub enum Commands {
         force: bool,
     },
 }
+
+impl Commands {
+    /// Safe label for logging — excludes sensitive arguments.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Commands::Chat { .. } => "chat",
+            Commands::Template { .. } => "template",
+            Commands::Bot { .. } => "bot",
+            Commands::Pod { .. } => "pod",
+            Commands::Mcp { .. } => "mcp",
+            Commands::Cns { .. } => "cns",
+            Commands::Sovereignty { .. } => "sovereignty",
+            Commands::Goal { .. } => "goal",
+            Commands::Git { .. } => "git",
+            Commands::Backup { .. } => "backup",
+            Commands::Spec { .. } => "spec",
+            Commands::Docs { .. } => "docs",
+            Commands::Agent { .. } => "agent",
+            Commands::Curator { .. } => "curator",
+            Commands::Federation { .. } => "federation",
+            Commands::Token { .. } => "token",
+            Commands::Replicant { .. } => "replicant",
+            Commands::Keystore { .. } => "keystore",
+            Commands::Bundle { .. } => "bundle",
+            Commands::Skill { .. } => "skill",
+            Commands::Style { .. } => "style",
+            Commands::Kata { .. } => "kata",
+            Commands::Kanban { .. } => "kanban",
+            Commands::Adapter { .. } => "adapter",
+            Commands::Models => "models",
+            Commands::Doctor => "doctor",
+            Commands::Onboard => "onboard",
+            Commands::Settings { .. } => "settings",
+            Commands::Consolidate { .. } => "consolidate",
+            Commands::Loops => "loops",
+            Commands::Daemon { .. } => "daemon",
+            Commands::Test { .. } => "test",
+            Commands::WebSearch { .. } => "web_search",
+            Commands::Init => "init",
+            Commands::Export { .. } => "export",
+            Commands::Serve { .. } => "serve",
+            Commands::Wallet { .. } => "wallet",
+            Commands::List { .. } => "list",
+            Commands::Rm { .. } => "rm",
+            Commands::Transcript { .. } => "transcript",
+            Commands::Matrix { .. } => "matrix",
+            Commands::Repair { .. } => "repair",
+        }
+    }
+}

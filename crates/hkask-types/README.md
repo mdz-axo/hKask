@@ -13,7 +13,7 @@ Foundation crate — all other crates depend on this. Defines the core domain vo
 | `cns` | `CnsSpan` registry — canonical CNS span definitions |
 | `id` | `WebID`, `AgentID`, `PodID`, and other identity types |
 | `event` | ν-event types (`NuEvent`, `Span`, `Phase`) for CNS observability |
-| `visibility` | `Visibility`, `Confidence`, `AccessControl` |
+| `visibility` | `Visibility` (Private/Shared/Public), `Confidence`, `AccessControl` |
 | `error` | `InfrastructureError`, `McpErrorKind` — cross-cutting error taxonomy |
 | `template` | `LLMParameters` — shared inference parameter config |
 | `curation` | `DataCategory`, `CurationDecision`, sovereignty boundary types |

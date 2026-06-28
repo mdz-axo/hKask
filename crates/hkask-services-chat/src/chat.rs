@@ -184,7 +184,7 @@ mod tests {
             attribute: "c".into(),
             value: serde_json::json!(s),
             confidence: Confidence::new(0.9),
-            visibility: hkask_types::Visibility::Public,
+            visibility: hkask_types::Visibility::Shared,
             valid_from: "2026-01-01T00:00:00Z".into(),
         };
         let mock: Arc<MockSemanticPort> = Arc::new(MockSemanticPort {
@@ -204,7 +204,7 @@ mod tests {
             attribute: "c".into(),
             value: serde_json::json!("Text"),
             confidence: Confidence::new(0.9),
-            visibility: hkask_types::Visibility::Public,
+            visibility: hkask_types::Visibility::Shared,
             valid_from: "2026-01-01T00:00:00Z".into(),
         };
         let t2 = RecalledSemantic {
@@ -213,7 +213,7 @@ mod tests {
             attribute: "c".into(),
             value: serde_json::json!(42),
             confidence: Confidence::new(0.9),
-            visibility: hkask_types::Visibility::Public,
+            visibility: hkask_types::Visibility::Shared,
             valid_from: "2026-01-01T00:00:00Z".into(),
         };
         let mock: Arc<MockSemanticPort> = Arc::new(MockSemanticPort {

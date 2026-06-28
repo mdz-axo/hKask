@@ -101,7 +101,7 @@ mod tests {
             serde_json::Value::String(value.into()),
             owner,
         )
-        .with_visibility(Visibility::Public)
+        .with_visibility(Visibility::Shared)
     }
 
     #[test]

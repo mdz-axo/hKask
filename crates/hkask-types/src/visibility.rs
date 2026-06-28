@@ -4,17 +4,19 @@
 //! visibility boundaries. Public/Private data categories determine
 //! what each loop can read or write.
 //
-//! Defines a two-tier visibility model:
-//! - Public: accessible to all agents (shared/factual knowledge)
+//! Defines a three-tier visibility model:
 //! - Private: agent-specific access (episodic/experiential knowledge)
+//! - Shared: consent-bound access (shared knowledge, not universally public)
+//! - Public: universal access (no consent required)
 //!
 //! Access control enforcement is delegated to the `CapabilityToken` primitive.
 //!
 //! # Visibility Model
-//
+//!
 //! | Level | Meaning | Enforcement |
 //! |-------|---------|-------------|
 //! | Private | Agent-specific access | `SovereigntyChecker` + `CapabilityToken` |
+//! | Shared | Consent-bound shared access | `SovereigntyChecker` + `CapabilityToken` |
 //! | Public | Universal access | No capability required |
 
 use chrono::{DateTime, Utc};
@@ -33,6 +35,7 @@ use crate::id::WebID;
 pub enum Visibility {
     #[default]
     Private,
+    Shared,
     Public,
 }
 
@@ -40,10 +43,11 @@ impl Visibility {
     /// Get string representation of visibility.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns "private" or "public"
+    /// post: returns "private", "shared", or "public"
     pub fn as_str(&self) -> &'static str {
         match self {
             Visibility::Private => "private",
+            Visibility::Shared => "shared",
             Visibility::Public => "public",
         }
     }
@@ -55,7 +59,8 @@ impl Visibility {
     pub fn parse_str(s: &str) -> Option<Self> {
         match s {
             "private" | "Private" => Some(Visibility::Private),
-            "public" | "Public" | "shared" | "Shared" => Some(Visibility::Public),
+            "shared" | "Shared" => Some(Visibility::Shared),
+            "public" | "Public" => Some(Visibility::Public),
             _ => None,
         }
     }
@@ -85,6 +90,7 @@ impl std::fmt::Display for Visibility {
 /// - `AccessControl::new(owner)` — default: private, no perspective
 /// - `AccessControl::episodic(perspective, owner)` — private, perspective-bound
 /// - `AccessControl::semantic(owner)` — shared, no perspective
+/// - `AccessControl::public(owner)` — public, no perspective
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct AccessControl {
     pub perspective: Option<WebID>,
@@ -121,13 +127,26 @@ impl AccessControl {
         }
     }
 
-    /// Create a semantic (public, perspective-free) access control.
+    /// Create a semantic (shared, perspective-free) access control.
     /// Create semantic access control.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  owner is valid
-    /// post: returns AccessControl with Public visibility, no perspective
+    /// post: returns AccessControl with Shared visibility, no perspective
     pub fn semantic(owner: WebID) -> Self {
+        Self {
+            perspective: None,
+            visibility: Visibility::Shared,
+            owner_webid: owner,
+        }
+    }
+
+    /// Create a public (unrestricted, perspective-free) access control.
+    ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  owner is valid
+    /// post: returns AccessControl with Public visibility, no perspective
+    pub fn public(owner: WebID) -> Self {
         Self {
             perspective: None,
             visibility: Visibility::Public,
@@ -135,12 +154,24 @@ impl AccessControl {
         }
     }
 
-    /// Convert to semantic access control: strip perspective, set visibility to Public.
-    /// Convert to semantic access (strip perspective, set Public).
+    /// Convert to semantic access control: strip perspective, set visibility to Shared.
+    /// Convert to semantic access (strip perspective, set Shared).
+    ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// post: returns AccessControl with Shared visibility, no perspective
+    pub fn to_semantic(&self) -> Self {
+        Self {
+            perspective: None,
+            visibility: Visibility::Shared,
+            owner_webid: self.owner_webid,
+        }
+    }
+
+    /// Convert to public access control: strip perspective, set visibility to Public.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// post: returns AccessControl with Public visibility, no perspective
-    pub fn to_semantic(&self) -> Self {
+    pub fn to_public(&self) -> Self {
         Self {
             perspective: None,
             visibility: Visibility::Public,
@@ -157,13 +188,13 @@ impl AccessControl {
         self.perspective.is_some()
     }
 
-    /// Is this a semantic (public, perspective-free) access control?
-    /// Check if this is semantic (Public, no perspective).
+    /// Is this a semantic (shared, perspective-free) access control?
+    /// Check if this is semantic (Shared, no perspective).
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns true iff visibility is Public and perspective is None
+    /// post: returns true iff visibility is Shared and perspective is None
     pub fn is_semantic(&self) -> bool {
-        self.perspective.is_none() && self.visibility == Visibility::Public
+        self.perspective.is_none() && self.visibility == Visibility::Shared
     }
 
     #[must_use = "builder methods must be chained or assigned"]

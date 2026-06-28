@@ -26,3 +26,7 @@ CLI commands for hKask — the primary user interface.
 |----------|-------------|
 | `HKASK_DB_PATH` | SQLite database path |
 | `HKASK_DB_PASSPHRASE` | Database encryption passphrase |
+
+## Observability
+
+CLI CNS spans log the **command group only** (e.g., `backup`, `consolidate`) to avoid leaking sensitive arguments such as passphrases.

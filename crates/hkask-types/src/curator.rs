@@ -59,7 +59,10 @@ impl CuratorHandle {
 
     /// Curator can write to shared and public categories that it governs
     pub fn can_write(&self, category: &DataCategory) -> bool {
-        matches!(category.default_visibility(), Visibility::Public)
+        matches!(
+            category.default_visibility(),
+            Visibility::Shared | Visibility::Public
+        )
     }
 }
 

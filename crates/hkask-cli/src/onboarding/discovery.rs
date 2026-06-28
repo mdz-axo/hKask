@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 
 // ── HuggingFace API types ──────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 struct HfModel {
     #[serde(rename = "_id")]
     id: Option<String>,
@@ -33,7 +33,7 @@ struct HfModel {
     likes: Option<u64>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 struct HfUser {
     followers: Option<u64>,
 }
@@ -139,28 +139,67 @@ async fn fetch_hf_user_followers(client: &reqwest::Client, username: &str) -> Re
 
 /// Keywords that signal a model is a thinking/reasoning variant.
 const THINKING_KEYWORDS: &[&str] = &[
-    "thinking", "reasoning", "r1-", "-r1", "deep-think", "deepseek-r1",
-    "qwen3-max-thinking", "kimi-thinking", "o1-", "o3-", "o4-",
-    "reasoner", "deep-thought",
+    "thinking",
+    "reasoning",
+    "r1-",
+    "-r1",
+    "deep-think",
+    "deepseek-r1",
+    "qwen3-max-thinking",
+    "kimi-thinking",
+    "o1-",
+    "o3-",
+    "o4-",
+    "reasoner",
+    "deep-thought",
 ];
 
 /// Keywords that signal a model is an instruct/flash/non-thinking variant.
-const INSTRUCT_KEYWORDS: &[&str] = &[
-    "instruct", "-it", "flash", "turbo", "chat",
-];
+const INSTRUCT_KEYWORDS: &[&str] = &["instruct", "-it", "flash", "turbo", "chat"];
 
 /// Keywords excluding models that are NOT LLMs.
 const NON_LLM_KEYWORDS: &[&str] = &[
-    "embedding", "bge-", "gte-", "e5-", "stella", "jina-embeddings",
-    "tts", "speech", "whisper", "parakeet", "zonos", "chatterbox",
-    "ocr", "paddleocr", "got-ocr",
-    "flux", "stable-diffusion", "sd-", "sdxl", "dall-e",
-    "text-to-image", "image-generat", "imagen-",
-    "text-to-video", "video-generat", "ltx-video",
-    "clip-", "blip-",
-    "reranker", "bge-reranker", "jina-reranker",
-    "voice", "audio", "melotts", "fish-speech", "bgm", "musicgen",
-    "upscale", "segmentation", "detection", "depth",
+    "embedding",
+    "bge-",
+    "gte-",
+    "e5-",
+    "stella",
+    "jina-embeddings",
+    "tts",
+    "speech",
+    "whisper",
+    "parakeet",
+    "zonos",
+    "chatterbox",
+    "ocr",
+    "paddleocr",
+    "got-ocr",
+    "flux",
+    "stable-diffusion",
+    "sd-",
+    "sdxl",
+    "dall-e",
+    "text-to-image",
+    "image-generat",
+    "imagen-",
+    "text-to-video",
+    "video-generat",
+    "ltx-video",
+    "clip-",
+    "blip-",
+    "reranker",
+    "bge-reranker",
+    "jina-reranker",
+    "voice",
+    "audio",
+    "melotts",
+    "fish-speech",
+    "bgm",
+    "musicgen",
+    "upscale",
+    "segmentation",
+    "detection",
+    "depth",
     "computer-vision",
 ];
 
@@ -188,24 +227,24 @@ fn classify_model(model_id: &str) -> Option<ModelKind> {
 /// This is a stable structural mapping, not a model list.
 fn author_to_family(author: &str, model_id: &str) -> String {
     match author.to_lowercase().as_str() {
-        "deepseek-ai" => "deepseek",
-        "zai-org" => "glm",
-        "moonshotai" => "kimi",
-        "minimaxai" => "minimax",
-        "qwen" => "qwen",
-        "google" => "gemma",
-        "nvidia" => "nemotron",
-        "meta-llama" => "llama",
-        "mistralai" | "mistral" => "mistral",
-        "microsoft" => "phi",
-        "stepfun-ai" => "step",
-        "openai" => "openai",
-        "xiaomimimo" => "mimo",
-        "ai21labs" | "ai21" => "jamba",
-        "cohere" | "cohereforai" => "command",
-        "allenai" => "olmo",
-        "tiiuae" => "falcon",
-        "ibm" | "ibm-granite" => "granite",
+        "deepseek-ai" => "deepseek".to_string(),
+        "zai-org" => "glm".to_string(),
+        "moonshotai" => "kimi".to_string(),
+        "minimaxai" => "minimax".to_string(),
+        "qwen" => "qwen".to_string(),
+        "google" => "gemma".to_string(),
+        "nvidia" => "nemotron".to_string(),
+        "meta-llama" => "llama".to_string(),
+        "mistralai" | "mistral" => "mistral".to_string(),
+        "microsoft" => "phi".to_string(),
+        "stepfun-ai" => "step".to_string(),
+        "openai" => "openai".to_string(),
+        "xiaomimimo" => "mimo".to_string(),
+        "ai21labs" | "ai21" => "jamba".to_string(),
+        "cohere" | "cohereforai" => "command".to_string(),
+        "allenai" => "olmo".to_string(),
+        "tiiuae" => "falcon".to_string(),
+        "ibm" | "ibm-granite" => "granite".to_string(),
         _ => {
             // Fallback: parse family from model ID
             extract_family_from_id(model_id)
@@ -258,9 +297,7 @@ fn map_to_hkask_provider(
             // DeepInfra uses the full HF model ID
             model_id.to_string()
         }
-        ProviderId::Together => {
-            model_id.to_string()
-        }
+        ProviderId::Together => model_id.to_string(),
         _ => model_id.to_string(),
     };
 
@@ -273,9 +310,7 @@ fn map_to_hkask_provider(
 ///
 /// Returns `(models, source_label)` where models is the deduplicated list
 /// and source_label describes where they came from.
-pub(crate) async fn discover_models(
-    config: &InferenceConfig,
-) -> (Vec<OnboardingModel>, String) {
+pub(crate) async fn discover_models(config: &InferenceConfig) -> (Vec<OnboardingModel>, String) {
     // ── Try HuggingFace pipeline (Layers 1-3) ──────────────────────────
     if let Ok(client) = config.build_client() {
         if let Ok((models, label)) = run_hf_pipeline(&client, config).await {
@@ -297,7 +332,10 @@ pub(crate) async fn discover_models(
 
     // ── Last resort: static fallback ───────────────────────────────────
     let models = build_fallback(config);
-    (models, format!("curated fallback ({} unreachable)", provider_label(config)))
+    (
+        models,
+        format!("curated fallback ({} unreachable)", provider_label(config)),
+    )
 }
 
 /// Run the HuggingFace pipeline: fetch, filter, classify, deduplicate.
@@ -374,7 +412,7 @@ async fn run_hf_pipeline(
         };
 
         let family = author_to_family(author, model_id);
-        by_family.entry(family).or_default().push(m.clone());
+        by_family.entry(family).or_default().push((*m).clone());
     }
 
     // Layer 3: Per family, keep best Thinking + best Instruct (by recency)
@@ -390,31 +428,27 @@ async fn run_hf_pipeline(
 
             match kind {
                 ModelKind::Thinking => {
-                    if best_thinking.is_none()
-                        || is_newer(m, best_thinking.unwrap())
-                    {
+                    if best_thinking.is_none() || is_newer(m, best_thinking.unwrap()) {
                         best_thinking = Some(m);
                     }
                 }
                 ModelKind::Instruct => {
-                    if best_instruct.is_none()
-                        || is_newer(m, best_instruct.unwrap())
-                    {
+                    if best_instruct.is_none() || is_newer(m, best_instruct.unwrap()) {
                         best_instruct = Some(m);
                     }
                 }
             }
         }
 
-        let author = models.first().and_then(|m| m.author.as_deref()).unwrap_or("");
+        let author = models
+            .first()
+            .and_then(|m| m.author.as_deref())
+            .unwrap_or("");
         let followers = followers.get(author).copied().unwrap_or(0);
 
         if let Some(m) = best_thinking {
-            let (provider, full_id) = map_to_hkask_provider(
-                author,
-                m.model_id.as_deref().unwrap_or(""),
-                config,
-            );
+            let (provider, full_id) =
+                map_to_hkask_provider(author, m.model_id.as_deref().unwrap_or(""), config);
             results.push(DiscoveredModel {
                 model_id: full_id,
                 family: family.clone(),
@@ -426,11 +460,8 @@ async fn run_hf_pipeline(
         }
 
         if let Some(m) = best_instruct {
-            let (provider, full_id) = map_to_hkask_provider(
-                author,
-                m.model_id.as_deref().unwrap_or(""),
-                config,
-            );
+            let (provider, full_id) =
+                map_to_hkask_provider(author, m.model_id.as_deref().unwrap_or(""), config);
             results.push(DiscoveredModel {
                 model_id: full_id,
                 family: family.clone(),
@@ -468,7 +499,10 @@ async fn run_hf_pipeline(
         })
         .collect();
 
-    Ok((onboarding_models, "HuggingFace (≤6 months, >5k followers)".into()))
+    Ok((
+        onboarding_models,
+        "HuggingFace (≤6 months, >5k followers)".into(),
+    ))
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -490,7 +524,7 @@ fn provider_label(config: &InferenceConfig) -> &'static str {
     }
 }
 
-fn shorten_for_display(id: &str) -> String {
+pub(crate) fn shorten_for_display(id: &str) -> String {
     // Strip provider prefix (DI/, KC/, etc.) and org prefix
     let base = id.splitn(2, '/').nth(1).unwrap_or(id);
     let base = base.splitn(2, '/').nth(1).unwrap_or(base);
@@ -503,7 +537,7 @@ fn shorten_for_display(id: &str) -> String {
             let mut c = w.chars();
             match c.next() {
                 None => String::new(),
-                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str().to_lowercase().as_str(),
             }
         })
         .collect::<Vec<_>>()
@@ -547,10 +581,20 @@ fn build_from_router(
         instruct.sort_by(|a, b| score_model_name(&b.model).cmp(&score_model_name(&a.model)));
 
         if let Some(m) = thinking.first() {
-            results.push(build_onboarding_entry(m, &family, ModelKind::Thinking, config));
+            results.push(build_onboarding_entry(
+                m,
+                &family,
+                ModelKind::Thinking,
+                config,
+            ));
         }
         if let Some(m) = instruct.first() {
-            results.push(build_onboarding_entry(m, &family, ModelKind::Instruct, config));
+            results.push(build_onboarding_entry(
+                m,
+                &family,
+                ModelKind::Instruct,
+                config,
+            ));
         }
     }
 
@@ -563,10 +607,9 @@ fn build_onboarding_entry(
     m: &RouterModelEntry,
     family: &str,
     kind: ModelKind,
-    config: &InferenceConfig,
+    _config: &InferenceConfig,
 ) -> OnboardingModel {
-    let score = score_model_name(&m.model)
-        + if kind == ModelKind::Thinking { 50 } else { 0 };
+    let score = score_model_name(&m.model) + if kind == ModelKind::Thinking { 50 } else { 0 };
     let kind_label = if kind == ModelKind::Thinking {
         "⚡ Thinking"
     } else {
@@ -605,10 +648,16 @@ fn score_model_name(model_id: &str) -> u32 {
 
     // Quality tier signals
     for (signal, points) in &[
-        ("pro", 20u32), ("max", 18), ("ultra", 18), ("super", 15),
-        ("flash", 8), ("large", 10),
+        ("pro", 20u32),
+        ("max", 18),
+        ("ultra", 18),
+        ("super", 15),
+        ("flash", 8),
+        ("large", 10),
     ] {
-        if lower.contains(signal) { score += points; }
+        if lower.contains(signal) {
+            score += points;
+        }
     }
 
     // Version signals
@@ -626,15 +675,51 @@ fn score_model_name(model_id: &str) -> u32 {
 // ── Fallback lists ─────────────────────────────────────────────────────────
 
 const DEEPINFRA_FALLBACK: &[(&str, &str, ModelKind)] = &[
-    ("deepseek-ai/DeepSeek-V4-Pro", "1.6T MoE, 1M ctx, top coding", ModelKind::Instruct),
-    ("deepseek-ai/DeepSeek-R1-0528", "R1 reasoning, deep thought", ModelKind::Thinking),
-    ("zai-org/GLM-5.2", "744B MoE, MIT, GPQA leader", ModelKind::Instruct),
-    ("moonshotai/Kimi-K2.6", "1T MoE, agent swarms", ModelKind::Instruct),
-    ("MiniMaxAI/MiniMax-M3", "1M ctx, multimodal, SWE-Bench", ModelKind::Instruct),
-    ("Qwen/Qwen3.5-397B-A17B", "397B MoE, Apache 2.0", ModelKind::Instruct),
-    ("nvidia/NVIDIA-Nemotron-3-Super-120B-A12B", "120B MoE, 1M ctx", ModelKind::Instruct),
-    ("google/gemma-4-31B-it", "31B dense, Apache 2.0", ModelKind::Instruct),
-    ("deepseek-ai/DeepSeek-V4-Flash", "284B MoE, efficient 1M ctx", ModelKind::Instruct),
+    (
+        "deepseek-ai/DeepSeek-V4-Pro",
+        "1.6T MoE, 1M ctx, top coding",
+        ModelKind::Instruct,
+    ),
+    (
+        "deepseek-ai/DeepSeek-R1-0528",
+        "R1 reasoning, deep thought",
+        ModelKind::Thinking,
+    ),
+    (
+        "zai-org/GLM-5.2",
+        "744B MoE, MIT, GPQA leader",
+        ModelKind::Instruct,
+    ),
+    (
+        "moonshotai/Kimi-K2.6",
+        "1T MoE, agent swarms",
+        ModelKind::Instruct,
+    ),
+    (
+        "MiniMaxAI/MiniMax-M3",
+        "1M ctx, multimodal, SWE-Bench",
+        ModelKind::Instruct,
+    ),
+    (
+        "Qwen/Qwen3.5-397B-A17B",
+        "397B MoE, Apache 2.0",
+        ModelKind::Instruct,
+    ),
+    (
+        "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B",
+        "120B MoE, 1M ctx",
+        ModelKind::Instruct,
+    ),
+    (
+        "google/gemma-4-31B-it",
+        "31B dense, Apache 2.0",
+        ModelKind::Instruct,
+    ),
+    (
+        "deepseek-ai/DeepSeek-V4-Flash",
+        "284B MoE, efficient 1M ctx",
+        ModelKind::Instruct,
+    ),
 ];
 
 const KILOCODE_FALLBACK: &[(&str, &str, ModelKind)] = &[
@@ -643,10 +728,22 @@ const KILOCODE_FALLBACK: &[(&str, &str, ModelKind)] = &[
     ("glm-5.2", "744B MoE, MIT", ModelKind::Instruct),
     ("kimi-k2.6", "1T MoE, agent swarms", ModelKind::Instruct),
     ("minimax-m3", "1M ctx, multimodal", ModelKind::Instruct),
-    ("qwen3.5-397b-a17b", "397B MoE, Apache 2.0", ModelKind::Instruct),
+    (
+        "qwen3.5-397b-a17b",
+        "397B MoE, Apache 2.0",
+        ModelKind::Instruct,
+    ),
     ("nemotron-3-super", "120B MoE, 1M ctx", ModelKind::Instruct),
-    ("gemma-4-31b-it", "31B dense, Apache 2.0", ModelKind::Instruct),
-    ("deepseek-v4-flash", "284B MoE, efficient", ModelKind::Instruct),
+    (
+        "gemma-4-31b-it",
+        "31B dense, Apache 2.0",
+        ModelKind::Instruct,
+    ),
+    (
+        "deepseek-v4-flash",
+        "284B MoE, efficient",
+        ModelKind::Instruct,
+    ),
 ];
 
 fn build_fallback(config: &InferenceConfig) -> Vec<OnboardingModel> {
@@ -661,7 +758,11 @@ fn build_fallback(config: &InferenceConfig) -> Vec<OnboardingModel> {
             full_id: config.default_provider.prefix_model(id),
             description: format!(
                 "{} — {}",
-                if *kind == ModelKind::Thinking { "⚡ Thinking" } else { "Instruct" },
+                if *kind == ModelKind::Thinking {
+                    "⚡ Thinking"
+                } else {
+                    "Instruct"
+                },
                 desc
             ),
             provider: config.default_provider,
@@ -683,10 +784,11 @@ fn is_likely_llm(model_id: &str) -> bool {
 fn is_likely_small_model(model_id: &str) -> bool {
     let lower = model_id.to_lowercase();
     for kw in &[
-        "-1b", "-3b", "-7b", "-8b", "-0.5b", "-1.5b", "-0.6b",
-        "-mini", "-tiny", "-small", "-nano",
+        "-1b", "-3b", "-7b", "-8b", "-0.5b", "-1.5b", "-0.6b", "-mini", "-tiny", "-small", "-nano",
     ] {
-        if lower.contains(kw) { return true; }
+        if lower.contains(kw) {
+            return true;
+        }
     }
     false
 }
@@ -733,19 +835,16 @@ mod tests {
             author_to_family("deepseek-ai", "deepseek-ai/DeepSeek-V4-Pro"),
             "deepseek"
         );
-        assert_eq!(
-            author_to_family("zai-org", "zai-org/GLM-5.2"),
-            "glm"
-        );
-        assert_eq!(
-            author_to_family("qwen", "Qwen/Qwen3.5-397B-A17B"),
-            "qwen"
-        );
+        assert_eq!(author_to_family("zai-org", "zai-org/GLM-5.2"), "glm");
+        assert_eq!(author_to_family("qwen", "Qwen/Qwen3.5-397B-A17B"), "qwen");
     }
 
     #[test]
     fn family_from_id_fallback() {
-        assert_eq!(extract_family_from_id("some-org/UnknownModel-v2"), "unknownmodel");
+        assert_eq!(
+            extract_family_from_id("some-org/UnknownModel-v2"),
+            "unknownmodel"
+        );
         assert_eq!(extract_family_from_id("deepseek-v4-pro"), "deepseek");
         assert_eq!(extract_family_from_id("glm-5.2"), "glm");
     }
@@ -756,16 +855,11 @@ mod tests {
             shorten_for_display("DI/deepseek-ai/DeepSeek-V4-Pro"),
             "Deepseek V4 Pro"
         );
-        assert_eq!(
-            shorten_for_display("KC/deepseek-v4-pro"),
-            "Deepseek V4 Pro"
-        );
+        assert_eq!(shorten_for_display("KC/deepseek-v4-pro"), "Deepseek V4 Pro");
     }
 
     #[test]
     fn score_model_ranks_pro_over_flash() {
-        assert!(
-            score_model_name("deepseek-v4-pro") > score_model_name("deepseek-v4-flash")
-        );
+        assert!(score_model_name("deepseek-v4-pro") > score_model_name("deepseek-v4-flash"));
     }
 }

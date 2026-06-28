@@ -581,7 +581,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
     fn mcp_status(&self) -> (usize, usize) {
         // Query McpRuntime for server count via blocking async
         if let Ok(s) = self.state.lock() {
-            let runtime = s.service_context.mcp_runtime.clone();
+            let runtime = s.service_context.mcp_runtime().clone();
             let servers = self.rt_handle.block_on(runtime.list_servers());
             (0, servers.len())
         } else {

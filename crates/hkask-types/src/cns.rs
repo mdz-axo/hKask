@@ -84,8 +84,11 @@ pub enum CnsSpan {
     AgentPod,
     /// Gas (energy) consumption tracking.
     Gas,
-    /// Curation loop operations.
+    /// Curation loop operations — registry sync, pod sync, directive issuance.
     Curation,
+    /// Curator auto-consolidation events — skipped, completed, or failed.
+    /// Emitted from the Curation Loop when `curator_auto_consolidation_enabled`.
+    CuratorConsolidation,
     /// Sovereignty boundary checks.
     Sovereignty,
     /// Keystore operations — key derivation, storage, signing (P4 security boundary).
@@ -351,6 +354,7 @@ impl CnsSpan {
             CnsSpan::AgentPod => "cns.agent_pod",
             CnsSpan::Gas => "cns.gas",
             CnsSpan::Curation => "cns.curation",
+            CnsSpan::CuratorConsolidation => "cns.curator.consolidation",
             CnsSpan::Sovereignty => "cns.sovereignty",
             CnsSpan::Keystore => "cns.keystore",
             CnsSpan::Adapter => "cns.adapter",
@@ -488,6 +492,7 @@ impl std::str::FromStr for CnsSpan {
             "cns.agent_pod" => Ok(CnsSpan::AgentPod),
             "cns.gas" => Ok(CnsSpan::Gas),
             "cns.curation" => Ok(CnsSpan::Curation),
+            "cns.curator.consolidation" => Ok(CnsSpan::CuratorConsolidation),
             "cns.sovereignty" => Ok(CnsSpan::Sovereignty),
             "cns.keystore" => Ok(CnsSpan::Keystore),
             "cns.adapter" => Ok(CnsSpan::Adapter),
@@ -635,6 +640,7 @@ mod cns_span_tests {
             CnsSpan::AgentPod,
             CnsSpan::Gas,
             CnsSpan::Curation,
+            CnsSpan::CuratorConsolidation,
             CnsSpan::Sovereignty,
             CnsSpan::Keystore,
             CnsSpan::Adapter,
@@ -725,10 +731,10 @@ mod cns_span_tests {
                 variant, s, parsed
             );
         }
-        // Assert count matches enum variant count (CnsSpan has ~72 variants).
+        // Assert count matches enum variant count (CnsSpan has ~73 variants).
         // If this fails, a new CnsSpan variant was added without updating this test.
         assert!(
-            all_variants.len() >= 71,
+            all_variants.len() >= 72,
             "CNS span exhaustive test should cover all CnsSpan variants, found {} (expected ≥71)",
             all_variants.len()
         );

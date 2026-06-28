@@ -10,7 +10,7 @@
 //! After setup, derived secrets are stored in the OS keychain for future
 //! sessions and passed directly to `init_registry_with_secrets()`.
 
-use hkask_inference::{FusionConfig, FusionMode, InferenceRouter, ProviderId};
+use hkask_inference::{FusionMode, ProviderId};
 use hkask_services::{
     InferenceConfig, MatrixRegistrationResult, OnboardingService, ResolvedSecrets, ServiceConfig,
     ServiceError,

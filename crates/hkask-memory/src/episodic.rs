@@ -103,17 +103,20 @@ impl EpisodicMemory {
     ///
     /// expect: "I can store first-person experience triples in my sovereign episodic memory"
     /// \[P3\] Motivating: Generative Space — stores a first-person experience triple
-    /// \[P1\] Constraining: User Sovereignty — rejects Public visibility (episodic is sovereign)
+    /// \[P1\] Constraining: User Sovereignty — rejects Shared/Public visibility (episodic is sovereign)
     /// \[P4\] Constraining: Clear Boundaries — requires perspective owner
-    /// pre:  triple.access.visibility != Public (episodic is sovereign)
+    /// pre:  triple.access.visibility is Private (episodic is sovereign)
     /// pre:  triple.access.perspective is Some (must have owner)
     /// post: triple inserted into triple_store
-    /// post: returns Err(InvalidVisibility) if visibility is Public
+    /// post: returns Err(InvalidVisibility) if visibility is Shared or Public
     /// post: returns Err(MissingPerspective) if perspective is None
     pub fn store(&self, triple: Triple) -> Result<(), EpisodicMemoryError> {
-        if triple.access.visibility == Visibility::Public {
+        if matches!(
+            triple.access.visibility,
+            Visibility::Shared | Visibility::Public
+        ) {
             return Err(EpisodicMemoryError::InvalidVisibility(
-                "Episodic memory is sovereign — Shared triples belong in semantic memory"
+                "Episodic memory is sovereign — shared/public triples belong in semantic memory"
                     .to_string(),
             ));
         }

@@ -98,7 +98,7 @@ fn semantic_store_and_recall_deduped() {
     let perspective = test_perspective();
 
     let triple = Triple::new("fact_x", "is", serde_json::json!("true"), perspective)
-        .with_visibility(hkask_types::Visibility::Public);
+        .with_visibility(hkask_types::Visibility::Shared);
 
     semantic.store(triple).expect("store semantic");
 

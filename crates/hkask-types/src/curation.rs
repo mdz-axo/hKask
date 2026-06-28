@@ -65,7 +65,7 @@ impl DataCategory {
     /// Parse a DataCategory from string.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// post: returns DataCategory (defaults to Episodic for unknown)
+    /// post: returns DataCategory (unknown strings become Custom)
     pub fn parse(s: &str) -> Self {
         match s {
             "episodic_memory" => DataCategory::EpisodicMemory,
@@ -134,7 +134,7 @@ impl DataCategory {
             | Self::PersonalContext
             | Self::CapabilityTokens
             | Self::OcapBoundaries => Visibility::Private,
-            Self::SemanticMemory | Self::TemplateInvocations => Visibility::Public,
+            Self::SemanticMemory | Self::TemplateInvocations => Visibility::Shared,
             Self::TemplateRegistry | Self::Public => Visibility::Public,
             Self::Custom(_) => Visibility::Private, // conservative default
         }

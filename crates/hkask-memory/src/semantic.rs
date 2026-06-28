@@ -95,33 +95,36 @@ impl SemanticMemory {
     /// regardless of timestamps, confidence, or perspective metadata.
     ///
     /// expect: "I can recall deduplicated semantic triples with embedding similarity"
-    /// \[P3\] Motivating: Generative Space — recalls deduplicated public semantic triples
-    /// \[P4\] Constraining: Clear Boundaries — filters to Public visibility
+    /// \[P3\] Motivating: Generative Space — recalls deduplicated shared semantic triples
+    /// \[P4\] Constraining: Clear Boundaries — filters to Shared/Public visibility
     /// pre:  entity is non-empty
-    /// post: returns `Vec<Triple>` filtered to Public visibility, deduplicated by EAV hash
+    /// post: returns `Vec<Triple>` filtered to Shared/Public visibility, deduplicated by EAV hash
     pub fn query_deduped(&self, entity: &str) -> Result<Vec<Triple>, SemanticMemoryError> {
         let triples = self.triple_store.query_by_entity(entity)?;
         let filtered: Vec<Triple> = triples
             .into_iter()
-            .filter(|t| t.access.visibility == Visibility::Public)
+            .filter(|t| matches!(t.access.visibility, Visibility::Shared | Visibility::Public))
             .collect();
         Ok(recall_dedup::dedup_triples(filtered))
     }
 
-    /// Store a semantic triple (must be Public, no perspective).
+    /// Store a semantic triple (must be Shared/Public, no perspective).
     ///
-    /// expect: "I can store shared semantic triples for public knowledge"
+    /// expect: "I can store shared semantic triples for shared knowledge"
     /// \[P3\] Motivating: Generative Space — stores shared semantic triple
-    /// \[P4\] Constraining: Clear Boundaries — requires Public visibility and no perspective
-    /// pre:  triple.access.visibility == Public
+    /// \[P4\] Constraining: Clear Boundaries — requires Shared/Public visibility and no perspective
+    /// pre:  triple.access.visibility is Shared or Public
     /// pre:  triple.access.perspective is None
     /// post: triple inserted into triple_store
-    /// post: returns Err(InvalidVisibility) if not Public
+    /// post: returns Err(InvalidVisibility) if not Shared/Public
     /// post: returns Err(HasPerspective) if perspective is set
     pub fn store(&self, triple: Triple) -> Result<(), SemanticMemoryError> {
-        if triple.access.visibility != Visibility::Public {
+        if !matches!(
+            triple.access.visibility,
+            Visibility::Shared | Visibility::Public
+        ) {
             return Err(SemanticMemoryError::InvalidVisibility(format!(
-                "Semantic memory requires Public visibility, got {:?}",
+                "Semantic memory requires Shared/Public visibility, got {:?}",
                 triple.access.visibility
             )));
         }
@@ -187,7 +190,10 @@ impl SemanticMemory {
             .query_by_entity_attribute(&triple.entity, &triple.attribute)
             .ok()?
             .into_iter()
-            .filter(|t| t.access.visibility == Visibility::Public && t.access.perspective.is_none())
+            .filter(|t| {
+                matches!(t.access.visibility, Visibility::Shared | Visibility::Public)
+                    && t.access.perspective.is_none()
+            })
             .find(|t| crate::recall_dedup::eav_hash(t) == candidate_hash);
 
         if existing.is_some() {

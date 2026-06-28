@@ -52,7 +52,12 @@ fn main() {
 
     // P9: CNS span
     let cns_start = Instant::now();
-    tracing::info!(target: "cns.cli", operation = "command_dispatched", command = ?cli.command, "CNS");
+    tracing::info!(
+        target: "cns.cli",
+        operation = "command_dispatched",
+        command = %cli.command.label(),
+        "CNS"
+    );
 
     match cli.command {
         Commands::Chat {

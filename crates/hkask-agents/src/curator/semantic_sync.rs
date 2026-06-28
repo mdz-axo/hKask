@@ -375,7 +375,7 @@ impl CuratorSync {
                 let conf: hkask_types::Confidence = (*confidence).into();
                 let triple = hkask_storage::Triple::new(entity, attribute, value, hkask_types::WebID::default())
                     .with_confidence(conf)
-                    .with_visibility(Visibility::Public);
+                                        .with_visibility(Visibility::Shared);
                 idx.insert(&triple, pod_id).map_err(|e| format!("Failed to insert triple: {e}"))?;
                 new_cursor = (*rowid) as u64;
                 count += 1;

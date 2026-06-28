@@ -46,7 +46,7 @@ impl FederationSyncPort for SemanticIndexSyncPort {
 
         let results: Vec<FederatedTriple> = all
             .into_iter()
-            .filter(|t| t.access.visibility == Visibility::Public)
+            .filter(|t| matches!(t.access.visibility, Visibility::Shared | Visibility::Public))
             .skip(cursor as usize)
             .take(limit)
             .map(|t| FederatedTriple {

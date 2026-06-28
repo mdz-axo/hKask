@@ -164,7 +164,7 @@ pub fn any_goal() -> BoxedStrategy<Goal> {
             GoalState::Blocked,
             GoalState::Abandoned,
         ]),
-        select(&[Visibility::Private, Visibility::Public]),
+        select(&[Visibility::Private, Visibility::Shared, Visibility::Public]),
         (0u8..7u8),
         proptest::option::of(proptest::arbitrary::any::<String>()),
     )

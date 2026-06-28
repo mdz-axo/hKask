@@ -1235,7 +1235,7 @@ fn store_passage_triples(
     owner: WebID,
 ) -> Result<(), ServiceError> {
     let store = |entity: &str, attr: &str, value: serde_json::Value| -> Result<(), ServiceError> {
-        let triple = Triple::new(entity, attr, value, owner).with_visibility(Visibility::Public);
+        let triple = Triple::new(entity, attr, value, owner).with_visibility(Visibility::Shared);
         semantic.store(triple).map_err(|e| {
             let msg = format!("Failed to store triple ({entity}, {attr}): {e}");
             ServiceError::Embed {
