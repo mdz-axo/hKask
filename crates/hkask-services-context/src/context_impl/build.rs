@@ -132,6 +132,9 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     let shared_conn = db.conn_arc();
 
     let primary_conn = Arc::clone(&shared_conn);
+    let gas_event_store: Arc<NuEventStore> = Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));
+    let cns_event_sink: Arc<dyn NuEventSink> = Arc::clone(&gas_event_store) as Arc<dyn NuEventSink>;
+
     let consent_conn = Arc::clone(&shared_conn);
     let escalation_conn = Arc::clone(&shared_conn);
     let goal_conn = Arc::clone(&shared_conn);
@@ -149,7 +152,8 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
         .map_err(|e| ServiceError::ConsentStore {
             message: e.to_string(),
         })?;
-    let consent_manager = Arc::new(ConsentManager::new(consent_store));
+    let consent_manager =
+        Arc::new(ConsentManager::new(consent_store).with_event_sink(Arc::clone(&cns_event_sink)));
 
     let escalation_queue =
         Arc::new(
@@ -212,10 +216,6 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
             Arc::new(RwLock::new(None))
         }
     };
-
-    // CNS event sink + gas event store — share one NuEventStore on primary DB.
-    let gas_event_store: Arc<NuEventStore> = Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));
-    let cns_event_sink: Arc<dyn NuEventSink> = Arc::clone(&gas_event_store) as Arc<dyn NuEventSink>;
 
     // Triple store for kanban task bridge — contract violations create tasks here.
     let _triple_store = Arc::new(TripleStore::new(Arc::clone(&primary_conn)));
@@ -365,7 +365,8 @@ async fn build_loops(
             Some(curator_directive_tx.clone()),
             Arc::clone(&f.escalation_queue),
         )
-        .with_a2a(a2a_runtime.clone()),
+        .with_a2a(a2a_runtime.clone())
+        .with_consent_manager(Arc::clone(&f.consent_manager)),
     );
     // Clone before move into CuratorAgent — stored in Loops for late-binding
     // ManifestExecutor wiring after MCP pods are built.
@@ -384,6 +385,7 @@ async fn build_loops(
                 .expect("curation_inbox_rx consumed once"),
         ),
         Some(f.curation_inbox_tx.clone()),
+        config.curator_auto_consolidation_enabled,
     );
     let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
     loop_system.register_loop(curation_loop).await;

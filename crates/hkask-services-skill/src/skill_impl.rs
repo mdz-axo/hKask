@@ -7,7 +7,7 @@
 //! BLAKE3 content hashing, SKILL.md front matter parsing and mutation,
 //! zone-aware discovery, and publishing.
 //!
-//! ℏKask - A Minimal Viable Container for Agents
+//! ℏKask - A Minimal Viable Container for Replicants
 
 use hkask_ports::{Skill, SkillZone};
 use hkask_templates::SkillLoader;

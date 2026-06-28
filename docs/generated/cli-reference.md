@@ -12,7 +12,7 @@ mds_categories: [composition]
 
 # hKask CLI Documentation
 
-**hKask** (ℏKask - "A Minimal Viable Container for Agents") - Command-line interface
+**hKask** (ℏKask - "A Minimal Viable Container for Replicants") - Command-line interface
 
 ## Usage
 
@@ -195,4 +195,4 @@ kask docs all -o docs/
 
 ---
 
-*ℏKask v0.28.0 - A Minimal Viable Container for Agents*
+*ℏKask v0.28.0 - A Minimal Viable Container for Replicants*

@@ -1,7 +1,7 @@
 <p align="center">
   <img src="assets/kask-logo.svg" alt="Kask Logo" width="120"/>
 </p>
-# ℏKask - A Minimal Viable Container for Agents
+# ℏKask - A Minimal Viable Container for Replicants
 
 **Version:** v0.31.0 |
 
@@ -207,6 +207,6 @@ cargo fmt --check
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.31.0*
+*ℏKask - A Minimal Viable Container for Replicants — v0.31.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*
 *CI green. 38 crates. 14 MCP servers. 47 PDCA skill loops. 267 templates.*

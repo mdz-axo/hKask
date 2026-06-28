@@ -179,7 +179,10 @@ pub(crate) fn handle_consolidate(
         max_semantic_triples,
     };
 
-    match service.consolidate(&state.agent_webid, request) {
+    match state
+        .service_context
+        .consolidate_agent_memory(&state.current_agent, request)
+    {
         Ok(outcome) => {
             println!();
             println!("  \x1b[1mConsolidation complete:\x1b[0m");
@@ -193,7 +196,18 @@ pub(crate) fn handle_consolidate(
                 service.semantic_triple_count()
             );
         }
+        Err(hkask_services::ServiceError::ConsentDenied { message }) => {
+            println!();
+            println!("  \x1b[31mConsent required:\x1b[0m {}", message);
+            println!(
+                "  Grant consent outside the REPL with: kask sovereignty grant --category episodic_memory"
+            );
+            println!(
+                "                                      kask sovereignty grant --category semantic_memory"
+            );
+        }
         Err(e) => {
+            println!();
             println!("  \x1b[31mConsolidation failed:\x1b[0m {}", e);
         }
     }

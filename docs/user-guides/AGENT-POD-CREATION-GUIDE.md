@@ -1282,5 +1282,5 @@ For advanced topics, see:
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Replicants — v0.21.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*

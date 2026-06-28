@@ -1,11 +1,7 @@
 //! Consolidation command — user-triggered episodic→semantic consolidation
 
-use hkask_cns::types::loops::CuratorHandle;
-use hkask_memory::consolidation_ops;
 use hkask_ports::ConsolidationRequest;
-use hkask_types::WebID;
 
-/// expect: "I can access all hKask functionality through the kask CLI"
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  agent is an optional agent name (defaults to curator); limit > 0; passphrase required when agent specified
 /// post: executes episodic-to-semantic consolidation; prints consolidated/deleted/failed counts
@@ -21,30 +17,13 @@ pub fn run(
     // Resolve agent name — defaults to "curator" for the Curator agent
     let agent_name = agent.unwrap_or("curator");
 
-    let config = super::helpers::or_exit(
-        hkask_services::ServiceConfig::from_env(),
-        "Failed to resolve config",
-    );
-
-    // Resolve the agent's per-agent memory DB path and passphrase.
-    let db_path = hkask_types::agent_paths::agent_memory_db(agent_name);
-    let db_path_str = db_path.to_string_lossy().to_string();
-    let db_passphrase = config.db_passphrase.clone();
-
-    // Resolve perspective WebID.
-    // When no --agent is specified, use the system CuratorHandle identity
-    // for proper OCAP-gated access to all agent memory stores.
-    let handle = CuratorHandle::system();
-    let perspective = if agent.is_none() {
-        *handle.curator_id()
-    } else {
-        WebID::from_persona(agent_name.as_bytes())
-    };
+    let agent_service = super::helpers::build_service_context();
 
     // Passphrase verification using ConsolidationService.
+    // Required when targeting a non-Curator agent as an additional auth gate.
     if agent.is_some() {
         if let Some(provided) = passphrase {
-            match consolidation_ops::verify_passphrase(provided) {
+            match hkask_memory::consolidation_ops::verify_passphrase(provided) {
                 Ok(_) => {}
                 Err(_) => {
                     eprintln!("Error: Passphrase verification failed");
@@ -57,14 +36,14 @@ pub fn run(
         }
     }
 
-    // Execute consolidation via ConsolidationService
+    // Execute consolidation via AgentService (consent + per-agent DB)
     let request = ConsolidationRequest {
         limit,
         confidence_floor,
         max_semantic_triples,
     };
 
-    match consolidation_ops::consolidate(&perspective, &db_passphrase, &db_path_str, request) {
+    match agent_service.consolidate_agent_memory(agent_name, request) {
         Ok(outcome) => {
             println!("Consolidation complete:");
             println!("  Consolidated: {}", outcome.consolidated_count);
@@ -72,6 +51,14 @@ pub fn run(
             if outcome.failed_count > 0 {
                 println!("  Failed: {}", outcome.failed_count);
             }
+        }
+        Err(hkask_services::ServiceError::ConsentDenied { message }) => {
+            eprintln!("Consent required: {}", message);
+            eprintln!("Grant consent with: kask sovereignty grant --category episodic_memory");
+            eprintln!(
+                "                              kask sovereignty grant --category semantic_memory"
+            );
+            std::process::exit(1);
         }
         Err(e) => {
             eprintln!("Consolidation failed: {}", e);

@@ -114,5 +114,5 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.31.0*
+*ℏKask - A Minimal Viable Container for Replicants — v0.31.0*
 *Mermaid-First Mandate: Every interaction pattern, data flow, and object model is diagrammed.*

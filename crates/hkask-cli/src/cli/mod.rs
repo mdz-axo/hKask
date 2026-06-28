@@ -15,7 +15,7 @@ pub use markdown::generate_cli_markdown;
 #[command(name = "kask")]
 #[command(author = "hKask Team")]
 #[command(version)]
-#[command(about = "A Minimal Viable Container for Agents - CLI", long_about = None)]
+#[command(about = "A Minimal Viable Container for Replicants - CLI", long_about = None)]
 pub struct Cli {
     /// Enable verbose output
     #[arg(short, long)]

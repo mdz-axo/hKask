@@ -22,7 +22,9 @@ use hkask_cns::types::loops::{
 };
 use hkask_memory::ConsolidationBridge;
 use hkask_ports::ConsolidationRequest;
+use hkask_types::DataCategory;
 use hkask_types::curator::{CuratorDirective, CuratorHandle};
+use hkask_types::{BotID, TemplateID};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{RwLock, mpsc};
@@ -52,6 +54,9 @@ pub struct CurationLoop {
     /// Inbox for receiving CurationInput messages from Cybernetics, SpecCurator,
     /// and GoalStore. Drained during the sense phase.
     inbox: Option<Arc<RwLock<mpsc::UnboundedReceiver<CurationInput>>>>,
+    /// Whether the Curator daemon may auto-consolidate memory when escalations exist.
+    /// Default false; controlled by `ServiceConfig::curator_auto_consolidation_enabled`.
+    auto_consolidation_enabled: bool,
 }
 
 impl CurationLoop {
@@ -76,6 +81,7 @@ impl CurationLoop {
             consolidation: None,
             last_review_ms: AtomicU64::new(0),
             inbox: None,
+            auto_consolidation_enabled: false,
         }
     }
 
@@ -98,7 +104,21 @@ impl CurationLoop {
             consolidation: Some(consolidation),
             last_review_ms: AtomicU64::new(0),
             inbox: None,
+            auto_consolidation_enabled: false,
         }
+    }
+
+    /// Configure whether the Curator daemon may auto-consolidate memory when
+    /// escalations exist. Default is `false`.
+    ///
+    /// Even when enabled, auto-consolidation still requires:
+    /// - a `ConsentManager` wired into `CuratorContext`, and
+    /// - affirmative consent for both `EpisodicMemory` and `SemanticMemory` on the
+    ///   Curator WebID.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_auto_consolidation_enabled(mut self, enabled: bool) -> Self {
+        self.auto_consolidation_enabled = enabled;
+        self
     }
 
     /// Wire the unified inbox for CurationInput messages.
@@ -320,11 +340,10 @@ impl HkaskLoop for CurationLoop {
 
     /// Compute: produce CuratorDirectives as LoopActions.
     ///
-    /// Processes all six signal types the sense phase produces.
-    /// Previously only AlgedonicEvents and PendingEscalations were
-    /// acted upon; ConsolidationCandidates, GoalStaleCount,
-    /// GoalExpiredCount, and SpecDriftAlertCount were counted in
-    /// `sense()` but silently dropped here (broken feedback closure).
+    /// Produces escalation actions for all six deviation types. Note that
+    /// `consolidation_candidates_exist` is recorded here but the consolidation
+    /// bridge is currently only fired inside `act()` when `pending_escalations_exist`
+    /// is also present; this is a known incomplete feedback closure.
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
 
@@ -449,19 +468,98 @@ impl HkaskLoop for CurationLoop {
                             }
                             if let Some(consolidation) = &self.consolidation {
                                 let curator_id = *self.context.handle().curator_id();
-                                match consolidation.consolidate(
-                                    curator_id,
-                                    ConsolidationRequest {
-                                        limit: 100,
-                                        ..Default::default()
-                                    },
-                                ) {
-                                    Ok(outcome) if outcome.consolidated_count > 0 => {
-                                        tracing::info!(target: CUR_TARGET, consolidated = outcome.consolidated_count, failed = outcome.failed_count, "Consolidation bridge fired for escalated system")
+                                if !self.auto_consolidation_enabled {
+                                    tracing::info!(
+                                        target: CUR_TARGET,
+                                        "Curator auto-consolidation disabled by configuration"
+                                    );
+                                } else {
+                                    // P2: require explicit consent for both memory categories.
+                                    let mut can_run = true;
+                                    let mut missing = Vec::new();
+                                    if let Some(cm) = self.context.consent_manager() {
+                                        for cat in [
+                                            DataCategory::EpisodicMemory,
+                                            DataCategory::SemanticMemory,
+                                        ] {
+                                            match cm.has_consent(&curator_id.to_string(), &cat) {
+                                                Ok(true) => {}
+                                                _ => {
+                                                    can_run = false;
+                                                    missing.push(cat.to_string());
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        can_run = false;
+                                        missing.push("no consent manager wired".to_string());
                                     }
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        tracing::warn!(target: CUR_TARGET, error = %e, "Consolidation bridge failed")
+
+                                    if !can_run {
+                                        tracing::warn!(
+                                            target: CUR_TARGET,
+                                            missing_categories = ?missing,
+                                            "Curator auto-consolidation skipped — missing consent"
+                                        );
+                                        let _ = self.context.escalation_queue().add(
+                                            TemplateID::new(),
+                                            BotID::from_uuid(curator_id.as_uuid()),
+                                            "Curator auto-consolidation skipped: missing consent"
+                                                .to_string(),
+                                            0.9,
+                                            0,
+                                            format!("Missing: {}", missing.join(", ")),
+                                        );
+                                    } else {
+                                        match consolidation.consolidate(
+                                            curator_id,
+                                            ConsolidationRequest {
+                                                limit: 100,
+                                                ..Default::default()
+                                            },
+                                        ) {
+                                            Ok(outcome) => {
+                                                tracing::info!(
+                                                    target: CUR_TARGET,
+                                                    consolidated = outcome.consolidated_count,
+                                                    deleted = outcome.deleted_count,
+                                                    failed = outcome.failed_count,
+                                                    "Curator auto-consolidation completed"
+                                                );
+                                                if outcome.consolidated_count > 0 {
+                                                    let _ = self.context.escalation_queue().add(
+                                                        TemplateID::new(),
+                                                        BotID::from_uuid(curator_id.as_uuid()),
+                                                        format!(
+                                                            "Curator auto-consolidated {} episodic triple(s) into semantic memory",
+                                                            outcome.consolidated_count
+                                                        ),
+                                                        0.5,
+                                                        0,
+                                                        format!(
+                                                            "Deleted {} semantic triple(s); failed {}",
+                                                            outcome.deleted_count,
+                                                            outcome.failed_count
+                                                        ),
+                                                    );
+                                                }
+                                            }
+                                            Err(e) => {
+                                                tracing::warn!(
+                                                    target: CUR_TARGET,
+                                                    error = %e,
+                                                    "Curator auto-consolidation failed"
+                                                );
+                                                let _ = self.context.escalation_queue().add(
+                                                    TemplateID::new(),
+                                                    BotID::from_uuid(curator_id.as_uuid()),
+                                                    "Curator auto-consolidation failed".to_string(),
+                                                    0.7,
+                                                    0,
+                                                    e.to_string(),
+                                                );
+                                            }
+                                        }
                                     }
                                 }
                             }

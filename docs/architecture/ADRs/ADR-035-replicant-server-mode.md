@@ -159,4 +159,4 @@ grep -r "todo!\|unimplemented!" mcp-servers/ crates/hkask-mcp/src/daemon.rs --in
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — ADR-035 — v0.28.0*
+*ℏKask - A Minimal Viable Container for Replicants — ADR-035 — v0.28.0*

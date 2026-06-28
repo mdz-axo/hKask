@@ -123,10 +123,12 @@ impl CuratorAgent {
     ///
     /// expect: "The system regulates agent behavior through cybernetic feedback"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — consolidation wired into CuratorAgent
+    /// \[P2\] Constraining: Affirmative Consent — auto-consolidation is opt-in and consent-gated
     /// pre:  `context` is a valid `Arc<CuratorContext>`; `config` is a
     ///       valid `MetacognitionConfig`; `consolidation` is a valid
     ///       `Arc<ConsolidationBridge>`; `inbox_rx` and `inbox_tx` are
-    ///       `Some` or `None`.
+    ///       `Some` or `None`; `auto_consolidation_enabled` controls whether
+    ///       the Curator daemon may auto-run consolidation.
     /// post: Returns a `CuratorAgent` with consolidation wired; if
     ///       `inbox_rx` is `Some`, the curation loop's inbox is set;
     ///       if `inbox_tx` is `Some`, the spec curator's channel is set.
@@ -136,6 +138,7 @@ impl CuratorAgent {
         consolidation: Arc<ConsolidationBridge>,
         inbox_rx: Option<tokio::sync::mpsc::UnboundedReceiver<CurationInput>>,
         inbox_tx: Option<tokio::sync::mpsc::UnboundedSender<CurationInput>>,
+        auto_consolidation_enabled: bool,
     ) -> Self {
         let metacognition = Arc::new(metacognition::MetacognitionLoop::new(
             Arc::clone(&context),
@@ -143,7 +146,8 @@ impl CuratorAgent {
         ));
         let curator_handle = context.handle().clone();
         let mut curation_loop =
-            CurationLoop::with_consolidation(curator_handle, Arc::clone(&context), consolidation);
+            CurationLoop::with_consolidation(curator_handle, Arc::clone(&context), consolidation)
+                .with_auto_consolidation_enabled(auto_consolidation_enabled);
         if let Some(rx) = inbox_rx {
             curation_loop = curation_loop.with_inbox(rx);
         }

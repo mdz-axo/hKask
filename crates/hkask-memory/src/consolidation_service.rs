@@ -18,9 +18,14 @@ impl ConsolidationService {
     }
 
     /// Execute a consolidation operation — three phases:
-    /// 1. Promote episodic triples to semantic memory
-    /// 2. Delete semantic triples at or below confidence floor (if specified)
-    /// 3. Delete lowest-confidence semantic triples until within max count (if specified)
+    /// 1. Promote episodic triples to semantic memory (bridge also soft-deletes the
+    ///    episodic source triples; those expirations are reported separately by the bridge).
+    /// 2. Delete semantic triples at or below confidence floor (if specified).
+    /// 3. Delete lowest-confidence semantic triples until within max count (if specified).
+    ///
+    /// Note: `deleted_count` in the returned outcome counts only the semantic cleanup
+    /// deletions performed by this service. The bridge's own `deleted_count` reports
+    /// episodic source expirations.
     pub fn consolidate(
         &self,
         perspective: &WebID,

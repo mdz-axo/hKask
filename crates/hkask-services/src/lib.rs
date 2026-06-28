@@ -66,7 +66,6 @@ pub use hkask_services_wallet::WalletService;
 
 // ── Remaining inline modules ───────────────────────────────────────────
 
-
 #[cfg(test)]
 mod tests {
     /// Extract dependency names starting with `hkask-services-` from the

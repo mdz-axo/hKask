@@ -17,7 +17,7 @@ pub fn print_onboarding_banner() {
     println!("{dim}              {body}   \\__/~~~~~~~~~~~~\\__/   {r}");
     println!("  {dim}shadow{r}       {body}    hKask v{VERSION}{r}");
     println!();
-    println!("{body}     A Minimal Viable Container for Agents{r}");
+    println!("{body}     A Minimal Viable Container for Replicants{r}");
     println!();
 }
 
@@ -56,7 +56,7 @@ pub(super) fn print_banner(
         println!("{ghost}              {body}   \\__/~~~~~~~~~~~\\__/   {r}");
         println!("  {ghost}shadow{r}       {body}    hKask v{VERSION}{r}");
         println!();
-        println!("{body}     A Minimal Viable Container for Agents{r}");
+        println!("{body}     A Minimal Viable Container for Replicants{r}");
         println!();
 
         std::io::Write::flush(&mut std::io::stdout()).ok();

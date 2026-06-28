@@ -311,4 +311,4 @@ Fixing these requires domain knowledge to assign appropriate external citations 
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.30.0*
+*ℏKask — A Minimal Viable Container for Replicants — v0.30.0*

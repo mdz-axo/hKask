@@ -374,21 +374,34 @@ add_to_path() {
         log "No sudo access — configuring PATH in shell config"
     fi
 
-    # Strategy 2: add BIN_DIR to PATH via shell config files
+    # Strategy 2: add BIN_DIR to PATH via shell config files.
+    # Detect the user's login shell from $SHELL (not the script's interpreter
+    # — $SHELL is set by login(1) and inherits through subprocesses).
     local added=false
     local configs=()
+    local user_shell
+    user_shell=$(basename "${SHELL:-/bin/bash}")
 
-    # Detect all applicable shell configs
-    if [ -n "${ZSH_VERSION:-}" ]; then
-        configs=("$HOME/.zshrc")
-    elif [ -n "${BASH_VERSION:-}" ]; then
-        configs=("$HOME/.bashrc")
-    fi
-
-    # Also add to .profile for login shells (covers ssh, systemd, etc.)
+    # .profile is sourced by bash/zsh/sh login shells (ssh, systemd, tty login)
     configs+=("$HOME/.profile")
 
-    # Check if ~/.local/bin needs PATH on this system
+    case "$user_shell" in
+        zsh)
+            configs+=("$HOME/.zshrc")
+            # zsh login shells source .zprofile, not .profile, but many
+            # zsh configs also source .profile for compatibility.
+            configs+=("$HOME/.zprofile")
+            ;;
+        bash|sh)
+            configs+=("$HOME/.bashrc")
+            ;;
+        *)
+            # Unknown shell — add bashrc as best-effort fallback
+            configs+=("$HOME/.bashrc")
+            ;;
+    esac
+
+    # Check if BIN_DIR needs PATH on this system
     # (systemd 0.25+ ships ~/.local/bin in PATH by default)
     local needs_local_path=false
     if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
@@ -397,16 +410,14 @@ add_to_path() {
 
     if [ "$needs_local_path" = true ]; then
         for cfg in "${configs[@]}"; do
-            if [ -f "$cfg" ] || [ "$(basename "$cfg")" = ".profile" ]; then
-                if ! grep -q "$BIN_DIR" "$cfg" 2>/dev/null; then
-                    {
-                        echo ""
-                        echo "# hKask"
-                        echo "export PATH=\"$BIN_DIR:\$PATH\""
-                    } >> "$cfg"
-                    log "Added PATH entry to $cfg"
-                    added=true
-                fi
+            if ! grep -qF '# hKask' "$cfg" 2>/dev/null; then
+                {
+                    echo ""
+                    echo "# hKask"
+                    echo "export PATH=\"$BIN_DIR:\$PATH\""
+                } >> "$cfg"
+                log "Added PATH entry to $cfg"
+                added=true
             fi
         done
     fi
@@ -641,7 +652,7 @@ uninstall_hkask() {
     log "Removed MCP server binaries"
 
     # Remove PATH entries from shell configs
-    for cfg in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+    for cfg in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.zprofile" "$HOME/.profile"; do
         if [ -f "$cfg" ] && grep -q '# hKask' "$cfg" 2>/dev/null; then
             sed -i '/# hKask/d' "$cfg"
             sed -i "/export PATH.*$BIN_DIR/d" "$cfg"
@@ -794,7 +805,7 @@ main() {
     echo ""
     echo "╔══════════════════════════════════════════════════════════╗"
     echo "║                    hKask Installer                      ║"
-    echo "║        ℏKask - A Minimal Viable Container for Agents    ║"
+    echo "║        ℏKask - A Minimal Viable Container for Replicants    ║"
     echo "╚══════════════════════════════════════════════════════════╝"
     echo ""
 

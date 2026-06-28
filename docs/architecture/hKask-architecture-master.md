@@ -1,8 +1,8 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-26
-version: "0.31.0"
+last_updated: 2026-06-28
+version: "0.30.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Index to the authoritative architecture documents and the four essential architectural patterns that constitute hKask's irreducible core.
 
-**Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.31.0
+**Project:** hKask (ℏKask - "A Minimal Viable Container for Replicants") v0.30.0
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
@@ -1404,4 +1404,4 @@ docs/architecture/
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.31.0*
+*ℏKask - A Minimal Viable Container for Replicants — v0.31.0*

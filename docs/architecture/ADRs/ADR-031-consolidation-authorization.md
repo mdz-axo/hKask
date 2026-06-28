@@ -1,8 +1,8 @@
 ---
 title: "ADR-031: Consolidation Authorization via Master Passphrase Derivation"
 audience: [architects, security engineers]
-last_updated: 2026-06-05
-version: "0.31.0"
+last_updated: 2026-06-28
+version: "0.30.0"
 status: "Active"
 domain: "Security"
 mds_categories: [trust]
@@ -10,34 +10,20 @@ mds_categories: [trust]
 
 # ADR-031: Consolidation Authorization via Master Passphrase Derivation
 
-**Date:** 2026-06-05
-**Status:** Implemented
-**Supersedes:** N/A (extends ADR-027)
-**Related:** ADR-027 (Argon2id + HKDF-SHA256 Master Key Derivation)
+**Date:** 2026-06-05  
+**Status:** Active (amended 2026-06-28)  
+**Supersedes:** N/A (extends ADR-027)  
+**Related:** ADR-027 (Argon2id + HKDF-SHA256 Master Key Derivation), ADR-040 (Service Layer Extraction)
 
 ## Context
 
 Consolidation (episodic→semantic memory promotion and semantic cleanup) is a destructive operation: it deletes low-confidence semantic triples and promotes episodic triples to semantic memory. Without authorization, any caller could trigger irreversible data loss.
 
-Consolidation crosses the episodic/semantic boundary — it requires both `EpisodicMemory` and `SemanticMemory`. This means it can only be performed by surfaces that have access to both stores.
-
-Three surfaces expose consolidation:
-
-1. **CLI** (`kask consolidate --passphrase`) — single-user, interactive
-2. **API** (`POST /api/consolidate`) — headless, network-accessible
-3. **Chat** (`/consolidate run`) — single-user, interactive
-
-One MCP server provides memory operations but **cannot perform consolidation**:
-
-4. **MCP Memory** (`hkask-mcp-memory`) — combined episodic store/recall + semantic store/recall/embed/search; read-only consolidation status
-
-The CLI, API, and Chat need explicit user authorization since they are directly user-facing. The MCP memory server is OCAP-gated and, while it has access to both stores, does not expose consolidation by policy — the tool is restricted to surfaces that can verify user identity.
-
-Before this decision, consolidation had no authorization at all — any code path could trigger it without verification.
+Consolidation crosses the episodic/semantic boundary — it requires both `EpisodicMemory` and `SemanticMemory`.
 
 ## Decision
 
-**Consolidation authorization uses the master-passphrase derivation chain (ADR-027) to verify the user's identity.**
+**User-facing surfaces verify the master passphrase before consolidation.**
 
 The verification flow:
 
@@ -52,59 +38,66 @@ User-supplied passphrase
 
 This is the same derivation chain used during onboarding to store the DB encryption key in the OS keychain (`hkask-db-passphrase`). A correct passphrase produces a capability_key that matches the stored DB passphrase. An incorrect passphrase produces a different key.
 
-**Each surface applies authorization and connects the same way:**
+**Surfaces that expose consolidation:**
 
-| Surface | Authorization | DB | Can consolidate? |
-|---------|--------------|-----|-----------------|
-| CLI | `--passphrase` flag, derives capability_key, compares | `hkask-memory-{agent}.db` | ✅ Full (episodic→semantic + cleanup) |
-| API | `passphrase` field in request body, derives capability_key, compares | `hkask-memory-{agent}.db` | ✅ Full (episodic→semantic + cleanup) |
-| Chat | No passphrase (single-user REPL, already authenticated) | `hkask-memory-{agent}.db` | ✅ Full (episodic→semantic + cleanup) |
-| MCP Memory | OCAP GovernedTool membrane | `hkask-memory-{agent}.db` | ❌ No consolidation tool |
+| Surface | Authorization | Can consolidate? | Status |
+|---------|--------------|-----------------|--------|
+| CLI (`kask consolidate --passphrase`) | `--passphrase` flag | ✅ Full | Implemented in `crates/hkask-cli/src/commands/consolidation.rs` |
+| API (`POST /api/consolidate`) | `passphrase` field | ✅ Full | Implemented in `crates/hkask-api/src/routes/consolidation.rs` |
+| Chat/REPL (`/consolidate run`) | No passphrase (single-user) | ✅ Full | **Not currently implemented** |
+| Curator daemon (`CurationLoop`) | None — fires when `pending_escalations_exist` | ✅ Auto | **Implemented without passphrase check** |
+| MCP Memory | OCAP GovernedTool membrane | ❌ No consolidation tool | By design |
 
-All three consolidation surfaces (CLI, API, Chat) build `ConsolidationService` from the agent's per-agent memory DB (`hkask-memory-{agent}.db`) using the same pattern: open DB → `EpisodicMemory` + `SemanticMemory` → `ConsolidationBridge` → `ConsolidationService`.
+### Deviation from Original Decision (2026-06-28)
 
-The MCP memory server connects to the same per-agent memory DB via `HKASK_MEMORY_DB` and has access to both memory types (EpisodicMemory and SemanticMemory), but does not expose a consolidation tool — consolidation remains a surface-level operation restricted to CLI, API, and Chat.
+The original ADR restricted consolidation to CLI, API, and Chat surfaces that can verify the master passphrase. The current implementation also auto-fires the `ConsolidationBridge` from `CurationLoop::act()` inside the `pending_escalations_exist` branch (`crates/hkask-agents/src/curator/curation_loop.rs:450-467`). This path does **not** verify the master passphrase; it relies on the Curator daemon's existing OCAP boundary and the fact that the bridge is constructed with the Curator's own per-agent memory DB.
+
+This is an unresolved tension: the auto-consolidation path is structurally inside the Curator's capability envelope but is not covered by the user-facing passphrase authorization described in this ADR. A follow-up decision is required to either:
+
+1. Remove Curator auto-consolidation and require explicit user authorization.
+2. Document Curator auto-consolidation as an OCAP-gated daemon exception with a separate attenuation token.
+3. Add a configuration switch that disables auto-consolidation by default.
 
 ### Rate Limiting
 
-The API endpoint enforces a coarse-grained rate limit (30-second minimum interval between requests) to prevent CPU denial-of-service via repeated Argon2id derivation (~100ms CPU per call). The CLI and Chat paths are single-user and do not need rate limiting.
+The API endpoint enforces a coarse-grained rate limit (30-second minimum interval between requests) to prevent CPU denial-of-service via repeated Argon2id derivation (~100ms CPU per call). The implementation uses a global `AtomicU64` timestamp (`crates/hkask-memory/src/consolidation_ops.rs:27`), which is sufficient for a single-user headless system but is not per-agent.
 
 ## Rationale
 
 1. **Reuses existing derivation infrastructure.** The `derive_all_internal_secrets()` function from ADR-027 already produces `capability_key`. No new cryptographic primitives or key storage needed.
 
-2. **Threat model: shared-database vs single-user.** In single-user deployments (the default), the Curator's REPL session is already the authorized user — no passphrase needed for `/consolidate`. In shared-database deployments, the API endpoint is the attack surface: rate limiting + passphrase verification prevent both unauthorized and DoS attacks.
+2. **Threat model: shared-database vs single-user.** In single-user deployments (the default), the Curator's REPL session is already the authorized user — no passphrase needed for Chat consolidation. In shared-database deployments, the API endpoint is the attack surface: rate limiting + passphrase verification prevent both unauthorized and DoS attacks.
 
-3. **Consolidation requires both stores and surface authorization.** Episodic→semantic promotion reads from EpisodicMemory and writes to SemanticMemory. `hkask-mcp-memory` has access to both stores but intentionally does not expose a consolidation tool — consolidation is restricted to CLI, API, and Chat surfaces where user authorization can be verified.
+3. **Consolidation requires both stores and surface authorization.** Episodic→semantic promotion reads from EpisodicMemory and writes to SemanticMemory. `hkask-mcp-memory` has access to both stores but intentionally does not expose a consolidation tool — consolidation is restricted to surfaces where user authorization can be verified (with the Curator daemon exception noted above).
 
 4. **Argon2id is intentionally expensive.** The ~100ms derivation cost is a feature, not a bug — it prevents brute-force attacks on the passphrase. Rate limiting prevents this cost from being weaponized as a CPU DoS vector.
 
-5. **All consolidation surfaces use the same DB.** The agent's per-agent memory DB (`hkask-memory-{agent}.db`) contains both episodic and semantic triples. The registry DB (`hkask.db`) is for agent registration, not memory. Previously, the API and Chat paths incorrectly used in-memory or registry DBs for consolidation, meaning they operated on the wrong data.
+5. **All user-facing surfaces use the same per-agent memory DB.** The agent's per-agent memory DB contains both episodic and semantic triples. The registry DB (`hkask.db`) is for agent registration, not memory.
 
 ## Consequences
 
 ### Positive
 
-- Consolidation is now a protected operation across all surfaces
-- No new secrets or key storage — reuses the existing HKDF derivation chain
-- All consolidation surfaces use the same per-agent memory DB (correct data)
-- MCP servers are correctly scoped — no cross-domain consolidation
-- Rate limiting prevents API CPU DoS
+- Consolidation is protected on CLI and API surfaces.
+- No new secrets or key storage — reuses the existing HKDF derivation chain.
+- MCP servers are correctly scoped — no cross-domain consolidation tool.
+- Rate limiting prevents API CPU DoS.
 
 ### Negative
 
-- Every API consolidation request pays ~100ms Argon2id cost (mitigated by rate limiting)
-- Chat `/consolidate` operates without passphrase (acceptable: single-user REPL)
-- MCP servers cannot consolidate — agents must use CLI or API (by design)
+- Every API consolidation request pays ~100ms Argon2id cost (mitigated by rate limiting).
+- Curator auto-consolidation bypasses the passphrase check, creating an undocumented authorization exception.
+- Chat/REPL consolidation is described but not implemented.
 
 ## Compliance
 
 | Principle | Compliance |
 |-----------|-----------|
-| C5 (Every error variant is unique recovery path) | ✅ Invalid passphrase → 401, Rate limited → 429, Invalid UUID → 400 |
+| P2 (Affirmative Consent) | ✅ CLI/API require explicit passphrase; ⚠️ Curator auto-consolidation does not |
+| P4 (Clear Boundaries / OCAP) | ✅ MCP server blocked by tool absence; ⚠️ Curator auto-consolidation needs explicit OCAP attenuation token |
 | ADR-027 (Master key derivation) | ✅ Reuses `derive_all_internal_secrets()` exactly |
 | Headless constraint (§1.6) | ✅ No visual UI, all auth is CLI/MCP/API |
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — ADR-031 — v0.23.0*
+*ℏKask - A Minimal Viable Container for Replicants — ADR-031 — v0.30.0*

@@ -25,7 +25,7 @@ pub fn generate_cli_markdown() -> String {
 
     md.push_str("# hKask CLI Documentation\n\n");
     md.push_str(
-        "**hKask** (ℏKask - \"A Minimal Viable Container for Agents\") - Command-line interface\n\n",
+        "**hKask** (ℏKask - \"A Minimal Viable Container for Replicants\") - Command-line interface\n\n",
     );
     md.push_str("## Usage\n\n");
     md.push_str("```bash\n");
@@ -172,7 +172,7 @@ pub fn generate_cli_markdown() -> String {
     md.push_str("- `process` — Process execution templates\n\n");
     md.push_str("---\n\n");
     md.push_str(&format!(
-        "*ℏKask v{} - A Minimal Viable Container for Agents*\n",
+        "*ℏKask v{} - A Minimal Viable Container for Replicants*\n",
         env!("CARGO_PKG_VERSION")
     ));
 

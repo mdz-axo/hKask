@@ -121,4 +121,4 @@ cargo test -p hkask-mcp -- git_cas
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — ADR-038 — v0.31.0*
+*ℏKask - A Minimal Viable Container for Replicants — ADR-038 — v0.31.0*

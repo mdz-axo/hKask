@@ -200,4 +200,4 @@ If your terminal disconnects, refresh the page. Your session state is preserved 
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.28.0*
+*ℏKask - A Minimal Viable Container for Replicants — v0.28.0*

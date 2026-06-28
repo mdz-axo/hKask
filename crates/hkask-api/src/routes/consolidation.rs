@@ -16,13 +16,14 @@ use crate::error::ServiceErrorResponse;
 
 /// Consolidate request — triggers episodic-to-semantic memory consolidation.
 ///
-/// Requires the agents master passphrase for authorization (P4 OCAP).
-/// The passphrase is derived via HKDF-SHA256 to produce the capability_key
-/// used as the DB passphrase.
+/// Requires the agents master passphrase for authorization (P4 OCAP) and P2
+/// affirmative consent for both `EpisodicMemory` and `SemanticMemory` on the
+/// target agent. The caller's authenticated WebID must match the target
+/// agent's derived WebID.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ConsolidateRequest {
-    /// Agent WebID whose episodic memory to consolidate
-    pub agent_webid: String,
+    /// Agent name whose episodic memory to consolidate (e.g. `curator` or a replicant name)
+    pub agent_name: String,
     /// Master passphrase for authorization (derived via HKDF-SHA256 to produce
     /// the capability_key used as the DB passphrase, matching onboarding flow)
     pub passphrase: String,
@@ -60,7 +61,8 @@ pub fn consolidation_router() -> OpenApiRouter<crate::ApiState> {
 ///
 /// Triggers the semantic consolidation loop: reads raw episodic triples,
 /// derives confidence-weighted semantic knowledge, and deletes low-confidence
-/// ephemera. Requires the agent's master passphrase for authorization.
+/// ephemera. Requires the agent's master passphrase for authorization and
+/// affirmative consent for both memory categories.
 #[utoipa::path(
     post,
     path = "/api/consolidate",
@@ -69,30 +71,31 @@ pub fn consolidation_router() -> OpenApiRouter<crate::ApiState> {
     responses(
         (status = 200, description = "Consolidation complete", body = ConsolidateResponse),
         (status = 401, description = "Unauthorized — invalid passphrase"),
+        (status = 403, description = "Forbidden — caller not authorized for target agent or consent denied"),
         (status = 429, description = "Rate limited — try again later"),
         (status = 500, description = "Internal server error"),
     ),
 )]
 pub(crate) async fn consolidate(
-    State(_state): State<ApiState>,
-    Extension(_auth): Extension<crate::middleware::auth::AuthContext>,
+    State(state): State<ApiState>,
+    Extension(auth): Extension<crate::middleware::auth::AuthContext>,
     Json(req): Json<ConsolidateRequest>,
 ) -> Result<Json<ConsolidateResponse>, ServiceErrorResponse> {
     // Rate-limit: Argon2id derivation is ~100ms CPU per request.
     // Prevent CPU DoS by enforcing a minimum interval between calls.
     consolidation_ops::check_rate_limit()?;
 
-    // Parse agent WebID
-    let webid: WebID = req
-        .agent_webid
-        .parse()
-        .map_err(|_| ServiceError::ValidationError {
-            source: None,
-            message: "Invalid agent_webid: must be a valid UUID".to_string(),
-        })?;
+    // Derive the target agent WebID from its name and authorize the caller.
+    let target_webid = WebID::from_persona(req.agent_name.as_bytes());
+    if auth.webid != target_webid {
+        return Err(ServiceError::ConsentDenied {
+            message: "Caller is not authorized to consolidate this agent's memory".to_string(),
+        }
+        .into());
+    }
 
     // Verify passphrase via ConsolidationService (keystore → key derivation → comparison)
-    let db_passphrase = consolidation_ops::verify_passphrase(&req.passphrase)?;
+    let _db_passphrase = consolidation_ops::verify_passphrase(&req.passphrase)?;
 
     // Build consolidation request
     let consolidation_request = ConsolidationRequest {
@@ -101,10 +104,10 @@ pub(crate) async fn consolidate(
         max_semantic_triples: req.max_semantic_triples,
     };
 
-    // Execute via ConsolidationService (per-agent DB + pipeline assembly + consolidation)
-    let db_path = consolidation_ops::db_path_for_agent(&webid);
-    let outcome =
-        consolidation_ops::consolidate(&webid, &db_passphrase, &db_path, consolidation_request)?;
+    // Route through AgentService: consent check + per-agent DB + consolidation
+    let outcome = state
+        .agent_service
+        .consolidate_agent_memory(&req.agent_name, consolidation_request)?;
 
     Ok(Json(ConsolidateResponse {
         consolidated_count: outcome.consolidated_count,

@@ -104,4 +104,4 @@ cargo test -p hkask-memory -- recall_dedup
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — ADR-037 — v0.31.0*
+*ℏKask - A Minimal Viable Container for Replicants — ADR-037 — v0.31.0*

@@ -1,8 +1,8 @@
 ---
 title: "hKask Testing Discipline"
 audience: [engineers, agents, replicants]
-last_updated: 2026-06-22
-version: "0.31.0"
+last_updated: 2026-06-28
+version: "0.30.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]

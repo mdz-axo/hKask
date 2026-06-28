@@ -52,8 +52,8 @@ use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
-use hkask_ports::InferencePort;
 use hkask_ports::federation::{FederationDispatch, FederationSyncPort};
+use hkask_ports::{ConsolidationOutcome, ConsolidationRequest, InferencePort};
 use hkask_storage::EscalationQueue;
 use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::nu_event_store::NuEventStore;
@@ -63,11 +63,12 @@ use hkask_storage::{
     WalletStore, in_memory_db,
 };
 use hkask_templates::SqliteRegistry;
+use hkask_types::DataCategory;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::id::WalletId;
 
-use hkask_services_core::ServiceConfig;
+use hkask_services_core::{ServiceConfig, ServiceError};
 
 use hkask_services_wallet::WalletService;
 
@@ -604,6 +605,77 @@ impl AgentService {
             semantic_storage: adapter as Arc<dyn SemanticStoragePort>,
             consolidation_service,
         }
+    }
+
+    /// Consolidate episodic memory into semantic memory for a specific agent.
+    ///
+    /// This is the canonical entry point for all user- and Curator-triggered
+    /// consolidation operations. It verifies P2 affirmative consent for both
+    /// `EpisodicMemory` and `SemanticMemory` before opening the agent's
+    /// per-agent memory DB and running the consolidation pipeline.
+    ///
+    /// \[P2\] Constraining: Affirmative Consent — consolidation is blocked unless
+    /// both memory categories are explicitly granted for the target agent's WebID.
+    /// \[P4\] Constraining: Clear Boundaries — all consolidation flows through
+    /// `AgentService`, preventing direct `Database::open` bypasses.
+    ///
+    /// pre:  agent_name is non-empty; request is a valid ConsolidationRequest
+    /// post: returns ConsolidationOutcome on success; Err(ConsentDenied) if either
+    ///       memory category lacks consent; Err(Storage) on DB open failure;
+    ///       Err(Consolidation) on pipeline failure
+    pub fn consolidate_agent_memory(
+        &self,
+        agent_name: &str,
+        request: ConsolidationRequest,
+    ) -> Result<ConsolidationOutcome, ServiceError> {
+        let target_webid = WebID::from_persona(agent_name.as_bytes());
+
+        // P2: require explicit consent for both sovereign memory categories.
+        let categories = [DataCategory::EpisodicMemory, DataCategory::SemanticMemory];
+        let missing: Vec<String> = categories
+            .iter()
+            .filter(|cat| {
+                !self
+                    .consent_manager
+                    .has_consent(&target_webid.to_string(), cat)
+                    .unwrap_or(false)
+            })
+            .map(|cat| cat.to_string())
+            .collect();
+
+        if !missing.is_empty() {
+            return Err(ServiceError::ConsentDenied {
+                message: format!(
+                    "consolidation denied for agent {} — missing consent for: {}. \
+                     Grant consent with `kask sovereignty grant --category <category>` \
+                     or the API sovereignty consent endpoint.",
+                    target_webid.redacted_display(),
+                    missing.join(", ")
+                ),
+            });
+        }
+
+        let db_path = hkask_types::agent_paths::agent_memory_db(agent_name);
+        let passphrase = self
+            .config
+            .memory_passphrase
+            .as_deref()
+            .unwrap_or(&self.config.db_passphrase);
+
+        let db = Database::open(&db_path.to_string_lossy(), passphrase).map_err(|e| {
+            ServiceError::Storage {
+                message: e.to_string(),
+            }
+        })?;
+
+        let per_agent_memory = Self::build_per_agent_memory(db, Some(Arc::clone(&self.event_sink)));
+        per_agent_memory
+            .consolidation_service
+            .consolidate(&target_webid, request)
+            .map_err(|e| ServiceError::Consolidation {
+                source: None,
+                message: e,
+            })
     }
 }
 

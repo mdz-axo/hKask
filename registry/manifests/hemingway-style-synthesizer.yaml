@@ -1,6 +1,6 @@
 # File: registry/manifests/hemingway-style-synthesizer.yaml
 # Hemingway Style Synthesizer Process Manifest
-# ℏKask v0.23.0 - A Minimal Viable Container for Agents
+# ℏKask v0.23.0 - A Minimal Viable Container for Replicants
 
 manifest:
   id: hemingway-style-synthesizer

@@ -1,6 +1,6 @@
-//! hKask 4-Loop Architecture
+//! hKask 6-Loop Architecture
 //!
-//! Four cybernetic feedback loops following Beer's Viable System Model.
+//! Six cybernetic feedback loops following Beer's Viable System Model.
 //! Each loop implements sense → compare → compute → act.
 //!
 //! **Loop Numbering (VSM correspondence):**

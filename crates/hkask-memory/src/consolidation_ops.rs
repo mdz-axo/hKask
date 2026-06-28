@@ -1,14 +1,13 @@
-//! Consolidation — passphrase verify, per-agent DB, episodic→semantic pipeline.
-//! # REQ: P2 (Affirmative Consent) — consolidation requires passphrase verification.
+//! Consolidation authorization helpers — passphrase verify and rate limiting.
+//!
+//! The actual per-agent DB open + consolidation pipeline now lives in
+//! `hkask_services_context::AgentService::consolidate_agent_memory`, which is
+//! the single OCAP-gated, consent-checked entry point. This module only keeps
+//! the helpers that surfaces (CLI/API) use as additional auth gates.
+//! # REQ: P2 (Affirmative Consent) — consolidation requires explicit consent.
 //! # expect: "Service operations require explicit, scoped consent"
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-
-use crate::{ConsolidationBridge, EpisodicMemory, SemanticMemory};
-use hkask_ports::{ConsolidationOutcome, ConsolidationRequest};
-use hkask_storage::{Database, EmbeddingStore, TripleStore};
-use hkask_types::WebID;
 
 use hkask_services_core::ServiceError;
 
@@ -47,14 +46,6 @@ pub fn check_rate_limit() -> Result<(), ServiceError> {
 }
 
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-/// pre:  webid must be a valid WebID
-/// post: returns standard agent memory DB path (agents/{name}/memory.db)
-pub fn db_path_for_agent(webid: &WebID) -> String {
-    hkask_types::agent_paths::agent_memory_db(&webid.to_string())
-        .to_string_lossy()
-        .to_string()
-}
-/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  passphrase must be non-empty; server passphrase must be configured in keystore
 /// post: returns the expected passphrase string on match; Err(Keystore) if not configured; Err(InvalidPassphrase) if mismatch
 pub fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
@@ -72,44 +63,4 @@ pub fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
         });
     }
     Ok(expected_str)
-}
-
-/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-/// pre:  webid must be a valid WebID; db_passphrase must be correct; db_path must point to a valid database; request must be a valid ConsolidationRequest
-/// post: returns ConsolidationOutcome with consolidated_count, deleted_count, failed_count; Err on DB open failure or consolidation failure
-pub fn consolidate(
-    webid: &WebID,
-    db_passphrase: &str,
-    db_path: &str,
-    request: ConsolidationRequest,
-) -> Result<ConsolidationOutcome, ServiceError> {
-    let db = Database::open(db_path, db_passphrase).map_err(|e| ServiceError::Storage {
-        message: e.to_string(),
-    })?;
-
-    let conn = db.conn_arc();
-    let ts1 = TripleStore::new(Arc::clone(&conn));
-    let episodic_memory = Arc::new(EpisodicMemory::new(ts1));
-    let ts2 = TripleStore::new(Arc::clone(&conn));
-    let embedding_store = EmbeddingStore::new(Arc::clone(&conn));
-    let semantic_memory = Arc::new(SemanticMemory::new(ts2, embedding_store));
-    let bridge = Arc::new(ConsolidationBridge::new(
-        Arc::clone(&episodic_memory),
-        Arc::clone(&semantic_memory),
-    ));
-    let domain_service = crate::ConsolidationService::new(bridge, semantic_memory);
-
-    let outcome =
-        domain_service
-            .consolidate(webid, request)
-            .map_err(|e| ServiceError::Consolidation {
-                source: None,
-                message: format!("Consolidation failed: {e}"),
-            })?;
-
-    Ok(ConsolidationOutcome {
-        consolidated_count: outcome.consolidated_count,
-        deleted_count: outcome.deleted_count,
-        failed_count: outcome.failed_count,
-    })
 }

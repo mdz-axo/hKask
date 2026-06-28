@@ -27,13 +27,8 @@ hkask-memory = { path = "../hkask-memory" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-agents = { path = "../hkask-agents" }
-hkask-keystore = { path = "../hkask-keystore" }
 hkask-wallet = { path = "../hkask-wallet" }
-hkask-wallet-types = { path = "../hkask-wallet-types" }
 hkask-mcp = { path = "../hkask-mcp" }
-hkask-communication = { path = "../hkask-communication" }
-hkask-improv = { path = "../hkask-improv" }
-hkask-condenser = { path = "../hkask-condenser" }
 rusqlite.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
@@ -68,4 +63,3 @@ path = "tests/cli_to_storage_integration.rs"
 
 [features]
 # Pass-through to hkask-wallet for chain port selection
-hedera = ["hkask-wallet/hedera"]

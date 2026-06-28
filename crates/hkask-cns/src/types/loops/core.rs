@@ -11,9 +11,10 @@ pub use hkask_types::LoopId;
 /// Every loop implements this cycle. Authority flows downward
 /// through the DAG: Curation → Cybernetics → domain loops.
 ///
-/// Native async (Rust 2024 edition). Implementations that need
-/// async I/O (e.g., reading from `CnsRuntime`) can do so directly
-/// without `async_trait` boxing.
+/// Async trait (currently implemented via `async-trait` for object safety).
+/// Native async traits are available in Rust 2024 edition; switching to them
+/// would remove the `async-trait` dependency but must preserve `dyn Loop`
+/// dispatch.
 ///
 /// All async methods return `Send` futures so loops can run in
 /// async tasks without `static bounds issues.

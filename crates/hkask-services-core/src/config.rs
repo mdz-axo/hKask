@@ -117,6 +117,14 @@ pub struct ServiceConfig {
     /// Recalling a memory resets its decay clock (t goes back to 0).
     /// Override via HKASK_MEMORY_LIFE_DAYS env var.
     pub memory_life_days: f64,
+
+    /// Whether the Curator daemon may auto-consolidate memory when escalations exist.
+    ///
+    /// This is an opt-in flag (default `false`) gated by P2 affirmative consent.
+    /// Even when enabled, the Curator checks consent for both `EpisodicMemory`
+    /// and `SemanticMemory` before running, and posts an escalation entry describing
+    /// the event. Override via `HKASK_CURATOR_AUTO_CONSOLIDATION=1`.
+    pub curator_auto_consolidation_enabled: bool,
 }
 
 impl ServiceConfig {
@@ -170,6 +178,8 @@ impl ServiceConfig {
             .ok()
             .and_then(|v| v.parse::<f64>().ok())
             .unwrap_or(180.0);
+        let curator_auto_consolidation_enabled =
+            std::env::var("HKASK_CURATOR_AUTO_CONSOLIDATION").as_deref() == Ok("1");
 
         Ok(Self {
             db_path,
@@ -189,6 +199,7 @@ impl ServiceConfig {
             registry_yaml_path,
             wallet_config: WalletConfig::default(),
             memory_life_days,
+            curator_auto_consolidation_enabled,
         })
     }
 
@@ -219,6 +230,8 @@ impl ServiceConfig {
             .ok()
             .and_then(|v| v.parse::<f64>().ok())
             .unwrap_or(180.0);
+        let curator_auto_consolidation_enabled =
+            std::env::var("HKASK_CURATOR_AUTO_CONSOLIDATION").as_deref() == Ok("1");
 
         Self {
             db_path,
@@ -238,6 +251,7 @@ impl ServiceConfig {
             registry_yaml_path,
             wallet_config: WalletConfig::default(),
             memory_life_days,
+            curator_auto_consolidation_enabled,
         }
     }
 
@@ -268,6 +282,7 @@ impl ServiceConfig {
             registry_yaml_path: std::path::PathBuf::from("registry/bots"),
             wallet_config: WalletConfig::default(),
             memory_life_days: 180.0,
+            curator_auto_consolidation_enabled: false,
         }
     }
 

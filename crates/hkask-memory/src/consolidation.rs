@@ -159,7 +159,10 @@ impl ConsolidationBridge {
     }
 
     /// Count consolidation candidates for a perspective.
+    ///
+    /// Returns the number of episodic triples eligible for consolidation
+    /// (sorted by decayed confidence, oldest/lowest first), not total storage usage.
     pub fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
-        self.episodic.storage_usage(perspective).unwrap_or(0)
+        self.episodic.consolidation_candidate_count(perspective)
     }
 }

@@ -1,6 +1,7 @@
 //! CurationContext — Runtime composition of Curator capability handles
 
 use crate::a2a::A2ARuntime;
+use crate::consent::ConsentManager;
 use hkask_cns::CnsRuntime;
 use hkask_cns::types::loops::CommunicationEvent;
 use hkask_storage::EscalationQueue;
@@ -31,6 +32,11 @@ pub struct CuratorContext {
     /// executor is constructed after MCP pods, but CuratorContext must
     /// exist before them. Set via `set_manifest_executor()`.
     manifest_executor: RwLock<Option<Arc<ManifestExecutor>>>,
+    /// Consent manager for P2 sovereignty checks. Optional because some
+    /// CuratorContext users (standalone CLI metacognition) do not have
+    /// a consent store. When present, the Curation Loop uses it to gate
+    /// auto-consolidation behind affirmative consent.
+    consent_manager: Option<Arc<ConsentManager>>,
     /// Pending communication events from Matrix, drained by metacognition.
     /// Events arrive here from CurationLoop.sense() on each loop tick (~10s).
     /// Metacognition drains them on CLI-triggered cycles — there may be a
@@ -62,6 +68,7 @@ impl CuratorContext {
             a2a_port: None,
             manifest_executor: RwLock::new(None),
             pending_communication: Arc::new(RwLock::new(Vec::new())),
+            consent_manager: None,
         }
     }
 
@@ -89,6 +96,7 @@ impl CuratorContext {
             a2a_port: None,
             manifest_executor: RwLock::new(None),
             pending_communication: Arc::new(RwLock::new(Vec::new())),
+            consent_manager: None,
         }
     }
 
@@ -100,6 +108,19 @@ impl CuratorContext {
     /// post: Returns `self` with `a2a_port` set to `Some(a2a_runtime)`.
     pub fn with_a2a(mut self, a2a_runtime: Arc<A2ARuntime>) -> Self {
         self.a2a_port = Some(a2a_runtime);
+        self
+    }
+
+    /// Builder: attach a ConsentManager so the Curation Loop can enforce P2
+    /// affirmative consent before autonomous actions such as auto-consolidation.
+    ///
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable"
+    /// \[P2\] Motivating: Affirmative Consent — CuratorContext carries the consent manager
+    /// pre:  `consent_manager` is a valid `Arc<ConsentManager>`.
+    /// post: Returns `self` with the consent manager set.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_consent_manager(mut self, consent_manager: Arc<ConsentManager>) -> Self {
+        self.consent_manager = Some(consent_manager);
         self
     }
 
@@ -156,6 +177,14 @@ impl CuratorContext {
     /// Returns None if no A2A port is configured (graceful degradation).
     pub(crate) fn a2a(&self) -> Option<&Arc<A2ARuntime>> {
         self.a2a_port.as_ref()
+    }
+
+    /// Access the ConsentManager, if one has been wired.
+    ///
+    /// Returns None in contexts where sovereignty checks are not applicable
+    /// (e.g., standalone CLI metacognition).
+    pub(crate) fn consent_manager(&self) -> Option<&Arc<ConsentManager>> {
+        self.consent_manager.as_ref()
     }
 
     /// Access the ManifestExecutor for template invocations.

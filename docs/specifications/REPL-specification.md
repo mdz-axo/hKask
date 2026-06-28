@@ -676,7 +676,7 @@ The REPL displays an animated Kask amphora logo on startup:
                  \__/~~~~~~~~~~~\__/
   shadow           hKask v0.28.0
 
-     A Minimal Viable Container for Agents
+     A Minimal Viable Container for Replicants
 ```
 
 The eyes animate through center → right → center → left gaze positions over ~1.4 seconds.
