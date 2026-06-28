@@ -58,47 +58,73 @@ impl AgentService {
         // ── Registry + wallet: agent records, A2A restore, rJoule ───────
         let reg_wallet = build_registry_and_wallet(&config, &foundation, &loops, &mcp_pods).await?;
 
-        Ok(Self {
-            registry: reg_wallet.registry,
-            mcp_runtime: mcp_pods.mcp_runtime,
-            mcp_dispatcher: mcp_pods.mcp_dispatcher,
-            cns_runtime: foundation.cns_runtime,
-            cybernetics_loop: loops.cybernetics_loop,
-            loop_system: loops.loop_system,
-            pod_backup_adapter: loops.pod_backup_adapter.clone(),
-            inference_port: loops.inference_port,
-            episodic_storage: loops.episodic_storage,
-            semantic_storage: loops.semantic_storage,
-            escalation_queue: foundation.escalation_queue,
-            consent_manager: foundation.consent_manager,
-            goal_repo: foundation.goal_repo,
-            curation_inbox_tx: Some(foundation.curation_inbox_tx.clone()),
-            pod_manager: mcp_pods.pod_manager,
-            capability_checker: mcp_pods.capability_checker,
-            system_webid,
-            event_sink: foundation.cns_event_sink,
-            energy_estimator: mcp_pods.energy_estimator,
-            sovereignty_boundary_store: foundation.sovereignty_boundary_store,
-            spec_store: foundation.spec_store,
-            a2a_runtime: loops.a2a_runtime,
-            agent_registry_store: reg_wallet.agent_registry_store,
-            user_store: foundation.user_store,
-            daemon_handler: mcp_pods.daemon_handler,
+        Ok(AgentServiceWiring {
+            foundation,
+            loops,
+            mcp_pods,
+            reg_wallet,
             matrix_transport,
-            curator_ready: Some(mcp_pods.curator_ready),
-            seam_watcher: foundation.seam_watcher,
+            system_webid,
             config,
-            wallet_service: reg_wallet.wallet_service,
-            wallet_store: reg_wallet.wallet_store,
-            wallet_gas_calibrator: reg_wallet.wallet_gas_calibrator,
-            federation_link_manager: loops.federation_link_manager,
-        })
+        }
+        .into_service())
     }
 }
 
-// ── Build helpers ──────────────────────────────────────────────────────────
+// ── Build helpers ─────────────────────────────────────────────────────────-
 // Extracted from build() for readability. Each helper constructs one
 // subsystem and returns an intermediate struct consumed by the next step.
+
+/// AgentService wiring — explicit composition boundary between subsystems.
+struct AgentServiceWiring {
+    foundation: Foundation,
+    loops: LoopWiring,
+    mcp_pods: McpPods,
+    reg_wallet: RegWallet,
+    matrix_transport: Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>>,
+    system_webid: WebID,
+    config: ServiceConfig,
+}
+
+impl AgentServiceWiring {
+    fn into_service(self) -> AgentService {
+        AgentService {
+            registry: self.reg_wallet.registry,
+            mcp_runtime: self.mcp_pods.mcp_runtime,
+            mcp_dispatcher: self.mcp_pods.mcp_dispatcher,
+            cns_runtime: self.foundation.cns_runtime,
+            cybernetics_loop: self.loops.cybernetics_loop,
+            loop_system: self.loops.loop_system,
+
+            inference_port: self.loops.inference_port,
+            episodic_storage: self.loops.episodic_storage,
+            semantic_storage: self.loops.semantic_storage,
+            escalation_queue: self.foundation.escalation_queue,
+            consent_manager: self.foundation.consent_manager,
+            goal_repo: self.foundation.goal_repo,
+            curation_inbox_tx: Some(self.foundation.curation_inbox_tx.clone()),
+            pod_manager: self.mcp_pods.pod_manager,
+            capability_checker: self.mcp_pods.capability_checker,
+            system_webid: self.system_webid,
+            event_sink: self.foundation.cns_event_sink,
+            energy_estimator: self.mcp_pods.energy_estimator,
+            sovereignty_boundary_store: self.foundation.sovereignty_boundary_store,
+            spec_store: self.foundation.spec_store,
+            a2a_runtime: self.loops.a2a_runtime,
+            agent_registry_store: self.reg_wallet.agent_registry_store,
+            user_store: self.foundation.user_store,
+            daemon_handler: self.mcp_pods.daemon_handler,
+            matrix_transport: self.matrix_transport,
+            curator_ready: Some(self.mcp_pods.curator_ready),
+            seam_watcher: self.foundation.seam_watcher,
+            config: self.config,
+            wallet_service: self.reg_wallet.wallet_service,
+            wallet_store: self.reg_wallet.wallet_store,
+            wallet_gas_calibrator: self.reg_wallet.wallet_gas_calibrator,
+            federation_link_manager: self.loops.federation_link_manager,
+        }
+    }
+}
 
 /// Foundation: database connections, stores, CNS runtime, seam watcher.
 struct Foundation {
@@ -238,8 +264,8 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     })
 }
 
-/// Loops: cybernetics, inference, episodic, semantic, curation, snapshot, backup.
-struct Loops {
+/// Loop wiring: cybernetics, inference, episodic, semantic, curation, snapshot, backup.
+struct LoopWiring {
     loop_system: Arc<LoopSystem>,
     /// Concrete GixCasAdapter for pod-directory backup operations.
     pod_backup_adapter: Arc<hkask_mcp::GixCasAdapter>,
@@ -255,11 +281,24 @@ struct Loops {
     federation_link_manager: Option<Arc<dyn FederationDispatch>>,
 }
 
+impl LoopWiring {
+    async fn validate(&self) -> Result<(), ServiceError> {
+        if self.inference_port.is_some() && !self.curator_context.has_manifest_executor().await {
+            return Err(ServiceError::Config {
+                source: None,
+                message: "Loop wiring incomplete: inference enabled but CuratorContext lacks ManifestExecutor"
+                    .to_string(),
+            });
+        }
+        Ok(())
+    }
+}
+
 async fn build_loops(
     config: &ServiceConfig,
     f: &mut Foundation,
     system_webid: WebID,
-) -> Result<Loops, ServiceError> {
+) -> Result<LoopWiring, ServiceError> {
     let loop_system = Arc::new(LoopSystem::new());
 
     let (tool_consumption_tx, tool_consumption_rx) =
@@ -360,7 +399,7 @@ async fn build_loops(
         .with_a2a(a2a_runtime.clone())
         .with_consent_manager(Arc::clone(&f.consent_manager)),
     );
-    // Clone before move into CuratorAgent — stored in Loops for late-binding
+    // Clone before move into CuratorAgent — stored in LoopWiring for late-binding
     // ManifestExecutor wiring after MCP pods are built.
     let curator_context_for_loops = Arc::clone(&curator_context);
     let consolidation_bridge = Arc::new(ConsolidationBridge::new(
@@ -446,20 +485,21 @@ async fn build_loops(
         }
     };
     // pod_backup_daemon handles all pod snapshots now.
-    // GixCasAdapter is held in Loops for TUI/CLI access.
+    // GixCasAdapter is held in LoopWiring for TUI/CLI access.
 
-    Ok(Loops {
-        loop_system,
-        pod_backup_adapter: gix_adapter,
-        cybernetics_loop,
-        inference_port,
-        episodic_storage,
-        semantic_storage,
-        tool_consumption_tx,
-        a2a_runtime,
-        curator_context: curator_context_for_loops,
-        federation_link_manager,
-    })
+    Ok(LoopWiring {
+        Ok(LoopWiring {
+            loop_system,
+            pod_backup_adapter: gix_adapter,
+            cybernetics_loop,
+            inference_port,
+            episodic_storage,
+            semantic_storage,
+            tool_consumption_tx,
+            a2a_runtime,
+            curator_context: curator_context_for_loops,
+            federation_link_manager,
+        })
 }
 
 /// MCP + pods: governed tool, dispatcher, pod manager, daemon handler.
@@ -479,7 +519,7 @@ struct McpPods {
 
 async fn build_mcp_and_pods(
     config: &ServiceConfig,
-    l: &Loops,
+    l: &LoopWiring,
     f: &Foundation,
     system_webid: WebID,
 ) -> Result<McpPods, ServiceError> {
@@ -511,20 +551,7 @@ async fn build_mcp_and_pods(
     ));
     let mcp_runtime = Arc::new(mcp_runtime);
 
-    // Wire ManifestExecutor into CuratorContext for template-driven metacognition.
-    // Per P3 (Generative Space), the Curator's calibrated decisions are produced
-    // by KnowAct templates, not Rust code. The executor is late-bound because
-    // McpDispatcher depends on GovernedTool which depends on CyberneticsLoop.
-    if let Some(inference_port) = l.inference_port.clone() {
-        let executor = Arc::new(hkask_templates::ManifestExecutor::new(
-            inference_port,
-            mcp_dispatcher.clone() as Arc<dyn hkask_templates::McpPort>,
-            hkask_types::LLMParameters::default(),
-            config.a2a_secret.clone(),
-        ));
-        l.curator_context.set_manifest_executor(executor).await;
-        tracing::info!(target: "hkask.startup", "ManifestExecutor wired into CuratorContext — template-driven metacognition enabled");
-    }
+    wire_manifest_executor(l, &mcp_dispatcher, config).await?;
 
     // Pod manager — anchor the capability checker to BOTH the system OCAP
     // authority (pre-registration pod tokens) and the A2A root (post-registration
@@ -657,6 +684,27 @@ async fn build_mcp_and_pods(
     })
 }
 
+async fn wire_manifest_executor(
+    loops: &LoopWiring,
+    mcp_dispatcher: &Arc<McpDispatcher>,
+    config: &ServiceConfig,
+) -> Result<(), ServiceError> {
+    // Per P3 (Generative Space), the Curator's calibrated decisions are produced
+    // by KnowAct templates, not Rust code. The executor is late-bound because
+    // McpDispatcher depends on GovernedTool which depends on CyberneticsLoop.
+    if let Some(inference_port) = loops.inference_port.clone() {
+        let executor = Arc::new(hkask_templates::ManifestExecutor::new(
+            inference_port,
+            mcp_dispatcher.clone() as Arc<dyn hkask_templates::McpPort>,
+            hkask_types::LLMParameters::default(),
+            config.a2a_secret.clone(),
+        ));
+        loops.curator_context.set_manifest_executor(executor).await;
+        tracing::info!(target: "hkask.startup", "ManifestExecutor wired into CuratorContext — template-driven metacognition enabled");
+    }
+    loops.validate().await
+}
+
 /// Registry + wallet: agent records, A2A restore, rJoule payments.
 struct RegWallet {
     registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
@@ -669,7 +717,7 @@ struct RegWallet {
 async fn build_registry_and_wallet(
     config: &ServiceConfig,
     f: &Foundation,
-    l: &Loops,
+    l: &LoopWiring,
     _mcp: &McpPods,
 ) -> Result<RegWallet, ServiceError> {
     // Registry
@@ -745,7 +793,7 @@ async fn build_registry_and_wallet(
 fn build_wallet(
     config: &ServiceConfig,
     f: &Foundation,
-    l: &Loops,
+    l: &LoopWiring,
 ) -> Result<
     (
         Option<Arc<WalletService>>,

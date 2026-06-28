@@ -116,9 +116,6 @@ pub struct AgentService {
     /// Loop system for 6-loop regulation.
     pub loop_system: Arc<LoopSystem>,
 
-    /// Concrete GixCasAdapter for pod-directory backup operations.
-    pod_backup_adapter: Arc<hkask_mcp::GixCasAdapter>,
-
     /// Inference port for model invocation.
     inference_port: Option<Arc<dyn InferencePort>>,
 
@@ -326,12 +323,6 @@ impl AgentService {
         &self.loop_system
     }
 
-    /// Access the concrete GixCasAdapter for pod-directory backup operations.
-    pub fn pod_backup_adapter(&self) -> &Arc<hkask_mcp::GixCasAdapter> {
-        &self.pod_backup_adapter
-    }
-
-    /// Access the concrete GixCasAdapter for pod-directory backup operations.
     /// CNS event sink for the audit trail.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.

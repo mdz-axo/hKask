@@ -1067,3 +1067,126 @@ fn list_replicants(
             })
         })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── is_likely_llm ─────────────────────────────────────────────────────
+
+    #[test]
+    fn llm_filter_passes_text_models() {
+        assert!(is_likely_llm("deepseek-ai/DeepSeek-V4-Pro"));
+        assert!(is_likely_llm("deepseek-v4-pro"));
+        assert!(is_likely_llm("zai-org/GLM-5.1"));
+        assert!(is_likely_llm("moonshotai/Kimi-K2.6"));
+    }
+
+    #[test]
+    fn llm_filter_rejects_embeddings() {
+        assert!(!is_likely_llm("BAAI/bge-m3"));
+        assert!(!is_likely_llm("intfloat/e5-mistral-7b-instruct"));
+    }
+
+    #[test]
+    fn llm_filter_rejects_image_gen() {
+        assert!(!is_likely_llm("black-forest-labs/FLUX.1-dev"));
+        assert!(!is_likely_llm("stabilityai/stable-diffusion-3.5-large"));
+    }
+
+    #[test]
+    fn llm_filter_passes_vision_language_models() {
+        assert!(is_likely_llm("qwen-vl-max"));
+        assert!(is_likely_llm("llava-13b"));
+    }
+
+    // ── is_likely_small_model ─────────────────────────────────────────────
+
+    #[test]
+    fn small_filter_rejects_tiny_models() {
+        assert!(is_likely_small_model("qwen3-8b"));
+        assert!(is_likely_small_model("llama-3b-instruct"));
+        assert!(is_likely_small_model("phi-3-mini"));
+    }
+
+    #[test]
+    fn small_filter_passes_large_models() {
+        assert!(!is_likely_small_model("deepseek-ai/DeepSeek-V4-Pro"));
+        assert!(!is_likely_small_model("Qwen/Qwen3.5-397B-A17B"));
+        assert!(!is_likely_small_model("google/gemma-4-31B-it"));
+    }
+
+    // ── parse_params ──────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_billion_params() {
+        let p = parse_params("qwen3.5-397b-a17b");
+        assert_eq!(p.display, "397B");
+        assert_eq!(p.score, 39);
+    }
+
+    #[test]
+    fn parse_trillion_params() {
+        let p = parse_params("deepseek-v4-1.6t");
+        assert_eq!(p.display, "1.6T");
+        assert_eq!(p.score, 160);
+    }
+
+    #[test]
+    fn parse_no_params() {
+        let p = parse_params("claude-sonnet");
+        assert!(p.display.is_empty());
+        assert_eq!(p.score, 0);
+    }
+
+    // ── compute_frontier_score ────────────────────────────────────────────
+
+    #[test]
+    fn frontier_score_ranks_pro_over_flash() {
+        let pro = compute_frontier_score("deepseek-v4-pro", 160);
+        let flash = compute_frontier_score("deepseek-v4-flash", 28);
+        assert!(pro > flash, "Pro ({pro}) should outrank Flash ({flash})");
+    }
+
+    #[test]
+    fn frontier_score_ranks_large_over_small() {
+        let large = compute_frontier_score("qwen3.5-397b-a17b", 39);
+        let small = compute_frontier_score("qwen3-70b", 7);
+        assert!(large > small);
+    }
+
+    // ── shorten_model_id ──────────────────────────────────────────────────
+
+    #[test]
+    fn shorten_deepinfra_model() {
+        let result = shorten_model_id("DI/deepseek-ai/DeepSeek-V4-Pro");
+        assert_eq!(result, "Deepseek V4 Pro");
+    }
+
+    #[test]
+    fn shorten_kilocode_model() {
+        let result = shorten_model_id("KC/deepseek-v4-pro");
+        assert_eq!(result, "Deepseek V4 Pro");
+    }
+
+    #[test]
+    fn shorten_flat_model_id() {
+        let result = shorten_model_id("deepseek-v4-pro");
+        assert_eq!(result, "Deepseek V4 Pro");
+    }
+
+    // ── provider_display_name ─────────────────────────────────────────────
+
+    #[test]
+    fn provider_display_kilocode() {
+        let mut config = InferenceConfig::default();
+        config.default_provider = ProviderId::KiloCode;
+        assert_eq!(provider_display_name(&config), "KiloCode");
+    }
+
+    #[test]
+    fn provider_display_deepinfra() {
+        let config = InferenceConfig::default();
+        assert_eq!(provider_display_name(&config), "DeepInfra");
+    }
+}
