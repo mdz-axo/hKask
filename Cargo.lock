@@ -3558,7 +3558,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-acp"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3583,7 +3583,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-adapter"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3605,7 +3605,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-agents"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "async-trait",
  "blake3",
@@ -3638,7 +3638,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-api"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -3681,15 +3681,15 @@ dependencies = [
 
 [[package]]
 name = "hkask-bridge-dublincore"
-version = "0.30.0"
+version = "0.31.0"
 
 [[package]]
 name = "hkask-bridge-pko"
-version = "0.30.0"
+version = "0.31.0"
 
 [[package]]
 name = "hkask-capability"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "base64 0.21.7",
  "chrono",
@@ -3708,7 +3708,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-cli"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "axum 0.8.9",
@@ -3767,7 +3767,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-cns"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3790,7 +3790,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-communication"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "chrono",
  "hkask-keystore",
@@ -3809,7 +3809,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-condenser"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "criterion",
  "hkask-test-harness",
@@ -3822,7 +3822,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-fal"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "futures-util",
@@ -3837,7 +3837,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-federation"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "async-trait",
  "blake3",
@@ -3860,7 +3860,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-improv"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "chrono",
  "hkask-cns",
@@ -3873,7 +3873,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-inference"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -3893,7 +3893,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-keystore"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -3917,7 +3917,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-ledger"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "chrono",
  "hkask-test-harness",
@@ -3932,7 +3932,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3970,7 +3970,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-cloud-gateway"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "dotenvy",
@@ -3991,7 +3991,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-communication"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4014,7 +4014,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-companies"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4042,7 +4042,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-condenser"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4068,7 +4068,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-curator"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "chrono",
  "hkask-bridge-dublincore",
@@ -4087,7 +4087,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-docproc"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4123,7 +4123,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-fal"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "dotenvy",
@@ -4140,7 +4140,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-filesystem"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4161,7 +4161,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-kanban"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4186,7 +4186,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-media"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "ab_glyph",
  "anyhow",
@@ -4223,7 +4223,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-memory"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4248,7 +4248,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-replica"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4276,7 +4276,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-research"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4307,7 +4307,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-skill"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "dotenvy",
@@ -4329,7 +4329,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-training"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4362,7 +4362,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-memory"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "async-trait",
  "blake3",
@@ -4384,7 +4384,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-ports"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "async-trait",
  "blake3",
@@ -4403,7 +4403,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-services"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -4455,7 +4455,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-services-chat"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "hkask-agents",
  "hkask-capability",
@@ -4475,7 +4475,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-services-compose"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "hkask-inference",
  "hkask-memory",
@@ -4491,7 +4491,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-services-context"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4532,7 +4532,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-services-core"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "chrono",
  "dirs 6.0.0",
@@ -4553,7 +4553,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-services-corpus"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -4581,7 +4581,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-services-curator"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "chrono",
  "hkask-agents",
@@ -4598,7 +4598,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-services-kanban"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "chrono",
  "hkask-agents",
@@ -4617,7 +4617,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-services-kata"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "chrono",
  "hkask-cns",
@@ -4638,7 +4638,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-services-onboarding"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "chrono",
  "hex",
@@ -4659,7 +4659,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-services-runtime"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4683,7 +4683,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-services-skill"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "blake3",
  "chrono",
@@ -4706,7 +4706,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-services-wallet"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4730,7 +4730,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-storage"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -4758,7 +4758,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-templates"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "chrono",
  "ed25519-dalek",
@@ -4782,7 +4782,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-test-harness"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "chrono",
  "dirs 6.0.0",
@@ -4810,7 +4810,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-tui"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4830,7 +4830,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-types"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "chrono",
  "hex",
@@ -4852,7 +4852,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-wallet"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4883,7 +4883,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-wallet-types"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "chrono",
  "hex",
