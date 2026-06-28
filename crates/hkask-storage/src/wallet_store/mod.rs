@@ -7,13 +7,13 @@
 //! - `deposit_addresses` — derived deposit addresses per wallet per chain
 //! - `deposit_references` — one-time shielded deposit references (anti-replay)
 
-mod types;
+pub(crate) mod types;
 pub(crate) use types::*;
 
-pub mod transaction;
 pub mod api_key;
 pub mod deposit;
 pub mod encumbrance;
+pub mod transaction;
 
 use crate::define_store;
 define_store!(WalletStore);
@@ -28,9 +28,11 @@ impl WalletStore {
             })
         })?;
         conn.execute_batch("PRAGMA journal_mode=WAL;")
-            .map_err(|e| hkask_wallet_types::WalletError::Storage(hkask_types::InfrastructureError {
-                message: format!("Failed to enable WAL: {e}"),
-            }))?;
+            .map_err(|e| {
+                hkask_wallet_types::WalletError::Storage(hkask_types::InfrastructureError {
+                    message: format!("Failed to enable WAL: {e}"),
+                })
+            })?;
         Ok(())
     }
 }

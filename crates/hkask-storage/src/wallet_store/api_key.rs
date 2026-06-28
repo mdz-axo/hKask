@@ -1,5 +1,10 @@
-use crate::Store;
 use super::types::*;
+use crate::Store;
+use hkask_types::{ApiKeyId, Ed25519PublicKey, InfrastructureError, WalletId};
+use hkask_wallet_types::*;
+use rusqlite::OptionalExtension;
+use std::str::FromStr;
+
 impl WalletStore {
     pub fn store_api_key(&self, capability: &ApiKeyCapability) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
@@ -190,11 +195,4 @@ impl WalletStore {
         )?;
         Ok(())
     }
-    // ── Deposit Addresses ────────────────────────────────────────────────────
-    /// Store a derived deposit address for a wallet.
-    /// Store a deposit address.
-    ///
-    /// expect: "The system provides durable storage for wallet data"
-    /// \[P3\] Motivating: Generative Space — store deposit address
-    /// pre:  address has valid wallet_id and chain
-    /// post: deposit address stored
+}

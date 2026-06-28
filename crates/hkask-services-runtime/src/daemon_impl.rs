@@ -328,7 +328,6 @@ impl DaemonHandler for ServiceDaemonHandler {
         })
     }
 
-
     async fn spec_drift(&self, _replicant: &str, _spec_id: Option<&str>) -> serde_json::Value {
         serde_json::json!({"status": "ok", "note": "spec_drift not yet implemented in daemon handler"})
     }

@@ -27,8 +27,8 @@ use hkask_templates::BundleManifest;
 use hkask_templates::BundleRegistryIndex;
 use hkask_types::Visibility;
 
-use hkask_services_core::ServiceError;
 use hkask_services_context::AgentService;
+use hkask_services_core::ServiceError;
 
 /// Result of composing a bundle from skill IDs.
 #[derive(Debug)]

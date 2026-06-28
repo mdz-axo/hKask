@@ -5,11 +5,11 @@
 
 use std::sync::Arc;
 
+use crate::archival::ArchivalService;
 use crate::block_on;
 use crate::cli::GitAction;
 use hkask_mcp::GixCasAdapter;
 use hkask_ports::git_cas::{GitCASPort, RepoId, TreeEntryKind};
-use crate::archival::ArchivalService;
 
 /// Resolve the concrete `GixCasAdapter` for admin operations
 /// (diff, resolve_ref) that are not part of the GitCASPort contract.

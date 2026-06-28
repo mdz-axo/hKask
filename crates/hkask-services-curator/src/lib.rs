@@ -13,8 +13,8 @@ use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 
-use hkask_services_core::ServiceError;
 use hkask_services_context::AgentService;
+use hkask_services_core::ServiceError;
 
 /// Response for a single escalation entry.
 pub struct EscalationResponse {

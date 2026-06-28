@@ -1,5 +1,10 @@
 use crate::Store;
 use super::types::*;
+use hkask_types::{ApiKeyId, Ed25519PublicKey, InfrastructureError, WalletId};
+use hkask_wallet_types::*;
+use rusqlite::OptionalExtension;
+use std::str::FromStr;
+
 impl WalletStore {
     pub fn store_deposit_address(
         &self,
@@ -148,15 +153,4 @@ impl WalletStore {
         )?;
         Ok(rows as u64)
     }
-    // ── Encumbrance methods ──────────────────────────────────────────────────
-    /// Lock rJoules from a wallet for an API key's use.
-    ///
-    /// Debits the wallet balance by `amount_rj` and creates an active
-    /// encumbrance row. Returns an error if the key already has an active
-    /// encumbrance or the wallet has insufficient balance.
-    /// Encumber rJoules for an API key (lock funds for spending).
-    ///
-    /// expect: "The system provides durable storage for wallet data"
-    /// \[P3\] Motivating: Generative Space — encumber rJoules for key
-    /// pre:  wallet_id exists, key_id is valid, amount > 0, balance >= amount
-    /// post: rJoules encumbered, balance decreased
+}

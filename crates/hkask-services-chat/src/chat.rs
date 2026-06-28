@@ -23,10 +23,10 @@ use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
 use hkask_types::{Confidence, DataCategory, WebID};
 
-use hkask_services_core::ServiceError;
-use hkask_services_core::{InferenceContext, InferenceService};
 use crate::memory::MemoryService;
 use hkask_services_context::AgentService;
+use hkask_services_core::ServiceError;
+use hkask_services_core::{InferenceContext, InferenceService};
 
 /// System prompt for the auto-condense summarization request.
 const CONDENSER_SYSTEM_PROMPT: &str = "You are a context condensation assistant. Produce structured summaries that \

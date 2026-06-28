@@ -1,44 +1,11 @@
 use crate::Store;
 use super::types::*;
-// ── WalletStore implementation ──────────────────────────────────────────────────
-impl WalletStore {
-    /// Enable SQLite WAL (Write-Ahead Logging) mode for better concurrency.
-    ///
-    /// WAL mode allows concurrent reads while a write is in progress,
-    /// significantly improving throughput under multi-agent API key spend loads.
-    /// Without WAL, all operations serialize on the connection mutex.
-    ///
-    /// expect: "The system provides durable storage for wallet data"
-    /// post: journal_mode set to WAL
-    /// post: synchronous set to NORMAL (balance durability vs performance)
-    ///
-    /// Call once after store creation, before any wallet operations.
-    /// Enable WAL mode for better concurrency.
-    ///
-    /// expect: "The system provides durable storage for wallet data"
-    /// \[P3\] Motivating: Generative Space — enable WAL for wallet concurrency
-    /// \[P7\] Constraining: Evolutionary Architecture — WAL mode emerged from multi-agent load
-    /// post: journal_mode set to WAL, synchronous set to NORMAL
+use hkask_types::{ApiKeyId, Ed25519PublicKey, InfrastructureError, WalletId};
+use hkask_wallet_types::*;
+use rusqlite::OptionalExtension;
+use std::str::FromStr;
 
-    pub fn enable_wal_mode(&self) -> Result<(), WalletError> {
-        let conn = self.lock_conn()?;
-        conn.execute_batch(
-            "PRAGMA journal_mode=WAL; \
-             PRAGMA synchronous=NORMAL; \
-             PRAGMA busy_timeout=5000;",
-        )
-        .map_err(|e| WalletError::Infra(InfrastructureError::Database(e.to_string())))?;
-        tracing::info!(target: "hkask.storage", "WalletStore WAL mode enabled");
-        Ok(())
-    }
-    // ── Balance ──────────────────────────────────────────────────────────────
-    /// Get the current balance for a wallet, or None if the wallet doesn't exist.
-    /// Get wallet balance.
-    ///
-    /// expect: "The system provides durable storage for wallet data"
-    /// \[P3\] Motivating: Generative Space — get wallet balance
-    /// pre:  wallet_id is valid
-    /// post: returns Some(WalletBalance) if wallet exists, None otherwise
+impl WalletStore {
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<Option<WalletBalance>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -267,11 +234,4 @@ impl WalletStore {
         )?;
         Ok(count > 0)
     }
-    // ── API Keys ─────────────────────────────────────────────────────────────
-    /// Store a newly issued API key capability.
-    /// Store an API key capability.
-    ///
-    /// expect: "The system provides durable storage for wallet data"
-    /// \[P3\] Motivating: Generative Space — store API key capability
-    /// pre:  capability has valid key_id and wallet_id
-    /// post: API key stored
+}

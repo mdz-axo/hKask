@@ -316,7 +316,10 @@ impl ComposeService {
         // not from CognitionConfig (pipeline/corpus concern). The embedding model
         // is tied to stored vector dimensions; the generation model is deployment-specific.
         let gen_model = request.inference_ctx.default_model.clone();
-        let inference = hkask_services_core::InferenceService::resolve_port(&request.inference_ctx, &gen_model)?;
+        let inference = hkask_services_core::InferenceService::resolve_port(
+            &request.inference_ctx,
+            &gen_model,
+        )?;
         let params = LLMParameters {
             temperature: 0.7,
             top_p: 0.9,
