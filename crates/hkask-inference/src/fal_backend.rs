@@ -605,8 +605,8 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
-            err.to_string().contains("FA_API_KEY"),
-            "error should mention FA_API_KEY, got: {}",
+            err.to_string().contains("HKASK_FAL_API_KEY"),
+            "error should mention HKASK_FAL_API_KEY, got: {}",
             err
         );
     }

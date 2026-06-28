@@ -55,7 +55,7 @@ Slash commands (inside chat):
 - `/model list` — List all available models
 - `/model <name>` — Switch to a specific model (e.g., `/model deepseek-v4-pro`)
 - `/model <query>` — Fuzzy search models (e.g., `/model deepseek` lists all DeepSeek models)
-- Set `HKASK_FUSION_JUDGE` + `HKASK_FUSION_PANEL` to customize fusion (see .env.example)
+- Set `HKASK_FUSION_JUDGE_MODEL` + `HKASK_FUSION_PANEL_MODELS` to customize fusion (see .env.example)
 - `/pods` — List agent pods
 - `/templates` — List registered templates
 - `/escalations` — List pending escalations

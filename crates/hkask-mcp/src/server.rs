@@ -1,6 +1,6 @@
 //! MCP server scaffolding — shared helpers for hKask MCP server binaries.
 //
-//! WebID resolution order: `HKASK_WEBID` → `HKASK_AGENT_PERSONA` → anonymous.
+//! WebID resolution order: `HKASK_WEBID` → `HKASK_REPLICANT_PERSONA` → anonymous.
 //! No ambient authority — all identity and credentials flow through `ServerContext`.
 //
 //! ```rust,ignore
@@ -169,7 +169,7 @@ impl CapabilityTier {
 pub struct ServerContext {
     pub credentials: HashMap<String, String>,
 
-    /// Resolved from HKASK_WEBID → HKASK_AGENT_PERSONA → anonymous.
+    /// Resolved from HKASK_WEBID → HKASK_REPLICANT_PERSONA → anonymous.
     pub webid: hkask_types::WebID,
 
     /// Infrastructure capabilities detected at startup.
@@ -867,7 +867,7 @@ fn emit_tool_span_with_caller(
 /// Handles:
 /// 1. Tracing subscriber initialization
 /// 2. Credential requirement checks (keystore → env var)
-/// 3. WebID resolution (HKASK_WEBID → HKASK_AGENT_PERSONA → anonymous)
+/// 3. WebID resolution (HKASK_WEBID → HKASK_REPLICANT_PERSONA → anonymous)
 /// 4. Server construction via factory (only after credential checks pass)
 /// 5. rmcp stdio serve
 ///
@@ -990,13 +990,13 @@ where
                 );
                 hkask_types::WebID::from_persona(b"anonymous")
             })
-        } else if let Some(persona) = pre.get("HKASK_AGENT_PERSONA") {
+        } else if let Some(persona) = pre.get("HKASK_REPLICANT_PERSONA") {
             hkask_types::WebID::from_persona(persona.as_bytes())
-        } else if let Ok(persona) = std::env::var("HKASK_AGENT_PERSONA") {
+        } else if let Ok(persona) = std::env::var("HKASK_REPLICANT_PERSONA") {
             hkask_types::WebID::from_persona(persona.as_bytes())
         } else {
             tracing::warn!(
-                "No HKASK_WEBID or HKASK_AGENT_PERSONA set — MCP server starting with anonymous identity. Set HKASK_WEBID for P12-compliant attribution."
+                "No HKASK_WEBID or HKASK_REPLICANT_PERSONA set — MCP server starting with anonymous identity. Set HKASK_WEBID for P12-compliant attribution."
             );
             hkask_types::WebID::from_persona(b"anonymous")
         }
@@ -1007,11 +1007,11 @@ where
             );
             hkask_types::WebID::from_persona(b"anonymous")
         })
-    } else if let Ok(persona) = std::env::var("HKASK_AGENT_PERSONA") {
+    } else if let Ok(persona) = std::env::var("HKASK_REPLICANT_PERSONA") {
         hkask_types::WebID::from_persona(persona.as_bytes())
     } else {
         tracing::warn!(
-            "No HKASK_WEBID or HKASK_AGENT_PERSONA set — MCP server starting with anonymous identity. Set HKASK_WEBID for P12-compliant attribution."
+            "No HKASK_WEBID or HKASK_REPLICANT_PERSONA set — MCP server starting with anonymous identity. Set HKASK_WEBID for P12-compliant attribution."
         );
         hkask_types::WebID::from_persona(b"anonymous")
     };

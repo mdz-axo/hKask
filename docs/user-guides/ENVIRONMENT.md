@@ -18,15 +18,11 @@ mds_categories: [domain, composition, trust]
 
 ### 1.1 DeepInfra API key
 - **Canonical:** `DI_API_KEY`
-- **Also present:** `DEEPINFRA_API_KEY` (tests + integration scripts)
-- **Not used:** `DEEPINFRA_KEY` (docs-only misnomer; removed from docs elsewhere)
+- **Not used:** `DEEPINFRA_API_KEY`, `DEEPINFRA_KEY` (docs-only misnomers; removed from docs elsewhere)
 
-### 1.2 FAL / FA API keys
-- **Canonical for docproc:** `HKASK_FAL_API_KEY`
-- **Also used by hkask-mcp-fal:** `HKASK_FAL_KEY`
-- **Legacy aliases (non-HKASK):** `FAL_KEY`, `FA_API_KEY`
-
-> Guidance: prefer `HKASK_FAL_API_KEY` in new configuration. The `FAL_KEY` and `FA_API_KEY` aliases remain for compatibility.
+### 1.2 Fal.ai API key
+- **Canonical:** `HKASK_FAL_API_KEY`
+- **Not used:** `HKASK_FAL_KEY`, `FAL_KEY`, `FA_API_KEY` (removed; use `HKASK_FAL_API_KEY` only)
 
 ### 1.3 Provider base URL overrides
 These are **provider-prefix base URL overrides** (prefix identifies the inference provider; value is the base URL):
@@ -36,36 +32,27 @@ These are **provider-prefix base URL overrides** (prefix identifies the inferenc
 - `OR_BASE_URL` (OpenRouter)
 - `KC_BASE_URL` (KiloCode)
 
-### 1.4 `HKASK_MODEL` vs `HKASK_DEFAULT_MODEL`
-- `HKASK_MODEL` is used by ACP / server-mode surfaces (e.g., ACP binaries) as a direct model selector.
+### 1.4 `HKASK_ACP_MODEL` vs `HKASK_DEFAULT_MODEL`
+- `HKASK_ACP_MODEL` is used by ACP / server-mode surfaces (ACP binaries) as a direct model selector.
 - `HKASK_DEFAULT_MODEL` is used by inference configuration as the general default model.
 
-If you want one global default for **inference**, prefer `HKASK_DEFAULT_MODEL`. If you are launching ACP/MCP binaries directly, `HKASK_MODEL` may apply.
+If you want one global default for **inference**, prefer `HKASK_DEFAULT_MODEL`. If you are launching ACP binaries directly, `HKASK_ACP_MODEL` applies.
 
 ### 1.5 Fusion variable naming
-Current usage spans both **canonical** and **legacy** names:
-
-**Canonical (preferred in docs):**
-- `HKASK_FUSION_JUDGE`
-- `HKASK_FUSION_PANEL`
+**Canonical (current):**
+- `HKASK_FUSION_JUDGE_MODEL`
+- `HKASK_FUSION_PANEL_MODELS`
 - `HKASK_FUSION_MODE`
 - `HKASK_FUSION_SKILLS`
 - `HKASK_FUSION_MAX_ROUNDS`
-- `HKASK_FUSION_OFF`
-
-**Legacy / compatibility (still read in code):**
-- `HKASK_FUSION_MODEL`, `HKASK_FUSION_MODELS`
-- `HKASK_FUSION_FUSER`, `HKASK_FUSION_GROUP`
-- `HKASK_FUSION_KILO_TIER`
-
-> Recommendation: migrate docs and operator configs to the canonical set above.
+- `HKASK_FUSION_DISABLED`
 
 ### 1.6 Matrix agent credentials: env vars vs keychain keys
 - **Env vars for MCP servers:** `HKASK_MATRIX_AGENT_USERNAME`, `HKASK_MATRIX_AGENT_PASSWORD`
 - **Keychain key prefixes (not env vars):** `HKASK_MATRIX_AGENT_USERNAME_`, `HKASK_MATRIX_AGENT_PASSWORD_` (suffix = agent name)
 
 ### 1.7 Agent persona naming
-`HKASK_AGENT_PERSONA` is the current env var used by MCP runtime. A rename to `HKASK_REPLICANT_PERSONA` is **not** implemented yet; keep using `HKASK_AGENT_PERSONA` for now.
+`HKASK_REPLICANT_PERSONA` is the env var used by the MCP runtime for persona-based WebID resolution.
 
 ---
 
@@ -73,7 +60,7 @@ Current usage spans both **canonical** and **legacy** names:
 
 ```
 HKASK_A2A_SECRET
-HKASK_AGENT_PERSONA
+HKASK_ACP_MODEL
 HKASK_AXOLOTL_PATH
 HKASK_BASE_MODEL
 HKASK_BASE_URL
@@ -109,21 +96,15 @@ HKASK_EMBEDDING_MODEL
 HKASK_EODHD_API_KEY
 HKASK_EXA_API_KEY
 HKASK_FAL_API_KEY
-HKASK_FAL_KEY
 HKASK_FEDERATION_ENABLED
 HKASK_FERMI_DEFAULTS
 HKASK_FIRECRAWL_API_KEY
 HKASK_FMP_API_KEY
-HKASK_FUSION_FUSER
-HKASK_FUSION_GROUP
-HKASK_FUSION_JUDGE
-HKASK_FUSION_KILO_TIER
+HKASK_FUSION_DISABLED
+HKASK_FUSION_JUDGE_MODEL
 HKASK_FUSION_MAX_ROUNDS
 HKASK_FUSION_MODE
-HKASK_FUSION_MODEL
-HKASK_FUSION_MODELS
-HKASK_FUSION_OFF
-HKASK_FUSION_PANEL
+HKASK_FUSION_PANEL_MODELS
 HKASK_FUSION_SKILLS
 HKASK_GATEWAY_BIND
 HKASK_GATEWAY_CLIENT_CA
@@ -158,7 +139,6 @@ HKASK_MEDIA_VISION_MODEL
 HKASK_MEMORY_DB
 HKASK_MEMORY_DB_PATH
 HKASK_MEMORY_LIFE_DAYS
-HKASK_MODEL
 HKASK_NUM_EPOCHS
 HKASK_OAUTH_GITHUB_CLIENT_ID
 HKASK_OAUTH_GITHUB_CLIENT_SECRET
@@ -177,6 +157,7 @@ HKASK_PYTHON_PATH
 HKASK_REGISTRY_PATH
 HKASK_REPLICANT
 HKASK_REPLICANT_NAME
+HKASK_REPLICANT_PERSONA
 HKASK_REPLICA_MODEL
 HKASK_REPLICA_TEST_DB
 HKASK_RSS_DB
@@ -212,11 +193,8 @@ BASETEN_GPU_COUNT
 BASETEN_PROJECT_ID
 CARGO_MANIFEST_DIR
 CONTAINER_REGISTRY
-DEEPINFRA_API_KEY
 DI_API_KEY
 DI_BASE_URL
-FAL_KEY
-FA_API_KEY
 FA_BASE_URL
 FA_MEDIA_BASE_URL
 FA_QUEUE_BASE_URL
@@ -252,8 +230,8 @@ USERPROFILE
 
 ## 4. Notes on aliases and redundancy
 
-- `FAL_KEY` and `FA_API_KEY` are treated as aliases for FAL API key usage in docproc. Prefer `HKASK_FAL_API_KEY`.
-- `DEEPINFRA_API_KEY` exists primarily in tests/integration contexts; prefer `DI_API_KEY` for runtime config.
+- `HKASK_FAL_API_KEY` is the only supported Fal.ai API key env var.
+- `DI_API_KEY` is the only supported DeepInfra API key env var.
 - `HKASK_MATRIX_AGENT_USERNAME_` / `HKASK_MATRIX_AGENT_PASSWORD_` are **keychain key prefixes**, not environment variables.
 
 ---

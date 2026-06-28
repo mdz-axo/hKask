@@ -41,7 +41,7 @@ async fn e2e_initialize_and_prompt() {
     // Spawn the ACP binary
     let mut child = Command::new(BINARY)
         .env("HKASK_REPLICANT", REPLICANT)
-        .env("HKASK_MODEL", MODEL)
+        .env("HKASK_ACP_MODEL", MODEL)
         .env("RUST_LOG", "hkask.acp=info")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

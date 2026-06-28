@@ -697,7 +697,7 @@ The REPL supports bidirectional voice interaction through the media MCP server (
 
 Fusion is a **provider-agnostic, hKask-side orchestration engine**. It sends the user's prompt to a panel of models in parallel (each routing through its own provider via 2-letter prefix), collects their responses, then dispatches to a judge model operating in one of five deliberation modes.
 
-**Opt-in:** Fusion is disabled by default. Enable with `HKASK_FUSION_JUDGE` + `HKASK_FUSION_PANEL` env vars, or `/fusion on` in the REPL.
+**Opt-in:** Fusion is disabled by default. Enable with `HKASK_FUSION_JUDGE_MODEL` + `HKASK_FUSION_PANEL_MODELS` env vars, or `/fusion on` in the REPL.
 
 **Default model set:**
 | Role | Model |
@@ -707,8 +707,8 @@ Fusion is a **provider-agnostic, hKask-side orchestration engine**. It sends the
 
 **Provider-agnostic routing:** Each panel model and the judge can route through different providers by prefixing the model name (`DI/`, `FA/`, `TG/`, `OR/`, `KC/`). Unprefixed names use the default provider. Example mixed-provider config:
 ```bash
-HKASK_FUSION_JUDGE=DI/deepseek-v4-pro
-HKASK_FUSION_PANEL=OR/auto,KC/anthropic/claude-sonnet-4.5,DI/qwen/qwen3
+HKASK_FUSION_JUDGE_MODEL=DI/deepseek-v4-pro
+HKASK_FUSION_PANEL_MODELS=OR/auto,KC/anthropic/claude-sonnet-4.5,DI/qwen/qwen3
 ```
 
 #### Deliberation Modes
@@ -746,12 +746,12 @@ The judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSION_S
 **Configuration:**
 | Env Var | Purpose |
 |---------|---------|
-| `HKASK_FUSION_JUDGE` | Judge/fuser model (supports provider prefix) |
-| `HKASK_FUSION_PANEL` | Comma-separated panel models, 1-8 (each supports provider prefix) |
+| `HKASK_FUSION_JUDGE_MODEL` | Judge model (supports provider prefix) |
+| `HKASK_FUSION_PANEL_MODELS` | Comma-separated panel models, 1-8 (each supports provider prefix) |
 | `HKASK_FUSION_MODE` | Deliberation mode: `synthesis`, `best-of-n`, `critique`, `deliberation`, `pi` |
 | `HKASK_FUSION_SKILLS` | Comma-separated skill anchors for the judge |
 | `HKASK_FUSION_MAX_ROUNDS` | Max deliberation rounds (default: 5) |
-| `HKASK_FUSION_OFF=1` | Disable fusion |
+| `HKASK_FUSION_DISABLED=1` | Disable fusion |
 
 **REPL commands:** `/fusion` (status), `/fusion on`, `/fusion off`.
 

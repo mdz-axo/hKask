@@ -160,7 +160,7 @@ impl HkaskAcpAgent {
             }
         }
 
-        let default_model = std::env::var("HKASK_MODEL")
+        let default_model = std::env::var("HKASK_ACP_MODEL")
             .unwrap_or_else(|_| model_constants::DEFAULT_FALLBACK_MODEL.to_string());
 
         Self {

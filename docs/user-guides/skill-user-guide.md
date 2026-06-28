@@ -143,8 +143,8 @@ Fusion is opt-in. Enable it before running skills:
 
 ```bash
 # Via environment (persists across sessions)
-export HKASK_FUSION_JUDGE=deepseek-v4-pro
-export HKASK_FUSION_PANEL="Kimi2.7,Qwen3.7 Max,GLM5.2,Minimax3"
+export HKASK_FUSION_JUDGE_MODEL=deepseek-v4-pro
+export HKASK_FUSION_PANEL_MODELS="Kimi2.7,Qwen3.7 Max,GLM5.2,Minimax3"
 
 # Via REPL (session only)
 /fusion on
@@ -169,7 +169,7 @@ Expect roughly 4-5× the cost of a single completion. Fusion is for high-stakes 
 ### Disabling
 
 ```bash
-export HKASK_FUSION_OFF=1    # Env var
+export HKASK_FUSION_DISABLED=1    # Env var
 /fusion off                  # REPL command
 ```
 

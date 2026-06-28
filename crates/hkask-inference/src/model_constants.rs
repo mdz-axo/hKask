@@ -22,7 +22,7 @@ pub const EMBEDDING_MODEL: &str = "DI/Qwen/Qwen3-Embedding-0.6B";
 /// Current: LightOnOCR-2 1B — fast, specialized document OCR model.
 pub const OCR_MODEL: &str = "maternion/LightOnOCR-2:1b";
 
-/// Fallback model when `HKASK_MODEL` env var is unset (ACP agent).
+/// Fallback model when `HKASK_ACP_MODEL` env var is unset (ACP agent).
 /// Mirrors `InferenceConfig::default_model` to keep the codebase consistent.
 /// Updated June 2026: DeepSeek V4 Pro remains the strongest all-round open-weight model.
 pub const DEFAULT_FALLBACK_MODEL: &str = "deepseek-v4-pro";
