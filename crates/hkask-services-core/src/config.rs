@@ -146,7 +146,8 @@ impl ServiceConfig {
             .unwrap_or_else(|_| DEFAULT_TEMPLATE_CACHE_PATH.to_string());
         let memory_db_path = std::env::var("HKASK_MEMORY_DB_PATH").ok();
         let registry_yaml_path = std::path::PathBuf::from(
-            std::env::var("HKASK_REGISTRY_PATH").unwrap_or_else(|_| "registry/bots".to_string()),
+            std::env::var("HKASK_REPLICANT_REGISTRY_PATH")
+                .unwrap_or_else(|_| "registry/replicants".to_string()),
         );
 
         // Resolve secrets from keystore. If keystore resolution fails,
@@ -223,7 +224,8 @@ impl ServiceConfig {
             .unwrap_or_else(|_| DEFAULT_TEMPLATE_CACHE_PATH.to_string());
         let memory_db_path = std::env::var("HKASK_MEMORY_DB_PATH").ok();
         let registry_yaml_path = std::path::PathBuf::from(
-            std::env::var("HKASK_REGISTRY_PATH").unwrap_or_else(|_| "registry/bots".to_string()),
+            std::env::var("HKASK_REPLICANT_REGISTRY_PATH")
+                .unwrap_or_else(|_| "registry/replicants".to_string()),
         );
         let memory_life_days = std::env::var("HKASK_MEMORY_LIFE_DAYS")
             .ok()

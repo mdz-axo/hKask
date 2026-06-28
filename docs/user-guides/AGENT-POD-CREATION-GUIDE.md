@@ -53,7 +53,7 @@ The creation process follows a requirements-driven methodology[^wiegers2013]:
 Before creating an agent pod, ensure you have[^bass2021]:
 
 - **hKask CLI installed**: `cargo install --path crates/hkask-cli`
-- **Git CAS configured**: Templates live under `${HKASK_REGISTRY_PATH:-./registry}/templates/`
+- **Git CAS configured**: Templates live under `${HKASK_REPLICANT_REGISTRY_PATH:-./registry/replicants}/templates/`
 - **A2A runtime available**: Either local or remote ACP server
 - **MCP servers registered**: Tools your agent will need access to
 - **Root authority access**: For issuing capability tokens (administrator only)
@@ -1118,7 +1118,7 @@ Diagnostic approaches follow security testing methodology[^owasp_testing].
 **Error:** `Failed to load template crate`
 
 **Solution:**
-1. Verify crate exists in `${HKASK_REGISTRY_PATH:-./registry}/templates/`
+1. Verify crate exists in `${HKASK_REPLICANT_REGISTRY_PATH:-./registry/replicants}/templates/`
 2. Check `agent_persona.yaml` is valid YAML
 3. Ensure all required fields are present
 

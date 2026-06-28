@@ -744,14 +744,14 @@ fn strip_json_fences(text: &str) -> String {
 /// inline fallback prompt.
 ///
 /// Template base path is resolved relative to the workspace root. If the
-/// server is started from a different directory, set `HKASK_REGISTRY_PATH`
-/// to the absolute path of the `registry/` directory.
+/// server is started from a different directory, set `HKASK_REPLICANT_REGISTRY_PATH`
+/// to the absolute path of the `registry/replicants` directory.
 fn render_docproc_template(
     template_name: &str,
     vars: &std::collections::HashMap<&str, String>,
 ) -> String {
-    let registry_root =
-        std::env::var("HKASK_REGISTRY_PATH").unwrap_or_else(|_| "registry".to_string());
+    let registry_root = std::env::var("HKASK_REPLICANT_REGISTRY_PATH")
+        .unwrap_or_else(|_| "registry/replicants".to_string());
     let template_path = std::path::Path::new(&registry_root)
         .join("templates/docproc")
         .join(format!("{template_name}.j2"));

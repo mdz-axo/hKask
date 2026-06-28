@@ -157,7 +157,7 @@ pub fn start_mcp_servers_with_env(
     replicant_name: &str,
 ) -> usize {
     let mut extra_env = std::collections::HashMap::new();
-    extra_env.insert("HKASK_REPLICANT".to_string(), replicant_name.to_string());
+    extra_env.insert("HKASK_MCP_HOST".to_string(), replicant_name.to_string());
     let mut started = 0;
     for (server_id, command) in servers {
         match rt.block_on(ctx.mcp_runtime().start_server_with_env(

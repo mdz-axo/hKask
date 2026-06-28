@@ -32,7 +32,7 @@ Tools invoke methods on `hkask_communication::MatrixTransport` which uses `matri
 | `HKASK_MATRIX_URL` | Matrix homeserver URL | `http://localhost:8008` |
 | `HKASK_MATRIX_AGENT_USERNAME` | Matrix username for this server | (from keychain) |
 | `HKASK_MATRIX_AGENT_PASSWORD` | Matrix password for this server | (from keychain) |
-| `HKASK_REPLICANT` | Replicant identity for P4 gate verification | `anonymous` |
+| `HKASK_MCP_HOST` | Replicant identity for P4 gate verification | `anonymous` |
 
 ## Startup
 

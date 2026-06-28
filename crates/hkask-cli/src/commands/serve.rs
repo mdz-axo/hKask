@@ -86,14 +86,14 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
 
 /// Start all API MCP servers and discover their tools.
 ///
-/// Each server receives `HKASK_REPLICANT={replicant_name}` in its
+/// Each server receives `HKASK_MCP_HOST={replicant_name}` in its
 /// environment, so per-agent databases (agents/{name}/) are used.
 /// Returns the number of servers that started successfully.
 /// Servers that fail to start are logged and skipped.
 async fn start_api_servers(runtime: &McpRuntime, replicant_name: &str) -> usize {
     let mut started = 0;
     let mut extra_env = std::collections::HashMap::new();
-    extra_env.insert("HKASK_REPLICANT".to_string(), replicant_name.to_string());
+    extra_env.insert("HKASK_MCP_HOST".to_string(), replicant_name.to_string());
 
     for (server_id, command) in API_SERVERS {
         match runtime

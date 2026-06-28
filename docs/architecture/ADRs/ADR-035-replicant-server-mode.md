@@ -33,7 +33,7 @@ hKask's 11 MCP servers provide tool capabilities to agents. The original archite
 1. **AgentMode** (`Chat` | `Server`) — a property of the agent, not the MCP runtime. Initially mutually exclusive.
 2. **Daemon socket** (`~/.config/hkask/daemon.sock`) — Unix domain socket for out-of-process MCP binary ↔ in-process agent stack communication. JSON newline-delimited protocol.
 3. **ServiceDaemonHandler** — bridges daemon queries to ActivePods (assignment, capability), UserStore (authentication), InferencePort (narrative generation), and PodContext (dual memory encoding).
-4. **Thin launcher pattern** — each MCP binary reads `HKASK_REPLICANT` from env, connects to daemon for P4 dual-gate verification, then starts serving. Original tool logic unchanged.
+4. **Thin launcher pattern** — each MCP binary reads `HKASK_MCP_HOST` from env, connects to daemon for P4 dual-gate verification, then starts serving. Original tool logic unchanged.
 5. **Dual memory encoding** — every tool call produces both episodic (first-person, private, perspective-scoped) and semantic (third-person, public, generalized) triples simultaneously.
 6. **Narrative generation** — every 10 stored experiences, the daemon queries the agent's episodic memory, calls inference to produce observations about patterns and user intent, and stores those observations as additional episodic memories.
 
@@ -43,7 +43,7 @@ hKask's 11 MCP servers provide tool capabilities to agents. The original archite
 1. kask login <replicant>              → session in UserStore (P2: Affirmative Consent)
 2. kask pod assign <replicant> <role>  → assigned_mcp_roles populated (P4 Gate 2: sovereignty)
 3. kask pod mode <replicant> server -r <role> → enter_server_mode() (P4 Gate 1: OCAP)
-4. IDE spawns MCP binary with HKASK_REPLICANT=<replicant>
+4. IDE spawns MCP binary with HKASK_MCP_HOST=<replicant>
 5. Binary → daemon: auth_query → assignment_query → capability_query
 6. All gates pass → MCP server starts
 7. Tool calls → record_experience() → daemon store_experience → dual encoding

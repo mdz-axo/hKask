@@ -9,7 +9,7 @@ use std::path::PathBuf;
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp::McpError> {
     dotenvy::dotenv().ok();
-    let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
+    let replicant = std::env::var("HKASK_MCP_HOST").unwrap_or_else(|_| "anonymous".to_string());
 
     // P4 Gate 1/2/3: Authenticate + verify role + check WebID
     let daemon_client = hkask_mcp::DaemonClient::new();

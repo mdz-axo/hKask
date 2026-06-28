@@ -134,7 +134,7 @@ kask qa triage --input fuzz-output.txt
 **What it does:**
 
 1. Parses bolero stderr into structured `BoleroFailure` records (crate, test, panic, stack trace)
-2. Loads the `qa-triage` classifier config from `$HKASK_REGISTRY_PATH/classify/qa-triage.yaml`
+2. Loads the `qa-triage` classifier config from `$HKASK_REPLICANT_REGISTRY_PATH/classify/qa-triage.yaml`
 3. Sends each failure as a passage to `classify_batch()` via DeepInfra
 4. Routes by confidence:
    - **≥0.95** — High confidence → auto-repair branch created
@@ -379,7 +379,7 @@ classifications.
 
 ### 5.1 Classifier Configs
 
-Stored in `$HKASK_REGISTRY_PATH/classify/` as YAML files. Two standard configs:
+Stored in `$HKASK_REPLICANT_REGISTRY_PATH/classify/` as YAML files. Two standard configs:
 
 **`qa-triage.yaml`** — Used by `kask qa triage` and classify steps:
 

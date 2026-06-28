@@ -206,7 +206,7 @@ pub(super) fn init_repl_state(
     // P12: Replicant Host Mandate — propagate the signed-in replicant name
     // globally so ALL MCP server paths (core auto-start, /mcp start, /mcp start
     // all) inherit the correct owner identity. Child processes read
-    // HKASK_REPLICANT at startup; without this, every non-core MCP server
+    // HKASK_MCP_HOST at startup; without this, every non-core MCP server
     // defaults to "anonymous". Set globally alongside HKASK_PROJECT_ROOT
     // so it covers both auto-start and user-initiated server launches.
     //
@@ -215,7 +215,7 @@ pub(super) fn init_repl_state(
     // correct persona instead of falling through to `from_persona(b"anonymous")`.
     // SAFETY: REPL init runs single-threaded before tokio runtime starts.
     unsafe {
-        std::env::set_var("HKASK_REPLICANT", &onboarding_outcome.signed_in_agent);
+        std::env::set_var("HKASK_MCP_HOST", &onboarding_outcome.signed_in_agent);
         std::env::set_var(
             "HKASK_REPLICANT_PERSONA",
             &onboarding_outcome.signed_in_agent,
@@ -260,7 +260,7 @@ pub(super) fn init_repl_state(
         // correct owner WebID rather than defaulting to "anonymous".
         let mut core_env = std::collections::HashMap::new();
         core_env.insert(
-            "HKASK_REPLICANT".to_string(),
+            "HKASK_MCP_HOST".to_string(),
             onboarding_outcome.signed_in_agent.clone(),
         );
         for (server_id, binary) in core_servers {

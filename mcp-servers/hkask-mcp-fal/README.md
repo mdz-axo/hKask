@@ -62,7 +62,7 @@ The `workflow` parameter is a JSON **string** (not an object) to avoid
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `FA_API_KEY` | Required | Fal.ai API key for GPU model execution |
-| `HKASK_REPLICANT` | Optional | Replicant identity (defaults to "anonymous") |
+| `HKASK_MCP_HOST` | Optional | Replicant identity (defaults to "anonymous") |
 
 ### Standalone
 

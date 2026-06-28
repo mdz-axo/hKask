@@ -17,7 +17,7 @@
 //! # Startup
 //!
 //! ```text
-//! HKASK_REPLICANT=<name> hkask-acp
+//! HKASK_MCP_HOST=<name> hkask-acp
 //! ```
 
 pub mod protocol;
@@ -37,7 +37,7 @@ use tracing::{info, warn};
 
 use crate::cloud::CloudClient;
 
-const ENV_REPLICANT: &str = "HKASK_REPLICANT";
+const ENV_REPLICANT: &str = "HKASK_MCP_HOST";
 
 /// Error type for hkask-acp library operations.
 #[derive(Debug, Error)]
@@ -90,7 +90,7 @@ impl HkaskAcpAgent {
             .init();
 
         let replicant = std::env::var(ENV_REPLICANT).unwrap_or_else(|_| {
-            warn!("HKASK_REPLICANT not set, using default 'acp-replicant'");
+            warn!("HKASK_MCP_HOST not set, using default 'acp-replicant'");
             "acp-replicant".to_string()
         });
 
@@ -436,7 +436,7 @@ fn cns_emit(span: CnsSpan, replicant: &str, detail: &str) {
 /// Entry point — build agent, serve ACP over stdio until disconnect.
 ///
 /// expect: "The ACP replicant provides IDE agent presence"
-/// pre:  HKASK_REPLICANT env var may be set; cargo build must have succeeded
+/// pre:  HKASK_MCP_HOST env var may be set; cargo build must have succeeded
 /// post: ACP JSON-RPC server runs over stdin/stdout until EOF or error
 /// post: emits cns.acp.ide.connection_state span on connect and disconnect
 pub async fn run() -> Result<(), AcpError> {

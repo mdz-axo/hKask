@@ -1129,7 +1129,7 @@ graph TD
 1. `kask login <replicant>` — authenticate (creates session in UserStore)
 2. `kask pod assign <replicant> <role>` — assign MCP role (P4 Gate 2: sovereignty/consent)
 3. `kask pod mode <replicant> server -r <role>` — enter server mode (P4 Gate 1: OCAP)
-4. IDE spawns MCP binary with `HKASK_REPLICANT=<replicant>`
+4. IDE spawns MCP binary with `HKASK_MCP_HOST=<replicant>`
 5. Binary connects to daemon → auth → assignment → capability → serve
 
 ### Memory Flow
