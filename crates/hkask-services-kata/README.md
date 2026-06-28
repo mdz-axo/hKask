@@ -2,7 +2,7 @@
 
 Improvement Kata and Coaching Kata engine: target conditions, PDCA cycles, obstacle parking lots, and scientific thinking habit tracking. Drives the continuous improvement feedback loop across all agent pods.
 
-**Version:** v0.30.0 | **Crate:** `hkask-services-kata`
+**Version:** v0.31.0 | **Crate:** `hkask-services-kata`
 
 ## Modules
 

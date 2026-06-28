@@ -2,7 +2,7 @@
 
 Kanban board lifecycle management: board creation, list/column management, task CRUD, and unjam detection for stuck workflows.
 
-**Version:** v0.30.0 | **Crate:** `hkask-services-kanban`
+**Version:** v0.31.0 | **Crate:** `hkask-services-kanban`
 
 ## Modules
 

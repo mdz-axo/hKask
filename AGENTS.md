@@ -1,6 +1,6 @@
 # Agent Operating Guide — hKask
 
-**hKask** (ℏKask) — A Minimal Viable Container for Replicants | `kask` binary | `hkask-` crate prefix | v0.30.0
+**hKask** (ℏKask) — A Minimal Viable Container for Replicants | `kask` binary | `hkask-` crate prefix | v0.31.0
 
 ---
 

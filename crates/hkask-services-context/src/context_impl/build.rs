@@ -152,8 +152,7 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
         .map_err(|e| ServiceError::ConsentStore {
             message: e.to_string(),
         })?;
-    let consent_manager =
-        Arc::new(ConsentManager::new(consent_store).with_event_sink(Arc::clone(&cns_event_sink)));
+    let consent_manager = Arc::new(ConsentManager::new(consent_store));
 
     let escalation_queue =
         Arc::new(

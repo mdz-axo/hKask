@@ -770,7 +770,7 @@ The judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSION_S
 - `ReplState` = `AgentService` + REPL fields (prompt history, input state)
 - `ApiState` = `Arc<AgentService>` + HTTP fields (router, OpenAPI spec) + surface-specific stores
 
-**Database pattern:** A single `Arc<Mutex<Connection>>` is shared across all stores — in-memory (tests) or file-backed (production). `ServiceConfig` has three constructors: `from_env()` (production, env vars + keychain), `from_secrets()` (REPL onboarding), and `in_memory()` (tests, synthetic secrets). See [`MDS-agent-service.md`](../specifications/specs/MDS-agent-service.md) §4.2 for the full in-memory database pattern.
+**Consolidation pattern:** `AgentService::consolidate_agent_memory(agent_name, request)` is the single OCAP-gated entry point for episodic→semantic consolidation. It checks P2 affirmative consent for both `EpisodicMemory` and `SemanticMemory`, opens the per-agent memory DB, and runs `ConsolidationService`. CLI, API, REPL, and Curator daemon all route through this method; the previous direct `Database::open` bypass in `hkask-memory::consolidation_ops` has been removed.
 
 ### Dependency Direction
 

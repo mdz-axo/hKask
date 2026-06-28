@@ -620,9 +620,10 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 
 1. `AgentService::build(config)` assembles all shared infrastructure
 2. Per-agent memory created via `build_per_agent_memory(db)`
-3. CLI surface wraps with `ReplState` (= `AgentService` + REPL fields)
-4. API surface wraps with `ApiState` (= `Arc<AgentService>` + HTTP fields)
+3. Consolidation is routed through `AgentService::consolidate_agent_memory(agent_name, request)` — the single OCAP-gated, consent-checked entry point
+4. CLI surface wraps with `ReplState` (= `AgentService` + REPL fields)
+5. API surface wraps with `ApiState` (= `Arc<AgentService>` + HTTP fields)
 
 ### Interface Equivalence
 
-Both CLI and API surfaces use identical `AgentService` accessors. The only surface-specific methods are `daemon_handler()` (CLI daemon mode only) and `matrix_transport()` (REPL only). All remaining 26 accessors are equivalent across surfaces.
+Both CLI and API surfaces use identical `AgentService` accessors and the same `consolidate_agent_memory` entry point. The only surface-specific methods are `daemon_handler()` (CLI daemon mode only) and `matrix_transport()` (REPL only). All remaining 26 accessors are equivalent across surfaces.

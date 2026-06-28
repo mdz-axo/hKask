@@ -442,7 +442,7 @@ This documentation standard itself maps to the 5 MDS categories:
 
 ## References
 
-[^mds]: hKask Project. (2026). *MDS — Minimal Domain Specification*. <../architecture/MDS.md>. The 5-category structural taxonomy that classifies every document by its MDS category.
+[^mds]: hKask Project. (2026). *MDS — Minimal Domain Specification*. <../architecture/core/MDS.md>. The 5-category structural taxonomy that classifies every document by its MDS category.
 
 [^semver]: Preston-Werner, T. (2013). *Semantic Versioning 2.0.0*. <https://semver.org/>. The MAJOR.MINOR.PATCH convention adapted here for documentation.
 

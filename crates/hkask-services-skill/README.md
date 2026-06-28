@@ -2,7 +2,7 @@
 
 Skill discovery, publishing, hashing, and lifecycle management. Powers the skill registry — the canonical source of truth for all agent capabilities.
 
-**Version:** v0.30.0 | **Crate:** `hkask-services-skill`
+**Version:** v0.31.0 | **Crate:** `hkask-services-skill`
 
 ## Modules
 

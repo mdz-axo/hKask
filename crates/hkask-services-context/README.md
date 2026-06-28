@@ -2,7 +2,7 @@
 
 Central `AgentService` struct — the runtime context aggregating all service dependencies, CNS runtime, cybernetic loops, and subsystem handles. Every CLI command, API route, MCP tool, and ACP handler receives this context.
 
-**Version:** v0.30.0 | **Crate:** `hkask-services-context`
+**Version:** v0.31.0 | **Crate:** `hkask-services-context`
 
 ## Exports
 

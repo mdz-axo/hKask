@@ -2,7 +2,7 @@
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
 last_updated: 2026-06-28
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -10,7 +10,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # hKask Documentation Portal
 
-**Purpose:** Single entry point indexing every active document in `docs/`, tagged by [MDS](architecture/core/MDS.md) category. hKask v0.30.0.
+**Purpose:** Single entry point indexing every active document in `docs/`, tagged by [MDS](architecture/core/MDS.md) category. hKask v0.31.0.
 
 ### Two-Tier Document Model
 

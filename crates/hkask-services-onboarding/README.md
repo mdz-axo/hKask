@@ -2,7 +2,7 @@
 
 New-user and new-agent onboarding: secrets generation, Matrix registration, initial agent setup, and first-run configuration wizardry.
 
-**Version:** v0.30.0 | **Crate:** `hkask-services-onboarding`
+**Version:** v0.31.0 | **Crate:** `hkask-services-onboarding`
 
 ## Modules
 

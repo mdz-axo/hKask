@@ -1,7 +1,7 @@
 ---
 title: "Project Status"
 audience: [architects, developers, agents]
-last_updated: 2026-06-25
+last_updated: 2026-06-28
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -95,12 +95,12 @@ All 34 workspace members (excluding fuzz targets).
 | Metric | Value |
 |--------|-------|
 | Source files (total) | ~780 |
-| Core LOC (src/) | ~133,500 |
-| MCP Server LOC (src/) | ~35,700 |
-| Total LOC | ~191,700 |
-| Workspace members | 34 |
-| Skills | 46 (75 registry crates, 297 Jinja2 templates) |
-| MCP servers | 13 |
+| Core LOC (src/) | ~168,400 |
+| MCP Server LOC (src/) | ~42,800 |
+| Total LOC | ~211,200 |
+| Workspace members | 55 (41 core + 14 MCP servers) |
+| Skills | 39 (64 registry manifests, 273 Jinja2 templates) |
+| MCP servers | 14 |
 | ACP replicant | 1 (`hkask-acp`) — IDE agent presence via Agent Client Protocol |
 | CNS spans | 84+ |
 
@@ -145,7 +145,7 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 |-------|--------|
 | Magna Carta P1 (User Sovereignty) | Sovereignty distributed across `hkask-types::sovereignty`, `hkask-agents::sovereignty`, `hkask-services::verification`. No single SovereigntyService — this is correct, not a gap. |
 | Magna Carta P2 (Affirmative Consent) | CNS consent denial events emitted. Prohibition gate — denial is terminal. |
-| Magna Carta P3 (Generative Space) | 13 MCP servers + multi-provider inference. No feature flags, no gated surfaces. |
+| Magna Carta P3 (Generative Space) | 14 MCP servers + multi-provider inference. No feature flags, no gated surfaces. |
 | Magna Carta P4 (Clear Boundaries) | OCAP capability membrane. Dual-gate enforcement (require_capability + require_sovereignty) with Ed25519 cryptographic tokens. DenyAllConsent default. Verified across all capability-granting paths. |
 
 ---

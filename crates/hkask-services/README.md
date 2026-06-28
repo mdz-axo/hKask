@@ -2,6 +2,8 @@
 
 Facade crate for all hKask service implementations. Provides the unified `ServiceRegistry` that wires together all service ports via dependency inversion.
 
+**Version:** v0.31.0 | **Crate:** `hkask-services`
+
 ## Architecture
 
 `hkask-services` is the **single entry point** for all service access. It does not contain implementation logic — it re-exports and composes:
@@ -18,22 +20,17 @@ Facade crate for all hKask service implementations. Provides the unified `Servic
 
 | Crate | Purpose |
 |-------|---------|
-| `hkask-services-core` | Core service traits and port definitions |
-| `hkask-services-backup` | Backup policy layer on Git CAS |
-| `hkask-services-classify` | Content classification (Qwen3 MoE via KiloCode) |
-| `hkask-services-cloud` | Cloud deployment primitives |
-| `hkask-services-context` | Context window management |
-| `hkask-services-daemon` | Background daemon services |
-| `hkask-services-discover` | Content discovery and search |
-| `hkask-services-embed` | Embedding generation and storage |
-| `hkask-services-inference-svc` | Inference service orchestration |
+| `hkask-services-core` | Core service traits, config, error taxonomy, and port definitions |
+| `hkask-services-context` | AgentService context, CNS runtime, cybernetic loops |
+| `hkask-services-runtime` | Runtime orchestration (lifecycle, daemon, events) |
+| `hkask-services-chat` | Chat session management, memory recall, turn handling |
+| `hkask-services-compose` | Prompt composition with cognition configuration |
+| `hkask-services-curator` | Curator daemon metacognition and escalation handling |
+| `hkask-services-corpus` | Document corpus management and indexing |
 | `hkask-services-kanban` | Kanban board coordination |
 | `hkask-services-kata` | Toyota Kata coaching/improvement loops |
-| `hkask-services-lifecycle` | Agent lifecycle management |
 | `hkask-services-onboarding` | First-run and user onboarding |
 | `hkask-services-skill` | Skill registry and discovery |
-| `hkask-services-sovereignty` | Magna Carta enforcement |
-| `hkask-services-verification` | Capability verification |
 | `hkask-services-wallet` | Crypto wallet and chain port selection |
 
 ## See Also

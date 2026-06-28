@@ -2,7 +2,7 @@
 
 Corpus discovery, embedding pipeline, text chunking, OCR, and entity extraction. Powers semantic search across the skill registry, documentation, and style corpora.
 
-**Version:** v0.30.0 | **Crate:** `hkask-services-corpus`
+**Version:** v0.31.0 | **Crate:** `hkask-services-corpus`
 
 ## Modules
 

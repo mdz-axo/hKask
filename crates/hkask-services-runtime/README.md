@@ -2,7 +2,7 @@
 
 Runtime orchestration service: daemon lifecycle, event loop, process management, and cross-subsystem coordination.
 
-**Version:** v0.30.0 | **Crate:** `hkask-services-runtime`
+**Version:** v0.31.0 | **Crate:** `hkask-services-runtime`
 
 ## Modules
 

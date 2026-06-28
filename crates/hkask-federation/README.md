@@ -2,7 +2,7 @@
 
 Multi-pod federation layer: cross-pod communication, federation links, agent discovery across pod boundaries, and federation protocol handling.
 
-**Version:** v0.30.0 | **Crate:** `hkask-federation`
+**Version:** v0.31.0 | **Crate:** `hkask-federation`
 
 ## Purpose
 
