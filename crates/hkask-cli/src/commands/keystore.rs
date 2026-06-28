@@ -3,6 +3,7 @@
 //! Implements the CLI display logic for key management operations.
 
 use crate::cli::KeystoreAction;
+use hkask_types::keychain_keys;
 use rand::RngCore;
 use std::io::Write;
 
@@ -249,12 +250,15 @@ fn run_rotate(keychain: &hkask_keystore::Keychain, new_passphrase: Option<&str>)
         });
     };
 
-    store("hkask-acp-secret", &secrets.a2a_secret);
-    store("hkask-capability-key", &secrets.capability_key);
-    store("hkask-mcp-security-key", &secrets.mcp_security_key);
-    store("hkask-ocap-secret", &secrets.ocap_secret);
+    store(keychain_keys::KEY_A2A_SECRET, &secrets.a2a_secret);
+    store(keychain_keys::KEY_CAPABILITY_KEY, &secrets.capability_key);
+    store(
+        keychain_keys::KEY_MCP_SECURITY_KEY,
+        &secrets.mcp_security_key,
+    );
+    store(keychain_keys::KEY_OCAP_SECRET, &secrets.ocap_secret);
     // DB passphrase is the capability_key
-    store("hkask-db-passphrase", &secrets.capability_key);
+    store(keychain_keys::KEY_DB_PASSPHRASE, &secrets.capability_key);
 
     // Write the new version to disk
     super::helpers::or_exit(

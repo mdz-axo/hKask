@@ -65,7 +65,7 @@ impl WalletManager {
         _privacy: PrivacyMode,
     ) -> Result<(), WalletError> {
         self.chains.get(&chain).ok_or(WalletError::ChainError {
-            chain: ChainId::Hedera,
+            chain,
             message: "chain not enabled".into(),
         })?;
         Ok(())

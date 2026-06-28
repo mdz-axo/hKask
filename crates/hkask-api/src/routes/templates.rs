@@ -42,8 +42,6 @@ pub struct TemplateResponse {
     pub lexicon_terms: Vec<String>,
 }
 
-
-
 /// Create templates router
 ///
 /// expect: "API endpoints enforce OCAP boundaries"

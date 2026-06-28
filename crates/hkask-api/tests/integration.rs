@@ -401,7 +401,3 @@ fn template_response_serialization() {
     assert_eq!(parsed.template_type, "Prompt");
     assert_eq!(parsed.lexicon_terms.len(), 2);
 }
-
-// ── Capability Types ──────────────────────────────────────────────────────
-
-#[test]

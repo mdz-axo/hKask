@@ -1,19 +1,20 @@
 # hkask-wallet
 
-Multi-chain crypto wallet for hKask. Manages wallet lifecycle, key derivation, and chain port selection across Hedera and optional Hinkal.
+Specialized wallet for hKask rJoule accounting, deposits, withdrawals, and API key capability issuance. The wallet is Hedera-only today, with chain ports wired through `ChainPort`.
 
 ## Core Components
 
-- `WalletManager` — Wallet lifecycle: create, import, export, backup
-- `ChainPortSelector` — Selects the appropriate chain adapter
-- `KeyDerivation` — HKDF-SHA256 deterministic key derivation per WebID
+- `WalletManager` — balances, deposits, withdrawal pipeline, deposit references
+- `ChainPort` — chain adapter interface (currently Hedera)
+- `signing.rs` — isolated treasury-key signing boundary
+- `ApiKeyIssuer` — issues API key capabilities and stores metadata
+- `WalletStore` (via `hkask-storage`) — SQLite-backed ledger and wallet state
 
 ## Supported Chains
 
 | Chain | Status | Adapter |
 |-------|--------|---------|
-| Hedera | ✅ Core | `hedera-sdk` |
-| Hinkal | ⚠️ Optional | Feature-gated |
+| Hedera | ✅ Core | `hedera` feature |
 
 ## See Also
 

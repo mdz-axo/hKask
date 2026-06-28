@@ -7,6 +7,7 @@
 use hkask_keystore::{
     Ed25519SpecSigner, derive_all_internal_secrets_with_version, derive_key,
     encryption::{EncryptionError, EncryptionService},
+    keychain::resolve_db_passphrase,
     master_key::InternalSecrets,
     spec_signer::SpecSignatureError,
 };
@@ -163,7 +164,21 @@ fn derive_key_rejects_empty_passphrase() {
 }
 
 // ---------------------------------------------------------------------------
-// 5. derive_all_internal_secrets field independence
+// 5. resolve_db_passphrase env precedence
+// ---------------------------------------------------------------------------
+
+#[test]
+fn resolve_db_passphrase_from_env() {
+    // SAFETY: test-only env var mutation.
+    unsafe {
+        std::env::set_var("HKASK_DB_PASSPHRASE", "test-db-passphrase");
+    }
+    let passphrase = resolve_db_passphrase().expect("resolve from env");
+    assert_eq!(&*passphrase, b"test-db-passphrase");
+}
+
+// ---------------------------------------------------------------------------
+// 6. derive_all_internal_secrets field independence
 // ---------------------------------------------------------------------------
 
 #[test]

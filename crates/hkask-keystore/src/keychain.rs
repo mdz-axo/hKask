@@ -2,6 +2,9 @@
 
 use ed25519_dalek::Signer;
 use hkask_types::WebID;
+use hkask_types::keychain_keys::{
+    KEY_A2A_SECRET, KEY_CAPABILITY_KEY, KEY_DB_PASSPHRASE, KEY_MCP_SECRET, KEY_MCP_SECURITY_KEY,
+};
 use hkask_types::secret::SecretRef;
 use hkask_types::secret::derivation_contexts;
 use keyring::{Entry, Error as KeyringError};
@@ -180,12 +183,14 @@ pub fn resolve_secret_chain(
     env_var: &str,
     keychain_key: &str,
 ) -> Result<Zeroizing<Vec<u8>>, KeychainError> {
-    resolve(&SecretRef::derived(
-        derivation_context.0,
-        derivation_context.1,
-    ))
-    .or_else(|_| resolve(&SecretRef::env(env_var)))
-    .or_else(|_| resolve(&SecretRef::keychain(keychain_key)))
+    resolve(&SecretRef::env(env_var))
+        .or_else(|_| resolve(&SecretRef::keychain(keychain_key)))
+        .or_else(|_| {
+            resolve(&SecretRef::derived(
+                derivation_context.0,
+                derivation_context.1,
+            ))
+        })
 }
 
 /// Resolve the A2A (Agent-to-Agent Protocol) HMAC signing secret.
@@ -202,7 +207,7 @@ pub fn resolve_a2a_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
             derivation_contexts::A2A_SECRET,
         ),
         "HKASK_A2A_SECRET",
-        "a2a-secret",
+        KEY_A2A_SECRET,
     )
 }
 
@@ -219,7 +224,7 @@ pub fn resolve_mcp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
             derivation_contexts::MCP_SECRET,
         ),
         "HKASK_MCP_SECRET",
-        "mcp-secret",
+        KEY_MCP_SECRET,
     )
 }
 
@@ -236,7 +241,7 @@ pub fn resolve_mcp_security_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
             derivation_contexts::MCP_SECURITY_KEY,
         ),
         "HKASK_MCP_SECURITY_KEY",
-        "mcp-security-key",
+        KEY_MCP_SECURITY_KEY,
     )
 }
 
@@ -256,7 +261,7 @@ pub fn resolve_capability_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
             derivation_contexts::CAPABILITY_KEY,
         ),
         "HKASK_CAPABILITY_KEY",
-        "capability-key",
+        KEY_CAPABILITY_KEY,
     )
 }
 
@@ -265,29 +270,24 @@ pub fn resolve_capability_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// Chain: env var → OS keychain.
 /// Note: no master-key derivation for the DB passphrase — it must be
 /// explicitly set via env var or keychain to avoid accidentally encrypting
-/// Resolve the database encryption passphrase.
-///
-/// Chain: env var (`HKASK_DB_PASSPHRASE`).
-/// Note: no master-key derivation for the DB passphrase — it must be
-/// explicitly set via env var to avoid accidentally encrypting
 /// the database with a derived key that the user didn't consent to.
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// post: returns Zeroizing<`Vec<u8>`> from env var
+/// post: returns Zeroizing<`Vec<u8>`> from env var or keychain
 pub fn resolve_db_passphrase() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve(&SecretRef::env("HKASK_DB_PASSPHRASE"))
+        .or_else(|_| resolve(&SecretRef::keychain(KEY_DB_PASSPHRASE)))
 }
 
-/// Get or create OCAP secret
+/// Get the OCAP secret derived from the master key.
 ///
 /// Resolution chain:
 /// 1. Deterministic derivation from master key
-/// 2. Random generation (last resort — tokens will not survive restart)
 ///
 /// expect: "My keys are generated, stored, and rotated under my sovereignty"
-/// post: returns Zeroizing<`Vec<u8>`> from derivation or random generation
+/// post: returns Zeroizing<`Vec<u8>`> from derivation
+/// post: returns Err if the master key is unavailable
 pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
-    // Deterministic derivation from master key
     let derived = resolve(&SecretRef::derived(
         derivation_contexts::MASTER_KEY_ENV,
         derivation_contexts::OCAP_SECRET,
@@ -298,15 +298,7 @@ pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> 
             info!(target: "cns.keystore", operation = "ocap_secret", source = "derived", "CNS");
             Ok(key)
         }
-        Err(_) => {
-            warn!(
-                "OCAP secret not available via derivation; \
-                 generating random secret. Tokens will not survive restart."
-            );
-            info!(target: "cns.keystore", operation = "ocap_secret", source = "random", "CNS");
-            let secret: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
-            Ok(Zeroizing::new(secret))
-        }
+        Err(err) => Err(err),
     }
 }
 
@@ -372,6 +364,8 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
                     ))
                 })?;
 
+            let master_key_bytes = normalize_master_key_bytes(master_key_bytes)?;
+
             // HKDF-SHA256 derive sub-key
             let sub_key = crate::master_key::derive_sub_key(&master_key_bytes, context);
             info!(target: "cns.keystore", operation = "derive_sub_key", latency_ms = start.elapsed().as_millis(), "CNS");
@@ -386,6 +380,21 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
             Ok(Zeroizing::new(bytes))
         }
     }
+}
+
+fn normalize_master_key_bytes(
+    master_key_bytes: Zeroizing<Vec<u8>>,
+) -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+    let Ok(as_str) = std::str::from_utf8(&master_key_bytes) else {
+        return Ok(master_key_bytes);
+    };
+    let trimmed = as_str.trim();
+    if trimmed.len() == 64 && trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
+        let decoded = hex::decode(trimmed)
+            .map_err(|e| KeychainError::Platform(format!("invalid master key hex: {e}")))?;
+        return Ok(Zeroizing::new(decoded));
+    }
+    Ok(master_key_bytes)
 }
 
 // ── Wallet key derivation ──────────────────────────────────────────────────────

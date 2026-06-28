@@ -299,6 +299,9 @@ pub enum WalletError {
     #[error("deposit reference {reference} not found or expired")]
     DepositReferenceInvalid { reference: String },
 
+    #[error("deposit address unresolvable: {address}")]
+    DepositAddressUnresolvable { address: String },
+
     #[error("chain error ({chain}): {message}")]
     ChainError { chain: ChainId, message: String },
 

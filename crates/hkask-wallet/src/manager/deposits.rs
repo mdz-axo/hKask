@@ -57,17 +57,31 @@ impl WalletManager {
             return Ok(());
         }
 
-        let wallet_id = self
-            .store
-            .resolve_wallet_for_address(&event.to_address)?
-            .unwrap_or_else(|| {
+        let wallet_id = match self.store.resolve_wallet_for_address(&event.to_address)? {
+            Some(wallet_id) => wallet_id,
+            None => {
                 tracing::warn!(
                     target: "hkask.wallet",
                     to_address = %event.to_address,
-                    "Deposit to unknown address — crediting default wallet"
+                    "Deposit address unresolvable — rejecting"
                 );
-                WalletId::default()
-            });
+                self.emit_span(
+                    CnsSpan::WalletDeposit,
+                    "unresolvable_address",
+                    Phase::Sense,
+                    serde_json::json!({
+                        "chain": "hedera",
+                        "amount_usdc_micro": event.amount_usdc_micro,
+                        "tx_hash": event.tx_hash.0,
+                        "privacy": "transparent",
+                        "to_address": event.to_address,
+                    }),
+                );
+                return Err(WalletError::DepositAddressUnresolvable {
+                    address: event.to_address,
+                });
+            }
+        };
 
         self.emit_span(
             CnsSpan::WalletDeposit,

@@ -1,7 +1,7 @@
 ---
 title: "hKask Wallet Crate — Architectural Specification"
 audience: [architects, developers]
-last_updated: 2026-06-18
+last_updated: 2026-06-28
 version: "0.31.0"
 status: "Active"
 domain: "Application"
@@ -10,8 +10,8 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 # hKask Wallet Crate — Architectural Specification
 
-**Date:** 2026-06-12
-**Project:** hKask v0.28.0
+**Date:** 2026-06-28
+**Project:** hKask v0.31.0
 **Status:** Phases 1–8 complete ✅ — Full wallet subsystem (types, storage, keystore, wallet crate, CNS, services, CLI, API) built and tested
 **Skills applied:** idiomatic-rust, essentialist, pragmatic-semantics, pragmatic-cybernetics, coding-guidelines
 
@@ -40,14 +40,14 @@ The hKask wallet is a **specialized sub-wallet** — one of several crypto walle
 - Track rJoule balances in SQLite (SQLCipher-encrypted)
 - Issue Ed25519-signed API key capability tokens
 - Process withdrawals (rJoules → USDC) back to user's primary wallet
-- Support optional shielded deposits/withdrawals via Hinkal privacy protocol
+- Shielded deposits/withdrawals are deferred (no privacy port implemented in code yet)
 
 ### 1.2 What hKask Wallet Is NOT `[OUGHT-DECL]`
 
 - NOT a general-purpose crypto wallet — user's primary wallet (Phantom, HashPack, MetaMask) handles key storage, multi-chain asset management, DeFi
 - NOT a key generator for users — treasury keys are derived from hKask's master passphrase, not user keys
 - NOT a KYC/AML platform — headless constraint, P1 sovereignty
-- NOT a zkSNARK proof generator — Hinkal SDK handles this
+- NOT a zkSNARK proof generator — privacy/zk integrations are deferred
 - NOT an on-chain rJoule token — rJoule is an internal accounting unit in SQLite
 
 ---
@@ -58,16 +58,20 @@ The hKask wallet is a **specialized sub-wallet** — one of several crypto walle
 
 ```
 hkask-wallet/
-├── Cargo.toml              — Feature gates: hedera, hinkal
+├── Cargo.toml              — Feature gates: hedera
 ├── src/
 │   ├── lib.rs              — Crate docs, module declarations, re-exports
-│   ├── chain.rs            — ChainPort trait (7 public items) + DepositEvent
-│   ├── privacy.rs          — PrivacyPort trait (7 public items) + ShieldedTransfer
+│   ├── chain.rs            — ChainPort trait + DepositEvent
 │   ├── signing.rs          — Isolated security boundary (2 public functions)
-│   ├── manager.rs          — WalletManager (12 methods, justified) + deposit reference logic
-│   ├── issuer.rs           — ApiKeyIssuer (6 public items) + ApiKeyMaterial re-export
-│   ├── hedera.rs           — HederaPort (feature-gated: "hedera")
-│   └── hinkal.rs           — HinkalPort (feature-gated: "hinkal")
+│   ├── manager/
+│   │   ├── mod.rs           — WalletManager + deposit reference logic
+│   │   ├── budget.rs        — gas↔rJoule conversion
+│   │   ├── deposits.rs      — deposit monitoring
+│   │   ├── encumbrance.rs   — encumbrance lifecycle
+│   │   └── withdrawals.rs   — withdrawal pipeline
+│   ├── issuer.rs           — ApiKeyIssuer + ApiKeyMaterial re-export
+│   ├── price_feed.rs       — PriceFeed + fee estimation
+│   └── hedera.rs           — HederaPort (feature-gated: "hedera")
 ```
 
 ### 2.2 Module Dependency Graph
@@ -76,12 +80,10 @@ hkask-wallet/
 graph TD
     subgraph "hkask-wallet"
         CHAIN["chain.rs<br/>ChainPort trait"]
-        PRIV["privacy.rs<br/>PrivacyPort trait"]
         SIGN["signing.rs<br/>Security boundary"]
-        MGR["manager.rs<br/>WalletManager"]
+        MGR["manager/*<br/>WalletManager"]
         ISS["issuer.rs<br/>ApiKeyIssuer"]
         HED["hedera.rs<br/>(feature: hedera)"]
-        HINK["hinkal.rs<br/>(feature: hinkal)"]
     end
 
     subgraph "Dependencies (workspace)"
@@ -91,11 +93,9 @@ graph TD
     end
 
     CHAIN --> TYPES
-    PRIV --> TYPES
     SIGN --> KS
     SIGN --> TYPES
     MGR --> CHAIN
-    MGR --> PRIV
     MGR --> SIGN
     MGR --> STORE
     MGR --> TYPES
@@ -103,9 +103,7 @@ graph TD
     ISS --> STORE
     ISS --> KS
     ISS --> TYPES
-    SOL --> CHAIN
     HED --> CHAIN
-    HINK --> PRIV
 
     style SIGN fill:#7c3aed,color:#fff
     style MGR fill:#2563eb,color:#fff
@@ -117,7 +115,7 @@ graph TD
 | Gate | Result |
 |------|--------|
 | **G1 — Exist** | 3 items pruned: `error.rs` (pass-through), `deposit_ref.rs` (merged into manager.rs), `TxHash` (moved to hkask-types). All surviving components encode behavior beyond direct calls. |
-| **G2 — Surface** | `chain.rs`: 7 (at threshold). `privacy.rs`: 7 (at threshold). `manager.rs`: 13 (justified — each method has distinct caller). `issuer.rs`: 6. `signing.rs`: 2. |
+| **G2 — Surface** | `chain.rs`: 7 (at threshold). `manager.rs`: 13 (justified — each method has distinct caller). `issuer.rs`: 6. `signing.rs`: 2. |
 | **G3 — Contract** | 0 pass-through abstractions. All traits add behavior beyond direct dependency calls. |
 
 ---
@@ -129,8 +127,8 @@ graph TD
 | Type | Kind | Security Constraints |
 |------|------|---------------------|
 | `RJoule(u64)` | Newtype | Copy, Clone — value unit, not secret |
-| `ChainId` | Enum (Hedera, Hinkal) | Copy, Clone |
-| `PrivacyMode` | Enum (Transparent, Shielded) | Copy, Clone |
+| `ChainId` | Enum (Hedera) | Copy, Clone |
+| `PrivacyMode` | Enum (Transparent) | Copy, Clone |
 | `Ed25519PublicKey([u8; 32])` | Newtype | Copy, Clone — public key |
 | `DepositAddress` | Struct | Clone — no secrets |
 | `WalletConfig` | Struct | Clone — configuration |
@@ -229,7 +227,7 @@ sequenceDiagram
 | **Debug redaction** | `LoadedKey` Debug shows `[REDACTED]` | Key leakage in logs, error messages |
 | **Constant-time ops** | `subtle` crate for sensitive comparisons | Timing side channels |
 | **Feature gates** | Chain SDKs behind Cargo features | Reduced compile-time attack surface |
-| **Mock ports** | All chain/privacy interactions testable without real keys | Test coverage of security-critical paths |
+| **Mock ports** | Chain interactions testable without real keys | Test coverage of security-critical paths |
 
 ### 4.4 Security Invariant Checklist
 
@@ -239,7 +237,7 @@ sequenceDiagram
 |---|-----------|--------|
 | MUST-1 | Seed never in plain memory beyond Zeroizing scope | ✅ `Zeroizing<Vec<u8>>` on all derived key material |
 | MUST-2 | Seed never in logs, error messages, or Debug output | ✅ `LoadedKey` Debug shows `[REDACTED]` |
-| MUST-3 | Seed derivation always uses domain-separated HKDF contexts | ✅ `TREASURY_HEDERA`, `TREASURY_HINKAL`, `WALLET_SEED` |
+| MUST-3 | Seed derivation always uses domain-separated HKDF contexts | ✅ `TREASURY_HEDERA`, `WALLET_SEED` |
 | MUST-4 | Signing requires user consent (P2 Affirmative Consent) | 🔶 Deferred to Phase 6 (ConsentManager gate) |
 | MUST-5 | Private keys never serialized to disk unencrypted | ✅ API key private keys returned once, never stored |
 | MUST-6 | All cryptographic comparisons use constant-time equality | 🔶 Deferred (subtle crate available, not yet wired) |
@@ -276,7 +274,7 @@ sequenceDiagram
 | `hkask-types` | Domain types (workspace) | None — internal |
 | `hkask-keystore` | Key derivation (workspace) | None — internal |
 | `hkask-storage` | Persistence (workspace) | None — internal |
-| `reqwest` | HTTP for Hedera mirror node / Hinkal relay (feature-gated) | Medium — TLS dep (rustls) |
+| `reqwest` | HTTP for Hedera mirror node (feature-gated) | Medium — TLS dep (rustls) |
 | `ed25519-dalek` | Key construction from seed bytes | Low — already in keystore |
 | `zeroize` | Memory protection | Low — already in keystore |
 | `subtle` | Constant-time comparison | Low — well-audited |
@@ -286,90 +284,11 @@ sequenceDiagram
 
 ---
 
-## 5. Hinkal Integration
+## 5. Privacy Integration (Deferred)
 
-### 5.1 What hKask Builds In `[OUGHT-DECL]`
-
-| Affordance | Implementation |
-|-----------|---------------|
-| Shielded address derivation | `PrivacyPort::shielded_deposit_address(wallet_id)` |
-| Event log monitoring | `HinkalPort::monitor_shielded_transfers()` — polls Shielded Pool events, decrypts `encryptedOutputs` |
-| Relayer communication | Configurable endpoint in `WalletConfig.hinkal_relayer_url` |
-| Relayer response verification | Independent verification where possible (Quantstamp audit finding) |
-| Graceful degradation | `PrivacyPort::available_for_chain(chain)` — false when Hinkal not deployed |
-| Deposit reference scheme | HKDF-derived one-time references as memo in shielded transfers |
-| CircuitBreaker on relay | Fail-open to transparent mode with P2 consent gate |
-
-### 5.2 What hKask Does NOT Build In `[OUGHT-DECL]`
-
-| Non-Affordance | Why Not | Where It Lives |
-|---------------|---------|---------------|
-| Access Token minting | Requires zkSNARK proof generation (Groth16) — heavy dependency | User mints via Hinkal SDK |
-| KYC/AML | Headless constraint, P1 sovereignty | User-side via zkMe/Reclaim |
-| zkSNARK proof generation | Requires Circom circuits, trusted setup | Hinkal SDK |
-| Chainalysis KYT | Protocol-level feature | Hinkal Shielded Pool contract |
-
-### 5.3 Hinkal Deposit Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant PrimaryWallet as User's Primary Wallet
-    participant HinkalSDK as Hinkal SDK
-    participant ShieldedPool as Hinkal Shielded Pool
-    participant HinkalPort as hKask HinkalPort
-    participant Wallet as hKask WalletManager
-
-    Note over User,Wallet: SHIELDED DEPOSIT FLOW
-
-    User->>Wallet: kask wallet deposit-reference --chain hedera --shielded
-    Wallet-->>User: dep_ref: "dep_a7f3c..." (valid 24h)
-
-    User->>PrimaryWallet: Shield USDC + set memo = "dep_a7f3c..."
-    PrimaryWallet->>HinkalSDK: Shield assets (zkSNARK proof)
-    HinkalSDK->>ShieldedPool: Shield assets
-    ShieldedPool-->>HinkalSDK: Shielded address + commitment
-
-    User->>PrimaryWallet: Transfer to hKask shielded address
-    PrimaryWallet->>HinkalSDK: Shielded transfer
-    HinkalSDK->>ShieldedPool: Shielded transfer (via relayer)
-    Note over ShieldedPool: Event emitted: encryptedOutputs
-
-    loop Every 30s
-        HinkalPort->>ShieldedPool: Poll events
-        ShieldedPool-->>HinkalPort: encryptedOutputs
-        HinkalPort->>HinkalPort: Decrypt with shielded key
-        HinkalPort->>HinkalPort: Extract memo = "dep_a7f3c..."
-    end
-
-    HinkalPort->>Wallet: ShieldedTransfer { memo: "dep_a7f3c...", amount: 10 USDC }
-    Wallet->>Wallet: consume_deposit_reference("dep_a7f3c...") → wallet_id
-    Wallet->>Wallet: credit_rjoules(wallet_id, 10,000 rJ)
-```
-
-### 5.4 Privacy Mode Decision Tree
-
-```mermaid
-graph TD
-    START[User requests withdrawal] --> CHECK_PRIV{Privacy mode?}
-
-    CHECK_PRIV -->|Transparent| TX_BUILD[ChainPort::build_withdrawal_tx]
-    TX_BUILD --> TX_SIGN[signing.rs::sign_withdrawal]
-    TX_SIGN --> TX_SUBMIT[ChainPort::submit_signed_tx]
-    TX_SUBMIT --> DONE[Return TxHash]
-
-    CHECK_PRIV -->|Shielded| CHECK_RELAY{PrivacyPort relay health?}
-
-    CHECK_RELAY -->|Healthy| HINKAL_BUILD[PrivacyPort::build_unshield_tx]
-    HINKAL_BUILD --> HINKAL_SIGN[signing.rs::sign_withdrawal]
-    HINKAL_SIGN --> HINKAL_SUBMIT[PrivacyPort::submit_signed_tx]
-    HINKAL_SUBMIT --> DONE
-
-    CHECK_RELAY -->|Unhealthy - CircuitBreaker open| P2_GATE{User consents to transparent fallback?}
-
-    P2_GATE -->|Yes| TX_BUILD
-    P2_GATE -->|No| ERR[Return PrivacyUnavailable error]
-```
+Privacy/shielded flows are not implemented in the current codebase. The wallet
+runs in transparent mode only and exposes no `PrivacyPort` or Hinkal adapter.
+This section is intentionally minimal until privacy ports are introduced.
 
 ---
 
@@ -383,7 +302,7 @@ All namespaces registered in `CANONICAL_NAMESPACES` (`hkask-types::event`).
 |-----------|--------|---------------|------|-------|--------|
 | Deposit address derived | `manager.rs` | `cns.wallet.deposit` | `derived` | Act | ✅ |
 | Deposit detected (transparent) | `chain.rs` → `manager.rs` | `cns.wallet.deposit` | `detected` | Sense | ✅ |
-| Deposit detected (shielded) | `hinkal.rs` → `manager.rs` | `cns.wallet.deposit_shielded` | `detected` | Sense | ✅ |
+
 | Deposit credited | `manager.rs` | `cns.wallet.balance` | `credited` | Act | ✅ |
 | Withdrawal built | `chain.rs` | `cns.wallet.withdrawal` | `built` | Act | ✅ |
 | Withdrawal signed | `signing.rs` | `cns.wallet.withdrawal` | `signed` | Act | ✅ |
@@ -395,9 +314,7 @@ All namespaces registered in `CANONICAL_NAMESPACES` (`hkask-types::event`).
 | API key exhausted | `issuer.rs` | `cns.wallet.key_exhausted` | `exhausted` | Sense | 🔶 CNS algedonic |
 | Treasury key loaded | `signing.rs` | `cns.wallet.treasury` | `loaded` | Act | 🔶 Covered by withdrawal.signed |
 | Chain error | `chain.rs` | `cns.wallet.chain_error` | `error` | Sense | ⬜ Deferred (needs chain ports) |
-| Shielded tx initiated | `hinkal.rs` | `cns.wallet.privacy.shield` | `initiated` | Act | ⬜ Deferred (needs hinkal port) |
-| Unshield (transparent fallback) | `privacy.rs` | `cns.wallet.privacy.unshield` | `fallback` | Act | ⬜ Deferred (needs privacy port) |
-| Privacy error | `privacy.rs` | `cns.wallet.privacy_error` | `error` | Sense | ⬜ Deferred (needs privacy port) |
+
 
 ### 6.2 CNS Error Threshold Mapping
 
@@ -408,10 +325,9 @@ All namespaces registered in `CANONICAL_NAMESPACES` (`hkask-types::event`).
 | `KeyExpired` | `cns.wallet.key_expired` | Info |
 | `KeyRevoked` | `cns.wallet.key_revoked` | Info |
 | `ChainNotEnabled` | `cns.wallet.chain_error` | Warning |
-| `PrivacyUnavailable` | `cns.wallet.privacy_error` | Critical (relay down) |
 | `DepositReferenceInvalid` | `cns.wallet.deposit` — invalid_ref | Warning |
+| `DepositAddressUnresolvable` | `cns.wallet.deposit` — unresolvable_address | Warning |
 | `ChainError` | `cns.wallet.chain_error` | Critical (chain RPC down) |
-| `PrivacyError` | `cns.wallet.privacy_error` | Critical |
 | `Infra` | `cns.wallet.*` (context-dependent) | Critical |
 
 ---
@@ -421,15 +337,14 @@ All namespaces registered in `CANONICAL_NAMESPACES` (`hkask-types::event`).
 ```mermaid
 graph TD
     subgraph "AgentService (sole owner)"
-        WM["WalletManager<br/>chain_ports: HashMap<ChainId, Box<dyn ChainPort>><br/>privacy_port: Option<Box<dyn PrivacyPort>><br/>wallet_seed: Zeroizing<[u8; 32]>"]
-        ISS["ApiKeyIssuer<br/>wallet_store: Arc<WalletStore><br/>wallet_seed: Zeroizing<[u8; 32]>"]
-        SIGN["signing.rs (stateless)<br/>no owned key material"]
-    end
+        WM["WalletManager<br/>chain_ports: HashMap<ChainId, Box<dyn ChainPort>><br/>wallet_seed: Zeroizing<[u8; 32]>"]
+                ISS["ApiKeyIssuer<br/>wallet_store: Arc<WalletStore><br/>wallet_seed: Zeroizing<[u8; 32]>"]
+                SIGN["signing.rs (stateless)<br/>no owned key material"]
+            end
 
-    subgraph "WalletManager Internals"
-        CP["HashMap<ChainId, Box<dyn ChainPort>>"]
-        PP["Option<Box<dyn PrivacyPort>>"]
-        WS["Arc<WalletStore>"]
+            subgraph "WalletManager Internals"
+                CP["HashMap<ChainId, Box<dyn ChainPort>>"]
+                WS["Arc<WalletStore>"]
     end
 
     subgraph "Shared"
@@ -457,7 +372,7 @@ graph TD
 ```
 
 **Key decisions `[OUGHT-DECL]`:**
-- `WalletManager` sole-owns `ChainPort` and `PrivacyPort` implementations
+- `WalletManager` sole-owns `ChainPort` implementations
 - `WalletStore` is `Arc<>` — shared with CNS for algedonic monitoring (justified)
 - `signing.rs` is stateless — no owned data, no long-lived keys
 - Treasury keys NEVER held long-term — loaded per signing operation, zeroized on drop
@@ -475,7 +390,7 @@ graph TD
 | 1 | `hkask-wallet-types` | ✅ | 11 | `RJoule`, `ChainId`, `PrivacyMode`, `ApiKeyCapability`, `WalletError` (15 variants), `TxHash`, 14 CNS spans, 3 wallet SignalMetrics |
 | 2 | `hkask-storage` | ✅ | 34 | `WalletStore` — 5 tables, 16 methods, anti-replay deposit references, MUST-10 property test |
 | 3 | `hkask-keystore` | ✅ | 6 | `resolve_treasury_key(chain)`, `resolve_wallet_seed()`, `sign_api_key_capability()` |
-| 4 | `hkask-wallet` | ✅ | 13 | `ChainPort`, `PrivacyPort`, `signing.rs` (LoadedKey + redacted Debug), `WalletManager` (13 methods + CNS span emission), `ApiKeyIssuer` (CNS span emission) |
+| 4 | `hkask-wallet` | ✅ | 13 | `ChainPort`, `signing.rs` (LoadedKey + redacted Debug), `WalletManager` (13 methods + CNS span emission), `ApiKeyIssuer` (CNS span emission) |
 | 5 | `hkask-cns` | ✅ | 11 | `WalletBackedBudget`, `WalletEnergyEstimator`, `EnergyBudgetManager` dual-map, algedonic alerts (balance + key health), CNS span emission wired |
 | 6 | `hkask-services` | ✅ | 35 | `WalletService` — 13 methods composing WalletManager + ApiKeyIssuer + CNS budget registration |
 | 7 | `hkask-cli` | ✅ | 25 | `kask wallet` — 8 subcommands (balance, deposit-address, deposit-reference, history, key create/list/revoke, withdraw) |
@@ -485,7 +400,7 @@ graph TD
 
 | Phase | Scope | Dependencies |
 |-------|-------|-------------|
-| 4 (chain ports) | `hedera.rs`, `hinkal.rs` — feature-gated implementations | reqwest |
+| 4 (chain ports) | `hedera.rs` — feature-gated implementation | reqwest |
 
 ### 8.3 Test Inventory
 
@@ -508,14 +423,14 @@ graph TD
 | Question | Decision | Rationale |
 |----------|----------|-----------|
 | Q1: Per-operation vs long-lived keys | **Per-operation** ✅ | Research consensus (Turnkey, 1Password). 1μs HKDF overhead negligible. |
-| Q2: Hinkal Access Token — mint or accept? | **Accept pre-minted** ✅ | zkSNARK proof generation belongs in Hinkal SDK. hKask is headless and minimal. |
+| Q2: Privacy integration scope | **Deferred** | No privacy ports are implemented yet; revisit once a shielded flow is planned. |
 | Q3: hKask wallet scope | **Specialized sub-wallet** ✅ | User's primary wallet handles key storage, multi-chain, DeFi. hKask wallet only does deposits, rJoule tracking, API keys, withdrawals. |
 | Q4: Deposit detection strategy | **Polling at 30s intervals** | Low-frequency polling avoids persistent RPC connections. Multiple fallback endpoints. |
 | Q5: Multi-chain address format | **Chain-specific native formats** | Hedera: `0.0.XXXXX` account ID. |
 | Q6: Gas pre-funding (bootstrapping) | **Deferred** | Initial treasury funded by hKask operator. Users deposit USDC → rJoules credited. |
 | Q7: Key revocation — on-chain vs off-chain | **Off-chain (database flag)** | `revoked_at` timestamp in `api_keys` table. Unspent rJoules returned to wallet. |
-| Q8: Recovery from seed (P1 sovereignty) | **Deterministic derivation** | All keys derived from master passphrase via HKDF. Same passphrase → same keys. |
-| Q9: Hinkal support | **Hedera-only** | Hinkal settles on Hedera. Only `ChainId::Hedera` and `ChainId::Hinkal` are supported. |
+| Q8: Recovery from seed (P1 sovereignty) | **Deterministic derivation** | All keys derived from master passphrase via HKDF. Same passphrase → same keys. OCAP signing key fails closed if master key is unavailable. |
+| Q9: Hinkal support | **Deferred** | Current code is Hedera-only (`ChainId::Hedera`). Privacy ports are not implemented yet. |
 
 ---
 

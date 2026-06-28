@@ -4,10 +4,7 @@ use hkask_ports::ToolPort;
 use hkask_services::MemoryService;
 
 pub(crate) fn handle_history(state: &super::super::ReplState) {
-    let token = state
-        .service_context
-        .capability_checker()
-        .grant_registry(
+    let token = state.service_context.capability_checker().grant_registry(
         hkask_capability::DelegationAction::Read,
         *state.service_context.identity().0,
         state.agent_webid,

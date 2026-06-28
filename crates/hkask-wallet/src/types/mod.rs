@@ -7,11 +7,8 @@
 
 pub mod chain;
 pub mod error;
-pub mod keys;
-
 pub use chain::*;
 pub use error::*;
-pub use keys::*;
 
 // Re-exports from hkask_wallet_types (canonical source for these types)
 pub use hkask_wallet_types::{

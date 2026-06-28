@@ -183,7 +183,7 @@ impl WalletManager {
         privacy: PrivacyMode,
     ) -> Result<DepositAddress, WalletError> {
         let port = self.chains.get(&chain).ok_or(WalletError::ChainError {
-            chain: ChainId::Hedera,
+            chain,
             message: "chain not enabled".into(),
         })?;
         // Use derivation index 0 for the primary address
@@ -244,7 +244,7 @@ impl WalletManager {
         let reference = hex::encode(&ref_bytes[..16]); // 32-char hex string
 
         let dep_ref = DepositReference {
-            chain: ChainId::Hedera,
+            chain,
             reference,
             wallet_id,
             nonce,

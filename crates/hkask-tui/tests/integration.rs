@@ -11,7 +11,7 @@ use hkask_tui::{
         BackupWindow, ChatWindow, CnsMonitorWindow, CompaniesWindow, ConfigurationWindow,
         CuratorWindow, DocprocWindow, EditorWindow, KanbanWindow, LogoWindow, MatrixWindow,
         MediaWindow, MemoryWindow, PodsWindow, RegistryWindow, ReplicaWindow, ResearchWindow,
-        SidebarWindow, SkillsWindow, TerminalWindow, TrainingWindow, WalletWindow,
+        SkillsWindow, TerminalWindow, TrainingWindow, WalletWindow,
     },
 };
 
@@ -147,7 +147,6 @@ fn all_window_kinds() -> Vec<WindowKind> {
         WindowKind::Companies,
         WindowKind::Matrix,
         WindowKind::Configuration,
-        WindowKind::Sidebar,
         WindowKind::Curator,
         WindowKind::Terminal,
         WindowKind::Editor,
@@ -162,8 +161,8 @@ fn all_window_kinds() -> Vec<WindowKind> {
 }
 
 #[test]
-fn all_22_kinds_exist() {
-    assert_eq!(all_window_kinds().len(), 22);
+fn all_21_kinds_exist() {
+    assert_eq!(all_window_kinds().len(), 21);
 }
 
 #[test]
@@ -207,9 +206,9 @@ fn allows_multiple_only_for_chat_and_matrix() {
 }
 
 #[test]
-fn only_sidebar_and_logo_are_persistent() {
+fn only_logo_is_persistent() {
     for kind in all_window_kinds() {
-        if kind == WindowKind::Sidebar || kind == WindowKind::Logo {
+        if kind == WindowKind::Logo {
             assert!(kind.is_persistent());
         } else {
             assert!(!kind.is_persistent(), "{:?} should not be persistent", kind);
@@ -300,13 +299,6 @@ fn configuration_renders() {
 }
 
 #[test]
-fn sidebar_renders() {
-    let b = bridge();
-    let w = SidebarWindow::new(window_id(), None, b);
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
 fn curator_renders() {
     let w = CuratorWindow::new(window_id(), bridge());
     render_smoke(&w, 80, 24);
@@ -383,7 +375,6 @@ fn all_windows_render_at_multiple_sizes() {
         Box::new(CompaniesWindow::new(window_id(), b.clone())),
         Box::new(MatrixWindow::new(window_id(), b.clone())),
         Box::new(ConfigurationWindow::new(window_id(), b.clone())),
-        Box::new(SidebarWindow::new(window_id(), None, b.clone())),
         Box::new(CuratorWindow::new(window_id(), b.clone())),
         Box::new(TerminalWindow::new(window_id(), b.clone())),
         Box::new(EditorWindow::new(window_id(), b.clone())),
@@ -396,7 +387,7 @@ fn all_windows_render_at_multiple_sizes() {
         Box::new(LogoWindow::new(window_id())),
     ];
 
-    assert_eq!(windows.len(), 22);
+    assert_eq!(windows.len(), 21);
 
     for (w, h) in sizes {
         for window in &windows {
@@ -747,12 +738,22 @@ fn command_palette_filters_and_selects() {
     // Reset and verify Esc dismisses
     palette.reset();
     let dismiss = palette.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
-    assert_eq!(dismiss, Some(hkask_tui::WindowKind::Chat));
+    assert_eq!(
+        dismiss,
+        Some(hkask_tui::command_palette::PaletteAction::Open(
+            hkask_tui::WindowKind::Chat
+        ))
+    );
 
     // Reset and verify Ctrl+P dismisses
     palette.reset();
     let toggle = palette.handle_key(KeyEvent::new(KeyCode::Char('p'), KeyModifiers::CONTROL));
-    assert_eq!(toggle, Some(hkask_tui::WindowKind::Chat));
+    assert_eq!(
+        toggle,
+        Some(hkask_tui::command_palette::PaletteAction::Open(
+            hkask_tui::WindowKind::Chat
+        ))
+    );
 }
 
 #[test]

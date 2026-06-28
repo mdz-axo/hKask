@@ -61,8 +61,17 @@ pub const KEY_OAUTH_GITHUB_CLIENT_ID: &str = "hkask-oauth-github-client-id";
 /// Keychain key for the OAuth GitHub client secret.
 pub const KEY_OAUTH_GITHUB_CLIENT_SECRET: &str = "hkask-oauth-github-client-secret";
 
-/// Keychain key for the MCP security key.
+/// Keychain key for the MCP signing secret.
 pub const KEY_MCP_SECRET: &str = "mcp-secret";
+
+/// Keychain key for the MCP security gateway HMAC key.
+pub const KEY_MCP_SECURITY_KEY: &str = "mcp-security-key";
+
+/// Keychain key for the capability token signing key.
+pub const KEY_CAPABILITY_KEY: &str = "capability-key";
+
+/// Keychain key for the OCAP capability token signing secret.
+pub const KEY_OCAP_SECRET: &str = "ocap-secret";
 
 /// Keychain key for the capability probe (internal diagnostics).
 pub const KEY_CAPABILITY_PROBE: &str = "__hkask_capability_probe__";
