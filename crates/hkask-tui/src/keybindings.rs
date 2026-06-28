@@ -9,7 +9,6 @@ pub const GLOBAL_BINDINGS: &[(&str, &str)] = &[
     ("Ctrl+N", "New Chat"),
     ("Ctrl+T", "New tab"),
     ("Ctrl+W", "Close window"),
-    ("Ctrl+B", "Toggle sidebar"),
     ("Ctrl+P", "Command palette"),
     ("Tab", "Next window"),
     ("Ctrl+H/J/K/L", "Navigate focus"),

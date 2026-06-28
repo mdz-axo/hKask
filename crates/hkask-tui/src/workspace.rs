@@ -10,7 +10,7 @@ use std::sync::Arc;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use uuid::Uuid;
 
@@ -23,6 +23,7 @@ use crate::keybindings::{CHAT_BINDINGS, GLOBAL_BINDINGS};
 use crate::repl_bridge::ReplBridge;
 use crate::status_bar::StatusBar;
 use crate::tab::Tab;
+use crate::widgets::headers;
 use crate::window::{Window, WindowId, WindowKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -276,7 +277,6 @@ pub struct Workspace {
     bridge: Arc<dyn ReplBridge>,
     bridges: WorkspaceBridges,
     status_bar: StatusBar,
-    sidebar_open: bool,
     help_visible: bool,
     pub palette_open: bool,
     palette_prev_focus: Option<WindowId>,
@@ -374,7 +374,6 @@ impl Workspace {
             bridge,
             bridges,
             status_bar,
-            sidebar_open: false,
             help_visible: false,
             palette_open: false,
             palette_prev_focus: None,
@@ -473,7 +472,6 @@ impl Workspace {
             bridge,
             bridges,
             status_bar,
-            sidebar_open: false,
             help_visible: false,
             palette_open: false,
             palette_prev_focus: None,
@@ -645,10 +643,7 @@ impl Workspace {
                 self.open_command_palette();
                 true
             }
-            (KeyModifiers::CONTROL, Char('b')) => {
-                self.toggle_sidebar();
-                true
-            }
+
             (KeyModifiers::NONE, Char('?')) => {
                 self.toggle_help();
                 true
@@ -718,7 +713,7 @@ impl Workspace {
         };
         let new_id = WindowId(Uuid::new_v4());
         let new_kind = match direction {
-            SplitDirection::Horizontal => WindowKind::Sidebar,
+            SplitDirection::Horizontal => WindowKind::Chat,
             SplitDirection::Vertical => WindowKind::Chat,
         };
         let new_win = self.create_window_of_kind(new_kind, new_id);
@@ -787,20 +782,8 @@ impl Workspace {
         }
     }
 
-    // ── Sidebar ──────────────────────────────────────────────────────
-
     pub fn toggle_help(&mut self) {
         self.help_visible = !self.help_visible;
-    }
-
-    pub fn toggle_sidebar(&mut self) {
-        if self.sidebar_open {
-            self.sidebar_open = false;
-        } else {
-            self.split_focused(SplitDirection::Horizontal);
-            self.sidebar_open = true;
-            self.focus_prev();
-        }
     }
 
     pub fn close_tab(&mut self) {
@@ -895,12 +878,10 @@ impl Workspace {
 
     fn render_help_overlay(&self, f: &mut Frame, area: Rect) {
         let mut lines: Vec<ratatui::text::Line> = Vec::new();
-        lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(
-            "── Keybindings (? to close) ──",
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        )));
+        lines.push(headers::section_with_color(
+            "Keybindings (? to close)",
+            Color::Yellow,
+        ));
         lines.push(ratatui::text::Line::from(""));
         lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(
             "Global:",

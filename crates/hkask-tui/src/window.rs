@@ -38,8 +38,7 @@ pub enum WindowKind {
     Matrix,
     /// Settings editor (ReplSettings)
     Configuration,
-    /// Composite sidebar — CNS summary + MCP status + context gauge + pod list
-    Sidebar,
+
     /// Curator daemon window — P12.1 dual-presence
     Curator,
     /// Embedded terminal — run shell commands
@@ -77,7 +76,6 @@ impl WindowKind {
             WindowKind::Memory => "Memory",
             WindowKind::Companies => "Companies",
             WindowKind::Configuration => "Configuration",
-            WindowKind::Sidebar => "Sidebar",
             WindowKind::Curator => "Curator",
             WindowKind::Terminal => "Terminal",
             WindowKind::Editor => "Editor",
@@ -105,7 +103,6 @@ impl WindowKind {
             WindowKind::Memory => "Browse and edit episodic and semantic memories",
             WindowKind::Companies => "Company profiles, people, and relationships",
             WindowKind::Configuration => "Edit REPL inference and system settings",
-            WindowKind::Sidebar => "Composite sidebar with CNS, MCP, and pod status",
             WindowKind::Curator => "Curator daemon — CNS alerts, memory, and direct chat",
             WindowKind::Terminal => "Embedded shell — run commands from within the TUI",
             WindowKind::Editor => "Text editor — edit configs, agent YAML, and scripts",
@@ -124,7 +121,6 @@ impl WindowKind {
         match self {
             WindowKind::Chat => true,
             WindowKind::Matrix => true,
-            WindowKind::Sidebar => false,
             WindowKind::Logo => false,
             _ => false,
         }
@@ -132,7 +128,7 @@ impl WindowKind {
 
     /// Whether this window is persistent (cannot be closed by user).
     pub fn is_persistent(&self) -> bool {
-        matches!(self, WindowKind::Sidebar | WindowKind::Logo)
+        matches!(self, WindowKind::Logo)
     }
 }
 

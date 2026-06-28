@@ -93,6 +93,7 @@ pub mod alert_indicator {
 
 /// Header helpers — consistent section title styling.
 pub mod headers {
+    use ratatui::prelude::Stylize;
     use ratatui::style::{Color, Style};
     use ratatui::text::{Line, Span};
 

@@ -1,7 +1,7 @@
 //! Logo window — persistent Kask logo in the top-left corner.
 //!
 //! Renders a downscaled version of the Kask vintage milk can logo using half-block
-//! Unicode characters. The window is persistent (sidebar-like) and cannot
+//! Unicode characters. The window is persistent and cannot
 //! be closed — it anchors the workspace identity.
 
 use crossterm::event::KeyEvent;

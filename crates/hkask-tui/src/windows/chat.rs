@@ -319,7 +319,7 @@ impl ChatWindow {
                     }
                     "help" => {
                         self.add_message(MessageSender::CnsAlert,
-                            "TUI keybindings: ^Q quit, ^T tab, ^W close, ^B sidebar, ^P palette, ^H/J/K/L navigate, ^=/- resize".into());
+                            "TUI keybindings: ^Q quit, ^T tab, ^W close, ^P palette, ^H/J/K/L navigate, ^=/- resize".into());
                     }
                     _ => {
                         self.add_message(

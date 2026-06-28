@@ -17,7 +17,7 @@ pub mod pods;
 pub mod registry;
 pub mod replica;
 pub mod research;
-pub mod sidebar;
+
 pub mod skills;
 pub mod terminal;
 pub mod training;
@@ -40,7 +40,7 @@ pub use pods::PodsWindow;
 pub use registry::RegistryWindow;
 pub use replica::ReplicaWindow;
 pub use research::ResearchWindow;
-pub use sidebar::SidebarWindow;
+
 pub use skills::SkillsWindow;
 pub use terminal::TerminalWindow;
 pub use training::TrainingWindow;

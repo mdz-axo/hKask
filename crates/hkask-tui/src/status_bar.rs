@@ -134,7 +134,7 @@ impl StatusBar {
 
         if self.show_hints {
             spans.push(Span::styled(
-                "  ^Q quit  ^T tab  ^B sidebar  ^P palette",
+                "  ^Q quit  ^T tab  ^P palette",
                 ratatui::style::Style::default().fg(Color::DarkGray),
             ));
         }

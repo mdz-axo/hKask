@@ -1,7 +1,7 @@
 //! CNS Monitor window — live cybernetic nervous system display.
 //!
 //! Shows variety counters, algedonic alerts, and domain health
-//! in a dedicated window. Complements the sidebar summary.
+//! in a dedicated window.
 
 use std::sync::Arc;
 
@@ -9,7 +9,7 @@ use crate::widgets::headers;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 

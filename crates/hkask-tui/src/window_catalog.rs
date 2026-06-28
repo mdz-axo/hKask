@@ -26,7 +26,7 @@ use crate::windows::pods::PodsWindow;
 use crate::windows::registry::RegistryWindow;
 use crate::windows::replica::ReplicaWindow;
 use crate::windows::research::ResearchWindow;
-use crate::windows::sidebar::SidebarWindow;
+
 use crate::windows::skills::SkillsWindow;
 use crate::windows::terminal::TerminalWindow;
 use crate::windows::training::TrainingWindow;
@@ -53,7 +53,6 @@ const WINDOW_KINDS: &[WindowKind] = &[
     WindowKind::Research,
     WindowKind::Docproc,
     WindowKind::Replica,
-    WindowKind::Sidebar,
     WindowKind::Logo,
 ];
 
@@ -216,7 +215,6 @@ pub(crate) fn create_window(
             }
             Box::new(w)
         }
-        WindowKind::Sidebar => Box::new(SidebarWindow::new(id, svc, bridge)),
         WindowKind::Logo => Box::new(LogoWindow::new(id)),
         WindowKind::Chat => Box::new(ChatWindow::new(
             id,
