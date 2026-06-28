@@ -11,11 +11,18 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style, Stylize};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 
 use crate::window::WindowKind;
+use crate::window_catalog::window_kinds;
+
+#[derive(Debug, Clone, Copy)]
+pub enum PaletteAction {
+    Close,
+    Open(WindowKind),
+}
 
 /// A single item in the command palette.
 #[derive(Debug, Clone, Copy)]
@@ -35,28 +42,7 @@ pub struct CommandPalette {
 impl CommandPalette {
     /// Build palette from the static WindowKind catalog.
     pub fn new() -> Self {
-        let kinds = [
-            WindowKind::Chat,
-            WindowKind::Curator,
-            WindowKind::CnsMonitor,
-            WindowKind::Pods,
-            WindowKind::Wallet,
-            WindowKind::Configuration,
-            WindowKind::Registry,
-            WindowKind::Skills,
-            WindowKind::Backup,
-            WindowKind::Kanban,
-            WindowKind::Memory,
-            WindowKind::Matrix,
-            WindowKind::Media,
-            WindowKind::Training,
-            WindowKind::Terminal,
-            WindowKind::Editor,
-            WindowKind::Companies,
-            WindowKind::Sidebar,
-            WindowKind::Logo,
-        ];
-        let items: Vec<PaletteItem> = kinds
+        let items: Vec<PaletteItem> = window_kinds()
             .iter()
             .map(|&k| PaletteItem {
                 kind: k,
@@ -102,19 +88,17 @@ impl CommandPalette {
     }
 
     /// Handle a key event while the palette is open.
-    /// Returns `Some(WindowKind)` if the user selected a window to open
-    /// (Esc → Chat as sentinel, Enter → actual selection).
-    pub fn handle_key(&mut self, key: KeyEvent) -> Option<WindowKind> {
+    pub fn handle_key(&mut self, key: KeyEvent) -> Option<PaletteAction> {
         match (key.modifiers, key.code) {
             // Dismiss — Esc or toggle with Ctrl+P
-            (KeyModifiers::NONE, KeyCode::Esc) => return Some(WindowKind::Chat),
-            (KeyModifiers::CONTROL, KeyCode::Char('p')) => return Some(WindowKind::Chat),
+            (KeyModifiers::NONE, KeyCode::Esc) => return Some(PaletteAction::Close),
+            (KeyModifiers::CONTROL, KeyCode::Char('p')) => return Some(PaletteAction::Close),
             // Select
             (KeyModifiers::NONE, KeyCode::Enter) => {
                 self.clamp_selection();
                 let filtered = self.filtered();
                 if let Some(&idx) = filtered.get(self.selection) {
-                    return Some(self.items[idx].kind);
+                    return Some(PaletteAction::Open(self.items[idx].kind));
                 }
             }
             // Navigate

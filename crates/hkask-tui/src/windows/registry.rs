@@ -8,7 +8,8 @@ use std::sync::Arc;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Modifier, Style};
+use crate::widgets::headers;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
@@ -87,11 +88,10 @@ impl Window for RegistryWindow {
     }
 
     fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
-        let mut lines = vec![
-            Line::from(Span::styled(
-                format!("── Registry: {} (Tab to switch) ──", self.section.title()),
-                Style::default().fg(Color::Cyan).bold(),
-            )),
+        let mut lines = vec![headers::section(format!(
+            "Registry: {} (Tab to switch)",
+            self.section.title()
+        ))];
             Line::from(""),
         ];
 

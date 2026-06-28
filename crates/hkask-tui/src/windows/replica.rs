@@ -5,11 +5,12 @@
 use crate::bridges::ReplicaDataBridge;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
+use crate::widgets::headers;
 use crate::window::{Window, WindowId, WindowKind};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use std::sync::Arc;
@@ -104,13 +105,7 @@ impl McpTabbedWindow for ReplicaWindow {
         Self::default_render_chat_tab(&self.chat_state, "replica", f, area);
     }
     fn render_data_tab(&self, f: &mut Frame, area: Rect) {
-        let mut lines = vec![
-            Line::from(Span::styled(
-                "── Replica ([ ] Chat/Data) ──",
-                Style::default().fg(Color::Cyan).bold(),
-            )),
-            Line::from(""),
-        ];
+        let mut lines = vec![headers::section("Replica ([ ] Chat/Data)"), Line::from("")];
         let rep_data: Vec<(String, usize, String)> = self
             .replica
             .as_ref()
@@ -121,7 +116,7 @@ impl McpTabbedWindow for ReplicaWindow {
                     .collect()
             })
             .unwrap_or_default();
-        if let Some(ref r) = self.replica {
+        if let Some(ref _r) = self.replica {
             lines.push(Line::from(format!("  {} replica(s)", rep_data.len())));
             for (author, centroid_count, status) in &rep_data {
                 lines.push(Line::from(vec![

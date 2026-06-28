@@ -10,10 +10,11 @@
 
 use std::sync::Arc;
 
+use crate::widgets::headers;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Gauge, Paragraph, Wrap};
 
@@ -87,13 +88,7 @@ impl Window for WalletWindow {
             .label(format!(" {} / {} ({:.0}%) ", remaining, cap, ratio * 100.0));
         f.render_widget(gauge, vert[0]);
 
-        let mut lines = vec![
-            Line::from(Span::styled(
-                "── Wallet ──",
-                Style::default().fg(Color::Cyan).bold(),
-            )),
-            Line::from(""),
-        ];
+        let mut lines = vec![headers::section("Wallet"), Line::from("")];
 
         // ── rJoule balance section ──
         lines.push(Line::from(Span::styled(

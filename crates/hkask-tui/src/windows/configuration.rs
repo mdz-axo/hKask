@@ -6,10 +6,11 @@
 
 use std::sync::Arc;
 
+use crate::widgets::headers;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
@@ -86,12 +87,8 @@ impl Window for ConfigurationWindow {
             auto_condense = "on (87.5%)";
         }
 
-        let lines = vec![
-            Line::from(Span::styled(
-                "── Configuration ──",
-                Style::default().fg(Color::Cyan).bold(),
-            )),
-            Line::from(""),
+        let mut lines = vec![headers::section("Configuration"), Line::from("")];
+        lines.extend([
             Line::from("  Inference:"),
             Line::from(format!("    Model:        {}", self.bridge.model_name())),
             Line::from(format!("    Temperature:  {}", temp)),
@@ -116,7 +113,7 @@ impl Window for ConfigurationWindow {
                 "  Use `kask settings` CLI or /repl command to change values.",
                 Style::default().fg(Color::DarkGray),
             )),
-        ];
+        ]);
         f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
     }
 

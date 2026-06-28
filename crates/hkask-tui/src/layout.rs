@@ -9,6 +9,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::window::WindowKind;
+use crate::window_catalog::window_kind_from_title;
 
 /// Serializable representation of a window layout.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,28 +54,7 @@ pub fn kind_to_string(kind: WindowKind) -> String {
 /// Parse a serialized kind string back to WindowKind.
 /// Returns Chat as a safe fallback for unknown kinds.
 pub fn string_to_kind(s: &str) -> WindowKind {
-    match s {
-        "Chat" => WindowKind::Chat,
-        "CNS Monitor" => WindowKind::CnsMonitor,
-        "Backup" => WindowKind::Backup,
-        "Registry" => WindowKind::Registry,
-        "Pods" => WindowKind::Pods,
-        "Kanban" => WindowKind::Kanban,
-        "Wallet" => WindowKind::Wallet,
-        "Memory" => WindowKind::Memory,
-        "Companies" => WindowKind::Companies,
-        "Matrix" => WindowKind::Matrix,
-        "Configuration" => WindowKind::Configuration,
-        "Sidebar" => WindowKind::Sidebar,
-        "Curator" => WindowKind::Curator,
-        "Terminal" => WindowKind::Terminal,
-        "Editor" => WindowKind::Editor,
-        "Training" => WindowKind::Training,
-        "Media" => WindowKind::Media,
-        "Skills" => WindowKind::Skills,
-        "hKask" => WindowKind::Logo,
-        _ => WindowKind::Chat,
-    }
+    window_kind_from_title(s).unwrap_or(WindowKind::Chat)
 }
 
 /// Path to the layout file for a given agent.

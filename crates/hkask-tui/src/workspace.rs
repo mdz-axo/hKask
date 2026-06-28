@@ -24,28 +24,6 @@ use crate::repl_bridge::ReplBridge;
 use crate::status_bar::StatusBar;
 use crate::tab::Tab;
 use crate::window::{Window, WindowId, WindowKind};
-use crate::windows::backup::BackupWindow;
-use crate::windows::chat::ChatWindow;
-use crate::windows::cns_monitor::CnsMonitorWindow;
-use crate::windows::companies::CompaniesWindow;
-use crate::windows::configuration::ConfigurationWindow;
-use crate::windows::curator::CuratorWindow;
-use crate::windows::docproc::DocprocWindow;
-use crate::windows::editor::EditorWindow;
-use crate::windows::kanban::KanbanWindow;
-use crate::windows::logo::LogoWindow;
-use crate::windows::matrix::MatrixWindow;
-use crate::windows::media::MediaWindow;
-use crate::windows::memory::MemoryWindow;
-use crate::windows::pods::PodsWindow;
-use crate::windows::registry::RegistryWindow;
-use crate::windows::replica::ReplicaWindow;
-use crate::windows::research::ResearchWindow;
-use crate::windows::sidebar::SidebarWindow;
-use crate::windows::skills::SkillsWindow;
-use crate::windows::terminal::TerminalWindow;
-use crate::windows::training::TrainingWindow;
-use crate::windows::wallet::WalletWindow;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SplitDirection {
@@ -54,7 +32,7 @@ pub enum SplitDirection {
 }
 
 pub enum SplitNode {
-    Leaf(Box<dyn Window>),
+    Leaf(Option<Box<dyn Window>>),
     Horizontal {
         left: Box<SplitNode>,
         right: Box<SplitNode>,
@@ -70,7 +48,8 @@ pub enum SplitNode {
 impl std::fmt::Debug for SplitNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SplitNode::Leaf(w) => f.debug_tuple("Leaf").field(&w.id()).finish(),
+            SplitNode::Leaf(Some(w)) => f.debug_tuple("Leaf").field(&w.id()).finish(),
+            SplitNode::Leaf(None) => f.debug_tuple("Leaf").field(&"empty").finish(),
             SplitNode::Horizontal { ratio, .. } => {
                 f.debug_struct("H").field("ratio", ratio).finish()
             }
@@ -82,7 +61,8 @@ impl std::fmt::Debug for SplitNode {
 impl SplitNode {
     fn collect_ids(&self, out: &mut Vec<WindowId>) {
         match self {
-            SplitNode::Leaf(w) => out.push(w.id()),
+            SplitNode::Leaf(Some(w)) => out.push(w.id()),
+            SplitNode::Leaf(None) => {}
             SplitNode::Horizontal { left, right, .. } => {
                 left.collect_ids(out);
                 right.collect_ids(out);
@@ -102,7 +82,8 @@ impl SplitNode {
 
     pub fn window_kind(&self, target: WindowId) -> Option<crate::window::WindowKind> {
         match self {
-            SplitNode::Leaf(w) if w.id() == target => Some(w.kind()),
+            SplitNode::Leaf(Some(w)) if w.id() == target => Some(w.kind()),
+            SplitNode::Leaf(None) => None,
             SplitNode::Horizontal { left, right, .. } => left
                 .window_kind(target)
                 .or_else(|| right.window_kind(target)),
@@ -115,7 +96,8 @@ impl SplitNode {
 
     pub fn contains_window(&self, target: WindowId) -> bool {
         match self {
-            SplitNode::Leaf(w) => w.id() == target,
+            SplitNode::Leaf(Some(w)) => w.id() == target,
+            SplitNode::Leaf(None) => false,
             SplitNode::Horizontal { left, right, .. } => {
                 left.contains_window(target) || right.contains_window(target)
             }
@@ -127,7 +109,8 @@ impl SplitNode {
 
     fn find_leaf_mut(&mut self, target: WindowId) -> Option<&mut Box<dyn Window>> {
         match self {
-            SplitNode::Leaf(w) if w.id() == target => Some(w),
+            SplitNode::Leaf(Some(w)) if w.id() == target => Some(w),
+            SplitNode::Leaf(None) => None,
             SplitNode::Horizontal { left, right, .. } => left
                 .find_leaf_mut(target)
                 .or_else(|| right.find_leaf_mut(target)),
@@ -140,7 +123,7 @@ impl SplitNode {
 
     fn render(&self, f: &mut Frame, area: Rect, focused_id: Option<WindowId>) {
         match self {
-            SplitNode::Leaf(w) => {
+            SplitNode::Leaf(Some(w)) => {
                 let focused = focused_id == Some(w.id());
                 let bs = if focused {
                     Style::default().fg(Color::Cyan)
@@ -155,6 +138,7 @@ impl SplitNode {
                 f.render_widget(block, area);
                 w.render(f, inner, focused);
             }
+            SplitNode::Leaf(None) => {}
             SplitNode::Horizontal { left, right, ratio } => {
                 let left_w = ((area.width as f32) * ratio).round() as u16;
                 let right_w = area.width.saturating_sub(left_w);
@@ -184,7 +168,8 @@ impl SplitNode {
 
     fn handle_key(&mut self, key: KeyEvent, focused_id: Option<WindowId>) -> bool {
         match self {
-            SplitNode::Leaf(w) => focused_id == Some(w.id()) && w.handle_key(key),
+            SplitNode::Leaf(Some(w)) => focused_id == Some(w.id()) && w.handle_key(key),
+            SplitNode::Leaf(None) => false,
             SplitNode::Horizontal { left, right, .. } => {
                 left.handle_key(key, focused_id) || right.handle_key(key, focused_id)
             }
@@ -196,7 +181,8 @@ impl SplitNode {
 
     fn tick(&mut self) {
         match self {
-            SplitNode::Leaf(w) => w.tick(),
+            SplitNode::Leaf(Some(w)) => w.tick(),
+            SplitNode::Leaf(None) => {}
             SplitNode::Horizontal { left, right, .. } => {
                 left.tick();
                 right.tick();
@@ -210,9 +196,10 @@ impl SplitNode {
 
     fn titles(&self, out: &mut HashMap<WindowId, String>) {
         match self {
-            SplitNode::Leaf(w) => {
+            SplitNode::Leaf(Some(w)) => {
                 out.insert(w.id(), w.title().to_string());
             }
+            SplitNode::Leaf(None) => {}
             SplitNode::Horizontal { left, right, .. } => {
                 left.titles(out);
                 right.titles(out);
@@ -234,25 +221,22 @@ impl SplitNode {
         ratio: f32,
     ) -> bool {
         match self {
-            SplitNode::Leaf(w) if w.id() == target => {
-                // Take the existing leaf out
-                let dummy = SplitNode::Leaf(Box::new(DummyWindow(target)));
-                let old = std::mem::replace(self, dummy);
-                let existing = if let SplitNode::Leaf(w) = old {
-                    w
-                } else {
-                    return false;
+            SplitNode::Leaf(window)
+                if window.as_ref().map(|w| w.id() == target).unwrap_or(false) =>
+            {
+                let existing = match window.take() {
+                    Some(w) => w,
+                    None => return false,
                 };
-
                 *self = match direction {
                     SplitDirection::Horizontal => SplitNode::Horizontal {
-                        left: Box::new(SplitNode::Leaf(existing)),
-                        right: Box::new(SplitNode::Leaf(new_widget)),
+                        left: Box::new(SplitNode::Leaf(Some(existing))),
+                        right: Box::new(SplitNode::Leaf(Some(new_widget))),
                         ratio,
                     },
                     SplitDirection::Vertical => SplitNode::Vertical {
-                        top: Box::new(SplitNode::Leaf(existing)),
-                        bottom: Box::new(SplitNode::Leaf(new_widget)),
+                        top: Box::new(SplitNode::Leaf(Some(existing))),
+                        bottom: Box::new(SplitNode::Leaf(Some(new_widget))),
                         ratio,
                     },
                 };
@@ -290,6 +274,17 @@ pub struct Workspace {
     pub should_quit: bool,
     service_context: Option<Arc<hkask_services::AgentService>>,
     bridge: Arc<dyn ReplBridge>,
+    bridges: WorkspaceBridges,
+    status_bar: StatusBar,
+    sidebar_open: bool,
+    help_visible: bool,
+    pub palette_open: bool,
+    palette_prev_focus: Option<WindowId>,
+    pub(crate) command_palette: crate::command_palette::CommandPalette,
+}
+
+#[derive(Default)]
+struct WorkspaceBridges {
     wallet_bridge: Option<Arc<dyn WalletDataBridge>>,
     config_bridge: Option<Arc<dyn ConfigDataBridge>>,
     backup_bridge: Option<Arc<dyn BackupDataBridge>>,
@@ -304,12 +299,31 @@ pub struct Workspace {
     docproc_bridge: Option<Arc<dyn DocprocDataBridge>>,
     replica_bridge: Option<Arc<dyn ReplicaDataBridge>>,
     skills_bridge: Option<Arc<dyn SkillsDataBridge>>,
-    status_bar: StatusBar,
-    sidebar_open: bool,
-    help_visible: bool,
-    pub palette_open: bool,
-    palette_prev_focus: Option<WindowId>,
-    pub(crate) command_palette: crate::command_palette::CommandPalette,
+}
+
+fn base_factory_context(
+    service_context: Option<Arc<hkask_services::AgentService>>,
+    bridge: Arc<dyn ReplBridge>,
+    bridges: &WorkspaceBridges,
+) -> crate::window_catalog::WindowFactoryContext {
+    crate::window_catalog::WindowFactoryContext {
+        service_context,
+        bridge,
+        wallet_bridge: bridges.wallet_bridge.clone(),
+        config_bridge: bridges.config_bridge.clone(),
+        backup_bridge: bridges.backup_bridge.clone(),
+        registry_bridge: bridges.registry_bridge.clone(),
+        memory_bridge: bridges.memory_bridge.clone(),
+        kanban_bridge: bridges.kanban_bridge.clone(),
+        matrix_bridge: bridges.matrix_bridge.clone(),
+        media_bridge: bridges.media_bridge.clone(),
+        training_bridge: bridges.training_bridge.clone(),
+        companies_bridge: bridges.companies_bridge.clone(),
+        research_bridge: bridges.research_bridge.clone(),
+        docproc_bridge: bridges.docproc_bridge.clone(),
+        replica_bridge: bridges.replica_bridge.clone(),
+        skills_bridge: bridges.skills_bridge.clone(),
+    }
 }
 
 impl Workspace {
@@ -317,34 +331,31 @@ impl Workspace {
         service_context: Arc<hkask_services::AgentService>,
         bridge: Arc<dyn ReplBridge>,
     ) -> Self {
-        let agent = bridge.agent_name().to_string();
         let model = bridge.model_name().to_string();
         let chat_id = WindowId(Uuid::new_v4());
-        let chat = ChatWindow::new(
-            chat_id,
-            &agent,
-            &model,
-            Some(service_context.clone()),
-            bridge.clone(),
-        );
+        let bridges = WorkspaceBridges::default();
+        let factory_ctx =
+            base_factory_context(Some(service_context.clone()), bridge.clone(), &bridges);
+        let chat = crate::window_catalog::create_window(WindowKind::Chat, chat_id, &factory_ctx);
 
         // Logo window — persistent top-left anchor
         let logo_id = WindowId(Uuid::new_v4());
-        let logo = LogoWindow::new(logo_id);
+        let logo = crate::window_catalog::create_window(WindowKind::Logo, logo_id, &factory_ctx);
 
         // Default layout: Logo + Chat (left 65%) | Curator (right 35%)
         //   Left pane: vertical split — Logo (25%) + Chat (75%)
         //   Right pane: Curator (100%)
         let left = Box::new(SplitNode::Vertical {
-            top: Box::new(SplitNode::Leaf(Box::new(logo))),
-            bottom: Box::new(SplitNode::Leaf(Box::new(chat))),
+            top: Box::new(SplitNode::Leaf(Some(logo))),
+            bottom: Box::new(SplitNode::Leaf(Some(chat))),
             ratio: 0.25,
         });
         let curator_id = WindowId(Uuid::new_v4());
-        let curator = CuratorWindow::new(curator_id, bridge.clone());
+        let curator =
+            crate::window_catalog::create_window(WindowKind::Curator, curator_id, &factory_ctx);
         let root = SplitNode::Horizontal {
             left,
-            right: Box::new(SplitNode::Leaf(Box::new(curator))),
+            right: Box::new(SplitNode::Leaf(Some(curator))),
             ratio: 0.65,
         };
         let tab = Tab::new("Chat".to_string(), root);
@@ -361,20 +372,7 @@ impl Workspace {
             should_quit: false,
             service_context: Some(service_context),
             bridge,
-            wallet_bridge: None,
-            config_bridge: None,
-            backup_bridge: None,
-            registry_bridge: None,
-            memory_bridge: None,
-            kanban_bridge: None,
-            matrix_bridge: None,
-            media_bridge: None,
-            training_bridge: None,
-            companies_bridge: None,
-            research_bridge: None,
-            docproc_bridge: None,
-            replica_bridge: None,
-            skills_bridge: None,
+            bridges,
             status_bar,
             sidebar_open: false,
             help_visible: false,
@@ -385,79 +383,80 @@ impl Workspace {
     }
 
     pub fn with_wallet_bridge(&mut self, wallet: Arc<dyn WalletDataBridge>) -> &mut Self {
-        self.wallet_bridge = Some(wallet);
+        self.bridges.wallet_bridge = Some(wallet);
         self
     }
 
     pub fn with_config_bridge(&mut self, config: Arc<dyn ConfigDataBridge>) -> &mut Self {
-        self.config_bridge = Some(config);
+        self.bridges.config_bridge = Some(config);
         self
     }
 
     pub fn with_backup_bridge(&mut self, backup: Arc<dyn BackupDataBridge>) -> &mut Self {
-        self.backup_bridge = Some(backup);
+        self.bridges.backup_bridge = Some(backup);
         self
     }
 
     pub fn with_registry_bridge(&mut self, registry: Arc<dyn RegistryDataBridge>) -> &mut Self {
-        self.registry_bridge = Some(registry);
+        self.bridges.registry_bridge = Some(registry);
         self
     }
 
     pub fn with_memory_bridge(&mut self, memory: Arc<dyn MemoryDataBridge>) -> &mut Self {
-        self.memory_bridge = Some(memory);
+        self.bridges.memory_bridge = Some(memory);
         self
     }
 
     pub fn with_kanban_bridge(&mut self, kanban: Arc<dyn KanbanDataBridge>) -> &mut Self {
-        self.kanban_bridge = Some(kanban);
+        self.bridges.kanban_bridge = Some(kanban);
         self
     }
 
     pub fn with_matrix_bridge(&mut self, matrix: Arc<dyn MatrixDataBridge>) -> &mut Self {
-        self.matrix_bridge = Some(matrix);
+        self.bridges.matrix_bridge = Some(matrix);
         self
     }
 
     pub fn with_media_bridge(&mut self, media: Arc<dyn MediaDataBridge>) -> &mut Self {
-        self.media_bridge = Some(media);
+        self.bridges.media_bridge = Some(media);
         self
     }
 
     pub fn with_training_bridge(&mut self, training: Arc<dyn TrainingDataBridge>) -> &mut Self {
-        self.training_bridge = Some(training);
+        self.bridges.training_bridge = Some(training);
         self
     }
 
     pub fn with_companies_bridge(&mut self, companies: Arc<dyn CompaniesDataBridge>) -> &mut Self {
-        self.companies_bridge = Some(companies);
+        self.bridges.companies_bridge = Some(companies);
         self
     }
     pub fn with_research_bridge(&mut self, research: Arc<dyn ResearchDataBridge>) -> &mut Self {
-        self.research_bridge = Some(research);
+        self.bridges.research_bridge = Some(research);
         self
     }
     pub fn with_docproc_bridge(&mut self, docproc: Arc<dyn DocprocDataBridge>) -> &mut Self {
-        self.docproc_bridge = Some(docproc);
+        self.bridges.docproc_bridge = Some(docproc);
         self
     }
     pub fn with_replica_bridge(&mut self, replica: Arc<dyn ReplicaDataBridge>) -> &mut Self {
-        self.replica_bridge = Some(replica);
+        self.bridges.replica_bridge = Some(replica);
         self
     }
     pub fn with_skills_bridge(&mut self, skills: Arc<dyn SkillsDataBridge>) -> &mut Self {
-        self.skills_bridge = Some(skills);
+        self.bridges.skills_bridge = Some(skills);
         self
     }
 
     /// Create a minimal workspace for testing — no AgentService, single Chat window.
     /// Uses the provided bridge for all window data. No logo, no curator, no splits.
     pub fn new_test(bridge: Arc<dyn ReplBridge>) -> Self {
-        let agent = bridge.agent_name().to_string();
         let model = bridge.model_name().to_string();
         let chat_id = WindowId(Uuid::new_v4());
-        let chat = ChatWindow::new(chat_id, &agent, &model, None, bridge.clone());
-        let root = SplitNode::Leaf(Box::new(chat));
+        let bridges = WorkspaceBridges::default();
+        let factory_ctx = base_factory_context(None, bridge.clone(), &bridges);
+        let chat = crate::window_catalog::create_window(WindowKind::Chat, chat_id, &factory_ctx);
+        let root = SplitNode::Leaf(Some(chat));
         let tab = Tab::new("Test".to_string(), root);
 
         let mut status_bar = StatusBar::new();
@@ -472,20 +471,7 @@ impl Workspace {
             should_quit: false,
             service_context: None,
             bridge,
-            wallet_bridge: None,
-            config_bridge: None,
-            backup_bridge: None,
-            registry_bridge: None,
-            memory_bridge: None,
-            kanban_bridge: None,
-            matrix_bridge: None,
-            media_bridge: None,
-            training_bridge: None,
-            companies_bridge: None,
-            research_bridge: None,
-            docproc_bridge: None,
-            replica_bridge: None,
-            skills_bridge: None,
+            bridges,
             status_bar,
             sidebar_open: false,
             help_visible: false,
@@ -735,17 +721,7 @@ impl Workspace {
             SplitDirection::Horizontal => WindowKind::Sidebar,
             SplitDirection::Vertical => WindowKind::Chat,
         };
-        let svc = self.service_context.clone();
-        let new_win: Box<dyn Window> = match new_kind {
-            WindowKind::Sidebar => Box::new(SidebarWindow::new(new_id, svc, self.bridge.clone())),
-            _ => Box::new(ChatWindow::new(
-                new_id,
-                self.bridge.agent_name(),
-                self.bridge.model_name(),
-                svc,
-                self.bridge.clone(),
-            )),
-        };
+        let new_win = self.create_window_of_kind(new_kind, new_id);
         // focused is a Copy type, safe to use after root_mut()
         let ok = self
             .root_mut()
@@ -794,15 +770,8 @@ impl Workspace {
 
     pub fn new_tab(&mut self) {
         let chat_id = WindowId(Uuid::new_v4());
-        let svc = self.service_context.clone();
-        let chat = ChatWindow::new(
-            chat_id,
-            self.bridge.agent_name(),
-            self.bridge.model_name(),
-            svc,
-            self.bridge.clone(),
-        );
-        let root = SplitNode::Leaf(Box::new(chat));
+        let chat = self.create_window_of_kind(WindowKind::Chat, chat_id);
+        let root = SplitNode::Leaf(Some(chat));
         let tab = Tab::new(format!("Tab {}", self.tabs.len() + 1), root);
         self.tabs.push(tab);
         self.active_tab = self.tabs.len() - 1;
@@ -879,31 +848,22 @@ impl Workspace {
             }
             return true;
         }
-        if let Some(kind) = self.command_palette.handle_key(key) {
-            // Check if it's a dismiss signal (Esc) or a selection (Enter)
-            match key.code {
-                KeyCode::Esc => {
+        if let Some(action) = self.command_palette.handle_key(key) {
+            match action {
+                crate::command_palette::PaletteAction::Close => {
                     self.palette_open = false;
                     if let Some(prev) = self.palette_prev_focus.take() {
                         self.focus_window(prev);
                     }
                     return true;
                 }
-                KeyCode::Enter => {
+                crate::command_palette::PaletteAction::Open(kind) => {
                     self.palette_open = false;
-                    // Don't restore focus — focus moves to new window
                     self.palette_prev_focus.take();
                     self.open_window_kind(kind);
                     return true;
                 }
-                _ => {}
             }
-            // Other dismiss (Ctrl+P handled above)
-            self.palette_open = false;
-            if let Some(prev) = self.palette_prev_focus.take() {
-                self.focus_window(prev);
-            }
-            return true;
         }
         // Navigation/typing consumed by palette
         true
@@ -925,139 +885,12 @@ impl Workspace {
 
     /// Create a window of the given kind without adding it to the tree.
     fn create_window_of_kind(&self, kind: WindowKind, id: WindowId) -> Box<dyn Window> {
-        let bridge = self.bridge.clone();
-        let svc = self.service_context.clone();
-        let wb = self.wallet_bridge.clone();
-        let cb = self.config_bridge.clone();
-        let bb = self.backup_bridge.clone();
-        let rb = self.registry_bridge.clone();
-        let mb = self.memory_bridge.clone();
-        let kb = self.kanban_bridge.clone();
-        let mxb = self.matrix_bridge.clone();
-        let mdb = self.media_bridge.clone();
-        let tb = self.training_bridge.clone();
-        let cpb = self.companies_bridge.clone();
-        let rsb = self.research_bridge.clone();
-        let dpb = self.docproc_bridge.clone();
-        let rpb = self.replica_bridge.clone();
-        let sb = self.skills_bridge.clone();
-        match kind {
-            WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(id, bridge)),
-            WindowKind::Pods => Box::new(PodsWindow::new(id, bridge)),
-            WindowKind::Wallet => {
-                let mut w = WalletWindow::new(id, bridge);
-                if let Some(b) = wb {
-                    w = w.with_wallet_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Registry => {
-                let mut w = RegistryWindow::new(id, bridge);
-                if let Some(b) = rb {
-                    w = w.with_registry_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Backup => {
-                let mut w = BackupWindow::new(id, bridge);
-                if let Some(b) = bb {
-                    w = w.with_backup_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Curator => Box::new(CuratorWindow::new(id, bridge)),
-            WindowKind::Configuration => {
-                let mut w = ConfigurationWindow::new(id, bridge);
-                if let Some(b) = cb {
-                    w = w.with_config_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Terminal => Box::new(TerminalWindow::new(id, bridge)),
-            WindowKind::Editor => Box::new(EditorWindow::new(id, bridge)),
-            WindowKind::Training => {
-                let mut w = TrainingWindow::new(id, bridge);
-                if let Some(b) = tb {
-                    w = w.with_training_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Media => {
-                let mut w = MediaWindow::new(id, bridge);
-                if let Some(b) = mdb {
-                    w = w.with_media_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Skills => {
-                let mut w = SkillsWindow::new(id, bridge);
-                if let Some(b) = rb {
-                    w = w.with_registry_bridge(b);
-                }
-                if let Some(b) = sb {
-                    w = w.with_skills_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Research => {
-                let mut w = ResearchWindow::new(id, bridge);
-                if let Some(b) = rsb {
-                    w = w.with_research_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Docproc => {
-                let mut w = DocprocWindow::new(id, bridge);
-                if let Some(b) = dpb {
-                    w = w.with_docproc_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Replica => {
-                let mut w = ReplicaWindow::new(id, bridge);
-                if let Some(b) = rpb {
-                    w = w.with_replica_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Matrix => {
-                let mut w = MatrixWindow::new(id, bridge);
-                if let Some(b) = mxb {
-                    w = w.with_matrix_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Memory => {
-                let mut w = MemoryWindow::new(id, bridge);
-                if let Some(b) = mb {
-                    w = w.with_memory_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Companies => {
-                let mut w = CompaniesWindow::new(id, bridge);
-                if let Some(b) = cpb {
-                    w = w.with_companies_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Kanban => {
-                let mut w = KanbanWindow::new(id, bridge);
-                if let Some(b) = kb {
-                    w = w.with_kanban_bridge(b);
-                }
-                Box::new(w)
-            }
-            WindowKind::Sidebar => Box::new(SidebarWindow::new(id, svc, bridge)),
-            WindowKind::Logo => Box::new(LogoWindow::new(id)),
-            WindowKind::Chat => Box::new(ChatWindow::new(
-                id,
-                self.bridge.agent_name(),
-                self.bridge.model_name(),
-                svc,
-                bridge,
-            )),
-        }
+        let ctx = base_factory_context(
+            self.service_context.clone(),
+            self.bridge.clone(),
+            &self.bridges,
+        );
+        crate::window_catalog::create_window(kind, id, &ctx)
     }
 
     fn render_help_overlay(&self, f: &mut Frame, area: Rect) {
@@ -1123,8 +956,13 @@ impl Workspace {
 
     fn extract_split(node: &SplitNode) -> crate::layout::SavedSplit {
         match node {
-            SplitNode::Leaf(window) => crate::layout::SavedSplit::Leaf(crate::layout::SavedLeaf {
-                kind: crate::layout::kind_to_string(window.kind()),
+            SplitNode::Leaf(Some(window)) => {
+                crate::layout::SavedSplit::Leaf(crate::layout::SavedLeaf {
+                    kind: crate::layout::kind_to_string(window.kind()),
+                })
+            }
+            SplitNode::Leaf(None) => crate::layout::SavedSplit::Leaf(crate::layout::SavedLeaf {
+                kind: crate::layout::kind_to_string(WindowKind::Chat),
             }),
             SplitNode::Horizontal { left, right, ratio } => crate::layout::SavedSplit::Horizontal {
                 left: Box::new(Self::extract_split(left)),
@@ -1149,7 +987,7 @@ impl Workspace {
     fn restore_split(&self, saved: &crate::layout::SavedSplit) -> SplitNode {
         match saved {
             crate::layout::SavedSplit::Leaf(leaf) => {
-                SplitNode::Leaf(self.build_window(leaf.clone()))
+                SplitNode::Leaf(Some(self.build_window(leaf.clone())))
             }
             crate::layout::SavedSplit::Horizontal { left, right, ratio } => SplitNode::Horizontal {
                 left: Box::new(self.restore_split(left)),
@@ -1197,23 +1035,5 @@ impl Workspace {
         };
         self.status_bar.context_pressure = self.bridge.context_pressure();
         self.status_bar.model = self.bridge.model_name().to_string();
-    }
-}
-
-/// Minimal window used only as a temporary placeholder during split operations.
-struct DummyWindow(WindowId);
-impl Window for DummyWindow {
-    fn id(&self) -> WindowId {
-        self.0
-    }
-    fn title(&self) -> &str {
-        ""
-    }
-    fn kind(&self) -> WindowKind {
-        WindowKind::Chat
-    }
-    fn render(&self, _: &mut Frame, _: Rect, _: bool) {}
-    fn handle_key(&mut self, _: KeyEvent) -> bool {
-        false
     }
 }

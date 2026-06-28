@@ -30,9 +30,6 @@
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::new_without_default)]
 #![allow(clippy::useless_format)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(dead_code)]
 #![allow(clippy::needless_borrow)]
 
 mod keybindings;
@@ -41,6 +38,7 @@ mod splash;
 mod status_bar;
 mod tab;
 mod window;
+mod window_catalog;
 mod workspace;
 
 pub mod bridges;
@@ -50,7 +48,7 @@ pub mod mcp_tabbed;
 pub mod widgets;
 pub mod windows;
 
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use ratatui::Terminal;
 use ratatui::prelude::CrosstermBackend;
 use std::io::Stdout;

@@ -355,7 +355,6 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     })
 }
 
-
 /// Resolve the display name for the currently active provider.
 pub(crate) fn provider_display_name(config: &InferenceConfig) -> &'static str {
     match config.default_provider {
@@ -372,11 +371,13 @@ pub(crate) fn provider_display_name(config: &InferenceConfig) -> &'static str {
 async fn select_model() -> Result<String, OnboardingError> {
     let config = InferenceConfig::from_env();
     let default_model = config.default_model.clone();
-    let provider_name = provider_display_name(&config);
 
     // Run the discovery pipeline (HF → classify → dedup → fallback)
     let (models, source_label) = discovery::discover_models(&config).await;
-    let is_dynamic = models.first().map(|m| m.source == discovery::ModelSource::Dynamic).unwrap_or(false);
+    let is_dynamic = models
+        .first()
+        .map(|m| m.source == discovery::ModelSource::Dynamic)
+        .unwrap_or(false);
 
     let display_source = if is_dynamic {
         format!("via {}", source_label)
@@ -394,11 +395,11 @@ async fn select_model() -> Result<String, OnboardingError> {
 
     let mut idx = 1usize;
     for family in &families {
-        let family_models: Vec<&discovery::OnboardingModel> = models
-            .iter()
-            .filter(|m| &m.family == family)
-            .collect();
-        if family_models.is_empty() { continue; }
+        let family_models: Vec<&discovery::OnboardingModel> =
+            models.iter().filter(|m| &m.family == family).collect();
+        if family_models.is_empty() {
+            continue;
+        }
 
         println!("  \x1b[1m{}\x1b[0m", discovery::shorten_for_display(family));
         for m in &family_models {
@@ -712,7 +713,6 @@ fn list_replicants(
             })
         })
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -5,11 +5,12 @@
 use crate::bridges::{RegistryDataBridge, SkillsDataBridge};
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
+use crate::widgets::headers;
 use crate::window::{Window, WindowId, WindowKind};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use std::sync::Arc;
@@ -165,9 +166,9 @@ impl McpTabbedWindow for SkillsWindow {
     }
     fn render_data_tab(&self, f: &mut Frame, area: Rect) {
         let mut lines = vec![
-            Line::from(Span::styled(
-                format!("── Skills: {} ([ ] to navigate) ──", self.section.title()),
-                Style::default().fg(Color::Cyan).bold(),
+            headers::section(format!(
+                "Skills: {} ([ ] to navigate)",
+                self.section.title()
             )),
             Line::from(""),
         ];

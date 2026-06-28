@@ -5,10 +5,11 @@
 
 use std::sync::Arc;
 
+use crate::widgets::headers;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
@@ -39,10 +40,7 @@ impl Window for CnsMonitorWindow {
 
     fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
         let mut lines: Vec<Line> = Vec::new();
-        lines.push(Line::from(Span::styled(
-            "── CNS Health ──",
-            Style::default().fg(Color::Cyan).bold(),
-        )));
+        lines.push(headers::section("CNS Health"));
         lines.push(Line::from(""));
 
         let alerts = self.bridge.cns_alert_count();

@@ -8,11 +8,12 @@ use std::sync::Arc;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
 use crate::repl_bridge::ReplBridge;
+use crate::widgets::headers;
 use crate::window::{Window, WindowId, WindowKind};
 
 pub struct PodsWindow {
@@ -40,10 +41,7 @@ impl Window for PodsWindow {
     fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
         let (curator, replicant, team) = self.bridge.pod_counts();
         let lines = vec![
-            Line::from(Span::styled(
-                "── Pod Deployment Status ──",
-                Style::default().fg(Color::Cyan).bold(),
-            )),
+            headers::section("Pod Deployment Status"),
             Line::from(""),
             Line::from(Span::styled(
                 "Tier 1 — CuratorPod:",

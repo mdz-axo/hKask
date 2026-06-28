@@ -11,6 +11,7 @@
 
 use std::sync::Arc;
 
+use crate::widgets::headers;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -85,15 +86,7 @@ impl SidebarWindow {
     }
 
     fn render_cns_section(&self) -> Vec<Line<'static>> {
-        let mut lines = vec![
-            Line::from(Span::styled(
-                "── CNS Health ──",
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            )),
-            Line::from(""),
-        ];
+        let mut lines = vec![headers::section("CNS Health"), Line::from("")];
         let alerts = self.bridge.cns_alert_count();
         if alerts > 0 {
             lines.push(Line::from(format!("  Active alerts: {}", alerts)));
@@ -120,12 +113,7 @@ impl SidebarWindow {
     fn render_mcp_section(&self) -> Vec<Line<'static>> {
         let (loaded, _total) = self.bridge.mcp_status();
         vec![
-            Line::from(Span::styled(
-                "── MCP Servers ──",
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            )),
+            headers::section("MCP Servers"),
             Line::from(""),
             Line::from(format!("  Loaded: {}", loaded)),
             Line::from("  Use /mcp start all to load."),
@@ -135,12 +123,7 @@ impl SidebarWindow {
     fn render_pods_section(&self) -> Vec<Line<'static>> {
         let (curator, replicant, team) = self.bridge.pod_counts();
         vec![
-            Line::from(Span::styled(
-                "── Pods ──",
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            )),
+            headers::section("Pods"),
             Line::from(""),
             Line::from(format!(
                 "  CuratorPod:    {}",
@@ -153,12 +136,7 @@ impl SidebarWindow {
 
     fn render_context_section(&self) -> Vec<Line<'static>> {
         vec![
-            Line::from(Span::styled(
-                "── Context Window ──",
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            )),
+            headers::section("Context Window"),
             Line::from(""),
             Line::from("  Context pressure: 12%"),
             Line::from("  Auto-condense:    on (87.5%)"),
@@ -177,12 +155,7 @@ impl SidebarWindow {
 
     fn render_keybindings_section(&self) -> Vec<Line<'static>> {
         vec![
-            Line::from(Span::styled(
-                "── Keybindings ──",
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            )),
+            headers::section("Keybindings"),
             Line::from(""),
             Line::from("  Global:"),
             Line::from("  ^Q  Quit         ^T  New tab"),

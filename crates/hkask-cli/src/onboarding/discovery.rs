@@ -18,18 +18,11 @@ use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Deserialize, Clone)]
 struct HfModel {
-    #[serde(rename = "_id")]
-    id: Option<String>,
     #[serde(rename = "modelId")]
     model_id: Option<String>,
     author: Option<String>,
     #[serde(rename = "lastModified")]
     last_modified: Option<String>,
-    #[serde(rename = "pipeline_tag")]
-    pipeline_tag: Option<String>,
-    tags: Option<Vec<String>>,
-    downloads: Option<u64>,
-    likes: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -54,7 +47,6 @@ pub(crate) struct DiscoveredModel {
     pub model_id: String,
     pub family: String,
     pub kind: ModelKind,
-    pub last_updated: String,
     pub followers: u64,
     pub description: String,
 }
@@ -74,7 +66,6 @@ pub(crate) struct OnboardingModel {
     pub label: String,
     pub full_id: String,
     pub description: String,
-    pub provider: ProviderId,
     pub score: u32,
     pub source: ModelSource,
     pub kind: ModelKind,
@@ -334,7 +325,7 @@ pub(crate) async fn discover_models(config: &InferenceConfig) -> (Vec<Onboarding
     // ── Layer 1-2: HuggingFace pipeline ───────────────────────────────
     eprintln!("  Discovering models via HuggingFace...");
     let hf_results: Vec<DiscoveredModel> = if let Ok(client) = config.build_client() {
-        run_hf_pipeline(&client, config).await.unwrap_or_default()
+        run_hf_pipeline(&client).await.unwrap_or_default()
     } else {
         Vec::new()
     };
@@ -347,7 +338,7 @@ pub(crate) async fn discover_models(config: &InferenceConfig) -> (Vec<Onboarding
     if !hf_results.is_empty() {
         let provider_models = router.list_models().await;
         if !provider_models.is_empty() {
-            let cross_ref = cross_reference_with_provider(&hf_results, &provider_models, config);
+            let cross_ref = cross_reference_with_provider(&hf_results, &provider_models);
             if !cross_ref.is_empty() {
                 return (
                     cross_ref,
@@ -363,7 +354,7 @@ pub(crate) async fn discover_models(config: &InferenceConfig) -> (Vec<Onboarding
     // ── Fallback 1: Provider API directly ─────────────────────────────
     let router_models = router.list_models().await;
     if !router_models.is_empty() {
-        let models = build_from_router(router_models, config);
+        let models = build_from_router(router_models);
         if !models.is_empty() {
             return (
                 models,
@@ -387,10 +378,7 @@ pub(crate) async fn discover_models(config: &InferenceConfig) -> (Vec<Onboarding
 }
 
 /// Run the HuggingFace pipeline: fetch, filter, classify, deduplicate.
-async fn run_hf_pipeline(
-    client: &reqwest::Client,
-    config: &InferenceConfig,
-) -> Result<Vec<DiscoveredModel>, String> {
+async fn run_hf_pipeline(client: &reqwest::Client) -> Result<Vec<DiscoveredModel>, String> {
     // Layer 1: Fetch recent text-gen models from HF
     let hf_models = fetch_hf_models(client).await?;
     if hf_models.is_empty() {
@@ -458,10 +446,9 @@ async fn run_hf_pipeline(
         }
 
         // Classify
-        let kind = match classify_and_score(model_id) {
-            Some(k) => k,
-            None => continue,
-        };
+        if classify_and_score(model_id).is_none() {
+            continue;
+        }
 
         let family = author_to_family(author, model_id);
         by_family.entry(family).or_default().push((*m).clone());
@@ -517,7 +504,6 @@ async fn run_hf_pipeline(
                 model_id: hf_id.to_string(),
                 family: family.clone(),
                 kind: ModelKind::Thinking,
-                last_updated: m.last_modified.clone().unwrap_or_default(),
                 followers,
                 description: format!("⚡ Thinking — {}", m.model_id.as_deref().unwrap_or("")),
             });
@@ -529,7 +515,6 @@ async fn run_hf_pipeline(
                 model_id: hf_id.to_string(),
                 family: family.clone(),
                 kind: ModelKind::Instruct,
-                last_updated: m.last_modified.clone().unwrap_or_default(),
                 followers,
                 description: format!("Instruct — {}", m.model_id.as_deref().unwrap_or("")),
             });
@@ -577,17 +562,14 @@ pub(crate) fn shorten_for_display(id: &str) -> String {
 
 // ── Fallback builders ──────────────────────────────────────────────────────
 
-fn build_from_router(
-    models: Vec<RouterModelEntry>,
-    config: &InferenceConfig,
-) -> Vec<OnboardingModel> {
+fn build_from_router(models: Vec<RouterModelEntry>) -> Vec<OnboardingModel> {
     // Classify and deduplicate by family
     let mut by_family: HashMap<String, Vec<RouterModelEntry>> = HashMap::new();
 
     for m in models {
-        let Some((kind, _score)) = classify_and_score(&m.model) else {
+        if classify_and_score(&m.model).is_none() {
             continue;
-        };
+        }
         let family = extract_family_from_id(&m.model);
         by_family.entry(family).or_default().push(m);
     }
@@ -648,7 +630,6 @@ fn build_onboarding_entry(m: &RouterModelEntry, family: &str, kind: ModelKind) -
         label: shorten_for_display(&m.prefixed_name),
         full_id: m.prefixed_name.clone(),
         description: format!("{} — {}", kind_label, m.model),
-        provider: m.provider,
         score,
         source: ModelSource::Dynamic,
         kind,
@@ -749,7 +730,6 @@ fn build_fallback(config: &InferenceConfig) -> Vec<OnboardingModel> {
                 },
                 desc
             ),
-            provider: config.default_provider,
             score: 0,
             source: ModelSource::Fallback,
             kind: kind.clone(),
@@ -844,7 +824,6 @@ mod tests {
 fn cross_reference_with_provider(
     hf_models: &[DiscoveredModel],
     provider_models: &[RouterModelEntry],
-    config: &InferenceConfig,
 ) -> Vec<OnboardingModel> {
     if provider_models.is_empty() {
         return Vec::new();
@@ -885,7 +864,6 @@ fn cross_reference_with_provider(
                 label: display,
                 full_id: entry.prefixed_name.clone(),
                 description: d.description.clone(),
-                provider: config.default_provider,
                 score: score as u32,
                 source: ModelSource::Dynamic,
                 kind: d.kind.clone(),

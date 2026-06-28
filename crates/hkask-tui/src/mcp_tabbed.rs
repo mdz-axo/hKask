@@ -7,10 +7,11 @@
 //!
 //! Toggle between tabs with the `Tab` key.
 
+use crate::widgets::headers;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::{Margin, Rect};
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
@@ -158,10 +159,10 @@ pub trait McpTabbedWindow: Window {
         let mut lines: Vec<Line> = Vec::new();
 
         // Header
-        lines.push(Line::from(Span::styled(
-            format!("── {} Chat (Tab to switch) ──", mcp_name),
-            Style::default().fg(Color::Magenta).bold(),
-        )));
+        lines.push(headers::section_with_color(
+            format!("{} Chat (Tab to switch)", mcp_name),
+            Color::Magenta,
+        ));
         lines.push(Line::from(Span::styled(
             format!("   Tool scope: {} MCP server", mcp_name),
             Style::default().fg(Color::DarkGray),

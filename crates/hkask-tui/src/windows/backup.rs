@@ -9,12 +9,13 @@ use std::sync::Arc;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
 use crate::bridges::BackupDataBridge;
 use crate::repl_bridge::ReplBridge;
+use crate::widgets::headers;
 use crate::window::{Window, WindowId, WindowKind};
 
 pub struct BackupWindow {
@@ -51,13 +52,7 @@ impl Window for BackupWindow {
     }
 
     fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
-        let mut lines = vec![
-            Line::from(Span::styled(
-                "── Backup Operations ──",
-                Style::default().fg(Color::Cyan).bold(),
-            )),
-            Line::from(""),
-        ];
+        let mut lines = vec![headers::section("Backup Operations"), Line::from("")];
 
         if let Some(ref bk) = self.backup {
             let cfg = bk.config();

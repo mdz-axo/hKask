@@ -5,11 +5,12 @@
 use crate::bridges::CompaniesDataBridge;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
+use crate::widgets::headers;
 use crate::window::{Window, WindowId, WindowKind};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use std::sync::Arc;
@@ -163,12 +164,9 @@ impl McpTabbedWindow for CompaniesWindow {
     }
     fn render_data_tab(&self, f: &mut Frame, area: Rect) {
         let mut lines = vec![
-            Line::from(Span::styled(
-                format!(
-                    "── Companies: {} ([ ] to navigate) ──",
-                    self.section.title()
-                ),
-                Style::default().fg(Color::Cyan).bold(),
+            headers::section(format!(
+                "Companies: {} ([ ] to navigate)",
+                self.section.title()
             )),
             Line::from(""),
         ];
@@ -225,7 +223,7 @@ impl McpTabbedWindow for CompaniesWindow {
                     }
                 }
                 CompanySection::Profile => {
-                    if let Some(ref query) = comp.last_searched() {
+                    if let Some(ref _query) = comp.last_searched() {
                         if let Some(ref c) = results.first() {
                             let symbol = c.symbol.clone();
                             let name = c.name.clone();

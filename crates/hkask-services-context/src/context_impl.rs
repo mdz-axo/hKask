@@ -258,6 +258,15 @@ impl AgentService {
         self.wallet_store.as_ref()
     }
 
+    /// Access the wallet gas calibrator (background conversion-rate loop).
+    ///
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — exposes calibration loop handle
+    /// pre:  self must be fully built
+    /// post: returns Some(&`Arc<WalletGasCalibrator>`) if wallet configured; None otherwise
+    pub fn wallet_gas_calibrator(&self) -> Option<&Arc<hkask_cns::WalletGasCalibrator>> {
+        self.wallet_gas_calibrator.as_ref()
+    }
+
     // === Named accessors (replaces positional tuple group methods) ===
     // # REQ: P4 (Clear Boundaries)
     // # expect: "Service boundaries enforce OCAP membranes"

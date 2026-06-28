@@ -5,11 +5,12 @@
 use crate::bridges::TrainingDataBridge;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
+use crate::widgets::headers;
 use crate::window::{Window, WindowId, WindowKind};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use std::sync::Arc;
@@ -104,13 +105,7 @@ impl McpTabbedWindow for TrainingWindow {
         Self::default_render_chat_tab(&self.chat_state, "training", f, area);
     }
     fn render_data_tab(&self, f: &mut Frame, area: Rect) {
-        let mut lines = vec![
-            Line::from(Span::styled(
-                "── Training ([ ] Chat/Data) ──",
-                Style::default().fg(Color::Cyan).bold(),
-            )),
-            Line::from(""),
-        ];
+        let mut lines = vec![headers::section("Training ([ ] Chat/Data)"), Line::from("")];
         if let Some(ref t) = self.training {
             let adapters = t.adapter_list();
             let deployments = t.deployment_list();

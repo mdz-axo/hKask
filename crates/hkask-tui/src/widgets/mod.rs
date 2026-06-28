@@ -90,3 +90,21 @@ pub mod alert_indicator {
         }
     }
 }
+
+/// Header helpers — consistent section title styling.
+pub mod headers {
+    use ratatui::style::{Color, Style};
+    use ratatui::text::{Line, Span};
+
+    pub fn section(title: impl Into<String>) -> Line<'static> {
+        section_with_color(title, Color::Cyan)
+    }
+
+    pub fn section_with_color(title: impl Into<String>, color: Color) -> Line<'static> {
+        let title = title.into();
+        Line::from(Span::styled(
+            format!("── {title} ──"),
+            Style::default().fg(color).bold(),
+        ))
+    }
+}
