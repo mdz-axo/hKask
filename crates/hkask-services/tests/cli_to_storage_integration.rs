@@ -71,7 +71,7 @@ async fn service_builds_with_in_memory_config() {
 
     // All store accessors should return valid references
     let _goal_repo = svc.goal_repo();
-    let _spec_store = svc.spec_store();
+
     let _user_store = svc.user_store();
     let _event_sink = svc.event_sink();
     let _sovereignty = svc.sovereignty();

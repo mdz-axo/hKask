@@ -488,18 +488,17 @@ async fn build_loops(
     // GixCasAdapter is held in LoopWiring for TUI/CLI access.
 
     Ok(LoopWiring {
-        Ok(LoopWiring {
-            loop_system,
-            pod_backup_adapter: gix_adapter,
-            cybernetics_loop,
-            inference_port,
-            episodic_storage,
-            semantic_storage,
-            tool_consumption_tx,
-            a2a_runtime,
-            curator_context: curator_context_for_loops,
-            federation_link_manager,
-        })
+        loop_system,
+        pod_backup_adapter: gix_adapter,
+        cybernetics_loop,
+        inference_port,
+        episodic_storage,
+        semantic_storage,
+        tool_consumption_tx,
+        a2a_runtime,
+        curator_context: curator_context_for_loops,
+        federation_link_manager,
+    })
 }
 
 /// MCP + pods: governed tool, dispatcher, pod manager, daemon handler.

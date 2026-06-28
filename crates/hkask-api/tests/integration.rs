@@ -9,10 +9,10 @@
 
 use hkask_api::routes::{
     A2ARegisterRequest, A2ARegisterResponse, ChatRequest, ChatResponse, CnsHealthResponse,
-    CnsVarietyResponse, CreatePodRequest, CreatePodResponse, GrantCapabilityRequest,
-    ListPodsResponse, ModelEntry, ModelListResponse, PodStatusResponse, SovereigntyStatusResponse,
-    SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse, TemplateResponse,
-    VarietyCounterResponse, WithdrawalFeeEstimateResponse,
+    CnsVarietyResponse, CreatePodRequest, CreatePodResponse, ListPodsResponse, ModelEntry,
+    ModelListResponse, PodStatusResponse, SovereigntyStatusResponse, SpecCoherenceResponse,
+    SpecListResponse, SpecWritingQualityResponse, TemplateResponse, VarietyCounterResponse,
+    WithdrawalFeeEstimateResponse,
 };
 use std::collections::HashMap;
 
@@ -405,12 +405,3 @@ fn template_response_serialization() {
 // ── Capability Types ──────────────────────────────────────────────────────
 
 #[test]
-fn grant_capability_request_serialization() {
-    let req = GrantCapabilityRequest {
-        capability: "tool:execute".to_string(),
-    };
-    let json = serde_json::to_string(&req).expect("GrantCapabilityRequest should serialize");
-    let parsed: GrantCapabilityRequest =
-        serde_json::from_str(&json).expect("GrantCapabilityRequest should deserialize");
-    assert_eq!(parsed.capability, "tool:execute");
-}

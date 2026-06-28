@@ -73,7 +73,7 @@ pub use sovereignty::{AccessCheckResponse, SovereigntyConsentResponse, Sovereign
 pub use spec::{
     SpecCaptureRequestDto, SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse,
 };
-pub use templates::{GrantCapabilityRequest, TemplateResponse};
+pub use templates::TemplateResponse;
 pub use wallet::{
     ApiKeyCreatedResponse, ApiKeyEntry, ApiKeyListResponse, ApiKeyRevokedResponse,
     CreateKeyRequest, WithdrawalFeeEstimateResponse,

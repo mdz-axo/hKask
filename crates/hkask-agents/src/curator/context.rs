@@ -195,6 +195,15 @@ impl CuratorContext {
         self.manifest_executor.read().await.clone()
     }
 
+    /// Check whether a ManifestExecutor has been set (late binding).
+    ///
+    /// Returns `true` if `set_manifest_executor()` has been called.
+    /// This is a lighter check than `manifest_executor()` — it avoids
+    /// cloning the `Arc`.
+    pub async fn has_manifest_executor(&self) -> bool {
+        self.manifest_executor.read().await.is_some()
+    }
+
     /// Issue a CuratorDirective through the OCAP-gated channel.
     ///
     /// Curation (Loop 5) governs Cybernetics (Loop 6) per the authority DAG,

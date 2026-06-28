@@ -41,7 +41,7 @@ use hkask_cns::types::loops::HkaskLoop;
 use hkask_cns::types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
 use hkask_cns::{
     CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, GovernedTool,
-    SeamWatcher, load_set_points,
+    SeamSummary, SeamWatcher, load_set_points,
 };
 use hkask_federation::sync::FederationLinkManager;
 use hkask_federation::sync::FederationSync;
@@ -102,19 +102,19 @@ pub struct AgentService {
     registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
 
     /// MCP runtime for tool discovery and invocation.
-    pub mcp_runtime: Arc<McpRuntime>,
+    mcp_runtime: Arc<McpRuntime>,
 
     /// MCP dispatcher for OCAP-protected tool invocation.
     mcp_dispatcher: Arc<McpDispatcher>,
 
     /// CNS runtime for variety sensing and algedonic alerts.
-    pub cns_runtime: Arc<RwLock<CnsRuntime>>,
+    cns_runtime: Arc<RwLock<CnsRuntime>>,
 
     /// Cybernetics loop for energy budget regulation.
     cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
 
     /// Loop system for 6-loop regulation.
-    pub loop_system: Arc<LoopSystem>,
+    loop_system: Arc<LoopSystem>,
 
     /// Inference port for model invocation.
     inference_port: Option<Arc<dyn InferencePort>>,
@@ -145,7 +145,7 @@ pub struct AgentService {
     /// Backed by `config.mcp_secret` — the inter-process HMAC key. Use this
     /// checker to derive tokens for any service operation that needs a verifiable
     /// capability token (e.g., `ChatService::chat()` memory access tokens).
-    pub capability_checker: Arc<hkask_capability::CapabilityChecker>,
+    capability_checker: Arc<hkask_capability::CapabilityChecker>,
 
     /// System WebID for signing capabilities.
     system_webid: WebID,
@@ -188,7 +188,7 @@ pub struct AgentService {
     /// background task (which calls `check_drift(&mut self)`) and the
     /// Curator (which reads summary data).
     /// None if the inventory JSON file is missing (non-fatal).
-    pub seam_watcher: Arc<RwLock<Option<SeamWatcher>>>,
+    seam_watcher: Arc<RwLock<Option<SeamWatcher>>>,
 
     /// Configuration used to build this context.
     config: ServiceConfig,
@@ -200,7 +200,7 @@ pub struct AgentService {
     /// Wallet store — shared between WalletManager, ApiKeyIssuer, and API key auth middleware.
     wallet_store: Option<Arc<WalletStore>>,
 
-    /// Wallet gas calibrator — runtime calibration of gas→rJoule conversion rate.
+    /// Wallet gas calibrator — background loop calibrates gas→rJoule exchange rate (P9).
     wallet_gas_calibrator: Option<Arc<hkask_cns::WalletGasCalibrator>>,
 
     /// Federation link manager — set when federation is enabled.
@@ -256,15 +256,6 @@ impl AgentService {
     /// post: returns Some(&`Arc<WalletStore>`) if wallet store configured; None otherwise
     pub fn wallet_store(&self) -> Option<&Arc<WalletStore>> {
         self.wallet_store.as_ref()
-    }
-
-    /// Access the wallet gas calibrator.
-    ///
-    /// \[P7\] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
-    /// pre:  self must be fully built
-    /// post: returns Some(&`Arc<WalletGasCalibrator>`) if wallet is configured; None otherwise
-    pub fn wallet_gas_calibrator(&self) -> Option<&Arc<hkask_cns::WalletGasCalibrator>> {
-        self.wallet_gas_calibrator.as_ref()
     }
 
     // === Named accessors (replaces positional tuple group methods) ===
@@ -347,10 +338,13 @@ impl AgentService {
     /// `.read().await` and then `.as_ref().map(|w| w.summary())`.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+    /// Fetch the current seam watcher summary, if available.
+    ///
     /// pre:  self must be fully built
-    /// post: returns ``&Arc<RwLock<Option<SeamWatcher>>>``
-    pub fn seam_watcher(&self) -> &Arc<RwLock<Option<SeamWatcher>>> {
-        &self.seam_watcher
+    /// post: returns Some(SeamSummary) if watcher is active; None otherwise
+    pub async fn seam_summary(&self) -> Option<SeamSummary> {
+        let guard = self.seam_watcher.read().await;
+        guard.as_ref().map(|w| w.summary())
     }
 
     // --- Governance ---
@@ -627,11 +621,10 @@ impl AgentService {
 
         if !missing.is_empty() {
             let grant_help = if agent_name == "curator" {
-                format!(
-                    "Grant consent with: kask sovereignty grant --category <category> --agent curator"
-                )
+                "Grant consent with: kask sovereignty grant --category <category> --agent curator"
+                    .to_string()
             } else {
-                format!("Grant consent with: kask sovereignty grant --category <category>")
+                "Grant consent with: kask sovereignty grant --category <category>".to_string()
             };
             return Err(ServiceError::ConsentDenied {
                 message: format!(

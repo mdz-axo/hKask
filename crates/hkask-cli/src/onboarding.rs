@@ -10,7 +10,7 @@
 //! After setup, derived secrets are stored in the OS keychain for future
 //! sessions and passed directly to `init_registry_with_secrets()`.
 
-use hkask_inference::{InferenceRouter, ProviderId};
+use hkask_inference::{FusionConfig, FusionMode, InferenceRouter, ProviderId};
 use hkask_services::{
     InferenceConfig, MatrixRegistrationResult, OnboardingService, ResolvedSecrets, ServiceConfig,
     ServiceError,
@@ -20,7 +20,8 @@ use thiserror::Error;
 
 use crate::repl::display;
 
-mod ui;
+mod discovery;
+pub(crate) mod ui;
 pub(crate) use ui::read_line;
 use ui::{prompt_choice, prompt_line, prompt_passphrase, prompt_passphrase_with_confirm};
 
@@ -354,387 +355,6 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     })
 }
 
-/// Keywords that identify non-LLM models to exclude from onboarding.
-/// Models matching these are embeddings, TTS, OCR, image/video gen, etc.
-const NON_LLM_KEYWORDS: &[&str] = &[
-    "embedding",
-    "bge-",
-    "gte-",
-    "e5-",
-    "stella",
-    "jina-embeddings",
-    "tts",
-    "speech",
-    "whisper",
-    "parakeet",
-    "zonos",
-    "chatterbox",
-    "ocr",
-    "document-",
-    "layout",
-    "paddleocr",
-    "got-ocr",
-    "flux",
-    "stable-diffusion",
-    "sd-",
-    "sdxl",
-    "imagen",
-    "dall-e",
-    "image",
-    "video",
-    "vision",
-    "clip",
-    "blip",
-    "reranker",
-    "bge-reranker",
-    "jina-reranker",
-    "voice",
-    "audio",
-    "melotts",
-    "fish-speech",
-    "upscale",
-    "segmentation",
-    "detection",
-    "depth",
-    "bgm",
-    "musicgen",
-];
-
-/// Keywords that indicate a model is small / not frontier-tier.
-/// Models matching these are excluded from the near-frontier list.
-const SMALL_MODEL_KEYWORDS: &[&str] = &[
-    "-1b",
-    "-3b",
-    "-7b",
-    "-8b",
-    "-0.5b",
-    "-1.5b",
-    "-0.6b",
-    "-mini",
-    "-tiny",
-    "-small",
-    "-nano",
-    "instruct-1b",
-    "instruct-3b",
-    "instruct-7b",
-    "instruct-8b",
-];
-
-/// Keywords that signal a model is likely frontier-tier.
-const FRONTIER_SIGNALS: &[(&str, u32)] = &[
-    ("pro", 20),
-    ("max", 18),
-    ("ultra", 18),
-    ("super", 15),
-    ("flash", 8),
-    ("large", 10),
-    ("preview", 5),
-];
-
-/// Static fallback model list — used ONLY when provider APIs are unreachable.
-/// These are never shown when dynamic discovery succeeds.
-const ONBOARDING_FALLBACK_MODELS: &[(&str, &str)] = &[
-    (
-        "DI/deepseek-ai/DeepSeek-V4-Pro",
-        "1.6T MoE, 1M ctx, top coding/reasoning",
-    ),
-    (
-        "DI/zai-org/GLM-5.2",
-        "744B MoE, MIT, leads open-weight GPQA",
-    ),
-    (
-        "DI/moonshotai/Kimi-K2.6",
-        "1T MoE, agent swarms, multimodal",
-    ),
-    (
-        "DI/MiniMaxAI/MiniMax-M3",
-        "1M ctx, multimodal, top SWE-Bench",
-    ),
-    (
-        "DI/Qwen/Qwen3.5-397B-A17B",
-        "397B MoE, 262K ctx, Apache 2.0",
-    ),
-    (
-        "DI/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B",
-        "120B MoE, 1M ctx",
-    ),
-    (
-        "DI/google/gemma-4-31B-it",
-        "31B dense, Apache 2.0, strong reasoning",
-    ),
-    (
-        "DI/deepseek-ai/DeepSeek-V4-Flash",
-        "284B MoE, efficient 1M ctx",
-    ),
-];
-
-/// Result of dynamic model discovery from configured providers.
-struct OnboardingModel {
-    label: String,
-    full_id: String,
-    description: String,
-    provider: ProviderId,
-    score: u32,
-}
-
-/// Fetch available models from configured cloud providers.
-///
-/// Queries each configured provider's model listing API (which already
-/// filters to models updated in the last 180 days for DeepInfra & KiloCode).
-/// Then applies dynamic heuristics to identify near-frontier open-weight LLMs:
-///
-/// 1. Exclude non-LLM models (embeddings, TTS, OCR, image gen, etc.)
-/// 2. Exclude very small models (< ~10B parameters)
-/// 3. Score remaining models by size signals and quality tier indicators
-/// 4. Return top-scoring models sorted by quality
-///
-/// Falls back to a static curated list only when no providers are reachable.
-async fn fetch_onboarding_models(config: &InferenceConfig) -> Vec<OnboardingModel> {
-    let router = InferenceRouter::new(config.clone());
-    let all_models = router.list_models().await;
-
-    if !all_models.is_empty() {
-        let mut scored: Vec<OnboardingModel> = all_models
-            .into_iter()
-            .filter(|m| is_likely_llm(&m.model))
-            .filter(|m| !is_likely_small_model(&m.model))
-            .map(|m| {
-                let score = compute_frontier_score(&m.model);
-                let desc = describe_model_dynamic(&m.model);
-                OnboardingModel {
-                    label: shorten_model_id(&m.model),
-                    full_id: m.prefixed_name,
-                    description: desc,
-                    provider: m.provider,
-                    score,
-                }
-            })
-            .collect();
-
-        // Sort by score descending, then alphabetically for ties
-        scored.sort_by(|a, b| b.score.cmp(&a.score).then_with(|| a.label.cmp(&b.label)));
-
-        // Deduplicate by full_id
-        let mut seen = std::collections::HashSet::new();
-        scored.retain(|m| seen.insert(m.full_id.clone()));
-
-        // Show top 12 to avoid overwhelming the user
-        scored.truncate(12);
-
-        if !scored.is_empty() {
-            return scored;
-        }
-    }
-
-    // Fallback: static curated list (API unreachable)
-    ONBOARDING_FALLBACK_MODELS
-        .iter()
-        .map(|(id, desc)| OnboardingModel {
-            label: shorten_model_id(id),
-            full_id: id.to_string(),
-            description: desc.to_string(),
-            provider: ProviderId::DeepInfra,
-            score: 0,
-        })
-        .collect()
-}
-
-/// Check if a model name suggests it's a text-generation LLM.
-fn is_likely_llm(model_id: &str) -> bool {
-    let lower = model_id.to_lowercase();
-    !NON_LLM_KEYWORDS.iter().any(|kw| lower.contains(kw))
-}
-
-/// Check if a model name suggests it's small (< ~10B parameters).
-fn is_likely_small_model(model_id: &str) -> bool {
-    let lower = model_id.to_lowercase();
-    SMALL_MODEL_KEYWORDS.iter().any(|kw| lower.contains(kw))
-}
-
-/// Compute a dynamic frontier quality score from the model name alone.
-///
-/// Scoring signals (all extracted dynamically, no hardcoded model names):
-/// - Parameter count in the name (e.g., "397B" → +39, "120B" → +12)
-/// - Quality tier keywords ("Pro" → +20, "Max" → +18, etc.)
-/// - Version numbers (e.g., "V4" → +4, "3.5" → +3)
-fn compute_frontier_score(model_id: &str) -> u32 {
-    let lower = model_id.to_lowercase();
-    let mut score: u32 = 10;
-
-    score += extract_param_score(&lower);
-
-    for (signal, points) in FRONTIER_SIGNALS {
-        if lower.contains(signal) {
-            score += points;
-        }
-    }
-
-    score += extract_version_score(&lower);
-
-    score
-}
-
-/// Extract a score from parameter count patterns in the model name.
-fn extract_param_score(lower: &str) -> u32 {
-    let mut best: u32 = 0;
-
-    for cap in lower.split(|c: char| !c.is_alphanumeric() && c != '.') {
-        if cap.ends_with('t') {
-            if let Ok(val) = cap.trim_end_matches('t').parse::<f64>() {
-                best = best.max((val * 100.0) as u32);
-            }
-        }
-        if cap.ends_with('b') {
-            if let Ok(val) = cap.trim_end_matches('b').parse::<f64>() {
-                best = best.max((val / 10.0) as u32);
-            }
-        }
-    }
-
-    best.min(200)
-}
-
-/// Extract a score from version number patterns.
-fn extract_version_score(lower: &str) -> u32 {
-    let mut score: u32 = 0;
-
-    for word in lower.split(|c: char| !c.is_alphanumeric()) {
-        if word.len() >= 2 && word.starts_with('v') {
-            if let Ok(val) = word[1..].parse::<u32>() {
-                score += val.min(10);
-            }
-        }
-    }
-
-    for part in lower.split(|c: char| c.is_whitespace() || c == '-' || c == '/') {
-        let bytes = part.as_bytes();
-        if bytes.len() >= 3
-            && bytes[0].is_ascii_digit()
-            && bytes[1] == b'.'
-            && bytes[2].is_ascii_digit()
-        {
-            let major = (bytes[0] - b'0') as u32;
-            score += major.min(10);
-        }
-    }
-
-    score
-}
-
-/// Shorten a model ID for display.
-/// "deepseek-ai/DeepSeek-V4-Pro" → "DeepSeek V4 Pro"
-fn shorten_model_id(id: &str) -> String {
-    let base = id.splitn(2, '/').nth(1).unwrap_or(id);
-    let base = base.splitn(2, '/').nth(1).unwrap_or(base);
-    let base = if base.is_empty() { id } else { base };
-
-    base.replace('-', " ")
-        .replace('_', " ")
-        .split_whitespace()
-        .map(|w| {
-            let mut c = w.chars();
-            match c.next() {
-                None => String::new(),
-                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-/// Generate a concise description for a model — fully dynamic.
-fn describe_model_dynamic(model_id: &str) -> String {
-    let lower = model_id.to_lowercase();
-    let mut parts: Vec<String> = Vec::new();
-
-    let param_str = extract_param_display(&lower);
-    if !param_str.is_empty() {
-        parts.push(param_str);
-    }
-
-    if extract_moe_active(&lower).is_some() {
-        parts.push("MoE".into());
-    }
-
-    for (signal, _) in FRONTIER_SIGNALS {
-        if lower.contains(signal) {
-            let tier = match *signal {
-                "pro" => "Pro tier",
-                "max" => "Max tier",
-                "ultra" => "Ultra tier",
-                "super" => "Super tier",
-                "flash" => "Flash (efficient)",
-                "large" => "Large",
-                _ => "",
-            };
-            if !tier.is_empty() && !parts.iter().any(|p| p.contains("tier")) {
-                parts.push(tier.into());
-                break;
-            }
-        }
-    }
-
-    if lower.contains("coder") || lower.contains("code") {
-        parts.push("coding-specialized".into());
-    }
-    if lower.contains("reasoning") || lower.contains("think") {
-        parts.push("reasoning".into());
-    }
-    if lower.contains("instruct") || lower.contains("-it") {
-        if !parts.iter().any(|p| p.contains("instruction")) {
-            parts.push("instruction-tuned".into());
-        }
-    }
-    if lower.contains("multimodal") || lower.contains("omni") {
-        parts.push("multimodal".into());
-    }
-
-    if parts.is_empty() {
-        "Open-weight LLM (recently updated)".into()
-    } else {
-        parts.join(", ")
-    }
-}
-
-/// Extract a human-readable parameter count from model name.
-fn extract_param_display(lower: &str) -> String {
-    let mut best: String = String::new();
-    let mut best_val: f64 = 0.0;
-
-    for cap in lower.split(|c: char| !c.is_alphanumeric() && c != '.') {
-        if cap.ends_with('t') {
-            if let Ok(val) = cap.trim_end_matches('t').parse::<f64>() {
-                if val > best_val {
-                    best_val = val;
-                    best = format!("{}T", val);
-                }
-            }
-        }
-        if cap.ends_with('b') {
-            if let Ok(val) = cap.trim_end_matches('b').parse::<f64>() {
-                let b_val = val / 1000.0;
-                if b_val > best_val {
-                    best_val = b_val;
-                    best = format!("{}B", val);
-                }
-            }
-        }
-    }
-
-    best
-}
-
-/// Extract MoE active parameter count if model name suggests MoE architecture.
-fn extract_moe_active(lower: &str) -> Option<u32> {
-    for part in lower.split(|c: char| !c.is_alphanumeric()) {
-        if part.len() >= 3 && part.starts_with('a') && part.ends_with('b') {
-            if let Ok(val) = part[1..part.len() - 1].parse::<u32>() {
-                return Some(val);
-            }
-        }
-    }
-    None
-}
 
 /// Resolve the display name for the currently active provider.
 fn provider_display_name(config: &InferenceConfig) -> &'static str {
@@ -748,56 +368,81 @@ fn provider_display_name(config: &InferenceConfig) -> &'static str {
     }
 }
 
-/// Let the user select a model — dynamically discovered from providers or fallback.
+/// Let the user select a model using the dynamic discovery pipeline.
 async fn select_model() -> Result<String, OnboardingError> {
     let config = InferenceConfig::from_env();
     let default_model = config.default_model.clone();
     let provider_name = provider_display_name(&config);
 
-    // Dynamically discover models from configured providers
-    let models = fetch_onboarding_models(&config).await;
-    let is_dynamic = !models.is_empty() && models[0].score > 0;
+    // Run the discovery pipeline (HF → classify → dedup → fallback)
+    let (models, source_label) = discovery::discover_models(&config).await;
+    let is_dynamic = models.first().map(|m| m.source == discovery::ModelSource::Dynamic).unwrap_or(false);
 
-    let source_label = if is_dynamic {
-        format!("dynamically discovered via {} (≤6 months)", provider_name)
+    let display_source = if is_dynamic {
+        format!("via {}", source_label)
     } else {
-        format!("curated fallback list ({} unreachable)", provider_name)
+        source_label
     };
 
-    println!("  \x1b[1mAvailable models\x1b[0m ({}):", source_label);
+    println!("  \x1b[1mAvailable models\x1b[0m ({}):", display_source);
     println!();
 
+    // Group by family for structured display
+    let mut families: Vec<String> = models.iter().map(|m| m.family.clone()).collect();
+    families.sort();
+    families.dedup();
+
     let mut idx = 1usize;
-    for m in &models {
-        let marker = if m.full_id == default_model || m.label == default_model {
-            " \x1b[33m(default)\x1b[0m"
-        } else {
-            ""
-        };
-        println!(
-            "    {}. \x1b[36m{}\x1b[0m{}  \x1b[2m{}\x1b[0m",
-            idx, m.label, marker, m.description
-        );
-        idx += 1;
+    for family in &families {
+        let family_models: Vec<&discovery::OnboardingModel> = models
+            .iter()
+            .filter(|m| &m.family == family)
+            .collect();
+        if family_models.is_empty() { continue; }
+
+        println!("  \x1b[1m{}\x1b[0m", discovery::shorten_for_display(family));
+        for m in &family_models {
+            let marker = if m.full_id == default_model {
+                " \x1b[33m(default)\x1b[0m"
+            } else {
+                ""
+            };
+            let kind_icon = match m.kind {
+                discovery::ModelKind::Thinking => "\x1b[35m🧠\x1b[0m",
+                discovery::ModelKind::Instruct => "\x1b[32m📋\x1b[0m",
+            };
+            println!(
+                "    {}. {} \x1b[36m{}\x1b[0m{}  \x1b[2m{}\x1b[0m",
+                idx, kind_icon, m.label, marker, m.description
+            );
+            idx += 1;
+        }
+        println!();
     }
 
-    // Offer fusion if OpenRouter is configured
-    let has_openrouter = !config.openrouter_api_key.is_empty();
-    if has_openrouter {
+    // Offer hKask fusion (our own orchestrator, provider-agnostic)
+    let fusion_configured = config.fusion.is_some();
+    if fusion_configured {
         let fusion = config
             .fusion
             .as_ref()
-            .map(|f| format!("openrouter/fusion ({})", f.description()))
-            .unwrap_or_else(|| "openrouter/fusion (kask defaults)".to_string());
-        println!();
-        println!(
-            "    {}. \x1b[1;33m⚡ Fusion: \x1b[36m{}\x1b[0m\x1b[0m",
-            idx, fusion
-        );
+            .map(|f| {
+                let mode = match f.mode {
+                    FusionMode::BestOfN => "Best-of-N",
+                    FusionMode::Synthesis => "Synthesis",
+                    FusionMode::Critique => "Critique",
+                    FusionMode::Deliberation => "Deliberation",
+                    FusionMode::PlanImplement => "Plan/Implement",
+                };
+                format!("⚡ Fusion [{}] — {}", mode, f.description())
+            })
+            .unwrap_or_else(|| "⚡ Fusion (kask defaults)".to_string());
+        println!("    {}. \x1b[1;33m{}\x1b[0m", idx, fusion);
         idx += 1;
+        println!();
     }
+
     let manual_idx = idx;
-    println!();
     println!("    {}. Enter a model name manually", manual_idx);
     println!();
 
@@ -813,11 +458,11 @@ async fn select_model() -> Result<String, OnboardingError> {
     let model_count = models.len();
     match choice {
         Ok(n) if n <= model_count => Ok(models[n - 1].full_id.clone()),
-        Ok(n) if has_openrouter && n == fusion_idx => Ok(config
+        Ok(n) if fusion_configured && n == fusion_idx => Ok(config
             .fusion
             .as_ref()
             .map(|f| f.model_id())
-            .unwrap_or_else(|| "openrouter/fusion".to_string())),
+            .unwrap_or_else(|| "fusion/default".to_string())),
         Ok(_) => {
             let input = prompt_line("  Model name:")?;
             if input.trim().is_empty() {
@@ -1068,114 +713,10 @@ fn list_replicants(
         })
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // ── is_likely_llm ─────────────────────────────────────────────────────
-
-    #[test]
-    fn llm_filter_passes_text_models() {
-        assert!(is_likely_llm("deepseek-ai/DeepSeek-V4-Pro"));
-        assert!(is_likely_llm("deepseek-v4-pro"));
-        assert!(is_likely_llm("zai-org/GLM-5.1"));
-        assert!(is_likely_llm("moonshotai/Kimi-K2.6"));
-    }
-
-    #[test]
-    fn llm_filter_rejects_embeddings() {
-        assert!(!is_likely_llm("BAAI/bge-m3"));
-        assert!(!is_likely_llm("intfloat/e5-mistral-7b-instruct"));
-    }
-
-    #[test]
-    fn llm_filter_rejects_image_gen() {
-        assert!(!is_likely_llm("black-forest-labs/FLUX.1-dev"));
-        assert!(!is_likely_llm("stabilityai/stable-diffusion-3.5-large"));
-    }
-
-    #[test]
-    fn llm_filter_passes_vision_language_models() {
-        assert!(is_likely_llm("qwen-vl-max"));
-        assert!(is_likely_llm("llava-13b"));
-    }
-
-    // ── is_likely_small_model ─────────────────────────────────────────────
-
-    #[test]
-    fn small_filter_rejects_tiny_models() {
-        assert!(is_likely_small_model("qwen3-8b"));
-        assert!(is_likely_small_model("llama-3b-instruct"));
-        assert!(is_likely_small_model("phi-3-mini"));
-    }
-
-    #[test]
-    fn small_filter_passes_large_models() {
-        assert!(!is_likely_small_model("deepseek-ai/DeepSeek-V4-Pro"));
-        assert!(!is_likely_small_model("Qwen/Qwen3.5-397B-A17B"));
-        assert!(!is_likely_small_model("google/gemma-4-31B-it"));
-    }
-
-    // ── parse_params ──────────────────────────────────────────────────────
-
-    #[test]
-    fn parse_billion_params() {
-        let p = parse_params("qwen3.5-397b-a17b");
-        assert_eq!(p.display, "397B");
-        assert_eq!(p.score, 39);
-    }
-
-    #[test]
-    fn parse_trillion_params() {
-        let p = parse_params("deepseek-v4-1.6t");
-        assert_eq!(p.display, "1.6T");
-        assert_eq!(p.score, 160);
-    }
-
-    #[test]
-    fn parse_no_params() {
-        let p = parse_params("claude-sonnet");
-        assert!(p.display.is_empty());
-        assert_eq!(p.score, 0);
-    }
-
-    // ── compute_frontier_score ────────────────────────────────────────────
-
-    #[test]
-    fn frontier_score_ranks_pro_over_flash() {
-        let pro = compute_frontier_score("deepseek-v4-pro", 160);
-        let flash = compute_frontier_score("deepseek-v4-flash", 28);
-        assert!(pro > flash, "Pro ({pro}) should outrank Flash ({flash})");
-    }
-
-    #[test]
-    fn frontier_score_ranks_large_over_small() {
-        let large = compute_frontier_score("qwen3.5-397b-a17b", 39);
-        let small = compute_frontier_score("qwen3-70b", 7);
-        assert!(large > small);
-    }
-
-    // ── shorten_model_id ──────────────────────────────────────────────────
-
-    #[test]
-    fn shorten_deepinfra_model() {
-        let result = shorten_model_id("DI/deepseek-ai/DeepSeek-V4-Pro");
-        assert_eq!(result, "Deepseek V4 Pro");
-    }
-
-    #[test]
-    fn shorten_kilocode_model() {
-        let result = shorten_model_id("KC/deepseek-v4-pro");
-        assert_eq!(result, "Deepseek V4 Pro");
-    }
-
-    #[test]
-    fn shorten_flat_model_id() {
-        let result = shorten_model_id("deepseek-v4-pro");
-        assert_eq!(result, "Deepseek V4 Pro");
-    }
-
-    // ── provider_display_name ─────────────────────────────────────────────
 
     #[test]
     fn provider_display_kilocode() {

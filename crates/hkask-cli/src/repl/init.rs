@@ -188,7 +188,7 @@ pub(super) fn init_repl_state(
     }
 
     // Register the CLI's inference loop on the shared loop system.
-    rt.block_on(ctx.loop_system.register_loop(inference_loop.clone()));
+    rt.block_on(ctx.loop_system().register_loop(inference_loop.clone()));
 
     // Propagate the project root to the filesystem server via env var.
     // The server resolves HKASK_PROJECT_ROOT at startup; if unset, it falls

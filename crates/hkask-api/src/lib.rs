@@ -4,7 +4,7 @@
 //! **Endpoints:**
 //! - `GET /api/templates` — List templates
 //! - `GET /api/templates/:id` — Get template
-//! - `POST /api/templates` — Register template
+
 //! - `GET /api/templates/search/:term` — Search templates by lexicon
 //! - `GET /api/mcp/servers` — List MCP servers
 //! - `GET /api/mcp/tools` — List tools
@@ -41,10 +41,9 @@ pub use error::ApiError;
 pub use routes::{A2ARegisterRequest, A2ARegisterResponse};
 pub use routes::{
     ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
-    CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry, ModelListResponse,
-    ModelSearchQuery, PodStatusResponse, SpecCoherenceResponse, SpecListResponse,
-    SpecWritingQualityResponse, TemplateResponse, VarietyCounterResponse,
-    WithdrawalFeeEstimateResponse,
+    CreatePodResponse, ListPodsResponse, ModelEntry, ModelListResponse, ModelSearchQuery,
+    PodStatusResponse, SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse,
+    TemplateResponse, VarietyCounterResponse, WithdrawalFeeEstimateResponse,
 };
 
 use axum::body::Body;

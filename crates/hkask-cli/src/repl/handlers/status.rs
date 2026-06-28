@@ -29,7 +29,7 @@ pub(crate) fn handle_status(
         gas_bar, gas_remaining, gas_cap, gas_pct
     );
     // Check CNS health
-    let cns_runtime = state.service_context.cns_runtime.clone();
+    let cns_runtime = state.service_context.cns_runtime().clone();
     let cns_health = rt.block_on(cns_runtime.read());
     let cns_status = match rt.block_on(async { cns_health.health().await }) {
         health if health.critical_count > 0 => {
@@ -49,11 +49,9 @@ pub(crate) fn handle_status(
     println!("  CNS:        {}", cns_status);
 
     // ── Seam Watcher status ──
-    let seam_lock = state.service_context.seam_watcher.clone();
-    let seam_guard = rt.block_on(seam_lock.read());
-    match seam_guard.as_ref() {
-        Some(watcher) => {
-            let summary = watcher.summary();
+    let seam_summary = rt.block_on(state.service_context.seam_summary());
+    match seam_summary {
+        Some(summary) => {
             let coverage_bar = if summary.coverage_pct >= 60.0 {
                 "\x1b[32m■\x1b[0m" // green
             } else if summary.coverage_pct >= 30.0 {
@@ -75,9 +73,8 @@ pub(crate) fn handle_status(
             println!("  Seam:     \x1b[2mdisabled\x1b[0m (no inventory available)");
         }
     }
-    drop(seam_guard);
     // Show LoopSystem registered loops
-    let loops = state.service_context.loop_system.clone();
+    let loops = state.service_context.loop_system().clone();
     let loop_count = rt.block_on(loops.registered_count());
     let loop_ids = rt.block_on(loops.registered_loop_ids());
     let ids_str = loop_ids
