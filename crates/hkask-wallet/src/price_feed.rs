@@ -88,7 +88,7 @@ const EODHD_BASE_URL: &str = "https://eodhd.com/api";
 /// EODHD (EOD Historical Data) price feed — primary canonical source.
 ///
 /// Uses the `/real-time` endpoint with `.CC` (Crypto Currency) exchange suffix.
-/// Requires `HKASK_EODHD_API_KEY` environment variable or keystore entry.
+/// Requires `HKASK_EODHD_API_KEY` environment variable.
 ///
 /// # Symbol mapping
 /// - Hedera → `HBAR-USD.CC`

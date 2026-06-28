@@ -64,7 +64,7 @@ pub fn generate_cli_markdown() -> String {
     );
     md.push_str("- `/model <query>` — Fuzzy search models (e.g., `/model deepseek` lists all DeepSeek models)\n");
     md.push_str(
-        "- Set `HKASK_FUSION_JUDGE` + `HKASK_FUSION_PANEL` to customize fusion (see .env.example)\n",
+        "- Set `HKASK_FUSION_JUDGE_MODEL` + `HKASK_FUSION_PANEL_MODELS` to customize fusion (see .env.example)\n",
     );
     md.push_str("- `/pods` — List agent pods\n");
     md.push_str("- `/templates` — List registered templates\n");

@@ -123,7 +123,7 @@ The `init_repl_state()` function assembles the REPL's dependency graph in order:
 2. Run onboarding if `is_first_run` — replicant creation and model selection for first-time OAuth sign-ins. Sets `is_first_run`.
 3. Resolve effective model: onboarding selection > persisted `ReplSettings` > CLI `--model` arg > hardcoded default (`deepseek-v4-pro`)
 4. Load persisted `ReplSettings` from per-user config (`~/.config/hkask/settings.json`)
-4a. Propagate condensation settings (`condense_pressure_threshold`, `condense_saliency_window`) to the condenser MCP server via `HKASK_CONDENSE_*` env vars so both condensation paths (auto-condense in `ChatService` and agent-initiated condenser tools) share the same user-configured thresholds
+4a. Propagate condensation settings (`condense_pressure_threshold`, `condense_saliency_window`) to the condenser MCP server via `HKASK_CONDENSE_PRESSURE_THRESHOLD` and `HKASK_CONDENSE_SALIENCY_WINDOW` so both condensation paths (auto-condense in `ChatService` and agent-initiated condenser tools) share the same user-configured thresholds
 5. Resolve Okapi base URL from server environment (`OKAPI_BASE_URL`) or default
 6. Initialize shared `InferencePort` for selected model + wrap in `InferenceLoop`
 7. Build `AgentService::build()` — creates CNS, loop system, governed tool, pod manager, MCP runtime

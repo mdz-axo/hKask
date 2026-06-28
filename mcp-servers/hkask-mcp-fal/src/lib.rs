@@ -90,16 +90,14 @@ pub async fn run(replicant: String, daemon_client: Option<DaemonClient>) -> Resu
         |ctx: ServerContext| {
             let fal_key = ctx
                 .credentials
-                .get("HKASK_FAL_KEY")
+                .get("HKASK_FAL_API_KEY")
                 .cloned()
-                .or_else(|| std::env::var("FAL_KEY").ok());
-
-            let fal_key = fal_key.unwrap_or_default();
+                .unwrap_or_default();
 
             if fal_key.is_empty() {
                 tracing::warn!(
                     target: "hkask.mcp.fal",
-                    "FAL_KEY not set — workflow execution will fail at runtime"
+                    "HKASK_FAL_API_KEY not set — workflow execution will fail at runtime"
                 );
             }
 
@@ -111,7 +109,7 @@ pub async fn run(replicant: String, daemon_client: Option<DaemonClient>) -> Resu
             })
         },
         vec![hkask_mcp::CredentialRequirement::optional(
-            "HKASK_FAL_KEY",
+            "HKASK_FAL_API_KEY",
             "Fal.ai API key for GPU model execution",
         )],
     )

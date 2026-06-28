@@ -14,7 +14,9 @@ pub(crate) fn handle_fusion(arg1: &str, _state: &mut super::super::ReplState) {
                     println!("  Judge:   \x1b[36m{}\x1b[0m", f.judge);
                     println!("  Panel:   \x1b[36m{}\x1b[0m", f.panel.join(", "));
                     println!();
-                    println!("  \x1b[2mConfigure:  HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL\x1b[0m");
+                    println!(
+                        "  \x1b[2mConfigure:  HKASK_FUSION_JUDGE_MODEL + HKASK_FUSION_PANEL_MODELS\x1b[0m"
+                    );
                     println!("  \x1b[2mDisable:    /fusion off\x1b[0m");
                 }
                 None => {
@@ -30,7 +32,7 @@ pub(crate) fn handle_fusion(arg1: &str, _state: &mut super::super::ReplState) {
         "off" => {
             // SAFETY: called in the REPL event loop, single-threaded.
             unsafe {
-                std::env::set_var("HKASK_FUSION_OFF", "1");
+                std::env::set_var("HKASK_FUSION_DISABLED", "1");
             }
             println!();
             println!("  Fusion mode \x1b[1;31mdisabled\x1b[0m for this session.");
@@ -57,7 +59,7 @@ pub(crate) fn handle_fusion(arg1: &str, _state: &mut super::super::ReplState) {
             }
             // SAFETY: called in the REPL event loop, single-threaded.
             unsafe {
-                std::env::remove_var("HKASK_FUSION_OFF");
+                std::env::remove_var("HKASK_FUSION_DISABLED");
             }
             println!();
             println!("  Fusion mode \x1b[1;32menabled\x1b[0m.");
@@ -73,9 +75,9 @@ pub(crate) fn handle_fusion(arg1: &str, _state: &mut super::super::ReplState) {
             println!("  \x1b[36m/fusion on\x1b[0m       Enable fusion (uses kask defaults)");
             println!("  \x1b[36m/fusion off\x1b[0m      Disable fusion");
             println!();
-            println!("  \x1b[2mConfigure panel:  HKASK_FUSION_JUDGE=deepseek-v4-pro\x1b[0m");
+            println!("  \x1b[2mConfigure panel:  HKASK_FUSION_JUDGE_MODEL=deepseek-v4-pro\x1b[0m");
             println!(
-                "  \x1b[2m                   HKASK_FUSION_PANEL=Kimi2.7,Qwen3.7 Max,...\x1b[0m"
+                "  \x1b[2m                   HKASK_FUSION_PANEL_MODELS=Kimi2.7,Qwen3.7 Max,...\x1b[0m"
             );
             println!();
         }

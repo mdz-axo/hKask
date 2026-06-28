@@ -52,13 +52,10 @@ impl WalletManager {
                                             tx_hash = %tx_hash,
                                             "Deposit processing failed"
                                         );
-                                        if let Ok(slot) = self.self_heal_hook.lock() {
-                                            if let Some(ref healer) = *slot {
-                                                healer.heal(
-                                                    "wallet.deposit.process",
-                                                    &err.to_string(),
-                                                );
-                                            }
+                                        if let Ok(slot) = self.self_heal_hook.lock()
+                                            && let Some(ref healer) = *slot
+                                        {
+                                            healer.heal("wallet.deposit.process", &err.to_string());
                                         }
                                     }
                                 }
@@ -99,17 +96,12 @@ impl WalletManager {
             None => return Ok(None),
         };
         for index in 0..=repair_max_index {
-            if let Ok(derived) = port.derive_deposit_address(index) {
-                if derived == address {
-                    self.store.store_deposit_address(
-                        wallet_id,
-                        address,
-                        index,
-                        chain,
-                        privacy_mode,
-                    )?;
-                    return Ok(Some(wallet_id));
-                }
+            if let Ok(derived) = port.derive_deposit_address(index)
+                && derived == address
+            {
+                self.store
+                    .store_deposit_address(wallet_id, address, index, chain, privacy_mode)?;
+                return Ok(Some(wallet_id));
             }
         }
         Ok(None)

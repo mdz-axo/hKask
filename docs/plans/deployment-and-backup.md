@@ -218,8 +218,8 @@ Type=simple
 User=hkask
 Group=hkask
 ExecStart=/usr/local/bin/kask daemon --host 0.0.0.0 --port 8080
-Environment=DI_API_KEY=${DEEPINFRA_KEY}
-Environment=HKASK_DATABASE_URL=/var/lib/hkask/hkask.db
+Environment=DI_API_KEY=${DI_API_KEY}
+Environment=HKASK_DB_PATH=/var/lib/hkask/hkask.db
 Environment=RUST_LOG=hkask=info
 Restart=on-failure
 RestartSec=10
@@ -251,7 +251,7 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 COPY --from=builder /app/target/release/kask /usr/local/bin/
 RUN useradd -m hkask
 USER hkask
-ENV HKASK_DATABASE_URL=/home/hkask/hkask.db
+ENV HKASK_DB_PATH=/home/hkask/hkask.db
 EXPOSE 8080
 CMD ["kask", "daemon", "--host", "0.0.0.0", "--port", "8080"]
 ```

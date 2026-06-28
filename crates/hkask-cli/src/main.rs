@@ -13,8 +13,8 @@ use std::time::Instant;
 
 /// Check fusion model configuration at startup.
 ///
-/// Fusion is opt-in — only active when HKASK_FUSION_JUDGE,
-/// HKASK_FUSION_KILO_TIER, or legacy vars are explicitly set.
+/// Fusion is opt-in — only active when HKASK_FUSION_JUDGE_MODEL
+/// and HKASK_FUSION_PANEL_MODELS are explicitly set.
 fn check_fusion_startup() {
     let config = InferenceConfig::from_env();
     let fusion = match &config.fusion {

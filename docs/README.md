@@ -145,6 +145,7 @@ Documents are classified by **verification regime**, reflecting different audien
 | [`lora-adapter-store-guide.md`](user-guides/lora-adapter-store-guide.md) | LoRA adapter store — lifecycle, routing, deployment |
 | [`COMPANIES-GUIDE.md`](user-guides/COMPANIES-GUIDE.md) | Company research and portfolio management |
 | [`ACP-ZED-CONFIGURATION.md`](user-guides/ACP-ZED-CONFIGURATION.md) | ACP IDE agent configuration |
+| [`ENVIRONMENT.md`](user-guides/ENVIRONMENT.md) | Environment variables index and naming clarifications |
 
 ---
 

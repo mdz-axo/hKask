@@ -16,10 +16,7 @@ use hkask_mcp_docproc::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use image::DynamicImage;
 
 fn inference_available() -> bool {
-    !std::env::var("DI_API_KEY")
-        .or_else(|_| std::env::var("DEEPINFRA_API_KEY"))
-        .unwrap_or_default()
-        .is_empty()
+    !std::env::var("DI_API_KEY").unwrap_or_default().is_empty()
 }
 
 fn pdftoppm_available() -> bool {

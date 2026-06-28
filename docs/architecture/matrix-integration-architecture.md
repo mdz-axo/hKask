@@ -1712,7 +1712,7 @@ kask matrix register --agent Alice-Smith
 # Verify: prompts for credential "FirstName-LastName/Passphrase"
 # Verify: MXID derived as @alice-smith:example.com (lowercase, spaces→hyphens)
 # Verify: POST to Conduit admin API succeeds (200)
-# Verify: agent credentials stored in keychain (HKASK_MATRIX_AGENT_USERNAME_Alice-Smith, HKASK_MATRIX_AGENT_PASSWORD_Alice-Smith)
+# Verify: agent credentials stored in keychain (key names: HKASK_MATRIX_AGENT_USERNAME_<AgentName>, HKASK_MATRIX_AGENT_PASSWORD_<AgentName>)
 # Verify: output includes labeled verification instructions
 ```
 

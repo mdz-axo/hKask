@@ -168,7 +168,7 @@ impl std::fmt::Debug for LoadedKey {
 | Variable | Default | Description |
 |---|---|---|
 | `HKASK_DEPOSIT_REPAIR_MAX_INDEX` | `5` | Max derivation index scanned when repairing corrupted deposit address mappings (bounded to 100). |
-| `HKASK_EODHD_API_KEY` | _none_ | EOD Historical Data API key for `EodhdPriceFeed` (required when `PriceFeedConfig::Eodhd` is selected). |
+| `HKASK_EODHD_API_KEY` | _none_ | EODHD API key required for the EODHD price feed source (including composite sources). |
 | `HEDERA_TREASURY_ACCOUNT` | _none_ | Enables Hedera chain execution when set (treasury account ID). If unset, Hedera chain port is not initialized. |
 | `HEDERA_MIRROR_NODE_URL` | `https://mainnet-public.mirrornode.hedera.com` | Hedera mirror node URL (used only when `HEDERA_TREASURY_ACCOUNT` is set). |
 | `HEDERA_CONSENSUS_NODE_URL` | `https://35.232.244.145:50211` | Hedera consensus node gRPC URL (used only when `HEDERA_TREASURY_ACCOUNT` is set). |

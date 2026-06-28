@@ -1,7 +1,7 @@
 //! fal.ai backend — cloud inference via OpenAI-compatible API.
 //!
 //! fal.ai exposes `/v1/chat/completions` for text and vision models.
-//! Requires Bearer token authentication via `FA_API_KEY`.
+//! Requires Bearer token authentication via `HKASK_FAL_API_KEY`.
 //!
 //! Model listing: fal.ai does not expose a standard `/v1/models` endpoint.
 //! Instead, a static catalog of known vision-capable models is used.
@@ -39,7 +39,7 @@ impl FalBackend {
     pub fn new(config: &InferenceConfig) -> Result<Self, InferenceError> {
         if config.fal_api_key.is_empty() {
             return Err(InferenceError::Connection(
-                "fal.ai API key not configured (set FA_API_KEY)".into(),
+                "fal.ai API key not configured (set HKASK_FAL_API_KEY)".into(),
             ));
         }
         let client = config

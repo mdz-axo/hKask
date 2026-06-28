@@ -132,7 +132,7 @@ pub struct FalClient {
 impl FalClient {
     /// Create a new Fal client.
     ///
-    /// `api_key` is the Fal API key (from `FAL_KEY` env var).
+    /// `api_key` is the Fal API key (from `HKASK_FAL_API_KEY` env var).
     pub fn new(api_key: String) -> Self {
         Self {
             api_key,

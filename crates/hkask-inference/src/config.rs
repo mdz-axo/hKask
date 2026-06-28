@@ -5,7 +5,7 @@
 //! - `DI_BASE_URL` — DeepInfra base URL (default: <https://api.deepinfra.com>)
 //! - `DI_API_KEY` — DeepInfra API key (required for DI provider)
 //! - `FA_BASE_URL` — fal.ai base URL (default: <https://api.fal.ai>)
-//! - `FA_API_KEY` — fal.ai API key (required for FA provider)
+//! - `HKASK_FAL_API_KEY` — fal.ai API key (required for FA provider)
 //! - `TG_BASE_URL` — Together AI base URL (default: <https://api.together.xyz>)
 //! - `TOGETHER_API_KEY` — Together AI API key (required for TG provider)
 //! - `OR_BASE_URL` — OpenRouter base URL (default: <https://openrouter.ai/api>)
@@ -132,11 +132,12 @@ impl ProviderId {
 //
 // # Environment Variables
 //
-// - `HKASK_FUSION_JUDGE` — judge/fuser model for fusion (e.g., "DI/deepseek-v4-pro")
-// - `HKASK_FUSION_PANEL` — comma-separated panel models (e.g., "OR/auto,KC/anthropic/claude-sonnet-4.5")
+// - `HKASK_FUSION_JUDGE_MODEL` — judge model for fusion (e.g., "DI/deepseek-v4-pro")
+// - `HKASK_FUSION_PANEL_MODELS` — comma-separated panel models (e.g., "OR/auto,KC/anthropic/claude-sonnet-4.5")
 // - `HKASK_FUSION_MODE` — judge deliberation mode (default: synthesis)
 // - `HKASK_FUSION_SKILLS` — comma-separated skill anchors for the judge
 // - `HKASK_FUSION_MAX_ROUNDS` — max rounds for deliberation mode (default: 5)
+// - `HKASK_FUSION_DISABLED` — set to "1" to disable fusion
 
 /// Judge deliberation mode for fusion orchestration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -409,7 +410,7 @@ impl InferenceConfig {
         let fal_queue_base_url = std::env::var("FA_QUEUE_BASE_URL")
             .unwrap_or_else(|_| "https://queue.fal.run".to_string());
 
-        let fal_api_key = resolve_api_key("FA_API_KEY");
+        let fal_api_key = resolve_api_key("HKASK_FAL_API_KEY");
 
         let together_base_url =
             std::env::var("TG_BASE_URL").unwrap_or_else(|_| "https://api.together.xyz".to_string());
@@ -428,7 +429,7 @@ impl InferenceConfig {
 
         let default_provider = resolve_default_provider();
 
-        // Fusion: parse structured env vars. Falls back to legacy HKASK_FUSION_MODEL.
+        // Fusion: parse structured env vars.
         let fusion = parse_fusion_config();
 
         Self {
@@ -514,14 +515,10 @@ fn parse_provider_code(raw: &str) -> ProviderId {
 
 /// Parse fusion configuration from environment variables.
 ///
-/// Priority: structured env vars (HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL) →
-///           legacy env vars (HKASK_FUSION_FUSER + HKASK_FUSION_MODELS) →
-///           legacy HKASK_FUSION_MODEL string.
-///
 /// Returns `None` if no fusion is configured.
 fn parse_fusion_config() -> Option<FusionConfig> {
-    // Explicit disable: HKASK_FUSION_OFF=1
-    if std::env::var("HKASK_FUSION_OFF")
+    // Explicit disable: HKASK_FUSION_DISABLED=1
+    if std::env::var("HKASK_FUSION_DISABLED")
         .map(|v| v == "1")
         .unwrap_or(false)
     {
@@ -543,9 +540,9 @@ fn parse_fusion_config() -> Option<FusionConfig> {
         .and_then(|v| v.parse().ok())
         .unwrap_or(5);
 
-    // Structured config: HKASK_FUSION_JUDGE + HKASK_FUSION_PANEL
-    if let Ok(judge) = std::env::var("HKASK_FUSION_JUDGE") {
-        let panel: Vec<String> = std::env::var("HKASK_FUSION_PANEL")
+    // Structured config: HKASK_FUSION_JUDGE_MODEL + HKASK_FUSION_PANEL_MODELS
+    if let Ok(judge) = std::env::var("HKASK_FUSION_JUDGE_MODEL") {
+        let panel: Vec<String> = std::env::var("HKASK_FUSION_PANEL_MODELS")
             .unwrap_or_default()
             .split(',')
             .map(|s| s.trim().to_string())
@@ -560,43 +557,6 @@ fn parse_fusion_config() -> Option<FusionConfig> {
                 max_rounds,
             });
         }
-    }
-
-    // Legacy env vars: HKASK_FUSION_GROUP + HKASK_FUSION_MODELS + HKASK_FUSION_FUSER
-    if let Ok(judge) =
-        std::env::var("HKASK_FUSION_FUSER").or_else(|_| std::env::var("HKASK_FUSION_GROUP"))
-    {
-        let panel: Vec<String> = std::env::var("HKASK_FUSION_MODELS")
-            .unwrap_or_default()
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-        if !judge.is_empty() && !panel.is_empty() {
-            return Some(FusionConfig {
-                judge,
-                panel,
-                mode,
-                skills,
-                max_rounds,
-            });
-        }
-    }
-
-    // Legacy: HKASK_FUSION_MODEL="OR/openrouter/fusion/kask"
-    if let Ok(legacy) = std::env::var("HKASK_FUSION_MODEL") {
-        let name = legacy
-            .strip_prefix("OR/openrouter/fusion/")
-            .or_else(|| legacy.strip_prefix("openrouter/fusion/"))
-            .unwrap_or(&legacy)
-            .to_string();
-        return Some(FusionConfig {
-            judge: "deepseek-v4-pro".to_string(),
-            panel: vec![name],
-            mode: FusionMode::Synthesis,
-            skills: Vec::new(),
-            max_rounds: 5,
-        });
     }
 
     None

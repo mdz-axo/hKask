@@ -105,7 +105,7 @@ impl OnboardingSession {
         {
             return Err(OnboardingError::Service(ServiceError::Config {
                 source: None,
-                message: "No inference provider configured. Set DEEPINFRA_API_KEY.".into(),
+                message: "No inference provider configured. Set DI_API_KEY.".into(),
             }));
         }
         Ok(())

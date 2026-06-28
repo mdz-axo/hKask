@@ -234,15 +234,15 @@ fn compute_quality_score(lower: &str) -> u32 {
 
     // Parameter count signals
     for cap in lower.split(|c: char| !c.is_alphanumeric() && c != '.') {
-        if cap.ends_with('t') {
-            if let Ok(val) = cap.trim_end_matches('t').parse::<f64>() {
-                score = score.max((val * 100.0) as u32);
-            }
+        if cap.ends_with('t')
+            && let Ok(val) = cap.trim_end_matches('t').parse::<f64>()
+        {
+            score = score.max((val * 100.0) as u32);
         }
-        if cap.ends_with('b') {
-            if let Ok(val) = cap.trim_end_matches('b').parse::<f64>() {
-                score = score.max((val / 10.0) as u32);
-            }
+        if cap.ends_with('b')
+            && let Ok(val) = cap.trim_end_matches('b').parse::<f64>()
+        {
+            score = score.max((val / 10.0) as u32);
         }
     }
 
@@ -262,10 +262,11 @@ fn compute_quality_score(lower: &str) -> u32 {
 
     // Version signals
     for word in lower.split(|c: char| !c.is_alphanumeric()) {
-        if word.len() >= 2 && word.starts_with('v') {
-            if let Ok(val) = word[1..].parse::<u32>() {
-                score += val.min(10);
-            }
+        if word.len() >= 2
+            && word.starts_with('v')
+            && let Ok(val) = word[1..].parse::<u32>()
+        {
+            score += val.min(10);
         }
     }
 
@@ -540,12 +541,11 @@ fn is_newer(a: &HfModel, b: &HfModel) -> bool {
 
 pub(crate) fn shorten_for_display(id: &str) -> String {
     // Strip provider prefix (DI/, KC/, etc.) and org prefix
-    let base = id.splitn(2, '/').nth(1).unwrap_or(id);
-    let base = base.splitn(2, '/').nth(1).unwrap_or(base);
+    let base = id.split_once('/').map(|x| x.1).unwrap_or(id);
+    let base = base.split_once('/').map(|x| x.1).unwrap_or(base);
     let base = if base.is_empty() { id } else { base };
 
-    base.replace('-', " ")
-        .replace('_', " ")
+    base.replace(['-', '_'], " ")
         .split_whitespace()
         .map(|w| {
             let mut c = w.chars();
@@ -606,10 +606,10 @@ fn build_from_router(models: Vec<RouterModelEntry>) -> Vec<OnboardingModel> {
         instruct.sort_by(|a, b| b.1.cmp(&a.1));
 
         if let Some((m, _)) = thinking.first() {
-            results.push(build_onboarding_entry(m, &family, ModelKind::Thinking));
+            results.push(build_onboarding_entry(m, family, ModelKind::Thinking));
         }
         if let Some((m, _)) = instruct.first() {
-            results.push(build_onboarding_entry(m, &family, ModelKind::Instruct));
+            results.push(build_onboarding_entry(m, family, ModelKind::Instruct));
         }
     }
 
@@ -738,6 +738,84 @@ fn build_fallback(config: &InferenceConfig) -> Vec<OnboardingModel> {
         .collect()
 }
 
+/// Cross-reference HF-discovered models against what's actually available
+/// from the configured provider. Uses normalized fuzzy matching because
+/// provider model IDs differ from HF IDs (e.g., KiloCode "deepseek-v4-pro"
+/// vs HF "deepseek-ai/DeepSeek-V4-Pro").
+fn cross_reference_with_provider(
+    hf_models: &[DiscoveredModel],
+    provider_models: &[RouterModelEntry],
+) -> Vec<OnboardingModel> {
+    if provider_models.is_empty() {
+        return Vec::new();
+    }
+
+    let provider_index: Vec<(&RouterModelEntry, String)> = provider_models
+        .iter()
+        .map(|m| (m, normalize_for_match(&m.model)))
+        .collect();
+
+    let mut results: Vec<OnboardingModel> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for d in hf_models {
+        let hf_norm = normalize_for_match(&d.model_id);
+
+        let best = provider_index.iter().find(|(_, norm)| {
+            norm.contains(&hf_norm)
+                || hf_norm.contains(norm.as_str())
+                || fuzzy_family_match(norm, &hf_norm, &d.family)
+        });
+
+        if let Some((entry, _)) = best {
+            // Deduplicate per family+kind
+            let key = format!("{}:{:?}", d.family, d.kind);
+            if !seen.insert(key) {
+                continue;
+            }
+
+            let display = shorten_for_display(&entry.prefixed_name);
+            let score = if d.kind == ModelKind::Thinking {
+                100
+            } else {
+                50
+            } + d.followers.min(50000) / 1000;
+
+            results.push(OnboardingModel {
+                label: display,
+                full_id: entry.prefixed_name.clone(),
+                description: d.description.clone(),
+                score: score as u32,
+                source: ModelSource::Dynamic,
+                kind: d.kind.clone(),
+                family: d.family.clone(),
+            });
+        }
+    }
+
+    results.sort_by(|a, b| b.score.cmp(&a.score));
+    results.truncate(24);
+    results
+}
+
+/// Normalize a model ID for fuzzy comparison: lowercase, strip separators.
+/// Dots are preserved because they carry semantic meaning in version numbers
+/// (e.g., "qwen3.5" ≠ "qwen35" — stripping dots causes false negatives).
+fn normalize_for_match(id: &str) -> String {
+    id.split('/')
+        .next_back()
+        .unwrap_or(id)
+        .to_lowercase()
+        .replace(['-', '_', ' '], "")
+}
+
+/// Check if two normalized IDs share the same model family.
+fn fuzzy_family_match(provider_norm: &str, hf_norm: &str, family: &str) -> bool {
+    let f = family.to_lowercase().replace(['-', '_'], "");
+    provider_norm.contains(&f) && hf_norm.contains(&f)
+    // Note: dots are NOT stripped here to match normalize_for_match behavior
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -815,82 +893,4 @@ mod tests {
         assert_eq!(classify_and_score("qwen3-8b"), None);
         assert_eq!(classify_and_score("phi-3-mini"), None);
     }
-}
-
-/// Cross-reference HF-discovered models against what's actually available
-/// from the configured provider. Uses normalized fuzzy matching because
-/// provider model IDs differ from HF IDs (e.g., KiloCode "deepseek-v4-pro"
-/// vs HF "deepseek-ai/DeepSeek-V4-Pro").
-fn cross_reference_with_provider(
-    hf_models: &[DiscoveredModel],
-    provider_models: &[RouterModelEntry],
-) -> Vec<OnboardingModel> {
-    if provider_models.is_empty() {
-        return Vec::new();
-    }
-
-    let provider_index: Vec<(&RouterModelEntry, String)> = provider_models
-        .iter()
-        .map(|m| (m, normalize_for_match(&m.model)))
-        .collect();
-
-    let mut results: Vec<OnboardingModel> = Vec::new();
-    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
-
-    for d in hf_models {
-        let hf_norm = normalize_for_match(&d.model_id);
-
-        let best = provider_index.iter().find(|(_, norm)| {
-            norm.contains(&hf_norm)
-                || hf_norm.contains(norm.as_str())
-                || fuzzy_family_match(norm, &hf_norm, &d.family)
-        });
-
-        if let Some((entry, _)) = best {
-            // Deduplicate per family+kind
-            let key = format!("{}:{:?}", d.family, d.kind);
-            if !seen.insert(key) {
-                continue;
-            }
-
-            let display = shorten_for_display(&entry.prefixed_name);
-            let score = if d.kind == ModelKind::Thinking {
-                100
-            } else {
-                50
-            } + d.followers.min(50000) / 1000;
-
-            results.push(OnboardingModel {
-                label: display,
-                full_id: entry.prefixed_name.clone(),
-                description: d.description.clone(),
-                score: score as u32,
-                source: ModelSource::Dynamic,
-                kind: d.kind.clone(),
-                family: d.family.clone(),
-            });
-        }
-    }
-
-    results.sort_by(|a, b| b.score.cmp(&a.score));
-    results.truncate(24);
-    results
-}
-
-/// Normalize a model ID for fuzzy comparison: lowercase, strip separators.
-/// Dots are preserved because they carry semantic meaning in version numbers
-/// (e.g., "qwen3.5" ≠ "qwen35" — stripping dots causes false negatives).
-fn normalize_for_match(id: &str) -> String {
-    id.split('/')
-        .last()
-        .unwrap_or(id)
-        .to_lowercase()
-        .replace(['-', '_', ' '], "")
-}
-
-/// Check if two normalized IDs share the same model family.
-fn fuzzy_family_match(provider_norm: &str, hf_norm: &str, family: &str) -> bool {
-    let f = family.to_lowercase().replace(['-', '_'], "");
-    provider_norm.contains(&f) && hf_norm.contains(&f)
-    // Note: dots are NOT stripped here to match normalize_for_match behavior
 }

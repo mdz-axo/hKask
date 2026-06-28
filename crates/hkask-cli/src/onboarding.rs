@@ -516,7 +516,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             let _ = keychain.store_by_key("TOGETHER_API_KEY", &config.together_api_key);
         }
         if has_fal {
-            let _ = keychain.store_by_key("FA_API_KEY", &config.fal_api_key);
+            let _ = keychain.store_by_key("HKASK_FAL_API_KEY", &config.fal_api_key);
         }
         return Ok(());
     }
@@ -563,7 +563,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
                 "KC" => "KILOCODE_API_KEY",
                 "DI" => "DI_API_KEY",
                 "TG" => "TOGETHER_API_KEY",
-                "FA" => "FA_API_KEY",
+                "FA" => "HKASK_FAL_API_KEY",
                 _ => {
                     println!(
                         "  \x1b[31m✗\x1b[0m Unknown provider '{}'. Use KC, DI, TG, or FA.",
@@ -720,8 +720,10 @@ mod tests {
 
     #[test]
     fn provider_display_kilocode() {
-        let mut config = InferenceConfig::default();
-        config.default_provider = ProviderId::KiloCode;
+        let config = InferenceConfig {
+            default_provider: ProviderId::KiloCode,
+            ..Default::default()
+        };
         assert_eq!(provider_display_name(&config), "KiloCode");
     }
 
