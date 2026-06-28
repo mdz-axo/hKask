@@ -1,9 +1,9 @@
 //! Consolidation API — user-triggered episodic→semantic consolidation + semantic cleanup
 
 use axum::{Extension, Json, extract::State};
+use hkask_memory::consolidation_ops;
 use hkask_ports::ConsolidationRequest;
 use hkask_services::ServiceError;
-use hkask_memory::consolidation;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -80,7 +80,7 @@ pub(crate) async fn consolidate(
 ) -> Result<Json<ConsolidateResponse>, ServiceErrorResponse> {
     // Rate-limit: Argon2id derivation is ~100ms CPU per request.
     // Prevent CPU DoS by enforcing a minimum interval between calls.
-    consolidation::check_rate_limit()?;
+    consolidation_ops::check_rate_limit()?;
 
     // Parse agent WebID
     let webid: WebID = req
@@ -92,7 +92,7 @@ pub(crate) async fn consolidate(
         })?;
 
     // Verify passphrase via ConsolidationService (keystore → key derivation → comparison)
-    let db_passphrase = consolidation::verify_passphrase(&req.passphrase)?;
+    let db_passphrase = consolidation_ops::verify_passphrase(&req.passphrase)?;
 
     // Build consolidation request
     let consolidation_request = ConsolidationRequest {
@@ -102,9 +102,9 @@ pub(crate) async fn consolidate(
     };
 
     // Execute via ConsolidationService (per-agent DB + pipeline assembly + consolidation)
-    let db_path = consolidation::db_path_for_agent(&webid);
+    let db_path = consolidation_ops::db_path_for_agent(&webid);
     let outcome =
-        consolidation::consolidate(&webid, &db_passphrase, &db_path, consolidation_request)?;
+        consolidation_ops::consolidate(&webid, &db_passphrase, &db_path, consolidation_request)?;
 
     Ok(Json(ConsolidateResponse {
         consolidated_count: outcome.consolidated_count,

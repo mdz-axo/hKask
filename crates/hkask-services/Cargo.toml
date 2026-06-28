@@ -61,7 +61,6 @@ async-trait.workspace = true
 tempfile.workspace = true
 trybuild = "1"
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
-hkask-test-harness = { path = "../hkask-test-harness" }
 
 [[test]]
 name = "cli_to_storage_integration"

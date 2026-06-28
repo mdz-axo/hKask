@@ -16,10 +16,6 @@ ignore = [
 ]
 
 [licenses]
-# GPL exceptions are documented below. auto_generate_cdp is a build-time code
-# generator (Chrome DevTools Protocol types) for headless_chrome. The GPL applies
-# to the generator tool itself, not to the code it produces — analogous to how
-# programs compiled with GCC are not subject to the GPL. Build-dependency only.
 # face_id and nom-exif lack Cargo.toml license fields but are functionally
 # permissive (face_id: BSD-style, nom-exif: MIT — verified via repo LICENSE files).
 allow = [
@@ -43,7 +39,6 @@ allow = [
 confidence-threshold = 0.8
 exceptions = [
     { crate = "ring", allow = ["ISC", "MIT", "OpenSSL"] },
-    { crate = "auto_generate_cdp", allow = ["GPL-3.0-or-later"] },
 ]
 
 [[licenses.clarify]]
