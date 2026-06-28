@@ -1,6 +1,7 @@
 //! Cloud provider integrations — Hetzner API client and deploy configuration.
 //!
-//! Folded from `hkask-services-cloud`.
+//! Extracted from hkask-services (ADR-040: Service Layer Extraction, 2026-06-27).
+//! Cloud provisioning is infrastructure, not a domain service.
 
 // ── DeployConfig ───────────────────────────────────────────────────────────
 
@@ -47,8 +48,7 @@ impl DeployConfig {
 
 // ── Hetzner Cloud API client ───────────────────────────────────────────────
 
-pub mod hetzner {
-    //! Hetzner Cloud API client.
+//! Hetzner Cloud API client.
     //!
     //! Provides server and volume management for the Hetzner infrastructure layer.
     //! Pod lifecycle (activate/deactivate) on Hetzner uses kubectl against the K3s
@@ -256,4 +256,3 @@ pub mod hetzner {
             }
         }
     }
-}

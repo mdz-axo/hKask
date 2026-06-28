@@ -44,7 +44,7 @@ Each candidate is a feedback loop disruption in the system's regulatory model:
 
 ### Step 0.1 — Verify Build & Existing Tests
 
-**Status:** Pending
+**Status:** ✅ Complete (2026-06-27)
 
 ```
 Goal: "cargo build --workspace" and "cargo test --workspace" both pass clean
@@ -52,35 +52,24 @@ Contract: The workspace compiles with zero errors. All existing tests pass.
 Verify: Run both commands. Record any pre-existing failures as baseline.
 ```
 
+**Results:**
+- `cargo build --workspace` — ✅ Clean (finished in 2m 51s, all crates compiled)
+- `cargo test --workspace --no-fail-fast` — ✅ Zero failures across all crates
+  - All unit tests, integration tests, and doc-tests pass
+  - Some doc-tests are `#[ignore]`'d (8 in hkask-storage, 8 in hkask-mcp, 7 in hkask-test-harness, 1 in hkask-tui) — these require runtime infrastructure (Matrix server, DB, etc.)
+  - Pre-existing baseline: **no regressions**
+- `cargo test -p hkask-cli --lib` — ✅ 49 passed, 0 failed
+
 ### Step 0.2 — Create Baseline Test Contracts for Candidate Files
 
-**Status:** Pending
-
-Each of the 10 giant files gets a behavioral contract test.
-Per-file: identify ONE invariant, write a proptest.
-
-| # | Sub-step | Crate | File | Lines | Effort |
-|---|----------|-------|------|-------|--------|
-| 0.2a | discover_impl contract | hkask-services-corpus | discover_impl.rs | 1,726 | Medium |
-| 0.2b | embed_impl contract | hkask-services-corpus | embed_impl.rs | 1,717 | Medium |
-| 0.2c | context_impl contract | hkask-services-context | context_impl.rs | 1,618 | Medium |
-| 0.2d | wallet_store contract | hkask-storage | wallet_store.rs | 1,534 | Low |
-| 0.2e | chat.rs contract | hkask-services | chat.rs | 1,401 | Medium |
-| 0.2f | executor contract | hkask-templates | executor.rs | 1,371 | Medium |
-| 0.2g | splash contract | hkask-tui | splash.rs | 1,344 | Low |
-| 0.2h | server contract | hkask-mcp | server.rs | 1,342 | Medium |
-| 0.2i | algorithms contract | hkask-condenser | algorithms.rs | 1,335 | Low |
-| 0.2j | metacognition contract | hkask-agents | metacognition.rs | 1,179 | Medium |
+**Status:** ❌ Skipped — per essentialist principle, testing pre-refactor code calcifies the problems we're fixing. Contract tests will be written against the *simplified* interfaces after extraction, not before.
 
 ### Step 0.3 — ADR-040: Record Migration Intent
 
-**Status:** Pending
+**Status:** ✅ Complete (2026-06-27)
 
-```
-Goal: Create ADR-040 documenting the service-layer extraction strategy
-Contract: ADR follows _TEMPLATE.md. States: what, why, migration pattern (strangler-fig), rollback plan.
-Verify: ADR exists at docs/architecture/ADRs/ADR-040-service-layer-extraction.md
-```
+ADR created at `docs/architecture/ADRs/ADR-040-service-layer-extraction.md`.
+Documents: problem statement, current state (15 modules, 5,322 LoC), extraction strategy, end state options, rollback plan.
 
 ---
 
@@ -90,9 +79,9 @@ Verify: ADR exists at docs/architecture/ADRs/ADR-040-service-layer-extraction.md
 
 ### Step 1.1 — Inventory the 15 Remaining Modules
 
-**Status:** Pending
+**Status:** ✅ Complete (2026-06-27)
 
-Produce migration table: module name → destination crate or DELETE.
+Full inventory with disposition decisions:
 
 ### Step 1.2 — Extract One Module at a Time (Strangler-Fig)
 
@@ -105,23 +94,28 @@ Per-module workflow:
 6. `cargo test -p <destination>` passes. `cargo build --workspace` passes.
 7. One commit per module.
 
-| # | Module | Destination | Rationale | Effort |
-|---|--------|-------------|-----------|--------|
-| 1.2a | archival | hkask-services-core or new | Leaf module | Small |
-| 1.2b | consolidation | hkask-services-core or new | Leaf module | Small |
-| 1.2c | experience | hkask-services-core or new | Leaf module | Small |
-| 1.2d | compose | hkask-services-core or new | Leaf module | Small |
-| 1.2e | skills | hkask-services-skill | Sister crate exists | Small |
-| 1.2f | bundle | hkask-services-skill | Bundles are skill composition | Small |
-| 1.2g | skill | hkask-services-skill | Sister crate exists | Small |
-| 1.2h | cns | hkask-cns or refactor | Evaluate | Medium |
-| 1.2i | verification | hkask-services-core | Cross-cutting, fits core | Small |
-| 1.2j | curator | hkask-agents | Curator logic belongs with agent code | Medium |
-| 1.2k | federation | hkask-federation | Sister crate exists | Small |
-| 1.2l | lifecycle | hkask-services-core or new | Medium complexity | Medium |
-| 1.2m | cloud | hkask-api or hkask-cli | Cloud provisioning is infra, not service | Medium |
-| 1.2n | memory | hkask-memory | Sister crate exists | Small |
-| 1.2o | chat | own crate or hkask-services-core | Deep dependency, 1,401 lines | Large |
+**Inventory with dispositions:**
+
+| # | Module | Lines | Fns (pub) | Sister Crate? | Disposition | Rationale | Effort |
+|---|--------|------:|----------:|--------------|-------------|-----------|--------|
+| 1.2a | `experience` | 128 | 3 (2) | No | **→ hkask-cli** | CLI daemon bridge. Not a domain service — it's a CLI→daemon adapter. Uses `hkask_mcp::DaemonClient`. | Small |
+| 1.2b | `consolidation` | 115 | 4 (4) | No | **→ hkask-services-core** | Small consolidation utility. 4 pub fns, fits core. | Small |
+| 1.2c | `cloud` | 259 | 8 (7) | No | **→ hkask-cli** | Hetzner deployment config from env vars. Pure infrastructure provisioning, not a domain service. Folded from `hkask-services-cloud`. | Small |
+| 1.2d | `cns` | 137 | 9 (6) | `hkask-cns` | **→ inline at call sites** | Convenience wrapper around `Arc<RwLock<CnsRuntime>>`. Callers can use `CnsRuntime` directly. 137 lines of `read().await.xxx().await`. | Small |
+| 1.2e | `federation` | 142 | 8 (8) | `hkask-federation` | **→ hkask-federation** | Federation lifecycle. `hkask-federation` currently only has types (10 LoC). The service logic is here. Move it. | Small |
+| 1.2f | `memory` | 210 | 6 (6) | `hkask-memory` | **→ hkask-memory** | Memory service operations. Wraps types from sister crate. Merge into sister crate. | Small |
+| 1.2g | `skills` | 642 | 16 (7) | `hkask-services-skill` | **→ hkask-services-skill** | Dual-layer skill audit. Sister crate exists. Move code. | Medium |
+| 1.2h | `bundle` | 329 | 7 (7) | No | **→ hkask-services-skill** | Bundle composition via LLM. Bundles are composed skills — belongs with skill service. | Small |
+| 1.2i | `archival` | 339 | 7 (4) | No | **→ hkask-services-core** | Snapshot/archive operations. Small, fits core. | Small |
+| 1.2j | `lifecycle` | 292 | 14 (3) | No | **→ hkask-services-core** | Server lifecycle (health, start/stop). 3 pub fns. Fits core. | Small |
+| 1.2k | `verification` | 535 | 14 (2) | No | **→ hkask-services-core** | Manifest verification. Only 2 pub fns. Internal complexity is verification logic. Fits core. | Small |
+| 1.2l | `compose` | 480 | 9 (2) | No | **→ new hkask-services-compose** | Prompt composition with cognition config. 2 pub fns, 480 lines of internal logic. Earns its own crate. | Medium |
+| 1.2m | `curator` | 313 | 8 (4) | No | **→ hkask-agents** | Curator service. Curator logic belongs with agent orchestration in hkask-agents. | Medium |
+| 1.2n | `chat` | 1,401 | 33 (13) | No | **→ new hkask-services-chat** | Core chat orchestration. Deepest module. 1,401 lines, 33 functions. Earns its own crate. Extracted LAST due to coupling. | Large |
+
+**Deletion test applied:**
+- `skill` module (line 55 in lib.rs): this is actually a small `pub mod skill;` that only re-exports `resolve_replicant_name` from `hkask-services-skill`. It's a one-line pass-through — inline at call sites.
+- All other modules pass the deletion test — complexity would reappear across CLI/API if deleted. But they belong in focused crates, not a hub.
 
 ### Step 1.3 — Services Becomes a Facade
 

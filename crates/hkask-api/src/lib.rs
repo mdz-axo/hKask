@@ -6,8 +6,6 @@
 //! - `GET /api/templates/:id` — Get template
 //! - `POST /api/templates` — Register template
 //! - `GET /api/templates/search/:term` — Search templates by lexicon
-//! - `GET /api/bots/:id/capabilities` — List bot capabilities
-//! - `POST /api/bots/:id/grant` — Grant capability
 //! - `GET /api/mcp/servers` — List MCP servers
 //! - `GET /api/mcp/tools` — List tools
 //! - `GET /api/mcp/tools/:name` — Get tool definition
@@ -227,7 +225,6 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
         .route("/", axum::routing::get(routes::landing_page))
         .merge(routes::templates_router())
         .merge(routes::terminal_router())
-        .merge(routes::bots_router())
         .merge(routes::pods_router())
         .merge(routes::mcp_router())
         .merge(routes::replicant_router())
@@ -314,7 +311,6 @@ pub fn create_openapi() -> utoipa::openapi::OpenApi {
         .merge(routes::auth_router())
         .merge(routes::templates_router())
         .merge(routes::terminal_router())
-        .merge(routes::bots_router())
         .merge(routes::pods_router())
         .route("/", axum::routing::get(routes::landing_page))
         .merge(routes::mcp_router())

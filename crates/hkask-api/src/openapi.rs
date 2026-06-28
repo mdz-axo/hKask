@@ -105,12 +105,11 @@ use crate::routes::cns::CnsSubscribeParams;
     modifiers(&SecurityAddon),
     tags(
         (name = "templates", description = "Template registry — WordAct / FlowDef / KnowAct skills (Pattern A)"),
-        (name = "bots", description = "Bot capability management — OCAP-gated capability grants to bot agents (P4, P10)"),
         (name = "mcp", description = "MCP servers and tools — tool discovery and invocation across out-of-process MCP servers"),
         (name = "cns", description = "Cybernetic Nervous System — variety tracking, algedonic alerts, and homeostatic self-regulation (P9, Pattern B)"),
         (name = "chat", description = "Curator chat interface — inference with model switching and streaming (Pattern C)"),
         (name = "models", description = "Multi-provider model catalog (DeepInfra, fal.ai, Together AI, OpenRouter, KiloCode) — discover and search available LLMs"),
-        (name = "curator", description = "Curator escalation and metacognition — bot health reports and pending escalation queue (Pattern C, P12)"),
+        (name = "curator", description = "Curator escalation and metacognition — health reports and pending escalation queue (Pattern C, P12)"),
         (name = "git", description = "Git archival and resolution — template crate loading and SHA resolution via GitCASPort hexagonal boundary"),
         (name = "a2a", description = "A2A agent registration — register, list, and unregister agents with capability delegation (P4 OCAP)"),
         (name = "goals", description = "Goal coordination substrate — creation, listing, and state transitions with OCAP authority gating (P4)"),

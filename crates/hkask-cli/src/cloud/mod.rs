@@ -1,6 +1,6 @@
 //! Cloud provider integrations.
 //!
-//! Re-exports from hkask-services::cloud for CLI access.
-//! The canonical implementations live in the service layer.
+//! Extracted from hkask-services (ADR-040, 2026-06-27).
+//! Cloud provisioning is infrastructure, not a domain service.
 
-pub use hkask_services::cloud::hetzner;
+pub mod hetzner;

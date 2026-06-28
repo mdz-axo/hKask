@@ -62,7 +62,7 @@ pub async fn curator_init(domain: &str) -> Result<(), String> {
     println!("Domain: {domain}");
     println!();
 
-    let hetzner = hkask_services::cloud::hetzner::HetznerClient::new(hcloud_token.clone());
+    let hetzner = crate::cloud::hetzner::HetznerClient::new(hcloud_token.clone());
     println!("Validating Hetzner API token...");
     hetzner.validate_token().await.map_err(|e| {
         format!("Hetzner API token validation failed: {e}\nCheck HCLOUD_TOKEN in your .env file.")
@@ -70,7 +70,7 @@ pub async fn curator_init(domain: &str) -> Result<(), String> {
     println!("  Hetzner API: OK");
 
     println!("Validating object storage...");
-    hkask_services::cloud::hetzner::validate_object_storage(
+    crate::cloud::hetzner::validate_object_storage(
         &litestream_endpoint,
         &litestream_bucket,
         &litestream_access_key,

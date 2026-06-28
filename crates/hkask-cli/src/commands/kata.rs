@@ -5,8 +5,9 @@
 //! accumulates state. Uses the centralized inference router.
 
 use crate::cli::KataAction;
+use crate::experience::CliExperienceRecorder;
 use hkask_cns::CnsRuntime;
-use hkask_services::{CliExperienceRecorder, KataEngine, KataError, KataHistory, PracticeEntry};
+use hkask_services::{KataEngine, KataError, KataHistory, PracticeEntry};
 use hkask_storage::KataHistoryStore;
 use hkask_templates::SqliteRegistry;
 use std::collections::HashMap;

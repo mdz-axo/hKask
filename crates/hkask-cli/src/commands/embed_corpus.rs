@@ -1,6 +1,8 @@
 //! Style corpus embedding command — thin CLI orchestrator
 
-use hkask_services::{CliExperienceRecorder, EmbedProgress, EmbedService};
+use hkask_services::{EmbedProgress, EmbedService};
+
+use crate::experience::CliExperienceRecorder;
 
 use std::io::Write;
 use std::path::PathBuf;

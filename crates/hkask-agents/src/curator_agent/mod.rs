@@ -18,8 +18,6 @@
 //! └── context: `Arc<CuratorContext>`       // capability-disciplined access
 //! ```
 
-pub mod bot_health;
-pub mod bot_metrics;
 pub mod cat;
 pub mod metacognition;
 pub mod spec_curator;

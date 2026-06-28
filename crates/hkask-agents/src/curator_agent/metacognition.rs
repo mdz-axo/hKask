@@ -3,8 +3,6 @@
 
 use crate::a2a::A2AMessage;
 use crate::curator::context::CuratorContext;
-use crate::curator_agent::bot_health::BotHealthEvaluator;
-use crate::curator_agent::bot_metrics::BotHealthStatus;
 use crate::curator_agent::cat;
 use crate::pod::CommunicationPosture;
 use hkask_cns::types::loops::{
@@ -173,16 +171,6 @@ pub struct HealthSnapshot {
     pub variety_deficit: u64,
     pub critical_alerts: usize,
     pub total_alerts: usize,
-    pub(crate) bot_status_reports: Vec<BotStatusReport>,
-}
-
-/// Bot status report from standing session
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub(crate) struct BotStatusReport {
-    pub bot_name: String,
-    pub status: BotHealthStatus,
-    pub last_report: Option<chrono::DateTime<chrono::Utc>>,
-    pub issues: Vec<String>,
 }
 
 /// Metacognition loop configuration.
@@ -214,9 +202,7 @@ pub struct MetacognitionLoop {
     context: Arc<CuratorContext>,
     config: MetacognitionConfig,
     escalation_policy: EscalationPolicy,
-    bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
     last_snapshot_tx: tokio::sync::watch::Sender<Option<HealthSnapshot>>,
-    bot_health_evaluator: Option<Arc<BotHealthEvaluator>>,
     /// Template output from the most recent template-driven compute cycle.
     /// Stored separately from HealthSnapshot to avoid race conditions —
     /// `sense()` wipes the snapshot each cycle but template output must
@@ -259,9 +245,7 @@ impl MetacognitionLoop {
             context,
             escalation_policy,
             config,
-            bot_reports: Arc::new(RwLock::new(Vec::new())),
             last_snapshot_tx,
-            bot_health_evaluator: None,
             last_template_output: RwLock::new(None),
             consecutive_template_failures: std::sync::atomic::AtomicU64::new(0),
             template_skip_remaining: std::sync::atomic::AtomicU64::new(0),
@@ -281,35 +265,9 @@ impl MetacognitionLoop {
     ///       valid `MetacognitionConfig`; `evaluator` is a valid
     ///       `Arc<BotHealthEvaluator>`.
     /// post: Returns a `MetacognitionLoop` with the evaluator wired in.
-    pub fn with_evaluator(
-        context: Arc<CuratorContext>,
-        config: MetacognitionConfig,
-        evaluator: Arc<BotHealthEvaluator>,
-    ) -> Self {
-        let mut mc = Self::with_posture(context, config, CommunicationPosture::default());
-        mc.bot_health_evaluator = Some(evaluator);
-        mc
-    }
-
     /// Access the metacognition configuration.
     pub fn config(&self) -> &MetacognitionConfig {
         &self.config
-    }
-
-    /// Get current bot status reports.
-    ///
-    /// If a BotHealthEvaluator is wired in, runs evaluation for all agents.
-    /// Otherwise, returns the cached reports (which may be empty).
-    pub(crate) async fn get_bot_reports(&self) -> Vec<BotStatusReport> {
-        if let Some(ref evaluator) = self.bot_health_evaluator {
-            match evaluator.evaluate_all(chrono::Utc::now()).await {
-                Ok(reports) => return reports,
-                Err(e) => {
-                    warn!(target: MC_TARGET, error = %e, "BotHealthEvaluator failed, falling back to cached reports");
-                }
-            }
-        }
-        self.bot_reports.read().await.clone()
     }
 
     /// Run a full cycle, returning the health snapshot.
@@ -379,16 +337,6 @@ impl MetacognitionLoop {
                 let _ = writeln!(s, "- {}: {}", ns.as_str(), variety);
             }
             s.push('\n');
-        }
-        if !snapshot.bot_status_reports.is_empty() {
-            let _ = writeln!(s, "### Bot Status");
-            for report in &snapshot.bot_status_reports {
-                let _ = write!(s, "- **{}**: {}", report.bot_name, report.status);
-                if !report.issues.is_empty() {
-                    let _ = write!(s, " ({})", report.issues.join(", "));
-                }
-                s.push('\n');
-            }
         }
         s
     }
@@ -624,19 +572,6 @@ impl MetacognitionLoop {
                 "variety_deficit".into(),
                 serde_json::json!(snap.variety_deficit),
             );
-            // Build bot_status for template context
-            let bot_status: Vec<serde_json::Value> = snap
-                .bot_status_reports
-                .iter()
-                .map(|r| {
-                    serde_json::json!({
-                        "name": r.bot_name,
-                        "status": r.status.to_string(),
-                        "issues": r.issues,
-                    })
-                })
-                .collect();
-            ctx.insert("bot_status".into(), serde_json::json!(bot_status));
         }
 
         let issues: Vec<serde_json::Value> = deviations
@@ -870,24 +805,6 @@ impl MetacognitionLoop {
                     let count = dev.signal.value as u64;
                     actions.push(LoopAction::new(LoopId::Curation, ActionType::Escalate, serde_json::json!({"metric": "critical_alerts", "count": count, "threshold": self.config.thresholds.critical_alerts})));
                 }
-                SignalMetric::MetacognitionBotFailures
-                    if dev.direction == DeviationDirection::AboveSetPoint =>
-                {
-                    let count = dev.signal.value as u64;
-                    let bot_names: Vec<String> = self
-                        .last_snapshot_tx
-                        .borrow()
-                        .as_ref()
-                        .map(|s| {
-                            s.bot_status_reports
-                                .iter()
-                                .filter(|r| r.status == BotHealthStatus::Critical)
-                                .map(|r| r.bot_name.clone())
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Escalate, serde_json::json!({"metric": "bot_failures", "failed_count": count, "threshold": self.config.thresholds.bot_failures, "bot_names": bot_names})));
-                }
                 _ => {}
             }
         }
@@ -914,7 +831,6 @@ impl HkaskLoop for MetacognitionLoop {
         let variety_counters = self.context.cns().variety().await;
         let all_alerts = self.context.cns().alerts().await;
         let critical_alerts = self.context.cns().critical_alerts().await;
-        let bot_reports = self.get_bot_reports().await;
 
         // Compute total variety deficit (same logic as evaluate_and_adapt)
         let mut total_variety_deficit = 0u64;
@@ -937,19 +853,11 @@ impl HkaskLoop for MetacognitionLoop {
             }
         }
 
-        // Compute bot failure count
-        let failed_bot_count = bot_reports
-            .iter()
-            .filter(|r| r.status == BotHealthStatus::Critical)
-            .count();
-
         // Delegate escalation condition checking to the policy.
-        // The policy returns structured alerts that can be logged, surfaced
-        // through the algedonic channel, or used for downstream decisions.
         let alerts = self.escalation_policy.check_conditions(
             total_variety_deficit as f64,
             critical_alerts.len() as u64,
-            failed_bot_count as u64,
+            0, // bot_failures: no bot health subsystem
         );
         for alert in &alerts {
             match alert.severity {
@@ -978,7 +886,6 @@ impl HkaskLoop for MetacognitionLoop {
             variety_deficit: total_variety_deficit,
             critical_alerts: critical_alerts.len(),
             total_alerts: all_alerts.len(),
-            bot_status_reports: bot_reports.clone(),
         };
         // `send_replace` returns the previous value and Errs only if the
         // channel is closed — which can't happen here because we own the

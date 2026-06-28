@@ -4,7 +4,6 @@ pub(crate) mod a2a;
 pub(crate) mod admin;
 pub(crate) mod auth;
 
-pub(crate) mod bots;
 pub(crate) mod bundles;
 pub(crate) mod chat;
 pub(crate) mod cns;
@@ -31,7 +30,6 @@ pub(crate) mod wallet;
 pub use a2a::a2a_router;
 pub use auth::auth_router;
 
-pub use bots::bots_router;
 pub use bundles::bundles_router;
 pub use chat::chat_router;
 pub use cns::cns_router;

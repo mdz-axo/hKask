@@ -59,7 +59,6 @@ pub use hkask_services_wallet::WalletService;
 
 pub mod bundle;
 pub mod chat;
-pub mod cloud;
 pub mod lifecycle;
 pub mod memory;
 pub use memory::MemoryService;
@@ -73,10 +72,7 @@ pub use crate::verification::{
     Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
 };
 
-pub mod experience;
 pub mod skills;
-
-// ── Internal modules ───────────────────────────────────────────────────
 
 pub mod archival;
 pub mod consolidation;
@@ -94,7 +90,6 @@ pub use compose::{
 pub use curator::{CuratorService, EscalationResponse};
 pub use federation::FederationService;
 
-pub use experience::CliExperienceRecorder;
 pub use skills::{
     SkillAuditError, SkillAuditReport, SkillAuditor, SkillHealthScore, SkillStatus, TemplateSummary,
 };

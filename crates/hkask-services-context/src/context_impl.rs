@@ -182,10 +182,6 @@ pub struct AgentService {
     /// Wrapped in Mutex because login/reconnect take &mut self.
     matrix_transport: Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>>,
 
-    /// 7R7 listener handle for graceful shutdown. Started during build().
-    /// None if Matrix credentials were unavailable.
-    listener: Option<hkask_communication::listener::SevenR7Listener>,
-
     /// Signals CuratorPod activation. Consumed by callers that need to
     /// await curator readiness before accepting requests.
     curator_ready: Option<tokio::sync::oneshot::Receiver<()>>,
@@ -646,11 +642,8 @@ impl AgentService {
         let mcp_pods = build_mcp_and_pods(&config, &loops, &foundation, system_webid).await?;
 
         // ── Matrix transport + 7R7 listener ──────────────────────────────
-        let (matrix_transport, listener) =
-            match self::matrix::build_matrix(Some(Arc::clone(&foundation.cns_event_sink))).await {
-                Some(infra) => (Some(infra.transport), Some(infra.listener)),
-                None => (None, None),
-            };
+        let matrix_transport =
+            self::matrix::build_matrix(Some(Arc::clone(&foundation.cns_event_sink))).await;
 
         // Communication events are now pushed directly in CurationLoop.sense()
         // from the NuEventStore query_algedonic results — no separate watcher needed.
@@ -699,7 +692,6 @@ impl AgentService {
             user_store: foundation.user_store,
             daemon_handler: mcp_pods.daemon_handler,
             matrix_transport,
-            listener,
             curator_ready: Some(mcp_pods.curator_ready),
             seam_watcher: foundation.seam_watcher,
             config,
@@ -708,16 +700,6 @@ impl AgentService {
             wallet_gas_calibrator: reg_wallet.wallet_gas_calibrator,
             federation_link_manager: loops.federation_link_manager,
         })
-    }
-
-    /// Graceful shutdown — stops the 7R7 listener and emits a CNS stop span.
-    ///
-    /// expect: "Agents communicate through user-owned channels"
-    /// post: listener stopped; idempotent — safe to call multiple times
-    pub async fn shutdown(&self) {
-        if let Some(ref listener) = self.listener {
-            listener.stop().await;
-        }
     }
 }
 
