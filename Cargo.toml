@@ -15,6 +15,7 @@ members = [
     "crates/hkask-services-onboarding",
     "crates/hkask-services-skill",
     "crates/hkask-services-context",
+    "crates/hkask-services-chat",
     "crates/hkask-services-compose",
     "crates/hkask-services-curator",
     "crates/hkask-condenser",

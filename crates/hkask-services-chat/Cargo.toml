@@ -1,0 +1,21 @@
+[package]
+name = "hkask-services-chat"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask chat service — chat orchestration, memory recall, turn management"
+
+[dependencies]
+hkask-agents = { path = "../hkask-agents" }
+hkask-capability = { path = "../hkask-capability" }
+hkask-ports = { path = "../hkask-ports" }
+hkask-services-core = { path = "../hkask-services-core" }
+hkask-services-context = { path = "../hkask-services-context" }
+hkask-types = { path = "../hkask-types" }
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+hkask-cns = { path = "../hkask-cns" }
+hkask-condenser = { path = "../hkask-condenser" }
+hkask-improv = { path = "../hkask-improv" }
+hkask-templates = { path = "../hkask-templates" }

@@ -18,33 +18,32 @@ pub use hkask_inference::model_constants;
 pub use hkask_inference::{
     FusionConfig, FusionMode, FusionSkill, InferenceConfig, InferenceRouter, ProviderId,
 };
-pub use hkask_services_context::{AgentService, PerAgentMemory};
+pub use hkask_services_chat::chat::{
+    ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage, TurnRequest, TurnResult,
+};
+pub use hkask_services_chat::memory::MemoryService;
 pub use hkask_services_compose::{
     CentroidValidation, CognitionConfig, ComposeRequest, ComposeResult, ComposeService,
     EmbeddingSection, RetrievalSection, ValidationSection, cosine_distance,
 };
+pub use hkask_services_context::{AgentService, PerAgentMemory};
 pub use hkask_services_core::config::{DEFAULT_DB_PATH, ServiceConfig};
-pub use hkask_services_curator::{CuratorService, EscalationResponse};
 pub use hkask_services_core::error::ServiceError;
-pub use hkask_services_curator::{CuratorService, EscalationResponse};
 pub use hkask_services_core::parse_data_category;
-pub use hkask_services_curator::{CuratorService, EscalationResponse};
 pub use hkask_services_core::settings::{
-pub use hkask_services_curator::{CuratorService, EscalationResponse};
     HkaskSettings, load_settings, save_settings, settings_path,
 };
 pub use hkask_services_core::verification::{
-pub use hkask_services_curator::{CuratorService, EscalationResponse};
     Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
 };
 pub use hkask_services_core::{InferenceContext, InferenceService, ModelInfo};
-pub use hkask_services_curator::{CuratorService, EscalationResponse};
 pub use hkask_services_corpus::{
     ChunkingConfig, CorpusConfig, DiscoverRequest, DiscoverResult, DiscoveredWork,
     DiscoveryService, EmbedPhase, EmbedProgress, EmbedResult, EmbedService, EmbeddingConfig,
     Entity, EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,
     default_corpus_config, download_and_cache, generate_corpus_yaml, slugify,
 };
+pub use hkask_services_curator::{CuratorService, EscalationResponse};
 pub use hkask_services_kanban::{KanbanError, KanbanService, UnjamFix, UnjamItem};
 pub use hkask_services_kata::{
     ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
@@ -67,16 +66,7 @@ pub use hkask_services_wallet::WalletService;
 
 // ── Remaining inline modules ───────────────────────────────────────────
 
-pub mod chat;
-pub mod memory;
-pub use memory::MemoryService;
-
-
 pub mod consolidation;
-
-pub use chat::{
-    ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage, TurnRequest, TurnResult,
-};
 
 #[cfg(test)]
 mod tests {
@@ -91,12 +81,10 @@ mod tests {
                 in_deps = true;
                 continue;
             }
-            // Stop at the next section header.
             if in_deps && trimmed.starts_with('[') {
                 break;
             }
             if in_deps {
-                // Lines look like: hkask-services-foo = { path = "..." }
                 if let Some(name) = trimmed.split('=').next() {
                     let name = name.trim();
                     if name.starts_with("hkask-services-") {
@@ -109,7 +97,6 @@ mod tests {
     }
 
     fn is_reexported(dep_name: &str, lib_source: &str) -> bool {
-        // Crate name hyphen → Rust module underscore.
         let module_name = dep_name.replace('-', "_");
         let needle = format!("pub use {}::", module_name);
         lib_source.contains(&needle)

@@ -4596,10 +4596,12 @@ dependencies = [
  "hkask-mcp",
  "hkask-memory",
  "hkask-ports",
+ "hkask-services-chat",
  "hkask-services-compose",
  "hkask-services-context",
  "hkask-services-core",
  "hkask-services-corpus",
+ "hkask-services-curator",
  "hkask-services-kanban",
  "hkask-services-kata",
  "hkask-services-onboarding",
@@ -4628,6 +4630,25 @@ dependencies = [
  "tracing",
  "trybuild",
  "uuid",
+]
+
+[[package]]
+name = "hkask-services-chat"
+version = "0.30.0"
+dependencies = [
+ "hkask-agents",
+ "hkask-capability",
+ "hkask-cns",
+ "hkask-condenser",
+ "hkask-improv",
+ "hkask-ports",
+ "hkask-services-context",
+ "hkask-services-core",
+ "hkask-templates",
+ "hkask-types",
+ "serde",
+ "serde_json",
+ "tracing",
 ]
 
 [[package]]
@@ -4732,6 +4753,21 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "hkask-services-curator"
+version = "0.30.0"
+dependencies = [
+ "hkask-agents",
+ "hkask-cns",
+ "hkask-communication",
+ "hkask-services-context",
+ "hkask-services-core",
+ "hkask-storage",
+ "hkask-types",
+ "serde_json",
+ "tracing",
 ]
 
 [[package]]

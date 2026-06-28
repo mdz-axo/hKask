@@ -23,8 +23,9 @@ use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
 use hkask_types::{Confidence, DataCategory, WebID};
 
-use crate::ServiceError;
-use crate::{InferenceContext, InferenceService, MemoryService};
+use hkask_services_core::ServiceError;
+use hkask_services_core::{InferenceContext, InferenceService};
+use crate::memory::MemoryService;
 use hkask_services_context::AgentService;
 
 /// System prompt for the auto-condense summarization request.
