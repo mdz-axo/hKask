@@ -477,6 +477,16 @@ mod tests {
         }
     }
 
+    fn set_test_master_key_hex() {
+        // SAFETY: test-only env var mutation.
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+            );
+        }
+    }
+
     #[test]
     fn treasury_keys_differ_per_context() {
         set_test_master_key();
@@ -508,6 +518,15 @@ mod tests {
         let seed1 = resolve_wallet_seed().unwrap();
         let seed2 = resolve_wallet_seed().unwrap();
         assert_eq!(&*seed1, &*seed2);
+    }
+
+    #[test]
+    fn wallet_seed_accepts_hex_master_key() {
+        set_test_master_key_hex();
+        let seed1 = resolve_wallet_seed().unwrap();
+        let seed2 = resolve_wallet_seed().unwrap();
+        assert_eq!(&*seed1, &*seed2);
+        assert_eq!(seed1.len(), 32);
     }
 
     #[test]

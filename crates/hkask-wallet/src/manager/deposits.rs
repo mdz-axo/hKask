@@ -34,7 +34,14 @@ impl WalletManager {
                         match port.monitor_deposits(&actor, &addresses).await {
                             Ok(events) => {
                                 for event in events {
-                                    let _ = self.process_deposit(event).await;
+                                    if let Err(err) = self.process_deposit(event).await {
+                                        tracing::warn!(
+                                            target: "hkask.wallet",
+                                            error = %err,
+                                            tx_hash = %event.tx_hash.0,
+                                            "Deposit processing failed"
+                                        );
+                                    }
                                 }
                             }
                             Err(e) => {
@@ -45,6 +52,38 @@ impl WalletManager {
                 }
             }
         }
+    }
+
+    fn attempt_deposit_address_repair(
+        &self,
+        address: &str,
+    ) -> Result<Option<WalletId>, WalletError> {
+        // General self-healing pattern:
+        // 1) Keep repairs deterministic and idempotent.
+        // 2) Never guess across multiple owners.
+        // 3) Emit explicit CNS self-heal spans for attempt/success/failure.
+        // 4) If repair can't be proven safe, return None and let Curator escalate.
+        let wallet_ids = self.store.list_wallet_ids()?;
+        if wallet_ids.len() != 1 {
+            return Ok(None);
+        }
+        let wallet_id = wallet_ids[0];
+        // Repair is conservative: only when a single wallet exists, and we
+        // can prove the address matches the chain port's index-0 derivation.
+        let mut matched = false;
+        for port in self.chains.values() {
+            if let Ok(derived) = port.derive_deposit_address(0) {
+                if derived == address {
+                    matched = true;
+                    break;
+                }
+            }
+        }
+        if !matched {
+            return Ok(None);
+        }
+        self.store.store_deposit_address(wallet_id, address, 0)?;
+        Ok(Some(wallet_id))
     }
 
     async fn process_deposit(&self, event: DepositEvent) -> Result<(), WalletError> {
@@ -63,7 +102,7 @@ impl WalletManager {
                 tracing::warn!(
                     target: "hkask.wallet",
                     to_address = %event.to_address,
-                    "Deposit address unresolvable — rejecting"
+                    "Deposit address unresolvable — attempting auto-repair"
                 );
                 self.emit_span(
                     CnsSpan::WalletDeposit,
@@ -77,9 +116,64 @@ impl WalletManager {
                         "to_address": event.to_address,
                     }),
                 );
-                return Err(WalletError::DepositAddressUnresolvable {
-                    address: event.to_address,
-                });
+                self.emit_span(
+                    CnsSpan::SelfHeal,
+                    "wallet_deposit_address_unresolvable",
+                    Phase::Sense,
+                    serde_json::json!({
+                        "chain": "hedera",
+                        "tx_hash": event.tx_hash.0,
+                        "to_address": event.to_address,
+                        "action": "rebuild_wallet_address_index",
+                        "note": "deposit address not resolvable from wallet store; attempting minimal auto-repair",
+                    }),
+                );
+
+                match self.attempt_deposit_address_repair(&event.to_address) {
+                    Ok(Some(repaired_wallet_id)) => {
+                        self.emit_span(
+                            CnsSpan::SelfHeal,
+                            "wallet_deposit_address_repaired",
+                            Phase::Act,
+                            serde_json::json!({
+                                "chain": "hedera",
+                                "to_address": event.to_address,
+                                "wallet_id": repaired_wallet_id.to_string(),
+                            }),
+                        );
+                        repaired_wallet_id
+                    }
+                    Ok(None) => {
+                        self.emit_span(
+                            CnsSpan::SelfHeal,
+                            "wallet_deposit_address_repair_deferred",
+                            Phase::Sense,
+                            serde_json::json!({
+                                "chain": "hedera",
+                                "to_address": event.to_address,
+                                "reason": "multi_wallet_or_no_wallet",
+                            }),
+                        );
+                        return Err(WalletError::DepositAddressUnresolvable {
+                            address: event.to_address,
+                        });
+                    }
+                    Err(err) => {
+                        self.emit_span(
+                            CnsSpan::SelfHeal,
+                            "wallet_deposit_address_repair_failed",
+                            Phase::Sense,
+                            serde_json::json!({
+                                "chain": "hedera",
+                                "to_address": event.to_address,
+                                "error": err.to_string(),
+                            }),
+                        );
+                        return Err(WalletError::Infra(
+                            hkask_types::InfrastructureError::Database(err.to_string()),
+                        ));
+                    }
+                }
             }
         };
 

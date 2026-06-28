@@ -34,6 +34,7 @@ pub struct ResolvedSecrets {
     pub a2a_secret: String,
     pub db_passphrase: String,
     pub mcp_secret: String,
+    pub mcp_security_key: String,
 }
 
 /// Outcome of a successful sign-in attempt.
@@ -100,11 +101,20 @@ impl OnboardingService {
             keychain
                 .store_by_key(
                     hkask_types::keychain_keys::KEY_MCP_SECRET,
-                    &secrets.mcp_security_key,
+                    &secrets.mcp_secret,
                 )
                 .map_err(|e| ServiceError::Keystore {
                     source: Some(Box::new(e)),
                     message: "Failed to store mcp-secret".into(),
+                })?;
+            keychain
+                .store_by_key(
+                    hkask_types::keychain_keys::KEY_MCP_SECURITY_KEY,
+                    &secrets.mcp_security_key,
+                )
+                .map_err(|e| ServiceError::Keystore {
+                    source: Some(Box::new(e)),
+                    message: "Failed to store mcp-security-key".into(),
                 })?;
         }
         // P9: CNS span
@@ -118,7 +128,8 @@ impl OnboardingService {
             master_key_hex: secrets.master_key_hex.clone(),
             a2a_secret: secrets.a2a_secret.clone(),
             db_passphrase: secrets.capability_key.clone(),
-            mcp_secret: secrets.mcp_security_key.clone(),
+            mcp_secret: secrets.mcp_secret.clone(),
+            mcp_security_key: secrets.mcp_security_key.clone(),
         })
     }
 

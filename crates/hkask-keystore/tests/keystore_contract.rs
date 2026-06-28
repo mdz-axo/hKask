@@ -237,6 +237,21 @@ fn internal_secrets_all_fields_present() {
         "capability_key must be valid hex"
     );
 
+    // mcp_secret
+    assert!(
+        !secrets.mcp_secret.is_empty(),
+        "mcp_secret must be non-empty"
+    );
+    assert_eq!(
+        secrets.mcp_secret.len(),
+        64,
+        "mcp_secret must be 64 hex chars (32 bytes)"
+    );
+    assert!(
+        secrets.mcp_secret.chars().all(|c| c.is_ascii_hexdigit()),
+        "mcp_secret must be valid hex"
+    );
+
     // mcp_security_key
     assert!(
         !secrets.mcp_security_key.is_empty(),
@@ -282,6 +297,10 @@ fn internal_secrets_fields_distinct() {
         "a2a_secret must differ from capability_key"
     );
     assert_ne!(
+        secrets.a2a_secret, secrets.mcp_secret,
+        "a2a_secret must differ from mcp_secret"
+    );
+    assert_ne!(
         secrets.a2a_secret, secrets.mcp_security_key,
         "a2a_secret must differ from mcp_security_key"
     );
@@ -290,12 +309,24 @@ fn internal_secrets_fields_distinct() {
         "a2a_secret must differ from ocap_secret"
     );
     assert_ne!(
+        secrets.capability_key, secrets.mcp_secret,
+        "capability_key must differ from mcp_secret"
+    );
+    assert_ne!(
         secrets.capability_key, secrets.mcp_security_key,
         "capability_key must differ from mcp_security_key"
     );
     assert_ne!(
         secrets.capability_key, secrets.ocap_secret,
         "capability_key must differ from ocap_secret"
+    );
+    assert_ne!(
+        secrets.mcp_secret, secrets.mcp_security_key,
+        "mcp_secret must differ from mcp_security_key"
+    );
+    assert_ne!(
+        secrets.mcp_secret, secrets.ocap_secret,
+        "mcp_secret must differ from ocap_secret"
     );
     assert_ne!(
         secrets.mcp_security_key, secrets.ocap_secret,
@@ -310,6 +341,10 @@ fn internal_secrets_fields_distinct() {
     assert_ne!(
         secrets.capability_key, secrets.master_key_hex,
         "capability_key must differ from master_key_hex"
+    );
+    assert_ne!(
+        secrets.mcp_secret, secrets.master_key_hex,
+        "mcp_secret must differ from master_key_hex"
     );
     assert_ne!(
         secrets.mcp_security_key, secrets.master_key_hex,

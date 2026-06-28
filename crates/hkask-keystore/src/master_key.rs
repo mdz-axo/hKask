@@ -59,6 +59,8 @@ pub struct InternalSecrets {
     pub a2a_secret: String,
     /// API capability token signing key (hex-encoded 256-bit key)
     pub capability_key: String,
+    /// MCP dispatch and tool invocation signing key (hex-encoded 256-bit key)
+    pub mcp_secret: String,
     /// MCP security gateway HMAC key (hex-encoded 256-bit key)
     pub mcp_security_key: String,
     /// OCAP capability token signing secret (hex-encoded 256-bit key)
@@ -70,6 +72,7 @@ impl std::fmt::Debug for InternalSecrets {
         f.debug_struct("InternalSecrets")
             .field("a2a_secret", &"[REDACTED]")
             .field("capability_key", &"[REDACTED]")
+            .field("mcp_secret", &"[REDACTED]")
             .field("mcp_security_key", &"[REDACTED]")
             .field("ocap_secret", &"[REDACTED]")
             .finish()
@@ -131,6 +134,11 @@ pub fn derive_all_internal_secrets_with_version(
         derivation_contexts::CAPABILITY_KEY,
         key_version,
     );
+    let mcp_secret = derive_sub_key_hex_versioned(
+        master_key_bytes,
+        derivation_contexts::MCP_SECRET,
+        key_version,
+    );
     let mcp_security_key = derive_sub_key_hex_versioned(
         master_key_bytes,
         derivation_contexts::MCP_SECURITY_KEY,
@@ -149,6 +157,7 @@ pub fn derive_all_internal_secrets_with_version(
         master_key_hex: hex::encode(*master_key),
         a2a_secret,
         capability_key,
+        mcp_secret,
         mcp_security_key,
         ocap_secret,
     }
@@ -253,6 +262,8 @@ mod tests {
 
         assert_eq!(secrets_a.a2a_secret, secrets_b.a2a_secret);
         assert_eq!(secrets_a.capability_key, secrets_b.capability_key);
+        assert_eq!(secrets_a.mcp_secret, secrets_b.mcp_secret);
+        assert_eq!(secrets_a.mcp_security_key, secrets_b.mcp_security_key);
         assert_eq!(secrets_a.ocap_secret, secrets_b.ocap_secret);
     }
 
@@ -265,6 +276,8 @@ mod tests {
 
         assert_ne!(secrets_v1.a2a_secret, secrets_v2.a2a_secret);
         assert_ne!(secrets_v1.capability_key, secrets_v2.capability_key);
+        assert_ne!(secrets_v1.mcp_secret, secrets_v2.mcp_secret);
+        assert_ne!(secrets_v1.mcp_security_key, secrets_v2.mcp_security_key);
         assert_ne!(secrets_v1.ocap_secret, secrets_v2.ocap_secret);
     }
 }

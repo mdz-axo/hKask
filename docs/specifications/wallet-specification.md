@@ -304,6 +304,8 @@ All namespaces registered in `CANONICAL_NAMESPACES` (`hkask-types::event`).
 | Deposit detected (transparent) | `chain.rs` → `manager.rs` | `cns.wallet.deposit` | `detected` | Sense | ✅ |
 
 | Deposit credited | `manager.rs` | `cns.wallet.balance` | `credited` | Act | ✅ |
+| Deposit address unresolvable | `manager.rs` | `cns.heal` | `wallet_deposit_address_unresolvable` | Sense | ✅ |
+| Deposit address repair (single-wallet) | `manager.rs` | `cns.heal` | `wallet_deposit_address_repaired` | Act | ✅ |
 | Withdrawal built | `chain.rs` | `cns.wallet.withdrawal` | `built` | Act | ✅ |
 | Withdrawal signed | `signing.rs` | `cns.wallet.withdrawal` | `signed` | Act | ✅ |
 | Withdrawal submitted | `chain.rs` | `cns.wallet.withdrawal` | `submitted` | Act | ✅ |
