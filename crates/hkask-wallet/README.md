@@ -16,6 +16,12 @@ Specialized wallet for hKask rJoule accounting, deposits, withdrawals, and API k
 |-------|--------|---------|
 | Hedera | ✅ Core | `hedera` feature |
 
+## Self-healing configuration
+
+| Variable | Description |
+|----------|-------------|
+| `HKASK_DEPOSIT_REPAIR_MAX_INDEX` | Max derivation index scanned during deposit address repair (default 5, max 100) |
+
 ## See Also
 
 - [`hkask-wallet-types`](../hkask-wallet-types/README.md) — Wallet value types

@@ -163,6 +163,12 @@ impl std::fmt::Debug for LoadedKey {
 }
 ```
 
+### 3.4 Configuration (Environment)
+
+| Variable | Default | Description |
+|---|---|---|
+| `HKASK_DEPOSIT_REPAIR_MAX_INDEX` | `5` | Max derivation index scanned when repairing corrupted deposit address mappings (bounded to 100). |
+
 ---
 
 ## 4. Security Architecture
@@ -298,6 +304,12 @@ This section is intentionally minimal until privacy ports are introduced.
 
 All namespaces registered in `CANONICAL_NAMESPACES` (`hkask-types::event`).
 
+**Self-healing note:** wallet-level repairs are intentionally conservative and
+local to `WalletManager`. Cross-domain or backoff-based healing should be
+centralized in a service-layer `SelfHealer` so it can coordinate across
+storage, chain ports, and curator escalation. Deposit address repair scans are
+bounded by `HKASK_DEPOSIT_REPAIR_MAX_INDEX` (default: 5, max: 100).
+
 | Operation | Module | Span Namespace | Verb | Phase | Status |
 |-----------|--------|---------------|------|-------|--------|
 | Deposit address derived | `manager.rs` | `cns.wallet.deposit` | `derived` | Act | ✅ |
@@ -390,7 +402,7 @@ graph TD
 | Phase | Crate | Status | Tests | Key Deliverables |
 |-------|-------|--------|-------|-----------------|
 | 1 | `hkask-wallet-types` | ✅ | 11 | `RJoule`, `ChainId`, `PrivacyMode`, `ApiKeyCapability`, `WalletError` (15 variants), `TxHash`, 14 CNS spans, 3 wallet SignalMetrics |
-| 2 | `hkask-storage` | ✅ | 34 | `WalletStore` — 5 tables, 16 methods, anti-replay deposit references, MUST-10 property test |
+| 2 | `hkask-storage` | ✅ | 34 | `WalletStore` — 5 tables, 16 methods, deposit addresses keyed by (wallet, chain, privacy) with unique (chain, privacy, address), anti-replay deposit references, MUST-10 property test |
 | 3 | `hkask-keystore` | ✅ | 6 | `resolve_treasury_key(chain)`, `resolve_wallet_seed()`, `sign_api_key_capability()` |
 | 4 | `hkask-wallet` | ✅ | 13 | `ChainPort`, `signing.rs` (LoadedKey + redacted Debug), `WalletManager` (13 methods + CNS span emission), `ApiKeyIssuer` (CNS span emission) |
 | 5 | `hkask-cns` | ✅ | 11 | `WalletBackedBudget`, `WalletEnergyEstimator`, `EnergyBudgetManager` dual-map, algedonic alerts (balance + key health), CNS span emission wired |

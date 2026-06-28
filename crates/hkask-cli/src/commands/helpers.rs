@@ -47,17 +47,12 @@ fn build_service_context_inner(
     from_secrets: Option<(&str, &hkask_services::ResolvedSecrets)>,
 ) -> Result<hkask_services::AgentService, String> {
     let config = match from_secrets {
-        Some((name, secrets)) => {
-            let mcp_secret = hkask_keystore::keychain::resolve_mcp_secret()
-                .map(|s| String::from_utf8_lossy(&s).to_string())
-                .unwrap_or_else(|_| "hkask-mcp-default".to_string());
-            hkask_services::ServiceConfig::from_secrets(
-                secrets.a2a_secret.clone(),
-                secrets.db_passphrase.clone(),
-                mcp_secret,
-                name.to_string(),
-            )
-        }
+        Some((name, secrets)) => hkask_services::ServiceConfig::from_secrets(
+            secrets.a2a_secret.clone(),
+            secrets.db_passphrase.clone(),
+            secrets.mcp_secret.clone(),
+            name.to_string(),
+        ),
         None => hkask_services::ServiceConfig::from_env()
             .map_err(|e| format!("Failed to resolve service config: {}", e))?,
     };

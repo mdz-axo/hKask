@@ -179,10 +179,26 @@ impl WalletStore {
     ) -> Result<WalletBalance, WalletError> {
         let conn = self.lock_conn()?;
         self.ensure_wallet_with_conn(&conn, wallet_id)?;
+        let amount_u64 = amount.as_u64();
+        let amount_i64 = i64::try_from(amount_u64).map_err(|_| {
+            WalletError::Infra(InfrastructureError::Database(
+                "credit amount exceeds i64::MAX".into(),
+            ))
+        })?;
+        let current: i64 = conn.query_row(
+            "SELECT balance_rj FROM wallet_balances WHERE wallet_id = ?1",
+            rusqlite::params![wallet_id.to_string()],
+            |row| row.get(0),
+        )?;
+        let new_balance = current.checked_add(amount_i64).ok_or_else(|| {
+            WalletError::Infra(InfrastructureError::Database(
+                "balance overflow on credit".into(),
+            ))
+        })?;
         let now = now_rfc3339();
         conn.execute(
-            "UPDATE wallet_balances SET balance_rj = balance_rj + ?1, updated_at = ?2 WHERE wallet_id = ?3",
-            rusqlite::params![amount.as_u64() as i64, now, wallet_id.to_string()],
+            "UPDATE wallet_balances SET balance_rj = ?1, updated_at = ?2 WHERE wallet_id = ?3",
+            rusqlite::params![new_balance, now, wallet_id.to_string()],
         )?;
         drop(conn);
         self.get_balance(wallet_id)?
@@ -218,7 +234,11 @@ impl WalletStore {
             rusqlite::params![wallet_id.to_string()],
             |row| row.get(0),
         )?;
-        let amount_i64 = amount.as_u64() as i64;
+        let amount_i64 = i64::try_from(amount.as_u64()).map_err(|_| {
+            WalletError::Infra(InfrastructureError::Database(
+                "debit amount exceeds i64::MAX".into(),
+            ))
+        })?;
         if current < amount_i64 {
             return Err(WalletError::InsufficientBalance {
                 have: RJoule::new(current as u64),
@@ -534,16 +554,18 @@ impl WalletStore {
         wallet_id: WalletId,
         address: &str,
         index: u64,
+        chain: ChainId,
+        privacy_mode: PrivacyMode,
     ) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         conn.execute(
             "INSERT OR IGNORE INTO deposit_addresses (wallet_id, chain, address, derivation_index, privacy_mode) VALUES (?1, ?2, ?3, ?4, ?5)",
             rusqlite::params![
                 wallet_id.to_string(),
-                "hedera",
+                chain.to_string(),
                 address,
                 index as i64,
-                "transparent",
+                privacy_mode.to_string(),
             ],
         )?;
         Ok(())
@@ -574,10 +596,16 @@ impl WalletStore {
                 })
             },
             |r: DepositAddressRow| -> Result<DepositAddress, WalletError> {
+                let chain = ChainId::from_str(&r.chain).map_err(|e| {
+                    WalletError::Infra(InfrastructureError::Serialization(e.to_string()))
+                })?;
+                let privacy_mode = PrivacyMode::from_str(&r.privacy_mode).map_err(|e| {
+                    WalletError::Infra(InfrastructureError::Serialization(e.to_string()))
+                })?;
                 Ok(DepositAddress {
                     address: r.address,
-                    chain: ChainId::Hedera,
-                    privacy_mode: PrivacyMode::Transparent,
+                    chain,
+                    privacy_mode,
                 })
             }
         );
@@ -591,17 +619,23 @@ impl WalletStore {
     ///
     /// expect: "The system provides durable storage for wallet data"
     /// \[P3\] Motivating: Generative Space — resolve wallet for address
-    /// pre:  chain is valid, address is non-empty
+    /// pre:  chain is valid, privacy_mode is valid, address is non-empty
     /// post: returns Some(WalletId) if found, None otherwise
     pub fn resolve_wallet_for_address(
         &self,
         address: &str,
+        chain: ChainId,
+        privacy_mode: PrivacyMode,
     ) -> Result<Option<WalletId>, WalletError> {
         let conn = self.lock_conn()?;
-        let mut stmt =
-            conn.prepare("SELECT wallet_id FROM deposit_addresses WHERE address = ?1")?;
+        let mut stmt = conn.prepare(
+            "SELECT wallet_id FROM deposit_addresses WHERE address = ?1 AND chain = ?2 AND privacy_mode = ?3",
+        )?;
         let wallet_id_str: Option<String> = stmt
-            .query_row(rusqlite::params![address], |row| row.get(0))
+            .query_row(
+                rusqlite::params![address, chain.to_string(), privacy_mode.to_string()],
+                |row| row.get(0),
+            )
             .optional()
             .map_err(|e| WalletError::Infra(InfrastructureError::Database(e.to_string())))?;
         match wallet_id_str {

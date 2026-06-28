@@ -816,6 +816,12 @@ pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::Keyst
             let bytes = hkask_keystore::keychain::resolve_mcp_secret()?;
             Ok(hex::encode(&*bytes))
         }
+        "HKASK_MCP_SECURITY_KEY" => {
+            // Reserved for the MCP security gateway; resolution is wired here
+            // even though the gateway auth path is not yet integrated.
+            let bytes = hkask_keystore::keychain::resolve_mcp_security_key()?;
+            Ok(hex::encode(&*bytes))
+        }
         "HKASK_CAPABILITY_KEY" => {
             let bytes = hkask_keystore::keychain::resolve_capability_key()?;
             Ok(hex::encode(&*bytes))

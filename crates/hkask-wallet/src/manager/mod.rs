@@ -20,8 +20,8 @@ use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::id::{ApiKeyId, WalletId};
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use zeroize::Zeroizing;
 
 use crate::chain::{ChainPort, DepositEvent};
@@ -33,10 +33,17 @@ mod deposits;
 mod encumbrance;
 mod withdrawals;
 
+/// Optional hook for centralized self-healing policies.
+///
+/// Implementations live in service-layer crates so wallet stays dependency-minimal.
+pub trait WalletSelfHealer: Send + Sync {
+    fn heal(&self, operation: &str, error: &str);
+}
+
 /// Orchestrates chain ports, privacy layer, and rJoule accounting.
 ///
 /// # Ownership `[OUGHT-DECL]`
-/// - Sole-owns `ChainPort` and `PrivacyPort` implementations
+/// - Sole-owns `ChainPort` implementations
 /// - Shares `Arc<WalletStore>` with CNS for algedonic monitoring
 /// - Holds `wallet_seed` in `Zeroizing` for deposit reference generation
 /// - Does NOT hold treasury keys (loaded per-operation in signing.rs)
@@ -60,6 +67,8 @@ pub struct WalletManager {
     /// Runtime-adjustable gas→rJoule conversion rate.
     /// Initialized from `config.gas_per_rjoule`; updated by the CNS calibration loop.
     gas_per_rjoule: Arc<AtomicU64>,
+    /// Optional self-heal hook for centralized recovery policies.
+    self_heal_hook: Arc<Mutex<Option<Arc<dyn WalletSelfHealer>>>>,
 }
 
 impl WalletManager {
@@ -92,6 +101,7 @@ impl WalletManager {
             event_sink: None,
             price_feed,
             gas_per_rjoule,
+            self_heal_hook: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -107,6 +117,22 @@ impl WalletManager {
     pub fn with_price_feed(mut self, feed: Arc<dyn PriceFeed>) -> Self {
         self.price_feed = feed;
         self
+    }
+
+    /// Attach a self-heal hook (service-layer coordinator).
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_self_healer(self, healer: Arc<dyn WalletSelfHealer>) -> Self {
+        if let Ok(mut slot) = self.self_heal_hook.lock() {
+            *slot = Some(healer);
+        }
+        self
+    }
+
+    /// Set a self-heal hook after construction (thread-safe).
+    pub fn set_self_healer(&self, healer: Arc<dyn WalletSelfHealer>) {
+        if let Ok(mut slot) = self.self_heal_hook.lock() {
+            *slot = Some(healer);
+        }
     }
 
     /// Get a reference to the price feed.
@@ -188,7 +214,8 @@ impl WalletManager {
         })?;
         // Use derivation index 0 for the primary address
         let address = port.derive_deposit_address(0)?;
-        self.store.store_deposit_address(wallet_id, &address, 0)?;
+        self.store
+            .store_deposit_address(wallet_id, &address, 0, chain, privacy)?;
 
         // CNS span: deposit address derived
         self.emit_span(
@@ -592,7 +619,13 @@ mod tests {
 
         // Store a deposit address so resolution works
         store
-            .store_deposit_address(wallet_id, "mock_deposit_addr_1", 0)
+            .store_deposit_address(
+                wallet_id,
+                "mock_deposit_addr_1",
+                0,
+                ChainId::Hedera,
+                PrivacyMode::Transparent,
+            )
             .unwrap();
 
         let deposit_event = DepositEvent {
@@ -673,10 +706,22 @@ mod tests {
 
         // Register deposit addresses for both chains
         store
-            .store_deposit_address(wallet_id, "hedera_deposit_addr", 0)
+            .store_deposit_address(
+                wallet_id,
+                "hedera_deposit_addr",
+                0,
+                ChainId::Hedera,
+                PrivacyMode::Transparent,
+            )
             .unwrap();
         store
-            .store_deposit_address(wallet_id, "hedera_deposit_addr", 1)
+            .store_deposit_address(
+                wallet_id,
+                "hedera_deposit_addr",
+                1,
+                ChainId::Hedera,
+                PrivacyMode::Transparent,
+            )
             .unwrap();
 
         let hed_deposit_1 = DepositEvent {

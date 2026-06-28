@@ -68,7 +68,7 @@ pub struct HealContext {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct HealStrategy {
+pub struct HealStrategy {
     pub name: String,
     pub error_pattern: String,
     pub description: String,

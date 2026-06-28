@@ -21,8 +21,10 @@ OS keychain integration and AES-256-GCM encryption for hKask.
 |-----|-------------|
 | `hkask-db-passphrase` | Database encryption passphrase (OS keychain) |
 | `HKASK_MASTER_KEY` | Master key hex (OS keychain) |
+| `mcp-secret` | MCP dispatch signing key (OS keychain) |
+| `mcp-security-key` | MCP security gateway HMAC key (OS keychain) |
 | `a2a-secret` | A2A HMAC signing secret |
 | `capability-key` | Capability token signing key |
 | `mcp-secret` | MCP signing secret |
 | `mcp-security-key` | MCP security gateway HMAC key |
-| `ocap-secret` | OCAP signing secret |
+| `ocap-secret` | OCAP signing secret (fails closed if master key is unavailable) |

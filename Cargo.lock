@@ -4516,6 +4516,7 @@ dependencies = [
  "hkask-storage",
  "hkask-templates",
  "hkask-types",
+ "hkask-wallet",
  "hkask-wallet-types",
  "parking_lot",
  "rand 0.9.4",

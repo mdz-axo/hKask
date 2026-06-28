@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS api_keys (key_id TEXT PRIMARY KEY, wallet_id TEXT NOT
 CREATE INDEX IF NOT EXISTS idx_api_keys_wallet_id ON api_keys(wallet_id);
 CREATE INDEX IF NOT EXISTS idx_api_keys_public_key ON api_keys(public_key);
 CREATE TABLE IF NOT EXISTS deposit_addresses (wallet_id TEXT NOT NULL, chain TEXT NOT NULL, address TEXT NOT NULL, derivation_index INTEGER NOT NULL, privacy_mode TEXT NOT NULL DEFAULT 'transparent', created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (wallet_id, chain, derivation_index));
+CREATE UNIQUE INDEX IF NOT EXISTS deposit_addresses_unique_address ON deposit_addresses(chain, privacy_mode, address);
 CREATE TABLE IF NOT EXISTS deposit_references (reference TEXT PRIMARY KEY, wallet_id TEXT NOT NULL REFERENCES wallet_balances(wallet_id), chain TEXT NOT NULL, expires_at TEXT NOT NULL, spent INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE INDEX IF NOT EXISTS idx_deposit_refs_wallet_id ON deposit_references(wallet_id);
 CREATE INDEX IF NOT EXISTS idx_deposit_refs_expires ON deposit_references(expires_at);

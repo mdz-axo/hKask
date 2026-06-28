@@ -1,5 +1,10 @@
 use super::*;
+use hkask_services_core::self_heal::{
+    HealAction, HealContext, HealRegistry, HealStrategy, SelfHealer,
+};
 use hkask_services_core::{ServiceConfig, ServiceError};
+use hkask_wallet::manager::{WalletManager, WalletSelfHealer};
+use std::collections::HashMap;
 
 impl AgentService {
     /// Assemble all shared infrastructure from a `ServiceConfig`.
@@ -841,6 +846,54 @@ fn build_wallet(
         Arc::clone(&f.db.conn_arc())
     };
     let wallet_store = Arc::new(WalletStore::new(wallet_conn));
+
+    struct WalletSelfHealerAdapter {
+        healer: SelfHealer,
+        manager: Arc<WalletManager>,
+    }
+
+    impl WalletSelfHealer for WalletSelfHealerAdapter {
+        fn heal(&self, operation: &str, error: &str) {
+            // Centralized self-healing adapter: route wallet errors through the
+            // shared SelfHealer registry so retries/escalation are consistent
+            // across services (wallet, storage, chain ports, curator loop).
+            if operation == "wallet.deposit.process"
+                && error.starts_with("deposit address unresolvable:")
+                && let Some((_, address)) = error.split_once(':')
+            {
+                let address = address.trim();
+                if let Ok(true) = self.manager.repair_deposit_address_mapping(address) {
+                    tracing::info!(
+                        target: "cns.heal",
+                        operation = %operation,
+                        address = %address,
+                        "Wallet self-heal repaired deposit address mapping"
+                    );
+                    return;
+                }
+            }
+
+            let ctx = HealContext {
+                operation: operation.to_string(),
+                error_message: error.to_string(),
+                env_vars: HashMap::new(),
+                config_search_paths: Vec::new(),
+                can_retry: true,
+            };
+            let _ = self.healer.attempt(error, &ctx);
+        }
+    }
+
+    let mut heal_registry = HealRegistry::with_defaults();
+    heal_registry.add(HealStrategy {
+        name: "wallet-deposit-unresolvable".into(),
+        error_pattern: "deposit address unresolvable".into(),
+        description: "Deposit address unresolvable — retry after wallet auto-repair".into(),
+        action: HealAction::RetryWithBackoff {
+            max_attempts: 2,
+            delay_ms: 500,
+        },
+    });
     let svc = WalletService::build(
         &config.wallet_config,
         Arc::clone(&wallet_store),
@@ -853,6 +906,12 @@ fn build_wallet(
             .with_consent_manager(Arc::clone(&f.consent_manager)),
     );
     let wallet_manager = svc.manager();
+
+    let wallet_self_healer = WalletSelfHealerAdapter {
+        healer: SelfHealer::with_registry(heal_registry),
+        manager: Arc::clone(wallet_manager),
+    };
+    wallet_manager.set_self_healer(Arc::new(wallet_self_healer));
 
     // Ensure default wallet
     let default_wallet = WalletId::default();

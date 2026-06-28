@@ -252,6 +252,7 @@ fn run_rotate(keychain: &hkask_keystore::Keychain, new_passphrase: Option<&str>)
 
     store(keychain_keys::KEY_A2A_SECRET, &secrets.a2a_secret);
     store(keychain_keys::KEY_CAPABILITY_KEY, &secrets.capability_key);
+    store(keychain_keys::KEY_MCP_SECRET, &secrets.mcp_secret);
     store(
         keychain_keys::KEY_MCP_SECURITY_KEY,
         &secrets.mcp_security_key,
