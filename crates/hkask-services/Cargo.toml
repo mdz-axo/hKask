@@ -15,6 +15,8 @@ hkask-services-wallet = { path = "../hkask-services-wallet" }
 hkask-services-onboarding = { path = "../hkask-services-onboarding" }
 hkask-services-skill = { path = "../hkask-services-skill" }
 hkask-services-context = { path = "../hkask-services-context" }
+hkask-services-compose = { path = "../hkask-services-compose" }
+hkask-services-curator = { path = "../hkask-services-curator" }
 hkask-types = { path = "../hkask-types" }
 hkask-ports = { path = "../hkask-ports" }
 hkask-capability = { path = "../hkask-capability" }

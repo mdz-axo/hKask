@@ -13,22 +13,32 @@
 
 // ── Re-exports from extracted service crates ───────────────────────────
 
-pub use crate::lifecycle::{
-    LifecycleError, ServerHealth, ServerLifecycle, ServerLifecycleConfig, run_lifecycle,
-};
 pub use hkask_agents::consent::ConsentManager;
 pub use hkask_inference::model_constants;
 pub use hkask_inference::{
     FusionConfig, FusionMode, FusionSkill, InferenceConfig, InferenceRouter, ProviderId,
 };
 pub use hkask_services_context::{AgentService, PerAgentMemory};
+pub use hkask_services_compose::{
+    CentroidValidation, CognitionConfig, ComposeRequest, ComposeResult, ComposeService,
+    EmbeddingSection, RetrievalSection, ValidationSection, cosine_distance,
+};
 pub use hkask_services_core::config::{DEFAULT_DB_PATH, ServiceConfig};
+pub use hkask_services_curator::{CuratorService, EscalationResponse};
 pub use hkask_services_core::error::ServiceError;
+pub use hkask_services_curator::{CuratorService, EscalationResponse};
 pub use hkask_services_core::parse_data_category;
+pub use hkask_services_curator::{CuratorService, EscalationResponse};
 pub use hkask_services_core::settings::{
+pub use hkask_services_curator::{CuratorService, EscalationResponse};
     HkaskSettings, load_settings, save_settings, settings_path,
 };
+pub use hkask_services_core::verification::{
+pub use hkask_services_curator::{CuratorService, EscalationResponse};
+    Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
+};
 pub use hkask_services_core::{InferenceContext, InferenceService, ModelInfo};
+pub use hkask_services_curator::{CuratorService, EscalationResponse};
 pub use hkask_services_corpus::{
     ChunkingConfig, CorpusConfig, DiscoverRequest, DiscoverResult, DiscoveredWork,
     DiscoveryService, EmbedPhase, EmbedProgress, EmbedResult, EmbedService, EmbeddingConfig,
@@ -58,29 +68,15 @@ pub use hkask_services_wallet::WalletService;
 // ── Remaining inline modules ───────────────────────────────────────────
 
 pub mod chat;
-pub mod lifecycle;
 pub mod memory;
 pub use memory::MemoryService;
 
-pub mod compose;
-pub mod curator;
-pub mod verification;
-pub use crate::verification::{
-    Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
-};
 
-pub mod archival;
 pub mod consolidation;
 
-pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
 pub use chat::{
     ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage, TurnRequest, TurnResult,
 };
-pub use compose::{
-    CentroidValidation, CognitionConfig, ComposeRequest, ComposeResult, ComposeService,
-    EmbeddingSection, RetrievalSection, ValidationSection, cosine_distance,
-};
-pub use curator::{CuratorService, EscalationResponse};
 
 #[cfg(test)]
 mod tests {

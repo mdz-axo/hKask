@@ -3909,6 +3909,7 @@ dependencies = [
  "hkask-services-core",
  "hkask-services-kanban",
  "hkask-services-runtime",
+ "hkask-services-skill",
  "hkask-storage",
  "hkask-templates",
  "hkask-test-harness",
@@ -4595,6 +4596,7 @@ dependencies = [
  "hkask-mcp",
  "hkask-memory",
  "hkask-ports",
+ "hkask-services-compose",
  "hkask-services-context",
  "hkask-services-core",
  "hkask-services-corpus",
@@ -4626,6 +4628,21 @@ dependencies = [
  "tracing",
  "trybuild",
  "uuid",
+]
+
+[[package]]
+name = "hkask-services-compose"
+version = "0.30.0"
+dependencies = [
+ "hkask-inference",
+ "hkask-memory",
+ "hkask-ports",
+ "hkask-services-core",
+ "hkask-storage",
+ "hkask-types",
+ "minijinja",
+ "serde",
+ "tracing",
 ]
 
 [[package]]
@@ -4683,6 +4700,7 @@ dependencies = [
  "minijinja",
  "serde",
  "serde_json",
+ "serde_yaml_neo",
  "thiserror 2.0.18",
  "tracing",
  "uuid",

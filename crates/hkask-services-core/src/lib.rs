@@ -18,6 +18,7 @@ pub mod identity;
 pub mod inference_svc;
 pub mod self_heal;
 pub mod settings;
+pub mod verification;
 
 pub use config::{DEFAULT_DB_PATH, ServiceConfig};
 pub use data_category::parse_data_category;

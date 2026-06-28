@@ -4,6 +4,7 @@ pub mod cli;
 pub mod cloud;
 pub mod commands;
 pub mod experience;
+pub mod archival;
 pub mod onboarding;
 pub mod onboarding_session;
 pub mod repl;

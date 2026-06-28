@@ -36,6 +36,7 @@ hkask-keystore = { path = "../hkask-keystore" }
 hkask-services = { path = "../hkask-services" }
 hkask-services-runtime = { path = "../hkask-services-runtime" }
 hkask-services-core = { path = "../hkask-services-core" }
+hkask-services-skill = { path = "../hkask-services-skill" }
 hkask-services-kanban = { path = "../hkask-services-kanban" }
 hkask-ledger = { path = "../hkask-ledger" }
 rmcp.workspace = true
