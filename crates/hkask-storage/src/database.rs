@@ -150,13 +150,18 @@ impl Database {
             )
             .map_err(|e| {
                 let msg = e.to_string().to_lowercase();
-                // SQLCipher HMAC failure: passphrase is wrong
-                if msg.contains("hmac check failed") || msg.contains("error decrypting page") {
-                    DatabaseError::PassphraseMismatch(format!("{}", path))
-                }
-                // rusqlite "not a database" error: file is corrupted
-                else if msg.contains("file is not a database") || msg.contains("not a database") {
-                    DatabaseError::Corrupted(format!("{}: {}", path, e))
+                // SQLCipher-encrypted files that can't be read look like
+                // "file is not a database" because the header is encrypted.
+                // If a .salt file exists alongside the .db, this is a passphrase
+                // mismatch (our code always creates .salt alongside .db).
+                // Without a .salt, it's genuine corruption.
+                if msg.contains("file is not a database") || msg.contains("not a database") {
+                    let salt_exists = std::path::Path::new(&salt_path).is_file();
+                    if salt_exists {
+                        DatabaseError::PassphraseMismatch(path.to_string())
+                    } else {
+                        DatabaseError::Corrupted(format!("{}: {}", path, e))
+                    }
                 } else {
                     DatabaseError::SqlCipher(format!(
                         "Database unreadable — wrong passphrase or corrupted file: {}",

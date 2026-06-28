@@ -583,21 +583,12 @@ impl AgentService {
             Arc::clone(&semantic_memory),
         ));
         let consolidation_service =
-            hkask_memory::ConsolidationService::new(bridge, semantic_memory);
+            hkask_memory::ConsolidationService::new(bridge, Arc::clone(&semantic_memory));
 
-        // Storage ports via MemoryLoopForwarder — uses the same connection
-        let mut adapter_epi = EpisodicMemory::new(TripleStore::new(Arc::clone(&conn)));
-        let mut adapter_sem = SemanticMemory::new(
-            TripleStore::new(Arc::clone(&conn)),
-            EmbeddingStore::new(Arc::clone(&conn)),
-        );
-        if let Some(ref sink) = cns_event_sink {
-            adapter_epi = adapter_epi.with_cns(Arc::clone(sink));
-            adapter_sem = adapter_sem.with_cns(Arc::clone(sink));
-        }
+        // Storage ports via MemoryLoopForwarder — reuse configured memories
         let adapter = Arc::new(hkask_agents::adapters::MemoryLoopForwarder::new(
-            adapter_epi,
-            adapter_sem,
+            Arc::clone(&episodic_memory),
+            Arc::clone(&semantic_memory),
         ));
 
         PerAgentMemory {
@@ -713,15 +704,10 @@ impl AgentService {
         })?;
 
         let per_agent_memory = Self::build_per_agent_memory(db, None);
-        let candidates = per_agent_memory
-            .consolidation_service
-            .consolidation_candidate_count(&target_webid);
-        let semantic_count = per_agent_memory
-            .consolidation_service
-            .semantic_triple_count();
-        let low_confidence = per_agent_memory
-            .consolidation_service
-            .semantic_low_confidence_count(0.33);
+        let cs = &per_agent_memory.consolidation_service;
+        let candidates = cs.consolidation_candidate_count(&target_webid);
+        let semantic_count = cs.semantic_triple_count();
+        let low_confidence = cs.semantic_low_confidence_count(0.33);
 
         Ok((candidates, semantic_count, low_confidence))
     }

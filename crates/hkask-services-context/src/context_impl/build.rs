@@ -217,9 +217,6 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
         }
     };
 
-    // Triple store for kanban task bridge — contract violations create tasks here.
-    let _triple_store = Arc::new(TripleStore::new(Arc::clone(&primary_conn)));
-
     // Spawn periodic seam drift check (background watcher).
     self::seam_monitor::spawn_seam_drift_check(&seam_watcher, &cns_runtime, &cns_event_sink);
 
@@ -340,16 +337,11 @@ async fn build_loops(
     let semantic_loop = SemanticLoop::new(Arc::clone(&semantic_memory));
     loop_system.register_loop(Arc::new(semantic_loop)).await;
 
-    // Memory adapter — with CNS observability on its own store instances
+    // Memory adapter — reuses configured memory instances (shared store, shared config)
     let memory_adapter = Arc::new(
         hkask_agents::adapters::memory_loop_adapter::MemoryLoopForwarder::new(
-            EpisodicMemory::new(TripleStore::new(Arc::clone(&mem_conn)))
-                .with_cns(Arc::clone(&f.cns_event_sink)),
-            SemanticMemory::new(
-                TripleStore::new(Arc::clone(&mem_conn)),
-                EmbeddingStore::new(Arc::clone(&mem_conn)),
-            )
-            .with_cns(Arc::clone(&f.cns_event_sink)),
+            Arc::clone(&episodic_memory),
+            Arc::clone(&semantic_memory),
         ),
     );
     let episodic_storage: Arc<dyn EpisodicStoragePort> = memory_adapter.clone();

@@ -283,6 +283,7 @@ impl ServiceConfig {
             curator_auto_consolidation_enabled: false,
         }
     }
+}
 
 /// Read `HKASK_CURATOR_AUTO_CONSOLIDATION` env var into a bool.
 ///

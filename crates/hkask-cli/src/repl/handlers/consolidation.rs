@@ -9,17 +9,17 @@ pub(crate) fn handle_consolidate(
 ) {
     let trimmed = arg.trim();
 
-    // Show status
+    // Show status — route through service_context for a fresh read.
     if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("status") {
         println!("  \x1b[1mConsolidation Status\x1b[0m");
         println!("  Agent: \x1b[36m{}\x1b[0m", state.current_agent);
         println!("  Agent WebID: {}", state.agent_webid);
 
-        match &state.consolidation_service {
-            Some(svc) => {
-                let candidates = svc.consolidation_candidate_count(&state.agent_webid);
-                let semantic_count = svc.semantic_triple_count();
-                let low_conf = svc.semantic_low_confidence_count(0.33);
+        match state
+            .service_context
+            .consolidation_status_for(&state.current_agent)
+        {
+            Ok((candidates, semantic_count, low_conf)) => {
                 println!();
                 println!("  Consolidation candidates: {}", candidates);
                 println!("  Semantic triple count: {}", semantic_count);
@@ -27,7 +27,7 @@ pub(crate) fn handle_consolidate(
                 println!();
                 println!("  Use \x1b[36m/consolidate run\x1b[0m to trigger consolidation");
             }
-            None => {
+            Err(_) => {
                 println!();
                 println!(
                     "  \x1b[33mConsolidation service unavailable\x1b[0m (registry DB not accessible)"
@@ -40,16 +40,9 @@ pub(crate) fn handle_consolidate(
     }
 
     // "run" or other — execute consolidation with defaults
-    let service = match &state.consolidation_service {
-        Some(svc) => svc,
-        None => {
-            println!(
-                "  \x1b[31mError:\x1b[0m Consolidation service unavailable (registry DB not accessible)"
-            );
-            println!("  Use \x1b[36mkask consolidate\x1b[0m for CLI-based consolidation");
-            return;
-        }
-    };
+    // Unlike status (which uses service_context directly), the old
+    // display block below uses consolidation_candidate_count — keep
+    // the service_context path throughout.
 
     // Parse optional sub-arguments from "run [--floor F] [--max M] [--limit L]"
     // Supports both space-delimited (--floor 0.33) and equals-delimited (--floor=0.33)
@@ -164,14 +157,16 @@ pub(crate) fn handle_consolidate(
         println!("  Valid flags: --floor, --max, --limit");
     }
 
-    // Show pre-consolidation state
-    let candidates = service.consolidation_candidate_count(&state.agent_webid);
-    let semantic_count = service.semantic_triple_count();
-    let low_conf = service.semantic_low_confidence_count(0.33);
-    println!("  \x1b[1mPre-consolidation state:\x1b[0m");
-    println!("  Consolidation candidates: {}", candidates);
-    println!("  Semantic triple count: {}", semantic_count);
-    println!("  Low-confidence triples (≤0.33): {}", low_conf);
+    // Show pre-consolidation state via service_context (fresh DB read).
+    if let Ok((candidates, semantic_count, low_conf)) = state
+        .service_context
+        .consolidation_status_for(&state.current_agent)
+    {
+        println!("  \x1b[1mPre-consolidation state:\x1b[0m");
+        println!("  Consolidation candidates: {}", candidates);
+        println!("  Semantic triple count: {}", semantic_count);
+        println!("  Low-confidence triples (≤0.33): {}", low_conf);
+    }
 
     let request = ConsolidationRequest {
         limit,
@@ -191,10 +186,13 @@ pub(crate) fn handle_consolidate(
             if outcome.failed_count > 0 {
                 println!("  Failed: {}", outcome.failed_count);
             }
-            println!(
-                "  Post-consolidation semantic count: {}",
-                service.semantic_triple_count()
-            );
+            // Post-consolidation count via service_context (fresh read).
+            if let Ok((_, semantic_count, _)) = state
+                .service_context
+                .consolidation_status_for(&state.current_agent)
+            {
+                println!("  Post-consolidation semantic count: {}", semantic_count);
+            }
         }
         Err(hkask_services::ServiceError::ConsentDenied { message }) => {
             println!();

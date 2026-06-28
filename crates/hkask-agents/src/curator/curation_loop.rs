@@ -503,6 +503,14 @@ impl HkaskLoop for CurationLoop {
                                             curator_webid = %curator_id_str,
                                             "Curator auto-consolidation skipped — missing consent"
                                         );
+                                        tracing::info!(
+                                            target: "cns.curator.consolidation",
+                                            outcome = "skipped",
+                                            reason = "missing_consent",
+                                            missing_categories = ?missing,
+                                            curator_webid = %curator_id_str,
+                                            "CNS"
+                                        );
                                         let _ = self.context.escalation_queue().add(
                                             TemplateID::new(),
                                             BotID::from_uuid(curator_id.as_uuid()),
@@ -531,6 +539,14 @@ impl HkaskLoop for CurationLoop {
                                                     failed = outcome.failed_count,
                                                     "Curator auto-consolidation completed"
                                                 );
+                                                tracing::info!(
+                                                    target: "cns.curator.consolidation",
+                                                    outcome = "completed",
+                                                    consolidated = outcome.consolidated_count,
+                                                    deleted = outcome.deleted_count,
+                                                    failed = outcome.failed_count,
+                                                    "CNS"
+                                                );
                                                 if outcome.consolidated_count > 0 {
                                                     let _ = self.context.escalation_queue().add(
                                                         TemplateID::new(),
@@ -554,6 +570,12 @@ impl HkaskLoop for CurationLoop {
                                                     target: CUR_TARGET,
                                                     error = %e,
                                                     "Curator auto-consolidation failed"
+                                                );
+                                                tracing::info!(
+                                                    target: "cns.curator.consolidation",
+                                                    outcome = "failed",
+                                                    error = %e,
+                                                    "CNS"
                                                 );
                                                 let _ = self.context.escalation_queue().add(
                                                     TemplateID::new(),

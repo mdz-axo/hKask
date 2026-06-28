@@ -126,8 +126,8 @@ where
 /// logic (dedup, Bayesian confidence decay, temporal attention weighting)
 /// instead of directly hitting `TripleStore`.
 pub struct MemoryLoopForwarder {
-    episodic: EpisodicMemory,
-    semantic: SemanticMemory,
+    episodic: Arc<EpisodicMemory>,
+    semantic: Arc<SemanticMemory>,
 }
 
 impl MemoryLoopForwarder {
@@ -138,7 +138,7 @@ impl MemoryLoopForwarder {
     /// pre:  `episodic` is a valid `EpisodicMemory`; `semantic` is a valid
     ///       `SemanticMemory`.
     /// post: Returns a `MemoryLoopForwarder` holding both memory instances.
-    pub fn new(episodic: EpisodicMemory, semantic: SemanticMemory) -> Self {
+    pub fn new(episodic: Arc<EpisodicMemory>, semantic: Arc<SemanticMemory>) -> Self {
         Self { episodic, semantic }
     }
 
@@ -192,10 +192,10 @@ impl MemoryLoopForwarder {
         conn: Arc<std::sync::Mutex<rusqlite::Connection>>,
     ) -> Result<Self, MemoryError> {
         let triple_store = TripleStore::new(Arc::clone(&conn));
-        let episodic = EpisodicMemory::new(triple_store);
+        let episodic = Arc::new(EpisodicMemory::new(triple_store));
         let triple_store2 = TripleStore::new(Arc::clone(&conn));
         let embedding_store = EmbeddingStore::new(Arc::clone(&conn));
-        let semantic = SemanticMemory::new(triple_store2, embedding_store);
+        let semantic = Arc::new(SemanticMemory::new(triple_store2, embedding_store));
         Ok(Self::new(episodic, semantic))
     }
 }

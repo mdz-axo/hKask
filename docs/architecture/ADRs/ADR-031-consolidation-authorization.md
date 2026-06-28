@@ -109,8 +109,51 @@ The API endpoint enforces a coarse-grained rate limit (30-second minimum interva
 | P2 (Affirmative Consent) | ✅ All paths check `EpisodicMemory` + `SemanticMemory` consent; denials return actionable messages |
 | P4 (Clear Boundaries / OCAP) | ✅ Single entry point in `AgentService`; direct `Database::open` bypass removed |
 | ADR-027 (Master key derivation) | ✅ Reuses `derive_all_internal_secrets()` exactly |
-| Headless constraint (§1.6) | ✅ No visual UI; notifications are CLI output, API responses, and escalation-queue entries |
+| Headless constraint (§1.6) | ✅ No visual UI; notifications are CLI output, API responses, escalation-queue entries, and CNS spans (`cns.curator.consolidation`) |
+
+## Post-Implementation Simplification (2026-06-28)
+
+An adversarial review of the consolidation fix surfaced 12 anti-patterns. Each was investigated
+and classified. Fixed items are listed below; deferred items are documented here.
+
+### Fixed
+
+- **Config flag deduplication** — `read_curator_auto_consolidation_env()` extracted.
+- **WebID derivation** — `WebID::for_agent_name(agent_name)` convenience method added.
+- **Module naming** — `consolidation_ops` → `consolidation_auth` (module no longer performs consolidation).
+- **Category display** — `DataCategory::all_known()` replaces hand-rolled tuple array in sovereignty display.
+- **Error variant** — `ServiceError::Forbidden` separates authorization failures (P4) from consent denials (P2).
+- **REPL status queries** — `/consolidate` status display now routes through `AgentService::consolidation_status_for()` for fresh reads instead of a stale cached `ConsolidationService`.
+- **CNS spans** — Curator auto-consolidation events now emit `cns.curator.consolidation` spans in addition to escalation-queue entries.
+- **Integration test** — `consolidate_agent_memory_consent_checks` added, covering both consent-denied and consent-granted paths.
+
+### Deferred — CuratorContext.consent_manager optionality
+
+`CuratorContext.consent_manager` is `Option<Arc<ConsentManager>>` — required in production
+(always wired via `build_loops()`) but optional for standalone CLI metacognition and test paths.
+The Curation Loop's branch for `None` is 3 lines and defensively handles the absent case.
+
+**Decision:** Retain optionality. Making it required would force all test paths to construct
+a full ConsentManager with its keystore/DB dependencies. The optionality enables the
+CuratorContext to exist in contexts where sovereignty checks are not applicable.
+
+### Deferred — REPL cannot grant consent
+
+`/sovereignty` in the REPL is status-only. Users who hit consent denial must leave the
+REPL and run `kask sovereignty grant`. This is intentional friction: consent grants are
+high-stakes authorization operations. Requiring an out-of-band CLI action ensures the
+user deliberately authorizes data sharing rather than doing so with a quick slash command.
+If user feedback demands inline consent, adding `/sovereignty grant <category>` is a
+small, safe change (the REPL already has the `service_context` and `sovereignty()` accessor).
+
+### Deferred — Notifications are escalation-queue-only
+
+The headless system design treats escalation-queue entries as the primary user-notification
+mechanism. CNS spans (`cns.curator.consolidation`) are now also emitted for observability.
+Adding Matrix messages would require the `communication` feature and a Matrix homeserver,
+which is not guaranteed in all deployments. The escalation queue is available in all
+configurations (it lives in the primary SQLite DB).
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — ADR-031 — v0.30.0*
+*ℏKask - A Minimal Viable Container for Replicants — ADR-031 — v0.31.0*

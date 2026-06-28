@@ -63,7 +63,7 @@ use openapi::ApiDoc;
 /// API state — composes `AgentService` for all shared infrastructure.
 ///
 /// The `agent_service` field is the single source of truth for domain
-/// objects. Surface-specific fields (spec store, git CAS, wallet service)
+/// objects. Surface-specific fields (git CAS, wallet service)
 /// are the ONLY fields that don't come from `AgentService`.
 #[derive(Clone)]
 pub struct ApiState {
@@ -71,8 +71,7 @@ pub struct ApiState {
     /// All domain objects (registry, escalation queue, consent manager, etc.)
     /// come from here. Surface code derives service types via domain accessors.
     pub agent_service: Arc<AgentService>,
-    /// Spec store for MDS specifications — surface-specific
-    pub spec_store: Option<Arc<hkask_storage::SqliteSpecStore>>,
+
     /// Template-loading adapter — surface-specific
     pub template_adapter: Arc<hkask_templates::TemplateCrateLoader>,
     /// Git CAS port for all CAS operations (hexagonal boundary) — surface-specific
@@ -148,23 +147,12 @@ impl ApiState {
         Ok(Self {
             agent_service: Arc::new(ctx),
             // Surface-specific fields only
-            spec_store: None,
             template_adapter,
             git_cas_port,
             gix_cas,
             wallet_service,
             api_key_auth_service,
         })
-    }
-
-    /// Set the spec store for MDS specifications
-    ///
-    /// expect: "API endpoints enforce OCAP boundaries"
-    /// pre:  store is a valid `Arc<SqliteSpecStore>`
-    /// post: self.spec_store = Some(store); returns self
-    pub fn with_spec_store(mut self, store: Arc<hkask_storage::SqliteSpecStore>) -> Self {
-        self.spec_store = Some(store);
-        self
     }
 
     /// Attach a wallet service for rJoule payments and API key management.

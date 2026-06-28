@@ -6,7 +6,7 @@
 
 pub(crate) mod bayesian; // Loop 2b (semantic confidence combination)
 pub mod consolidation; // Episodic → Semantic bridge
-pub mod consolidation_ops;
+pub mod consolidation_auth;
 pub mod consolidation_service;
 pub mod episodic; // Loop 2a
 pub mod episodic_loop;
@@ -17,7 +17,7 @@ pub mod semantic; // Loop 2b
 pub mod semantic_loop;
 
 pub use consolidation::ConsolidationBridge;
-pub use consolidation_ops::*;
+pub use consolidation_auth::*;
 pub use consolidation_service::ConsolidationService;
 pub use episodic::{EpisodicMemory, EpisodicMemoryError};
 pub use episodic_loop::EpisodicLoop;

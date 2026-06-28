@@ -10,17 +10,35 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # hKask Testing Discipline
 
-**Method:** Property-Based Testing (QuickCheck, Claessen & Hughes, 2000) verified through CNS observability.  
+**First principles:** Tests are the system’s regulator model (P9). They must (1) enforce boundaries (P4), (2) ground claims in observable invariants (P8), and (3) minimize action by preferring deep seams over shallow ones (P5).  
+**Method (default):** Property-Based Testing (QuickCheck, Claessen & Hughes, 2000) verified through CNS observability.  
 **Internal bridge:** TDD skill (`.agents/skills/tdd/SKILL.md`) — the process for writing verified tests.  
-**Governing principles:** P4 (Clear Boundaries), P8 (Semantic Grounding), P9 (Homeostatic Self-Regulation).
+**Governing principles:** P4 (Clear Boundaries), P5 (Essentialism), P8 (Semantic Grounding), P9 (Homeostatic Self-Regulation).
 
 **Supersedes:** `docs/specifications/specs/test-program.md` (archived 2026-06-15), `docs/specifications/standards/TESTING_STANDARDS.md` (archived 2026-06-15). This document is the single authoritative reference for all hKask testing practices, standards, and philosophy.
 
 ---
 
-## 1. The Verification Method: Property-Based Testing
+## 1. Verification From First Principles
 
-### 1.1 The Principle
+### 1.1 Why tests exist
+
+Tests are not “quality checks.” They are **regulatory instruments**: the system’s model of itself. If tests do not detect drift, the regulator is blind (P9). If tests probe shallow seams, they waste action and increase coupling (P5). If tests do not align with OCAP and sovereignty boundaries, they invalidate P4.
+
+### 1.2 What a test must prove
+
+Every test must answer one of these first-principle questions:
+
+1. **Boundary:** Did the operation respect OCAP and consent boundaries (P4, P1–P3)?
+2. **Invariant:** Did a defined invariant hold across valid inputs or sequences (P8)?
+3. **Equivalence:** Did the same operation yield the same result across surfaces (CLI/API/MCP) where required?
+4. **Homeostasis:** Did the feedback loop restore stability after perturbation (P9)?
+
+If a test answers none, it is ontological noise (P5.2) and should be deleted.
+
+## 2. The Verification Method: Property-Based Testing
+
+### 2.1 The Principle
 
 A property-based test does not test a single example. It tests an invariant across randomly generated inputs:
 
@@ -38,7 +56,7 @@ proptest! {
 
 `prop_assume!` enforces preconditions — inputs that violate them are skipped. `prop_assert!` verifies postconditions. Proptest generates 10,000+ random inputs and shrinks failures to minimal counterexamples.
 
-### 1.2 When to Use Property-Based Tests
+### 2.2 When to Use Property-Based Tests
 
 | Situation | Use PBT? | Reason |
 |-----------|----------|--------|
@@ -48,7 +66,7 @@ proptest! {
 | Function is I/O-bound (network, filesystem) | **No** | Use integration tracer bullet instead |
 | Function has no meaningful invariant beyond "doesn't panic" | **Fuzz only** | `catch_unwind` + arbitrary input |
 
-### 1.3 The Test Pyramid
+### 2.3 The Test Pyramid
 
 | Layer | What | Verification |
 |-------|------|-------------|
@@ -58,7 +76,7 @@ proptest! {
 | **Fuzz** | Input surface robustness | `catch_unwind` + arbitrary input; verifies no panic |
 | **System** | End-to-end workflows | Integration tracer bullet (TDD skill); verifies full vertical slice |
 
-### 1.4 Deployment Testing
+### 2.4 Deployment Testing
 
 Deployment testing covers the provisioning surface — the operations that initialize and configure a running hKask server:
 
@@ -73,7 +91,7 @@ Deployment testing covers the provisioning surface — the operations that initi
 
 ---
 
-## 2. Ontology — Testing Vocabulary
+## 3. Ontology — Testing Vocabulary
 
 | Term | Definition | Domain |
 |------|-----------|--------|
@@ -89,7 +107,7 @@ Deployment testing covers the provisioning surface — the operations that initi
 
 ---
 
-## 3. Test Classification
+## 4. Test Classification
 
 Every test falls into one of three categories:
 
@@ -99,7 +117,7 @@ Every test falls into one of three categories:
 | **Seam Integration** | Tests interaction between two modules through a shared trait | ✅ Yes | **Required** |
 | **Implementation-Coupled** | Tests private methods, internal state, or mocked collaborators | ❌ No | **Flag for rewrite** |
 
-### 3.1 Classifying an Existing Test
+### 4.1 Classifying an Existing Test
 
 Ask: *"If I rewrote the entire internals of this module, would this test still pass?"*
 
@@ -107,7 +125,7 @@ Ask: *"If I rewrote the entire internals of this module, would this test still p
 - **Only if the new internals use the same trait** → Seam integration test. Keep.
 - **No** → Implementation-coupled test. Flag for rewrite or removal.
 
-### 3.2 Implementation-Coupled Tests Are Technical Debt
+### 4.2 Implementation-Coupled Tests Are Technical Debt
 
 Implementation-coupled tests are not forbidden — they exist because some code currently lacks a clean seam. But they must be tracked:
 
@@ -116,9 +134,9 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 
 ---
 
-## 4. MDS Category → Test Strategy
+## 5. MDS Category → Test Strategy
 
-### 4.1 Domain (REQ-DOM-*)
+### 5.1 Domain (REQ-DOM-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -127,7 +145,7 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 | **Key invariant** | Lexicon round-trips (markdown → YAML → loaded vocabulary) |
 | **Anti-pattern** | Testing internal hashmap structure of lexicon types |
 
-### 4.2 Capability (REQ-CAP-*)
+### 5.2 Capability (REQ-CAP-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -136,7 +154,7 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 | **Key invariant** | Fail-closed: no checker = denied, not open |
 | **Anti-pattern** | Testing HMAC internals rather than attenuation behavior |
 
-### 4.3 Interface (REQ-IFC-*)
+### 5.3 Interface (REQ-IFC-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -145,7 +163,7 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 | **Key invariant** | `MCP ≡ CLI ≡ API` for core operations; spec lifecycle is CLI + API + QA only |
 | **Anti-pattern** | Testing only one surface and assuming the others work |
 
-### 4.4 Composition (REQ-COM-*)
+### 5.4 Composition (REQ-COM-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -154,7 +172,7 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 | **Key invariant** | Template cascade terminates within depth limit |
 | **Anti-pattern** | Testing Jinja2 string manipulation in isolation |
 
-### 4.5 Trust & Security (REQ-TRU-*)
+### 5.5 Trust & Security (REQ-TRU-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -163,7 +181,7 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 | **Key invariant** | Security boundaries are never relaxed by default |
 | **Anti-pattern** | Only testing the happy path; not testing invalid, expired, or wrong tokens |
 
-### 4.6 Observability (REQ-OBS-*)
+### 5.6 Observability (REQ-OBS-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -172,7 +190,7 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 | **Key invariant** | Algedonic alerts fire at threshold; homeostasis restores after perturbation |
 | **Anti-pattern** | Testing `tracing::info!` output format rather than the observer's behavior |
 
-### 4.7 Persistence (REQ-PER-*)
+### 5.7 Persistence (REQ-PER-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -181,7 +199,7 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 | **Key invariant** | Bitemporal queries return correct results; encrypted storage fails without key |
 | **Anti-pattern** | Testing SQL query strings rather than repository behavior |
 
-### 4.8 Lifecycle (REQ-LIF-*)
+### 5.8 Lifecycle (REQ-LIF-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -190,7 +208,7 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 | **Key invariant** | Forward-only evolution — no rollback paths |
 | **Anti-pattern** | Testing CLI argument parsing in isolation when the real risk is bootstrap ordering |
 
-### 4.9 Curation (REQ-CUR-*)
+### 5.9 Curation (REQ-CUR-*)
 
 | Strategy | Details |
 |----------|---------|
@@ -201,17 +219,17 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 
 ---
 
-## 5. Principle Alignment
+## 6. Principle Alignment
 
-### 5.1 P4 — Clear Boundaries (OCAP)
+### 6.1 P4 — Clear Boundaries (OCAP)
 
 Invariants at crate boundaries detect **semantic drift** — when a type changes in a way that's type-compatible but behaviorally different. The compiler can't catch this. Property-based tests can. CNS spans (`cns.gas`, `cns.tool.*`) provide runtime verification at every boundary.
 
-### 5.2 P8 — Semantic Grounding
+### 6.2 P8 — Semantic Grounding
 
 Every test verifies an IS claim about system behavior. The CNS span registry (`CnsSpan` in `crates/hkask-types/src/cns.rs`) defines the canonical observability namespace. Test output is traceable to span types.
 
-### 5.3 P9 — Homeostatic Self-Regulation
+### 6.3 P9 — Homeostatic Self-Regulation
 
 **The test suite is a feedback loop.** Under the Good Regulator Theorem (Conant & Ashby, 1970), every good regulator must be a model of the system it regulates. The test suite IS that model.
 

@@ -250,3 +250,49 @@ async fn wallet_store_accessible() {
         assert_eq!(balance.rjoules, 0, "new wallet should have zero balance");
     }
 }
+
+/// \[P2\] Constraining: Affirmative Consent — consolidation_agent_memory enforces consent gate.
+///
+/// Verifies the consent-denial path (ServiceError::ConsentDenied) and that
+/// the consent-granted path proceeds past the consent check to the DB-open stage.
+#[tokio::test]
+async fn consolidate_agent_memory_consent_checks() {
+    let svc = build_test_service().await;
+    let agent_name = "test-agent"; // matches ServiceConfig::in_memory()
+    let target_webid = hkask_types::WebID::for_agent_name(agent_name);
+    let request = hkask_ports::ConsolidationRequest::default();
+
+    // Part 1: consent denied — no consent granted yet
+    let result = svc.consolidate_agent_memory(agent_name, request.clone());
+    assert!(
+        matches!(
+            result,
+            Err(hkask_services::ServiceError::ConsentDenied { .. })
+        ),
+        "should deny consolidation without consent, got {:?}",
+        result
+    );
+
+    // Part 2: grant both memory categories and retry — consent gate should pass.
+    // The DB open will fail (in-memory config has no on-disk DB), producing
+    // a Storage error. This proves the consent gate was satisfied.
+    svc.sovereignty()
+        .grant_consent(
+            &target_webid.to_string(),
+            &hkask_types::DataCategory::EpisodicMemory,
+        )
+        .expect("grant episodic_memory consent");
+    svc.sovereignty()
+        .grant_consent(
+            &target_webid.to_string(),
+            &hkask_types::DataCategory::SemanticMemory,
+        )
+        .expect("grant semantic_memory consent");
+
+    let result = svc.consolidate_agent_memory(agent_name, request);
+    assert!(
+        matches!(result, Err(hkask_services::ServiceError::Storage { .. })),
+        "should proceed past consent check — expected Storage error for nonexistent DB, got {:?}",
+        result
+    );
+}
