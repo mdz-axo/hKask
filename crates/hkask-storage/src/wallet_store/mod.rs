@@ -9,10 +9,12 @@
 
 pub(crate) mod types;
 pub(crate) use types::*;
+pub(crate) use helpers::*;
 
 pub mod api_key;
 pub mod deposit;
 pub mod encumbrance;
+pub(crate) mod helpers;
 pub mod transaction;
 
 use crate::define_store;
