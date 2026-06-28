@@ -182,11 +182,6 @@ pub struct AgentService {
     /// Wrapped in Mutex because login/reconnect take &mut self.
     matrix_transport: Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>>,
 
-    /// 7R7 receptor supervisor — self-healing lifecycle manager for r7-2 through r7-7.
-    /// Detects receptor task failure, restarts up to 3 times, then degrades gracefully.
-    /// None if receptors couldn't start (missing NuEventStore).
-    pub receptor_supervisor: Option<hkask_communication::listener::ReceptorSupervisor>,
-
     /// Signals CuratorPod activation. Consumed by callers that need to
     /// await curator readiness before accepting requests.
     curator_ready: Option<tokio::sync::oneshot::Receiver<()>>,
@@ -654,13 +649,6 @@ impl AgentService {
         // from the NuEventStore query_algedonic results — no separate watcher needed.
         // See curator/curation_loop.rs for the integrated push.
 
-        // ── 7R7 CNS-observing receptors (r7-2 through r7-7) ────────────
-        let receptor_supervisor = self::matrix::build_and_start_receptors(
-            Arc::clone(&foundation.gas_event_store),
-            Arc::clone(&foundation.cns_event_sink),
-        )
-        .await;
-
         // Spawn Matrix registration retry loop — retries pending pod Matrix
         // registrations with exponential backoff for self-healing.
         if let Some(url) = mcp_pods
@@ -703,7 +691,6 @@ impl AgentService {
             agent_registry_store: reg_wallet.agent_registry_store,
             user_store: foundation.user_store,
             daemon_handler: mcp_pods.daemon_handler,
-            receptor_supervisor: Some(receptor_supervisor),
             matrix_transport,
             curator_ready: Some(mcp_pods.curator_ready),
             seam_watcher: foundation.seam_watcher,

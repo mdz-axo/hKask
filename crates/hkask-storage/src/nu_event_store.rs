@@ -229,35 +229,6 @@ impl NuEventStore {
         let events = collect_rows!(stmt, param_refs.as_slice(), row_to_nu_event);
         Ok(events)
     }
-
-    /// Query events by span category prefix (e.g., "variety." matches "variety.observed").
-    ///
-    /// Used by 7R7 receptors (r7-2 through r7-7) to observe CNS activity in their
-    /// respective domains. Unlike `query_algedonic`, this queries ALL span categories.
-    ///
-    /// expect: "The system provides durable storage for event data"
-    /// [P9] Motivating: Homeostatic Self-Regulation — query CNS events by domain prefix
-    /// pre:  prefix is a short_name prefix (e.g. "variety.", "algedonic.")
-    /// post: returns events with span_category LIKE 'prefix%', ordered by timestamp ASC
-    pub fn query_by_prefix(
-        &self,
-        prefix: &str,
-        since: chrono::DateTime<chrono::Utc>,
-        limit: u64,
-    ) -> Result<Vec<NuEvent>, InfrastructureError> {
-        let conn = self.lock_conn()?;
-        let since_str = since.to_rfc3339();
-        let like_pattern = format!("{}%", prefix);
-        let sql =
-            "SELECT id, timestamp, observer_webid, span_category, span_path, phase,              observation, regulation, outcome, recursion_depth, parent_event, visibility              FROM nu_events              WHERE timestamp > ? AND span_category LIKE ? AND phase = 'act'              ORDER BY timestamp ASC              LIMIT ?";
-        let mut stmt = conn.prepare(sql)?;
-        let events = collect_rows!(
-            stmt,
-            rusqlite::params![since_str, like_pattern, limit as i64],
-            row_to_nu_event
-        );
-        Ok(events)
-    }
 }
 
 /// Reconstruct a NuEvent from a database row.
